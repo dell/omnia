@@ -25,23 +25,23 @@
     dest: "/install{{ repo_store_path }}"
     state: link
 
-- name: Remove existing /tmp/repos directory
+- name: Remove existing {{ syncfiles_dir }}/repos directory # noqa: name[template]
   ansible.builtin.file:
     path: "{{ temp_dir_repo }}"
     state: absent
 
-- name: Create /tmp/repos directory
+- name: Create {{ syncfiles_dir }}/repos directory # noqa: name[template]
   ansible.builtin.file:
     path: "{{ temp_dir_repo }}"
     state: directory
     mode: "{{ dir_permission }}"
 
-- name: Remove existing /tmp/conf directory
+- name: Remove existing {{ syncfiles_dir }}/conf directory # noqa: name[template]
   ansible.builtin.file:
     path: "{{ temp_conf_repo }}"
     state: absent
 
-- name: Create /tmp/conf directory
+- name: Create {{ syncfiles_dir }}/conf directory # noqa: name[template]
   ansible.builtin.file:
     path: "{{ temp_conf_repo }}"
     state: directory

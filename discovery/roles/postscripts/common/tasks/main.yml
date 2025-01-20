@@ -20,17 +20,17 @@
     MANPATH: "{{ xcat_manpath_env }}"
     PERL_BADLANG: "{{ perl_badlang_env }}"
   block:
-    - name: Include vars for {{ control_plane_os }}
-      ansible.builtin.include_vars: "{{ role_path }}/../{{ control_plane_os }}/vars/main.yml"
+    - name: Include vars for {{ oim_os }}
+      ansible.builtin.include_vars: "{{ role_path }}/../{{ oim_os }}/vars/main.yml"
 
-    - name: Configure postscripts on {{ control_plane_os }}
-      ansible.builtin.include_tasks: "{{ role_path }}/../{{ control_plane_os }}/tasks/main.yml"
+    - name: Configure postscripts on {{ oim_os }}
+      ansible.builtin.include_tasks: "{{ role_path }}/../{{ oim_os }}/tasks/main.yml"
 
     - name: Check all node group status
       ansible.builtin.include_tasks: check_nodes_all.yml
 
     - name: Configuration of postbootscripts
-      ansible.builtin.include_tasks: "{{ role_path }}/../{{ control_plane_os }}/tasks/configure_postbootscripts.yml"
+      ansible.builtin.include_tasks: "{{ role_path }}/../{{ oim_os }}/tasks/configure_postbootscripts.yml"
       when: all_node_status
 
     - name: Configuration of postscripts

@@ -15,7 +15,6 @@
 
 kserve_directory: "/opt/omnia/kserve"
 istio_tar_file_name: "istio"
-istio_version: "1.17.0"
 istio_tar_file_location: "{{ kserve_directory }}/{{ istio_tar_file_name }}.tar.gz"
 
 manifest_folder_name: "kserve_manifest"
@@ -66,6 +65,9 @@ wait_msg_kserve_pods_bringing_up: "Waiting for pods to come to active state"
 fail_inv_format: "Both 'kube_control_plane' and 'kube_node' groups should be defined in inventory"
 fail_node_kube_control_plane: "Single node should be part of kube_control_plane group in inventory"
 fail_no_node_kube_node: "No node is part of kube_node group in inventory"
+kserve_empty_inventory_fail_msg: >
+ "Failed. Inventory not provided.
+  Please re-run the playbook with an inventory that includes the groups 'kube_control_plane' and 'kube_node' by using the -i inventory option"
 
 kserve_deployment_warning: "Warning! Please review the deployment. There are non-running pods under namespace :"
 kserve_deployment_success: "kserve successfully deployed with all pods in running state."

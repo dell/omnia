@@ -16,10 +16,10 @@
 # vars file for test_accelerator.yml file
 
 input_params_folder: "../input_params"
-Control_plane_dir: "../"
-Accelerator_validation_script_path: test_accelerator_validation.yml 
+oim_dir: "../"
+Accelerator_validation_script_path: test_accelerator_validation.yml
 Accelerator_vars_file_path: /test_vars/test_accelerator_vars.yml
-inventory: ../inventory 
+inventory: ../inventory
 accelerator_inventory: ../inventory
 
 ROCm_Default_version: "5.1"

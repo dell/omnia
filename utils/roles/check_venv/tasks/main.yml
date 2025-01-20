@@ -1,0 +1,64 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check virtual ENV
+  ansible.builtin.set_fact:
+    venv_path: "{{ lookup('ansible.builtin.env', 'VIRTUAL_ENV') }}"
+
+- name: Determine if venv is active
+  ansible.builtin.set_fact:
+    is_venv_active: "{{ venv_path is defined and venv_path | length > 0 }}"
+
+- name: Fail if VIRTUAL_ENV is not set
+  ansible.builtin.fail:
+    msg: "{{ venv_active_fail_msg }}"
+  when: not is_venv_active
+
+- name: Check if venv is created by omnia
+  ansible.builtin.stat:
+    path: "{{ venv_path }}/.omnia"
+  register: omnia_file
+
+- name: Set fact if its created by omnia
+  ansible.builtin.set_fact:
+    omnia_file_exists: "{{ omnia_file.stat.exists }}"
+  when: is_venv_active
+
+- name: Fail if its not created by omnia
+  ansible.builtin.fail:
+    msg: "{{ venv_not_by_omnia_fail_msg }} "
+  when: is_venv_active and not omnia_file_exists
+
+- name: Set fact omnia collection path
+  ansible.builtin.set_fact:
+    omnia_collection_path: "{{ lookup('ansible.builtin.config', 'COLLECTIONS_PATHS') }}"
+
+- name: Check if omnia collection path matches venv path
+  ansible.builtin.set_fact:
+    path_match: "{{ omnia_collection_path[0] == venv_path }}"
+
+- name: Warning if collection path does not match venv path
+  ansible.builtin.debug:
+    msg: "{{ collections_path_not_match_waring_msg }}"
+  when: not path_match
+
+- name: Installed ansible collection path
+  ansible.builtin.debug:
+    msg: "{{ installed_ansible_collections_path_info_msg }}"
+
+- name: Playbook is running inside omnia created venv
+  ansible.builtin.debug:
+    msg: "{{ venv_active_success_msg }}"
+  when: is_venv_active and omnia_file_exists

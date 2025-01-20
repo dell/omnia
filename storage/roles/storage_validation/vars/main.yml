@@ -64,6 +64,10 @@ nfs_client_support_failure_msg: "Failed. Its mandatory to configure NFS during o
 Please provide required inputs in nfs_client_params of storage_config.yml"
 slurm_share_on_ubuntu_warning_msg: "[Warning] Slurm_share is set to true, Note ubuntu doesn't support slurm. However, nfs share will be created."
 compute_os_ubuntu: "ubuntu"
+oim_nfs_server_warning_msg: |
+  "In storage_config.yml, under the nfs_client_params variable, server_ip is set to localhost/{{ admin_nic_ip }} and nfs_server is set to true.
+  The NFS server will be set up on the Omnia Infrastructure Manager using the admin NIC IP address {{ admin_nic_ip }}.
+  The playbook logs will contain the NFS server setup details for the Omnia Infrastructure Manager with IP {{ admin_nic_ip }}."
 
 # Usage: fetch_beegfs_inputs.yml, fetch_nfs_client_params.yml
 ping_msg: "100% packet loss"
@@ -87,7 +91,7 @@ nfs_client_params_benchmarks_success_msg: "Entry found in nfs_client_params with
 
 # Usage: include_provision_metadata.yml
 provision_metadata_path: "/opt/omnia/.data/metadata.yml"
-metadata_missing_fail_msg: "Failed. Missing /opt/omnia/.data/metadata.yml in control plane.
+metadata_missing_fail_msg: "Failed. Missing /opt/omnia/.data/metadata.yml in Omnia Infrastructure Manager.
 Run discovery_provision.yml before executing omnia.yml/storage.yml playbook for creating metdata.yml file."
 
 # Usage: k8s_validations.yml

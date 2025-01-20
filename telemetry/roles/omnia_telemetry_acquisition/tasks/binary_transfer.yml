@@ -12,18 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Create telemetry directory on nodes
   ansible.builtin.file:
     path: "{{ omnia_telemetry_dest }}"
     state: directory
     mode: "{{ directory_permissions }}"
 
+- name: Get MD5 checksum of local binary
+  ansible.builtin.stat:
+    path: "{{ binary_files_path }}"
+    checksum_algorithm: md5
+  register: local_binary_stat
+  delegate_to: localhost
+  changed_when: false
+
+- name: Check if binary exists and get MD5 checksum on compute nodes
+  ansible.builtin.stat:
+    path: "{{ omnia_telemetry_dest }}/omnia_telemetry"
+    checksum_algorithm: md5
+  register: remote_binary_stat
+  changed_when: false
+
+- name: Determine if binary needs to be transferred
+  ansible.builtin.set_fact:
+    transfer_required: >-
+      {{
+        (remote_binary_stat.stat.exists and
+         local_binary_stat.stat.checksum != remote_binary_stat.stat.checksum)
+        or
+        (not remote_binary_stat.stat.exists)
+      }}
+
 - name: Transfer all binaries to compute nodes
   ansible.builtin.copy:
     src: "{{ binary_files_path }}"
     dest: "{{ omnia_telemetry_dest }}"
-    force: false
+    force: true
     owner: root
     group: root
     mode: "{{ binary_mode }}"
+  when: transfer_required

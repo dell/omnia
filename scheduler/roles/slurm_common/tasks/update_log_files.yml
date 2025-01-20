@@ -26,6 +26,10 @@
     uid: "{{ slurm_uid }}"
     group: slurm
   tags: install
+  retries: "{{ retry_count }}"
+  delay: "{{ time_delay }}"
+  until: result is succeeded  # Retry until the task succeeds
+  register: result       # Register the result for checking
 
 - name: Create slurm log directory
   ansible.builtin.file:

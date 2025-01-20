@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -22,4 +22,15 @@ os_ubuntu: "ubuntu"
 
 # Used: amd_rhel.yml
 rocm_packages:
-  - "rocm-hip-sdk{{ hostvars['127.0.0.1']['rocm_version'] }}*"
+  - "rocm"
+warning_time: 10
+rocm_warning_msg: "Unable to install ROCM on {{ ansible_host }} node. ROCm repository not configured on the node.
+Run local_repo.yml with rocm software stack in software_config or ROCm repo in user_repo_url."
+file_permission: "0644"
+linker_dest_path: "/etc/ld.so.conf.d/rocm.conf"
+
+# Used: amd_ubuntu.yml
+local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
+rocm_prefrence_dst: "/etc/apt/preferences.d/rocm-pin-600"
+rocm_prefrence_src: "rocm_preferences_ubuntu.j2"
+prefrence_file_mode: '0644'

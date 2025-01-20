@@ -18,7 +18,8 @@
 # If nothing is specified, select_column_name will take all attribute
 # Default Example: select * from example.xyz "
 # If we have values in show_column_list attributes
-# Accepted show_column_list: "id,service_tag,node,hostname,admin_mac,admin_ip,bmc_ip,status,discovery_mechanism,bmc_mode,switch_ip,switch_name,switch_port,cpu,gpu,cpu_count,gpu_count"
+# Accepted show_column_list: "id,service_tag,node,hostname,admin_mac,admin_ip,bmc_ip,status,>
+# discovery_mechanism,bmc_mode,switch_ip,switch_name,switch_port,cpu,gpu,cpu_count,gpu_count"
 # Below Example: select `show_column_list` from example.xyz "
 show_column_list: ""
 

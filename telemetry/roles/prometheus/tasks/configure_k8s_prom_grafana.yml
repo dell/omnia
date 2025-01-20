@@ -27,7 +27,7 @@
   block:
     - name: Create prometheus datasource in grafana
       community.grafana.grafana_datasource:
-        name: control-plane-prometheus
+        name: oim-node-prometheus
         grafana_url: "http://{{ grafana_svc_ip.stdout }}:{{ grafana_svc_port.stdout }}"
         grafana_user: "{{ grafana_username }}"
         grafana_password: "{{ grafana_password }}"

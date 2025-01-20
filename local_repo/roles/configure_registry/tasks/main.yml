@@ -16,6 +16,10 @@
 - name: Include vars for {{ ansible_distribution | lower }}
   ansible.builtin.include_vars: "{{ role_path }}/vars/{{ ansible_distribution | lower }}.yml"
 
+- name: Configure environment variables
+  ansible.builtin.include_tasks: set_environment.yml
+  when: proxy_status
+
 - name: Include pre-requisites
   ansible.builtin.include_tasks: pre_requisites_{{ ansible_distribution | lower }}.yml
 

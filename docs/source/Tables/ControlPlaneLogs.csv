@@ -3,7 +3,7 @@ Omnia Logs,/var/log/omnia.log,Omnia Log,"This log is configured by Default. This
 
 .. Note:: User can view the combined logs for ``discovery_provision.yml`` and ``omnia.yml`` execution in ``omnia.log`` file."
 Accelerator Logs,/var/log/omnia/accelerator.log,Accelerator Log,This log is configured by Default.
-Monitor Logs,/var/log/omnia/monitor.log,Monitor Log,This log is configured by Default.
+kubespray_telemetry Logs,/var/log/omnia/kubespray_omnia.log,Kubespray Telemetry Log,This log is configured by Default.
 Network Logs,/var/log/omnia/network.log,Network Log,This log is configured by Default.
 Platform Logs,/var/log/omnia/platforms.log,Platform Log,This log is configured by Default.
 Provision Logs,/var/log/omnia/provision.log,Provision Log,This log is configured by Default.
@@ -27,3 +27,13 @@ DNF logs,/var/log/dnf.log,Installation Logs,This log is configured on Rocky OS.
 BeeGFS Logs,/var/log/beegfs-client.log,BeeGFS Logs,This log is configured on BeeGFS client nodes.
 Compute Logs,/var/log/xcat/computes.log,Logs system messages from all cluster nodes.,This log is configured by Default.
 Cluster deployment logs,/var/log/xcat/cluster.log,Logs deployment  messages from all cluster nodes.,This log is configured by Default.
+Server Network Logs,/var/log/omnia/server_spec_update.log,Server network log,This log is configured by Default.
+Local Repository Logs,/var/log/omnia/local_repo.log,Local repository log,This log is configured by Default.
+Discovery Logs,/var/log/omnia/discovery.log,Discovery log,This log is configured by Default.
+Prepare control plane Logs,/var/log/omnia/prepare_cp.log,Preparing control plane log,This log is configured by Default.
+Tools Logs,/var/log/omnia/tools.log,Tools log,This log is configured by Default.
+Upgrade Logs,/var/log/omnia/upgrade.log,Upgrade log,This log is configured by Default.
+IP Rule Assignment Logs,/var/log/omnia/ip_rule_assignment.log,IP rule assignment log,This log is configured by Default.
+Software Update Logs,/var/log/omnia/software_update.log,Software update log,This log is configured by Default.
+Performance Profile Logs,/var/log/omnia/performance_profile.log,Peformance profile log,This log is configured by Default.
+Benchmark Logs,/var/log/omnia/benchmarks.log,Benchmark messages log ,This log is configured by Default.

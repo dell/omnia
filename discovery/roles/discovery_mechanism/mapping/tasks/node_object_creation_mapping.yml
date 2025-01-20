@@ -18,7 +18,7 @@
     mapping_bmc_node_group: "mapping_bmc"
 
 - name: Fetch all node object list
-  ansible.builtin.command: lsdef all -i mac
+  ansible.builtin.command: "{{ xcat_path }}/lsdef all -i mac"
   changed_when: false
   failed_when: false
   register: node_mac_list
@@ -30,7 +30,7 @@
 
 - name: Create node object from mapping file provided by user
   ansible.builtin.shell: >
-    mkdef -t node "{{ mapping_file_output.list[idx1].HOSTNAME.split('.')[0] }}" groups={{ mapping_node_group }},all
+    {{ xcat_path }}/mkdef -t node "{{ mapping_file_output.list[idx1].HOSTNAME.split('.')[0] }}" groups={{ mapping_node_group }},all
     ip="{{ mapping_file_output.list[idx1].ADMIN_IP | trim }}" mac="{{ mapping_file_output.list[idx1].ADMIN_MAC | trim }}"
     hostnames="{{ mapping_file_output.list[idx1].HOSTNAME | trim }}" serial="{{ mapping_file_output.list[idx1].SERVICE_TAG | trim }}"
     netboot=xnba arch=x86_64  -f
@@ -44,7 +44,7 @@
 
 - name: Create node object from mapping file provided by user
   ansible.builtin.shell: >
-    mkdef -t node "{{ mapping_file_output.list[idx1].HOSTNAME.split('.')[0] }}" groups={{ mapping_node_group }},{{ mapping_bmc_node_group }},all
+    {{ xcat_path }}/mkdef -t node "{{ mapping_file_output.list[idx1].HOSTNAME.split('.')[0] }}" groups={{ mapping_node_group }},{{ mapping_bmc_node_group }},all
     ip="{{ mapping_file_output.list[idx1].ADMIN_IP | trim }}" bmc="{{ mapping_file_output.list[idx1].BMC_IP | trim }}" mgt=ipmi
     mac="{{ mapping_file_output.list[idx1].ADMIN_MAC | trim }}" serial="{{ mapping_file_output.list[idx1].SERVICE_TAG | trim }}"
     hostnames="{{ mapping_file_output.list[idx1].HOSTNAME | trim }}" netboot=xnba arch=x86_64  -f

@@ -13,6 +13,12 @@
 # limitations under the License.
 ---
 
+- name: Validate software_config subgroups
+  ansible.builtin.assert:
+    that:
+      - item.name in subgroup_software_list[subgroup_software_name]
+    fail_msg: "Failed. Invalid software name: '{{ item.name }}' in subgroup '{{ subgroup_software_name }}'. {{ subgroup_software_name_fail_msg }}"
+  with_items: "{{ subgroup.value }}"
 
 - name: Update software versions from software_config.json '{{ subgroup_software_name }}'
   ansible.builtin.set_fact:

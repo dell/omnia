@@ -43,6 +43,7 @@
       ansible.builtin.command: "{{ item + ' -y' }}"
       with_items: "{{ missing_packages }}"
       when: missing_packages | default("", true) | length > 0
+      changed_when: false
 
     - name: Message to user
       ansible.builtin.fail:
@@ -78,7 +79,7 @@
 - name: Check IB nic availability
   block:
     - name: Check IB nic status
-      ansible.builtin.shell: "ip a | grep -o ' ib.'"
+      ansible.builtin.shell: "ip a | grep -o ' ib.'" # noqa: risky-shell-pipe
       changed_when: false
       register: ib_nics
 

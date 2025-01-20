@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 - name: Fetch default networks table entries
   block:
     - name: Fetch default network table entries
-      ansible.builtin.command: lsdef -t network
+      ansible.builtin.command: "{{ xcat_path }}/lsdef -t network"
       changed_when: false
       register: default_network
   rescue:
@@ -30,7 +30,7 @@
         - xcatd
 
     - name: Fetch default network table entries
-      ansible.builtin.command: lsdef -t network
+      ansible.builtin.command: "{{ xcat_path }}/lsdef -t network"
       changed_when: false
       register: default_network
 
@@ -41,46 +41,52 @@
 
 - name: Configure site table
   ansible.builtin.shell: >
-    chdef -t site dhcpinterfaces="{{ pxe_nic }}" master="{{ pxe_nic_ip }}" dhcplease="{{ default_lease_time }}"
+    {{ xcat_path }}/chdef -t site dhcpinterfaces="{{ pxe_nic }}" master="{{ pxe_nic_ip }}" dhcplease="{{ default_lease_time }}"
     timezone="{{ timezone }}" forwarders="" nameservers=""
   changed_when: true
 
-- name: Make node object for control plane
+- name: Configure forwarders in site table
+  ansible.builtin.shell: >
+    {{ xcat_path }}/chdef -t site forwarders="{{ pxe_nic_forwarders }}"
+  changed_when: true
+
+- name: Make node object for Omnia Infrastructure Manager
   ansible.builtin.command: >-
-    mkdef -t node control_plane groups=control_plane mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} bmc={{ bmc_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
+    {{ xcat_path }}/mkdef -t node oim groups=oim mgt=ipmi cons=ipmi ip={{ admin_nic_ip }}
+    bmc={{ bmc_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
   changed_when: false
   failed_when: false
   when: network_interface_type == "lom"
 
-- name: Make node object for control plane
+- name: Make node object for Omnia Infrastructure Manager
   ansible.builtin.command: >-
-    mkdef -t node control_plane groups=control_plane mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
+    {{ xcat_path }}/mkdef -t node oim groups=oim mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
   changed_when: false
   failed_when: false
   when: network_interface_type == "dedicated"
 
 - name: Update the site table
   ansible.builtin.shell: >
-    chdef -t site excludenodes="control_plane"
+    {{ xcat_path }}/chdef -t site excludenodes="oim"
   changed_when: true
 
 - name: Configure site table
-  ansible.builtin.command: chdef -t site nameservers="{{ pxe_nic_ip }}"
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t site nameservers=\"{{ pxe_nic_ip }}\""
   changed_when: true
 
 - name: Configure domain in site table
-  ansible.builtin.command: chdef -t site domain="{{ domain_name }}"
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t site domain=\"{{ domain_name }}\""
   changed_when: true
 
 - name: Configure system password
   ansible.builtin.shell: >
-    chtab key=system passwd.username=root passwd.password=`openssl passwd -1 {{ provision_password }}`
+    {{ xcat_sbin_path }}/chtab key=system passwd.username=root passwd.password=`openssl passwd -1 {{ provision_password }}`
   changed_when: true
   no_log: true
 
 - name: Configure admin_network in networks table
   ansible.builtin.shell: >
-    chdef -t network -o admin_network net={{ pxe_nic_subnet }} mask={{ pxe_nic_netmask }} mgtifname={{ pxe_nic }}
+    {{ xcat_path }}/chdef -t network -o admin_network net={{ pxe_nic_subnet }} mask={{ pxe_nic_netmask }} mgtifname={{ pxe_nic }}
     gateway={{ pxe_nic_ip }} dhcpserver={{ pxe_nic_ip }} tftpserver={{ pxe_nic_ip }} staticrange="{{ pxe_nic_start_range }}-{{ pxe_nic_end_range }}"
     dynamicrange="{{ pxe_nic_dynamic_start_range }}-{{ pxe_nic_dynamic_end_range }}" mtu={{ network_data.admin_network.MTU }}
   changed_when: true
@@ -88,7 +94,7 @@
 
 - name: Configure admin_network in networks table
   ansible.builtin.shell: >
-    chdef -t network -o admin_network net={{ pxe_nic_subnet }} mask={{ pxe_nic_netmask }} mgtifname={{ pxe_nic }}
+    {{ xcat_path }}/chdef -t network -o admin_network net={{ pxe_nic_subnet }} mask={{ pxe_nic_netmask }} mgtifname={{ pxe_nic }}
     gateway={{ pxe_nic_ip }} dhcpserver={{ pxe_nic_ip }} tftpserver={{ pxe_nic_ip }}
     staticrange="{{ pxe_nic_start_range }}-{{ pxe_nic_end_range }}" mtu={{ network_data.admin_network.MTU }}
   changed_when: true

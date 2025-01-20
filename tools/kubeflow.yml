@@ -16,6 +16,20 @@
   ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
   when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
 
+- name: Validate Inventory for Kubeflow
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Set flag to indicate check_venv.yml has been executed
+      ansible.builtin.set_fact:
+        check_venv_executed: true
+
+    - name: Validate Inventory for Kubeflow
+      ansible.builtin.include_role:
+        name: kubeflow
+        tasks_from: validate_inventory.yml
+
 - name: Initialize Variables
   gather_facts: true
   hosts: kube_control_plane, kube_node

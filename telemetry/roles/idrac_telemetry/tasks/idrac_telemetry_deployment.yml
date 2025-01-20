@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -100,10 +100,14 @@
                     value: mysqldb
                   - name: MYSQL_HOST_PORT
                     value: "{{ mysqldb_port1 }}"
+                  - name: HTTP_PROXY
+                    value: "{{ proxy[0].http_proxy | default('', true) }}"
+                  - name: HTTPS_PROXY
+                    value: "{{ proxy[0].https_proxy | default('', true) }}"
                 command:
                   - "/bin/sh"
                   - "-c"
-                args: ["./cmd/idrac-telemetry-receiver.sh"]
+                args: ["./scripts/example/idrac-telemetry-receiver.sh"]
 
               - name: timescale-ingester
                 image: golang:1.17
@@ -131,6 +135,10 @@
                     value: timescale
                   - name: TIMESCALE_DB
                     value: "{{ timescaledb_name }}"
+                  - name: HTTP_PROXY
+                    value: "{{ proxy[0].http_proxy | default('', true) }}"
+                  - name: HTTPS_PROXY
+                    value: "{{ proxy[0].https_proxy | default('', true) }}"
                 command:
                   - "/bin/sh"
                   - "-c"

@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
 # limitations under the License.
 ---
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # This variable is used to enable iDRAC telemetry support
 # Accepted values:  true or false
@@ -32,9 +32,24 @@ omnia_telemetry_support: false
 # Accepted values:  true or false
 visualization_support: false
 
+# This variable signifies support for k8s metric collection and Kube Prometheus deployment on kube_control_plane
+# Accepted values:  true or false
+k8s_prometheus_support: false
+
+# This variable denotes the time interval for prometheus to collect metrics for targets
+# This variable accepts input in seconds
+# Default value is 15
+prometheus_scrape_interval: 15
+
+# This variable signifies the support for Intel Gaudi habana Metric collection using Gaudi Prometheus metric exporter.
+# k8s_prometheus_support must be true for this metric support.
+# prometheus_gaudi_support is only available for cluster_os_type: ubuntu and cluster_os_version: 22.04 in software_config.json
+# Accepted values:  true or false
+prometheus_gaudi_support: false
+
 ##### BELOW VARIABLES ARE MANDATORY IF telemetry ENTRY is PRESENT in software_config.json AND EITHER idrac_telemetry_support OR omnia_telemetry_support OR visualization_support IS true
-###-----CONFIGURATIONS FOR KUBERNETES ON CONTROL PLANE FOR TELEMETRY SUPPORT------
-# These addresses will be used by Loadbalancer for assigning External IPs to K8s services running on control plane
+# ##-----CONFIGURATIONS FOR KUBERNETES ON Omnia Infrastructure Manager FOR TELEMETRY SUPPORT------
+# These addresses will be used by Loadbalancer for assigning External IPs to K8s services running on Omnia Infrastructure Manager
 # Make sure the IP range is not assigned to any node in the cluster.
 # If admin_nic network provided in network_spec.yml is in 10.11.0.0 network, then pod_external_ip_range should be in same netwwork like "10.11.0.60-10.11.0.70"
 # Acceptable formats: "10.11.0.100-10.11.0.150" , "10.11.0.0/16"
@@ -47,7 +62,7 @@ pod_external_ip_range: ""
 # Default value assigned is "calico".
 k8s_cni: "calico"
 
-###------ADVANCE CONFIGURATIONS FOR KUBERNETES------
+# ##------ADVANCE CONFIGURATIONS FOR KUBERNETES------
 # Kubernetes internal network for services.
 # This network must be unused in your network infrastructure.
 # Default value is "10.233.0.0/18"

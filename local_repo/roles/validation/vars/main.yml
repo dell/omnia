@@ -15,10 +15,15 @@
 
 # Usage: main.yml
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+var_mount_percentage_limit: 80
+var_mount_overuse_msg: |
+  [WARNING] local_repo.yml may fail as /var mount usage has exceeded the limit of {{ var_mount_percentage_limit }}%.
+  Current usage: {{ var_mount_use_percentage.stdout }}%.
+  This could result in failures when downloading large packages or images.
+
+  For OMNIA disk spaces requirements follow : https://omnia-doc.readthedocs.io/en/latest
 
 # Usage: prerequisites_redhat.yml, prerequisites_ubuntu.yml
-community_general_collection: community.general:4.8.7
-community_crypto_collection: community.crypto:2.14.0
 max_retries: 10
 yum_repos_path: "/etc/yum.repos.d"
 yum_conf_path: "/etc/yum.conf"
@@ -26,23 +31,30 @@ jq_package: jq
 repo_pkgs:
   - createrepo
   - yum-utils
-python_version: python3.9
+  - wget
+  - unzip
+  - tar
+python_version: "{{ ansible_python_interpreter }}"
 python_package:
   - requests==2.31.0
   - pyopenssl==21.0.0
   - urllib3==1.26.5
-# Usage: validate_cp_os.yml
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
-control_plane_os_ubuntu: "ubuntu"
-control_plane_os_fail_msg: "Failed. Control plane OS should be RHEL, Rocky or Ubuntu."
+  - distro==1.9.0
+dpkg_package: "dpkg-dev"
+apt_conf_dest: /etc/apt/apt.conf
+
+# Usage: validate_oim_os.yml
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
+oim_os_fail_msg: "Failed. Omnia Infrastructure Manager OS should be RHEL, Rocky or Ubuntu."
 root_user_name: "root"
 user_fail_msg: "Failed. Omnia playbooks should run as root user."
 warning_wait_time_warning: 15
 warning_msg_local_repo: "[WARNING] Omnia will remove any package/software conflicting with the requirements."
 
 # Usage: validate_software_config_json.yml
-software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+sw_config_json_path: "{{ role_path }}/../../../input/software_config.json"
 fail_msg_software_config_json_file: "software_config.json file doesn't exist."
 software_config_parameters_fail_msg: "Failed. Please ensure cluster_os_type, cluster_os_verion, repo_config, softwares are defined in software_config.json"
 software_config_softwares_fail_msg: "Failed. softwares list cannot be empty in software_config.json. Atleast one software should be defined."
@@ -58,6 +70,7 @@ specific_softwares:
   - 'bcm_roce'
   - 'ucx'
   - 'rocm'
+  - 'intelgaudi'
   - 'intel_benchmarks'
   - 'openmpi'
   - 'bcm_roce_libraries'
@@ -68,7 +81,7 @@ cluster_os_version_fail_msg_rhel: "Failed. The supported values of cluster_os_ve
 cluster_os_version_fail_msg_rocky: "Failed. The supported values of cluster_os_version is 8.6,8.7 and 8.8 when cluster_os_type is rocky"
 cluster_os_version_fail_msg_ubuntu: "Failed. The supported values of cluster_os_version is 20.04 and 22.04 when cluster_os_type is ubuntu"
 repo_config_fail_msg: "Failed. The supported values of repo_config is always, partial and never"
-cross_os_support_fail_msg: "Cross-OS is not supported: control_plane_os '{{ control_plane_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
+cross_os_support_fail_msg: "Cross-OS is not supported: oim_os '{{ oim_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
 valid_cluster_os_type:
   - 'rhel'
   - 'rocky'
@@ -88,6 +101,12 @@ valid_repo_config:
   - 'always'
   - 'partial'
   - 'never'
+
+omnia17_k8s_version: '1.29.5'
+omnia161_k8s_version: '1.26.12'
+success_msg_k8s_version: "Kubernetes Version Validated"
+fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
+kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"  # noqa: yaml[line-length]
 
 # Usage: validate_local_repo_config.yml
 fail_msg_local_repo_config_file: "local_repo_config.yml file doesn't exist."
@@ -111,6 +130,9 @@ deb_dir_path: "{{ repo_store_path }}/cluster/{{ cluster_os_type }}/{{ cluster_os
 user_registry_fail_msg: "Failed. Please ensure user_registry is non empty list and
 check if there is any indentation error in input/local_repo_config.yml"
 user_registry_fail_host_cert_path_msg: "Failed. Each item in user_registry should have 'host' and 'cert_path' keys defined"
+time_out: 30
+user_registry_msg: "The following user registries are not reachable: [{{ unreachable_registries | join(', ') }}]. If the user registry is not accessible from the Omnia Infrastructure Manager, Omnia will download all the images for the software listed in software_config.json."   # noqa: yaml[line-length]
+cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the Omnia Infrastructure Manager for host {{ item.item.host }}. Please verify that correct cert_path is given in input/local_repo_config.yml"  # noqa: yaml[line-length]
 
 # Usage: validate_user_repo_url.yml
 user_repo_url_fail_msg: "Failed. Please ensure user_repo_url is proper and should not have jinja variables.
@@ -134,6 +156,26 @@ manifest_properties_fail_msg: "Missing required properties for an item of type '
 shell_properties_fail_msg: "Missing required properties for an item of type 'shell' in the JSON file '{{ file_basename }}.json'."
 iso_properties_fail_msg: "Missing required properties for an item of type 'iso' in the JSON file '{{ file_basename }}.json'."
 validation_failure_msg: "Validation failed for JSON file: {{ json_file.path }}. Please ensure all properties are defined in all items based on type"
+subgroup_software_list:
+  bcm_roce:
+    - 'bcm_roce_libraries'
+  amdgpu:
+    - 'rocm'
+  intelgaudi:
+    - 'intel'
+  vllm:
+    - 'vllm_amd'
+    - 'vllm_nvidia'
+  pytorch:
+    - 'pytorch_cpu'
+    - 'pytorch_amd'
+    - 'pytorch_nvidia'
+    - 'pytorch_gaudi'
+  tensorflow:
+    - 'tensorflow_cpu'
+    - 'tensorflow_amd'
+    - 'tensorflow_nvidia'
+subgroup_software_name_fail_msg: "Please ensure valid software names are defined in subgroups in the software_config.json file."
 
 # Usage: validate_ubuntu_os_url.yml
 url_format_fail_msg: "Failed. Invalid format for ubuntu_os_url.
@@ -192,3 +234,16 @@ subgroup_warning_msg: "bcm_roce_libraries attribute is not mentioned in the bcm_
  so bcm_roce_libraries will not be installed on the nodes post provisioning."
 bcm_roce_libraries_warning_msg: "bcm_roce_libraries object not found in bcm_roce.json,
  so bcm_roce_libraries will not be installed during post provisioning."
+
+# Usage: validate_domain_name.yml
+server_domain_name_blank_msg: "Failed. domain_name is not set in hostname. It should have hostname.domain_name format"
+
+# Usage: validate_site_config.yml
+site_config_file: "{{ role_path }}/../../../input/site_config.yml"
+invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
+proxy_env_fail_msg: "Failed. The values for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in the
+proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the Omnia Infrastructure Manager.
+The no_proxy environment variable should include the Omnia Infrastructure Manager hostname and the admin network IP address."
+update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in Omnia Infrastructure Manager for acccessing internet."
+repo_retries: 5
+repo_delay: 10

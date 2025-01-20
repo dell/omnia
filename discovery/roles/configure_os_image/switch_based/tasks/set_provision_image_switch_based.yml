@@ -16,7 +16,7 @@
 - name: Task for set osimage to node object for switch_based
   block:
     - name: Set osimage to node object for switch_based
-      ansible.builtin.command: chdef {{ switch_based_node_group }} chain="runcmd=bmcsetup,osimage={{ provision_os_image }}"
+      ansible.builtin.command: "{{ xcat_path }}/chdef {{ switch_based_node_group }} chain=\"runcmd=bmcsetup,osimage={{ provision_os_image }}\""
       changed_when: true
       register: set_osimage_switch_based
 

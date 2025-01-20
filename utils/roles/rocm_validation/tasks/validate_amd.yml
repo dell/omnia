@@ -23,8 +23,8 @@
     file: "{{ software_config_json_file }}"
     name: user_config
 
-- name: Include vars for {{ control_plane_os }}
-  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ control_plane_os }}.yml"
+- name: Include vars for {{ oim_os }}
+  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
 
 - name: Get rocm status only if amdgpu present amd_status is true
   ansible.builtin.set_fact:
@@ -41,8 +41,17 @@
     seconds: "{{ warning_time }}"
   when: not rocm_input_status
 
-- name: Set rocm_config_status
+- name: Check if the rocm offline repo exists
+  ansible.builtin.stat:
+    path: "{{ offline_rocm_directory }}/rocm/"
+  register: check_rocm_repo
   when: rocm_input_status
+
+- name: Set rocm_config_status
+  when:
+    - rocm_input_status
+    - user_config.repo_config == 'always' or user_config.repo_config == 'partial'
+    - check_rocm_repo.stat.exists
   block:
     - name: Fetch rocm_version
       ansible.builtin.set_fact:
@@ -67,6 +76,25 @@
       ansible.builtin.set_fact:
         rocm_config_status: true
       when: check_rocm_dir.stat.exists
+  rescue:
+    - name: Warning, rocm version not found
+      ansible.builtin.pause:
+        prompt: "{{ rocm_version_msg }}"
+        seconds: "{{ warning_time }}"
+
+- name: Set rocm_config_status
+  when:
+    - rocm_input_status
+    - user_config.repo_config == 'never' or user_config.repo_config == 'partial'
+    - not check_rocm_repo.stat.exists
+  block:
+    - name: Fetch rocm_version
+      ansible.builtin.set_fact:
+        rocm_version: "{{ user_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
+
+    - name: Set rocm_config_status to true
+      ansible.builtin.set_fact:
+        rocm_config_status: true
   rescue:
     - name: Warning, rocm version not found
       ansible.builtin.pause:

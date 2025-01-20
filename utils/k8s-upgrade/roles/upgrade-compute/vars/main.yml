@@ -13,4 +13,4 @@ upgrade_k8s_packages:
 versionlock_k8s_packages:
   - "kubelet*"
   - "kubectl*"
-  - "kubeadm*" 
+  - "kubeadm*"

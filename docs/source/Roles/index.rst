@@ -8,9 +8,6 @@ Below is a list of all Omnia's features:
 
 .. toctree::
 
-  Security/index
-  Storage/index
-  Accelerator/index
   Utils/index
   Telemetry/index
 

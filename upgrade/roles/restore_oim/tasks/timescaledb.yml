@@ -1,0 +1,130 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if the telemetry_metrics backup file exists
+  ansible.builtin.stat:
+    path: "{{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }}"
+  register: telemetry_backup_file
+
+- name: Print telemetry_backup_file exist
+  ansible.builtin.debug:
+    msg: "backup exist : {{ telemetry_backup_file.stat.exists }}"
+
+- name: Install psycopg2 package
+  ansible.builtin.pip:
+    name: psycopg2-binary
+    state: present
+
+- name: Get external IP of timescaledb service
+  ansible.builtin.command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ telemetry_namespace }}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: timescaledb_service_external_ip
+  failed_when: false
+  changed_when: false
+  when: timescale_pod_status_flag
+
+- name: Check and create the database schemas if backup file exist
+  when:
+    - timescale_pod_status_flag
+    - telemetry_backup_file.stat.exists
+  block:
+    - name: Check if telemetry_metrics database exists before restore
+      ansible.builtin.command: >
+        kubectl exec "{{ timescaledb_pod_name.stdout }}"
+        -n "{{ telemetry_namespace }}"
+        -- psql -U {{ timescaledb_user }} -tc "SELECT 1 FROM pg_database WHERE datname='{{ database_name }}';"
+      register: check_database
+      changed_when: false
+
+    - name: Create telemetry_metrics database for restore
+      ansible.builtin.command: >
+        kubectl exec "{{ timescaledb_pod_name.stdout }}"
+        -n "{{ telemetry_namespace }}"
+        -- psql -U {{ timescaledb_user }} -c "CREATE DATABASE {{ database_name }};"
+      when: check_database.stdout.find('1') == -1  # Create DB only if it doesn't exist
+      register: create_database
+      changed_when: create_database.rc == 0
+
+    - name: Restore telemetry_metrics database from dump
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        kubectl exec -i "{{ timescaledb_pod_name.stdout }}"
+        -n "{{ telemetry_namespace }}"
+        -- psql -U {{ timescaledb_user }} {{ database_name }} -f "{{ timescale_telemetry_backup_file }}"
+      register: restore_database
+      changed_when: restore_database.rc == 0
+
+    - name: Pause for 60 seconds to complete the database restore
+      ansible.builtin.pause:
+        seconds: 60
+
+    - name: Verify metrics in telemetry_metrics database
+      when:
+        - timescale_pod_status_flag is true
+        - idrac_telemetry_pod_status_flag is true
+      block:
+        - name: Count records in timeseries_metrics table
+          ansible.builtin.command: kubectl exec "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_namespace }}" -- psql -d "postgres://{{ timescaledb_user }}:{{ timescaledb_password }}@{{ timescaledb_service_external_ip.stdout }}:5432/{{ database_name }}" -c "SELECT COUNT(*) FROM public.timeseries_metrics;" # noqa: yaml[line-length]
+          register: count_metrics
+          changed_when: false
+
+        - name: Display timescaledb metrics count after restore
+          ansible.builtin.debug:
+            msg: "metrics count {{ count_metrics.stdout | regex_search('\\d+') }}"
+          when: count_metrics.stdout is defined
+
+        - name: Display restore timescaledb status
+          ansible.builtin.debug:
+            msg: "{{ timescaledb_restore_success_msg }}"
+          when: count_metrics.stdout is defined and count_metrics.stdout | regex_search('\\d+')
+
+    - name: Verify metrics in telemetry_metrics database
+      when:
+        - timescale_pod_status_flag is true
+        - idrac_telemetry_pod_status_flag is false
+      block:
+        - name: Count records in timeseries_metrics table
+          ansible.builtin.command: kubectl exec "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_namespace }}" -- psql -d "postgres://{{ timescaledb_user }}:{{ timescaledb_password }}@{{ timescaledb_service_external_ip.stdout }}:5432/{{ database_name }}" -c "SELECT COUNT(*) FROM omnia_telemetry.metrics;" # noqa: yaml[line-length]
+          register: count_metrics
+          changed_when: false
+
+        - name: Display timescaledb metrics count after restore
+          ansible.builtin.debug:
+            msg: "metrics count {{ count_metrics.stdout | regex_search('\\d+') }}"
+          when: count_metrics.stdout is defined
+
+        - name: Display restore timescaledb status
+          ansible.builtin.debug:
+            msg: "{{ timescaledb_restore_success_msg }}"
+          when: count_metrics.stdout is defined and count_metrics.stdout | regex_search('\\d+')
+
+- name: Create the database schemas if backup file does not exist
+  when:
+    - not telemetry_backup_file.stat.exists
+  block:
+    - name: Dump file does not exist , Invoke shell script to create public schema
+      ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_namespace }}" ./cmd/initialize_timescaledb.sh
+      changed_when: false
+      register: status
+      until: status is not failed
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
+
+    - name: Dump file does not exist , Invoke python utility to create schema and table omnia_telemetry schema
+      ansible.builtin.command: |
+        {{ python_version }} {{ db_schema_utility }} {{ timescaledb_user }} {{ timescaledb_password }}
+        {{ timescaledb_service_external_ip.stdout }} {{ timescaledb_container_port }} {{ database_name }}
+      changed_when: false
+      no_log: true
+      when: omnia_telemetry_support

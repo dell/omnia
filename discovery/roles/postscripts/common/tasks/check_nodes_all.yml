@@ -18,7 +18,7 @@
     all_node_status: false
 
 - name: Fetch nodes with group all
-  ansible.builtin.command: lsdef all
+  ansible.builtin.command: "{{ xcat_path }}/lsdef all"
   changed_when: false
   register: check_all_nodes
   failed_when: false

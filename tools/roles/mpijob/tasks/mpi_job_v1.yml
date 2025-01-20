@@ -1,0 +1,54 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Revert to MPIv1 Operator
+  tags: mpiv1
+  block:
+    - name: Get kubeflow CRD information
+      ansible.builtin.shell: kubectl get crd | grep mpijobs.kubeflow.org
+      register: crd_info
+      changed_when: false
+      ignore_errors: true
+
+    - name: Delete existing CRD
+      ansible.builtin.command: kubectl delete crd mpijobs.kubeflow.org
+      when: crd_info.stdout | length > 0
+      changed_when: false
+
+    - name: Install Kubeflow Training Operator
+      ansible.builtin.shell: |
+        set -o pipefail && \
+        cd /opt/omnia/kubeflow/kubeflow && \
+        /opt/omnia/kustomize/kustomize build apps/training-operator/upstream/overlays/kubeflow | kubectl apply -f -
+      register: install_training_operator_result
+      retries: "{{ retry_count }}"
+      delay: "{{ time_delay }}"
+      until: install_training_operator_result.rc == 0
+      changed_when: false
+
+    - name: Verify MPIJob API version
+      ansible.builtin.command: kubectl explain mpijob --api-version=kubeflow.org/v1
+      register: kubectl_explain_output
+      changed_when: false
+
+    - name: Check MPIJob API version
+      ansible.builtin.debug:
+        msg: "{{ v1_success }}"
+      when: kubectl_explain_output.rc == 0
+
+    - name: Fail if MPIJob API version v1 is not present
+      ansible.builtin.fail:
+        msg: "{{ v1_failure }}"
+      when: kubectl_explain_output.rc != 0

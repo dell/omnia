@@ -1,0 +1,19 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_ssh_check:
+#      Wait till SSH services starts
+#
+#################################################################################################################
+echo "Waiting for and SSH services to be ready..." >> /var/log/xcat/xcat.log
+retries=0
+
+until systemctl is-active --quiet ssh.service; do
+    if [ $retries -ge 10 ]; then
+        echo "SSH service did not start after 10 attempts. Exiting." >> /var/log/xcat/xcat.log
+        exit 0
+    fi
+    sleep 15
+    ((retries++))
+done
+
+echo "SSH service is ready." >> /var/log/xcat/xcat.log

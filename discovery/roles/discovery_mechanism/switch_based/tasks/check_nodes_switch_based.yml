@@ -18,7 +18,7 @@
     switch_based_node_status: false
 
 - name: Fetch nodes with group {{ switch_based_node_group }}
-  ansible.builtin.command: lsdef {{ switch_based_node_group }}
+  ansible.builtin.command: "{{ xcat_path }}/lsdef {{ switch_based_node_group }}"
   changed_when: false
   register: check_switch_based_nodes
   failed_when: false

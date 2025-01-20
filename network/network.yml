@@ -17,7 +17,7 @@
   hosts: all
   gather_facts: true
 
-- name: Validate xcat status on control plane
+- name: Validate xcat status on Omnia Infrastructure Manager
   hosts: localhost
   gather_facts: false
   roles:
@@ -47,11 +47,11 @@
         name: mlnx_ofed
         tasks_from: pre-requisites.yml
 
-- name: Setup NFS Server on RedHat control plane if Infiniband Support is present on nodes
+- name: Setup NFS Server on RedHat Omnia Infrastructure Manager if Infiniband Support is present on nodes
   hosts: localhost
   connection: local
   tasks:
-    - name: Setup NFS Server on control plane if Rhel OS is installed on nodes
+    - name: Setup NFS Server on Omnia Infrastructure Manager if Rhel OS is installed on nodes
       ansible.builtin.include_role:
         name: mlnx_ofed
         tasks_from: initiate_nfs_server.yml

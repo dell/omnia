@@ -13,6 +13,27 @@
 # limitations under the License.
 ---
 
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: utils/check_venv.yml
+  when: not ( check_venv_executed | default(false) | bool )
+
+- name: Check if package manager is not locked
+  ansible.builtin.import_playbook: utils/check_package_lock.yml
+  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
+
+- name: Set flag
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Set flag to indicate check_venv.yml has been executed
+      ansible.builtin.set_fact:
+        check_venv_executed: true
+
+    - name: Set flag to indicate check_package_lock.yml has been executed
+      ansible.builtin.set_fact:
+        apt_lock_status: true
+
 - name: Update Inventory with ansible_host information
   ansible.builtin.import_playbook: utils/servicetag_host_mapping.yml
   when: not ( update_inventory_executed | default(false) | bool )
@@ -49,6 +70,12 @@
 
 - name: Import playbook to install ROCm on nodes
   ansible.builtin.import_playbook: utils/rocm_installation.yml
+
+- name: Verify Gaudi nodes
+  ansible.builtin.import_playbook: utils/verify_intel_gaudi/verify_intel_gaudi_installation.yml
+
+- name: Import playbook to set performance profile on nodes with Intel Gaudi accelerator
+  ansible.builtin.import_playbook: utils/performance_profile/performance_profile.yml
 
 - name: Configure security on nodes
   ansible.builtin.import_playbook: security/security.yml

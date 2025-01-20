@@ -10,7 +10,7 @@ def run_cmd(cmd):
 
 
 def get_static_nodes():
-    cmd = f'lsdef -t group -o bmc_static | grep members | sed -n "/members=/s/    members=//p"'
+    cmd = f'/opt/xcat/bin/lsdef -t group -o bmc_static | grep members | sed -n "/members=/s/    members=//p"'
     status, err, out = run_cmd(cmd)
     if status:
         return out.split(',')
@@ -22,7 +22,7 @@ def check_static_nodes(nodelist):
     bmc_list = list()
     for node in nodelist:
         node = node.strip()
-        cmd = f'lsdef {node} -i status -c | sed -n "/{node}: status=/s/{node}: status=//p"'
+        cmd = f'/opt/xcat/bin/lsdef {node} -i status -c | sed -n "/{node}: status=/s/{node}: status=//p"'
         status, err, out = run_cmd(cmd)
         if status:
             if len(out) == 1:

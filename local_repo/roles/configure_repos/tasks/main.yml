@@ -14,4 +14,4 @@
 ---
 
 - name: Configure repos for os
-  ansible.builtin.include_tasks: configure_repos_{{ control_plane_os }}.yml
+  ansible.builtin.include_tasks: configure_repos_{{ oim_os }}.yml

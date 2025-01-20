@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ secrets_name: credentials
 pv_name: timescaledb-storage
 timescaledb_storage: 30Gi
 timescaledb_name: "telemetry_metrics"
+timescaledb_port: "5432"
 pvc_name: timescaledb-storage-claim
 idrac_telemetry_github: https://github.com/dell/iDRAC-Telemetry-Reference-Tools.git
 idrac_telemetry_folder_name: iDRAC-Telemetry-Reference-Tools
@@ -26,5 +27,7 @@ timescaledb_k8s_name: timescaledb
 timescaledb_container_port: 5432
 max_retries: 10
 max_delay: 10
-reference_tools_stable_commit: "0016fcb"
+reference_tools_stable_commit: "9f9c5ef"
 zoneinfo_dir: "/usr/share/zoneinfo/"
+timescaledb_pod_wait_fail_msg: "Execution failed as the timescaledb pods did not start within the expected time.
+Please re-run the playbook after verifying that the timescaledb pods are in running state by executing the command 'kubectl get pods -A.'"

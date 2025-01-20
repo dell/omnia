@@ -13,28 +13,54 @@
 # limitations under the License.
 ---
 
-- name: Validate grafana
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Validate create_idrac_inventory playbook
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: validate_grafana.yml
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: ../utils/check_venv.yml
+  when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
 
-- name: Validate iDRAC inventory
+- name: Add iDRAC node
   hosts: localhost
   connection: local
   tasks:
-    - name: Validate create_idrac_inventory playbook
-      ansible.builtin.include_role:
-        name: common
-        tasks_from: create_idrac_inventory.yml
+    - name: Include vars of iDRAC telemetry role
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/roles/idrac_telemetry/vars/main.yml"
 
-- name: Initiate telemetry for iDRACs
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Initiate telemetry
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/roles/idrac_telemetry/tasks/initiate_telemetry.yml"
+    - name: Set oim_os
+      ansible.builtin.set_fact:
+        oim_os: "{{ ansible_distribution | lower }}"
+
+    - name: Read software config file
+      ansible.builtin.include_role:
+        name: telemetry_validation
+        tasks_from: read_software_config.yml
+
+    - name: Check if telemetry entry is present in software_config.json
+      environment:
+        no_proxy: "{{ groups['idrac'] | join(',') }}"
+      when: telemetry_entry_present
+      block:
+        - name: Validate iDRAC inventory playbook
+          ansible.builtin.include_role:
+            name: telemetry_validation
+            tasks_from: validate_idrac_inventory.yml
+
+        - name: Validate telemetry parameters
+          ansible.builtin.include_role:
+            name: telemetry_validation
+            tasks_from: validate_telemetry_config.yml
+
+        - name: Deploy iDRAC telemetry
+          when: idrac_telemetry_support
+          block:
+            - name: Verify iDRAC telemetry pods are running
+              ansible.builtin.include_role:
+                name: idrac_telemetry
+                tasks_from: install_check.yml
+
+            - name: Fail when iDRAC pods are not running
+              when: install_idrac_telemetry
+              ansible.builtin.fail:
+                msg: "{{ add_idrac_fail_msg }}"
+
+            - name: Initiate telemetry for iDRACs
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/roles/idrac_telemetry/tasks/initiate_telemetry.yml"

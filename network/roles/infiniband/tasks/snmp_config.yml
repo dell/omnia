@@ -14,6 +14,7 @@
 ---
 
 - name: Set parameters for SNMP configuration
+  when: snmp_trap_destination | length > 1
   block:
       - name: Setting parameters for SNMP configuration
         ansible.builtin.set_fact:
@@ -26,4 +27,3 @@
       - name: Configure SNMP on Switch
         ansible.builtin.include_tasks: global_config.yml
         with_items: "{{ snmp_config }}"
-  when: snmp_trap_destination | length > 1

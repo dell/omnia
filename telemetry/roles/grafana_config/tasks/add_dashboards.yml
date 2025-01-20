@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
     grafana_password: "{{ grafana_password }}"
     title: "{{ telemetry_folder_name }}"
     state: present
+    use_proxy: false
   no_log: true
   when: idrac_telemetry_support
 
@@ -32,6 +33,7 @@
     folder: "{{ telemetry_folder_name }}"
     overwrite: true
     path: "{{ item }}"
+    use_proxy: false
   with_items: "{{ idrac_dashboards }}"
   no_log: true
   when: idrac_telemetry_support
@@ -45,6 +47,7 @@
     folder: "{{ telemetry_folder_name }}"
     overwrite: true
     path: "{{ item }}"
+    use_proxy: false
   with_items: "{{ slurm_dashboards }}"
   no_log: true
   when: idrac_telemetry_support and slurm_telemetry_support

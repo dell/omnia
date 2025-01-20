@@ -1,0 +1,101 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# ***********************************************************************
+
+# Path to directory hosting ansible config file (ansible.cfg file)
+# Default value is "/etc/ansible"
+# This directory is on the host running ansible,if ansible is installed using dnf
+# If ansible is installed using pip, this path should be set
+ansible_config_file_path: "{{ omnia_config_ns.ansible_config_file_path }}" # Value auto populated by Omnia upgrade script
+
+# -----------------------------SLURM------------------------------------------------
+
+# Password used for Slurm database.
+# The Length of the password should be at least 8.
+# The password must not contain -,\, ',"
+mariadb_password: "{{ omnia_config_ns.mariadb_password }}" # Value auto populated by Omnia upgrade script
+
+# This variable accepts whether slurm installation is supported in configless mode or slurm in nfs
+# Default value is "configless"
+# If the value is "nfs_share", then share_path has to be mentioned
+# Slurm should be installed in share_path when slurm_installation_type is set to nfs_share
+slurm_installation_type: "{{ omnia_config_ns.slurm_installation_type }}" # Value auto populated by Omnia  upgrade script
+
+# Variable indicates whether slurm control node services(slurmctld) should be restarted or not
+# If restart_slurm_services is set to true, slurmctld services will be restarted on every execution of omnia.yml.
+# It accepts true and false values
+# Default value is true
+restart_slurm_services: {{ omnia_config_ns.restart_slurm_services | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia upgrade script
+
+#----------------------------K8S------------------------------------------------------
+
+# Kubernetes SDN network.
+# It can either be "calico" or "flannel".
+# Default value assigned is "calico".
+# While setting up Kubernetes plugin for RoCE NIC, ensure that this value is set to "flannel"
+k8s_cni: "{{ omnia_config_ns.k8s_cni }}" # Value auto populated by Omnia upgrade script
+
+# These addresses will be used by Loadbalancer for assigning External IPs to K8s services
+# Make sure the IP range is not assigned to any node in the cluster.
+# Acceptable formats: "10.11.0.100-10.11.0.150" , "10.11.0.0/16"
+# Mandatory Field
+pod_external_ip_range: "{{ omnia_config_ns.pod_external_ip_range }}" # Value auto populated by Omnia upgrade script
+
+
+###------ADVANCE CONFIGURATIONS FOR KUBERNETES------
+# Kubernetes internal network for services.
+# This network must be unused in your network infrastructure.
+# Default value is "10.233.0.0/18"
+k8s_service_addresses: "{{ omnia_config_ns.k8s_service_addresses }}" # Value auto populated by Omnia upgrade script
+
+# Kubernetes pod network CIDR for internal network. When used, it will assign IP
+# addresses from this range to individual pods.
+# This network must be unused in your network infrastructure.
+# Default value is "10.233.64.0/18"
+k8s_pod_network_cidr: "{{ omnia_config_ns.k8s_pod_network_cidr }}" # Value auto populated by Omnia upgrade script
+
+# Kubernetes Topology manager policies.
+# It can either be "none" or "best-effort" or "restricted" or "single-numa-node".
+# Default value assigned is "none".
+topology_manager_policy: "none" 
+
+# Kubernetes Topology manager scope.
+# It can either be "container" or "pod".
+# Default value assigned is "container".
+topology_manager_scope: "container"
+
+#----------------------------VERIFY INTEL GAUDI INSTALLATION------------------------------------------------------
+
+# It's recommended to do extensive tests hl_qual and hccl when installing a new Gaudi node. This takes around 20mins.
+# To do that during provisioning this variable has to be set to true.
+run_intel_gaudi_tests: false # Value auto populated by Omnia upgrade script
+
+#----------------------------CSI Driver------------------------------------------------------
+# Following csi powerscale driver input variables are mandatory only if csi_driver_powerscale entry is present in software_config.json
+
+# Absolute file path for the secret.yaml file.
+# User need to download secret.yaml file and fill required data in secret file. Provided the path of the secret file here.
+
+csi_powerscale_driver_secret_file_path: ""
+
+# File path for the values.yml file which will contain the Powerscale driver configuration parameters. 
+# User need to download values.yaml file and fill required data in values.yaml file. Provided the path of the values.yaml file here.
+# mention configurable values
+csi_powerscale_driver_values_file_path: ""
+

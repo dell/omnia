@@ -35,6 +35,8 @@ To perform these configurations and installations, a secure SSH channel is estab
 Authentication
 ---------------
 
+Omnia adheres to a subset of the specifications of NIST 800-53 and NIST 800-171 guidelines on the control plane and login node.
+
 Omnia does not have its own authentication mechanism because bare metal installations and configurations take place using root privileges. Post the execution of Omnia, third-party tools are responsible for authentication to the respective tool.
 
 Cluster authentication tool
