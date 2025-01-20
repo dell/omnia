@@ -121,8 +121,6 @@ The provision tool, invoked by the ``discovery_provision.yml`` playbook, runs in
 
     * Post execution of ``discovery_provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../../Maintenance/addnode.html>`_.
 
-    * Default Python is installed during provisioning on Ubuntu cluster nodes. For Ubuntu 22.04, Python 3.11 is installed. For Ubuntu 20.04, Python 3.9 is installed.
-
 .. caution::
 
     * Once xCAT is installed, restart your SSH session to the OIM to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using: ::
