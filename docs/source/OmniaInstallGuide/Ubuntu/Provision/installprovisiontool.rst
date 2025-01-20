@@ -7,8 +7,8 @@ Edit the ``input/provision_config.yml``, ``input/provision_config.yml``, and ``i
 
     .. image:: ../../../images/BMC_PXE_Settings.png
 
-[Optional] Configurations managed by the provision tool
----------------------------------------------------------
+[Optional] Additional configurations handled by the provision tool
+-----------------------------------------------------------------------
 
 **Using multiple versions of a given OS**
 
@@ -40,17 +40,20 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
     * If the ``input/software_config.json`` has AMD ROCm, Intel Gaudi, and NVIDIA CUDA drivers mentioned, the AMD, Intel, and NVIDIA accelerator drivers are installed on the nodes post provisioning.
     * Omnia recommends to install the Intel Gaudi driver post provisioning using the ``accelerator.yml`` playbook in case the node has internet connectivity during provisioning. For more information, `click here <../AdvancedConfigurationsUbuntu/Habana_accelerator.html>`_.
 
-``discovery_provision.yml`` runs in three stages that can be called individually:
+Stages of the provision tool
+-----------------------------
 
 .. caution:: Always execute ``discovery_provision.yml`` within the ``omnia`` directory. That is, always change directories (using ``cd omnia``) to the path where the playbook resides before running the playbook.
 
-**Stage 1: Preparing the control plane**
+The provision tool, invoked by the ``discovery_provision.yml`` playbook, runs in three stages that can be called individually:
+
+**Stage 1: Preparing the OIM**
 
     * Installs required tool packages.
     * Verifies and updates firewall settings.
     * Installs xCAT.
     * Configures Omnia databases basis ``input/network_spec.yml``.
-    * Creates empty inventory files in the control plane at ``/opt/omnia/omnia_inventory/``. These inventory files will be filled with information of compute node service tag post provisioning based on type of CPUs and GPUs they have. The inventory files are:
+    * Creates empty inventory files on the OIM at ``/opt/omnia/omnia_inventory/``. These inventory files will be filled with information of compute node service tag post provisioning based on type of CPUs and GPUs they have. The inventory files are:
 
         * ``compute_cpu_amd``
         * ``compute_cpu_intel``
@@ -72,8 +75,8 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     ::
 
-        cd prepare_cp
-        ansible-playbook prepare_cp.yml
+        cd prepare_oim
+        ansible-playbook prepare_oim.yml
 
 **Stage 2: Discovering the nodes**
 
@@ -81,10 +84,10 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     * PostgreSQL database is set up with all relevant cluster information such as MAC IDs, hostname, admin IP, BMC IPs etc.
 
-    * Configures the control plane with NTP services for cluster  node synchronization.
+    * Configures the OIM with NTP services for cluster  node synchronization.
 
 
-    To call this playbook individually, run::
+    To call this playbook individually, run: ::
 
         cd discovery
         ansible-playbook discovery.yml
@@ -100,7 +103,7 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
 .. note::
 
-    * If you are using ``switch_based`` discovery mechanism, you do not need to run ``provision.yml`` playbook. Run ``prepare_cp.yml`` and ``discovery.yml`` and then manually boot the nodes in PXE mode.
+    * If you are using ``switch_based`` discovery mechanism, you do not need to run ``provision.yml`` playbook. Run ``prepare_oim.yml`` and ``discovery.yml`` and then manually boot the nodes in PXE mode.
 
     * After executing ``discovery_provision.yml`` playbook, user can check the log file available at ``/var/log/omnia.log`` for more information.
 
@@ -118,15 +121,13 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     * Post execution of ``discovery_provision.yml``, IPs/hostnames cannot be re-assigned by changing the mapping file. However, the addition of new nodes is supported as explained `here <../../Maintenance/addnode.html>`_.
 
-    * Default Python is installed during provisioning on Ubuntu cluster nodes. For Ubuntu 22.04, Python 3.10 is installed. For Ubuntu 20.04, Python 3.8 is installed.
-
 .. caution::
 
-    * Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using: ::
+    * Once xCAT is installed, restart your SSH session to the OIM to ensure that the newly set up environment variables come into effect. If the new environment variables still do not come into effect, enable manually using: ::
 
              source /etc/profile.d/xcat.sh
 
-    * To avoid breaking the passwordless SSH channel on the control plane, do not run ``ssh-keygen`` commands post execution of ``discovery_provision.yml`` to create a new key.
+    * To avoid breaking the password-less SSH channel on the OIM, do not run ``ssh-keygen`` commands post execution of ``discovery_provision.yml`` to create a new key.
     * Do not delete the following directories:
         - ``/root/xcat``
         - ``/root/xcat-dbback``

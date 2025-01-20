@@ -69,7 +69,7 @@ For a complete list of quick start examples, `click here <https://docs.vllm.ai/e
 
         ::
 
-            nerdctl run -d --network=host --group-add=video --ipc=host --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device /dev/kfd --device /dev/dri/card0 --device /dev/dri/card1 --device /dev/dri/renderD128 -v /opt/omnia/:/app/model docker.io/embeddedllminfo/vllm-rocm:vllm-v0.2.4 /bin/bash -c 'export http_proxy=http://cp-ip:3128 && export https_proxy=http://cp-ip:3128 && python -m vllm.entrypoints.api_server --model facebook/opt-125m'
+            nerdctl run -d --network=host --group-add=video --ipc=host --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device /dev/kfd --device /dev/dri/card0 --device /dev/dri/card1 --device /dev/dri/renderD128 -v /opt/omnia/:/app/model docker.io/embeddedllminfo/vllm-rocm:vllm-v0.2.4 /bin/bash -c 'export http_proxy=http://<OIM_IP>:3128 && export https_proxy=http://<OIM_IP>:3128 && python -m vllm.entrypoints.api_server --model facebook/opt-125m'
 
     * Once the above command is executed, vllm gets enabled through port 8000. Now, user can utilise endpoint to communicate with the model.
 
@@ -109,7 +109,7 @@ For a complete list of quick start examples, `click here <https://docs.vllm.ai/e
 
         ::
 
-            nerdctl run -it --network=host --group-add=video --ipc=host --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device /dev/kfd --device /dev/dri/card0 --device /dev/dri/card1 --device /dev/dri/renderD128 -v /opt/omnia/:/app/model docker.io/embeddedllminfo/vllm-rocm:vllm-v0.2.4 /bin/bash -c 'export http_proxy=http://cp-ip:3128 && export https_proxy=http://cp-ip:3128 && python -m vllm.entrypoints.openai.api_server --model facebook/opt-125m'
+            nerdctl run -it --network=host --group-add=video --ipc=host --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device /dev/kfd --device /dev/dri/card0 --device /dev/dri/card1 --device /dev/dri/renderD128 -v /opt/omnia/:/app/model docker.io/embeddedllminfo/vllm-rocm:vllm-v0.2.4 /bin/bash -c 'export http_proxy=http://<OIM_IP>:3128 && export https_proxy=http://<OIM_IP>:3128 && python -m vllm.entrypoints.openai.api_server --model facebook/opt-125m'
 
         Expected output:
 

@@ -34,7 +34,7 @@ Checking and updating encrypted parameters
         ansible-vault edit provision_config_credentials.yml --vault-password-file .provision_credential_vault_key
 
 
-Checking pod status on the control plane
+Checking pod status from the OIM
 --------------------------------------------
    * Use this command to get a list of all available pods: ``kubectl get pods -A``
    * Check the status of any specific pod by running: ``kubectl describe pod <pod name> -n <namespace name>``
@@ -111,7 +111,7 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
 
             ::
 
-                curl -k https://<cp_hostname>:5001/v2/_catalog
+                curl -k https://<OIM_hostname>:5001/v2/_catalog
 
         Expected outputs:
 
@@ -120,21 +120,21 @@ If you encounter image download failures while executing ``local_repo.yml``, do 
 
         Else, do the following:
 
-            a. Restart control-plane and check curl command output again.
+            a. Restart the OIM and check curl command output again.
             b. Re-run ``local_repo.yml``.
 
     5. Run the following command:
 
             ::
 
-                openssl s_client -showcerts -connect <cp_hostname>:5001
+                openssl s_client -showcerts -connect <OIM_hostname>:5001
 
         Expected output:
 
         .. image:: ../images/image_failure_output_s5.png
 
         * Verify that the certificate is valid and ``CN=private_registry``.
-        * Certificate shown by this command output should be the same as output present at ``/etc/containerd/certs.d/<cp_hostname>5001/ca.crt``.
+        * Certificate shown by this command output should be the same as output present at ``/etc/containerd/certs.d/<OIM_hostname>5001/ca.crt``.
 
         If no certificate is visible on screen, run the following command:
 

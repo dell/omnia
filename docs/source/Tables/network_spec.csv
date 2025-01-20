@@ -8,7 +8,7 @@
 
 ``string``
 
-Mandatory",The name of the NIC on which the administrative network is accessible to the control plane.
+Mandatory",The name of the NIC on which the administrative network is accessible to the OIM.
 ,"**netmask_bits**
 
 ``integer``
@@ -59,7 +59,7 @@ Mandatory",Maximum transmission unit (MTU) is a measurement in bytes of the larg
 
 ``string``
 
-Mandatory",The name of the NIC on which the administrative network is accessible to the control plane.
+Mandatory",The name of the NIC on which the administrative network is accessible to the OIM.
 ,"**netmask_bits**
 
 ``integer``
@@ -85,7 +85,7 @@ Optional","* If iDRACs are set to DHCP mode and Omnia has assigned the IPs, then
 
 ``IP address range``
 
-Mandatory","* If some iDRACs IP ranges are reachable from control plane but is not in ``bmc_network``, then user can provide those IP ranges here.
+Mandatory","* If some iDRACs IP ranges are reachable from OIM but is not in ``bmc_network``, then user can provide those IP ranges here.
 * Discovery of a single IP is not possible. User must provide a range.
 * User can also provide comma-separated ranges.
 .. note:: This is an optional field. User must not remove any of the fields even though it is optional."

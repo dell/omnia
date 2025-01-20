@@ -68,7 +68,7 @@ Omnia can also discover nodes via their iDRAC using IPMI.
 |                                                         | users need to enable IPMI manually.                  |
 +---------------------------------------------------------+-----------------------------------+------------------+
 | Admin, BMC and Infiniband IP address configuration is   | Servers require a manual PXE boot after the first run|
-| automatic on the control plane.                         | of the provision tool.                               |
+| automatic on the OIM.                                   | of the provision tool.                               |
 +---------------------------------------------------------+------------------------------------------------------+
 | LOM architecture is supported                           |                                                      |
 | (including cloud enclosures: C6420, C6520, C6620).      |                                                      |

@@ -14,7 +14,7 @@ Before you build clusters
 
 .. note::
     * The inventory file accepts both IPs and FQDNs as long as they can be resolved by DNS.
-    * In a multi-node setup, an IP cannot be listed as a control plane and a compute node simultaneously. That is, don't include the ``kube_control_plane`` IP address in the compute node group. In a single node setup, the compute node and the ``kube_control_plane`` must be the same.
+    * In a multi-node setup, an IP cannot be listed as a control node and a compute node simultaneously. That is, don't include the ``kube_control_plane`` IP address in the compute node group. In a single node setup, the compute node and the ``kube_control_plane`` must be the same.
 
 * Users should also ensure that all repositories are available on the cluster nodes.
 
