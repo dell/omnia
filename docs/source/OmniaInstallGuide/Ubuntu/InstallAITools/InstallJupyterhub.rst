@@ -1,7 +1,7 @@
 Setup Jupyterhub
 -----------------
 
-Using Jupyterhub helm chart (version 3.2.0), Omnia installs Jupyterhub (version 4.0.2) on Kubernetes clusters. Once Jupyterhub is deployed, log into the GUI to create your own Jupyter notebook. For more information, `click here <https://z2jh.jupyter.org/en/stable/jupyterhub/customization.html>`_.
+Omnia installs Jupyterhub (version 3.2.0) on Kubernetes clusters. Once Jupyterhub is deployed, log into the GUI to create your own Jupyter notebook. For more information, `click here <https://z2jh.jupyter.org/en/stable/jupyterhub/customization.html>`_.
 
 **Prerequisites**
 
