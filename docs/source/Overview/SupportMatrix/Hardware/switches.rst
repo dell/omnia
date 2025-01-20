@@ -12,7 +12,7 @@ Switches
 
 .. note::
 
-    * The switches that have reached EOL might not function properly. It is recommended by Omnia to use switch models mentioned in support matrix.
+    * The switches that have reached EOL might not function properly. We recommended using switch models mentioned in the support matrix.
 
     * Omnia requires OS10 to be installed on ethernet switches.
 
