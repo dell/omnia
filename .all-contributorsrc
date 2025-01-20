@@ -609,7 +609,8 @@
         "code",
         "bug",
         "talk",
-        "mentoring"
+        "mentoring",
+        "review"
       ]
     },
     {
@@ -810,6 +811,80 @@
       "profile": "https://github.com/AbdulRijwan",
       "contributions": [
         "infra"
+      ]
+    },
+    {
+      "login": "dweineha",
+      "name": "David Weinehall",
+      "avatar_url": "https://avatars.githubusercontent.com/u/42206500?v=4",
+      "profile": "https://github.com/dweineha",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "VenkateswaraVatam",
+      "name": "Venkateswara Vatam",
+      "avatar_url": "https://avatars.githubusercontent.com/u/153504816?v=4",
+      "profile": "https://github.com/VenkateswaraVatam",
+      "contributions": [
+        "projectManagement"
+      ]
+    },
+    {
+      "login": "snarthan",
+      "name": "Narthan S",
+      "avatar_url": "https://avatars.githubusercontent.com/u/171680285?v=4",
+      "profile": "https://github.com/snarthan",
+      "contributions": [
+        "code",
+        "mentoring",
+        "review"
+      ]
+    },
+    {
+      "login": "suman-square",
+      "name": "Suman S",
+      "avatar_url": "https://avatars.githubusercontent.com/u/178771071?v=4",
+      "profile": "https://github.com/suman-square",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "gurump21",
+      "name": "Prabhu Gurumurthy",
+      "avatar_url": "https://avatars.githubusercontent.com/u/189354746?v=4",
+      "profile": "https://github.com/gurump21",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "Nagachandan-P",
+      "name": "Nagachandan P",
+      "avatar_url": "https://avatars.githubusercontent.com/Nagachandan-P",
+      "profile": "https://github.com/Nagachandan-P",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "pranavkumar74980",
+      "name": "Pranav kumar",
+      "avatar_url": "https://avatars.githubusercontent.com/pranavkumar74980",
+      "profile": "https://github.com/pranavkumar74980",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "aditi-sharma27",
+      "name": "Aditi Sharma",
+      "avatar_url": "https://avatars.githubusercontent.com/aditi-sharma27",
+      "profile": "https://github.com/aditi-sharma27",
+      "contributions": [
+        "code"
       ]
     }
   ],
