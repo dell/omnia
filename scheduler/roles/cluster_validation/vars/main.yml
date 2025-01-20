@@ -15,7 +15,7 @@
 
 # Usage: main.yml
 omnia_log_path: /var/log/omnia
-cp_path: "/root/.ansible/cp/"
+oim_path: "/root/.ansible/oim/"
 ansible_cfg_src: "{{ playbook_dir }}/ansible.cfg"
 ansible_cfg_dest:
   - { path: "{{ playbook_dir }}/telemetry/ansible.cfg", log_path: "/var/log/omnia/omnia_telemetry.log", regexp: "/var/log/omnia.log" }
@@ -37,7 +37,7 @@ fail_msg_openmpi_version: "Failed. openmpi version is not provided in software_c
 compute_os_ubuntu: "ubuntu"
 intel_gaudi_input_fail_msg: "Warning, software_config.json does not have the intel software stack. Intel stack will not be configured."
 intel_gaudi_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading Intel Gaudi driver packages."
-warning_time : 30
+warning_time: 30
 offline_intel_directory: "{{ repo_store_path }}/cluster/apt"
 intelgaudi_version_warning_msg: "Failed, Intel Gaudi version not found."
 
@@ -54,7 +54,7 @@ fail_msg_mariadb_password: "maria_db password not given in correct format."
 success_msg_mariadb_password: "mariadb_password validated"
 success_msg_k8s_version: "Kubernetes Version Validated"
 fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
-kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"
+kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"  # noqa: yaml[line-length]
 success_msg_k8s_cni: "Kubernetes CNI Validated"
 fail_msg_k8s_cni: "Kubernetes CNI not correct."
 supported_topology_manager_policy: ['none', 'best-effort', 'restricted', 'single-numa-node']

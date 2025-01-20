@@ -44,10 +44,32 @@
     dest: "{{ ldap_dir }}"
     mode: "{{ file_permission }}"
 
-- name: Setup LTB repo to control plane
+- name: Setup LTB repo to Omnia Infrastructure Manager
   ansible.builtin.unarchive:
     src: "{{ ldap_dir }}/{{ ltb_git_repo_path }}.tar.gz"
     dest: "{{ ldap_dir }}"
+
+- name: Load openldap.json
+  ansible.builtin.set_fact:
+    openldap_packages_json: "{{ lookup('file', openldap_packages_file) | from_json }}"
+
+- name: Check if commit id is mentioned for LTB
+  ansible.builtin.set_fact:
+    ltb_commit: true
+    ltb_commit_id: "{{ item.commit }}"
+  loop: "{{ hostvars['localhost']['openldap_packages_json']['openldap']['cluster'] }}"
+  when:
+    - item.type == 'git'
+    - "'ansible-role-ldaptoolbox-openldap' in item.package"
+    - "item.commit is defined"
+
+- name: Checkout specific commit for LTB
+  ansible.builtin.command: "git checkout {{ ltb_commit_id }}"  # noqa: command-instead-of-module
+  changed_when: false
+  when:
+    - ltb_commit is defined
+  args:
+    chdir: "{{ ldap_git_dir }}"
 
 - name: Remove public access tasks
   ansible.builtin.replace:

@@ -14,7 +14,7 @@
 
 import yaml
 import json
-import sys
+import sys, os
 
 def load_performance_config(file_path):
     """
@@ -80,7 +80,7 @@ def load_performance_config(file_path):
     return intel_gpu
 
 def main():
-    file_path = sys.argv[1]
+    file_path = os.path.abspath(sys.argv[1])
 
     try:
         result = load_performance_config(file_path)

@@ -56,4 +56,3 @@ intel_apt_base_packages:
 intel_bring_up_ports_script_path: "/opt/omnia/cronjobs/bring_up_ports.sh"
 file_permissions: "0755"
 gaudi3_pci_vendor_device_class: "1da3:1060:1200"
-

@@ -36,7 +36,7 @@
 - name: Include omnia_config.yml
   ansible.builtin.include_tasks: include_omnia_config.yml
 
-- name: Fetch control plane hostname
+- name: Fetch Omnia Infrastructure Manager hostname
   ansible.builtin.command: hostname
   changed_when: false
   register: fetch_hostname
@@ -54,12 +54,12 @@
 - name: Include variable file metadata.yml
   ansible.builtin.include_vars: "{{ metadata_path }}"
 
-- name: Fail when control_plane_ip not present in metadata file
+- name: Fail when oim_ip not present in metadata file
   ansible.builtin.fail:
-    msg: "{{ cp_ip_fail_msg }}"
+    msg: "{{ oim_ip_fail_msg }}"
   when: md_pxe_nic_ip is not defined
 
-- name: Set cp_hostname and cp_ip
+- name: Set oim_hostname and oim_ip
   ansible.builtin.set_fact:
-    cp_hostname: "{{ fetch_hostname.stdout }}"
-    cp_ip: "{{ md_pxe_nic_ip }}"
+    oim_hostname: "{{ fetch_hostname.stdout }}"
+    oim_ip: "{{ md_pxe_nic_ip }}"

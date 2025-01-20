@@ -14,8 +14,13 @@
 ---
 
 # Used: install_rocm.yml
+local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
+rocm_prefrence_dst: "/etc/apt/preferences.d/rocm-pin-600"
+rocm_prefrence_src: "rocm_preferences_ubuntu.j2"
+ubuntu_os: "ubuntu"
+prefrence_file_mode: '0644'
 rocm_packages:
-  - "rocm-hip-sdk{{ hostvars['127.0.0.1']['rocm_version'] }}*"
+  - "rocm"
 amdgpu_warning_msg: "ROCm will not be installed, AMDGPU drivers not found on the node.
 Run local_repo.yml with amdgpu software stack in software_config and reprovision the node."
 warning_time: 10

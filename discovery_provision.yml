@@ -39,8 +39,8 @@
   roles:
     - discovery/roles/discovery_validations/common
 
-- name: Prepare control plane for basic things
-  ansible.builtin.import_playbook: prepare_cp/prepare_cp.yml      # noqa:role-name[path]
+- name: Prepare Omnia Infrastructure Manager for basic things
+  ansible.builtin.import_playbook: prepare_oim/prepare_oim.yml      # noqa:role-name[path]
 
 - name: Discover the nodes
   ansible.builtin.import_playbook: discovery/discovery.yml       # noqa:role-name[path]

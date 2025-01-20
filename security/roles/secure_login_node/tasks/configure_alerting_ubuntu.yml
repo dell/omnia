@@ -36,6 +36,11 @@
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
   block:
+    - name: Install pip for {{ python_version }}
+      ansible.builtin.command:
+        cmd: "{{ python_version }} -m ensurepip --upgrade"
+      changed_when: false
+
     - name: Install required ansible packages
       ansible.builtin.command:
         cmd: "{{ python_version }} -m pip install {{ ansible_name }}=={{ secure_ansible_version }} {{ cryptography_name }}=={{ cryptography_version }}"

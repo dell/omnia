@@ -78,8 +78,9 @@ def calculate_binary_ip(ip):
     """
     try:
         octets = map(int, ip.split('.'))
-        binary = ''.join(f'{octet:08b}' for octet in octets)
-        return binary
+        if octets:
+          binary = ''.join(f'{octet:08b}' for octet in octets)
+          return binary
 
     except ValueError:
         return "Invalid IP address"

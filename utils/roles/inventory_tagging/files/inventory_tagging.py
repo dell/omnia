@@ -30,7 +30,7 @@ class InventoryManager:
     def __init__(self, inventory_filenames, vendors, inventory_dir_path, path_to_db_file):
         self.inventory_filenames = inventory_filenames
         self.vendors = vendors
-        self.inventory_dir_path = inventory_dir_path
+        self.inventory_dir_path = os.path.abspath(inventory_dir_path)
         self.db_path = path_to_db_file
 
     def add_inventory_files(self) -> None:
@@ -44,6 +44,7 @@ class InventoryManager:
         # Iterate over the inventory filenames
         for filename in self.inventory_filenames:
             file_path = os.path.join(self.inventory_dir_path, filename)
+            file_path = os.path.abspath(file_path)
             with open(file_path, 'w', encoding='utf-8') as file:
                 # Write the header to the file
                 file.write(inventory_header)
@@ -99,15 +100,16 @@ class InventoryManager:
         """
         try:
             # Read Content of file if it exist
-            if os.path.exists(inventory_file):
-                with open(inventory_file, 'r', encoding='utf-8') as file:
+            if os.path.exists(os.path.abspath(inventory_file)):
+                with open(os.path.abspath(inventory_file), 'r', encoding='utf-8') as file:
                     lines = file.readlines()
             else:
                 lines = []
-            # Check if the hostname is already in the file
-            if any(hostname in line for line in lines):
-                logger.info("Hostname '%s' already exists in %s. Skipping addition.", hostname, inventory_file)
-                return
+            if lines:
+                # Check if the hostname is already in the file
+                if any(hostname in line for line in lines):
+                    logger.info("Hostname '%s' already exists in %s. Skipping addition.", hostname, inventory_file)
+                    return
             # Read the config file
             config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
             config.read(inventory_file, encoding='utf-8')
@@ -120,7 +122,7 @@ class InventoryManager:
             config.set(inventory_file, hostname, None)  # Use None as value since no value is required
 
             # Write the inventory file
-            with open(inventory_file, 'w', encoding='utf-8') as configfile:
+            with open(os.path.abspath(inventory_file), 'w', encoding='utf-8') as configfile:
                 config.write(configfile, space_around_delimiters=False)
                 configfile.flush()
         except KeyError as e:

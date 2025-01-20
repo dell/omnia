@@ -26,7 +26,8 @@
         SOFTWARE_NAME: "{{ software_name }}"
         HTTP_PROXY: "{{ proxy[0].http_proxy | default('', true) }}"
         HTTPS_PROXY: "{{ proxy[0].https_proxy | default('', true) }}"
-        NO_PROXY: "localhost,127.0.0.1,{{ cp_hostname }}"
+        NO_PROXY: "localhost,127.0.0.1,{{ oim_hostname }}"
+        OPENSSL_CERT_PATH: "{{ openssl_cert_path }}"
       changed_when: true
       register: python_script_result
 

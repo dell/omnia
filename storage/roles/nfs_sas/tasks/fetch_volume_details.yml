@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Include base_vars of control plane
+- name: Include base_vars of Omnia Infrastructure Manager
   ansible.builtin.include_vars: "{{ role_path }}/../../nfs_server_input.yml"
 
 - name: Set powervault username and password

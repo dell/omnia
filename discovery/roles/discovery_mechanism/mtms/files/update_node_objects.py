@@ -31,7 +31,7 @@ discovery_mechanism = "mtms"
 
 def get_node_obj():
     """
-       Get a list of node objects present in control plane
+       Get a list of node objects present in Omnia Infrastrcuture Management (OIM) node
        Returns:
          formed a list of node object names
     """

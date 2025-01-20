@@ -22,15 +22,15 @@
   vars_files:
     - 'test_vars/test_Gaudi_vars.yml'
   tasks:
-  - name: Validate Gaudi Driver Version
-    ansible.builtin.command:
-      argv:
-        - "ansible-playbook"
-        - "test_Gaudi_validation.yml"
-        - "-i"
-        - "{{ inventory }}"
-        - "-t"
-        - "TC_001,TC_002,TC_003,TC_004"
+    - name: Validate Gaudi Driver Version
+      ansible.builtin.command:
+        argv:
+          - "ansible-playbook"
+          - "test_Gaudi_validation.yml"
+          - "-i"
+          - "{{ inventory }}"
+          - "-t"
+          - "TC_001,TC_002,TC_003,TC_004"
 
 # Verify hl-qual
 
@@ -41,13 +41,13 @@
   vars_files:
     - 'test_vars/test_Gaudi_vars.yml'
   tasks:
-  - name: Verify hl-qual
-    ansible.builtin.command:
-      argv:
-        - "ansible-playbook"
-        - "test_Gaudi3_hlqual_validation.yml"
-        - "-i"
-        - "{{ inventory }}"
+    - name: Verify hl-qual
+      ansible.builtin.command:
+        argv:
+          - "ansible-playbook"
+          - "test_Gaudi3_hlqual_validation.yml"
+          - "-i"
+          - "{{ inventory }}"
 
 # Verify HCCL
 
@@ -58,10 +58,10 @@
   vars_files:
     - 'test_vars/test_Gaudi_vars.yml'
   tasks:
-  - name: Verify HCCL
-    ansible.builtin.command:
-      argv:
-        - "ansible-playbook"
-        - "test_Gaudi3_hccl_validation.yml"
-        - "-i"
-        - "{{ inventory }}"
+    - name: Verify HCCL
+      ansible.builtin.command:
+        argv:
+          - "ansible-playbook"
+          - "test_Gaudi3_hccl_validation.yml"
+          - "-i"
+          - "{{ inventory }}"

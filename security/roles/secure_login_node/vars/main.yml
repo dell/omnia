@@ -30,14 +30,14 @@ local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
 ansible_name: "ansible"
 secure_ansible_version: "7.7.0"
 cryptography_name: "cryptography"
-cryptography_version: "41.0.7"
+cryptography_version: "44.0.0"
 jinja_name: "jinja2"
 jinja_version: "3.1.2"
 ansible_galaxy_path: "community.general.tar.gz"
 file_mode: "0644"
 repo_retries: 5
 repo_delay: 10
-update_repos_fail_msg: "Failed to update repos. Verify internet availability on control plane."
+update_repos_fail_msg: "Failed to update repos. Verify internet availability on Omnia Infrastructure Manager."
 software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
 secure_login_node_packages_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/secure_login_node.json"
 postfix_conf_path: /etc/postfix/main.cf
@@ -48,6 +48,7 @@ of input/login_node_security_config.yml"
 # Usage: configure_alerting_ubuntu
 python_packages:
   - "{{ python_version }}"
+  - "{{ python_version }}-venv"
   - "{{ python_version }}-distutils"
   - "{{ python_version.split('.')[0] }}-pip"
 

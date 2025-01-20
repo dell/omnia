@@ -109,8 +109,9 @@
   when: snmp_trap_destination | length > 1
 
 - name: Install netaddr
-  ansible.builtin.command: "{{ python_version }} -m pip install netaddr"
-  changed_when: false
+  ansible.builtin.pip: 
+    name: netaddr
+    state: present
 
 - name: Install common packages
   ansible.builtin.package:

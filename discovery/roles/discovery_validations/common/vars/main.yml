@@ -20,11 +20,11 @@ provision_validation_vars:
   - "{{ role_path }}/../switch_based/vars/main.yml"
 nic_wait_time: 30
 
-# Usage: validate_cp_os.yml
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
-control_plane_os_ubuntu: "ubuntu"
-control_plane_os_fail_msg: "Failed. Control plane OS should be RHEL, Rocky or Ubuntu."
+# Usage: validate_oim_os.yml
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
+oim_os_fail_msg: "Failed. Omnia Infrastructure Manager OS should be RHEL, Rocky or Ubuntu."
 root_user_name: "root"
 user_fail_msg: "Failed. Omnia playbooks should run as root user."
 
@@ -75,9 +75,9 @@ software_config_syntax_fail_msg: "Failed. Syntax errors present in software_conf
 
 # Usage: validate_local_repo.yml
 metadata_file_path: "/opt/omnia/offline/.data/metadata.yml"
-local_repo_fail_msg: "Failed! Please run local_repo.yml before running discovery_provision.yml/prepare_cp.yml"
+local_repo_fail_msg: "Failed! Please run local_repo.yml before running discovery_provision.yml/prepare_oim.yml"
 softwares_warning_msg: "[WARNING] software_config.json does not have any softwares. Hence softwares will not be installed on the nodes post provisioning."
-repo_store_path_fail_msg: "Failed. {{ repo_store_path }} didn't exist. Please run local_repo.yml before running discovery_provision.yml/prepare_cp.yml"
+repo_store_path_fail_msg: "Failed. {{ repo_store_path }} didn't exist. Please run local_repo.yml before running discovery_provision.yml/prepare_oim.yml"
 repo_config_metadata_fail_msg: "Failed: Cannot change repo_config in subsequent runs. Please use the repo_config:{{ md_repo_config }} in software_config.json"
 
 # Usage: assign_network_interface.yml
@@ -154,9 +154,9 @@ os_supported_rhel: rhel
 os_supported_ubuntu: ubuntu
 provision_os_success_msg: "cluster_os_type validated"
 provision_os_fail_msg: "Failed. Incorrect cluster_os_type selected.
-If control plane OS RHEL, only cluster_os_type {{ os_supported_rhel }} is supported.
-If control plane OS Rocky, only cluster_os_type {{ os_supported_rocky }} is supported.
-If control plane OS Ubuntu, only cluster_os_type {{ os_supported_ubuntu }} is supported"
+If Omnia Infrastructure Manager OS RHEL, only cluster_os_type {{ os_supported_rhel }} is supported.
+If Omnia Infrastructure Manager OS Rocky, only cluster_os_type {{ os_supported_rocky }} is supported.
+If Omnia Infrastructure Manager OS Ubuntu, only cluster_os_type {{ os_supported_ubuntu }} is supported"
 iso_file_path_missing_msg: "Incorrect iso_file_path provided. Make sure ISO file is present in the provided iso_file_path."
 iso_file_path_success_msg: "iso_file_path validated"
 iso_file_path_fail_msg: "Failed. Invalid iso_file_path: {{ iso_file_path }} provided. Make sure iso_file_path variable in provision_config.yml contains value
@@ -257,8 +257,8 @@ fail_cidr_ip_range: "Failed, Cidr overlaps with"
 site_config_file: "{{ role_path }}/../../../../input/site_config.yml"
 invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
 proxy_env_fail_msg: "Failed. The values for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in the
-proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the control plane.
-The no_proxy environment variable should include the control plane hostname and the admin network IP address."
-update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in control plane for acccessing internet."
+proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the Omnia Infrastructure Manager.
+The no_proxy environment variable should include the Omnia Infrastructure Manager hostname and the admin network IP address."
+update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in Omnia Infrastructure Manager for acccessing internet."
 repo_retries: 5
 repo_delay: 10

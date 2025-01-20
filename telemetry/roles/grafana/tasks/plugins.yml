@@ -20,9 +20,9 @@
     version: "{{ grafana_plugins_stable_commit }}"
 
 - name: Wait for grafana pod to come to ready state
-  block:    
+  block:
     - name: Wait for grafana pod to come to ready state
-      ansible.builtin.command: kubectl wait --for=condition=ready --timeout="{{ grafana_pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"
+      ansible.builtin.command: kubectl wait --for=condition=ready --timeout="{{ grafana_pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"  # noqa: yaml[line-length]
       changed_when: false
   rescue:
     - name: Failed - grafana pod is not running

@@ -17,9 +17,9 @@
   ansible.builtin.set_fact:
     telemetry_validation_status: true
 
-- name: Set control_plane_os
+- name: Set oim_os
   ansible.builtin.set_fact:
-    control_plane_os: "{{ ansible_distribution | lower }}"
+    oim_os: "{{ ansible_distribution | lower }}"
 
 - name: Read software config file
   ansible.builtin.include_tasks: read_software_config.yml

@@ -45,3 +45,16 @@
     fail_msg: "{{ gateway_ip_fail_msg }} {{ item.value }}"
   when: item.key == 'gateway'
   with_dict: "{{ hostvars[inventory_hostname].nic_info }}"
+
+- name: Gather NIC list
+  ansible.builtin.shell: "/usr/sbin/ip -o link show | awk -F': ' '{print $2}'"
+  register: nic_list
+  changed_when: false  # Since we're only gathering information
+
+- name: Validate nic names in inventory file
+  ansible.builtin.assert:
+    that:
+      - "{{ item.value in nic_list.stdout_lines }}"
+    fail_msg: "{{ invalid_nic_name }}  NIC '{{ item.value }}' not found"
+  when: item.key == 'nic_name'
+  with_dict: "{{ hostvars[inventory_hostname].nic_info }}"

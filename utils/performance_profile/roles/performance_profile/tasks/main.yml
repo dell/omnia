@@ -42,4 +42,3 @@
       ansible.builtin.debug:
         msg: "No Intel Gaudi accelerator found"
       when: lspci_output.stdout | length == 0
-

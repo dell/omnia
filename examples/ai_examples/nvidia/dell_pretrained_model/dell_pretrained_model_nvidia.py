@@ -22,10 +22,10 @@ Prerequisites:
   update user_HF_token if required by model.
 - The Kube control plane needs an active Internet connection. If there is no active Internet 
   connection, you need to set the proxy environment variables to have access to the Internet.
-    The proxy environment variables should be set to the IP address of the control plane. 
+    The proxy environment variables should be set to the IP address of the Omnia Infrastructure Manager. 
     For example: 
-    export http_proxy=http://<control_plane_ip>:3128 
-    export https_proxy=http://<control_plane_ip>:3128 
+    export http_proxy=http://<oim_ip>:3128 
+    export https_proxy=http://<oim_ip>:3128 
 
 Usage:
     1. Deploy the model and service:
@@ -370,9 +370,9 @@ def main():
         - Verify PRETRAINED_MODEL_CONFIG section for any changes and update user_HF_token if required by model. 
         - The Kube control plane needs an active Internet connection. If there is no active Internet connection, 
           you need to set the proxy environment variables to have access to the Internet. The proxy environment variables 
-          should be set to the IP address of the control plane.  For example: 
-          export http_proxy=http://<control_plane_ip>:3128 
-          export https_proxy=http://<control_plane_ip>:3128 
+          should be set to the IP address of the Omnia Infrastructure Manager.  For example: 
+          export http_proxy=http://<oim_ip>:3128 
+          export https_proxy=http://<oim_ip>:3128 
         """,
         formatter_class=argparse.RawTextHelpFormatter
       )

@@ -64,13 +64,13 @@
       register: uncordon_register
       changed_when: uncordon_register != 0
 
-    - name: Wait for all control-plane pods become created
+    - name: Wait for all oim-node pods become created
       ansible.builtin.shell: "kubectl get po --namespace=kube-system --selector tier=control-plane --output=jsonpath='{.items[*].metadata.name}'"
-      register: control_plane_pods_created
-      until: item in control_plane_pods_created.stdout
+      register: oim_pods_created
+      until: item in oim_pods_created.stdout
       retries: "{{ retries_count }}"
       delay: "{{ delay_time }}"
-      changed_when: control_plane_pods_created != 0
+      changed_when: oim_pods_created != 0
       with_items:
         - etcd
         - kube-apiserver

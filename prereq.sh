@@ -47,7 +47,7 @@ install_ansible() {
     echo "----------------------------------------------------------"
     echo "INSTALLING ANSIBLE $ansible_version IN THE OMNIA VIRTUAL ENVIRONMENT:"
     echo "----------------------------------------------------------"
-    $venv_py -m pip install ansible=="$ansible_version" #--force-reinstall or --ignore-installed is not required
+    $venv_py -m pip install ansible=="$ansible_version" ansible-core=="$ansible_core_version" #--force-reinstall or --ignore-installed is not required
 }
 
 disable_selinux() {
@@ -124,6 +124,7 @@ copy_config() {
 
 # Default settings
 ansible_version="9.5.1"
+ansible_core_version="2.16.13"
 python_version="3.11"
 py_major_version="3"
 py_minor_version="11"
@@ -156,11 +157,33 @@ fi
 if [ "$unsupported_os" = true ]; then
 	echo "Unsupported OS for Omnia v1.7 software stack. Creating venv for Omnia v1.6.1 software stack."
 	ansible_version="7.7.0"
+ 	ansible_core_version="2.14.12"
 	python_version="39" # RHEL-8.8 onwards and ubuntu-20.04 onwards this is '3.9'
 	py_major_version="3"
 	py_minor_version="9"
 	venv_py=python3.9
 	venv_location="/opt/omnia/omnia161_venv" # Do not give a trailing slash
+fi
+
+# Check if the OS version is unsupported and print a warning message
+install_omnia_version=$(grep "omnia_version:" ".metadata/omnia_version" | cut -d ':' -f 2 | tr -d ' ')
+if [[ "$OS_ID" == "rhel" || "$OS_ID" == "rocky" ]]; then
+    if [[ "$VERSION_ID" != "8.8" ]]; then
+        echo -e "Warning: Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 8.8 ."
+    fi
+elif [[ "$OS_ID" == "ubuntu" ]]; then
+   if [ -e /var/log/installer/media-info ]; then
+       media_info=$(cat /var/log/installer/media-info)
+       if [[ ! $media_info == *"Ubuntu-Server"* ]]; then
+       	    echo -e "${YELLOW}Warning: Omnia supports only server edition of Ubuntu. Running Omnia on a non-server edition of Ubuntu may lead to failures in subsequent playbooks.
+To prevent such issues, please use the Server edition of Ubuntu.${NC}"
+       fi
+   fi
+   if [[ "$VERSION_ID" != "22.04" ]]; then
+     echo -e "Warning: Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 22.04 ."
+   fi
+else
+    echo "WARNING: Unsupported OS ${OS_ID}"
 fi
 
 # Check if already is a different activated venv
@@ -255,7 +278,7 @@ if [ "$VIRTUAL_ENV" != "$venv_location" ]; then
         echo "Failed to activate virtual environment."
         echo "Please manually activate the virtual environment at $venv_location
 and install the required package ansible-$ansible_version via pip,
-before executing playbooks in control plane"
+before executing playbooks in Omnia Infrastructure Manager"
         exit 1
     fi
 else
@@ -348,37 +371,14 @@ echo -e "${NC}"
 # Show SELinux reboot message if necessary
 if [[ "$SELINUX_REBOOT_REQUIRED" == "true" ]]; then
     echo -e "${RED}"
-    echo "SELinux has been disabled. Please reboot the system, unless it is an upgrade or restore scenario, before proceeding with the playbook execution !"
+    echo "SELinux has been successfully disabled. Please reboot the system before proceeding. However, if you are upgrading or restoring the Omnia Infrastructure Manager, avoid rebooting to prevent the loss of telemetry data."
     echo -e "${NC}"
 fi
 
-# Check if the OS version is unsupported and print a warning message
-install_omnia_version=$(grep "omnia_version:" ".metadata/omnia_version" | cut -d ':' -f 2 | tr -d ' ')
-
-if [[ "$OS_ID" == "rhel" || "$OS_ID" == "rocky" ]]; then
-    if [[ "$VERSION_ID" != "8.8" ]]; then
-        echo -e "Warning:Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 8.8 ."
-    fi
-elif [[ "$OS_ID" == "ubuntu" ]]; then
-   if [ -e /var/log/installer/media-info ]; then
-       media_info=$(cat /var/log/installer/media-info)
-       if [[ ! $media_info == *"Ubuntu-Server"* ]]; then
-       	    echo -e "${YELLOW}Warning: Omnia supports only server edition of Ubuntu. Running Omnia on a non-server edition of Ubuntu may lead to failures in subsequent playbooks.
-To prevent such issues, please use the Server edition of Ubuntu.${NC}"
-       fi
-   fi
-   if [[ "$VERSION_ID" != "22.04" ]]; then
-     echo -e "Warning:Running Omnia $install_omnia_version on an unsupported OS ${OS_ID} ${VERSION_ID} may lead to failures in subsequent playbooks. To prevent such issues, please use a supported OS ${OS_ID} 22.04 ."
-   fi
-else
-    echo "WARNING: Unsupported OS ${OS_ID}"
-fi
-
-
 echo -e "${BLUE}"
-echo "Download the ISO file required to provision in the control plane."
+echo "Download the ISO file required to provision in the Omnia Infrastructure Manager."
 echo ""
-echo "Please configure all the NICs and set the hostname for the control plane in the format hostname.domain_name. Eg: controlplane.omnia.test"
+echo "Please configure all the NICs and set the hostname for the Omnia Infrastructure Manager in the format hostname.domain_name. Eg: oimnode.omnia.test"
 echo ""
 echo "Once IP and hostname is set, provide inputs in input/local_repo_config.yml & input/software_config.json and execute the playbook local_repo/local_repo.yml to created offline repositories."
 echo ""

@@ -7,8 +7,8 @@ offline_ansible_galaxy_collection_path: "http://{{ admin_nic_ip }}:80/install{{ 
 offline_manifest_path: "http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/manifest"
 http_proxy: "http://{{ admin_nic_ip }}:3128"
 https_proxy: "http://{{ admin_nic_ip }}:3128"
-control_plane_hostname: "{{ cp_hostname }}"
-domain_name: "{{ cp_domain_name }}"
+oim_hostname: "{{ oim_hostname }}"
+domain_name: "{{ oim_domain_name }}"
 proxy_status: {{ proxy_status | lower }}
 no_proxy_input_status: {{ no_proxy_input_status | lower }}
 user_no_proxy: "{{ proxy[0].no_proxy | default('',true)  }}"

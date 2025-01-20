@@ -27,7 +27,7 @@
       "type": "pip_module"
     },
     { 
-      "package": "cryptography==41.0.7", 
+      "package": "cryptography==44.0.0", 
       "type": "pip_module"
     },
     { 

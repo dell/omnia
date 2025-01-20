@@ -28,7 +28,7 @@ def get_count(line: str) -> int:
     # If the split string has more than one element, return the second element as an integer
     if len(split_line) > 1:
         return int(split_line[1])
-    
+
     # If the split string has only one element, return 0
     return 0
 
@@ -46,7 +46,7 @@ def get_node_info_db(cursor: cursor, node: str) -> tuple:
     """
     # Define the SQL query to retrieve node information
     query = """
-        SELECT 
+        SELECT
             service_tag,
             admin_ip,
             cpu,
@@ -56,18 +56,18 @@ def get_node_info_db(cursor: cursor, node: str) -> tuple:
             status,
             admin_mac,
             hostname
-        FROM 
+        FROM
             cluster.nodeinfo
-        WHERE 
+        WHERE
             node = %s
     """
-    
+
     # Execute the SQL query with the given node
     cursor.execute(query, (node,))
-    
+
     # Fetch the node info
     node_info = cursor.fetchone()
-    
+
     # Return the node information
     return node_info
 
@@ -90,7 +90,7 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
     amd_cpu_str = "AMD CPU Found"
     intel_gpu_str = "Intel GPU Found"
     no_cpu_str = "No CPU Found"
-    
+
     # Initialize variables
     cpu = ""
     cpu_count = 0
@@ -98,7 +98,7 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
     gpu_count = 0
     gpu_found = False
     cpu_found = False
-    
+
     # Define the path to the log file
     computes_log_file_path = '/var/log/xcat/computes.log'
 
@@ -107,52 +107,52 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
         with open(computes_log_file_path, 'r', encoding='utf-8') as file:
             # Read the contents of the file
             contents = file.readlines()
-            
-            # Iterate over the lines in reverse order
-            for line in reversed(contents):
-                # Check if the node name is present in the line
-                if node in line:
-                    # Check if the GPU have been found
-                    if gpu_found == False:
-                        # Check if the Nvidia GPU str is present in the line
-                        if nvidia_gpu_str in line:
-                            gpu = "nvidia"
-                            gpu_count = get_count(line)
-                            gpu_found = True
-                        # Check if the AMD GPU str is present in the line
-                        elif amd_gpu_str in line:
-                            gpu = "amd"
-                            gpu_count = get_count(line)
-                            gpu_found = True
-                        # Check if the Intel GPU str is present in the line
-                        elif intel_gpu_str in line:
-                            gpu = "intel"
-                            gpu_count = get_count(line)
-                            gpu_found = True
-                        # Check if the No GPU str is present in the line
-                        elif no_gpu_str in line:
-                            gpu_found = True
+            if contents:
+                # Iterate over the lines in reverse order
+                for line in reversed(contents):
+                    # Check if the node name is present in the line
+                    if node in line:
+                        # Check if the GPU have been found
+                        if gpu_found == False:
+                            # Check if the Nvidia GPU str is present in the line
+                            if nvidia_gpu_str in line:
+                                gpu = "nvidia"
+                                gpu_count = get_count(line)
+                                gpu_found = True
+                            # Check if the AMD GPU str is present in the line
+                            elif amd_gpu_str in line:
+                                gpu = "amd"
+                                gpu_count = get_count(line)
+                                gpu_found = True
+                            # Check if the Intel GPU str is present in the line
+                            elif intel_gpu_str in line:
+                                gpu = "intel"
+                                gpu_count = get_count(line)
+                                gpu_found = True
+                            # Check if the No GPU str is present in the line
+                            elif no_gpu_str in line:
+                                gpu_found = True
 
-                    # Check if the CPU has been found
-                    if cpu_found == False:
-                        # Check if the Intel CPU str is present in the line
-                        if intel_cpu_str in line:
-                            cpu = "intel"
-                            cpu_count = get_count(line)
-                            cpu_found = True
-                        # Check if the AMD CPU str is present in the line
-                        elif amd_cpu_str in line:
-                            cpu = "amd"
-                            cpu_count = get_count(line)
-                            cpu_found = True
-                        # Check if the No CPU str is present in the line
-                        elif no_cpu_str in line:
-                            cpu_found = True
-                    
-                    # Break out of the loop if both GPU and CPU have been found
-                    if cpu_found == True and gpu_found == True:
-                        break
-    
+                        # Check if the CPU has been found
+                        if cpu_found == False:
+                            # Check if the Intel CPU str is present in the line
+                            if intel_cpu_str in line:
+                                cpu = "intel"
+                                cpu_count = get_count(line)
+                                cpu_found = True
+                            # Check if the AMD CPU str is present in the line
+                            elif amd_cpu_str in line:
+                                cpu = "amd"
+                                cpu_count = get_count(line)
+                                cpu_found = True
+                            # Check if the No CPU str is present in the line
+                            elif no_cpu_str in line:
+                                cpu_found = True
+
+                        # Break out of the loop if both GPU and CPU have been found
+                        if cpu_found == True and gpu_found == True:
+                            break
+
     except FileNotFoundError:
         # Log an error if the file is not found
         syslog.syslog(syslog.LOG_ERR, f"parse_syslog:get_updated_cpu_gpu_info: File '{computes_log_file_path}' not found")
@@ -177,7 +177,7 @@ def update_db(cursor: cursor, node: str, updated_node_info: tuple) -> None:
     """
     # Unpack the updated node information tuple
     cpu, gpu, cpu_count, gpu_count = updated_node_info
-    
+
     # Prepare the SQL query for updating the database
     sql_update_db = """
         UPDATE
@@ -207,7 +207,7 @@ def remove_hostname_inventory(inventory_file: str, hostname: str) -> None:
         # Read the inventory file
         config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
         config.read(inventory_file, encoding='utf-8')
-        
+
         # Change the permission of the file
         os.chmod(inventory_file, 0o644)
 
@@ -216,7 +216,7 @@ def remove_hostname_inventory(inventory_file: str, hostname: str) -> None:
             # Log a message if the hostname is not found
             syslog.syslog(syslog.LOG_INFO, f"parse_syslog:remove_hostname_inventory: '{hostname}' is not found in '{inventory_file}'")
             return
-        
+
         # Write the updated inventory file
         with open(inventory_file, 'w', encoding='utf-8') as configfile:
             config.write(configfile, space_around_delimiters=False)
@@ -240,13 +240,13 @@ def add_hostname_inventory(inventory_file: str, hostname: str) -> None:
         # Read the config file
         config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
         config.read(inventory_file, encoding='utf-8')
-        
+
         # Change the permission of the file
         os.chmod(inventory_file, 0o644)
 
         # Set the hostname
         config.set(inventory_file, hostname)
-        
+
         # Write the inventory file
         with open(inventory_file, 'w', encoding='utf-8') as configfile:
             config.write(configfile, space_around_delimiters=False)
@@ -262,17 +262,17 @@ def add_hostname_inventory(inventory_file: str, hostname: str) -> None:
 def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:
     """
     Update the inventory files based on the updated node information.
-    
+
     Args:
         node_info_db (tuple): A tuple containing the node information from the database.
         updated_node_info (tuple): A tuple containing the updated node information.
     """
-    
+
     try:
         # Unpack the node information from the tuples
         service_tag, admin_ip, db_cpu, db_gpu, hostname = node_info_db[0], node_info_db[1], node_info_db[2], node_info_db[3], node_info_db[8]
         updated_cpu, updated_gpu = updated_node_info[0], updated_node_info[1]
-        
+
         # No modification in inventory if no hostname
         if not hostname:
             return
@@ -282,7 +282,7 @@ def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:
         omnia_inventory_dir = "/opt/omnia/omnia_inventory/"
         if curr_dir != omnia_inventory_dir:
             os.chdir(omnia_inventory_dir)
-        
+
         # Update inventory files if the CPU has been modified
         if updated_cpu != db_cpu:
             if db_cpu:

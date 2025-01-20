@@ -135,12 +135,12 @@ min_length_grafana: 5
 site_config_file: "{{ role_path }}/../../../input/site_config.yml"
 invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
 proxy_env_fail_msg: "Failed. The values for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in the
-proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the control plane.
-The no_proxy environment variable should include the control plane hostname and the admin network IP address."
-update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in control plane for acccessing internet."
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
-control_plane_os_ubuntu: "ubuntu"
+proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the Omnia Infrastructure Manager.
+The no_proxy environment variable should include the Omnia Infrastructure Manager hostname and the admin network IP address."
+update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in Omnia Infrastructure Manager for acccessing internet."
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
 repo_retries: 5
 repo_delay: 10
 dnf_conf_path: "/etc/dnf/dnf.conf"

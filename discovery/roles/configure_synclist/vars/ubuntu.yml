@@ -32,7 +32,7 @@ intel_file_path: "{{ repo_store_path }}/cluster/apt/intel/{{ intelgaudi_version 
 software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
 local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
 local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
-tmp_keyrings_path: "/tmp/keyrings"
+tmp_keyrings_path: "{{ syncfiles_dir }}/keyrings"
 cluster_repo_template_fail: "Failed. Please run local_repo/local_repo.yml and re-execute discovery/discovery.yml or discovery_provision.yml"
 base_url_ubuntu: "/install{{ repo_store_path }}/cluster/{{ provision_os }}/{{ provision_os_version }}/deb"
 

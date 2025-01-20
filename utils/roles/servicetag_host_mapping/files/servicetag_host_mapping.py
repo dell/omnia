@@ -29,19 +29,22 @@ def service_tag_host_mapping():
     """
     Modifies the inventory files by adding the corresponding host IP for each service tag.
 
-    This function iterates through a list of inventory files and 
-    modifies them by adding the host IP for each service tag. 
+    This function iterates through a list of inventory files and
+    modifies them by adding the host IP for each service tag.
     """
     try:
         # Create a database connection
         connection = omniadb.create_connection()
         cursor = connection.cursor()
-
-        # Get the list of inventory files
-        inventory_sources_list = inventory_sources_str[1:-1].split(',')
+        inventory_sources_list = []
+        if inventory_sources_str:
+            # Get the list of inventory files
+            inventory_sources_list = inventory_sources_str[1:-1].split(',')
 
         # Iterate through all inventory files and modify them
         for inventory_file_path in inventory_sources_list:
+            inventory_file_path = os.path.abspath(inventory_file_path.strip("'| "))
+            print("inventory_file_path: " + inventory_file_path)
 
             # If inventory file don't exist ignore.
             if not os.path.exists(inventory_file_path) or not os.path.basename(inventory_file_path):
@@ -54,13 +57,13 @@ def service_tag_host_mapping():
 
             # Variable to store modified lines
             result_lines = []
-
+            lines = []
             # Open file in read mode
             with open(inventory_file_path, "r", encoding='utf-8') as f:
-
                 # Read the content of the file
                 lines = f.readlines()
 
+            if lines:
                 # Iterate content line by line
                 for line in lines:
                     if 'Categories' not in line:

@@ -62,8 +62,8 @@ up_port: []
 
 # Usage: map_volume.yml
 access: rw
-login_pv_file: "{{ playbook_dir }}/control_plane/input_params/login_vars.yml"
-login_pv_vault_file: "{{ playbook_dir }}/control_plane/input_params/.login_vault_key"
+login_pv_file: "{{ playbook_dir }}/oim/input_params/login_vars.yml"
+login_pv_vault_file: "{{ playbook_dir }}/oim/input_params/.login_vault_key"
 
 # Usage: sas_map.yml
 temp1: 10

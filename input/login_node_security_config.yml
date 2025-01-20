@@ -13,10 +13,10 @@
 #  limitations under the License.
 ---
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # Maximum number of consecutive failures before lockout
 # The default value of this variable can't be changed
@@ -29,7 +29,7 @@ max_failures: 3
 # Max: 60
 failure_reset_interval: 60
 
-# Period (in seconds) for which users are locked out 
+# Period (in seconds) for which users are locked out
 # Default value: 10
 # Min: 5
 # Max: 10
@@ -51,13 +51,13 @@ alert_email_address: ""
 # SMTP server details in the cluster to sent email alerts
 # Supported only single SMTP server configuration
 # Example:
-# smtp_server: 
+# smtp_server:
 #   - { host: "smtp-server.domain.com", port: "25", sender_address: "alert@domain.com" }"
-smtp_server: 
+smtp_server:
   - { host: "", port: "", sender_address: "" }
 
 # This variable mentions the users to whom the access will be provided
-# format of user shall be username@ip or username 
+# format of user shall be username@ip or username
 # Ex1- root@1.2.3.4 Ex2- root Ex3- root@1.2.3.4 root (if multiple user, provide space seperated values) by default empty
 user: ""
 
@@ -68,8 +68,8 @@ user: ""
 allow_deny: "allow"
 
 # This variable is used to disable services.
-# Accepted values: "true" or "false". 
-# Default value: false  
+# Accepted values: "true" or "false".
+# Default value: false
 # Root access is needed.
 restrict_program_support: false
 

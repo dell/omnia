@@ -28,7 +28,7 @@ telemetry_binary:
   build_path: "{{ upgrade_folder_path }}/telemetry/build"
   spec_path: "{{ upgrade_folder_path }}/telemetry/"
   binary_name: omnia_telemetry
-  python_file_path: "{{ role_path }}/../../../prepare_cp/roles/omnia_telemetry_cp/files"
+  python_file_path: "{{ role_path }}/../../../prepare_oim/roles/omnia_telemetry_oim/files"
 
 # Usage: replace_and_start.yml
 binary_files_path: "{{ upgrade_folder_path }}/telemetry/dist/omnia_telemetry"
@@ -38,3 +38,7 @@ binary_mode: "0500"
 # Usage: check_and_revert.yml
 old_binary_files_path: "/opt/omnia/telemetry/dist/omnia_telemetry"
 new_binaries_dir: "{{ upgrade_folder_path }}/telemetry"
+warning_msg_omnia_telemetry: |
+  "[Warning] Omnia_telemetry binary of Omnia {{ upgrade_omnia_version }} is not replaced on compute nodes because
+  Omnia telemetry service is failed to start on {{ not_running_nodes }}.
+  Post successful upgrade, run telemetry.yml to deploy binary from Omnia {{ upgrade_omnia_version }}."

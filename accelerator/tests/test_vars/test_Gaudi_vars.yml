@@ -14,7 +14,7 @@
 ---
 
 input_params_folder: "../input"
-Control_plane_dir: "../"
+oim_dir: "../"
 Gaudi_validation_script_path: test_Gaudi_validation.yml
 inventory: ../inventory.ini
 

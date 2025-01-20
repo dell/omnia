@@ -12,10 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # ---Default configurations written for Dell PowerSwitch S3048-ON---
 # ---Change the configurations as per the switch model to avoid failures---
@@ -41,163 +41,163 @@ snmp_community_name: "public"
 # Interface configuration for switch
 os10_interface:
     ethernet 1/1/1:
-      desc: "Port 1"
-      admin: up
+        desc: "Port 1"
+        admin: up
     ethernet 1/1/2:
-      desc: "Port 2"
-      admin: up
+        desc: "Port 2"
+        admin: up
     ethernet 1/1/3:
-      desc: "Port 3"
-      admin: up
+        desc: "Port 3"
+        admin: up
     ethernet 1/1/4:
-      desc: "Port 4"
-      admin: up
+        desc: "Port 4"
+        admin: up
     ethernet 1/1/5:
-      desc: "Port 5"
-      admin: up
+        desc: "Port 5"
+        admin: up
     ethernet 1/1/6:
-      desc: "Port 6"
-      admin: up
+        desc: "Port 6"
+        admin: up
     ethernet 1/1/7:
-      desc: "Port 7"
-      admin: up
+        desc: "Port 7"
+        admin: up
     ethernet 1/1/8:
-      desc: "Port 8"
-      admin: up
+        desc: "Port 8"
+        admin: up
     ethernet 1/1/9:
-      desc: "Port 9"
-      admin: up
+        desc: "Port 9"
+        admin: up
     ethernet 1/1/10:
-      desc: "Port 10"
-      admin: up
+        desc: "Port 10"
+        admin: up
     ethernet 1/1/11:
-      desc: "Port 11"
-      admin: up
+        desc: "Port 11"
+        admin: up
     ethernet 1/1/12:
-      desc: "Port 12"
-      admin: up
+        desc: "Port 12"
+        admin: up
     ethernet 1/1/13:
-      desc: "Port 13"
-      admin: up
+        desc: "Port 13"
+        admin: up
     ethernet 1/1/14:
-      desc: "Port 14"
-      admin: up
+        desc: "Port 14"
+        admin: up
     ethernet 1/1/15:
-      desc: "Port 15"
-      admin: up
+        desc: "Port 15"
+        admin: up
     ethernet 1/1/16:
-      desc: "Port 16"
-      admin: up
+        desc: "Port 16"
+        admin: up
     ethernet 1/1/17:
-      desc: "Port 17"
-      admin: up
+        desc: "Port 17"
+        admin: up
     ethernet 1/1/18:
-      desc: "Port 18"
-      admin: up
+        desc: "Port 18"
+        admin: up
     ethernet 1/1/19:
-      desc: "Port 19"
-      admin: up
+        desc: "Port 19"
+        admin: up
     ethernet 1/1/20:
-      desc: "Port 20"
-      admin: up
+        desc: "Port 20"
+        admin: up
     ethernet 1/1/21:
-      desc: "Port 21"
-      admin: up
+        desc: "Port 21"
+        admin: up
     ethernet 1/1/22:
-      desc: "Port 22"
-      admin: up
+        desc: "Port 22"
+        admin: up
     ethernet 1/1/23:
-      desc: "Port 23"
-      admin: up
+        desc: "Port 23"
+        admin: up
     ethernet 1/1/24:
-      desc: "Port 24"
-      admin: up
+        desc: "Port 24"
+        admin: up
     ethernet 1/1/25:
-      desc: "Port 25"
-      admin: up
+        desc: "Port 25"
+        admin: up
     ethernet 1/1/26:
-      desc: "Port 26"
-      admin: up
+        desc: "Port 26"
+        admin: up
     ethernet 1/1/27:
-      desc: "Port 27"
-      admin: up
+        desc: "Port 27"
+        admin: up
     ethernet 1/1/28:
-      desc: "Port 28"
-      admin: up
+        desc: "Port 28"
+        admin: up
     ethernet 1/1/29:
-      desc: "Port 29"
-      admin: up
+        desc: "Port 29"
+        admin: up
     ethernet 1/1/30:
-      desc: "Port 30"
-      admin: up
+        desc: "Port 30"
+        admin: up
     ethernet 1/1/31:
-      desc: "Port 31"
-      admin: up
+        desc: "Port 31"
+        admin: up
     ethernet 1/1/32:
-      desc: "Port 32"
-      admin: up
+        desc: "Port 32"
+        admin: up
     ethernet 1/1/33:
-      desc: "Port 33"
-      admin: up
+        desc: "Port 33"
+        admin: up
     ethernet 1/1/34:
-      desc: "Port 34"
-      admin: up
+        desc: "Port 34"
+        admin: up
     ethernet 1/1/35:
-      desc: "Port 35"
-      admin: up
+        desc: "Port 35"
+        admin: up
     ethernet 1/1/36:
-      desc: "Port 36"
-      admin: up
+        desc: "Port 36"
+        admin: up
     ethernet 1/1/37:
-      desc: "Port 37"
-      admin: up
+        desc: "Port 37"
+        admin: up
     ethernet 1/1/38:
-      desc: "Port 38"
-      admin: up
+        desc: "Port 38"
+        admin: up
     ethernet 1/1/39:
-      desc: "Port 39"
-      admin: up
+        desc: "Port 39"
+        admin: up
     ethernet 1/1/40:
-      desc: "Port 40"
-      admin: up
+        desc: "Port 40"
+        admin: up
     ethernet 1/1/41:
-      desc: "Port 41"
-      admin: up
+        desc: "Port 41"
+        admin: up
     ethernet 1/1/42:
-      desc: "Port 42"
-      admin: up
+        desc: "Port 42"
+        admin: up
     ethernet 1/1/43:
-      desc: "Port 43"
-      admin: up
+        desc: "Port 43"
+        admin: up
     ethernet 1/1/44:
-      desc: "Port 4"
-      admin: up
+        desc: "Port 4"
+        admin: up
     ethernet 1/1/45:
-      desc: "Port 45"
-      admin: up
+        desc: "Port 45"
+        admin: up
     ethernet 1/1/46:
-      desc: "Port 46"
-      admin: up
+        desc: "Port 46"
+        admin: up
     ethernet 1/1/47:
-      desc: "Port 47"
-      admin: up
+        desc: "Port 47"
+        admin: up
     ethernet 1/1/48:
-      desc: "Port 48"
-      admin: up
+        desc: "Port 48"
+        admin: up
     ethernet 1/1/49:
-      desc: "Port 49"
-      admin: up
+        desc: "Port 49"
+        admin: up
     ethernet 1/1/50:
-      desc: "Port 50"
-      admin: up
+        desc: "Port 50"
+        admin: up
     ethernet 1/1/51:
-      desc: "Port 51"
-      admin: up
+        desc: "Port 51"
+        admin: up
     ethernet 1/1/52:
-      desc: "Port 52"
-      admin: up
+        desc: "Port 52"
+        admin: up
     vlan 1:
-      admin: up
+        admin: up
 
 # save_changes_to_startup is a boolean flag. By default, this option is set to false.
 # When set to true, it will save the switch's running configuration to the startup configuration file

@@ -22,7 +22,7 @@
   vars_files:
     - test_vars/test_ethernet_vars.yml
     - ../../input/network_config.yml
-    - ../../input/control_plane_config.yml
+    - ../../input/oim_config.yml
 
   tasks:
     - name: Check if ethernet_inventory present at the inventory path.

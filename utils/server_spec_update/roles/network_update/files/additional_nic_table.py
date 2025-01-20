@@ -13,13 +13,13 @@
 #  limitations under the License.
 
 import yaml
-import sys
+import sys, os
 
 node_db_path = sys.argv[2]
 sys.path.insert(0, node_db_path)
 import omniadb_connection
 
-network_spec_file_path = sys.argv[1]
+network_spec_file_path = os.path.abspath(sys.argv[1])
 with open(network_spec_file_path, "r") as file:
     data = yaml.safe_load(file)
 
