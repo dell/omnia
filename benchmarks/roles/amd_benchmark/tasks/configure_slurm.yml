@@ -67,6 +67,10 @@
     name: slurmd
     state: restarted
     enabled: true
+  register: slurmd_status
+  until: slurmd_status is succeeded
+  retries: 5
+  delay: 30
   when: "'slurm_node' in group_names"
 
 - name: Restart slurmd on login
@@ -74,6 +78,10 @@
     name: slurmd
     state: restarted
     enabled: true
+  register: slurmd_status
+  until: slurmd_status is succeeded
+  retries: 5
+  delay: 30
   when: "'login' in group_names"
 
 - name: Restart slurmctld on slurm_control_node
@@ -81,4 +89,8 @@
     name: slurmctld
     state: restarted
     enabled: true
+  register: slurmctld_status
+  until: slurmctld_status is succeeded
+  retries: 5
+  delay: 30
   when: "'slurm_control_node' in group_names"

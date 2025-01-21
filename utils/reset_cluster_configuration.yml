@@ -28,9 +28,9 @@
   tags: always
 
 - name: Proceeding to remove slurm cluster
-  hosts: slurm_node, slurmdbd, slurm_control_node
+  hosts: slurm_node, login, slurm_control_node
   connection: ssh
-  gather_facts: false
+  gather_facts: true
   tags: slurm_cluster
   roles:
     - { role: remove_cluster/remove_slurm_cluster } # noqa: role-name[path]

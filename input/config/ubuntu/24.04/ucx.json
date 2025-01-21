@@ -1,0 +1,13 @@
+{
+  "ucx": {
+    "cluster": [
+      { "package": "ucx",
+        "type": "tarball",
+        "url": "https://github.com/openucx/ucx/releases/download/v{{ ucx_version }}/ucx-{{ ucx_version }}.tar.gz"
+      },
+      {"package": "gcc", "type": "deb", "repo_name": "noble"},
+      {"package": "g++", "type": "deb", "repo_name": "noble"},
+      {"package": "make", "type": "deb", "repo_name": "noble"}
+    ]
+  }
+}

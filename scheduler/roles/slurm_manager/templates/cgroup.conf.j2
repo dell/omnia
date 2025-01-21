@@ -1,0 +1,9 @@
+# slurm cgroup.conf file for ubuntu
+{% if ansible_distribution | lower == "ubuntu" %}
+    {% if ansible_distribution_version == '22.04' %}
+CgroupAutomount=yes
+CgroupMountPoint=/sys/fs/cgroup
+    {% elif ansible_distribution_version == '24.04' %}
+CgroupMountPoint=/sys/fs/cgroup
+    {% endif %}
+{% endif %}

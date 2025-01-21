@@ -59,6 +59,34 @@
         mode: "{{ item.mode }}"
       with_items: "{{ xcat_ubuntu20_path }}"
 
+- name: Ubuntu 24.04 configuration
+  when:
+    - provision_os | lower == os_supported_ubuntu
+    - provision_os_version | string in ubuntu24_version
+  block:
+    - name: Fetch ubuntu 24 directory name
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        lsdef -t osimage -o {{ provision_os_image }} | grep osvers
+      changed_when: false
+      register: fetch_ubuntu24_directory
+
+    - name: Set ubuntu24_directory
+      ansible.builtin.set_fact:
+        ubuntu24_directory: "{{ fetch_ubuntu24_directory.stdout.split('=')[1] }}"
+
+    - name: Delete ubuntu 24.04 unwanted package
+      ansible.builtin.file:
+        path: "{{ ubuntu24_unwanted_package }}"
+        state: absent
+
+    - name: Copy ubuntu kickstart files to xcat configuration path
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      with_items: "{{ xcat_ubuntu24_path }}"
+
 - name: Copy ubuntu pre script to xcat configuration path
   ansible.builtin.template:
     src: "{{ item.src }}"

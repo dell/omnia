@@ -12,17 +12,17 @@
         "repo_name": "jammy"
       },
       {
-        "package": "docker-ce-cli=5:20.10.20~3-0~ubuntu-jammy",
+        "package": "docker-ce-cli=5:24.0.4-1~ubuntu.22.04~jammy",
         "type": "deb",
         "repo_name": "docker-ce-repo"
       },
       {
-        "package": "docker-ce=5:20.10.20~3-0~ubuntu-jammy",
+        "package": "docker-ce=5:24.0.4-1~ubuntu.22.04~jammy",
         "type": "deb",
         "repo_name": "docker-ce-repo"
       },
       {
-        "package": "docker-ce-rootless-extras=5:20.10.20~3-0~ubuntu-jammy",
+        "package": "docker-ce-rootless-extras=5:24.0.4-1~ubuntu.22.04~jammy",
         "type": "deb",
         "repo_name": "docker-ce-repo"
       },

@@ -73,14 +73,31 @@ if [[ $gaudi_check_processing_xlr8r == *"Habana Labs Ltd"* ]]; then
     sudo apt install libopenmpi3 dkms libelf-dev -y
     sudo apt install linux-headers-$(uname -r) -y
 
-    sudo apt install -y habanalabs-dkms \
-      habanalabs-firmware \
-      habanalabs-firmware-tools \
-      habanalabs-graph \
-      habanalabs-qual \
-      habanalabs-rdma-core \
-      habanalabs-thunk \
-      habanatools
+    check_ubuntu22="$(cat /etc/os-release | grep 'VERSION_ID="22.04"' | wc -l)"
+    if [[ "$check_ubuntu22" == "1" ]]
+    then
+        sudo apt install -y habanalabs-dkms \
+        habanalabs-firmware \
+        habanalabs-firmware-tools \
+        habanalabs-graph \
+        habanalabs-qual \
+        habanalabs-rdma-core \
+        habanalabs-thunk \
+        habanatools
+    fi
+
+    check_ubuntu24="$(cat /etc/os-release | grep 'VERSION_ID="24.04"' | wc -l)"
+    if [[ "$check_ubuntu24" == "1" ]]
+    then
+        sudo apt install -y habanalabs-dkms \
+        habanalabs-firmware \
+        habanalabs-firmware-tools \
+        habanalabs-graph \
+        habanalabs-qual \
+        habanalabs-rdma-core \
+        habanalabs-thunk \
+        habanalabs-tools
+    fi
 
     rm /etc/apt/sources.list.d/intelgaudi.list
 

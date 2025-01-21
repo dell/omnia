@@ -12,30 +12,42 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Saving OS family
+  ansible.builtin.set_fact:
+    compute_os: "{{ ansible_facts['distribution'] | lower }}"
 
-- name: Install nfs-utils
+- name: Select the appropriate package and service lists
+  ansible.builtin.set_fact:
+    selected_nfs_utilities: "{{ nfs_utilities['ubuntu'] if 'ubuntu' in compute_os else nfs_utilities['rhel'] }}"
+    selected_nfs_services: "{{ nfs_services['ubuntu'] if 'ubuntu' in compute_os else nfs_services['rhel'] }}"
+
+- name: Install NFS utilities
   ansible.builtin.package:
     name: "{{ item }}"
     state: present
-  with_items: "{{ nfs_utilities }}"
+  loop: "{{ selected_nfs_utilities }}"
 
-- name: Start and enable rpcbind and nfs-server service
+- name: Start and enable NFS services
   ansible.builtin.service:
     name: "{{ item }}"
     state: started
     enabled: true
-  with_items: "{{ nfs_services }}"
+  loop: "{{ selected_nfs_services }}"
 
 - name: Add services to firewalld
   ansible.builtin.command: firewall-cmd --add-service="{{ item }}" --zone=internal --permanent
   changed_when: false
   with_items: "{{ firewall_services }}"
+  when: "compute_os != 'ubuntu'"
 
-- name: Add ports to firwalld
+- name: Add ports to firewalld
   ansible.builtin.command: firewall-cmd --add-port="{{ item }}" --permanent
   changed_when: false
   with_items: "{{ firewall_ports }}"
+  when: "compute_os != 'ubuntu'"
 
 - name: Reload firewalld
   ansible.builtin.command: firewall-cmd --reload
   changed_when: false
+  when: "compute_os != 'ubuntu'"
+

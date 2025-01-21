@@ -1,0 +1,81 @@
+#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Get network address and subnet mask
+  ansible.builtin.set_fact:
+    network_address: "{{ ansible_default_ipv4.network | ipaddr('network') }}/{{ ansible_default_ipv4.netmask | ipaddr('prefix') }}"
+  when: not hostvars['localhost']['ansible_collection_used']
+
+- name: Install ufw
+  ansible.builtin.package:
+    name: "{{ ufw_package }}"
+    state: present
+  tags: firewall
+
+- name: Ensure UFW is enabled and set to start on boot
+  community.general.ufw:
+    state: enabled
+    policy: allow
+  tags: firewall
+
+- name: Allow SSH port
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+  tags: firewall
+
+- name: Allow specific TCP ports for SLURM
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.split('/')[0] }}"
+    proto: "{{ item.split('/')[1] }}"
+  loop:
+    - "{{ tcp_port1 }}"
+    - "{{ tcp_port2 }}"
+    - "{{ tcp_port3 }}"
+    - "{{ tcp_port5 }}"
+  when: "'slurm_control_node' in group_names"
+  tags: firewall
+
+- name: Allow SLURM dynamic port range for srun
+  community.general.ufw:
+    rule: allow
+    proto: tcp
+    port: "{{ srun_port }}"
+  tags: firewall
+
+- name: Allow specific UDP ports for SLURM
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.split('/')[0] }}"
+    proto: "{{ item.split('/')[1] }}"
+  loop:
+    - "{{ udp_port1 }}"
+    - "{{ udp_port2 }}"
+    - "{{ udp_port3 }}"
+    - "{{ udp_port4 }}"
+  when: "'slurm_control_node' in group_names"
+  tags: firewall
+
+- name: Allow all incoming traffic on internal network
+  ansible.builtin.shell: |
+    ufw allow from {{ network_address }} to any
+  changed_when: true
+  tags: firewall
+
+- name: Reload ufw to apply changes
+  ansible.builtin.command: ufw reload
+  changed_when: true
+  tags: firewall

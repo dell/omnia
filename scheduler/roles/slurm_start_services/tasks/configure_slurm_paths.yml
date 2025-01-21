@@ -12,6 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Set bash_rc_path for Ubuntu
+  ansible.builtin.set_fact:
+    bashrc_path_final: "{{ bashrc_path_ubuntu }}"
+  when: ansible_distribution | lower == 'ubuntu'
+
+- name: Set bash_rc_path for RHEL
+  ansible.builtin.set_fact:
+    bashrc_path_final: "{{ bashrc_path }}"
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
 
 - name: Check if environment variables are set
   ansible.builtin.command: echo $PATH
@@ -29,7 +38,7 @@
 
     - name: Replace PATH variable
       ansible.builtin.lineinfile:
-        path: "{{ bashrc_path }}"
+        path: "{{ bashrc_path_final }}"
         regexp: '^PATH=*'
         insertafter: EOF
         line: 'PATH={{ environment_output.stdout }}:{{ slurm_nfs_folder }}/usr/bin:{{ slurm_nfs_folder }}/usr/sbin'
@@ -41,7 +50,8 @@
   register: path_output
 
 - name: Set environment variable for LD_LIBRARY_PATH
-  when: "'slurm' not in path_output.stdout"
+  when:
+    - "'slurm' not in path_output.stdout"
   block:
     - name: Check current environment variables
       ansible.builtin.shell: echo $LD_LIBRARY_PATH # noqa: command-instead-of-shell
@@ -50,17 +60,23 @@
 
     - name: Replace LD_LIBRARY_PATH variable
       ansible.builtin.lineinfile:
-        path: "{{ bashrc_path }}"
+        path: "{{ bashrc_path_final }}"
         regexp: '^LD_LIBRARY_PATH=*'
         insertafter: EOF
         line: 'export LD_LIBRARY_PATH={{ slurm_nfs_folder }}/usr/lib64/'
 
 - name: Check if environment variables are set
-  ansible.builtin.command: echo $SLURM_CONF
+  ansible.builtin.shell: echo $SLURM_CONF
   changed_when: false
   failed_when: false
   register: path_output
 
 - name: Source /etc/bashrc
-  ansible.builtin.shell: source  "{{ bashrc_path }}" # noqa: command-instead-of-shell
+  ansible.builtin.shell: source "{{ bashrc_path }}" # noqa: command-instead-of-shell
   changed_when: false
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
+
+- name: Source /etc/bash.bashrc
+  ansible.builtin.shell: "bash -i -c 'source {{ bashrc_path_ubuntu }}'" # noqa: command-instead-of-shell
+  changed_when: false
+  when: ansible_distribution | lower == "ubuntu"

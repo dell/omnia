@@ -20,7 +20,7 @@
 - name: Validate inputs
   when:
     - compute_os == 'ubuntu'
-    - compute_os_version == '22.04'
+    - compute_os_version == '22.04' or compute_os_version == '24.04'
   block:
     - name: Inventory not provided
       ansible.builtin.fail:

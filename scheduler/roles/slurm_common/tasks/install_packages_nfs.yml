@@ -14,6 +14,7 @@
 ---
 
 - name: Install packages for slurm
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
   block:
     - name: Configure dnf.conf
       ansible.builtin.replace:
@@ -43,58 +44,106 @@
       ansible.builtin.command: dnf makecache
       changed_when: true
 
+- name: Install packages for slurm
+  when: ansible_distribution | lower == "ubuntu"
+  block:
+    - name: Install Slurm packages
+      ansible.builtin.apt:
+        name: "{{ slurm_packages_ubuntu }}"
+        state: present
+      tags: install
+      run_once: true
+
+  always:
+    - name: Update the apt repos cache again
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+
 - name: Install munge packages
   ansible.builtin.package:
     name: "{{ munge_packages }}"
     state: present
   tags: install
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
 
-- name: Create munge key
-  ansible.builtin.command: "{{ munge_cmd }}"
-  changed_when: true
+- name: Install munge packages
+  ansible.builtin.package:
+    name: "{{ munge_packages_ubuntu }}"
+    state: present
+  tags: install
+  when: ansible_distribution | lower == "ubuntu"
 
-- name: Copy munge key
-  ansible.builtin.copy:
-    src: munge.key
-    dest: "{{ munge_dest }}"
+- name: Ensure Munge key is generated on control node (RHEL-based)
+  ansible.builtin.command:
+    cmd: "{{ munge_cmd }}"
+    creates: "{{ munge_src_path }}"  # Only run if the key does not already exist
+  when:
+    - "'slurm_control_node' in group_names"
+    - ansible_distribution | lower not in ['ubuntu']
+  tags: install
+
+- name: Ensure Munge key is generated on control node (Ubuntu)
+  ansible.builtin.command:
+    cmd: "{{ munge_cmd_ubuntu }}"
+    creates: "{{ munge_src_path }}"  # Only run if the key does not already exist
+  when:
+    - "'slurm_control_node' in group_names"
+    - ansible_distribution | lower == 'ubuntu'
+  failed_when: false
+  tags: install
+
+- name: Distribute Munge key to compute nodes
+  ansible.posix.synchronize:
+    src: "{{ munge_src_path }}"  # Path on control node
+    dest: "{{ munge_dest }}"    # Path on compute nodes
+    mode: pull                  # Pull files from control node to compute node
+    checksum: true
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['slurm_node'] | union(groups['login'] | default([])) }}"
+  when: "'slurm_control_node' in group_names"
+  tags: install
+
+- name: Set ownership for Munge key on compute nodes
+  ansible.builtin.file:
+    path: "{{ munge_src_path }}"
     owner: munge
     group: munge
     mode: "{{ common_munge_mode }}"
+    state: file
+  when: "'slurm_node' in group_names"
   tags: install
 
-- name: Copy munge key
-  ansible.builtin.copy:
-    src: munge.key
-    dest: "{{ munge_socket }}"
-    owner: munge
-    group: munge
-    mode: "{{ common_munge_mode }}"
-  tags: install
-
-- name: Create Munge group
+- name: Create Munge group (RHEL-based)
   ansible.builtin.group:
     name: munge
     gid: "{{ munge_user_id }}"
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
+  tags: install
 
-- name: Copy repository files
+- name: Copy repository files (RHEL-based)
   ansible.builtin.copy:
     src: /etc/yum.repos.d/
     dest: "{{ slurm_nfs_folder }}/etc/yum.repos.d/"
     mode: "{{ slurm_mode }}"
     remote_src: true
+  when: ansible_distribution | lower is in ['redhat','rocky']
+  tags: install
 
-- name: Set ownership for Munge directories
+- name: Set ownership for Munge directories (both systems)
   ansible.builtin.file:
     path: "{{ item }}"
     owner: munge
+    group: munge
     recurse: true
   loop:
     - "{{ munge_dest }}"
     - "{{ munge_log_path }}"
     - "{{ munge_lib_path }}"
     - "{{ munge_path }}"
+  tags: install
 
-- name: Set permissions for Munge directories
+- name: Set permissions for Munge directories (both systems)
   ansible.builtin.file:
     path: "{{ item }}"
     mode: "{{ common_munge_mode }}"
@@ -102,13 +151,15 @@
     - "{{ munge_dest }}"
     - "{{ munge_log_path }}"
     - "{{ munge_lib_path }}"
+  tags: install
 
-- name: Set permissions for Munge directories
+- name: Set specific permissions for Munge path
   ansible.builtin.file:
     path: "{{ munge_path }}"
     mode: "{{ run_munge_mode }}"
+  tags: install
 
-- name: Start munge service
+- name: Start Munge service on control and compute nodes
   ansible.builtin.systemd:
     name: munge
     state: restarted

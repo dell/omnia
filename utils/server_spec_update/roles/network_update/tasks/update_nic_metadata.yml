@@ -17,7 +17,7 @@
   block:
     - name: Insert network data in the nic metadata file
       ansible.builtin.command: |
-        {{ python_version }} {{ update_nic_metadata_py }} {{ meta_path }}
+        {{ python_version }} {{ update_nic_metadata_py }} {{ metadata_nicinfo_path }}
       register: script_output
       changed_when: false
       environment:

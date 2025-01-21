@@ -26,6 +26,11 @@
                 "type": "deb",
                 "repo_name": "beegfs"
             },
+	     {
+                "package": "beegfs-common",
+                "type": "deb",
+                "repo_name": "beegfs"
+            },
             {
                 "package": "beegfs-helperd",
                 "type": "deb",

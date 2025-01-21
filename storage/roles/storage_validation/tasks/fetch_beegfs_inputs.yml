@@ -70,17 +70,6 @@
     success_msg: "{{ beegfs_client_version_success_msg }}"
     fail_msg: "{{ beegfs_client_version_fail_msg }}"
 
-- name: Validate BeeGFS version
-  block:
-    - name: Validating beegfs_client version
-      ansible.builtin.uri:
-        url: "{{ beegfs_non_leap_repo }}"
-        return_content: true
-  rescue:
-    - name: BeeGFS version reachability status
-      ansible.builtin.fail:
-        msg: "{{ beegfs_repo_status_msg }}"
-
 - name: Validate shared secret file for beegfs version >= 7.2.7
   when: beegfs_client_version >= '7.2.7'
   block:

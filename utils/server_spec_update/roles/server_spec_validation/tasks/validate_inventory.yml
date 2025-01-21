@@ -34,7 +34,7 @@
   block:
     - name: Validate the inventory file
       ansible.builtin.command: |
-        {{ python_version }} {{ validate_inventory_py }}
+        {{ python_version }} {{ validate_inventory_py }} {{ inventory_status | default(false) }}
       register: script_output
       changed_when: false
       environment:

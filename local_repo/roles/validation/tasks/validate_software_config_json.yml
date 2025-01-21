@@ -118,6 +118,11 @@
     os_release: "focal"
   when: cluster_os_type == 'ubuntu' and cluster_os_version == '20.04'
 
+- name: Set variable 'os_release' to 'noble' if OS is Ubuntu and version is 24.04
+  ansible.builtin.set_fact:
+    os_release: "noble"
+  when: cluster_os_type == 'ubuntu' and cluster_os_version == '24.04'
+
 - name: Set Openldap release version for Ubuntu 22.04
   ansible.builtin.set_fact:
     openldap_release: "jammy"
@@ -128,6 +133,11 @@
     openldap_release: "bullseye"
   when: cluster_os_type == 'ubuntu' and os_release == 'focal'
 
+- name: Set Openldap release version for Ubuntu 24.04
+  ansible.builtin.set_fact:
+    openldap_release: "trixie"
+  when: cluster_os_type == 'ubuntu' and os_release == 'noble'
+
 - name: Assert valid values for repo_config
   ansible.builtin.assert:
     that:
@@ -135,7 +145,7 @@
       - repo_config in valid_repo_config
     fail_msg: "{{ repo_config_fail_msg }}"
 
-- name: Validate oim_os with cluster_os_type
+- name: Validate control_plane_os with cluster_os_type
   ansible.builtin.fail:
     msg: "{{ cross_os_support_fail_msg }}"
   when:

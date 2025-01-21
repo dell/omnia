@@ -23,6 +23,22 @@ key_file_path = '/opt/omnia/.postgres/.postgres_pass.key'
 pass_file_path = '/opt/omnia/.postgres/.encrypted_pwd'
 
 def create_connection():
+    """
+    Create a database connection using the provided password file.
+
+    This function reads the encrypted password from a file and decrypts it using the provided key.
+    It then establishes a connection to the PostgreSQL database using the decrypted password.
+
+    Returns:
+        conn (psycopg2.extensions.connection): The database connection object.
+
+    Raises:
+        FileNotFoundError: If the password file or key file is not found.
+        PermissionError: If the password file or key file cannot be read.
+        cryptography.fernet.InvalidToken: If the decryption of the password fails.
+        psycopg2.OperationalError: If the database connection fails.
+
+    """
     with open(key_file_path, 'rb') as passfile:
         key = passfile.read()
     fernet = Fernet(key)
@@ -59,6 +75,20 @@ def check_presence_id(cursor, id):
 
 
 def insert_nic_info(ip, db_data):
+    """
+    Inserts or updates NIC information in the database.
+
+    Args:
+        ip (str): The IP address of the node.
+        db_data (dict): A dictionary containing the NIC information to be inserted or updated.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If there is an error executing the SQL query.
+
+    """
     conn = create_connection()
     cursor = conn.cursor()
     sql_query = "SELECT id FROM cluster.nodeinfo where admin_ip=%s"
@@ -92,3 +122,4 @@ def insert_nic_info(ip, db_data):
 
     cursor.close()
     conn.close()
+    

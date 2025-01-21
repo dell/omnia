@@ -19,17 +19,18 @@
   roles:
     - ../roles/servicetag_host_mapping
 
-- name: Updating server specifications
+- name: server_spec validation
   hosts: localhost
   connection: local
   roles:
     - role: server_spec_validation
-    - role: network_update
+      when: not inventory_status | default(false) | bool
 
-- name: Additional nic update
-  hosts: all
+- name: Updating server specifications
+  hosts: localhost
+  connection: local
   roles:
-    - role: initialize_hosts
+    - role: network_update
 
 - name: Additional nic update
   hosts: localhost
