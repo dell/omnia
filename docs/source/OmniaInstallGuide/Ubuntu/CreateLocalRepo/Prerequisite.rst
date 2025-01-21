@@ -1,7 +1,7 @@
 Prerequisites
 ===============
 
-1. Set the hostname of the control plane in the "hostname.domain name" format.
+1. Set the hostname of the OIM in the "hostname.domain name" format.
 
 .. include:: ../../../Appendices/hostnamereqs.rst
 
@@ -11,19 +11,19 @@ For example, ``controlplane.omnia.test`` is acceptable. ::
 
 2. To set up persistent offline local repositories, (if the parameter ``repo_config`` in ``input/software_config.json`` is set to ``always``), `click here <https://help.ubuntu.com/community/Debmirror>`_.
 
-.. note:: The above link explains how to build a mirror on an Ubuntu 20.04 server. Adapt the steps and scripts as required for other versions of Ubuntu OS.
+.. note:: The above link explains how to build a mirror on an Ubuntu 22.04 server. Adapt the steps and scripts as required for other versions of Ubuntu OS.
 
 3. Creating user registries
 
 .. note::
 
     * The ``user_registry`` in ``input/local_repo_config.yml`` supports only nerdctl and docker registries.
-    * If you define the ``cert_path`` variable, ensure that it points to the absolute path of the user registry certificate present on the Omnia control plane.
+    * If you define the ``cert_path`` variable, ensure that it points to the absolute path of the user registry certificate present on the Omnia OIM.
     * To avoid docker pull limits, provide docker credentials (``docker_username``, ``docker_password``) in ``input/provision_config_credentials.yml``.
 
-.. caution:: In order to download the software images from an user registry, the user needs to ensure that the ``user_registry`` address provided in ``input/local_repo_config.yml`` is accessible from the Omnia control plane. If the ``user_registry`` is not accessible from the control plane, Omnia will download all the software images listed in ``input/software_config.json`` to the Omnia-registry. Use the ``curl -k <user_registry>`` to check.
+.. caution:: In order to download the software images from an user registry, the user needs to ensure that the ``user_registry`` address provided in ``input/local_repo_config.yml`` is accessible from the Omnia OIM. If the ``user_registry`` is not accessible from the OIM, Omnia will download all the software images listed in ``input/software_config.json`` to the Omnia-registry. Use the ``curl -k <user_registry>`` to check.
 
-Images listed in ``user_registry`` in ``input/local_repo_config.yml`` are accessed from user defined registries. To ensure that the control plane can correctly access the registry, ensure that the following naming convention is used to save the image: ::
+Images listed in ``user_registry`` in ``input/local_repo_config.yml`` are accessed from user defined registries. To ensure that the OIM can correctly access the registry, ensure that the following naming convention is used to save the image: ::
 
     <host>/<image name>:v<version number>
 

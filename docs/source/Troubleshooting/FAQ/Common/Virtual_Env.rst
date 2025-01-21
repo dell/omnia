@@ -19,7 +19,7 @@ Virtual environment
 
 * To verify that the virtual environment is active, check if the following prompt is displayed: ::
 
-    (omnia) [root@<control_plane_name> omnia]#
+    (omnia) [root@<oim_name> omnia]#
 
 
 ⦾ **While executing any Omnia playbook, why do I encounter a "Command not found" or "Command 'ansible-playbook' not found" error?**
@@ -31,7 +31,7 @@ Virtual environment
 
 **Potential Cause**: Omnia playbooks are being executed outside of the Omnia virtual environment.
 
-**Resolution**: Use the ``prereq.sh`` script to set up the Omnia virtual environment and install Ansible on the control plane. Activate the virtual environment following the steps provided `here <../../../OmniaInstallGuide/Ubuntu/Prereq.sh/index.html>`_ and then execute the playbooks.
+**Resolution**: Use the ``prereq.sh`` script to set up the Omnia virtual environment and install Ansible on the OIM. Activate the virtual environment following the steps provided `here <../../../OmniaInstallGuide/Ubuntu/Prereq.sh/index.html>`_ and then execute the playbooks.
 
 ⦾ **Why does executing an Omnia playbook outside the git cloned Omnia repository folder lead to failure?**
 

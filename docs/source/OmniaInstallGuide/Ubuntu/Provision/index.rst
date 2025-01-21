@@ -7,7 +7,7 @@ The ``discovery_provision.yml`` playbook achieves the following tasks:
 2. Discovery of potential cluster nodes.
 3. Provisioning the "server install image" of Ubuntu OS on the discovered cluster nodes.
 
-.. caution:: If you have a proxy server set up for your control plane, you must configure the proxy environment variables on the control plane before running any Omnia playbooks. For more information, `click here <../Setup_CP_proxy.html>`_.
+.. caution:: If you have a proxy server set up for your OIM, you must configure the proxy environment variables on the OIM before running any Omnia playbooks. For more information, `click here <../Setup_CP_proxy.html>`_.
 
 .. toctree::
     :maxdepth: 2

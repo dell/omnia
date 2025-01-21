@@ -93,7 +93,7 @@ Prerequisites
 Installation Process
 ---------------------
 
-1. Once ``secret.yaml`` and ``values.yaml`` is filled up with the necessary details, copy both files to any directory on the control plane. For example, ``/tmp/secret.yaml`` and ``/tmp/values.yaml``.
+1. Once ``secret.yaml`` and ``values.yaml`` is filled up with the necessary details, copy both files to any directory on the OIM. For example, ``/tmp/secret.yaml`` and ``/tmp/values.yaml``.
 
 2. Add the ``csi_driver_powerscale`` entry along with the driver version to the ``omnia/input/software_config.json`` file: ::
 
@@ -101,7 +101,7 @@ Installation Process
 
  .. note:: By default, the ``csi_driver_powerscale`` entry is not present in the ``input/software_config.json``.
 
-3. Execute the ``local_repo.yml`` playbook to download the required artifacts to the control plane: ::
+3. Execute the ``local_repo.yml`` playbook to download the required artifacts to the OIM: ::
 
     cd local_repo
     ansible-playbook local_repo.yml
@@ -225,9 +225,9 @@ Once the storage class is created, the same can be used to create PVC.
                   mountPath: /data
               env:
                 - name: http_proxy
-                  value: "http://<control plane IP>:3128"
+                  value: "http://<OIM IP>:3128"
                 - name: https_proxy
-                  value: "http://<control plane IP>:3128"
+                  value: "http://<OIM IP>:3128"
           volumes:
             - name: data
               persistentVolumeClaim:

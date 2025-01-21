@@ -17,7 +17,7 @@ To install FreeIPA on NFS node, get the values of ``kerberos_admin_password`` an
 | ipa_server_ipadress     | The IP address of the IPA server                                | The IP address can be found on the IPA server on the ``auth_server`` using the ``ip a`` command. This IP address should be accessible from the NFS node.   |
 +-------------------------+-----------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-To set up IPA services for the NFS node in the target cluster, run the following command from the ``utils/cluster`` folder on the control plane: ::
+To set up IPA services for the NFS node in the target cluster, run the following command from the ``utils/cluster`` folder on the OIM: ::
 
     cd utils/cluster
     ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""

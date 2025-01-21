@@ -5,7 +5,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 **Pre requisites**
 
-* Set the IP address of the control plane. The control plane NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
+* Set the IP address of the OIM. The OIM NIC connected to remote servers (through the switch) should be configured with two IPs (BMC IP and admin IP) in a shared LOM or hybrid set up. In the case dedicated network topology, a single IP (admin IP) is required.
 .. image:: ../../../../images/ControlPlaneNic.png
 
 * To assign IPs on the BMC network while discovering servers using a BMC details, target servers should be in DHCP mode or switch details should be provided.
@@ -14,7 +14,7 @@ For automatic provisioning of servers and discovery, the BMC method can be used.
 
 * Target servers should be configured to boot in PXE mode with the appropriate NIC as the first boot device.
 
-* If the ``discovery_ranges`` provided are outside the ``bmc_subnet``, ensure the target nodes can reach the control plane.
+* If the ``discovery_ranges`` provided are outside the ``bmc_subnet``, ensure the target nodes can reach the OIM.
 
 * IPMI over LAN needs to be enabled for the BMC. ::
 

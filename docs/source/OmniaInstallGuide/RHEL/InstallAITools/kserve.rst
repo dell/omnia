@@ -105,7 +105,7 @@ Kserve is an open-source serving platform that simplifies the deployment, scalin
     istiod                  ClusterIP      10.233.18.185   <none>        15010/TCP,15012/TCP,443/TCP,15014/TCP        44h
     knative-local-gateway   ClusterIP      10.233.37.248   <none>        80/TCP                                       44h
 
-3. To access inferencing from the ingressgateway with HOST header, run the below command from the kube_control_plane or kube_node: ::
+3. To access inferencing from the ingressgateway with HOST header, run the below command from the ``kube_control_plane`` or ``kube_node``: ::
 
         curl -v -H "Host: <service url>" -H "Content-Type: application/json" "http://<istio-ingress external IP>:<istio-ingress port>/v1/models/<model name>:predict" -d @./iris-input.json
 

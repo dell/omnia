@@ -51,7 +51,7 @@ Kubernetes
 
 ⦾ **Why does the 'Initialize Kubeadm' task fail with 'nnode.Registration.name: Invalid value: \"<Host name>\"'?**
 
-**Potential Cause**: The control plane does not support hostnames with an underscore in it, such as 'mgmt_station'.
+**Potential Cause**: The OIM does not support hostnames with an underscore in it, such as 'mgmt_station'.
 
 **Resolution**: As defined in RFC 822, the only legal characters are the following:
 
@@ -64,6 +64,8 @@ Kubernetes
 
 ⦾ **What to do if** ``omnia.yml`` **playbook execution fails with MetalLB, a load-balancer for bare metal Kubernetes cluster?**
 
+**Potential Cause**: This failure is caused due to an issue with Kubespray, a third-party software. For more information about this issue, `click here <https://github.com/kubernetes-sigs/kubespray/issues/11847>`_.
+
 **Resolution**: If your ``omnia.yml`` playbook execution fails while waiting for the MetalLB controller to be up and running, you need to wait for the MetalLB pods to come to running state and then re-run ``omnia.yml/scheduler.yml``.
 
 
@@ -71,9 +73,9 @@ Kubernetes
 
 .. image:: ../../../images/kubespray_error.png
 
-**Potential Cause**: This error occurs when the Kubespray collection is not installed during the execution of ``prepare_cp.yml``.
+**Potential Cause**: This error occurs when the Kubespray collection is not installed during the execution of ``prepare_oim.yml``.
 
-**Resolution**: Re-run ``prepare_cp.yml``.
+**Resolution**: Re-run ``prepare_oim.yml``.
 
 
 ⦾ **Why does the NFS-client provisioner go to a "ContainerCreating" or "CrashLoopBackOff" state?**

@@ -96,7 +96,7 @@ Required	","* Kubernetes pod network CIDR for internal network. When used, it wi
 
 ``string``
 
-Required	","* These addresses will be used by Loadbalancer for assigning External IPs to K8s services running on control plane.
+Required	","* These addresses will be used by Loadbalancer for assigning External IPs to K8s services running on the OIM.
 * Make sure the IP range is not assigned to any node in the cluster.
 * If ``admin_nic`` network provided in ``network_spec.yml`` is in ``""10.11.0.0""`` network, then ``pod_external_ip_range`` should be in same network such as ``""10.11.0.60-10.11.0.70""``.
 * Acceptable formats: ``""10.11.0.100-10.11.0.150""`` , ``""10.11.0.0/16""``

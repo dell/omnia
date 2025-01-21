@@ -3,7 +3,7 @@ Local Repositories
 
 ⦾ **Why does running** ``local_repo.yml`` **fail with connectivity errors?**
 
-**Potential Cause**: The control plane was unable to reach a required online resource due to a network glitch.
+**Potential Cause**: The OIM was unable to reach a required online resource due to a network glitch.
 
 **Resolution**: Verify all connectivity and re-run the playbook.
 
@@ -38,18 +38,18 @@ Local Repositories
 
 .. image:: ../../../images/local_repo_permissions_error.png
 
-**Potential Cause**: Executing ``local_repo.yml`` with ``repo_store_path`` set as an NFS share, but lacking the necessary permissions to access it from the control plane.
+**Potential Cause**: Executing ``local_repo.yml`` with ``repo_store_path`` set as an NFS share, but lacking the necessary permissions to access it from the OIM.
 
-**Resolution**: Provide the required (read, write, and execute) permissions for the NFS share. Verify the permissions of NFS share from the root user of the control plane.
+**Resolution**: Provide the required (read, write, and execute) permissions for the NFS share. Verify the permissions of NFS share from the root user of the OIM.
 
 
 ⦾ **Why does the** ``TASK [parse_and_download : Display Failed Packages`` **fail during** ``prepare_upgrade.yml`` **execution?**
 
 .. image:: ../../../images/upgrade_failed_packages.png
 
-**Potential Cause**: This issue may arise while setting up of local repo for Omnia v1.6 and can occur due to internet connection issues on control plane.
+**Potential Cause**: This issue may arise while setting up of local repo for Omnia v1.6 and can occur due to internet connection issues on OIM.
 
-**Resolution**: Verify that the internet connectivity on control plane is stable and re-run the ``prepare_upgrade.yml`` playbook.
+**Resolution**: Verify that the internet connectivity on OIM is stable and re-run the ``prepare_upgrade.yml`` playbook.
 
 
 ⦾ **Why does the** ``TASK [configure_repos : Generate metadata for repositories]`` **fails during the execution of** ``local_repo.yml`` **on RHEL clusters, if the Epel repository is unstable?**

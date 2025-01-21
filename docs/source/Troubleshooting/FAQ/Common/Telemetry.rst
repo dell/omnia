@@ -13,4 +13,4 @@ Telemetry
 
 **Potential Cause**: Docker pull limit exceeded.
 
-**Resolution**: Manually input the username and password to your docker account on the control plane.
+**Resolution**: Manually input the username and password to your docker account on the OIM.

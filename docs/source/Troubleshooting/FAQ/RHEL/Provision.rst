@@ -12,11 +12,11 @@ Provision
    :header-rows: 1
    :keepspace:
 
-⦾ **Why do subscription errors occur on RHEL control plane when** ``rhel_repo_local_path`` **in** ``input/provision_config.yml`` **is not provided and control plane does not have an active subscription?**
+⦾ **Why do subscription errors occur on RHEL OIM when** ``rhel_repo_local_path`` **in** ``input/provision_config.yml`` **is not provided and OIM does not have an active subscription?**
 
 .. image:: ../../../images/SubscriptionErrors.png
 
-For many of Omnia's features to work, RHEL control planes need access to the following repositories:
+For many of Omnia's features to work, RHEL OIMs need access to the following repositories:
 
     1. AppStream
     2. BaseOS

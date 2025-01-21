@@ -54,7 +54,7 @@ Fill in all required parameters in ``input/provision_config.yml``, ``input/provi
 .. caution::
     * Do not assign the subnet 10.4.0.0/24 to any interfaces in the network as nerdctl uses it by default.
     * All provided network ranges and NIC IP addresses should be distinct with no overlap in the ``input/network_spec.yml``.
-    * Ensure that all the iDRACs are reachable from the Control Plane.
+    * Ensure that all the iDRACs are reachable from the OIM.
 
 A sample of the ``input/network_spec.yml`` where nodes are discovered using a mapping file is provided below: ::
 
