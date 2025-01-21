@@ -1,16 +1,16 @@
 Step 1: Execute prereq.sh
 ===========================
 
-Starting from version 1.7, Omnia will be executed within a Python virtual environment. To set up this environment, the ``prereq.sh`` script is utilized. This script installs the necessary Python 3.11, creates the Python virtual environment, as well as installs Ansible 9.5.1 version and other software packages required by Omnia on the control plane. The predefined path for this virtual environment is ``/opt/omnia/omnia17_venv``. This approach ensures that Omnia has the correct dependencies and runs smoothly within a controlled and isolated environment.
+Starting from version 1.7, Omnia will be executed within a Python virtual environment. To set up this environment, the ``prereq.sh`` script is utilized. This script installs the necessary Python 3.11, creates the Python virtual environment, as well as installs Ansible 9.5.1 version and other software packages required by Omnia on the OIM. The predefined path for this virtual environment is ``/opt/omnia/omnia17_venv``. This approach ensures that Omnia has the correct dependencies and runs smoothly within a controlled and isolated environment.
 
 .. caution::
 
     * To run Omnia, it is crucial to use the Python virtual environment created by the ``prereq.sh`` script. Do not delete the virtual environment directory (``/opt/omnia/omnia17_venv/``) as it is necessary for the proper functioning of Omnia.
-    * If you have a proxy server set up for your control plane, you must configure the proxy environment variables on the control plane before running any Omnia playbooks. For more information, `click here <../Setup_CP_proxy.html>`_.
+    * If you have a proxy server set up for your OIM, you must configure the proxy environment variables on the OIM before running any Omnia playbooks. For more information, `click here <../Setup_CP_proxy.html>`_.
     * Ensure to execute the Omnia playbooks from inside the git cloned Omnia repository folder. Executing the playbooks outside leads to playbook execution failures.
 
 
-* Use the following command to execute the ``prereq.sh`` script on the control plane: ::
+* Use the following command to execute the ``prereq.sh`` script on the OIM: ::
 
     cd omnia
     ./prereq.sh
@@ -21,10 +21,10 @@ Starting from version 1.7, Omnia will be executed within a Python virtual enviro
 
 * To verify that the virtual environment is active, check if the following prompt is displayed: ::
 
-    (omnia) [root@<control_plane_name> omnia]#
+    (omnia) [root@<oim_name> omnia]#
 
 .. note::
-    * Omnia recommends to disable SELinux before proceeding with the installation. If SELinux is not disabled, it will be disabled by the script and the you will be prompted to reboot the control plane.
+    * Omnia recommends to disable SELinux before proceeding with the installation. If SELinux is not disabled, it will be disabled by the script and the you will be prompted to reboot the OIM.
     * The file ``input/software_config.json`` is overwritten with the default values (based on the operating system) when ``prereq.sh`` is executed.
 
 

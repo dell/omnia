@@ -50,11 +50,11 @@ The wrapper playbook ``omnia.yml`` handles execution of the security or authenti
 
 The provided inventory should contain ``auth_server`` and ``login`` [optional] groups. The inventory file is case-sensitive. Follow the format provided in the `sample files <../../../samplefiles.html#inventory-file>`_.
 
-    * Do not include the IP of the control plane or local host in the ``auth_server`` group of the inventory file.
+    * Do not include the IP of the OIM or local host in the ``auth_server`` group of the inventory file.
     * For `secure login node functionality <Authentication.html#configuring-login-node-security>`_, ensure to add the ``login`` group in the provided inventory file. To customize the security features on the login node, update the desired parameters in ``input/login_node_security_config.yml``.
     * If a subsequent run of ``security.yml`` fails, the ``security_config.yml`` file will be unencrypted.
 
-.. note:: Installation of OpenLDAP server or FreeIPA server on Control Plane is not supported.
+.. note:: Installation of OpenLDAP server or FreeIPA server on OIM is not supported.
 
 .. caution:: No users will be created by Omnia.
 

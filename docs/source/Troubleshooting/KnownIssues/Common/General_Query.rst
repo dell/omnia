@@ -3,11 +3,11 @@ General Query
 
 ⦾ **Why does the** ``TASK [gather_facts_from_all_the_nodes]`` **get stuck while re-running** ``omnia.yml`` **playbook?**
 
-**Potential Cause**: Corrupted entries in the ``/root/.ansible/cp/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
+**Potential Cause**: Corrupted entries in the ``/root/.ansible/oim/`` folder. For more information on this issue, `check this out <https://github.com/ansible/ansible/issues/17349>`_!
 
-**Resolution**: Clear the directory ``/root/.ansible/cp/`` using the following commands: ::
+**Resolution**: Clear the directory ``/root/.ansible/oim/`` using the following commands: ::
 
-    cd /root/.ansible/cp/
+    cd /root/.ansible/oim/
 
     rm -rf *
 

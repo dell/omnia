@@ -26,7 +26,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
     * The fields listed in ``nfs_client_params`` are:
 
-      - **server_ip**: IP of the intended NFS server. To set up an NFS server on the control plane, use the value ``localhost``. Use an IP  address to configure access anywhere else.
+      - **server_ip**: IP of the intended NFS server. To set up an NFS server on the OIM, use the value ``localhost``. Use an IP  address to configure access anywhere else.
 
       - **server_share_path**: Folder on which the NFS server mounted.
 
@@ -46,7 +46,7 @@ Network File System (NFS) is a networking protocol for distributed file sharing.
 
          - { server_ip: 10.5.0.101, server_share_path: "/mnt/share", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true, slurm_share: true, k8s_share: true }
 
-  To configure the cluster nodes to access a new NFS server on the control plane as well as an external NFS server, use the below example: ::
+  To configure the cluster nodes to access a new NFS server on the OIM as well as an external NFS server, use the below example: ::
 
         - { server_ip: localhost, server_share_path: "/mnt/share1", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true, slurm_share: true, k8s_share: true }
         - { server_ip: 198.168.0.1, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true }

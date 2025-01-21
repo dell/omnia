@@ -10,11 +10,11 @@ Follow the below steps to setup the vLLM:
 
 1. **Build vLLM**
 
-Run the ``vllm_build.yml`` playbook using
+    * Update the ``admin-nic-IP`` in the ``vllm_k8s_config.yml`` file located inside the ``omnia/utils/vllm_build`` directory.
 
-::
+    * Run the ``vllm_build.yml`` playbook using: ::
 
-    ansible-playbook vllm_build.yml
+        ansible-playbook vllm_build.yml
 
 2. **Verify vLLM**
 
@@ -24,7 +24,7 @@ Once the playbook is executed, run the following command to verify whether vLLM 
 
    nerdctl images | grep vllm
 
-3. Update "package" and "tag" details in the ``vllm.json`` file located at ``omnia/tools/input/config/ubuntu/22.04/vllm.json``, as shown below.
+3. Update "package" and "tag" details in the ``vllm.json`` file located at ``omnia/tools/input/config/rhel/8.8/vllm.json``, as shown below.
 
 ::
 

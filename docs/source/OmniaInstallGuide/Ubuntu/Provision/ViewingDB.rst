@@ -13,7 +13,7 @@ Run ``nodels all nodelist.status`` for a list of nodes and their statuses. Here'
 
 Possible values of node status are ``powering-off``, ``powering-on``, ``bmcready``, ``installing``, ``booting``, ``post-booting``, ``booted``, and ``failed``.
 
-.. caution:: Once xCAT is installed, restart your SSH session to the control plane to ensure that the newly set up environment variables come into effect. This will also allow the above command to work correctly. If the new environment variables still do not come into effect, enable manually using:
+.. caution:: Once xCAT is installed, restart your SSH session to the OIM to ensure that the newly set up environment variables come into effect. This will also allow the above command to work correctly. If the new environment variables still do not come into effect, enable manually using:
     ::
         source /etc/profile.d/xcat.sh
 
@@ -33,11 +33,11 @@ Via Omnia database [omniadb]
 
 4. To view the contents of the ``nodeinfo`` table: ``select * from cluster.nodeinfo;`` ::
 
-         id | service_tag |     node      |   hostname    |     admin_mac     |   admin_ip   |   bmc_ip   | status | discovery_mechanism | bmc_mode | switch_ip | switch_name | switch_port | cpu | gpu | cpu_count | gpu_count$
-        ----+-------------+---------------+---------------+-------------------+--------------+------------+--------+---------------------+----------+-----------+-------------+-------------+-----+-----+-----------+----------
-          1 |             | control_plane | newcp.new.dev | 00:0a:f7:dc:11:42 | 10.5.255.254 | 0.0.0.0    |        |                     |          |           |             |             |     |     |           |
-          2 | xxxxxxx     | node2         | node2.new.dev | c4:cb:e1:b5:70:44 | 10.5.0.12    | 10.30.0.12 | booted | mapping             |          |           |             |             | amd |     |         1 |         0
-          3 | xxxxxxx     | node3         | node3.new.dev | f4:02:70:b8:bc:2a | 10.5.0.10    | 10.30.0.10 | booted | mapping             |          |           |             |             | amd | amd |         2 |         1
+         id | service_tag |     node      |   hostname     |     admin_mac     |   admin_ip   |   bmc_ip   | status | discovery_mechanism | bmc_mode | switch_ip | switch_name | switch_port | cpu | gpu | cpu_count | gpu_count$
+        ----+-------------+---------------+----------------+-------------------+--------------+------------+--------+---------------------+----------+-----------+-------------+-------------+-----+-----+-----------+----------
+          1 |             | oim           | newoim.new.dev | 00:0a:f7:dc:11:42 | 10.5.255.254 | 0.0.0.0    |        |                     |          |           |             |             |     |     |           |
+          2 | xxxxxxx     | node2         | node2.new.dev  | c4:cb:e1:b5:70:44 | 10.5.0.12    | 10.30.0.12 | booted | mapping             |          |           |             |             | amd |     |         1 |         0
+          3 | xxxxxxx     | node3         | node3.new.dev  | f4:02:70:b8:bc:2a | 10.5.0.10    | 10.30.0.10 | booted | mapping             |          |           |             |             | amd | amd |         2 |         1
         (3 rows)
 
 Possible values of node status are ``powering-off``, ``powering-on``, ``bmcready``, ``installing``, ``booting``, ``post-booting``, ``booted``, ``failed``, ``ping``, ``noping``, and ``standingby``.

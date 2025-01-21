@@ -1,7 +1,7 @@
 Configuring custom repositories
 -------------------------------
 
-Use the local repository feature to create a customized set of local repositories on the control plane for the cluster nodes to access.
+Use the local repository feature to create a customized set of local repositories on the OIM for the cluster nodes to access.
 
 1. Ensure the ``custom`` entry is included in the ``software_config.json`` file. ::
 
