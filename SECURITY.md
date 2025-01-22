@@ -17,8 +17,8 @@ Omnia 1.6.1 users can use upgrade functionality to upgarde from Omnia 1.6.1 to O
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+To report a vulnerability, users can raise an issue with vulnerability details. 
+If the vulnerability is accepted then team will review the issue and make appropriate changes to fix the vulnerability. Fix can be expected either in a minor patch release or will be included next major release. 
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Vulnerability might also be denied based on threat level and product security coverage scope.
+
