@@ -101,7 +101,7 @@ def process_git_package(package, repo_store_path, status_file_path):
 
     try:
         # Using wget to check if the URL exists (returns 0 for success, non-zero for failure)
-        subprocess.run(['wget', '-q', "--spider", '--tries=1', url], check=True)
+        subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
         # Clone the repository only if it doesn't exist
         if not os.path.exists(clone_directory):
             clone_command = ['git', 'clone', '--branch', version, url, clone_directory]

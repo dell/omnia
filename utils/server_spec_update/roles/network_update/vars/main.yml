@@ -27,7 +27,6 @@ network_spec_path: "{{ role_path }}/../../../../input/network_spec.yml"
 node_db_path: "{{ role_path }}/../../../../discovery/roles/db_operations/files"
 
 # Usage: create_nic_metadata.yml
-meta_path: "/opt/omnia/.data/nic_metadata.yml"
 meta_dest: "/opt/omnia/.data/"
 conf_file_mode: "0644"
 mount_dir_perm: "0775"

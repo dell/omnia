@@ -11,6 +11,10 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+---
+
+- name: Include network_spec file
+  ansible.builtin.include_tasks: initialize_facts_nodes.yml
 
 - name: Update DB and Node Object
   when: add_network_status

@@ -44,13 +44,16 @@
 
 - name: Show volumes details
   ansible.builtin.uri:
-    url: https://{{ powervault_ip }}/api/show/volumes/details
+    url: "https://{{ powervault_ip }}/api/show/volumes/details"
     method: GET
     body_format: json
     validate_certs: false
     use_proxy: false
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: show_volume_details
   delegate_to: localhost
 
@@ -58,4 +61,4 @@
 
 - name: Mount volumes to server_share_path
   ansible.builtin.include_tasks: mount_volume.yml
-  with_items: "{{ show_volume_details.json.volumes }}"
+  with_items: "{{ (show_volume_details.content | from_json)['volumes'] }}"

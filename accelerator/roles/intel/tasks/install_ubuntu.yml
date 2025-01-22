@@ -42,10 +42,21 @@
         state: latest  # noqa package-latest
         update_cache: true
 
-    - name: Update apt and install habanalabs dependencies
+    - name: Update apt and install intel gaudi packages in Ubuntu 22.04
       ansible.builtin.apt:
-        name: "{{ intel_habana_packages | list }}"
+        name: "{{ intel_habana_packages.ubuntu22 | list }}"
         update_cache: true
+      when:
+        - compute_os == "ubuntu"
+        - compute_os_version == "22.04"
+
+    - name: Update apt and install intel gaudi packages in Ubuntu 24.04
+      ansible.builtin.apt:
+        name: "{{ intel_habana_packages.ubuntu24 | list }}"
+        update_cache: true
+      when:
+        - compute_os == "ubuntu"
+        - compute_os_version == "24.04"
 
     - name: Remove (old) Gaudi kernel modules if present
       community.general.modprobe:

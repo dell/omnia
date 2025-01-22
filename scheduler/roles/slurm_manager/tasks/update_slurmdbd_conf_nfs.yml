@@ -20,6 +20,20 @@
   environment:
     PKG_CONFIG_PATH: "{{ slurm_nfs_folder }}"
     PATH: "{{ ansible_env.PATH }}:{{ slurm_nfs_folder }}"
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
+
+- name: Start MariaDB
+  ansible.builtin.apt:
+    name:
+      - mariadb-server
+    state: present
+    update_cache: true
+  changed_when: false
+  failed_when: false
+  environment:
+    PKG_CONFIG_PATH: "{{ slurm_nfs_folder }}"
+    PATH: "{{ ansible_env.PATH }}:{{ slurm_nfs_folder }}"
+  when: ansible_distribution | lower == 'ubuntu'
 
 - name: Start mariadb
   ansible.builtin.systemd:
@@ -37,61 +51,12 @@
   changed_when: true
 
 - name: Create slurmdbd.conf file
-  ansible.builtin.copy:
-    src: slurmdbd.conf
+  ansible.builtin.template:
+    src: "{{ slurmdbd_conf_template }}"
     dest: "{{ slurmdbd_path }}"
     mode: "{{ slurmdbd_mode }}"
     owner: slurm
   tags: install
-
-- name: Add slurm user name
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "SlurmUser="
-    line: "SlurmUser={{ slurm_user }}"
-
-- name: Add db address
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "DbdAddr="
-    line: "DbdAddr={{ dbd_addr }}"
-
-- name: Add db host
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "DbdHost="
-    line: "DbdHost={{ dbd_host }}"
-
-- name: Add storage password
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "StoragePass="
-    line: "StoragePass={{ hostvars['127.0.0.1']['db_password'] }}"
-
-- name: Add storage user
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "StorageUser="
-    line: "StorageUser={{ slurm_user }}"
-
-- name: Add log file path
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "LogFile="
-    line: "LogFile={{ logfile }}"
-
-- name: Add pid file path
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "PidFile="
-    line: "PidFile={{ pidfile }}"
-    mode: "{{ slurmdbd_mode }}"
-
-- name: Add slurm plugindir
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "PluginDir="
-    line: "PluginDir={{ plugin_slurm_dir }}"
 
 - name: Create directory for symbolic link
   ansible.builtin.file:

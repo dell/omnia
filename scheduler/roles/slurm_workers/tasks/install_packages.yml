@@ -15,21 +15,17 @@
 
 - name: Install packages for slurm
   ansible.builtin.package:
-    name: "{{ slurm_packages }}"
+    name: "{{ slurm_ubuntu }}"
     state: present
   tags: install
-  when: slurm_installation_type == 'configless'
+  when:
+    - ansible_distribution | lower == "ubuntu"
 
-- name: Install development tools for Rocky
+- name: Install packages for slurm
   ansible.builtin.package:
-    name: "{{ rocky_dev_tools }}"
+    name: "{{ slurm_redhat }}"
     state: present
   tags: install
-  when: os_supported_rocky in compute_os
-
-- name: Install development tools for RHEL
-  ansible.builtin.package:
-    name: "{{ rhel_dev_tools }}"
-    state: present
-  tags: install
-  when: os_supported_redhat in compute_os
+  when:
+    - slurm_installation_type == 'configless'
+    - ansible_distribution | lower is in ['redhat', 'rocky']

@@ -1,0 +1,22 @@
+{
+    "slurm": {
+        "cluster": [
+            {"package": "slurmctld", "type": "deb", "repo_name": "noble"},
+            {"package": "slurmd", "type": "deb", "repo_name": "noble"},
+            {"package": "slurm-client", "type": "deb", "repo_name": "noble"},
+            {"package": "slurmdbd", "type": "deb", "repo_name": "noble"},
+            {"package": "mariadb-server", "type": "deb", "repo_name": "noble"},
+            {"package": "munge", "type": "deb", "repo_name": "noble"},
+            {"package": "libmunge2", "type": "deb", "repo_name": "noble"},
+            {"package": "libpmix-bin", "type": "deb", "repo_name": "noble"},
+            {"package": "libpmix2", "type": "deb", "repo_name": "noble"},
+            {"package": "libpmi2-0-dev", "type": "deb", "repo_name": "noble"},
+            {"package": "mpi-default-dev", "type": "deb", "repo_name": "noble"},
+            {"package": "environment-modules", "type": "deb", "repo_name": "noble"},
+            {"package": "gcc", "type": "deb", "repo_name": "noble"},
+            {"package": "g++", "type": "deb", "repo_name": "noble"},
+            {"package": "clang", "type": "deb", "repo_name": "noble"}
+
+        ]
+    }
+}

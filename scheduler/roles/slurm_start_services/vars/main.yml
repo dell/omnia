@@ -19,4 +19,9 @@ slurmctld_start_fail_msg: "Failed to start slurmctld service. This can be due to
 Re-run the playbook with same configuration and verify slurmctld service status in the slurm control node"
 
 # Usage: configure_slurm_paths.yml
+bashrc_path_ubuntu: "/etc/bash.bashrc"
 bashrc_path: "/etc/bashrc"
+slurm_conf_path: "/etc/slurm/slurm.conf"
+slurm_nfs_folder: "/slurm"
+nfs_share_path: "{{ hostvars['localhost']['share_path'] }}"
+slurm_conf_path_nfs: "{{ slurm_nfs_folder }}{{ slurm_conf_path }}"

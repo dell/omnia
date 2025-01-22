@@ -15,6 +15,7 @@ spec:
         spec:
           containers:
             - image: vault.habana.ai/gaudi-docker/1.18.0/ubuntu22.04/habanalabs/pytorch-installer-2.4.0:latest
+              # In case of Ubuntu 24.04 OS, use image:vault.habana.ai/gaudi-docker/1.18.0/ubuntu24.04/habanalabs/pytorch-installer-2.4.0:latest
               name: gaudi-llm-ds-ft-launcher
               env:
                 - name: HF_HOME
@@ -128,6 +129,7 @@ spec:
           hostIPC: true
           containers:
             - image: vault.habana.ai/gaudi-docker/1.18.0/ubuntu22.04/habanalabs/pytorch-installer-2.4.0:latest
+              # In case of Ubuntu 24.04 OS, use image:vault.habana.ai/gaudi-docker/1.18.0/ubuntu24.04/habanalabs/pytorch-installer-2.4.0:latest
               name: gaudi-llm-ds-ft-worker
               resources:
                 limits:

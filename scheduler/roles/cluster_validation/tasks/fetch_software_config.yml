@@ -40,13 +40,6 @@
     cluster_os_type: "{{ software_config.cluster_os_type }}"
     cluster_os_version: "{{ software_config.cluster_os_version }}"
 
-- name: Check if slurm support is required
-  ansible.builtin.fail:
-    msg: "{{ ubuntu_slurm_support_fail_msg }}"
-  when:
-    - slurm_support is true
-    - cluster_os_type == compute_os_ubuntu
-
 - name: Check if csi powerscale driver installation is required
   ansible.builtin.set_fact:
     csi_driver_powerscale_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'csi_driver_powerscale') | list | length > 0 }}"

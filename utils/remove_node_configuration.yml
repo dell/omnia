@@ -27,6 +27,22 @@
     - { role: common }
   tags: always
 
+- name: Proceeding to remove slurm login node
+  tags: login_node
+  hosts: localhost
+  connection: ssh
+  gather_facts: true
+  roles:
+    - { role: remove_node/validate_slurm_node } # noqa: role-name[path]
+
+- name: Remove login node
+  tags: login_node
+  hosts: remove_login_node
+  connection: ssh
+  gather_facts: true
+  roles:
+    - { role: remove_node/remove_slurm_node } # noqa: role-name[path]
+
 - name: Proceeding to remove slurm node
   tags: slurm_node
   hosts: localhost
@@ -39,7 +55,7 @@
   tags: slurm_node
   hosts: remove_slurm_node
   connection: ssh
-  gather_facts: false
+  gather_facts: true
   roles:
     - { role: remove_node/remove_slurm_node } # noqa: role-name[path]
 

@@ -1,0 +1,17 @@
+{
+    "openldap": {
+      "cluster": [
+        {"package": "openldap-ltb=2.5.16.1", "type": "deb", "repo_name": "ldap"},
+        {"package": "openldap-ltb-contrib-overlays=2.5.16.1", "type": "deb", "repo_name": "ldap"},
+        {"package": "openldap-ltb-mdb-utils=2.5.16.1", "type": "deb", "repo_name": "ldap"},
+        {"package": "libcrack2", "type": "deb", "repo_name": "noble"},
+        {"package": "curl", "type": "deb", "repo_name": "noble"},
+        { "package": "ansible-role-ldaptoolbox-openldap",
+          "type": "git",
+          "url": "https://github.com/ltb-project/ansible-role-ldaptoolbox-openldap.git",
+          "version": "main",
+          "commit": "695a689ff91a83b47fbc6f575be37e1f811bd719"
+        }
+      ]
+    }
+  }

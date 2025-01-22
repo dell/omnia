@@ -16,8 +16,17 @@
 # Usage: update_slurmd_daemon.yml
 slurmd_path: "/usr/lib/systemd/system/slurmd.service"
 slurmd_regex: "ExecStart="
+slurmd_regex_type: "Type="
+slurmd_replace_type: "Type=simple"
+slurmd_condition_var: "^ConditionPathExists"
 slurmd_service_path: /etc/systemd/system/slurmd.service
-
+# Usage: install_packages.yml
+slurm_ubuntu:
+  - slurmd
+  - slurm-client
+slurm_redhat:
+  - slurm-slurmd
 # Usage: update_ports_logs.yml
 slurm_conf_default_path: "/etc/slurm/slurm.conf"
 bashrc_path: "/etc/bashrc"
+bashrc_path_ubuntu: "/etc/bash.bashrc"

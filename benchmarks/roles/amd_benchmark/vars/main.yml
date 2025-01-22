@@ -18,11 +18,14 @@ invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory
 os_supported_rocky: rocky
 os_supported_rhel: rhel
 cluster_os_type_success_msg: "cluster_os_type validated"
-cluster_os_type_fail_msg: "Failed. Incorrect cluster_os_type selected. Supported OS are {{ os_supported_rocky }} or {{ os_supported_rhel }}"
 supported_rhel_os_version: ["8.6", "8.7", "8.8"]
 cluster_os_version_fail_msg: "Failed. Invalid cluster_os_version: {{ cluster_os_version }} provided in software_config.json.
 Supported cluster_os_version values 8.6,8.7,8.8"
-
+supported_os_check_dict:
+  redhat: ["8.8"]
+  rocky: ["8.8"]
+  ubuntu: ["24.04", "22.04"]
+cluster_os_type_fail_msg: "Failed. Incorrect cluster_os_type selected. Supported OS and versions are {{ supported_os_check_dict | string }}"
 # Usage: pre_requisites.yml
 slurm_running_fail_msg: "Failed. slurm services are not running in the node {{ inventory_hostname }}.
 Run omnia.yml with scheduler_type as slurm before executing this playbook."

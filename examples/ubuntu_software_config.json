@@ -1,6 +1,6 @@
 {
     "cluster_os_type": "ubuntu",
-    "cluster_os_version": "22.04",
+    "cluster_os_version": "24.04",
     "repo_config": "partial",
     "softwares": [
         {"name": "amdgpu", "version": "6.2.2"},

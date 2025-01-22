@@ -36,3 +36,5 @@ installation_warning: "OpenMPI and UCX are not installed since share path is not
 redhat_os: "redhat"
 rocky_os: "rocky"
 ubuntu_os: "ubuntu"
+supported_os_type: ["ubuntu", "redhat", "rocky"]
+supported_os_version: ["20.04", "24.04", "8.6", "8.7", "8.8"]

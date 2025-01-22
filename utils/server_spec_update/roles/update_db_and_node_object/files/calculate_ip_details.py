@@ -101,6 +101,15 @@ def cal_ip_details(temp, netmask_bits):
 
 
 def create_cidr_range(cidr):
+    """
+        Creates a CIDR range from the given CIDR string.
+
+        Args:
+            cidr (str): The CIDR string.
+
+        Returns:
+            Tuple[str, str]: A tuple containing the start IP and end IP of the CIDR range.
+    """
     ip_range = [str(ip) for ip in ipaddress.IPv4Network(cidr)]
     size = len(ip_range)
     start_ip = ip_range[1]

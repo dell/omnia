@@ -21,6 +21,10 @@
   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postbootscripts=\"omnia_hostname\""
   changed_when: true
 
+- name: Configure postbootscripts for confignetwork
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postbootscripts=\"confignetwork\""
+  changed_when: true
+
 - name: Copy omnia_ssh_check script to postbootscripts
   ansible.builtin.template:
     src: "{{ item.src }}"

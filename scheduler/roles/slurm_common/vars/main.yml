@@ -13,44 +13,101 @@
 #  limitations under the License.
 ---
 
-# Usage: install_packages.yml
+# Usage: validate_share_path.yml
+invalid_nfs_share_path: "Failed. client_share_path: {{ share_path }} in nfs_client_params mentioned in storage_config.yml is not mounted.
+Configure NFS client by providing required inputs in nfs_client_params variable of storage_config.yml.
+Use one of client_share_path in nfs_client_params for usage of slurm in NFS share or
+check if ucx or openmpi is included under software_config.json."
+
+# Usage: tasks/prepare_rhel_nodes.yml
 common_packages:
-   - slurm-slurmd
-   - slurm-pmi
-   - munge
-   - munge-libs
-   - munge-devel
-   - mariadb-server
-   - mariadb-devel
-   - man2html
+  - python3-pip
+  - bash-completion
+  - pciutils
+  - openssl
+  - numactl
+  - hwloc
+  - lua
+  - readline
+  - perl-ExtUtils-MakeMaker
+  - perl-DBI
+  - perl-Switch
+  - libibumad
+  - git
 
+max_retries: 20
+max_delay: 20
+common_packages_rhel:
+  - yum-plugin-versionlock
+  - network-scripts
+os_supported_centos: "centos"
+os_supported_redhat: "redhat"
+os_supported_rocky: "rocky"
+os_supported_ubuntu: "ubuntu"
+
+# Usage: tasks/prepare_hosts_file.yml
+hosts_file_dest: "/etc/hosts"
+hosts_file_mode: "0644"
+hosts_update_fail_msg: "Failed to update hosts file with node details.
+Remove unreachable IP addresses from slurm_node or login group of inventory and re-run the playbook."
+slurm_support: "{{ hostvars['localhost']['slurm_support'] }}"
+k8s_support: "{{ hostvars['localhost']['k8s_support'] }}"
+ucx_support: "{{ hostvars['localhost']['ucx_support'] }}"
+openmpi_support: "{{ hostvars['localhost']['openmpi_support'] }}"
+utils_support: "{{ hostvars['localhost']['utils_support'] }}"
+replace_line_localhost: "127.0.0.1 localhost"
+
+# Usage: install_packages.yml
+common_packages_redhat:
+  - slurm-pmi
+  - munge
+  - munge-libs
+  - munge-devel
+  - man2html
+pmix_packages_ubuntu:
+  - libpmix-bin
+  - libpmix2
+  - libpmi2-0-dev
+  - mpi-default-dev
+  - environment-modules
+gcc_package_names_ubuntu:
+  - gcc
+  - g++
+  - make
+gcc_package_names_redhat:
+  - gcc-c++
+  - make
+clang_package: clang
+common_packages_ubuntu:
+  - munge
+  - libmunge2
+# Usage: install_packages_nfs.yml
+munge_packages_ubuntu:
+  - munge
+  - libmunge2
 munge_packages:
-   - munge
-   - munge-libs
-   - munge-devel
-
-leap_common_packages:
-   - slurm
-   - munge
-   - mariadb
-   - slurm-munge
-
+  - munge
+  - munge-libs
+  - munge-devel
 # Usage: install_python_packages.yml
 common_python3_packages:
-   - python3-mysql
-   - python3-netaddr
-
+  - python3-mysql
+  - python3-netaddr
+slurm_packages_ubuntu:
+  - slurm-wlm
+  - man2html
 slurm_installation_type: "{{ hostvars['localhost']['slurm_installation_type'] }}"
 slurm_share_path: "{{ hostvars['localhost']['share_path'] }}"
 nfs_share_slurm: "nfs_share"
 configless_slurm: "configless"
 slurm_conf_default_path: "/etc/slurm/slurm.conf"
-hosts_file_mode: "0644"
 hostname_dest: "/etc/hostname"
 hosts_dest: "/etc/hosts"
 munge_dest: "/etc/munge/"
 munge_socket: "/var/run/munge/munge.socket.*"
 munge_cmd: "/usr/sbin/create-munge-key -f"
+munge_cmd_ubuntu: "/usr/sbin/mungekey --create"
+munge_src_path: "/etc/munge/munge.key"
 munge_mode: "0400"
 munge_user_id: 1001
 munge_path: "/run/munge"
@@ -67,6 +124,7 @@ srun_port_range: "60001-63000"
 acct_port: "6819"
 slurm_uid: "6001"
 gen_mode: "0755"
+var_dir: "/var"
 spool_dir: "/var/spool/"
 spool_pth: "/var/spool/slurm/"
 slurmctld_pid: "/var/run/slurmctld.pid"
@@ -75,6 +133,7 @@ cluster_name: "slurm_control_node,slurm_node"
 slurmctld_log: "/var/log/slurm/slurmctld.log"
 slurmd_log: "/var/log/slurm/slurmd.log"
 slurm_logpth: "/var/log/slurm/"
+slurm_logpth_mode: "0700"
 slurm_pidpth: "/var/run/slurm/"
 slurm_dest: "/etc/slurm/"
 slurm_confpth: "/etc/slurm/slurm.conf"
@@ -87,18 +146,11 @@ pidfile: "/var/run/slurmdbd.pid"
 slurmd_path: "/usr/lib/systemd/system/slurmd.service"
 slurm_nfs_folder: /slurm
 plugin_slurm_dir: "/usr/lib64/slurm"
-mail_prog_dir: "/usr/bin/mail"
-
-
-os_centos: 'centos'
 os_rocky: 'rocky'
-os_version: '8.0'
-os_supported_leap: "leap"
-lmod_packages:
-   - lua-lmod
-   - gnu-compilers-hpc
-grafana_conf_path: "/opt/omnia/.data/grafana_svc_details.ini"
-min_length_grafana: 5
 dnf_conf_path: /etc/dnf/dnf.conf
 time_delay: 10
 retry_count: 5
+
+# Usage: install_utils_packages.yml
+software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+utils_packages_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/utils.json"

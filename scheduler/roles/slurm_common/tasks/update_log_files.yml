@@ -31,13 +31,34 @@
   until: result is succeeded  # Retry until the task succeeds
   register: result       # Register the result for checking
 
+- name: Tasks for creating slurm and var directory for nfs share for Ubuntu
+  when:
+    - slurm_installation_type == 'nfs_share'
+    - ansible_distribution | lower == "ubuntu"
+  block:
+    - name: Give root user permission to slurm directory
+      ansible.builtin.file:
+        path: "{{ slurm_nfs_folder }}"
+        owner: root
+        group: root
+        state: directory
+        mode: "{{ gen_mode }}"
+
+    - name: Give root user permission to var directory
+      ansible.builtin.file:
+        path: "{{ slurm_var_folder }}"
+        owner: root
+        group: root
+        state: directory
+        mode: "{{ gen_mode }}"
+
 - name: Create slurm log directory
   ansible.builtin.file:
     path: "{{ slurm_logpth }}"
     state: directory
     owner: slurm
     group: slurm
-    mode: "{{ gen_mode }}"
+    mode: "{{ slurm_logpth_mode }}"
     recurse: true
   tags: install
 

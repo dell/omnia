@@ -21,23 +21,12 @@ slurm_user_deletion_retry_delay_seconds: 10
 
 slurm_conf_path: /etc/slurm/slurm.conf
 slurm_nfs_folder: /slurm
-bashrc_path: /etc/bashrc
 slurm_uid: "6001"
 
 slurm_services:
   - slurmd
   - munge
   - mariadb
-
-slurm_packages:
-  - slurm-slurmd
-  - slurm-slurmrestd
-  - slurm-pmi
-  - munge
-  - munge-libs
-  - munge-devel
-  - mariadb-server
-  - mariadb-devel
 
 slurm_services_files:
   - /usr/lib/systemd/system/slurmd.service
@@ -56,3 +45,18 @@ slurm_configless_files:
   - /usr/lib64/slurm
   - /usr/share/licenses/slurm
   - /usr/share/doc/slurm
+
+# Usage: update_firewall_
+tcp_port1: "6817/tcp"
+tcp_port2: "6818/tcp"
+tcp_port3: "6819/tcp"
+tcp_port4: "60001-63000/tcp"
+tcp_port5: "6820/tcp"
+udp_port1: "6817/udp"
+udp_port2: "6818/udp"
+udp_port3: "6819/udp"
+udp_port4: "6820/udp"
+srun_port: "60001:63000"
+pam_slurm_adopt_regex: '^.*pam_slurm_adopt.*'
+slurm_pam_path: "/etc/pam.d/sshd"
+package_failure_message: "Slurm packages removal failed, please check corresponding node and remove manually."
