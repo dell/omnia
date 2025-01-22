@@ -21,11 +21,11 @@
   ansible.builtin.include_tasks: install_xcat.yml
   when: not xcat_installation_status
 
-- name: Configure genesis
-  ansible.builtin.include_tasks: configure_genesis.yml
-
 - name: Apply xcat patch
   ansible.builtin.include_tasks: apply_xcat_patch.yml
+
+- name: Configure genesis
+  ansible.builtin.include_tasks: configure_genesis.yml
 
 - name: Configure dhcp
   ansible.builtin.include_tasks: configure_dhcp.yml
