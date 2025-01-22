@@ -1,13 +1,10 @@
 {
     "slurm": {
         "cluster": [
-            {"package": "nfs-utils", "type": "rpm", "repo_name": "baseos"},
             {"package": "python3-pip", "type": "rpm", "repo_name": "appstream"},
             {"package": "bash-completion", "type": "rpm", "repo_name": "baseos"},
-            {"package": "chrony", "type": "rpm", "repo_name": "baseos"},
             {"package": "pciutils", "type": "rpm", "repo_name": "baseos"},
             {"package": "openssl", "type": "rpm", "repo_name": "baseos"},
-            {"package": "python3-pexpect", "type": "rpm", "repo_name": "appstream"},
             {"package": "yum-plugin-versionlock", "type": "rpm", "repo_name": "baseos"},
             {"package": "network-scripts", "type": "rpm", "repo_name": "baseos"},
             {"package": "slurm-slurmd", "type": "rpm", "repo_name": "epel"},
@@ -19,7 +16,6 @@
             {"package": "mariadb-server", "type": "rpm", "repo_name": "appstream"},
             {"package": "mariadb-devel", "type": "rpm", "repo_name": "appstream"},
             {"package": "man2html", "type": "rpm", "repo_name": "epel"},
-            {"package": "gcc", "type": "rpm", "repo_name": "appstream"},
             {"package": "numactl", "type": "rpm", "repo_name": "baseos"},
             {"package": "hwloc", "type": "rpm", "repo_name": "baseos"},
             {"package": "lua", "type": "rpm", "repo_name": "appstream"},
@@ -30,29 +26,11 @@
             {"package": "libibumad", "type": "rpm", "repo_name": "baseos"},
             {"package": "slurm-slurmctld", "type": "rpm", "repo_name": "epel"},
             {"package": "slurm-slurmdbd", "type": "rpm", "repo_name": "epel"},
-            {"package": "rrdtool-devel", "type": "rpm", "repo_name": "powertools"},
-            {"package": "lua-devel", "type": "rpm", "repo_name": "powertools"},
-            {"package": "hwloc-devel", "type": "rpm", "repo_name": "powertools"},
-            {"package": "pam-devel", "type": "rpm", "repo_name": "baseos"},
-            {"package": "readline-devel", "type": "rpm", "repo_name": "baseos"},
-            {"package": "openssl-devel", "type": "rpm", "repo_name": "baseos"},
-            {"package": "numactl-devel", "type": "rpm", "repo_name": "baseos"},
-            {"package": "ncurses-devel", "type": "rpm", "repo_name": "baseos"},
-            {"package": "gtk2-devel", "type": "rpm", "repo_name": "appstream"},
-            {"package": "slurm-slurmrestd", "type": "rpm", "repo_name": "epel"},
-            {"package": "http-parser-devel", "type": "rpm", "repo_name": "powertools"},
-            {"package": "json-c-devel", "type": "rpm", "repo_name": "appstream"},
-            {"package": "libtool", "type": "rpm", "repo_name": "appstream"},
             {"package": "make", "type": "rpm", "repo_name": "baseos"},
             {"package": "pmix-devel", "type": "rpm", "repo_name": "powertools"},
             {"package": "libevent-devel", "type": "rpm", "repo_name": "appstream"},
             {"package": "python3-mysql", "type": "rpm", "repo_name": "epel"},
-            {"package": "libssh2-devel", "type": "rpm", "repo_name": "epel"},
-            {"package": "jansson", "type": "tarball", "url": "https://github.com/akheron/jansson/archive/refs/tags/v2.14.tar.gz" },
-            {"package": "libjwt","type": "tarball","url": "https://github.com/benmcollins/libjwt/archive/refs/tags/v1.12.0.tar.gz"},
-            {"package": "go", "type": "tarball", "url": "https://dl.google.com/go/go1.15.linux-amd64.tar.gz" },
-            {"package": "prometheus-slurm-exporter","type": "tarball","url": "https://github.com/vpenso/prometheus-slurm-exporter/archive/refs/tags/0.20.tar.gz"},
-            {"package": "prometheus", "type": "tarball", "url": "https://github.com/prometheus/prometheus/releases/download/v2.23.0/prometheus-2.23.0.linux-amd64.tar.gz" }           
+            {"package": "libssh2-devel", "type": "rpm", "repo_name": "epel"}
         ]
     }
 }
