@@ -5,8 +5,7 @@
 Omnia provides security support for Omnia 1.7. All users utilizing older versions are required to upgrade to latest version.
 Omnia 1.6.1 users can use upgrade functionality to upgarde from Omnia 1.6.1 to Omnia 1.7 for security updates and fixes. 
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+
 
 | Version | Supported          |
 | ------- | ------------------ |
