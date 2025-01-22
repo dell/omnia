@@ -62,6 +62,10 @@
       ansible.builtin.include_role:
         name: upgrade_idrac_telemetry
 
+    - name: Upgrade control_plane to oim in omniadb and xcat
+      ansible.builtin.include_role:
+        name: cp_to_oim
+
   rescue:
     - name: Failed to upgrade Omnia Infrastructure Manager
       ansible.builtin.fail:

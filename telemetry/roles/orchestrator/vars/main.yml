@@ -34,6 +34,7 @@ crictl_permission: "+x"
 cri_socket: "unix:///var/run/containerd/containerd.sock"
 permission_644: "0644"
 kubespray_path: "/opt/omnia/{{ telemetry_package_map['kubespray'] }}"
+kubespray_cfg_path: "{{ kubespray_path }}/{{ telemetry_package_map['kubespray'] }}/ansible.cfg"
 kubespray_log: "/var/log/omnia/kubespray_omnia.log"
 
 dir_mode: "755"

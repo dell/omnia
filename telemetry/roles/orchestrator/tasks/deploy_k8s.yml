@@ -36,6 +36,15 @@
     src: "{{ kubespray_path }}/{{ telemetry_package_map['kubespray'] }}.tar.gz"
     dest: "{{ kubespray_path }}"
 
+- name: Add collections path in kubespray ansible.cfg
+  community.general.ini_file:
+    path: "{{ kubespray_cfg_path }}"
+    section: defaults
+    option: collections_path
+    value: "$VIRTUAL_ENV"
+    mode: "{{ permission_644 }}"
+    backup: true
+
 - name: Create k8s_var from template
   ansible.builtin.template:
     src: k8s_var.yml.j2

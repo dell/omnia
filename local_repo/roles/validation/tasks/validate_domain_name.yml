@@ -20,7 +20,7 @@
 
 - name: Set fact for the OIM hostname
   ansible.builtin.set_fact:
-    cp_hostname: "{{ hostname_result.stdout }}"
+    oim_hostname: "{{ hostname_result.stdout }}"
 
 - name: Check /etc/hosts has Omnia Infrastructure Manager hostname
   ansible.builtin.command: cat "{{ hosts_file }}"
@@ -33,7 +33,7 @@
     insertafter: "EOF"
     state: present
     line: "127.0.0.1 {{ oim_hostname }}"
-  when: cp_hostname not in hosts_file_content.stdout
+  when: oim_hostname not in hosts_file_content.stdout
 
 - name: Fetch the domain name
   ansible.builtin.command: hostname -d

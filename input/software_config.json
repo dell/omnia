@@ -4,9 +4,11 @@
     "repo_config": "partial",
     "softwares": [
         {"name": "amdgpu", "version": "6.2.2"},
+        {"name": "bcm_roce", "version": "230.2.54.0"},
         {"name": "openldap"},
         {"name": "nfs"},
         {"name": "k8s", "version":"1.29.5"},
+        {"name": "roce_plugin"},
         {"name": "jupyter"},
         {"name": "pytorch"},
         {"name": "tensorflow"},

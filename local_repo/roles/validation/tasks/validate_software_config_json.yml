@@ -145,7 +145,7 @@
       - repo_config in valid_repo_config
     fail_msg: "{{ repo_config_fail_msg }}"
 
-- name: Validate control_plane_os with cluster_os_type
+- name: Validate oim_os with cluster_os_type
   ansible.builtin.fail:
     msg: "{{ cross_os_support_fail_msg }}"
   when:
