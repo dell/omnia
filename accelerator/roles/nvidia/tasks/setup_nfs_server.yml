@@ -66,7 +66,7 @@
   ansible.builtin.set_fact:
     ib_inventory_start_octets: "{{ groups['all'][0].split('.')[0:2] | join('.') }}"
 
-# NFS Server IP (control plane IP) should be in same range as that of NFS Clients(compute nodes IP)
+# NFS Server IP (Omnia Infrastructure Managemnet (OIM) Node IP) should be in same range as that of NFS Clients(compute nodes IP)
 - name: Find server IP in the range matching with node_inventory
   ansible.builtin.set_fact:
     server_ip: "{{ item }}"

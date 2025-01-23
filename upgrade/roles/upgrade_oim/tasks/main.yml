@@ -1,0 +1,72 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Backup DB and Kubernetes cluster on Omnia Infrastructure Manager
+  ansible.builtin.include_role:
+    name: backup_k8s
+
+- name: Backup omnia_inventory files
+  ansible.builtin.copy:
+    src: "{{ omnia_inventory_dir }}"
+    dest: "{{ backup_location }}/omnia_inventory"
+    mode: "{{ file_permission }}"
+
+- name: Create venv for installed version
+  ansible.builtin.include_tasks: create_older_venv.yml
+  when: not older_os
+
+- name: Import parameters from Omnia current version to upgrade version
+  ansible.builtin.include_role:
+    name: import_input_parameters
+
+- name: Upgrade software on Omnia Infrastructure Manager
+  block:
+    - name: Upgrade services and packages of prepare oim on OIM
+      ansible.builtin.include_role:
+        name: upgrade_prepare_oim
+
+    - name: Upgrade services and packages of discovery on OIM
+      ansible.builtin.include_role:
+        name: upgrade_discovery
+
+    - name: Stop telemetry service
+      ansible.builtin.include_role:
+        name: omnia_telemetry
+        tasks_from: stop_omnia_telemetry.yml
+
+    - name: Upgrade packages required for local repo - nerdctl
+      ansible.builtin.include_role:
+        name: upgrade_local_repo
+
+    - name: Upgrade kubernetes on Omnia Infrastructure Manager
+      ansible.builtin.include_role:
+        name: upgrade_k8s_oim
+      when: not older_os
+
+    - name: Upgrade omnia_telemetry binary
+      ansible.builtin.include_role:
+        name: omnia_telemetry
+
+    - name: Upgrade iDRAC telemetry role
+      ansible.builtin.include_role:
+        name: upgrade_idrac_telemetry
+
+    - name: Upgrade control_plane to oim in omniadb and xcat
+      ansible.builtin.include_role:
+        name: cp_to_oim
+
+  rescue:
+    - name: Failed to upgrade Omnia Infrastructure Manager
+      ansible.builtin.fail:
+        msg: "{{ upgrade_fail_msg }}"

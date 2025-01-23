@@ -14,10 +14,11 @@
 
 import re
 import sys
+import os
 import ipaddress
 import pandas as pd
 
-mapping_file_path = sys.argv[1]
+mapping_file_path = os.path.abspath(sys.argv[1])
 admin_static_start_ip = sys.argv[2]
 admin_static_end_ip = sys.argv[3]
 mandatory_col = ["SERVICE_TAG", "ADMIN_MAC", "HOSTNAME", "ADMIN_IP", "BMC_IP"]

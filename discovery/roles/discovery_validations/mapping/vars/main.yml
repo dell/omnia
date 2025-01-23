@@ -14,15 +14,16 @@
 ---
 
 # Usage: validate_mapping_file.yml
-python_version: "python3.9"
+python_version: "{{ ansible_python_interpreter }}"
 validate_mapping_py: "{{ role_path }}/../mapping/files/validate_mapping_file.py"
 pxe_path_fail_msg: "Failed. Please provide a valid pxe_mapping_file_path in provision_config.yml"
 mapping_file_key: "ADMIN_MAC"
 mapping_file_header_fail_msg: "Failed. Header of csv file is not in correct format. It should be of the format: MAC,Hostname,IP"
 host_mapping_header_format: "MAC,Hostname,IP"
 mapping_file_seperation_fail_msg: "Failed. Mapping file should be comma separated and all fields must be filled."
-hostname_chars_fail_msg: "Failed. Hostname should not contain _ or . or space or node- as it might result in issues with provisioning/authentication tools like FreeIPA.
-Make sure the mapping file contains only the hostname, and not the domain_name. Found in: "
+hostname_chars_fail_msg: |
+  Failed. Hostname should not contain _ or . or space or node- as it might result in issues with provisioning/authentication
+  tools like FreeIPA. Make sure the mapping file contains only the hostname, and not the domain_name. Found in:
 duplicate_ip_fail_msg: "Failed. Duplicate IP exists. Please verify mapping file again."
 duplicate_hostname_fail_msg: "Failed. Duplicate hostname exists. Please verify mapping file again."
 temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"

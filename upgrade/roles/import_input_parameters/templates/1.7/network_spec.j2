@@ -1,0 +1,71 @@
+---
+Networks:
+{% set network_types = [] %}
+{% for network in network_spec_ns.Networks %}
+{% for network_type, details in network.items() %}
+{% if network_type not in network_types %}
+{% set _ = network_types.append(network_type) %}
+{% endif %}
+{% if network_type == 'admin_network' %}
+    - {{ network_type }}:
+        nic_name: "{{ details.nic_name }}"
+        netmask_bits: "{{ details.netmask_bits }}"
+        static_range: "{{ details.static_range }}"
+        dynamic_range: "{{ details.dynamic_range }}"
+        correlation_to_admin: {{ details.correlation_to_admin | lower }}
+        admin_uncorrelated_node_start_ip: "{{ details.admin_uncorrelated_node_start_ip }}"
+        network_gateway: "{{ details.network_gateway }}"
+        DNS: "{{ details.DNS }}"
+        MTU: "{{ details.MTU }}"
+
+{% elif network_type == 'bmc_network' %}
+    - {{ network_type }}:
+        nic_name: "{{ details.nic_name }}"
+        netmask_bits: "{{ details.netmask_bits }}"
+        static_range: "{{ details.static_range }}"
+        dynamic_range: "{{ details.dynamic_range }}"
+        reassignment_to_static: {{ details.reassignment_to_static | lower }}
+        discover_ranges: "{{ details.discover_ranges }}"
+        network_gateway: "{{ details.network_gateway }}"
+        MTU: "{{ details.MTU }}"
+
+{% elif network_type != 'admin_network' and network_type != 'bmc_network' %}
+    - {{ network_type }}:
+{% if details.CIDR is defined %}
+        netmask_bits: "{{ details.netmask_bits }}"
+        CIDR: "{{ details.CIDR }}"
+        network_gateway: "{{ details.network_gateway }}"
+        MTU: "{{ details.MTU }}"
+{% elif details.static_range is defined %}
+        netmask_bits: "{{ details.netmask_bits }}"
+        static_range: "{{ details.static_range }}"
+        network_gateway: "{{ details.network_gateway }}"
+        MTU: "{{ details.MTU }}"
+{% endif %}
+{% if details.VLAN is defined %}
+        VLAN: "{{ details.VLAN }}"
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+
+{% if network_types|length == 2 and 'admin_network' in network_types and 'bmc_network' in network_types %}
+#**********************************************************************
+# Following are the templates for providing additional network details
+# If vlan creation is required ensure vlan name is provided in the format NIC.vlan_id(eth1.101) in server_spec.yml
+#**********************************************************************
+
+#    - nic_network1:
+#       netmask_bits: "20"
+#       CIDR: "10.10.16.0"
+#       network_gateway: ""
+#       MTU: "1500"
+#       VLAN: ""
+#
+#    - nic_network2:
+#       netmask_bits: "20"
+#       static_range: "10.10.1.1-10.10.15.254"
+#       network_gateway: ""
+#       MTU: "1500"
+#       VLAN: "1"
+{% endif %}

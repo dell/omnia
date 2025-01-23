@@ -25,8 +25,6 @@ fail_msg_save_config: save_changes_to_startup variable can only be set to true o
 fail_msg_ethernet_credentials: 'command:ansible-playbook ethernet_switch_config.yml -i inventory -e ethernet_switch_username="" -e ethernet_switch_password=""'
 max_length: 30
 min_username_length: 4
-ansible_collections:
-  - dellemc.os10:1.1.1
 max_retries: 20
 success_snmp_trap_dest: "SNMP trap destination IP validated"
 fail_snmp_trap_dest: "Failed. Incorrect SNMP trap destination IP format provided in ethernet input file"

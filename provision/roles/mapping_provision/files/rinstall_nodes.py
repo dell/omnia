@@ -44,7 +44,7 @@ def provision_map_nodes_bmc():
         op = cursor_x.fetchone()[0]
         if op:
             mapping_bmc_nodes.append(node[0])
-            command = f"rinstall {node[0]}"
+            command = f"/opt/xcat/bin/rinstall {node[0]}"
             command_list = command.split()
             node_objs = subprocess.run(command_list, capture_output=True)
     print(mapping_bmc_nodes)

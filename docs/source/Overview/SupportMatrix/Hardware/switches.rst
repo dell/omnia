@@ -1,31 +1,18 @@
 Switches
 ========
 
-+------------------------------+----------------------------------------------------------------------------------------------------------------+
-| Switch Type                  | Switch Model                                                                                                   |
-+==============================+================================================================================================================+
-| NVIDIA InfiniBand Switches   | 1. NVIDIA MQM8700-HS2F Quantum HDR InfiniBand Switch 40 QSFP56                                                 |
-|                              | 2. NVIDIA QUANTUM-2 QM9700                                                                                     |
-+------------------------------+----------------------------------------------------------------------------------------------------------------+
+.. csv-table::
+  :file: ../../../Tables/supported-switches.csv
+  :header-rows: 1
+  :keepspace:
 
-
-+------------------------------+----------------------------------------------------------------------------------------------------------------+
-| Switch Type                  | Switch Model                                                                                                   |
-+==============================+================================================================================================================+
-| Dell Networking Switches     | 1. PowerSwitch S3048-ON                                                                                        |
-|                              | 2. PowerSwitch S5232F-ON                                                                                       |
-|                              | 3. PowerSwitch Z9264F-ON                                                                                       |
-|                              | 4. PowerSwitch N3248TE-ON                                                                                      |
-|                              | 5. PowerSwitch S4148                                                                                           |
-|                              | 6. PowerSwitch Z9664F                                                                                          |
-+------------------------------+----------------------------------------------------------------------------------------------------------------+
-
-.. versionadded:: 1.6
-    PowerSwitch Z9664F
+.. versionadded:: 1.7
+    PowerSwitch Z9432-ON,
+    PowerSwitch Z9864F-ON
 
 .. note::
 
-    * The switches that have reached EOL might not function properly. It is recommended by Omnia to use switch models mentioned in support matrix.
+    * The switches that have reached EOL might not function properly. We recommended using switch models mentioned in the support matrix.
 
     * Omnia requires OS10 to be installed on ethernet switches.
 

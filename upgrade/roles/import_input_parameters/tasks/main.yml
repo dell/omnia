@@ -12,11 +12,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Read parameters in from 1.5
-  ansible.builtin.include_tasks: read_parameters.yml
 
-- name: Set network spec variables and telemetry config variables
-  ansible.builtin.include_tasks: set_network_spec_variables.yml
+- name: Read parameters in from previous version of omnia
+  ansible.builtin.include_tasks: parameter_based_input_file_generation.yml
 
-- name: Generate new input files
-  ansible.builtin.include_tasks: generate_new_input_files.yml
+- name: Moving new input files to a specified source input directory
+  ansible.builtin.include_tasks: sync_files_to_omnia_version.yml
+
+- name: Copying old software_config file to a specified source input directory
+  ansible.builtin.include_tasks: import_software_config.yml
+  when: older_os

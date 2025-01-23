@@ -13,11 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Fetch ansible-vault path
-  ansible.builtin.command: whereis ansible-vault
-  changed_when: false
-  register: ansible_vault_path
-
 - name: Check if security config file is encrypted
   ansible.builtin.command: cat {{ security_config_file }}
   changed_when: false
@@ -26,7 +21,7 @@
 
 - name: Decrpyt security_config.yml
   ansible.builtin.command: >-
-    {{ ansible_vault_path.stdout.split(' ')[1] }} decrypt {{ security_config_file }} --vault-password-file {{ security_vaultname }}
+    ansible-vault decrypt {{ security_config_file }} --vault-password-file {{ security_vaultname }}
   when: "'$ANSIBLE_VAULT;' in config_content.stdout"
   changed_when: true
 

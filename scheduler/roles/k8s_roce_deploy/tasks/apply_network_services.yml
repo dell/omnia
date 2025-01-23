@@ -48,7 +48,7 @@
     - "item.commit is defined"
 
 - name: Checkout specific commit for whereabouts plugin
-  ansible.builtin.command: "git checkout {{ whereabouts_commit_id }}"  # noqa: command-instead-of-module
+  ansible.builtin.command: "git checkout -f {{ whereabouts_commit_id }}"  # noqa: command-instead-of-module
   when: whereabouts_plugin_commit
   changed_when: false
   args:
@@ -95,7 +95,7 @@
     - "item.commit is defined"
 
 - name: Checkout specific commit for rdma plugin
-  ansible.builtin.command: "git checkout {{ rdma_commit_id }}"  # noqa: command-instead-of-module
+  ansible.builtin.command: "git checkout -f {{ rdma_commit_id }}"  # noqa: command-instead-of-module
   changed_when: false
   when: rdma_plugin_commit
   args:

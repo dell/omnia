@@ -53,6 +53,8 @@
     idrac_telemetry_support: "{{ idrac_telemetry_support | lower }}"
     omnia_telemetry_support: "{{ omnia_telemetry_support | lower }}"
     visualization_support: "{{ visualization_support | lower }}"
+    k8s_prometheus_support: "{{ k8s_prometheus_support | lower }}"
+    prometheus_gaudi_support: "{{ prometheus_gaudi_support | lower }}"
 
 - name: Assert idrac telemetry support
   ansible.builtin.assert:
@@ -74,17 +76,40 @@
     success_msg: "{{ visualization_support_success_msg }}"
     fail_msg: "{{ visualization_support_fail_msg }}"
 
+- name: Assert k8s prometheus support
+  ansible.builtin.assert:
+    that:
+      - k8s_prometheus_support == true or k8s_prometheus_support == false
+    success_msg: "{{ k8s_prometheus_support_success_msg }}"
+    fail_msg: "{{ k8s_prometheus_support_fail_msg }}"
+
+- name: Assert prometheus gaudi support
+  ansible.builtin.assert:
+    that:
+      - prometheus_gaudi_support == true or prometheus_gaudi_support == false
+    success_msg: "{{ prometheus_gaudi_support_success_msg }}"
+    fail_msg: "{{ prometheus_gaudi_support_fail_msg }}"
+
 - name: Warning for all telemetry support category values set as false
   ansible.builtin.pause:
     seconds: "{{ pause_time_15 }}"
     prompt: "{{ warning_telemetry_support_false }}"
-  when: not idrac_telemetry_support and not omnia_telemetry_support and not visualization_support
+  when:
+    - not idrac_telemetry_support
+    - not omnia_telemetry_support
+    - not visualization_support
+    - not k8s_prometheus_support
+    - not prometheus_gaudi_support
 
 - name: Please wait, This task will take few seconds
   ansible.builtin.pause:
     seconds: "{{ idrac_omnia_telemetry_support_false_warn_time }}"
     prompt: "{{ idrac_omnia_telemetry_support_warn_msg }}"
-  when: not idrac_telemetry_support and not omnia_telemetry_support
+  when:
+    - not idrac_telemetry_support
+    - not omnia_telemetry_support
+    - not k8s_prometheus_support
+    - not prometheus_gaudi_support
 
 - name: Assert usernames and passwords in telemetry_login_vars.yml
   when: idrac_telemetry_support or omnia_telemetry_support
@@ -129,6 +154,14 @@
   ansible.builtin.include_tasks: validate_grafana_params.yml
   when: visualization_support
 
+- name: Validate k8s prometheus, scrape interval and prometheus gaudi
+  ansible.builtin.include_tasks: validate_k8s_prometheus_prometheus_gaudi.yml
+  when: k8s_prometheus_support or prometheus_gaudi_support
+
+- name: Validate k8s prometheus when prometheus gaudi is true
+  ansible.builtin.include_tasks: validate_prometheus_gaudi.yml
+  when: prometheus_gaudi_support
+
 # Validate k8s inputs
 - name: Assert k8s_cni
   ansible.builtin.assert:
@@ -142,6 +175,7 @@
       - pod_external_ip_range | default("", true) | length > 9
       - ("'/' in pod_external_ip_range") or ("'-' in pod_external_ip_range")
     fail_msg: "{{ invalid_pod_external_ip_range }}"
+  when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
 
 - name: Assert kubernetes service addresses
   ansible.builtin.assert:

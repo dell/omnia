@@ -31,3 +31,4 @@
   environment:
     http_proxy: "{{ hostvars['localhost']['http_proxy'] }}"
     https_proxy: "{{ hostvars['localhost']['https_proxy'] }}"
+    no_proxy: "{{ hostvars['localhost']['oim_hostname'] }},{{ hostvars['localhost']['admin_nic_ip'] }}"

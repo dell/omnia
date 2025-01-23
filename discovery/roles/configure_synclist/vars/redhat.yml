@@ -26,7 +26,7 @@ beegfs_file_path: "{{ repo_store_path }}/cluster/yum/beegfs/{{ beegfs_version }}
 amdgpu_file_path: "{{ repo_store_path }}/cluster/yum/amdgpu/{{ amdgpu_version }}"
 rocm_file_path: "{{ repo_store_path }}/cluster/yum/rocm/{{ rocm_version }}"
 dnf_conf_src: "{{ role_path }}/templates/dnf.conf.j2"
-dnf_conf_dest: "/tmp/conf/dnf.conf"
+dnf_conf_dest: "{{ syncfiles_dir }}/conf/dnf.conf"
 dnf_file_permission: "0644"
 cluster_repo_template_fail: "Failed. Please run local_repo/local_repo.yml and re-execute discovery/discovery.yml or discovery_provision.yml"
 base_url_redhat: "/install{{ repo_store_path }}/cluster/{{ provision_os }}/{{ provision_os_version }}/rpm"
@@ -36,5 +36,4 @@ synclists_src_path: "{{ role_path }}/templates/redhat.synclist.j2"
 synclists_dest_path: "{{ synclists_dir }}/redhat.synclist"
 
 # Usage: create_files_local_registry.yml
-config_omnia_registry_src_path: "{{ role_path }}/templates/config_omnia_registry_redhat.toml.j2"
 config_user_registry_src_path: "{{ role_path }}/templates/config_user_registry_redhat.toml.j2"

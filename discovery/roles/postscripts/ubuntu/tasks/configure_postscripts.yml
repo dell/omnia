@@ -14,21 +14,12 @@
 ---
 
 - name: Configure postscripts for syslog,remoteshell
-  ansible.builtin.command: tabch node=xcatdefaults postscripts.postscripts="syslog,remoteshell"
+  ansible.builtin.command: "{{ xcat_sbin_path }}/tabch node=xcatdefaults postscripts.postscripts=\"syslog,remoteshell\""
   changed_when: true
 
 - name: Configure default postscripts
-  ansible.builtin.command: chdef all postscripts="syslog,remoteshell"
+  ansible.builtin.command: "{{ xcat_path }}/chdef all postscripts=\"syslog,remoteshell\""
   changed_when: true
-
-- name: Fetch control_plane hostname
-  ansible.builtin.command: hostname
-  changed_when: false
-  register: cp_hostname
-
-- name: Set control_plane_hostname
-  ansible.builtin.set_fact:
-    control_plane_hostname: "{{ cp_hostname.stdout }}"
 
 - name: Copy omnia_ubuntu script to postscripts
   ansible.builtin.template:
@@ -38,9 +29,9 @@
   with_items: "{{ omnia_ubuntu_postscripts_path }}"
 
 - name: Configure postscripts for omnia_ubuntu
-  ansible.builtin.command: chdef all -p postscripts=omnia_ubuntu
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_ubuntu"
   changed_when: true
 
 - name: Configure postscripts for confignetwork
-  ansible.builtin.command: chdef all -p postscripts="confignetwork -s"
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=\"confignetwork -s\""
   changed_when: true

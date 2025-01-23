@@ -17,21 +17,32 @@
 # Use the below command for execution, by providing appropriate values for input fields.
 # ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""
 
+- name: Check if virtual environment is active
+  ansible.builtin.import_playbook: ../check_venv.yml
+  when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
+
 - name: Initialize variables
   hosts: localhost
   tasks:
+    - name: Fail if no inventory is provided
+      ansible.builtin.fail:
+        msg: "Inventory is not provided or is empty"
+      when:
+        - groups['all'] is not defined or (groups['all'] | length == 0)
+
     - name: Initialize security variables
       ansible.builtin.set_fact:
         authentication_system: "freeipa"
 
 - name: Install IPA client
-  hosts: all
+  hosts: all:!auth_server:!slurm_control_node:!slurm_node:!kube_control_plane:!kube_node:!login:!etcd
   gather_facts: true
   vars:
-    nfs_node_group_fail_msg: "nfs_node group should be present in inventory and contain exactly 1 node"
-    nfs_node_group_success_msg: "nfs_node group check passed"
+    inventory_empty_msg: "Inventory is not provided or empty"
+    ipa_server_unreachable_msg: "The FreeIPA server {{ ipa_server_hostname }} is not reachable or the UI is not accessible."
     success_validation_msg: 'Validated all required input parameters'
-    fail_valid_msg: 'Missing input parameters. Provide all required input parameters. Command to execute:
+    fail_valid_msg: 'Missing input parameters. Provide all required input parameters correctly, ipa_server_hostname should contain domain_name.
+    Command to execute:
     ansible-playbook install_ipa_client.yml -i inventory -e kerberos_admin_password="" -e ipa_server_hostname="" -e domain_name="" -e ipa_server_ipadress=""'
   tasks:
     - name: Verify all paramaters are provided
@@ -44,28 +55,30 @@
           - kerberos_admin_password | length > 1
           - ipa_server_hostname | length > 1
           - domain_name | length > 1
+          - domain_name in ipa_server_hostname
           - ipa_server_ipadress | length > 1
         success_msg: "{{ success_validation_msg }}"
         fail_msg: "{{ fail_valid_msg }}"
 
+
     - name: Execute hostname_validation role
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/hostname_validation"
+        name: "{{ playbook_dir }}/../../security/roles/hostname_validation" # noqa role-name[path]
         tasks_from: validate_hostname
 
     - name: Add ports of manager and login node to firewall
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/login_common"
+        name: "{{ playbook_dir }}/../../security/roles/login_common" # noqa role-name[path]
         tasks_from: firewall_settings
 
     - name: Enable module idm in Rocky or Centos >= 8.0
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/login_common"
+        name: "{{ playbook_dir }}/../../security/roles/login_common" # noqa role-name[path]
         tasks_from: enable_dnf_module
 
     - name: Update Packages
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/login_common"
+        name: "{{ playbook_dir }}/../../security/roles/login_common" # noqa role-name[path]
         tasks_from: update_package
 
     - name: Include login_node vars
@@ -76,15 +89,13 @@
 
     - name: Execute firewall_settings from login_node role
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../../security/roles/login_node"
+        name: "{{ playbook_dir }}/../../security/roles/login_node" # noqa role-name[path]
         tasks_from: firewall_settings
 
     - name: Install DL1 - client(It may take 5-10 mins)
-      ansible.builtin.command: yum module install idm:DL1/client -y
+      ansible.builtin.command: yum module install idm:DL1/client -y # noqa command-instead-of-module
       changed_when: true
       failed_when: false
-      args:
-        warn: false
       when: ansible_distribution | lower == os_redhat
 
     - name: Install freeipa client package
@@ -96,8 +107,6 @@
       ansible.builtin.command: rm -rf {{ cert_path }}
       changed_when: false
       failed_when: false
-      args:
-        warn: false
       when: ansible_distribution | lower == os_redhat
 
     - name: Add host name in hosts file
@@ -141,7 +150,7 @@
       rescue:
         - name: Install ipa client failed
           ansible.builtin.fail:
-            msg: "Error: {{ install_ipa_client.stderr_lines }}"
+            msg: "This can be due to ipa server - {{ ipa_server_hostname }} not reachable. Error: {{ install_ipa_client.stderr_lines }}"
 
     - name: Install mkhomedir to enable home directory creation for users
       ansible.builtin.command: authselect enable-feature with-mkhomedir

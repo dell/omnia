@@ -40,7 +40,7 @@
     owner: root
     mode: "{{ permission_644 }}"
 
-# Containerd configuration required by K8s on Control plane installation with deploy_container_engine value as false
+# Containerd configuration required by K8s on Omnia Infrastructure Manager installation with deploy_container_engine value as false
 - name: Containerd | Generate default base_runtime_spec
   register: ctr_oci_spec
   ansible.builtin.command: "{{ containerd_bin_dir }}/ctr oci spec"
@@ -65,6 +65,25 @@
     dest: "{{ containerd_cfg_dir }}/config.toml"
     owner: "root"
     mode: "{{ permission_644 }}"
+
+- name: Configure proxy environment variables for containerd
+  when: proxy_status
+  block:
+    - name: Create containerd service directory
+      ansible.builtin.file:
+        path: "{{ containerd_service_dest }}"
+        state: directory
+        mode: "{{ dir_mode }}"
+
+    - name: Copy http-proxy.conf to containerd service directory
+      ansible.builtin.template:
+        src: "{{ containerd_http_proxy_conf_src }}"
+        dest: "{{ containerd_service_dest }}/http-proxy.conf"
+        mode: "{{ permission_644 }}"
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
 
 - name: Restart containerd
   ansible.builtin.systemd:

@@ -50,6 +50,7 @@
     split_ready_status: false
 
 - name: Fetch ports needs to be splitted
+  when: ib_split_ports | default("", true) | length > 1
   block:
      # This task is used when user do not specify ports as a range
     - name: Initialize range_ports variable with user provided ports
@@ -66,7 +67,6 @@
       ansible.builtin.set_fact:
         ib_ports_list: "{{ lookup('vars', 'item').split(',') | map('trim') | unique | select | list }}"
       with_items: "{{ range_ports }}"
-  when: ib_split_ports | default("", true) | length > 1
 
 - name: Validate admin password is not username
   ansible.builtin.fail:

@@ -1,0 +1,101 @@
+﻿Network Name,Parameters for the network,Parameter details
+"``admin_network``
+
+
+
+
+.. note:: This name cannot be modified. This is mandatory for discovery and provisioning of the cluster nodes.","**nic_name**
+
+``string``
+
+Mandatory",The name of the NIC on which the administrative network is accessible to the OIM.
+,"**netmask_bits**
+
+``integer``
+
+Mandatory",The 32-bit “mask” used to divide an IP address into subnets and specify the network’s available hosts.
+,"**static_range**
+
+``IP address range``
+
+Mandatory",The static range of IPs to be provisioned on target nodes.
+,"**dynamic_range**
+
+``IP address range``
+
+Mandatory",The dynamic range of IPs to be provisioned on target nodes.
+,"**correlation_to_admin**
+
+``boolean``
+
+Mandatory","* Boolean value used to indicate whether all other networks specified in the file (for example: bmc_network) should be correlated to the admin network. For example, if a target node is assigned the IP xx.yy.0.5 on the admin network, it will be assigned the IP aa.bb.0.5 on the BMC network.
+* This value is irrelevant when discovering nodes using a mapping file."
+,"**admin_uncorrelated_node_start_ip**
+
+``IP address``
+
+Optional","* If ``correlation_to_admin`` is set to true but correlated IPs are not available on non-admin networks, provide an IP within the ``static_range`` of the admin network that can be used to assign admin static IPs to uncorrelated nodes. If this is empty, then the first IP in the ``static_range`` of the admin network is taken by default. 
+* This value is irrelevant when discovering nodes using a mapping file."
+,"**network_gateway**
+
+``IP address``
+
+Mandatory",The network gateway IP is the assigned IP address of the NIC that connects a local network to external networks.
+,"**DNS**
+
+``IP address``
+
+Optional","The IP of the extrernal DNS server. A DNS server, or Domain Name System server, translates domain names into IP addresses that computers use to identify each other on the network."
+,"**MTU**
+
+``integer``
+
+Mandatory",Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.
+"``bmc_network``
+
+
+
+.. note:: This name cannot be modified. This is mandatory while using the BMC discovery mechanism.","**nic_name**
+
+``string``
+
+Mandatory",The name of the NIC on which the administrative network is accessible to the OIM.
+,"**netmask_bits**
+
+``integer``
+
+Mandatory",The 32-bit “mask” used to divide an IP address into subnets and specify the network’s available hosts.
+,"**static_range**
+
+``IP address range``
+
+Mandatory",The static range of IPs to be provisioned on target nodes.
+,"**dynamic_range**
+
+``IP address range``
+
+Mandatory",The dynamic range of IPs to be provisioned on target nodes.
+,"**reassignment_to_static**
+
+``boolean``
+
+Optional","* If iDRACs are set to DHCP mode and Omnia has assigned the IPs, then the user can reassign the IP within the ``bmc_network`` static range by setting this value to ``true``.
+* If this value is not provided or set to ``false`` while the iDRACs are in DHCP mode, they will obtain IPs from the ``bmc_network`` dynamic range, and these IPs will then be converted to static IPs for the iDRACs."
+,"**discover_ranges**
+
+``IP address range``
+
+Mandatory","* If some iDRACs IP ranges are reachable from OIM but is not in ``bmc_network``, then user can provide those IP ranges here.
+* Discovery of a single IP is not possible. User must provide a range.
+* User can also provide comma-separated ranges.
+.. note:: This is an optional field. User must not remove any of the fields even though it is optional."
+,"**network_gateway**
+
+``IP address``
+
+Mandatory",The network gateway IP is the assigned IP address of the NIC that connects a local network to external networks.
+,"**MTU**
+
+``integer``
+
+Mandatory",Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept.

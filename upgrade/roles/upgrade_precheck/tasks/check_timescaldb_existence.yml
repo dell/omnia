@@ -1,0 +1,93 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Get timescaledb pod name
+  ansible.builtin.command: 'kubectl get pod -n "{{ telemetry_visualizations_ns }}" -l app="{{ timescaledb_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"'
+  register: timescaledb_pod_name
+  changed_when: false
+  failed_when: false
+
+- name: Connect to TimescaleDB pod and database
+  block:
+    - name: Start a bash session in the TimescaleDB pod
+      ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_visualizations_ns }}"  -- /bin/bash
+      register: timescaledb_bash_session
+      changed_when: false
+      ignore_errors: true
+
+    - name: Check if bash session was started
+      ansible.builtin.debug:
+        msg: "Bash session started successfully"
+      when: timescaledb_bash_session.rc == 0
+
+    - name: Get external IP of timescaledb service
+      ansible.builtin.command: kubectl get svc "{{ timescaledb_k8s_name }}" -n "{{ telemetry_visualizations_ns }}" -o jsonpath='{.status.loadBalancer.ingress[0].ip}'  # noqa: yaml[line-length]
+      register: timescaledb_service_external_ip
+      when: timescaledb_bash_session.rc == 0
+      failed_when: false
+      changed_when: false
+
+    - name: Connect to database
+      ansible.builtin.command: 'kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_visualizations_ns }}" -- psql -d "postgres://{{ timescaledb_user }}:{{ timescaledb_password }}@{{ timescaledb_service_external_ip.stdout }}:5432/{{ database_name }}"'  # noqa: yaml[line-length]
+      register: timescaledb_connection_status
+      changed_when: false
+      failed_when: false
+      when:
+        - timescaledb_bash_session.rc == 0
+        - "'running' in timescaledb_pod_status.stdout | lower"
+
+    - name: Check if schemas exist
+      ansible.builtin.command: 'kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_visualizations_ns }}" -- psql -d "postgres://{{ timescaledb_user }}:{{ timescaledb_password }}@{{ timescaledb_service_external_ip.stdout }}:5432/{{ database_name }}" -c "\dn"' # noqa: yaml[line-length]
+      register: schema_exist
+      changed_when: false
+      failed_when: false
+
+    - name: Extract schema names
+      ansible.builtin.set_fact:
+        schema_names: "{{ schema_exist.stdout_lines | map('split', '|') | map('first') | list }}"
+
+    - name: Set fact timescale DB flags
+      ansible.builtin.set_fact:
+        public_schema_flag: false
+        omnia_telemetry_schema_flag: false
+
+    - name: Set support value omnia_telemetry_support
+      ansible.builtin.set_fact:
+        omnia_telemetry_support: "{{ omnia_telemetry_support | lower }}"
+
+    - name: Check omnia telemetry schema exists
+      when: omnia_telemetry_support
+      block:
+        - name: Set fact omnia_telemetry_schema_flag
+          ansible.builtin.set_fact:
+            omnia_telemetry_schema_flag: true
+          when: "'omnia_telemetry' in schema_names | map('trim')"
+
+    - name: Check public schema exists
+      when: idrac_telemetry_pod_status.rc== 0
+      block:
+        - name: Set fact public_schema_flag
+          ansible.builtin.set_fact:
+            public_schema_flag: true
+          when: "'public' in schema_names | map('trim')"
+
+    - name: Set timescaledb_backup_flag
+      when:
+        - (timescaledb_connection_status is defined) and (timescaledb_connection_status.rc == 0)
+        - public_schema_flag or omnia_telemetry_schema_flag
+      block:
+        - name: Set timescaledb_backup_flag
+          ansible.builtin.set_fact:
+            timescaledb_backup_flag: true

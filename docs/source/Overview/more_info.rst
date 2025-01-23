@@ -1,8 +1,5 @@
-Find out more about Omnia
-=========================
-
 Blogs about Omnia
------------------
+===================
 
 * `Introduction to Omnia <https://infohub.delltechnologies.com/p/omnia-open-source-deployment-of-high-performance-clusters-to-run-simulation-ai-and-data-analytics-workloads/>`_
 
@@ -14,11 +11,3 @@ Blogs about Omnia
 
 * `Solution Brief: Omnia Software <https://infohub.delltechnologies.com/section-assets/omnia-solution-brief>`_
 
-What Omnia does
-----------------
-
-Omnia can deploy and configure devices, and build clusters that use Slurm or Kubernetes (or both) for workload management. Omnia will install software from a variety of sources, including:
-
-    * Helm repositories
-
-    * Source code repositories

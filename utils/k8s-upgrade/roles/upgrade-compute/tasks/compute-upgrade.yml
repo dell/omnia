@@ -8,7 +8,7 @@
 
     - name: "Print kubernetes packages version"
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "{{ ansible_facts.packages.kubelet[0].version }}"
           - "{{ ansible_facts.packages.kubeadm[0].version }}"
           - "{{ ansible_facts.packages.kubectl[0].version }}"
@@ -16,7 +16,7 @@
     - name: "Remove version lock from kubernetes packages"
       community.general.yum_versionlock:
         state: absent
-        name: 
+        name:
           - "{{ item }}"
       with_items: "{{ versionlock_k8s_packages }}"
 
@@ -41,13 +41,13 @@
         disable_excludes: kubernetes
         update_cache: true
       with_items: "{{ upgrade_k8s_packages }}"
-      
-    - name: "Reload Daemon and kubelet"  
+
+    - name: "Reload Daemon and kubelet"
       ansible.builtin.systemd:
         name: kubelet
         state: restarted
         daemon_reload: true
-      
+
     - name: "Uncordon compute Node"
       ansible.builtin.command: kubectl uncordon {{ item.1 }}
       delegate_to: "{{ item.0 }}"
@@ -57,7 +57,7 @@
 
     - name: "Print updated kubernetes packages version"
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "{{ ansible_facts.packages.kubelet[0].version }}"
           - "{{ ansible_facts.packages.kubeadm[0].version }}"
           - "{{ ansible_facts.packages.kubectl[0].version }}"
@@ -65,10 +65,10 @@
     - name: "Add version lock on kubernetes packages from being updated"
       community.general.yum_versionlock:
         state: present
-        name: 
+        name:
           - "{{ item }}"
       with_items: "{{ versionlock_k8s_packages }}"
-    
+
     - name: "Clean metadata and update yum modules"
       ansible.builtin.shell: yum clean metadata && yum clean all && yum makecache
       changed_when: true

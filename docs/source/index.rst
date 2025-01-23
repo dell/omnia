@@ -18,7 +18,7 @@ Ansible playbook-based deployment of Slurm and Kubernetes on servers running an 
 
 Omnia is made available under the `Apache 2.0 license. <https://opensource.org/licenses/Apache-2.0>`_
 
-.. note:: Omnia playbooks are licensed under the Apache 2.0 license. Once an end-user initiates Omnia, that end-user will deploy other open-source and/or third-party software that is licensed separately by their respective developer communities and/or third parties. For a comprehensive list of software and their licenses, `click here <Overview/SupportMatrix/omniainstalledsoftware.html>`_. Dell (or any other contributors) shall have no liability regarding (and no responsibility to provide support for) an end-users use of any open- source and/or third-party software and OMNIA users are solely responsible for ensuring that they are complying with all such licenses. Omnia is provided “as is” without any warranty, express or implied. Dell (or any other contributors) shall have no liability for any direct, indirect, incidental, punitive, special, or consequential damages for an end-user's use of Omnia.
+.. note:: Omnia playbooks are licensed under the Apache 2.0 license. Once an end-user initiates Omnia, that end-user will deploy other open-source and/or third-party software that is licensed separately by their respective developer communities and/or third parties. For a comprehensive list of software and their licenses, `click here <Overview/SupportMatrix/omniainstalledsoftware.html>`_. Dell (or any other contributors) shall have no liability regarding (and no responsibility to provide support for) an end-users use of any open-source and/or third-party software and OMNIA users are solely responsible for ensuring that they are complying with all such licenses. Omnia is provided “as is” without any warranty, express or implied. Dell (or any other contributors) shall have no liability for any direct, indirect, incidental, punitive, special, or consequential damages for an end-user's use of Omnia.
 
 For a better understanding of what Omnia does, check out our `docs <https://omnia-doc.readthedocs.io/en/latest/index.html>`_!
 
@@ -50,19 +50,20 @@ For a better understanding of what Omnia does, check out our `docs <https://omni
 **Table Of Contents**
 
 .. toctree::
-   Overview/index
-   Upgrade/index
-   InstallationGuides/index
-   Roles/index
-   Logging/index
-   Troubleshooting/index
-   SecurityConfigGuide/index
-   samplefiles
-   limitations
-   bestpractices
-   Contributing/index
-   appendix
+    :maxdepth: 2
 
+    Overview/index
+    Upgrade/index
+    OmniaInstallGuide/index
+    Utils/index
+    Telemetry/index
+    Logging/index
+    Troubleshooting/index
+    SecurityConfigGuide/index
+    limitations
+    bestpractices
+    Contributing/index
+    appendix
 
 .. |Omnia version| image:: https://img.shields.io/github/v/release/dell/omnia?include_prereleases
 .. |Downloads| image:: https://img.shields.io/github/downloads/dell/omnia/total

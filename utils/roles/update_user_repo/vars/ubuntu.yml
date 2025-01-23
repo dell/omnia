@@ -15,6 +15,8 @@
 
 # Usage: update_user_repo_ubuntu.yml,update_software_repo_ubuntu.yml,create_software_repo_ubuntu.yml
 repo_path: "/etc/apt/sources.list.d/"
+sources_repo_path: "/etc/apt/sources.list.d/deadsnakes-ppa.list"
+deadsnake_repo: "deb [trusted=yes] http://ppa.launchpad.net/deadsnakes/ppa/ubuntu {{ dist }} main"
 
 # Usage: create_software_repo_ubuntu.yml
 repo_config_template_src: "{{ role_path }}/templates/repo_config_template_ubuntu.j2"
@@ -32,6 +34,16 @@ tmp_omnia_keyring_file_path: "{{ tmp_update_repo_file_path }}/omnia_repo_keyring
 tmp_omnia_repo_path: "{{ tmp_update_repo_file_path }}/omnia_repo_files"
 apt_update_failure_msg: "The playbook failed due to an error while running apt update.
      Please check user_repo_url and omnia_repo_url_ubuntu in local_repo_config.yml and ensure they are correct and reachable"
+repo_retries: 5
+repo_delay: 10
 
 # Usage:update_user_repo_ubuntu.yml,update_software_repo_ubuntu.yml
 os_type: "ubuntu"
+
+# Usage: validate_repo.yml
+omnia_cluster_repo_path: /etc/apt/sources.list.d/cluster-deb.list
+omnia_pip_conf_path: /etc/pip.conf
+omnia_cluster_repo_fail_msg: "Failed. The playbook failed because the Omnia cluster repository file {{ omnia_cluster_repo_path }} is missing from the node.
+This could be due to an issue during the OS installation. To resolve this, please reprovision the node and re-run the playbook."
+pip_conf_fail_msg: "Failed. The playbook failed because the Omnia pip config file {{ omnia_pip_conf_path }} is missing from the node.
+This could be due to an issue during the OS installation. To resolve this, please reprovision the node and re-run the playbook."

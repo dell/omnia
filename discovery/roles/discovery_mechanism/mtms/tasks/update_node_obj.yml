@@ -16,7 +16,7 @@
 - name: Create static temp node objects
   ansible.builtin.shell: >
        set -o pipefail && \
-       cat {{ static_ip_file }} | mkdef -z
+       cat {{ static_ip_file }} | {{ xcat_path }}/mkdef -z
   failed_when: false
   changed_when: false
   when: bmc_static_status
@@ -24,7 +24,7 @@
 - name: Create dynamic temp node objects
   ansible.builtin.shell: >
        set -o pipefail && \
-       cat {{ dynamic_ip_file }} | mkdef -z
+       cat {{ dynamic_ip_file }} | {{ xcat_path }}/mkdef -z
   failed_when: false
   changed_when: false
   when: bmc_dynamic_status
@@ -32,7 +32,7 @@
 - name: Create discover temp node objects
   ansible.builtin.shell: >
        set -o pipefail && \
-       cat {{ discover_ip_file }} | mkdef -z
+       cat {{ discover_ip_file }} | {{ xcat_path }}/mkdef -z
   failed_when: false
   changed_when: false
   when: bmc_discover_range_status

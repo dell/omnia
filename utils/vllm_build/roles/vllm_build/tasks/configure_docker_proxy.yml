@@ -1,0 +1,52 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Create docker service directory
+  ansible.builtin.file:
+    path: "{{ docker_service_dest }}"
+    state: directory
+    mode: "{{ dir_mode }}"
+
+- name: Copy http-proxy.conf to docker service directory
+  ansible.builtin.template:
+    src: "{{ docker_http_proxy_conf_src }}"
+    dest: "{{ docker_service_dest }}/http-proxy.conf"
+    mode: "{{ file_mode }}"
+
+- name: Create .docker directory if it doesn't exist
+  ansible.builtin.file:
+    path: "{{ docker_auth_folder }}"
+    state: directory
+    mode: "{{ docker_dir_mode }}"
+
+- name: Copy docker config.json
+  ansible.builtin.template:
+    src: "{{ docker_config_src }}"
+    dest: "{{ docker_config_dest }}"
+    mode: "{{ docker_file_mode }}"
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart docker service
+  ansible.builtin.service:
+    name: docker
+    state: restarted
+    enabled: true
+  register: docker_result
+  until: docker_result is succeeded
+  retries: "{{ package_retry }}"
+  delay: "{{ delay_time }}"

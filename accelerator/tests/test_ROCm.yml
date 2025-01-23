@@ -30,6 +30,7 @@
 
     - name: Validate ROCm Version
       ansible.builtin.command: "ansible-playbook test_ROCm_validation.yml -i {{ rocm_inventory }}"
+      changed_when: false
       tags: TC_001, TC_002, TC_003, TC_004, TC_006, TC_007
 
 # Testcase OMNIA_1.4_ROCm_TC_005
@@ -49,4 +50,5 @@
 
     - name: Validate ROCm
       ansible.builtin.command: "ansible-playbook test_ROCm_validation.yml -i {{ inventory }}"
+      changed_when: false
       tags: TC_005

@@ -20,12 +20,12 @@
     MANPATH: "{{ xcat_manpath_env }}"
     PERL_BADLANG: "{{ perl_badlang_env }}"
   block:
-    - name: Set control_plane_os
+    - name: Set oim_os
       ansible.builtin.set_fact:
-        control_plane_os: "{{ ansible_distribution | lower }}"
+        oim_os: "{{ ansible_distribution | lower }}"
 
-    - name: Include vars for {{ control_plane_os }}
-      ansible.builtin.include_vars: "{{ role_path }}/../{{ control_plane_os }}/vars/main.yml"
+    - name: Include vars for {{ oim_os }}
+      ansible.builtin.include_vars: "{{ role_path }}/../{{ oim_os }}/vars/main.yml"
 
     - name: Check configure_xcat role pre-requisites
       ansible.builtin.include_tasks: pre_requisites.yml
@@ -49,5 +49,5 @@
     - name: Fetch osimage name
       ansible.builtin.include_tasks: fetch_osimage.yml
 
-    - name: Configure xCAT on {{ control_plane_os }}
-      ansible.builtin.include_tasks: "{{ role_path }}/../{{ control_plane_os }}/tasks/main.yml"
+    - name: Configure xCAT on {{ oim_os }}
+      ansible.builtin.include_tasks: "{{ role_path }}/../{{ oim_os }}/tasks/main.yml"

@@ -21,7 +21,7 @@
     - name: ROCm Version
       block:
         - name: Execute command to get the version
-          ansible.builtin.command: yum info rocm-libs 
+          ansible.builtin.command: yum info rocm-libs # noqa: command-instead-of-module
           register: rocm_installed_version
           changed_when: false
           tags: TC_001
@@ -54,7 +54,7 @@
     - name: Get ROCm Version
       block:
         - name: Execute command to get the version
-          ansible.builtin.command: yum info rocm-libs
+          ansible.builtin.command: yum info rocm-libs # noqa: command-instead-of-module
           register: rocm_installed_version
           changed_when: false
           tags: TC_003, TC_004, TC_006
@@ -114,7 +114,7 @@
     - name: Validate ROCm
       block:
         - name: Execute command to get the version
-          ansible.builtin.command: yum info rocm-libs
+          ansible.builtin.command: yum info rocm-libs # noqa: command-instead-of-module
           register: rocm_installed_version
           changed_when: false
           tags: TC_007

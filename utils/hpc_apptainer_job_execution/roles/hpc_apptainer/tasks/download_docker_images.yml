@@ -12,14 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Add docker ansible-galaxy collection
-  ansible.builtin.command: ansible-galaxy collection install {{ docker_galaxy_collection }}
-  changed_when: true
-  register: ansible_collection_install
-  until: ansible_collection_install is not failed
-  retries: "{{ max_retries }}"
-
 - name: Install python docker
   ansible.builtin.command: "{{ python_version }} -m pip install {{ docker_python_package }}"
   changed_when: true
@@ -77,7 +69,7 @@
 - name: Tag and push docker image to local registry
   community.docker.docker_image:
     name: "{{ item.image_url }}"
-    repository: "{{ cp_hostname }}:{{ docker_registry_port }}/{{ item.image_url }}"
+    repository: "{{ oim_hostname }}:{{ docker_registry_port }}/{{ item.image_url }}"
     push: true
     source: local
   with_items: "{{ hpc_apptainer_image }}"
@@ -90,7 +82,7 @@
 - name: Add docker image name to list
   ansible.builtin.lineinfile:
     path: "{{ hpc_image_list }}"
-    line: "{{ cp_hostname }}:{{ docker_registry_port }}/{{ item.image_url }}"
+    line: "{{ oim_hostname }}:{{ docker_registry_port }}/{{ item.image_url }}"
     state: present
     create: true
     mode: "{{ file_permission }}"

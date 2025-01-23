@@ -31,7 +31,7 @@
       - software_config.softwares is defined
     fail_msg: "{{ software_config_parameters_fail_msg }}"
 
-- name: Assert the control_os_type is {{ os_type }}
+- name: Assert the oim_os_type is {{ os_type }}
   ansible.builtin.assert:
     that: software_config.cluster_os_type == os_type
     fail_msg: "{{ cluster_os_type_fail_msg }}"

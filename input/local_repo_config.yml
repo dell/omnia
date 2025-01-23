@@ -13,23 +13,23 @@
 #  limitations under the License.
 ---
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # Mandatory
 # All the offline repository data for omnia stack will be stored at this path.
 # Please make sure assigned partition has enough space.
 # Ensure 755 permission is given to repo_store_path if user intends to use nfs share mount for repo_store_path
-# Default: /omnia_repo
-repo_store_path: "/omnia_repo"
+# Default: /opt/omnia_repo
+repo_store_path: "/opt/omnia_repo"
 
 # Optional
 # This variable accepts the repository urls of the user which contains the packages required for the cluster.
-# always: In this case, Omnia creates a local repo on the Control plane hosting all the packages required for the cluster. 
+# always: In this case, Omnia creates a local repo on the Omnia Infrastructure Manager hosting all the packages required for the cluster.
 # User should make sure required disk space is available.
-# partial: In this case, Omnia creates a local repo on the Control Plane hosting packages not part of user's repository.
+# partial: In this case, Omnia creates a local repo on the Omnia Infrastructure Manager hosting packages not part of user's repository.
 # never: In this case, Omnia does not create a local repo. All the packages are directly downloaded on the cluster.
 # This variable accepts repo url and gpgkey
 # url: defines the baseurl for the repository
@@ -46,9 +46,9 @@ user_repo_url:
 
 # Optional
 # This variable accepts the registry url along with port of the user which contains the images required for cluster.
-# always: In this case, Omnia creates a local registry on the Control plane hosting all the images required for the cluster. 
+# always: In this case, Omnia creates a local registry on the Omnia Infrastructure Manager hosting all the images required for the cluster.
 # User should make sure required disk space is available.
-# partial: In this case, Omnia creates a local registry on the Control Plane hosting images not part of user's registry.
+# partial: In this case, Omnia creates a local registry on the Omnia Infrastructure Manager hosting images not part of user's registry.
 # never: In this case, Omnia does not create a local registry. All the images are directly downloaded on the cluster.
 # This variable accepts host and cert_path
 # host: defines the url and port for registry
@@ -66,15 +66,15 @@ user_registry:
 # When repo_config is always, partial or never, the given ubuntu_os_url configured via proxy in compute nodes
 # Online ubuntu_os_url for Ubuntu 22.04 is http://in.archive.ubuntu.com/ubuntu
 # Online ubuntu_os_url for Ubuntu 20.04 is http://archive.ubuntu.com/ubuntu
-# Example: 
+# Example:
 # When cluster_os_type is Ubuntu 22.04
 # ubuntu_os_url: "http://in.archive.ubuntu.com/ubuntu"
 ubuntu_os_url:
 
 # Mandatory when cluster_os_type is rhel in softwares_config.json
 # This variable will be ignored when cluster_os_type is ubuntu or rocky
-# User has to provide the code ready builder url inorder to download the packages
-# When repo_config is always, the given rhel_os_url will be configured in the control plane and packages required  for cluster will be downloaded
+# User has to provide the code ready builder url that should not have a RedHat subscription authentication inorder to download the packages
+# When repo_config is always, the given rhel_os_url will be configured in the Omnia Infrastructure Manager and packages required  for cluster will be downloaded
 # When repo_config is partial or never, the packages required for cluster which were coming from rhel_repo_url will not be downloaded.
 # and the rhel_os_url configured via proxy in compute nodes
 # Example:
@@ -99,7 +99,7 @@ omnia_repo_url_rhel:
   - { url: "https://ltb-project.org/rpm/openldap25/$releasever/$basearch", gpgkey: ""}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/$basearch", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey"}
   - { url: "https://a2o.github.io/snoopy-packages/repo/centos/8/stable/", gpgkey: ""}
-  
+
 # Mandatory
 # This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rocky.
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
@@ -134,3 +134,4 @@ omnia_repo_url_ubuntu:
   - { url: "https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey" }
   - { url: "http://ppa.launchpad.net/deadsnakes/ppa/ubuntu {{ os_release }} main", gpgkey: "" }
   - { url: "https://a2o.github.io/snoopy-packages/repo/ubuntu {{ os_release }} stable", publickey: "https://a2o.github.io/snoopy-packages/snoopy-packages-key.pub" }
+  - { url: "https://vault.habana.ai/artifactory/debian {{ os_release }} main", publickey: "https://vault.habana.ai/artifactory/api/gpg/key/public" }

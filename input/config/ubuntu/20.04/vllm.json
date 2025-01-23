@@ -20,17 +20,17 @@
 
     "cluster": [ 
       { 
-        "package": "python3.9", 
+        "package": "python3.11", 
         "type": "deb",
         "repo_name": "deadsnake-ppa"
       
       }, 
       { 
-        "package": "https://download.pytorch.org/whl/cu121/torch-2.1.2%2Bcu121-cp39-cp39-linux_x86_64.whl", 
+        "package": "https://download.pytorch.org/whl/cu121/torch-2.1.2%2Bcu121-cp311-cp311-linux_x86_64.whl", 
         "type": "pip_module"
       },
       { 
-        "package": "https://github.com/vllm-project/vllm/releases/download/v0.4.0/vllm-0.4.0-cp39-cp39-manylinux1_x86_64.whl", 
+        "package": "https://github.com/vllm-project/vllm/releases/download/v0.4.0/vllm-0.4.0-cp311-cp311-manylinux1_x86_64.whl", 
         "type": "pip_module"
       }
     ]

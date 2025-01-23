@@ -1,0 +1,86 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Get timescaledb pod name
+  ansible.builtin.command: kubectl get pod -n "{{ telemetry_namespace }}" -l app="{{ tsdb_pod }}" -o jsonpath="{.items[0].metadata.name}"
+  register: timescaledb_pod_name
+  changed_when: false
+  failed_when: false
+
+- name: Check if Pod Exists
+  ansible.builtin.command: kubectl get pod "{{ timescaledb_pod_name.stdout }}" -n "{{ telemetry_namespace }}" --no-headers
+  register: timescaledb_pod_check
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Changes for telemetry timescaledb mount path
+  when: timescaledb_pod_check.rc == 0
+  block:
+    - name: Check if file exists
+      ansible.builtin.stat:
+        path: "{{ backup_tsdb_tar }}"
+      register: timescaledb_tar
+
+    - name: Edit timescaledb deployment with correct mountPath
+      ansible.builtin.shell: |
+        kubectl patch statefulset "{{ tsdb_pod }}" -n "{{ telemetry_namespace }}" --type json \
+        -p '[{"op": "replace", "path": "{{ timescaledb_container_volume_mount }}", "value": "{{ timescaledb_host_mount }}"}]'
+      args:
+        executable: /bin/bash
+      when: timescaledb_tar.stat.exists
+      changed_when: true
+
+    - name: Copy timescaledb_data tar file to timescaledb host_path
+      ansible.builtin.copy:
+        src: "{{ backup_tsdb_tar }}"
+        dest: "{{ timescaledb_mnt }}"
+        mode: "{{ file_mode }}"
+      when: timescaledb_tar.stat.exists
+
+    - name: Untar timescaledb_data tar file
+      ansible.builtin.unarchive:
+        src: "{{ timescaledb_mnt_tar }}"
+        dest: "{{ timescaledb_mnt }}"
+      when: timescaledb_tar.stat.exists
+
+    - name: Remove data directory from /opt/omnia/telemetry/timescaledb
+      ansible.builtin.file:
+        path: "{{ timescaledb_mnt }}/data"
+        state: absent
+      when: timescaledb_tar.stat.exists
+
+    - name: Wait for all pods to be Running before upgrade
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl get pods --all-namespaces | grep -v "Running" | awk 'NR>1 {print $2}' | wc -l
+      register: pod_count
+      until: pod_count.stdout == "0"
+      retries: "{{ retry_count }}"
+      delay: "{{ delay_pod }}"
+      changed_when: false
+      when: timescaledb_tar.stat.exists
+
+    - name: Remove timescaledb_data tar file from timecaledb host_path
+      ansible.builtin.file:
+        path: "{{ timescaledb_mnt_tar }}"
+        state: absent
+      when: timescaledb_tar.stat.exists
+
+    - name: Remove timescaledb_data tar file from idrac host_path
+      ansible.builtin.file:
+        path: "{{ idrac_mnt_tar }}"
+        state: absent
+      when: timescaledb_tar.stat.exists

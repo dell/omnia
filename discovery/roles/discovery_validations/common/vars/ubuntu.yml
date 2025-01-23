@@ -29,3 +29,6 @@ cuda_search_pattern: "*.deb"
 
 # Usage: validate_amdgpu_rocm_repo.yml
 offline_rocm_directory: "{{ repo_store_path }}/cluster/apt"
+
+# Usage: validate_intelgaudi_repo.yml
+offline_intelgaudi_directory: "{{ repo_store_path }}/cluster/apt"

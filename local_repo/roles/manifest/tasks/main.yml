@@ -14,7 +14,7 @@
 ---
 - name: Load software_config.json as software_config
   ansible.builtin.include_vars:
-    file: "{{ software_config_file }}"
+    file: "{{ sw_config_json_path }}"
     name: software_config
 
 - name: Check if kubeflow entry is present in software_config.json

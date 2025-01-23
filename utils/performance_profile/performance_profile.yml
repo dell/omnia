@@ -1,0 +1,36 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Update Inventory with ansible_host information
+  ansible.builtin.import_playbook: ../servicetag_host_mapping.yml
+  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
+
+- name: Validate inputs
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Validate inputs for performance_profile
+      ansible.builtin.include_role:
+        name: performance_profile
+        tasks_from: validate_input.yml
+
+- name: Running performance_profile tasks
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
+  connection: ssh
+  become: true
+  vars_files:
+    - performance_profile_config.yml
+  roles:
+    - performance_profile

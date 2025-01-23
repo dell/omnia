@@ -23,17 +23,23 @@
           ansible.builtin.include_vars:
             file: "{{ local_repo_config_path }}"
 
-        - name: Run prerequisite
-          ansible.builtin.include_tasks: prereq_{{ ansible_distribution | lower }}.yml
+        - name: Verify loki pods are running
+          ansible.builtin.include_tasks: install_check.yml
 
-        - name: Enable buildkit
-          ansible.builtin.include_tasks: enable_buildkit.yml
+        - name: Deploy loki if pods are not present
+          when: install_loki
+          block:
+            - name: Run prerequisite
+              ansible.builtin.include_tasks: prereq_{{ ansible_distribution | lower }}.yml
 
-        - name: Build promtail image
-          ansible.builtin.import_tasks: promtail_image.yml
+            - name: Enable buildkit
+              ansible.builtin.include_tasks: enable_buildkit.yml
 
-        - name: Deploy loki pod
-          ansible.builtin.import_tasks: k8s_loki_pod.yml
+            - name: Build promtail image
+              ansible.builtin.import_tasks: promtail_image.yml
+
+            - name: Deploy loki pod
+              ansible.builtin.import_tasks: k8s_loki_pod.yml
 
         - name: Deploy loki service
           ansible.builtin.import_tasks: loki_service.yml

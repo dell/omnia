@@ -30,6 +30,7 @@
 
     - name: Validate CUDA Version
       ansible.builtin.command: "ansible-playbook test_CUDA_validation.yml -i {{ cuda_inventory }}"
+      changed_when: false
       tags: TC_001, TC_002, TC_003, TC_004
 
 # Testcase OMNIA_1.4_CUDA_TC_005
@@ -49,4 +50,5 @@
 
     - name: Validate CUDA Version
       ansible.builtin.command: "ansible-playbook test_CUDA_validation.yml -i {{ inventory }}"
+      changed_when: false
       tags: TC_005

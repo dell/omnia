@@ -15,8 +15,8 @@
 
 - name: Install development packages
   when:
-    - control_plane_os in control_plane_os_redhat or
-      control_plane_os in control_plane_os_rocky
+    - oim_os in oim_os_redhat or
+      oim_os in oim_os_rocky
   ansible.builtin.package:
     name: "{{ psql_devel_packages }}"
     state: present

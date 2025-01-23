@@ -2,7 +2,9 @@ Troubleshooting
 ==============
 
 .. toctree::
-    knownissues
-    FAQ
+    :maxdepth: 2
+
+    KnownIssues/index
+    FAQ/index
     troubleshootingguide
 

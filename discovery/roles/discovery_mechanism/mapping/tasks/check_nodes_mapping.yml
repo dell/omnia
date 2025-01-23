@@ -18,7 +18,7 @@
     mapping_node_status: false
 
 - name: Fetch nodes with group {{ mapping_node_group }}
-  ansible.builtin.command: lsdef {{ mapping_node_group }}
+  ansible.builtin.command: "{{ xcat_path }}/lsdef {{ mapping_node_group }}"
   changed_when: false
   register: check_mapping_nodes
   failed_when: false

@@ -18,6 +18,7 @@
     beegfs_version: "{{ software_version_default }}"
     amdgpu_version: "{{ software_version_default }}"
     rocm_version: "{{ software_version_default }}"
+    intelgaudi_version: "{{ software_version_default }}"
 
 - name: Set facts for cluster
   ansible.builtin.set_fact:
@@ -122,7 +123,7 @@
 
     - name: Configure user repositories
       ansible.builtin.template:
-        src: '"{{ usr_repo_config_template_src }}"'
+        src: "{{ usr_repo_config_template_src }}"
         dest: "{{ tmp_user_repo_path }}/a_user_repo{{ item.0 + 1 }}{{ansible_date_time.iso8601_basic}}.list"
         mode: "{{ file_permission }}"
       with_indexed_items: "{{ user_repo_url | default([]) }}"
@@ -142,3 +143,23 @@
         src: "{{ tmp_user_repo_path }}/"
         dest: "{{ repo_path }}/"
         mode: "{{ file_permission }}"
+
+- name: Set fact for dist
+  ansible.builtin.set_fact:
+    dist: "{{ hostvars['127.0.0.1']['distro'] }}"
+
+- name: Configure deadsnakes PPA repository (Cross-OS)
+  when: hostvars['127.0.0.1']['os_no_match'] | bool
+  block:
+    - name: Add deadsnake repo to apt sources list # noqa risky-file-permissions
+      ansible.builtin.lineinfile:
+        path: "{{ sources_repo_path }}"
+        line: "{{ deadsnake_repo }}"
+        create: true
+        state: present
+      become: true
+
+    - name: Update apt package cache
+      ansible.builtin.apt:
+        update_cache: true
+      become: true

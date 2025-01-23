@@ -1,19 +1,21 @@
-Network Topology: Hybrid setup
-=============================
+Network Topology: Hybrid Setup
+=================================
 
-For an environment containing both LOM and BMC ports, the provision tool needs to be run twice to correctly manage all servers in the network.
+.. note:: The following diagram is for representational purposes only.
 
-.. image:: ../../images/omnia_network_Hybrid.jpg
+.. image:: ../../images/Hybrid_NT.png
 
-In a **Hybrid Setup**, the control plane and special nodes such as the head and login node are connected to the public network, while the iDRAC and the compute nodes use a shared LOM network.
+In a **Hybrid Setup**, the OIM and special nodes such as the head and login node are connected to the public network, while the iDRAC and the compute nodes use a shared LOM network.
 
-* **Public Network (Blue line)**: This indicates that the control plane, head node, and login node is connected to the external public network.
+* **Public Network (Blue line)**: This indicates the external public network which is connected to the internet. NIC2 of the OIM, Head node, and Login node [optional] is connected to the public network. Along with this, BMC NIC of the Head node is connected.
 
-* **Cluster Network (Green line)**: This indicates the admin network utilized by Omnia to provision the cluster nodes.
+* **Admin Network and BMC network (Green line)**: This indicates the admin network and the BMC network utilized by Omnia to provision the cluster nodes and to control the cluster nodes using out-of-band management. NIC1 of all the nodes are connected to the private switch.
 
-* **IB Network (Yellow line)**: The network used by the applications on the cluster nodes to communicate among each other.
+* **IB / Additional Ethernet Network (Yellow line)**: This indicates the Infiniband (IB) or the additional ethernet network used by applications on the cluster nodes to communicate among each other, using Mellanox or high-speed ethernet switch. OIM connectivity is optional for this switch.
+
+.. note:: Omnia supports classless IP addressing, which allows the Admin network, BMC network, Public network, and the Additional network to be assigned different subnets. However, the Admin and BMC networks must be on the same subnet (represented by the ``netmask_bits`` parameter in the ``input/network_spec.yml`` file).
 
 **Recommended discovery mechanism**
 
-* `mapping <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/mappingfile.html>`_
-* `bmc <../../InstallationGuides/InstallingProvisionTool/DiscoveryMechanisms/bmc.html>`_
+* `mapping <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/mappingfile.html>`_
+* `bmc <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/bmc.html>`_

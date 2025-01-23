@@ -4,7 +4,7 @@ Product and Subsystem Security
 Security controls map
 ----------------------
 
-.. image:: ../images/securityControlsMap.jpg
+.. image:: ../images/SecurityControlsMap.png
 
 Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansible playbooks to perform installations and configurations. iDRAC is supported for provisioning bare metal servers. Omnia installs xCAT to enable provisioning of clusters via PXE in different ways:
 
@@ -14,7 +14,7 @@ Omnia performs bare metal configuration to enable AI/HPC workloads. It uses Ansi
 
     - Switch **[default]**: To discovery the cluster by routing communication through particular switch ports over SNMPv3, non-admin switch credentials must be provided.
 
-.. note:: IPMI is not required on the control plane. However, compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
+.. note:: IPMI is not required on the OIM. However, compute nodes (iDRACs in the cluster/private network) require IPMI to be enabled for BMC discovery.
 
 Omnia can be installed via CLI only. Slurm and Kubernetes are deployed and configured on the cluster. FreeIPA or OpenLDAP is installed for providing authentication.
 
@@ -34,6 +34,8 @@ To perform these configurations and installations, a secure SSH channel is estab
 
 Authentication
 ---------------
+
+Omnia adheres to a subset of the specifications of NIST 800-53 and NIST 800-171 guidelines on the OIM and login node.
 
 Omnia does not have its own authentication mechanism because bare metal installations and configurations take place using root privileges. Post the execution of Omnia, third-party tools are responsible for authentication to the respective tool.
 
@@ -97,7 +99,7 @@ Configuring remote connections
 When setting up BeeGFS client services on the cluster, a connection authentication file is used to maintain the security of the communications between server and client.
 
     1. 	Generate the connection authentication file (connAuth) and use it to set up BeeGFS meta, server and storage services.
-    2. 	Copy the connAuth file to the control plane and note the filepath.
+    2. 	Copy the connAuth file to the OIM and note the filepath.
     3. 	Populate the value of ``beegfs_secret_storage_filepath`` in ``input/storage_config.yml`` with the filepath from the previous step.
 
 Omnia will configure the BeeGFS clients on th cluster using the provided file. BeeGFS is responsible for maintaining and securing connAuthFile. For more information, `click here <https://doc.beegfs.io/latest/advanced_topics/authentication.html>`_.
@@ -329,7 +331,7 @@ Omnia configures the following ports for use by third-party tools installed by O
 Data security
 -------------
 
-Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run the following commands routinely on the control plane for the latest security updates.
+Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run the following commands routinely on the OIM for the latest security updates.
 
 * For RHEL/Rocky Linux OS
 

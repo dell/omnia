@@ -1,0 +1,33 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check virtual ENV
+  ansible.builtin.set_fact:
+    venv_path: "{{ lookup('ansible.builtin.env', 'VIRTUAL_ENV') }}"
+
+- name: Determine if venv is active
+  ansible.builtin.set_fact:
+    is_venv_active: "{{ venv_path is defined and venv_path | length > 0 }}"
+
+- name: Fail if VIRTUAL_ENV is not set
+  ansible.builtin.fail:
+    msg: "{{ venv_active_fail_msg }}"
+  when: not is_venv_active
+
+- name: Check if venv_path is correct
+  ansible.builtin.assert:
+    that:
+      - venv_path == "/opt/omnia/omnia161_venv"
+    fail_msg: "{{ venv_fail_msg }}"

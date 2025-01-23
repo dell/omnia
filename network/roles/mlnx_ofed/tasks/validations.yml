@@ -25,6 +25,7 @@
     - "'redhat' in hostvars[item].ansible_distribution | lower or 'rocky' in hostvars[item].ansible_distribution | lower"
 
 - name: Perform validations when compute nodes have redhat/rocky os installed
+  when: redhat_node_ip | default([]) | length > 0
   block:
     - name: Set Redhat distro
       ansible.builtin.set_fact:
@@ -40,6 +41,7 @@
       when: mlnx_ofed_offline_path | default("", true) | length > 0
 
     - name: Check if correct mlnx_ofed file exists
+      when: offline_path
       block:
         - name: Check if file is .tar file
           ansible.builtin.assert:
@@ -56,9 +58,8 @@
             msg: "{{ fail_mlnx_file + mlnx_ofed_offline_path }}"
           when: not stat_result.stat.exists
 
-      when: offline_path
-
     - name: Check if mlnx_ofed version and distro details are given correctly
+      when: not offline_path
       block:
         - name: Check status of mlnx_ofed repo url
           ansible.builtin.uri:
@@ -73,8 +74,6 @@
           ansible.builtin.fail:
             msg: "{{ fail_mlnx_url }}"
 
-      when: not offline_path
-
     - name: Set mlnx_ofed_add_kernel_support value
       ansible.builtin.set_fact:
         mlnx_ofed_add_kernel_support: "{{ mlnx_ofed_add_kernel_support | lower }}"
@@ -87,5 +86,3 @@
     - name: Set mlnx_ofed arguments
       ansible.builtin.set_fact:
         mlnx_ofed_args: "{{ '--add-kernel-support' if mlnx_ofed_add_kernel_support else '' }}"
-
-  when: redhat_node_ip | default([]) | length > 0

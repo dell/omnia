@@ -25,6 +25,29 @@
     state: absent
   with_items: "{{ conflicting_packages }}"
 
+- name: Install python rpm interface
+  ansible.builtin.dnf:
+    name: python3-rpm
+    state: present
+
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: rpm
+  no_log: true
+
+- name: Check whether containerd.io version
+  ansible.builtin.set_fact:
+    higher_containerd_version: true
+  when: (containerd_str in ansible_facts.packages) and (ansible_facts.packages[containerd_str][0]['version']
+    is ansible.builtin.version(containerd_version, '>'))
+
+- name: Warning prompt if containerd is downgrading
+  ansible.builtin.pause:
+    seconds: 20
+    prompt: "Higher version of {{ containerd_str }} {{ ansible_facts.packages['containerd.io'][0]['version'] }} already present,
+      Proceeding with downgrade to {{ containerd_version }}."
+  when: higher_containerd_version is defined and higher_containerd_version
+
 # Install Pre-requisites
 # Download and Install containerd
 - name: Download containerd.io RPM
@@ -40,6 +63,7 @@
   ansible.builtin.dnf:
     name: "{{ containerd_rpm_dest }}"
     state: present
+    allow_downgrade: true
     disable_gpg_check: true
 
 - name: Start containerd
@@ -58,10 +82,16 @@
   until: download_nerdctl is not failed
   retries: "{{ max_retries }}"
 
+- name: Create nerdctl temp directory
+  ansible.builtin.file:
+    path: "{{ temp_download_dir }}/nerdctl"
+    state: directory
+    mode: "{{ directory_permissions }}"
+
 - name: Extract nerdctl archive
   ansible.builtin.unarchive:
     src: "{{ nerdctl_archive_dest }}"
-    dest: "{{ temp_download_dir }}"
+    dest: "{{ temp_download_dir }}/nerdctl/"
     mode: "{{ file_permission }}"
 
 - name: Make nerdctl executable
@@ -74,3 +104,37 @@
     src: "{{ nerdctl_folder_dest }}"
     dest: "{{ nerdctl_executable_dest }}"
     mode: preserve
+
+# Download and install CNI
+- name: Create /opt/cni/ directory
+  ansible.builtin.file:
+    path: "{{ cni_download_dir }}"
+    state: directory
+    mode: "{{ directory_permissions }}"
+
+- name: Create /opt/cni/bin/ directory
+  ansible.builtin.file:
+    path: "{{ cni_bin_download_dir }}"
+    state: directory
+    mode: "{{ directory_permissions }}"
+
+- name: Download CNI archive
+  ansible.builtin.get_url:
+    url: "{{ cni_url }}"
+    dest: "{{ cni_archive_dest }}"
+    mode: "{{ directory_permissions }}"
+  register: download_cni
+  until: download_cni is not failed
+  retries: "{{ max_retries }}"
+
+- name: Extract cni archive
+  ansible.builtin.unarchive:
+    src: "{{ cni_archive_dest }}"
+    dest: "{{ cni_bin_download_dir }}"
+    mode: "{{ directory_permissions }}"
+
+- name: Set execute permissions for extracted CNI files
+  ansible.builtin.file:
+    path: "{{ cni_bin_download_dir }}"
+    recurse: true
+    mode: "{{ cni_mode }}"

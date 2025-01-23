@@ -18,3 +18,4 @@ switch_based_node_group: "switch_based"
 switch_based_xcat_install_success_msg: "Provision tasks executed successfully for discoverd nodes using switch_based.
 Configure PXE and reboot the cluster nodes manually for provisioning servers."
 switch_based_set_osimage_warning_msg: "[WARNING] Command to set osimage to nodes is not successful for discovered nodes using switch_based. Error:"
+xcat_path: /opt/xcat/bin

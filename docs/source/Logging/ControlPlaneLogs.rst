@@ -1,20 +1,11 @@
-Control plane logs
--------------------
+OIM logs
+----------
 
 .. caution:: It is not recommended to delete the below log files or the directories they reside in.
 
 .. note::
     * Log files are rotated periodically as a storage consideration. To customize how often logs are rotated, edit the ``/etc/logrotate.conf`` file on the node.
     * If you want log files for specific playbook execution, ensure to use the ``cd`` command to move into the specific directory before executing the playbook. For example, if you want local repo logs, ensure to enter ``cd local_repo`` before executing the playbook. If the directory is not changed, all the playbook execution log files will be consolidated and provided as part of omnia logs located in ``/var/log/omnia.log``.
-
-CLI logs
-----------
-All log files can be viewed using CLI. However, there are few log files which can be viewed exclusively using CLI. They are:
-
-.. csv-table:: Exclusive CLI log files
-   :file: ../Tables/CLI_exclusive_logs.csv
-   :header-rows: 1
-   :keepspace:
 
 Loki logs
 ----------
@@ -40,7 +31,7 @@ Logs of individual containers
 Provisioning logs
 --------------------
 
-Logs pertaining to actions taken during ``discovery_provision.yml``  can be viewed in ``/var/log/xcat/cluster.log`` and ``/var/log/xcat/computes.log`` on the control plane.
+Logs pertaining to actions taken during ``discovery_provision.yml``  can be viewed in ``/var/log/xcat/cluster.log`` and ``/var/log/xcat/computes.log`` on the OIM.
 
 .. note::  As long as a node has been added to a cluster by Omnia, deployment events taking place on the node will be updated in ``/var/log/xcat/cluster.log``.
 
@@ -56,7 +47,7 @@ Logs pertaining to actions taken by Omnia or iDRAC telemetry can be viewed in ``
 Grafana Loki
 --------------
 
-After `telemetry.yml <../Roles/Telemetry/index.html>`_ is run, Grafana services are installed on the control plane.
+After `telemetry.yml <../Telemetry/index.html>`_ is run, Grafana services are installed on the OIM.
 
     i. Get the Grafana IP using ``kubectl get svc -n grafana``.
 

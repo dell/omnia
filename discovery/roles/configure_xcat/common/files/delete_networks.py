@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import sys
+import sys, os
 import yaml
 import subprocess
 
@@ -20,7 +20,7 @@ db_path = sys.argv[1]
 sys.path.insert(0, db_path)
 import omniadb_connection
 
-network_spec_path = sys.argv[2]
+network_spec_path = os.path.abspath(sys.argv[2])
 nw_names = []
 omnia_nw_names = []
 
@@ -50,7 +50,7 @@ def delete_misc_networks():
     omnia_networks()
     for i in nw_names:
         if i not in omnia_nw_names:
-            command = f"rmdef -t network {i}"
+            command = f"/opt/xcat/bin/rmdef -t network {i}"
             command_list = command.split()
             subprocess.run(command_list, capture_output=True)
 

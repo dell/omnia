@@ -13,6 +13,23 @@
 #  limitations under the License.
 ---
 
-python: python3.9
+# Usage: main.yml
+empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory by providing -i inventory."
+
+# Usage: service_tag_mapping.yml
+python: "{{ ansible_python_interpreter }}"
 servicetag_host_mapping_script: "{{ role_path }}/files/servicetag_host_mapping.py"
 file_path: "/../../../discovery/roles/db_operations/files/"
+
+# Usage: check_provision_status.yml
+omnia_postgres_path: /opt/omnia/.postgres
+xcatd_service: "xcatd.service"
+postgresql_service_rhel: "postgresql.service"
+postgresql_service_ubuntu: "postgresql"
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
+xcat_path: /opt/xcat/bin
+postgres_install_fail_msg: |
+  "Failed. postgresql or xcatd services not running.
+  Please run discovery_provision.yml to discover and provision nodes first, then rerun the playbook."

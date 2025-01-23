@@ -20,20 +20,6 @@
     line: 'reposdir={{ yum_repos_path }}'
     state: present
 
-- name: Install ansible galaxy collection {{ community_general_collection }}
-  ansible.builtin.command: ansible-galaxy collection install {{ community_general_collection }}
-  changed_when: true
-  register: community_general_collection
-  until: community_general_collection is not failed
-  retries: "{{ max_retries }}"
-
-- name: Install ansible galaxy collection {{ community_crypto_collection }}
-  ansible.builtin.command: ansible-galaxy collection install {{ community_crypto_collection }}
-  changed_when: true
-  register: community_crypto_collection
-  until: community_crypto_collection is not failed
-  retries: "{{ max_retries }}"
-
 - name: Install  jq packages
   ansible.builtin.yum:
     name: "{{ jq_package }}"

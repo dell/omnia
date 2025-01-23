@@ -40,6 +40,37 @@ Required	","* Enables visualizations.
 
 
 .. note:: When ``visualization_support`` is true, ``grafana_username`` and ``grafana_password`` become mandatory."
+"**k8s_prometheus_support**
+
+``boolean``
+
+Optional	","* This variable signifies whether Kubernetes metrics will be collected by the Prometheus metrics exporter or not.
+* If the variable value is ``true``, Kube Prometheus will be deployed on the ``kube_control_plane``. Kube Prometheus is a set of Kubernetes manifests, tools, and configurations that makes it easier to set up and manage Prometheus monitoring in a Kubernetes environment.
+* For the complete list of Kubernetes metrics collected by Prometheus, `click here <https://v1-29.docs.kubernetes.io/docs/reference/instrumentation/metrics/#list-of-stable-kubernetes-metrics>`_
+* **Values:**
+	* ``true`` 
+
+	* ``false`` <- **Default**"
+"**prometheus_scrape_interval**
+
+``integer``
+
+Optional	","* Providing values to this variable is mandatory if ``k8s_prometheus_support`` is ``true``.
+* This variable determines how frequently (time interval in seconds) the Prometheus exporter gathers the metrics from the target nodes.
+* This variable accepts values in seconds.
+* **Default value:** 15"
+"**prometheus_gaudi_support**
+
+``boolean``
+
+Optional	","* This variable signifies whether Intel Gaudi metrics will be collected by the Gaudi Prometheus metrics exporter or not.
+* The ``k8s_prometheus_support`` variable must be ``true`` for the metrics to be collected.
+* **Values:**
+	* ``true`` 
+
+	* ``false`` <- **Default**
+
+.. note:: Support for Intel Gaudi metrics collection via Prometheus exporter is only available for clusters running on Ubuntu 22.04 OS."
 "**k8s_service_addresses**
 
 ``string``
@@ -65,7 +96,7 @@ Required	","* Kubernetes pod network CIDR for internal network. When used, it wi
 
 ``string``
 
-Required	","* These addresses will be used by Loadbalancer for assigning External IPs to K8s services running on control plane.
+Required	","* These addresses will be used by Loadbalancer for assigning External IPs to K8s services running on the OIM.
 * Make sure the IP range is not assigned to any node in the cluster.
 * If ``admin_nic`` network provided in ``network_spec.yml`` is in ``""10.11.0.0""`` network, then ``pod_external_ip_range`` should be in same network such as ``""10.11.0.60-10.11.0.70""``.
 * Acceptable formats: ``""10.11.0.100-10.11.0.150""`` , ``""10.11.0.0/16""``
@@ -138,7 +169,7 @@ Required	","* This variable denotes the time interval (seconds) of telemetry dat
 ``boolean``  [1]_
 
 Required	","* This variable is used to enable metric collection part of the regular metric group.
-* For a list of regular metrics collected, `click here. <../../Roles/Telemetry/TelemetryMetrics.html#regular-metrics>`_
+* For a list of regular metrics collected, `click here. <TelemetryMetrics.html#id3>`_
 * **Values:**
 	* ``true`` <- **Default**
 
@@ -148,7 +179,7 @@ Required	","* This variable is used to enable metric collection part of the regu
 ``boolean``  [1]_
 
 Required	","* This variable is used to enable metric collection part of the health check metric group.
-* For a list of health metrics collected, `click here. <../../Roles/Telemetry/TelemetryMetrics.html#health-metrics>`_
+* For a list of health metrics collected, `click here. <TelemetryMetrics.html#id4>`_
 * **Values:** 
 	* ``true`` <- **Default**
 
@@ -158,7 +189,7 @@ Required	","* This variable is used to enable metric collection part of the heal
 ``boolean``  [1]_
 
 Required	","* This variable is used to enable metric collection related to GPU.
-* For a list of GPU metrics collected, `click here. <../../Roles/Telemetry/TelemetryMetrics.html#gpu-metrics>`_
+* For a list of GPU metrics collected, `click here. <TelemetryMetrics.html#id5>`_
 
 
 * **Values:**

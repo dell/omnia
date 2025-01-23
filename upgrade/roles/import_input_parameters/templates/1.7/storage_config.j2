@@ -1,0 +1,94 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+#***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+#***********************************************************************
+
+# -----------------------------NFS------------------------------------------------
+
+# USER have to mount EXTERNAL NFS server, omnia will mount NFS client when nfs_server value is false.
+# omnia will setup NFS server and mount NFS client when nfs_server value is true.
+# This variable is used for creating NFS share on slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd nodes
+# Values should be entered in JSON format only.
+# If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
+# Its mandatory to provide atleast one entry in nfs_client_params
+# If user wants to setup NFS server on Omnia Infrastructure Manager "localhost" can be mentioned as server_ip or admin_nic_ip of Omnia Infrastructure Manager also can be provided.
+# For the server which must be used as k8s server share for NFS external provisioner must be given k8s_share as true
+# For the server which must be used as slurm share, slurm_share must be given as true
+# For benchmarks, either slurm_share or k8s_share will be used. Higher precedence will be given to slurm_share
+# Example for single mount file system:
+# nfs_client_params: 
+# - { server_ip: 10.5.0.101, server_share_path: "/mnt/share", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true, slurm_share: true, k8s_share: true }
+# Example for supporting multiple mount points:
+# nfs_client_params: 
+#    - { server_ip: localhost, server_share_path: "/mnt/share1", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true, slurm_share: false, k8s_share: true } 
+#    - { server_ip: 198.168.0.1, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true}
+# Example for multiple mount file system:
+# nfs_client_params: 
+# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: false, k8s_share: true} 
+# - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: true, k8s_share: false}
+
+nfs_client_params: # Value auto populated by Omnia upgrade script
+{% for params in storage_config_ns.nfs_client_params %}
+{% if params.server_ip is not none and params.server_share_path is not none and params.client_share_path is not none and params.client_mount_options is not none %}
+- { server_ip: "{{ params.server_ip }}", server_share_path: "{{ params.server_share_path }}", client_share_path: "{{ params.client_share_path }}", client_mount_options: "{{ params.client_mount_options }}", nfs_server: {{ params.nfs_server | lower | regex_replace('["\']', '') }}, k8s_share: {{ params.k8s_share | lower | regex_replace('["\']', '') }}, slurm_share: {{ params.slurm_share | lower | regex_replace('["\']', '') }} }
+{% endif %}
+{% endfor %}
+
+# ----------------------------BEEGFS---------------------------------------------------
+
+# This variable is used if user has RDMA-capable network hardware (e.g., InfiniBand)
+# Accepted values: true or false
+# Default value: false
+# To enable support for remote direct memory access (RDMA), set this value to true
+beegfs_rdma_support: {{ storage_config_ns.beegfs_rdma_support | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia upgrade script
+
+# This variable if there are separate OFED kernel modules installed
+# Add path for kernel module
+# Default value is "/usr/src/ofa_kernel/default/include"
+# Please make sure this path is present on your nodes, else give appropriate path before execution
+beegfs_ofed_kernel_modules_path: "{{ storage_config_ns.beegfs_ofed_kernel_modules_path }}" # Value auto populated by Omnia upgrade script
+
+# This variable is used for taking BeeGFS management server IP
+# Provide IP of beegfs management server
+# Required field
+beegfs_mgmt_server: "{{ storage_config_ns.beegfs_mgmt_server }}" # Value auto populated by Omnia upgrade script
+
+# Beegfs-client file system mount location
+# Default value is "/mnt/beegfs"
+# Make sure beegfs_unmount_client value is true, for changing BeeGFS mounts location
+beegfs_mounts: "{{ storage_config_ns.beegfs_mounts }}" # Value auto populated by Omnia upgrade script
+
+# The value of beegfs_unmount_client should be true, if there is a change in beegfs_mounts value or beegfs_client_version
+# Accepted values: true or false
+# Default value: false
+# changing this value to true will unmount running instance of BeeGFS client
+beegfs_unmount_client: {{ storage_config_ns.beegfs_unmount_client | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia upgrade script
+
+# For installing different version of BeeGFS client than the version which is already running on the BeeGFS cluster
+# Accepted values: true or false
+# Default value: false
+# If there is a need for installing different version of BeeGFS client then make this variable to true
+beegfs_version_change: {{ storage_config_ns.beegfs_version_change | lower | regex_replace('["\']', '') }} # Value auto populated by Omnia  upgrade script
+
+# Beegfs secret storage file or authentication file
+# Required for Beegfs version >= 7.2.7
+# Default value is /home/connauthfile
+# Accepted value: Path along with filename for secret stoarge file configured
+# on beegfs server
+# If this is not provided, beegfs installation will fail
+beegfs_secret_storage_filepath: "{{ storage_config_ns.beegfs_secret_storage_filepath }}" # Value auto populated by Omnia upgrade script

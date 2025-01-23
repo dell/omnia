@@ -12,25 +12,43 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Updating repos and installing python package
+  block:
+    - name: Update repos in Ubuntu
+      ansible.builtin.apt:
+        update_cache: true
+      register: update_repos
+      until: update_repos is not failed
+      retries: "{{ repo_retries }}"
+      delay: "{{ repo_delay }}"
+
+    - name: Install python packages
+      ansible.builtin.apt:
+        name: "{{ python_packages }}"
+        state: present
+  rescue:
+    - name: Failed to update repos
+      ansible.builtin.fail:
+        msg: "{{ update_repos_fail_msg }}"
 
 - name: Install packages
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
   block:
-    - name: Install python3.9
-      ansible.builtin.package:
-        name: "{{ python_packages }}"
-        state: present
+    - name: Install pip for {{ python_version }}
+      ansible.builtin.command:
+        cmd: "{{ python_version }} -m ensurepip --upgrade"
+      changed_when: false
 
     - name: Install required ansible packages
       ansible.builtin.command:
-        cmd: "python3.9 -m pip install {{ ansible_name }}=={{ secure_ansible_version }} {{ cryptography_name }}=={{ cryptography_version }}"
+        cmd: "{{ python_version }} -m pip install {{ ansible_name }}=={{ secure_ansible_version }} {{ cryptography_name }}=={{ cryptography_version }}"
       changed_when: false
 
     - name: Install required ansible jinja packages
       ansible.builtin.command:
-        cmd: "python3.9 -m pip install {{ jinja_name }}=={{ jinja_version }}"
+        cmd: "{{ python_version }} -m pip install {{ jinja_name }}=={{ jinja_version }}"
       changed_when: false
 
 - name: Install community_general_collection repo tarball
@@ -72,4 +90,4 @@
   ansible.builtin.cron:
     name: Auth failure alerting
     special_time: hourly
-    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ alerting_file_path }} -e 'alert_email_address={{ hostvars['127.0.0.1']['alert_email_address'] }}'"
+    job: "{{ ansible_playbook_path.stdout.split(' ')[1] }} {{ alerting_file_path }} -e 'alert_email_address={{ hostvars['localhost']['alert_email_address'] }}' -e 'smtp_sender_address={{ hostvars['localhost']['smtp_server'][0]['sender_address'] }}'" # noqa: yaml[line-length]
