@@ -1,4 +1,4 @@
-#  Copyright 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,43 +15,45 @@
 # intel_tools.yml: Install Intel-branded tools
 
 # Install the Intel Parallel Studio XE Runtime repository and packages
-- hosts: cluster
+- name: Import the Intel Parallel Studio XE Runtime repository and packages
+  hosts: cluster
   tasks:
-  - name: Import the Intel(R) Parallel Studio XE Runtime Repo GPG Key
-    rpm_key:
-      state: present
-      key: https://yum.repos.intel.com/2020/setup/RPM-GPG-KEY-intel-psxe-runtime-2020
-  - name: Enable the Intel(R) Parallel Studio XE Runtime Repository
-    package:
-      name: https://yum.repos.intel.com/2020/setup/intel-psxe-runtime-2020-reposetup-1-0.noarch.rpm
-      state: present
-  - name: Install Intel(R) Parallel Studio XE Runtime 2020
-    package:
-      name: intel-psxe-runtime
-      state: present
+    - name: Import the Intel(R) Parallel Studio XE Runtime Repo GPG Key
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://yum.repos.intel.com/2020/setup/RPM-GPG-KEY-intel-psxe-runtime-2020
+    - name: Enable the Intel(R) Parallel Studio XE Runtime Repository
+      ansible.builtin.package:
+        name: https://yum.repos.intel.com/2020/setup/intel-psxe-runtime-2020-reposetup-1-0.noarch.rpm
+        state: present
+    - name: Install Intel(R) Parallel Studio XE Runtime 2020
+      ansible.builtin.package:
+        name: intel-psxe-runtime
+        state: present
 
 # Install the Intel Cluster Checker
-- hosts: cluster
+- name: Install the Intel Cluster Checker
+  hosts: cluster
   tasks:
-  - name: Import the Intel(R) Cluster Checker Repo GPG Key
-    rpm_key:
-      state: present
-      key: https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
-  - name: Enable the Intel(R) Cluster Checker Repository
-    yum_repository:
-      name: intel-clck-2019-repo
-      description: Intel(R) Cluster Checker 2019
-      baseurl: https://yum.repos.intel.com/clck/2019
-      gpgcheck: yes
-      gpgkey: https://yum.repos.intel.com/clck/2019/setup/PUBLIC_KEY.PUB
-  - name: Enable the Intel(R) Cluster Checker Extensions Repository
-    yum_repository:
-      name: intel-clck-ext-2019-repo
-      description: Intel(R) Cluster Checker Select Solutions Extensions 2019
-      baseurl: https://yum.repos.intel.com/clck-ext/2019
-      gpgcheck: yes
-      gpgkey: https://yum.repos.intel.com/clck-ext/2019/setup/PUBLIC_KEY.PUB
-  - name: Install the Intel(R) Cluster Checker
-    package:
-      name: intel-clck-2019.8-*
-      state: present
+    - name: Import the Intel(R) Cluster Checker Repo GPG Key
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
+    - name: Enable the Intel(R) Cluster Checker Repository
+      ansible.builtin.yum_repository:
+        name: intel-clck-2019-repo
+        description: Intel(R) Cluster Checker 2019
+        baseurl: https://yum.repos.intel.com/clck/2019
+        gpgcheck: true
+        gpgkey: https://yum.repos.intel.com/clck/2019/setup/PUBLIC_KEY.PUB
+    - name: Enable the Intel(R) Cluster Checker Extensions Repository
+      ansible.builtin.yum_repository:
+        name: intel-clck-ext-2019-repo
+        description: Intel(R) Cluster Checker Select Solutions Extensions 2019
+        baseurl: https://yum.repos.intel.com/clck-ext/2019
+        gpgcheck: true
+        gpgkey: https://yum.repos.intel.com/clck-ext/2019/setup/PUBLIC_KEY.PUB
+    - name: Install the Intel(R) Cluster Checker
+      ansible.builtin.package:
+        name: intel-clck-2019.8-*
+        state: present

@@ -21,8 +21,7 @@ omnia_telemetry_file: "/opt/omnia/telemetry/omnia_telemetry"
 omnia_telemetry_servicepath: "/etc/systemd/omnia_telemetry.service"
 delete_node_info: "{{ role_path }}/files/delete_node_info.py"
 inv_file_folder: /opt/omnia/omnia_inventory/
-python_version: "python3.9"
-
+python_version: "{{ ansible_python_interpreter }}"
 xcat_root_env: "/opt/xcat"
 xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
 xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"

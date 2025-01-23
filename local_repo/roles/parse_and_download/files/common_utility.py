@@ -5,6 +5,7 @@ This module provides utility functions for managing package statuses and running
 
 import subprocess
 import os
+import shlex
 
 def update_status(package_name, package_type, status, status_file_path):
     """
@@ -30,11 +31,12 @@ def update_status(package_name, package_type, status, status_file_path):
 
     found = False
     # Check if the status entry already exists in the status file
-    for i, existing_status in enumerate(existing_statuses):
-        if existing_status.startswith(f"{package_name},{package_type},"):
-            existing_statuses[i] = package_status
-            found = True
-            break
+    if existing_statuses:
+        for i, existing_status in enumerate(existing_statuses):
+            if existing_status.startswith(f"{package_name},{package_type},"):
+                existing_statuses[i] = package_status
+                found = True
+                break
 
     if not found:
         # If the entry doesn't exist, append it to the file
@@ -50,6 +52,7 @@ def run_createrepo_rhel(directory):
 
     directory: The directory path where createrepo will be executed.
     """
+    directory = shlex.quote(directory).strip("'\"")
     command = ["createrepo", directory]
     try:
         subprocess.run(command, check=True)
@@ -82,7 +85,7 @@ def run_createrepo_on_rhel_directories(repo_store_path, cluster_os_type, cluster
     cluster_os_version: The version of the cluster operating system.
     version_variables: A dictionary containing version variables for different packages.
     """
-    
+
     base_directories = [
         os.path.join(repo_store_path, 'cluster', cluster_os_type, cluster_os_version, 'rpm')
     ]
@@ -124,7 +127,12 @@ def run_createrepo_on_ubuntu_directories(repo_store_path, cluster_os_type, clust
     if len(version_variables.get('amdgpu_version', '').strip()) > 0:
         base_directories.append(os.path.join(repo_store_path, 'cluster', 'apt', 'amdgpu',
                     version_variables.get('amdgpu_version', '')))
-
+    if len(version_variables.get('intelgaudi_version', '').strip()) > 0:
+        base_directories.append(os.path.join(repo_store_path, 'cluster', 'apt', 'intelgaudi',
+                    version_variables.get('intelgaudi_version', '')))
+        if os.path.exists(os.path.join(repo_store_path, 'cluster', 'apt', 'intel')):
+            base_directories.append(os.path.join(repo_store_path, 'cluster', 'apt', 'intel',
+                        version_variables.get('intelgaudi_version', '')))
     for directory in base_directories:
         if os.path.exists(directory):
             run_dpkg_scan(directory)

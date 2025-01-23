@@ -120,7 +120,7 @@ To open the ports required, use the following steps:
     cd omnia/storage
     ansible-playbook storage.yml -i inventory
 
-(Where inventory refers to the `inventory file <../../samplefiles.html>`_ listing kube_control_plane, login_node and compute nodes.)
+(Where inventory refers to the `inventory file <../../samplefiles.html>`_ listing the ``kube_control_plane``, login_node, and compute nodes.)
 
 .. note::  If a subsequent run of ``storage.yml`` fails, the ``storage_config.yml`` file will be unencrypted.
 

@@ -13,10 +13,10 @@
 #  limitations under the License.
 ---
 
-#***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.                  
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-#***********************************************************************
+# ***********************************************************************
 
 # This variable is used to accept the domain name the user intends to configure
 # This variable is a mandatory requirement of both FreeIPA and OpenLDAP Client
@@ -79,7 +79,7 @@ openldap_config_password: ""
 openldap_monitor_password: ""
 
 # OpenLDAP server is configured using organizations
-# These organizations and its units are necessary for user creation and group mapping 
+# These organizations and its units are necessary for user creation and group mapping
 # Eg. openldap_organization: "omnia", openldap_organizational_unit: "People"
 # Here user belongs to Omnia organization and is part of People unit
 # The default values are openldap_organization: "omnia", openldap_organizational_unit: "People"

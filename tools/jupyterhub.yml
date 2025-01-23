@@ -20,6 +20,10 @@
 - name: Inventory Check
   hosts: localhost
   tasks:
+    - name: Set flag to indicate check_venv.yml has been executed
+      ansible.builtin.set_fact:
+        check_venv_executed: true
+
     - name: Check inventory format
       ansible.builtin.include_role:
         name: jupyterhub

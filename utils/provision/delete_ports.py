@@ -39,7 +39,7 @@ def check_switch_table():
 def delete_node_object(nodename):
     # Delete the entry from /etc/hosts
     print("hello=", nodename)
-    command = f"makehosts -d {nodename}"
+    command = f"/opt/xcat/sbin/makehosts -d {nodename}"
     temp = subprocess.run([f'{command}'], shell=True)
 
     # Delete the nodes from xcat
@@ -48,13 +48,13 @@ def delete_node_object(nodename):
     temp = subprocess.run([f'{command}'], shell=True)
 
     # Run DHCP and dns
-    command = f"makedhcp -a"
+    command = f"/opt/xcat/sbin/makedhcp -a"
     temp = subprocess.run([f'{command}'], shell=True)
 
-    command = f"makedhcp -n"
+    command = f"/opt/xcat/sbin/makedhcp -n"
     temp = subprocess.run([f'{command}'], shell=True)
 
-    command = f"makedns -n"
+    command = f"/opt/xcat/sbin/makedns -n"
     temp = subprocess.run([f'{command}'], shell=True)
 
 

@@ -22,15 +22,15 @@
     commands: "{{ os10_config }}"
   when: os10_config is defined
   vars:
-    - ansible_ssh_user: "{{ ethernet_switch_username }}"
-      ansible_ssh_password: "{{ ethernet_switch_password }}"
+    ansible_ssh_user: "{{ ethernet_switch_username }}"
+    ansible_ssh_password: "{{ ethernet_switch_password }}"
 
 - name: Apply switch interface configuration
   ansible.builtin.include_role:
     name: dellemc.os10.os10_interface
   vars:
-    - hostname: "{{ inventory_hostname }}"
-      os10_cfg_generate: true
-      ansible_ssh_user: "{{ ethernet_switch_username }}"
-      ansible_ssh_password: "{{ ethernet_switch_password }}"
+    hostname: "{{ inventory_hostname }}"
+    os10_cfg_generate: true
+    ansible_ssh_user: "{{ ethernet_switch_username }}"
+    ansible_ssh_password: "{{ ethernet_switch_password }}"
   when: os10_interface is defined

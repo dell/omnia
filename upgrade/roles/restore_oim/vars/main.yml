@@ -1,0 +1,144 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage:include_telemetry_config.yml
+telemetry_config_file: "{{ installed_omnia_path }}/input/telemetry_config.yml"
+telemetry_vault_filename: "{{ installed_omnia_path }}/input/.telemetry_vault_key"
+telemetry_config_syntax_fail_msg: "Failed.Syntax errors present in telemetry_config.yml.Fix errors and re-run playbook again."
+vault_file_perm: '0644'
+
+# Usage: etcd.yml
+snapshot_db_name: "{{ k8s_backup_location }}/snapshot.db"
+etcd_restore_data_dir: "/var/lib/etcd"
+k8s_backup_location: "{{ backup_location }}/k8s"
+etcd_env_file: "/etc/etcd.env"
+directory_mode: "755"
+etcd_wait_time: 180
+kube_proxy_app_name: "kube-proxy"
+kube_system_namespace: "kube-system"
+
+# Usage: prerequiste.yml
+telemetry_json_file: "{{ installed_omnia_path }}/input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/telemetry.json"
+software_config_file: "{{ installed_omnia_path }}/input/software_config.json"
+local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
+
+# Usage: restore_precheck.yml
+k8s_backup_location_tarball: "{{ k8s_backup_location }}.tar.gz"
+k8s_tarball_file_fail_msg: 'Please  untar "{{ k8s_backup_location_tarball }}" file and rerun the restore_oim.yml'
+etcd_file_fail_msg: '"{{ k8s_backup_location }}/snapshot.db" file doesnt exist. So restore cannot be performed because backup does not exist.'
+mysqldb_local_backup_file: "mysqldb_dump.sql"
+timescale_telemetry_backup_file: "telemetry_tsdb_dump.sql"
+
+# Usage: validate_venv.yml
+venv_fail_msg: "The venv_path is incorrect! Expected /opt/omnia/omnia161_venv but got {{ venv_path }}.
+Please deactivate existing venv  using command: deactivate  and activate venv using command: source /opt/omnia/omnia161_venv/bin/activate and rerun playbook"
+venv_active_fail_msg: "It seems the Python virtual environment for Omnia isn’t active. Please activate it using the following command: source /opt/omnia/omnia161_venv/bin/activate and rerun playbook." # noqa: yaml[line-length]
+
+# validate_upgrade_config.yml
+valid_installed_path_msg: "Please provide a valid path for 'installed_omnia_path' in the upgrade_config.yml file
+and re-run the playbook."
+valid_backup_location_msg: "Please provide a valid path for 'backup_location' in the upgrade_config.yml file and re-run the playbook."
+
+# Usage:clean_k8s.yml
+crio_socket: /var/run/crio/crio.sock
+metallb_files:
+  - "/var/lib/ipaddresspool.yaml"
+  - "/var/lib/l2advertisement.yaml"
+bin_dir: /usr/local/bin
+grace_period: 0
+kube_folder_path: /root/.kube
+k8s_bin_files:
+  - "{{ bin_dir }}/kubelet"
+  - "{{ bin_dir }}/kubectl"
+  - "{{ bin_dir }}/crictl"
+  - "{{ bin_dir }}/etcd"
+  - "{{ bin_dir }}/calicoctl"
+  - "{{ bin_dir }}/kubeadm"
+  - "{{ bin_dir }}/calicoctl.sh"
+  - "{{ bin_dir }}/etcdctl"
+  - "{{ bin_dir }}/etcdctl.sh"
+  - "{{ bin_dir }}/k8s-certs-renew.sh"
+  - "{{ bin_dir }}/helm"
+  - "{{ usr_bin_dir }}/kubelet"
+  - "{{ usr_bin_dir }}/kubectl"
+  - "{{ usr_bin_dir }}/crictl"
+  - "{{ usr_bin_dir }}/etcd"
+  - "{{ usr_bin_dir }}/calicoctl"
+  - "{{ usr_bin_dir }}/kubeadm"
+  - "{{ usr_bin_dir }}/calicoctl.sh"
+  - "{{ usr_bin_dir }}/etcdctl"
+  - "{{ usr_bin_dir }}/etcdctl.sh"
+  - "{{ usr_bin_dir }}/k8s-certs-renew.sh"
+  - "{{ usr_bin_dir }}/helm"
+k8s_del_files:
+  - /usr/local/share/ca-certificates/etcd-ca.crt
+  - /usr/local/share/ca-certificates/kube-ca.crt
+  - /etc/ssl/certs/etcd-ca.pem
+  - /etc/ssl/certs/kube-ca.pem
+  - /etc/pki/ca-trust/source/anchors/etcd-ca.crt
+  - /etc/pki/ca-trust/source/anchors/kube-ca.crt
+  - /var/log/calico
+  - /etc/calico
+  - /var/lib/kubelet
+  - /var/lib/etcd
+  - /run/calico
+  - /etc/bash_completion.d/kubectl.sh
+  - /etc/modules-load.d/kubespray-br_netfilter.conf
+  - /usr/libexec/kubernetes
+  - /etc/NetworkManager/conf.d/calico.conf
+  - /etc/NetworkManager/conf.d/k8s.conf
+  - /root/.helm
+  - /root/.config/helm
+  - /root/.cache/helm
+  - /root/.local/share/helm
+  - /root/.kube
+usr_bin_dir: /usr/bin
+
+# Usage: pod_check.yml
+idrac_k8s_name: idrac-telemetry
+
+# Usage: timescaledb.yml
+database_name: "telemetry_metrics"
+dump_file: "telemetry_tsdb_dump.sql"
+telemetry_namespace: "telemetry-and-visualizations"
+timescaledb_k8s_name: timescaledb
+timescaledb_container_port: 5432
+max_retries: 10
+max_delay: 10
+timescaledb_file_fail_msg: "Backup file {{ k8s_backup_location }}/{{ timescale_telemetry_backup_file }} does not exist!"
+timescaledb_restore_success_msg: "Timescaledb restored successfully"
+python_version: "{{ ansible_python_interpreter }}"
+db_schema_utility: "{{ installed_omnia_path }}/telemetry/roles/omnia_telemetry_prepare_cp/files/omnia_telemetry_schema_creation.py"
+
+# Usage: main.yml
+omnia_inv_path: /opt/omnia/omnia_inventory/
+meta_path: "/opt/omnia/.data/metadata.yml"
+
+# Usage: restore_nerdctl.yml
+temp_download_dir: "/tmp"
+directory_permissions: "0755"
+nerdctl_directory: "{{ temp_download_dir }}/nerdctl/upgrade"
+file_permission: "0644"
+nerdctl:
+  folder_dest: "{{ nerdctl_directory }}/nerdctl"
+  folder_permission: "+x"
+  url: "https://github.com/containerd/nerdctl/releases/download/v1.5.0/nerdctl-1.5.0-linux-amd64.tar.gz"
+  archive_dest: "{{ nerdctl_directory }}/nerdctl-1.5.0-linux-amd64.tar.gz"
+  binary_files_path:
+    - "/usr/local/bin/nerdctl"
+    - "/usr/bin/nerdctl"
+  executable_dest:
+    - "/usr/local/bin/"
+    - "/usr/bin/"

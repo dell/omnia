@@ -19,11 +19,15 @@
             status can be checked at /opt/omnia/offline/download_package_status.csv) # noqa: name[template]
       ansible.builtin.command: "{{ python_version }} {{ python_script_path }}"
       environment:
-        USER_JSON_PATH: "{{ user_json_path }}"
+        USER_JSON_PATH: "{{ sw_config_json_path }}"
         LOCAL_REPO_CONFIG_YAML_PATH: "{{ local_repo_config_path }}"
         STATUS_FILE_PATH: "{{ status_file_path }}"
         NERDCTL_REGISTRY_HOST: "{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}"
         SOFTWARE_NAME: "{{ software_name }}"
+        HTTP_PROXY: "{{ proxy[0].http_proxy | default('', true) }}"
+        HTTPS_PROXY: "{{ proxy[0].http_proxy | default('', true) }}"
+        NO_PROXY: "localhost,127.0.0.1,{{ oim_hostname }}"
+        OPENSSL_CERT_PATH: "{{ openssl_cert_path }}"
       changed_when: true
       register: python_script_result
 

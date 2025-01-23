@@ -1,10 +1,14 @@
+{{ syncfiles_dir }}/conf/pip.conf -> /etc/pip.conf
+{{ syncfiles_dir }}/conf/dnf.conf -> /etc/dnf/dnf.conf
+{{ syncfiles_dir }}/repos/* -> /etc/yum.repos.d/*
+
 {% if repo_config == "always" %}
-/tmp/certs.d/* -> /etc/containerd/certs.d/*
+{{ syncfiles_dir }}/certs.d/* -> /etc/containerd/certs.d/*
 /etc/containerd/certs.d/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt -> /opt/omnia/registry/certs.d/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt
 {% endif %}
 
 {% if repo_config == "partial" %}
-/tmp/certs.d/* -> /etc/containerd/certs.d/*
+{{ syncfiles_dir }}/certs.d/* -> /etc/containerd/certs.d/*
 /etc/containerd/certs.d/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt -> /opt/omnia/registry/certs.d/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt
 {% if user_registry is defined and user_registry is not none and user_registry | length > 0 %}
 {% for registry in user_registry %}
@@ -17,7 +21,7 @@
 
 {% if repo_config == "never" %}
 {% if user_registry is defined and user_registry is not none and user_registry | length > 0 %}
-/tmp/certs.d/* -> /etc/containerd/certs.d/*
+{{ syncfiles_dir }}/certs.d/* -> /etc/containerd/certs.d/*
 {% for registry in user_registry %}
 {% if registry.cert_path is defined and registry.cert_path != "" %}
 {{ registry.cert_path }} -> /opt/omnia/registry/certs.d/{{ registry.host }}/ca.crt
@@ -25,7 +29,3 @@
 {% endfor %}
 {% endif %}
 {% endif %}
-
-/tmp/conf/pip.conf -> /etc/pip.conf
-/tmp/conf/dnf.conf -> /etc/dnf/dnf.conf
-/tmp/repos/* -> /etc/yum.repos.d/*

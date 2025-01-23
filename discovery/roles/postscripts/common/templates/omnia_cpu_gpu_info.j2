@@ -36,6 +36,9 @@ amd_processing_accelerator_count=`lshw | grep --after-context=2 "description: Pr
 # Compute AMD GPU count
 amd_gpu_count=$((amd_display_controller_count + amd_processing_accelerator_count))
 
+# Compute Intel GPU count
+intel_gpu_count=$(lspci | grep -ic 'Processing accelerators: Habana Labs Ltd')
+
 # Check for Intel CPU
 if [ $intel_cpu_check -gt 0 ]; then
     cpu_str="Intel CPU Found Count=$cpu_count"
@@ -52,6 +55,8 @@ if [ $nvidia_gpu_count -gt 0 ]; then
 # Check for AMD GPU
 elif [ $amd_gpu_count -gt 0 ]; then
     gpu_str="AMD GPU Found Count=$amd_gpu_count"
+elif [ $intel_gpu_count -gt 0 ]; then
+    gpu_str="Intel GPU Found Count=$intel_gpu_count"
 else
     gpu_str="No GPU Found"
 fi

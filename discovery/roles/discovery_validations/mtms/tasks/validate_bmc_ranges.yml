@@ -20,7 +20,8 @@
 
 - name: Validate input ranges for all ranges
   ansible.builtin.command: >-
-    {{ python_version }} {{ validation_range_file }} {{ bmc_static_start_range }} {{ bmc_static_end_range }} {{ bmc_dynamic_start_range }} {{ bmc_dynamic_end_range }}
+    {{ python_version }} {{ validation_range_file }}
+    {{ bmc_static_start_range }} {{ bmc_static_end_range }} {{ bmc_dynamic_start_range }} {{ bmc_dynamic_end_range }}
   register: range_validation_status
   changed_when: true
 

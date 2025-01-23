@@ -16,7 +16,7 @@
 - name: Task for creating DHCP configuration
   block:
     - name: Create DHCP configuration
-      ansible.builtin.command: makedhcp -n
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makedhcp -n"
       changed_when: true
       register: create_dhcp_config
   rescue:
@@ -28,7 +28,7 @@
 - name: Task for adding hosts entry
   block:
     - name: Add hosts entry
-      ansible.builtin.command: makehosts all
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makehosts all"
       changed_when: true
       register: create_hosts_entry
   rescue:
@@ -40,7 +40,7 @@
 - name: Task for applying DHCP configuration
   block:
     - name: Apply DHCP Configuration
-      ansible.builtin.command: makedhcp -a
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makedhcp -a"
       changed_when: true
       register: apply_dhcp_config
   rescue:
@@ -52,7 +52,7 @@
 - name: Task for creating DNS configuration
   block:
     - name: Create DNS configuration
-      ansible.builtin.command: makedns -n
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makedns -n"
       changed_when: true
       register: dns_config
   rescue:

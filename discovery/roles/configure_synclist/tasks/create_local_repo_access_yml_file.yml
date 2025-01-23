@@ -20,11 +20,6 @@
     recurse: true
     mode: "{{ dir_permission }}"
 
-- name: Read hostname of control plane
-  ansible.builtin.command: hostname
-  changed_when: false
-  register: hostname_result
-
 - name: Create local_repo_access.yml file
   ansible.builtin.template:
     src: "{{ local_repo_access_src_path }}"

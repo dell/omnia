@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,8 +20,14 @@
     version: "{{ grafana_plugins_stable_commit }}"
 
 - name: Wait for grafana pod to come to ready state
-  ansible.builtin.command: kubectl wait --for=condition=ready --timeout="{{ grafana_pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"
-  changed_when: false
+  block:
+    - name: Wait for grafana pod to come to ready state
+      ansible.builtin.command: kubectl wait --for=condition=ready --timeout="{{ grafana_pod_timeout }}" -n "{{ grafana_namespace }}" pod -l app="{{ grafana_k8s }}"  # noqa: yaml[line-length]
+      changed_when: false
+  rescue:
+    - name: Failed - grafana pod is not running
+      ansible.builtin.fail:
+        msg: "{{ grafana_pod_wait_fail_msg }}"
 
 - name: Create grafana-plugins folder if not exists
   ansible.builtin.file:

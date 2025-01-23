@@ -17,6 +17,9 @@
   ansible.builtin.set_fact:
     k8s_support: false
     slurm_support: false
+    set_intel_config_status: false
+    set_intel_input_status: false
+    set_intelgaudi_input_status: false
 
 - name: Load software_config.json
   ansible.builtin.include_vars:
@@ -35,6 +38,7 @@
 - name: Set facts for cluster
   ansible.builtin.set_fact:
     cluster_os_type: "{{ software_config.cluster_os_type }}"
+    cluster_os_version: "{{ software_config.cluster_os_version }}"
 
 - name: Check if slurm support is required
   ansible.builtin.fail:
@@ -42,6 +46,15 @@
   when:
     - slurm_support is true
     - cluster_os_type == compute_os_ubuntu
+
+- name: Check if csi powerscale driver installation is required
+  ansible.builtin.set_fact:
+    csi_driver_powerscale_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'csi_driver_powerscale') | list | length > 0 }}"
+
+- name: Load csi_driver_powerscale.json
+  ansible.builtin.set_fact:
+    csi_driver_powerscale_packages_json: "{{ lookup('file', csi_driver_powerscale_packages_file) | from_json }}"
+  when: csi_driver_powerscale_support
 
 - name: Check if ucx is true
   ansible.builtin.set_fact:
@@ -102,6 +115,98 @@
     - name: Load k8s.json
       ansible.builtin.set_fact:
         k8s_packages_json: "{{ lookup('file', k8s_packages_file) | from_json }}"
+
+    - name: Extract and set facts for tarball URLs
+      ansible.builtin.set_fact:
+        kubeadm_package: "kubeadm"
+        kubectl_package: "kubectl"
+        kubelet_package: "kubelet"
+        crictl_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'cri') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        calicoctl_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'calicoctl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        calico_crds_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'calicocrds') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        cni_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'cni') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        nerdctl_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nerdctl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        runc_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'runc') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        etcd_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'etcd') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        containerd_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'containerd') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        helm_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'helm') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        mpi_operator: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'mpi') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+
+    - name: Conditional logic for kubeadm, kubectl, and kubelet packages # noqa: no-jinja-when
+      ansible.builtin.set_fact:
+        kubeadm_package: "kubeadm-{{ hostvars['localhost']['k8s_version'] }}"
+        kubectl_package: "kubectl-{{ hostvars['localhost']['k8s_version'] }}"
+        kubelet_package: "kubelet-{{ hostvars['localhost']['k8s_version'] }}"
+      when: k8s_version != '{{ omnia161_k8s_version }}'
+
+  rescue:
+    - name: Unable to fetch k8s version
+      ansible.builtin.fail:
+        msg: "{{ k8s_version_fail_msg }}"
+
+- name: Get intelgaudi input status
+  ansible.builtin.set_fact:
+    set_intelgaudi_input_status: true
+  loop: "{{ software_config.softwares | default([]) }}"
+  when:
+    - "'intelgaudi' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Set set_intel_config_status
+  when: set_intelgaudi_input_status
+  block:
+    - name: Fetch intelgaudi_version
+      ansible.builtin.set_fact:
+        intelgaudi_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'intelgaudi') | map(attribute='version') | first }}"
+  rescue:
+    - name: Failed - Intel gaudi version check
+      ansible.builtin.fail:
+        msg: "{{ intelgaudi_version_warning_msg }}"
+
+- name: Set intel input status
+  ansible.builtin.set_fact:
+    set_intel_input_status: true
+  loop: "{{ software_config.intelgaudi | default([]) }}"
+  when: "set_intelgaudi_input_status and 'intel' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Intel Gaudi will not be installed
+  ansible.builtin.pause:
+    prompt: "{{ intel_gaudi_input_fail_msg }}"
+    seconds: "{{ warning_time }}"
+  when:
+    - set_intelgaudi_input_status
+    - not set_intel_input_status
+
+- name: Set set_intel_config_status
+  when: set_intel_input_status
+  block:
+    - name: Set intel_directory
+      ansible.builtin.set_fact:
+        intel_directory: "{{ offline_intel_directory }}/intel/{{ intelgaudi_version }}/"
+
+    - name: Check intel_directory exists or not
+      ansible.builtin.stat:
+        path: "{{ intel_directory }}"
+      register: check_intel_dir
+
+    - name: Warning - Please wait, This task will take few seconds
+      ansible.builtin.pause:
+        seconds: "{{ warning_time }}"
+        prompt: "{{ intel_gaudi_repo_fail_msg }}"
+      when: not check_intel_dir.stat.exists
+
+    - name: Set set_intel_config_status to true
+      ansible.builtin.set_fact:
+        set_intel_config_status: true
+      when: check_intel_dir.stat.exists
+  rescue:
+    - name: Intel Gaudi repo is not configured
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ intel_gaudi_repo_fail_msg }}"
 
 - name: Local local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"

@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,18 @@
 # limitations under the License.
 ---
 
-python_version_3_9: "python3.9"
 # Usage: initiate_telemetry.yml
+python_version: "{{ ansible_python_interpreter }}"
 mysqldb_name: "idrac_telemetrysource_services_db"
 timescaledb_name: "telemetry_metrics"
+mysqldb_insert_fail_msg: "Failed to add iDRAC credential details to the mysql database.
+This could be due to the tables in the mysqldb not being accessible at the moment. Please try running the playbook again after some time."
+idrac_telemetry_pod_wait_fail_msg: "Execution failed as the idrac-telemetry pods did not start within the expected time.
+Please re-run the playbook after verifying that the idrac-telemetry pods are in running state by executing the command 'kubectl get pods -A.'"
+mysqldb_pod_wait_fail_msg: "Execution failed as the mysqldb pods did not start within the expected time.
+Please re-run the playbook after verifying that the mysqldb pods are in running state by executing the command 'kubectl get pods -A.'"
+db_retries: 10
+db_delay: 10
 
 # Usage: mysqldb_deployment.yml
 mysql_pv_name: mysqldb-storage
@@ -34,3 +42,5 @@ activemq_http_port_1: 8161
 activemq_http_port_2: 61616
 messagebus_http_port: "61613"
 configui_http_port: "8082"
+
+add_idrac_fail_msg: "Execute the telemetry.yml playbook to ensure that the iDRAC pods are running before triggering the add_idrac_node.yml playbook."

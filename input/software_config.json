@@ -3,27 +3,32 @@
     "cluster_os_version": "22.04",
     "repo_config": "partial",
     "softwares": [
-        {"name": "amdgpu", "version": "6.0"},
-        {"name": "bcm_roce", "version": "229.2.61.0"},
+        {"name": "amdgpu", "version": "6.2.2"},
+        {"name": "bcm_roce", "version": "230.2.54.0"},
         {"name": "openldap"},
         {"name": "nfs"},
-        {"name": "k8s", "version":"1.26.12"},
+        {"name": "k8s", "version":"1.29.5"},
         {"name": "roce_plugin"},
         {"name": "jupyter"},
         {"name": "pytorch"},
-        {"name": "tensorflow"}
+        {"name": "tensorflow"},
+        {"name": "intelgaudi", "version": "1.18.0-524"}
     ],
 
     "bcm_roce": [
-        {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
+        {"name": "bcm_roce_libraries", "version": "230.2.54.0"}
     ],
    "amdgpu": [
-        {"name": "rocm", "version": "6.0" }
+        {"name": "rocm", "version": "6.2.2" }
+    ],
+   "intelgaudi": [
+        {"name": "intel"}
     ],
     "pytorch": [
         {"name": "pytorch_cpu"},
         {"name": "pytorch_amd"},
-        {"name": "pytorch_nvidia"}
+        {"name": "pytorch_nvidia"},
+        {"name": "pytorch_gaudi"}
     ],
     "tensorflow": [
         {"name": "tensorflow_cpu"},

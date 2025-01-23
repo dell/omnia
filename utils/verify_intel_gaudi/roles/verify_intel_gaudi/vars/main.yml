@@ -1,0 +1,43 @@
+# Copyright 2024 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+
+omnia_config_filename: "{{ role_path }}/../../../../input/omnia_config.yml"
+omnia_vault_path: "{{ role_path }}/../../../../input/.omnia_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
+omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
+omnia_config_file_permission: '0644'
+
+verify_intel_gaudi_device_pattern: "Processing accelerators: Habana Labs Ltd."
+gaudi2_pci_vendor_device_class: "1da3:1020:1200"
+gaudi3_pci_vendor_device_class: "1da3:1060:1200"
+
+verify_intel_gaudi_habana_tests:
+  log_level_all: "4"
+  enable_console: "true"
+  habana_logs: "/var/log/habana_logs"
+  habana_logs_permission: "0777"
+  gc_kernel_path: "/usr/lib/habanalabs/libtpc_kernels.so"
+  habana_scal_bin_path: "/opt/habanalabs/engines_fw"
+  habana_plugins_lib_path: "/opt/habanalabs/habana_plugins"
+  data_loader_aeon_lib_path: "/usr/lib/habanalabs/libaeon.so"
+  rdma_core_root: "/opt/habanalabs/rdma-core/src"
+  rdma_core_lib: "/opt/habanalabs/rdma-core/src/build/lib"
+  habanalabs_hlthunk_tests_bin_path: "/opt/habanalabs/src/hl-thunk/tests"
+  targz_permission: "644"
+
+verify_intel_gaudi_habana_extra:
+  hccl_comm_id: "127.0.0.1:5555"

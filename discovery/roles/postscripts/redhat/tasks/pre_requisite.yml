@@ -14,12 +14,12 @@
 ---
 
 - name: Check pkgdir of osimage
-  ansible.builtin.command: lsdef -t osimage -o {{ provision_os_image }} -i pkgdir
+  ansible.builtin.command: "{{ xcat_path }}/lsdef -t osimage -o {{ provision_os_image }} -i pkgdir"
   changed_when: false
   register: osimage_pkgdir
 
 - name: Remove cuda pkgdir
-  ansible.builtin.command: chdef -t osimage -o {{ provision_os_image }} -m pkgdir={{ cuda_core_path }},{{ cuda_deps_path }}
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage -o {{ provision_os_image }} -m pkgdir={{ cuda_core_path }},{{ cuda_deps_path }}"
   changed_when: true
   when:
     - not cuda_config_status
@@ -30,6 +30,6 @@
     path: "{{ xcat_rhel8_post_script }}"
     regexp: 'EOF'
     line: 'echo "PATH=$PATH:/opt/dell/srvadmin/sbin:/usr/local/sbin:/usr/local/bin/" >> /etc/bashrc'
-  when: 
+  when:
     - not cuda_config_status
     - not amdgpu_config_status

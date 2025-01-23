@@ -31,7 +31,7 @@ nerdctl_registry_path:
   - { src: "nerdctl-registry.j2", dest: "{{ nerdctl_registry_dir }}/nerdctl-registry" }
   - { src: "nerdctl-registry.service.j2", dest: "/etc/systemd/system/nerdctl-registry.service" }
 omnia_registry_failure_msg: "omnia-registry container could not be started"
-nerdctl_registry_enable_fail_msg: "Failed to initiate nerdctl-registry service."
+nerdctl_registry_enable_fail_msg: "Failed to initiate nerdctl-registry service. This may be due to a Docker pull issue or insuffecient proxy details. If you are behind a proxy, please ensure that the necessary proxy details are provided in the input/site_config.yml file."   # noqa: yaml[line-length]
 containerd_certs_dir: "/etc/containerd/certs.d"
 nerdctl_registry_port: 5001
 directory_permissions: "0755"
@@ -43,6 +43,14 @@ retry_count: "5"
 delay_time: "10"
 
 # Usage: main.yml
-control_plane_os_redhat: "redhat"
-control_plane_os_rocky: "rocky"
-control_plane_os_ubuntu: "ubuntu"
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
+
+# Usage: set_environment.yml
+environment_file_path: "{{ role_path }}/templates/omnia_environment.j2"
+omnia_environment_path: "/etc/omnia_environment"
+
+# Usage: docker_login.yml
+docker_login_fail_msg: "Docker login failed. Please ensure the docker login credentials in the input/provision_config_credentials.yml are valid.
+If they are, this error can occur due to a pull limit issue or multiple requests. Please try running the playbook again after waiting for a while."

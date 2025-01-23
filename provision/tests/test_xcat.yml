@@ -22,7 +22,7 @@
     - name: Validate xCAT installation
       block:
         - name: Identify xCAT is installed or not
-          ansible.builtin.shell: /etc/profile.d/xcat.sh | tabdump site
+          ansible.builtin.shell: /etc/profile.d/xcat.sh | {{ xcat_sbin_path }}/tabdump site
           register: xcat_installation_msg
           no_log: true
 
@@ -110,12 +110,12 @@
     - name: Validate user defined domain name configuration in xcat
       block:
         - name: Identify xCAT is installed or not
-          ansible.builtin.shell: /etc/profile.d/xcat.sh | tabdump site
+          ansible.builtin.shell: /etc/profile.d/xcat.sh | {{ xcat_sbin_path }}/tabdump site
           register: xcat_installation_msg
           no_log: true
 
         - name: Check domain name in xcat
-          ansible.builtin.shell: source /etc/profile.d/xcat.sh | tabdump site | grep domain
+          ansible.builtin.shell: source /etc/profile.d/xcat.sh | {{ xcat_sbin_path }}/tabdump site | grep domain
           register: site_table_details
           when: (xcat_installation_msg.stdout != "")
 
@@ -137,12 +137,12 @@
     - name: Validate OS image creation
       block:
         - name: Identify xcat installation
-          ansible.builtin.shell: /etc/profile.d/xcat.sh | tabdump site
+          ansible.builtin.shell: /etc/profile.d/xcat.sh | {{ xcat_sbin_path }}/tabdump site
           register: xcat_installation_msg
           no_log: true
 
         - name: Get the OS image details
-          ansible.builtin.shell: "lsdef -t osimage | grep install-compute"
+          ansible.builtin.shell: "{{ xcat_path }}/lsdef -t osimage | grep install-compute"
           register: xcat_os_image_details
           when: (xcat_installation_msg.stdout != "")
 

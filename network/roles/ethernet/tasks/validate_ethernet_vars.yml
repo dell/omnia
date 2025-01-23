@@ -40,11 +40,3 @@
   ansible.builtin.command: whereis ansible-galaxy
   changed_when: false
   register: ansible_galaxy_path
-
-- name: Install ansible galaxy collection
-  ansible.builtin.command: "{{ ansible_galaxy_path.stdout.split(' ')[1] }} collection install {{ item }}"
-  changed_when: true
-  register: install_ansible_galaxy
-  until: install_ansible_galaxy is not failed
-  retries: "{{ max_retries }}"
-  with_items: "{{ ansible_collections }}"

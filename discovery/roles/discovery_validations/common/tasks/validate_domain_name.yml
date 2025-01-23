@@ -68,21 +68,26 @@
     success_msg: "{{ server_domain_name_success_msg }}"
     fail_msg: "{{ server_domain_name_fail_msg }}"
 
-- name: Fetch hostname of the server
+- name: Read hostname of Omnia Infrastructure Manager
   ansible.builtin.command: hostname
   changed_when: false
-  register: machine_hostname
+  register: hostname_result
 
-- name: Remove hosts file entry of control plane
+- name: Set fact for the Omnia Infratsructure Management (OIM) node hostname and domain name
+  ansible.builtin.set_fact:
+    oim_hostname: "{{ hostname_result.stdout }}"
+    oim_domain_name: "{{ domain_name }}"
+
+- name: Remove hosts file entry of Omnia Infrastructure Manager
   ansible.builtin.lineinfile:
     path: "{{ hosts_file_path }}"
-    regexp: "^(.*){{ machine_hostname.stdout }}"
+    regexp: "^(.*){{ oim_hostname }}"
     state: absent
 
 - name: Add hosts file entry
   ansible.builtin.lineinfile:
     path: "{{ hosts_file_path }}"
-    line: "{{ pxe_nic_ip }} {{ machine_hostname.stdout }}"
+    line: "{{ pxe_nic_ip }} {{ oim_hostname }}"
     state: present
     create: true
     mode: "{{ hosts_file_mode }}"

@@ -26,3 +26,5 @@ domain_present_success_msg: "User defined domain name is present in xCAT"
 no_domain_fail_msg: "User defined domain name is not configured to xCAT. Please check!!"
 os_image_present_success_msg: "OS image creation verified successfully"
 no_os_image_fail_msg: "OS image is not found"
+xcat_sbin_path: /opt/xcat/sbin
+xcat_path: /opt/xcat/bin

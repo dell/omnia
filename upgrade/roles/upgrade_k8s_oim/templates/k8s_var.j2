@@ -1,0 +1,38 @@
+kube_version: "{{ kube_version }}"
+deploy_container_engine: false
+dashboard_enabled: false
+helm_enabled: true
+kube_network_plugin: "{{ hostvars['localhost']['k8s_cni'] }}"
+kube_service_addresses: "{{ hostvars['localhost']['k8s_service_addresses'] }}"
+kube_pods_subnet: "{{ hostvars['localhost']['k8s_pod_network_cidr'] }}"
+metallb_enabled: false
+metallb_speaker_enabled: false
+metallb_namespace: "metallb-system"
+kube_proxy_strict_arp: true
+kube_proxy_mode: 'iptables'
+metallb_config:
+  address_pools:
+    primary:
+      ip_range:
+        - "{{ hostvars['localhost']['pod_external_ip_range'] }}"
+      auto_assign: true
+  layer2:
+    - primary
+override_system_hostname: false
+populate_inventory_to_hosts_file: false
+enable_nodelocaldns: false
+unsafe_show_logs: true
+kube_image_repo: "registry.k8s.io"
+docker_image_repo: "docker.io"
+quay_image_repo: "quay.io"
+kubeadm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubeadm-{{ kube_version }}.tar.gz"
+kubectl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubectl-{{ kube_version }}.tar.gz"
+kubelet_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/kubelet-{{ kube_version }}.tar.gz"
+calicoctl_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicoctl-v3.27.3.tar.gz"
+calico_crds_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/calicocrds-v3.27.3.tar.gz"
+cni_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/cni-plugins-v1.3.0.tar.gz"
+docker_rh_repo_base_url: ""
+docker_rh_repo_gpgkey: ""
+etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/etcd-v3.5.12.tar.gz"
+helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/helm-v3.14.2.tar.gz"
+bin_dir: /usr/bin

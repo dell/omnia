@@ -47,6 +47,7 @@
   environment:
     http_proxy: "{{ http_proxy }}"
     https_proxy: "{{ https_proxy }}"
+    no_proxy: "{{ oim_hostname }},{{ admin_nic_ip }}"
   when: processing_unit == "nvidia"
   block:
     - name: Run vllm_nvidia_example

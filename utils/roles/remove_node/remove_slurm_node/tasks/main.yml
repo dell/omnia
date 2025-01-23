@@ -124,8 +124,16 @@
   when: status == 'booted'
   ansible.builtin.user:
     name: slurm
+    uid: "{{ slurm_uid }}"
+    group: slurm
     state: absent
+    force: true
+  register: remove_slurm_user_result
+  retries: "{{ slurm_user_deletion }}"
+  delay: "{{ slurm_user_deletion_retry_delay_seconds }}"
+  until: remove_slurm_user_result is success
   failed_when: false
+  ignore_errors: true
 
 - name: Remove Slurm packages
   when: status == 'booted'
@@ -135,10 +143,12 @@
   with_items: "{{ slurm_packages }}"
   failed_when: false
 
-- name: Remove slurmd service
+- name: Remove slurm service
   ansible.builtin.file:
     state: absent
-    path: "{{ slurmd_servicepath }}"
+    path: "{{ item }}"
+  with_items: "{{ slurm_services_files }}"
+  failed_when: false
 
 - name: Remove Slurm common configuration files
   when: status == 'booted'
@@ -160,13 +170,31 @@
   with_items: "{{ slurm_configless_files }}"
   failed_when: false
 
-- name: Remove SLURM_CONF variable if slurm is installed on NFS shared
+- name: Remove environment variables related to NFS share mode if slurm is installed in nfs_share mode
   when:
     - share_path is defined
     - hostvars['localhost']['slurm_installation_type'] is defined
     - hostvars['localhost']['slurm_installation_type'] | length > 0
     - hostvars['localhost']['slurm_installation_type'] == "nfs_share"
-  ansible.builtin.lineinfile:
-    state: absent
-    path: "{{ bashrc_path }}"
-    regexp: '^export SLURM_CONF=.*$'
+  block:
+    - name: Remove SLURM_CONF variable
+      ansible.builtin.lineinfile:
+        state: absent
+        path: "{{ bashrc_path }}"
+        regexp: '^export SLURM_CONF=.*$'
+
+    - name: Remove NFS share path from LD_LIBRARY_PATH
+      ansible.builtin.replace:
+        path: '{{ bashrc_path }}'
+        regexp: '^(export LD_LIBRARY_PATH=.*?)({{ share_path }}{{ slurm_nfs_folder }}/usr/lib64/:|:{{ share_path }}{{ slurm_nfs_folder }}/usr/lib64/:|{{ share_path }}{{ slurm_nfs_folder }}/usr/lib64/)(.*?)' # noqa: yaml[line-length]
+        replace: '\1\3'
+      failed_when: false
+      changed_when: false
+
+    - name: Clean empty LD_LIBRARY_PATH
+      ansible.builtin.lineinfile:
+        path: "{{ bashrc_path }}"
+        regexp: '^export LD_LIBRARY_PATH=$'
+        state: absent
+      failed_when: false
+      changed_when: false
