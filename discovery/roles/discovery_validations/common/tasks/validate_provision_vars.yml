@@ -92,26 +92,6 @@
       - provision_os | lower == os_supported_rhel
     success_msg: "{{ provision_os_success_msg }}"
     fail_msg: "{{ provision_os_fail_msg }}"
-  when:
-    - oim_os in oim_os_redhat
-
-- name: Assert provision_os for Rocky Omnia Infrastructure Manager
-  ansible.builtin.assert:
-    that:
-      - provision_os | lower == os_supported_rocky
-    success_msg: "{{ provision_os_success_msg }}"
-    fail_msg: "{{ provision_os_fail_msg }}"
-  when:
-    - oim_os in oim_os_rocky
-
-- name: Assert provision_os for Ubuntu Omnia Infrastructure Manager
-  ansible.builtin.assert:
-    that:
-      - provision_os | lower == os_supported_ubuntu
-    success_msg: "{{ provision_os_success_msg }}"
-    fail_msg: "{{ provision_os_fail_msg }}"
-  when:
-    - oim_os in oim_os_ubuntu
 
 - name: Set supported_os_version_status to true - rhel/rocky
   ansible.builtin.set_fact:
@@ -119,16 +99,7 @@
   with_items: "{{ supported_rhel_os_version }}"
   when:
     - provision_os_version | string  == item | string
-    - provision_os | lower == os_supported_rhel or
-      provision_os | lower == os_supported_rocky
-
-- name: Set supported_os_version_status to true - ubuntu
-  ansible.builtin.set_fact:
-    supported_os_version_status: true
-  with_items: "{{ supported_ubuntu_os_version }}"
-  when:
-    - provision_os_version | string == item | string
-    - provision_os | lower == os_supported_ubuntu
+    - provision_os | lower == os_supported_rhel
 
 - name: Validate provision_os_version is supported
   ansible.builtin.fail:

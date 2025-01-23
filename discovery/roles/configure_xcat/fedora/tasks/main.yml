@@ -21,5 +21,5 @@
   when: disk_partition_configuration
 
 # Need to be removed
-- name: Create omnia repo
-  ansible.builtin.include_tasks: omnia_repo_config.yml
+#- name: Create omnia repo
+#  ansible.builtin.include_tasks: omnia_repo_config.yml

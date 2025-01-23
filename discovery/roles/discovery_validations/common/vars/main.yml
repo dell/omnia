@@ -13,23 +13,8 @@
 #  limitations under the License.
 ---
 
-# Usage: main.yml
-provision_validation_vars:
-  - "{{ role_path }}/../mapping/vars/main.yml"
-  - "{{ role_path }}/../mtms/vars/main.yml"
-  - "{{ role_path }}/../switch_based/vars/main.yml"
-nic_wait_time: 30
-
-# Usage: validate_oim_os.yml
-oim_os_redhat: "redhat"
-oim_os_rocky: "rocky"
-oim_os_ubuntu: "ubuntu"
-oim_os_fail_msg: "Failed. Omnia Infrastructure Manager OS should be RHEL, Rocky or Ubuntu."
-root_user_name: "root"
-user_fail_msg: "Failed. Omnia playbooks should run as root user."
-
+# Usage: package_installation.yml
 python_version: "{{ ansible_python_interpreter }}"
-# snmp_python_package: easysnmp
 postgres_python_package: psycopg2-binary
 requests_python_package: requests
 pyarrow_python_package: pyarrow
@@ -40,11 +25,29 @@ pexpect_pip_package: pexpect
 max_retries: 10
 commentedconfigparser_python_package: "commented-configparser"
 
-# Usage: create_provision_ini.yml
-provision_conf_path: "/opt/omnia/.data/provision.ini"
-provision_conf_dest: "/opt/omnia/.data/"
-mount_dir_perm: "0775"
-conf_file_mode: "0644"
+# Usage: main.yml
+provision_validation_vars:
+  - "{{ role_path }}/../mapping/vars/main.yml"
+  - "{{ role_path }}/../mtms/vars/main.yml"
+  - "{{ role_path }}/../switch_based/vars/main.yml"
+
+# Usage: validate_provision_container.yml
+xcatd_service: "xcatd.service"
+postgresql_service_rhel: "postgresql.service"
+postgresql_service_ubuntu: "postgresql"
+prepare_oim_execution_req: |
+  "Failed. If run the discovery/discovery.yml playbook, please ensure that you run the prepare_oim/prepare_oim.yml playbook before
+  executing the discovery/discovery.yml playbook. If you're encountering this issue while running the discovery_provision.yml playbook,
+  please cleanup provision tasks by running the 'ansible-playbook utils/oim_cleanup.yml --tags provision'.
+  After verifying your input files and Omnia Infrastructure Manager admin NIC configuration, re-run the playbook discovery_provision.yml."
+xcat_path: /opt/xcat/bin
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
+oim_os_ubuntu: "ubuntu"
+oim_os_fedora: "fedora"
+postgresql_start_fail_msg: "Failed to start postgresql services"
+xcat_start_fail_msg: "Failed to start xcatd services"
+service_retries: 3
 
 # Usage: include_network_spec.yml
 network_spec: "{{ role_path }}/../../../../input/network_spec.yml"
@@ -64,6 +67,7 @@ spec_syntax_fail_msg: "Failed. Syntax errors present in either network_spec.yml 
 provision_credentials_config_filename: "{{ role_path }}/../../../../input/provision_config_credentials.yml"
 provision_credentials_vault_path: "{{ role_path }}/../../../../input/.provision_credential_vault_key"
 provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
+conf_file_mode: "0644"
 
 # Usage: include_local_repo_config.yml
 local_repo_config_file: "{{ role_path }}/../../../../input/local_repo_config.yml"
@@ -85,20 +89,9 @@ network_interface_fail_msg: "Failed. Please provide a valid network interface ty
 warning_msg_bmc_network_details_incomplete: "Warning, BMC network details incomplete. BMC discovery and support will be skipped.
 Note: nic_name, netmask_bits, static_range and dynamic_range are mandatory parameters under bmc_network in network_spec.yml for bmc discover"
 
-# Usage: validate_discovery_params.yml
-validation_range_file: "{{ role_path }}/files/validate_input_ranges.py"
-discovery_mechanism_fail_msg: "Failed. Please provide valid details for any discovery mechanism and re-run the playbook.
-For mapping discovery, provide pxe_mapping_file_path in provision_config.yml.
-For bmc discovery, provide bmc_network details in network_spec.yml and set enable_switch_based to false in provision_config.yml.
-For switch_based discovery, set enable_switch_based to true and provide switch_based_details in provision_config.yml along with
-switch_snmp3_username & switch_snmp3_password details in provision_config_credentials.yml."
-
-# Usage: validate_public_nic.yml
-input_provision_failure_msg: "Please provide all the required nic parameters in provision_config.yml"
+# Usage: validate_admin_nic.yml
 success_msg_nic: "nic successfully validated"
 fail_msg_nic: "Failed. Provide proper values in provision_config.yml"
-
-# Usage: validate_admin_nic.yml
 success_msg_admin_nic_details: "Admin nic details validated"
 fail_msg_admin_nic_details: "Failed. Invalid admin_nic details (nic_name, netmask_bits, static_range or dynamic_range) in network_spec file."
 fail_msg_admin_nic_ip_details: "Ensure admin nic is configured with ip address."
@@ -133,6 +126,30 @@ reassignment_to_static_failure_msg: "Failed. Invalid details provided, reassignm
 fail_msg_bmc_static_netmask_bits: "Failed, BMC static range is not within the BMC netmask range."
 bmc_range_ip_check_fail_msg: "Failed. : BMC network - static/dynamic ranges should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
 
+# Usage: validate_network_spec.yml
+static_range_check_fail_msg: "Failed. static_range_check variable in network_spec should be withing the netmask provided."
+cidr_fail_msg: "Failed. CIDR or netmask_bits are invalid. Please provide valid CIDR or netmask_bits (Eg. '192.168.1.0/24')."
+network_gateway_fail_msg: "Failed. network_gateway in network_spec should be in proper format."
+vlan_fail_msg: "Failed. vlan in network_spec should be in proper format."
+netmask_bits_failure_msg: "Failed. admin and bmc netmask should be same."
+netmask_bits_success_msg: "Validated admin and bmc netmask bits"
+cidr_or_static_range_fail_msg: "Failed. network_spec should have either static_range or CIDR for the network."
+fail_msg_netmask_bits: "Failed. Invalid netmask_bits provided in network_spec file."
+ip_range_netmask_script_script: "{{ role_path }}/files/validate_ip_range_netmask.py"
+mtu_check_fail_msg: "Failed. MTU input variable in network_spec should be in proper integer format."
+validate_cidr: "{{ role_path }}/files/validate_cidr.py"
+range_ip_check_fail_msg: "Failed. input ip range should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
+fail_static_ip_range: "Failed, Network static overlaps with"
+fail_cidr_ip_range: "Failed, Cidr overlaps with"
+
+# Usage: validate_discovery_params.yml
+validation_range_file: "{{ role_path }}/files/validate_input_ranges.py"
+discovery_mechanism_fail_msg: "Failed. Please provide valid details for any discovery mechanism and re-run the playbook.
+For mapping discovery, provide pxe_mapping_file_path in provision_config.yml.
+For bmc discovery, provide bmc_network details in network_spec.yml and set enable_switch_based to false in provision_config.yml.
+For switch_based discovery, set enable_switch_based to true and provide switch_based_details in provision_config.yml along with
+switch_snmp3_username & switch_snmp3_password details in provision_config_credentials.yml."
+
 # Usage: validate_switch_vars.yml
 pxe_switch_ip_valid: "Valid switch ip provided"
 pxe_switch_ip_invalid: " Failed. Provide a valid switch ip in provision_config.yml"
@@ -140,6 +157,11 @@ fail_switch_or_mapping_file: "Failed. python_version provide PXE switch details.
 If switch details are given,then provide proper node_name too."
 pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP in provision_config.yml."
 provision_option_fail_msg: "[WARNING]. Ignoring pxe_switch_ip when pxe_mapping_file_path provided"
+
+# Usage: validate_provision_credentials.yml
+provision_password_fail_msg: "Failed. Incorrect provision_password format in provision_config_credentials.yml"
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config_credentials.yml"
+fail_msg_bmc_credentials: "Failed. bmc_username, bmc_password are invalid in input/provision_config_credentials.yml"
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: "Failed! Please provide all the required provision parameters in provision_config.yml, namely,
@@ -162,20 +184,13 @@ iso_file_path_success_msg: "iso_file_path validated"
 iso_file_path_fail_msg: "Failed. Invalid iso_file_path: {{ iso_file_path }} provided. Make sure iso_file_path variable in provision_config.yml contains value
 mentioned in the variables cluster_type: {{ provision_os }} and cluster_os_version: {{ provision_os_version }} mentioned in software_config.json"
 ping_search_key: "100% packet loss"
-provision_password_fail_msg: "Failed. Incorrect provision_password format in provision_config_credentials.yml"
 min_length: 8
 max_length: 30
 warning_wait_time: 30
-postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config_credentials.yml"
-mount_point_success_msg: "mountpoint of disk_partition successfully validated"
-mount_point_fail_msg: "Failed. Supported disk_partition mount_point values are /var, /tmp, /usr, swap"
-desired_capacity_success_msg: "desired_capacity of disk_partition successfully validated"
-desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capacity of disk_partition"
-supported_rhel_os_version: ["8.6", "8.7", "8.8"]
+supported_rhel_os_version: ["9.4"]
 supported_ubuntu_os_version: ["20.04", "22.04", "24.04"]
 provision_os_version_fail_msg: "Failed. Invalid cluster_os_version: {{ provision_os_version }} provided in software_config.json.
-Supported cluster_os_version values for cluster_os_type rhel/rocky are 8.6,8.7,8.8.
-For cluster_os_type ubuntu supported versions are 20.04,22.04,24.04"
+Supported cluster_os_version values for cluster_os_type rhel is only 9.4"
 nodename_chars_fail_msg: "Failed. node_name empty or invalid in provision_config.yml.
 node_name should not contain _ or . or space or node- as it might result in issues with provisioning/authentication tools like FreeIPA."
 ubuntu_kernel_fail_msg: "Failed. ubuntu_kernel_flavor should be either hwe or generic"
@@ -184,6 +199,12 @@ ubuntu24_version: "24.04"
 ntp_support_fail_msg: "Failed. ntp_support in provision_config.yml should be either true or false"
 disk_partition_success_msg: "disk_partition successfully validated"
 disk_partition_fail_msg: "Failed. Duplicate disk_partition values present in provision_config.yml."
+
+# Usage: validate_disk_partition_vars.yml
+mount_point_success_msg: "mountpoint of disk_partition successfully validated"
+mount_point_fail_msg: "Failed. Supported disk_partition mount_point values are /var, /tmp, /usr, swap"
+desired_capacity_success_msg: "desired_capacity of disk_partition successfully validated"
+desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capacity of disk_partition"
 
 # Usage: validate_domain_name.yml
 domain_name_success_msg: "domain_name successfully validated"
@@ -237,22 +258,6 @@ roce_src_version_warning_msg: "[WARNING] software_config.json does not have the 
 Hence RoCE libraries will not be installed on the nodes post provisioning."
 roce_src_repo_warning_msg: "[WARNING] bcm_roce_libraries is mentioned in software_config.json and local_repo.yml not executed for current bcm_roce_libraries
  version. RoCE libraries will not be installed on the nodes post provisioning."
-
-# Usage: validate_network_spec.yml
-static_range_check_fail_msg: "Failed. static_range_check variable in network_spec should be withing the netmask provided."
-cidr_fail_msg: "Failed. CIDR or netmask_bits are invalid. Please provide valid CIDR or netmask_bits (Eg. '192.168.1.0/24')."
-network_gateway_fail_msg: "Failed. network_gateway in network_spec should be in proper format."
-vlan_fail_msg: "Failed. vlan in network_spec should be in proper format."
-netmask_bits_failure_msg: "Failed. admin and bmc netmask should be same."
-netmask_bits_success_msg: "Validated admin and bmc netmask bits"
-cidr_or_static_range_fail_msg: "Failed. network_spec should have either static_range or CIDR for the network."
-fail_msg_netmask_bits: "Failed. Invalid netmask_bits provided in network_spec file."
-ip_range_netmask_script_script: "{{ role_path }}/files/validate_ip_range_netmask.py"
-mtu_check_fail_msg: "Failed. MTU input variable in network_spec should be in proper integer format."
-validate_cidr: "{{ role_path }}/files/validate_cidr.py"
-range_ip_check_fail_msg: "Failed. input ip range should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
-fail_static_ip_range: "Failed, Network static overlaps with"
-fail_cidr_ip_range: "Failed, Cidr overlaps with"
 
 # Usage: validate_site_config.yml
 site_config_file: "{{ role_path }}/../../../../input/site_config.yml"

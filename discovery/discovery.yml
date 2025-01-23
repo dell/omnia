@@ -13,27 +13,24 @@
 # limitations under the License.
 ---
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: ../utils/check_venv.yml
-  when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
-
-- name: Check if package manager is not locked
-  ansible.builtin.import_playbook: ../utils/check_package_lock.yml
-  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
-
-- name: Validate discovery parameters
+- name: Create group for provision container
   hosts: localhost
   connection: local
   tasks:
-    - name: Check whether prepare oim has been executed
-      ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../prepare_oim/roles/pre_requisite"    # noqa: role-name[path]
-        tasks_from: prepare_oim_status.yml
+    - name: Create omnia_provision group
+      ansible.builtin.add_host:
+        hostname: 'omnia_provision'
+        ansible_host: 'localhost'
+        ansible_port: "2223"
+        groups: 'omnia_provision'
 
+- name: Validate discovery parameters
+  hosts: omnia_provision
+  connection: ssh
+  tasks:
     - name: Validate discovery parameters
       ansible.builtin.include_role:
         name: discovery_validations/common
-        tasks_from: validation_status_check.yml  # noqa: role-name[path]
 
     - name: Discovery roles of Omnia Infrastructure Manager for provisioning
       ansible.builtin.include_role:
@@ -50,23 +47,23 @@
   connection: local
   roles:
     - role: configure_xcat/common          # noqa: role-name[path]
-    - role: configure_synclist
+  #  - role: configure_synclist
     - role: discovery_mechanism/common     # noqa: role-name[path]
 
-- name: Update kernel parameters
-  hosts: all:!localhost
-  connection: local
-  gather_facts: true
-  vars_files:
-    - "{{ playbook_dir }}/../input/server_spec.yml"
-  roles:
-    - role: os_update
+#- name: Update kernel parameters
+#  hosts: all:!localhost
+#  connection: local
+#  gather_facts: true
+#  vars_files:
+#    - "{{ playbook_dir }}/../input/server_spec.yml"
+#  roles:
+#    - role: os_update
 
-- name: Discovery roles of Omnia Infrastructure Manager for provisioning
-  hosts: localhost
-  connection: local
-  roles:
-    - role: postscripts/common             # noqa: role-name[path]
-    - role: configure_os_image/common      # noqa: role-name[path]
-    - role: monitor_thread
-    - role: metadata_update
+#- name: Discovery roles of Omnia Infrastructure Manager for provisioning
+#  hosts: localhost
+#  connection: local
+#  roles:
+#    - role: postscripts/common             # noqa: role-name[path]
+#    - role: configure_os_image/common      # noqa: role-name[path]
+#    - role: monitor_thread
+#    - role: metadata_update

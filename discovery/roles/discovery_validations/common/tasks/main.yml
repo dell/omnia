@@ -19,18 +19,18 @@
     add_network_status: false
     reassignment_status: false
 
-- name: Include network_spec file
-  ansible.builtin.include_tasks: include_network_spec.yml
+- name: Validate provision container services status
+  ansible.builtin.include_tasks: validate_provision_container.yml
 
 - name: Include provision_validation_vars role vars
   ansible.builtin.include_vars: "{{ item }}"
   with_items: "{{ provision_validation_vars }}"
 
-- name: Validate Omnia Infrastructure Manager OS
-  ansible.builtin.include_tasks: validate_oim_os.yml
-
 - name: Include vars for {{ oim_os }}
   ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
+
+- name: Include network_spec file
+  ansible.builtin.include_tasks: include_network_spec.yml
 
 - name: Include provision configuration variables
   ansible.builtin.include_tasks: include_provision_config.yml
@@ -41,8 +41,8 @@
 - name: Include local_repo variables
   ansible.builtin.include_tasks: include_local_repo_config.yml
 
-- name: Validate local repo
-  ansible.builtin.include_tasks: validate_local_repo.yml
+#- name: Validate local repo
+#  ansible.builtin.include_tasks: validate_local_repo.yml
 
 - name: Package installation
   ansible.builtin.include_tasks: package_installation.yml
@@ -78,20 +78,20 @@
 - name: Validate domain_name
   ansible.builtin.include_tasks: validate_domain_name.yml
 
-- name: Validate site_config.yml
-  ansible.builtin.include_tasks: validate_site_config.yml
+#- name: Validate site_config.yml
+#  ansible.builtin.include_tasks: validate_site_config.yml
 
-- name: Validate OFED and CUDA repo
-  ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml
+#- name: Validate OFED and CUDA repo
+#  ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml
 
-- name: Validate AMDGPU and ROCm repo
-  ansible.builtin.include_tasks: validate_amdgpu_rocm_repo.yml
+#- name: Validate AMDGPU and ROCm repo
+#  ansible.builtin.include_tasks: validate_amdgpu_rocm_repo.yml
 
-- name: Validate Broadcom repo
-  ansible.builtin.include_tasks: validate_broadcom_repo.yml
+#- name: Validate Broadcom repo
+#  ansible.builtin.include_tasks: validate_broadcom_repo.yml
 
-- name: Validate Intel Gaudi repo
-  ansible.builtin.include_tasks: validate_intelgaudi_repo.yml
+#- name: Validate Intel Gaudi repo
+#  ansible.builtin.include_tasks: validate_intelgaudi_repo.yml
 
 # Encrypt provision_config_credentials.yml after all the validations are successful
 
