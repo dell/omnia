@@ -759,7 +759,8 @@
       "profile": "https://github.com/balajikumaran-c-s",
       "contributions": [
         "test",
-        "bug"
+        "bug",
+        "code"
       ]
     },
     {
@@ -884,6 +885,17 @@
       "avatar_url": "https://avatars.githubusercontent.com/aditi-sharma27",
       "profile": "https://github.com/aditi-sharma27",
       "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Rohith-Ravut,
+      "name": "Rohith-Ravut",
+      "avatar_url": "https://avatars.githubusercontent.com/u/196186062?v=4",
+      "profile": "https://github.com/Rohith-Ravut",
+      "contributions": [
+        "test",
+        "bug",
         "code"
       ]
     }
