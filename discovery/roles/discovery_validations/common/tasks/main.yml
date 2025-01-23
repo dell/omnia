@@ -35,17 +35,11 @@
 - name: Include provision configuration variables
   ansible.builtin.include_tasks: include_provision_config.yml
 
-- name: Include provision configuration credentials variables
-  ansible.builtin.include_tasks: include_provision_credentials_config.yml
-
 - name: Include local_repo variables
   ansible.builtin.include_tasks: include_local_repo_config.yml
 
 #- name: Validate local repo
 #  ansible.builtin.include_tasks: validate_local_repo.yml
-
-- name: Package installation
-  ansible.builtin.include_tasks: package_installation.yml
 
 - name: Validate network interface type
   ansible.builtin.include_tasks: assign_network_interface.yml
@@ -92,20 +86,3 @@
 
 #- name: Validate Intel Gaudi repo
 #  ansible.builtin.include_tasks: validate_intelgaudi_repo.yml
-
-# Encrypt provision_config_credentials.yml after all the validations are successful
-
-- name: Encrypt config file once validations are successful
-  block:
-    - name: Encrypt provision_config_credentials.yml
-      ansible.builtin.command: >-
-        ansible-vault encrypt {{ provision_credentials_config_filename }}
-        --vault-password-file {{ provision_credentials_vault_path }}
-      changed_when: false
-      tags: init
-
-    - name: Update provision_config_credentials.yml permission
-      ansible.builtin.file:
-        path: "{{ provision_credentials_config_filename }}"
-        mode: "{{ conf_file_mode }}"
-      tags: init

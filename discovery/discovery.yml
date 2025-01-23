@@ -23,6 +23,12 @@
         ansible_host: 'localhost'
         ansible_port: "2223"
         groups: 'omnia_provision'
+        ansible_python_interpreter: "python3.11"
+    
+    - name: Decrypt provision_credentials_config.yml
+      ansible.builtin.include_role:
+        name: discovery_validations/common
+        tasks_from: encrypt_provision_credentials_config.yml
 
 - name: Validate discovery parameters
   hosts: omnia_provision
@@ -32,6 +38,19 @@
       ansible.builtin.include_role:
         name: discovery_validations/common
 
+- name: Encrypyt provision_credentials_config.yml
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Encrypyt provision_credentials_config.yml
+      ansible.builtin.include_role:
+        name: discovery_validations/common
+        tasks_from: encrypt_provision_credentials_config.yml
+
+- name: Validate discovery parameters
+  hosts: omnia_provision
+  connection: ssh
+  tasks:
     - name: Discovery roles of Omnia Infrastructure Manager for provisioning
       ansible.builtin.include_role:
         name: db_operations
