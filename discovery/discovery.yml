@@ -23,8 +23,8 @@
         ansible_host: 'localhost'
         ansible_port: "2223"
         groups: 'omnia_provision'
-        ansible_python_interpreter: "python3.11"
-    
+        ansible_python_interpreter: "python3"
+
     - name: Decrypt provision_credentials_config.yml
       ansible.builtin.include_role:
         name: discovery_validations/common
@@ -61,22 +61,22 @@
         tasks_from: add_nic_db.yml
       when: add_network_status
 
-- name: Discovery roles of Omnia Infrastructure Manager for provisioning
-  hosts: localhost
-  connection: local
-  roles:
-    - role: configure_xcat/common          # noqa: role-name[path]
-  #  - role: configure_synclist
-    - role: discovery_mechanism/common     # noqa: role-name[path]
+    - name: Configure xcat
+      ansible.builtin.include_role:
+        name: configure_xcat/common         # noqa: role-name[path]
 
-#- name: Update kernel parameters
-#  hosts: all:!localhost
-#  connection: local
-#  gather_facts: true
-#  vars_files:
-#    - "{{ playbook_dir }}/../input/server_spec.yml"
-#  roles:
-#    - role: os_update
+    - name: Discover all nodes
+      ansible.builtin.include_role:
+        name: discovery_mechanism/common     # noqa: role-name[path]
+
+- name: Update kernel parameters
+  hosts: all:!localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir }}/../input/server_spec.yml"
+  roles:
+    - role: os_update
 
 #- name: Discovery roles of Omnia Infrastructure Manager for provisioning
 #  hosts: localhost

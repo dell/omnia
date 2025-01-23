@@ -13,10 +13,6 @@
 #  limitations under the License.
 ---
 
-# Usage: pre_requisites.yml
-xcatd_service: "xcatd"
-postgresql_service: "postgresql"
-
 # Usage: configure_kickstart.yml
 xcat_ubuntu20_path:
   - { src: "{{ role_path }}/../ubuntu/templates/temp_ks_ubuntu20.tmpl.j2", dest: "/opt/xcat/share/xcat/install/ubuntu/compute.subiquity.tmpl", mode: "0644" }
