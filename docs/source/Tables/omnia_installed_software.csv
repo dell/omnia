@@ -7,8 +7,8 @@ NVIDIA container runtime,"Apache 2.0, GPL-3.0, LGPL-3.0",NVIDIA container runtim
 libnvidia-container,Apache 2.0,NVIDIA container runtime library,1.16.2
 habanalabs-container-runtime,Apache 2.0,"Intel Habana container runtime library
 
-.. note:: This is preliminary code and may change before official release.",1.18.0-524
-habanalabs-k8s-device-plugin,Apache 2.0,HABANA device plugin for Kubernetes,1.18.0-524
+.. note:: This is preliminary code and may change before official release.",1.19.1-26
+habanalabs-k8s-device-plugin,Apache 2.0,HABANA device plugin for Kubernetes,1.19.1-26
 Python-pip,MIT License,Python Package,24.2
 kubelet,Apache 2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.29.5
 kubeadm,Apache 2.0,Provides “fast paths” for creating Kubernetes clusters.,1.29.5
@@ -94,7 +94,7 @@ Kserve,Apache 2.0,"Deploys Kserve as inference platform on K8s cluster. Kserve i
 pyarrow,Apache 2.0,Apache Arrow is a multi-language toolbox for accelerated data interchange and in-memory processing,17.0.0
 vLLM NVIDIA,Apache 2.0,A high-throughput and memory-efficient inference and serving engine for LLMs,0.4.0
 vLLM AMD,Apache 2.0,vLLM is a toolkit and library for large language model (LLM) inference and serving.,0.2.4
-vLLM Intel,Apache 2.0,vLLM is a toolkit and library for large language model (LLM) inference and serving.,0.5.3.post1+Gaudi-1.18.0
+vLLM Intel,Apache 2.0,vLLM is a toolkit and library for large language model (LLM) inference and serving.,0.5.3.post1+Gaudi-1.19.0
 ucx,BSD 3 Clause License,Unified Communication X,1.15.0
 openmpi,BSD 3 Clause License,Open MPI main development repository,4.1.6
 Pytorch CPU/AMD,BSD 3 Clause License,Tensors and Dynamic neural networks in Python with strong GPU acceleration,latest
@@ -109,5 +109,5 @@ calico,Apache 2.0,"Calico is an open-source networking and security solution for
 flannel,Apache 2.0,Flannel is a simple and easy-to-configure network fabric for containers. It is part of the Kubernetes ecosystem and primarily used to provide a network overlay that connects containers across multiple nodes.,0.22.0
 csi-powerscale,Apache 2.0,CSI Driver for Dell PowerScale devices,2.11.0
 external-snapshotter,Apache 2.0,Sidecar container that watches Kubernetes Snapshot CRD objects and triggers CreateSnapshot/DeleteSnapshot against a CSI endpoint.,8.0.1
-Prometheus Gaudi metric exporter,Apache 2.0,This is a Prometheus exporter implementation that enables the collection of Intel Gaudi AI accelerator metrics in a container cluster for compute workload.,1.18.0-524
+Prometheus Gaudi metric exporter,Apache 2.0,This is a Prometheus exporter implementation that enables the collection of Intel Gaudi AI accelerator metrics in a container cluster for compute workload.,1.19.1-26
 DeepSpeed Intel,Apache 2.0,"DeepSpeed is a deep learning optimization library that makes distributed training and inference easy, efficient, and effective.",v2Beta1
