@@ -1,0 +1,11 @@
+{
+  "ofed": {
+    "cluster": [
+      { "package": "ofed",
+        "type": "iso",
+        "url": "https://www.mellanox.com/page/mlnx_ofed_eula?mtag=linux_sw_drivers&mrequest=downloads&mtype=ofed&mver=MLNX_OFED-24.10-1.1.4.0&mname=MLNX_OFED_LINUX-24.10-1.1.4.0-rhel9.4-x86_64.iso",
+        "path": ""
+      }
+    ]
+  }
+}

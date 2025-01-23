@@ -71,7 +71,7 @@
   retries: "{{ max_retries }}"
 
 - name: Create xcat-dep localrepo
-  ansible.builtin.command: "{{ xcat_directory }}/xcat-dep/rh8/x86_64/mklocalrepo.sh"
+  ansible.builtin.command: "{{ xcat_directory }}/xcat-dep/rh9/x86_64/mklocalrepo.sh"
   changed_when: true
 
 - name: Install xCAT and postgres packages (This task may take 10 mins)

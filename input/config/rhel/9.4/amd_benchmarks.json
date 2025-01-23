@@ -1,0 +1,9 @@
+{
+    "amd_benchmarks": {
+        "cluster": [
+            {"package": "pmix-devel", "type": "rpm", "repo_name": "codeready-builder"},
+            {"package": "libevent-devel", "type": "rpm", "repo_name": "appstream"}
+           
+        ]
+    }
+}
