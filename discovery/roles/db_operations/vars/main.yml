@@ -16,7 +16,3 @@
 # Usage: oim_details_db.yml
 python_version: "{{ ansible_python_interpreter }}"
 oim_db_utility_path: "{{ role_path }}/files/add_oim_db.py"
-
-# Usage: set_oim_hostname.yml
-hosts_file_path: /etc/hosts
-hosts_file_mode: "0644"
