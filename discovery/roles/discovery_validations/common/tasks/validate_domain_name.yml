@@ -13,12 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Set fact for the domain_name from provision_config.yml
-  ansible.builtin.set_fact:
-    domain_name: "{{ hostvars['omnia_provision']['domain_name'] }}"
-    node_name: "{{ hostvars['omnia_provision']['node_name'] }}"
-    pxe_nic_ip: "{{ hostvars['omnia_provision']['pxe_nic_ip'] }}"
-
 - name: Validate the domain_name
   ansible.builtin.assert:
     that:
@@ -84,16 +78,11 @@
     oim_domain_name: "{{ domain_name }}"
     oim_hostname: "{{ hostname_result.stdout }}"
 
-- name: Remove hosts file entry of Omnia Infrastructure Manager
-  ansible.builtin.lineinfile:
-    path: "{{ hosts_file_path }}"
-    regexp: "^(.*){{ oim_hostname }}"
-    state: absent
+- name: Check if hosts_file_path entry for oim_hostname is present
+  ansible.builtin.shell: grep -q "{{ oim_hostname }}" "{{ hosts_file_path }}"
+  register: oim_hostname_entry_present
 
 - name: Add hosts file entry
-  ansible.builtin.lineinfile:
-    path: "{{ hosts_file_path }}"
-    line: "{{ pxe_nic_ip }} {{ oim_hostname }}"
-    state: present
-    create: true
-    mode: "{{ hosts_file_mode }}"
+  ansible.builtin.shell: echo "{{ pxe_nic_ip }} {{ oim_hostname }}" >> "{{ hosts_file_path }}"
+  changed_when: true
+  when: oim_hostname not in oim_hostname_entry_present.stdout
