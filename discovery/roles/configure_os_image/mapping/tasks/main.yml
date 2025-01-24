@@ -14,7 +14,7 @@
 ---
 
 - name: Mapping mechanism
-  when: hostvars['localhost']['discovery_mech_mapping']
+  when: discovery_mech_mapping
   block:
     - name: Check mapping node group status
       ansible.builtin.include_tasks: set_provision_image_mapping.yml

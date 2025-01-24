@@ -69,9 +69,6 @@
   ansible.builtin.include_tasks: validate_disk_partition_vars.yml
   with_items: "{{ disk_partition }}"
 
-- name: Validate domain_name
-  ansible.builtin.include_tasks: validate_domain_name.yml
-
 # Need to modify after local repo changes
 #- name: Validate site_config.yml
 #  ansible.builtin.include_tasks: validate_site_config.yml

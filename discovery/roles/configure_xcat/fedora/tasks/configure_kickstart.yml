@@ -33,5 +33,4 @@
     state: present
     line: |
       echo "127.0.0.1 localhost" >> /etc/hosts
-
-#      echo "{{ admin_nic_ip }} {{ oim_hostname }}" >> /etc/hosts
+      echo "{{ admin_nic_ip }} {{ oim_hostname }}" >> /etc/hosts

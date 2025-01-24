@@ -16,7 +16,7 @@
 - name: Task for set osimage to node object for mapping
   block:
     - name: Set osimage to node object for mapping
-      ansible.builtin.command: "{{ python_version }} {{ nodeset_nodes_py }} {{ db_operations_file_path }} {{ hostvars['localhost']['provision_os_image'] }}"
+      ansible.builtin.command: "{{ python_version }} {{ nodeset_nodes_py }} {{ db_operations_file_path }} {{ provision_os_image }}"
       changed_when: false
       register: set_osimage_mapping
 

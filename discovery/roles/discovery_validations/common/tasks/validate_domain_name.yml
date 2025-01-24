@@ -13,6 +13,12 @@
 #  limitations under the License.
 ---
 
+- name: Set fact for the domain_name from provision_config.yml
+  ansible.builtin.set_fact:
+    domain_name: "{{ hostvars['omnia_provision']['domain_name'] }}"
+    node_name: "{{ hostvars['omnia_provision']['node_name'] }}"
+    pxe_nic_ip: "{{ hostvars['omnia_provision']['pxe_nic_ip'] }}"
+
 - name: Validate the domain_name
   ansible.builtin.assert:
     that:
@@ -33,61 +39,61 @@
     success_msg: "{{ hostname_success_msg }}"
     fail_msg: "{{ hostname_fail_msg }}"
 
-#- name: Fetch the short hostname
-#  ansible.builtin.command: hostname -s
-#  register: short_hostname
-#  changed_when: false
+- name: Fetch the short hostname
+  ansible.builtin.command: hostname -s
+  register: short_hostname
+  changed_when: false
 
-#- name: Validate the short hostname
-#  ansible.builtin.assert:
-#    that:
-#      - short_hostname.stdout is regex(("^(([a-z]|[a-z][a-z0-9\-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9\-]*[a-z0-9])$"))
-#      - short_hostname.stdout != "localhost"
-#    success_msg: "{{ server_hostname_success_msg }}"
-#    fail_msg: "{{ server_hostname_fail_msg }}"
+- name: Validate the short hostname
+  ansible.builtin.assert:
+    that:
+      - short_hostname.stdout is regex(("^(([a-z]|[a-z][a-z0-9\-]*[a-z0-9])\.)*([a-z]|[a-z][a-z0-9\-]*[a-z0-9])$"))
+      - short_hostname.stdout != "localhost"
+    success_msg: "{{ server_hostname_success_msg }}"
+    fail_msg: "{{ server_hostname_fail_msg }}"
 
-#- name: Fetch the domain name
-#  ansible.builtin.command: hostname -d
-#  register: domain_name_check
-#  changed_when: false
-#  failed_when: false
+- name: Fetch the domain name
+  ansible.builtin.command: hostname -d
+  register: domain_name_check
+  changed_when: false
+  failed_when: false
 
-#- name: Verify the domain name is not blank in hostname
-#  ansible.builtin.fail:
-#    msg: " {{ server_domain_name_blank_msg }}"
-#  when: domain_name_check.stdout | length < 1
+- name: Verify the domain name is not blank in hostname
+  ansible.builtin.fail:
+    msg: " {{ server_domain_name_blank_msg }}"
+  when: domain_name_check.stdout | length < 1
 
-#- name: Set fact for the domain name in hostname
-#  ansible.builtin.set_fact:
-#    ms_domain_name: "{{ domain_name_check.stdout }}"
+- name: Set fact for the domain name in hostname
+  ansible.builtin.set_fact:
+    ms_domain_name: "{{ domain_name_check.stdout }}"
 
-#- name: Validate the domain name set on the host
-#  ansible.builtin.assert:
-#    that:
-#      - domain_name == ms_domain_name
-#    success_msg: "{{ server_domain_name_success_msg }}"
-#    fail_msg: "{{ server_domain_name_fail_msg }}"
+- name: Validate the domain name set on the host
+  ansible.builtin.assert:
+    that:
+      - domain_name == ms_domain_name
+    success_msg: "{{ server_domain_name_success_msg }}"
+    fail_msg: "{{ server_domain_name_fail_msg }}"
 
-#- name: Read hostname of Omnia Infrastructure Manager
-#  ansible.builtin.command: hostname
-#  changed_when: false
-#  register: hostname_result
+- name: Read hostname of Omnia Infrastructure Manager
+  ansible.builtin.command: hostname
+  changed_when: false
+  register: hostname_result
 
-- name: Set fact for the Omnia Infratsructure Management (OIM) node hostname and domain name
+- name: Set fact for the OIM node hostname and domain name
   ansible.builtin.set_fact:
     oim_domain_name: "{{ domain_name }}"
-#    oim_hostname: "{{ hostname_result.stdout }}"
+    oim_hostname: "{{ hostname_result.stdout }}"
 
-#- name: Remove hosts file entry of Omnia Infrastructure Manager
-#  ansible.builtin.lineinfile:
-#    path: "{{ hosts_file_path }}"
-#    regexp: "^(.*){{ oim_hostname }}"
-#    state: absent
+- name: Remove hosts file entry of Omnia Infrastructure Manager
+  ansible.builtin.lineinfile:
+    path: "{{ hosts_file_path }}"
+    regexp: "^(.*){{ oim_hostname }}"
+    state: absent
 
-#- name: Add hosts file entry
-#  ansible.builtin.lineinfile:
-#    path: "{{ hosts_file_path }}"
-#    line: "{{ pxe_nic_ip }} {{ oim_hostname }}"
-#    state: present
-#    create: true
-#    mode: "{{ hosts_file_mode }}"
+- name: Add hosts file entry
+  ansible.builtin.lineinfile:
+    path: "{{ hosts_file_path }}"
+    line: "{{ pxe_nic_ip }} {{ oim_hostname }}"
+    state: present
+    create: true
+    mode: "{{ hosts_file_mode }}"

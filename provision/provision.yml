@@ -13,17 +13,21 @@
 # limitations under the License.
 ---
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: ../utils/check_venv.yml
-  when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
-
-- name: Check if package manager is not locked
-  ansible.builtin.import_playbook: ../utils/check_package_lock.yml
-  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
-
-- name: Prepare Omnia Infrastructure Manager for provisioning nodes
+- name: Create group for provision container
   hosts: localhost
   connection: local
+  tasks:
+    - name: Create omnia_provision group
+      ansible.builtin.add_host:
+        hostname: 'omnia_provision'
+        ansible_host: 'localhost'
+        ansible_port: "2223"
+        groups: 'omnia_provision'
+        ansible_python_interpreter: "python3"
+
+- name: Prepare Omnia Infrastructure Manager for provisioning nodes
+  hosts: omnia_provision
+  connection: ssh
   roles:
     - role: provision_validation
     - role: ../prepare_oim/roles/pre_requisite  # noqa: role-name[path]
