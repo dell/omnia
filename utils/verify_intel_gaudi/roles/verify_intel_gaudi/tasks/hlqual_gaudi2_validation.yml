@@ -40,7 +40,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -t 60 -f2 -l extreme -serdes int -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: sanity_test_result
   failed_when: "'FAILED' in sanity_test_result.stdout"
   changed_when: true
@@ -57,7 +57,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -mb -memOnly -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: memory_bandwidth_test_result
   failed_when: "'FAILED' in memory_bandwidth_test_result.stdout"
   changed_when: true
@@ -74,7 +74,7 @@
     ./hl_qual -gaudi2  -c all -rmod serial -t 20 -p -b -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: pci_bandwidth_test_result
   failed_when: "'FAILED' in pci_bandwidth_test_result.stdout"
   changed_when: true
@@ -91,7 +91,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -i 50 -nic_base -test_type pairs -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: serdes_base_test_result
   failed_when: "'FAILED' in serdes_base_test_result.stdout"
   changed_when: true
@@ -108,7 +108,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -i 40 -ep 40 -nic_base -test_type allreduce -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: serdes_base_allreduce_test_result
   failed_when: "'FAILED' in serdes_base_allreduce_test_result.stdout"
   changed_when: true
@@ -125,7 +125,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -i 40 -ep 40 -nic_base -test_type allgather -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: serdes_base_allgather_test_result
   failed_when: "'FAILED' in serdes_base_allgather_test_result.stdout"
   changed_when: true
@@ -142,7 +142,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -i 40 -ep 40 -nic_base -test_type dir_bw -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: serdes_base_dirbw_test_result
   failed_when: "'FAILED' in serdes_base_dirbw_test_result.stdout"
   changed_when: true
@@ -164,7 +164,7 @@
     ./manage_network_ifs.sh --down
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   changed_when: true
 
 - name: Bring UP all Gaudi2 NICs
@@ -173,7 +173,7 @@
     ./manage_network_ifs.sh --up
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   changed_when: true
 
 - name: Retry until HPUs NICs are ready
@@ -182,7 +182,7 @@
     ./manage_network_ifs.sh --status | grep down | wc -l
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: result
   until: (result.stdout == "0")
   retries: 5
@@ -206,7 +206,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -i 1 -hbm_dma_stress -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: hbm_dma_stress_test_result
   failed_when: "'FAILED' in hbm_dma_stress_test_result.stdout"
   changed_when: true
@@ -227,7 +227,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -i 1 -hbm_tpc_stress -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: hbm_tpc_stress_test_result
   failed_when: "'FAILED' in hbm_tpc_stress_test_result.stdout"
   changed_when: true
@@ -248,7 +248,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -s -t 120 -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: power_stress_test_result
   failed_when: "'FAILED' in power_stress_test_result.stdout"
   changed_when: true
@@ -269,7 +269,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -e -sync -t 120 -Tw 2 -Ts 3 -dis_mon
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: edp_stress_test_result
   failed_when: "'FAILED' in edp_stress_test_result.stdout"
   changed_when: true
@@ -292,7 +292,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -t 30 -dis_mon -e2e_concurrency
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: e2e_concurrency_test_result
   failed_when: "'FAILED' in e2e_concurrency_test_result.stdout"
   changed_when: true
@@ -315,7 +315,7 @@
     ./hl_qual -gaudi2 -c all -rmod parallel -dis_mon -ser
   args:
     executable: /bin/bash
-    chdir: /opt/habanalabs/qual/gaudi2/bin
+    chdir: "{{ verify_intel_gaudi_habana_tests['gaudi2_qual_bin_path'] }}"
   register: ser_test_result
   failed_when: "'FAILED' in ser_test_result.stdout"
   changed_when: true

@@ -29,6 +29,7 @@
       data_loader_aeon_lib_path: "/usr/lib/habanalabs/libaeon.so"
       rdma_core_root: "/opt/habanalabs/rdma-core/src"
       rdma_core_lib: "/opt/habanalabs/rdma-core/src/build/lib"
+      gaudi3_qual_bin_path: "/opt/habanalabs/qual/gaudi3/bin"
   tasks:
     - name: Setting python version used for the test runs
       set_fact:
@@ -56,7 +57,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -t 60 -f2 -l extreme -serdes int -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: sanity_test_result
       failed_when: "'FAILED' in sanity_test_result.stdout"
 
@@ -71,7 +72,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -mb -memOnly -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: memory_bandwidth_test_result
       failed_when: "'FAILED' in memory_bandwidth_test_result.stdout"
 
@@ -86,7 +87,7 @@
         ./hl_qual -gaudi3  -c all -rmod serial -t 20 -p -b -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: pci_bandwidth_test_result
       failed_when: "'FAILED' in pci_bandwidth_test_result.stdout"
 
@@ -101,7 +102,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -i 50 -nic_base -test_type pairs -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: serdes_base_test_result
       failed_when: "'FAILED' in serdes_base_test_result.stdout"
 
@@ -116,7 +117,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -i 40 -ep 40 -nic_base -test_type allreduce -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: serdes_base_allreduce_test_result
       failed_when: "'FAILED' in serdes_base_allreduce_test_result.stdout"
 
@@ -131,7 +132,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -i 40 -ep 40 -nic_base -test_type allgather -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: serdes_base_allgather_test_result
       failed_when: "'FAILED' in serdes_base_allgather_test_result.stdout"
 
@@ -146,7 +147,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -i 40 -ep 40 -nic_base -test_type dir_bw -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: serdes_base_dirbw_test_result
       failed_when: "'FAILED' in serdes_base_dirbw_test_result.stdout"
 
@@ -189,7 +190,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -i 1 -hbm_dma_stress -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: hbm_dma_stress_test_result
       failed_when: "'FAILED' in hbm_dma_stress_test_result.stdout"
 
@@ -208,7 +209,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -i 1 -hbm_tpc_stress -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: hbm_tpc_stress_test_result
       failed_when: "'FAILED' in hbm_tpc_stress_test_result.stdout"
 
@@ -227,7 +228,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -s -t 120 -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: power_stress_test_result
       failed_when: "'FAILED' in power_stress_test_result.stdout"
 
@@ -246,7 +247,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -e -sync -t 120 -Tw 2 -Ts 3 -dis_mon
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: edp_stress_test_result
       failed_when: "'FAILED' in edp_stress_test_result.stdout"
 
@@ -267,7 +268,7 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -t 30 -dis_mon -e2e_concurrency
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: e2e_concurrency_test_result
       failed_when: "'FAILED' in e2e_concurrency_test_result.stdout"
 
@@ -288,6 +289,6 @@
         ./hl_qual -gaudi3 -c all -rmod parallel -dis_mon -ser
       args:
         executable: /bin/bash
-        chdir: /opt/habanalabs/qual/gaudi3/bin
+        chdir: "{{ habana_tests['gaudi3_qual_bin_path'] }}"
       register: ser_test_result
       failed_when: "'result: FAILED' in ser_test_result.stdout"
