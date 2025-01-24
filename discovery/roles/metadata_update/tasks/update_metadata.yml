@@ -33,7 +33,8 @@
         regexp: '^md_netmask_bits:(.*)$'
         insertafter: "EOF"
         state: present
-        line: 'md_netmask_bits: {{ network_data.admin_network.netmask_bits }}'
+        line: "md_netmask_bits: {{ hostvars['omnia_provision']['network_data']['admin_network']['netmask_bits'] }}"
+        mode: "{{ conf_file_mode }}"
 
 - name: Update md_admin_static_start_range
   ansible.builtin.lineinfile:
@@ -41,7 +42,8 @@
     regexp: '^md_admin_static_start_range:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_admin_static_start_range: {{ pxe_nic_start_range }}'
+    line: "md_admin_static_start_range: {{ hostvars['omnia_provision']['pxe_nic_start_range'] }}"
+    mode: "{{ conf_file_mode }}"
 
 - name: Update md_admin_static_end_range
   ansible.builtin.lineinfile:
@@ -49,7 +51,8 @@
     regexp: '^md_admin_static_end_range:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_admin_static_end_range: {{ pxe_nic_end_range }}'
+    line: "md_admin_static_end_range: {{ hostvars['omnia_provision']['pxe_nic_end_range'] }}"
+    mode: "{{ conf_file_mode }}"
 
 - name: Update md_admin_dynamic_start_range
   ansible.builtin.lineinfile:
@@ -57,7 +60,8 @@
     regexp: '^md_admin_dynamic_start_range:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_admin_dynamic_start_range: {{ pxe_nic_dynamic_start_range }}'
+    line: "md_admin_dynamic_start_range: {{ hostvars['omnia_provision']['pxe_nic_dynamic_start_range'] }}"
+    mode: "{{ conf_file_mode }}"
 
 - name: Update md_admin_dynamic_end_range
   ansible.builtin.lineinfile:
@@ -65,7 +69,8 @@
     regexp: '^md_admin_dynamic_end_range:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_admin_dynamic_end_range: {{ pxe_nic_dynamic_end_range }}'
+    line: "md_admin_dynamic_end_range: {{ hostvars['omnia_provision']['pxe_nic_dynamic_end_range'] }}"
+    mode: "{{ conf_file_mode }}"
 
 - name: Update md_admin_nic_subnet
   ansible.builtin.lineinfile:
@@ -73,7 +78,8 @@
     regexp: '^md_admin_nic_subnet:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_admin_nic_subnet: {{ pxe_nic_subnet }}'
+    line: "md_admin_nic_subnet: {{ hostvars['omnia_provision']['pxe_nic_subnet'] }}"
+    mode: "{{ conf_file_mode }}"
 
 - name: Update md_admin_nic_ip
   ansible.builtin.lineinfile:
@@ -81,7 +87,8 @@
     regexp: '^md_admin_nic_ip:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_admin_nic_ip: {{ admin_nic_ip }}'
+    line: "md_admin_nic_ip: {{ hostvars['omnia_provision']['admin_nic_ip'] }}"
+    mode: "{{ conf_file_mode }}"
 
 - name: Update the mapping file status
   ansible.builtin.lineinfile:
@@ -89,10 +96,11 @@
     regexp: '^md_discovery_mech_mapping:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_discovery_mech_mapping: {{ discovery_mech_mapping }}'
+    line: "md_discovery_mech_mapping: {{ hostvars['omnia_provision']['discovery_mech_mapping'] }}"
+    mode: "{{ conf_file_mode }}"
 
 - name: Update metadata.yml file for bmc discovery_mechanism
-  when: bmc_details_status
+  when: hostvars['omnia_provision']['bmc_details_status']
   block:
     - name: Update md_bmc_static_start_range
       ansible.builtin.lineinfile:
@@ -100,7 +108,8 @@
         regexp: '^md_bmc_static_start_range:(.*)$'
         insertafter: "EOF"
         state: present
-        line: 'md_bmc_static_start_range: {{ bmc_static_start_range }}'
+        line: "md_bmc_static_start_range: {{ hostvars['omnia_provision']['bmc_static_start_range'] }}"
+        mode: "{{ conf_file_mode }}"
 
     - name: Update md_bmc_static_end_range
       ansible.builtin.lineinfile:
@@ -108,7 +117,8 @@
         regexp: '^md_bmc_static_end_range:(.*)$'
         insertafter: "EOF"
         state: present
-        line: 'md_bmc_static_end_range: {{ bmc_static_end_range }}'
+        line: "md_bmc_static_end_range: {{ hostvars['omnia_provision']['bmc_static_end_range'] }}"
+        mode: "{{ conf_file_mode }}"
 
     - name: Update md_bmc_dynamic_start_range
       ansible.builtin.lineinfile:
@@ -116,7 +126,8 @@
         regexp: '^md_bmc_dynamic_start_range:(.*)$'
         insertafter: "EOF"
         state: present
-        line: 'md_bmc_dynamic_start_range: {{ bmc_dynamic_start_range }}'
+        line: "md_bmc_dynamic_start_range: {{ hostvars['omnia_provision']['bmc_dynamic_start_range'] }}"
+        mode: "{{ conf_file_mode }}"
 
     - name: Update md_bmc_dynamic_end_range
       ansible.builtin.lineinfile:
@@ -124,7 +135,8 @@
         regexp: '^md_bmc_dynamic_end_range:(.*)$'
         insertafter: "EOF"
         state: present
-        line: 'md_bmc_dynamic_end_range: {{ bmc_dynamic_end_range }}'
+        line: "md_bmc_dynamic_end_range: {{ hostvars['omnia_provision']['bmc_dynamic_end_range'] }}"
+        mode: "{{ conf_file_mode }}"
 
     - name: Update md_bmc_nic_ip
       ansible.builtin.lineinfile:
@@ -132,7 +144,8 @@
         regexp: '^md_bmc_nic_ip:(.*)$'
         insertafter: "EOF"
         state: present
-        line: 'md_bmc_nic_ip: {{ bmc_nic_ip }}'
+        line: "md_bmc_nic_ip: {{ hostvars['omnia_provision']['bmc_nic_ip'] }}"
+        mode: "{{ conf_file_mode }}"
 
     - name: Update md_bmc_nic_subnet
       ansible.builtin.lineinfile:
@@ -140,7 +153,8 @@
         regexp: '^md_bmc_nic_subnet:(.*)$'
         insertafter: "EOF"
         state: present
-        line: 'md_bmc_nic_subnet: {{ bmc_nic_subnet }}'
+        line: "md_bmc_nic_subnet: {{ hostvars['omnia_provision']['bmc_nic_subnet'] }}"
+        mode: "{{ conf_file_mode }}"
 
 - name: Update md_discovery_mech_bmc
   ansible.builtin.lineinfile:
@@ -148,7 +162,8 @@
     regexp: '^md_discovery_mech_bmc:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_discovery_mech_bmc: {{ discovery_mech_bmc }}'
+    line: "md_discovery_mech_bmc: {{ hostvars['omnia_provision']['discovery_mech_bmc'] }}"
+    mode: "{{ conf_file_mode }}"
 
 - name: Update md_discovery_mech_bmc
   ansible.builtin.lineinfile:
@@ -156,7 +171,8 @@
     regexp: '^md_discovery_mech_switch_based:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'md_discovery_mech_switch_based: {{ discovery_mech_switch_based }}'
+    line: "md_discovery_mech_switch_based: {{ hostvars['omnia_provision']['discovery_mech_switch_based'] }}"
+    mode: "{{ conf_file_mode }}"
 
 - name: Update installed_version
   ansible.builtin.lineinfile:
@@ -165,3 +181,4 @@
     insertafter: "EOF"
     state: present
     line: 'installed_version: "2.0.0.0"'
+    mode: "{{ conf_file_mode }}"
