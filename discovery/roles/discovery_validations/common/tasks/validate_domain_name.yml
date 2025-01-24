@@ -78,6 +78,7 @@
     oim_domain_name: "{{ domain_name }}"
     oim_hostname: "{{ hostname_result.stdout }}"
 
+# This logic will be updated based on /etc/hosts mount
 - name: Check if hosts_file_path entry for oim_hostname is present
   ansible.builtin.shell: grep -q "{{ pxe_nic_ip }} {{ oim_hostname }}" "{{ hosts_file_path }}"
   register: oim_hostname_entry_present
