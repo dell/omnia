@@ -1,0 +1,25 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Configuration Schema",
+    "type": "object",
+    "properties": {
+      "mlnx_ofed_offline_path": {
+        "type": "string"
+      },
+      "mlnx_ofed_version": {
+        "type": "string",
+        "default": "5.4-2.4.1.3"
+      },
+      "mlnx_ofed_add_kernel_support": {
+        "type": "boolean",
+        "default": true
+      }
+    },
+    "required": ["mlnx_ofed_add_kernel_support"],
+    "dependencies": {
+      "mlnx_ofed_offline_path": {
+        "required": ["mlnx_ofed_version"]
+      }
+    }
+  }
+  

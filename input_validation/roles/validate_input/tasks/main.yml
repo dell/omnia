@@ -1,0 +1,58 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Include variables
+  ansible.builtin.include_vars:
+    file: vars/vars.yml
+
+- name: Get omnia base directory
+  ansible.builtin.set_fact:
+    omnia_base_dir: "{{ playbook_dir | dirname }}"
+
+- name: Check if omnia base directory exists
+  ansible.builtin.stat:
+    path: "{{ omnia_base_dir }}"
+  register: omnia_base_dir_stat
+
+- name: Fail if omnia base directory does not exist
+  ansible.builtin.fail:
+    msg: "{{ messages.omnia_base_dir_not_exist }}"
+  when: not omnia_base_dir_stat.stat.exists
+
+- name: Find input directories
+  ansible.builtin.find:
+    paths: "{{ omnia_base_dir }}"
+    file_type: directory
+    patterns: 'input'
+  register: found_directories
+
+- name: Check if input directories were found
+  ansible.builtin.fail:
+    msg: "{{ messages.no_input_directories_found }}"
+  when: found_directories.matched == 0
+
+- name: Set input directory paths
+  ansible.builtin.set_fact:
+    project_name: "{{ found_directories.files[0].path | basename }}"
+
+- name: Validate omnia input config
+  validate_input:
+    omnia_base_dir: "{{ omnia_base_dir }}/"
+    project_name: "{{ project_name }}"
+    tag_names: "{{ ansible_run_tags }}"
+  register: validation_status
+
+- name: Debug validation status
+  ansible.builtin.debug:
+    msg: "{{ messages.validation_success }}"

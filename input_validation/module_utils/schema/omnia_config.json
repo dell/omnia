@@ -1,0 +1,65 @@
+{
+  "title": "omnia_config.yaml",
+  "description": "Omina config related parameters",
+  "type": "object",
+  "properties": {
+    "ansible_config_file_path": {
+      "description": "ansible default config file path",
+      "type": "string",
+      "pattern":"^/|(^/[a-zA-Z0-9_-]+)+$"
+    },
+    "mariadb_password": {
+      "description": "mariadb password config",
+      "type": "string",
+      "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$",
+      "minLength": 8,
+      "maxLength": 30
+    },
+    "slurm_installation_type": {
+      "description":"slurm installation is supported in configless mode or slurm in nfs",
+      "enum":["configless", "nfs_share"]
+    },
+     "restart_slurm_services": {
+      "description": "indicates whether slurm control node services(slurmctld) should be restarted or not and if  restart_slurm_services is set to true, slurmctld services will be restarted on every execution of omnia.yml",
+      "type": "boolean"
+    },
+    "k8s_cni": {
+      "description": "Kubernetes internal network for services",
+      "enum":["calico", "flannel"]
+    },
+    "k8s_service_addresses": {
+      "description": "Kubernetes pod network CIDR for internal network",
+      "type":"string",
+      "pattern":"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
+    },
+    "pod_external_ip_range": {
+      "description": "Kubernetes pod network CIDR for internal network",
+      "type":"string",
+      "pattern":"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)-(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
+    },
+    "run_intel_gaudi_tests": {
+      "description": "Set to true to run validation tests; default will not run the tests.",
+      "type": "boolean"
+    },
+    "csi_powerscale_driver_secret_file_path": {
+      "description": "Absolute file path for the secret.yaml file.",
+      "type": "string",
+      "pattern": "^$|^/?([a-zA-Z0-9_-]+(/?[a-zA-Z0-9_-]+)*)$"
+    },
+    "csi_powerscale_driver_values_file_path": {
+      "description": "File path for the values.yaml file.",
+      "type": "string",
+      "pattern": "^$|^/?([a-zA-Z0-9_-]+(/?[a-zA-Z0-9_-]+)*)$"
+    }
+},
+  "required": [
+     "ansible_config_file_path",
+     "mariadb_password",
+     "slurm_installation_type",
+     "restart_slurm_services",
+     "k8s_cni",
+     "k8s_service_addresses",
+     "k8s_pod_network_cidr",
+     "pod_external_ip_range",
+     "run_intel_gaudi_tests"]
+}

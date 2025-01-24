@@ -1,0 +1,315 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Telemetry Configuration",
+  "type": "object",
+  "properties": {
+    "idrac_telemetry_support": {
+      "type": "boolean"
+    },
+    "omnia_telemetry_support": {
+      "type": "boolean"
+    },
+    "visualization_support": {
+      "type": "boolean"
+    },
+    "k8s_prometheus_support": {
+      "type": "boolean"
+    },
+    "prometheus_scrape_interval": {
+      "type": "integer",
+      "minimum": 15
+    },
+    "prometheus_gaudi_support": {
+      "type": "boolean"
+    },
+    "pod_external_ip_range": {
+      "description": "Kubernetes pod network CIDR for internal network",
+      "type": "string",
+      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)-(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
+    },
+    "k8s_cni": {
+      "type": "string",
+      "enum": [
+        "calico",
+        "flannel"
+      ]
+    },
+    "k8s_service_addresses": {
+      "description": "Kubernetes pod network CIDR for internal network",
+      "type": "string",
+      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
+    },
+    "k8s_pod_network_cidr": {
+      "type": "string",
+      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
+    },
+    "timescaledb_user": {
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 2,
+          "pattern": "^[^\\-\\'\\\"\\\\]*$"
+        }
+      ]
+    },
+    "timescaledb_password": {
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 2,
+          "pattern": "^[^\\-\\'\\\"@\\\\]*$"
+        }
+      ]
+    },
+    "idrac_username": {
+      "type": "string",
+      "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$"
+    },
+    "idrac_password": {
+      "type": "string",
+      "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$"
+    },
+    "mysqldb_user": {
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 2,
+          "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$"
+        }
+      ]
+    },
+    "mysqldb_password": {
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 2,
+          "pattern": "^(?:[^\\-\\'\\\"@\\\\]*)?$"
+        }
+      ]
+    },
+    "mysqldb_root_password": {
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 2,
+          "pattern": "^(?:[^\\-\\'\\\"@\\\\]*)?$"
+        }
+      ]
+    },
+    "omnia_telemetry_collection_interval": {
+      "type": "integer",
+      "minimum": 60,
+      "maximum": 3600
+    },
+    "collect_regular_metrics": {
+      "type": "boolean"
+    },
+    "collect_health_check_metrics": {
+      "type": "boolean"
+    },
+    "collect_gpu_metrics": {
+      "type": "boolean"
+    },
+    "fuzzy_offset": {
+      "type": "integer",
+      "minimum": 60
+    },
+    "metric_collection_timeout": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "grafana_username": {
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 5,
+          "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$"
+        }
+      ]
+    },
+    "grafana_password": {
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 5,
+          "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$"
+        }
+      ]
+    },
+    "mount_location": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "pod_external_ip_range",
+    "timescaledb_user",
+    "timescaledb_password"
+  ],
+  "dependencies": {
+    "idrac_telemetry_support": {
+      "properties": {
+        "idrac_username": {
+          "type": "string",
+          "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$"
+        },
+        "idrac_password": {
+          "type": "string",
+          "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$"
+        }
+      },
+      "required": [
+        "idrac_username",
+        "idrac_password"
+      ]
+    },
+    "omnia_telemetry_support": {
+      "properties": {
+        "omnia_telemetry_collection_interval": {
+          "type": "integer"
+        },
+        "fuzzy_offset": {
+          "type": "integer"
+        },
+        "metric_collection_timeout": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "omnia_telemetry_collection_interval",
+        "fuzzy_offset",
+        "metric_collection_timeout"
+      ],
+      "if": {
+        "properties": {
+          "omnia_telemetry_support": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "collect_regular_metrics",
+          "collect_health_check_metrics",
+          "collect_gpu_metrics"
+        ],
+        "properties": {
+          "collect_regular_metrics": {
+            "type": "boolean"
+          },
+          "collect_health_check_metrics": {
+            "type": "boolean"
+          },
+          "collect_gpu_metrics": {
+            "type": "boolean"
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "collect_regular_metrics": {
+                "const": true
+              }
+            },
+            "required": [
+              "collect_regular_metrics"
+            ]
+          },
+          {
+            "properties": {
+              "collect_health_check_metrics": {
+                "const": true
+              }
+            },
+            "required": [
+              "collect_health_check_metrics"
+            ]
+          },
+          {
+            "properties": {
+              "collect_gpu_metrics": {
+                "const": true
+              }
+            },
+            "required": [
+              "collect_gpu_metrics"
+            ]
+          },
+          {
+            "not": {
+              "required": [
+                "collect_regular_metrics",
+                "collect_health_check_metrics",
+                "collect_gpu_metrics"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "visualization_support": {
+      "properties": {
+        "grafana_username": {
+          "type": "string",
+          "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$"
+        },
+        "grafana_password": {
+          "type": "string",
+          "pattern": "^(?:[^\\-\\'\\\"\\\\]*)?$"
+        },
+        "mount_location": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "grafana_username",
+        "grafana_password",
+        "mount_location"
+      ],
+      "if": {
+        "properties": {
+          "visualization_support": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "grafana_username",
+          "grafana_password",
+          "mount_location"
+        ],
+        "properties": {
+          "grafana_username": {
+            "minLength": 5,
+            "type": "string"
+          },
+          "grafana_password": {
+            "minLength": 5,
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

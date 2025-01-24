@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "iso_file_path": {
+      "type": "string",
+      "description": "Path to the ISO file."
+    },
+    "node_name": {
+      "type": "string",
+      "description": "Name of the node.",
+      "pattern": "^[a-zA-Z0-9._-]+$"
+    },
+    "domain_name": {
+      "type": "string",
+      "description": "Domain name.",
+      "pattern": "^[a-zA-Z0-9.-]+$"
+    },
+    "pxe_mapping_file_path": {
+      "type": "string",
+      "description": "Path to the PXE mapping file."
+    },
+    "enable_switch_based": {
+      "type": "boolean",
+      "description": "Flag to enable switch-based configuration."
+    },
+    "switch_based_details": {
+      "type": "array",
+      "description": "Details of the switch-based configuration.",
+      "items": {
+        "type": "object",
+        "required": [
+          "ip",
+          "ports"
+        ]
+      }
+    },
+    "disk_partition": {
+      "type": "array",
+      "description": "Disk partition details.",
+      "items": {
+        "type": "object",
+        "required": [
+          "mount_point",
+          "desired_capacity"
+        ]
+      }
+    },
+    "timezone": {
+      "type": "string",
+      "description": "Timezone setting.",
+      "default": "GMT"
+    },
+    "language": {
+      "type": "string",
+      "description": "Language setting.",
+      "default": "en-US"
+    },
+    "default_lease_time": {
+      "type": "string",
+      "description": "Default lease time for DHCP.",
+      "pattern": "^[0-9]+$",
+      "default": "86400"
+    },
+    "ntp_support": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "iso_file_path",
+    "node_name",
+    "domain_name",
+    "pxe_mapping_file_path",
+    "enable_switch_based",
+    "disk_partition",
+    "timezone",
+    "language",
+    "default_lease_time",
+    "ntp_support"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "enable_switch_based": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "switch_based_details": {
+            "type": "array",
+            "description": "Details of the switch-based configuration.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ip": {
+                  "type": "string",
+                  "description": "IP address of the switch.",
+                  "format": "ipv4"
+                },
+                "ports": {
+                  "type": "string",
+                  "description": "Ports on the switch. Format can be '1-48', '49:3', '50', or a combination.",
+                  "pattern": "^(\\d+(-\\d+)?|\\d+:\\d+)(,(\\d+(-\\d+)?|\\d+:\\d+))*$"
+                }
+              },
+              "required": [
+                "ip",
+                "ports"
+              ]
+            }
+          }
+        },
+        "required": [
+          "switch_based_details"
+        ]
+      },
+      "else": {
+        "properties": {
+          "switch_based_details": {
+            "type": "array",
+            "description": "Details of the switch-based configuration.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ip": {
+                  "description": "IP address of the switch.",
+                  "type": "null"
+                },
+                "ports": {
+                  "type": "string",
+                  "description": "Ports on the switch. Format can be '1-48', '49:3', '50', or a combination.",
+                  "enum": [
+                    ""
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
