@@ -13,8 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Set the OIM node hostname and domain name
-  ansible.builtin.include_tasks: set_oim_hostname.yml
+- name: Set fact for the OIM node hostname and domain name
+  ansible.builtin.set_fact:
+    oim_domain_name: "{{ hostvars['oim_host']['oim_domain_name'] }}"
+    oim_hostname: "{{ hostvars['oim_host']['oim_hostname'] }}"
 
-- name: Enter oim details in cluster.nodeinfo table
-  ansible.builtin.include_tasks: oim_details_db.yml
+- name: Add hosts file entry
+  ansible.builtin.lineinfile:
+    path: "{{ hosts_file_path }}"
+    line: "{{ pxe_nic_ip }} {{ oim_hostname }}"
+    state: present
+    mode: "{{ hosts_file_mode }}"
