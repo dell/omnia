@@ -79,7 +79,7 @@
     oim_hostname: "{{ hostname_result.stdout }}"
 
 - name: Check if hosts_file_path entry for oim_hostname is present
-  ansible.builtin.shell: grep -q "{{ oim_hostname }}" "{{ hosts_file_path }}"
+  ansible.builtin.shell: grep -q "{{ pxe_nic_ip }} {{ oim_hostname }}" "{{ hosts_file_path }}"
   register: oim_hostname_entry_present
 
 - name: Add hosts file entry
