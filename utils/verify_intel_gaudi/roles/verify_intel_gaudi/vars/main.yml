@@ -37,6 +37,8 @@ verify_intel_gaudi_habana_tests:
   rdma_core_root: "/opt/habanalabs/rdma-core/src"
   rdma_core_lib: "/opt/habanalabs/rdma-core/src/build/lib"
   habanalabs_hlthunk_tests_bin_path: "/opt/habanalabs/src/hl-thunk/tests"
+  gaudi3_qual_bin_path: "/opt/habanalabs/qual/gaudi3/bin"
+  gaudi2_qual_bin_path: "/opt/habanalabs/qual/gaudi2/bin"
   targz_permission: "644"
 
 verify_intel_gaudi_habana_extra:

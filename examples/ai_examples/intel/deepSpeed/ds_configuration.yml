@@ -14,7 +14,7 @@ spec:
       template:
         spec:
           containers:
-            - image: vault.habana.ai/gaudi-docker/1.18.0/ubuntu22.04/habanalabs/pytorch-installer-2.4.0:latest
+            - image: vault.habana.ai/gaudi-docker/1.19.1/ubuntu22.04/habanalabs/pytorch-installer-2.5.1:latest
               name: gaudi-llm-ds-ft-launcher
               env:
                 - name: HF_HOME
@@ -49,7 +49,7 @@ spec:
                   sed -i '194s|deepspeed|deepspeed --force_multi|' optimum/habana/distributed/distributed_runner.py;
                   pip install .;
                   pip install -r examples/language-modeling/requirements.txt;
-                  pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.18.0;
+                  pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.19.0;
 
                   mpirun --npernode 1 \
                     --tag-output \
@@ -79,7 +79,7 @@ spec:
 
                     pip install .
                     pip install -r examples/language-modeling/requirements.txt
-                    pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.18.0
+                    pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.19.0
                     ';
 
                     cd /optimum-habana/examples/language-modeling/;
@@ -127,7 +127,7 @@ spec:
         spec:
           hostIPC: true
           containers:
-            - image: vault.habana.ai/gaudi-docker/1.18.0/ubuntu22.04/habanalabs/pytorch-installer-2.4.0:latest
+            - image: vault.habana.ai/gaudi-docker/1.19.1/ubuntu22.04/habanalabs/pytorch-installer-2.5.1:latest
               name: gaudi-llm-ds-ft-worker
               resources:
                 limits:
