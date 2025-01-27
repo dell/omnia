@@ -28,7 +28,7 @@
     - name: Decrypt provision_credentials_config.yml
       ansible.builtin.include_role:
         name: discovery_validations/common
-        tasks_from: encrypt_provision_credentials_config.yml
+        tasks_from: decrypt_provision_credentials_config.yml
 
 - name: Validate discovery parameters
   hosts: omnia_provision

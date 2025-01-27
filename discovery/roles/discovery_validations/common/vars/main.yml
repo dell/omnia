@@ -13,18 +13,6 @@
 #  limitations under the License.
 ---
 
-# Usage: package_installation.yml
-python_version: "{{ ansible_python_interpreter }}"
-postgres_python_package: psycopg2-binary
-requests_python_package: requests
-pyarrow_python_package: pyarrow
-pandas_python_package: pandas
-passlib_python_package: passlib
-netaddr_pip_package: netaddr
-pexpect_pip_package: pexpect
-max_retries: 10
-commentedconfigparser_python_package: "commented-configparser"
-
 # Usage: main.yml
 provision_validation_vars:
   - "{{ role_path }}/../mapping/vars/main.yml"
@@ -63,11 +51,12 @@ ansible_vault_search_key: "$ANSIBLE_VAULT;"
 provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
 spec_syntax_fail_msg: "Failed. Syntax errors present in either network_spec.yml or server_spec.yml. Fix the errors and re-run."
 
-# Usage: include_provision_credentials_config.yml
+# Usage: decrypt_provision_credentials_config.yml, encrypt_provision_credentials_config.yml
 provision_credentials_config_filename: "{{ role_path }}/../../../../input/provision_config_credentials.yml"
 provision_credentials_vault_path: "{{ role_path }}/../../../../input/.provision_credential_vault_key"
 provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
 conf_file_mode: "0644"
+selinux_context: "selisystem_u:object_r:container_file_t:s0"
 
 # Usage: include_local_repo_config.yml
 local_repo_config_file: "{{ role_path }}/../../../../input/local_repo_config.yml"
