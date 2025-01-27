@@ -23,13 +23,12 @@
         ansible_host: 'localhost'
         ansible_port: "2223"
         groups: 'omnia_provision'
-        ansible_python_interpreter: "python3"
+        ansible_python_interpreter: "python3.11"
 
 - name: Prepare Omnia Infrastructure Manager for provisioning nodes
   hosts: omnia_provision
   connection: ssh
   roles:
     - role: provision_validation
-    - role: ../prepare_oim/roles/pre_requisite  # noqa: role-name[path]
     - role: mapping_provision
     - role: mtms_provision
