@@ -26,7 +26,7 @@
   when: not metadata_status.stat.exists
 
 - name: Provide permission to metadata.yml
-  ansible.builtin.command: chcon {{ selinux_context }} {{ provision_credentials_vault_path }}
+  ansible.builtin.command: chcon {{ selinux_context }} {{ meta_path }}
   changed_when: true
   when: not metadata_status.stat.exists
 
