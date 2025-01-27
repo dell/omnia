@@ -19,6 +19,7 @@ ipa_admin_username: admin
 # Usage: install_packages.yml
 ipa_server_packages:
   - bind
+  - ipa-server
   - bind-dyndb-ldap
   - ipa-server-dns
   - freeipa-server
@@ -30,5 +31,6 @@ resolv_file_mode: '0644'
 
 ipa_server_packages_rhel:
   - bind
+  - ipa-server
   - ipa-server-dns
   - freeipa-server

@@ -56,9 +56,9 @@
           register: install_ipa_client
           when:
             - ( ansible_distribution | lower == os_centos )
-            - ( ansible_distribution_version < os_version )
+            - ( ansible_distribution_version < os_version_eight )
 
-        - name: Install ipa client in RHEL 8 or Rocky 8(It may take 5-10 mins)
+        - name: Install ipa client in RHEL or Rocky (It may take 5-10 mins)
           ansible.builtin.command: >-
             ipa-client-install --domain '{{ required_domain_name }}' --server '{{ required_server_hostname }}'
             --principal admin --password '{{ required_ipa_admin_pwd }}' --force-join --enable-dns-updates --no-ntp --mkhomedir -U
@@ -69,7 +69,7 @@
             - ( ansible_distribution | lower == os_centos ) or
               ( ansible_distribution | lower == os_rocky ) or
               ( ansible_distribution | lower == os_redhat )
-            - ( ansible_distribution_version >= os_version )
+            - ( ansible_distribution_version >= os_version_eight )
       rescue:
         - name: Install ipa client failed
           ansible.builtin.fail:
