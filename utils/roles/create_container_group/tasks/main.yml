@@ -19,7 +19,7 @@
     ansible_host: "localhost"
     ansible_port: "{{ oim_host_port }}"
     groups: "{{ oim_host_group }}"
-  tags: oim
+  when: oim_group | default(false) | bool
 
 - name: Create {{ provision_container_name }} group
   ansible.builtin.add_host:
@@ -28,7 +28,7 @@
     ansible_port: "{{ provision_container_port }}"
     groups: "{{ provision_container_name }}"
     ansible_python_interpreter: "{{ python_version }}"
-  tags: omnia_provision
+  when: omnia_provision_group | default(false) | bool
 
 - name: Create {{ kubespray_container_name }} group
   ansible.builtin.add_host:
@@ -37,4 +37,4 @@
     ansible_port: "{{ kubespray_container_port }}"
     groups: "{{ kubespray_container_name }}"
     ansible_python_interpreter: "{{ python_version }}"
-  tags: omnia_kubespray
+  when: omnia_kubespray_group | default(false) | bool
