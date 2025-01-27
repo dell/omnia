@@ -29,6 +29,7 @@ postgresql_service_ubuntu: "postgresql"
 oim_os_redhat: "redhat"
 oim_os_rocky: "rocky"
 oim_os_ubuntu: "ubuntu"
+oim_os_fedora: "fedora"
 xcat_path: /opt/xcat/bin
 postgres_install_fail_msg: |
   "Failed. postgresql or xcatd services not running.

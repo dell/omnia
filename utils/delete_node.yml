@@ -13,15 +13,21 @@
 #  limitations under the License.
 ---
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: check_venv.yml
-  when: not ( check_venv_executed | default(false) | bool )
+- name: Create provision container group
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    omnia_provision_group: true
 
 - name: Delete node
   hosts: localhost
-  connection: ssh
+  connection: local
   roles:
     - { role: node_deletion/user_confirmation } # noqa: role-name[path]
-    - { role: servicetag_host_mapping }
     - { role: common, tags: 'credentials_config' }
+   
+- name: Delete node
+  hosts: omnia_provision
+  connection: ssh
+  roles:
+    - { role: servicetag_host_mapping }
     - { role: node_deletion/delete_node } # noqa: role-name[path]
