@@ -18,6 +18,15 @@
   vars:
     omnia_provision_group: true
 
+- name: Decrypyt provision_credentials_config.yml
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Decrypt provision_credentials_config.yml
+      ansible.builtin.include_role:
+        name: discovery_validations/common
+        tasks_from: decrypt_provision_credentials_config.yml
+
 - name: Validate discovery parameters
   hosts: omnia_provision
   connection: ssh
