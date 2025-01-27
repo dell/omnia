@@ -15,9 +15,9 @@
 
 # Usage: main.yml
 python_version: "python3.11"
-oim_port: "22"
-oim_group: "oim"
+oim_host_port: "22"
+oim_host_group: "oim"
 provision_container_port: "2223"
-provision_container_group: "omnia_provision"
+provision_container_name: "omnia_provision"
 kubespray_container_port: "2224"
-kubespray_container_group: "omnia_kubespray"
+kubespray_container_name: "omnia_kubespray"

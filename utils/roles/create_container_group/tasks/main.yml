@@ -13,12 +13,12 @@
 #  limitations under the License.
 ---
 
-- name: Create {{ oim_group }} group
+- name: Create {{ oim_host_group }} group
   ansible.builtin.add_host:
-    hostname: "{{ oim_group }}"
+    hostname: "{{ oim_host_group }}"
     ansible_host: "localhost"
-    ansible_port: "{{ oim_port }}"
-    groups: "{{ oim_group }}"
+    ansible_port: "{{ oim_host_port }}"
+    groups: "{{ oim_host_group }}"
   tags: oim
 
 - name: Create {{ provision_container_name }} group

@@ -14,7 +14,7 @@
 ---
 
 - name: Create provision container group
-  ansible.builtin.import_playbook: create_container_group.yml
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
   tags: omnia_provision
 
 - name: Validate discovery parameters
