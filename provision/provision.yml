@@ -13,17 +13,11 @@
 # limitations under the License.
 ---
 
-- name: Create group for provision container
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Create omnia_provision group
-      ansible.builtin.add_host:
-        hostname: 'omnia_provision'
-        ansible_host: 'localhost'
-        ansible_port: "2223"
-        groups: 'omnia_provision'
-        ansible_python_interpreter: "python3.11"
+- name: Create provision container group
+  when: provision_group_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    omnia_provision_group: true
 
 - name: Prepare Omnia Infrastructure Manager for provisioning nodes
   hosts: omnia_provision

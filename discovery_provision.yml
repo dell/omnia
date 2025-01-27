@@ -13,11 +13,20 @@
 # limitations under the License.
 ---
 
+- name: Create provision container group
+  ansible.builtin.import_playbook: utils/create_container_group.yml
+  vars:
+    omnia_provision_group: true
+
 - name: Set flag
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
+    - name: Set provision_group_status
+      ansible.builtin.set_fact:
+        provision_group_status: true
+
     - name: Set inventory_status
       ansible.builtin.set_fact:
         inventory_status: true
