@@ -56,7 +56,7 @@ provision_credentials_config_filename: "{{ role_path }}/../../../../input/provis
 provision_credentials_vault_path: "{{ role_path }}/../../../../input/.provision_credential_vault_key"
 provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
 conf_file_mode: "0644"
-selinux_context: "selisystem_u:object_r:container_file_t:s0"
+selinux_context: "system_u:object_r:container_file_t:s0"
 
 # Usage: include_local_repo_config.yml
 local_repo_config_file: "{{ role_path }}/../../../../input/local_repo_config.yml"
