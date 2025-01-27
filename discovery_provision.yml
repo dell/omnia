@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,27 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: utils/check_venv.yml
-  when: not ( check_venv_executed | default(false) | bool )
-
-- name: Check if package manager is not locked
-  ansible.builtin.import_playbook: utils/check_package_lock.yml
-  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
 
 - name: Set flag
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-    - name: Set flag to indicate check_venv.yml has been executed
-      ansible.builtin.set_fact:
-        check_venv_executed: true
-
-    - name: Set flag to indicate check_package_lock.yml has been executed
-      ansible.builtin.set_fact:
-        apt_lock_status: true
-    
     - name: Set inventory_status
       ansible.builtin.set_fact:
         inventory_status: true
@@ -46,21 +31,12 @@
         name: utils/server_spec_update/roles/server_spec_validation
       when: inventory_status | default(false) | bool
 
-- name: Validate discovery parameters                            # noqa:role-name[path]
-  hosts: localhost
-  connection: local
-  roles:
-    - discovery/roles/discovery_validations/common
-
-- name: Prepare Omnia Infrastructure Manager for basic things
-  ansible.builtin.import_playbook: prepare_oim/prepare_oim.yml      # noqa:role-name[path]
-
 - name: Discover the nodes
   ansible.builtin.import_playbook: discovery/discovery.yml       # noqa:role-name[path]
 
-- name: Server spec configuration
-  ansible.builtin.import_playbook: utils/server_spec_update/server_spec_update.yml   # noqa:role-name[path]
-  when: inventory_status | default(false) | bool
+#- name: Server spec configuration
+#  ansible.builtin.import_playbook: utils/server_spec_update/server_spec_update.yml   # noqa:role-name[path]
+#  when: inventory_status | default(false) | bool
 
 - name: Provision nodes
   ansible.builtin.import_playbook: provision/provision.yml       # noqa:role-name[path]

@@ -13,22 +13,9 @@
 # limitations under the License.
 ---
 
-- name: Create group for provision container
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Create omnia_provision group
-      ansible.builtin.add_host:
-        hostname: 'omnia_provision'
-        ansible_host: 'localhost'
-        ansible_port: "2223"
-        groups: 'omnia_provision'
-        ansible_python_interpreter: "python3.11"
-
-    - name: Decrypt provision_credentials_config.yml
-      ansible.builtin.include_role:
-        name: discovery_validations/common
-        tasks_from: decrypt_provision_credentials_config.yml
+- name: Create provision container group
+  ansible.builtin.import_playbook: create_container_group.yml
+  tags: omnia_provision
 
 - name: Validate discovery parameters
   hosts: omnia_provision
