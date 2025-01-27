@@ -28,7 +28,7 @@ community.general ansible,GNU-General Public License v3.0,Ansible Community Gene
 cri-o,Apache 2.0,Container service,1.21
 OpenSM,GNU-General Public License v2.0,Provides an implementation for InfiniBand Subnet Manager and Administrator to initialize IB hardware.,3.3.21
 omsdk,Apache 2.0,Dell OpenManage Python SDK (OMSDK) is a python library that helps developers and customers to automate the lifecycle management of Dell PowerEdge servers,1.2.518
-freeIPA,GNU-General Public License v3.0,"FreeIPA is an integrated security information management solution combining Linux (Fedora), 389 Directory Server, MIT Kerberos, NTP, DNS, and Dogtag (Certificate System)",1.9.2
+freeIPA,GNU-General Public License v3.0,"FreeIPA is an integrated security information management solution combining Linux (Fedora), 389 Directory Server, MIT Kerberos, NTP, DNS, and Dogtag (Certificate System)",4.9.11
 bind-dyndb-ldap,GNU-General Public License v2.0,Dynamic LDAP back-end is a plugin for BIND that provides  back-end capabilities to an LDAP database,11.6.4
 prometheus-slurm-exporter,GNU-General Public License v3,Prometheus collector and exporter for metrics extracted from the Slurm resource scheduling system.,0.20.0
 prometheus,Apache 2.0,"Open-source monitoring system with a dimensional data model, flexible query language, efficient time series database and modern alerting approach.",2.23.0
