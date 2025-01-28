@@ -1,6 +1,14 @@
 Releases
 ========
 
+1.7.1
+-------
+
+* Ubuntu 24.04 support
+* RHEL 9.4 support
+* xCAT containerization
+* Input validator
+
 1.7
 -----
 
