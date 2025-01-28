@@ -21,7 +21,7 @@ omnia_version_file_absent: "Omnia version file is not present in provided instal
 discovery_execution_req: "discovery_and_provsion.yml is not executed on the Omnia Infrastructure Manager, Please follow documentation for fresh installation."
 already_upgraded: "Current installed omnia version is same as version to be upgraded."
 
-meta_path: "/opt/omnia/.data/metadata.yml"
+meta_path: "/opt/omnia/.data/provision_metadata.yml"
 installed_omnia_version_path: "{{ installed_omnia_path }}/.metadata/omnia_version"
 omnia_upgrade_version_path: "../../../../.metadata/omnia_version"
 

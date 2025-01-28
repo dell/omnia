@@ -48,7 +48,7 @@ fail_static_ip_range: "Failed, Network static overlaps with"
 fail_cidr_ip_range: "Failed, Cidr overlaps with"
 
 # Usage: validate_admin_bmc_nic.yml
-meta_path: "/opt/omnia/.data/metadata.yml"
+meta_path: "/opt/omnia/.data/provision_metadata.yml"
 fail_msg_metadata_missing: "Failed, discovery_provision.yml not executed hence metadata is missing. Execute discovery_provision.yml playbook and run again."
 fail_msg_invalid_metadata: "Failed. Invalid entries in metadata.yml. Execute discovery_provision.yml playbook and run again."
 

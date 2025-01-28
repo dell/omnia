@@ -13,6 +13,18 @@
 # limitations under the License.
 ---
 
+- name: Check for service folder existsence
+  ansible.builtin.stat:
+    path: "{{ omnia_service_dir }}"
+  register: service_folder_status
+
+- name: Create service folder if it doesn't exists
+  ansible.builtin.file:
+    path: "{{ omnia_service_dir }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+  when: not service_folder_status.stat.exists
+
 - name: Copy the shell script to /home directory
   ansible.builtin.template:
     src: "{{ omnia_service_shell_template }}"

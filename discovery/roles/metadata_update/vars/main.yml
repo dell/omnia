@@ -14,6 +14,6 @@
 ---
 
 # Usage: update_metadata.yml
-meta_path: "/opt/omnia/.data/metadata.yml"
+meta_path: "/opt/omnia/.data/provision_metadata.yml"
 conf_file_mode: "0644"
 selinux_context: "system_u:object_r:container_file_t:s0"

@@ -89,8 +89,8 @@ when ucx/openmpi are installed on cluster nodes."
 nfs_client_params_benchmarks_success_msg: "Entry found in nfs_client_params with slurm_share or k8s_share as true"
 
 # Usage: include_provision_metadata.yml
-provision_metadata_path: "/opt/omnia/.data/metadata.yml"
-metadata_missing_fail_msg: "Failed. Missing /opt/omnia/.data/metadata.yml in Omnia Infrastructure Manager.
+provision_metadata_path: "/opt/omnia/.data/provision_metadata.yml"
+metadata_missing_fail_msg: "Failed. Missing /opt/omnia/.data/provision_metadata.yml in Omnia Infrastructure Manager.
 Run discovery_provision.yml before executing omnia.yml/storage.yml playbook for creating metdata.yml file."
 
 # Usage: k8s_validations.yml

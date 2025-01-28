@@ -124,7 +124,7 @@ db_schema_utility: "{{ installed_omnia_path }}/telemetry/roles/omnia_telemetry_p
 
 # Usage: main.yml
 omnia_inv_path: /opt/omnia/omnia_inventory/
-meta_path: "/opt/omnia/.data/metadata.yml"
+meta_path: "/opt/omnia/.data/provision_metadata.yml"
 
 # Usage: restore_nerdctl.yml
 temp_download_dir: "/tmp"
