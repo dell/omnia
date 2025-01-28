@@ -28,9 +28,6 @@ if [ ! -d "$omnia_path" ]; then
     exit
 fi
 
-# The Omnia version. This variable is used to specify the version of the codebase.
-OMNIA_VERSION="pub/new_architecture"
-
 # Print prompt for the root password
 echo -e "${BLUE}Please provide root password:${NC}"
 
