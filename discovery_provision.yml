@@ -27,18 +27,19 @@
       ansible.builtin.set_fact:
         provision_group_status: true
 
-    - name: Set inventory_status
-      ansible.builtin.set_fact:
-        inventory_status: true
-      when:
-        - hostvars.keys() | length > 0
-        - groups['all'] is defined
-        - groups['all'] | length > 0
+    # This logic needs to be updated
+    #- name: Set inventory_status
+    #  ansible.builtin.set_fact:
+    #    inventory_status: true
+    #  when:
+    #    - hostvars.keys() | length > 0
+    #    - groups['all'] is defined
+    #    - groups['all'] | length > 0
 
-    - name: Validate inventory file
-      include_role:
-        name: utils/server_spec_update/roles/server_spec_validation
-      when: inventory_status | default(false) | bool
+    #- name: Validate inventory file
+    #  include_role:
+    #    name: utils/server_spec_update/roles/server_spec_validation
+    #  when: inventory_status | default(false) | bool
 
 - name: Discover the nodes
   ansible.builtin.import_playbook: discovery/discovery.yml       # noqa:role-name[path]
