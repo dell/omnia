@@ -50,15 +50,16 @@ if [ "$passwd" != "$cnf_passwd" ]; then
 fi
 
 hashed_passwd=$(openssl passwd -1 $passwd)
-ssh_key_file="/root/.ssh/id_rsa"
+ssh_key_file="/root/.ssh/oim_rsa"
 
 if [ -f "$ssh_key_file" ]; then
-    echo -e "${BLUE}Skipping generating new ssh key pair.${NC}"
+    echo -e "\n${BLUE}Skipping generating new ssh key pair.${NC}"
 else
-    echo -e "${GREEN}Generating a new ssh key pair.${NC}"
+    echo -e "\n${GREEN}Generating a new ssh key pair.${NC}"
     ssh-keygen -t rsa -b 4096 -C "omnia_oim" -q -N '' -f /root/.ssh/oim_rsa
+    eval "$(ssh-agent -s)"
+    ssh-add ~/.ssh/oim_rsa
 fi
-
 
 # Create the ssh configuration directory if it does not exist.
 echo -e "${GREEN}Creating the ssh configuration directory if it does not exist.${NC}"
@@ -66,14 +67,14 @@ mkdir -p "$omnia_path/omnia/ssh_config/.ssh"
 
 # Copy the ssh private key to the omnia shared path.
 echo -e "${GREEN}Copying the ssh private key to the omnia shared path.${NC}"
-cp $ssh_key_file "$omnia_path/omnia/ssh_config/.ssh/id_rsa"
+cp $ssh_key_file "$omnia_path/omnia/ssh_config/.ssh/oim_rsa"
 
 # Copy the ssh public key to the omnia shared path.
 echo -e "${GREEN}Copying the ssh public key to the omnia shared path.${NC}"
-cp $ssh_key_file.pub "$omnia_path/omnia/ssh_config/.ssh/id_rsa.pub"
+cp $ssh_key_file.pub "$omnia_path/omnia/ssh_config/.ssh/oim_rsa.pub"
 
 # Get the ssh public key.
-ssh_public_key="$(cat /root/.ssh/id_rsa.pub)"
+ssh_public_key="$(cat /root/.ssh/oim_rsa.pub)"
 
 
 # Add ssh public key to the authorized_keys.
@@ -123,26 +124,20 @@ systemctl start podman.socket
 # Print a success message after enabling and starting the podman socket
 echo -e "${GREEN}Podman socket has been enabled and started.${NC}"
 
-#------------------------------------------------------------------------------------------------
-# # Print message for pulling the Omnia core docker image.
-# echo -e "${BLUE}Pulling the Omnia core image.${NC}"
+# Print message for pulling the Omnia core docker image.
+echo -e "${BLUE}Pulling the Omnia core image.${NC}"
 
-# # Pull the Omnia core docker image.
-# podman pull omnia_core:latest
+# Pull the Omnia core docker image.
+podman pull omnia_core:latest
 
-# # Print success message
-# echo -e "${GREEN}Omnia core image has been pulled.${NC}"
-#------------------------------------------------------------------------------------------------
-
-# Print message for building the Omnia core docker image.
-echo -e "${GREEN}Building the Omnia core image.${NC}"
-podman build --build-arg OMNIA_VERSION="$OMNIA_VERSION" -t omnia_core:latest -f omnia_core
-
+# Print success message
+echo -e "${GREEN}Omnia core image has been pulled.${NC}"
 
 # Print message for running the Omnia core docker image.
 echo -e "${GREEN}Running the Omnia core image.${NC}"
 podman run -dt --hostname omnia_core --restart=always -v $omnia_path/omnia:/opt/omnia:z -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z -e ROOT_PASSWORD_HASH=$passwd --net=host --name omnia_core --cap-add=CAP_AUDIT_WRITE --replace omnia_core:latest
 
+mkdir -p "$omnia_path/omnia/.data"
 oim_metadata_file="$omnia_path/omnia/.data/oim_metadata.yml"
 
 if [ ! -f "$oim_metadata_file" ]; then
@@ -165,7 +160,7 @@ echo -e "${GREEN}
            # podman exec -it -u root omnia_core bash
            
            Direct SSH:
-           # ssh localhost -p 2222
+           # ssh root@localhost -p 2222
 
          You are now in the Omnia environment.
 
@@ -176,4 +171,4 @@ ${NC}"
 sleep 2
 
 # Entering Omnia-core container
-ssh localhost -p 2222
+ssh root@localhost -p 2222
