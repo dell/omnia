@@ -24,7 +24,16 @@ jobs:
     name: Ansible Lint # Naming the build is important to use it as a status check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Ansible collections
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install ansible
+          ansible-galaxy collection install dellemc.os10
+          ansible-galaxy collection install community.general
+
       - name: Run ansible-lint
         uses: ansible/ansible-lint@v6.22.0
         with:

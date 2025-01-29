@@ -25,7 +25,6 @@ warn_list:
 
 skip_list:
   - var-naming[no-role-prefix]
-  - syntax-check[unknown-module]
 
 verbosity: 1
 profile: production
