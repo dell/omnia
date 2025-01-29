@@ -2,7 +2,7 @@
 exclude_paths:
   - .git/
   - .github/
-  - accelerator/tests
+  - accelerator/tests/
   - test/
   - utils/test/
   - docs/
@@ -16,6 +16,9 @@ warn_list:
   - meta-no-info
   - meta-incorrect
   - fqcn-builtins
+
+skip_list:
+  - var-naming[no-role-prefix]
 
 verbosity: 1
 profile: production
