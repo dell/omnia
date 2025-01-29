@@ -3,10 +3,12 @@ exclude_paths:
   - .git/
   - .github/
   - accelerator/tests/
+  - network/tests/
   - test/
   - utils/test/
   - docs/
   - test/
+  - platforms/
   - examples/
   - .ansible-lint.yml
   - .readthedocs.yaml
