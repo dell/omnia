@@ -31,7 +31,6 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install ansible
-          ansible-galaxy collection install dellemc.os10
           ansible-galaxy collection install community.general
 
       - name: Run ansible-lint

@@ -10,6 +10,9 @@ exclude_paths:
   - storage/tests/
   - test/
   - utils/test/
+  - utils/obsolete/
+  - utils/cluster/
+  - utils/k8s-upgrade/
   - docs/
   - test/
   - platforms/
