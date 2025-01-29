@@ -8,6 +8,7 @@ exclude_paths:
   - examples/
   - .ansible-lint.yml
   - .readthedocs.yaml
+  - accelerator/tests
 
 warn_list:
   - yaml
