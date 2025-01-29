@@ -33,31 +33,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run ansible-lint
         uses: ansible/ansible-lint@main # or version tag instead of 'main'
-        # targets: |
-        #   /github/workspace/omnia.yml
-        #   /github/workspace/discovery_provision.yml
-        #   /github/workspace/local_repo/local_repo.yml
-        #   /github/workspace/server_spec_update/server_spec_update.yml
-        #   /github/workspace/scheduler/job_based_user_access.yml
-        #   /github/workspace/security/user_passwordless_ssh.yml
-        #   /github/workspace/storage/nfs_sas.yml
-        #   /github/workspace/storage/powervault.yml
-        #   /github/workspace/telemetry/add_node_idrac.yml
-        #   /github/workspace/tools/jupyterhub.yml
-        #   /github/workspace/tools/kserve.yml
-        #   /github/workspace/tools/kubeflow.yml
-        #   /github/workspace/tools/pytorch.yml
-        #   /github/workspace/tools/tensorflow.yml
-        #   /github/workspace/tools/vllm.yml
-        #   /github/workspace/utils/control_plane_cleanup.yml
-        #   /github/workspace/utils/delete_node.yml
-        #   /github/workspace/utils/remove_node_configuration.yml
-        #   /github/workspace/utils/reset_cluster_configuration.yml
-        #   /github/workspace/utils/update_user_repo.yml
-        #   /github/workspace/utils/servicetag_host_mapping.yml
-        #   /github/workspace/utils/software_update/software_update.yml
-        #   /github/workspace/utils/timescaledb_utility/timescaledb_utility.yml
-        #   /github/workspace/utils/ip_rule_assignment/ip_rule_assignment.yml
-        #   /github/workspace/utils/nodeinfo_db/nodeinfo_db.yml
-        #   # [optional]
+        with:
+          path: .
 

@@ -1,0 +1,24 @@
+exclude_paths:
+  - .git
+  - .github
+  - test
+  - utils/test
+  - docs
+  - test
+  - examples
+
+warn_list:
+  - yaml
+  - meta-no-info
+  - meta-incorrect
+  - fqcn-builtins
+
+skip_list:
+  - experimental
+  - no-changed-when
+  - command-instead-of-module
+
+verbosity: 1
+
+# Set the format of lint output
+format: full
