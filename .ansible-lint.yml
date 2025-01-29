@@ -19,6 +19,4 @@ skip_list:
   - command-instead-of-module
 
 verbosity: 1
-
-# Set the format of lint output
-format: full
+profile: production
