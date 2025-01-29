@@ -2,7 +2,7 @@
 exclude_paths:
   - .git/
   - .github/
-  - accelerator/tests/
+  - accelerator/tests
   - test/
   - utils/test/
   - docs/
