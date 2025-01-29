@@ -29,9 +29,6 @@
 - name: Include vars for {{ oim_os }}
   ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
 
-- name: Include network_spec file
-  ansible.builtin.include_tasks: include_network_spec.yml
-
 - name: Include provision configuration variables
   ansible.builtin.include_tasks: include_provision_config.yml
 

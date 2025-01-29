@@ -37,10 +37,6 @@ postgresql_start_fail_msg: "Failed to start postgresql services"
 xcat_start_fail_msg: "Failed to start xcatd services"
 service_retries: 3
 
-# Usage: include_network_spec.yml
-network_spec: "{{ role_path }}/../../../../input/network_spec.yml"
-network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
-
 # Usage: include_provision_config.yml
 spec_file:
   - "{{ role_path }}/../../../../input/network_spec.yml"
@@ -50,11 +46,11 @@ provision_vault_path: "{{ role_path }}/../../../../input/.provision_vault_key"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
 provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
 spec_syntax_fail_msg: "Failed. Syntax errors present in either network_spec.yml or server_spec.yml. Fix the errors and re-run."
+provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
 
 # Usage: decrypt_provision_credentials_config.yml, encrypt_provision_credentials_config.yml
 provision_credentials_config_filename: "{{ role_path }}/../../../../input/provision_config_credentials.yml"
 provision_credentials_vault_path: "{{ role_path }}/../../../../input/.provision_credential_vault_key"
-provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
 conf_file_mode: "0644"
 selinux_context: "system_u:object_r:container_file_t:s0"
 
