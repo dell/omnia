@@ -18,6 +18,7 @@
     validation_status: true
     add_network_status: false
     reassignment_status: false
+    provision_shared_library_path: "{{ provision_shared_library_path }}"
 
 - name: Validate provision container services status
   ansible.builtin.include_tasks: validate_provision_container.yml

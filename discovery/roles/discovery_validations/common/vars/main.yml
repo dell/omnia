@@ -18,6 +18,7 @@ provision_validation_vars:
   - "{{ role_path }}/../mapping/vars/main.yml"
   - "{{ role_path }}/../mtms/vars/main.yml"
   - "{{ role_path }}/../switch_based/vars/main.yml"
+provision_shared_library_path: /opt/omnia/shared_libraries/provision
 
 # Usage: validate_provision_container.yml
 xcatd_service: "xcatd.service"
@@ -89,7 +90,7 @@ admin_params_success_msg: "Successfully validated admin network params."
 admin_params_failure_msg: "Failed. Please provide proper input parameters for admin network in network_spec file."
 admin_uncorrelated_ip_fail_msg: "Failed. admin_uncorrelated_node_start_ip is invalid or not within admin network static range."
 admin_correlation_fail_msg: "Failed. Invalid details provided, correlation_to_admin should true or false."
-validate_ip_within_range: "{{ role_path }}/files/validate_ip_within_range.py"
+validate_ip_within_range: "{{ provision_shared_library_path }}/validation/validate_ip_within_range.py"
 validate_nic_status: "Failed, please check the network interface status should be UP"
 fail_msg_admin_static_netmask_bits: "Failed, Admin static range is not within the admin netmask range."
 admin_nic_netmask_fail_msg: "Failed, Admin nic netmask should be same as netmask in network_spec file."
@@ -106,7 +107,7 @@ bmc_nic_start: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.'
 + pxe_nic_start_range.split('.')[-2] + '.' + pxe_nic_start_range.split('.')[-1] }}"
 bmc_nic_end: "{{ bmc_nic_subnet.split('.')[0] + '.' + bmc_nic_subnet.split('.')[1] + '.'
 + pxe_nic_end_range.split('.')[-2] + '.' + pxe_nic_end_range.split('.')[-1] }}"
-network_address_script: "{{ role_path }}/files/validate_network_address.py"
+network_address_script: "{{ provision_shared_library_path }}/validation/validate_network_address.py"
 reassignment_to_static_failure_msg: "Failed. Invalid details provided, reassignment_to_static should true or false."
 fail_msg_bmc_static_netmask_bits: "Failed, BMC static range is not within the BMC netmask range."
 bmc_range_ip_check_fail_msg: "Failed. : BMC network - static/dynamic ranges should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
@@ -120,15 +121,15 @@ netmask_bits_failure_msg: "Failed. admin and bmc netmask should be same."
 netmask_bits_success_msg: "Validated admin and bmc netmask bits"
 cidr_or_static_range_fail_msg: "Failed. network_spec should have either static_range or CIDR for the network."
 fail_msg_netmask_bits: "Failed. Invalid netmask_bits provided in network_spec file."
-ip_range_netmask_script_script: "{{ role_path }}/files/validate_ip_range_netmask.py"
+ip_range_netmask_script_script: "{{ provision_shared_library_path }}/validation/validate_ip_range_netmask.py"
 mtu_check_fail_msg: "Failed. MTU input variable in network_spec should be in proper integer format."
-validate_cidr: "{{ role_path }}/files/validate_cidr.py"
+validate_cidr: "{{ provision_shared_library_path }}/validation/validate_cidr.py"
 range_ip_check_fail_msg: "Failed. input ip range should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
 fail_static_ip_range: "Failed, Network static overlaps with"
 fail_cidr_ip_range: "Failed, Cidr overlaps with"
 
 # Usage: validate_discovery_params.yml
-validation_range_file: "{{ role_path }}/files/validate_input_ranges.py"
+validation_range_file: "{{ provision_shared_library_path }}/validation/validate_input_ranges.py"
 discovery_mechanism_fail_msg: "Failed. Please provide valid details for any discovery mechanism and re-run the playbook.
 For mapping discovery, provide pxe_mapping_file_path in provision_config.yml.
 For bmc discovery, provide bmc_network details in network_spec.yml and set enable_switch_based to false in provision_config.yml.

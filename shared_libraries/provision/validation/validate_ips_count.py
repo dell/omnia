@@ -11,14 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
 
-# Usage: set_provision_image_mapping.yml
-mapping_xcat_install_success_msg: "nodes configured with osimage successfully for pxe boot.
-Configure PXE and reboot the cluster nodes manually if bmc IP not given in mapping file."
-mapping_set_osimage_warning_msg: "[WARNING] nodeset command is not successful for discoverd nodes using mapping. Error:"
-mapping_node_group: "mapping"
-xcat_sbin_path: /opt/xcat/sbin
-nodeset_nodes_py: "{{ provision_shared_library_path }}/mapping/nodeset_nodes.py"
-python_version: "{{ ansible_python_interpreter }}"
-db_operations_file_path: "../db_operations"
+import ipaddress
+import sys
+
+start_ip=sys.argv[1]
+end_ip=sys.argv[2]
+
+start_ip = ipaddress.ip_address(start_ip)
+end_ip = ipaddress.ip_address(end_ip)
+if start_ip and end_ip:
+    ip_range = ipaddress.summarize_address_range(start_ip, end_ip)
+    count = 0
+    for subnet in ip_range:
+        count += subnet.num_addresses
+    print(count)

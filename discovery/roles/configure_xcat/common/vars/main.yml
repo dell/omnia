@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -44,4 +44,4 @@ xcat_proxy_patch_file:
 python_version: "{{ ansible_python_interpreter }}"
 network_spec_path: "{{ role_path }}/../../../../input/network_spec.yml"
 path_db: "{{ role_path }}/../../db_operations/files"
-delete_misc_networks: "{{ role_path }}/../common/files/delete_networks.py"
+delete_misc_networks: "{{ provision_shared_library_path }}/common/delete_networks.py"

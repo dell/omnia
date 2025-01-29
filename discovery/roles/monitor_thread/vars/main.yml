@@ -21,7 +21,6 @@ omnia_service_shell_file_path: "{{ omnia_service_dir }}/omnia_service_script.sh"
 shell_file_permissions: "0777"
 omnia_service_path: /etc/systemd/system/omnia.service
 service_file_permissions: "0644"
-file_path: "/../db_operations/files"
 omnia_service_shell_template: "{{ role_path }}/templates/omnia_service_script.sh.j2"
 omnia_service_template: "{{ role_path }}/templates/omnia_service.j2"
 
@@ -30,4 +29,4 @@ duplicate_node_cleanup_shell_template: "{{ role_path }}/templates/duplicate_node
 duplicate_node_cleanup_shell_dest: "{{ omnia_service_dir }}/duplicate_node_cleanup_script.sh"
 duplicate_node_cleanup_service_template: "{{ role_path }}/templates/duplicate_node_cleanup.service.j2"
 duplicate_node_cleanup_service_dest: /etc/systemd/system/duplicate_node_cleanup.service
-db_file_path: "{{ role_path }}/../db_operations/files"
+db_file_path: "../db_operations"

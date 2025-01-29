@@ -1,6 +1,6 @@
 #!/bin/sh
 while true
 do
- {{ python_version }} "{{ role_path }}/files/monitor_status.py" "{{ role_path }}" "{{ file_path }}"
+ {{ python_version }} "{{ provision_shared_library_path }}/monitor_thread/monitor_status.py" "{{ db_file_path }}"
  sleep 180
 done

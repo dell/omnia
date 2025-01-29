@@ -14,8 +14,8 @@
 ---
 
 # Usage: service_tag_mapping.yml
-servicetag_node_mapping_script: "{{ role_path }}/files/servicetag_node_mapping.py"
-file_path: "/../../../discovery/roles/db_operations/files/"
+servicetag_node_mapping_script: "{{ provision_shared_library_path }}/common/servicetag_node_mapping.py"
+file_path: "../db_operations"
 python_version: "python3.11"
 
 # Usage: set_kernel_params.yml

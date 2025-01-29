@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 
 # Usage: mapping_provision.yml
 python_version: "{{ ansible_python_interpreter }}"
-rinstall_nodes_py: "{{ role_path }}/files/rinstall_nodes.py"
-prov_db_path: "{{ role_path }}/../../../discovery/roles/db_operations/files"
+rinstall_nodes_py: "{{ provision_shared_library_path }}/mapping/rinstall_nodes.py"
+prov_db_path: "../db_operations"
 mapping_provision_msg: " nodes will be booted automatically. Ensure that IPMI is enabled on them. Remaining nodes,
 initiate manual PXE boot on the remaining nodes mentioned in mapping file."
 
