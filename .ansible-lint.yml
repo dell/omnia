@@ -1,12 +1,12 @@
 exclude_paths:
   - .git/
   - .github/
+  - accelerator/tests/
   - test/
   - utils/test/
   - docs/
   - test/
   - examples/
-  - accelerator/tests/
   - .ansible-lint.yml
   - .readthedocs.yaml
 
@@ -16,10 +16,10 @@ warn_list:
   - meta-incorrect
   - fqcn-builtins
 
-skip_list:
-  - experimental
-  - no-changed-when
-  - command-instead-of-module
+# skip_list:
+#   - experimental
+#   - no-changed-when
+#   - command-instead-of-module
 
 verbosity: 1
 profile: production
