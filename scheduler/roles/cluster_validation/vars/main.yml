@@ -47,7 +47,7 @@ config_vaultname: .omnia_vault_key
 vault_key_permission: "0644"
 min_length: 8
 max_length: 30
-omnia17_k8s_version: '1.29.5'
+omnia17_k8s_version: '1.31.4'
 omnia161_k8s_version: '1.26.12'
 omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
 fail_msg_mariadb_password: "maria_db password not given in correct format."

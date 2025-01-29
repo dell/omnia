@@ -5,7 +5,7 @@
         "package": "csi-powerscale",
         "url": "https://github.com/dell/csi-powerscale.git",
         "type": "git",
-        "version": "v2.11.0"
+        "version": "v2.13.0"
       },
       {
         "package": "external-snapshotter",
@@ -17,11 +17,11 @@
         "package": "helm-charts",
         "url": "https://github.com/dell/helm-charts.git",
         "type": "git",
-        "version": "csi-isilon-2.11.0"
+        "version": "csi-isilon-2.13.0"
       },
       {
         "package": "docker.io/dellemc/csi-isilon",
-        "tag": "v2.11.0",
+        "tag": "v2.13.0",
         "type": "image"
       },
       {
