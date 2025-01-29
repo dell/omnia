@@ -1,3 +1,4 @@
+---
 exclude_paths:
   - .git/
   - .github/
@@ -15,11 +16,6 @@ warn_list:
   - meta-no-info
   - meta-incorrect
   - fqcn-builtins
-
-# skip_list:
-#   - experimental
-#   - no-changed-when
-#   - command-instead-of-module
 
 verbosity: 1
 profile: production
