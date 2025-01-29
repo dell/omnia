@@ -17,21 +17,13 @@ on:
       - release-1.7
       - staging
       - release-1.7.1
-      - pub/new_architecture 
+      - pub/new_architecture
 
 jobs:
   build:
     name: Ansible Lint # Naming the build is important to use it as a status check
     runs-on: ubuntu-latest
     steps:
-        # [required]
-        # Paths to ansible files (i.e., playbooks, tasks, handlers etc..)
-        # or valid Ansible directories according to the Ansible role
-        # directory structure.
-        # If you want to lint multiple ansible files, use the following syntax
-        # targets: |
-        #   playbook_1.yml
-        #   playbook_2.yml
       - uses: actions/checkout@v4
       - name: Run ansible-lint
         uses: ansible/ansible-lint@v6.22.0
