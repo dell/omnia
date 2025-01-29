@@ -5,8 +5,8 @@
 # The image is based on Fedora and uses systemd to start all of the necessary
 # services.
 #
-# This script prompts the user for the persistent volume path and the root
-# password. It then checks if the persistent volume path exists.
+# This script prompts the user for the Omnia shared path and the root
+# password. It then checks if the Omnia shared path exists.
 #
 # The script checks if the ssh key file exists. If it does not exist, a new ssh
 
@@ -16,33 +16,45 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Print prompt for the persistent volume path
+omnia_release="2.0.0.0"
+
+# Print prompt for the Omnia shared path
 echo -e "${BLUE}Please provide Omnia shared path:${NC}"
 
-# Prompt the user for the persistent volume path.
+echo -e "${BLUE}It is recommended to use a NFS share for Omnia shared path. ${NC}"
+echo -e "${BLUE}If you are not using NFS, make sure enough space is available on the disk. ${NC}"
+
+# Prompt the user for the Omnia shared path.
 read -p "Enter: " omnia_path
 
-# Check if the persistent volume path exists.
+# Check if the Omnia shared path exists.
 if [ ! -d "$omnia_path" ]; then
     echo -e "${RED}Omnia shared path does not exist!${NC}"
     exit
 fi
 
-# Print prompt for the root password
-echo -e "${BLUE}Please provide root password:${NC}"
+# Print prompt for the Omnia core root password
+echo -e "${BLUE}Please provide Omnia core root password for accessing container:${NC}"
 
-# Prompt the user for the root password.
+# Prompt the user for the Omnia core root password.
 read -p "Enter: " -s passwd
 
-# Print prompt for the root password confirmation
+# Print prompt for the Omnia core root password confirmation
 echo -e "\n${BLUE}Please confirm password:${NC}"
 
-# Prompt the user for the root password confirmation.
+# Prompt the user for the Omnia core root password confirmation.
 read -s -p "Enter: " cnf_passwd
 
 # Check if the provided passwords match.
 if [ "$passwd" != "$cnf_passwd" ]; then
-    echo -e "${RED}Invalid root password, passwords do not match!${NC}"
+    echo -e "${RED}Invalid Omnia core root password, passwords do not match!${NC}"
+    exit 1
+fi
+
+# Check if the password contains any of the invalid characters
+invalid_chars='[\\|&;`"><*?!$(){}[\]]'
+if [[ "$passwd" =~ $invalid_chars ]]; then
+    echo -e "${RED}Invalid password, passwords must not contain any of these special characters: [\\|&;\`\"><*?!$(){}[\]]${NC}"
     exit 1
 fi
 
@@ -54,8 +66,10 @@ if [ -f "$ssh_key_file" ]; then
 else
     echo -e "\n${GREEN}Generating a new ssh key pair.${NC}"
     ssh-keygen -t rsa -b 4096 -C "omnia_oim" -q -N '' -f /root/.ssh/oim_rsa
-    eval "$(ssh-agent -s)"
-    ssh-add ~/.ssh/oim_rsa
+    {
+        echo "Host *"
+        echo "    IdentityFile ~/.ssh/oim_rsa"
+    } >> ~/.ssh/config
 fi
 
 # Create the ssh configuration directory if it does not exist.
@@ -93,7 +107,7 @@ else
 fi
 
 # Check if the hostname is configured with a domain name.
-if hostname | grep -q '\.'; then
+if hostname -d; then
     echo -e "${BLUE}Hostname is configured with a domain name.${NC}"
 else
     echo -e "${RED}Invalid hostname, hostname is not configured with a domain name!${NC}"
@@ -134,7 +148,16 @@ echo -e "${GREEN}Omnia core image has been pulled.${NC}"
 echo -e "${GREEN}Running the Omnia core image.${NC}"
 podman run -dt --hostname omnia_core --restart=always -v $omnia_path/omnia:/opt/omnia:z -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z -e ROOT_PASSWORD_HASH=$passwd --net=host --name omnia_core --cap-add=CAP_AUDIT_WRITE --replace omnia_core:latest
 
+# Create the .data directory if it does not exist.
+# This is where the oim_metadata.yml file is stored.
+echo -e "${GREEN}Creating the .data directory if it does not exist.${NC}"
 mkdir -p "$omnia_path/omnia/.data"
+
+# Create the $omnia_release directory if it does not exist.
+# This is where the version-specific files are stored.
+echo -e "${GREEN}Creating the $omnia_release directory if it does not exist.${NC}"
+mkdir -p "$omnia_path/omnia/$omnia_release"
+
 oim_metadata_file="$omnia_path/omnia/.data/oim_metadata.yml"
 
 if [ ! -f "$oim_metadata_file" ]; then
@@ -143,7 +166,7 @@ if [ ! -f "$oim_metadata_file" ]; then
         echo "---"
         echo "oim_crt: \"podman\""
         echo "oim_shared_path: $omnia_path"
-        echo "omnia_version: 2.0.0.0"
+        echo "omnia_version: $omnia_release"
         echo "oim_hostname: $(hostname)"
     } >> "$oim_metadata_file"
 fi
