@@ -64,11 +64,11 @@ mkdir -p "$omnia_path/omnia/ssh_config/.ssh"
 
 # Copy the ssh private key to the omnia shared path.
 echo -e "${GREEN}Copying the ssh private key to the omnia shared path.${NC}"
-cp $ssh_key_file "$omnia_path/omnia/ssh_config/.ssh/oim_rsa"
+cp $ssh_key_file "$omnia_path/omnia/ssh_config/.ssh/id_rsa"
 
 # Copy the ssh public key to the omnia shared path.
 echo -e "${GREEN}Copying the ssh public key to the omnia shared path.${NC}"
-cp $ssh_key_file.pub "$omnia_path/omnia/ssh_config/.ssh/oim_rsa.pub"
+cp $ssh_key_file.pub "$omnia_path/omnia/ssh_config/.ssh/id_rsa.pub"
 
 # Get the ssh public key.
 ssh_public_key="$(cat /root/.ssh/oim_rsa.pub)"
