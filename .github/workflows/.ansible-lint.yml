@@ -1,11 +1,11 @@
 exclude_paths:
-  - .git
-  - .github
-  - test
-  - utils/test
-  - docs
-  - test
-  - examples
+  - .git/
+  - .github/
+  - test/
+  - utils/test/
+  - docs/
+  - test/
+  - examples/
 
 warn_list:
   - yaml
