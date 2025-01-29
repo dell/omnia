@@ -25,6 +25,14 @@ jobs:
     # Important: This sets up your GITHUB_WORKSPACE environment variable
     - uses: actions/checkout@v2
 
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
+    - name: Install ansible lint
+      run: pip install ansible-lint==6.22.0
+
     - name: ansible-lint 
       # replace "master" with any valid ref
       uses: ansible/ansible-lint-action@c37fb7b4bda2c8cb18f4942716bae9f11b0dc9bc
@@ -67,8 +75,8 @@ jobs:
         # Arguments to override a package and its version to be set explicitly.
         # Must follow the example syntax.
         override-deps: |
-          ansible==6.7.0
-          ansible-lint==6.13.1
+          ansible==9.5.1
+          ansible-lint==6.22
         # [optional]
         # Arguments to be passed to the ansible-lint
 
