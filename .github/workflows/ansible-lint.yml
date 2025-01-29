@@ -32,7 +32,7 @@ jobs:
         #   playbook_2.yml
       - uses: actions/checkout@v4
       - name: Run ansible-lint
-        uses: ansible/ansible-lint@main # or version tag instead of 'main'
+        uses: ansible/ansible-lint@v6.22.0
         with:
           path: .
 
