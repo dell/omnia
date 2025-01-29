@@ -76,8 +76,7 @@ jobs:
         # Arguments to override a package and its version to be set explicitly.
         # Must follow the example syntax.
         override-deps: |
-          ansible==2.16.13
-          ansible-core==9.5.1
+          ansible==6.7.0
           ansible-lint==6.22
         # [optional]
         # Arguments to be passed to the ansible-lint
