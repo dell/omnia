@@ -34,9 +34,9 @@ jobs:
     - name: Install ansible lint
       run: pip install ansible-lint==6.22.0
 
-    - name: ansible-lint 
+    - name: run-ansible-lint
       # replace "master" with any valid ref
-      uses: ansible/ansible-lint@main
+      uses: ansible/ansible-lint@v6.22.0
       with:
         # [required]
         # Paths to ansible files (i.e., playbooks, tasks, handlers etc..)
