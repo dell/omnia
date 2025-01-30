@@ -31,9 +31,8 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           pip install ansible
-          ansible-galaxy collection install community.general
 
       - name: Run ansible-lint
         uses: ansible/ansible-lint@main
         with:
-          args: --config=.config/ansible-lint.yml
+          args: --config=.config/ansible-lint.yml -r .config/requirements.yml
