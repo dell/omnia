@@ -33,6 +33,6 @@ jobs:
           pip install ansible
 
       - name: Run ansible-lint
-        uses: ansible/ansible-lint@main
+        uses: ansible/ansible-lint@v6.22.0
         with:
           args: --config=.config/ansible-lint.yml -r .config/requirements.yml
