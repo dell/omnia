@@ -22,7 +22,7 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
 
 * Ensure that ``input/network_spec.yml`` file has been updated with all network information in addition to ``admin_network`` and ``bmc_network`` information. Below are all applicable properties of an additional network:
 
-    * ``nic_name``: The name of the NIC on which the administrative network is accessible to the control plane.
+    * ``nic_name``: The name of the NIC on which the administrative network is accessible to the OIM.
     * ``netmask_bits``: The 32-bit "mask" used to divide an IP address into subnets and specify the network's available hosts.
     * ``static_range``: The static range of IPs to be provisioned on target nodes. This indicates that only a certain static range is available to Omnia.
     * ``network_gateway``: The gateway through which the NIC is connected to the switch.
