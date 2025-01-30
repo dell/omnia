@@ -66,7 +66,7 @@
      },
       {
        "package": "docker.io/dellemc/csm-authorization-sidecar",
-      "tag": "v2.1.0",
+      "tag": "v1.13.0",
       "type": "image"
      },
     {
