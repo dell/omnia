@@ -3,6 +3,8 @@ BeeGFS bolt on
 
 BeeGFS is a hardware-independent POSIX parallel file system (a.k.a. Software-defined Parallel Storage) developed with a strong focus on performance and designed for ease of use, simple installation, and management.
 
+.. note:: For clusters running on Ubuntu 24.04 OS, the supported BeeGFS version is ``7.4.5``.
+
 .. image:: ../../../../../images/BeeGFS_Structure.jpg
 
 

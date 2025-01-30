@@ -4,7 +4,7 @@ Deploy CSI drivers for Dell PowerScale storage solutions
 Dell PowerScale is a flexible and secure scale-out NAS (network attached storage) solution designed to simplify storage requirements for AI and HPC workloads. To enable the PowerScale storage solution on the Kubernetes clusters, Omnia installs the Dell CSI PowerScale driver (version 2.11.0) on the nodes using helm charts. Once the PowerScale CSI driver is installed, the PowerScale nodes can be connected to the Kubernetes clusters for storage requirements.
 To know more about the CSI PowerScale driver, `click here <https://dell.github.io/csm-docs/docs/deployment/helm/drivers/installation/isilon/>`_.
 
-.. caution:: PowerScale CSI driver installation is only supported on RHEL 8.8, Rocky Linux 8.8, and Ubuntu 22.04 clusters.
+.. caution:: PowerScale CSI driver installation is only supported on RHEL 8.8 and Rocky Linux 8.8 clusters.
 
 .. note:: Omnia doesn't configure any PowerScale device via OneFS (operating system for PowerScale). Omnia configures the deployed Kubernetes cluster to interact with the PowerScale storage.
 

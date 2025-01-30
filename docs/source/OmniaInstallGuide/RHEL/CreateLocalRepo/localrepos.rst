@@ -101,7 +101,7 @@ Configuring specific local repositories
 
     To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "k8s", "version":"1.29.5"},
+            {"name": "k8s", "version":"1.31.4"},
 
     For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
 

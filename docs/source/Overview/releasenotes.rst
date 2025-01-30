@@ -4,10 +4,8 @@ Releases
 1.7.1
 -------
 
-* Ubuntu 24.04 support
-* RHEL 9.4 support
-* xCAT containerization
-* Input validator
+* Kubernetes version upgraded to 1.31.4 (Previously 1.29.5)
+* Ubuntu 24.04 OS support
 
 1.7
 -----

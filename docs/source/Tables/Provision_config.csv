@@ -113,8 +113,8 @@ Required","Default lease time for IPs assigned by DHCP. Range: 21600-86400
 
 ``string``
 
-Optional","* This is a user-configured variable that is used to specify the kernel flavor on Ubuntu 22.04.
-* This variable is only supported when the cluster runs Ubuntu 22.04.
+Optional","* This is a user-configured variable that is used to specify the kernel flavor on Ubuntu 22.04 or 24.04 OS.
+* This variable is only supported when the cluster runs on Ubuntu 22.04 or 24.04 OS.
 * To specify this variable, ensure to append the string ``ubuntu_kernel_flavor: generic`` or ``ubuntu_kernel_flavor: hwe`` to the end of the ``input/provision_config.yml`` file.
 * **Accepted values**: ``generic``, ``hwe``."
 "**ntp_support**

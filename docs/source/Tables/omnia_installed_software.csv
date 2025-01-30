@@ -1,6 +1,6 @@
 ﻿OSS Title,License Name/Version #,Description,Version
 Slurm Workload manager,GNU General Public License,HPC Workload Manager,20.11.9
-Kubernetes Controllers,Apache 2.0,Orchestration tool,1.29.5
+Kubernetes Controllers,Apache 2.0,Orchestration tool,1.31.4
 MariaDB,GPL 2.0,Open source relational database used by Slurm,10.3
 Docker CE,Apache 2.0,Docker Service,20.10.20
 NVIDIA container runtime,"Apache 2.0, GPL-3.0, LGPL-3.0",NVIDIA container runtime library,3.4.2
@@ -10,9 +10,9 @@ habanalabs-container-runtime,Apache 2.0,"Intel Habana container runtime library
 .. note:: This is preliminary code and may change before official release.",1.19.1-26
 habanalabs-k8s-device-plugin,Apache 2.0,HABANA device plugin for Kubernetes,1.19.1-26
 Python-pip,MIT License,Python Package,24.2
-kubelet,Apache 2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.29.5
-kubeadm,Apache 2.0,Provides “fast paths” for creating Kubernetes clusters.,1.29.5
-kubectl,Apache 2.0,Command line tool for Kubernetes,1.29.5
+kubelet,Apache 2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.31.4
+kubeadm,Apache 2.0,Provides “fast paths” for creating Kubernetes clusters.,1.31.4
+kubectl,Apache 2.0,Command line tool for Kubernetes,1.31.4
 etcd,Apache 2.0,Relational database used by Kubernetes,3.5.12
 jupyterhub,"BSD-3Clause ""New"" or ""Revised"" License",Multi-user hub,3.2.0
 kubeflow,Apache 2.0,A repository for Kustomize manifests,1.9.1
