@@ -76,4 +76,3 @@
     name: "Bring up Gaudi ports"
     special_time: reboot
     job: "{{ intel_bring_up_ports_script_path }}"
-

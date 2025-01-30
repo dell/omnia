@@ -44,8 +44,7 @@ racadm_tar_url: "https://dl.dell.com/FOLDER08952875M/1/Dell-iDRACTools-Web-LX-11
 tarball_path: "{{ repo_store_path }}/cluster/tarball/"
 racadm_tar_dest: "{{ tarball_path }}/racadm.tar.gz"
 max_retries: 10
-download_racadm_warning_msg: "[WARNING] Failed to download racadm package {{ racadm_tar_url }}. This can be due to internet connectivity issue. Please verify the connectivity and try again.
-Skipping racadm configuration in the cluster."
+download_racadm_warning_msg: "[WARNING] Failed to download racadm package {{ racadm_tar_url }}. This can be due to internet connectivity issue. Please verify the connectivity and try again. Skipping racadm configuration in the cluster." # noqa yaml[line-length]
 warning_time: 30
 
 # Usage: configure_kernel.yml
