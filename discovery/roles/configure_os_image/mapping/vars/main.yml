@@ -21,4 +21,4 @@ mapping_node_group: "mapping"
 xcat_sbin_path: /opt/xcat/sbin
 nodeset_nodes_py: "{{ provision_shared_library_path }}/mapping/nodeset_nodes.py"
 python_version: "{{ ansible_python_interpreter }}"
-db_operations_file_path: "../db_operations"
+db_operations_file_path: "{{ provision_shared_library_path }}/db_operations"

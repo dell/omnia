@@ -42,7 +42,7 @@ static_discovery_fail_msg: "Failed to discover any idrac's with the static range
 
 # Usage: update_db.yml
 update_db_static_path: "{{ provision_shared_library_path }}/mtms/mtms_db.py"
-mtms_db_path: "{{ role_path }}/../../db_operations/files"
+mtms_db_path: "{{ provision_shared_library_path }}/db_operations"
 
 # Usage: update_db_dynamic.yml
 update_db_dynamic_path: "{{ provision_shared_library_path }}/mtms/mtms_dhcp_db.py"

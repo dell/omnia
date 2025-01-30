@@ -62,13 +62,13 @@
     fail_msg: "{{ disk_partition_fail_msg }}"
 
 - name: Convert timezone.txt to linux format
-  ansible.builtin.command: dos2unix {{ role_path }}/files/timezone.txt
+  ansible.builtin.command: dos2unix {{ timezone_file_path }}
   failed_when: false
   changed_when: false
 
 - name: Searching for timezone
   ansible.builtin.lineinfile:
-    path: "{{ role_path }}/files/timezone.txt"
+    path: "{{ timezone_file_path }}"
     line: "{{ timezone }}"
     state: present
   check_mode: true

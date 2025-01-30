@@ -43,5 +43,5 @@ xcat_proxy_patch_file:
 # Usage: configure_xcat_basic_details
 python_version: "{{ ansible_python_interpreter }}"
 network_spec_path: "{{ role_path }}/../../../../input/network_spec.yml"
-path_db: "{{ role_path }}/../../db_operations/files"
+path_db: "{{ provision_shared_library_path }}/db_operations"
 delete_misc_networks: "{{ provision_shared_library_path }}/common/delete_networks.py"

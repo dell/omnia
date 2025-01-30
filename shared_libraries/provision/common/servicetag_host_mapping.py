@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,10 +16,8 @@ import os
 import sys
 import syslog
 
-role_path = sys.argv[1]
-file_path = sys.argv[2]
-inventory_sources_str = sys.argv[3]
-db_path = role_path + file_path
+db_path = sys.argv[1]
+inventory_sources_str = sys.argv[2]
 
 sys.path.insert(0, db_path)
 

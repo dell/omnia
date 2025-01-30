@@ -19,7 +19,7 @@ import sys
 import syslog
 
 
-db_path = sys.argv[1]     # db_path = "../db_operations"
+db_path = sys.argv[1]     # db_path = "{{ provision_shared_library_path }}/db_operations"
 
 sys.path.insert(0, db_path)
 

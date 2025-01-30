@@ -13,10 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Install python commented config parser
-  ansible.builtin.command: "{{ python_version }} -m pip install {{ commentedconfigparser_python_package }}"
-  changed_when: true
-
 - name: Generate inventory files
   ansible.builtin.command: >
     {{ python_version }} {{ script_name }}

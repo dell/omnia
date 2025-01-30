@@ -20,7 +20,7 @@ xcat_path: /opt/xcat/bin
 
 # Usage: update_db_mapping.yml
 mapping_file_db_path: "{{ provision_shared_library_path }}/mapping/mapping_file_db.py"
-db_path: "../db_operations"
+db_path: "{{ provision_shared_library_path }}/db_operations"
 
 # Usage: node_object_creation_mapping.yml
 mapping_node_group: "mapping"

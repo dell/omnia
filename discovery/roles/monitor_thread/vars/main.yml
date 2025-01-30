@@ -29,4 +29,4 @@ duplicate_node_cleanup_shell_template: "{{ role_path }}/templates/duplicate_node
 duplicate_node_cleanup_shell_dest: "{{ omnia_service_dir }}/duplicate_node_cleanup_script.sh"
 duplicate_node_cleanup_service_template: "{{ role_path }}/templates/duplicate_node_cleanup.service.j2"
 duplicate_node_cleanup_service_dest: /etc/systemd/system/duplicate_node_cleanup.service
-db_file_path: "../db_operations"
+db_file_path: "{{ provision_shared_library_path }}/db_operations"

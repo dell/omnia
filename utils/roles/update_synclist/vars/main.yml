@@ -14,9 +14,10 @@
 ---
 
 # Usage: main.yml
-get_nodes_python_script: "{{ role_path }}/files/get_nodes_from_inventory.py"
-update_dp_python_script: "{{ role_path }}/files/update_omniadb.py"
-db_path: "{{ role_path }}/../../../discovery/roles/db_operations/files"
+provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
+get_nodes_python_script: "{{ provision_shared_library_path }}/common/get_nodes_from_inventory.py"
+update_dp_python_script: "{{ provision_shared_library_path }}/common/update_omniadb.py"
+db_path: "{{ provision_shared_library_path }}/db_operations"
 
 # Usage: user_confirmation.yml
 warning_msg: "[WARNING] This synclist utility will be updating syncfiles for nodes mentioned in inventory and node status is failed."
