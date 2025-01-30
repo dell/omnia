@@ -70,7 +70,7 @@
         dest: "{{ omnia_common_xcat_repo }}"
         mode: "{{ file_permission }}"
   rescue:
-    - name:  Warning - Failed to download racadm package
+    - name: Warning - Failed to download racadm package
       ansible.builtin.pause:
         prompt: "{{ download_racadm_warning_msg }}"
         seconds: "{{ warning_time }}"

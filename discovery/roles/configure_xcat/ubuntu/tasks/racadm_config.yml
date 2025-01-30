@@ -30,7 +30,7 @@
       until: download_racadm is not failed
       retries: "{{ max_retries }}"
   rescue:
-    - name:  Warning - Failed to download racadm package
+    - name: Warning - Failed to download racadm package
       ansible.builtin.pause:
         prompt: "{{ download_racadm_warning_msg }}"
         seconds: "{{ warning_time }}"
