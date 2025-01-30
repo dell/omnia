@@ -30,6 +30,7 @@ warn_list:
 skip_list:
   - var-naming[no-role-prefix]
   - fqcn[action-core]
+  - unresolved-module
 
 verbosity: 1
 profile: production
