@@ -90,7 +90,7 @@
     {
       "package": "xilinx-device-plugin",
       "type": "manifest",
-      "url": "https://github.com/Xilinx/FPGA_as_a_Service/blob/2023.2/k8s-device-plugin/k8s-device-plugin.yml"
+      "url": "https://raw.githubusercontent.com/Xilinx/FPGA_as_a_Service/2023.2/k8s-device-plugin/k8s-device-plugin.yml"
     },
     {
       "package": "spark-operator-v1beta2-1.3.8-3.1.1",
