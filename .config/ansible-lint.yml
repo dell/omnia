@@ -15,6 +15,7 @@ exclude_paths:
   - utils/k8s-upgrade/
   - docs/
   - test/
+  - input/
   - platforms/
   - examples/
   - .ansible-lint.yml
@@ -28,6 +29,7 @@ warn_list:
 
 skip_list:
   - var-naming[no-role-prefix]
+  - fqcn[action-core]
 
 verbosity: 1
 profile: production
