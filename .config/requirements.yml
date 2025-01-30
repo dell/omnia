@@ -20,7 +20,5 @@ collections:
     version: 9.6.0
   - name: kubernetes.core
     version: 5.0.0
-  - name: https://github.com/kubernetes-sigs/kubespray
-    type: git
-    version: v2.25.0
   - name: kubernetes_sigs.kubespray
+    version: v2.25.0
