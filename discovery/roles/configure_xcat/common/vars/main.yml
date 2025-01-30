@@ -30,7 +30,7 @@ ipmi_fail_msg: "Failed creating genesis image"
 
 # Usage: fetch_osimage.yml
 fail_os_image: "OS image not found for cluster_os {{ provision_os }} and cluster_os_version {{ provision_os_version }}.
-Please provide the proper ISO file in input/provision_config.yml."
+Please provide the proper ISO file in provision_config.yml."
 
 # Usage: configue_proxy.yml
 oim_os_redhat: "redhat"
@@ -42,6 +42,6 @@ xcat_proxy_patch_file:
 
 # Usage: configure_xcat_basic_details
 python_version: "{{ ansible_python_interpreter }}"
-network_spec_path: "{{ role_path }}/../../../../input/network_spec.yml"
+network_spec_path: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
 path_db: "{{ provision_shared_library_path }}/db_operations"
 delete_misc_networks: "{{ provision_shared_library_path }}/common/delete_networks.py"

@@ -13,24 +13,12 @@
 #  limitations under the License.
 ---
 
-- name: Include input project directory
-  ansible.builtin.import_playbook: include_input_dir.yml
-
-- name: Create provision container group
-  ansible.builtin.import_playbook: create_container_group.yml
-  vars:
-    omnia_provision_group: true
-
-- name: Delete node
-  hosts: localhost
-  connection: local
-  roles:
-    - { role: node_deletion/user_confirmation } # noqa: role-name[path]
-    - { role: common, tags: 'credentials_config' }
-   
-- name: Delete node
-  hosts: omnia_provision
-  connection: ssh
-  roles:
-    - { role: servicetag_host_mapping }
-    - { role: node_deletion/delete_node } # noqa: role-name[path]
+# Usage: main.yml
+omnia_input_dir: /opt/omnia/input
+omnia_input_config_file: "{{ omnia_input_dir }}/default.yml"
+omnia_input_config_syntax_fail_msg: |
+  "Unable to load the Omnia project configuration file at {{ omnia_input_config_file }}.
+  Please ensure the file exists and has valid YAML syntax before re-running the playbook."
+project_dir_not_exist_fail_msg: |
+  "The project directory at {{ input_project_dir }} does not exist. 
+  Please ensure the directory exists before re-running the playbook."

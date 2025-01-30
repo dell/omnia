@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Include input project directory
+  when: not include_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: utils/include_input_dir.yml
+
 - name: Create provision container group
   ansible.builtin.import_playbook: utils/create_container_group.yml
   vars:
@@ -23,9 +27,10 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Set provision_group_status
+    - name: Set provision_group_status and project_dir_status
       ansible.builtin.set_fact:
         provision_group_status: true
+        project_dir_status: true
 
     # This logic needs to be updated
     #- name: Set inventory_status
