@@ -9,7 +9,7 @@ To upgrade the Omnia version 1.7 to version 1.7.1 on your OIM, you can use the `
 
     * Before initiating upgrade, ensure that the OIM has a stable internet connection to avoid intermittent issues caused by poor network connectivity.
     * After upgrading the Omnia OIM running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_ (except RHEL/Rocky Linux 8.6 and 8.8), the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
-    * After upgrading your OIM from Omnia, ensure that the cryptography version on the login nodes is also updated to 44.0.0. This is necessary to address a security vulnerability reported with the lower versions of the cryptography software. To update the cryptography software version, run the following command: ::
+    * After upgrading your OIM, ensure that the cryptography version on the login nodes is also updated to 44.0.0. This is necessary to address a security vulnerability reported with the lower versions of the cryptography software. To update the cryptography software version, run the following command: ::
 
         pip install cryptography==44.0.0
 
@@ -74,7 +74,7 @@ To upgrade the Omnia OIM, do the following:
 
     If ``upgrade_oim.yml`` execution fails, you can rollback to Kubernetes version 1.29.5 and restore the old backed-up data using the ``restore_oim.yml`` playbook. To restore, do the following:
 
-        1. Activate the Omnia virtual environment using the ``source /opt/omnia/omnia161_venv/bin/activate`` command.
+        1. Activate the Omnia virtual environment using the ``source /opt/omnia/omnia17_venv/bin/activate`` command.
 
         2. Execute the ``restore_oim.yml`` playbook using the following command: ::
 
