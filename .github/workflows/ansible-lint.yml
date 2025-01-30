@@ -32,8 +32,8 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install ansible
 
-      - name: Install Ansible collections
-        run: ansible-galaxy collection install -r .config/requirements.yml
+      # - name: Install Ansible collections
+      #   run: ansible-galaxy collection install -r .config/requirements.yml
 
       - name: Run ansible-lint
         uses: ansible/ansible-lint@v6.22.0
