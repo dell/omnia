@@ -1,7 +1,7 @@
 Upgrade Omnia OIM
-==============================
+=====================
 
-To upgrade the Omnia version 1.6.1 to version 1.7 on your OIM, you can use the ``upgrade_oim.yml`` playbook in Omnia 1.7. This ensures that your OIM is running the latest version and includes any new features and improvements that are available.
+To upgrade the Omnia version 1.7 to version 1.7.1 on your OIM, you can use the ``upgrade_oim.yml`` playbook in Omnia 1.7.1. This ensures that your OIM is running the latest version and includes any new features and improvements that are available.
 
 .. caution:: Do not reboot the OIM before initiating the upgrade process, as it leads to loss of telemetry data.
 
@@ -9,7 +9,7 @@ To upgrade the Omnia version 1.6.1 to version 1.7 on your OIM, you can use the `
 
     * Before initiating upgrade, ensure that the OIM has a stable internet connection to avoid intermittent issues caused by poor network connectivity.
     * After upgrading the Omnia OIM running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_ (except RHEL/Rocky Linux 8.6 and 8.8), the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
-    * After upgrading your OIM from Omnia 1.6.1 to version 1.7, ensure that the cryptography version on the login nodes is also updated to 44.0.0. This is necessary to address a security vulnerability reported with the lower versions of the cryptography software. To update the cryptography software version, run the following command: ::
+    * After upgrading your OIM from Omnia, ensure that the cryptography version on the login nodes is also updated to 44.0.0. This is necessary to address a security vulnerability reported with the lower versions of the cryptography software. To update the cryptography software version, run the following command: ::
 
         pip install cryptography==44.0.0
 
@@ -33,9 +33,9 @@ If you have deployed a telemetry service in your Kubernetes cluster, it is impor
 
 To upgrade the Omnia OIM, do the following:
 
-1. Clone the Omnia 1.7 source code to your OIM using the following command: ::
+1. Clone the Omnia 1.7.1 source code to your OIM using the following command: ::
 
-    git clone https://github.com/dell/omnia.git
+    git clone https://github.com/dell/omnia.git -b v1.7.1
 
 2. Execute the ``prereq.sh`` script using the following command: ::
 

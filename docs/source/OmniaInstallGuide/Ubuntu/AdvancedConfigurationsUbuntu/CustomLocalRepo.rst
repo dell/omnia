@@ -30,7 +30,7 @@ Use the local repository feature to create a customized set of local repositorie
             {"name": "ucx", "version": "1.15.0"},
             {"name": "openmpi", "version": "4.1.6"},
             {"name": "intelgaudi", "version": "1.19.1-26"},
-            {"name": "csi_driver_powerscale", "version":"v2.11.0"}
+            {"name": "csi_driver_powerscale", "version":"v2.13.0"}
         ],
         "bcm_roce": [
             {"name": "bcm_roce_libraries", "version": "230.2.54.0"}

@@ -32,7 +32,7 @@ Use the local repository feature to create a customized set of local repositorie
             {"name": "utils"},
             {"name": "ucx", "version": "1.15.0"},
             {"name": "openmpi", "version": "4.1.6"},
-            {"name": "csi_driver_powerscale", "version":"v2.11.0"}
+            {"name": "csi_driver_powerscale", "version":"v2.13.0"}
         ],
         "amdgpu": [
             {"name": "rocm", "version": "6.2.2" }

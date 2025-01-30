@@ -215,7 +215,7 @@ For more information on configuring login node security, `click here <../OmniaCl
 
     To install PowerScale CSI driver, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "csi_driver_powerscale", "version":"v2.11.0"},
+            {"name": "csi_driver_powerscale", "version":"v2.13.0"},
 
     For information on PowerScale CSI driver, `click here <../AdvancedConfigurationsUbuntu/PowerScale_CSI.html>`_.
 
