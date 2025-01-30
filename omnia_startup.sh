@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright © 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright © 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,8 +29,6 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
-
-omnia_release="2.0.0.0"
 
 # Print prompt for the Omnia shared path
 echo -e "${BLUE}Please provide Omnia shared path:${NC}"
@@ -162,22 +160,33 @@ echo -e "${GREEN}Omnia core image has been pulled.${NC}"
 echo -e "${GREEN}Running the Omnia core image.${NC}"
 podman run -dt --hostname omnia_core --restart=always -v $omnia_path/omnia:/opt/omnia:z -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z -e ROOT_PASSWORD_HASH=$passwd --net=host --name omnia_core --cap-add=CAP_AUDIT_WRITE --replace omnia_core:latest
 
+# Create the input directory if it does not exist.
+echo -e "${GREEN}Creating the input directory if it does not exist.${NC}"
+mkdir -p "$omnia_path/omnia/input/project_default/"
+
+# Create the default.yml file if it does not exist.
+# This file contains the name of the project.
+if [ ! -f "$omnia_path/omnia/input/default.yml" ]; then
+    echo -e "${BLUE}Creating default.yml file.${NC}"
+    {
+        echo "project_name: project_default"
+    } >> "$omnia_path/omnia/input/default.yml"
+fi
+
+# Copy input files from pod to /opt/omnia/project_default/
+echo -e "${BLUE}Copying input files from container to project_default folder.${NC}"
+podman exec -u root omnia_core cp -r /omnia/input/ /opt/omnia/input/project_default/
+
 # Create the .data directory if it does not exist.
 # This is where the oim_metadata.yml file is stored.
 echo -e "${GREEN}Creating the .data directory if it does not exist.${NC}"
 mkdir -p "$omnia_path/omnia/.data"
-
-# Create the $omnia_release directory if it does not exist.
-# This is where the version-specific files are stored.
-echo -e "${GREEN}Creating the $omnia_release directory if it does not exist.${NC}"
-mkdir -p "$omnia_path/omnia/$omnia_release"
 
 oim_metadata_file="$omnia_path/omnia/.data/oim_metadata.yml"
 
 if [ ! -f "$oim_metadata_file" ]; then
     echo -e "${GREEN}Creating oim_metadata file${NC}"
     {
-        echo "---"
         echo "oim_crt: \"podman\""
         echo "oim_shared_path: $omnia_path"
         echo "omnia_version: $omnia_release"
@@ -205,4 +214,4 @@ ${NC}"
 sleep 2
 
 # Entering Omnia-core container
-ssh root@localhost -p 2222
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@localhost -p 2222
