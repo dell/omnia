@@ -3,9 +3,9 @@ exclude_paths:
   - .git/
   - .github/
   - accelerator/tests/
-  - network/tests/
+  - network/
   - provision/tests/
-  - scheduler/tests/
+  - scheduler/
   - security/tests/
   - storage/tests/
   - test/
