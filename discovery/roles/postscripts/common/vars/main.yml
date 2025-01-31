@@ -38,7 +38,7 @@ ubuntu_reboot_script_path:
 
 # Usage: configure_postsctipts_ntp.yml
 setup_ntp_warning_msg: "[WARNING] Failed to setup NTP server in Omnia Infrastructure Manager. This can be due to public NTP pools blocked via ICMP.
-Skipping NTP configuration in the cluster. If public NTP pools not reachable from Omnia Infrastructure Manager, set ntp_support to false in provison_config.yml."
+Skipping NTP configuration in the cluster. If public NTP pools not reachable from Omnia Infrastructure Manager, set ntp_support to false in provison_config.yml." # noqa yaml[line-length]
 warning_time: 30
 async_time: 300
 poll_time: 15

@@ -54,7 +54,7 @@
   when: cmdline_value != ""
   block:
     - name: Servicetag Host mapping and run chdef command
-      ansible.builtin.command: "{{ python_version }} {{ servicetag_node_mapping_script }} {{ role_path }} {{ file_path }} {{ inventory_hostname_short }} {{ cmdline_value | quote }}"
+      ansible.builtin.command: "{{ python_version }} {{ servicetag_node_mapping_script }} {{ role_path }} {{ file_path }} {{ inventory_hostname_short }} {{ cmdline_value | quote }}" # noqa yaml[line-length]
       register: chdef_result
       changed_when: true
 

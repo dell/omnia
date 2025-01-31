@@ -1,0 +1,36 @@
+---
+exclude_paths:
+  - .git/
+  - .github/
+  - accelerator/tests/
+  - network/
+  - provision/tests/
+  - scheduler/
+  - security/tests/
+  - storage/tests/
+  - test/
+  - utils/test/
+  - utils/obsolete/
+  - utils/cluster/
+  - utils/k8s-upgrade/
+  - docs/
+  - test/
+  - input/
+  - platforms/
+  - examples/
+  - .ansible-lint.yml
+  - .readthedocs.yaml
+
+warn_list:
+  - yaml
+  - meta-no-info
+  - meta-incorrect
+  - fqcn-builtins
+
+skip_list:
+  - var-naming[no-role-prefix]
+  - fqcn[action-core]
+  - unresolved-module
+
+verbosity: 1
+profile: production
