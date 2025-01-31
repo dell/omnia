@@ -18,7 +18,6 @@ exclude_paths:
   - input/
   - platforms/
   - examples/
-  - $$VIRTUAL_ENV/ansible_collections/
   - .ansible-lint.yml
   - .readthedocs.yaml
 
