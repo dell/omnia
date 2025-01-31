@@ -30,7 +30,7 @@
   failed_when: false
   register: fetch_network
 
-- name: Try restart postgresql service if not running in Ubuntu
+- name: Try restart postgresql service if not running in provision container
   when:
     - oim_os == oim_os_ubuntu
     - fetch_network.rc != 0
@@ -49,12 +49,12 @@
       ansible.builtin.debug:
         msg: "{{ postgresql_start_fail_msg }}"
 
-- name: Try restart postgresql service if not running in RHEL/Rocky/Fedora
+- name: Try restart postgresql service if not running in provision container
   when:
     - oim_os == oim_os_redhat or oim_os == oim_os_rocky or oim_os == oim_os_fedora
     - fetch_network.rc != 0
   block:
-    - name: Try restart postgresql service if not running in RHEL/Rocky
+    - name: Try restart postgresql service if not running in provision container
       ansible.builtin.systemd:
         name: "{{ postgresql_service_rhel }}"
         state: restarted
