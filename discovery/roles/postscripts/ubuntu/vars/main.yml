@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+# Usage: main.yml
+ubuntu24_version: "24.04"
+
 # Usage: configure_ofed.yml
 ofed_postscripts_path:
   - { src: "{{ role_path }}/../ubuntu/templates/omnia_ofed.j2", dest: "/install/postscripts/omnia_ofed", mode: "755" }

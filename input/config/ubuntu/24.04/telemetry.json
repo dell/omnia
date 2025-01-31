@@ -1,0 +1,267 @@
+{
+    "telemetry": {
+      "cluster": [
+      {
+        "package": "buildkit",
+        "type": "git",
+        "url": "https://github.com/moby/buildkit.git",
+        "version": "v0.13.1"
+      },
+      { "package": "smartmontools",
+        "type": "deb",
+        "repo_name": "noble"
+      },
+      {
+        "package": "docker-ce-cli=5:27.3.1-1~ubuntu.24.04~noble",
+        "type": "deb",
+        "repo_name": "docker-ce-repo"
+      },
+      {
+        "package": "docker-ce=5:27.3.1-1~ubuntu.24.04~noble",
+        "type": "deb",
+        "repo_name": "docker-ce-repo"
+      },
+      {
+        "package": "docker-ce-rootless-extras=5:27.3.1-1~ubuntu.24.04~noble",
+        "type": "deb",
+        "repo_name": "docker-ce-repo"
+      },
+      {
+        "package": "kubespray-v2.25.0",
+        "type": "git",
+        "url": "https://github.com/kubernetes-sigs/kubespray.git",
+        "version": "v2.25.0"
+      },
+      {
+        "package": "kubectl-1.29.5",
+        "type": "tarball",
+        "url": "https://dl.k8s.io/release/v1.29.5/bin/linux/amd64/kubectl"
+      },
+      {
+        "package": "kubelet-1.29.5",
+        "type": "tarball",
+        "url": "https://dl.k8s.io/release/v1.29.5/bin/linux/amd64/kubelet"
+      },
+      {
+        "package": "kubeadm-1.29.5",
+        "type": "tarball",
+        "url": "https://dl.k8s.io/release/v1.29.5/bin/linux/amd64/kubeadm"
+      },
+      {
+        "package": "calicoctl-v3.27.3",
+        "type": "tarball",
+        "url": "https://github.com/projectcalico/calico/releases/download/v3.27.3/calicoctl-linux-amd64"
+      },
+      {
+        "package": "calicocrds-v3.27.3",
+        "type": "tarball",
+        "url": "https://github.com/projectcalico/calico/archive/v3.27.3.tar.gz"
+      },
+      {
+        "package": "cri-tools-v1.29.0",
+        "type": "tarball",
+        "url": "https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.29.0/crictl-v1.29.0-linux-amd64.tar.gz"
+      },
+      {
+        "package": "etcd-v3.5.12",
+        "type": "tarball",
+        "url": "https://github.com/etcd-io/etcd/releases/download/v3.5.12/etcd-v3.5.12-linux-amd64.tar.gz"
+      },
+      {
+        "package": "cni-plugins-v1.3.0",
+        "type": "tarball",
+        "url": "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz"
+      },
+      {
+        "package": "runc.amd64-v1.1.12",
+        "type": "tarball",
+        "url": "https://github.com/opencontainers/runc/releases/download/v1.1.12/runc.amd64"
+      },
+      {
+        "package": "nerdctl-v1.7.4",
+        "type": "tarball",
+        "url": "https://github.com/containerd/nerdctl/releases/download/v1.7.4/nerdctl-1.7.4-linux-amd64.tar.gz"
+      },
+      {
+        "package": "containerd-1.7.16",
+        "type": "tarball",
+        "url": "https://github.com/containerd/containerd/releases/download/v1.7.16/containerd-1.7.16-linux-amd64.tar.gz"
+      },
+      {
+        "package": "helm-v3.14.2",
+        "type": "tarball",
+        "url": "https://get.helm.sh/helm-v3.14.2-linux-amd64.tar.gz"
+      },
+      {
+        "package": "nfs-subdir-external-provisioner-4.0.18",
+        "type": "tarball",
+        "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz"
+      },
+      {
+        "package": "docker.io/library/nginx",
+        "tag": "1.25.2-alpine",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/coredns/coredns",
+        "tag": "v1.11.1",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/cpa/cluster-proportional-autoscaler",
+        "tag": "v1.8.8",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/dns/k8s-dns-node-cache",
+        "tag": "1.22.28",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/kube-apiserver",
+        "tag": "v1.29.5",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/kube-controller-manager",
+        "tag": "v1.29.5",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/kube-proxy",
+        "tag": "v1.29.5",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/kube-scheduler",
+        "tag": "v1.29.5",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/pause",
+        "tag": "3.9",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/coreos/etcd",
+        "tag": "v3.5.12",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/calico/cni",
+        "tag": "v3.27.3",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/calico/kube-controllers",
+        "tag": "v3.27.3",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/calico/pod2daemon-flexvol",
+        "tag": "v3.27.3",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/calico/node",
+        "tag": "v3.27.3",
+        "type": "image"
+      },
+      {
+        "package": "docker.io/flannel/flannel-cni-plugin",
+        "tag": "v1.1.2",
+        "type": "image"
+      },
+      {
+        "package": "docker.io/flannel/flannel",
+        "tag": "v0.22.0",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/metallb/speaker",
+        "tag": "v0.13.9",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/metallb/controller",
+        "tag": "v0.13.9",
+        "type": "image"
+      },
+       {
+        "package": "docker.io/kubernetesui/dashboard",
+        "tag": "v2.7.0",
+        "type": "image"
+      },
+       {
+        "package": "docker.io/kubernetesui/metrics-scraper",
+        "tag": "v1.0.8",
+        "type": "image"
+      },
+      {
+        "package": "docker.io/grafana/grafana-enterprise",
+        "tag": "8.3.2",
+        "type": "image"
+      },
+      {
+        "package": "kube-prometheus-stack-62.3.0",
+        "type": "tarball",
+        "url": "https://github.com/prometheus-community/helm-charts/releases/download/kube-prometheus-stack-62.3.0/kube-prometheus-stack-62.3.0.tgz"
+      },
+      {
+        "package": "quay.io/prometheus-operator/prometheus-operator",
+        "tag": "v0.76.0",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/kube-state-metrics/kube-state-metrics",
+        "tag": "v2.13.0",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/prometheus-operator/prometheus-config-reloader",
+        "tag": "v0.76.0",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/prometheus/alertmanager",
+        "tag": "v0.27.0",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/prometheus/node-exporter",
+        "tag": "v1.8.2",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/prometheus/prometheus",
+        "tag": "v2.54.0",
+        "type": "image"
+      },
+      {
+        "package": "registry.k8s.io/ingress-nginx/kube-webhook-certgen",
+        "tag": "v20221220-controller-v1.5.1-58-g787ea74b6",
+        "type": "image"
+      },
+      {
+        "package": "metric-exporter-daemonset",
+        "type": "manifest",
+        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.18.0/metric-exporter-daemonset.yaml"
+      },
+      {
+        "package": "metric-exporter-service",
+        "type": "manifest",
+        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.18.0/metric-exporter-service.yaml"
+      },
+      {
+        "package": "metric-exporter-serviceMonitor",
+        "type": "manifest",
+        "url": "https://vault.habana.ai/artifactory/gaudi-metric-exporter/yaml/1.18.0/metric-exporter-serviceMonitor.yaml"
+      },
+      {
+        "package": "vault.habana.ai/gaudi-metric-exporter/metric-exporter",
+        "tag": "1.18.0-524",
+        "type": "image"
+      }
+      ]
+    }
+  }

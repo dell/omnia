@@ -13,13 +13,9 @@
 #  limitations under the License.
 ---
 
-- name: Install packages for slurm
-  ansible.builtin.package:
-    name: "{{ nfs_dev_packages }}"
-    state: present
-  tags: install
 
 - name: Install packages for slurm
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
   block:
     - name: Configure dnf.conf
       ansible.builtin.replace:
@@ -47,3 +43,18 @@
     - name: Update the yum repos cache
       ansible.builtin.command: dnf makecache
       changed_when: true
+
+- name: Install packages for slurm
+  when: ansible_distribution | lower == "ubuntu"
+  block:
+    - name: Update package list
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install packages for slurm
+      ansible.builtin.apt:
+        name: "{{ slurm_packages_ubuntu }}"
+        state: present
+      failed_when: false
+      changed_when: false
+      tags: install

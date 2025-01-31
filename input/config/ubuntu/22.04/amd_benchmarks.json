@@ -1,0 +1,9 @@
+{
+    "amd_benchmarks": {
+        "cluster": [
+            {"package": "libpmix-dev", "type": "deb", "repo_name": "jammy"},
+            {"package": "libevent-dev", "type": "deb", "repo_name": "jammy"}
+
+        ]
+    }
+}

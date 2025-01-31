@@ -18,25 +18,11 @@
     msg: "{{ invalid_inventory_fail_msg }}"
   when: groups['slurm_control_node'] is not defined or groups['slurm_node'] is not defined
 
-- name: Assert operating system
+
+- name: Set supported OS
   ansible.builtin.assert:
     that:
-      - cluster_os_type | lower == os_supported_rhel or
-        cluster_os_type | lower == os_supported_rocky
+      - (cluster_os_type | lower) in supported_os_check_dict
+      - (cluster_os_version | string) in supported_os_check_dict[(cluster_os_type | lower)]
     success_msg: "{{ cluster_os_type_success_msg }}"
     fail_msg: "{{ cluster_os_type_fail_msg }}"
-
-- name: Set fact for supported_os_version_status
-  ansible.builtin.set_fact:
-    supported_os_version_status: false
-
-- name: Set supported_os_version_status to true
-  ansible.builtin.set_fact:
-    supported_os_version_status: true
-  with_items: "{{ supported_rhel_os_version }}"
-  when: cluster_os_version | string in item
-
-- name: Validate cluster_os_version is supported
-  ansible.builtin.fail:
-    msg: "{{ provision_os_version_fail_msg }}"
-  when: not supported_os_version_status

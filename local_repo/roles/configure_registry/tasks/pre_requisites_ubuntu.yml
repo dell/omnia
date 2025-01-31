@@ -14,6 +14,22 @@
 ---
 
 # Install Pre-requisites
+
+- name: Set containerd_version for 20.04
+  ansible.builtin.set_fact:
+    containerd_version: "{{ ubuntu_containerd_version.ubuntu20 }}"
+  when: ansible_distribution_version == ubuntu20_version
+
+- name: Set containerd_version for 22.04
+  ansible.builtin.set_fact:
+    containerd_version: "{{ ubuntu_containerd_version.ubuntu22 }}"
+  when: ansible_distribution_version == ubuntu22_version
+
+- name: Set containerd_version for 24.04
+  ansible.builtin.set_fact:
+    containerd_version: "{{ ubuntu_containerd_version.ubuntu24 }}"
+  when: ansible_distribution_version == ubuntu24_version
+
 # Download and Install containerd
 - name: Download containerd.io DEB package
   ansible.builtin.get_url:
@@ -42,7 +58,7 @@
 
 - name: Warning prompt if containerd is downgrading
   ansible.builtin.pause:
-    seconds: 20
+    seconds: "{{ warning_wait_time }}"
     prompt: "Higher version of {{ containerd_str }} {{ ansible_facts.packages['containerd.io'][0]['version'] }} already present,
       Proceeding with downgrade to {{ containerd_version }}."
   when: higher_containerd_version is defined and higher_containerd_version
@@ -91,7 +107,6 @@
     src: "{{ nerdctl_folder_dest }}"
     dest: "{{ nerdctl_executable_dest }}"
     mode: preserve
-
 
 # Download and install CNI for ubuntu
 - name: Create /opt/cni/ directory

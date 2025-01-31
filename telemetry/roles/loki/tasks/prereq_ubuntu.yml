@@ -12,9 +12,21 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Initialize epoch version
+
+- name: Load and parse telemetry.json
   ansible.builtin.set_fact:
-    epoch_version: ""
+    telemetry: "{{ lookup('file', telemetry_json_path) | from_json }}"
+
+- name: Extract docker-ce-cli package version from json file
+  block:
+    - name: Extract docker-ce-cli version
+      ansible.builtin.set_fact:
+        docker_version: "{{ (telemetry.telemetry.cluster | selectattr('package', 'match', '^docker-ce-cli=') | map(attribute='package') | first).split('=')[1].split('-')[0] }}"  # noqa: yaml[line-length]
+
+  rescue:
+    - name: Display message if docker-ce-cli package is not found in json file
+      ansible.builtin.fail:
+        msg: "{{ ubuntu_docker_package_missing }}"
 
 - name: Install certificate package
   ansible.builtin.package:
@@ -73,7 +85,7 @@
         msg: "{{ docker_update_repos_fail_msg }}"
 
 - name: Get epoch number of docker-ce/docker-ce-cli
-  ansible.builtin.shell: "set -o pipefail && apt-cache show docker-ce | grep 'Version: 5:24.0.4' | awk '{print $2}'"
+  ansible.builtin.shell: "set -o pipefail && apt-cache show docker-ce | grep 'Version: {{ docker_version }}' | awk '{print $2}'"
   register: epoch_output
   changed_when: false
 

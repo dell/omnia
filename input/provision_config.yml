@@ -22,8 +22,8 @@
 # Path where user has placed the iso image that needs to be provisioned on target nodes.
 # The iso file should be Rocky8-DVD or RHEL-8.x-DVD (full OS) or ubuntu-20.x-live-server.
 # Value of iso_file_path should contain cluster_os_type and cluster_os_version values from software_config.json
-# When cluster_os_type is ubuntu and cluster_os_version is 22.04, by default omnia configures generic kernel.
-# To customize kernel flavor in ubuntu 22.04, define ubuntu_kernel_flavor as 'hwe' or 'generic'
+# When cluster_os_type is ubuntu and cluster_os_version is 22.04 or 24.04, by default omnia configures generic kernel.
+# To customize kernel flavor in ubuntu 22.04 or 24.04, define ubuntu_kernel_flavor as 'hwe' or 'generic'
 iso_file_path: ""
 
 #### Mandatory

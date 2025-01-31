@@ -32,15 +32,43 @@
   ansible.builtin.set_fact:
     openmpi_compile_cmd: "../configure --prefix={{ omnia_share_path }}/{{ benchmarks_dir_openmpi }} --enable-mpi1-compatibility
     --enable-orterun-prefix-by-default
+    --with-pmix
     --with-slurm={{ slurm_installed_path }}
     --with-ucx={{ omnia_share_path }}/{{ benchmarks_dir_ucx }}
     CC=clang CXX=clang++ 2>&1 | tee config.out"
   when:
     - ucx_installed
+    - ansible_distribution | lower is in supported_os_type
+    - ansible_distribution_version in supported_os_version
+
+- name: Construct openmpi compile the command with ucx
+  ansible.builtin.set_fact:
+    openmpi_compile_cmd: "../configure --prefix={{ omnia_share_path }}/{{ benchmarks_dir_openmpi }} --enable-mpi1-compatibility
+    --enable-orterun-prefix-by-default
+    --with-pmi
+    --with-slurm={{ slurm_installed_path }}
+    --with-ucx={{ omnia_share_path }}/{{ benchmarks_dir_ucx }}
+    CC=clang CXX=clang++ 2>&1 | tee config.out"
+  when:
+    - ucx_installed
+    - ansible_distribution | lower == "ubuntu"
+    - ansible_distribution_version == "22.04"
+
 
 - name: Construct the command to compile the openmpi without ucx
   ansible.builtin.set_fact:
     openmpi_compile_cmd: "../configure --prefix={{ omnia_share_path }}/{{ benchmarks_dir_openmpi }} --enable-mpi1-compatibility
-    --enable-orterun-prefix-by-default --with-slurm={{ slurm_installed_path }} CC=clang CXX=clang++ 2>&1 | tee config.out "
+    --enable-orterun-prefix-by-default --with-pmix --with-slurm={{ slurm_installed_path }} CC=clang CXX=clang++ 2>&1 | tee config.out "
   when:
     - not ucx_installed
+    - ansible_distribution | lower is in supported_os_type
+    - ansible_distribution_version in supported_os_version
+
+- name: Construct the command to compile the openmpi without ucx
+  ansible.builtin.set_fact:
+    openmpi_compile_cmd: "../configure --prefix={{ omnia_share_path }}/{{ benchmarks_dir_openmpi }} --enable-mpi1-compatibility
+    --enable-orterun-prefix-by-default --with-pmi --with-slurm={{ slurm_installed_path }} CC=clang CXX=clang++ 2>&1 | tee config.out "
+  when:
+    - not ucx_installed
+    - ansible_distribution | lower == "ubuntu"
+    - ansible_distribution_version == "22.04"

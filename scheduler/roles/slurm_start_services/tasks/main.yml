@@ -38,12 +38,108 @@
   when:
     - hostvars['127.0.0.1']['slurm_support']
     - not slurmctld_status
+    - (ansible_distribution | lower in ['redhat', 'rocky'] and slurm_installation_type in ['configless', 'nfs_share']) or
+      (ansible_distribution | lower == 'ubuntu' and slurm_installation_type == 'configless')
   block:
     - name: Include common variables
       ansible.builtin.include_vars: ../../slurm_manager/vars/main.yml
 
     - name: Include common variables
       ansible.builtin.include_vars: ../../slurm_common/vars/main.yml
+
+    - name: Create slurm log directory
+      ansible.builtin.file:
+        path: "{{ slurm_logpth }}"
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: "{{ slurm_logpth_mode }}"
+        recurse: true
+      tags: install
+
+    - name: Enable slurmdbd on slurm control node
+      ansible.builtin.systemd:
+        name: slurmdbd
+        state: restarted
+        enabled: true
+      tags: install
+
+    - name: Start slurmctld on slurm control node
+      block:
+        - name: Start slurmctld on slurm control node
+          ansible.builtin.systemd:
+            name: slurmctld
+            state: restarted
+            enabled: true
+          when: hostvars['127.0.0.1']['restart_slurm_services']
+      rescue:
+        - name: Failed to start slurmctld on slurm control node
+          ansible.builtin.fail:
+            msg: "{{ slurmctld_start_fail_msg }}"
+
+    - name: Check slurmdbd is active
+      ansible.builtin.systemd:
+        name: slurmdbd
+      register: slurmdbd_status
+      until: 'slurmdbd_status.status.ActiveState=="active"'
+      retries: "{{ max_retries }}"
+
+    - name: Show cluster if exists
+      ansible.builtin.command: sacctmgr -n show cluster {{ cluster_name }}
+      register: slurm_clusterlist
+      changed_when: false
+      until: slurm_clusterlist is not failed
+      retries: "{{ max_retries }}"
+
+    - name: Create slurm cluster
+      ansible.builtin.command: sacctmgr -i add cluster {{ cluster_name }}
+      when: not slurm_clusterlist.stdout
+      changed_when: true
+
+    - name: Show account
+      ansible.builtin.command: sacctmgr show account -s
+      register: account_added
+      changed_when: false
+
+    - name: Create default slurm group
+      ansible.builtin.command: sacctmgr -i add account defaultgroup Cluster={{ cluster_name }} Description="Default Account" Organization="Default Org"
+      when: account_added.rc != 0
+      changed_when: true
+
+    - name: Check if user exists
+      ansible.builtin.command: sacctmgr show user -s
+      register: user_added
+      changed_when: false
+
+    - name: Add root to the default account
+      ansible.builtin.command: sacctmgr -i add user root DefaultAccount=defaultgroup
+      when: user_added.rc != 0
+      changed_when: true
+
+- name: Tasks for slurm_start_services role
+  environment:
+    SLURM_CONF: "{{ slurm_conf_path_nfs }}"
+  when:
+    - hostvars['127.0.0.1']['slurm_support']
+    - not slurmctld_status
+    - slurm_installation_type == 'nfs_share'
+    - ansible_distribution | lower == "ubuntu"
+  block:
+    - name: Include common variables
+      ansible.builtin.include_vars: ../../slurm_manager/vars/main.yml
+
+    - name: Include common variables
+      ansible.builtin.include_vars: ../../slurm_common/vars/main.yml
+
+    - name: Create slurm log directory
+      ansible.builtin.file:
+        path: "{{ slurm_logpth }}"
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: "{{ slurm_logpth_mode }}"
+        recurse: true
+      tags: install
 
     - name: Enable slurmdbd on slurm control node
       ansible.builtin.systemd:

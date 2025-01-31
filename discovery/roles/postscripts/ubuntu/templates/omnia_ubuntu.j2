@@ -13,11 +13,7 @@ echo "Acquire::http::Proxy \"http://{{ admin_nic_ip }}:3128\";" >> /etc/apt/apt.
 echo "Acquire::https::Proxy \"http://{{ admin_nic_ip }}:3128\";" >> /etc/apt/apt.conf
 apt clean
 apt update
-apt install network-manager ifupdown chrony ipmitool -y
-echo "network:" >> /etc/netplan/01-netcfg.yaml
-echo "  version: 2" >> /etc/netplan/01-netcfg.yaml
-echo "  renderer: NetworkManager" >> /etc/netplan/01-netcfg.yaml
-sed -i 's/managed=.*/managed=true/g' /etc/NetworkManager/NetworkManager.conf
+apt install chrony ipmitool -y
 
 echo `df -Th` >> /var/log/xcat/xcat.log
 echo "Extend root partition" >> /var/log/xcat/xcat.log
@@ -35,6 +31,11 @@ then
         apt install libargtable2-0 -y
         cd /tmp/iDRACTools/racadm && echo "y" | bash install_racadm.sh
     fi
+fi
+check_ubuntu24="$(cat /etc/os-release | grep 'VERSION_ID="24.04"' | wc -l)"
+if [[ "$check_ubuntu24" == "1" ]]
+then
+    apt install util-linux-extra -y
 fi
 
 echo "127.0.0.1 localhost" >> /etc/hosts

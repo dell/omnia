@@ -83,7 +83,6 @@ slurm_installation_type_empty_failure_msg: "Slurm Installation type cannot be em
 slurm_installation_type_wrong_failure_msg: "Slurm Installation Type should be either nfs_share or configless in omnia_config.yml"
 restart_services_success_msg: "restart_slurm_services successfully validated"
 restart_services_failure_msg: "Failed. restart_slurm_services accepts true or false in omnia_config.yml"
-ubuntu_slurm_support_fail_msg: "Failed. Slurm is not supported on ubuntu. Remove slurm from software_config.json and rerun the playbook"
 
 # Usage: fetch_storage_config.yml
 storage_config_filename: "storage_config.yml"

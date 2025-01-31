@@ -36,6 +36,11 @@
     os_release: "focal"
   when: cluster_os_type == 'ubuntu' and cluster_os_version == '20.04'
 
+- name: Set variable 'os_release' to 'noble' if OS is Ubuntu and version is 24.04
+  ansible.builtin.set_fact:
+    os_release: "noble"
+  when: cluster_os_type == 'ubuntu' and cluster_os_version == '24.04'
+
 - name: Set Openldap release version for Ubuntu 22.04
   ansible.builtin.set_fact:
     openldap_release: "jammy"
@@ -45,6 +50,11 @@
   ansible.builtin.set_fact:
     openldap_release: "bullseye"
   when: os_release == 'focal'
+
+- name: Set Openldap release version for Ubuntu 24.04
+  ansible.builtin.set_fact:
+    openldap_release: "trixie"
+  when: os_release == 'noble'
 
 - name: Initialise new_repos fact
   ansible.builtin.set_fact:

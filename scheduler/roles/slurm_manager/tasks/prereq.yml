@@ -1,0 +1,60 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Ensure bin_dest is a symlink to bin_src
+  ansible.builtin.file:
+    src: "{{ bin_src }}"
+    dest: "{{ bin_dest }}"
+    state: link
+    force: true
+
+- name: Ensure lib_dest is a symlink to lib_src
+  ansible.builtin.file:
+    src: "{{ lib_src }}"
+    dest: "{{ lib_dest }}"
+    state: link
+    force: true
+
+- name: Ensure lib64_dest is a symlink to lib64_src
+  ansible.builtin.file:
+    src: "{{ lib64_src }}"
+    dest: "{{ lib64_dest }}"
+    state: link
+    force: true
+
+- name: Ensure sbin_dest is a symlink to sbin_src
+  ansible.builtin.file:
+    src: "{{ sbin_src }}"
+    dest: "{{ sbin_dest }}"
+    state: link
+    force: true
+
+- name: Ensure /storage/slurm/usr exists
+  ansible.builtin.file:
+    path: "{{ slurm_share_path }}/slurm/usr"
+    state: directory
+    mode: "{{ gen_mode }}"
+
+- name: Ensure /storage/slurm/usr/sbin links to /usr/sbin
+  ansible.builtin.file:
+    src: "{{ sbin_src }}"
+    dest: "{{ slurm_share_path }}/slurm/usr/sbin"
+    state: link
+
+- name: Create symbolic link for slurm NFS folder
+  ansible.builtin.file:
+    src: "{{ lib64_ubuntu_dest }}"
+    dest: "{{ slurm_nfs_folder }}/usr/lib64"
+    state: link
+    force: true

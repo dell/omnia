@@ -15,48 +15,58 @@
 
 - name: Install packages for slurm
   ansible.builtin.package:
-    name: "{{ common_packages }}"
+    name: "{{ common_packages_ubuntu }}"
     state: present
+  when: ansible_distribution | lower == 'ubuntu'
   tags: install
-  when: os_supported_leap not in compute_os
 
 - name: Install packages for slurm
   ansible.builtin.package:
-    name: "{{ leap_common_packages }}"
+    name: "{{ common_packages_redhat }}"
     state: present
-  when: os_supported_leap in compute_os
-
-- name: Create munge key
-  ansible.builtin.command: "{{ munge_cmd }}"
-  changed_when: true
-  when: os_supported_leap not in compute_os
-
-- name: Create munge key
-  ansible.builtin.shell: dd if=/dev/random bs=1 count=1024 >/etc/munge/munge.key
-  changed_when: true
-  when: os_supported_leap in compute_os
-
-- name: Copy munge key
-  ansible.builtin.copy:
-    src: munge.key
-    dest: "{{ munge_dest }}"
-    owner: munge
-    group: munge
-    mode: "{{ munge_mode }}"
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
   tags: install
 
-- name: Start munge service
+- name: Ensure Munge key is generated on control node
+  ansible.builtin.command:
+    cmd: "{{ munge_cmd }}"
+    creates: "{{ munge_src_path }}"  # Only run if the key does not already exist
+  when:
+    - "'slurm_control_node' in group_names"
+    - ansible_distribution | lower != 'ubuntu'
+  tags: install
+
+- name: Ensure Munge key is generated on control node
+  ansible.builtin.command:
+    cmd: "{{ munge_cmd_ubuntu }}"
+    creates: "{{ munge_src_path }}"  # Only run if the key does not already exist
+  when:
+    - "'slurm_control_node' in group_names"
+    - ansible_distribution | lower == 'ubuntu'
+  tags: install
+
+- name: Distribute Munge key to compute nodes
+  ansible.posix.synchronize:
+    src: "{{ munge_src_path }}"  # Path on control node
+    dest: "{{ munge_dest }}"    # Path on compute nodes
+    mode: pull                 # Pull files from control node to compute node
+    checksum: true
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['slurm_node'] | union(groups['login'] | default([])) }}"
+  when: "'slurm_control_node' in group_names"
+  tags: install
+
+- name: Ensure Munge key is present on compute nodes
+  ansible.builtin.file:
+    path: "{{ munge_dest }}"
+    state: file
+    mode: "{{ munge_mode }}"  # Munge key permissions
+  when: "'slurmd_node' in group_names"
+  tags: install
+
+- name: Restart Munge service on control and compute nodes
   ansible.builtin.systemd:
     name: munge
     state: restarted
     enabled: true
   tags: install
-  failed_when: false
-
-- name: Install lua and lmod for leap  OS
-  when: os_supported_leap in compute_os
-  block:
-    - name: Install packages for lua_lmod
-      ansible.builtin.package:
-        name: "{{ lmod_packages }}"
-        state: present

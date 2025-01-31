@@ -37,43 +37,55 @@
 
 - name: Execute show initiators command
   ansible.builtin.uri:
-    url: https://{{ inventory_hostname }}/api/show/initiators
+    url: "https://{{ inventory_hostname }}/api/show/initiators"
     method: GET
     body_format: json
     validate_certs: false
     use_proxy: false
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ sas_session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ sas_session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: hosts_info
 
 - name: Get all the available IDs
   ansible.builtin.set_fact:
-    initiator_ids: "{{ initiator_ids | default([]) }} + ['{{ item.id }}']"
+    initiator_ids: "{{ initiator_ids | default([]) + [item.id] }}"
     no_of_vol: "{{ powervault_volumes | length }}"
-  loop: "{{ hosts_info.json.initiator }}"
+  loop: "{{ (hosts_info.content | from_json)['initiator'] }}"
 
 - name: Set the LUN nos.
   ansible.builtin.set_fact:
-    lun_no: "{{ lun_no | default([]) }} + [ '{{ temp1 }}']"
+    lun_no: "{{ lun_no | default([]) + [temp1] }}"
     temp1: "{{ temp1 | int + t1 | int }}"
+  vars:
+    temp1: 0  # Initial value, incremented by t1 during the loop
+    t1: 1     # Increment step
   loop: "{{ powervault_volumes }}"
 
 - name: Add the lun numbers to volumes
   ansible.builtin.set_fact:
-    pv_volumes: "{{ pv_volumes | default ([]) + [{ 'name': item.0, 'lun_no': item.1 }] }}"
+    pv_volumes: "{{ pv_volumes | default([]) + [{'name': item.0, 'lun_no': item.1}] }}"
   with_together:
     - "{{ powervault_volumes }}"
     - "{{ lun_no }}"
 
 - name: Map volumes to initiators
   ansible.builtin.uri:
-    url: https://{{ inventory_hostname }}/api/map/volume/{{ item[1].name }}/access/{{ access }}//lun/{{ item[1].lun_no }}/initiator/{{ item[0] }}
+    url: >
+      https://{{ inventory_hostname }}/api/map/volume/{{ volume.name }}/access/{{ access }}/lun/{{ volume.lun_no }}/initiator/{{ initiator }}
     method: GET
     body_format: json
     validate_certs: false
     use_proxy: false
     headers:
-      {'sessionKey': "{{ sas_session_key.json.status[0].response }}", 'datatype':'json'}
-  with_nested:
-    - "{{ initiator_ids }}"
-    - "{{ pv_volumes }}"
+      sessionKey: "{{ sas_session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
+  loop: "{{ initiator_ids | product(pv_volumes) | list }}"
+  vars:
+    initiator: "{{ item.0 }}"
+    volume: "{{ item.1 }}"
+  loop_control:
+    label: "{{ volume.name }}"
