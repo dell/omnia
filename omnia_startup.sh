@@ -79,7 +79,7 @@ else
     echo -e "\n${GREEN}Generating a new ssh key pair.${NC}"
     ssh-keygen -t rsa -b 4096 -C "omnia_oim" -q -N '' -f /root/.ssh/oim_rsa
     {
-        echo "Host omnia-oim"
+        echo "Host omnia-core"
         echo "    Hostname localhost"
         echo "    Port 2222"
         echo "    User root"
