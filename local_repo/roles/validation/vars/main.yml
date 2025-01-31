@@ -102,6 +102,7 @@ valid_repo_config:
   - 'partial'
   - 'never'
 
+
 success_msg_k8s_version: "Kubernetes Version Validated"
 
 # Usage: validate_local_repo_config.yml

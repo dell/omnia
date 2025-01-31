@@ -47,7 +47,7 @@ install_ansible() {
     echo "----------------------------------------------------------"
     echo "INSTALLING ANSIBLE $ansible_version IN THE OMNIA VIRTUAL ENVIRONMENT:"
     echo "----------------------------------------------------------"
-    $venv_py -m pip install ansible=="$ansible_version" ansible-core=="$ansible_core_version" #--force-reinstall or --ignore-installed is not required
+    $venv_py -m pip install ansible=="$ansible_version" ansible-core=="$ansible_core_version" distlib #--force-reinstall or --ignore-installed is not required
 }
 
 disable_selinux() {
