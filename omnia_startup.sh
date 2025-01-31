@@ -175,7 +175,11 @@ fi
 
 # Copy input files from pod to /opt/omnia/project_default/
 echo -e "${BLUE}Copying input files from container to project_default folder.${NC}"
-podman exec -u root omnia_core cp -r /omnia/input/ /opt/omnia/input/project_default/
+podman exec -u root omnia_core cp -r /omnia/input/* /opt/omnia/input/project_default/
+
+# Copy shard libraries from pod to /opt/omnia/shard_libraries/
+echo -e "${BLUE}Copying shard libraries from container to shard_libraries folder.${NC}"
+podman exec -u root omnia_core cp -r /omnia/shared_libraries/ /opt/omnia/
 
 # Create the .data directory if it does not exist.
 # This is where the oim_metadata.yml file is stored.
