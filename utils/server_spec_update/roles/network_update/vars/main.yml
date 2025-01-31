@@ -15,16 +15,17 @@
 
 # Usage: update_new_nic_network.yml
 python_version: "{{ ansible_python_interpreter }}"
-update_nic_nw_path: "{{ role_path }}/files/add_nic_xcat_network.py"
-nw_spec_path: "{{ role_path }}/../../../../input/network_spec.yml"
-cal_path: "{{ role_path }}/../../../../discovery/roles/discovery_mechanism/mtms/files"
+update_nic_nw_path: "{{ provision_shared_library_path }}/server_spec_update/add_nic_xcat_network.py"
+nw_spec_path: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
+provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
+cal_path: "{{ provision_shared_library_path }}/mtms"
 metadata_nicinfo_path: "/opt/omnia/.data/nic_metadata.yml"
 file_perm: "0644"
 
 # Usage: add_nic_db.yml
-add_nic_db_path: "{{ role_path }}/files/additional_nic_table.py"
-network_spec_path: "{{ role_path }}/../../../../input/network_spec.yml"
-node_db_path: "{{ role_path }}/../../../../discovery/roles/db_operations/files"
+add_nic_db_path: "{{ provision_shared_library_path }}/server_spec_update/additional_nic_table.py"
+network_spec_path: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
+node_db_path: "{{ provision_shared_library_path }}/db_operations"
 
 # Usage: create_nic_metadata.yml
 meta_dest: "/opt/omnia/.data/"
@@ -34,7 +35,7 @@ meta_user: "root"
 meta_group: "root"
 
 # Usage: validate_metadata_params.yml
-validate_nic_metadata_py: "{{ role_path }}/files/nic_metadata_validation.py"
+validate_nic_metadata_py: "{{ provision_shared_library_path }}/server_spec_update/nic_metadata_validation.py"
 
 # Usage: update_metadata.yml
-update_nic_metadata_py: "{{ role_path }}/files/update_nic_metadata.py"
+update_nic_metadata_py: "{{ provision_shared_library_path }}/server_spec_update/update_nic_metadata.py"

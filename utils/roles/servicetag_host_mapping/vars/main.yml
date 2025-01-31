@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with 
 
 # Usage: service_tag_mapping.yml
 python: "{{ ansible_python_interpreter }}"
-servicetag_host_mapping_script: "{{ role_path }}/files/servicetag_host_mapping.py"
-file_path: "/../../../discovery/roles/db_operations/files/"
+provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
+servicetag_host_mapping_script: "{{ provision_shared_library_path }}/common/servicetag_host_mapping.py"
+db_path: "{{ provision_shared_library_path }}/db_operations"
 
 # Usage: check_provision_status.yml
 omnia_postgres_path: /opt/omnia/.postgres
@@ -29,6 +30,7 @@ postgresql_service_ubuntu: "postgresql"
 oim_os_redhat: "redhat"
 oim_os_rocky: "rocky"
 oim_os_ubuntu: "ubuntu"
+oim_os_fedora: "fedora"
 xcat_path: /opt/xcat/bin
 postgres_install_fail_msg: |
   "Failed. postgresql or xcatd services not running.

@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ xcat_root_env: "/opt/xcat"
 xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
 xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
-local_repo_config_file: "{{ role_path }}/../../../../input/local_repo_config.yml"
-software_config_file: "{{ role_path }}/../../../../input/software_config.json"
 xcat_path: /opt/xcat/bin
 xcat_sbin_path: /opt/xcat/sbin
 
@@ -32,7 +30,7 @@ ipmi_fail_msg: "Failed creating genesis image"
 
 # Usage: fetch_osimage.yml
 fail_os_image: "OS image not found for cluster_os {{ provision_os }} and cluster_os_version {{ provision_os_version }}.
-Please provide the proper ISO file in input/provision_config.yml."
+Please provide the proper ISO file in provision_config.yml."
 
 # Usage: configue_proxy.yml
 oim_os_redhat: "redhat"
@@ -44,6 +42,6 @@ xcat_proxy_patch_file:
 
 # Usage: configure_xcat_basic_details
 python_version: "{{ ansible_python_interpreter }}"
-network_spec_path: "{{ role_path }}/../../../../input/network_spec.yml"
-path_db: "{{ role_path }}/../../db_operations/files"
-delete_misc_networks: "{{ role_path }}/../common/files/delete_networks.py"
+network_spec_path: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
+path_db: "{{ provision_shared_library_path }}/db_operations"
+delete_misc_networks: "{{ provision_shared_library_path }}/common/delete_networks.py"

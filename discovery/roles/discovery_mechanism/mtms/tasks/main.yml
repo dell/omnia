@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
     reassignment_status: "{{ network_data.bmc_network.reassignment_to_static }}"
 
 - name: Update IPMI table and create genesis images
-  when: hostvars['localhost']['discovery_mech_bmc']
+  when: discovery_mech_bmc
   block:
     - name: Update xcat networks table with discovery ranges
       ansible.builtin.include_tasks: update_xcat_network_discovery_range.yml

@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-meta_path: "/opt/omnia/.data/metadata.yml"
+meta_path: "/opt/omnia/.data/provision_metadata.yml"
 
 user_msg_upgrade: "{{ unsupported_os_user_msg_upgrade if ansible_distribution_version in ['8.6', '8.7'] else supported_os_user_msg_upgrade }}"
 

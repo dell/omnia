@@ -13,8 +13,17 @@
 #  limitations under the License.
 ---
 
+- name: Include input project directory
+  ansible.builtin.import_playbook: ../include_input_dir.yml
+
+- name: Create provision container group
+  ansible.builtin.import_playbook: ../create_container_group.yml
+  vars:
+    omnia_provision_group: true
+
 - name: Servicetag Host mapping # noqa: role-name[path]
-  hosts: localhost
+  hosts: omnia_provision
+  connection: ssh
   gather_facts: true
   roles:
     - ../roles/servicetag_host_mapping
@@ -26,22 +35,18 @@
     - role: server_spec_validation
       when: not inventory_status | default(false) | bool
 
-- name: Updating server specifications
-  hosts: localhost
-  connection: local
+- name: Additional nic update and update node
+  hosts: omnia_provision
+  connection: ssh
   roles:
     - role: network_update
-
-- name: Additional nic update
-  hosts: localhost
-  roles:
     - role: update_db_and_node_object
 
 - name: Apply OS-specific kernel parameters
-  hosts: all
+  hosts: all:!omnia_provision
   become: true
   connection: ssh
   vars_files:
-    - "{{ playbook_dir }}/../../input/server_spec.yml"
+    - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
   roles:
     - os_update

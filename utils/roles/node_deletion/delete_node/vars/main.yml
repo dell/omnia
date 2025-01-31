@@ -19,7 +19,7 @@ incorrect_inv_values: "Provide either service tag or IP in inventory values"
 warn_msg_for_invalid_node: "[Warning] {{ item }} is either invalid IP/servicetag or it is not discovered/provisioned nodes."
 omnia_telemetry_file: "/opt/omnia/telemetry/omnia_telemetry"
 omnia_telemetry_servicepath: "/etc/systemd/omnia_telemetry.service"
-delete_node_info: "{{ role_path }}/files/delete_node_info.py"
+delete_node_info: "{{ provision_shared_library_path }}/cleanup/delete_node_info.py"
 inv_file_folder: /opt/omnia/omnia_inventory/
 python_version: "{{ ansible_python_interpreter }}"
 xcat_root_env: "/opt/xcat"

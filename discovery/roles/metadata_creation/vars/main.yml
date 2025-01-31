@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,15 +14,13 @@
 ---
 
 # Usage: create_metadata.yml
-meta_path: "/opt/omnia/.data/metadata.yml"
+meta_path: "/opt/omnia/.data/provision_metadata.yml"
 meta_dest: "/opt/omnia/.data/"
 discovery_mech_fail_msg: "snmpwalk or switch_based over any other discovery_mechanism wont be allowed,
 please change rhe discovery_mechanism in provision_config.yml and re-run the provision.yml"
 discovery_method_snmp: "snmpwalk"
 conf_file_mode: "0644"
 mount_dir_perm: "0775"
-meta_user: "root"
-meta_group: "root"
 
 # Usage: validate_discovery_mech_params.yml
 ranges_success_msg: "Successfully validated ip ranges with earlier execution ranges"

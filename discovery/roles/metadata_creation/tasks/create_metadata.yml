@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@
     path: "{{ meta_dest }}"
     state: directory
     mode: "{{ mount_dir_perm }}"
-    group: "{{ meta_group }}"
-    owner: "{{ meta_user }}"
   when: not data_folder_status.stat.exists
 
 - name: Check metadata.yml file existence

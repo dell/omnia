@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,18 +20,35 @@
       register: include_provision_config
       tags: init
   rescue:
-    - name: Failed to include_provision_config.yml
+    - name: Failed to include  provision_config.yml
       ansible.builtin.fail:
         msg: "{{ provision_config_syntax_fail_msg }} Error: {{ include_provision_config.message }}"
 
-- name: Include network and category spec
+- name: Include network and server spec
   block:
-    - name: Include network and category spec
+    - name: Include network and server spec
       ansible.builtin.include_vars: "{{ item }}"
       register: include_spec
       with_items: "{{ spec_file }}"
       tags: init
   rescue:
-    - name: Failed to include_provision_config.yml
+    - name: Failed to include network_spec.yml and server_spec.yml
       ansible.builtin.fail:
         msg: "{{ spec_syntax_fail_msg }} Error: {{ include_spec.message }}"
+
+- name: Include provision_credentials_config.yml
+  block:
+    - name: Include provision_config_credentials.yml
+      ansible.builtin.include_vars: "{{ provision_credentials_config_filename }}"
+      register: include_provision_cred_config
+      no_log: true
+      tags: init
+  rescue:
+    - name: Failed to include provision_credentials_config.yml
+      ansible.builtin.fail:
+        msg: "{{ provision_config_cred_syntax_fail_msg }} Error: {{ include_provision_cred_config.message }}"
+
+- name: Parse network_spec data
+  ansible.builtin.set_fact:
+    network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+  with_dict: "{{ Networks }}"

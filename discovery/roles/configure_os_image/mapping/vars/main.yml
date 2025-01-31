@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,6 @@ Configure PXE and reboot the cluster nodes manually if bmc IP not given in mappi
 mapping_set_osimage_warning_msg: "[WARNING] nodeset command is not successful for discoverd nodes using mapping. Error:"
 mapping_node_group: "mapping"
 xcat_sbin_path: /opt/xcat/sbin
-nodeset_nodes_py: "{{ role_path }}/../mapping/files/nodeset_nodes.py"
+nodeset_nodes_py: "{{ provision_shared_library_path }}/mapping/nodeset_nodes.py"
 python_version: "{{ ansible_python_interpreter }}"
-db_operations_file_path: "{{ role_path }}/../../db_operations/files"
+db_operations_file_path: "{{ provision_shared_library_path }}/db_operations"

@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 - name: Task for set osimage to node object for mapping
   block:
     - name: Set osimage to node object for mapping
-      ansible.builtin.command: "{{ python_version }} {{ nodeset_nodes_py }} {{ db_operations_file_path }} {{ hostvars['localhost']['provision_os_image'] }}"
+      ansible.builtin.command: "{{ python_version }} {{ nodeset_nodes_py }} {{ db_operations_file_path }} {{ provision_os_image }}"
       changed_when: false
       register: set_osimage_mapping
 

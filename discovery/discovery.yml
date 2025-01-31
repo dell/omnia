@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,28 +13,46 @@
 # limitations under the License.
 ---
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: ../utils/check_venv.yml
-  when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
-- name: Check if package manager is not locked
-  ansible.builtin.import_playbook: ../utils/check_package_lock.yml
-  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
+- name: Create provision container group
+  when: not provision_group_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    omnia_provision_group: true
 
-- name: Validate discovery parameters
+- name: Decrypyt provision_credentials_config.yml
   hosts: localhost
   connection: local
   tasks:
-    - name: Check whether prepare oim has been executed
+    - name: Decrypt provision_credentials_config.yml
       ansible.builtin.include_role:
-        name: "{{ playbook_dir }}/../prepare_oim/roles/pre_requisite"    # noqa: role-name[path]
-        tasks_from: prepare_oim_status.yml
+        name: discovery_validations/common
+        tasks_from: decrypt_provision_credentials_config.yml
 
+- name: Validate discovery parameters
+  hosts: omnia_provision
+  connection: ssh
+  tasks:
     - name: Validate discovery parameters
       ansible.builtin.include_role:
         name: discovery_validations/common
-        tasks_from: validation_status_check.yml  # noqa: role-name[path]
 
+- name: Encrypyt provision_credentials_config.yml
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Encrypyt provision_credentials_config.yml
+      ansible.builtin.include_role:
+        name: discovery_validations/common
+        tasks_from: encrypt_provision_credentials_config.yml
+
+- name: Validate discovery parameters
+  hosts: omnia_provision
+  connection: ssh
+  tasks:
     - name: Discovery roles of Omnia Infrastructure Manager for provisioning
       ansible.builtin.include_role:
         name: db_operations
@@ -45,28 +63,33 @@
         tasks_from: add_nic_db.yml
       when: add_network_status
 
-- name: Discovery roles of Omnia Infrastructure Manager for provisioning
-  hosts: localhost
-  connection: local
-  roles:
-    - role: configure_xcat/common          # noqa: role-name[path]
-    - role: configure_synclist
-    - role: discovery_mechanism/common     # noqa: role-name[path]
+    - name: Configure xcat
+      ansible.builtin.include_role:
+        name: configure_xcat/common         # noqa: role-name[path]
 
-- name: Update kernel parameters
-  hosts: all:!localhost
-  connection: local
-  gather_facts: true
-  vars_files:
-    - "{{ playbook_dir }}/../input/server_spec.yml"
-  roles:
-    - role: os_update
+    - name: Discover all nodes
+      ansible.builtin.include_role:
+        name: discovery_mechanism/common     # noqa: role-name[path]
+
+#- name: Update kernel parameters
+#  hosts: "all:!localhost,!omnia_provision"
+#  connection: local
+#  gather_facts: true
+#  vars_files:
+#    - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
+#  roles:
+#    - role: os_update
 
 - name: Discovery roles of Omnia Infrastructure Manager for provisioning
-  hosts: localhost
-  connection: local
+  hosts: omnia_provision
+  connection: ssh
   roles:
     - role: postscripts/common             # noqa: role-name[path]
     - role: configure_os_image/common      # noqa: role-name[path]
     - role: monitor_thread
+
+- name: Update metadata
+  hosts: localhost
+  connection: local
+  roles:
     - role: metadata_update

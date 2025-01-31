@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -35,11 +35,11 @@
   failed_when: false
   register: fetch_network
 
-- name: Set discovery_provision_status to true for RHEL/Rocky
+- name: Set discovery_provision_status to true for RHEL/Rocky/Fedora
   ansible.builtin.set_fact:
     discovery_provision_status: true
   when:
-    - oim_os == oim_os_redhat or oim_os == oim_os_rocky
+    - oim_os == oim_os_redhat or oim_os == oim_os_rocky or oim_os == oim_os_fedora
     - xcatd_service in ansible_facts.services
     - postgresql_service_rhel in ansible_facts.services
     - "'running' in ansible_facts.services[xcatd_service].state"

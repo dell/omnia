@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,12 +12,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: check_venv.yml
-  when: not ( check_venv_executed | default(false) | bool )
+
+- name: Create provision container group
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    omnia_provision_group: true
 
 - name: Regenerate omnia_inventory Files
-  hosts: localhost
-  connection: local
+  hosts: omnia_provision
+  connection: ssh
   roles:
     - inventory_tagging
