@@ -79,8 +79,12 @@ else
     echo -e "\n${GREEN}Generating a new ssh key pair.${NC}"
     ssh-keygen -t rsa -b 4096 -C "omnia_oim" -q -N '' -f /root/.ssh/oim_rsa
     {
-        echo "Host *"
+        echo "Host omnia-oim"
+        echo "    Hostname localhost"
+        echo "    Port 2222"
+        echo "    User root"
         echo "    IdentityFile ~/.ssh/oim_rsa"
+        echo "    IdentitiesOnly yes"
     } >> ~/.ssh/config
 fi
 
@@ -175,7 +179,7 @@ fi
 
 # Copy input files from pod to /opt/omnia/project_default/
 echo -e "${BLUE}Copying input files from container to project_default folder.${NC}"
-podman exec -u root omnia_core cp -r /omnia/input/* /opt/omnia/input/project_default/
+podman exec -u root omnia_core sh -c 'for file in /omnia/input/*; do cp -r "$file" /opt/omnia/input/project_default/; done'
 
 # Copy shard libraries from pod to /opt/omnia/shard_libraries/
 echo -e "${BLUE}Copying shard libraries from container to shard_libraries folder.${NC}"
