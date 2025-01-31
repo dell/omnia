@@ -5,7 +5,7 @@
         "package": "csi-powerscale",
         "url": "https://github.com/dell/csi-powerscale.git",
         "type": "git",
-        "version": "v2.11.0"
+        "version": "v2.13.0"
       },
       {
         "package": "external-snapshotter",
@@ -17,61 +17,61 @@
         "package": "helm-charts",
         "url": "https://github.com/dell/helm-charts.git",
         "type": "git",
-        "version": "csi-isilon-2.11.0"
+        "version": "csi-isilon-2.13.0"
       },
       {
         "package": "docker.io/dellemc/csi-isilon",
-        "tag": "v2.11.0",
+        "tag": "v2.13.0",
         "type": "image"
       },
       {
         "package": "registry.k8s.io/sig-storage/csi-attacher",
-        "tag": "v4.6.1",
+        "tag": "v4.8.0",
         "type": "image"
       },
       {
         "package": "registry.k8s.io/sig-storage/csi-provisioner",
-        "tag": "v5.0.1",
+        "tag": "v5.1.0",
         "type": "image"
       },
       {
         "package": "registry.k8s.io/sig-storage/csi-snapshotter",
-        "tag": "v8.0.1",
+        "tag": "v8.2.0",
         "type": "image"
       },
       {
         "package": "registry.k8s.io/sig-storage/csi-resizer",
-        "tag": "v1.11.1",
+        "tag": "v1.13.1",
         "type": "image"
       },
       {
         "package": "registry.k8s.io/sig-storage/csi-node-driver-registrar",
-        "tag": "v2.10.1",
+        "tag": "v2.13.0",
         "type": "image"
       },
       {
         "package": "registry.k8s.io/sig-storage/csi-external-health-monitor-controller",
-        "tag": "v0.12.1",
+        "tag": "v0.14.0",
         "type": "image"
      },
      {
       "package": "docker.io/dellemc/dell-csi-replicator",
-      "tag": "v1.9.0",
+      "tag": "v1.11.0",
       "type": "image"
     },
      {
       "package": "docker.io/dellemc/podmon",
-      "tag": "v1.10.0",
+      "tag": "v1.12.0",
       "type": "image"
      },
       {
        "package": "docker.io/dellemc/csm-authorization-sidecar",
-      "tag": "v1.11.0",
+      "tag": "v1.13.0",
       "type": "image"
      },
     {
       "package": "docker.io/dellemc/csi-metadata-retriever",
-      "tag": "v1.8.0",
+      "tag": "v1.10.0",
       "type": "image"
     },
     {

@@ -30,7 +30,7 @@
   changed_when: false
 
 - name: Initialize database
-  ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ namespace }}" ./cmd/timescalepump/initialize_timescaledb.sh
+  ansible.builtin.command: kubectl exec -it "{{ timescaledb_pod_name.stdout }}" -n "{{ namespace }}" -- ./cmd/timescalepump/initialize_timescaledb.sh
   changed_when: false
   register: status
   until: status is not failed
