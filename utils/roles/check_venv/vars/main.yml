@@ -14,11 +14,11 @@
 ---
 
 # Usage: check_venv.yml
-venv_active_fail_msg: "It seems the Python virtual environment for Omnia isn’t active. Please activate it using the following command: source /opt/omnia/omnia17_venv/bin/activate." # noqa: yaml[line-length]
+venv_active_fail_msg: "It seems the Python virtual environment for Omnia isn’t active. Please activate it using the following command: source /opt/omnia/omnia171_venv/bin/activate." # noqa: yaml[line-length]
 venv_not_by_omnia_fail_msg: >
   The Python virtual environment at {{ venv_path }} was not created by the Omnia prereq.sh script.
   Please deactivate this virtual environment and re-run the prereq.sh script to set up the Omnia virtual environment.
-  If prereq.sh has already been run, please activate the Omnia virtual environment using the command: source /opt/omnia/omnia17_venv/bin/activate.
+  If prereq.sh has already been run, please activate the Omnia virtual environment using the command: source /opt/omnia/omnia171_venv/bin/activate.
 collections_path_not_match_waring_msg: >
   [WARNING]: Expected collection path {{ venv_path }}, but got {{ omnia_collection_path[0] }}.
   In this case, ansible collections might get installed outside the virtual environment.
