@@ -29,7 +29,7 @@ Input parameters for Local Repositories
                 {"name": "nfs"},
                 {"name": "beegfs", "version": "7.4.2"},
                 {"name": "slurm"},
-                {"name": "k8s", "version":"1.29.5"},
+                {"name": "k8s", "version":"1.31.4"},
                 {"name": "jupyter"},
                 {"name": "kubeflow"},
                 {"name": "kserve"},
@@ -42,7 +42,7 @@ Input parameters for Local Repositories
                 {"name": "utils"},
                 {"name": "ucx", "version": "1.15.0"},
                 {"name": "openmpi", "version": "4.1.6"},
-                {"name": "csi_driver_powerscale", "version":"v2.11.0"}
+                {"name": "csi_driver_powerscale", "version":"v2.13.0"}
             ],
 
             "amdgpu": [

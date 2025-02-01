@@ -10,6 +10,8 @@ Configuring UCX and OpenMPI on the cluster
                     {"name": "openmpi", "version": "4.1.6"}
                  ]
 
+.. note:: For clusters running on Ubuntu 24.04 OS, the versions for UCX and OpenMPI will be ``1.17.0`` and ``5.0.4`` respectively.
+
 * Ensure to run ``local_repo.yml`` with the ``ucx`` and ``openmpi`` entry present in ``software_config.json``, to download all required UCX and OpenMPI packages.
 
 * To install any benchmarking software like UCX or OpenMPI, ensure that ``k8s_share`` is set to ``true`` in `storage_config.yml <../OmniaCluster/schedulerinputparams.html#storage-config-yml>`_, for one of the entries in ``nfs_client_params``. If both are set to true, a higher precedence is given to ``slurm_share``.

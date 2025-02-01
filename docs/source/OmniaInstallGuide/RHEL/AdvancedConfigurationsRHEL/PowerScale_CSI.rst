@@ -1,10 +1,10 @@
 Deploy CSI drivers for Dell PowerScale storage solutions
 ===========================================================
 
-Dell PowerScale is a flexible and secure scale-out NAS (network attached storage) solution designed to simplify storage requirements for AI and HPC workloads. To enable the PowerScale storage solution on the Kubernetes clusters, Omnia installs the Dell CSI PowerScale driver (version 2.11.0) on the nodes using helm charts. Once the PowerScale CSI driver is installed, the PowerScale nodes can be connected to the Kubernetes clusters for storage requirements.
+Dell PowerScale is a flexible and secure scale-out NAS (network attached storage) solution designed to simplify storage requirements for AI and HPC workloads. To enable the PowerScale storage solution on the Kubernetes clusters, Omnia installs the Dell CSI PowerScale driver (version 2.13.0) on the nodes using helm charts. Once the PowerScale CSI driver is installed, the PowerScale nodes can be connected to the Kubernetes clusters for storage requirements.
 To know more about the CSI PowerScale driver, `click here <https://dell.github.io/csm-docs/docs/deployment/helm/drivers/installation/isilon/>`_.
 
-.. caution:: PowerScale CSI driver installation is only supported on RHEL 8.8, Rocky Linux 8.8, and Ubuntu 22.04 clusters.
+.. caution:: PowerScale CSI driver installation is only supported on RHEL 8.8 and Rocky Linux 8.8 clusters.
 
 .. note:: Omnia doesn't configure any PowerScale device via OneFS (operating system for PowerScale). Omnia configures the deployed Kubernetes cluster to interact with the PowerScale storage.
 
@@ -50,7 +50,7 @@ Prerequisites
 
 3. Download the ``values.yaml`` files template using the following command: ::
 
-    wget https://raw.githubusercontent.com/dell/helm-charts/csi-isilon-2.11.0/charts/csi-isilon/values.yaml
+    wget https://raw.githubusercontent.com/dell/helm-charts/csi-isilon-2.13.0/charts/csi-isilon/values.yaml
 
 4. Update the following parameters in the ``values.yaml`` file and keep the rest as default values. Refer the below sample values:
 
@@ -97,7 +97,7 @@ Installation Process
 
 2. Add the ``csi_driver_powerscale`` entry along with the driver version to the ``omnia/input/software_config.json`` file: ::
 
-    {"name": "csi_driver_powerscale", "version":"v2.11.0"}
+    {"name": "csi_driver_powerscale", "version":"v2.13.0"}
 
  .. note:: By default, the ``csi_driver_powerscale`` entry is not present in the ``input/software_config.json``.
 

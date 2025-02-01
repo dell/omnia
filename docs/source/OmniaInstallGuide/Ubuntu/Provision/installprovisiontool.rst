@@ -14,8 +14,8 @@ Edit the ``input/provision_config.yml``, ``input/provision_config.yml``, and ``i
 
 Omnia now supports deploying different versions of the same OS. With each run of ``discovery_provision.yml``, a new deployable OS image is created with a distinct type depending on the values provided in ``input/software_config.json``. Supported Ubuntu OS's are:
 
-    * Ubuntu 20.04
     * Ubuntu 22.04
+    * Ubuntu 24.04
 
 **Disk partitioning**
 
@@ -39,6 +39,19 @@ To deploy the Omnia provision tool, ensure that ``input/provision_config.yml``, 
 
     * If the ``input/software_config.json`` has AMD ROCm, Intel Gaudi, and NVIDIA CUDA drivers mentioned, the AMD, Intel, and NVIDIA accelerator drivers are installed on the nodes post provisioning.
     * Omnia recommends to install the Intel Gaudi driver post provisioning using the ``accelerator.yml`` playbook in case the node has internet connectivity during provisioning. For more information, `click here <../AdvancedConfigurationsUbuntu/Habana_accelerator.html>`_.
+
+.. caution::
+
+    * If you intend to configure additional NICs during provisioning, ensure that you are aware of the network and NIC details of the cluster.
+    * You can only use the below [optional] functionality on new nodes (during first provisioning). Nodes which have already been provisioned and are in booted state can't be modified with a re-run of ``discovery_provision.yml`` playbook.
+    * For a node in the "booted" state, configuring additional NICs or kernel parameter changes is not possible with a re-run of the ``discovery_provision.yml`` playbook. Instead, use the ``server_spec_update.yml`` playbook to make any changes to the "booted" node. For more information, `click here <../AdvancedConfigurationsUbuntu/AdditionalNIC_ubuntu.html>`_.
+
+**[Optional] Configure additional NICs, assign IP rules, and specify Kernel Parameters on the nodes during cluster provisioning**
+
+To do this, you need to add the necessary inputs to the ``input/network_spec.yml`` and ``input/server_spec.yml`` and then run the ``discovery_provision.yml`` playbook with your created `inventory file <../../samplefiles.html#inventory-file-for-additional-nic-and-kernel-parameter-configuration>`_. For more information on what inputs are required, `click here <../AdvancedConfigurationsUbuntu/AdditionalNIC_ubuntu.html>`_.
+After you've provided all the necessary inputs, provide the file path to the inventory file and execute the following command to invoke the playbook: ::
+
+    ansible-playbook discovery_provision.yml -i <inventory_filepath>
 
 Stages of the provision tool
 -----------------------------

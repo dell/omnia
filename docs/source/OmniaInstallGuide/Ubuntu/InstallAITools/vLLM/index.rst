@@ -7,7 +7,7 @@ For NVIDIA, vLLM is a Python library that also contains pre-compiled C++ and CUD
 
 Omnia deploys vLLM on both the ``kube_node`` and ``kube_control_plane``, using an ansible script. After the deployment of vLLM, access the vLLM container (AMD GPU) and import the vLLM Python package (NVIDIA GPU). For more information, `click here <https://docs.vllm.ai/en/latest/getting_started/installation.html>`_
 
-.. note:: This playbook is only supported on the Ubuntu 22.04 OS platform.
+.. note:: This playbook is supported on the Ubuntu 22.04 or 24.04 OS platforms.
 
 **Prerequisites**
 

@@ -101,7 +101,7 @@ Configuring specific local repositories
 
     To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "k8s", "version":"1.29.5"},
+            {"name": "k8s", "version":"1.31.4"},
 
     For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
 
@@ -156,7 +156,7 @@ Configuring specific local repositories
 
     To install PowerScale CSI driver, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "csi_driver_powerscale", "version":"v2.11.0"},
+            {"name": "csi_driver_powerscale", "version":"v2.13.0"},
 
     For information on PowerScale CSI driver, `click here <../AdvancedConfigurationsRHEL/PowerScale_CSI.html>`_.
 
