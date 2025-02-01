@@ -62,7 +62,6 @@ nfs_server_success_msg: "Successfully verified nfs_server variable declaration"
 nfs_server_fail_msg: "Failed. nfs_server variable in nfs_client_params of storage_config.yml should be either true or false"
 nfs_client_support_failure_msg: "Failed. Its mandatory to configure NFS during omnia.yml/storage.yml execution.
 Please provide required inputs in nfs_client_params of storage_config.yml"
-slurm_share_on_ubuntu_warning_msg: "[Warning] Slurm_share is set to true, Note ubuntu doesn't support slurm. However, nfs share will be created."
 compute_os_ubuntu: "ubuntu"
 oim_nfs_server_warning_msg: |
   "In storage_config.yml, under the nfs_client_params variable, server_ip is set to localhost/{{ admin_nic_ip }} and nfs_server is set to true.

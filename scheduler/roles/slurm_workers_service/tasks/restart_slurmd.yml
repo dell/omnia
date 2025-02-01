@@ -30,6 +30,10 @@
 - name: Restart slurmd if not running
   when: not slurmd_status
   block:
+    - name: Reload systemd daemon using systemctl
+      ansible.builtin.command: systemctl daemon-reload # noqa: command-instead-of-module
+      changed_when: false
+
     - name: Restart slurmd on slurm nodes
       ansible.builtin.systemd:
         name: slurmd.service

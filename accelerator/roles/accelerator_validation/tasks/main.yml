@@ -1,4 +1,4 @@
-# Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,15 +27,7 @@
 - name: Check xcat installation status
   ansible.builtin.include_tasks: validate_intel_gaudi.yml
 
-- name: Debug intel_gaudi_config_status
-  ansible.builtin.debug:
-    msg: "intel_gaudi_config_status is {{ hostvars['localhost']['intel_gaudi_config_status'] }}"
-
-- name: Debug amdgpu_config_status
-  ansible.builtin.debug:
-    msg: "amdgpu_config_status is {{ hostvars['localhost']['amdgpu_config_status'] }}"
-
-- name: Check if both intel_gaudi_config_status and amdgpu_config_status are false
+- name: Check if both intelgaudi and amdgpu not present in software_config.json
   ansible.builtin.fail:
     msg: "{{ driver_not_found_msg }}"
   when: >

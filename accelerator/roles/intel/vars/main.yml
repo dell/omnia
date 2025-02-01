@@ -22,14 +22,24 @@ intel_gaudi_kernel_module_to_load:
 
 # TODO: move to a central config file
 intel_habana_packages:
-  - "habanalabs-dkms={{ intelgaudi_version }}"
-  - "habanalabs-firmware={{ intelgaudi_version }}"
-  - "habanalabs-firmware-tools={{ intelgaudi_version }}"
-  - "habanalabs-graph={{ intelgaudi_version }}"
-  - "habanalabs-qual={{ intelgaudi_version }}"
-  - "habanalabs-rdma-core={{ intelgaudi_version }}"
-  - "habanalabs-thunk={{ intelgaudi_version }}"
-  - "habanatools={{ intelgaudi_version }}"
+  ubuntu22:
+    - "habanalabs-dkms={{ intelgaudi_version }}"
+    - "habanalabs-firmware={{ intelgaudi_version }}"
+    - "habanalabs-firmware-tools={{ intelgaudi_version }}"
+    - "habanalabs-graph={{ intelgaudi_version }}"
+    - "habanalabs-qual={{ intelgaudi_version }}"
+    - "habanalabs-rdma-core={{ intelgaudi_version }}"
+    - "habanalabs-thunk={{ intelgaudi_version }}"
+    - "habanatools={{ intelgaudi_version }}"
+  ubuntu24:
+    - "habanalabs-dkms={{ intelgaudi_version }}"
+    - "habanalabs-firmware={{ intelgaudi_version }}"
+    - "habanalabs-firmware-tools={{ intelgaudi_version }}"
+    - "habanalabs-graph={{ intelgaudi_version }}"
+    - "habanalabs-qual={{ intelgaudi_version }}"
+    - "habanalabs-rdma-core={{ intelgaudi_version }}"
+    - "habanalabs-thunk={{ intelgaudi_version }}"
+    - "habanalabs-tools={{ intelgaudi_version }}"
 
 # TODO: move to a central config file
 intel_apt_base_packages:

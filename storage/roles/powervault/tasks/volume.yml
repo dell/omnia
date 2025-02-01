@@ -27,11 +27,12 @@
 
 - name: Get session key
   ansible.builtin.uri:
-    url: https://{{ inventory_hostname }}/api/login/{{ vol_auth_string.stdout | replace(" -", "") }}
+    url: https://{{ inventory_hostname }}/api/login/{{ vol_auth_string.stdout | replace(' -', '') }}
     method: GET
     headers:
-      {'datatype': 'json'}
+      datatype: json
     validate_certs: false
+    follow_redirects: all
   register: vol_session_key
 
 - name: Check the present volumes
@@ -41,14 +42,17 @@
     body_format: json
     validate_certs: false
     use_proxy: false
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ vol_session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: vol_detail
 
 - name: Store already created volumes
   ansible.builtin.set_fact:
     pv_vol_names: "{{ pv_vol_names | default([]) }} + ['{{ item['volume-name'] }}']"
-  loop: "{{ vol_detail.json.volumes }}"
+  loop: "{{  (vol_detail.content | from_json)['volumes'] }}"
 
 - name: Add disk group in virtual pool
   ansible.builtin.uri:
@@ -58,8 +62,11 @@
     body_format: json
     validate_certs: false
     use_proxy: false
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ vol_session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: pv_disk1
   when: powervault_pool_type | lower == "virtual"
 
@@ -71,57 +78,67 @@
     body_format: json
     validate_certs: false
     use_proxy: false
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ vol_session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: pv_disk2
   when: powervault_pool_type | lower == "linear"
 
-- name: Assert if disk group created or not
+- name: Assert if disk group created or not (virtual pool)
   ansible.builtin.fail:
-    msg: "{{ pv_disk1.json.status[0].response }}"
+    msg: "{{ (pv_disk1.content | from_json).status[0].response }}"
   when:
     - powervault_pool_type | lower == "virtual"
-    - pv_disk1.json.status[0] ['response-type'] == "Error"
+    - (pv_disk1.content | from_json).status[0]['response-type'] == "Error"
 
-- name: Assert if disk group created or not
+- name: Assert if disk group created or not (linear pool)
   ansible.builtin.fail:
-    msg: "{{ pv_disk2.json.status[0].response }}"
+    msg: "{{ (pv_disk2.content | from_json).status[0].response }}"
   when:
     - powervault_pool_type | lower == "linear"
-    - pv_disk2.json.status[0] ['response-type'] == "Error"
+    - (pv_disk2.content | from_json).status[0]['response-type'] == "Error"
+
 
 - name: Create volumes when pool type is virtual
   ansible.builtin.uri:
-    url: https://{{ inventory_hostname }}/api/create/volume/size/{{ powervault_volume_size }}/pool/{{ powervault_pool }}/{{ item.0 }}
+    url: "https://{{ inventory_hostname }}/api/create/volume/size/{{ powervault_volume_size }}/pool/{{ powervault_pool }}/{{ item.0 }}"
     method: GET
     body_format: json
     validate_certs: false
     use_proxy: false
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ vol_session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: pv_vol
   with_together:
     - "{{ powervault_volumes }}"
     - "{{ pv_vol_names }}"
   when:
     - powervault_pool_type | lower == "virtual"
-    - not item.0 == item.1
+    - item.0 != item.1
   failed_when: false
 
 - name: Create volumes when pool type is linear
   ansible.builtin.uri:
-    url: https://{{ inventory_hostname }}/api/create/volume/size/{{ powervault_volume_size }}/pool/{{ powervault_disk_group_name }}/{{ item.0 }}
+    url: "https://{{ inventory_hostname }}/api/create/volume/size/{{ powervault_volume_size }}/pool/{{ powervault_disk_group_name }}/{{ item.0 }}"
     method: GET
     body_format: json
     validate_certs: false
     use_proxy: false
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ vol_session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ vol_session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: pv_vol
   with_together:
     - "{{ powervault_volumes }}"
     - "{{ pv_vol_names }}"
   when:
     - powervault_pool_type | lower == "linear"
-    - not item.0 == item.1
+    - item.0 != item.1
   failed_when: false

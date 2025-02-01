@@ -12,6 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Set bash_rc_path for Ubuntu
+  ansible.builtin.set_fact:
+    bashrc_path_final: "{{ bashrc_path_ubuntu }}"
+  when: ansible_distribution | lower == 'ubuntu'
+
+- name: Set bash_rc_path for RHEL
+  ansible.builtin.set_fact:
+    bashrc_path_final: "{{ bashrc_path }}"
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
 
 - name: Slurmd service - slurmd.service
   ansible.builtin.template:
@@ -36,7 +45,7 @@
 
     - name: Replace SLURM_CONF variable
       ansible.builtin.lineinfile:
-        path: "{{ bashrc_path }}"
+        path: "{{ bashrc_path_final }}"
         regexp: '^SLURM_CONF=*'
         insertafter: EOF
         line: 'export SLURM_CONF={{ slurm_nfs_folder }}/etc/slurm/slurm.conf'
@@ -61,7 +70,7 @@
 
     - name: Replace PATH variable
       ansible.builtin.lineinfile:
-        path: "{{ bashrc_path }}"
+        path: "{{ bashrc_path_final }}"
         regexp: '^PATH=*'
         insertafter: EOF
         line: 'PATH={{ environment_output.stdout }}:{{ slurm_nfs_folder }}/usr/bin:{{ slurm_nfs_folder }}/usr/sbin'
@@ -82,7 +91,7 @@
 
     - name: Replace LD_LIBRARY_PATH variable
       ansible.builtin.lineinfile:
-        path: "{{ bashrc_path }}"
+        path: "{{ bashrc_path_final }}"
         regexp: '^LD_LIBRARY_PATH=*'
         insertafter: EOF
         line: 'export LD_LIBRARY_PATH={{ slurm_nfs_folder }}/usr/lib64/'
@@ -90,6 +99,12 @@
 - name: Source /etc/bashrc
   ansible.builtin.shell: source  "{{ bashrc_path }}" # noqa: command-instead-of-shell
   changed_when: false
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
+
+- name: Source /etc/bash.bashrc
+  ansible.builtin.shell: "bash -i -c 'source {{ bashrc_path_ubuntu }}'" # noqa: command-instead-of-shell
+  changed_when: false
+  when: ansible_distribution | lower == "ubuntu"
 
 - name: Start slurmd on slurm nodes
   ansible.builtin.systemd:

@@ -18,87 +18,23 @@
   register: machine_name
   changed_when: true
 
-- name: Slurm configuration - slurm.conf
-  ansible.builtin.copy:
-    src: slurm.conf
-    dest: "{{ slurm_dest }}"
-    mode: "{{ slurm_mode }}"
+- name: Create slurm_dest directory
+  ansible.builtin.file:
+    path: "{{ slurm_dest }}"
+    state: directory
+    mode: "{{ gen_mode }}"
+
+- name: Cgroup configuration - cgroup.conf
+  ansible.builtin.template:
+    src: "{{ cgroup_conf_template }}"
+    dest: "{{ slurm_dest }}/cgroup.conf"
+    mode: "{{ cgroup_mode }}"
+  when: ansible_distribution | lower == "ubuntu"
   tags: install
 
-- name: Add cluster name
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "ClusterName="
-    line: "ClusterName={{ cluster_name }}"
-
-- name: Add slurm user name
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SlurmUser="
-    line: "SlurmUser={{ slurm_user }}"
-
-- name: Add slurmctld port no
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SlurmctldPort="
-    line: "SlurmctldPort={{ slurmctld_port }}"
-
-- name: Add slurmd port no
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SlurmdPort="
-    line: "SlurmdPort={{ slurmd_port }}"
-
-- name: Add srun port range
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SrunPortRange="
-    line: "SrunPortRange={{ srun_port_range }}"
-
-- name: Add spool path
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SlurmdSpoolDir="
-    line: "SlurmdSpoolDir={{ spool_pth }}"
-
-- name: Add slurmctld pid file path
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SlurmctldPidFile="
-    line: "SlurmctldPidFile={{ slurmctld_pid }}"
-
-- name: Add slurmd pid file path
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SlurmdPidFile="
-    line: "SlurmdPidFile={{ slurmd_pid }}"
-
-- name: Add slurmctld log file path
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SlurmctldLogFile="
-    line: "SlurmctldLogFile={{ slurmctld_log }}"
-
-- name: Add slurmd log file path
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SlurmdLogFile="
-    line: "SlurmdLogFile={{ slurmd_log }}"
-
-- name: Add accounting storage port no
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "AccountingStoragePort="
-    line: "AccountingStoragePort={{ acct_port }}"
-
-- name: Add control machine name
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "ControlMachine="
-    line: "ControlMachine={{ machine_name.stdout }}"
-
-- name: Add slurm user name
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "SlurmUser="
-    line: "SlurmUser={{ slurm_user }}"
+- name: Slurm configuration - slurm.conf
+  ansible.builtin.template:
+    src: "{{ slurm_conf_template }}"
+    dest: "{{ slurm_dest }}/slurm.conf"
+    mode: "{{ slurm_mode }}"
+  tags: install

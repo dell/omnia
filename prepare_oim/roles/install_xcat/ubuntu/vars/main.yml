@@ -36,6 +36,7 @@ root_apt_permission_dest: "/etc/apt/apt.conf.d/10sandbox"
 libssl_package_url: http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.0g-2ubuntu4_amd64.deb
 libssl_package_dest: "{{ xcat_directory_ubuntu }}/libssl1.1_1.1.0g-2ubuntu4_amd64.deb"
 ubuntu22_version: "22.04"
+ubuntu24_version: "24.04"
 common_packages_provision:
   - python3-netaddr
   - openssl
@@ -43,6 +44,9 @@ common_packages_provision:
   - sshpass
   - python3-pexpect
   - chrony
+
+ubuntu24_packages_provision:
+  - util-linux-extra
 provision_package_fail_msg: "Failed. Unable to install {{ common_packages_provision }} packages.
 Please make sure all required repos are reachable. Remove or Update unreachable repos configured."
 common_packages_xcat:
@@ -85,11 +89,6 @@ Please re-run prereq.sh again and verify the file is downloaded successfully."
 
 # Usage: configure_genesis.yml
 oim_arch: x86_64
-xcat_bin_path: /opt/xcat/share/xcat/netboot/genesis/x86_64/fs/usr/bin
-doxcat_script_path: "{{ xcat_bin_path }}/doxcat"
-doxcat_check_key: 'ipmitool raw 0x00 0x08 0x03 0x08'
-doxcat_patch_path:
-  - { src: "{{ role_path }}/../common/files/doxcat.patch", dest: "{{ xcat_bin_path }}/doxcat.patch", mode: "755" }
 xcat_git_version: 2.16.4
 max_retries: 10
 xcat_genesis_deb_dir: "{{ role_path }}/../ubuntu/files/"
@@ -110,3 +109,11 @@ encrypted_file_path: "/opt/omnia/.postgres/.encrypted_pwd"
 xcat_patch_files:
   - { src: "{{ role_path }}/../common/files/confignetwork.patch", dest: "/install/postscripts/confignetwork" }
   - { src: "{{ role_path }}/../common/files/ddns.patch", dest: "/opt/xcat/lib/perl/xCAT_plugin/ddns.pm" }
+  - { src: "{{ role_path }}/../common/files/doxcat.patch", dest: "/opt/xcat/share/xcat/netboot/genesis/x86_64/fs/usr/bin/doxcat" }
+  - { src: "{{ role_path }}/../common/files/configeth.patch", dest: "/install/postscripts/configeth" }
+  - { src: "{{ role_path }}/../common/files/configib.patch", dest: "/install/postscripts/configib" }
+  - { src: "{{ role_path }}/../common/files/nicutils.patch", dest: "/install/postscripts/nicutils.sh" }
+
+ubuntu24_version: "24.04"
+ubuntu24_patch_files:
+  - { src: "{{ role_path }}/../common/files/pgsqlsetup.patch", dest: "/opt/xcat/bin/pgsqlsetup" }

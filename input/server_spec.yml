@@ -1,19 +1,21 @@
 ---
 Categories:
-  - group-1:
+  - category-1:
       - network:
           - ensp0:
               nicnetwork: "nic_network1"
               nictypes: "ethernet"
+              metric: 
           - ensp0.5:
               nicnetwork: "nic_network2"
               nictypes: "vlan"
               nicdevices: "ensp0"
+              metric: 
       - os:
           - kernel:
               - cmdline: ""
 
-  - group-2:
+  - category-2:
       - network:
           - eno1:
               nicnetwork: "nic_network1"
@@ -29,7 +31,7 @@ Categories:
 #
 # Example for configuring only network settings:
 # Categories:
-#   - group-1:
+#   - category-1:
 #       - network:
 #           - eno1:
 #               nicnetwork: "nic_network1"
@@ -37,7 +39,7 @@ Categories:
 #
 # Example for configuring only OS settings:
 # Categories:
-#   - group-2:
+#   - category-2:
 #       - os:
 #           - kernel:
 #               - cmdline: "iommu=pt intel_iommu=off pci=realloc=off processor.max_cstate=0 intel_idle.max_cstate=0 intel_pstate=disable"

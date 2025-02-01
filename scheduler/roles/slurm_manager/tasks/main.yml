@@ -36,6 +36,12 @@
     - hostvars['127.0.0.1']['slurm_support']
     - not slurmctld_status
   block:
+    - name: Create necessary links
+      ansible.builtin.include_tasks: prereq.yml
+      when:
+        - slurm_installation_type == nfs_share_slurm
+        - ansible_distribution | lower == "ubuntu"
+
     - name: Configure slurm users and log paths
       ansible.builtin.include_tasks: configure_slurm.yml
 
@@ -51,9 +57,6 @@
       ansible.builtin.include_tasks: install_packages.yml
       when: slurm_installation_type == configless_slurm
 
-    - name: Install Development tools
-      ansible.builtin.include_tasks: install_dev_packages.yml
-
     - name: Update slurm conf file
       ansible.builtin.include_tasks: update_slurm_conf.yml
 
@@ -62,7 +65,7 @@
       when: slurm_installation_type == nfs_share_slurm
 
     - name: Update firewall with ports
-      ansible.builtin.include_tasks: update_ports_firewall.yml
+      ansible.builtin.include_tasks: update_ports_firewall_{{ ansible_distribution | lower }}.yml
 
     - name: Update slurmdbd conf file
       ansible.builtin.include_tasks: update_slurmdbd_conf.yml

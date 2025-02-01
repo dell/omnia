@@ -20,6 +20,12 @@
       ansible.builtin.package:
         name: "{{ common_packages_provision }}"
         state: present
+      
+    - name: Install packages for Ubuntu 24
+      ansible.builtin.package:
+        name: "{{ ubuntu24_packages_provision }}"
+        state: present
+      when: ansible_distribution_version == ubuntu24_version
   rescue:
     - name: Failed to install common packages for provision
       ansible.builtin.fail:
@@ -112,9 +118,10 @@
   ansible.builtin.apt:
     update_cache: true
 
-- name: Install libssl in ubuntu 22.04
+- name: Install libssl in ubuntu 22.04/24.04
   when:
-    - ansible_distribution_version == ubuntu22_version
+    - ansible_distribution_version == ubuntu22_version or
+      ansible_distribution_version == ubuntu24_version
   block:
     - name: Download libssl package
       ansible.builtin.get_url:

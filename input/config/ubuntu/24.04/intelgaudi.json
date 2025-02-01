@@ -1,0 +1,62 @@
+{
+    "intelgaudi": {
+      "cluster": [
+      { 
+        "package": "habanalabs-dkms={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "intelgaudi"
+      },
+      {
+        "package": "habanalabs-firmware={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "intelgaudi"
+      },
+      {
+        "package": "habanalabs-firmware-tools={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "intelgaudi"
+      },
+      {
+        "package": "habanalabs-graph={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "intelgaudi"
+      },
+      {
+        "package": "habanalabs-qual={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "intelgaudi"
+      },
+      {
+        "package": "habanalabs-rdma-core={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "intelgaudi"
+      },
+      {
+        "package": "habanalabs-thunk={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "intelgaudi"
+      },
+      {
+        "package": "habanalabs-tools={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "intelgaudi"
+      },
+      {
+        "package": "hccl_demo",
+        "type": "git",
+        "url": "https://github.com/HabanaAI/hccl_demo.git",
+        "version": "main"
+      }
+     ]
+    },
+    "intel": {
+      "cluster": [
+
+      {
+        "package": "habanalabs-container-runtime={{ intelgaudi_version }}",
+        "type": "deb",
+        "repo_name": "intelgaudi"
+      }
+      ]
+    }
+}

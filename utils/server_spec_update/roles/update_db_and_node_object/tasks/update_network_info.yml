@@ -17,12 +17,14 @@
   block:
     - name: Update additional nic details in DB
       ansible.builtin.command: |
-         {{ python_version }} {{ update_network_db }} {{ server_spec_path }} {{ hostvars[item]['categories'] }}
+         {{ python_version }} {{ update_network_db }} {{ server_spec_path }} {{ host_details[item]['categories'] }}
          {{ metadata_nicinfo_path }} {{ network_data.admin_network.static_range }}
-         {{ network_data.admin_network.netmask_bits }} {{ hostvars[item]['node_detail'] }}
+         {{ network_data.admin_network.netmask_bits }} {{ host_details[item]['node_detail'] }} {{ omnia_db_path }} {{ inventory_status | default(false) }}
       changed_when: false
-      with_items: "{{ groups['all'] }}"
-      when: groups['all'] is defined
+      when:
+        - host_details | length > 0
+        - item in host_details
+      with_items: "{{ all_hosts }}"
   rescue:
     - name: Failed to update network details in DB
       ansible.builtin.fail:

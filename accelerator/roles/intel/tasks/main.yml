@@ -17,4 +17,4 @@
   ansible.builtin.include_tasks: install_ubuntu.yml
   when:
     - compute_os == "ubuntu"
-    - compute_os_version == "22.04"
+    - compute_os_version == "22.04" or compute_os_version == "24.04"

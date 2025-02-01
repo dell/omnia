@@ -68,16 +68,3 @@
     src: "{{ openssl_cert_path }}"
     dest: "{{ containerd_certs_dir }}/{{ hostname_result.stdout }}:{{ nerdctl_registry_port }}/ca.crt"
     mode: "{{ file_permission }}"
-
-- name: Check /etc/hosts has Omnia Infrastructure Manager hostname
-  ansible.builtin.command: cat "{{ hosts_file }}"
-  changed_when: false
-  register: hosts_file_content
-
-- name: Update Omnia Infrastructure Manager hostname in /etc/hosts
-  ansible.builtin.lineinfile:
-    path: "{{ hosts_file }}"
-    insertafter: "EOF"
-    state: present
-    line: "127.0.0.1 {{ oim_hostname }}"
-  when: oim_hostname not in hosts_file_content.stdout

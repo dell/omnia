@@ -12,6 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Set compute os
+  ansible.builtin.set_fact:
+    get_compute_os: "{{ ansible_distribution | lower }}"
+
+- name: Include vars for {{ get_compute_os }}
+  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ get_compute_os }}.yml"
 
 - name: Validate slurm groups
   ansible.builtin.fail:
@@ -148,3 +154,6 @@
                 path: "{{ bashrc_path }}"
                 regexp: '^export LD_LIBRARY_PATH=$'
                 state: absent
+
+- name: Update firewall rules
+  ansible.builtin.include_tasks: update_firewall_{{ ansible_distribution | lower }}.yml

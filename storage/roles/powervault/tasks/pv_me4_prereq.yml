@@ -28,11 +28,12 @@
 
 - name: Get session key
   ansible.builtin.uri:
-    url: https://{{ inventory_hostname }}/api/login/{{ auth_string.stdout | replace(" -", "") }}
+    url: https://{{ inventory_hostname }}/api/login/{{ auth_string.stdout | replace(' -', '') }}
     method: GET
     headers:
       {'datatype': 'json'}
     validate_certs: false
+    follow_redirects: all
   register: session_key
 
 - name: Execute show system command
@@ -42,14 +43,17 @@
     body_format: json
     validate_certs: false
     use_proxy: false
-    timeout: 60
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: system_info
 
-- name: Get the product id
+- name: Extract product-id from API response
   ansible.builtin.set_fact:
-    pv_id: "{{ system_info.json.system[0]['product-id'] }}"
+    pv_id: "{{ (system_info.content | from_json)['system'][0]['product-id'] }}"
+
 
 - name: Verify the product id and model no. of device
   ansible.builtin.assert:
@@ -69,8 +73,11 @@
     body_format: json
     validate_certs: false
     use_proxy: false
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: system_name
   when: powervault_system_name
 
@@ -81,15 +88,17 @@
     body_format: json
     validate_certs: false
     use_proxy: false
+    timeout: "{{ timeout }}"
     headers:
-      {'sessionKey': "{{ session_key.json.status[0].response }}", 'datatype':'json'}
+      sessionKey: "{{ session_key.json.status[0].response }}"
+      datatype: json
+    return_content: true
   register: show_controller
 
 - name: Create list of controllers
   ansible.builtin.set_fact:
     controller_no: "{{ controller_no | default([]) }} + [ '{{ item['controller-id'] }}']"
-  with_items: "{{ show_controller.json.controllers }}"
-  no_log: true
+  with_items: "{{ (show_controller.content | from_json)['controllers'] }}"
 
 - name: Assert the powervault_controller_mode when single
   ansible.builtin.assert:

@@ -20,6 +20,9 @@
     MANPATH: "{{ xcat_manpath_env }}"
     PERL_BADLANG: "{{ perl_badlang_env }}"
   block:
+    - name: Set kernel commandline parameters
+      ansible.builtin.include_tasks: configure_addkcmdline.yml
+
     - name: Include mapping vars
       ansible.builtin.include_vars: "{{ role_path }}/../mapping/vars/main.yml"
 
