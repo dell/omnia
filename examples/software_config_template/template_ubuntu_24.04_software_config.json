@@ -3,15 +3,16 @@
     "cluster_os_version": "24.04",
     "repo_config": "partial",
     "softwares": [
-        {"name": "amdgpu", "version": "6.2"},
-        {"name": "intelgaudi", "version": "1.18.0-524"},
+        {"name": "amdgpu", "version": "6.2.2"},
+	{"name": "bcm_roce", "version": "230.2.54.0"},
+        {"name": "intelgaudi", "version": "1.19.1-26"},
         {"name": "cuda", "version": "12.5.1"},
         {"name": "ofed", "version": "24.07-0.6.1.0"},
         {"name": "openldap"},
         {"name": "secure_login_node"},
         {"name": "nfs"},
         {"name": "beegfs", "version": "7.4.5"},
-        {"name": "k8s", "version":"1.29.5"},
+        {"name": "k8s", "version":"1.31.4"},
         {"name": "jupyter"},
         {"name": "kubeflow"},
         {"name": "kserve"},
@@ -21,16 +22,16 @@
         {"name": "telemetry"},
         {"name": "ucx", "version": "1.17.0"},
         {"name": "openmpi", "version": "5.0.4"},
-        {"name": "csi_driver_powerscale", "version":"v2.11.0"},
+        {"name": "csi_driver_powerscale", "version":"v2.13.0"},
         {"name": "intel_benchmarks", "version": "2024.1"},
         {"name": "amd_benchmarks"}
     ],
 
     "bcm_roce": [
-        {"name": "bcm_roce_libraries", "version": "229.2.61.0"}
+        {"name": "bcm_roce_libraries", "version": "230.2.54.0"}
     ],
     "amdgpu": [
-        {"name": "rocm", "version": "6.2" }
+        {"name": "rocm", "version": "6.2.2" }
     ],
     "intelgaudi": [
         {"name": "habana"}

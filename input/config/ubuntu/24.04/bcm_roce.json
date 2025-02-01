@@ -1,0 +1,36 @@
+{
+  "bcm_roce": {
+    "cluster": [
+      {
+        "package": "bcm_roce_driver_{{ bcm_roce_version }}",
+        "type": "tarball",
+        "url": "",
+        "path": ""
+      }
+    ]
+  },
+  "bcm_roce_libraries": {
+    "cluster": [
+      {
+        "package": "bcm_roce_source_{{ bcm_roce_libraries_version }}",
+        "type": "tarball",
+        "url": "",
+        "path": ""
+      },
+      {"package": "libelf-dev", "type": "deb", "repo_name": "noble"},
+      {"package": "gcc", "type": "deb", "repo_name": "noble"},
+      {"package": "make", "type": "deb", "repo_name": "noble"},
+      {"package": "libtool", "type": "deb", "repo_name": "noble"},
+      {"package": "autoconf", "type": "deb", "repo_name": "noble"},
+      {"package": "librdmacm-dev", "type": "deb", "repo_name": "noble"},
+      {"package": "rdmacm-utils", "type": "deb", "repo_name": "noble"},
+      {"package": "infiniband-diags", "type": "deb", "repo_name": "noble"},
+      {"package": "ibverbs-utils", "type": "deb", "repo_name": "noble"},
+      {"package": "perftest", "type": "deb", "repo_name": "noble"},
+      {"package": "ethtool", "type": "deb", "repo_name": "noble"},
+      {"package": "libibverbs-dev", "type": "deb", "repo_name": "noble"},
+      {"package": "rdma-core", "type": "deb", "repo_name": "noble"},
+      {"package": "strace", "type": "deb", "repo_name": "noble"}
+    ]
+  }
+}

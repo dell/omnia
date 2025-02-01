@@ -27,70 +27,70 @@
         "repo_name": "docker-ce-repo"
       },
       {
-        "package": "kubespray-v2.25.0",
+        "package": "kubespray-v2.27.0",
         "type": "git",
         "url": "https://github.com/kubernetes-sigs/kubespray.git",
-        "version": "v2.25.0"
+        "version": "v2.27.0"
       },
       {
-        "package": "kubectl-1.29.5",
+        "package": "kubectl-1.31.4",
         "type": "tarball",
-        "url": "https://dl.k8s.io/release/v1.29.5/bin/linux/amd64/kubectl"
+        "url": "https://dl.k8s.io/release/v1.31.4/bin/linux/amd64/kubectl"
       },
       {
-        "package": "kubelet-1.29.5",
+        "package": "kubelet-1.31.4",
         "type": "tarball",
-        "url": "https://dl.k8s.io/release/v1.29.5/bin/linux/amd64/kubelet"
+        "url": "https://dl.k8s.io/release/v1.31.4/bin/linux/amd64/kubelet"
       },
       {
-        "package": "kubeadm-1.29.5",
+        "package": "kubeadm-1.31.4",
         "type": "tarball",
-        "url": "https://dl.k8s.io/release/v1.29.5/bin/linux/amd64/kubeadm"
+        "url": "https://dl.k8s.io/release/v1.31.4/bin/linux/amd64/kubeadm"
       },
       {
-        "package": "calicoctl-v3.27.3",
+        "package": "calicoctl-v3.29.1",
         "type": "tarball",
-        "url": "https://github.com/projectcalico/calico/releases/download/v3.27.3/calicoctl-linux-amd64"
+        "url": "https://github.com/projectcalico/calico/releases/download/v3.29.1/calicoctl-linux-amd64"
       },
       {
-        "package": "calicocrds-v3.27.3",
+        "package": "calicocrds-v3.29.1",
         "type": "tarball",
-        "url": "https://github.com/projectcalico/calico/archive/v3.27.3.tar.gz"
+        "url": "https://github.com/projectcalico/calico/archive/v3.29.1.tar.gz"
       },
       {
-        "package": "cri-tools-v1.29.0",
+        "package": "cri-tools-v1.31.1",
         "type": "tarball",
-        "url": "https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.29.0/crictl-v1.29.0-linux-amd64.tar.gz"
+        "url": "https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.31.1/crictl-v1.31.1-linux-amd64.tar.gz"
       },
       {
-        "package": "etcd-v3.5.12",
+        "package": "etcd-v3.5.16",
         "type": "tarball",
-        "url": "https://github.com/etcd-io/etcd/releases/download/v3.5.12/etcd-v3.5.12-linux-amd64.tar.gz"
+        "url": "https://github.com/etcd-io/etcd/releases/download/v3.5.16/etcd-v3.5.16-linux-amd64.tar.gz"
       },
       {
-        "package": "cni-plugins-v1.3.0",
+        "package": "cni-plugins-v1.4.0",
         "type": "tarball",
-        "url": "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz"
+        "url": "https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz"
       },
       {
-        "package": "runc.amd64-v1.1.12",
+        "package": "runc.amd64-v1.2.3",
         "type": "tarball",
-        "url": "https://github.com/opencontainers/runc/releases/download/v1.1.12/runc.amd64"
+        "url": "https://github.com/opencontainers/runc/releases/download/v1.2.3/runc.amd64"
       },
       {
-        "package": "nerdctl-v1.7.4",
+        "package": "nerdctl-v1.7.7",
         "type": "tarball",
-        "url": "https://github.com/containerd/nerdctl/releases/download/v1.7.4/nerdctl-1.7.4-linux-amd64.tar.gz"
+        "url": "https://github.com/containerd/nerdctl/releases/download/v1.7.7/nerdctl-1.7.7-linux-amd64.tar.gz"
       },
       {
-        "package": "containerd-1.7.16",
+        "package": "containerd-1.7.24",
         "type": "tarball",
-        "url": "https://github.com/containerd/containerd/releases/download/v1.7.16/containerd-1.7.16-linux-amd64.tar.gz"
+        "url": "https://github.com/containerd/containerd/releases/download/v1.7.24/containerd-1.7.24-linux-amd64.tar.gz"
       },
       {
-        "package": "helm-v3.14.2",
+        "package": "helm-v3.16.4",
         "type": "tarball",
-        "url": "https://get.helm.sh/helm-v3.14.2-linux-amd64.tar.gz"
+        "url": "https://get.helm.sh/helm-v3.16.4-linux-amd64.tar.gz"
       },
       {
         "package": "nfs-subdir-external-provisioner-4.0.18",
@@ -119,22 +119,22 @@
       },
       {
         "package": "registry.k8s.io/kube-apiserver",
-        "tag": "v1.29.5",
+        "tag": "v1.31.4",
         "type": "image"
       },
       {
         "package": "registry.k8s.io/kube-controller-manager",
-        "tag": "v1.29.5",
+        "tag": "v1.31.4",
         "type": "image"
       },
       {
         "package": "registry.k8s.io/kube-proxy",
-        "tag": "v1.29.5",
+        "tag": "v1.31.4",
         "type": "image"
       },
       {
         "package": "registry.k8s.io/kube-scheduler",
-        "tag": "v1.29.5",
+        "tag": "v1.31.4",
         "type": "image"
       },
       {
@@ -144,27 +144,27 @@
       },
       {
         "package": "quay.io/coreos/etcd",
-        "tag": "v3.5.12",
+        "tag": "v3.5.16",
         "type": "image"
       },
       {
         "package": "quay.io/calico/cni",
-        "tag": "v3.27.3",
+        "tag": "v3.29.1",
         "type": "image"
       },
       {
         "package": "quay.io/calico/kube-controllers",
-        "tag": "v3.27.3",
+        "tag": "v3.29.1",
         "type": "image"
       },
       {
         "package": "quay.io/calico/pod2daemon-flexvol",
-        "tag": "v3.27.3",
+        "tag": "v3.29.1",
         "type": "image"
       },
       {
         "package": "quay.io/calico/node",
-        "tag": "v3.27.3",
+        "tag": "v3.29.1",
         "type": "image"
       },
       {
