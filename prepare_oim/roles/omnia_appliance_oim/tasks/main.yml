@@ -22,7 +22,7 @@
   ansible.builtin.command: "{{ python_version }} -m pip install -r {{ pip_modules_req_file_161 }}"
   changed_when: false
 
-- name: Install required pip modules for omnia1.7 venv
-  when: "'omnia17_venv' in venv_path"
+- name: Install required pip modules for venv
+  when: "'omnia171_venv' in venv_path"
   ansible.builtin.command: "{{ python_version }} -m pip install -r {{ pip_modules_req_file }}"
   changed_when: false

@@ -130,7 +130,7 @@ py_major_version="3"
 py_minor_version="11"
 venv_py=python$python_version
 os_release_data="/etc/os-release"
-venv_location="/opt/omnia/omnia17_venv" # Do not give a trailing slash
+venv_location="/opt/omnia/omnia171_venv" # Do not give a trailing slash
 unsupported_os=false
 os_type="rhel"
 SELINUX_REBOOT_REQUIRED=false
@@ -271,7 +271,7 @@ echo ""
 if [ "$VIRTUAL_ENV" != "$venv_location" ]; then
     echo "Omnia virtual environment not activated in $venv_location"
     if [ ! -f "$venv_location/bin/activate" ]; then
-       $venv_py -m venv $venv_location --prompt omnia17
+       $venv_py -m venv $venv_location --prompt omnia171
     fi
     echo "Activating the Omnia virtual environment .."
     source $venv_location/bin/activate
