@@ -1,0 +1,43 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+- name: Set facts
+  ansible.builtin.set_fact:
+    pxe_nic: "{{ hostvars['localhost']['admin_nic'] }}"
+    pxe_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+    pxe_nic_forwarders: "{{ hostvars['localhost'].network_data.admin_network.DNS | default('', true) }}"
+    domain_name: "{{ hostvars['localhost']['domain_name'] }}"
+    default_lease_time: "{{ hostvars['localhost']['default_lease_time'] }}"
+    timezone: "{{ hostvars['localhost']['timezone'] }}"
+
+- name: Configure site table
+  ansible.builtin.shell: >
+    {{ xcat_path }}/chdef -t site dhcpinterfaces="{{ pxe_nic }}" master="{{ pxe_nic_ip }}" dhcplease="{{ default_lease_time }}"
+    timezone="{{ timezone }}" forwarders="" nameservers=""
+  changed_when: true
+
+- name: Configure forwarders in site table
+  ansible.builtin.shell: >
+    {{ xcat_path }}/chdef -t site forwarders="{{ pxe_nic_forwarders }}"
+  changed_when: true
+
+- name: Configure nameservers in site table
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t site nameservers=\"{{ pxe_nic_ip }}\""
+  changed_when: true
+
+- name: Configure domain in site table
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t site domain=\"{{ domain_name }}\""
+  changed_when: true

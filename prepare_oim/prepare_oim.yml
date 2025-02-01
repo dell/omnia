@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,22 +13,74 @@
 # limitations under the License.
 ---
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: ../utils/check_venv.yml
-  when: not ( hostvars['127.0.0.1']['check_venv_executed'] | default(false) | bool )
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
-- name: Check if package manager is not locked
-  ansible.builtin.import_playbook: ../utils/check_package_lock.yml
-  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
+- name: Create oim group
+  when: not oim_group_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    oim_group: true
 
-- name: Prepare Omnia Infrastructure Manager for provisioning
+- name: Create provision container group
+  when: not provision_group_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    omnia_provision_group: true
+
+- name: Prepare OIM Validation and Configure Known Hosts
   hosts: localhost
   connection: local
+  gather_facts: false
+  tasks:
+    - name: Include prepare_oim_validation role  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: prepare_oim_validation
+
+    - name: Include create_inventory role  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: create_inventory
+
+    - name: Add OIM to known hosts  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/common
+        tasks_from: add_known_hosts.yml
+
+- name: Deploy all container
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags: deploy_containers
   roles:
-    - role: pre_requisite
-    - role: configure_proxy
-    - role: install_xcat/common      # noqa: role-name[path]
-    - role: db_creation
-    - role: omnia_telemetry_oim
-    - role: omnia_appliance_oim
-    - role: create_inventory
+    - role: deploy_containers/common  # noqa:role-name[path]
+    - role: deploy_containers/pcs  # noqa:role-name[path]
+    - role: deploy_containers/provision  # noqa:role-name[path]
+    - role: deploy_containers/kubespray  # noqa:role-name[path]
+
+- name: Add all containers to known hosts on omnia core
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Add provision container host keys to known_hosts of omnia_core  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/common
+        tasks_from: add_known_hosts.yml
+      vars:
+        target_port: "{{ provision_ssh_port }}"
+    - name: Add kubespray container host keys to known_hosts of omnia_core  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/common
+        tasks_from: add_known_hosts.yml
+      vars:
+        target_port: "{{ kubespray_ssh_port }}"
+
+- name: Configure provision container
+  hosts: omnia_provision
+  connection: ssh
+  tasks:
+    - name: Configure provision container and Omnia DB creation  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/provision
+        tasks_from: configure_provision_container.yml

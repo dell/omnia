@@ -1,0 +1,34 @@
+totem {
+    version: 2
+    secauth: off
+    threads: 0
+    interface {
+            member {
+                  memberaddr: {{ admin_nic_ip }}
+                   }
+            ringnumber: 0
+            bindnetaddr: {{ admin_net_addr }}
+            mcastport: 5405
+    }
+    transport: udpu
+}
+
+quorum {
+  provider: corosync_votequorum
+  two_node: 1
+}
+
+nodelist {
+  node {
+    ring0_addr: {{ admin_nic_ip }}
+    name: {{ oim_node_name }}
+    nodeid: 1
+  }
+}
+
+logging {
+  to_logfile: yes
+  logfile: /var/log/cluster/corosync.log
+  to_syslog: yes
+  timestamp: on
+}

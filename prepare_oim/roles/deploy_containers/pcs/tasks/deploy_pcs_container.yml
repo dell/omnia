@@ -1,0 +1,93 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+- name: Create PCS directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop: "{{ pcs_directories }}"
+
+- name: Create pcs-start.sh and corosync.conf at PCS NFS share
+  ansible.builtin.template:
+    src: "{{ item.template }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ pcs_startup_file }}"
+
+- name: Check if {{ pcs_container_name }} container is running # noqa: name[template]
+  containers.podman.podman_container_info:
+    name: "{{ pcs_container_name }}"
+  register: pcs_container_info
+  failed_when: false
+
+- name: Pull PCS image
+  containers.podman.podman_image:
+    name: "localhost/{{ pcs_image_name }}"
+    tag: "{{ pcs_image_tag }}"
+    state: present
+  register: image_build_result
+
+- name: Fail if the PCS image pull fails
+  ansible.builtin.fail:
+    msg: "{{ pcs_image_pull_fail_msg }}"
+  when: image_build_result.failed
+
+- name: Verify if PCS image exists
+  containers.podman.podman_image_info:
+    name: "{{ pcs_image_name }}:{{ pcs_image_tag }}"
+  register: image_facts
+
+- name: Fail if the PCS image is not found
+  ansible.builtin.fail:
+    msg: "{{ pcs_image_not_found_msg }}"
+  when: not image_facts.images
+
+- name: Deploy PCS container and check deployment status
+  block:
+    - name: Deploy the PCS container
+      containers.podman.podman_container:
+        name: "{{ pcs_container_name }}"
+        image: "localhost/{{ pcs_image_name }}:{{ pcs_image_tag }}"
+        state: present
+        privileged: true
+        network_mode: host
+        volumes: "{{ pcs_volumes }}"
+        cap_add:
+          - AUDIT_WRITE
+        restart_policy: always
+
+    - name: Start the PCS container
+      containers.podman.podman_container:
+        name: "{{ pcs_container_name }}"
+        state: started
+
+    - name: Check if PCS container is running after deployment
+      containers.podman.podman_container_info:
+        name: "{{ pcs_container_name }}"
+      register: pcs_container_status
+
+    - name: Notify user of PCS container deployment status
+      ansible.builtin.debug:
+        msg: "{{ pcs_container_success_msg }}"
+      when:
+        - pcs_container_status.containers | length > 0
+        - pcs_container_status.containers[0].State.Status == 'running'
+
+  rescue:
+    - name: Notify user of PCS container deployment failure
+      ansible.builtin.debug:
+        msg: "{{ pcs_container_failure_msg }}"

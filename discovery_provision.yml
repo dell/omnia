@@ -45,6 +45,9 @@
     #    name: utils/server_spec_update/roles/server_spec_validation
     #  when: inventory_status | default(false) | bool
 
+- name: Prepare Omnia Infrastructure Manager for basic things
+  ansible.builtin.import_playbook: prepare_oim/prepare_oim.yml      # noqa:role-name[path]
+
 - name: Discover the nodes
   ansible.builtin.import_playbook: discovery/discovery.yml       # noqa:role-name[path]
 
