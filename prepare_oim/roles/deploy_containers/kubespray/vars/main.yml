@@ -39,6 +39,7 @@ wait_time: 10
 kubespray_volumes:
   - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z"
   - "{{ omnia_nfs_share }}:/opt/omnia:z"
+  - "/etc/hosts:/etc/hosts:z"
 kubespray_container_success_msg: "The {{ kubespray_container_name }} container has been successfully deployed."
 kubespray_container_failure_msg: |
   The deployment of the {{ kubespray_container_name }} container has failed. To resolve this issue,
