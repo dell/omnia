@@ -18,29 +18,6 @@
   register: include_metadata
   no_log: true
 
-- name: Include local_repo_config.yml vars
-  block:
-    - name: Include local_repo_config.yml vars
-      ansible.builtin.include_vars: "{{ local_repo_config_file }}"
-      register: include_local_repo_config
-      no_log: true
-  rescue:
-    - name: Failed to local_repo_config.yml
-      ansible.builtin.fail:
-        msg: "{{ local_repo_config_syntax_fail_msg }} Error: {{ include_local_repo_config.message }}"
-
-- name: Include provision_config.yml
-  block:
-    - name: Include provision_config.yml
-      ansible.builtin.include_vars: "{{ provision_config_filename }}"
-      register: include_provision_config
-      no_log: true
-      tags: init
-  rescue:
-    - name: Failed to include_provision_config.yml
-      ansible.builtin.fail:
-        msg: "{{ provision_config_syntax_fail_msg }} Error: {{ include_provision_config.message }}"
-
 # Include network_spec
 - name: Include network_spec.yml
   block:

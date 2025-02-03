@@ -16,28 +16,10 @@
 
 - name: Set facts
   ansible.builtin.set_fact:
-    pxe_nic: "{{ hostvars['localhost']['admin_nic'] }}"
-    pxe_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
-    pxe_nic_forwarders: "{{ hostvars['localhost'].network_data.admin_network.DNS | default('', true) }}"
-    domain_name: "{{ hostvars['localhost']['domain_name'] }}"
-    default_lease_time: "{{ hostvars['localhost']['default_lease_time'] }}"
-    timezone: "{{ hostvars['localhost']['timezone'] }}"
+    admin_nic: "{{ hostvars['localhost']['admin_nic'] }}"
+    admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
 
 - name: Configure site table
   ansible.builtin.shell: >
-    {{ xcat_path }}/chdef -t site dhcpinterfaces="{{ pxe_nic }}" master="{{ pxe_nic_ip }}" dhcplease="{{ default_lease_time }}"
-    timezone="{{ timezone }}" forwarders="" nameservers=""
-  changed_when: true
-
-- name: Configure forwarders in site table
-  ansible.builtin.shell: >
-    {{ xcat_path }}/chdef -t site forwarders="{{ pxe_nic_forwarders }}"
-  changed_when: true
-
-- name: Configure nameservers in site table
-  ansible.builtin.command: "{{ xcat_path }}/chdef -t site nameservers=\"{{ pxe_nic_ip }}\""
-  changed_when: true
-
-- name: Configure domain in site table
-  ansible.builtin.command: "{{ xcat_path }}/chdef -t site domain=\"{{ domain_name }}\""
+    {{ xcat_path }}/chdef -t site dhcpinterfaces="{{ admin_nic }}" master="{{ admin_nic_ip }}" forwarders="" nameservers="{{ admin_nic_ip }}"
   changed_when: true

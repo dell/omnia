@@ -45,19 +45,14 @@ service_retries: 3
 
 # Usage: pre_requisite.yml
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
-provision_config_filename: "{{ input_project_dir }}/provision_config.yml"
 provision_vault_path: "{{ input_project_dir }}/.provision_vault_key"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
-provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
 provision_credentials_config_filename: "{{ input_project_dir }}/provision_config_credentials.yml"
 provision_credentials_vault_path: "{{ input_project_dir }}/.provision_credential_vault_key"
 provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
 conf_file_mode: "0644"
-local_repo_config_file: "{{ input_project_dir }}/local_repo_config.yml"
-local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
 network_spec: "{{ input_project_dir }}/network_spec.yml"
 network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
-
 software_config_file: "{{ input_project_dir }}/software_config.json"
 invalid_software_config_fail_msg: "Failed. Please provide valid software_config.json file with cluster_os_type, cluster_os_version, repo_config
 and repo_config values."

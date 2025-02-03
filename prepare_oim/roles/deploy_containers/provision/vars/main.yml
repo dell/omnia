@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-# deploy_provision_container.yml
+# Usage: deploy_provision_container.yml
 xcat_version: "2.17"  # Set the desired provision version
 omnia_nfs_share: "{{ oim_shared_path }}/omnia"  # Define NFS share path
 provision_logs_dir: "{{ omnia_nfs_share }}/logs/provision" # For xcat and all those logs
@@ -59,12 +59,10 @@ provision_devices:
   - /dev/loop0:/dev/loop0
   - /dev/loop-control:/dev/loop-control
 
-# configure_postgres.yml
+# Usage: configure_postgres.yml
 xcat_services:
   - xcatd
   - postgresql
-  # - firewalld
-  # - snmpd
 xcat_init_finished: "/xcat-init.finished"
 wait_time_xcat_init: 180
 xcat_init_failed_msg: "xcat-init.bash execution failed. Error: {{ xcat_init_result }}"
