@@ -13,17 +13,6 @@
 # limitations under the License.
 ---
 
-# Usage: package_installation.yml
-common_packages_provision:
-  - python3-netaddr
-  - openssl
-  - dos2unix
-  - sshpass
-  - python3-pexpect
-  - chrony
-provision_package_fail_msg: "Failed. Unable to install {{ common_packages_provision }} packages.
-Please make sure all required repos are reachable. Remove or Update unreachable repos configured."
-
 # Usage: validate_ofed_cuda_repo.yml
 cuda_search_pattern: "*.deb"
 
