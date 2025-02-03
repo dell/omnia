@@ -29,7 +29,7 @@
   tasks:
     - name: Decrypt provision_credentials_config.yml
       ansible.builtin.include_role:
-        name: discovery_validations/common
+        name: discovery_validations/common                    # noqa: role-name[path]
         tasks_from: decrypt_provision_credentials_config.yml
 
 - name: Validate discovery parameters
@@ -38,7 +38,7 @@
   tasks:
     - name: Validate discovery parameters
       ansible.builtin.include_role:
-        name: discovery_validations/common
+        name: discovery_validations/common                    # noqa: role-name[path]
 
 - name: Encrypyt provision_credentials_config.yml
   hosts: localhost
@@ -46,7 +46,7 @@
   tasks:
     - name: Encrypyt provision_credentials_config.yml
       ansible.builtin.include_role:
-        name: discovery_validations/common
+        name: discovery_validations/common                    # noqa: role-name[path]
         tasks_from: encrypt_provision_credentials_config.yml
 
 - name: Validate discovery parameters
@@ -71,14 +71,14 @@
       ansible.builtin.include_role:
         name: discovery_mechanism/common     # noqa: role-name[path]
 
-#- name: Update kernel parameters
-#  hosts: "all:!localhost,!omnia_provision"
-#  connection: local
-#  gather_facts: true
-#  vars_files:
-#    - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
-#  roles:
-#    - role: os_update
+# - name: Update kernel parameters
+#   hosts: "all:!localhost,!omnia_provision"
+#   connection: local
+#   gather_facts: true
+#   vars_files:
+#     - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
+#   roles:
+#     - role: os_update
 
 - name: Discovery roles of Omnia Infrastructure Manager for provisioning
   hosts: omnia_provision

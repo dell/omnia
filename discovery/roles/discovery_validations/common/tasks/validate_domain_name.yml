@@ -80,8 +80,9 @@
 
 # This logic will be updated based on /etc/hosts mount
 - name: Check if hosts_file_path entry for oim_hostname is present
-  ansible.builtin.shell: grep -q "{{ pxe_nic_ip }} {{ oim_hostname }}" "{{ hosts_file_path }}"
+  ansible.builtin.command: grep -q "{{ pxe_nic_ip }} {{ oim_hostname }}" "{{ hosts_file_path }}"
   register: oim_hostname_entry_present
+  changed_when: false
   failed_when: false
 
 - name: Add hosts file entry
