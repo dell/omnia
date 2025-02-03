@@ -80,6 +80,7 @@ fi
 
 hashed_passwd=$(openssl passwd -1 $passwd)
 ssh_key_file="/root/.ssh/oim_rsa"
+ssh_port=2222
 
 if [ -f "$ssh_key_file" ]; then
     echo -e "\n${BLUE}Skipping generating new ssh key pair.${NC}"
@@ -89,7 +90,7 @@ else
     {
         echo "Host omnia_core"
         echo "    Hostname localhost"
-        echo "    Port 2222"
+        echo "    Port $ssh_port"
         echo "    User root"
         echo "    IdentityFile ~/.ssh/oim_rsa"
         echo "    IdentitiesOnly yes"
