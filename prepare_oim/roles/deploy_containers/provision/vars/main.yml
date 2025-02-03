@@ -40,7 +40,7 @@ install_dir: "{{ provision_dir }}/install"
 tftpboot_dir: "{{ provision_dir }}/tftpboot"
 hosts_file: "{{ provision_dir }}/hosts"
 root_read_write: "0644"
-root_read_write_execute: "0744"
+root_read_write_execute: "0755"
 
 provision_directories:
   - { path: "{{ provision_logs_dir }}", mode: "{{ root_read_write }}" }
