@@ -58,3 +58,8 @@ pcs_firewall_ports:
 pcs_firewall_services:
   - "http"
   - "https"
+
+# Usage:
+prepare_oim_completion_msg: |
+  The playbook prepare_oim.yml has completed successfully. To create the offline repositories and
+  registry for the cluster nodes, please execute the playbook local_repo/local_repo.yml as the next step.
