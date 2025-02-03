@@ -54,6 +54,7 @@ provision_volumes:
   - "{{ xcatdata_dir }}:/xcatdata:z"
   - "{{ provision_logs_dir }}/xcat:/var/log/xcat:z"
   - "{{ pgsql_data_dir }}:/var/lib/pgsql/data:z"
+  - "/etc/hosts:/etc/hosts:z"
 
 provision_devices:
   - /dev/loop0:/dev/loop0
