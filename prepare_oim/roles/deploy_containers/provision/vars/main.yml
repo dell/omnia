@@ -24,11 +24,13 @@ provision_image_tag: "latest"
 provision_container_name: "omnia_provision"
 provision_ssh_port: 2223
 wait_time: 5
-provision_port_occupied_msg: "Port {{ provision_ssh_port }} is already occupied. Provision container need this port kindly make this port available"
-provision_image_pull_fail_msg: >
-  Provision image {{ provision_image_name }}:{{ provision_image_tag }} pull failed.
-  Kindly rectify the issues below and re-run the playbook.
-  Error: {{ image_pull_result }}
+provision_port_occupied_msg: |
+  The port number {{ provision_ssh_port }} is already in use. The provision container requires this port to be available.
+  Please make sure this port is not occupied by any other process and re-run the playbook.
+provision_image_pull_fail_msg: |
+  The pull of the provision image {{ provision_image_name }}:{{ provision_image_tag }} has failed.
+  To resolve this issue, please address the following error message: {{ image_pull_result }}.
+  After rectifying the issues, you can re-run the playbook to successfully pull the provision image.
 provision_image_not_found_msg: "Provision image {{ provision_image_name }}:{{ provision_image_tag }} not found. Check if image is available and re-run the playbook."
 xcatdata_dir: "{{ provision_dir }}/xcatdata"
 pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
@@ -42,8 +44,9 @@ provision_directories:
 
 provision_container_success_msg: "The provision container {{ provision_container_name }} has been successfully created and is running."
 provision_container_failure_msg: |
-  The {{ provision_container_name }} container deployment failed.
-  Kindly run `utility/oim_cleanup.yml` and re-run the playbook.
+  The deployment of the {{ provision_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ provision_container_name }} container successfully.
 provision_volumes:
   - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z"
   - "{{ omnia_nfs_share }}:/opt/omnia:z"

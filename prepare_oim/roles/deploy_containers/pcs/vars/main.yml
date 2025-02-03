@@ -30,9 +30,9 @@ pcs_image_name: "omnia_pcs"
 pcs_image_tag: "latest"
 pcs_container_name: "omnia_pcs"
 pcs_image_pull_fail_msg: >
-  The PCS image - {{ pcs_image_name }}:{{ pcs_image_tag }} pull failed.
-  Kindly rectify the issues below and re-run the playbook.
-  Error: {{ image_pull_result }}
+  The pull of the provision image {{ pcs_image_name }}:{{ pcs_image_tag }} has failed.
+  To resolve this issue, please address the following error message: {{ image_pull_result }}.
+  After rectifying the issues, you can re-run the playbook to successfully pull the provision image.
 pcs_image_not_found_msg: "The specified image {{ pcs_image_name }}:{{ pcs_image_tag }} is not found."
 
 wait_time: 10
@@ -46,5 +46,6 @@ pcs_volumes:
 
 pcs_container_success_msg: "The {{ pcs_container_name }} container has been successfully deployed."
 pcs_container_failure_msg: |
-  The {{ pcs_container_name }} container deployment failed.
-  Kindly run `utility/oim_cleanup.yml` and re-run the playbook.
+  The deployment of the {{ pcs_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ pcs_container_name }} container successfully.
