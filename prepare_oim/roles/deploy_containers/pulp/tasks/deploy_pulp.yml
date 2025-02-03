@@ -40,11 +40,11 @@
     dest: "{{ nginx_conf_dest }}"
     mode: "{{ dir_create_mode }}"
 
-- name: Add content origin to settings.py
-  ansible.builtin.lineinfile:
-    path: "{{ settings_py_path }}"
-    line: "{{ content_origin_url }}"
-    create: true
+- name: Create settings.py for Pulp
+  ansible.builtin.template:
+    src: "{{ settings_tmp_path }}"
+    dest: "{{ settings_py_path }}"
+    mode: "{{ dir_create_mode }}"
 
 - name: Set permissions on Pulp NFS share directory
   ansible.builtin.file:
