@@ -50,7 +50,6 @@ provision_directories:
   - { path: "{{ pgsql_data_dir }}", mode: "0750" }
   - { path: "{{ install_dir }}", mode: "{{ root_read_write_execute }}" }
   - { path: "{{ tftpboot_dir }}", mode: "{{ root_read_write_execute }}" }
-  - { path: "{{ hosts_file }}", mode: "{{ root_read_write }}" }
 
 provision_container_success_msg: "The provision container {{ provision_container_name }} has been successfully created and is running."
 provision_container_failure_msg: |
