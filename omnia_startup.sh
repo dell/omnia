@@ -226,7 +226,6 @@ echo -e "${GREEN}
            # podman exec -it -u root omnia_core bash
            
            Direct SSH:
-           # Passwordless SSH
            # ssh omnia_core
 
          You are now in the Omnia environment.
