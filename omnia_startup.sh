@@ -213,6 +213,7 @@ if [ ! -f "$oim_metadata_file" ]; then
         echo "oim_shared_path: $omnia_path"
         echo "omnia_version: $omnia_release"
         echo "oim_hostname: $(hostname)"
+        echo "omnia_core_hashed_passwd: $hashed_passwd"
     } >> "$oim_metadata_file"
 fi
 
@@ -225,11 +226,7 @@ echo -e "${GREEN}
            # podman exec -it -u root omnia_core bash
            
            Direct SSH:
-           # Passwordless SSH
            # ssh omnia_core
-           or
-           # SSH with password
-           # ssh root@localhost -p 2222
 
          You are now in the Omnia environment.
 
