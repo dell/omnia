@@ -30,6 +30,14 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+
+# Check if the omnia_core container is already running
+running_containers=$(podman ps -a --format '{{.Names}}' | grep -E 'omnia_core')
+if [ -n "$running_containers" ]; then
+    echo -e "${RED}Omnia core container is already running.${NC}"
+    exit
+fi
+
 # Print prompt for the Omnia shared path
 echo -e "${BLUE}Please provide Omnia shared path:${NC}"
 
@@ -79,7 +87,7 @@ else
     echo -e "\n${GREEN}Generating a new ssh key pair.${NC}"
     ssh-keygen -t rsa -b 4096 -C "omnia_oim" -q -N '' -f /root/.ssh/oim_rsa
     {
-        echo "Host omnia-core"
+        echo "Host omnia_core"
         echo "    Hostname localhost"
         echo "    Port 2222"
         echo "    User root"
@@ -155,14 +163,19 @@ echo -e "${GREEN}Podman socket has been enabled and started.${NC}"
 echo -e "${BLUE}Pulling the Omnia core image.${NC}"
 
 # Pull the Omnia core docker image.
-podman pull omnia_core:latest
-
-# Print success message
-echo -e "${GREEN}Omnia core image has been pulled.${NC}"
+# if podman pull omnia_core:latest; then
+#     echo -e "${GREEN}Omnia core image has been pulled.${NC}"
+# else
+#     echo -e "${RED}Failed to pull Omnia core image.${NC}"
+# fi
 
 # Print message for running the Omnia core docker image.
 echo -e "${GREEN}Running the Omnia core image.${NC}"
-podman run -dt --hostname omnia_core --restart=always -v $omnia_path/omnia:/opt/omnia:z -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z -e ROOT_PASSWORD_HASH=$passwd --net=host --name omnia_core --cap-add=CAP_AUDIT_WRITE --replace omnia_core:latest
+if podman run -dt --hostname omnia_core --restart=always -v $omnia_path/omnia:/opt/omnia:z -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z -e ROOT_PASSWORD_HASH=$hashed_passwd --net=host --name omnia_core --cap-add=CAP_AUDIT_WRITE omnia_core:latest; then
+    echo -e "${GREEN}Omnia core image has been started.${NC}"
+else
+    echo -e "${RED}Failed to start Omnia core image.${NC}"
+fi
 
 # Create the input directory if it does not exist.
 echo -e "${GREEN}Creating the input directory if it does not exist.${NC}"
@@ -211,6 +224,10 @@ echo -e "${GREEN}
            # podman exec -it -u root omnia_core bash
            
            Direct SSH:
+           # Passwordless SSH
+           # ssh omnia_core
+           or
+           # SSH with password
            # ssh root@localhost -p 2222
 
          You are now in the Omnia environment.
@@ -218,8 +235,13 @@ echo -e "${GREEN}
 ----------------------------------------------------------------------
 ${NC}"
 
+touch ~/.ssh/known_hosts
+# Add entry to /root/.ssh/known_hosts file to prevent errors caused by Known host
+ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1  # Remove existing entry if it exists
+ssh-keyscan -p 2222 localhost 2>/dev/null | grep -v "^#" >> ~/.ssh/known_hosts  # Scan and add the new key
+
 # Waiting for container to be ready
 sleep 2
 
 # Entering Omnia-core container
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@localhost -p 2222
+ssh omnia_core
