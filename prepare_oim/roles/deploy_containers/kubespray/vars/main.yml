@@ -18,12 +18,10 @@ kubespray_version: "{{ hostvars['localhost']['kubespray_version'] }}"  # Set the
 omnia_nfs_share: "{{ oim_shared_path }}/omnia"  # Define NFS share path
 kubespray_logs_dir: "{{ omnia_nfs_share }}/logs/kubespray" # For kubespray and all those logs
 kubespray_dir: "{{ omnia_nfs_share }}/kubespray"
-hosts_dir: "{{ omnia_nfs_share }}/provision/hosts"
+hosts_file: "{{ omnia_nfs_share }}/provision/hosts"
 kubespray_directories:
   - { path: "{{ kubespray_logs_dir }}", mode: "0644" }
   - { path: "{{ kubespray_dir }}", mode: "0744" }
-  - { path: "{{ hosts_dir }}", mode: "0644" }
-
 
 kubespray_image_name: "omnia_kubespray"
 kubespray_image_tag: "{{ kubespray_version }}"
@@ -40,7 +38,7 @@ wait_time: 10
 kubespray_volumes:
   - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z"
   - "{{ omnia_nfs_share }}:/opt/omnia:z"
-  - "{{ hosts_dir }}:/etc/hosts:z"
+  - "{{ hosts_file }}:/etc/hosts:z"
 kubespray_container_success_msg: "The {{ kubespray_container_name }} container has been successfully deployed."
 kubespray_container_failure_msg: |
   The deployment of the {{ kubespray_container_name }} container has failed. To resolve this issue,

@@ -38,7 +38,7 @@ xcatdata_dir: "{{ provision_dir }}/xcatdata"
 pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
 install_dir: "{{ provision_dir }}/install"
 tftpboot_dir: "{{ provision_dir }}/tftpboot"
-hosts_dir: "{{ provision_dir }}/hosts"
+hosts_file: "{{ provision_dir }}/hosts"
 root_read_write: "0644"
 root_read_write_execute: "0744"
 
@@ -50,7 +50,7 @@ provision_directories:
   - { path: "{{ pgsql_data_dir }}", mode: "0750" }
   - { path: "{{ install_dir }}", mode: "{{ root_read_write_execute }}" }
   - { path: "{{ tftpboot_dir }}", mode: "{{ root_read_write_execute }}" }
-  - { path: "{{ hosts_dir }}", mode: "{{ root_read_write }}" }
+  - { path: "{{ hosts_file }}", mode: "{{ root_read_write }}" }
 
 provision_container_success_msg: "The provision container {{ provision_container_name }} has been successfully created and is running."
 provision_container_failure_msg: |
@@ -66,7 +66,7 @@ provision_volumes:
   - "{{ tftpboot_dir }}:/tftpboot:z"
   - "{{ provision_logs_dir }}/xcat:/var/log/xcat:z"
   - "{{ pgsql_data_dir }}:/var/lib/pgsql/data:z"
-  - "{{ hosts_dir }}:/etc/hosts:z"
+  - "{{ hosts_file }}:/etc/hosts:z"
 
 provision_devices:
   - /dev/loop0:/dev/loop0
