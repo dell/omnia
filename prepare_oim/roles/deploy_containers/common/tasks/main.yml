@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 ---
+
 - name: Include oim_metadata file
   ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
 
@@ -27,9 +28,6 @@
     admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
     admin_nic_forwarders: "{{ hostvars['localhost'].network_data.admin_network.DNS | default('', true) }}"
     oim_node_name: "{{ oim_node_name.stdout }}"
-    default_lease_time: "{{ hostvars['localhost']['default_lease_time'] }}"
-    timezone: "{{ hostvars['localhost']['timezone'] }}"
-    domain_name: "{{ hostvars['localhost']['domain_name'] }}"
     admin_net_addr: "{{ hostvars['localhost']['admin_net_addr'] }}"
     admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
 
