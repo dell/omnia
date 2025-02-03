@@ -31,7 +31,9 @@ provision_image_pull_fail_msg: |
   The pull of the provision image {{ provision_image_name }}:{{ provision_image_tag }} has failed.
   To resolve this issue, please address the following error message: {{ image_pull_result.msg }}.
   After rectifying the issues, you can re-run the playbook to successfully pull the provision image.
-provision_image_not_found_msg: "Provision image {{ provision_image_name }}:{{ provision_image_tag }} not found. Check if image is available and re-run the playbook."
+provision_image_not_found_msg: |
+  Provision image {{ provision_image_name }}:{{ provision_image_tag }} not found.
+  Please check if image is available and re-run the playbook.
 xcatdata_dir: "{{ provision_dir }}/xcatdata"
 pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
 
