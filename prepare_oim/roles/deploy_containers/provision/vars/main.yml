@@ -24,7 +24,7 @@ provision_image_tag: "latest"
 provision_container_name: "omnia_provision"
 provision_ssh_port: 2223
 wait_time: 5
-provision_port_occupied_msg: "Port {{ provision_ssh_port }} is already occupied. Omnia flow need this port kindly make this port available"
+provision_port_occupied_msg: "Port {{ provision_ssh_port }} is already occupied. Provision container need this port kindly make this port available"
 provision_image_pull_fail_msg: >
   Provision image {{ provision_image_name }}:{{ provision_image_tag }} pull failed.
   Kindly rectify the issues below and re-run the playbook.
