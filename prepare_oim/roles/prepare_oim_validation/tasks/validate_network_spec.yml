@@ -13,7 +13,7 @@
 # limitations under the License.
 ---
 
-- name: Set pxe_nic_ip
+- name: Set admin network nic and ip
   ansible.builtin.set_fact:
     admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
     admin_nic: "{{ network_data.admin_network.nic_name }}"
