@@ -1,0 +1,91 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+# deploy_pulp.yml
+nfs_pulp_dir: "{{ oim_shared_path }}/omnia/pulp"
+dir_create_mode: "0755"
+dir_mode: "0744"
+file_permit: "0777"
+copy_mode: "0644"
+pulp_directories:
+- "settings/certs"
+- "settings/pulp_storage"
+- "settings/pgsql"
+- "settings/containers"
+nginx_path: "{{ nfs_pulp_dir }}/nginx"
+nginx_conf_path: "{{ role_path }}/templates/nginx_conf.j2"
+nginx_conf_dest: "{{ nginx_path }}/nginx.conf"
+settings_py_path: "{{ nfs_pulp_dir }}/settings/settings.py"
+pulp_container_port: "2227"
+content_origin_url: "CONTENT_ORIGIN='https://{{ oim_hostname }}:{{ pulp_container_port }}'"
+volumes:
+- "{{ nfs_pulp_dir }}/settings:/etc/pulp:z"
+- "{{ nfs_pulp_dir }}/settings/pulp_storage:/var/lib/pulp:z"
+- "{{ nfs_pulp_dir }}/settings/pgsql:/var/lib/pgsql:z"
+- "{{ nfs_pulp_dir }}/settings/containers:/var/lib/containers:z"
+- "{{ nginx_path }}/nginx.conf:/etc/nginx/nginx.conf:ro"
+device_name: "/dev/fuse:/dev/fuse:rwm"
+pulp_container_name: "omnia_pulp"
+pulp_image: "docker.io/pulp/pulp"
+arg_list:
+- "-e PULP_WORKERS=10"
+- "-e PULP_API_WORKERS=10"
+- "-e PULP_CONTENT_WORKERS=10"
+- "-e PULP_GUNICORN_TIMEOUT=30"
+- "-e PULP_API_WORKERS_MAX_REQUESTS=1000"
+- "-e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50"
+pulp_deployed_msg: "PULP CONTAINER - {{ pulp_container_name }} IS SUCCESSFULLY DEPLOYED AND IS RUNNING."
+
+#nginx_conf.j2 vars
+nginx_conf_vars:
+  pulp_content_port: "24816"
+  pulp_api_port: "24817"
+pulp_server_crt_path: "/etc/pulp/certs/pulp_webserver.crt"
+pulp_server_key_path: "/etc/pulp/certs/pulp_webserver.key"
+http_port: "80"
+pulp_port: "2227:2227"
+
+#create_pulp_config.yml
+pulp_user: "" # Mention username for pulp
+pulp_pwd: "" # Mention password for pulp
+pulp_responses:
+  'Please enter new password for user "[^"]+":': "{{ pulp_pwd }}"
+  'Please enter new password for user "[^"]+" again:': "{{ pulp_pwd }}"
+
+reset_password_cmd: "podman exec -i {{ pulp_container_name }} bash -c 'pulpcore-manager reset-admin-password'"
+pulp_ha_dir: "/opt/omnia/pulp/pulp_ha"
+pulp_config_cmd: "pulp config create --username {{ pulp_user }}  --base-url https://{{ oim_hostname }}:{{ pulp_container_port }} --password {{ pulp_pwd }} --location {{ pulp_ha_dir }}/cli.toml"
+pulp_config_cmd_overwrite: "pulp config create --username {{ pulp_user }}  --base-url https://{{ oim_hostname }}:{{ pulp_container_port }} --password {{ pulp_pwd }} --location {{ pulp_ha_dir }}/cli.toml --overwrite"
+pulp_config_filepath: "{{ pulp_ha_dir }}/cli.toml"
+config_default_dir: "/root/.config/pulp/"
+config_default_loc: "{{ config_default_dir }}/cli.toml"
+verify_ssl_regex: '^verify_ssl = .*'
+line_to_replace: 'verify_ssl = false'
+certs_dir: "/opt/omnia/pulp/settings/certs"
+cert_san: "subjectAltName=IP:0.0.0.0,DNS:pulp,DNS:{{ oim_hostname }},DNS:localhost"
+generate_cert_cmd: "openssl req -x509 -nodes -newkey rsa:2048 -keyout {{ certs_dir }}/pulp_webserver.key -out {{ certs_dir }}/pulp_webserver.crt -days 365 -subj \"/CN={{ oim_hostname }}\" -addext {{ cert_san }}"
+cert_items:
+- "{{ certs_dir }}/pulp_webserver.crt"
+- "{{ certs_dir }}/pulp_webserver.key"
+
+
+#update_cert_ca.yml
+pulp_status_url: "https://localhost:2227/pulp/api/v3/status/"
+pulp_status_fail_msg: "Pulp endpoint is not up. Status code: {{ result.status }}"
+config_dir_create: "mkdir -p /root/.config/pulp/"
+pulp_cert_src: "{{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt"
+ca_trust_path: "/etc/pki/ca-trust/source/anchors/"
+omnia_container_name: "omnia_core"
+nginx_reload_cmd: "podman exec {{ pulp_container_name }} nginx -s reload"

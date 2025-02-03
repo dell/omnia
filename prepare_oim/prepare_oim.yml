@@ -57,6 +57,7 @@
     - role: deploy_containers/pcs  # noqa:role-name[path]
     - role: deploy_containers/provision  # noqa:role-name[path]
     - role: deploy_containers/kubespray  # noqa:role-name[path]
+    - role: deploy_containers/pulp  # noqa:role-name[path]
 
 - name: Add all containers to known hosts on omnia core
   hosts: localhost
@@ -85,6 +86,22 @@
       ansible.builtin.include_role:
         name: deploy_containers/provision
         tasks_from: configure_provision_container.yml
+
+- name: Configure Pulp container
+  hosts: localhost
+  tasks:
+    - name: Configure Pulp container tasks
+      ansible.builtin.include_role:
+        name: deploy_containers/pulp
+        tasks_from: create_pulp_config.yml
+
+- name: Add pulp certificate to trust store
+  hosts: oim
+  tasks:
+    - name: Add pulp certificate to trust store
+      ansible.builtin.include_role:
+        name: deploy_containers/pulp
+        tasks_from: update_cert_ca.yml
 
 - name: Prepare oim completion
   hosts: localhost

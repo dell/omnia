@@ -1,0 +1,80 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+# Add task to decypt the creds file and include vars to fetch pulp password. Hardcoding for now.
+
+- name: Create Pulp directory in nfs-share
+  ansible.builtin.file:
+    path: "{{ nfs_pulp_dir }}"
+    state: directory
+    mode: "{{ dir_create_mode }}"
+
+- name: Create Pulp configuration directories
+  ansible.builtin.file:
+    path: "{{ nfs_pulp_dir }}/{{ item }}"
+    state: directory
+    mode: "{{ dir_mode }}"
+  loop: "{{ pulp_directories }}"
+
+- name: Create nginx directory on Pulp nfs-share
+  ansible.builtin.file:
+    path: "{{ nginx_path }}"
+    state: directory
+    mode: "{{ dir_create_mode }}"
+
+- name: Create nginx.conf file for Pulp
+  ansible.builtin.template:
+    src: "{{ nginx_conf_path }}"
+    dest: "{{ nginx_conf_dest }}"
+    mode: "{{ dir_create_mode }}"
+
+- name: Add content origin to settings.py
+  ansible.builtin.lineinfile:
+    path: "{{ settings_py_path }}"
+    line: "{{ content_origin_url }}"
+    create: true
+
+- name: Set permissions on Pulp NFS share directory
+  ansible.builtin.file:
+    path: "{{ nfs_pulp_dir }}"
+    mode: "{{ file_permit }}"
+    recurse: true
+
+- name: Deploy the Pulp container
+  containers.podman.podman_container:
+    name: "{{ pulp_container_name }}"
+    image: "{{ pulp_image }}"
+    state: started
+    privileged: true
+    device:
+      - "{{ device_name }}"
+    ports:
+      - "{{ pulp_port }}"
+    volumes: "{{ volumes }}"
+    cmd_args: "{{ arg_list }}"
+    restart_policy: always
+  retries: 1
+  delay: 10
+
+- name: Pulp container deployment status
+  ansible.builtin.debug:
+    msg: "{{ pulp_deployed_msg }}"
+
+- name: Reset the Pulp admin password automatically
+  ansible.builtin.expect:
+    command: "{{ reset_password_cmd }}"
+    responses: "{{ pulp_responses }}"
+  retries: 3
+  delay: 20
