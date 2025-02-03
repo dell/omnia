@@ -28,8 +28,12 @@ kubespray_image_name: "omnia_kubespray"
 kubespray_image_tag: "{{ kubespray_version }}"
 kubespray_container_name: "omnia_kubespray_{{ kubespray_version }}"
 kubespray_ssh_port: 2224
-kubespray_port_occupied_msg: "Port {{ kubespray_ssh_port }} is already occupied."
-kubespray_image_pull_fail_msg: "The Kubespray image pull failed with error - {{ image_build_result }}"
+kubespray_port_occupied_msg: "Port {{ kubespray_ssh_port }} is already occupied. Kubespray container need this port kindly make this port available"
+kubespray_image_pull_fail_msg: |
+  The Kubespray image - {{ kubespray_image_name }}:{{ kubespray_image_tag }} pull failed with error.
+  Kindly rectify the issues below and re-run the playbook.
+  Error: {{ image_pull_result }}
+
 kubespray_container_warning: "[Warning] The {{ kubespray_container_name }} container is already running, next task will remove the container."
 kubespray_container_confirmation: |
   The {{ kubespray_container_name }} is already running and {{ kubespray_ssh_port }} is occupied.
@@ -39,4 +43,6 @@ kubespray_volumes:
   - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z"
   - "{{ omnia_nfs_share }}:/opt/omnia:z"
 kubespray_container_success_msg: "The {{ kubespray_container_name }} container has been successfully deployed."
-kubespray_container_failure_msg: "The {{ kubespray_container_name }} container deployment failed."
+kubespray_container_failure_msg: |
+  The {{ kubespray_container_name }} container deployment failed.
+  Kindly run `utility/oim_cleanup.yml` and re-run the playbook.

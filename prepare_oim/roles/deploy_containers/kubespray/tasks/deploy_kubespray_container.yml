@@ -36,18 +36,18 @@
     msg: "{{ kubespray_port_occupied_msg }}"
   register: kubespray_port_check
   failed_when: false
-  when: kubespray_container_info.containers | length > 0
+  when: kubespray_container_info.containers | length == 0
 
 - name: Pull the Kubespray image if not found
   containers.podman.podman_image:
     name: "{{ kubespray_image_name }}:{{ kubespray_image_tag }}"
     state: present
-  register: image_build_result
+  register: image_pull_result
 
 - name: Fail if the Kubespray image pull fails
   ansible.builtin.fail:
     msg: "{{ kubespray_image_pull_fail_msg }}"
-  when: image_build_result.failed
+  when: image_pull_result.failed
 
 - name: Deploy Kubespray container and check deployment status
   block:
@@ -81,6 +81,6 @@
         - kubespray_container_status.containers[0].State.Status == 'running'
 
   rescue:
-    - name: Notify user of Kubespray container deployment failure
+    - name: Kubespray container deployment failed
       ansible.builtin.debug:
         msg: "{{ kubespray_container_failure_msg }}"

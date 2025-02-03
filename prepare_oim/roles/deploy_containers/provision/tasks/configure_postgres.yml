@@ -18,14 +18,14 @@
   ansible.builtin.wait_for:
     path: "{{ xcat_init_finished }}"
     state: present
-    timeout: 180
+    timeout: "{{ wait_time_xcat_init }}"
+    msg: "{{ xcat_init_failed_msg }}"
   register: wait_result
 
 - name: Setup postgres database (This task may take 10 mins)
   ansible.builtin.command: "{{ pgsqlsetup_path }} -i -V"
   changed_when: true
   no_log: true
-  failed_when: false
   environment:
     XCATPGPW: "{{ hostvars['localhost']['postgresdb_password'] }}"
 

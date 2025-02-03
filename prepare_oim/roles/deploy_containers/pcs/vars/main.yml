@@ -29,7 +29,10 @@ pcs_directories:
 pcs_image_name: "omnia_pcs"
 pcs_image_tag: "latest"
 pcs_container_name: "omnia_pcs"
-pcs_image_pull_fail_msg: "The PCS image pull failed with error - {{ image_build_result }}."
+pcs_image_pull_fail_msg: >
+  The PCS image - {{ pcs_image_name }}:{{ pcs_image_tag }} pull failed.
+  Kindly rectify the issues below and re-run the playbook.
+  Error: {{ image_pull_result }}
 pcs_image_not_found_msg: "The specified image {{ pcs_image_name }}:{{ pcs_image_tag }} is not found."
 
 wait_time: 10
@@ -42,4 +45,6 @@ pcs_volumes:
   - "{{ oim_shared_path }}/omnia:/opt/omnia:z"
 
 pcs_container_success_msg: "The {{ pcs_container_name }} container has been successfully deployed."
-pcs_container_failure_msg: "The {{ pcs_container_name }} container deployment failed."
+pcs_container_failure_msg: |
+  The {{ pcs_container_name }} container deployment failed.
+  Kindly run `utility/oim_cleanup.yml` and re-run the playbook.

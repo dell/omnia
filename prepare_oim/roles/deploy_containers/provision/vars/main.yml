@@ -24,9 +24,12 @@ provision_image_tag: "latest"
 provision_container_name: "omnia_provision"
 provision_ssh_port: 2223
 wait_time: 5
-provision_port_occupied_msg: "Port {{ provision_ssh_port }} is already occupied."
-provision_image_pull_fail_msg: "Provision image {{ provision_image_name }}:{{ provision_image_tag }} pull failed. Error: {{ image_build_result }}"
-provision_image_not_found_msg: "Provision image {{ provision_image_name }}:{{ provision_image_tag }} not found."
+provision_port_occupied_msg: "Port {{ provision_ssh_port }} is already occupied. Omnia flow need this port kindly make this port available"
+provision_image_pull_fail_msg: >
+  Provision image {{ provision_image_name }}:{{ provision_image_tag }} pull failed.
+  Kindly rectify the issues below and re-run the playbook.
+  Error: {{ image_pull_result }}
+provision_image_not_found_msg: "Provision image {{ provision_image_name }}:{{ provision_image_tag }} not found. Check if image is available and re-run the playbook."
 xcatdata_dir: "{{ provision_dir }}/xcatdata"
 pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
 
@@ -38,6 +41,9 @@ provision_directories:
   - { path: "{{ pgsql_data_dir }}", mode: "0750" }
 
 provision_container_success_msg: "The provision container {{ provision_container_name }} has been successfully created and is running."
+provision_container_failure_msg: |
+  The {{ provision_container_name }} container deployment failed.
+  Kindly run `utility/oim_cleanup.yml` and re-run the playbook.
 provision_volumes:
   - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z"
   - "{{ omnia_nfs_share }}:/opt/omnia:z"
@@ -57,9 +63,11 @@ xcat_services:
   # - firewalld
   # - snmpd
 xcat_init_finished: "/xcat-init.finished"
+wait_time_xcat_init: 180
+xcat_init_failed_msg: "xcat-init.bash execution failed. Error: {{ xcat_init_result }}"
 
 pgsqlsetup_path: /opt/xcat/bin/pgsqlsetup
-postgres_set_password_fail_msg: "Failed to set Postgresql password for user- postgres."
+postgres_set_password_fail_msg: "Failed to set Postgresql password for user - postgres."
 pg_hba_conf_path: /var/lib/pgsql/data/pg_hba.conf
 postgres_file_path: "/opt/omnia/.postgres/"
 directory_permissions: "0600"

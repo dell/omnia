@@ -36,19 +36,19 @@
     msg: "{{ provision_port_occupied_msg }}"
   register: provision_port_check
   failed_when: false
-  when: provision_container_info.containers | length > 0
+  when: provision_container_info.containers | length == 0
 
 - name: Pull Podman image from localhost
   containers.podman.podman_image:
     name: "localhost/{{ provision_image_name }}"
     tag: "{{ provision_image_tag }}"
     state: present
-  register: image_build_result
+  register: image_pull_result
 
 - name: Fail if the provision container image pull fails
   ansible.builtin.fail:
     msg: "{{ provision_image_pull_fail_msg }}"
-  when: image_build_result.failed
+  when: image_pull_result.failed
 
 - name: Verify if the provision image exists
   containers.podman.podman_image_info:
@@ -93,3 +93,8 @@
       when:
         - provision_container_status.containers | length > 0
         - provision_container_status.containers[0].State.Status == 'running'
+
+  rescue:
+    - name: Provision container deployment failed
+      ansible.builtin.debug:
+        msg: "{{ provision_container_failure_msg }}"

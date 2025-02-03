@@ -39,12 +39,12 @@
     name: "localhost/{{ pcs_image_name }}"
     tag: "{{ pcs_image_tag }}"
     state: present
-  register: image_build_result
+  register: image_pull_result
 
 - name: Fail if the PCS image pull fails
   ansible.builtin.fail:
     msg: "{{ pcs_image_pull_fail_msg }}"
-  when: image_build_result.failed
+  when: image_pull_result.failed
 
 - name: Verify if PCS image exists
   containers.podman.podman_image_info:
@@ -88,6 +88,6 @@
         - pcs_container_status.containers[0].State.Status == 'running'
 
   rescue:
-    - name: Notify user of PCS container deployment failure
+    - name: PCS container deployment failed
       ansible.builtin.debug:
         msg: "{{ pcs_container_failure_msg }}"
