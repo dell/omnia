@@ -21,6 +21,12 @@
     mode: "{{ item.mode }}"
   loop: "{{ provision_directories }}"
 
+- name: Create shared hosts file
+  ansible.builtin.file:
+    path: "{{ hosts_file }}"
+    state: touch
+    mode: "{{ root_read_write }}"
+
 - name: Check if {{ provision_container_name }} container is present # noqa: name[template]
   containers.podman.podman_container_info:
     name: "{{ provision_container_name }}"
