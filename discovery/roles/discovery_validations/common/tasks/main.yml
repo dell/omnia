@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,16 +18,14 @@
     validation_status: true
     add_network_status: false
     reassignment_status: false
+    provision_shared_library_path: "{{ provision_shared_library_path }}"
 
-- name: Include network_spec file
-  ansible.builtin.include_tasks: include_network_spec.yml
+- name: Validate provision container services status
+  ansible.builtin.include_tasks: validate_provision_container.yml
 
 - name: Include provision_validation_vars role vars
   ansible.builtin.include_vars: "{{ item }}"
   with_items: "{{ provision_validation_vars }}"
-
-- name: Validate Omnia Infrastructure Manager OS
-  ansible.builtin.include_tasks: validate_oim_os.yml
 
 - name: Include vars for {{ oim_os }}
   ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
@@ -35,17 +33,11 @@
 - name: Include provision configuration variables
   ansible.builtin.include_tasks: include_provision_config.yml
 
-- name: Include provision configuration credentials variables
-  ansible.builtin.include_tasks: include_provision_credentials_config.yml
-
 - name: Include local_repo variables
   ansible.builtin.include_tasks: include_local_repo_config.yml
 
-- name: Validate local repo
-  ansible.builtin.include_tasks: validate_local_repo.yml
-
-- name: Package installation
-  ansible.builtin.include_tasks: package_installation.yml
+# - name: Validate local repo
+#   ansible.builtin.include_tasks: validate_local_repo.yml
 
 - name: Validate network interface type
   ansible.builtin.include_tasks: assign_network_interface.yml
@@ -75,37 +67,21 @@
   ansible.builtin.include_tasks: validate_disk_partition_vars.yml
   with_items: "{{ disk_partition }}"
 
-- name: Validate domain_name
+- name: Validate domain name
   ansible.builtin.include_tasks: validate_domain_name.yml
 
-- name: Validate site_config.yml
-  ansible.builtin.include_tasks: validate_site_config.yml
+# Need to modify after local repo changes
+# - name: Validate site_config.yml
+#   ansible.builtin.include_tasks: validate_site_config.yml
 
-- name: Validate OFED and CUDA repo
-  ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml
+# - name: Validate OFED and CUDA repo
+#   ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml
 
-- name: Validate AMDGPU and ROCm repo
-  ansible.builtin.include_tasks: validate_amdgpu_rocm_repo.yml
+# - name: Validate AMDGPU and ROCm repo
+#   ansible.builtin.include_tasks: validate_amdgpu_rocm_repo.yml
 
-- name: Validate Broadcom repo
-  ansible.builtin.include_tasks: validate_broadcom_repo.yml
+# - name: Validate Broadcom repo
+#   ansible.builtin.include_tasks: validate_broadcom_repo.yml
 
-- name: Validate Intel Gaudi repo
-  ansible.builtin.include_tasks: validate_intelgaudi_repo.yml
-
-# Encrypt provision_config_credentials.yml after all the validations are successful
-
-- name: Encrypt config file once validations are successful
-  block:
-    - name: Encrypt provision_config_credentials.yml
-      ansible.builtin.command: >-
-        ansible-vault encrypt {{ provision_credentials_config_filename }}
-        --vault-password-file {{ provision_credentials_vault_path }}
-      changed_when: false
-      tags: init
-
-    - name: Update provision_config_credentials.yml permission
-      ansible.builtin.file:
-        path: "{{ provision_credentials_config_filename }}"
-        mode: "{{ conf_file_mode }}"
-      tags: init
+# - name: Validate Intel Gaudi repo
+#   ansible.builtin.include_tasks: validate_intelgaudi_repo.yml

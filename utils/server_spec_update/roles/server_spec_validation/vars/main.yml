@@ -15,16 +15,17 @@
 
 # Usage: main.yml
 empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory by providing -i inventory.
-Inventory should contain groups mentioned in input/server_spec.yml. Refer examples/inventory/server_spec_inv for the inventory format."
+Inventory should contain groups mentioned in server_spec.yml. Refer examples/inventory/server_spec_inv for the inventory format."
 
 # Usage: include_network_spec.yml
-network_spec: "{{ role_path }}/../../../../input/network_spec.yml"
+network_spec: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
 network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
 
 # Usage: validate_server_spec.yml
 python_version: "{{ ansible_python_interpreter }}"
-validate_server_spec_py: "{{ role_path }}/files/validate_server_spec.py"
-server_spec: "{{ role_path }}/../../../../input/server_spec.yml"
+provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
+validate_server_spec_py: "{{ provision_shared_library_path }}/server_spec_update/validate_server_spec.py"
+server_spec: "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
 
 # Usage: validate_server_spec.yml
 server_spec_syntax_fail_msg: "Failed. Syntax errors present in server_spec.yml. Fix errors and re-run playbook again."
@@ -39,19 +40,19 @@ netmask_bits_failure_msg: "Failed. admin and bmc netmask should be same."
 netmask_bits_success_msg: "Validated admin and bmc netmask bits"
 cidr_or_static_range_fail_msg: "Failed. network_spec should have either static_range or CIDR for the network."
 fail_msg_netmask_bits: "Failed. Invalid netmask_bits provided in network_spec file."
-ip_range_netmask_script_script: "{{ role_path }}/../../../../discovery/roles/discovery_validations/common/files/validate_ip_range_netmask.py"
+ip_range_netmask_script_script: "{{ provision_shared_library_path }}/validation/validate_ip_range_netmask.py"
 mtu_check_fail_msg: "Failed. MTU input variable in network_spec should be in proper integer format."
-validate_cidr: "{{ role_path }}/../../../../discovery/roles/discovery_validations/common/files/validate_cidr.py"
+validate_cidr: "{{ provision_shared_library_path }}/validation/validate_cidr.py"
 range_ip_check_fail_msg: "Failed. input ip range should be valid IP address (Eg. 192.168.1.1-198.168.1.255)."
-validation_range_file: "{{ role_path }}/../../../../discovery/roles/discovery_validations/common/files/validate_input_ranges.py"
+validation_range_file: "{{ provision_shared_library_path }}/validation/validate_input_ranges.py"
 fail_static_ip_range: "Failed, Network static overlaps with"
 fail_cidr_ip_range: "Failed, Cidr overlaps with"
 
 # Usage: validate_admin_bmc_nic.yml
-meta_path: "/opt/omnia/.data/metadata.yml"
+meta_path: "/opt/omnia/.data/provision_metadata.yml"
 fail_msg_metadata_missing: "Failed, discovery_provision.yml not executed hence metadata is missing. Execute discovery_provision.yml playbook and run again."
 fail_msg_invalid_metadata: "Failed. Invalid entries in metadata.yml. Execute discovery_provision.yml playbook and run again."
 
 # Usage: validate_inventory.yml
-validate_inventory_py: "{{ role_path }}/files/validate_inventory_file.py"
+validate_inventory_py: "{{ provision_shared_library_path }}/server_spec_update/validate_inventory_file.py"
 inventory_fail_msg: "Failed, invalid inventory format: "

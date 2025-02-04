@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ iprange_package: iprange-python
 python_version: "{{ ansible_python_interpreter }}"
 
 # Usage: validate_bmc_params.yml
-fail_msg_bmc_credentials: "Failed. bmc_username, bmc_password are invalid in input/provision_config_credentials.yml"
 max_length: 30
 min_username_length: 4
 bmc_static_ranges_overlap_failure_msg: "Range is invalid. Start range should not be equal to end range for bmc_static_start_range, bmc_static_end_range

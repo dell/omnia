@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 # Usage: validate_mapping_file.yml
 python_version: "{{ ansible_python_interpreter }}"
-validate_mapping_py: "{{ role_path }}/../mapping/files/validate_mapping_file.py"
+validate_mapping_py: "{{ provision_shared_library_path }}/validation/validate_mapping_file.py"
 pxe_path_fail_msg: "Failed. Please provide a valid pxe_mapping_file_path in provision_config.yml"
 mapping_file_key: "ADMIN_MAC"
 mapping_file_header_fail_msg: "Failed. Header of csv file is not in correct format. It should be of the format: MAC,Hostname,IP"
@@ -30,7 +30,7 @@ temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
 admin_subnet_missing_msg: "Failed. Invalid IP {{ item }}. Missing admin subnet for IP {{ item }} provided in mapping file"
 capital_hostname_fail_msg: "Failed. Invalid hostname {{ item }}. Hostname should be in lower case and should not start with numbers.
 Refer documentation for more details."
-temp_pxe_file_path: "/opt/omnia/temp_pxe_file.csv"
+temp_pxe_file_path: "/opt/omnia/provision/temp_pxe_file.csv"
 file_mode: "0644"
 
 # Usage: validate_mapping_mechanism.yml

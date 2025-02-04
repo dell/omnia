@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,9 +27,8 @@
     - name: Include vars for {{ oim_os }}
       ansible.builtin.include_vars: "{{ role_path }}/../{{ oim_os }}/vars/main.yml"
 
-
-    - name: Configure proxy
-      ansible.builtin.include_tasks: configure_proxy.yml
+#    - name: Configure proxy
+#      ansible.builtin.include_tasks: configure_proxy.yml
 
     - name: Configure basic xcat details
       ansible.builtin.include_tasks: configure_basic_xcat_details.yml

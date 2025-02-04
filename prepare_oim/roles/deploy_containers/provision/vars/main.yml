@@ -1,0 +1,97 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: deploy_provision_container.yml
+xcat_version: "2.17"  # Set the desired provision version
+omnia_nfs_share: "{{ oim_shared_path }}/omnia"  # Define NFS share path
+provision_logs_dir: "{{ omnia_nfs_share }}/logs/provision" # For xcat and all those logs
+provision_dir: "{{ omnia_nfs_share }}/provision"
+provision_image_file: "omnia_provision"
+provision_image_name: "omnia_provision"
+provision_image_tag: "latest"
+provision_container_name: "omnia_provision"
+provision_ssh_port: 2223
+wait_time: 5
+provision_port_occupied_msg: |
+  The port number {{ provision_ssh_port }} is already in use. The provision container requires this port to be available.
+  Please make sure this port is not occupied by any other process and re-run the playbook.
+provision_image_pull_fail_msg: |
+  The pull of the provision image {{ provision_image_name }}:{{ provision_image_tag }} has failed.
+  To resolve this issue, please address the following error message: {{ image_pull_result.msg }}.
+  After rectifying the issues, you can re-run the playbook to successfully pull the provision image.
+provision_image_not_found_msg: |
+  Provision image {{ provision_image_name }}:{{ provision_image_tag }} not found.
+  Please check if image is available and re-run the playbook.
+xcatdata_dir: "{{ provision_dir }}/xcatdata"
+pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
+install_dir: "{{ provision_dir }}/install"
+tftpboot_dir: "{{ provision_dir }}/tftpboot"
+hosts_file: "{{ omnia_nfs_share }}/hosts"
+root_read_write: "0644"
+root_read_write_execute: "0755"
+
+provision_directories:
+  - { path: "{{ provision_logs_dir }}", mode: "{{ root_read_write }}" }
+  - { path: "{{ provision_logs_dir }}/xcat", mode: "{{ root_read_write }}" }
+  - { path: "{{ provision_dir }}", mode: "{{ root_read_write_execute }}" }
+  - { path: "{{ xcatdata_dir }}", mode: "{{ root_read_write_execute }}" }
+  - { path: "{{ pgsql_data_dir }}", mode: "0750" }
+  - { path: "{{ install_dir }}", mode: "{{ root_read_write_execute }}" }
+  - { path: "{{ tftpboot_dir }}", mode: "{{ root_read_write_execute }}" }
+
+provision_container_success_msg: "The provision container {{ provision_container_name }} has been successfully created and is running."
+provision_container_failure_msg: |
+  The deployment of the {{ provision_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ provision_container_name }} container successfully.
+provision_volumes:
+  - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z"
+  - "{{ omnia_nfs_share }}:/opt/omnia:z"
+  - /sys/fs/cgroup:/sys/fs/cgroup:ro
+  - "{{ xcatdata_dir }}:/xcatdata:z"
+  - "{{ install_dir }}:/install:z"
+  - "{{ tftpboot_dir }}:/tftpboot:z"
+  - "{{ provision_logs_dir }}/xcat:/var/log/xcat:z"
+  - "{{ pgsql_data_dir }}:/var/lib/pgsql/data:z"
+  - "{{ hosts_file }}:/etc/hosts:z"
+
+provision_devices:
+  - /dev/loop0:/dev/loop0
+  - /dev/loop-control:/dev/loop-control
+
+# Usage: configure_postgres.yml
+xcat_services:
+  - xcatd
+  - postgresql
+xcat_init_finished: "/xcat-init.finished"
+wait_time_xcat_init: 180
+xcat_init_failed_msg: "xcat-init.bash execution failed. Check the logs in /opt/omnia/logs/provision/xcat/xcat-init-output.log"
+
+pgsqlsetup_path: /opt/xcat/bin/pgsqlsetup
+postgres_set_password_fail_msg: "Failed to set Postgresql password for user - postgres."
+pg_hba_conf_path: /var/lib/pgsql/data/pg_hba.conf
+postgres_file_path: "/opt/omnia/.postgres/"
+directory_permissions: "0600"
+provision_shared_library_path: /opt/omnia/shared_libraries/provision
+utility_path: "{{ provision_shared_library_path }}/common/encrypt_pwd.py"
+encrypted_file_path: "{{ postgres_file_path }}/.encrypted_pwd"
+
+# Usage: configure_site_table.yml
+xcat_path: /opt/xcat/bin
+
+# Usage: omniadb_tables_creation.yml
+python_version: "{{ ansible_python_interpreter }}"
+postgres_utility_path: "{{ provision_shared_library_path }}/db_operations/create_omniadb_tables.py"
+db_path: "{{ provision_shared_library_path }}/db_operations"

@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ discovery_mech_vars_common:
 xcat_path: /opt/xcat/bin
 
 # Usage: update_db_mapping.yml
-mapping_file_db_path: "{{ role_path }}/../mapping/files/mapping_file_db.py"
-db_path: "{{ role_path }}/../../db_operations/files"
+mapping_file_db_path: "{{ provision_shared_library_path }}/mapping/mapping_file_db.py"
+db_path: "{{ provision_shared_library_path }}/db_operations"
 
 # Usage: node_object_creation_mapping.yml
 mapping_node_group: "mapping"
-temp_pxe_file_path: "/opt/omnia/temp_pxe_file.csv"
+temp_pxe_file_path: "/opt/omnia/provision/temp_pxe_file.csv"
 file_mode: "0644"
 
 # Usage: check_nodes_mapping.yml

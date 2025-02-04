@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,10 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: check_venv.yml
-  when: not ( check_venv_executed | default(false) | bool )
-
 - name: Update synclist on provisioned nodes
   hosts: localhost
   connection: local
@@ -27,6 +23,14 @@
       when:
         - groups['all'] is not defined or (groups['all'] | length == 0)
 
+- name: Create provision container group
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    omnia_provision_group: true
+
+- name: Update synclist on provisioned nodes
+  hosts: omnia_provision
+  connection: ssh
   roles:
     - servicetag_host_mapping
     - update_synclist

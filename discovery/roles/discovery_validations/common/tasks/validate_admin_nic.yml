@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -88,38 +88,32 @@
       ansible.builtin.fail:
         msg: "{{ fail_admin_ip_range }}"
 
-- name: Check admin network details are valid
-  block:
-    - name: Execute Python script to validate network address
-      ansible.builtin.command: "{{ python_version }} {{ network_address_script }} admin_network"
-      register: script_output
-      changed_when: false
-      environment:
-        net_data: "{{ network_data | to_json }}"
-  rescue:
-    - name: Failed, Invalid admin network details
-      ansible.builtin.fail:
-        msg: "{{ fail_msg_admin_nic_details }} {{ fail_msg_admin_nic_ip_details }}"
-
-- name: Validate admin nic ip status
-  ansible.builtin.assert:
-    that:
-      - script_output.stdout | length > 0
-      - script_output.rc == 0
-    fail_msg: "{{ fail_msg_admin_nic_details }} {{ fail_msg_admin_nic_ip_details }}"
-
-- name: Set pxe_nic_ip
+- name: Set admin_nic_ip and admin_nic
   ansible.builtin.set_fact:
-    admin_nic_ip: "{{ script_output.stdout }}"
+    admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
     admin_nic: "{{ network_data.admin_network.nic_name }}"
 
-- name: Assert admin nic value
+- name: Ensure NIC exists on the system
   ansible.builtin.assert:
     that:
-      - admin_nic in nic_addr_up.stdout
-    success_msg: " Admin {{ success_msg_nic }}"
-    fail_msg: "{{ validate_nic_status }} for admin nic"
-  tags: [validate, admin-network]
+      - admin_nic in ansible_facts.interfaces
+    fail_msg: "{{ admin_nic_fail_msg }}"
+    success_msg: "{{ admin_nic_success_msg }}"
+
+- name: Get all IPv4 addresses assigned to the NIC
+  ansible.builtin.set_fact:
+    admin_nic_ips: >-
+      {{
+        ([ansible_facts[admin_nic].ipv4.address] | default([])) +
+        (ansible_facts[admin_nic].ipv4_secondaries | map(attribute='address') | list | default([]))
+      }}
+
+- name: Validate admin_nic_ip is assigned to the NIC
+  ansible.builtin.assert:
+    that:
+      - admin_nic_ip in admin_nic_ips
+    fail_msg: "{{ admin_nic_ip_fail_msg }}"
+    success_msg: "{{ admin_nic_ip_success_msg }}"
 
 - name: Validate admin nic netmask
   ansible.builtin.assert:

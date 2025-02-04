@@ -17,7 +17,7 @@
 hpc_apptainer_config_file: "{{ playbook_dir }}/hpc_apptainer_job_execution_config.yml"
 syntax_fail_msg: "Failed. Syntax is not correct in hpc_apptainer_job_execution_config.yml.
 Correct syntax errors and re-run hpc_apptainer_job_execution.yml"
-metadata_path: "/opt/omnia/.data/metadata.yml"
+metadata_path: "/opt/omnia/.data/provision_metadata.yml"
 metadata_missing_fail_msg: "Failed. Run provision.yml and provision the server before executing hpc_apptainer_job_execution.yml"
 oim_ip_fail_msg: "Failed. Run provision.yml and verify no failures occurred.
 Re-run hpc_apptainer_job_execution.yml after provision.yml execution and provisioning of server."

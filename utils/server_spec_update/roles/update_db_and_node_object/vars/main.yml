@@ -18,19 +18,19 @@ node_warning_msg: "[WARNING] - server_spec_update.yml configuration  will not be
 
 # Usage: update_network_info.yml
 python_version: "{{ ansible_python_interpreter }}"
-update_network_db: "{{ role_path }}/files/update_nicinfo_db.py"
-server_spec_path: "{{ role_path }}/../../../../input/server_spec.yml"
+provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
+update_network_db: "{{ provision_shared_library_path }}/server_spec_update/update_nicinfo_db.py"
+server_spec_path: "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
 metadata_nicinfo_path: "/opt/omnia/.data/nic_metadata.yml"
-node_db_path: "{{ role_path }}/../../../../discovery/roles/db_operations/files"
 update_network_db_fail_msg: "Failed. Unable to configure networks on the nodes.
 Please verify inputs in server_spec.yml & network_spec.yml, and re-run the playbook.
 Make sure no changes are made to the existing groups in the server_spec.yml and existing networks in the network_spec.yml.
 For any changes add new groups in server_spec.yml or new networks in network_spec.yml"
 
 # Usage: update_nodes.yml
-network_spec_file_path: "{{ role_path }}/../../../../input/network_spec.yml"
-update_node_objects_path: "{{ role_path }}/files/update_node_objects.py"
-omnia_db_path: "{{ role_path }}/../../../../discovery/roles/db_operations/files"
+network_spec_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
+update_node_objects_path: "{{ provision_shared_library_path }}/server_spec_update/update_node_objects.py"
+omnia_db_path: "{{ provision_shared_library_path }}/db_operations"
 server_sepc_update_success_msg: "Network changes executed. Verify the networks configured on the nodes.
 Networks might not be configured if invalid NIC names are provided in the input file, server_spec.yml.
 If vlan is not configured for a NIC ensure vlan name is provided in the format NIC.vlan_id(eth1.101) in server_spec.yml and re-run the playbook."

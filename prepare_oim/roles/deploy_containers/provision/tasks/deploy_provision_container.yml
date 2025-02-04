@@ -1,0 +1,106 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+- name: Create provision directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop: "{{ provision_directories }}"
+
+- name: Create shared hosts file
+  ansible.builtin.file:
+    path: "{{ hosts_file }}"
+    state: touch
+    mode: "{{ root_read_write }}"
+
+- name: Check if {{ provision_container_name }} container is present # noqa: name[template]
+  containers.podman.podman_container_info:
+    name: "{{ provision_container_name }}"
+  register: provision_container_info
+  failed_when: false
+
+- name: Check if {{ provision_ssh_port }} port is occupied # noqa: name[template]
+  ansible.builtin.wait_for:
+    host: localhost
+    port: "{{ provision_ssh_port }}"
+    state: stopped
+    timeout: "{{ wait_time }}"
+    msg: "{{ provision_port_occupied_msg }}"
+  register: provision_port_check
+  failed_when: false
+  when: provision_container_info.containers | length == 0
+
+- name: Pull Podman image from localhost
+  containers.podman.podman_image:
+    name: "localhost/{{ provision_image_name }}"
+    tag: "{{ provision_image_tag }}"
+    state: present
+  register: image_pull_result
+
+- name: Fail if the provision container image pull fails
+  ansible.builtin.fail:
+    msg: "{{ provision_image_pull_fail_msg }}"
+  when: image_pull_result.failed
+
+- name: Verify if the provision image exists
+  containers.podman.podman_image_info:
+    name: "{{ provision_image_name }}:{{ provision_image_tag }}"
+  register: image_facts
+
+- name: Fail if the provision image is not found
+  ansible.builtin.fail:
+    msg: "{{ provision_image_not_found_msg }}"
+  when: not image_facts.images
+
+- name: Deploy provision container and check deployment status
+  block:
+    - name: Deploy the provision container
+      containers.podman.podman_container:
+        name: "{{ provision_container_name }}"
+        image: "{{ provision_image_name }}:{{ provision_image_tag }}"
+        state: present
+        restart_policy: always
+        hostname: "{{ oim_hostname }}"
+        network_mode: host
+        volumes: "{{ provision_volumes }}"
+        privileged: true # Either make this true or uncomment below two
+        # cap_add:
+        #   - ALL
+        # device: "{{ provision_devices }}"
+
+    - name: Start the provision container
+      containers.podman.podman_container:
+        name: "{{ provision_container_name }}"
+        state: "started"
+        privileged: true
+
+    - name: Check if provision container is running after deployment
+      containers.podman.podman_container_info:
+        name: "{{ provision_container_name }}"
+      register: provision_container_status
+
+    - name: Notify user of PCS container deployment status
+      ansible.builtin.debug:
+        msg: "{{ provision_container_success_msg }}"
+      when:
+        - provision_container_status.containers | length > 0
+        - provision_container_status.containers[0].State.Status == 'running'
+
+  rescue:
+    - name: Provision container deployment failed
+      ansible.builtin.fail:
+        msg: "{{ provision_container_failure_msg }}"

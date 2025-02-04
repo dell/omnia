@@ -159,6 +159,6 @@ indentation errors, improper quotes, improper space or tab, missing colon, missi
 
 # Usage: clean_nfs_server.yml
 storage_config_path: "{{ role_path }}/../../../input/storage_config.yml"
-provision_metadata_path: "/opt/omnia/.data/metadata.yml"
+provision_metadata_path: "/opt/omnia/.data/provision_metadata.yml"
 exports_file_path: /etc/exports
 cleanup_nfs_server_fail_msg: "Failed to cleanup nfs server. Check syntax error in input/storage_config.yml and re-run playbook again."

@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
 
 # Usage: main.yml
 python_version: "{{ ansible_python_interpreter }}"
-script_name: "{{ role_path }}/files/inventory_tagging.py"
-db_path: "{{ role_path }}/../../../discovery/roles/db_operations/files/"
+provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
+script_name: "{{ provision_shared_library_path }}/common/inventory_tagging.py"
+db_path: "{{ provision_shared_library_path }}/db_operations"
 omnia_inventory_dir_path: "/opt/omnia/omnia_inventory"
 inventory_files_creation_msg: "Inventory files created at '/opt/omnia/omnia_inventory/'"
 commentedconfigparser_python_package: "commented-configparser"

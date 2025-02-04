@@ -1,0 +1,46 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+kubespray_version: "{{ hostvars['localhost']['kubespray_version'] }}"  # Set the desired Kubespray version
+omnia_nfs_share: "{{ oim_shared_path }}/omnia"  # Define NFS share path
+kubespray_logs_dir: "{{ omnia_nfs_share }}/logs/kubespray" # For kubespray and all those logs
+kubespray_dir: "{{ omnia_nfs_share }}/kubespray"
+hosts_file: "{{ omnia_nfs_share }}/hosts"
+kubespray_directories:
+  - { path: "{{ kubespray_logs_dir }}", mode: "0644" }
+  - { path: "{{ kubespray_dir }}", mode: "0744" }
+
+kubespray_image_name: "omnia_kubespray"
+kubespray_image_tag: "{{ kubespray_version }}"
+kubespray_container_name: "omnia_kubespray_{{ kubespray_version }}"
+kubespray_ssh_port: 2224
+kubespray_port_occupied_msg: |
+  The port number {{ kubespray_ssh_port }} is already in use. The provision container requires this port to be available.
+  Please make sure this port is not occupied by any other process and re-run the playbook.
+kubespray_image_pull_fail_msg: |
+  The pull of the provision image {{ kubespray_image_name }}:{{ kubespray_image_tag }} has failed.
+  To resolve this issue, please address the following error message: {{ image_pull_result }}.
+  After rectifying the issues, you can re-run the playbook to successfully pull the provision image.
+wait_time: 10
+kubespray_volumes:
+  - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z"
+  - "{{ omnia_nfs_share }}:/opt/omnia:z"
+  - "{{ hosts_file }}:/etc/hosts:z"
+kubespray_container_success_msg: "The {{ kubespray_container_name }} container has been successfully deployed."
+kubespray_container_failure_msg: |
+  The deployment of the {{ kubespray_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ kubespray_container_name }} container successfully.

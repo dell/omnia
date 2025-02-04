@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,18 +14,18 @@
 ---
 
 # Usage: switch_object_creation.yml
-create_switch_object_path: "{{ role_path }}/../switch_based/files/create_switch_object.py"
+create_switch_object_path: "{{ provision_shared_library_path }}/switch_based/create_switch_object.py"
 switch_group: switch
 dns_config_switch_warning_msg: "[WARNING] makedns -n command is not successful for switch_based discovery. Error:"
 hosts_entry_warning_msg: "[WARNING] makehosts command is not successful. Error:"
-db_operations_path: "{{ role_path }}/../../db_operations/files"
+db_operations_path: "{{ provision_shared_library_path }}/db_operations"
 
 # Usage: insert_switch_based_details.yml
-switch_db_update: "{{ role_path }}/../switch_based/files/switch_db_update.py"
-mtms_db_operations_path: "{{ role_path }}/../mtms/files"
+switch_db_update: "{{ provision_shared_library_path }}/switch_based/switch_db_update.py"
+mtms_db_operations_path: "{{ provision_shared_library_path }}/mtms"
 
 # Usage: node_object_creation_switch_based.yml
-create_node_object_path_switch_based: "{{ role_path }}/../switch_based/files/create_node_object.py"
+create_node_object_path_switch_based: "{{ provision_shared_library_path }}/switch_based/create_node_object.py"
 
 # Usage: check_nodes_switch_based.yml
 switch_based_nodes_warning_msg: "[WARNING] switch_based node objects not found. Skipping remaining provisioning tasks for switch_based discovery."

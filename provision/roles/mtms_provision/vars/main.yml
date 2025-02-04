@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@
 mtms_poweroff_warning_msg: "[WARNING] Power off failed for the discovered nodes using bmc. Error:"
 
 # Usage: fetch_static_discover_nodes.yml
-check_static_bmc_file: "{{ role_path }}/files/check_static_nodes_status.py"
-check_discover_bmc_file: "{{ role_path }}/files/check_discover_nodes_status.py"
+check_static_bmc_file: "{{ provision_shared_library_path }}/mtms/check_static_nodes_status.py"
+check_discover_bmc_file: "{{ provision_shared_library_path }}/mtms/check_discover_nodes_status.py"
 bmc_static_node_group: "bmc_static"
 bmc_discover_node_group: "bmc_discover"
 

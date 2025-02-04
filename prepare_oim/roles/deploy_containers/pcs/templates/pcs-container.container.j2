@@ -1,0 +1,17 @@
+[Unit]
+Description=Pacemaker-Corosync HA Container for Podman-in-Podman
+
+[Container]
+ContainerName={{ pcs_container_name }}
+Image={{ pcs_image_name }}:{{ pcs_image_tag }}
+Volume=/etc/localtime:/etc/localtime:ro
+Volume=/run/podman/podman.sock:/run/podman/podman.sock:ro
+Volume={{ pcs_container_dir }}/pcs-start.sh:/opt/omnia/pcs/pcs-start.sh
+Volume={{ pcs_container_dir }}/corosync.conf:/etc/corosync/corosync.conf:z
+Volume={{ pcs_container_log_dir }}:/var/log/cluster:z
+Volume={{ oim_shared_path }}/omnia:/opt/omnia:z
+Network=host
+PodmanArgs=--privileged
+
+[Install]
+WantedBy=multi-user.target default.target

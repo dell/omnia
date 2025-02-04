@@ -14,16 +14,16 @@
 ---
 
 # Usage: include_omnia_config.yml
-omnia_config_filename: "{{ role_path }}/../../../input/omnia_config.yml"
-omnia_vault_path: "{{ role_path }}/../../../input/.omnia_vault_key"
+omnia_config_filename: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
+omnia_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/.omnia_vault_key"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
 omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
 file_permission: '0644'
 
 # Usage: include_provision_config_credentials.yml
-credentials_config_filename: "{{ role_path }}/../../../input/provision_config_credentials.yml"
-credentials_vault_path: "{{ role_path }}/../../../input/.provision_credential_vault_key"
+credentials_config_filename: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config_credentials.yml"
+credentials_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/.provision_credential_vault_key"
 credentials_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config_credentials.yml. Fix errors and re-run playbook again."
 
-storage_config_filename: "{{ role_path }}/../../../input/storage_config.yml"
+storage_config_filename: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
 storage_config_syntax_fail_msg: "Failed. Syntax errors present in storage_config.yml. Fix errors and re-run playbook again."

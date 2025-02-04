@@ -1,0 +1,41 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+- name: Add entry in known_hosts for containers
+  when: target_port is defined and target_port != ""
+  block:
+    - name: Remove host key for oim from known_hosts
+      ansible.builtin.command: ssh-keygen -R "[localhost]:{{ target_port }}"
+      changed_when: true
+      failed_when: false
+
+    - name: Add host key for oim to known_hosts
+      ansible.builtin.command: ssh-keyscan -p {{ target_port }} localhost >> /root/.ssh/known_hosts
+      changed_when: true
+      failed_when: false
+
+- name: Add entry in known_hosts for oim
+  when: target_port is undefined
+  block:
+    - name: Remove host key for container with specific port from known_hosts
+      ansible.builtin.command: ssh-keygen -R "localhost"
+      changed_when: true
+      failed_when: false
+
+    - name: Add host key for container with specific port to known_hosts
+      ansible.builtin.command: ssh-keyscan localhost >> /root/.ssh/known_hosts
+      changed_when: true
+      failed_when: false

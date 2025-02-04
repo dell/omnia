@@ -1,0 +1,51 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set admin network nic and ip
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
+    admin_nic: "{{ network_data.admin_network.nic_name }}"
+    admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
+
+- name: Ensure NIC exists on the system
+  ansible.builtin.assert:
+    that:
+      - admin_nic in ansible_facts.interfaces
+    fail_msg: "{{ admin_nic_fail_msg }}"
+    success_msg: "{{ admin_nic_success_msg }}"
+
+- name: Get all IPv4 addresses assigned to the NIC
+  ansible.builtin.set_fact:
+    admin_nic_ips: >-
+      {{
+        ([ansible_facts[admin_nic].ipv4.address] | default([])) +
+        (ansible_facts[admin_nic].ipv4_secondaries | map(attribute='address') | list | default([]))
+      }}
+
+- name: Validate admin_nic_ip is assigned to the NIC
+  ansible.builtin.assert:
+    that:
+      - admin_nic_ip in admin_nic_ips
+    fail_msg: "{{ admin_nic_ip_fail_msg }}"
+    success_msg: "{{ admin_nic_ip_success_msg }}"
+
+- name: Compute network address using ipcalc
+  ansible.builtin.command: "/usr/bin/ipcalc -n {{ admin_nic_ip }}/{{ admin_netmask_bits }}"
+  register: network_address_output
+  changed_when: false
+
+- name: Extract network address
+  ansible.builtin.set_fact:
+    admin_net_addr: "{{ network_address_output.stdout.split('=')[1] }}"

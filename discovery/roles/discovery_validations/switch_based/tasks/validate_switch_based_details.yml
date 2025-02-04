@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@
 
 - name: Test using ping
   ansible.builtin.command: |
-    {{ python_version }} {{ role_path }}/../switch_based/files/switch_v3_ping.py {{ item.ip }}
+    {{ python_version }}  {{ ping_switch_py }} {{ item.ip }}
   register: ping_switchv3
   with_items: "{{ switch_based_details }}"
   changed_when: false

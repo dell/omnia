@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -73,21 +73,19 @@
   changed_when: false
   register: hostname_result
 
-- name: Set fact for the Omnia Infratsructure Management (OIM) node hostname and domain name
+- name: Set fact for the OIM node hostname and domain name
   ansible.builtin.set_fact:
-    oim_hostname: "{{ hostname_result.stdout }}"
     oim_domain_name: "{{ domain_name }}"
+    oim_hostname: "{{ hostname_result.stdout }}"
 
-- name: Remove hosts file entry of Omnia Infrastructure Manager
-  ansible.builtin.lineinfile:
-    path: "{{ hosts_file_path }}"
-    regexp: "^(.*){{ oim_hostname }}"
-    state: absent
+# This logic will be updated based on /etc/hosts mount
+- name: Check if hosts_file_path entry for oim_hostname is present
+  ansible.builtin.command: grep -q "{{ pxe_nic_ip }} {{ oim_hostname }}" "{{ hosts_file_path }}"
+  register: oim_hostname_entry_present
+  changed_when: false
+  failed_when: false
 
 - name: Add hosts file entry
-  ansible.builtin.lineinfile:
-    path: "{{ hosts_file_path }}"
-    line: "{{ pxe_nic_ip }} {{ oim_hostname }}"
-    state: present
-    create: true
-    mode: "{{ hosts_file_mode }}"
+  ansible.builtin.shell: echo "{{ pxe_nic_ip }} {{ oim_hostname }}" >> "{{ hosts_file_path }}"
+  changed_when: true
+  when: oim_hostname not in oim_hostname_entry_present.stdout

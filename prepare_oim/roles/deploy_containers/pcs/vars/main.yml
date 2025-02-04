@@ -1,0 +1,54 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+pcs_image_name: "omnia_pcs"
+pcs_image_tag: "latest"
+pcs_container_name: "omnia_pcs"
+read_write_mode: "0644"
+read_write_execute_mode: "0744"
+pcs_container_dir: "{{ oim_shared_path }}/omnia/pcs"
+pcs_container_log_dir: "{{ oim_shared_path }}/omnia/logs/pcs"
+container_systemd_dir: "/etc/containers/systemd/"
+pcs_directories:
+  - { path: "{{ pcs_container_log_dir }}", mode: "{{ read_write_mode }}" }
+  - { path: "{{ pcs_container_dir }}", mode: "{{ read_write_execute_mode }}" }
+  - { path: "{{ container_systemd_dir }}", mode: "{{ read_write_mode }}" }
+
+migration_threshold: 2
+pcs_startup_file:
+  - {template: "pcs-start.sh.j2", dest: "{{ oim_shared_path }}/omnia/pcs/pcs-start.sh", mode: "{{ read_write_execute_mode }}" }
+  - {template: "corosync.conf.j2", dest: "{{ oim_shared_path }}/omnia/pcs/corosync.conf", mode: "{{ read_write_mode }}" }
+  - {template: "pcs-container.container.j2", dest: "{{ container_systemd_dir }}/{{ pcs_container_name }}.container", mode: "{{ read_write_mode }}" }
+
+pcs_image_pull_fail_msg: >
+  The pull of the provision image {{ pcs_image_name }}:{{ pcs_image_tag }} has failed.
+  To resolve this issue, please address the following error message: {{ image_pull_result }}.
+  After rectifying the issues, you can re-run the playbook to successfully pull the provision image.
+pcs_image_not_found_msg: "The specified image {{ pcs_image_name }}:{{ pcs_image_tag }} is not found."
+
+wait_time: 10
+pcs_volumes:
+  - /etc/localtime:/etc/localtime:ro
+  - /run/podman/podman.sock:/run/podman/podman.sock:ro
+  - "{{ pcs_container_dir }}/pcs-start.sh:/opt/omnia/pcs/pcs-start.sh"
+  - "{{ pcs_container_dir }}/corosync.conf:/etc/corosync/corosync.conf:z"
+  - "{{ pcs_container_log_dir }}:/var/log/cluster:z"
+  - "{{ oim_shared_path }}/omnia:/opt/omnia:z"
+
+pcs_container_success_msg: "The {{ pcs_container_name }} container has been successfully deployed."
+pcs_container_failure_msg: |
+  The deployment of the {{ pcs_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ pcs_container_name }} container successfully.

@@ -14,7 +14,7 @@
 ---
 
 - name: Servicetag Host mapping
-  ansible.builtin.command: "{{ python }} {{ servicetag_host_mapping_script }} {{ role_path }} {{ file_path }} {{ ansible_inventory_sources | quote }}"
+  ansible.builtin.command: "{{ python }} {{ servicetag_host_mapping_script }} {{ db_path }} {{ ansible_inventory_sources | quote }}"
   register: servicetag_host_mapping_result
   changed_when: true
 

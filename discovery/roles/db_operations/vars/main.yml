@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,4 +15,4 @@
 
 # Usage: oim_details_db.yml
 python_version: "{{ ansible_python_interpreter }}"
-oim_db_utility_path: "{{ role_path }}/files/add_oim_db.py"
+oim_db_utility_path: "{{ provision_shared_library_path }}/db_operations/add_oim_db.py"

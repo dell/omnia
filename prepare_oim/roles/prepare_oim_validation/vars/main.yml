@@ -1,0 +1,65 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: main.yml
+provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
+xcat_root_env: "/opt/xcat"
+xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
+xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
+perl_badlang_env: 0
+xcat_path: /opt/xcat/bin
+
+# Usage: validate_passwordless_ssh_oim.yml
+oim_ssh_port: 22
+ssh_connection_fail_msg: "Failed. SSH connection failed. Please verify passwordless ssh from omnia_core to oim host."
+
+# Usage: pre_requisite.yml
+omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
+provision_vault_path: "{{ input_project_dir }}/.provision_vault_key"
+ansible_vault_search_key: "$ANSIBLE_VAULT;"
+provision_credentials_config_filename: "{{ input_project_dir }}/provision_config_credentials.yml"
+provision_credentials_vault_path: "{{ input_project_dir }}/.provision_credential_vault_key"
+provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
+conf_file_mode: "0644"
+network_spec: "{{ input_project_dir }}/network_spec.yml"
+network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
+software_config_file: "{{ input_project_dir }}/software_config.json"
+invalid_software_config_fail_msg: "Failed. Please provide valid software_config.json file with cluster_os_type, cluster_os_version, repo_config
+and repo_config values."
+software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
+
+# Usage: check_k8s_support.yml
+supported_k8s_version:
+  - 1.29.5
+  - 1.31.4
+
+success_msg_k8s_version: "Kubernetes Version Validated"
+fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json. Supported versions are - {{ supported_k8s_version }}" # noqa: yaml[line-length]
+kube_version_on_unsupported_os: "Failed. On RHEL 9.4 OS, supported kubernetes version is 1.29.5"  # noqa: yaml[line-length]
+# We use k8s_to_kubespray to map k8s version to kubespray version
+k8s_to_kubespray:
+  "1.29.5": "v2.27.0"
+  "1.31.4": "v2.27.0"
+
+# Usage: validate_network_spec.yml
+admin_nic_fail_msg: "NIC '{{ admin_nic }}' does not exist on the system. Provide valid admin_network details in network_spec.yml and re-run the playbook."
+admin_nic_success_msg: "NIC '{{ admin_nic }}' exists on the system."
+admin_nic_ip_fail_msg: "IP '{{ admin_nic_ip }}' is not assigned to NIC '{{ admin_nic }}'. Please configure the admin IP in OIM and re-run the playbook."
+admin_nic_ip_success_msg: "IP '{{ admin_nic_ip }}' is assigned to NIC '{{ admin_nic }}'."
+
+# Usage: Validate_provision_credentials.yml
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config.yml"
+min_length: 8
+max_length: 30

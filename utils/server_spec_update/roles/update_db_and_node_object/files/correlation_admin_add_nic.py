@@ -15,7 +15,7 @@
 import ipaddress
 import sys
 
-cal_path = "./discovery/roles/discovery_mechanism/mtms/files"
+cal_path = "/opt/omnia/shared_libraries/provision/mtms"
 sys.path.insert(0, cal_path)
 import calculate_ip_details
 

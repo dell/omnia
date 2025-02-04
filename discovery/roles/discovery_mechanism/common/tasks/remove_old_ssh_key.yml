@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
     db: omniadb
     login_user: postgres
     query: SELECT admin_ip,hostname,node FROM cluster.nodeinfo where (node!='oim');
-    login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+    login_password: "{{ postgresdb_password }}"
   become: true
   become_user: postgres
   register: query_status

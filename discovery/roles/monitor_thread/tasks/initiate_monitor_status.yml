@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,17 +13,17 @@
 # limitations under the License.
 ---
 
-- name: Install development packages
-  when:
-    - oim_os in oim_os_redhat or
-      oim_os in oim_os_rocky
-  ansible.builtin.package:
-    name: "{{ psql_devel_packages }}"
-    state: present
+- name: Check for service folder existsence
+  ansible.builtin.stat:
+    path: "{{ omnia_service_dir }}"
+  register: service_folder_status
 
-- name: Install psycopg2 module
-  ansible.builtin.command: "{{ python_version }} -m pip install psycopg2-binary"
-  changed_when: false
+- name: Create service folder if it doesn't exists
+  ansible.builtin.file:
+    path: "{{ omnia_service_dir }}"
+    state: directory
+    mode: "{{ mount_dir_perm }}"
+  when: not service_folder_status.stat.exists
 
 - name: Copy the shell script to /home directory
   ansible.builtin.template:

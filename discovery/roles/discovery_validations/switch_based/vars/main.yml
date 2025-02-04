@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -19,8 +19,10 @@ enable_switch_based_fail_msg: "Failed. enable_switch_based in provision_config.y
 # Usage: validate_switch_based_details.yml
 fail_unique_switch_v3_ip: "Failed. Please provide unique switch v3 IPs in switch_based_details of provision_config.yml."
 switch_details_success_msg: "switch_based_details validated"
-switch_details_fail_msg: "Failed. Please provide switch_based_details in provision_config.yml with switch ip and switch ports
-when enable_switch_based is set true."
+switch_details_fail_msg: |
+  "Failed. Please provide switch_based_details in provision_config.yml with switch ip and switch ports
+  when enable_switch_based is set true."
+ping_switch_py: "{{ provision_shared_library_path }}/validation/switch_v3_ping.py"
 
 # Usage: validate_switch_snmp_params.yml
 switch_snmp3_password_fail_msg: "Failed. Incorrect switch_snmp3_username or switch_snmp3_password format in provision_config_credentials.yml"
