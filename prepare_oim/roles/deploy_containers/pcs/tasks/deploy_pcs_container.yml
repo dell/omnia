@@ -91,3 +91,7 @@
     - name: PCS container deployment failed
       ansible.builtin.debug:
         msg: "{{ pcs_container_failure_msg }}"
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: yes
