@@ -15,24 +15,12 @@
 ---
 # Add task to decypt the creds file and include vars to fetch pulp password. Hardcoding for now.
 
-- name: Create Pulp directory in nfs-share
+- name: Create directories for Pulp in shared storage
   ansible.builtin.file:
-    path: "{{ nfs_pulp_dir }}"
+    path: "{{ item.path }}"
     state: directory
-    mode: "{{ dir_create_mode }}"
-
-- name: Create Pulp configuration directories
-  ansible.builtin.file:
-    path: "{{ nfs_pulp_dir }}/{{ item }}"
-    state: directory
-    mode: "{{ dir_mode }}"
+    mode: "{{ item.mode }}"
   loop: "{{ pulp_directories }}"
-
-- name: Create nginx directory on Pulp nfs-share
-  ansible.builtin.file:
-    path: "{{ nginx_path }}"
-    state: directory
-    mode: "{{ dir_create_mode }}"
 
 - name: Create nginx.conf file for Pulp
   ansible.builtin.template:
@@ -46,35 +34,47 @@
     dest: "{{ settings_py_path }}"
     mode: "{{ dir_create_mode }}"
 
-- name: Set permissions on Pulp NFS share directory
-  ansible.builtin.file:
-    path: "{{ nfs_pulp_dir }}"
-    mode: "{{ file_permit }}"
-    recurse: true
+- name: Deploy Pulp container and check deployment status
+  block:
+    - name: Deploy the Pulp container
+      containers.podman.podman_container:
+        name: "{{ pulp_container_name }}"
+        image: "{{ pulp_image }}"
+        state: present
+        restart_policy: always
+        volumes: "{{ volumes }}"
+        privileged: true
+        device:
+          - "{{ device_name }}"
+        ports:
+          - "{{ pulp_port }}"
+        cmd_args: "{{ arg_list }}"
 
-- name: Deploy the Pulp container
-  containers.podman.podman_container:
-    name: "{{ pulp_container_name }}"
-    image: "{{ pulp_image }}"
-    state: started
-    privileged: true
-    device:
-      - "{{ device_name }}"
-    ports:
-      - "{{ pulp_port }}"
-    volumes: "{{ volumes }}"
-    cmd_args: "{{ arg_list }}"
-    restart_policy: always
-  retries: 1
-  delay: 10
+    - name: Start the Pulp container
+      containers.podman.podman_container:
+        name: "{{ pulp_container_name }}"
+        state: started
 
-- name: Pulp container deployment status
-  ansible.builtin.debug:
-    msg: "{{ pulp_deployed_msg }}"
+    - name: Check if Pulp container is running after deployment
+      containers.podman.podman_container_info:
+        name: "{{ pulp_container_name }}"
+      register: pulp_container_status
 
-- name: Reset the Pulp admin password automatically
+    - name: Notify user of Pulp container deployment status
+      ansible.builtin.debug:
+        msg: "{{ pulp_deployed_msg }}"
+      when:
+        - pulp_container_status.containers | length > 0
+        - pulp_container_status.containers[0].State.Status == 'running'
+
+  rescue:
+    - name: Pulp container deployment failed
+      ansible.builtin.fail:
+        msg: "{{ pulp_deployed_fail_msg }}"
+
+- name: Reset Pulp password
   ansible.builtin.expect:
     command: "{{ reset_password_cmd }}"
     responses: "{{ pulp_responses }}"
-  retries: 3
-  delay: 20
+  retries: "{{ retries_var }}"
+  delay: "{{ delay_var }}"

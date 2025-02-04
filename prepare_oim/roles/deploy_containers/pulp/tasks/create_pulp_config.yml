@@ -13,12 +13,6 @@
 #  limitations under the License.
 
 ---
-- name: Create Pulp HA directory in nfs-share
-  ansible.builtin.file:
-    path: "{{ pulp_ha_dir }}"
-    state: directory
-    mode: "{{ dir_create_mode }}"
-
 - name: Check if Pulp configuration file exists
   ansible.builtin.stat:
     path: "{{ pulp_config_filepath }}"
@@ -28,30 +22,26 @@
   ansible.builtin.command:
     cmd: "{{ pulp_config_cmd }}"
   when: not pulp_config_status.stat.exists
+  changed_when: false
 
 - name: Overwrite Pulp config (if file exists)
   ansible.builtin.command:
     cmd: "{{ pulp_config_cmd_overwrite }}"
   when: pulp_config_status.stat.exists
+  changed_when: false
 
 - name: Set verify_ssl to false in pulp config
   ansible.builtin.replace:
     path: "{{ pulp_config_filepath }}"
     regexp: "{{ verify_ssl_regex }}"
     replace: "{{ line_to_replace }}"
-    backup: False
+    backup: false
 
 - name: Copy config file to default path
   ansible.builtin.copy:
     src: "{{ pulp_config_filepath }}"
     dest: "{{ config_default_loc }}"
     mode: "{{ copy_mode }}"
-
-- name: Create certs directory in Pulp nfs-share
-  ansible.builtin.file:
-    path: "{{ certs_dir }}"
-    state: directory
-    mode: "{{ dir_create_mode }}"
 
 - name: Ensure the pulp group exists
   ansible.builtin.group:
@@ -75,6 +65,7 @@
 - name: Generate SSL certificate
   ansible.builtin.command:
     cmd: "{{ generate_cert_cmd }}"
+  changed_when: false
 
 - name: Change group ownership of SSL certificate
   ansible.builtin.file:

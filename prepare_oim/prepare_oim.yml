@@ -47,6 +47,15 @@
         name: deploy_containers/common
         tasks_from: add_known_hosts.yml
 
+- name: Podman login
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Perform podman login  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/common
+        tasks_from: podman_login.yml
+
 - name: Deploy all container
   hosts: oim
   connection: ssh
@@ -54,10 +63,10 @@
   tags: deploy_containers
   roles:
     - role: deploy_containers/common  # noqa:role-name[path]
-    - role: deploy_containers/pcs  # noqa:role-name[path]
+    - role: deploy_containers/pulp  # noqa:role-name[path]
     - role: deploy_containers/provision  # noqa:role-name[path]
     - role: deploy_containers/kubespray  # noqa:role-name[path]
-    - role: deploy_containers/pulp  # noqa:role-name[path]
+    - role: deploy_containers/pcs  # noqa:role-name[path]
 
 - name: Add all containers to known hosts on omnia core
   hosts: localhost
@@ -90,18 +99,19 @@
 - name: Configure Pulp container
   hosts: localhost
   tasks:
-    - name: Configure Pulp container tasks
+    - name: Configure Pulp container tasks # noqa:role-name[path]
       ansible.builtin.include_role:
         name: deploy_containers/pulp
         tasks_from: create_pulp_config.yml
 
-- name: Add pulp certificate to trust store
+- name: Reload pulp nginx
   hosts: oim
+  connection: ssh
   tasks:
-    - name: Add pulp certificate to trust store
+    - name: Reload pulp nginx # noqa:role-name[path]
       ansible.builtin.include_role:
         name: deploy_containers/pulp
-        tasks_from: update_cert_ca.yml
+        tasks_from: reload_pulp_nginx.yml
 
 - name: Prepare oim completion
   hosts: localhost
@@ -111,3 +121,4 @@
       ansible.builtin.include_role:
         name: deploy_containers/common
         tasks_from: prepare_oim_completion.yml
+

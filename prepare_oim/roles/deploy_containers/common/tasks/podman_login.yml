@@ -11,20 +11,18 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-- name: Copy Pulp server certificate to host
-  ansible.builtin.copy:
-    src: "{{ pulp_cert_src }}"
-    dest: "{{ ca_trust_path }}"
-    remote_src: true
+- name: Podman login
+  ansible.builtin.command: "{{ login_cmd }}"
+  changed_when: true
+  register: podman_login_output
+  retries: "{{ retry_count }}"
+  delay: "{{ delay_time }}"
+  until: podman_login_output.rc == 0
+  failed_when: false
+  no_log: true
 
-- name: Run nginx reload command on Pulp container
-  ansible.builtin.command:
-    cmd: "{{ nginx_reload_cmd }}"
-  retries: 3
-  delay: 60
-
-- name: Update CA trust
-  ansible.builtin.command:
-    cmd: update-ca-trust
+- name: Podman login check
+  ansible.builtin.fail:
+    msg: "{{ podman_login_fail_msg }} Error: {{ podman_login_output.stderr }}"
+  when: podman_login_output.rc != 0

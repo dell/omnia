@@ -1,0 +1,33 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+# - name: Copy Pulp server certificate to host
+#   ansible.builtin.copy:
+#     src: "{{ pulp_cert_src }}"
+#     dest: "{{ ca_trust_path }}"
+#     remote_src: true
+
+- name: Run nginx reload command on Pulp container
+  containers.podman.podman_container_exec:
+    name: "{{ pulp_container_name }}"
+    command: "{{ nginx_reload_cmd }}"
+  retries: "{{ retries_var }}"
+  delay: "{{ delay_var_sixty }}"
+  register: nginx_reload_result
+  until: nginx_reload_result.rc == 0
+
+# - name: Update CA trust
+#   ansible.builtin.command:
+#     cmd: update-ca-trust
