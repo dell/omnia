@@ -31,6 +31,6 @@ dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
 xcat_sbin_path: /opt/xcat/sbin
 
 # Usage: remove_old_ssh_key.yml
-empty_discover_node_msg: | 
+empty_discover_node_msg: |
   "Failed. No nodes were discovered. Please ensure the input related to discovery details is correct inside provision_config.yml and network_spec.yml
    and check if IPMI is enabled on the nodes if using BMC discovery mechanism."

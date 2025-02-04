@@ -19,29 +19,11 @@ xcat_root_env: "/opt/xcat"
 xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
 xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
+xcat_path: /opt/xcat/bin
 
 # Usage: validate_passwordless_ssh_oim.yml
 oim_ssh_port: 22
 ssh_connection_fail_msg: "Failed. SSH connection failed. Please verify passwordless ssh from omnia_core to oim host."
-
-# Usage: prepare_oim_status
-inv_directory_path: "/opt/omnia/omnia_inventory"
-compute_hostname_ip_filename: "compute_hostname_ip"
-inv_file_path_list: "{{ inv_directory_path }}/{{ compute_hostname_ip_filename }}"
-xcatd_service: "xcatd.service"
-postgresql_service_rhel: "postgresql.service"
-postgresql_service_ubuntu: "postgresql"
-prepare_oim_execution_req: "Failed. If run the discovery/discovery.yml playbook, please ensure that you run the prepare_oim/prepare_oim.yml playbook before
-executing the discovery/discovery.yml playbook. If you're encountering this issue while running the discovery_provision.yml playbook,
-please cleanup provision tasks by running the 'ansible-playbook utils/oim_cleanup.yml --tags provision'.
-After verifying your input files and Omnia Infrastructure Manager admin NIC configuration, re-run the playbook discovery_provision.yml."
-xcat_path: /opt/xcat/bin
-oim_os_redhat: "redhat"
-oim_os_rocky: "rocky"
-oim_os_ubuntu: "ubuntu"
-postgresql_start_fail_msg: "Failed to start postgresql services"
-xcat_start_fail_msg: "Failed to start xcatd services"
-service_retries: 3
 
 # Usage: pre_requisite.yml
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
@@ -72,9 +54,9 @@ k8s_to_kubespray:
   "1.31.4": "v2.27.0"
 
 # Usage: validate_network_spec.yml
-admin_nic_fail_msg: "NIC '{{ admin_nic }}' does not exist on the system."
+admin_nic_fail_msg: "NIC '{{ admin_nic }}' does not exist on the system. Provide valid admin_network details in network_spec.yml and re-run the playbook."
 admin_nic_success_msg: "NIC '{{ admin_nic }}' exists on the system."
-admin_nic_ip_fail_msg: "IP '{{ admin_nic_ip }}' is not assigned to NIC '{{ admin_nic }}'."
+admin_nic_ip_fail_msg: "IP '{{ admin_nic_ip }}' is not assigned to NIC '{{ admin_nic }}'. Please configure the admin IP in OIM and re-run the playbook."
 admin_nic_ip_success_msg: "IP '{{ admin_nic_ip }}' is assigned to NIC '{{ admin_nic }}'."
 
 # Usage: Validate_provision_credentials.yml

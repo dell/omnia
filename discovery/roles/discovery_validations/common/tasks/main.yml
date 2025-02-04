@@ -36,8 +36,8 @@
 - name: Include local_repo variables
   ansible.builtin.include_tasks: include_local_repo_config.yml
 
-#- name: Validate local repo
-#  ansible.builtin.include_tasks: validate_local_repo.yml
+# - name: Validate local repo
+#   ansible.builtin.include_tasks: validate_local_repo.yml
 
 - name: Validate network interface type
   ansible.builtin.include_tasks: assign_network_interface.yml
@@ -71,17 +71,17 @@
   ansible.builtin.include_tasks: validate_domain_name.yml
 
 # Need to modify after local repo changes
-#- name: Validate site_config.yml
-#  ansible.builtin.include_tasks: validate_site_config.yml
+# - name: Validate site_config.yml
+#   ansible.builtin.include_tasks: validate_site_config.yml
 
-#- name: Validate OFED and CUDA repo
-#  ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml
+# - name: Validate OFED and CUDA repo
+#   ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml
 
-#- name: Validate AMDGPU and ROCm repo
-#  ansible.builtin.include_tasks: validate_amdgpu_rocm_repo.yml
+# - name: Validate AMDGPU and ROCm repo
+#   ansible.builtin.include_tasks: validate_amdgpu_rocm_repo.yml
 
-#- name: Validate Broadcom repo
-#  ansible.builtin.include_tasks: validate_broadcom_repo.yml
+# - name: Validate Broadcom repo
+#   ansible.builtin.include_tasks: validate_broadcom_repo.yml
 
-#- name: Validate Intel Gaudi repo
-#  ansible.builtin.include_tasks: validate_intelgaudi_repo.yml
+# - name: Validate Intel Gaudi repo
+#   ansible.builtin.include_tasks: validate_intelgaudi_repo.yml

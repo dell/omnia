@@ -32,25 +32,25 @@
         project_dir_status: true
 
     # This logic needs to be updated
-    #- name: Set inventory_status
-    #  ansible.builtin.set_fact:
-    #    inventory_status: true
-    #  when:
-    #    - hostvars.keys() | length > 0
-    #    - groups['all'] is defined
-    #    - groups['all'] | length > 0
+    # - name: Set inventory_status
+    #   ansible.builtin.set_fact:
+    #     inventory_status: true
+    #   when:
+    #     - hostvars.keys() | length > 0
+    #     - groups['all'] is defined
+    #     - groups['all'] | length > 0
 
-    #- name: Validate inventory file
-    #  include_role:
-    #    name: utils/server_spec_update/roles/server_spec_validation
-    #  when: inventory_status | default(false) | bool
+    # - name: Validate inventory file
+    #   ansible.builtin.include_role:
+    #     name: utils/server_spec_update/roles/server_spec_validation
+    #   when: inventory_status | default(false) | bool
 
 - name: Discover the nodes
   ansible.builtin.import_playbook: discovery/discovery.yml       # noqa:role-name[path]
 
-#- name: Server spec configuration
-#  ansible.builtin.import_playbook: utils/server_spec_update/server_spec_update.yml   # noqa:role-name[path]
-#  when: inventory_status | default(false) | bool
+# - name: Server spec configuration
+#   ansible.builtin.import_playbook: utils/server_spec_update/server_spec_update.yml   # noqa:role-name[path]
+#   when: inventory_status | default(false) | bool
 
 - name: Provision nodes
   ansible.builtin.import_playbook: provision/provision.yml       # noqa:role-name[path]

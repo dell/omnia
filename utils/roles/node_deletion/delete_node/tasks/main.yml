@@ -130,15 +130,16 @@
   ansible.builtin.set_fact:
     node_list: "{{ node_list[:-2] }}"
 
-- name: Update reachable nodes
-  ansible.builtin.include_tasks: update_reachable_nodes.yml
-  when:
-    - reachable_nodes | length > 0
-    - item.value.status == 'booted'
-    - item.value.admin_ip in reachable_nodes
-  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
-  loop_control:
-    label: "{{ item.key }}"
+# This will add after telemetry support
+# - name: Update reachable nodes
+#   ansible.builtin.include_tasks: update_reachable_nodes.yml
+#   when:
+#     - reachable_nodes | length > 0
+#     - item.value.status == 'booted'
+#     - item.value.admin_ip in reachable_nodes
+#   loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
+#   loop_control:
+#     label: "{{ item.key }}"
 
 - name: Delete nodes details
   ansible.builtin.include_tasks: delete_nodes.yml
