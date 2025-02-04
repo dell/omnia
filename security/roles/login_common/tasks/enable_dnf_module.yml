@@ -19,11 +19,15 @@
     - ( ansible_distribution | lower == os_centos ) or
       ( ansible_distribution | lower == os_rocky ) or
       ( ansible_distribution | lower == os_redhat )
-    - ( ansible_distribution_version >= os_version )
+    - ( ansible_distribution_version >= os_version_eight )
+    - ( ansible_distribution_version < os_version_nine )
   changed_when: true
 
 - name: Switch to the RPMs delivered through the idm:DL1 stream(It may take 5-10 mins) # noqa: command-instead-of-module
   ansible.builtin.command: yum distro-sync --skip-broken --nobest --exclude={{ yum_distro_exclude1 }},{{ yum_distro_exclude2 }} -y
   changed_when: true
   failed_when: false
-  when: ansible_distribution | lower == os_redhat
+  when:
+    - ( ansible_distribution | lower == os_redhat )
+    - ( ansible_distribution_version >= os_version_eight )
+    - ( ansible_distribution_version < os_version_nine )

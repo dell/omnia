@@ -92,10 +92,12 @@ rhel_valid_os_versions:
   - '8.6'
   - '8.7'
   - '8.8'
+  - '9.4'
 rocky_valid_os_versions:
   - '8.6'
   - '8.7'
   - '8.8'
+  - '9.4'
 ubuntu_valid_os_versions:
   - '20.04'
   - '22.04'

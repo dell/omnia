@@ -21,7 +21,7 @@
     - name: Add ports of auth_server and login node to firewall
       ansible.builtin.include_tasks: firewall_settings.yml
 
-    - name: Enable module idm in Rocky or Centos >= 8.0
+    - name: Enable module idm in Rocky or Centos >= 8.0 and < 9.0
       ansible.builtin.include_tasks: enable_dnf_module.yml
 
     - name: Update Packages
