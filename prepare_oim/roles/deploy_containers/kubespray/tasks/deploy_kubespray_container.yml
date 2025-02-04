@@ -82,5 +82,5 @@
 
   rescue:
     - name: Kubespray container deployment failed
-      ansible.builtin.debug:
+      ansible.builtin.fail:
         msg: "{{ kubespray_container_failure_msg }}"

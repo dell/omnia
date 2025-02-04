@@ -102,5 +102,5 @@
 
   rescue:
     - name: Provision container deployment failed
-      ansible.builtin.debug:
+      ansible.builtin.fail:
         msg: "{{ provision_container_failure_msg }}"

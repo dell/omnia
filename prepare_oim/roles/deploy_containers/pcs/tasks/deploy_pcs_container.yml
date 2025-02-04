@@ -89,9 +89,14 @@
 
   rescue:
     - name: PCS container deployment failed
-      ansible.builtin.debug:
+      ansible.builtin.fail:
         msg: "{{ pcs_container_failure_msg }}"
 
 - name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: yes
+
+- name: Start omnia_pcs service
+  ansible.builtin.systemd:
+    name: omnia_pcs
+    state: started
