@@ -30,7 +30,7 @@ migration_threshold: 2
 pcs_startup_file:
   - {template: "pcs-start.sh.j2", dest: "{{ oim_shared_path }}/omnia/pcs/pcs-start.sh", mode: "{{ read_write_execute_mode }}" }
   - {template: "corosync.conf.j2", dest: "{{ oim_shared_path }}/omnia/pcs/corosync.conf", mode: "{{ read_write_mode }}" }
-  - {template: "pcs-container.container.j2", dest: "{{ container_systemd_dir }}/{{ pcs-container-name }}.container", mode: "{{ read_write_mode }}" }
+  - {template: "pcs-container.container.j2", dest: "{{ container_systemd_dir }}/{{ pcs_container_name }}.container", mode: "{{ read_write_mode }}" }
 
 pcs_image_pull_fail_msg: >
   The pull of the provision image {{ pcs_image_name }}:{{ pcs_image_tag }} has failed.
