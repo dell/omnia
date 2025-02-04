@@ -93,7 +93,7 @@
     success_msg: "{{ provision_os_success_msg }}"
     fail_msg: "{{ provision_os_fail_msg }}"
 
-- name: Set supported_os_version_status to true - rhel/rocky
+- name: Set supported_os_version_status to true - rhel
   ansible.builtin.set_fact:
     supported_os_version_status: true
   with_items: "{{ supported_rhel_os_version }}"

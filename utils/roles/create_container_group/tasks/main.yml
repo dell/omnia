@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Create {{ oim_host_group }} group
+- name: Create {{ oim_host_group }} group # noqa: name[template]
   ansible.builtin.add_host:
     hostname: "{{ oim_host_group }}"
     ansible_host: "localhost"
@@ -21,7 +21,7 @@
     groups: "{{ oim_host_group }}"
   when: oim_group | default(false) | bool
 
-- name: Create {{ provision_container_name }} group
+- name: Create {{ provision_container_name }} group # noqa: name[template]
   ansible.builtin.add_host:
     hostname: "{{ provision_container_name }}"
     ansible_host: "localhost"
@@ -30,7 +30,7 @@
     ansible_python_interpreter: "{{ python_version }}"
   when: omnia_provision_group | default(false) | bool
 
-- name: Create {{ kubespray_container_name }} group
+- name: Create {{ kubespray_container_name }} group # noqa: name[template]
   ansible.builtin.add_host:
     hostname: "{{ kubespray_container_name }}"
     ansible_host: "localhost"

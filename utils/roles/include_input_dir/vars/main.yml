@@ -20,5 +20,5 @@ omnia_input_config_syntax_fail_msg: |
   "Unable to load the Omnia project configuration file at {{ omnia_input_config_file }}.
   Please ensure the file exists and has valid YAML syntax before re-running the playbook."
 project_dir_not_exist_fail_msg: |
-  "The project directory at {{ input_project_dir }} does not exist. 
+  "The project directory at {{ input_project_dir }} does not exist.
   Please ensure the directory exists before re-running the playbook."

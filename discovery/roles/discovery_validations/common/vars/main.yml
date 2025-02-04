@@ -76,11 +76,8 @@ warning_msg_bmc_network_details_incomplete: "Warning, BMC network details incomp
 Note: nic_name, netmask_bits, static_range and dynamic_range are mandatory parameters under bmc_network in network_spec.yml for bmc discover"
 
 # Usage: validate_admin_nic.yml
-success_msg_nic: "nic successfully validated"
-fail_msg_nic: "Failed. Provide proper values in provision_config.yml"
 success_msg_admin_nic_details: "Admin nic details validated"
 fail_msg_admin_nic_details: "Failed. Invalid admin_nic details (nic_name, netmask_bits, static_range or dynamic_range) in network_spec file."
-fail_msg_admin_nic_ip_details: "Ensure admin nic is configured with ip address."
 fail_msg_admin_netmask_bits: "Failed. Invalid Admin netmask_bits provided in network_spec file."
 success_subnet: "The subnet provided is validated"
 fail_subnet: "Failed. Please provide proper subnet with netmask {{ omnia_admin_netmask }} in provision_config.yml"
@@ -96,6 +93,10 @@ fail_msg_admin_static_netmask_bits: "Failed, Admin static range is not within th
 admin_nic_netmask_fail_msg: "Failed, Admin nic netmask should be same as netmask in network_spec file."
 admin_range_ip_check_fail_msg: "Failed. : Admin network - static/dynamic ranges should be valid IP address (Eg. 192.168.1.1-198.168.1.254)."
 fail_admin_ip_range: "Failed, Admin static and dynamic ranges should not overldap."
+admin_nic_fail_msg: "NIC '{{ admin_nic }}' does not exist on the system. Provide valid admin_network details in network_spec.yml and re-run the playbook."
+admin_nic_success_msg: "NIC '{{ admin_nic }}' exists on the system."
+admin_nic_ip_fail_msg: "IP '{{ admin_nic_ip }}' is not assigned to NIC '{{ admin_nic }}'. Please configure the admin IP in OIM and re-run the playbook."
+admin_nic_ip_success_msg: "IP '{{ admin_nic_ip }}' is assigned to NIC '{{ admin_nic }}'."
 
 # Usage: validate_bmc_nic.yml
 success_msg_bmc_nic_details: "BMC nic details validated"

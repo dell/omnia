@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,8 +37,10 @@ ubuntu_reboot_script_path:
   - { src: "{{ role_path }}/files/omnia_reboot", dest: "/install/postscripts/omnia_reboot", mode: "755" }
 
 # Usage: configure_postsctipts_ntp.yml
-setup_ntp_warning_msg: "[WARNING] Failed to setup NTP server in Omnia Infrastructure Manager. This can be due to public NTP pools blocked via ICMP.
-Skipping NTP configuration in the cluster. If public NTP pools not reachable from Omnia Infrastructure Manager, set ntp_support to false in provison_config.yml."
+setup_ntp_warning_msg: |
+  "[WARNING] Failed to setup NTP server in Omnia Infrastructure Manager. This can be due to public NTP pools blocked via ICMP.
+  Skipping NTP configuration in the cluster. If public NTP pools not reachable from Omnia Infrastructure Manager,
+  set ntp_support to false in provison_config.yml."
 warning_time: 30
 async_time: 300
 poll_time: 15
