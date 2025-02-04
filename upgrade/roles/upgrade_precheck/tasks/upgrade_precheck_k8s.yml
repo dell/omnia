@@ -168,10 +168,10 @@
               changed_when: false
               when: kubectl_command_status.rc == 0
 
-            - name: Set k8s_backup_status to true if k8s is installed and kube version is v1.26.12
+            - name: Set k8s_backup_status to true if k8s is installed and kube version is v1.29.5
               ansible.builtin.set_fact:
                 k8s_backup_status: true
-              when: (kubectl_command_status.rc == 0) and (kubernetes_version is defined) and ("v1.26.12" in kubernetes_version.stdout)
+              when: (kubectl_command_status.rc == 0) and (kubernetes_version is defined) and ("v1.29.5" in kubernetes_version.stdout)
 
             - name: Include telemetry config vars
               ansible.builtin.include_tasks: include_telemetry_config.yml

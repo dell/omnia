@@ -14,7 +14,8 @@
 ---
 
 # Usage: main.yml
-local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
-xcat_sbin_path: /opt/xcat/sbin
-xcat_path: /opt/xcat/bin
-dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
+
+# local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+# xcat_sbin_path: /opt/xcat/sbin
+# xcat_path: /opt/xcat/bin
+# dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"

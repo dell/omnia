@@ -20,9 +20,6 @@
 - name: Steps to upgrade omnia version on Omnia Infrastructure Manager
   hosts: localhost
   vars:
-    older_os_dict:
-      redhat: ["8.6", "8.7"]
-      rocky: ["8.6", "8.7"]
     os_check_dict:
       redhat: ["8.8"]
       rocky: ["8.8"]

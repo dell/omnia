@@ -18,7 +18,3 @@
 
 - name: Moving new input files to a specified source input directory
   ansible.builtin.include_tasks: sync_files_to_omnia_version.yml
-
-- name: Copying old software_config file to a specified source input directory
-  ansible.builtin.include_tasks: import_software_config.yml
-  when: older_os

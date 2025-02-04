@@ -24,7 +24,7 @@
 
 - name: Set target k8s version
   ansible.builtin.set_fact:
-    k8s_version: "v1.29.5"
+    k8s_version: "v1.31.4"
 
 - name: Check if metadata file exists
   ansible.builtin.stat:
