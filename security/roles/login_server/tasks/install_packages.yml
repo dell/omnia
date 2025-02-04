@@ -28,7 +28,7 @@
   when: 
     - ansible_distribution | lower == os_redhat
     - ( ansible_distribution_version >= os_version_eight )
-    - ( ansible_distribution_version <= os_version_nine )
+    - ( ansible_distribution_version < os_version_nine )
 
 - name: Install packages for RHEL
   ansible.builtin.package:
