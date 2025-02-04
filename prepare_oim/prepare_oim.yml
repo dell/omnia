@@ -47,15 +47,6 @@
         name: deploy_containers/common
         tasks_from: add_known_hosts.yml
 
-- name: Podman login
-  hosts: oim
-  connection: ssh
-  tasks:
-    - name: Perform podman login  # noqa:role-name[path]
-      ansible.builtin.include_role:
-        name: deploy_containers/common
-        tasks_from: podman_login.yml
-
 - name: Deploy all container
   hosts: oim
   connection: ssh
