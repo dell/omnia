@@ -25,7 +25,6 @@ xcat_path: /opt/xcat/bin
 discover_ip_file: "/opt/omnia/provision/discover.stanzas"
 static_ip_file: "/opt/omnia/provision/static.stanzas"
 dynamic_ip_file: "/opt/omnia/provision/dynamic.stanzas"
-dynamic_ip_list: "/opt/omnia/provision/dynamic_ip_list"
 
 stanza_paths:
   - "{{ discover_ip_file }}"
@@ -60,6 +59,6 @@ mtms_poweron_warning_msg: "[WARNING] Power on failed for the discovered nodes us
 
 # Usage: dynamic_ipmi_enable.yml
 create_dynamic_ip_path: "{{ provision_shared_library_path }}/mtms/create_dynamic_ip_list.py"
-dynamic_ip_list_path: "/opt/omnia/dynamic_ip_list"
+dynamic_ip_list: "/opt/omnia/provision/dynamic_ip_list"
 ipmi_command: 'racadm set iDRAC.IPMILan.Enable 1'
 timeout_ipmi: 15
