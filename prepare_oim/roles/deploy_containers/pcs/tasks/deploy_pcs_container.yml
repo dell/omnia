@@ -100,5 +100,3 @@
   ansible.builtin.systemd:
     name: omnia_pcs
     state: started
-    enabled: yes
-    daemon_reload: yes
