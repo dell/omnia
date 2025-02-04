@@ -38,7 +38,7 @@ xcatdata_dir: "{{ provision_dir }}/xcatdata"
 pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
 install_dir: "{{ provision_dir }}/install"
 tftpboot_dir: "{{ provision_dir }}/tftpboot"
-hosts_file: "{{ provision_dir }}/hosts"
+hosts_file: "{{ omnia_nfs_share }}/hosts"
 root_read_write: "0644"
 root_read_write_execute: "0755"
 
