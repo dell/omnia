@@ -38,7 +38,7 @@
   failed_when: false
   when: kubespray_container_info.containers | length == 0
 
-- name: Pull the Kubespray image if not found
+- name: Pull the Kubespray image
   containers.podman.podman_image:
     name: "{{ kubespray_image_name }}:{{ kubespray_image_tag }}"
     state: present

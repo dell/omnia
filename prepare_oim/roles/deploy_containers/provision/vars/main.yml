@@ -29,18 +29,27 @@ provision_port_occupied_msg: |
   Please make sure this port is not occupied by any other process and re-run the playbook.
 provision_image_pull_fail_msg: |
   The pull of the provision image {{ provision_image_name }}:{{ provision_image_tag }} has failed.
-  To resolve this issue, please address the following error message: {{ image_pull_result }}.
+  To resolve this issue, please address the following error message: {{ image_pull_result.msg }}.
   After rectifying the issues, you can re-run the playbook to successfully pull the provision image.
-provision_image_not_found_msg: "Provision image {{ provision_image_name }}:{{ provision_image_tag }} not found. Check if image is available and re-run the playbook."
+provision_image_not_found_msg: |
+  Provision image {{ provision_image_name }}:{{ provision_image_tag }} not found.
+  Please check if image is available and re-run the playbook.
 xcatdata_dir: "{{ provision_dir }}/xcatdata"
 pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
+install_dir: "{{ provision_dir }}/install"
+tftpboot_dir: "{{ provision_dir }}/tftpboot"
+hosts_file: "{{ omnia_nfs_share }}/hosts"
+root_read_write: "0644"
+root_read_write_execute: "0755"
 
 provision_directories:
-  - { path: "{{ provision_logs_dir }}", mode: "{{ read_write_mode }}" }
-  - { path: "{{ provision_logs_dir }}/xcat", mode: "{{ read_write_mode }}" }
-  - { path: "{{ provision_dir }}", mode: "{{ read_write_execute_mode }}" }
-  - { path: "{{ xcatdata_dir }}", mode: "{{ read_write_execute_mode }}" }
+  - { path: "{{ provision_logs_dir }}", mode: "{{ root_read_write }}" }
+  - { path: "{{ provision_logs_dir }}/xcat", mode: "{{ root_read_write }}" }
+  - { path: "{{ provision_dir }}", mode: "{{ root_read_write_execute }}" }
+  - { path: "{{ xcatdata_dir }}", mode: "{{ root_read_write_execute }}" }
   - { path: "{{ pgsql_data_dir }}", mode: "0750" }
+  - { path: "{{ install_dir }}", mode: "{{ root_read_write_execute }}" }
+  - { path: "{{ tftpboot_dir }}", mode: "{{ root_read_write_execute }}" }
 
 provision_container_success_msg: "The provision container {{ provision_container_name }} has been successfully created and is running."
 provision_container_failure_msg: |
@@ -52,8 +61,11 @@ provision_volumes:
   - "{{ omnia_nfs_share }}:/opt/omnia:z"
   - /sys/fs/cgroup:/sys/fs/cgroup:ro
   - "{{ xcatdata_dir }}:/xcatdata:z"
+  - "{{ install_dir }}:/install:z"
+  - "{{ tftpboot_dir }}:/tftpboot:z"
   - "{{ provision_logs_dir }}/xcat:/var/log/xcat:z"
   - "{{ pgsql_data_dir }}:/var/lib/pgsql/data:z"
+  - "{{ hosts_file }}:/etc/hosts:z"
 
 provision_devices:
   - /dev/loop0:/dev/loop0
@@ -65,7 +77,7 @@ xcat_services:
   - postgresql
 xcat_init_finished: "/xcat-init.finished"
 wait_time_xcat_init: 180
-xcat_init_failed_msg: "xcat-init.bash execution failed. Error: {{ xcat_init_result }}"
+xcat_init_failed_msg: "xcat-init.bash execution failed. Check the logs in /opt/omnia/logs/provision/xcat/xcat-init-output.log"
 
 pgsqlsetup_path: /opt/xcat/bin/pgsqlsetup
 postgres_set_password_fail_msg: "Failed to set Postgresql password for user - postgres."

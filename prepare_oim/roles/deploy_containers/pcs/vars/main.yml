@@ -13,22 +13,25 @@
 # limitations under the License.
 ---
 
-read_write_mode: "0644"
-read_write_execute_mode: "0744"
-pcs_startup_file:
-  - {template: "pcs-start.sh.j2", dest: "{{ oim_shared_path }}/omnia/pcs/pcs-start.sh", mode: "{{ read_write_execute_mode }}" }
-  - {template: "corosync.conf.j2", dest: "{{ oim_shared_path }}/omnia/pcs/corosync.conf", mode: "{{ read_write_mode }}" }
-migration_threshold: 2
-pcs_container_dir: "{{ oim_shared_path }}/omnia/pcs"
-pcs_container_log_dir: "{{ oim_shared_path }}/omnia/logs/pcs"
-
-pcs_directories:
-  - { path: "{{ pcs_container_log_dir }}", mode: "{{ read_write_mode }}" }
-  - { path: "{{ pcs_container_dir }}", mode: "{{ read_write_execute_mode }}" }
-
 pcs_image_name: "omnia_pcs"
 pcs_image_tag: "latest"
 pcs_container_name: "omnia_pcs"
+read_write_mode: "0644"
+read_write_execute_mode: "0744"
+pcs_container_dir: "{{ oim_shared_path }}/omnia/pcs"
+pcs_container_log_dir: "{{ oim_shared_path }}/omnia/logs/pcs"
+container_systemd_dir: "/etc/containers/systemd/"
+pcs_directories:
+  - { path: "{{ pcs_container_log_dir }}", mode: "{{ read_write_mode }}" }
+  - { path: "{{ pcs_container_dir }}", mode: "{{ read_write_execute_mode }}" }
+  - { path: "{{ container_systemd_dir }}", mode: "{{ read_write_mode }}" }
+
+migration_threshold: 2
+pcs_startup_file:
+  - {template: "pcs-start.sh.j2", dest: "{{ oim_shared_path }}/omnia/pcs/pcs-start.sh", mode: "{{ read_write_execute_mode }}" }
+  - {template: "corosync.conf.j2", dest: "{{ oim_shared_path }}/omnia/pcs/corosync.conf", mode: "{{ read_write_mode }}" }
+  - {template: "pcs-container.container.j2", dest: "{{ container_systemd_dir }}/{{ pcs_container_name }}.container", mode: "{{ read_write_mode }}" }
+
 pcs_image_pull_fail_msg: >
   The pull of the provision image {{ pcs_image_name }}:{{ pcs_image_tag }} has failed.
   To resolve this issue, please address the following error message: {{ image_pull_result }}.
