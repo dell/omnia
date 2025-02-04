@@ -12,43 +12,67 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Load local_repo_access.yml file
-  ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
+- name: Tasks for slurm_pam role
+  when: hostvars['127.0.0.1']['slurm_support']
+  block:
+    - name: Load local_repo_access.yml file
+      ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
 
-- name: Append share_path to variables when slurm_installation_type is nfs_share
-  ansible.builtin.set_fact:
-    slurm_confpth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_confpth }}"
-  when: slurm_installation_type == 'nfs_share'
+    - name: Append share_path to variables when slurm_installation_type is nfs_share
+      ansible.builtin.set_fact:
+        slurm_confpth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_folder }}{{ slurm_conf_file_pth }}"
+      when: slurm_installation_type == 'nfs_share'
 
-- name: Slurm Control Node group to contain exactly 1 node
-  ansible.builtin.assert:
-    that: "groups['slurm_control_node'] | length | int == 1"
-    fail_msg: "{{ slurm_control_node_group_fail_msg }}"
-    success_msg: "{{ slurm_control_node_group_success_msg }}"
-  delegate_to: localhost
+    - name: Slurm Control Node group to contain exactly 1 node
+      ansible.builtin.assert:
+        that: "groups['slurm_control_node'] | length | int == 1"
+        fail_msg: "{{ slurm_control_node_group_fail_msg }}"
+        success_msg: "{{ slurm_control_node_group_success_msg }}"
+      delegate_to: localhost
 
-- name: Slurm node group to contain atleast 1 node
-  ansible.builtin.assert:
-    that: "groups['slurm_node'] | length | int >= 1"
-    fail_msg: "{{ slurm_node_group_fail_msg }}"
-    success_msg: "{{ slurm_node_group_success_msg }}"
-  delegate_to: localhost
+    - name: Slurm node group to contain atleast 1 node
+      ansible.builtin.assert:
+        that: "groups['slurm_node'] | length | int >= 1"
+        fail_msg: "{{ slurm_node_group_fail_msg }}"
+        success_msg: "{{ slurm_node_group_success_msg }}"
+      delegate_to: localhost
 
-- name: Install slurm-pam_slurm
-  ansible.builtin.package:
-    name: slurm-pam_slurm
-    state: present
+    - name: Install slurm-pam_slurm
+      ansible.builtin.package:
+        name: slurm-pam_slurm
+        state: present
+      when: ansible_distribution | lower is in ['redhat', 'rocky']
 
-- name: Configure slurm pam for Slurm nodes
-  ansible.builtin.include_tasks: slurm_pam_compute.yml
-  when: ansible_host in groups['slurm_node']
+    - name: Install libpam-slurm-adopt
+      ansible.builtin.package:
+        name: libpam-slurm-adopt
+        state: present
+      when: ansible_distribution | lower == 'ubuntu'
 
-- name: Configure slurm pam for login node
-  ansible.builtin.include_tasks: slurm_pam_login_node.yml
-  when:
-    - groups['login'] is defined
-    - ansible_host in groups['login']
+    - name: Ensure /etc/slurm path exists
+      ansible.builtin.file:
+        path: "{{ slurm_dir }}"
+        state: directory
+        mode: "{{ dir_permission }}"
+      when: slurm_installation_type == 'nfs_share'
 
-- name: Configure slurm pam for Slurm Control Node node
-  ansible.builtin.include_tasks: slurm_pam_manager.yml
-  when: ansible_host in groups['slurm_control_node']
+    - name: Create a symbolic link for slurm conf
+      ansible.builtin.file:
+        src: "{{ slurm_confpth }}"
+        dest: "{{ slurm_conf_file_pth }}"
+        state: link
+      when: slurm_installation_type == 'nfs_share'
+
+    - name: Configure slurm pam for Slurm nodes
+      ansible.builtin.include_tasks: slurm_pam_compute.yml
+      when: inventory_hostname in groups['slurm_node']
+
+    - name: Configure slurm pam for login node
+      ansible.builtin.include_tasks: slurm_pam_login_node.yml
+      when:
+        - groups['login'] is defined
+        - inventory_hostname in groups['login']
+
+    - name: Configure slurm pam for Slurm Control Node node
+      ansible.builtin.include_tasks: slurm_pam_manager.yml
+      when: inventory_hostname in groups['slurm_control_node']

@@ -172,14 +172,15 @@ mount_point_fail_msg: "Failed. Supported disk_partition mount_point values are /
 desired_capacity_success_msg: "desired_capacity of disk_partition successfully validated"
 desired_capacity_fail_msg: "Failed. Provide valid integer value to desired_capacity of disk_partition"
 supported_rhel_os_version: ["8.6", "8.7", "8.8"]
-supported_ubuntu_os_version: ["20.04", "22.04"]
+supported_ubuntu_os_version: ["20.04", "22.04", "24.04"]
 provision_os_version_fail_msg: "Failed. Invalid cluster_os_version: {{ provision_os_version }} provided in software_config.json.
 Supported cluster_os_version values for cluster_os_type rhel/rocky are 8.6,8.7,8.8.
-For cluster_os_type ubuntu supported versions are 20.04,22.04"
+For cluster_os_type ubuntu supported versions are 20.04,22.04,24.04"
 nodename_chars_fail_msg: "Failed. node_name empty or invalid in provision_config.yml.
 node_name should not contain _ or . or space or node- as it might result in issues with provisioning/authentication tools like FreeIPA."
 ubuntu_kernel_fail_msg: "Failed. ubuntu_kernel_flavor should be either hwe or generic"
 ubuntu22_version: "22.04"
+ubuntu24_version: "24.04"
 ntp_support_fail_msg: "Failed. ntp_support in provision_config.yml should be either true or false"
 disk_partition_success_msg: "disk_partition successfully validated"
 disk_partition_fail_msg: "Failed. Duplicate disk_partition values present in provision_config.yml."

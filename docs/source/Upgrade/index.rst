@@ -1,7 +1,7 @@
 Upgrade Omnia OIM
-==============================
+=====================
 
-To upgrade the Omnia version 1.6.1 to version 1.7 on your OIM, you can use the ``upgrade_oim.yml`` playbook in Omnia 1.7. This ensures that your OIM is running the latest version and includes any new features and improvements that are available.
+To upgrade the Omnia version 1.7 to version 1.7.1 on your OIM, you can use the ``upgrade_oim.yml`` playbook in Omnia 1.7.1. This ensures that your OIM is running the latest version and includes any new features and improvements that are available.
 
 .. caution:: Do not reboot the OIM before initiating the upgrade process, as it leads to loss of telemetry data.
 
@@ -9,7 +9,7 @@ To upgrade the Omnia version 1.6.1 to version 1.7 on your OIM, you can use the `
 
     * Before initiating upgrade, ensure that the OIM has a stable internet connection to avoid intermittent issues caused by poor network connectivity.
     * After upgrading the Omnia OIM running on a `supported OS <../Overview/SupportMatrix/OperatingSystems/index.html>`_ (except RHEL/Rocky Linux 8.6 and 8.8), the ``input/software_config.json`` file remains in its default state. This enables users to install the default software versions on a new cluster.
-    * After upgrading your OIM from Omnia 1.6.1 to version 1.7, ensure that the cryptography version on the login nodes is also updated to 44.0.0. This is necessary to address a security vulnerability reported with the lower versions of the cryptography software. To update the cryptography software version, run the following command: ::
+    * After upgrading your OIM, ensure that the cryptography version on the login nodes is also updated to 44.0.0. This is necessary to address a security vulnerability reported with the lower versions of the cryptography software. To update the cryptography software version, run the following command: ::
 
         pip install cryptography==44.0.0
 
@@ -33,9 +33,9 @@ If you have deployed a telemetry service in your Kubernetes cluster, it is impor
 
 To upgrade the Omnia OIM, do the following:
 
-1. Clone the Omnia 1.7 source code to your OIM using the following command: ::
+1. Clone the Omnia 1.7.1 source code to your OIM using the following command: ::
 
-    git clone https://github.com/dell/omnia.git
+    git clone https://github.com/dell/omnia.git -b v1.7.1
 
 2. Execute the ``prereq.sh`` script using the following command: ::
 
@@ -44,9 +44,9 @@ To upgrade the Omnia OIM, do the following:
 
 3. Use any one of the following commands to activate the Omnia virtual environment, based on the operating system running on the OIM:
 
-    * For RHEL or Rocky Linux 8.8, and Ubuntu 20.04 or 22.04, use: ::
+    * For RHEL or Rocky Linux 8.8, and Ubuntu 20.04, 22.04, 24.04 use: ::
 
-        source /opt/omnia/omnia17_venv/bin/activate
+        source /opt/omnia/omnia171_venv/bin/activate
 
     * On RHEL/Rocky Linux 8.6 or 8.7, use: ::
 
@@ -55,8 +55,8 @@ To upgrade the Omnia OIM, do the following:
 4. Update the ``omnia/upgrade/upgrade_config.yml`` file with the following details:
 
     +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
-    | ``installed_omnia_path``    | * This variable points to the currently installed Omnia 1.6.1 source code directory.                                                            |
-    |      Required               | * **Example**: ``/root/omnia161/omnia``                                                                                                         |
+    | ``installed_omnia_path``    | * This variable points to the currently installed Omnia 1.7 source code directory.                                                              |
+    |      Required               | * **Example**: ``/root/omnia17/omnia``                                                                                                          |
     |                             | .. note:: Verify that the directory has not been altered since the last execution of ``discovery_provision.yml`` and ``omnia.yml`` playbooks.   |
     +-----------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------+
     | ``backup_location``         | * This variable points to the directory where the Omnia OIM backup is stored during the upgrade process.                                        |
@@ -72,9 +72,9 @@ To upgrade the Omnia OIM, do the following:
 
 .. caution::
 
-    If ``upgrade_oim.yml`` execution fails, you can rollback to Kubernetes version 1.26.12 and restore the old backed-up data using the ``restore_oim.yml`` playbook. To restore, do the following:
+    If ``upgrade_oim.yml`` execution fails, you can rollback to Kubernetes version 1.29.5 and restore the old backed-up data using the ``restore_oim.yml`` playbook. To restore, do the following:
 
-        1. Activate the Omnia virtual environment using the ``source /opt/omnia/omnia161_venv/bin/activate`` command.
+        1. Activate the Omnia virtual environment using the ``source /opt/omnia/omnia17_venv/bin/activate`` command.
 
         2. Execute the ``restore_oim.yml`` playbook using the following command: ::
 
@@ -85,21 +85,8 @@ To upgrade the Omnia OIM, do the following:
 
 Things to keep in mind after the OIM has been upgraded successfully:
 
-* To use Omnia 1.7 features, ensure to execute all the playbooks from within the Omnia 1.7 virtual environment. To activate the 1.7 virtual environment, use the following command: ::
+* To use Omnia 1.7.1 features, ensure to execute all the playbooks from within the Omnia 1.7.1 virtual environment. To activate the virtual environment, use the following command: ::
 
-    source /opt/omnia/omnia17_venv/bin/activate
+    source /opt/omnia/omnia171_venv/bin/activate
 
-* After upgrading your Omnia OIM to version 1.7, the new cluster configuration features added in this version won’t work with any of your existing clusters. These new features will only be available when you create new clusters on RHEL/Rocky Linux 8.8 or Ubuntu 22.04 platforms, using Omnia 1.7 source code.
-* The new cluster configuration features in Omnia 1.7 are not supported on RHEL/Rocky Linux 8.6 or 8.7. This means that even if you upgrade your Omnia OIM to version 1.7, these features won’t function on those platforms.
-* Post-upgrade to Omnia 1.7, if you want to use old 1.6.1 software versions of Kubernetes (1.26.12), KServe (0.11.2), Kubeflow (1.8.0), and MPI operator (0.4.0), then perform the following steps:
-
-    * Activate the Omnia 1.6.1 virtual environment using the following command: ::
-
-        source /opt/omnia/omnia161_venv/bin/activate
-
-    * Update the ``input/software_config.json`` file of Omnia 1.7 with the required software versions.
-
-    * [Optional] Omnia recommends to take a backup of the ``input/software_config.json`` and all other configurations files in case you want to switch to Omnia 1.7 at a later point of time.
-
-    * Copy the ``<software_name>.json`` files from the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder in Omnia 1.6.1 and overwrite the existing files in the same directory of Omnia 1.7.
-
+* After upgrading your Omnia OIM to version 1.7.1, the new cluster configuration features added in this version won’t work with any of your existing clusters. These new features will only be available when you create new clusters on RHEL/Rocky Linux 8.8, Ubuntu 22.04 or 24.04 platforms, using Omnia 1.7.1 source code.

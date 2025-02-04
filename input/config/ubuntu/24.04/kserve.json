@@ -1,0 +1,136 @@
+{
+  "kserve": {
+    "cluster": [
+      {
+        "package": "istio",
+        "type": "tarball",
+        "url": "https://github.com/istio/istio/releases/download/1.20.4/istio-1.20.4-linux-amd64.tar.gz"
+      },
+      {
+        "package": "docker.io/istio/proxyv2",
+        "tag": "1.20.4",
+        "type": "image"
+      },
+      {
+        "package": "docker.io/istio/pilot",
+        "tag": "1.20.4",
+        "type": "image"
+      },
+      {
+        "package": "knative_serving_crds_manifest",
+        "type": "manifest",
+        "url": "https://github.com/knative/serving/releases/download/knative-v1.13.1/serving-crds.yaml"
+      },
+      {
+        "package": "knative_serving_core_manifest",
+        "type": "manifest",
+        "url": "https://github.com/knative/serving/releases/download/knative-v1.13.1/serving-core.yaml"
+      },
+      {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/queue",
+        "digest": "e52286fc4843470383e917abc9c1b0c8d10f585c4274c57b612279869bc86f0d",
+        "type": "image"
+      },
+       {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/activator",
+        "digest": "21f8e11a44bf1e260602d30e6762a3dc433c608d1dd0e309c0ff89728e71901d",
+        "type": "image"
+      },
+      {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/autoscaler",
+        "digest": "34796e9f760bb67065c6f101296513b38d04d39d11888e919692ac46fa6dc7c2",
+        "type": "image"
+      },
+      {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/controller",
+        "digest": "53d9aa4d2c7a82f5a01202e386f7503b21839cbe2e5e62f1e9bda2aa5f11b518",
+        "type": "image"
+      },
+      {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/webhook",
+        "digest": "700c69915dc7cd86dffb61c26b0ba34427fab809de1e3344589dd955b6440882",
+        "type": "image"
+      },
+      {
+        "package": "knative_net_istio_manifest",
+        "type": "manifest",
+        "url": "https://github.com/knative/net-istio/releases/download/knative-v1.13.1/net-istio.yaml"
+      },
+      {
+        "package": "gcr.io/knative-releases/knative.dev/net-istio/cmd/controller",
+        "digest": "a5b041ba3c9ea40198b2331617bd1571942961c1416ef683b4de8ef162755a88",
+        "type": "image"
+      },
+      {
+        "package": "gcr.io/knative-releases/knative.dev/net-istio/cmd/webhook",
+        "digest": "f066376eee17505d14881b7635a7ca7531fce0f30cf968232fc0a93adc952ed5",
+        "type": "image"
+      },
+      {
+        "package": "cert_manager_manifest",
+        "type": "manifest",
+        "url": "https://github.com/cert-manager/cert-manager/releases/download/v1.14.5/cert-manager.yaml"
+      },
+      {
+        "package": "quay.io/jetstack/cert-manager-cainjector",
+        "tag": "v1.14.5",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/jetstack/cert-manager-controller",
+        "tag": "v1.14.5",
+        "type": "image"
+      },
+      {
+        "package": "quay.io/jetstack/cert-manager-webhook",
+        "tag": "v1.14.5",
+        "type": "image"
+      },
+      {
+        "package": "kserve_manifest",
+        "type": "manifest",
+        "url": "https://github.com/kserve/kserve/releases/download/v0.13.0/kserve.yaml"
+      },
+      {
+        "package": "docker.io/kserve/kserve-controller",
+        "tag": "v0.13.0",
+        "type": "image"
+      },
+      {
+        "package": "docker.io/kserve/storage-initializer",
+        "tag": "v0.13.0",
+        "type": "image"
+      },
+      {
+        "package": "docker.io/kserve/router",
+        "tag": "v0.13.0",
+        "type": "image"
+      },
+      {
+        "package": "docker.io/kserve/agent",
+        "tag": "v0.13.0",
+        "type": "image"
+      },
+      {
+        "package": "gcr.io/kubebuilder/kube-rbac-proxy",
+        "tag": "v0.13.1",
+        "type": "image"
+      },
+      {
+        "package": "kserve_runtimes_manifest",
+        "type": "manifest",
+        "url": "https://github.com/kserve/kserve/releases/download/v0.13.0/kserve-cluster-resources.yaml"
+      },
+      {
+        "package": "docker.io/seldonio/mlserver",
+        "tag": "1.3.2",
+        "type": "image"
+      },
+      {
+        "package": "docker.io/kserve/sklearnserver",
+        "tag": "v0.13.0",
+        "type": "image"
+      }
+    ]
+  }
+}

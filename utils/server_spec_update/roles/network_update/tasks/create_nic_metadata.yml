@@ -27,7 +27,7 @@
     owner: "{{ meta_user }}"
   when: not data_folder_status.stat.exists
 
-- name: Check metadata.yml file existence
+- name: Check nic_metadata.yml file existence
   ansible.builtin.stat:
-    path: "{{ meta_path }}"
-  register: metadata_status
+    path: "{{ metadata_nicinfo_path }}"
+  register: nic_metadata_status

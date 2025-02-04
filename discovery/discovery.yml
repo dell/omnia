@@ -52,6 +52,20 @@
     - role: configure_xcat/common          # noqa: role-name[path]
     - role: configure_synclist
     - role: discovery_mechanism/common     # noqa: role-name[path]
+
+- name: Update kernel parameters
+  hosts: all:!localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir }}/../input/server_spec.yml"
+  roles:
+    - role: os_update
+
+- name: Discovery roles of Omnia Infrastructure Manager for provisioning
+  hosts: localhost
+  connection: local
+  roles:
     - role: postscripts/common             # noqa: role-name[path]
     - role: configure_os_image/common      # noqa: role-name[path]
     - role: monitor_thread

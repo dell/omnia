@@ -1,6 +1,6 @@
 ﻿OSS Title,License Name/Version #,Description,Version
 Slurm Workload manager,GNU General Public License,HPC Workload Manager,20.11.9
-Kubernetes Controllers,Apache 2.0,Orchestration tool,1.29.5
+Kubernetes Controllers,Apache 2.0,Orchestration tool,1.31.4
 MariaDB,GPL 2.0,Open source relational database used by Slurm,10.3
 Docker CE,Apache 2.0,Docker Service,20.10.20
 NVIDIA container runtime,"Apache 2.0, GPL-3.0, LGPL-3.0",NVIDIA container runtime library,3.4.2
@@ -10,14 +10,14 @@ habanalabs-container-runtime,Apache 2.0,"Intel Habana container runtime library
 .. note:: This is preliminary code and may change before official release.",1.19.1-26
 habanalabs-k8s-device-plugin,Apache 2.0,HABANA device plugin for Kubernetes,1.19.1-26
 Python-pip,MIT License,Python Package,24.2
-kubelet,Apache 2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.29.5
-kubeadm,Apache 2.0,Provides “fast paths” for creating Kubernetes clusters.,1.29.5
-kubectl,Apache 2.0,Command line tool for Kubernetes,1.29.5
+kubelet,Apache 2.0,"Provides external, versioned ComponentConfig API types for configuring the kubelet",1.31.4
+kubeadm,Apache 2.0,Provides “fast paths” for creating Kubernetes clusters.,1.31.4
+kubectl,Apache 2.0,Command line tool for Kubernetes,1.31.4
 etcd,Apache 2.0,Relational database used by Kubernetes,3.5.12
 jupyterhub,"BSD-3Clause ""New"" or ""Revised"" License",Multi-user hub,3.2.0
 kubeflow,Apache 2.0,A repository for Kustomize manifests,1.9.1
 helm,Apache 2.0,Kubernetes Package Manager,3.14.2
-helm-charts,Apache 2.0,The source for Dell Helm charts.,csi-isilon-2.11.0
+helm-charts,Apache 2.0,The source for Dell Helm charts.,csi-isilon-2.13.0
 mpi-operator,Apache 2.0,"Kubernetes Operator for MPI-based applications (distributed training, HPC, etc.)",0.5.0
 spark-operator,Apache 2.0,Unified analytics engine for large-scale data processing.,v1beta2-1.3.8-3.1.1
 coreDNS,Apache 2.0,DNS server that chains plugins,1.11.1
@@ -107,7 +107,7 @@ xilinx-device-plugin,Apache 2.0,The AMD-Xilinx device plugin for Kubernetes is a
 nfs-subdir-external-provisioner,Apache 2.0,Dynamic sub-dir volume provisioner on a remote NFS server.,4.0.18
 calico,Apache 2.0,"Calico is an open-source networking and security solution for containers and microservices, widely used in Kubernetes for efficient networking and robust security.",3.27.3
 flannel,Apache 2.0,Flannel is a simple and easy-to-configure network fabric for containers. It is part of the Kubernetes ecosystem and primarily used to provide a network overlay that connects containers across multiple nodes.,0.22.0
-csi-powerscale,Apache 2.0,CSI Driver for Dell PowerScale devices,2.11.0
+csi-powerscale,Apache 2.0,CSI Driver for Dell PowerScale devices,2.13.0
 external-snapshotter,Apache 2.0,Sidecar container that watches Kubernetes Snapshot CRD objects and triggers CreateSnapshot/DeleteSnapshot against a CSI endpoint.,8.0.1
 Prometheus Gaudi metric exporter,Apache 2.0,This is a Prometheus exporter implementation that enables the collection of Intel Gaudi AI accelerator metrics in a container cluster for compute workload.,1.19.1-26
 DeepSpeed Intel,Apache 2.0,"DeepSpeed is a deep learning optimization library that makes distributed training and inference easy, efficient, and effective.",v2Beta1

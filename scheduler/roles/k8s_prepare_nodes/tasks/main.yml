@@ -21,3 +21,6 @@
 
     - name: Prepare hosts file
       ansible.builtin.include_tasks: prepare_hosts_file.yml
+
+    - name: Validate share_path is NFS
+      ansible.builtin.include_tasks: validate_share_path.yml

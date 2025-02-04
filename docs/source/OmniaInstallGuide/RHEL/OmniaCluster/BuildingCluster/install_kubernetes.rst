@@ -7,7 +7,7 @@ Set up Kubernetes
     ::
 
         "softwares": [
-                        {"name": "k8s", "version":"1.29.5"},
+                        {"name": "k8s", "version":"1.31.4"},
                      ]
 
 * Ensure to run ``local_repo.yml`` with the ``k8s`` entry present in ``software_config.json``, to download all required Kubernetes packages and images.

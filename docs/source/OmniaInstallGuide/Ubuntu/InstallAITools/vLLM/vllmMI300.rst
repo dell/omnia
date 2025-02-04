@@ -24,7 +24,7 @@ Once the playbook is executed, run the following command to verify whether vLLM 
 
    nerdctl images | grep vllm
 
-3. Update "package" and "tag" details in the ``vllm.json`` file located at ``omnia/tools/input/config/ubuntu/22.04/vllm.json``, as shown below.
+3. Update "package" and "tag" details in the ``vllm.json`` file located at ``omnia/tools/input/config/ubuntu/<22.04 or 24.04>/vllm.json``, as shown below.
 
 ::
 

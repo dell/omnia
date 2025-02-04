@@ -26,16 +26,28 @@
         replace: 'PartitionName=normal Nodes={{ hostvars[item].node_fqdn }}'
       when:
         - hostvars["127.0.0.1"]["login_node_required"]
-      register: output
+
+    - name: Check existing nodes in PartitionName=normal
+      ansible.builtin.shell: |
+        set -o pipefail
+        awk -F 'Nodes=' '/PartitionName=normal Nodes=/ {print $2}' {{ slurm_confpth }} | cut -d' ' -f1
+      register: current_nodes
+      changed_when: false
 
     - name: Update hostnames of slurm node in partition nodes
-      ansible.builtin.replace:
+      ansible.builtin.lineinfile:
         path: "{{ slurm_confpth }}"
-        regexp: ' Default=YES MaxTime=INFINITE State=UP'
-        replace: ',{{ hostvars[item].node_fqdn }} Default=YES MaxTime=INFINITE State=UP'
+        regexp: '^PartitionName=normal Nodes='
+        line: |
+          PartitionName=normal Nodes={{
+            (current_nodes.stdout | default('') | split(','))
+            | union([hostvars[item].node_fqdn])
+            | join(',')
+          }} Default=YES MaxTime=INFINITE State=UP
+        state: present
       when:
+        - current_nodes.stdout.find(hostvars[item].node_fqdn) == -1
         - hostvars["127.0.0.1"]["login_node_required"]
-        - output.msg | length == 0
 
     - name: Add slurm nodes core & socket info in slurm config file
       ansible.builtin.lineinfile:

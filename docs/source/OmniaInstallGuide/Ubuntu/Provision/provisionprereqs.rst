@@ -33,6 +33,7 @@ Before you run the provision tool
 * To provision the bare metal servers, download the following ISO to the OIM:
 
     `Ubuntu 22.04 <https://releases.ubuntu.com/jammy/>`_
+    `Ubuntu 24.04 <https://releases.ubuntu.com/noble/>`_
 
 .. note:: Ensure the ISO provided has downloaded seamlessly (not corrupted). Verify the SHA checksum/ download size of the ISO file before provisioning to avoid future failures.
 

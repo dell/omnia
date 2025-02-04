@@ -15,8 +15,10 @@
 
 - name: Update node objects
   ansible.builtin.command: |
-     {{ python_version }} {{ update_node_objects_path }} {{ network_spec_file_path }} {{ omnia_db_path }}
+     {{ python_version }} {{ update_node_objects_path }} {{ network_spec_file_path }} {{ omnia_db_path }} {{ inventory_status | default(false) }}
   changed_when: false
+  environment:
+    net_data: "{{ network_data | to_json }}"
 
 - name: Network configuration completed
   ansible.builtin.debug:

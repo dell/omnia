@@ -5,6 +5,7 @@ Ubuntu
 OS Version OIM           Cluster Nodes
 ========== ============= =============
 22.04.5      Yes            Yes
+24.04        Yes            Yes
 ========== ============= =============
 
 .. note::

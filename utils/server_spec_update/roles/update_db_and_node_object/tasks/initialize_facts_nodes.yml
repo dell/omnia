@@ -1,0 +1,54 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: List all hosts from inventory
+  ansible.builtin.set_fact:
+    all_hosts: "{{ groups['all'] }}"
+    host_details: {}
+
+- name: Set the values for variable when ip_addr in inventory
+  ansible.builtin.set_fact:
+    host_details: "{{ host_details | combine({host: { 'node_detail': host, 'categories': hostvars[host]['Categories'] } }) }}"
+  with_items: "{{ all_hosts }}"
+  loop_control:
+    loop_var: host
+  when:
+    - hostvars[host]['ansible_host'] is not defined
+    - host | ansible.utils.ipaddr
+
+- name: Set the values for variable when service or node_name in inventory
+  ansible.builtin.set_fact:
+    host_details: "{{ host_details | combine({host: { 'node_detail': (host is match('^[a-zA-Z0-9]+$') | ternary(hostvars[host]['ansible_host'], host)), 'categories': hostvars[host]['Categories'] } }) }}"  # noqa: yaml[line-length]
+  with_items: "{{ all_hosts }}"
+  loop_control:
+    loop_var: host
+  when:
+    - hostvars[host]['ansible_host'] is defined
+    - hostvars[host]['ansible_host'] | length > 0
+
+# unmatched_hosts define a list of hosts that are not present in the host_details dictionary
+- name: Register hosts entries not present in host_details
+  ansible.builtin.set_fact:
+    unmatched_hosts: "{{ unmatched_hosts | default([]) + [item] if item not in host_details }}"         
+  loop: "{{ all_hosts }}"
+  when: item not in host_details
+
+- name: Warning for invalid host entry
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ node_warning_msg }}"
+  when:
+    - unmatched_hosts is defined
+    - unmatched_hosts | length > 0

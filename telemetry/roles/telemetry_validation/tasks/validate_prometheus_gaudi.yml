@@ -18,8 +18,8 @@
     msg: "{{ fail_msg_k8s_prometheus_support_false }}"
   when: not k8s_prometheus_support
 
-- name: Fail when prometheus_gaudi_support is true and not Ubuntu 22.04 OS
+- name: Fail when prometheus_gaudi_support is true and OS is not a supported OS
   ansible.builtin.fail:
     msg: "{{ fail_msg_prometheus_gaudi_support }}"
   when:
-    - not ( cluster_os_type == 'ubuntu' and cluster_os_version == '22.04' )
+    - not (cluster_os_type == 'ubuntu' and (cluster_os_version == '22.04' or cluster_os_version == '24.04'))

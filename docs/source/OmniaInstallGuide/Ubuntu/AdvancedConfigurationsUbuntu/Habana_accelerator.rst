@@ -8,7 +8,7 @@ The accelerator role allows users to set up the `Intel Gaudi Software Stack and 
 * The Intel Gaudi local repositories must be configured using the `local_repo.yml <../CreateLocalRepo/index.html>`_ script.
 * The ``input/software_config.json`` must contain valid ``intelgaudi`` version. See `input parameters <../CreateLocalRepo/InputParameters.html>`_ for more information.
 
-.. note:: Intel Gaudi platform is only supported on Ubuntu 22.04 clusters containing Intel Gaudi accelerators.
+.. note:: Intel Gaudi platform is only supported on Ubuntu 22.04 or 24.04 clusters containing Intel Gaudi accelerators.
 
 **Playbook configurations**
 

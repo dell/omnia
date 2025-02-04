@@ -70,7 +70,7 @@ Optional	","* This variable signifies whether Intel Gaudi metrics will be collec
 
 	* ``false`` <- **Default**
 
-.. note:: Support for Intel Gaudi metrics collection via Prometheus exporter is only available for clusters running on Ubuntu 22.04 OS."
+.. note:: Support for Intel Gaudi metrics collection via Prometheus exporter is only available for clusters running on Ubuntu 22.04 or 24.04 OS."
 "**k8s_service_addresses**
 
 ``string``

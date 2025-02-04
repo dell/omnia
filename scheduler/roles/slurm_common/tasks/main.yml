@@ -12,28 +12,60 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
+- name: Saving distribution of os
+  ansible.builtin.set_fact:
+    compute_os: "{{ ansible_facts['distribution'] | lower }}"
+
+- name: Validate share_path is NFS
+  ansible.builtin.include_tasks: validate_share_path.yml
+  when: (slurm_support is true and slurm_installation_type == 'nfs_share') or
+        ucx_support is true or
+        openmpi_support is true
+
+- name: Prepare RHEL and Rocky nodes
+  ansible.builtin.include_tasks: prepare_rhel_nodes.yml
+  when:
+    - os_supported_redhat in compute_os or
+      os_supported_rocky in compute_os
+    - slurm_support is true
+
+- name: Install utils packages
+  ansible.builtin.include_tasks: install_utils_packages.yml
+  when:
+    - utils_support is true
+
+- name: Prepare hosts file
+  ansible.builtin.include_tasks: prepare_hosts_file.yml
+  when:
+    - slurm_support is true
+
+- name: Set fact for hostvars sharepath
+  ansible.builtin.set_fact:
+    hostvars_share_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}"
+
 - name: Append share_path to variables when slurm_installation_type is nfs_share
   ansible.builtin.set_fact:
-    slurm_dest: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_dest }}"
-    slurm_confpth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_confpth }}"
-    slurm_logpth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_logpth }}"
-    spool_pth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ spool_pth }}"
-    spool_dir: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ spool_dir }}"
-    slurm_pidpth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_pidpth }}"
-    slurmctld_pid: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmctld_pid }}"
-    slurmd_pid: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmd_pid }}"
-    slurmctld_log: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmctld_log }}"
-    spool_slurmctld_pth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ spool_slurmctld_pth }}"
-    cluster_state_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ cluster_state_path }}"
-    slurmdbd_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmdbd_path }}"
-    slurmd_log: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmd_log }}"
-    spool_slurmd_pth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ spool_slurmd_pth }}"
-    logfile: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ logfile }}"
-    pidfile: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ pidfile }}"
-    slurmd_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurmd_path }}"
-    plugin_slurm_dir: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ plugin_slurm_dir }}"
-    mail_prog_dir: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ mail_prog_dir }}"
-    slurm_nfs_folder: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}"
+    slurm_dest: "{{ hostvars_share_path }}{{ slurm_dest }}"
+    slurm_confpth: "{{ hostvars_share_path }}{{ slurm_confpth }}"
+    slurm_logpth: "{{ hostvars_share_path }}{{ slurm_logpth }}"
+    spool_pth: "{{ hostvars_share_path }}{{ spool_pth }}%n"
+    spool_dir: "{{ hostvars_share_path }}{{ spool_dir }}"
+    slurm_pidpth: "{{ hostvars_share_path }}{{ slurm_pidpth }}"
+    slurmctld_pid: "{{ hostvars_share_path }}{{ slurmctld_pid }}"
+    slurmd_pid: "{{ hostvars_share_path }}{{ slurmd_pid }}"
+    slurmctld_log: "{{ hostvars_share_path }}{{ slurmctld_log }}"
+    spool_slurmctld_pth: "{{ hostvars_share_path }}{{ spool_slurmctld_pth }}"
+    cluster_state_path: "{{ hostvars_share_path }}{{ cluster_state_path }}"
+    slurmdbd_path: "{{ hostvars_share_path }}{{ slurmdbd_path }}"
+    slurmd_log: "{{ hostvars_share_path }}{{ slurmd_log }}"
+    spool_slurmd_pth: "{{ hostvars_share_path }}{{ spool_slurmd_pth }}"
+    logfile: "{{ hostvars_share_path }}{{ logfile }}"
+    pidfile: "{{ hostvars_share_path }}{{ pidfile }}"
+    slurmd_path: "{{ hostvars_share_path }}{{ slurmd_path }}"
+    plugin_slurm_dir: "{{ hostvars_share_path }}{{ plugin_slurm_dir }}"
+    slurm_nfs_folder: "{{ hostvars_share_path }}"
+    slurm_var_folder: "{{ hostvars_share_path }}{{ var_dir }}"
   when: slurm_installation_type == 'nfs_share'
 
 - name: Append share_path to variables when slurm_installation_type is configless
@@ -96,11 +128,12 @@
 - name: Tasks for slurm_common role
   when:
     - hostvars['127.0.0.1']['slurm_support']
-    - not slurmctld_status
-    - not slurmd_status
   block:
     - name: Install common Python packages
       ansible.builtin.include_tasks: install_python_packages.yml
+
+    - name: Install common packages
+      ansible.builtin.include_tasks: install_common_packages.yml
 
     - name: Install common packages for slurm on NFS
       ansible.builtin.include_tasks: install_packages_nfs.yml

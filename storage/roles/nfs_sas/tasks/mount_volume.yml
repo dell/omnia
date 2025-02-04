@@ -134,19 +134,6 @@
     path: "{{ exports_file }}"
     line: "{{ server_share_path }} {{ node }}({{ server_export_options }})"
   with_items:
-    - "{{ groups['manager'] }}"
-    - "{{ groups['compute'] }}"
+    - "{{ groups['all'] }}"
   loop_control:
     loop_var: node
-
-- name: Adding NFS share entries in /etc/exports
-  ansible.builtin.lineinfile:
-    path: "{{ exports_file }}"
-    line: "{{ server_share_path }} {{ node }}({{ server_export_options }})"
-  with_items:
-    - "{{ groups['login'] }}"
-  loop_control:
-    loop_var: node
-  when:
-    - groups['login'] is defined
-    - groups['login'] | length | int > 0

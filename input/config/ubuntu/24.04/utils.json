@@ -1,0 +1,9 @@
+{
+    "utils": {
+        "cluster": [
+            {"package": "sshpass", "type": "deb", "repo_name": "noble"},
+            {"package": "pdsh", "type": "deb", "repo_name": "noble"},
+            {"package": "clustershell", "type": "deb", "repo_name": "noble"}
+        ]
+    }
+}

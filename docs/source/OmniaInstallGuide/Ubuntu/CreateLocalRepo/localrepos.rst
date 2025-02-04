@@ -162,6 +162,8 @@ Configure specific local repositories
 
             {"name": "beegfs", "version": "7.4.2"},
 
+    .. note:: For clusters running on Ubuntu 24.04 OS, the supported BeeGFS version is ``7.4.5``.
+
     For information on deploying BeeGFS after setting up the cluster, `click here <../OmniaCluster/BuildingCluster/Storage/BeeGFS.html>`_.
 
 **NFS**
@@ -176,7 +178,7 @@ Configure specific local repositories
 
     To install Kubernetes, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "k8s", "version":"1.29.5"},
+            {"name": "k8s", "version":"1.31.4"},
 
     For more information about installing Kubernetes, `click here <../OmniaCluster/BuildingCluster/install_kubernetes.html>`_.
 
@@ -213,7 +215,7 @@ For more information on configuring login node security, `click here <../OmniaCl
 
     To install PowerScale CSI driver, include the following line under ``softwares`` in ``input/software_config.json``: ::
 
-            {"name": "csi_driver_powerscale", "version":"v2.11.0"},
+            {"name": "csi_driver_powerscale", "version":"v2.13.0"},
 
     For information on PowerScale CSI driver, `click here <../AdvancedConfigurationsUbuntu/PowerScale_CSI.html>`_.
 

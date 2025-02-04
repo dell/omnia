@@ -13,10 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Initialize inventory file status
-  ansible.builtin.set_fact:
-    inventory_status: false
-
 - name: Inventory not provided
   ansible.builtin.fail:
     msg: "{{ empty_inventory_fail_msg }}"
@@ -30,15 +26,16 @@
 - name: Include server_spec file
   ansible.builtin.include_tasks: include_server_spec.yml
 
-- name: Validate Admin and BMC parameters
-  ansible.builtin.include_tasks: validate_admin_bmc_nic.yml
+- name: Include validate inventory file
+  ansible.builtin.include_tasks: validate_inventory.yml
+  when: 
+    - hostvars.keys() | length > 0
+    - groups['all'] is defined
+    - groups['all'] | length > 0
 
-- name: Validate network spec input
-  ansible.builtin.include_tasks: "{{ role_path }}/../../../../discovery/roles/discovery_validations/common/tasks/validate_network_spec.yml"
+- name: Validate inventory status
+  ansible.builtin.include_tasks: validation_status_check.yml
+  when: not inventory_status | default(false) 
 
 - name: Include validate_server_spec file
   ansible.builtin.include_tasks: validate_server_spec.yml
-
-- name: Include validate inventory file
-  ansible.builtin.include_tasks: validate_inventory.yml
-  when: inventory_status

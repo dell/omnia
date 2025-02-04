@@ -29,6 +29,7 @@ autoinstall:
     chpasswd:
       list:
         - root:#CRYPT:passwd:key=system,username=root:password#
+      expire: false
   packages:
     - bash
     - openssl
@@ -66,6 +67,9 @@ autoinstall:
     - mkdir -p /target/var/log/xcat/
     - '{
     cat /tmp/pre-install.log >> /target/var/log/xcat/xcat.log;
+    echo "Updating the kernel params";
+    echo "GRUB_CMDLINE_LINUX=\"#TABLE:bootparams:$NODE:addkcmdline#\"" >> /target/etc/default/grub;
+    curtin in-target --target /target update-grub2;
     echo "Running late_command Installation script...";
     wget http://#XCATVAR:XCATMASTER##COLONHTTPPORT#/install/autoinst/#HOSTNAME#.post;
     chmod u+x #HOSTNAME#.post;

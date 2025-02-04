@@ -13,10 +13,19 @@
 #  limitations under the License.
 ---
 
-- name: Set values for user and allow_deny variables
+- name: Gathering service facts
+  ansible.builtin.service_facts:
+
+- name: Set default sshd service
   ansible.builtin.set_fact:
-    user: "{{ hostvars['127.0.0.1']['user'] }}"
-    allow_deny: "{{ hostvars['127.0.0.1']['allow_deny'] }}"
+    ssh_service_name: "sshd"
+
+- name: Set_fact for ssh service for ssh
+  ansible.builtin.set_fact:
+    ssh_service_name: "ssh"
+  when:
+    - "'ssh.service' in ansible_facts.services"
+    - ansible_facts.services['ssh.service'].state == 'running'
 
 - name: Check if AllowUsers entry exixts
   ansible.builtin.command: cat "{{ sshd_conf_file }}"
@@ -36,7 +45,7 @@
         path: "{{ sshd_conf_file }}"
         line: 'AllowUsers {{ user }}'
       notify:
-        - Restart sshd
+        - Restart {{ ssh_service_name }}
       when:
         - allow_deny == 'allow'
         - file_content.stdout.find('AllowUsers') == -1
@@ -46,7 +55,7 @@
         path: "{{ sshd_conf_file }}"
         line: 'DenyUsers {{ user }}'
       notify:
-        - Restart sshd
+        - Restart {{ ssh_service_name }}
       when:
         - allow_deny == 'deny'
         - file_content.stdout.find('DenyUsers') == -1
@@ -57,7 +66,7 @@
         regexp: '^(AllowUsers)(.*)'
         replace: '\1\2 {{ user }}'
       notify:
-        - Restart sshd
+        - Restart {{ ssh_service_name }}
       when:
         - allow_deny == 'allow'
         - file_content.stdout.find('AllowUsers') != -1
@@ -68,7 +77,7 @@
         regexp: '^(DenyUsers)(.*)'
         replace: '\1\2 {{ user }}'
       notify:
-        - Restart sshd
+        - Restart {{ ssh_service_name }}
       when:
         - allow_deny == 'deny'
         - file_content.stdout.find('DenyUsers') != -1

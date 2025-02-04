@@ -52,8 +52,7 @@ Optional","* This variable accepts the registry url along with port of the user 
 Required","* Mandatory when ``cluster_os_type`` is ubuntu in ``softwares_config.json``.
 * This variables defines the repos to be configured on all the compute nodes.
 * When ``repo_config`` is always, partial or never, the given ubuntu_os_url configured via proxy in compute nodes.
-* Online ``ubuntu_os_url`` for Ubuntu 22.04 is ""http://in.archive.ubuntu.com/ubuntu"".
-* Online ``ubuntu_os_url`` for Ubuntu 20.04 is ""http://archive.ubuntu.com/ubuntu"".
+* Online ``ubuntu_os_url`` for Ubuntu 22.04 or 24.04 is ""http://in.archive.ubuntu.com/ubuntu"".
 
 
 * **Example**: When cluster_os_type is Ubuntu 22.04, ``ubuntu_os_url`` should be ""http://in.archive.ubuntu.com/ubuntu"""

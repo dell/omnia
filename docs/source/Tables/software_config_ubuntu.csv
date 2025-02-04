@@ -12,7 +12,7 @@ Required","* The operating system running on the cluster.
 
 Required","* The OS Version that will be provisoned on compute nodes.
 
-* For Ubuntu, the accepted values is 22.04.
+* For Ubuntu, the accepted values are ``22.04`` and ``24.04``.
 
 * **Default value**: 22.04"
 "**repo_config**

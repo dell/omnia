@@ -26,7 +26,7 @@ Input parameters for Local Repositories
             {"name": "secure_login_node"},
             {"name": "nfs"},
             {"name": "beegfs", "version": "7.4.2"},
-            {"name": "k8s", "version":"1.29.5"},
+            {"name": "k8s", "version":"1.31.4"},
             {"name": "roce_plugin"},
             {"name": "jupyter"},
             {"name": "kubeflow"},
@@ -38,7 +38,7 @@ Input parameters for Local Repositories
             {"name": "ucx", "version": "1.15.0"},
             {"name": "openmpi", "version": "4.1.6"},
             {"name": "intelgaudi", "version": "1.19.1-26"},
-            {"name": "csi_driver_powerscale", "version":"v2.11.0"}
+            {"name": "csi_driver_powerscale", "version":"v2.13.0"}
         ],
 
         "bcm_roce": [
