@@ -100,3 +100,8 @@
   ansible.builtin.systemd:
     name: omnia_pcs
     state: started
+
+- name: Run PCS start script after container is started
+  containers.podman.podman_container_exec:
+    name: "{{ pcs_container_name }}"
+    command: "/bin/sh -c '/opt/omnia/pcs/pcs-start.sh'"
