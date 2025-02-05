@@ -26,7 +26,7 @@ pcs_directories:
   - { path: "{{ pcs_container_dir }}", mode: "{{ read_write_execute_mode }}" }
   - { path: "{{ container_systemd_dir }}", mode: "{{ read_write_mode }}" }
 
-migration_threshold: 2
+migration_threshold: 0
 pcs_startup_file:
   - {template: "pcs-start.sh.j2", dest: "{{ oim_shared_path }}/omnia/pcs/pcs-start.sh", mode: "{{ read_write_execute_mode }}" }
   - {template: "corosync.conf.j2", dest: "{{ oim_shared_path }}/omnia/pcs/corosync.conf", mode: "{{ read_write_mode }}" }
