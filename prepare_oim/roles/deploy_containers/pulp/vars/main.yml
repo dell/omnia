@@ -86,7 +86,7 @@ pulp_server_key_path: "/etc/pulp/certs/pulp_webserver.key"
 http_port: "80"
 pulp_port: "2225:2225"
 
-#create_pulp_config.yml
+# create_pulp_config.yml
 pulp_config_cmd: "pulp config create --username {{ pulp_user }}  --base-url https://{{ oim_hostname }}:{{ pulp_container_port }} --password {{ pulp_pwd }} --location {{ pulp_ha_dir }}/cli.toml" # noqa: yaml[line-length]
 pulp_config_cmd_overwrite: "pulp config create --username {{ pulp_user }}  --base-url https://{{ oim_hostname }}:{{ pulp_container_port }} --password {{ pulp_pwd }} --location {{ pulp_ha_dir }}/cli.toml --overwrite" # noqa: yaml[line-length]
 pulp_config_filepath: "{{ pulp_ha_dir }}/cli.toml"
