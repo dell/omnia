@@ -1,0 +1,77 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+- name: Check if Pulp configuration file exists
+  ansible.builtin.stat:
+    path: "{{ pulp_config_filepath }}"
+  register: pulp_config_status
+
+- name: Create Pulp config (if file doesn't exist)
+  ansible.builtin.command:
+    cmd: "{{ pulp_config_cmd }}"
+  when: not pulp_config_status.stat.exists
+  changed_when: false
+  no_log: true
+
+- name: Overwrite Pulp config (if file exists)
+  ansible.builtin.command:
+    cmd: "{{ pulp_config_cmd_overwrite }}"
+  when: pulp_config_status.stat.exists
+  changed_when: false
+  no_log: true
+
+- name: Set verify_ssl to false in pulp config
+  ansible.builtin.replace:
+    path: "{{ pulp_config_filepath }}"
+    regexp: "{{ verify_ssl_regex }}"
+    replace: "{{ line_to_replace }}"
+    backup: false
+
+- name: Copy config file to default path
+  ansible.builtin.copy:
+    src: "{{ pulp_config_filepath }}"
+    dest: "{{ config_default_loc }}"
+    mode: "{{ logs_dir_permission }}"
+
+- name: Ensure the pulp group exists
+  ansible.builtin.group:
+    name: pulp
+    state: present
+
+# ansible module openssl
+#- name: Generate a self-signed certificate using OpenSSL
+#  community.crypto.x509_certificate:
+#    path: "{{ certs_dir }}/pulp_webserver.crt"
+#    privatekey_path: "{{ certs_dir }}/pulp_webserver.key"
+#    state: present
+#    selfsigned: yes
+#    common_name: "{{ oim_hostname }}"
+#    provider: selfsigned
+#    days: 365
+#    extra_extensions:
+#      - name: subjectAltName
+#        value: "{{ cert_san }}"
+
+- name: Generate SSL certificate
+  ansible.builtin.command:
+    cmd: "{{ generate_cert_cmd }}"
+  changed_when: false
+
+- name: Change group ownership of SSL certificate
+  ansible.builtin.file:
+    path: "{{ item }}"
+    group: pulp
+    state: file
+  loop: "{{ cert_items }}"

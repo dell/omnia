@@ -33,3 +33,7 @@
 
 - name: Export firewall ports for pcs container
   ansible.builtin.include_tasks: firewall_settings.yml
+
+- name: Run podman login command
+  ansible.builtin.include_tasks: podman_login.yml
+  when: docker_username | length > 1 and docker_password | length > 1
