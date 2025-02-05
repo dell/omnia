@@ -15,6 +15,7 @@ spec:
         spec:
           containers:
             - image: vault.habana.ai/gaudi-docker/1.19.1/ubuntu22.04/habanalabs/pytorch-installer-2.5.1:latest
+              # In case of Ubuntu 24.04 OS, use image:vault.habana.ai/gaudi-docker/1.18.0/ubuntu24.04/habanalabs/pytorch-installer-2.4.0:latest
               name: gaudi-llm-ds-ft-launcher
               env:
                 - name: HF_HOME
@@ -36,6 +37,9 @@ spec:
               command: ["/bin/bash", "-c"]
               args:
                 - >-
+                  /usr/bin/ssh-keygen -A;
+                  echo "    KexAlgorithms curve25519-sha256,sntrup761x25519-sha512@openssh.com" |  tee -a /etc/ssh/ssh_config;
+                  /usr/sbin/sshd;
                   HOSTSFILE=$OMPI_MCA_orte_default_hostfile;
                   MASTER_ADDR="$(head -n 1 $HOSTSFILE | sed -n s/[[:space:]]slots.*//p)";
                   SETUP_CMD="git clone  https://github.com/huggingface/optimum-habana /optimum-habana";
@@ -45,7 +49,7 @@ spec:
 
                   git clone  https://github.com/huggingface/optimum-habana /optimum-habana;
                   cd /optimum-habana;
-                  git checkout v1.14.1;
+                  git checkout v1.15.0;
                   sed -i '194s|deepspeed|deepspeed --force_multi|' optimum/habana/distributed/distributed_runner.py;
                   pip install .;
                   pip install -r examples/language-modeling/requirements.txt;
@@ -65,7 +69,7 @@ spec:
                     bash -i -c '
                     git clone  https://github.com/huggingface/optimum-habana /optimum-habana
                     cd /optimum-habana
-                    git checkout v1.14.1
+                    git checkout v1.15.0
                     hf_home_var="os.environ[\"HF_HOME\"] = \"${HF_HOME}\""
                     token_var="os.environ[\"HUGGING_FACE_HUB_TOKEN\"] = \"${HUGGING_FACE_HUB_TOKEN}\""
                     https_var="os.environ[\"https_proxy\"] = \"${https_proxy}\""
@@ -128,6 +132,7 @@ spec:
           hostIPC: true
           containers:
             - image: vault.habana.ai/gaudi-docker/1.19.1/ubuntu22.04/habanalabs/pytorch-installer-2.5.1:latest
+              # In case of Ubuntu 24.04 OS, use image:vault.habana.ai/gaudi-docker/1.18.0/ubuntu24.04/habanalabs/pytorch-installer-2.4.0:latest
               name: gaudi-llm-ds-ft-worker
               resources:
                 limits:
@@ -141,6 +146,12 @@ spec:
               volumeMounts:
                 - name: datasets
                   mountPath: /storage
+              command: ["/bin/bash", "-c"]
+              args:
+                - >-
+                    /usr/bin/ssh-keygen -A;
+                    /usr/sbin/sshd;
+                    sleep 365d;
           volumes:
             - name: datasets
               persistentVolumeClaim:

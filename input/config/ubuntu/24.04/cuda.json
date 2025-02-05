@@ -1,0 +1,11 @@
+{
+    "cuda": {
+      "cluster": [
+        { "package": "cuda",
+          "type": "iso",
+          "url": "https://developer.download.nvidia.com/compute/cuda/12.5.1/local_installers/cuda-repo-ubuntu2404-12-5-local_12.5.1-555.42.06-1_amd64.deb",
+          "path": ""
+        }
+      ]
+    }
+}

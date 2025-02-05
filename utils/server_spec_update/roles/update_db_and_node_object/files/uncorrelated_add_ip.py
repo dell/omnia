@@ -22,6 +22,22 @@ from psycopg2.extensions import AsIs
 """
 
 def cal_nic_ip(cursor, col, ip, end_ip):
+    """
+    Calculates the uncorrelated network interface IP for a node.
+
+    Args:
+        cursor (psycopg2.extensions.cursor): A cursor object for executing SQL queries.
+        col (str): The column name in the database.
+        ip (str): The starting IP address.
+        end_ip (str): The ending IP address.
+
+    Returns:
+        str: The uncorrelated network interface IP.
+
+    Raises:
+        SystemExit: If the end of the IP range is reached.
+
+    """
     end_ip = ipaddress.IPv4Address(end_ip)
     op = check_presence_ip(cursor, col, ip)
     if not op:

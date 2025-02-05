@@ -19,3 +19,11 @@
     dest: "{{ item.dest }}"
     state: present
   with_items: "{{ xcat_patch_files }}"
+
+- name: Apply ubuntu 24 patch
+  ansible.posix.patch:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: present
+  with_items: "{{ ubuntu24_patch_files }}"
+  when: ansible_distribution_version == ubuntu24_version

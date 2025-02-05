@@ -33,12 +33,12 @@
   ansible.builtin.import_playbook: ../utils/update_user_repo.yml
   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
-- name: Apply common installation and config
+- name: Apply common Slurm installation and config
   hosts: slurm_control_node, slurm_node, login
   gather_facts: false
   any_errors_fatal: true
   roles:
-    - common
+    - slurm_common
 
 - name: Prepare kube control plane for kubernetes installations
   hosts: kube_control_plane
@@ -104,12 +104,6 @@
   roles:
     - k8s_csi_powerscale_plugin
 
-- name: Apply common Slurm installation and config
-  hosts: slurm_control_node, slurm_node, login
-  gather_facts: false
-  roles:
-    - slurm_common
-
 - name: Apply slurm control node config
   hosts: slurm_control_node
   gather_facts: false
@@ -133,6 +127,12 @@
   gather_facts: false
   roles:
     - slurm_workers_service
+
+- name: Setup slurm pam authentication
+  hosts: slurm_control_node, slurm_node, login
+  gather_facts: true
+  roles:
+    - slurm_pam
 
 - name: Compile and install the ucx and openmpi on the nfs share of compute nodes
   hosts: slurm_control_node, kube_control_plane

@@ -27,8 +27,6 @@
     - name: Include vars for {{ oim_os }}
       ansible.builtin.include_vars: "{{ role_path }}/../{{ oim_os }}/vars/main.yml"
 
-    - name: Check configure_xcat role pre-requisites
-      ansible.builtin.include_tasks: pre_requisites.yml
 
     - name: Configure proxy
       ansible.builtin.include_tasks: configure_proxy.yml

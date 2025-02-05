@@ -22,14 +22,14 @@
   ansible.builtin.command: apt update
   changed_when: false
 
+- name: Install prerequisite packages for ubuntu
+  ansible.builtin.package:
+    name: "{{ ubuntu_packages }}"
+    state: present
+
 - name: Install jq package
   ansible.builtin.apt:
     name: "{{ jq_package }}"
-    state: present
-
-- name: Install dpkg package
-  ansible.builtin.apt:
-    name: "{{ dpkg_package }}"
     state: present
 
 - name: Install pip modules

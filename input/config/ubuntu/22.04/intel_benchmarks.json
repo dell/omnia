@@ -1,0 +1,25 @@
+{
+    "intel_benchmarks": {
+        "cluster": [
+          {"package": "intel-basekit-{{ intel_benchmarks_version }}", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-common-vars", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-dpcpp-ct-2024.1", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-dev-utilities-2024.1", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-dpcpp-debugger-2024.1", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-libdpstd-devel-2022.5", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-diagnostics-utility-2024.1", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-tbb-devel-2021.12", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-ccl-devel-2021.12", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-compiler-dpcpp-cpp-2024.1", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-dal-devel-2024.2", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-ipp-devel-2021.11", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-ippcp-devel-2021.11", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-mkl-devel-2024.1", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-advisor", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-vtune", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-dnnl-devel-2024.1", "type": "deb", "repo_name": "oneapi"},
+          {"package": "intel-oneapi-dnnl", "type": "deb", "repo_name": "oneapi"},
+          {"package": "environment-modules", "type": "deb", "repo_name": "jammy"}
+        ]
+      }
+}

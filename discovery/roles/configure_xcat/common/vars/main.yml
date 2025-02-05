@@ -23,12 +23,6 @@ software_config_file: "{{ role_path }}/../../../../input/software_config.json"
 xcat_path: /opt/xcat/bin
 xcat_sbin_path: /opt/xcat/sbin
 
-# Usage: pre_requisites.yml
-xcat_connection_search_key: "connection failure"
-xcat_status_fail_msg: "Failed. xCAT services are not running. Please run provision.yml or prepare_oim.yml to install xCAT."
-oim_os_redhat: "redhat"
-oim_os_rocky: "rocky"
-
 # Usage: create_osimage.yml
 osimage_search_key: install-compute
 
@@ -37,12 +31,12 @@ ipmi_success_msg: "Successfully updated IPMI table"
 ipmi_fail_msg: "Failed creating genesis image"
 
 # Usage: fetch_osimage.yml
-fail_os_image: "OS image not found"
-
-# Usage: update_xcat_network.yml
-fail_bmc_nic: "Failed. Please provide proper bmc subnet."
+fail_os_image: "OS image not found for cluster_os {{ provision_os }} and cluster_os_version {{ provision_os_version }}.
+Please provide the proper ISO file in input/provision_config.yml."
 
 # Usage: configue_proxy.yml
+oim_os_redhat: "redhat"
+oim_os_rocky: "rocky"
 squid_proxy_conf_path: /etc/squid/squid.conf
 xcat_proxy_patch_file:
   - { src: "{{ role_path }}/files/otherpkgs_updated.patch", dest: "/install/postscripts/otherpkgs", mode: "755" }

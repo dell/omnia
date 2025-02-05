@@ -114,7 +114,7 @@ prometheus_scrape_interval_fail_msg: "Failed. prometheus_scrape_interval accepts
 
 # Usage: validate_prometheus_gaudi.yaml
 fail_msg_k8s_prometheus_support_false: "Failed. k8s_prometheus_support must be true when prometheus_gaudi_support is true in telemetry_config.yml."
-fail_msg_prometheus_gaudi_support: "Failed. prometheus_gaudi_support is only available for cluster_os_type: ubuntu and cluster_os_version: 22.04. \
+fail_msg_prometheus_gaudi_support: "Failed. prometheus_gaudi_support is only available for cluster_os_type: ubuntu and cluster_os_version: 22.04 , 24.04. \
 Please update prometheus_gaudi_support to false in telemetry_config.yml."
 
 # Usage: validate_k8s_setup.yml

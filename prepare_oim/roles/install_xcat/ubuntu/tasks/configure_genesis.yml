@@ -54,39 +54,7 @@
         dpkg -i {{ xcat_genesis_deb_file }}
       changed_when: true
 
-- name: Check doxcat script applied
-  ansible.builtin.shell: >
-    set -o pipefail && \
-    cat {{ doxcat_script_path }} | grep '{{ doxcat_check_key }}'
-  changed_when: false
-  failed_when: false
-  register: doxcat_check
-
-- name: Apply doxcat patch
-  when: doxcat_check_key not in doxcat_check.stdout
-  block:
-    - name: Copy doxcat patch
-      ansible.builtin.copy:
-        src: "{{ item.src }}"
-        dest: "{{ item.dest }}"
-        mode: "{{ item.mode }}"
-      with_items: "{{ doxcat_patch_path }}"
-
-    - name: Patch doxcat file
-      ansible.builtin.shell: patch doxcat < doxcat.patch # noqa: command-instead-of-module
-      changed_when: true
-      args:
-        chdir: "{{ xcat_bin_path }}"
-
-    - name: Delete doxcat script patch
-      ansible.builtin.file:
-        path: "{{ item.dest }}"
-        state: absent
-      with_items: "{{ doxcat_patch_path }}"
-
 - name: Create genesis image
   ansible.builtin.command: "{{ xcat_sbin_path }}/mknb {{ oim_arch }}"
   changed_when: true
-  when:
-    - genesis_image_creation or
-      doxcat_check_key not in doxcat_check.stdout
+  when: genesis_image_creation

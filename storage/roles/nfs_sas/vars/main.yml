@@ -43,16 +43,28 @@ powervault_vars_filename: powervault_vars.yml
 mount_dir_permissions: "0777"
 lvm_size: 100%FREE
 exports_file: "/etc/exports"
-default_server_options: "rw,sync,no_root_squash"
+default_server_options: "rw,sync,no_root_squash,no_subtree_check"
+timeout: "60"
 
 # Usage: nfs_server_packages.yml
+
 nfs_utilities:
-  - nfs-utils
-  - firewalld
+  ubuntu:
+    - nfs-common
+    - nfs-kernel-server
+  rhel:
+    - nfs-utils
+    - nfs-kernel-server
+    - firewalld
+
 nfs_services:
-  - rpcbind
-  - nfs-server
-  - firewalld
+  ubuntu:
+    - rpcbind
+    - nfs-kernel-server
+  rhel:
+    - rpcbind
+    - nfs-server
+    - firewalld
 firewall_services:
   - nfs
   - mountd

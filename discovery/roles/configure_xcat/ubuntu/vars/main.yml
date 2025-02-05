@@ -24,10 +24,15 @@ xcat_ubuntu20_path:
 xcat_ubuntu22_path:
   - { src: "{{ role_path }}/../ubuntu/templates/temp_ks_ubuntu22.tmpl.j2", dest: "/opt/xcat/share/xcat/install/ubuntu/compute.subiquity.tmpl", mode: "0644" }
 
+xcat_ubuntu24_path:
+  - { src: "{{ role_path }}/../ubuntu/templates/temp_ks_ubuntu24.tmpl.j2", dest: "/opt/xcat/share/xcat/install/ubuntu/compute.subiquity.tmpl", mode: "0644" }
+
 ubuntu22_unwanted_package: /install/{{ ubuntu22_directory }}/x86_64/dists/jammy/restricted/binary-amd64/Packages
+ubuntu24_unwanted_package: /install/{{ ubuntu24_directory }}/x86_64/dists/noble/restricted/binary-amd64/Packages
 os_supported_ubuntu: ubuntu
 ubuntu22_version: "22.04"
 ubuntu20_version: "20.04"
+ubuntu24_version: "24.04"
 remoteshell_script_path: /install/postscripts/remoteshell
 remoteshell_regexp: "^(.*)MaxStartups 1024(.*)"
 pre_scripts_ubuntu_path:

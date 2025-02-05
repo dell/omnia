@@ -9,7 +9,7 @@
         {"name": "openldap"},
         {"name": "nfs"},
         {"name": "slurm"},
-        {"name": "k8s", "version":"1.29.5"},
+        {"name": "k8s", "version":"1.31.4"},
         {"name": "jupyter"},
         {"name": "pytorch"},
         {"name": "tensorflow"}

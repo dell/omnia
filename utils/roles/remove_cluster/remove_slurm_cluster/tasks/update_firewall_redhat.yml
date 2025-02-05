@@ -1,0 +1,65 @@
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Configure firewall rules for Slurm control node
+  when: "'slurm_control_node' in group_names"
+  block:
+    - name: Deny Slurm-related TCP/UDP ports
+      ansible.posix.firewalld:
+        port: "{{ item }}"
+        zone: public
+        permanent: true
+        state: disabled
+      loop:
+        - "{{ tcp_port1 }}"
+        - "{{ tcp_port2 }}"
+        - "{{ tcp_port3 }}"
+        - "{{ tcp_port4 }}"
+        - "{{ tcp_port5 }}"
+        - "{{ udp_port1 }}"
+        - "{{ udp_port2 }}"
+        - "{{ udp_port3 }}"
+        - "{{ udp_port4 }}"
+      tags: firewalld
+
+    - name: Reload firewalld on control node
+      ansible.builtin.service:
+        name: firewalld
+        state: reloaded
+      tags: firewalld
+
+- name: Configure firewall rules for Slurm compute nodes
+  when: "'slurm_node' in group_names or 'login' in group_names"
+  block:
+    - name: Deny Slurm-related TCP/UDP ports
+      ansible.posix.firewalld:
+        port: "{{ item }}"
+        zone: public
+        permanent: true
+        state: disabled
+      loop:
+        - "{{ tcp_port1 }}"
+        - "{{ tcp_port2 }}"
+        - "{{ tcp_port3 }}"
+        - "{{ tcp_port4 }}"
+        - "{{ udp_port1 }}"
+        - "{{ udp_port2 }}"
+        - "{{ udp_port3 }}"
+      tags: firewalld
+
+    - name: Reload firewalld on compute nodes
+      ansible.builtin.service:
+        name: firewalld
+        state: reloaded
+      tags: firewalld

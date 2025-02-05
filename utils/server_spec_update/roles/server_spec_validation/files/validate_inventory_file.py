@@ -16,6 +16,9 @@ import os
 import sys
 import ipaddress
 import json
+from distutils.util import strtobool
+
+inventory_status = bool(strtobool(sys.argv[1]))
 
 def validate_inventory(category_list, hostvars):
     """
@@ -31,16 +34,22 @@ def validate_inventory(category_list, hostvars):
     Returns:
         None
     """
+    # Remove localhost from inventory
+    hostvars.pop('localhost','none')
+
     # Validate hosts in inventory file
     for host, host_data in hostvars.items():
-        if 'ansible_host' in host_data.keys():
-            host_ip = host_data['ansible_host']
+        if not inventory_status:
+            if 'ansible_host' in host_data.keys():
+                host_ip = host_data['ansible_host']
+            else:
+                host_ip = host_data['inventory_hostname']
+            if len(host_ip.split('.')) != 4:
+                sys.exit(f"Failed, invalid host-ip in inventory: {host_ip}")
+            if not ipaddress.ip_address(host_ip):
+                sys.exit(f"Failed, invalid host-ip in inventory: {host_ip}")
         else:
-            host_ip = host_data['inventory_hostname']
-        if len(host_ip.split('.')) != 4:
-            sys.exit(f"Failed, invalid host-ip in inventory: {host_ip}")
-        if not ipaddress.ip_address(host_ip):
-            sys.exit(f"Failed, invalid host-ip in inventory: {host_ip}")
+            host_ip = host
 
     for host, host_data in hostvars.items():
         if 'Categories' not in host_data.keys():

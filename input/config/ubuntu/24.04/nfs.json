@@ -1,0 +1,8 @@
+{
+    "nfs": {
+        "cluster": [
+            {"package": "nfs-common", "type": "deb", "repo_name": "noble"},
+            {"package": "nfs4-acl-tools", "type": "deb", "repo_name": "noble"}
+        ]
+    }
+}

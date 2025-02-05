@@ -17,11 +17,26 @@
   ansible.builtin.set_fact:
     slurmd_replace: "ExecStart=/usr/sbin/slurmd -D --conf-server {{ hostvars[groups['slurm_control_node'][0]]['control_node'] }}"
 
+- name: Remove ConditionPathExists from slurmd service file for configless setup
+  ansible.builtin.lineinfile:
+    path: "{{ slurmd_path }}"
+    regexp: "{{ slurmd_condition_var }}"
+    state: absent
+
 - name: Update slurmd daemon file
   ansible.builtin.lineinfile:
     path: "{{ slurmd_path }}"
     regexp: "{{ slurmd_regex }}"
     line: "{{ slurmd_replace }}"
+
+- name: Update slurmd daemon file for service type
+  ansible.builtin.lineinfile:
+    path: "{{ slurmd_path }}"
+    regexp: "{{ slurmd_regex_type }}"
+    line: "{{ slurmd_replace_type }}"
+  when:
+    - ansible_distribution | lower == "ubuntu"
+    - ansible_distribution_version == "24.04"
 
 - name: Start slurmd on slurm nodes
   ansible.builtin.systemd:

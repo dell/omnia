@@ -20,7 +20,7 @@
 - name: Setting performance profile for Intel Gaudi accelerators
   when:
     - compute_os == 'ubuntu'
-    - compute_os_version == '22.04'
+    - compute_os_version == '22.04' or compute_os_version == '24.04'
   block:
     - name: Import variables from performance_profile_config.yml
       ansible.builtin.include_vars:

@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+- name: Gathering service facts
+  ansible.builtin.service_facts:
+
 - name: Initialize username
   ansible.builtin.set_fact:
     user: "{{ item }}"
@@ -44,22 +47,25 @@
 
 - name: Restart sssd - {{ user }}
   ansible.builtin.service:
-    name: "{{ service }}"
+    name: sssd.service
     state: restarted
-  loop:
-    - sssd.service
-  loop_control:
-    loop_var: service
   when: hostvars['127.0.0.1']['authentication_type'] == "freeipa"
 
-- name: Restart sshd - {{ user }}
+- name: Set_fact for default sshd service
+  ansible.builtin.set_fact:
+    ssh_service_name: "sshd"
+
+- name: Set_fact for ssh service for ssh
+  ansible.builtin.set_fact:
+    ssh_service_name: "ssh"
+  when:
+    - "'ssh.service' in ansible_facts.services"
+    - ansible_facts.services['ssh.service'].state == 'running'
+
+- name: Restart sshd/ssh service for user - {{ user }}
   ansible.builtin.service:
-    name: "{{ service }}"
+    name: "{{ ssh_service_name }}"
     state: restarted
-  loop:
-    - sshd.service
-  loop_control:
-    loop_var: service
 
 - name: Create SSH key pair if home directory exists
   run_once: true
