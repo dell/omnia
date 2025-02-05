@@ -105,7 +105,7 @@
     admin_nic_ips: >-
       {{
         ([ansible_facts[admin_nic].ipv4.address] | default([])) +
-        (ansible_facts[admin_nic].ipv4_secondaries | map(attribute='address') | list | default([]))
+        (ansible_facts[admin_nic].ipv4_secondaries | default([]) | map(attribute='address') | list)
       }}
 
 - name: Validate admin_nic_ip is assigned to the NIC
