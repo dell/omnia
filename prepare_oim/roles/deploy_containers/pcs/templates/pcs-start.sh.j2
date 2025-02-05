@@ -17,4 +17,36 @@ systemctl start corosync
 systemctl start pacemaker
 pcs property set stonith-enabled=false
 pcs property set no-quorum-policy=ignore
-pcs resource defaults migration-threshold={{ migration_threshold }}
+
+pcs resource create {{ omnia_core_name }} ocf:heartbeat:podman \
+ image={{ omnia_core_image }} \
+ name={{ omnia_core_name }} \
+ reuse=true \
+ run_opts="{{ omnia_core_run_opts }}" \
+ op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
+ op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
+
+pcs resource create {{ provision_container_name }} ocf:heartbeat:podman \
+ name={{ provision_container_name }} \
+ image={{ provision_image }} \
+ reuse=true \
+ run_opts="{{ provision_run_opts }}" \
+ op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
+ op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
+
+{% if hostvars['localhost']['k8s_support'] %}
+pcs resource create {{ kubespray_name }} ocf:heartbeat:podman \
+ name={{ kubespray_name }} \
+ image={{ kubespray_image }} \
+ reuse=true \
+ run_opts="{{ kubespray_run_opts }}" \
+ op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
+ op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
+{% endif %}
+
+pcs resource group add omnia_containers {{ omnia_core_name }} {{ provision_container_name }} {% if hostvars['localhost']['k8s_support'] %} {{ kubespray_name }} {% endif %}
+
+pcs resource defaults update migration-threshold={{ migration_threshold }}
