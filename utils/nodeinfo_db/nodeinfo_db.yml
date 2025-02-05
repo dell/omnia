@@ -28,7 +28,7 @@
     - { role: ../roles/common, tags: 'credentials_config' } # noqa: role-name[path]
  
 - name: Get data from nodeinfo_db
-  hosts: localhost
-  connection: local
+  hosts: omnia_provision
+  connection: ssh
   roles:
     - nodeinfo_db

@@ -37,6 +37,7 @@
     owner: "{{ nodeinfo_db_file_owner }}"
     group: "{{ nodeinfo_db_file_group }}"
     mode: "{{ nodeinfo_db_file_mode }}"
+    remote_src: true
 
 - name: Delete tmp file
   ansible.builtin.file:
