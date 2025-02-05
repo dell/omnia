@@ -41,7 +41,7 @@
   ansible.builtin.copy:
     src: "{{ pulp_config_filepath }}"
     dest: "{{ config_default_loc }}"
-    mode: "{{ copy_mode }}"
+    mode: "{{ logs_dir_permission }}"
 
 - name: Ensure the pulp group exists
   ansible.builtin.group:

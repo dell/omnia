@@ -26,13 +26,13 @@
   ansible.builtin.template:
     src: "{{ nginx_conf_path }}"
     dest: "{{ nginx_conf_dest }}"
-    mode: "{{ dir_create_mode }}"
+    mode: "{{ pulp_dir_permissions }}"
 
 - name: Create settings.py for Pulp
   ansible.builtin.template:
     src: "{{ settings_tmp_path }}"
     dest: "{{ settings_py_path }}"
-    mode: "{{ dir_create_mode }}"
+    mode: "{{ pulp_dir_permissions }}"
 
 - name: Deploy Pulp container and check deployment status
   block:
@@ -78,3 +78,4 @@
     responses: "{{ pulp_responses }}"
   retries: "{{ retries_var }}"
   delay: "{{ delay_var }}"
+  no_log: true
