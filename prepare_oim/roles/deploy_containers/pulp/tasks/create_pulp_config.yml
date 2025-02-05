@@ -23,12 +23,14 @@
     cmd: "{{ pulp_config_cmd }}"
   when: not pulp_config_status.stat.exists
   changed_when: false
+  no_log: true
 
 - name: Overwrite Pulp config (if file exists)
   ansible.builtin.command:
     cmd: "{{ pulp_config_cmd_overwrite }}"
   when: pulp_config_status.stat.exists
   changed_when: false
+  no_log: true
 
 - name: Set verify_ssl to false in pulp config
   ansible.builtin.replace:
