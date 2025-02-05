@@ -74,11 +74,27 @@
   ansible.builtin.set_fact:
     ip_addresses: "{{ ip_addresses + [item] }}"
   with_items: "{{ groups['slurm_node'] }}"
-  when: item is match('^(\d{1,3}\.){3}\d{1,3}$')
+  when:
+    - item is match('^(\d{1,3}\.){3}\d{1,3}$')
+    - "'slurm_node' in ansible_run_tags"
+
+- name: Get IP addresses from inventory
+  ansible.builtin.set_fact:
+    ip_addresses: "{{ ip_addresses + [item] }}"
+  with_items: "{{ groups['login'] }}"
+  when:
+    - item is match('^(\d{1,3}\.){3}\d{1,3}$')
+    - "'login_node' in ansible_run_tags"
 
 - name: Get items which are not IP addresses from inventory
   ansible.builtin.set_fact:
     non_ip_addresses: "{{ groups['slurm_node'] | difference(ip_addresses) }}"
+  when: "'slurm_node' in ansible_run_tags"
+
+- name: Get items which are not IP addresses from inventory
+  ansible.builtin.set_fact:
+    non_ip_addresses: "{{ groups['login'] | difference(ip_addresses) }}"
+  when: "'login_node' in ansible_run_tags"
 
 - name: Set variables based on inventory item types
   ansible.builtin.set_fact:
@@ -146,13 +162,15 @@
   with_items: "{{ invalid_nodes }}"
 
 - name: Get slurm info output if slurm is installed
-  ansible.builtin.command: 'sinfo -h --format="%N"'
+  ansible.builtin.shell: |
+    set -o pipefail
+    scontrol show node | awk '/NodeName/ {print $1}' | cut -d= -f2 | paste -sd ',' -
   register: slurm_output
   failed_when: false
   changed_when: false
   delegate_to: "{{ item.value.admin_ip }}"
   when: item.value.status == 'booted'
-  loop: "{{ query('ansible.builtin.dict', valid_nodes) }}"
+  loop: "{{ valid_nodes | dict2items }}"
   loop_control:
     label: "{{ item.key }}"
 
@@ -170,7 +188,22 @@
     groups: remove_slurm_node
     node_hostname: '{{ item.item.value.hostname }}'
     status: '{{ item.item.value.status }}'
-  when: item.rc == 0 or item.item.value.status != 'booted'
+  when:
+    - item.rc == 0 or item.item.value.status != 'booted'
+    - "'slurm_node' in ansible_run_tags"
+  loop: "{{ slurm_output.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+
+- name: Add all removing nodes to group remove_login_node
+  ansible.builtin.add_host:
+    name: '{{ item.item.key }}'
+    groups: remove_login_node
+    node_hostname: '{{ item.item.value.hostname }}'
+    status: '{{ item.item.value.status }}'
+  when:
+    - item.rc == 0 or item.item.value.status != 'booted'
+    - "'login_node' in ansible_run_tags"
   loop: "{{ slurm_output.results }}"
   loop_control:
     label: "{{ item.item.key }}"

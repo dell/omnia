@@ -1,0 +1,713 @@
+{
+    "kubeflow": {
+       "cluster": [
+    {
+         "package": "kubeflow",
+         "type": "git",
+         "url": "https://github.com/kubeflow/manifests.git",
+         "version": "v1.9.1"
+    },
+    {
+        "package": "kustomize",
+        "type": "tarball",
+        "url": "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz"
+    },
+    {
+        "package": "ghcr.io/dexidp/dex",
+        "tag": "v2.39.1",
+        "type": "image"
+    },
+    {
+        "package": "ghcr.io/dexidp/dex",
+        "tag": "v2.35.0",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/apiserver_receive_adapter",
+        "digest": "4ed3e39a11f4fc3358787433beaea4a9e72773ea7710bf4beb95aa8770515c9e",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/webhook",
+        "digest": "cd577cb977a2830b29bb799cf146bbffe0241d65eef1c680ec158af97b18d4fa",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/activator",
+        "digest": "ad42ddc9bc4e25fdc88c240d7cbfad4b2708eb7d26e07ae904d258011141116e",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/autoscaler",
+        "digest": "66aa0dbceee62691d5327e423bbd7cbd411903747adeab61fdc81b14590793d4",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/controller",
+        "digest": "e5b7b6edd265b66d32f424bd245c06455154462ade6ce05698472212248d5657",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/domain-mapping",
+        "digest": "f66c41ad7a73f5d4f4bdfec4294d5459c477f09f3ce52934d1a215e32316b59b",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/domain-mapping-webhook",
+        "digest": "7368aaddf2be8d8784dc7195f5bc272ecfe49d429697f48de0ddc44f278167aa",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/net-istio/cmd/controller",
+        "digest": "5782b4a6b1a106d7cafe77d044b30905a9fecbbd2e0029946cb8a4b3507b40a4",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/net-istio/cmd/webhook",
+        "digest": "eeff0ad31550f3ff519d988bb36bfe214e5b60c1ec4349c1f9bb2b2d8cad9479",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/webhook",
+        "digest": "48aee2733721ecc77956abc5a2ca072853a669ebc97519beb48f7b3da8455e67",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/pkg/apiextensions/storageversion/cmd/migrate",
+        "digest": "232d6ffd88dfc0d0ec02c6f3a95520283d076c16b77543cee04f4ef276e0b7ae",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/serving/cmd/queue",
+        "digest": "89e6f90141f1b63405883fbb4de0d3b6d80f8b77e530904c4d29bdcd1dc5a167",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/net-istio/cmd/controller",
+        "digest": "5782b4a6b1a106d7cafe77d044b30905a9fecbbd2e0029946cb8a4b3507b40a4",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/pkg/apiextensions/storageversion/cmd/migrate",
+        "digest": "d438c3ad2fcef3c7ea1b3abb910f5fa911c8a1466d6460ac0b11bf034797d6f6",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/mtchannel_broker",
+        "digest": "9dc9e0b00325f1ec994ef6f48761ba7d9217333fa0c2cbfccfa9b204e3f616a9",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/broker/ingress",
+        "digest": "65412cf797d0bb7c7e22454431f57f8d9dcedf93620769f4c1206947acf05abb",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/broker/filter",
+        "digest": "4e3cf0703024129c60b66529f41a1d29310f61f6aced24d25fd241e43b1a2e8e",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/in_memory/channel_dispatcher",
+        "digest": "fa64db1ad126874f4e5ce1c17c2414b0fc3dde2a7e0db6fde939cafdbd4d96cd",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/in_memory/channel_controller",
+        "digest": "5386029f1fdcce1398dcca436864051a2f7eb5abed176453104f41b7b9b587f9",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/webhook",
+        "digest": "cd577cb977a2830b29bb799cf146bbffe0241d65eef1c680ec158af97b18d4fa",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/mtping",
+        "digest": "9d74e8c69d671ad10fdfd84d33569fde5c16c9f95824ea288d2cb6fd69e32f4d",
+        "type": "image"
+    },
+    {
+        "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/controller",
+        "digest": "7579c5a8b1dee07c382120a8bc1a6594aea4519d0cf652989f5d9a675b11a0de",
+        "type": "image"
+    },
+    {
+        "package": "quay.io/jetstack/cert-manager-controller",
+        "tag": "v1.14.5",
+        "type": "image"
+     },
+     {
+         "package": "quay.io/jetstack/cert-manager-cainjector",
+         "tag": "v1.14.5",
+         "type": "image"
+     },
+     {
+         "package": "quay.io/jetstack/cert-manager-webhook",
+         "tag": "v1.14.5",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/istio/proxyv2",
+         "tag": "1.22.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/istio/proxyv2",
+         "tag": "1.17.5",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/istio/pilot",
+         "tag": "1.22.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowmanifestswg/oidc-authservice",
+         "tag": "e236439",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/knative-releases/knative.dev/eventing/cmd/controller",
+         "digest": "7579c5a8b1dee07c382120a8bc1a6594aea4519d0cf652989f5d9a675b11a0de",
+         "type": "image"
+     },
+
+     {
+         "package": "gcr.io/kubeflow-ci/tf-mnist-with-summaries",
+         "tag": "1.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/pytorch-mnist-cpu",
+         "tag": "latest",
+         "type": "image"
+     },
+     {
+        "package": "docker.io/kubeflowkatib/pytorch-mnist",
+        "tag": "v1beta1-45c5727",
+        "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/jupyter-scipy",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/busybox",
+         "tag": "latest",
+         "type": "image"
+     },
+     {
+        "package": "docker.io/busybox",
+        "tag": "1.28",
+        "type": "image"
+     },
+     {
+        "package": "docker.io/busybox",
+        "tag": "1.34.1",
+        "type": "image"
+     },
+     {
+        "package": "docker.io/bentoml/fraud_detection",
+        "tag": "o5smnagbncigycvj",
+        "type": "image"
+     },
+     {
+        "package": "docker.io/istio/install-cni",
+        "tag": "1.22.1",
+        "type": "image"
+     },
+     {
+        "package": "docker.io/istio/pilot",
+        "tag": "1.22.1",
+        "type": "image"
+     },
+     {
+        "package": "docker.io/istio/proxyv2",
+        "tag": "1.22.1",
+        "type": "image"
+     },
+     {
+         "package": "gcr.io/kubeflow-images-public/profile-controller",
+         "tag": "v20190228-v0.4.0-rc.1-192-g1a802656-dirty-f95773",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/seldonio/seldon-core-operator",
+         "tag": "1.18.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/seldonio/echo-model",
+         "tag": "1.17.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/rayproject/ray",
+         "tag": "2.23.0-py311-cpu",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/kubebuilder/kube-rbac-proxy",
+         "tag": "v0.13.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/kserve-controller",
+         "tag": "v0.13.1",
+         "type": "image"
+     },
+     {
+        "package": "docker.io/kserve/huggingfaceserver",
+        "tag": "v0.13.1",
+        "type": "image"
+     },
+     {
+        "package": "docker.io/kserve/storage-initializer",
+        "tag": "v0.13.1",
+        "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/xgbserver",
+         "tag": "v0.13.1",
+         "type": "image"
+     },
+     {
+         "package": "nvcr.io/nvidia/tritonserver",
+         "tag": "23.05-py3",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/pytorch/torchserve-kfs",
+         "tag": "0.9.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/tensorflow/serving",
+         "tag": "2.6.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/sklearnserver",
+         "tag": "v0.13.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/pmmlserver",
+         "tag": "v0.13.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/paddleserver",
+         "tag": "v0.13.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/seldonio/mlserver",
+         "tag": "1.3.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/lgbserver",
+         "tag": "v0.13.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/bentoml/fraud_detection",
+         "tag": "o5smnagbncigycvj",
+         "type": "image"
+     },
+     {
+         "package": "quay.io/bentoml/yatai-image-builder",
+         "tag": "1.2.28",
+         "type": "image"
+     },
+     {
+        "package": "quay.io/bentoml/yatai-deployment",
+        "tag": "1.1.21",
+        "type": "image"
+     },
+     {
+         "package": "quay.io/oauth2-proxy/oauth2-proxy",
+         "tag": "latest",
+         "type": "image"
+     },
+     {
+         "package": "quay.io/oauth2-proxy/oauth2-proxy",
+         "tag": "v7.6.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/prom/prometheus",
+         "tag": "latest",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/grafana/grafana",
+         "tag": "5.3.4",
+         "type": "image"
+     },
+     {
+         "package": "quay.io/dexidp/dex",
+         "tag": "v2.23.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/mysql",
+         "tag": "8",
+         "type": "image"
+     },
+     {
+         "package": "quay.io/argoproj/workflow-controller",
+         "tag": "latest",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/postgres",
+         "tag": "14.5-alpine",
+         "type": "image"
+     },
+     {
+        "package": "docker.io/postgres",
+        "tag": "12-alpine",
+        "type": "image"
+     },
+     {
+        "package": "docker.io/postgres",
+        "tag": "14.7-alpine",
+        "type": "image"
+     },
+     {
+        "package": "docker.io/postgres",
+        "tag": "latest",
+        "type": "image"
+     },
+     {
+         "package": "quay.io/argoproj/argocli",
+         "tag": "latest",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/application-crd-controller",
+         "tag": "20231101",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/cloudsql-docker/gce-proxy",
+         "tag": "1.25.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/minio",
+         "tag": "RELEASE.2019-08-14T20-37-41Z-license-compliance",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/mysql",
+         "tag": "8.0.3",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/tfx-oss-public/ml_metadata_store_server",
+         "tag": "1.14.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/kubeflow-images-public/kubebench/workflow-agent",
+         "tag": "bc682c1",
+         "type": "image"
+     },
+     {
+         "package": "quay.io/aipipeline/pipelineloop-webhook",
+         "tag": "nightly",
+         "type": "image"
+     },
+     {
+        "package": "quay.io/aipipeline/pipelineloop-controller",
+        "tag": "nightly",
+        "type": "image"
+     },
+     {
+         "package": "gcr.io/kubebuilder/kube-rbac-proxy",
+         "tag": "v0.11.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/mxnet-mnist",
+         "tag": "v0.16.0-rc.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/enas-cnn-cifar10-cpu",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/pytorch-mnist-cpu",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/file-metrics-collector",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/tfevent-metrics-collector",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/suggestion-hyperopt",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/suggestion-optuna",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/suggestion-hyperband",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/suggestion-skopt",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/suggestion-goptuna",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/suggestion-enas",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/suggestion-darts",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/suggestion-pbt",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/earlystopping-medianstop",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/kserve-controller",
+         "tag": "v0.13.1",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/frontend",
+         "tag": "2.3.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/visualization-server",
+         "tag": "2.3.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/poddefaults-webhook",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/poddefaults-webhook",
+         "tag": "v1.8.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/cache-server",
+         "tag": "2.3.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/centraldashboard",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/jupyter-web-app",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/mysql",
+         "tag": "8.0.26",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/katib-controller",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/katib-controller",
+         "tag": "v0.16.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/katib-db-manager",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/mysql",
+         "tag": "8.0.29",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflowkatib/katib-ui",
+         "tag": "v0.17.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/kserve-controller",
+         "tag": "v0.13.1",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/models-web-app",
+         "tag": "v0.13.0-rc.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kserve/models-web-app",
+         "tag": "latest",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/python",
+         "tag": "3.7",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/metacontrollerio/metacontroller",
+         "tag": "v2.0.4",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/metadata-envoy",
+         "tag": "2.3.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/tfx-oss-public/ml_metadata_store_server",
+         "tag": "1.14.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/metadata-writer",
+         "tag": "2.3.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/minio",
+         "tag": "RELEASE.2019-08-14T20-37-41Z-license-compliance",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/api-server",
+         "tag": "2.3.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/persistenceagent",
+         "tag": "2.3.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/scheduledworkflow",
+         "tag": "2.3.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/tensorboard-controller",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/tensorboards-web-app",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflow/training-operator",
+         "tag": "v1-04f9f13",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/notebook-controller",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/kfam",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/profile-controller",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/kubebuilder/kube-rbac-proxy",
+         "tag": "v0.4.0",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/kubebuilder/kube-rbac-proxy",
+         "tag": "v0.8.0",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/tensorboards-web-app",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/pvcviewer-controller",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/workflow-controller",
+         "tag": "v3.3.10-license-compliance",
+         "type": "image"
+     },
+     {
+        "package": "gcr.io/ml-pipeline/workflow-controller",
+        "tag": "v3.3.8-license-compliance",
+        "type": "image"
+     },
+     {
+        "package": "gcr.io/ml-pipeline/workflow-controller",
+        "tag": "v3.4.17-license-compliance",
+        "type": "image"
+     },
+     {
+         "package": "docker.io/kubeflownotebookswg/volumes-web-app",
+         "tag": "v1.9.2",
+         "type": "image"
+     },
+     {
+         "package": "gcr.io/ml-pipeline/viewer-crd-controller",
+         "tag": "2.3.0",
+         "type": "image"
+     }
+   ]
+ }
+ }

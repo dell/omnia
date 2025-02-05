@@ -1,3 +1,17 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import subprocess
 import os, shlex
 from jinja2 import Template
@@ -28,9 +42,9 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
     # Specify the repository names that should be skipped
     os_version = distro.version()
     if os_version != cluster_os_version:
-        skip_repos = ['focal','jammy','deadsnake-ppa']
+        skip_repos = ['focal','jammy','noble','deadsnake-ppa']
     else:
-        skip_repos = ['focal','jammy']
+        skip_repos = ['focal','jammy','noble']
     download_flag = False
     omnia_always = ['amdgpu', 'intelgaudi', 'cuda', 'ofed']
 
@@ -88,7 +102,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
                 # Download each dependency
                 if repo_name not in ['ldap','intelgaudi']:
                     for dependency in dependencies:
-                        dependency = shlex.quote(dependency).strip("'")
+                        dependency = shlex.quote(dependency).strip("'\"")
                         download_dependency_command = ['apt-get', 'download', dependency, '-o', f'Dir::Cache={deb_directory}']
                         try:
                             subprocess.run(download_dependency_command, check=True)
@@ -140,7 +154,7 @@ def process_deb_package(package, repo_store_path, status_file_path, cluster_os_t
 
                 if repo_name not in ['ldap','intelgaudi']:
                     for dependency in dependencies:
-                        dependency = shlex.quote(dependency).strip("'")
+                        dependency = shlex.quote(dependency).strip("'\"")
                         download_dependency_command = ['apt-get', 'download', dependency, '-o', f'Dir::Cache={deb_directory}']
                         try:
                             # Checking flag if package is downloaded

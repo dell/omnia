@@ -23,7 +23,7 @@
 - name: Load software_config.json
   ansible.builtin.include_vars:
     file: "{{ software_config_json_file }}"
-    name: user_config
+    name: software_config
 
 - name: Include vars for {{ oim_os }}
   ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
@@ -31,7 +31,7 @@
 - name: Get amdgpu status
   ansible.builtin.set_fact:
     amdgpu_input_status: true
-  loop: "{{ user_config.softwares | default([]) }}"
+  loop: "{{ software_config.softwares | default([]) }}"
   when:
     - "'amdgpu' in item.name"
   loop_control:
@@ -40,7 +40,7 @@
 - name: Get rocm status only if amdgpu present amd_status is true
   ansible.builtin.set_fact:
     rocm_input_status: true
-  loop: "{{ user_config.amdgpu | default([]) }}"
+  loop: "{{ software_config.amdgpu | default([]) }}"
   when:
     - amdgpu_input_status
     - "'rocm' in item.name"
@@ -58,7 +58,7 @@
   block:
     - name: Fetch amdgpu_version
       ansible.builtin.set_fact:
-        amdgpu_version: "{{ user_config.softwares | selectattr('name', 'equalto', 'amdgpu') | map(attribute='version') | first }}"
+        amdgpu_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'amdgpu') | map(attribute='version') | first }}"
 
     - name: Set amdgpu_version
       ansible.builtin.set_fact:
@@ -84,12 +84,12 @@
 - name: Set rocm_config_status
   when:
     - rocm_input_status
-    - user_config.repo_config == 'always' or user_config.repo_config == 'partial'
+    - software_config.repo_config == 'always' or software_config.repo_config == 'partial'
     - check_rocm_repo.stat.exists
   block:
     - name: Fetch rocm_version
       ansible.builtin.set_fact:
-        rocm_version: "{{ user_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
+        rocm_version: "{{ software_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
 
     - name: Set rocm_directory
       ansible.builtin.set_fact:
@@ -116,12 +116,12 @@
 - name: Set rocm_config_status
   when:
     - rocm_input_status
-    - user_config.repo_config == 'never' or user_config.repo_config == 'partial'
+    - software_config.repo_config == 'never' or software_config.repo_config == 'partial'
     - not check_rocm_repo.stat.exists
   block:
     - name: Fetch rocm_version
       ansible.builtin.set_fact:
-        rocm_version: "{{ user_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
+        rocm_version: "{{ software_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
 
     - name: Set rocm_config_status to true
       ansible.builtin.set_fact:

@@ -23,7 +23,7 @@
 - name: Load software_config.json
   ansible.builtin.include_vars:
     file: "{{ software_config_json_file }}"
-    name: user_config
+    name: software_config
 
 - name: Include vars for {{ oim_os }}
   ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
@@ -31,7 +31,7 @@
 - name: Get Intel Gaudi status
   ansible.builtin.set_fact:
     intel_gaudi_input_status: true
-  loop: "{{ user_config.softwares | default([]) }}"
+  loop: "{{ software_config.softwares | default([]) }}"
   when:
     - "'intelgaudi' in item.name"
   loop_control:
@@ -40,7 +40,7 @@
 - name: Get habana status only if intel gaudi is present gaudi_status is true
   ansible.builtin.set_fact:
     habana_input_status: true
-  loop: "{{ user_config.gaudi | default([]) }}"
+  loop: "{{ software_config.gaudi | default([]) }}"
   when:
     - intel_gaudi_input_status
     - "'intel' in item.name"
@@ -52,7 +52,7 @@
   block:
     - name: Fetch intelgaudi_version
       ansible.builtin.set_fact:
-        intelgaudi_version: "{{ user_config.softwares | selectattr('name', 'equalto', 'intelgaudi') | map(attribute='version') | first }}"
+        intelgaudi_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'intelgaudi') | map(attribute='version') | first }}"
 
     - name: Set intelgaudi_version
       ansible.builtin.set_fact:

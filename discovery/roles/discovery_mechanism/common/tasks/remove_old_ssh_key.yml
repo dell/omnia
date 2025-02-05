@@ -25,6 +25,13 @@
   failed_when: false
   no_log: true
 
+- name: Fail if no nodes are discovered
+  ansible.builtin.fail:
+    msg: "{{ empty_discover_node_msg }}"
+  when:
+    - query_status.query_result is defined
+    - query_status.query_result | length < 1
+
 - name: Remove old ssh key for IP of all discovered nodes
   when: query_status.query_result is defined
   ansible.builtin.command: ssh-keygen -R "{{ item.admin_ip }}"

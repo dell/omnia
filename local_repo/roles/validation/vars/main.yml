@@ -40,8 +40,10 @@ python_package:
   - pyopenssl==21.0.0
   - urllib3==1.26.5
   - distro==1.9.0
-dpkg_package: "dpkg-dev"
 apt_conf_dest: /etc/apt/apt.conf
+ubuntu_packages:
+  - iptables
+  - dpkg-dev
 
 # Usage: validate_oim_os.yml
 oim_os_redhat: "redhat"
@@ -79,7 +81,7 @@ Refer examples/template_{{ cluster_os_type }}_software_config.json and define ve
 cluster_os_type_fail_msg: "Failed. The supported values of cluster_os_type are rhel, rocky, ubuntu."
 cluster_os_version_fail_msg_rhel: "Failed. The supported values of cluster_os_version is 8.6,8.7 and 8.8 when cluster_os_type is rhel"
 cluster_os_version_fail_msg_rocky: "Failed. The supported values of cluster_os_version is 8.6,8.7 and 8.8 when cluster_os_type is rocky"
-cluster_os_version_fail_msg_ubuntu: "Failed. The supported values of cluster_os_version is 20.04 and 22.04 when cluster_os_type is ubuntu"
+cluster_os_version_fail_msg_ubuntu: "Failed. The supported values of cluster_os_version is 20.04, 22.04 and 24.04 when cluster_os_type is ubuntu"
 repo_config_fail_msg: "Failed. The supported values of repo_config is always, partial and never"
 cross_os_support_fail_msg: "Cross-OS is not supported: oim_os '{{ oim_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
 valid_cluster_os_type:
@@ -97,16 +99,14 @@ rocky_valid_os_versions:
 ubuntu_valid_os_versions:
   - '20.04'
   - '22.04'
+  - '24.04'
 valid_repo_config:
   - 'always'
   - 'partial'
   - 'never'
 
-omnia17_k8s_version: '1.29.5'
-omnia161_k8s_version: '1.26.12'
+
 success_msg_k8s_version: "Kubernetes Version Validated"
-fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
-kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"  # noqa: yaml[line-length]
 
 # Usage: validate_local_repo_config.yml
 fail_msg_local_repo_config_file: "local_repo_config.yml file doesn't exist."
@@ -247,3 +247,32 @@ The no_proxy environment variable should include the Omnia Infrastructure Manage
 update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in Omnia Infrastructure Manager for acccessing internet."
 repo_retries: 5
 repo_delay: 10
+
+# Usage: validate_cuda_ofed_json.yml
+cuda_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json"
+fail_msg_cuda_json_file: |
+  "Failed. input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json file is missing.
+  Please ensure that the cuda.json file is present in the correct location."
+fail_msg_cuda_config: |
+ "Please provide either a URL or a file path for the CUDA package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json file.
+ The CUDA package is specified in the software_config.json file, but the corresponding URL or file path is missing in the cuda.json file."
+cuda_file_path_missing_msg: |
+  "Please confirm that the file path for the CUDA package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json file is correct.
+  Ensure that the file exists at the location specified in the cuda.json file."
+cuda_version_missing_msg: |
+  "Please check the URL for the CUDA package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json file.
+  Ensure that URL is accessible and cuda version specified in the software_config.json file matches the version mentioned in the URL in the cuda.json file."
+ofed_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json"
+fail_msg_ofed_json_file: |
+  "Failed. input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json file is missing.
+  Please ensure that the ofed.json file is present in the correct location."
+fail_msg_ofed_config: |
+ "Please provide either a URL or a file path for the OFED package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json file.
+ The OFED package is specified in the software_config.json file, but the corresponding URL or file path is missing in the ofed.json file."
+ofed_file_path_missing_msg: |
+  "Please confirm that the file path for the OFED package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json file is correct.
+  Ensure that the file exists at the location specified in the ofed.json file."
+ofed_version_missing_msg: |
+  "Please check the URL for the OFED package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json file.
+  Ensure that URL is accessible and ofed version specified in the software_config.json file matches the version mentioned in the URL in the ofed.json file."
+url_success_return_code: 200

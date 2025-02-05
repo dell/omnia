@@ -13,6 +13,28 @@
 #  limitations under the License.
 ---
 
+- name: Read Omnia Infrastructure Manager hostname
+  ansible.builtin.command: hostname
+  changed_when: false
+  register: hostname_result
+
+- name: Set fact for the OIM hostname
+  ansible.builtin.set_fact:
+    oim_hostname: "{{ hostname_result.stdout }}"
+
+- name: Check /etc/hosts has Omnia Infrastructure Manager hostname
+  ansible.builtin.command: cat "{{ hosts_file }}"
+  changed_when: false
+  register: hosts_file_content
+
+- name: Update Omnia Infrastructure Manager hostname in /etc/hosts
+  ansible.builtin.lineinfile:
+    path: "{{ hosts_file }}"
+    insertafter: "EOF"
+    state: present
+    line: "127.0.0.1 {{ oim_hostname }}"
+  when: oim_hostname not in hosts_file_content.stdout
+
 - name: Fetch the domain name
   ansible.builtin.command: hostname -d
   register: domain_name_check
@@ -24,12 +46,6 @@
     msg: "{{ server_domain_name_blank_msg }}"
   when: domain_name_check.stdout | length < 1
 
-- name: Read Omnia Infrastructure Manager hostname
-  ansible.builtin.command: hostname
-  changed_when: false
-  register: hostname_result
-
-- name: Set fact for the Omnia Infrastructure Manager hostname and domain name
+- name: Set fact for the domain name
   ansible.builtin.set_fact:
-    oim_hostname: "{{ hostname_result.stdout }}"
     oim_domain_name: "{{ domain_name_check.stdout }}"

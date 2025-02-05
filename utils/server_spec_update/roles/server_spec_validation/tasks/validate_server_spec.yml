@@ -28,8 +28,3 @@
       ansible.builtin.fail:
         msg: "{{ script_output.stderr }}"
       when: script_output.stderr is defined
-
-- name: Check inventory file status
-  ansible.builtin.set_fact:
-    inventory_status: true
-  when: hostvars.keys() | length > 0

@@ -27,12 +27,30 @@ with open(network_spec_path, "r") as file:
     data = yaml.safe_load(file)
 
 
-def run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, mtu):
+def run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, network_gateway, mtu):
+    """
+    Run a command to update the network settings in xCAT.
+
+    Args:
+        col (str): The column name.
+        start_ip (str): The start IP address.
+        end_ip (str): The end IP address.
+        netmask_bits (int): The number of netmask bits.
+        nic_mode (str): The network interface mode.
+        network_gateway (str): The network gateway.
+        mtu (int): The maximum transmission unit.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If an error occurs while running the command.
+    """
     details = calculate_ip_details.cal_ip_details(start_ip, netmask_bits)
     netmask = details[0]
     subnet = details[1]
     nic_range = start_ip + '-' + end_ip
-    command = f"/opt/xcat/bin/chdef -t network -o {col} net={subnet} mask={netmask} staticrange={start_ip}-{end_ip} mtu={mtu}"
+    command = f"/opt/xcat/bin/chdef -t network -o {col} net={subnet} mask={netmask} gateway={network_gateway} staticrange={start_ip}-{end_ip} mtu={mtu}"
     command_list = command.split()
     try:
         subprocess.run(command_list, capture_output=True)
@@ -42,6 +60,20 @@ def run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, mtu):
 
 
 def create_metadata_nic():
+    """
+    Create or update the metadata file for NIC information.
+
+    This function reads the existing data from the metadata file located at `metadata_nic_info_path`.
+    If the file does not exist, it creates an empty dictionary.
+    It then updates the existing data with the new `nic_info` dictionary.
+    Finally, it writes the updated data back to the metadata file.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     try:
         with open(metadata_nic_info_path, 'r') as file:
             existing_data = yaml.safe_load(file)
@@ -68,22 +100,24 @@ def update_networks_table():
             if col not in ('admin_network', 'bmc_network'):
                 if value.get('CIDR'):
                     netmask_bits = value.get('netmask_bits')
+                    network_gateway = value.get('network_gateway')
                     mtu = value.get('MTU')
                     cidr = value.get('CIDR') + '/' + netmask_bits
                     output = calculate_ip_details.create_cidr_range(cidr)
                     start_ip = output[0]
                     end_ip = output[1]
                     nic_mode = "cidr"
-                    run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, mtu)
+                    run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, network_gateway, mtu)
 
                 if value.get('static_range'):
                     netmask_bits = value.get('netmask_bits')
+                    network_gateway = value.get('network_gateway')
                     static_range = value.get('static_range')
                     mtu = value.get('MTU')
                     start_ip = static_range.split('-')[0]
                     end_ip = static_range.split('-')[1]
                     nic_mode = "static"
-                    run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, mtu)
+                    run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, network_gateway, mtu)
 
     create_metadata_nic()
 

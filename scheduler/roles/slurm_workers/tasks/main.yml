@@ -39,8 +39,7 @@
       ansible.builtin.include_tasks: install_packages.yml
 
     - name: Install slurm control node packages
-      ansible.builtin.include_tasks: update_ports_logs.yml
-      when: slurm_installation_type == configless_slurm
+      ansible.builtin.include_tasks: update_ports_logs_{{ ansible_distribution | lower }}.yml
 
     - name: Install slurm control node packages
       ansible.builtin.include_tasks: update_slurmd_daemon.yml

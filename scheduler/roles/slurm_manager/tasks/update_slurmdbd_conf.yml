@@ -29,51 +29,9 @@
   changed_when: true
 
 - name: Create slurmdbd.conf file
-  ansible.builtin.copy:
-    src: slurmdbd.conf
+  ansible.builtin.template:
+    src: "{{ slurmdbd_conf_template }}"
     dest: "{{ slurmdbd_path }}"
     mode: "{{ slurmdbd_mode }}"
     owner: slurm
   tags: install
-
-- name: Add slurm user name
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "SlurmUser="
-    line: "SlurmUser={{ slurm_user }}"
-
-- name: Add db address
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "DbdAddr="
-    line: "DbdAddr={{ dbd_addr }}"
-
-- name: Add db host
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "DbdHost="
-    line: "DbdHost={{ dbd_host }}"
-
-- name: Add storage password
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "StoragePass="
-    line: "StoragePass={{ hostvars['127.0.0.1']['db_password'] }}"
-
-- name: Add storage user
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "StorageUser="
-    line: "StorageUser={{ slurm_user }}"
-
-- name: Add log file path
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "LogFile="
-    line: "LogFile={{ logfile }}"
-
-- name: Add pid file path
-  ansible.builtin.lineinfile:
-    path: "{{ slurmdbd_path }}"
-    regexp: "PidFile="
-    line: "PidFile={{ pidfile }}"

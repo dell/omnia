@@ -124,14 +124,6 @@
   when:
     - (ucx_support is true) or (openmpi_support is true)
 
-- name: Print the Warning message for slurm_share with ubuntu
-  ansible.builtin.pause:
-    seconds: "{{ warning_wait_time }}"
-    prompt: "{{ slurm_share_on_ubuntu_warning_msg }}"
-  when:
-    - ( nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1)
-    - cluster_os_type == compute_os_ubuntu
-
 - name: Update nfs_client_support
   ansible.builtin.set_fact:
     nfs_client_support: true

@@ -12,12 +12,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Set compute os
+  ansible.builtin.set_fact:
+    get_compute_os: "{{ ansible_distribution | lower }}"
+
+- name: Include vars for {{ get_compute_os }}
+  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ get_compute_os }}.yml"
 
 - name: Get slurm info output if slurm is installed
-  ansible.builtin.command: 'sinfo -h --format="%N"'
+  ansible.builtin.shell: |
+    set -o pipefail
+    scontrol show node | awk '/NodeName/ {print $1}' | cut -d= -f2 | paste -sd ',' -
   register: slurm_info
   changed_when: false
-  delegate_to: "{{  groups['slurm_control_node'] | first }}"
+  delegate_to: "{{ groups['slurm_control_node'] | first }}"
   run_once: true
 
 - name: Get nodelist
@@ -27,7 +35,9 @@
   run_once: true
 
 - name: Update slurm_node state as down before removing from slurm cluster (make sure that jobs are not running on slurm node and node is in drain state)
-  when: status == 'booted' and node_list is defined and node_hostname in node_list
+  when:
+    - "'slurm_node' in ansible_run_tags"
+    - status == 'booted' and node_list is defined and node_hostname in node_list
   ansible.builtin.command: 'scontrol update NodeName={{ node_hostname }} state=DOWN reason="Removing from cluster"'
   register: result
   until: result.rc == 0
@@ -93,6 +103,8 @@
     replace: '\1\3'
   failed_when: false
   delegate_to: "{{ groups['slurm_control_node'] | first }}"
+  when: "'slurm_node' in ansible_run_tags"
+  throttle: 1
 
 - name: Remove hostname from NoneName details of slurm.conf
   ansible.builtin.lineinfile:
@@ -101,6 +113,7 @@
     regexp: '^NodeName={{ node_hostname }}(\s.*)$'
   delegate_to: "{{ groups['slurm_control_node'] | first }}"
   failed_when: false
+  throttle: 1
 
 - name: Start slurm services on slurm_control_node if allowed
   when:
@@ -198,3 +211,6 @@
         state: absent
       failed_when: false
       changed_when: false
+
+- name: Update firewall Rules
+  ansible.builtin.include_tasks: update_firewall_{{ ansible_distribution | lower }}.yml

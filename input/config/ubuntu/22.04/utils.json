@@ -1,0 +1,9 @@
+{
+    "utils": {
+        "cluster": [
+            {"package": "sshpass", "type": "deb", "repo_name": "jammy"},
+            {"package": "pdsh", "type": "deb", "repo_name": "jammy"},
+            {"package": "clustershell", "type": "deb", "repo_name": "jammy"}
+        ]
+    }
+}

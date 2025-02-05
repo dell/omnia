@@ -14,11 +14,14 @@
 ---
 
 # Usage: pre_requisites_ubuntu.yml
+ubuntu_containerd_version:
+  ubuntu20: 1.6.16-1
+  ubuntu22: 1.6.16-1
+  ubuntu24: 1.6.33-1
 containerd_str: "containerd.io"
-containerd_version: '1.6.16-1'
-containerd_url: "https://download.docker.com/linux/ubuntu/dists/{{ ansible_distribution_release }}\
-/pool/stable/amd64/containerd.io_{{ containerd_version }}_amd64.deb"
+containerd_url: "https://download.docker.com/linux/ubuntu/dists/{{ ansible_distribution_release }}/pool/stable/amd64/containerd.io_{{ containerd_version }}_amd64.deb" # noqa: yaml[line-length]
 containerd_deb_dest: "{{ temp_download_dir }}/containerd.io_{{ containerd_version }}_amd64.deb"
+warning_wait_time: 30
 nerdctl_url: "https://github.com/containerd/nerdctl/releases/download/v1.7.4/nerdctl-full-1.7.4-linux-amd64.tar.gz"
 nerdctl_archive_dest: "{{ temp_download_dir }}/nerdctl-1.7.4-linux-amd64.tar.gz"
 nerdctl_folder_dest: "{{ temp_download_dir }}/nerdctl/bin/nerdctl"
@@ -30,3 +33,6 @@ cni_url: "https://github.com/containernetworking/plugins/releases/download/v1.4.
 cni_archive_dest: "{{ cni_bin_download_dir }}/cni-plugins-linux-amd64-v1.4.0.tgz"
 cni_mode: "u+rwx,go+rx"
 max_retries: 10
+ubuntu20_version: "20.04"
+ubuntu22_version: "22.04"
+ubuntu24_version: "24.04"

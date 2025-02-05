@@ -18,11 +18,11 @@
     name: "{{ slurm_packages }}"
     state: present
   tags: install
-  when: os_supported_leap not in compute_os
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
 
 - name: Install packages for slurm
   ansible.builtin.package:
-    name: "{{ leap_slurm_packages }}"
+    name: "{{ slurm_packages_ubuntu }}"
     state: present
   tags: install
-  when: os_supported_leap in compute_os
+  when: ansible_distribution | lower == "ubuntu"

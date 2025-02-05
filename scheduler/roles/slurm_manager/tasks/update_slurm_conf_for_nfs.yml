@@ -12,30 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Set bash_rc_path for Ubuntu
+  ansible.builtin.set_fact:
+    bashrc_path_final: "{{ bashrc_path_ubuntu }}"
+  when: ansible_distribution | lower == 'ubuntu'
 
-- name: Add slurm plugindir
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "PluginDir="
-    line: "PluginDir={{ plugin_slurm_dir }}"
-
-- name: Add slurm State Save Location
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "StateSaveLocation="
-    line: "StateSaveLocation={{ spool_dir }}"
-
-- name: Add slurm MailProg
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "MailProg="
-    line: "MailProg={{ mail_prog_dir }}"
-
-- name: Comment out SlurmctldParameters entry in slurm.conf
-  ansible.builtin.lineinfile:
-    path: "{{ slurm_confpth }}"
-    regexp: "^#?\\s*SlurmctldParameters"
-    line: "# SlurmctldParameters"
+- name: Set bash_rc_path for non-Ubuntu
+  ansible.builtin.set_fact:
+    bashrc_path_final: "{{ bashrc_path }}"
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
 
 - name: Check if environment variables are set
   ansible.builtin.command: echo $SLURM_CONF
@@ -59,7 +44,7 @@
 
     - name: Replace SLURM_CONF variable
       ansible.builtin.lineinfile:
-        path: "{{ bashrc_path }}"
+        path: "{{ bashrc_path_final }}"
         regexp: '^SLURM_CONF=*'
         insertafter: EOF
         line: 'export SLURM_CONF={{ slurm_nfs_folder }}/etc/slurm/slurm.conf'
@@ -67,3 +52,24 @@
 - name: Source /etc/bashrc
   ansible.builtin.shell: source  "{{ bashrc_path }}" # noqa: command-instead-of-shell
   changed_when: false
+  when: ansible_distribution | lower is in ['redhat', 'rocky']
+
+- name: Cgroup configuration - cgroup.conf
+  ansible.builtin.template:
+    src: "{{ cgroup_conf_template }}"
+    dest: "{{ slurm_nfs_folder }}/etc/slurm/cgroup.conf"
+    mode: "{{ cgroup_mode }}"
+  when: ansible_distribution | lower == "ubuntu"
+
+- name: Create symbolic link for cgroup.conf
+  ansible.builtin.file:
+    src: "{{ slurm_nfs_folder }}/etc/slurm/cgroup.conf"
+    dest: "{{ nfs_slurm_main_dest }}/cgroup.conf"
+    state: link
+    force: true
+  when: ansible_distribution | lower == "ubuntu"
+
+- name: Source /etc/bashrc
+  ansible.builtin.shell: "bash -i -c 'source {{ bashrc_path_ubuntu }}'" # noqa: command-instead-of-shell
+  changed_when: false
+  when: ansible_distribution | lower == "ubuntu"

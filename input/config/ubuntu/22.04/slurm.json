@@ -1,0 +1,22 @@
+{
+    "slurm": {
+        "cluster": [
+            {"package": "slurmctld", "type": "deb", "repo_name": "jammy"},
+            {"package": "slurmd", "type": "deb", "repo_name": "jammy"},
+            {"package": "slurm-client", "type": "deb", "repo_name": "jammy"},
+            {"package": "slurmdbd", "type": "deb", "repo_name": "jammy"},
+            {"package": "mariadb-server", "type": "deb", "repo_name": "jammy"},
+            {"package": "munge", "type": "deb", "repo_name": "jammy"},
+            {"package": "libmunge2", "type": "deb", "repo_name": "jammy"},
+            {"package": "libpmix-bin", "type": "deb", "repo_name": "jammy"},
+            {"package": "libpmix2", "type": "deb", "repo_name": "jammy"},
+            {"package": "libpmi2-0-dev", "type": "deb", "repo_name": "jammy"},
+            {"package": "mpi-default-dev", "type": "deb", "repo_name": "jammy"},
+            {"package": "environment-modules", "type": "deb", "repo_name": "jammy"},
+            {"package": "gcc", "type": "deb", "repo_name": "jammy"},
+            {"package": "g++", "type": "deb", "repo_name": "jammy"},
+            {"package": "clang", "type": "deb", "repo_name": "jammy"}
+
+        ]
+    }
+}

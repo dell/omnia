@@ -14,74 +14,33 @@
 ---
 
 slurm_packages:
-   - gcc
-   - openssl
-   - numactl
-   - hwloc
-   - lua
-   - readline
-   - perl-ExtUtils-MakeMaker
-   - rpm-build
-   - perl-DBI
-   - perl-Switch
-   - libibumad
-   - git
    - slurm-slurmctld
    - slurm-slurmdbd
+   - mariadb-server
+   - mariadb-devel
 
-nfs_dev_packages:
-   - gcc
-   - openssl
-   - numactl
-   - hwloc
-   - lua
-   - readline
-   - perl-ExtUtils-MakeMaker
-   - rpm-build
-   - perl-DBI
-   - perl-Switch
-   - libibumad
-   - git
+
+ufw_package: ufw
+
+slurm_packages_ubuntu:
+   - slurmctld
+   - slurmdbd
+   - slurm-client
+   - mariadb-server
 
 nfs_slurm_packages:
    - slurm-slurmctld
    - slurm-slurmdbd
 
-# Usage: install_dev_packages.yml
-rocky_dev_tools:
-   - rrdtool-devel
-   - lua-devel
-   - hwloc-devel
-   - libssh2-devel
-   - pam-devel
-   - readline-devel
-   - openssl-devel
-   - numactl-devel
-   - ncurses-devel
-   - gtk2-devel
-
-rhel_dev_tools:
-   - rrdtool-devel
-   - lua-devel
-   - hwloc-devel
-   - pam-devel
-   - readline-devel
-   - openssl-devel
-   - numactl-devel
-   - ncurses-devel
-   - gtk2-devel
-
 log_files_manager:
    - slurm_jobacct.log
    - slurm_jobcomp.log
 
-leap_slurm_packages:
-   - slurm-slurmdbd
-   - git
 slurm_installation_type: "{{ hostvars['localhost']['slurm_installation_type'] }}"
 slurm_share_path: "{{ hostvars['localhost']['share_path'] }}"
 tmp_mode: "0755"
 bashrc_path: "/etc/bashrc"
+bashrc_path_ubuntu: "/etc/bash.bashrc"
 cluster_state_path: "/var/spool/slurm/cluster_state"
 default_slurmdbd_path: "/etc/slurm/slurmdbd.conf"
 tcp_port1: "6817/tcp"
@@ -93,6 +52,7 @@ udp_port1: "6817/udp"
 udp_port2: "6818/udp"
 udp_port3: "6819/udp"
 udp_port4: "6820/udp"
+srun_port: "60001:63000"
 family: "ipv4"
 db_user: "slurm"
 db_host: "localhost"
@@ -106,6 +66,7 @@ etc_folder: "/etc"
 etcl_slurm_folder: "/etc/slurm"
 buffer_path: "/tmp/slurm.conf"
 slurm_mode: "0644"
+cgroup_mode: "0644"
 
 nfs_slurm_main_dest: "/etc/slurm"
 cluster_name: "slurm_control_node,slurm_node"
@@ -115,6 +76,7 @@ srun_port_range: "60001-63000"
 acct_port: "6819"
 slurm_uid: "6001"
 plugin_slurm_dir: "/usr/lib64/slurm"
+plugin_slurm_dir_ubuntu: "/usr/lib/x86_64-linux-gnu/slurm-wlm"
 slurmdbd_services_dir: "/etc/systemd/system/slurmdbd.service"
 slurmctld_services_dir: "/etc/systemd/system/slurmctld.service"
 cgroup_conf: "/etc/cgroup.conf"
@@ -124,8 +86,24 @@ innodb_conf_dir: "/etc/my.cnf.d"
 
 os_centos: 'centos'
 os_rocky: 'rocky'
-os_supported_leap: "leap"
 os_supported_redhat: "redhat"
 os_supported_rocky: "rocky"
 max_retries: 10
 dnf_conf_path: /etc/dnf/dnf.conf
+
+# Usage: update_slurm_conf.yml
+slurm_conf_template: "templates/slurm.conf.j2"
+cgroup_conf_template: "templates/cgroup.conf.j2"
+
+# Usage: update_slurmdbd_conf.yml
+slurmdbd_conf_template: "templates/slurmdbd.conf.j2"
+# Usage: prereq.yml
+bin_src: "/usr/bin"
+bin_dest: "{{ slurm_share_path }}/slurm/bin"
+lib_src: "/usr/lib"
+lib_dest: "{{ slurm_share_path }}/slurm/lib"
+lib64_src: "/usr/lib64"
+lib64_dest: "{{ slurm_share_path }}/slurm/lib64"
+sbin_src: "/usr/sbin"
+sbin_dest: "{{ slurm_share_path }}/slurm/sbin"
+lib64_ubuntu_dest: "/usr/lib/x86_64-linux-gnu/slurm-wlm"
