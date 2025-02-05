@@ -32,16 +32,41 @@ node_details = {}
 # and updates the same to postgresSQL database.
 class MonitoringThread(threading.Thread):
     def run(self):
+        """
+        Executes the main function of the MonitoringThread.
+
+        This function reads the node details every 3 minutes and updates the database.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+        """
         node_details = get_node_details()
         add_details_to_db()
 
-# get_node_details() function runs 2 commands on management station:
+# get_node_details() function runs 2 commands on OIM:
 # nodels all nodelist.status : to check status of all nodes
 # lsdef <nodename> | grep mac : to check mac address of the node
 # These details are then stored in a dictionary format like: node_details[nodename]= [status, mac]
 # where node_details is the dictionary name, nodename is the key to dictionary
 # value corresponding to each key is an array comprising of node status and mac address
 def get_node_details():
+    """
+    Retrieves the details of all the nodes from the OIM.
+
+    This function runs two commands on the OIM to get the details of all the nodes.
+    The first command is '/opt/xcat/bin/nodels all nodelist.status' to check the status of all the nodes.
+    The second command is '/opt/xcat/bin/lsdef <nodename> | grep mac' to check the MAC address of the node.
+
+    Parameters:
+        None
+
+    Returns:
+        A dictionary containing the details of all the nodes. The dictionary has the node name as the key
+        and the value is a list containing the status and MAC address of the node.
+    """
     node_status_cmd = '/opt/xcat/bin/nodels all nodelist.status'
     temp = subprocess.run([node_status_cmd], shell=True,capture_output=True,text=True)
     output = temp.stdout
@@ -78,6 +103,28 @@ def get_node_details():
 # MAC of node will also be updated in DB if MAC address given by XCAT is a valid MAC address 
 # and if current mac address is None. 
 def add_details_to_db():
+    """
+    Connects to the database, retrieves node information from the database, and updates the database based on certain conditions.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+
+    Notes:
+        - Retrieves node information from the database using the `get_node_info_db` function.
+        - If the node information is not found in the database, a log message is generated.
+        - If the current status of the node is 'booted' and the status in the database is not 'booted',
+          the function collects the latest CPU and GPU details from the computes.log file
+          using the `get_updated_cpu_gpu_info` function and updates the database and inventory
+          using the `update_db` and `update_inventory` functions.
+        - If the current status of the node is not the same as the status in the database,
+          the function updates the status in the database.
+        - If the admin MAC address in the database is empty and the admin MAC address provided by XCAT is a valid MAC address,
+          the function updates the admin MAC address in the database.
+        - If the service tag in the database is empty, the function updates the service tag in the database.
+    """
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
 
@@ -111,6 +158,22 @@ def add_details_to_db():
 
 
 def main():
+    """
+    Executes the main function of the program.
+
+    This function creates an instance of the MonitoringThread class and sets its Daemon attribute to True.
+    It then starts the MonitoringThread.
+
+    If an exception occurs during the execution of the MonitoringThread, the exception is caught and the
+    message "Exception thrown by the monitoring thread: <exception message>" is printed. The program
+    exits with a status code of 1.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     try:
         MonitoringThreadObject = MonitoringThread()
         MonitoringThreadObject.Daemon = True

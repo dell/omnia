@@ -23,6 +23,18 @@ import calculate_ip_details
 
 
 def validate(ip_range):
+    """
+    Validates an IP range.
+
+    Args:
+        ip_range (str): The IP range to validate.
+
+    Returns:
+        str: The validated IP range.
+
+    Raises:
+        ValueError: If the IP range format is invalid.
+    """
     # Define regex patterns
     cidr_pattern = r'^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
     range_pattern = r'^(\d{1,3}\.){3}\d{1,3}-\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
@@ -51,17 +63,17 @@ if len(sys.argv) > 3:
 
 def cal_ranges(start_ip, end_ip):
     """
-      Checks whether the bmc ranges given for bmcdiscovery is valid or not i.e. whether
-      it is based on the nmap standards that xCAT supports
+	Generate a range of IP addresses based on the start and end IP addresses.
 
-      Parameters:
-          start_ip: Start ip of the range given.
-          end_ip: End ip of the range given.
+	Parameters:
+	- start_ip (str): The starting IP address.
+	- end_ip (str): The ending IP address.
 
-      Returns:
-          range_status: bool value, whether the range provided is valid or not
-          final_range: Final valid range in nmap format.
-       """
+	Returns:
+	- range_status (str): The status of the range. "true" if the range is valid, "false" otherwise.
+	- final_range (str): The generated range of IP addresses.
+	"""
+
     final_range = ""
     range_status = "true"
     for i in range(0, 3):
@@ -84,13 +96,13 @@ def cal_ranges(start_ip, end_ip):
 
 def create_ranges_dynamic(bmc_mode):
     """
-        Calls the function to calculate and validate the ranges for dyanmic bmcdiscovery.
+    Create ranges dynamically based on the given BMC mode.
 
-          Parameters:
-              bmc_mode: What way bmc is getting discovered.
+    Args:
+        bmc_mode (str): The mode of BMC discovery.
 
-          Calls:
-              if range is valid, call the function run_bmc_discover, for running bmcdiscovery.
+    Returns:
+        None
     """
     temp = bmc_dynamic_range.split('-')
     start_ip = temp[0].split('.')
@@ -104,14 +116,15 @@ def create_ranges_dynamic(bmc_mode):
 
 def create_ranges_static(bmc_mode):
     """
-        Calls the function to calculate and validate the ranges for static bmcdiscovery.
+	Create static ranges based on the given bmc_mode.
 
-          Parameters:
-              bmc_mode: What way bmc is getting discovered.t
+	Parameters:
+		bmc_mode (str): The mode of the BMC.
 
-          Calls:
-              if range is valid, call the function run_bmc_discover, for running bmcdiscovery.
-       """
+	Returns:
+		None
+	"""
+
     temp = bmc_static_range.split('-')
     start_ip = temp[0].split('.')
     end_ip = temp[1].split('.')
@@ -124,14 +137,15 @@ def create_ranges_static(bmc_mode):
 
 def create_ranges_discovery(bmc_mode):
     """
-        Calls the function to calculate and validate the ranges for discovery bmcdiscovery.
+	Create ranges for BMC discovery.
 
-          Parameters:
-              bmc_mode: What way bmc is getting discovered.
+	Parameters:
+		bmc_mode (str): The mode of the BMC.
 
-          Calls:
-            if range is valid, call the function run_bmc_discover, for running bmcdiscovery.
-           """
+	Returns:
+		None
+	"""
+
     discover_range_list = discovery_ranges.split(',')
     for ip_range in discover_range_list:
         ip_obj = validate(ip_range)
@@ -156,16 +170,19 @@ def create_ranges_discovery(bmc_mode):
 
 def run_bmc_discover(final_range, stanza_path, bmc_mode):
     """
-        Calls the function to run bmcdiscovery over the ranges.
+	Runs BMC discovery on a range of IP addresses.
+    Creates proper stanza file with results of bmcdiscovery, else it gets timed out.
 
-        Parameters:
-          final_range: Valid range on which bmcdiscovery can be performed
-          stanza_path: File in which bcmdiscovery result will be stored.
-          bmc_mode: what way bmcs are getting discovered.
-        Returns:
-          Proper stanza file with results of bmcdiscovery, else it gets timed out.
 
-    """
+	Parameters:
+		final_range (str): The range of IP addresses to discover.
+		stanza_path (str): The path to the stanza file.
+		bmc_mode (str): The mode of the BMC.
+
+	Returns:
+		None
+	"""
+
 
     if bmc_mode == "static" or bmc_mode == "discovery":
         command = ["/opt/xcat/bin/bmcdiscover", "--range", final_range, "-z"]
@@ -182,8 +199,14 @@ def run_bmc_discover(final_range, stanza_path, bmc_mode):
 
 def create_ranges():
     """
-            Calls the function to create ranges for different mtms discovery mode.
-    """
+	Calls the function to create ranges for different mtms discovery mode.
+
+	Parameters:
+		None
+
+	Returns:
+		None
+	"""
 
     if len(sys.argv) > 3:
         if discovery_ranges != "0.0.0.0":

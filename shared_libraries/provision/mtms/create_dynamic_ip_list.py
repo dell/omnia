@@ -32,10 +32,21 @@ dynamic_ip_path = "/opt/omnia/dynamic_ip_list"
 
 def create_temp_ip_list():
     """
-       Creates a list of ips present in dhcpd.leases
-       Calls:
-        function that will extract possible bmc ips from the list of available ips.
-    """
+	Creates a temporary list of IP addresses present in the dhcpd.leases file.
+
+	Parameters:
+	- None
+
+	Returns:
+	- None
+
+	This function reads the dhcpd.leases file and extracts all the IP addresses present in the file.
+	It uses a regular expression pattern to match the IP addresses.
+	The extracted IP addresses are then appended to the `ip_list` list.
+
+	After extracting the IP addresses, the function calls the `extract_possible_bmc_ip()` function.
+	"""
+
     # opening and reading the file
     with open(dhcp_file_path) as file:
         fstring = file.readlines()
@@ -56,10 +67,23 @@ def create_temp_ip_list():
 
 def extract_possible_bmc_ip():
     """
-       Extracts the possible bmc ips from the available list of ips
-       Returns:
-         Valid bmc ip list
-    """
+	Extracts the possible BMC IPs from the available list of IPs.
+
+	Parameters:
+	- None
+
+	Returns:
+	- None
+
+	This function iterates over the `ip_list` and checks if each IP is part of the `bmc_subnet`.
+	If it is, the IP is added to the `temp_ip_list`.
+
+	Then, for each IP in the `temp_ip_list`, a ping command is executed.
+	If the ping is successful (return code is 0), the IP is added to the `valid_ip_list`.
+
+	Finally, the `valid_ip_list` is sorted and passed to the `create_dynamic_ip_file()` function.
+	"""
+
     temp_ip_list = []
     for ip in set(ip_list):
         net = ipaddress.ip_network(f"{ip}/{bmc_netmask}", strict=False)
@@ -84,12 +108,16 @@ def extract_possible_bmc_ip():
 
 def create_dynamic_ip_file(valid_ip_list):
     """
-       Write the valid bmc ips in a file
-       Parameters:
-         valid_ip_list: valid bmc ip lists
-       Returns:
-         a file with bmc_ips written in it.
-    """
+	Create a file named "dynamic_ip_list" in the "/opt/omnia/" directory.
+	The file contains a list of valid IP addresses, each on a new line.
+
+	Parameters:
+	- valid_ip_list (list): A list of valid IP addresses.
+
+	Returns:
+	- None
+	"""
+
     with open(dynamic_ip_path, 'w') as fp:
         for ip in valid_ip_list:
             fp.write("%s\n" % ip)

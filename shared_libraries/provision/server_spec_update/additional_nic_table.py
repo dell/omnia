@@ -26,24 +26,23 @@ with open(network_spec_file_path, "r") as file:
 
 def create_nicinfo_table():
     """
-    Creates a table named 'nicinfo' in the 'cluster' schema if it doesn't already exist.
-    The table has columns for 'ID', 'category', and additional columns based on the
-    'Networks' data. The 'ID' column is a serial number, primary key, and unique.
-    The 'category' column is a VARCHAR of length 60.
-    The 'ID' column has a foreign key constraint referencing the 'id' column in the
-    'nodeinfo' table.
-    The function iterates over the 'Networks' data and adds additional columns to the
-    'nicinfo' table based on the keys and values in the data. If a key is not in the
-    list ('admin_network', 'bmc_network'), and the corresponding value has a 'VLAN'
-    key, then the function adds columns for the key, the key with '_ip' appended,
-    the key with '_type' appended, the key with '_metric' appended, and the key with
-    '_device' appended. If the key is not in the list and the corresponding value
-    does not have a 'VLAN' key, then the function adds columns for the key, the key
-    with '_ip' appended, the key with '_type' appended, and the key with '_metric'
-    appended.
-    The function commits the changes to the database and prints a message.
-    The function closes the cursor.
-    """
+	Create the 'nicinfo' table in the 'cluster' schema if it doesn't already exist.
+
+	The table has columns for various network related information such as IP addresses, types, and metrics.
+	It also has a foreign key constraint to the 'nodeinfo' table in the 'cluster' schema.
+
+	The function also dynamically adds columns to the 'nicinfo' table based on the data in the 'Networks' list.
+	If the 'VLAN' key is present in the data, it also adds columns for the VLAN information.
+
+	Finally, it commits the changes to the database and prints a success message.
+
+	Parameters:
+	None
+
+	Returns:
+	None
+	"""
+
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
     sql = '''CREATE TABLE IF NOT EXISTS cluster.nicinfo(

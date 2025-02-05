@@ -23,6 +23,18 @@ import sys
 import calculate_ip_details
 
 def validate(ip_range):
+    """
+    Validates the format of an IP range.
+
+    Args:
+        ip_range (str): The IP range to validate.
+
+    Returns:
+        str: The validated IP range.
+
+    Raises:
+        ValueError: If the IP range format is invalid.
+    """
     # Define regex patterns
     cidr_pattern = r'^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
     range_pattern = r'^(\d{1,3}\.){3}\d{1,3}-\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
@@ -38,15 +50,16 @@ netmask_bits = sys.argv[2]
 
 def create_network_name(nw_name, subnet):
     """
-    Create a network name based on the given network name and subnet.
+	Create a network name based on the given network name and subnet.
 
-    Args:
-        nw_name (str): The base network name.
-        subnet (str): The subnet address.
+	Args:
+	    nw_name (str): The base network name.
+	    subnet (str): The subnet address.
 
-    Returns:
-        str: The generated network name.
-    """
+	Returns:
+	    str: The generated network name.
+	"""
+
     subnet = str(subnet)
     temp = subnet.split('.')
     n_w_name = nw_name + "_" + temp[0] + "_" + temp[1] + "_" + temp[2] + "_" + temp[3]
@@ -55,10 +68,23 @@ def create_network_name(nw_name, subnet):
 
 def update_networks_table():
     """
-      Insert the network details in the xCAT networks table
-      Returns:
-       an updated networks table with details of various bmc discovery ranges inserted as a network.
-    """
+	Inserts the network details in the xCAT networks table.
+
+	This function takes a comma-separated string of IP ranges and a netmask,
+	validates the IP ranges, and inserts the network details in the xCAT
+	networks table.
+
+	Parameters:
+	- None
+
+	Returns:
+	- None
+
+	Raises:
+	- subprocess.CalledProcessError: If there is an error while running the
+		command to insert the network details.
+	"""
+
     ip_ranges = []
     if discovery_ranges:
         ip_ranges = discovery_ranges.split(',')

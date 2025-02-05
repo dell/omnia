@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,9 +23,15 @@ import subprocess
 import os
 
 def delete_node_info_from_oim(nodename):
-    '''
-    This modules deletes node object
-    '''
+    """
+    Deletes node information from Omnia Infrastructure Manager.
+
+    Parameters:
+    - nodename (str): The name of the node to be deleted.
+
+    Returns:
+    - None
+    """
 
     try:
         # Delete the entry from /etc/hosts
@@ -52,9 +58,17 @@ def delete_node_info_from_oim(nodename):
 
 
 def delete_node_info_from_inventory_files(inv_file_folder, nodeinfo):
-    '''
-    This module deletes node information from invenotry files
-    '''
+    """
+    Deletes information from inventory files.
+
+    Parameters:
+    - inv_file_folder (str): The path to the folder containing the inventory files.
+    - nodeinfo (str): The node information to be deleted.
+
+    Returns:
+    - None
+    """
+
     print("Deleting information from inventory files if exists..."+nodeinfo)
 
     servicetag = ''

@@ -27,6 +27,15 @@ nan = float('nan')
 
 
 def ip_within_range(ip):
+    """
+    Check if the given IP address is within the admin static IP range.
+
+    Args:
+        ip (ipaddress.IPv4Address): The IP address to check.
+
+    Raises:
+        SystemExit: If the IP address is not within the admin static IP range.
+    """
     admin_start_ip = ipaddress.IPv4Address(admin_static_start_ip)
     admin_end_ip = ipaddress.IPv4Address(admin_static_end_ip)
     if ip < admin_start_ip or ip > admin_end_ip:
@@ -35,6 +44,15 @@ def ip_within_range(ip):
 
 
 def not_nan_val(ip):
+    """
+    Check if the given IP address is not NaN.
+
+    Args:
+        ip (Any): The IP address to check.
+
+    Returns:
+        bool: True if the IP address is not NaN, False otherwise.
+    """
     if pd.notna(ip):
         ipaddress.ip_address(ip)
         return True
@@ -43,12 +61,33 @@ def not_nan_val(ip):
 
 
 def valid_st(df):
+    """
+    Check if all the service tags in the given dataframe are alphanumeric.
+
+    Args:
+        df (pandas.DataFrame): The dataframe containing the 'SERVICE_TAG' column.
+
+    Raises:
+        SystemExit: If a service tag is not alphanumeric.
+    """
     for st in df['SERVICE_TAG']:
         if not str(st).isalnum():
             sys.exit("Please provide proper Service_tag" + st)
 
 
 def valid_ip(df):
+    """
+    Validates the IP addresses in the given DataFrame.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing the IP addresses.
+
+    Raises:
+        SystemExit: If an invalid IP address is found.
+
+    Returns:
+        None
+    """
     nan = float('NaN')
     try:
         for ip in df['ADMIN_IP']:
@@ -67,6 +106,18 @@ def valid_ip(df):
 
 
 def valid_mac(df):
+    """
+    Checks if the admin_mac in the given dataframe is of a proper format or not.
+
+    Parameters:
+        df (pandas.DataFrame): The dataframe containing the 'ADMIN_MAC' column.
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: If the admin_mac is not of a proper format.
+    """
     # Checks if admin_mac is of proper format or not
     pattern = r"^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$"
     for mac in df['ADMIN_MAC']:
@@ -76,6 +127,18 @@ def valid_mac(df):
 
 
 def unique_val_col(df):
+    """
+    Check if all the columns in the given dataframe have unique values.
+
+    Parameters:
+        df (pandas.DataFrame): The dataframe to check.
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: If any of the columns have non-unique values.
+    """
     # Check if all the columns have unique values
 
     if df['SERVICE_TAG'].unique().size != df['SERVICE_TAG'].size:
@@ -98,6 +161,15 @@ def unique_val_col(df):
 
 
 def validate_col(df):
+    """
+    Validates the presence of necessary columns and the absence of null values in a dataframe.
+
+    Args:
+        df (pandas.DataFrame): The dataframe to validate.
+
+    Raises:
+        SystemExit: If any of the necessary columns are missing or if any of the non-null columns contain null values.
+    """
     curr_cols = df.columns
     # Check if necessary columns are present or not.
     for i in mandatory_col:
@@ -115,6 +187,29 @@ def validate_col(df):
 
 
 def read_mapping_csv():
+    """
+    Read a CSV file given a CSV path.
+
+    This function reads a CSV file located at the path specified by the global variable `mapping_file_path`.
+    It first attempts to read the file using the `pd.read_csv()` function. If the file is empty (i.e.,
+    `len(csv_file) == 0`), it exits the program with an error message.
+
+    The function then applies the `lambda` function to each column of the DataFrame, stripping any whitespace
+    from the column values. The column names are also stripped of whitespace.
+
+    Finally, the function calls the `validate_col()` function to validate the columns of the DataFrame.
+
+    If any errors occur during the execution of the function, the program exits with an error message.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        SystemExit: If the CSV file is empty or if there is an issue with parsing the file.
+    """
     # def a function to read a csv file given a csv path
     try:
         csv_file = pd.read_csv(mapping_file_path)
