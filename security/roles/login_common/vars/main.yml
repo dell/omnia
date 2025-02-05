@@ -39,6 +39,7 @@ os_centos: 'centos'
 os_rocky: 'rocky'
 os_leap: 'leap'
 os_redhat: 'redhat'
-os_version: '8.0'
+os_version_eight: '8.0'
+os_version_nine: '9.0'
 yum_distro_exclude1: "kernel*,NetworkManager*,grub*,systemd*,container*,redhat*,subscription-manager*,openmpi*,mpitests_openmpi*"
 yum_distro_exclude2: "opensm*,ucx*,rdma*,infiniband*,ibacm*,libibumad*,srp_daemon*,libibverbs*,librdmacm*,perftest*,qperf*"

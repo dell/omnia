@@ -26,7 +26,7 @@ pcs_directories:
   - { path: "{{ pcs_container_dir }}", mode: "{{ read_write_execute_mode }}" }
   - { path: "{{ container_systemd_dir }}", mode: "{{ read_write_mode }}" }
 
-migration_threshold: 2
+migration_threshold: 0
 pcs_startup_file:
   - {template: "pcs-start.sh.j2", dest: "{{ oim_shared_path }}/omnia/pcs/pcs-start.sh", mode: "{{ read_write_execute_mode }}" }
   - {template: "corosync.conf.j2", dest: "{{ oim_shared_path }}/omnia/pcs/corosync.conf", mode: "{{ read_write_mode }}" }
@@ -52,3 +52,44 @@ pcs_container_failure_msg: |
   The deployment of the {{ pcs_container_name }} container has failed. To resolve this issue,
   please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
   After the cleanup, you can re-run the original playbook to deploy the {{ pcs_container_name }} container successfully.
+
+  
+#Usage: pcs-start.sh.j2:Common
+omnia_nfs_share: "{{ oim_shared_path }}/omnia"  # Define NFS share path
+oim_metadata_file: "{{ omnia_nfs_share }}/.data/oim_metadata.yml"
+monitor_interval: "30s"
+monitor_timeout: "20s"
+start_interval: "0s"
+start_timeout: "20s"
+stop_interval: "0s"
+stop_timeout: "90s"
+
+#Usage: pcs-start.sh.j2: omnia_core
+omnia_core_name: "omnia_core"
+core_container_image_tag: "latest"
+core_container_name: "omnia_core"
+omnia_core_image: "{{ omnia_core_name }}:{{ core_container_image_tag }}"
+omnia_core_run_opts: " -dt --hostname {{ omnia_core_name}} --restart=always --network=host -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -e ROOT_PASSWORD_HASH={{ hostvars['localhost']['omnia_core_hashed_passwd'] }} --name {{ omnia_core_name }} --cap-add=CAP_AUDIT_WRITE "
+
+#Usage: pcs-start.sh.j2: omnia_provision
+provision_container_name: "omnia_provision"
+provision_image_name: "omnia_provision"
+provision_image_tag: "latest"
+provision_image: "localhost/{{ provision_image_name }}:{{ provision_image_tag }}"
+omnia_nfs_share: "{{ oim_shared_path }}/omnia"
+provision_dir: "{{ omnia_nfs_share }}/provision"
+xcatdata_dir: "{{ provision_dir }}/xcatdata"
+pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
+install_dir: "{{ provision_dir }}/install"
+tftpboot_dir: "{{ provision_dir }}/tftpboot"
+hosts_file: "{{ omnia_nfs_share }}/hosts"
+provision_logs_dir: "{{ omnia_nfs_share }}/logs/provision"
+provision_run_opts: "-d --network=host --restart=always --hostname {{ oim_hostname }} --privileged -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v {{ xcatdata_dir }}:/xcatdata:z -v {{ install_dir }}:/install:z -v {{ tftpboot_dir }}:/tftpboot:z -v {{ provision_logs_dir }}/xcat:/var/log/xcat:z  -v {{ pgsql_data_dir }}:/var/lib/pgsql/data:z {{ hosts_file }}:/etc/hosts:z"
+
+#Usage: pcs-start.sh.j2: kubespray
+kubespray_image_name: "omnia_kubespray"
+kubespray_version: "{{ hostvars['localhost']['kubespray_version'] }}"
+kubespray_name: "omnia_kubespray_{{ kubespray_version }}"
+kubespray_image: "localhost/{{ kubespray_image_name }}:{{ kubespray_version }}"
+kubespray_run_opts: "-d -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ hosts_file }}:/etc/hosts:z --network=host --restart=always --cap-add AUDIT_WRITE"
+

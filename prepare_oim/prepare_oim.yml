@@ -54,9 +54,10 @@
   tags: deploy_containers
   roles:
     - role: deploy_containers/common  # noqa:role-name[path]
-    - role: deploy_containers/pcs  # noqa:role-name[path]
+    - role: deploy_containers/pulp  # noqa:role-name[path]
     - role: deploy_containers/provision  # noqa:role-name[path]
     - role: deploy_containers/kubespray  # noqa:role-name[path]
+    - role: deploy_containers/pcs  # noqa:role-name[path]
 
 - name: Add all containers to known hosts on omnia core
   hosts: localhost
@@ -86,6 +87,23 @@
         name: deploy_containers/provision
         tasks_from: configure_provision_container.yml
 
+- name: Configure Pulp container
+  hosts: localhost
+  tasks:
+    - name: Configure Pulp container tasks # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/pulp
+        tasks_from: create_pulp_config.yml
+
+- name: Reload pulp nginx
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Reload pulp nginx # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/pulp
+        tasks_from: reload_pulp_nginx.yml
+
 - name: Prepare oim completion
   hosts: localhost
   connection: local
@@ -94,3 +112,4 @@
       ansible.builtin.include_role:
         name: deploy_containers/common
         tasks_from: prepare_oim_completion.yml
+

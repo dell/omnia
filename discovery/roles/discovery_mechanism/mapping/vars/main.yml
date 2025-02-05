@@ -24,7 +24,7 @@ db_path: "{{ provision_shared_library_path }}/db_operations"
 
 # Usage: node_object_creation_mapping.yml
 mapping_node_group: "mapping"
-temp_pxe_file_path: "/opt/omnia/temp_pxe_file.csv"
+temp_pxe_file_path: "/opt/omnia/provision/temp_pxe_file.csv"
 file_mode: "0644"
 
 # Usage: check_nodes_mapping.yml

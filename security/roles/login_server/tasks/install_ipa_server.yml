@@ -30,9 +30,9 @@
       register: install_ipa_server
       when:
         - ( ansible_distribution | lower == os_centos )
-        - ( ansible_distribution_version < os_version )
+        - ( ansible_distribution_version < os_version_eight )
 
-    - name: Install ipa server in RHEL 8 or Rocky 8(It may take 5-10 mins)
+    - name: Install ipa server in RHEL or Rocky (It may take 5-10 mins)
       ansible.builtin.command: >-
         ipa-server-install -n '{{ hostvars['127.0.0.1']['domain_name'] }}' --hostname='{{ server_hostname }}'
         -a '{{ hostvars['127.0.0.1']['kerberos_admin_password'] }}' -p '{{ hostvars['127.0.0.1']['directory_manager_password'] }}'
@@ -44,7 +44,7 @@
         - ( ansible_distribution | lower == os_centos ) or
           ( ansible_distribution | lower == os_rocky ) or
           ( ansible_distribution | lower == os_redhat )
-        - ( ansible_distribution_version >= os_version )
+        - ( ansible_distribution_version >= os_version_eight )
   rescue:
     - name: Install ipa server failed
       ansible.builtin.fail:

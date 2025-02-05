@@ -1,4 +1,4 @@
-#  Copyright 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -11,26 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+
 ---
-
-# Usage: check_prerequisites.yml
-ipa_admin_username: admin
-
-# Usage: install_packages.yml
-ipa_server_packages:
-  - bind
-  - ipa-server
-  - bind-dyndb-ldap
-  - ipa-server-dns
-  - freeipa-server
-  - ipa-server-common
-
-resolv_conf_path: /etc/resolv.conf
-temp_resolv_conf_path: /tmp/resolv.conf
-resolv_file_mode: '0644'
-
-ipa_server_packages_rhel:
-  - bind
-  - ipa-server
-  - ipa-server-dns
-  - freeipa-server
+- name: Deploy pulp container tasks
+  ansible.builtin.include_tasks: deploy_pulp.yml

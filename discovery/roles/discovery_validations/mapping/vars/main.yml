@@ -30,7 +30,7 @@ temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
 admin_subnet_missing_msg: "Failed. Invalid IP {{ item }}. Missing admin subnet for IP {{ item }} provided in mapping file"
 capital_hostname_fail_msg: "Failed. Invalid hostname {{ item }}. Hostname should be in lower case and should not start with numbers.
 Refer documentation for more details."
-temp_pxe_file_path: "/opt/omnia/temp_pxe_file.csv"
+temp_pxe_file_path: "/opt/omnia/provision/temp_pxe_file.csv"
 file_mode: "0644"
 
 # Usage: validate_mapping_mechanism.yml

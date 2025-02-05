@@ -91,15 +91,15 @@ rhel_os_url:
 # If 'gpgkey' is kept empty then gpgcheck=0 for that repository
 omnia_repo_url_rhel:
   - { url: "https://download.docker.com/linux/centos/$releasever/$basearch/stable", gpgkey: "https://download.docker.com/linux/centos/gpg" }
-  - { url: "https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
-  - { url: "https://download.fedoraproject.org/pub/epel/8/Everything/$basearch", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8" }
+  - { url: "https://repo.radeon.com/rocm/rhel9/{{ rocm_version }}/main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+  - { url: "https://download.fedoraproject.org/pub/epel/9/Everything/$basearch", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9" }
   - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
-  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs" }
+  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel9", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs" }
   - { url: "https://yum.repos.intel.com/oneapi", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" }
   - { url: "https://ltb-project.org/rpm/openldap25/$releasever/$basearch", gpgkey: ""}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/$basearch", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey"}
-  - { url: "https://a2o.github.io/snoopy-packages/repo/centos/8/stable/", gpgkey: ""}
-
+  - { url: "https://a2o.github.io/snoopy-packages/repo/centos/9/stable/", gpgkey: ""}
+  
 # Mandatory
 # This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rocky.
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.

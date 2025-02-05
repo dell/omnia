@@ -1,0 +1,12 @@
+{
+    "freeipa": {
+        "cluster": [
+            {"package": "bind", "type": "rpm", "repo_name": "appstream"},
+            {"package": "ipa-server-dns", "type": "rpm", "repo_name": "appstream"},
+            {"package": "ipa-server", "type": "rpm", "repo_name": "appstream"},
+            {"package": "bind-utils", "type": "rpm", "repo_name": "appstream"},
+            {"package": "ipa-client", "type": "rpm", "repo_name": "appstream"},
+            {"package": "ipa-admintools", "type": "rpm", "repo_name": "appstream"}
+        ]
+    }
+}

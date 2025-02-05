@@ -63,3 +63,10 @@ pcs_firewall_services:
 prepare_oim_completion_msg: |
   The playbook prepare_oim.yml has completed successfully. To create the offline repositories and
   registry for the cluster nodes, please execute the playbook local_repo/local_repo.yml as the next step.
+
+# podman_login.yml
+login_cmd: "podman login -u {{ docker_username }} -p {{ docker_password }}"
+retry_count: "5"
+delay_time: "10"
+podman_login_fail_msg: "Podman login failed. Please ensure the podman login credentials in the input/provision_config_credentials.yml are valid.
+If they are, this error can occur due to a pull limit issue or multiple requests. Please try running the playbook again after waiting for a while."
