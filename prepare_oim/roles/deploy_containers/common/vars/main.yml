@@ -65,6 +65,8 @@ prepare_oim_completion_msg: |
   registry for the cluster nodes, please execute the playbook local_repo/local_repo.yml as the next step.
 
 # podman_login.yml
+docker_username: hostvars['localhost']['docker_username']
+docker_password: hostvars['localhost']['docker_password']
 login_cmd: "podman login -u {{ docker_username }} -p {{ docker_password }}"
 retry_count: "5"
 delay_time: "10"
