@@ -49,4 +49,4 @@ pcs resource create {{ kubespray_name }} ocf:heartbeat:podman \
 
 pcs resource group add omnia_containers {{ omnia_core_name }} {{ provision_container_name }} {% if hostvars['localhost']['k8s_support'] %} {{ kubespray_name }} {% endif %}
 
-pcs resource defaults migration-threshold={{ migration_threshold }}
+pcs resource defaults update migration-threshold={{ migration_threshold }}
