@@ -21,7 +21,7 @@ The local repository feature helps create offline repositories on the OIM, which
 
 **Create & Verify local repo**
 
-* To create local repositories, run the following commands: ::
+* To create local repositories, execute the following command: ::
 
     cd local_repo
     ansible-playbook local_repo.yml
