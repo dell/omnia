@@ -29,7 +29,6 @@
       file:
         path: "{{ pcs_service_file_path }}"
         state: absent
-
   rescue:
     - name: PCS container removal failed
       ansible.builtin.fail:
