@@ -74,4 +74,6 @@
     - name: Check installed omnia version and version to be upgraded is same
       ansible.builtin.fail:
         msg: "{{ already_upgraded }}"
-      when: installed_version is defined and installed_version in upgrade_omnia_version
+      when: 
+        - installed_version is defined
+        - installed_version is version(upgrade_omnia_version, '==')

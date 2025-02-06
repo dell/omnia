@@ -61,7 +61,7 @@ inventory_grps:
     - 'kube_node'
     - 'etcd'
     - 'k8s_cluster'
-kube_version_list_v1_31_4 noqa: #var-naming[pattern]
+kube_version_list_v1_31_4: #noqa: #var-naming[pattern]
     - v1.30.0
     - v1.31.4
 k8s_var_src: "../templates/k8s_var.j2"
