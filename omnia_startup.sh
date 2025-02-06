@@ -263,7 +263,6 @@ echo -e "${GREEN}
          - The Omnia playbooks logs directory: /opt/omnia/log/core/playbooks
 
          It's important to note:
-            - Files located in the shared directory are visible to all nodes in the cluster.
             - Files placed in the shared directory should not be manually deleted.
             - Use the playbook /omnia/utils/oim_cleanup.yml to safely remove the shared directory and Omnia containers (except the core container).
             - If you need to delete the core container or redeploy the core container with new input configs, please rerun the omnia_startup.sh script.
