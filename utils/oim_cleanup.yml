@@ -18,8 +18,9 @@
   ansible.builtin.import_playbook: include_input_dir.yml
 
 - name: Cleanup Omnia Infrastructure Manager
-  hosts: localhost
-  connection: local
+  hosts: oim
+  connection: ssh
+  gather_facts: false
   roles:
     - oim_cleanup
   tags: pcs, provision, kubespray, pulp
