@@ -27,6 +27,15 @@ pcs resource create {{ omnia_core_name }} ocf:heartbeat:podman \
  op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
 
+pcs resource create {{ pulp_container_name }} ocf:heartbeat:podman \
+ name={{ pulp_container_name }} \
+ image={{ pulp_image }} \
+ reuse=true \
+ run_opts="{{ pulp_run_opts }}" \
+ op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
+ op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
+
 pcs resource create {{ provision_container_name }} ocf:heartbeat:podman \
  name={{ provision_container_name }} \
  image={{ provision_image }} \
