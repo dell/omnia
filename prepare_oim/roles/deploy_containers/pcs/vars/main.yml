@@ -93,3 +93,11 @@ kubespray_name: "omnia_kubespray_{{ kubespray_version }}"
 kubespray_image: "localhost/{{ kubespray_image_name }}:{{ kubespray_version }}"
 kubespray_run_opts: "-d -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ hosts_file }}:/etc/hosts:z --network=host --restart=always --cap-add AUDIT_WRITE"
 
+#Usage: pcs-start.sh.j2: pulp
+pulp_container_name: "omnia_pulp"
+pulp_image: "docker.io/pulp/pulp"
+pulp_port: "2225:2225"
+pulp_share: "{{ omnia_nfs_share }}/pulp"
+pulp_run_opts: "-dt --hostname {{ pulp_container_name }} --device /dev/fuse:/dev/fuse:rwm -e PULP_WORKERS=10 -e PULP_API_WORKERS=10 -e PULP_CONTENT_WORKERS=10 -e PULP_GUNICORN_TIMEOUT=30 -e PULP_API_WORKERS_MAX_REQUESTS=1000 -e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50 --restart=always --publish {{ pulp_port }} -v {{ pulp_share }}/settings:/etc/pulp:z -v {{ pulp_share }}/settings/pulp_storage:/var/lib/pulp:z -v {{ pulp_share }}/settings/pgsql:/var/lib/pgsql:z -v {{ pulp_share }}/settings/containers:/var/lib/containers:z -v {{ pulp_share }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro -v {{ omnia_nfs_share }}/logs/pulp:/var/log/pulp:z"
+
+
