@@ -30,6 +30,9 @@
     oim_node_name: "{{ oim_node_name.stdout }}"
     admin_net_addr: "{{ hostvars['localhost']['admin_net_addr'] }}"
     admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
+    docker_username: hostvars['localhost']['docker_username']
+    docker_password: hostvars['localhost']['docker_password']
+  no_log: true
 
 - name: Export firewall ports for pcs container
   ansible.builtin.include_tasks: firewall_settings.yml

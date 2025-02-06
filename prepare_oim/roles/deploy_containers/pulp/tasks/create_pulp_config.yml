@@ -51,7 +51,7 @@
     state: present
 
 # ansible module openssl
-#- name: Generate a self-signed certificate using OpenSSL
+# - name: Generate a self-signed certificate using OpenSSL
 #  community.crypto.x509_certificate:
 #    path: "{{ certs_dir }}/pulp_webserver.crt"
 #    privatekey_path: "{{ certs_dir }}/pulp_webserver.key"
