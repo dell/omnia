@@ -19,7 +19,7 @@ pcs_container_name: "omnia_pcs"
 read_write_mode: "0644"
 read_write_execute_mode: "0744"
 pcs_container_dir: "{{ oim_shared_path }}/omnia/pcs"
-pcs_container_log_dir: "{{ oim_shared_path }}/omnia/logs/pcs"
+pcs_container_log_dir: "{{ oim_shared_path }}/omnia/log/pcs"
 container_systemd_dir: "/etc/containers/systemd/"
 pcs_directories:
   - { path: "{{ pcs_container_log_dir }}", mode: "{{ read_write_mode }}" }
@@ -83,7 +83,7 @@ pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
 install_dir: "{{ provision_dir }}/install"
 tftpboot_dir: "{{ provision_dir }}/tftpboot"
 hosts_file: "{{ omnia_nfs_share }}/hosts"
-provision_logs_dir: "{{ omnia_nfs_share }}/logs/provision"
+provision_logs_dir: "{{ omnia_nfs_share }}/log/provision"
 provision_run_opts: "-d --network=host --restart=always --hostname {{ oim_hostname }} --privileged -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v {{ xcatdata_dir }}:/xcatdata:z -v {{ install_dir }}:/install:z -v {{ tftpboot_dir }}:/tftpboot:z -v {{ provision_logs_dir }}/xcat:/var/log/xcat:z  -v {{ pgsql_data_dir }}:/var/lib/pgsql/data:z {{ hosts_file }}:/etc/hosts:z"
 
 #Usage: pcs-start.sh.j2: kubespray
