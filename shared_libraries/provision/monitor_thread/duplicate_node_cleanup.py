@@ -28,13 +28,32 @@ discovery_mechanism_mtms='mtms'
 # and deletes duplicate nodes
 class CleanupThread(threading.Thread):
     def run(self):
+        """
+        Runs the delete_duplicate_node function.
+
+        This function calls the delete_duplicate_node function, which deletes duplicate nodes created.
+        It also deletes the entry for the database and the node object.
+
+        Parameters:
+            None
+
+        Returns:
+            None
+        """
         delete_duplicate_node()
 
 def delete_duplicate_node():
     """
-    This function deletes duplicate node created.
-    Delete entry for db and node object.
-    """
+	Delete duplicate nodes created.
+	Delete entry for db and node object.
+
+	Parameters:
+	    None
+
+	Returns:
+	    None
+	"""
+
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
     
@@ -84,6 +103,22 @@ def delete_duplicate_node():
     conn.close()
 
 def main():
+    """
+    The main function that starts the CleanupThread.
+
+    This function creates an instance of the CleanupThread class and sets its Daemon attribute to True.
+    It then starts the CleanupThread.
+
+    If an exception occurs during the execution of the CleanupThread, the exception is caught and the
+    message "Exception thrown by the cleanup thread: <exception message>" is printed. The program
+    exits with a status code of 1.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     try:
         CleanupThreadObject = CleanupThread()
         CleanupThreadObject.Daemon = True

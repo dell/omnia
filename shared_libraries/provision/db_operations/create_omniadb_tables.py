@@ -32,6 +32,19 @@ key_file_path = '/opt/omnia/.postgres/.postgres_pass.key'
 pass_file_path = '/opt/omnia/.postgres/.encrypted_pwd'
 
 def create_db():
+    """
+    Create a database connection to the PostgreSQL database.
+
+    This function establishes a connection to the PostgreSQL database using the provided password.
+    It reads the encrypted password from a file, decrypts it using the provided key, and connects to the database.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
+
     with open(key_file_path, 'rb') as passfile:
         key = passfile.read()
     fernet = Fernet(key)
@@ -72,6 +85,15 @@ def create_db():
 
 
 def create_db_schema(conn):
+    """
+    Create a database schema named 'cluster' if it doesn't already exist.
+
+    Parameters:
+        conn (psycopg2.extensions.connection): A database connection.
+
+    Returns:
+        None
+    """
     cursor = conn.cursor()
     sql = ''' CREATE SCHEMA IF NOT EXISTS cluster'''
     cursor.execute(sql)
@@ -79,6 +101,15 @@ def create_db_schema(conn):
 
 
 def create_db_table(conn):
+    """
+    Creates a table named 'nodeinfo' in the 'cluster' schema if it doesn't already exist.
+    The table has columns for 'ID', 'service_tag', 'node', 'hostname', 'admin_mac',
+    'admin_ip', 'bmc_ip', 'status', 'discovery_mechanism', 'bmc_mode', 'switch_ip',
+    'switch_name', 'switch_port', 'cpu', 'gpu', 'cpu_count', and 'gpu_count'.
+    The 'ID' column is a serial number, primary key, and unique.
+    The function executes the SQL query to create the table and prints a message.
+    The function closes the cursor.
+    """
     cursor = conn.cursor()
 
     sql = '''CREATE TABLE IF NOT EXISTS cluster.nodeinfo(
@@ -104,6 +135,22 @@ def create_db_table(conn):
     cursor.close()
 
 def main():
+    """
+    Executes the main function of the program.
+
+    This function calls the `create_db` function to create a database connection.
+    It then creates a connection to the database using the `create_connection`
+    function from the `omniadb_connection` module. After that, it calls the
+    `create_db_schema` function to create the database schema and the
+    `create_db_table` function to create the database table. Finally, it closes the
+    database connection.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     create_db()
     conn = omniadb_connection.create_connection()
     create_db_schema(conn)

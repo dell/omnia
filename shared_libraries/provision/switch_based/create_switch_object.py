@@ -27,8 +27,14 @@ switch_auth_type = "sha"
 
 def create_table_switchinfo(conn):
     """
-    Creates cluster.switchinfo table for switch_based discovery mechanism
-    """
+	Create the cluster.switchinfo table in the database.
+
+	Parameters:
+	conn (psycopg2.extensions.connection): The database connection.
+
+	Returns:
+	None
+	"""
 
     # Create cluster.switchinfo table
     cursor = conn.cursor()
@@ -41,8 +47,17 @@ def create_table_switchinfo(conn):
 
 def create_switch_object(conn,switch_ip,switch_snmp_username,switch_snmp_password):
     """
-    Creates switch object for switch_based discovery mechanism by fetching details from cluster.switchinfo table
-    """
+	Create switch object for switch_based discovery mechanism by fetching details from cluster.switchinfo table.
+
+	Parameters:
+	conn (psycopg2.extensions.connection): The database connection.
+	switch_ip (list): A list of switch IPs.
+	switch_snmp_username (str): The SNMP username.
+	switch_snmp_password (str): The SNMP password.
+
+	Returns:
+	None
+	"""
 
     cursor = conn.cursor()
     if switch_ip:
@@ -76,17 +91,29 @@ def create_switch_object(conn,switch_ip,switch_snmp_username,switch_snmp_passwor
     cursor.close()
 
 def main():
+    """
+	The main function of the program.
 
-   # Fetch input arguments
-   switch_ip = sys.argv[1:-3]
-   switch_snmp_username = sys.argv[-3]
-   switch_snmp_password = sys.argv[-2]
+	This function fetches the input arguments from the command line, establishes a connection with the database,
+	creates a table in the database if it doesn't exist, and creates switch objects in the database.
 
-   conn = omniadb_connection.create_connection()
-   create_table_switchinfo(conn)
-   create_switch_object(conn,switch_ip,switch_snmp_username,switch_snmp_password)
+	Parameters:
+	None
 
-   conn.close()
+	Returns:
+	None
+	"""
+
+    # Fetch input arguments
+    switch_ip = sys.argv[1:-3]
+    switch_snmp_username = sys.argv[-3]
+    switch_snmp_password = sys.argv[-2]
+
+    conn = omniadb_connection.create_connection()
+    create_table_switchinfo(conn)
+    create_switch_object(conn,switch_ip,switch_snmp_username,switch_snmp_password)
+
+    conn.close()
 
 if __name__ == '__main__':
     main()

@@ -27,17 +27,18 @@ DISCOVERY_MECHANISM = "mapping"
 
 def validate_osimage(osimage):
     """
-    Validates if the given `osimage` is a string.
+	Validates if the given `osimage` is a string.
 
-    Parameters:
-        osimage (Any): The object to be validated.
+	Parameters:
+		osimage (Any): The object to be validated.
 
-    Raises:
-        ValueError: If `osimage` is not a string.
+	Raises:
+		ValueError: If `osimage` is not a string.
 
-    Returns:
-        None
-    """
+	Returns:
+		None
+	"""
+
     if not isinstance(osimage, str):
         raise ValueError("osimage must be a string")
     return osimage

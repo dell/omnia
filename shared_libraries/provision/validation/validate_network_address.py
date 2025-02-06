@@ -20,23 +20,29 @@ import sys
 
 def get_network_address(ip_address_netmask):
     """
-    Returns the network address of the given IP address and netmask.
+	Returns the network address of a given IP address and netmask.
 
-    :param ip_address_netmask: A string representing the IP address and netmask in the format "IP/netmask".
-    :type ip_address_netmask: str
-    :return: A string representing the network address of the given IP address and netmask.
-    :rtype: str
-    """
+	Parameters:
+	- ip_address_netmask (str): The IP address and netmask in the format "IP/netmask".
+
+	Returns:
+	- str: The network address of the given IP address and netmask.
+	"""
+
     ip_net_address = ipaddress.ip_network(ip_address_netmask, strict=False)
     return str(ip_net_address.network_address)
 
 def main():
     """
-    Retrieves the network data from the environment variable 'net_data' and performs network validation.
+	Retrieves the network data from the environment variable 'net_data' and performs network validation.
 
-    Returns:
-        str: The IP address of the network.
-    """
+	Parameters:
+	- None
+
+	Returns:
+	- None
+	"""
+
     network_string = os.environ.get('net_data')
     network_data = json.loads(network_string)
     network_interface = sys.argv[1]

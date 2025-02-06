@@ -46,8 +46,15 @@ bmc_static_end_ip = ipaddress.IPv4Address(bmc_static_range.split('-')[1])
 
 def check_switch_table(cursor):
     """
-    Checks any entry present in the switchinfo table
-    """
+	Checks if the switchinfo table in the cluster schema contains any entries.
+
+	Parameters:
+	- cursor (psycopg2.extensions.cursor): The database cursor.
+
+	Returns:
+	- str: "true" if the switchinfo table contains entries, "false" otherwise.
+	"""
+
     sql = '''select max(id) from cluster.switchinfo'''
     cursor.execute(sql)
     switch_op = cursor.fetchone()
@@ -57,14 +64,34 @@ def check_switch_table(cursor):
 
 def check_presence_switch_port(cursor,switch_v3_name,switch_v3_port):
     """
-    Check node details for the switch port already added
-    """
+	Checks the presence of a switch port in the cluster.nodeinfo table.
+
+	Parameters:
+	- cursor (psycopg2.extensions.cursor): The database cursor.
+	- switch_v3_name (str): The name of the switch.
+	- switch_v3_port (str): The port number of the switch.
+
+	Returns:
+	- bool: True if the switch port is present in the cluster.nodeinfo table, False otherwise.
+	"""
+
     sql = f"select exists(select switch_port from cluster.nodeinfo where switch_port = '{switch_v3_port}' and switch_name='{switch_v3_name}')"
     cursor.execute(sql)
     output = cursor.fetchone()[0]
     return output
 
 def insert_switch_details(cursor,switch_v3_name,switch_v3_port):
+    """
+    Inserts switch details into the cluster.nodeinfo table.
+
+    Parameters:
+        cursor (psycopg2.extensions.cursor): The database cursor.
+        switch_v3_name (str): The name of the switch.
+        switch_v3_port (str): The port of the switch.
+
+    Returns:
+        None
+    """
     sql = '''select id from cluster.nodeinfo ORDER BY id DESC LIMIT 1'''
     cursor.execute(sql)
     temp = cursor.fetchone()
@@ -98,6 +125,24 @@ def insert_switch_details(cursor,switch_v3_name,switch_v3_port):
         omniadb_connection.insert_node_info(None, node, host_name, None, admin_ip, bmc_ip, discovery_mechanism, bmc_mode, switch_v3_ip, switch_v3_name, switch_v3_port)
 
 def main():
+    """
+    The main function of the program.
+
+    This function establishes a connection with the database, retrieves the cursor, and performs the following tasks:
+    - Checks if the cluster.switchinfo table has any entry.
+    - If the table has an entry, it retrieves the switch name from the cluster.switchinfo table.
+    - It splits the switch_v3_ports string by commas and iterates over each port.
+    - If the port is a range (e.g., "1-5"), it iterates over the range and checks if the switch port is already present in the cluster.nodeinfo table.
+    - If the switch port is not present, it inserts the switch details into the cluster.nodeinfo table.
+    - If the port is not a range, it checks if the switch port is already present in the cluster.nodeinfo table.
+    - If the switch port is not present, it inserts the switch details into the cluster.nodeinfo table.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
 

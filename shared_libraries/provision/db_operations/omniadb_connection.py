@@ -27,6 +27,18 @@ with open(pass_file_path, 'rb') as datafile:
 decrypted_pwd = fernet.decrypt(encrypted_file_data).decode()
 
 def create_connection():
+    """
+    Create a database connection to the omniadb.
+
+    This function establishes a connection to the omniadb database using the provided password.
+    It reads the encrypted password from a file, decrypts it using the provided key, and connects to the database.
+
+    Parameters:
+        None
+
+    Returns:
+        conn (psycopg2.extensions.connection): The database connection.
+    """
     # Create database connection
     conn = pg.connect(
         database="omniadb",
@@ -39,6 +51,18 @@ def create_connection():
     return conn
 
 def create_connection_xcatdb():
+    """
+    Create a database connection to the xcatdb.
+
+    This function establishes a connection to the xcatdb database using the provided password.
+    It reads the encrypted password from a file, decrypts it using the provided key, and connects to the database.
+
+    Parameters:
+        None
+
+    Returns:
+        conn (psycopg2.extensions.connection): The database connection.
+    """
     # Create database connection
     conn = pg.connect(
         database="xcatdb",
@@ -53,6 +77,25 @@ def create_connection_xcatdb():
 
 def insert_node_info(service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, discovery_mechanism, bmc_mode, switch_ip,
                      switch_name, switch_port):
+    """
+    Inserts node information into the cluster.nodeinfo table.
+
+    Parameters:
+        service_tag (str): The service tag of the node.
+        node (str): The node name.
+        hostname (str): The hostname of the node.
+        admin_mac (str): The MAC address of the admin interface.
+        admin_ip (Union[str, None]): The IP address of the admin interface.
+        bmc_ip (Union[str, None]): The IP address of the BMC.
+        discovery_mechanism (str): The mechanism used to discover the node.
+        bmc_mode (str): The mode of the BMC.
+        switch_ip (Union[str, None]): The IP address of the switch.
+        switch_name (str): The name of the switch.
+        switch_port (str): The port of the switch.
+
+    Returns:
+        None
+    """
     conn = create_connection()
     cursor = conn.cursor()
     sql = '''INSERT INTO cluster.nodeinfo(service_tag,node,hostname,admin_mac,admin_ip,bmc_ip,discovery_mechanism,bmc_mode,switch_ip,switch_name,switch_port)
@@ -64,6 +107,17 @@ def insert_node_info(service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, d
     conn.close()
 
 def insert_switch_info(cursor, switch_name, switch_ip):
+    """
+    Inserts switch details into the cluster.switchinfo table.
+
+    Parameters:
+        cursor (psycopg2.extensions.cursor): The database cursor.
+        switch_name (str): The name of the switch.
+        switch_ip (str): The IP address of the switch.
+
+    Returns:
+        None
+    """
     # Insert switch details to cluster.switchinfo table
     sql = '''INSERT INTO cluster.switchinfo(switch_name,switch_ip) VALUES (%s,%s)'''
     params = (switch_name, switch_ip)

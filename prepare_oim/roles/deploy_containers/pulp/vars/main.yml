@@ -16,7 +16,7 @@
 # deploy_pulp.yml
 shared_storage_path: "{{ oim_shared_path }}/omnia"
 pulp_shared_path: "{{ shared_storage_path }}/pulp"
-pulp_logs_dir: "{{ oim_shared_path }}/omnia/logs/pulp"
+pulp_logs_dir: "{{ oim_shared_path }}/omnia/log/pulp"
 pulp_dir_permissions: "0755"
 pulp_pgsql_dir_permissions: "0750"
 logs_dir_permission: "0644"
@@ -45,7 +45,7 @@ volumes:
   - "{{ pulp_shared_path }}/settings/pgsql:/var/lib/pgsql:z"
   - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers:z"
   - "{{ pulp_shared_path }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
-  - "{{ shared_storage_path }}/logs/pulp:/var/log/pulp:z"
+  - "{{ shared_storage_path }}/log/pulp:/var/log/pulp:z"
 device_name: "/dev/fuse:/dev/fuse:rwm"
 pulp_container_name: "omnia_pulp"
 pulp_image: "docker.io/pulp/pulp"

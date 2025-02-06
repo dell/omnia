@@ -27,8 +27,18 @@ import omniadb_connection as omniadb
 
 def service_tag_node_mapping():
     """
-    outputs the node name for the service tag or admin IP 
-    and runs chdef command to add the kernel parameters
+    Retrieves the node name from the database based on the inventory hostname.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If the inventory hostname is not provided.
+        OSError: If there is an error executing the database query.
+        Exception: If there is an error executing the subprocess.
 
     """
     try:

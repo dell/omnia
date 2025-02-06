@@ -32,6 +32,15 @@ nan = float('nan')
 
 
 def not_nan_val(ip):
+    """
+    Check if the given IP address is not NaN.
+
+    Args:
+        ip (Any): The IP address to check.
+
+    Returns:
+        bool: True if the IP address is not NaN, False otherwise.
+    """
     if pd.notna(ip):
         ipaddress.ip_address(ip)
         return True
@@ -40,6 +49,20 @@ def not_nan_val(ip):
 
 
 def mapping_file_db_update():
+    """
+    Updates the database with the information from a mapping file.
+
+    This function reads a mapping file containing information about nodes, such as service tags, hostnames,
+    admin MAC addresses, admin IP addresses, and BMC IP addresses. It then connects to the database and checks
+    if the service tags already exist in the table. If a service tag is not found, it inserts the information
+    into the table. If a service tag is found, it appends the admin MAC address to a list.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     data = pd.read_csv(pxe_mapping_path)
     admin_mac = data['ADMIN_MAC'].tolist()
     hostname = data['HOSTNAME'].tolist()

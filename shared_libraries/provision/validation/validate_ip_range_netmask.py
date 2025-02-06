@@ -17,16 +17,17 @@ import sys
 
 def is_static_range_within_netmask(start_ip, end_ip, netmask):
     """
-    Check if the given IP range is within the specified netmask.
+	Check if a static IP range is within a given netmask.
 
-    Parameters:
-        start_ip (str): The starting IP address of the range.
-        end_ip (str): The ending IP address of the range.
-        netmask (str): The netmask to check against.
+	Parameters:
+	- start_ip (str): The starting IP address of the range.
+	- end_ip (str): The ending IP address of the range.
+	- netmask (int): The netmask to check against.
 
-    Returns:
-        bool: True if the IP range is within the netmask, False otherwise.
-    """
+	Returns:
+	- bool: True if the IP range is within the netmask, False otherwise.
+	"""
+
     network = ipaddress.ip_network(f"{start_ip}/{netmask}", strict=False)
     return ipaddress.ip_address(start_ip) in network and ipaddress.ip_address(end_ip) in network
 
@@ -34,22 +35,23 @@ def is_static_range_within_netmask(start_ip, end_ip, netmask):
 
 def main():
     """
-    Executes the main function.
+	Executes the main function.
 
-    This function takes two command-line arguments: `ip_range` and `netmask`.
-    It splits the `ip_range` argument by "-" and assigns the resulting values
-    to `start_ip` and `end_ip`. It then calls the `is_static_range_within_netmask`
-    function with the `start_ip`, `end_ip`, and `netmask` as arguments.
-    
-    If any exception occurs during the execution of the function, the `result`
-    variable is set to False. Finally, the value of `result` is printed.
+	This function takes two command-line arguments: `ip_range` and `netmask`.
+	It splits the `ip_range` argument by "-" and assigns the resulting values
+	to `start_ip` and `end_ip`. It then calls the `is_static_range_within_netmask`
+	function with the `start_ip`, `end_ip`, and `netmask` as arguments.
+	
+	If any exception occurs during the execution of the function, the `result`
+	variable is set to False. Finally, the value of `result` is printed.
 
-    Parameters:
-        None
+	Parameters:
+	- None
 
-    Returns:
-        None
-    """
+	Returns:
+	- None
+	"""
+
     try:
         ip_range = sys.argv[1]
         netmask = sys.argv[2]

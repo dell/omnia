@@ -19,9 +19,15 @@ from psycopg2.extensions import cursor
 
 def get_count(line: str) -> int:
     """
-    Given a string `line`, returns the integer value after the first occurrence of the '=' character, if any.
-    Otherwise, returns 0.
-    """
+	Splits a line of text by the '=' character and returns the second element of the resulting list as an integer.
+
+	Parameters:
+		line (str): The line of text to be split.
+
+	Returns:
+		int: The second element of the split line as an integer. If the split line has only one element, returns 0.
+	"""
+
     # Split the input string by '=' character
     split_line = line.split('=')
 
@@ -35,15 +41,16 @@ def get_count(line: str) -> int:
 
 def get_node_info_db(cursor: cursor, node: str) -> tuple:
     """
-    Retrieves node information from the database based on the given node.
+	Retrieves the node information from the database.
 
-    Parameters:
-        cursor (Cursor): The database cursor object.
-        node (str): The node for which to retrieve the information.
+	Parameters:
+		cursor (cursor): The cursor object used to execute the SQL query.
+		node (str): The node name.
 
-    Returns:
-        tuple: A tuple containing the node information retrieved from the database.
-    """
+	Returns:
+		tuple: A tuple containing the service tag, admin IP, CPU, GPU, CPU count, GPU count, status, admin MAC, and hostname of the node.
+	"""
+
     # Define the SQL query to retrieve node information
     query = """
         SELECT
@@ -74,14 +81,25 @@ def get_node_info_db(cursor: cursor, node: str) -> tuple:
 
 def get_updated_cpu_gpu_info(node: str) -> tuple:
     """
-    Retrieves the updated CPU and GPU information for a given node.
+	Retrieves the updated CPU and GPU information for a given node.
 
-    Parameters:
-        node (str): The name of the node for which the information is retrieved.
+	Parameters:
+		node (str): The name of the node.
 
-    Returns:
-        tuple: A tuple containing the CPU (str), GPU (str), CPU count (int), and GPU count (int).
-    """
+	Returns:
+		tuple: A tuple containing the updated CPU and GPU information.
+				The tuple contains the following elements:
+					- cpu (str): The type of CPU.
+					- gpu (str): The type of GPU.
+					- cpu_count (int): The count of CPU.
+					- gpu_count (int): The count of GPU.
+
+	Raises:
+		FileNotFoundError: If the log file is not found.
+		IOError: If there is an issue reading the log file.
+		Exception: If there is any other exception.
+	"""
+
     # Define the strings to search for GPU and CPU
     nvidia_gpu_str = "NVIDIA GPU Found"
     amd_gpu_str = "AMD GPU Found"
@@ -169,12 +187,17 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
 
 def update_db(cursor: cursor, node: str, updated_node_info: tuple) -> None:
     """
-    Update the database with the updated node information.
-    Args:
-        cursor (cursor): The cursor object for executing SQL queries.
-        node (str): The name of the node to update.
-        updated_node_info (tuple): A tuple containing the updated information for the node.
-    """
+	Update the database with the provided updated node information.
+
+	Parameters:
+		cursor (cursor): The cursor object used to execute the SQL query.
+		node (str): The name of the node.
+		updated_node_info (tuple): A tuple containing the updated CPU, GPU, CPU count, and GPU count.
+
+	Returns:
+		None
+	"""
+
     # Unpack the updated node information tuple
     cpu, gpu, cpu_count, gpu_count = updated_node_info
 
@@ -197,12 +220,16 @@ def update_db(cursor: cursor, node: str, updated_node_info: tuple) -> None:
 
 def remove_hostname_inventory(inventory_file: str, hostname: str) -> None:
     """
-    Removes a hostname from the inventory file.
+	Remove a hostname from the inventory file.
 
-    Args:
-        inventory_file (str): The name of the inventory file.
-        hostname (str): The hostname to remove.
-    """
+	Parameters:
+		inventory_file (str): The path to the inventory file.
+		hostname (str): The hostname to remove.
+
+	Returns:
+		None
+	"""
+
     try:
         # Read the inventory file
         config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
@@ -231,11 +258,16 @@ def remove_hostname_inventory(inventory_file: str, hostname: str) -> None:
 
 def add_hostname_inventory(inventory_file: str, hostname: str) -> None:
     """
-    Adds a hostname to the inventory file.
-    Args:
-        inventory_file (str): The path to the inventory file.
-        hostname (str): The hostname to add.
-    """
+	Adds a hostname to the inventory file.
+
+	Parameters:
+		inventory_file (str): The path to the inventory file.
+		hostname (str): The hostname to add.
+
+	Returns:
+		None
+	"""
+
     try:
         # Read the config file
         config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
@@ -261,11 +293,17 @@ def add_hostname_inventory(inventory_file: str, hostname: str) -> None:
 
 def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:
     """
-    Update the inventory files based on the updated node information.
+	Update the inventory files based on the changes in the node information.
 
-    Args:
-        node_info_db (tuple): A tuple containing the node information from the database.
-        updated_node_info (tuple): A tuple containing the updated node information.
+	Parameters:
+		node_info_db (tuple): A tuple containing the service tag, admin IP, CPU, GPU, and hostname from the database.
+		updated_node_info (tuple): A tuple containing the updated CPU and GPU information.
+
+	Returns:
+		None
+
+	Raises:
+		Exception: If an error occurs during the update process.
     """
 
     try:

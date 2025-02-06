@@ -19,29 +19,34 @@ import os
 
 def fetch_nic_metadata_params(metadata_path):
     """
-    Fetches the NIC metadata parameters from the specified metadata path.
+	Fetches the NIC metadata parameters from the specified metadata path.
 
-    Args:
-        metadata_path (str): The path to the metadata file.
+	Parameters:
+	    metadata_path (str): The path to the metadata file.
 
-    Returns:
-        dict: The loaded metadata parameters as a dictionary.
-    """
+	Returns:
+	    dict: The loaded metadata parameters as a dictionary.
+	"""
+
     with open(metadata_path, "r") as file:
         data = yaml.safe_load(file)
     return data
 
 def validate_nic_metadata_params(network_data, md_data):
     """
-    Validates the network details in the NIC metadata file against the server specification data.
+	Validates the network details in the NIC metadata file against the server specification data.
 
-    Args:
-        network_data (dict): A dictionary containing the network details in the NIC metadata file.
-        category_data (dict): A dictionary containing the server specification data.
+	Parameters:
+	    network_data (dict): A dictionary containing the network details in the NIC metadata file.
+	    md_data (dict): A dictionary containing the server specification data.
 
-    Returns:
-        None
-    """
+	Returns:
+	    None
+
+	Raises:
+	    SystemExit: If the CIDR, static range, or netmask bits provided in the NIC metadata file are different from the values provided in the previous execution.
+	"""
+
     if network_data:
         for net_key,net_value in network_data.items():
             if net_key not in ['admin_network', 'bmc_network']:
@@ -57,12 +62,20 @@ def validate_nic_metadata_params(network_data, md_data):
 
 def main():
     """
-    This function is the entry point of the program. It takes no arguments.
-    It fetches the path of the NIC metadata file from the command line argument,
-    retrieves the network data from the environment variable, loads it as JSON,
-    fetches the metadata data from the NIC metadata file, validates the metadata
-    data against the network data, and returns nothing.
-    """
+	The main function of the program.
+
+	This function takes the path of the NIC metadata file from the command line argument,
+	retrieves the network data from the environment variable, loads it as JSON,
+	fetches the metadata data from the NIC metadata file, and validates the metadata
+	data against the network data.
+
+	Parameters:
+	- None
+
+	Returns:
+	- None
+	"""
+
     nic_md_file_path = os.path.abspath(sys.argv[1])
     network_string = os.environ.get('net_data')
     network_data = json.loads(network_string)

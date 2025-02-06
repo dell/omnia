@@ -19,15 +19,16 @@ import os
 
 def insert_nic_metadata_params(network_data, metadata_path):
     """
-    Inserts the network metadata parameters into the metadata file.
+	Inserts the network data into the NIC metadata file.
 
-    Args:
-        network_data (dict): A dictionary containing the network data.
-        metadata_path (str): The path to the metadata file.
+	Parameters:
+	- network_data (dict): A dictionary containing the network data.
+	- metadata_path (str): The path to the NIC metadata file.
 
-    Returns:
-        None
-    """
+	Returns:
+	- None
+	"""
+
     nic_info = {'nic_metadata': {}}
     if network_data:
         for net_key,net_value in network_data.items():
@@ -43,14 +44,15 @@ def insert_nic_metadata_params(network_data, metadata_path):
 
 def main():
     """
-    Generates the main function that processes the command line arguments and environment variables to update the NIC metadata file.
+	The main function that processes the command line arguments and environment variables to update the NIC metadata file.
 
-    Parameters:
-        None
+	Parameters:
+		None
 
-    Returns:
-        None
-    """
+	Returns:
+		None
+	"""
+
     nic_md_file_path = os.path.abspath(sys.argv[1])
     network_string = os.environ.get('net_data')
     network_data = json.loads(network_string)

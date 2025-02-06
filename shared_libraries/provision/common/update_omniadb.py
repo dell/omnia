@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,8 +23,14 @@ import omniadb_connection
 
 def update_node_status(node):
     """
-    Updates the status of a node in the cluster.nodeinfo table in omniadb.
-    """
+	Updates the status of a node in the cluster.nodeinfo table in omniadb.
+
+	Parameters:
+	    node (str): The name of the node to update.
+
+	Returns:
+	    None
+	"""
 
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()

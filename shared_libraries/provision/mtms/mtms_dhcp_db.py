@@ -45,12 +45,25 @@ bmc_mode = "dynamic"
 
 def update_db():
     """
-          Update the DB with proper details for each of the nodes discovered using dynamic mode
-          Calculates the uncorrelated node admin ip, if correlation is false, or it is not possible.
+	Update the database with new node information.
 
-          Returns:
-              Updated nodeinfo table with all the valid and proper details for a node.
-    """
+	This function establishes a connection with omniadb and performs the following tasks:
+	- Extracts serial and bmc information from the dynamic stanza path.
+	- Checks if the serial exists in the cluster.nodeinfo table.
+	- If not, it generates a new node name and host name based on the node_name and domain_name.
+	- It updates the stanza file with the new serial, node, and dynamic_stanza_path.
+	- If reassignment_status is True and correlation_status is True, it reassigns the bmc_ip and calculates the admin_ip.
+	- If reassignment_status is True and correlation_status is False, it reassigns the bmc_ip and calculates the admin_ip.
+	- If reassignment_status is False, it calculates the admin_ip.
+	- It inserts the node information into the cluster.nodeinfo table.
+
+	Parameters:
+	None
+
+	Returns:
+	None
+	"""
+
     serial = []
     bmc = []
     # Establish a connection with omniadb

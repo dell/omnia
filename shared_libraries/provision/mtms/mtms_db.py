@@ -47,12 +47,46 @@ admin_static_end_range = ipaddress.IPv4Address(admin_static_range.split('-')[1])
 
 def update_db():
     """
-      Update the DB with proper details for each of the nodes discovered using static or discovery ranges.
-      Calculates the uncorrelated node admin ip, if correlation is false, or it is not possible.
+    Updates the database based on the given parameters.
 
-      Returns:
-          Updated nodeinfo table with all the valid and proper details for a node.
-       """
+    This function performs the following tasks:
+    1. Creates a connection to the database.
+    2. Retrieves the cursor object from the connection.
+    3. Checks if the `discovery_ranges` variable is not equal to "0.0.0.0".
+    4. If the condition is true, it extracts the serial and bmc information from the `discover_stanza_path` file.
+    5. Iterates over the serial and bmc information and performs the following actions:
+       - Executes a SQL query to check if the serial exists in the `cluster.nodeinfo` table.
+       - Checks if the bmc IP is present in the database.
+       - If both conditions are false, it performs the following actions:
+         - Increments the node ID and generates the node and host names.
+         - Updates the stanza file with the serial and node information.
+         - Calculates the admin IP based on the discovery mechanism.
+         - Inserts the node information into the `cluster.nodeinfo` table.
+       - If the conditions are true, it prints a warning message and the serial.
+
+    6. If the `bmc_static_range` variable is not empty, it performs the following actions:
+       - Extracts the serial and bmc information from the `static_stanza_path` file.
+       - Iterates over the serial and bmc information and performs the following actions:
+         - Executes a SQL query to check if the serial exists in the `cluster.nodeinfo` table.
+         - Checks if the bmc IP is present in the database.
+         - If both conditions are false, it performs the following actions:
+           - Increments the node ID and generates the node and host names.
+           - Updates the stanza file with the serial and node information.
+           - Calculates the admin IP based on the correlation between the bmc and admin subnet.
+           - Checks if the admin IP is present in the database.
+           - If the admin IP is not present, it inserts the node information into the `cluster.nodeinfo` table.
+           - If the admin IP is present, it calculates the uncorrelated admin IP and inserts the node information.
+         - If the conditions are true, it prints a warning message and the serial.
+
+    7. Closes the cursor and the database connection.
+
+    Parameters:
+    None
+
+    Returns:
+    None
+    """
+
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
 

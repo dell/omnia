@@ -21,8 +21,15 @@ host = sys.argv[1]
 
 def validate_ip(host):
     """
-    Returns True if host is a valid IP address.
-    """
+	Validates if the given `host` is a valid IP address.
+
+	Parameters:
+	- `host` (str): The IP address to validate.
+
+	Returns:
+	- bool: True if the IP address is valid, False otherwise.
+	"""
+
     try:
         ipaddress.ip_address(host)
         return True
@@ -31,8 +38,15 @@ def validate_ip(host):
 
 def ping():
     """
-    Returns True if host (str) responds to a ping request.
-    """
+	Returns True if host (str) responds to a ping request.
+
+	Parameters:
+	- `host` (str): The IP address to ping.
+
+	Returns:
+	- bool: True if the host responds to a ping request, False otherwise.
+	"""
+
     # Option for the number of packets as a function of
     param = '-n' if platform.system().lower() == 'windows' else '-c'
     # Validate the IP address
@@ -42,8 +56,6 @@ def ping():
     command = ['ping', param, '1', host]
 
     return subprocess.call(command) == 0
-
-
 
 ping_op = ping()
 if not ping_op:

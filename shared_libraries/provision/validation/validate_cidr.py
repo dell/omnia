@@ -17,13 +17,15 @@ import sys
 
 def validate_cidr(cidr):
     """
-    Validates if a given CIDR is a valid IPv4 network.
+	Validates if the given CIDR is a valid IPv4 network.
 
-    :param cidr: A string representing a CIDR.
-    :type cidr: str
-    :return: Returns True if the CIDR is valid, False otherwise.
-    :rtype: bool
-    """
+	Parameters:
+	    cidr (str): The CIDR to validate.
+
+	Returns:
+	    bool: True if the CIDR is valid, False otherwise.
+	"""
+
     try:
         ipaddress.IPv4Network(cidr)
         return True
@@ -32,14 +34,14 @@ def validate_cidr(cidr):
 
 def main():
     """
-    A function that takes a CIDR as an argument and prints the result of validating the CIDR.
+	The main function that takes a single argument `cidr` from the command line and prints the result of the `validate_cidr` function.
 
-    Parameters:
-        None
+	Parameters:
+		None
 
-    Returns:
-        None
-    """
+	Returns:
+		None
+	"""
 
     cidr = sys.argv[1]
     print(validate_cidr(cidr))

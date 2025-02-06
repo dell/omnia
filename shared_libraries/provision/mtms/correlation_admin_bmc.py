@@ -18,14 +18,17 @@ import calculate_ip_details
 
 def correlation_bmc_to_admin(bmc_ip, admin_ip_subnet, netmask_bits):
     """
-       Calculates the correlated admin ip
-       Parameters:
-         bmc_ip: bmc-ip that needs to be used to form correlated admin ip
-         admin_ip_subnet: network bits to be used for correlated admin ip
-         netmask_bits: netmask bits of admin and bmc ip
-       Returns:
-         correlated admin ip
+    Calculates the correlated admin ip based on the given bmc_ip, admin_ip_subnet, and netmask_bits.
+
+    Parameters:
+    - bmc_ip (str): The bmc ip that needs to be used to form the correlated admin ip.
+    - admin_ip_subnet (str): The network bits to be used for the correlated admin ip.
+    - netmask_bits (int): The netmask bits of the admin and bmc ip.
+
+    Returns:
+    - final_admin_ip (ipaddress.IPv4Address): The correlated admin ip.
     """
+
     binary_admin_ip = calculate_ip_details.calculate_binary_ip(admin_ip_subnet)
     binary_bmc_ip = calculate_ip_details.calculate_binary_ip(bmc_ip)
     first_x_bits = calculate_ip_details.calculate_first_x_bits(binary_admin_ip, netmask_bits)
