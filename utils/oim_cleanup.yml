@@ -17,6 +17,11 @@
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: include_input_dir.yml
 
+- name: Create oim group
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    oim_group: true
+
 - name: Cleanup Omnia Infrastructure Manager
   hosts: oim
   connection: ssh
