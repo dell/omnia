@@ -13,6 +13,16 @@
 #  limitations under the License.
 ---
 
+- name: Stop omnia_pcs service
+  ansible.builtin.systemd:
+    name: omnia_pcs
+    state: stopped
+
+- name: Remove PCS service file
+  ansible.builtin.file:
+    path: "{{ pcs_service_file_path }}"
+    state: absent
+
 - name: Stop and Remove PCS container
   block:
     - name: Stop the PCS container
@@ -34,12 +44,7 @@
       ansible.builtin.fail:
         msg: "{{ pcs_container_name }} {{ container_removal_failure_msg }}"
 
-- name: Remove PCS service file
-  file:
-    path: "{{ pcs_service_file_path }}"
-    state: absent
-
 - name: Remove PCS directory
-  file:
+  ansible.builtin.file:
     path: "{{ pcs_container_dir }}"
     state: absent

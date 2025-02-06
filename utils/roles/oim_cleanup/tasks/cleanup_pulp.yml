@@ -30,6 +30,6 @@
         msg: "{{ pulp_container_name }} {{ container_removal_failure_msg }}"
 
 - name: Remove Pulp Directory
-  file:
+  ansible.builtin.file:
     path: "{{ pulp_container_dir }}"
     state: absent

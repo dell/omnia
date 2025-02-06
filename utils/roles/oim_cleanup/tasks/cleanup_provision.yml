@@ -30,6 +30,6 @@
         msg: "{{ provision_container_name }} {{ container_removal_failure_msg }}"
 
 - name: Remove Provision directory
-  file:
+  ansible.builtin.file:
     path: "{{ provision_container_dir }}"
     state: absent

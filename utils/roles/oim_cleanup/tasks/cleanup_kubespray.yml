@@ -30,6 +30,6 @@
         msg: "{{ kubespray_container_name }} {{ container_removal_failure_msg }}"
 
 - name: Remove Kubespray directory
-  file:
+  ansible.builtin.file:
     path: "{{ kubespray_container_dir }}"
     state: absent
