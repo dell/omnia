@@ -29,7 +29,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
-
+omnia_release=2.0.0.0
 
 # Check if the omnia_core container is already running
 running_containers=$(podman ps -a --format '{{.Names}}' | grep -E 'omnia_core')
@@ -77,6 +77,35 @@ if [[ "$passwd" =~ $invalid_chars ]]; then
     echo -e "${RED}Invalid password, passwords must not contain any of these special characters: [\\|&;\`\"><*?!$(){}[\]]${NC}"
     exit 1
 fi
+
+# Check if the hostname is configured with a domain name.
+if hostname -d; then
+    echo -e "${BLUE}Hostname is configured with a domain name.${NC}"
+else
+    echo -e "${RED}Invalid hostname, hostname is not configured with a domain name!${NC}"
+    exit 1
+fi
+
+podman --version
+
+# Capture the exit status
+if [ $? -eq 0 ]; then
+    echo -e "${BLUE}Podman is installed. Version: $(podman --version)${NC}"
+else
+    echo -e "${RED}Podman is not installed.${NC}"
+    exit 1
+fi
+
+# Enable the podman socket to start at boot
+echo -e "${BLUE}Enabling podman.socket...${NC}"
+systemctl enable podman.socket
+
+# Start the podman socket now
+echo -e "${BLUE}Starting podman.socket...${NC}"
+systemctl start podman.socket
+
+# Print a success message after enabling and starting the podman socket
+echo -e "${GREEN}Podman socket has been enabled and started.${NC}"
 
 hashed_passwd=$(openssl passwd -1 $passwd)
 ssh_key_file="/root/.ssh/oim_rsa"
@@ -131,34 +160,14 @@ else
     chmod 600 "$omnia_path/omnia/ssh_config/.ssh/authorized_keys"
 fi
 
-# Check if the hostname is configured with a domain name.
-if hostname -d; then
-    echo -e "${BLUE}Hostname is configured with a domain name.${NC}"
-else
-    echo -e "${RED}Invalid hostname, hostname is not configured with a domain name!${NC}"
-    exit 1
-fi
+# Create the log directory if it does not exist.
+echo -e "${GREEN}Creating the log directory if it does not exist.${NC}"
+mkdir -p "$omnia_path/omnia/log/core/container"
+mkdir -p "$omnia_path/omnia/log/core/playbooks"
 
-podman --version
-
-# Capture the exit status
-if [ $? -eq 0 ]; then
-    echo -e "${BLUE}Podman is installed. Version: $(podman --version)${NC}"
-else
-    echo -e "${RED}Podman is not installed.${NC}"
-    exit 1
-fi
-
-# Enable the podman socket to start at boot
-echo -e "${BLUE}Enabling podman.socket...${NC}"
-systemctl enable podman.socket
-
-# Start the podman socket now
-echo -e "${BLUE}Starting podman.socket...${NC}"
-systemctl start podman.socket
-
-# Print a success message after enabling and starting the podman socket
-echo -e "${GREEN}Podman socket has been enabled and started.${NC}"
+# Create the hosts file for cluster in $omnia_path/omnia/hosts
+echo -e "${GREEN}Creating the hosts file for cluster.${NC}"
+touch "$omnia_path/omnia/hosts"
 
 # Print message for pulling the Omnia core docker image.
 echo -e "${BLUE}Pulling the Omnia core image.${NC}"
@@ -170,12 +179,26 @@ echo -e "${BLUE}Pulling the Omnia core image.${NC}"
 #     echo -e "${RED}Failed to pull Omnia core image.${NC}"
 # fi
 
-# Print message for running the Omnia core docker image.
-echo -e "${GREEN}Running the Omnia core image.${NC}"
-if podman run -dt --hostname omnia_core --restart=always -v $omnia_path/omnia:/opt/omnia:z -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z -e ROOT_PASSWORD_HASH=$hashed_passwd --net=host --name omnia_core --cap-add=CAP_AUDIT_WRITE omnia_core:latest; then
-    echo -e "${GREEN}Omnia core image has been started.${NC}"
+# Run the Omnia core container.
+echo -e "${GREEN}Running the Omnia core container.${NC}"
+
+# Define the container options.
+OPTIONS="-d --restart=always"
+OPTIONS+=" --hostname omnia_core"
+OPTIONS+=" -v $omnia_path/omnia:/opt/omnia:z"
+OPTIONS+=" -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z"
+OPTIONS+=" -v $omnia_path/omnia/log/core/container:/var/log:z"
+OPTIONS+=" -v $omnia_path/omnia/hosts:/etc/hosts:z"
+OPTIONS+=" -e ROOT_PASSWORD_HASH=$hashed_passwd"
+OPTIONS+=" --net=host"
+OPTIONS+=" --name omnia_core"
+OPTIONS+=" --cap-add=CAP_AUDIT_WRITE"
+
+# Run the container.
+if podman run $OPTIONS omnia_core:latest; then
+    echo -e "${GREEN}Omnia core container has been started.${NC}"
 else
-    echo -e "${RED}Failed to start Omnia core image.${NC}"
+    echo -e "${RED}Failed to start Omnia core container.${NC}"
 fi
 
 # Create the input directory if it does not exist.
@@ -187,6 +210,8 @@ mkdir -p "$omnia_path/omnia/input/project_default/"
 if [ ! -f "$omnia_path/omnia/input/default.yml" ]; then
     echo -e "${BLUE}Creating default.yml file.${NC}"
     {
+        echo "# This file defines the project name."
+        echo "# The name of the project should be set in a directory under input."
         echo "project_name: project_default"
     } >> "$omnia_path/omnia/input/default.yml"
 fi
@@ -218,11 +243,11 @@ if [ ! -f "$oim_metadata_file" ]; then
 fi
 
 echo -e "${GREEN}
-----------------------------------------------------------------------
-         Omnia Core image built and running successfully.
+------------------------------------------------------------------------------------------------------------------------------------------
+         Omnia Core container running successfully.
 
-         Entering the container:
-           Though podman:
+         Entering the container from Omnia Infrastructure Manager(OIM):
+           Through podman:
            # podman exec -it -u root omnia_core bash
            
            Direct SSH:
@@ -230,7 +255,21 @@ echo -e "${GREEN}
 
          You are now in the Omnia environment.
 
-----------------------------------------------------------------------
+         The following are the main directories available in the Omnia core container:
+
+         - The shared directory, which is mapped to $omnia_path in OIM: /opt/omnia
+         - The input directory: /opt/omnia/input
+         - The Omnia source code directory: /omnia
+         - The Omnia playbooks logs directory: /opt/omnia/log/core/playbooks
+
+         It's important to note:
+            - Files located in the shared directory are visible to all nodes in the cluster.
+            - Files placed in the shared directory should not be manually deleted.
+            - Use the playbook /omnia/utils/oim_cleanup.yml to safely remove the shared directory and Omnia containers (except the core container).
+            - If you need to delete the core container or redeploy the core container with new input configs, please rerun the omnia_startup.sh script.
+            - Provide any file paths (ISO, mapping files, etc.) that are mentioned in input files in the /opt/omnia directory.
+
+--------------------------------------------------------------------------------------------------------------------------------------------------
 ${NC}"
 
 touch ~/.ssh/known_hosts
