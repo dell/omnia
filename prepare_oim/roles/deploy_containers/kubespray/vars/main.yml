@@ -16,7 +16,7 @@
 
 kubespray_version: "{{ hostvars['localhost']['kubespray_version'] }}"  # Set the desired Kubespray version
 omnia_nfs_share: "{{ oim_shared_path }}/omnia"  # Define NFS share path
-kubespray_logs_dir: "{{ omnia_nfs_share }}/logs/kubespray" # For kubespray and all those logs
+kubespray_logs_dir: "{{ omnia_nfs_share }}/log/kubespray" # For kubespray and all those logs
 kubespray_dir: "{{ omnia_nfs_share }}/kubespray"
 hosts_file: "{{ omnia_nfs_share }}/hosts"
 kubespray_directories:
