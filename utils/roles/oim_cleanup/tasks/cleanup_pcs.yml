@@ -34,11 +34,6 @@
       containers.podman.podman_container:
         name: "{{ pcs_container_name }}"
         state: absent
-
-    - name: Delete PCS service file
-      file:
-        path: "{{ pcs_service_file_path }}"
-        state: absent
   rescue:
     - name: PCS container removal failed
       ansible.builtin.fail:
