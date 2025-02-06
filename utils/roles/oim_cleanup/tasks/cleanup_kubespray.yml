@@ -13,9 +13,23 @@
 #  limitations under the License.
 ---
 
-- name: Cleanup Omnia Infrastructure Manager
-  hosts: localhost
-  connection: local
-  roles:
-    - oim_cleanup
-  tags: pcs, provision, kubespray, pulp
+- name: Stop and Remove Kubespray container
+  block:
+    - name: Stop the Kubespray container
+      containers.podman.podman_container:
+        name: "{{ kubespray_container_name }}"
+        state: stopped
+
+    - name: Remove Kubespray container
+      containers.podman.podman_container:
+        name: "{{ kubespray_container_name }}"
+        state: absent
+  rescue:
+    - name: Kubespray container removal failed
+      ansible.builtin.fail:
+        msg: "{{ kubespray_container_name }} {{ container_removal_failure_msg }}"
+
+- name: Remove Kubespray directory
+  file:
+    path: "{{ kubespray_container_dir }}"
+    state: absent

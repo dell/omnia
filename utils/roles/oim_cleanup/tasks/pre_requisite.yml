@@ -13,18 +13,20 @@
 # limitations under the License.
 ---
 
-- name: Cleanup provision container
-  ansible.builtin.import_tasks: cleanup_provision.yml
-  tags: provision
+- name: Include metadata vars
+  ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
+  register: include_metadata
+  no_log: true
 
-- name: Cleanup pcs container
-  ansible.builtin.import_tasks: cleanup_pcs.yml
-  tags: pcs
-
-- name: Cleanup pulp container
-  ansible.builtin.import_tasks: cleanup_pcs.yml
-  tags: pulp
-
-- name: Cleanup kubespray container
-  ansible.builtin.import_tasks: cleanup_kubespray.yml
-  tags: kubespray
+- name: Load software_config.json as software_config
+  block:
+    - name: Load software_config.json as user_config
+      ansible.builtin.include_vars:
+        file: "{{ software_config_file }}"
+        name: software_config
+      register: include_software_config
+      no_log: true
+  rescue:
+    - name: Failed to load software_config.json as user_config
+      ansible.builtin.fail:
+        msg: "{{ software_config_syntax_fail_msg }} Error: {{ include_software_config.message }}"

@@ -13,9 +13,23 @@
 #  limitations under the License.
 ---
 
-- name: Cleanup Omnia Infrastructure Manager
-  hosts: localhost
-  connection: local
-  roles:
-    - oim_cleanup
-  tags: pcs, provision, kubespray, pulp
+- name: Stop and Remove Provision container
+  block:
+    - name: Stop the Provision container
+      containers.podman.podman_container:
+        name: "{{ provision_container_name }}"
+        state: stopped
+
+    - name: Remove Provision container
+      containers.podman.podman_container:
+        name: "{{ provision_container_name }}"
+        state: absent
+  rescue:
+    - name: Provision container removal failed
+      ansible.builtin.fail:
+        msg: "{{ provision_container_name }} {{ container_removal_failure_msg }}"
+
+- name: Remove Provision directory
+  file:
+    path: "{{ provision_container_dir }}"
+    state: absent
