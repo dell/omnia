@@ -53,7 +53,6 @@ provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provisi
 provision_credentials_config_filename: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config_credentials.yml"
 provision_credentials_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/.provision_credential_vault_key"
 conf_file_mode: "0644"
-selinux_context: "system_u:object_r:container_file_t:s0"
 
 # Usage: include_local_repo_config.yml
 local_repo_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/local_repo_config.yml"
