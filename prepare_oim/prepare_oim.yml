@@ -112,4 +112,3 @@
       ansible.builtin.include_role:
         name: deploy_containers/common
         tasks_from: prepare_oim_completion.yml
-
