@@ -13,6 +13,10 @@
 #  limitations under the License.
 ---
 
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: include_input_dir.yml
+
 - name: Cleanup Omnia Infrastructure Manager
   hosts: localhost
   connection: local
