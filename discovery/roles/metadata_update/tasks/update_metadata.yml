@@ -25,11 +25,6 @@
     mode: "{{ conf_file_mode }}"
   when: not metadata_status.stat.exists
 
-- name: Provide permission to metadata.yml
-  ansible.builtin.command: chcon {{ selinux_context }} {{ meta_path }}
-  changed_when: true
-  when: not metadata_status.stat.exists
-
 - name: Update netmask for admin and bmc network in metadata.yml file
   block:
     - name: Update netmask_bits
