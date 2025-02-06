@@ -14,6 +14,7 @@
 
 ---
 # deploy_pulp.yml
+pulp_hostname: "omnia_pulp"
 shared_storage_path: "{{ oim_shared_path }}/omnia"
 pulp_shared_path: "{{ shared_storage_path }}/pulp"
 pulp_logs_dir: "{{ oim_shared_path }}/omnia/logs/pulp"
