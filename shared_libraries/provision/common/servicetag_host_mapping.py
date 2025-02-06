@@ -25,10 +25,25 @@ import omniadb_connection as omniadb
 
 def service_tag_host_mapping():
     """
-    Modifies the inventory files by adding the corresponding host IP for each service tag.
+    Maps service tags or node names to host names in inventory files.
 
-    This function iterates through a list of inventory files and
-    modifies them by adding the host IP for each service tag.
+    This function connects to a database and iterates through a list of inventory files.
+    For each file, it reads the content and modifies the lines that contain service tags,
+    node names, or hostnames but do not have the ansible_host parameter. It queries the
+    database to get the corresponding host IP for each service tag or node name. If a
+    host IP is found, it appends the host IP to the service tag or node name and marks
+    the content as modified.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: If a localhost entry is found in an inventory file.
+        OSError: If there is an error opening or writing to an inventory file.
+        Exception: If there is an error executing a database query.
     """
     try:
         # Create a database connection

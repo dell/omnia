@@ -20,13 +20,26 @@ oim = "oim"
 
 def extract_serial_bmc(stanza_path):
     """
-         Extract the bmc IP and serial of the nodes from the stanza file.
-          Parameters:
-              stanza_path (str): The path of the file where bmcdiscover results are stored
-          Returns:
-              bmc: List of bmc_ips present in stanza file.
-              serial: List of serial/service_tags present in stanza file.
-    """
+	Extracts the bmc IP and serial of the nodes from the stanza file.
+
+	Parameters:
+	- stanza_path (str): The path to the stanza file.
+
+	Returns:
+	- bmc (list): A list of bmc IPs.
+	- serial (list): A list of serial numbers.
+
+	This function reads the stanza file and extracts the bmc IP and serial number of the nodes.
+	It iterates over each line in the file and checks if the line contains 'serial=' or 'bmc=',
+	indicating the presence of the serial number or bmc IP.
+	If the line contains 'serial=', it splits the line on '=' and appends the last element
+	(the serial number) to the 'serial' list.
+	If the line contains 'bmc=', it splits the line on '=' and appends the last element
+	(the bmc IP) to the 'bmc' list.
+
+	The function returns the 'bmc' and 'serial' lists.
+	"""
+
     serial = []
     bmc = []
     # Extract the bmc IP and serial of the nodes from the stanza file
@@ -43,14 +56,21 @@ def extract_serial_bmc(stanza_path):
 
 def update_stanza_file(service_tag, nodename, stanza_path):
     """
-       Update the node object name in stanzas file
-       Parameters:
-           service_tag: Service tag of the node that needs the update.
-           nodename: The new node name that the node obj gets and updating it in stanza path
-           stanza_path (str): The path of the file where bmcdiscover results are stored
-       Returns:
-           file gets updated with proper node name.
-    """
+	Update the node object name in stanzas file.
+
+	Parameters:
+	- service_tag (str): The service tag of the node.
+	- nodename (str): The new name of the node.
+	- stanza_path (str): The path to the stanza file.
+
+	Returns:
+	- None
+
+	This function updates the node object name in the stanzas file by replacing the existing service tag with the new nodename.
+	It opens the stanza file in read and write mode, reads the file, replaces the existing service tag with the new nodename,
+	and writes the updated content back to the file.
+	"""
+
     # Update the node object name in stanzas file
     with open(stanza_path, "r+") as file:
         data = file.read()
@@ -63,13 +83,15 @@ def update_stanza_file(service_tag, nodename, stanza_path):
 
 def check_presence_bmc_ip(cursor, temp_bmc_ip):
     """
-         Check presence of bmc ip in DB.
-         Parameters:
-             cursor: Pointer to omniadb DB.
-             temp_bmc_ip: bmc_ip whose presence we need to check in DB.
-         Returns:
-             bool: that gives true or false if the bmc ip is present in DB.
-    """
+	Check presence of bmc ip in DB.
+
+	Parameters:
+	- cursor: Pointer to omniadb DB.
+	- temp_bmc_ip: bmc_ip whose presence we need to check in DB.
+
+	Returns:
+	- bool: that gives true or false if the bmc ip is present in DB.
+	"""
 
     query = "SELECT EXISTS(SELECT bmc_ip FROM cluster.nodeinfo WHERE bmc_ip=%s)"
     cursor.execute(query, (str(temp_bmc_ip),))
@@ -79,13 +101,16 @@ def check_presence_bmc_ip(cursor, temp_bmc_ip):
 
 def check_presence_admin_ip(cursor, temp_admin_ip):
     """
-     Check presence of admin ip in DB.
-     Parameters:
-         cursor: Pointer to omniadb DB.
-         temp_admin_ip: admin_ip whose presence we need to check in DB.
-     Returns:
-         bool: that gives true or false if the admin ip is present in DB.
-    """
+	Checks the presence of a given admin IP in the cluster.nodeinfo table.
+
+	Parameters:
+	- cursor (cursor): The cursor object used to execute the SQL query.
+	- temp_admin_ip (str): The admin IP to check.
+
+	Returns:
+	- bool: True if the admin IP is present, False otherwise.
+	"""
+
     query = "SELECT EXISTS(SELECT admin_ip FROM cluster.nodeinfo WHERE admin_ip=%s)"
     cursor.execute(query, (str(temp_admin_ip),))
     output = cursor.fetchone()[0]
@@ -95,16 +120,18 @@ def check_presence_admin_ip(cursor, temp_admin_ip):
 def cal_uncorrelated_admin_ip(cursor, uncorrelated_admin_start_ip, admin_static_start_range, admin_static_end_range,
                               discovery_mechanism):
     """
-      Calculates the uncorrelated node admin ip, if correlation is false, or it is not possible.
-      Parameters:
-          cursor: Pointer to omniadb DB.
-          uncorrelated_admin_start_ip: In case correlation doesn't work, from where we should start assigning the IP.
-          admin_static_start_range: Admin static start ip
-          admin_static_end_range: Admin static end ip
-          discovery_mechanism: Which mode we are using for discovering the nodes
-      Returns:
-          admin_ip: A valid uncorrelated admin_ip for the node.
-    """
+	Calculates the uncorrelated node admin ip, if correlation is false, or it is not possible.
+
+	Parameters:
+	- cursor (cursor): Pointer to omniadb DB.
+	- uncorrelated_admin_start_ip (str): In case correlation doesn't work, from where we should start assigning the IP.
+	- admin_static_start_range (str): Admin static start ip.
+	- admin_static_end_range (str): Admin static end ip.
+	- discovery_mechanism (str): Which mode we are using for discovering the nodes.
+
+	Returns:
+	- admin_ip (ipaddress.IPv4Address): A valid uncorrelated admin_ip for the node.
+	"""
 
     sql = f'''select admin_ip from cluster.nodeinfo where node!='oim' ORDER BY id DESC LIMIT 1'''
     cursor.execute(sql)
@@ -128,14 +155,23 @@ def cal_uncorrelated_admin_ip(cursor, uncorrelated_admin_start_ip, admin_static_
 
 def reassign_bmc_ip(cursor, bmc_static_start_ip, bmc_static_end_ip):
     """
-         Reassign some bmc_ip if the reassignment status is true.
-          Parameters:
-             cursor: pointer to the nodeinfo DB.
-             bmc_static_start_ip: bmc static start ip
-             bmc_static_end_ip: bmc static end ip
-          Returns:
-              a valid bmc_ip for the node.
-    """
+	Reassigns a BMC IP address if the reassignment status is true.
+
+	Parameters:
+	- cursor (cursor): Pointer to the nodeinfo DB.
+	- bmc_static_start_ip (str): BMC static start IP.
+	- bmc_static_end_ip (str): BMC static end IP.
+
+	Returns:
+	- str: A valid BMC IP for the node.
+
+	This function iterates over the BMC IP addresses and checks if each IP is present in the DB.
+	If it is not present, the function returns the BMC IP.
+	If it is present, the function increments the IP and checks if it is less than the end IP.
+	If it is, the function continues the loop.
+	If it is not, the function exits the program and prints an error message.
+	"""
+
     temp_bmc_ip = bmc_static_start_ip
     while True:
         output = check_presence_bmc_ip(cursor, temp_bmc_ip)

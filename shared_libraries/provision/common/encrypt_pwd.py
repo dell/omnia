@@ -25,9 +25,21 @@ from cryptography.fernet import Fernet
 db_password = sys.argv[1]
 
 def encrypt_config_file():
-    '''
-    This module encrypts the config file
-    '''
+    """
+    Encrypts the database password and saves it to a file.
+
+    This function generates a new key using the Fernet encryption algorithm.
+    It then writes the key to a file located at '/opt/omnia/.postgres/.postgres_pass.key'.
+    The function reads the key from the file and creates a Fernet object.
+    The database password is encoded and encrypted using the Fernet object.
+    The encrypted password is then written to a file located at '/opt/omnia/.postgres/.encrypted_pwd'.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     key = Fernet.generate_key()
     with open('/opt/omnia/.postgres/.postgres_pass.key', 'wb') as filekey:
         filekey.write(key)
@@ -42,9 +54,21 @@ def encrypt_config_file():
         encrypted_file.write(encrypted)
 
 def main():
-    '''
-    This module initiates config encryption
-    '''
+    """
+    Initiates the encryption of the database password and saves it to a file.
+
+    This function calls the `encrypt_config_file` function, which generates a new key using the Fernet encryption algorithm.
+    It then writes the key to a file located at '/opt/omnia/.postgres/.postgres_pass.key'.
+    The function reads the key from the file and creates a Fernet object.
+    The database password is encoded and encrypted using the Fernet object.
+    The encrypted password is then written to a file located at '/opt/omnia/.postgres/.encrypted_pwd'.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     encrypt_config_file()
 
 if __name__ == '__main__':

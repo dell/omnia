@@ -15,6 +15,16 @@
 import subprocess
 
 def run_cmd(cmd):
+    """
+    Executes a shell command and returns the result.
+
+    Parameters:
+        cmd (str): The shell command to execute.
+
+    Returns:
+        Tuple[bool, str, str]: A tuple containing the success status of the command,
+                              the standard error output, and the standard output.
+    """
     run = subprocess.run(cmd,shell=True, capture_output=True, text=True)
     if 'ERROR' in run.stderr:
         return False, run.stderr, run.stdout
@@ -23,6 +33,21 @@ def run_cmd(cmd):
 
 
 def get_discover_nodes():
+    """
+    Retrieves the list of nodes that are part of the 'bmc_discover' group.
+
+    Returns:
+        list: A list of nodes.
+
+    Raises:
+        None
+
+    Notes:
+        - The function executes the command '/opt/xcat/bin/lsdef -t group -o bmc_discover | grep members | sed -n "/members=/s/    members=//p"'
+        - The command retrieves the group members of the 'bmc_discover' group.
+        - If the command is successful, the function splits the output on comma and returns the list of nodes.
+        - If the command fails, the function prints an error message and returns None.
+    """
     cmd = f'/opt/xcat/bin/lsdef -t group -o bmc_discover | grep members | sed -n "/members=/s/    members=//p"'
     status, err, out = run_cmd(cmd)
     if status:
@@ -32,6 +57,22 @@ def get_discover_nodes():
 
 
 def check_discover_nodes(nodelist):
+    """
+    This function checks the status of a list of nodes and returns a string of the nodes that are in the 'booted' status.
+
+    Parameters:
+        nodelist (list): A list of nodes to check.
+
+    Returns:
+        None
+
+    Notes:
+        - The function iterates over the `nodelist` and strips any leading/trailing whitespace from each node.
+        - It then constructs a shell command using the `run_cmd` function to check the status of each node.
+        - The command retrieves the status of the node from the xCAT database.
+        - If the status is 'booted', the node is added to the `bmc_list`.
+        - Finally, the function prints a string of the nodes in the `bmc_list`.
+    """
     bmc_list = list()
     for node in nodelist:
         node = node.strip()

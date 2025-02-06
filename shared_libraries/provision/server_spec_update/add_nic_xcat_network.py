@@ -29,23 +29,24 @@ with open(network_spec_path, "r") as file:
 
 def run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, network_gateway, mtu):
     """
-    Run a command to update the network settings in xCAT.
+	Runs a command to update the network settings.
 
-    Args:
-        col (str): The column name.
-        start_ip (str): The start IP address.
-        end_ip (str): The end IP address.
-        netmask_bits (int): The number of netmask bits.
-        nic_mode (str): The network interface mode.
-        network_gateway (str): The network gateway.
-        mtu (int): The maximum transmission unit.
+	Parameters:
+	- col (str): The column name.
+	- start_ip (str): The starting IP address.
+	- end_ip (str): The ending IP address.
+	- netmask_bits (int): The number of bits in the netmask.
+	- nic_mode (str): The network interface mode.
+	- network_gateway (str): The network gateway.
+	- mtu (int): The maximum transmission unit.
 
-    Returns:
-        None
+	Returns:
+	- None
 
-    Raises:
-        Exception: If an error occurs while running the command.
-    """
+	Raises:
+	- Exception: If there is an error running the command.
+	"""
+
     details = calculate_ip_details.cal_ip_details(start_ip, netmask_bits)
     netmask = details[0]
     subnet = details[1]
@@ -61,19 +62,20 @@ def run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, network
 
 def create_metadata_nic():
     """
-    Create or update the metadata file for NIC information.
+	Create or update the metadata file for NIC information.
 
-    This function reads the existing data from the metadata file located at `metadata_nic_info_path`.
-    If the file does not exist, it creates an empty dictionary.
-    It then updates the existing data with the new `nic_info` dictionary.
-    Finally, it writes the updated data back to the metadata file.
+	This function reads the existing data from the metadata file located at `metadata_nic_info_path`.
+	If the file does not exist, it creates an empty dictionary.
+	It then updates the existing data with the new `nic_info` dictionary.
+	Finally, it writes the updated data back to the metadata file.
 
-    Parameters:
-        None
+	Parameters:
+	- None
 
-    Returns:
-        None
-    """
+	Returns:
+	- None
+	"""
+
     try:
         with open(metadata_nic_info_path, 'r') as file:
             existing_data = yaml.safe_load(file)
@@ -91,10 +93,24 @@ def create_metadata_nic():
 
 def update_networks_table():
     """
-       Insert the network details in the xCAT networks table
-       Returns:
-         an updated networks table with details of various bmc discovery ranges inserted as a network.
-    """
+	Updates the xCAT networks table with the specified network details.
+
+	This function iterates over the `data["Networks"]` dictionary and updates the xCAT networks table
+	with the specified network details. It checks if the current network is not an admin network
+	or a bmc network. If it is not, it checks if the network has a CIDR or a static range. If it
+	has a CIDR, it calculates the start and end IP addresses, and the netmask. It then calls the
+	`run_command_nw_update()` function with the necessary parameters. If the network has a static
+	range, it calculates the start and end IP addresses, and the netmask. It then calls the
+	`run_command_nw_update()` function with the necessary parameters. Finally, it calls the
+	`create_metadata_nic()` function to update the NIC metadata.
+
+	Parameters:
+	- None
+
+	Returns:
+	- None
+	"""
+
     for info in data["Networks"]:
         for col, value in info.items():
             if col not in ('admin_network', 'bmc_network'):

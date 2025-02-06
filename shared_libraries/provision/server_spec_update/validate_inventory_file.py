@@ -22,18 +22,19 @@ inventory_status = bool(strtobool(sys.argv[1]))
 
 def validate_inventory(category_list, hostvars):
     """
-    Validates the inventory file by checking the validity of the host IP addresses and the presence of categories.
+	Validates the inventory file against the server specification.
 
-    Parameters:
-        category_data (dict): A dictionary containing the categories and their corresponding values.
-        hostvars (dict): A dictionary containing the host variables.
+	Parameters:
+		category_list (list): A list of categories.
+		hostvars (dict): A dictionary containing host variables.
 
-    Raises:
-        SystemExit: If the host IP is invalid or the categories are not provided in the inventory.
+	Returns:
+		None
 
-    Returns:
-        None
-    """
+	Raises:
+		SystemExit: If the inventory file is invalid.
+	"""
+
     # Remove localhost from inventory
     hostvars.pop('localhost','none')
 
@@ -70,17 +71,17 @@ def validate_inventory(category_list, hostvars):
 
 def main():
     """
-    Executes the main function of the program.
+	Executes the main function of the program.
 
-    This function takes in two command line arguments: `category_data` and `hostvars`.
-    It then calls the `validate_inventory` function with these arguments.
+	This function takes in two command line arguments: `category_data` and `hostvars`.
+	It then calls the `validate_inventory` function with these arguments.
 
-    Parameters:
-        None
+	Parameters:
+	- None
 
-    Returns:
-        None
-    """
+	Returns:
+	- None
+	"""
 
     category_list = os.environ.get('category_list')
     hostvars_str = os.environ.get('host_data')

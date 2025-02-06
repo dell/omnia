@@ -24,6 +24,23 @@ reg_value = "node-"
 
 
 def extract_nodes():
+    """
+    Extracts nodes from the nodelist table in the xcatdb.
+
+    This function connects to the xcatdb and retrieves the list of nodes from the nodelist table.
+    It then iterates over the list of nodes and checks if the node name contains the value of the
+    `reg_value` variable. If it does, it splits the node name by '-' and takes the last element
+    (uppercased) as the `st` variable. It then executes a SQL query to check if the `service_tag`
+    of the node exists in the `cluster.nodeinfo` table and the `bmc_mode` is either 'static' or NULL.
+    If the query returns a positive result, it executes a command to remove the node from the
+    nodelist using the `rmdef` command.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
 

@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,18 +36,27 @@ if inventory_file_paths:
 
 def is_ip(identifier):
     """
-    Check if the identifier is a valid IP address.
+	Check if the given identifier is a valid IP address.
+
+	Parameters:
+		identifier (str): The identifier to check.
+
+	Returns:
+		bool: True if the identifier is a valid IP address, False otherwise.
     """
+
     return re.match(r"^\d{1,3}(\.\d{1,3}){3}$", identifier) is not None
 
 def fetch_node_name(cursor, identifier):
     """
-    Fetch the node name by treating the identifier as IP.
-    """
-    sql_query = """
-        SELECT node, status
-        FROM cluster.nodeinfo
-        WHERE admin_ip = %s
+    Fetches the node name from the database based on the given identifier.
+
+    Parameters:
+        cursor (psycopg2.extensions.cursor): The database cursor object.
+        identifier (str): The identifier to search for.
+
+    Returns:
+        str or None: The node name if found, None otherwise.
     """
     if is_ip(identifier):
         cursor.execute(sql_query, (identifier,))
@@ -61,9 +70,14 @@ def fetch_node_name(cursor, identifier):
 
 def get_nodes_name():
     """
-    Retrieve the names of the nodes that are in a failed state from the inventory file.
+	Retrieves the names of the nodes from the database based on the given identifiers.
 
-    """
+	Parameters:
+		None
+
+	Returns:
+		list: A list of strings representing the names of the nodes.
+	"""
 
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()

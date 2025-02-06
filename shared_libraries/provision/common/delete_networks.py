@@ -26,6 +26,19 @@ omnia_nw_names = []
 
 
 def get_networks():
+    """
+    Retrieves the list of network names from the `networks` table in the `xcatdb` database.
+
+    This function establishes a connection with the `xcatdb` database and executes a SQL query to
+    retrieve the `netname` column from the `networks` table. The retrieved values are stored in the
+    `nw_names` list.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     conn_x = omniadb_connection.create_connection_xcatdb()
     cursor_x = conn_x.cursor()
     sql = "SELECT netname FROM networks"
@@ -38,6 +51,21 @@ def get_networks():
 
 
 def omnia_networks():
+    """
+    Extracts network names from a YAML file and appends them to a list.
+
+    This function opens a file specified by the `network_spec_path` variable and reads its contents.
+    The contents are parsed as a YAML file and stored in the `data` variable.
+    The function then iterates over the `Networks` key in the `data` dictionary.
+    For each item in the `Networks` list, it iterates over the key-value pairs in the item.
+    The keys are appended to the `omnia_nw_names` list.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     with open(network_spec_path, "r") as file:
         data = yaml.safe_load(file)
         for info in data["Networks"]:
@@ -46,6 +74,22 @@ def omnia_networks():
 
 
 def delete_misc_networks():
+    """
+    Deletes miscellaneous networks from the system.
+
+    This function retrieves the names of all the networks in the system using the `get_networks()` function.
+    It then retrieves the names of the networks specific to Omnia using the `omnia_networks()` function.
+    The function then iterates over the names of all the networks and checks if they are not present in the
+    list of Omnia-specific network names. If a network name is not present in the list of Omnia-specific
+    network names, it constructs a command to delete the network using the `rmdef` utility. The command is
+    executed using the `subprocess.run()` function.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     get_networks()
     omnia_networks()
     for i in nw_names:

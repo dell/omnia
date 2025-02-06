@@ -18,15 +18,16 @@ import sys
 
 def ip_range_check(ip_range, ip):
     """
-    Check if an IP address is within a given IP range.
+	Check if an IP address is within a given IP range.
 
-    Parameters:
-    - ip_range (str): The IP range in the format "start_ip-end_ip".
-    - ip (str): The IP address to check.
+	Parameters:
+	- ip_range (str): The IP range in the format "start_ip-end_ip".
+	- ip (str): The IP address to check.
 
-    Returns:
-    - bool: True if the IP address is within the IP range, False otherwise.
-    """
+	Returns:
+	- bool: True if the IP address is within the IP range, False otherwise.
+	"""
+
     start_range = ip_range.split('-')[0].strip().split('.')
     end_range = ip_range.split('-')[1].split('.')
     check_ip = ip.split('.')
@@ -37,17 +38,18 @@ def ip_range_check(ip_range, ip):
 
 def main():
     """
-    Executes the main function of the program.
+	Executes the main function of the program.
 
-    This function takes two command line arguments, `ip_range` and `ip`, and performs an IP range check using the `ip_range_check` function. If the IP is within the range, the function returns `True`, otherwise it returns `False`. The result is then printed to the console.
+	This function takes two command line arguments, `ip_range` and `ip`, and performs an IP range check using the `ip_range_check` function. If the IP is within the range, the function returns `True`, otherwise it returns `False`. The result is then printed to the console.
 
-    Parameters:
-    - `ip_range` (str): The IP range to check against.
-    - `ip` (str): The IP address to check.
+	Parameters:
+	- `ip_range` (str): The IP range to check against.
+	- `ip` (str): The IP address to check.
 
-    Returns:
-    - `bool`: The result of the IP range check, either `True` or `False`.
-    """
+	Returns:
+	- `bool`: The result of the IP range check, either `True` or `False`.
+	"""
+
     try:
         ip_range = sys.argv[1]
         ip = sys.argv[2]

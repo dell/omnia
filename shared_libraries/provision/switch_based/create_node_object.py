@@ -24,8 +24,15 @@ groups_switch_based = 'switch_based,all'
 
 def create_node_object(conn):
     """
-    Creates node object for switch_based discovery mechanism by fetching details from cluster.nodeinfo table
-    """
+	Create node objects in the database based on switch information.
+
+	Parameters:
+	conn (object): The database connection object.
+
+	Returns:
+	None
+	"""
+
 
     cursor = conn.cursor()
     sql = '''select switch_name,switch_port from cluster.nodeinfo where switch_port is not NULL'''
@@ -50,10 +57,22 @@ def create_node_object(conn):
     cursor.close()
 
 def main():
+    """
+    Executes the main function of the program.
 
-   conn = omniadb_connection.create_connection()
-   create_node_object(conn)
-   conn.close()
+    This function establishes a connection with omniadb and calls the `create_node_object` function.
+    It then closes the database connection.
+
+    Parameters:
+		None
+
+    Returns:
+    	None
+    """
+
+    conn = omniadb_connection.create_connection()
+    create_node_object(conn)
+    conn.close()
 
 if __name__ == '__main__':
     main()

@@ -33,6 +33,16 @@ bmc_nic_ip = ipaddress.IPv4Address(bmc_nic_ip)
 
 
 def oim_details_db():
+    """
+    Connects to the database, executes a query to check if the pxe_mac_address exists in the cluster.nodeinfo table,
+    and then inserts a new row for OIM node if the pxe_mac_address is not found.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
     sql = "select admin_mac from cluster.nodeinfo where admin_mac=%s"

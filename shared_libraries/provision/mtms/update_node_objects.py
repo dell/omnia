@@ -31,10 +31,12 @@ discovery_mechanism = "mtms"
 
 def get_node_obj():
     """
-       Get a list of node objects present in Omnia Infrastrcuture Management (OIM) node
-       Returns:
-         formed a list of node object names
-    """
+	Get a list of node objects present in Omnia Infrastrcuture Management (OIM) node
+
+	Returns:
+		A list of node object names
+	"""
+
     command = "/opt/xcat/bin/lsdef"
     node_objs = subprocess.run(command.split(), capture_output=True)
     temp = str(node_objs.stdout).split('\n')
@@ -46,10 +48,39 @@ def get_node_obj():
 
 def update_node_obj_nm():
     """
-       Update the node objects with proper details as per their bmc mode
-       Returns:
-         Updated node objects with proper details attached to it.
-    """
+	Update the node objects with proper details as per their bmc mode.
+
+	This function establishes a connection with omniadb and performs the following tasks:
+	- Executes a SQL query to select the service_tag from the cluster.nodeinfo table where the discovery_mechanism is equal to the given discovery_mechanism.
+	- Iterates over the serial_output and checks if the service_tag is not None.
+	- If the condition is true, it converts the service_tag to lowercase.
+	- Iterates over the serial_output and prints the service_tag.
+	- Checks if the service_tag is not None.
+	- If the condition is true, it converts the service_tag to uppercase.
+	- Executes a SQL query to select the node from the cluster.nodeinfo table where the service_tag is equal to the current serial_output.
+	- Fetches the node_name.
+	- Executes a SQL query to select the admin_ip from the cluster.nodeinfo table where the service_tag is equal to the current serial_output.
+	- Fetches the admin_ip.
+	- Executes a SQL query to select the bmc_mode from the cluster.nodeinfo table where the service_tag is equal to the current serial_output.
+	- Fetches the mode.
+	- Checks if the mode is None.
+	- If the condition is true, it prints a warning message.
+	- Checks if the mode is equal to "static".
+	- If the condition is true, it executes a command to update the node object with the given admin_ip, groups, and chain.
+	- Checks if the mode is equal to "discovery".
+	- If the condition is true, it executes a command to update the node object with the given admin_ip, groups, and chain.
+	- Checks if the mode is equal to "dynamic".
+	- If the condition is true, it executes a command to update the node object with the given admin_ip, groups, and chain.
+	- Executes a SQL query to select the bmc_ip from the cluster.nodeinfo table where the service_tag is equal to the current serial_output.
+	- Fetches the bmc_ip.
+	- Executes a command to update the node object with the given bmc_ip.
+
+	Parameters:
+	None
+
+	Returns:
+	None
+	"""
 
     # Establish a connection with omniadb
     conn = omniadb_connection.create_connection()

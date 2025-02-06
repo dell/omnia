@@ -19,14 +19,15 @@ import os
 
 def fetch_server_spec_data(server_spec_file_path):
     """
-    Fetches server specification data from a YAML file and returns it as a dictionary.
+	Fetches server specification data from a YAML file.
 
-    Args:
-        server_spec_file_path (str): The path to the server specification YAML file.
+	:param server_spec_file_path: The path to the YAML file.
+	:type server_spec_file_path: str
 
-    Returns:
-        dict: A dictionary containing the server specification data.
-    """
+	:return: A dictionary containing the server specification data.
+	:rtype: dict
+	"""
+
     with open(server_spec_file_path, "r") as file:
         data = yaml.safe_load(file)
 
@@ -60,15 +61,20 @@ def fetch_server_spec_data(server_spec_file_path):
     return category_data
 
 def validate_network_details(network_data, category_data):
-    """Validates the network details provided in the network_data and category_data dictionaries.
-    Parameters:
-    - network_data (dict): A dictionary containing network details.
-    - category_data (dict): A dictionary containing category details.
-    Returns:
-    - None
-    Raises:
-    - SystemExit: If any validation fails, a SystemExit exception is raised with an appropriate error message.
     """
+	Validates the network details in the category data against the network data.
+
+	Parameters:
+	- network_data (dict): A dictionary containing the network data.
+	- category_data (dict): A dictionary containing the category data.
+
+	Returns:
+	- None
+
+	Raises:
+	- SystemExit: If the network details are invalid.
+	"""
+
     for ctg_val in category_data.values():
         for grp_key, grp_val in ctg_val.items():
             if grp_key == "os":
@@ -110,14 +116,19 @@ def validate_network_details(network_data, category_data):
 
 def main():
     """
-    This function is the main entry point of the program. It takes in a network specification file path as a command line argument and retrieves network data from an environment variable. It then fetches server specification data from the network specification file and validates the network details against the server specification data.
+	The main function of the program.
 
-    Parameters:
-    - network_spec_file_path (str): The path to the network specification file.
+	This function takes the path of the network specification file from the command line argument,
+	retrieves the network data from the environment variable, loads it as JSON,
+	fetches the category data from the network specification file, and validates the network details.
 
-    Returns:
-    - None
-    """
+	Parameters:
+	- None
+
+	Returns:
+	- None
+	"""
+
     network_spec_file_path = os.path.abspath(sys.argv[1])
     network_string = os.environ.get('net_data')
     network_data = json.loads(network_string)

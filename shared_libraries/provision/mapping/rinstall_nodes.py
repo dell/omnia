@@ -24,6 +24,17 @@ discovery_mechanism = "mapping"
 
 
 def provision_map_nodes_bmc():
+    """
+    Retrieves a list of nodes based on the discovery mechanism from the cluster.nodeinfo database.
+    Then, checks if each node exists in the nodelist table of the xcatdb.
+    If a node exists, it runs the rinstall command.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+    """
 
     # Establish connection with cluster.nodeinfo
     conn = omniadb_connection.create_connection()
