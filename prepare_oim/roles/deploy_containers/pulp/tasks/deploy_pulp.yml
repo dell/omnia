@@ -79,3 +79,9 @@
   retries: "{{ retries_var }}"
   delay: "{{ delay_var }}"
   no_log: true
+  when: pulp_user | length > 1 and pulp_pwd | length > 1
+
+- name: Fail if Pulp username and password are not set
+  ansible.builtin.fail:
+    msg: "{{ pulp_creds_fail_msg }}"
+  when: not (pulp_user | length > 1 and pulp_pwd | length > 1)
