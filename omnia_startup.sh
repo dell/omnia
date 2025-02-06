@@ -201,6 +201,8 @@ else
     echo -e "${RED}Failed to start Omnia core container.${NC}"
 fi
 
+# Create the ansible tmp directory if it does not exist.
+mkdir -p "$omnia_path/omnia/tmp/.ansible/tmp"
 # Create the input directory if it does not exist.
 echo -e "${GREEN}Creating the input directory if it does not exist.${NC}"
 mkdir -p "$omnia_path/omnia/input/project_default/"
@@ -249,7 +251,7 @@ echo -e "${GREEN}
          Entering the container from Omnia Infrastructure Manager(OIM):
            Through podman:
            # podman exec -it -u root omnia_core bash
-           
+
            Direct SSH:
            # ssh omnia_core
 
