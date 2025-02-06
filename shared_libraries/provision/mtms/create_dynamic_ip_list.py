@@ -27,7 +27,7 @@ password = sys.argv[4]
 ip_list = []
 valid_ip_list = []
 dhcp_file_path = os.path.abspath(sys.argv[5])
-dynamic_ip_path = "/opt/omnia/dynamic_ip_list"
+dynamic_ip_path = "/opt/omnia/provision/dynamic_ip_list"
 
 
 def create_temp_ip_list():
@@ -108,7 +108,7 @@ def extract_possible_bmc_ip():
 
 def create_dynamic_ip_file(valid_ip_list):
     """
-	Create a file named "dynamic_ip_list" in the "/opt/omnia/" directory.
+	Create a file named "dynamic_ip_list" in the "/opt/omnia/provision" directory.
 	The file contains a list of valid IP addresses, each on a new line.
 
 	Parameters:
