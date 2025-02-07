@@ -33,7 +33,7 @@ name=amdgpu
 baseurl=http://{{ admin_nic_ip }}:{{ pulp_port }}/pulp/content/rpm/
 enabled=1
 gpgcheck=0
-{% if proxy_status %}
+{% if proxy_status is defined and proxy_status %}
 proxy=_none_
 {% endif %}
 EOF
