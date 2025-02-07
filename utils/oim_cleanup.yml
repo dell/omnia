@@ -30,6 +30,7 @@
   gather_facts: false
   roles:
     - oim_cleanup/pre_requisite
+  tags: pcs, provision, kubespray, pulp
 
 - name: Cleanup Omnia Infrastructure Manager
   hosts: oim
