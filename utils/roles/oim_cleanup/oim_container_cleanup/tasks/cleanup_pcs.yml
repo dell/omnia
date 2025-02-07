@@ -13,18 +13,26 @@
 #  limitations under the License.
 ---
 
-- name: Stop omnia_pcs service
-  ansible.builtin.systemd:
+- name: Check if {{ pcs_container_name }} container is running # noqa: name[template]
+  containers.podman.podman_container_info:
     name: "{{ pcs_container_name }}"
-    state: stopped
-
-- name: Remove PCS service file
-  ansible.builtin.file:
-    path: "{{ pcs_service_file_path }}"
-    state: absent
+  register: pcs_container_status
+  failed_when: false
 
 - name: Stop and Remove PCS container
+  when: pcs_container_status.containers | length == 0
   block:
+
+    - name: Stop omnia_pcs service
+      ansible.builtin.systemd:
+        name: "{{ pcs_container_name }}"
+        state: stopped
+
+    - name: Remove PCS service file
+      ansible.builtin.file:
+        path: "{{ pcs_service_file_path }}"
+        state: absent
+
     - name: Stop the PCS container
       containers.podman.podman_container:
         name: "{{ pcs_container_name }}"
@@ -34,12 +42,12 @@
       containers.podman.podman_container:
         name: "{{ pcs_container_name }}"
         state: absent
+
+    - name: Remove PCS directory
+      ansible.builtin.file:
+        path: "{{ pcs_container_dir }}"
+        state: absent
   rescue:
     - name: PCS container removal failed
       ansible.builtin.fail:
         msg: "{{ pcs_container_name }} {{ container_removal_failure_msg }}"
-
-- name: Remove PCS directory
-  ansible.builtin.file:
-    path: "{{ pcs_container_dir }}"
-    state: absent

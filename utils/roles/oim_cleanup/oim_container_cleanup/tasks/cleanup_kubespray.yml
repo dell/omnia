@@ -13,7 +13,14 @@
 #  limitations under the License.
 ---
 
+- name: Check if {{ kubespray_container_name }} is already running # noqa: name[template]
+  containers.podman.podman_container_info:
+    name: "{{ kubespray_container_name }}"
+  register: kubespray_container_status
+  failed_when: false
+
 - name: Stop and Remove Kubespray container
+  when: kubespray_container_status.containers | length == 0
   block:
     - name: Stop the Kubespray container
       containers.podman.podman_container:
@@ -24,12 +31,12 @@
       containers.podman.podman_container:
         name: "{{ kubespray_container_name }}"
         state: absent
+
+    - name: Remove Kubespray directory
+      ansible.builtin.file:
+        path: "{{ kubespray_container_dir }}"
+        state: absent
   rescue:
     - name: Kubespray container removal failed
       ansible.builtin.fail:
         msg: "{{ kubespray_container_name }} {{ container_removal_failure_msg }}"
-
-- name: Remove Kubespray directory
-  ansible.builtin.file:
-    path: "{{ kubespray_container_dir }}"
-    state: absent

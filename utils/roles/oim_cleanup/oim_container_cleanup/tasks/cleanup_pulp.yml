@@ -13,7 +13,14 @@
 #  limitations under the License.
 ---
 
+- name: Check if Pulp container is running after deployment
+  containers.podman.podman_container_info:
+    name: "{{ pulp_container_name }}"
+  register: pulp_container_status
+  failed_when: false
+
 - name: Stop and Remove Pulp container
+  when: pulp_container_status.containers | length == 0
   block:
     - name: Stop the Pulp container
       containers.podman.podman_container:
@@ -24,12 +31,12 @@
       containers.podman.podman_container:
         name: "{{ pulp_container_name }}"
         state: absent
+
+    - name: Remove Pulp Directory
+      ansible.builtin.file:
+        path: "{{ pulp_container_dir }}"
+        state: absent
   rescue:
     - name: Pulp container removal failed
       ansible.builtin.fail:
         msg: "{{ pulp_container_name }} {{ container_removal_failure_msg }}"
-
-- name: Remove Pulp Directory
-  ansible.builtin.file:
-    path: "{{ pulp_container_dir }}"
-    state: absent

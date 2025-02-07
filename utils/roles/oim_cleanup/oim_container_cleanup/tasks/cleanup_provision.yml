@@ -13,7 +13,14 @@
 #  limitations under the License.
 ---
 
+- name: Check if {{ provision_container_name }} container is present # noqa: name[template]
+  containers.podman.podman_container_info:
+    name: "{{ provision_container_name }}"
+  register: provision_container_status
+  failed_when: false
+
 - name: Stop and Remove Provision container
+  when: provision_container_status.containers | length == 0
   block:
     - name: Stop the Provision container
       containers.podman.podman_container:
@@ -24,12 +31,12 @@
       containers.podman.podman_container:
         name: "{{ provision_container_name }}"
         state: absent
+
+    - name: Remove Provision directory
+      ansible.builtin.file:
+        path: "{{ provision_container_dir }}"
+        state: absent
   rescue:
     - name: Provision container removal failed
       ansible.builtin.fail:
         msg: "{{ provision_container_name }} {{ container_removal_failure_msg }}"
-
-- name: Remove Provision directory
-  ansible.builtin.file:
-    path: "{{ provision_container_dir }}"
-    state: absent
