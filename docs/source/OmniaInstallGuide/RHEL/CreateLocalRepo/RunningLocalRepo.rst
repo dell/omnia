@@ -1,13 +1,13 @@
-Running local repo
-------------------
+Execute local repo playbook
+=============================
 
-The local repository feature will help create offline repositories on the OIM which all the cluster nodes will access.
+The local repository feature helps create offline repositories on the OIM, which all the cluster nodes can access.
 
 **Configurations made by the playbook**
 
     * A registry is created on the OIM at <OIM hostname>:5001.
 
-    * If ``repo_config`` in ``local_repo_config.yml`` is set to ``always`` or ``partial``, all images present in the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder will be downloaded to the OIM.
+    * If ``repo_config`` in ``input/software_config.json`` is set to ``always`` or ``partial``, all images present in the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder will be downloaded to the OIM.
 
 
         * If the image is defined using a tag, the image will be tagged using <OIM hostname>:5001/<image_name>:<version> and pushed to the Omnia local registry.
@@ -15,18 +15,20 @@ The local repository feature will help create offline repositories on the OIM wh
         * If the image is defined using a digest, the image will be tagged using <OIM hostname>:5001/<image_name>:omnia and pushed to the Omnia local registry.repositories
 
 
-    * When  ``repo_config`` in ``local_repo_config.yml`` is set to ``always``, the OIM is set as the default registry mirror.
+    * When  ``repo_config`` in ``input/software_config.json`` is set to ``always``, the OIM is set as the default registry mirror.
 
-    * When ``repo_config`` in ``local_repo_config`` is set to ``partial``, the ``user_registry`` (if defined) and the OIM are set as default registry mirrors.
+    * When ``repo_config`` in ``input/software_config.json`` is set to ``partial``, the ``user_registry`` (if defined) and the OIM are set as default registry mirrors.
 
-To create local repositories, run the following commands: ::
+**Create & Verify local repo**
+
+* To create local repositories, execute the following command: ::
 
     cd local_repo
     ansible-playbook local_repo.yml
 
 .. caution:: During the execution of ``local_repo.yml``, Omnia 1.7 will remove packages such as ``podman``, ``containers-common``, and ``buildah`` (if they are already installed), as they conflict with the installation of ``containerd.io`` on RHEL/Rocky Linux OS OIM.
 
-Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes.
+* Verify changes made by the playbook by running ``cat /etc/containerd/certs.d/_default/hosts.toml`` on compute nodes.
 
 .. note::
     * View the status of packages for the current run of ``local_repo.yml`` in ``/opt/omnia/offline/download_package_status.csv``. Packages which are already a part of AppStream or BaseOS repositories show up as ``Skipped``.
@@ -67,4 +69,3 @@ To run the playbook: ::
 
     cd utils
     ansible-playbook update_user_repo.yml -i inventory
-
