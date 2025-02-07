@@ -27,6 +27,15 @@ pcs resource create {{ omnia_core_name }} ocf:heartbeat:podman \
  op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
 
+pcs resource create {{ pulp_container_name }} ocf:heartbeat:podman \
+ name={{ pulp_container_name }} \
+ image={{ pulp_image }} \
+ reuse=true \
+ run_opts="{{ pulp_run_opts }}" \
+ op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
+ op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
+
 pcs resource create {{ provision_container_name }} ocf:heartbeat:podman \
  name={{ provision_container_name }} \
  image={{ provision_image }} \
@@ -47,6 +56,11 @@ pcs resource create {{ kubespray_name }} ocf:heartbeat:podman \
  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
 {% endif %}
 
-pcs resource group add omnia_containers {{ omnia_core_name }} {{ provision_container_name }} {% if hostvars['localhost']['k8s_support'] %} {{ kubespray_name }} {% endif %}
+# Create ordering constraints
+pcs constraint order start {{ omnia_core_name }} then start {{ pulp_container_name }}
+pcs constraint order start {{ pulp_container_name }} then start {{ provision_container_name }}
+{% if hostvars['localhost']['k8s_support'] %}
+pcs constraint order start {{ provision_container_name }} then start {{ kubespray_name }}
+{% endif %}
 
 pcs resource defaults update migration-threshold={{ migration_threshold }}

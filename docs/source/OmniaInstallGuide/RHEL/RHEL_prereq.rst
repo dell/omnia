@@ -19,5 +19,9 @@ Prerequisites
 
     git clone https://github.com/dell/omnia.git
 
+.. note:: If you do not specify a branch while cloning the repository, the ``omnia/main`` branch is cloned by default. To clone a specific branch, add ``-b <branch name>`` at the end of the git clone command. For example:
+    ::
+        git clone https://github.com/dell/omnia.git -b v1.7.1
+
 6. [Optional] `Set up a proxy server for the OIM <Setup_CP_proxy.html>`_.
 

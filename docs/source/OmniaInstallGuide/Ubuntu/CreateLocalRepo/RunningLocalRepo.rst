@@ -7,7 +7,7 @@ The local repository feature helps create offline repositories on the OIM, which
 
     * A registry is created on the OIM at <OIM hostname>:5001.
 
-    * If ``repo_config`` in ``local_repo_config.yml`` is set to ``always`` or ``partial``, all images present in the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder will be downloaded to the OIM.
+    * If ``repo_config`` in ``input/software_config.json`` is set to ``always`` or ``partial``, all images present in the ``input/config/<cluster_os_type>/<cluster_os_version>`` folder will be downloaded to the OIM.
 
 
         * If the image is defined using a tag, the image will be tagged using <OIM hostname>:5001/<image_name>:<version> and pushed to the Omnia local registry.
@@ -15,9 +15,9 @@ The local repository feature helps create offline repositories on the OIM, which
         * If the image is defined using a digest, the image will be tagged using <OIM hostname>:5001/<image_name>:omnia and pushed to the Omnia local registry.repositories
 
 
-    * When  ``repo_config`` in ``local_repo_config.yml`` is set to ``always``, the OIM is set as the default registry mirror.
+    * When  ``repo_config`` in ``input/software_config.json`` is set to ``always``, the OIM is set as the default registry mirror.
 
-    * When ``repo_config`` in ``local_repo_config`` is set to ``partial``, the ``user_registry`` (if defined) and the OIM are set as default registry mirrors.
+    * When ``repo_config`` in ``input/software_config.json`` is set to ``partial``, the ``user_registry`` (if defined) and the OIM are set as default registry mirrors.
 
 **Create & Verify local repo**
 
