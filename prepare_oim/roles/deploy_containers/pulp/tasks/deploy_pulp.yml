@@ -42,6 +42,7 @@
         image: "{{ pulp_image }}"
         state: present
         restart_policy: always
+        hostname: "{{ pulp_container_name }}"
         volumes: "{{ volumes }}"
         privileged: true
         device:
