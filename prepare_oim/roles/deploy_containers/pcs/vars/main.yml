@@ -70,7 +70,7 @@ core_container_image_tag: "latest"
 core_container_name: "omnia_core"
 omnia_core_image: "{{ omnia_core_name }}:{{ core_container_image_tag }}"
 core_container_logs_dir: "{{ omnia_nfs_share }}/log/core/container"
-omnia_core_run_opts: " -dt --hostname {{ omnia_core_name }} --restart=always --network=host -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z {{ core_container_logs_dir }}:/var/log:z -v {{ hosts_file }}:/etc/hosts:z --e ROOT_PASSWORD_HASH={{ hostvars['localhost']['omnia_core_hashed_passwd'] }} --name {{ omnia_core_name }} --cap-add=CAP_AUDIT_WRITE "
+omnia_core_run_opts: "-dt --hostname {{ omnia_core_name }} --restart=always --network=host -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ core_container_logs_dir }}:/var/log:z -v {{ hosts_file }}:/etc/hosts:z -e ROOT_PASSWORD_HASH={{ hostvars['localhost']['omnia_core_hashed_passwd'] }} --name {{ omnia_core_name }} --cap-add=CAP_AUDIT_WRITE"
 
 #Usage: pcs-start.sh.j2: omnia_provision
 provision_container_name: "omnia_provision"
@@ -85,12 +85,20 @@ install_dir: "{{ provision_dir }}/install"
 tftpboot_dir: "{{ provision_dir }}/tftpboot"
 hosts_file: "{{ omnia_nfs_share }}/hosts"
 provision_logs_dir: "{{ omnia_nfs_share }}/log/provision"
-provision_run_opts: "-d --network=host --restart=always --hostname {{ oim_hostname }} --privileged -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v {{ xcatdata_dir }}:/xcatdata:z -v {{ install_dir }}:/install:z -v {{ tftpboot_dir }}:/tftpboot:z -v {{ provision_logs_dir }}/xcat:/var/log/xcat:z  -v {{ pgsql_data_dir }}:/var/lib/pgsql/data:z {{ hosts_file }}:/etc/hosts:z"
+provision_run_opts: " --network=host --restart=always --hostname {{ oim_hostname }} --privileged -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v {{ xcatdata_dir }}:/xcatdata:z -v {{ install_dir }}:/install:z -v {{ tftpboot_dir }}:/tftpboot:z -v {{ provision_logs_dir }}/xcat:/var/log/xcat:z -v {{ pgsql_data_dir }}:/var/lib/pgsql/data:z -v {{ hosts_file }}:/etc/hosts:z"
 
 #Usage: pcs-start.sh.j2: kubespray
 kubespray_image_name: "omnia_kubespray"
 kubespray_version: "{{ hostvars['localhost']['kubespray_version'] }}"
 kubespray_name: "omnia_kubespray_{{ kubespray_version }}"
 kubespray_image: "localhost/{{ kubespray_image_name }}:{{ kubespray_version }}"
-kubespray_run_opts: "-d -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ hosts_file }}:/etc/hosts:z --network=host --restart=always --cap-add AUDIT_WRITE"
+kubespray_run_opts: " -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ hosts_file }}:/etc/hosts:z --network=host --restart=always --cap-add AUDIT_WRITE"
+
+#Usage: pcs-start.sh.j2: pulp
+pulp_container_name: "omnia_pulp"
+pulp_image: "docker.io/pulp/pulp"
+pulp_port: "2225:2225"
+pulp_share: "{{ omnia_nfs_share }}/pulp"
+pulp_run_opts: " --hostname {{ pulp_container_name }} --device /dev/fuse:/dev/fuse:rwm -e PULP_WORKERS=10 -e PULP_API_WORKERS=10 -e PULP_CONTENT_WORKERS=10 -e PULP_GUNICORN_TIMEOUT=30 -e PULP_API_WORKERS_MAX_REQUESTS=1000 -e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50 --restart=always --publish {{ pulp_port }} -v {{ pulp_share }}/settings:/etc/pulp:z -v {{ pulp_share }}/settings/pulp_storage:/var/lib/pulp:z -v {{ pulp_share }}/settings/pgsql:/var/lib/pgsql:z -v {{ pulp_share }}/settings/containers:/var/lib/containers:z -v {{ pulp_share }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro -v {{ omnia_nfs_share }}/log/pulp:/var/log/pulp:z"
+
 
