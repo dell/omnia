@@ -33,7 +33,7 @@ provision_container_dir: "{{ omnia_nfs_share }}/provision"
 provision_container_log_dir: "{{ omnia_nfs_share }}/logs/provision"
 
 # Usage: cleanup_kubespray.yml
-kubespray_image_tag: "{{ kubespray_version }}"
-kubespray_container_name: "omnia_kubespray_{{ kubespray_version }}"
+kubespray_image_tag: "{{ hostvars['localhost']['kubespray_version'] }}"
+kubespray_container_name: "omnia_kubespray_{{ hostvars['localhost']['kubespray_version'] }}"
 kubespray_container_dir: "{{ omnia_nfs_share }}/kubespray"
 kubespray_container_log_dir: "{{ omnia_nfs_share }}/logs/kubespray"
