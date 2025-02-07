@@ -14,25 +14,26 @@
 ---
 
 container_removal_failure_msg: " container could not be removed."
+omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia"
 
 # Usage: cleanup_pcs.yml
 pcs_container_name: "omnia_pcs"
-pcs_container_dir: "{{ oim_shared_path }}/omnia/pcs"
-pcs_container_log_dir: "{{ oim_shared_path }}/omnia/logs/pcs"
+pcs_container_dir: "{{ omnia_nfs_share }}/pcs"
+pcs_container_log_dir: "{{ omnia_nfs_share }}/logs/pcs"
 pcs_service_file_path: "/etc/containers/systemd/{{ pcs_container_name }}.container"
 
 # Usage: cleanup_pulp.yml
 pulp_container_name: "omnia_pulp"
-pulp_container_dir: "{{ oim_shared_path }}/omnia/pulp"
-pulp_container_log_dir: "{{ oim_shared_path }}/omnia/logs/pulp"
+pulp_container_dir: "{{ omnia_nfs_share }}/pulp"
+pulp_container_log_dir: "{{ omnia_nfs_share }}/logs/pulp"
 
 # Usage: cleanup_provision.yml
 provision_container_name: "omnia_provision"
-provision_container_dir: "{{ oim_shared_path }}/omnia/provision"
-provision_container_log_dir: "{{ oim_shared_path }}/omnia/logs/provision"
+provision_container_dir: "{{ omnia_nfs_share }}/provision"
+provision_container_log_dir: "{{ omnia_nfs_share }}/logs/provision"
 
 # Usage: cleanup_kubespray.yml
 kubespray_image_tag: "{{ kubespray_version }}"
 kubespray_container_name: "omnia_kubespray_{{ kubespray_version }}"
-kubespray_container_dir: "{{ oim_shared_path }}/omnia/kubespray"
-kubespray_container_log_dir: "{{ oim_shared_path }}/omnia/logs/kubespray"
+kubespray_container_dir: "{{ omnia_nfs_share }}/kubespray"
+kubespray_container_log_dir: "{{ omnia_nfs_share }}/logs/kubespray"
