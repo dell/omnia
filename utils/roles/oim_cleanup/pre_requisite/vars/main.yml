@@ -19,27 +19,3 @@ software_config_file: "{{ input_project_dir }}/software_config.json"
 invalid_software_config_fail_msg: "Failed. Please provide valid software_config.json file with cluster_os_type, cluster_os_version, repo_config
 and repo_config values."
 software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
-
-container_removal_failure_msg: " container could not be removed."
-
-# Usage: cleanup_pcs.yml
-pcs_container_name: "omnia_pcs"
-pcs_container_dir: "{{ oim_shared_path }}/omnia/pcs"
-pcs_container_log_dir: "{{ oim_shared_path }}/omnia/logs/pcs"
-pcs_service_file_path: "/etc/containers/systemd/{{ pcs_container_name }}.container"
-
-# Usage: cleanup_pulp.yml
-pulp_container_name: "omnia_pulp"
-pulp_container_dir: "{{ oim_shared_path }}/omnia/pulp"
-pulp_container_log_dir: "{{ oim_shared_path }}/omnia/logs/pulp"
-
-# Usage: cleanup_provision.yml
-provision_container_name: "omnia_provision"
-provision_container_dir: "{{ oim_shared_path }}/omnia/provision"
-provision_container_log_dir: "{{ oim_shared_path }}/omnia/logs/provision"
-
-# Usage: cleanup_kubespray.yml
-kubespray_image_tag: "{{ kubespray_version }}"
-kubespray_container_name: "omnia_kubespray_{{ kubespray_version }}"
-kubespray_container_dir: "{{ oim_shared_path }}/omnia/kubespray"
-kubespray_container_log_dir: "{{ oim_shared_path }}/omnia/logs/kubespray"

@@ -28,13 +28,12 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tasks:
-    - name: Include pre_requisite tasks
-      ansible.builtin.include_tasks: roles/oim_cleanup/tasks/pre_requisite.yml
+  roles:
+    - oim_cleanup/pre_requisite
 
 - name: Cleanup Omnia Infrastructure Manager
   hosts: oim
   connection: ssh
   gather_facts: false
   roles:
-    - oim_cleanup
+    - oim_cleanup/oim_container_cleanup
