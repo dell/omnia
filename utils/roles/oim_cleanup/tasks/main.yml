@@ -22,7 +22,7 @@
   tags: pcs
 
 - name: Cleanup pulp container
-  ansible.builtin.import_tasks: cleanup_pcs.yml
+  ansible.builtin.import_tasks: cleanup_pulp.yml
   tags: pulp
 
 - name: Cleanup kubespray container

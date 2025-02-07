@@ -30,4 +30,3 @@
   gather_facts: false
   roles:
     - oim_cleanup
-  tags: pcs, provision, kubespray, pulp
