@@ -13,13 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Cleanup provision container
-  ansible.builtin.import_tasks: cleanup_provision.yml
-  tags: provision
-
 - name: Cleanup pcs container
   ansible.builtin.import_tasks: cleanup_pcs.yml
   tags: pcs
+
+- name: Cleanup provision container
+  ansible.builtin.import_tasks: cleanup_provision.yml
+  tags: provision
 
 - name: Cleanup pulp container
   ansible.builtin.import_tasks: cleanup_pulp.yml
