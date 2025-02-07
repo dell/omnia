@@ -24,6 +24,14 @@
     oim_group: true
   tags: pcs, provision, kubespray, pulp
 
+- name: Execute prerequisite tasks
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Include pre_requisite tasks
+      ansible.builtin.include_tasks: roles/oim_cleanup/tasks/pre_requisite.yml
+
 - name: Cleanup Omnia Infrastructure Manager
   hosts: oim
   connection: ssh
