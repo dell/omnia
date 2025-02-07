@@ -13,8 +13,8 @@
 # limitations under the License.
 ---
 
-- name: Pre-requisities for postscripts
-  ansible.builtin.include_tasks: pre_requisite.yml
+# - name: Pre-requisities for postscripts
+#   ansible.builtin.include_tasks: pre_requisite.yml
 
 # These tasks will be updated after local repo changes
 # - name: Configure OFED postscripts
@@ -25,6 +25,6 @@
 #   ansible.builtin.include_tasks: configure_cuda.yml
 #   when: cuda_config_status
 
-# - name: Configure ROCm postscripts
-#   ansible.builtin.include_tasks: configure_rocm.yml
-#   when: amdgpu_config_status
+- name: Configure ROCm postscripts
+  ansible.builtin.include_tasks: configure_rocm.yml
+  when: amdgpu_config_status

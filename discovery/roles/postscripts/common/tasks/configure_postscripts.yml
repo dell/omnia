@@ -73,10 +73,10 @@
 #     - cuda_config_status
 #     - cuda_repo_stat.stat.exists
 #
-# - name: Configure postscripts for ROCm
-#   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_rocm"
-#   changed_when: true
-#   when: amdgpu_config_status
+- name: Configure postscripts for ROCm
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_rocm"
+  changed_when: true
+  when: amdgpu_config_status
 #
 # - name: Configure postscripts for Intel Gaudi
 #   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_intelgaudi"

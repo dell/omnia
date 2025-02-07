@@ -38,6 +38,7 @@ cuda_postscripts_path:
 xcat_path: /opt/xcat/bin
 
 # Usage: configure_rocm.yml
+pulp_port: 2225
 rocm_postscripts_path:
   - { src: "{{ role_path }}/templates/omnia_rocm.j2", dest: "/install/postscripts/omnia_rocm", mode: "755" }
 
