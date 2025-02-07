@@ -15,6 +15,7 @@
 
 - name: Include pre_requisite tasks
   ansible.builtin.include_tasks: pre_requisite.yml
+  tags: always
 
 - name: Cleanup provision container
   ansible.builtin.import_tasks: cleanup_provision.yml
