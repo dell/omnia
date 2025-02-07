@@ -15,3 +15,6 @@
 
 - name: Import pre-requisite tasks
   ansible.builtin.include_tasks: pre_requisite.yml
+
+- name: Check k8s support
+  ansible.builtin.include_tasks: check_k8s_support.yml
