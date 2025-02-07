@@ -20,7 +20,7 @@
   failed_when: false
 
 - name: Stop and Remove Pulp container
-  when: pulp_container_status.containers | length == 0
+  when: pulp_container_status.containers | length != 0
   block:
     - name: Stop the Pulp container
       containers.podman.podman_container:

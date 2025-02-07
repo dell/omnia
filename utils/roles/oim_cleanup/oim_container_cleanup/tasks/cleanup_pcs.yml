@@ -20,7 +20,7 @@
   failed_when: false
 
 - name: Stop and Remove PCS container
-  when: pcs_container_status.containers | length == 0
+  when: pcs_container_status.containers | length != 0
   block:
 
     - name: Stop omnia_pcs service

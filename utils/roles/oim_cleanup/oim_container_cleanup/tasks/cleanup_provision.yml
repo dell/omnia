@@ -20,7 +20,7 @@
   failed_when: false
 
 - name: Stop and Remove Provision container
-  when: provision_container_status.containers | length == 0
+  when: provision_container_status.containers | length != 0
   block:
     - name: Stop the Provision container
       containers.podman.podman_container:
