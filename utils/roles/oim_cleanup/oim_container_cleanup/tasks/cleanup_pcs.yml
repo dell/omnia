@@ -23,16 +23,6 @@
   when: pcs_container_status.containers | length != 0
   block:
 
-    - name: Stop omnia_pcs service
-      ansible.builtin.systemd:
-        name: "{{ pcs_container_name }}"
-        state: stopped
-
-    - name: Remove PCS service file
-      ansible.builtin.file:
-        path: "{{ pcs_service_file_path }}"
-        state: absent
-
     - name: Stop the PCS container
       containers.podman.podman_container:
         name: "{{ pcs_container_name }}"
@@ -41,6 +31,16 @@
     - name: Remove pcs container
       containers.podman.podman_container:
         name: "{{ pcs_container_name }}"
+        state: absent
+
+    - name: Stop omnia_pcs service
+      ansible.builtin.systemd:
+        name: "{{ pcs_container_name }}"
+        state: stopped
+
+    - name: Remove PCS service file
+      ansible.builtin.file:
+        path: "{{ pcs_service_file_path }}"
         state: absent
 
     - name: Remove PCS directory
