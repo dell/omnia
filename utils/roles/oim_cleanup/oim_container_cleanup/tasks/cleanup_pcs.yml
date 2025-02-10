@@ -54,10 +54,6 @@
         state: disabled
         permanent: true
       loop: "{{ pcs_firewall_ports }}"
-
-    - name: Reload firewalld to apply changes
-      ansible.builtin.command: firewall-cmd --reload
-      changed_when: true
   rescue:
     - name: PCS container removal failed
       ansible.builtin.fail:
