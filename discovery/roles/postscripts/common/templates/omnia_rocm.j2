@@ -28,9 +28,9 @@ if [[ $amd_check_display_ctrlr == *"Advanced Micro Devices"* || $amd_check_proce
   else
 
 sudo tee /etc/yum.repos.d/amdgpu.repo <<EOF
-[amdgpu]
-name=amdgpu
-baseurl=http://{{ admin_nic_ip }}:{{ pulp_port }}/pulp/content/rpm/
+[{{ amdgpu_name }}]
+name={{ amdgpu_name }}
+baseurl={{ amdgpu_base_url }}
 enabled=1
 gpgcheck=0
 {% if proxy_status is defined and proxy_status %}
