@@ -39,7 +39,7 @@ hashed_passwd=""
 # It prompts the user for the Omnia shared path and the root password.
 # It checks if the Omnia shared path exists.
 #
-start_omnia_core() {
+setup_omnia_core() {
     # Initialize the container configuration
     init_container_config
 
@@ -48,6 +48,9 @@ start_omnia_core() {
 
     # Setup the container
     setup_container
+
+    # Post container setup configuration
+    post_setup_config
 }
 
 
@@ -406,11 +409,11 @@ main() {
                 setup_container
             elif [ "$choice" = "2" ]; then
                 cleanup_omnia_core
-                start_omnia_core
+                setup_omnia_core
 
     else
         echo -e "${GREEN}Starting Omnia core container.${NC}"
-        start_omnia_core
+        setup_omnia_core
     fi
 }
 
