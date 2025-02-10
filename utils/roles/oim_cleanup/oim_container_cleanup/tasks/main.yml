@@ -28,3 +28,7 @@
 - name: Cleanup kubespray container
   ansible.builtin.import_tasks: cleanup_kubespray.yml
   tags: kubespray
+
+- name: Reload firewalld to apply changes
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true

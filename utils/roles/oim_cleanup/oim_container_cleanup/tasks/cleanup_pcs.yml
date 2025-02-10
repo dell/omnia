@@ -47,6 +47,13 @@
       ansible.builtin.file:
         path: "{{ pcs_container_dir }}"
         state: absent
+
+    - name: Remove PCS-related ports on host firewalld
+      ansible.posix.firewalld:
+        port: "{{ item }}"
+        state: disabled
+        permanent: true
+      loop: "{{ pcs_firewall_ports }}"
   rescue:
     - name: PCS container removal failed
       ansible.builtin.fail:

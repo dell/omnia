@@ -36,6 +36,14 @@
       ansible.builtin.file:
         path: "{{ provision_container_dir }}"
         state: absent
+
+    - name: Remove xCAT-related ports on host firewalld
+      ansible.posix.firewalld:
+        port: "{{ item }}"
+        state: disabled
+        permanent: true
+      loop: "{{ xcat_firewall_ports }}"
+      changed_when: true
   rescue:
     - name: Provision container removal failed
       ansible.builtin.fail:
