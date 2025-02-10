@@ -35,7 +35,7 @@
         amdgpu_version: "{{ user_config.softwares | selectattr('name', 'equalto', 'amdgpu') | map(attribute='version') | first }}"
 
     - name: Get amdgpu repository details from Pulp
-      ansible.builtin.command: pulp rpm distribution list --name amdgpu
+      ansible.builtin.command: /usr/local/bin/pulp rpm distribution list --name amdgpu
       register: pulp_amdgpu_output
       changed_when: false
 
