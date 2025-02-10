@@ -412,7 +412,7 @@ main() {
                 setup_omnia_core
 
     else
-        echo -e "${GREEN}Starting Omnia core container.${NC}"
+        echo -e "${GREEN}Starting Omnia core container setup.${NC}"
         setup_omnia_core
     fi
 }
