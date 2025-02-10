@@ -65,38 +65,64 @@ cleanup_omnia_core() {
     cleanup_config
 }
 
+
+# This function is responsible for cleaning up the Omnia core container configuration.
+# It removes the public key from the authorized_keys file.
+# It removes the private key.
+# It removes the ssh key from the known_hosts file.
+# It removes the Omnia core configuration.
+#
 cleanup_config(){
+    # Fetch the configuration from the Omnia core container.
     fetch_config
-    ssh_key_file="~/.ssh/oim_rsa"
-    # Remove the public key from authorized_keys
-    if [ -f "$ssh_key_file.pub" ]; then
-        sed -i "\|^$(cat $ssh_key_file.pub)$|d" ~/.ssh/authorized_keys
+
+    # Set the path to the ssh public key.
+    ssh_key_file="$omnia_path/omnia/ssh_config/oim_rsa.pub"
+
+    # Remove the public key from the authorized_keys file.
+    if [ -f "$ssh_key_file" ]; then
+        # Remove the line from the authorized_keys file.
+        sed -i "\|^$(cat $ssh_key_file)$|d" ~/.ssh/authorized_keys
         echo -e "${GREEN}Public key has been removed from authorized_keys.${NC}"
     else
         echo -e "${RED}Public key file not found.${NC}"
     fi
 
-    # Remove the private key
+    # Remove the private key.
+    ssh_key_file="$omnia_path/omnia/ssh_config/oim_rsa"
     if [ -f "$ssh_key_file" ]; then
+        # Remove the private key.
         rm -f "$ssh_key_file"
         echo -e "${GREEN}Private key has been removed.${NC}"
     else
         echo -e "${RED}Private key file not found.${NC}"
     fi
+
+    # Remove the ssh key from the known_hosts file.
     ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1
-    
+
+    # Remove the Omnia core configuration.
     rm -rf $omnia_path/omnia
 
     echo -e "${GREEN}Omnia core configuration has been cleaned up.${NC}"
 }
 
+
+# This function is responsible for removing the Omnia core container.
+#
+# It removes the container using the 'podman rm -f' command.
+# If the container is removed successfully, it prints a success message.
+# Otherwise, it prints an error message.
+#
 remove_container() {
+    # Remove the container.
     if podman rm -f omnia_core; then
         echo -e "${GREEN}Omnia core container has been removed.${NC}"
     else
         echo -e "${RED}Failed to remove Omnia core container.${NC}"
     fi
 
+    # Remove the container image.
     if podman rmi omnia_core; then
         echo -e "${GREEN}Omnia core image has been removed.${NC}"
     else
@@ -209,22 +235,40 @@ init_container_config() {
     touch "$omnia_path/omnia/hosts"
 }
 
+
+# This function is responsible for fetching the configuration from the Omnia core.
+# It uses podman exec to run a command in the Omnia core container.
+# The command retrieves the metadata from the oim_metadata.yml file.
+# The metadata is then parsed and the required configuration is extracted.
+#
 fetch_config() {
+
+    # Fetch the metadata from the oim_metadata.yml file.
     core_config=$(podman exec -ti omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml')
-    readarray -t config_lines <<<"$core_config"
+
+    # Split the metadata into separate lines.
+    IFS=$'\n' read -r -d '' -a config_lines <<<"$core_config"
+
+    # Loop through the lines and extract the required configuration.
     for line in "${config_lines[@]}"; do
+        # Extract the key and value from the line.
         key=$(echo "$line" | awk -F ':' '{print $1}')
         value=$(echo "$line" | awk -F ':' '{print $2}')
+
+        # Check the key and assign the value to the corresponding variable.
         case $key in
             oim_shared_path)
+                # Assign the shared path.
                 omnia_path=$(echo "$value" | tr -d '[:space:]')
                 ;;
             omnia_core_hashed_passwd)
+                # Assign the hashed password.
                 hashed_passwd=$(echo "$value" | tr -d '[:space:]')
                 ;;
         esac
     done
 
+    # Check if the required configuration is extracted successfully.
     if [ -z "$omnia_path" ] || [ -z "$hashed_passwd" ]; then
         echo -e "${RED}Failed to fetch data from metadata file.${NC}"
         exit 1
@@ -299,7 +343,7 @@ setup_container() {
 
 post_setup_config() {
 
-        # Create the ansible tmp directory if it does not exist.
+    # Create the ansible tmp directory if it does not exist.
     mkdir -p "$omnia_path/omnia/tmp/.ansible/tmp"
     chmod 757 "$omnia_path/omnia/tmp/.ansible/tmp"
     # Create the input directory if it does not exist.
