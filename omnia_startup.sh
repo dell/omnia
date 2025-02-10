@@ -68,7 +68,7 @@ cleanup_omnia_core() {
 
 cleanup_config(){
     fetch_config
-    ssh_key_file="/root/.ssh/oim_rsa"
+    ssh_key_file="~/.ssh/oim_rsa"
     # Remove the public key from authorized_keys
     if [ -f "$ssh_key_file.pub" ]; then
         sed -i "\|^$(cat $ssh_key_file.pub)$|d" ~/.ssh/authorized_keys
@@ -155,14 +155,14 @@ init_container_config() {
     fi
 
     hashed_passwd=$(openssl passwd -1 $passwd)
-    ssh_key_file="/root/.ssh/oim_rsa"
+    ssh_key_file="~/.ssh/oim_rsa"
     ssh_port=2222
 
     if [ -f "$ssh_key_file" ]; then
         echo -e "\n${BLUE}Skipping generating new ssh key pair.${NC}"
     else
         echo -e "\n${GREEN}Generating a new ssh key pair.${NC}"
-        ssh-keygen -t rsa -b 4096 -C "omnia_oim" -q -N '' -f /root/.ssh/oim_rsa
+        ssh-keygen -t rsa -b 4096 -C "omnia_oim" -q -N '' -f ~/.ssh/oim_rsa
         {
             echo "Host omnia_core"
             echo "    Hostname localhost"
@@ -186,7 +186,7 @@ init_container_config() {
     cp $ssh_key_file.pub "$omnia_path/omnia/ssh_config/.ssh/id_rsa.pub"
 
     # Get the ssh public key.
-    ssh_public_key="$(cat /root/.ssh/oim_rsa.pub)"
+    ssh_public_key="$(cat ~/.ssh/oim_rsa.pub)"
 
 
     # Add ssh public key to the authorized_keys.
