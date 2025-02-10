@@ -111,3 +111,8 @@ telemetry_ip_overlap_fail_msg = "admin network, telemetry network and IP ranges 
 
 def user_name_duplicate(duplicate_usernames):
     return f'duplicate username detected {duplicate_usernames}. Check that usernames are unique in k8s_access_config.yml and passwordless_ssh_config.yml'
+
+
+# login_node_security
+def restrict_softwares_fail_msg(software):
+    return f"Invalid software '{software}'. Can only disable these services: telnet,lpd,bluetooth,rlogin,rexec."

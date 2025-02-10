@@ -4,7 +4,7 @@
   "properties": {
     "iso_file_path": {
       "type": "string",
-      "description": "Path to the ISO file."
+      "description": "Path of the ISO file to be used for provisioning the clusters"
     },
     "node_name": {
       "type": "string",

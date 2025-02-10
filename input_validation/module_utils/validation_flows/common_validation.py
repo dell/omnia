@@ -166,6 +166,11 @@ def validate_roce_plugin_config(input_file_path, data, logger, module, omnia_bas
 
 def validate_login_node_security_config(input_file_path, data, logger, module, omnia_base_dir, project_name):
     errors = []
+    allowed_services = ["telnet", "lpd", "bluetooth", "rlogin", "rexec"]
+    restrict_softwares = data["restrict_softwares"].split(",")
+    for software in restrict_softwares:
+        if software not in allowed_services:
+            errors.append(create_error_msg("restrict_softwares", data["restrict_softwares"], en_us_validation_msg.restrict_softwares_fail_msg(software)))
     return errors
 
 def validate_site_config(input_file_path, data, logger, module, omnia_base_dir, project_name):
