@@ -38,7 +38,6 @@ hashed_passwd=""
 # This function is responsible for initializing the Omnia core container
 # It prompts the user for the Omnia shared path and the root password.
 # It checks if the Omnia shared path exists.
-#
 setup_omnia_core() {
     # Initialize the container configuration
     init_container_config
@@ -56,7 +55,6 @@ setup_omnia_core() {
 
 # This function is responsible for cleaning up the Omnia core container.
 # It removes the container and performs the necessary cleanup steps.
-#
 cleanup_omnia_core() {
     # Remove the container
     remove_container
@@ -113,7 +111,6 @@ cleanup_config(){
 # It removes the container using the 'podman rm -f' command.
 # If the container is removed successfully, it prints a success message.
 # Otherwise, it prints an error message.
-#
 remove_container() {
     # Remove the container.
     if podman rm -f omnia_core; then
@@ -240,7 +237,6 @@ init_container_config() {
 # It uses podman exec to run a command in the Omnia core container.
 # The command retrieves the metadata from the oim_metadata.yml file.
 # The metadata is then parsed and the required configuration is extracted.
-#
 fetch_config() {
 
     # Fetch the metadata from the oim_metadata.yml file.
@@ -275,6 +271,10 @@ fetch_config() {
     fi
 
 }
+
+# Validates the OIM (Omnia Infrastructure Manager) by checking if the hostname is
+# configured with a domain name, checking if Podman is installed, enabling and
+# starting the Podman socket.
 validate_oim() {
     # Check if the hostname is configured with a domain name.
     if hostname -d; then
@@ -306,6 +306,9 @@ validate_oim() {
     echo -e "${GREEN}Podman socket has been enabled and started.${NC}"
 }
 
+# Sets up the Omnia core container.
+# This function pulls the Omnia core Docker image and runs the container.
+# It defines the container options and runs the container.
 setup_container() {
 
     # Print message for pulling the Omnia core docker image.
@@ -341,6 +344,9 @@ setup_container() {
     fi
 }
 
+#  post_setup_config is a function that sets up the configuration for the Omnia core.
+#  It creates the necessary directories and files, copies input files from the Omnia container,
+#  and creates the oim_metadata.yml file.
 post_setup_config() {
 
     # Create the ansible tmp directory if it does not exist.
@@ -429,6 +435,16 @@ post_setup_config() {
 }
 
 main() {
+
+
+    # Check if any other containers with 'omnia' in their name are running
+    other_containers=$(podman ps -a --format '{{.Names}}' | grep -E 'omnia' | grep -v 'omnia_core')
+    if [ -n "$other_containers" ]; then
+        echo -e "${RED}There are other omnia container running.${NC}"
+        echo -e "${GREEN}Execute oim_cleanup.yml first to cleanup all containers.${NC}"
+        exit 1
+    fi
+
     # Check if the omnia_core container is already running
     running_containers=$(podman ps -a --format '{{.Names}}' | grep -E 'omnia_core')
     if [ -n "$running_containers" ]; then
@@ -445,10 +461,11 @@ main() {
             cleanup_omnia_core
         elif [ "$choice" = "2" ]; then
             echo -e "${GREEN} What configuration do you want to use for reinstallation:${NC}"
-            echo -e "${GREEN}1. Retain old configuration.${NC}"
+            echo -e "${GREEN}1. Retain Existing configuration.${NC}"
             echo -e "${GREEN}2. Overwrite and create new configuration.${NC}"
             read -p "Enter your choice (1 or 2): " choice
             if [ "$choice" = "1" ]; then
+                fetch_config
                 remove_container
                 setup_container
             elif [ "$choice" = "2" ]; then
