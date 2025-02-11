@@ -397,6 +397,11 @@ post_setup_config() {
             echo "omnia_core_hashed_passwd: $hashed_passwd"
         } >> "$oim_metadata_file"
     fi
+
+    touch $HOME/.ssh/known_hosts
+    # Add entry to /root/.ssh/known_hosts file to prevent errors caused by Known host
+    ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1  # Remove existing entry if it exists
+    ssh-keyscan -p 2222 localhost 2>/dev/null | grep -v "^#" >> $HOME/.ssh/known_hosts  # Scan and add the new key
 }
 
 start_container_session() {
@@ -429,11 +434,6 @@ start_container_session() {
 
     --------------------------------------------------------------------------------------------------------------------------------------------------
     ${NC}"
-
-    touch $HOME/.ssh/known_hosts
-    # Add entry to /root/.ssh/known_hosts file to prevent errors caused by Known host
-    ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1  # Remove existing entry if it exists
-    ssh-keyscan -p 2222 localhost 2>/dev/null | grep -v "^#" >> ~/.ssh/known_hosts  # Scan and add the new key
 
     # Waiting for container to be ready
     sleep 2
