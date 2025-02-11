@@ -59,11 +59,12 @@ setup_omnia_core() {
 # This function is responsible for cleaning up the Omnia core container.
 # It removes the container and performs the necessary cleanup steps.
 cleanup_omnia_core() {
-    # Perform the necessary cleanup steps
-    cleanup_config
 
     # Remove the container
     remove_container
+
+    # Perform the necessary cleanup steps
+    cleanup_config
 }
 
 
@@ -74,9 +75,6 @@ cleanup_omnia_core() {
 # It removes the Omnia core configuration.
 #
 cleanup_config(){
-    # Fetch the configuration from the Omnia core container.
-    fetch_config
-
     # Set the path to the ssh public key.
     ssh_key_file="~/.ssh/oim_rsa.pub"
 
@@ -89,10 +87,9 @@ cleanup_config(){
         echo -e "${RED}Public key file not found.${NC}"
     fi
 
-    # Remove the private key.
+    # Remove the SSH key pair.
     ssh_key_file="~/.ssh/oim_rsa"
     if [ -f "$ssh_key_file" ]; then
-        # Remove the private key.
         rm -f "$ssh_key_file*"
         echo -e "${GREEN}SSH key pair have been removed.${NC}"
     else
@@ -108,13 +105,15 @@ cleanup_config(){
     echo -e "${GREEN}Omnia core configuration has been cleaned up.${NC}"
 }
 
-
 # This function is responsible for removing the Omnia core container.
 #
 # It removes the container using the 'podman rm -f' command.
 # If the container is removed successfully, it prints a success message.
 # Otherwise, it prints an error message.
 remove_container() {
+    # Fetch the configuration from the Omnia core container.
+    fetch_config
+
     # Remove the container.
     echo -e "${BLUE}Removing the Omnia core container.${NC}"
     if podman rm -f omnia_core; then
