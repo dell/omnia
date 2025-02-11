@@ -29,7 +29,7 @@
   connection: local
   gather_facts: false
   roles:
-    - oim_cleanup/pre_requisite
+    - oim_cleanup/pre_requisite # noqa:role-name[path]
   tags: pcs, provision, kubespray, pulp
 
 - name: Cleanup Omnia Infrastructure Manager
@@ -37,4 +37,4 @@
   connection: ssh
   gather_facts: false
   roles:
-    - oim_cleanup/oim_container_cleanup
+    - oim_cleanup/oim_container_cleanup # noqa:role-name[path]
