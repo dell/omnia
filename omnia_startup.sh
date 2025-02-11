@@ -479,7 +479,6 @@ main() {
             echo -e "${GREEN}3. Exit. ${NC}"
             read -p "Enter your choice (1 or 2): " choice
             if [ "$choice" = "1" ]; then
-                fetch_config
                 remove_container
                 setup_container
                 start_container_session
