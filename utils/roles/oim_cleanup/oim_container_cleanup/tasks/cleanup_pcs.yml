@@ -43,10 +43,16 @@
         path: "{{ pcs_service_file_path }}"
         state: absent
 
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
     - name: Remove PCS directory
       ansible.builtin.file:
-        path: "{{ pcs_container_dir }}"
+        path: "{{ item }}"
         state: absent
+      with_items: 
+        - "{{ pcs_directory_cleanup }}"
 
     - name: Remove PCS-related ports on host firewalld
       ansible.posix.firewalld:

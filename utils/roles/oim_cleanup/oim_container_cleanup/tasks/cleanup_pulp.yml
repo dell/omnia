@@ -34,8 +34,10 @@
 
     - name: Remove Pulp Directory
       ansible.builtin.file:
-        path: "{{ pulp_container_dir }}"
+        path: "{{ item }}"
         state: absent
+      with_items: 
+        - "{{ pulp_cleanup_directory }}"
   rescue:
     - name: Pulp container removal failed
       ansible.builtin.fail:

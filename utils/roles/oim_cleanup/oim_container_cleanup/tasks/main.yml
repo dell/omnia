@@ -13,6 +13,19 @@
 # limitations under the License.
 ---
 
+- name: Ensure firewalld is installed and running
+  ansible.builtin.yum:
+    name: firewalld
+    state: present
+  tags: pcs, provision
+
+- name: Start and enable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+  tags: pcs, provision
+
 - name: Cleanup pcs container
   ansible.builtin.import_tasks: cleanup_pcs.yml
   tags: pcs

@@ -34,8 +34,10 @@
 
     - name: Remove Provision directory
       ansible.builtin.file:
-        path: "{{ provision_container_dir }}"
+        path: "{{ item }}"
         state: absent
+      with_items: 
+        - "{{ provision_cleanup_directory }}"
 
     - name: Remove xCAT-related ports on host firewalld
       ansible.posix.firewalld:

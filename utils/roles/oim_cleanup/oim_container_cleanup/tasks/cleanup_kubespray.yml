@@ -34,8 +34,10 @@
 
     - name: Remove Kubespray directory
       ansible.builtin.file:
-        path: "{{ kubespray_container_dir }}"
+        path: "{{ item }}"
         state: absent
+      with_items: 
+        - "{{ kubespray_cleanup_directory }}"
   rescue:
     - name: Kubespray container removal failed
       ansible.builtin.fail:
