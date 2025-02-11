@@ -76,19 +76,19 @@ cleanup_omnia_core() {
 #
 cleanup_config(){
     # Set the path to the ssh public key.
-    ssh_key_file="~/.ssh/oim_rsa.pub"
+    ssh_key_file="$HOME/.ssh/oim_rsa.pub"
 
     # Remove the public key from the authorized_keys file.
     if [ -f "$ssh_key_file" ]; then
         # Remove the line from the authorized_keys file.
-        sed -i "\|^$(cat $ssh_key_file)$|d" ~/.ssh/authorized_keys
+        sed -i "\|^$(cat $ssh_key_file)$|d" $HOME/.ssh/authorized_keys
         echo -e "${GREEN}Public key has been removed from authorized_keys.${NC}"
     else
         echo -e "${RED}Public key file not found.${NC}"
     fi
 
     # Remove the SSH key pair.
-    ssh_key_file="~/.ssh/oim_rsa"
+    ssh_key_file="$HOME/.ssh/oim_rsa"
     if [ -f "$ssh_key_file" ]; then
         rm -f "$ssh_key_file*"
         echo -e "${GREEN}SSH key pair have been removed.${NC}"
@@ -188,7 +188,7 @@ init_container_config() {
             echo "    User root"
             echo "    IdentityFile ~/.ssh/oim_rsa"
             echo "    IdentitiesOnly yes"
-        } >> ~/.ssh/config
+        } >> $HOME/.ssh/config
     fi
 
     # Create the ssh configuration directory if it does not exist.
@@ -209,11 +209,11 @@ init_container_config() {
 
     # Add ssh public key to the authorized_keys.
     echo -e "${GREEN}Adding ssh public key to the authorized_keys.${NC}"
-    if grep -q "$ssh_public_key" ~/.ssh/authorized_keys; then
+    if grep -q "$ssh_public_key" $HOME/.ssh/authorized_keys; then
         echo -e "${BLUE}Skipping adding ssh public key to the authorized_keys.${NC}"
     else
-        echo "$ssh_public_key" >> ~/.ssh/authorized_keys
-        chmod 600 ~/.ssh/authorized_keys
+        echo "$ssh_public_key" >> $HOME/.ssh/authorized_keys
+        chmod 600 $HOME/.ssh/authorized_keys
     fi
 
     # Add ssh public key to the authorized_keys in the ssh_config directory.
@@ -429,7 +429,7 @@ start_container_session() {
     --------------------------------------------------------------------------------------------------------------------------------------------------
     ${NC}"
 
-    touch ~/.ssh/known_hosts
+    touch $HOME/.ssh/known_hosts
     # Add entry to /root/.ssh/known_hosts file to prevent errors caused by Known host
     ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1  # Remove existing entry if it exists
     ssh-keyscan -p 2222 localhost 2>/dev/null | grep -v "^#" >> ~/.ssh/known_hosts  # Scan and add the new key
