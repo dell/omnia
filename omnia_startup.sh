@@ -435,8 +435,6 @@ post_setup_config() {
 }
 
 main() {
-
-
     # Check if any other containers with 'omnia' in their name are running
     other_containers=$(podman ps -a --format '{{.Names}}' | grep -E 'omnia' | grep -v 'omnia_core')
     if [ -n "$other_containers" ]; then
@@ -471,7 +469,8 @@ main() {
             elif [ "$choice" = "2" ]; then
                 cleanup_omnia_core
                 setup_omnia_core
-
+            fi
+        fi
     else
         echo -e "${GREEN}Starting Omnia core container setup.${NC}"
         setup_omnia_core
