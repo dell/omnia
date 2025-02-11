@@ -89,8 +89,9 @@ cleanup_config(){
 
     # Remove the SSH key pair.
     ssh_key_file="$HOME/.ssh/oim_rsa"
-    if [ -f "$ssh_key_file" ]; then
-        rm -f "$ssh_key_file*"
+    ssh_key_file_pub="${ssh_key_file}.pub"
+    if [ -f "$ssh_key_file" ] && [ -f "$ssh_key_file_pub" ]; then
+        rm -f "$ssh_key_file" "$ssh_key_file_pub"
         echo -e "${GREEN}SSH key pair have been removed.${NC}"
     else
         echo -e "${RED}SSH key file not found.${NC}"
