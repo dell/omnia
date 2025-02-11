@@ -228,7 +228,10 @@ rocm_version_warning_msg: "[WARNING] software_config.json does not have the vers
 Hence ROCm will not be installed on the nodes post provisioning."
 rocm_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading ROCM packages.
 ROCm will not be installed on the nodes post provisioning."
-
+os_package_map:
+  rhel: rpm
+  # rocky: rpm
+  # ubuntu: deb
 # Usage: validate_intelgaudi_repo.yml
 intelgaudi_version_warning_msg: "[WARNING] software_config.json does not have the version for 'intelgaudi'.
 Hence Habana stack will not be installed on the nodes post provisioning."

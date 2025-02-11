@@ -14,7 +14,7 @@ if [[ $amd_check_display_ctrlr == *"Advanced Micro Devices"* || $amd_check_proce
   if [[ $validate_ubuntu_os == "1"  ]]
   then
 
-    echo "deb [trusted=yes] http://{{ admin_nic_ip }}:{{ pulp_port }}/pulp/content/apt/ ./" >> /etc/apt/sources.list.d/amdgpu.list
+    echo "deb [trusted=yes] http://{{ amdgpu_base_url }} ./" >> /etc/apt/sources.list.d/amdgpu.list
 
     sudo apt-get update
     sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)" -y
