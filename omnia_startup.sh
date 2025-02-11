@@ -120,11 +120,11 @@ remove_container() {
     fi
 
     # Remove the container image.
-    if podman rmi omnia_core; then
-        echo -e "${GREEN}Omnia core image has been removed.${NC}"
-    else
-        echo -e "${RED}Failed to remove Omnia core image.${NC}"
-    fi
+    # if podman rmi omnia_core; then
+    #     echo -e "${GREEN}Omnia core image has been removed.${NC}"
+    # else
+    #     echo -e "${RED}Failed to remove Omnia core image.${NC}"
+    # fi
 }
 
 init_container_config() {
