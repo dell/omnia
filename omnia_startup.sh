@@ -277,7 +277,7 @@ fetch_config() {
     if [ -z "$omnia_path" ] || [ -z "$hashed_passwd" ]; then
         echo -e "${RED}Failed to fetch data from metadata file.${NC}"
         exit 1
-    elif
+    else
         echo -e "${GREEN}Successfully fetched data from metadata file.${NC}"
     fi
 }
