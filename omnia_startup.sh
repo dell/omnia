@@ -39,6 +39,7 @@ hashed_passwd=""
 # It prompts the user for the Omnia shared path and the root password.
 # It checks if the Omnia shared path exists.
 setup_omnia_core() {
+
     # Initialize the container configuration
     init_container_config
 
@@ -75,6 +76,7 @@ cleanup_omnia_core() {
 # It removes the Omnia core configuration.
 #
 cleanup_config(){
+
     # Set the path to the ssh public key.
     ssh_key_file="$HOME/.ssh/oim_rsa.pub"
 
@@ -98,9 +100,11 @@ cleanup_config(){
     fi
 
     # Remove the ssh key from the known_hosts file.
+    echo -e "${BLUE}Removing ssh key from known_hosts file.${NC}"
     ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1
 
     # Remove the Omnia core configuration.
+    echo -e "${BLUE}Removing Omnia core configuration.${NC}"
     rm -rf $omnia_path/omnia
 
     echo -e "${GREEN}Omnia core configuration has been cleaned up.${NC}"
@@ -112,6 +116,7 @@ cleanup_config(){
 # If the container is removed successfully, it prints a success message.
 # Otherwise, it prints an error message.
 remove_container() {
+
     # Fetch the configuration from the Omnia core container.
     fetch_config
 
@@ -244,6 +249,7 @@ init_container_config() {
 fetch_config() {
 
     # Fetch the metadata from the oim_metadata.yml file.
+    echo -e "${GREEN}Fetching the metadata from the oim_metadata.yml file.${NC}"
     core_config=$(podman exec -ti omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml')
 
     # Split the metadata into separate lines.
@@ -267,13 +273,13 @@ fetch_config() {
                 ;;
         esac
     done
-
     # Check if the required configuration is extracted successfully.
     if [ -z "$omnia_path" ] || [ -z "$hashed_passwd" ]; then
         echo -e "${RED}Failed to fetch data from metadata file.${NC}"
         exit 1
+    elif
+        echo -e "${GREEN}Successfully fetched data from metadata file.${NC}"
     fi
-
 }
 
 # Validates the OIM (Omnia Infrastructure Manager) by checking if the hostname is
