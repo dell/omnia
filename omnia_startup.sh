@@ -56,11 +56,11 @@ setup_omnia_core() {
 # This function is responsible for cleaning up the Omnia core container.
 # It removes the container and performs the necessary cleanup steps.
 cleanup_omnia_core() {
-    # Remove the container
-    remove_container
-
     # Perform the necessary cleanup steps
     cleanup_config
+
+    # Remove the container
+    remove_container
 }
 
 
@@ -113,6 +113,7 @@ cleanup_config(){
 # Otherwise, it prints an error message.
 remove_container() {
     # Remove the container.
+    echo -e "${BLUE}Removing the Omnia core container.${NC}"
     if podman rm -f omnia_core; then
         echo -e "${GREEN}Omnia core container has been removed.${NC}"
     else
