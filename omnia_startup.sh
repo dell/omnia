@@ -50,6 +50,9 @@ setup_omnia_core() {
 
     # Post container setup configuration
     post_setup_config
+
+    # Start the container
+    start_container_session
 }
 
 
@@ -75,7 +78,7 @@ cleanup_config(){
     fetch_config
 
     # Set the path to the ssh public key.
-    ssh_key_file="$omnia_path/omnia/ssh_config/oim_rsa.pub"
+    ssh_key_file="~/.ssh/oim_rsa.pub"
 
     # Remove the public key from the authorized_keys file.
     if [ -f "$ssh_key_file" ]; then
@@ -87,13 +90,13 @@ cleanup_config(){
     fi
 
     # Remove the private key.
-    ssh_key_file="$omnia_path/omnia/ssh_config/oim_rsa"
+    ssh_key_file="~/.ssh/oim_rsa"
     if [ -f "$ssh_key_file" ]; then
         # Remove the private key.
-        rm -f "$ssh_key_file"
-        echo -e "${GREEN}Private key has been removed.${NC}"
+        rm -f "$ssh_key_file*"
+        echo -e "${GREEN}SSH key pair have been removed.${NC}"
     else
-        echo -e "${RED}Private key file not found.${NC}"
+        echo -e "${RED}SSH key file not found.${NC}"
     fi
 
     # Remove the ssh key from the known_hosts file.
@@ -345,6 +348,7 @@ setup_container() {
     fi
 }
 
+# This function sets up the configuration for the Omnia core.
 #  post_setup_config is a function that sets up the configuration for the Omnia core.
 #  It creates the necessary directories and files, copies input files from the Omnia container,
 #  and creates the oim_metadata.yml file.
@@ -393,6 +397,9 @@ post_setup_config() {
             echo "omnia_core_hashed_passwd: $hashed_passwd"
         } >> "$oim_metadata_file"
     fi
+}
+
+start_container_session()() {
 
     echo -e "${GREEN}
     ------------------------------------------------------------------------------------------------------------------------------------------
@@ -469,6 +476,7 @@ main() {
                 fetch_config
                 remove_container
                 setup_container
+                start_container_session
             elif [ "$choice" = "2" ]; then
                 cleanup_omnia_core
                 setup_omnia_core
