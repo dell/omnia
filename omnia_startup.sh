@@ -454,6 +454,7 @@ main() {
         echo -e "${GREEN}Do you want to:${NC}"
         echo -e "${GREEN}1. Cleanup the container.${NC}"
         echo -e "${GREEN}2. Reinstall the container.${NC}"
+        echo -e "${GREEN}3. Exit. ${NC}"
         read -p "Enter your choice (1 or 2): " choice
         if [ "$choice" = "1" ]; then
             cleanup_omnia_core
@@ -461,6 +462,7 @@ main() {
             echo -e "${GREEN} What configuration do you want to use for reinstallation:${NC}"
             echo -e "${GREEN}1. Retain Existing configuration.${NC}"
             echo -e "${GREEN}2. Overwrite and create new configuration.${NC}"
+            echo -e "${GREEN}3. Exit. ${NC}"
             read -p "Enter your choice (1 or 2): " choice
             if [ "$choice" = "1" ]; then
                 fetch_config
@@ -469,7 +471,11 @@ main() {
             elif [ "$choice" = "2" ]; then
                 cleanup_omnia_core
                 setup_omnia_core
+            elif [ "$choice" = "3" ]; then
+                exit
             fi
+        elif [ "$choice" = "3" ]; then
+            exit
         fi
     else
         echo -e "${GREEN}Starting Omnia core container setup.${NC}"
