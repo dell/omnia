@@ -478,4 +478,4 @@ main() {
     fi
 }
 
-main()
+main
