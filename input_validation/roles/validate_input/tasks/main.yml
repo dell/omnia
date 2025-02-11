@@ -51,6 +51,7 @@
     omnia_base_dir: "{{ omnia_base_dir }}/"
     project_name: "{{ project_name }}"
     tag_names: "{{ ansible_run_tags }}"
+    files: "{{ files | default([]) }}"
   register: validation_status
 
 - name: Debug validation status

@@ -29,17 +29,34 @@ import logical_validation
 import validation_utils
 import config
 
+def createLogger(project_name, tag_name=None):
+    if tag_name:
+        log_filename = f"{tag_name}_validation_omnia_{project_name}.log"
+    else:
+        log_filename = f"validation_omnia_{project_name}.log"
+    logging.basicConfig(
+        filename=log_filename,
+        format="%(asctime)s %(message)s",
+        filemode="w"
+    )
+    logger = logging.getLogger(tag_name if tag_name else project_name)
+    logger.setLevel(logging.DEBUG)
+    return logger
+
 def main():
     module_args = dict(
         omnia_base_dir=dict(type="str", required=True),
         project_name=dict(type="str", required=True),
         tag_names=dict(type="str", required=True),
+        files=dict(type="list", elements="str", required=False)
     )
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     omnia_base_dir = module.params["omnia_base_dir"]
     project_name = module.params["project_name"]
     tag_names = eval(module.params["tag_names"])
+    single_files = module.params["files"]
+    
     schema_base_file_path = "./module_utils/schema/"
     directory_path = os.path.join(omnia_base_dir, project_name)
     
@@ -52,15 +69,8 @@ def main():
     schema_files_dic = {}
     validation_status = {}
     vstatus = []
-
-    # Configure logging
-    logging.basicConfig(
-        filename=f"validation_omnia_{project_name}.log",
-        format="%(asctime)s %(message)s",
-        filemode="w",
-    )
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    
+    logger = createLogger(project_name)
 
 ### Functions related to files, pathing, and verifying if they exist ###
 # Function to get all files of a specific type recursively from a directory
@@ -96,7 +106,6 @@ def main():
             module.fail_json(msg=message)
             return False
 
-        
 # Below are the functions that will get the line number
 # Function to get the line number of a specific json_path (ex: (switch_details.ip) in a file
     def get_json_line_number(file_path, json_path):
@@ -290,42 +299,82 @@ def main():
 
     # For each file from the tag names, run schema validation (L1) and logic validation (L2)
     s = {project_name: {"status": [], "tag": tag_names}}
-    for tag_name in tag_names:
-        for name in input_file_inventory[tag_name]:
+
+    if (len(single_files) > 0):
+        for name in single_files:
+            if not (name):
+                continue
             validation_status.update(s)
-            fname, _ = os.path.splitext(name)
+            fname = os.path.splitext(name)[0]
             schema_file_path = schema_base_file_path + fname + extensions['json']
             input_file_path = None
-
+            
             if not verify_file_exists(schema_file_path):
                 error_message = f"The file schema: {fname}.json does not exist in directory: {schema_base_file_path}."
                 logger.info(error_message)
                 module.fail_json(msg=error_message)
                 raise FileNotFoundError(error_message)
-
             if name in json_files_dic.keys():
                 input_file_path = json_files_dic[name]
             if name in yml_files_dic.keys():
                 input_file_path = yml_files_dic[name]
-
+                
             if input_file_path is None:
                 error_message = f"file not found in directory: {omnia_base_dir}/{project_name}"
                 logger.error(error_message)
                 module.fail_json(msg=error_message)
                 raise FileNotFoundError(error_message)
-
+            
             # Validate the schema of the input file (L1)
             schema_status = validate_schema(input_file_path, schema_file_path)
-            # Validate the logic of the input file (L2)
-            logic_status = validate_logic(input_file_path, logger, module, omnia_base_dir, project_name)
-            
             # Append the validation status for the input file
-            validation_status[project_name]["status"].append({input_file_path: "Passed" if (schema_status and logic_status) else "Failed"})
-            
-            # vstatus contains boolean values. If False exists, that means validation failed and the module will result in failure
+            validation_status[project_name]["status"].append({input_file_path: "Passed" if schema_status else "Failed"})
+            if len(tag_names) == 0:
+                validation_status[project_name]["tag"] = ['none']
+                
             vstatus.append(schema_status)
-            vstatus.append(logic_status)
+    # Run L1 and L2 validation if user included a tag and extra var files. Or user only had tags and no extra var files.         
+    if (len(tag_names) > 0 and "all" not in tag_names and len(single_files) > 0) or (len(tag_names) > 0 and len(single_files) == 0):
+        for tag_name in tag_names:
+            for name in input_file_inventory[tag_name]:
+                validation_status.update(s)
+                fname, _ = os.path.splitext(name)
+                schema_file_path = schema_base_file_path + fname + extensions['json']
+                input_file_path = None
+
+                if not verify_file_exists(schema_file_path):
+                    error_message = f"The file schema: {fname}.json does not exist in directory: {schema_base_file_path}."
+                    logger.info(error_message)
+                    module.fail_json(msg=error_message)
+                    raise FileNotFoundError(error_message)
+
+                if name in json_files_dic.keys():
+                    input_file_path = json_files_dic[name]
+                if name in yml_files_dic.keys():
+                    input_file_path = yml_files_dic[name]
+
+                if input_file_path is None:
+                    error_message = f"file not found in directory: {omnia_base_dir}/{project_name}"
+                    logger.error(error_message)
+                    module.fail_json(msg=error_message)
+                    raise FileNotFoundError(error_message)
+
+                # Validate the schema of the input file (L1)
+                schema_status = validate_schema(input_file_path, schema_file_path)
+                # Validate the logic of the input file (L2)
+                individual_logger = createLogger(project_name, tag_name)
+                logic_status = validate_logic(input_file_path, individual_logger, module, omnia_base_dir, project_name)
+                
+                # Append the validation status for the input file
+                validation_status[project_name]["status"].append({input_file_path: "Passed" if (schema_status and logic_status) else "Failed"})
+                
+                # vstatus contains boolean values. If False exists, that means validation failed and the module will result in failure
+                vstatus.append(schema_status)
+                vstatus.append(logic_status)
     
+    if not validation_status:
+        message = "No validation has been performed. Please provide tags or include individual file names."
+        module.fail_json(msg=message)
     validation_status[project_name]["status"].sort(key=lambda x: list(x.values())[0])
     
     message = f"{'#' * 30} END EXECUTION {'#' * 30}"
