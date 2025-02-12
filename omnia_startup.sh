@@ -103,6 +103,16 @@ cleanup_config(){
     echo -e "${BLUE}Removing ssh key from known_hosts file.${NC}"
     ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1
 
+
+    # Remove the host entry from the config file in .ssh folder.
+    ssh_config_file="$HOME/.ssh/config"
+    if [ -f "$ssh_config_file" ]; then
+        sed -i '/Host omnia_core/,+5d' "$ssh_config_file"
+        echo -e "${GREEN}Host entry has been removed from config file.${NC}"
+    else
+        echo -e "${RED}Config file not found.${NC}"
+    fi
+
     # Remove the Omnia core configuration.
     echo -e "${BLUE}Removing Omnia core configuration.${NC}"
     rm -rf $omnia_path/omnia
