@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../include_input_dir.yml
+
 - name: Update Inventory with ansible_host information
   ansible.builtin.import_playbook: ../servicetag_host_mapping.yml
   when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
