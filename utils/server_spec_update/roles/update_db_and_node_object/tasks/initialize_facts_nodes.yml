@@ -31,7 +31,7 @@
 - name: Set the values for variable when service or node_name in inventory
   ansible.builtin.set_fact:
     host_details: "{{ host_details | combine({host: { 'node_detail': (host is match('^[a-zA-Z0-9]+$') | ternary(hostvars[host]['ansible_host'], host)), 'categories': hostvars[host]['Categories'] } }) }}"  # noqa: yaml[line-length]
-     with_items: "{{ all_hosts }}"
+  with_items: "{{ all_hosts }}"
   loop_control:
     loop_var: host
   when:
