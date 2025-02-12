@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+- name: Include input project directory
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+
 - name: Update Inventory with ansible_host information
   ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
 

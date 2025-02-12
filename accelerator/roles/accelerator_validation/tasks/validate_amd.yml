@@ -60,6 +60,7 @@
       delegate_to: localhost
       register: pulp_amdgpu_output
       changed_when: false
+      no_log: true
 
     - name: Set amdgpu_config_status based on directory existence
       ansible.builtin.set_fact:
@@ -68,7 +69,7 @@
   rescue:
     - name: Log an error message
       ansible.builtin.debug:
-        msg: " {{ amdgpu_fail_msg }} "
+        msg: " {{ amdgpu_repo_fail_msg }} "
 
     - name: Set amdgpu_config_status to false
       ansible.builtin.set_fact:
@@ -87,6 +88,7 @@
       delegate_to: localhost
       register: check_rocm_repo
       changed_when: false
+      no_log: true
 
     - name: Set rocm_config_status based on directory existence
       ansible.builtin.set_fact:
@@ -95,7 +97,7 @@
   rescue:
     - name: Log an error message
       ansible.builtin.debug:
-        msg: " {{ amdgpu_fail_msg }} "
+        msg: " {{ rocm_repo_fail_msg }} "
 
     - name: Set rocm_config_status to false
       ansible.builtin.set_fact:
