@@ -37,7 +37,7 @@
     - (software_config['repo_config'] == "partial") or (software_config['repo_config'] == "never")
   block:
     - name: Find newly added usr repos
-      ansible.builtin.include_tasks: find_new_repo.yml
+      ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/find_new_repo.yml"
       loop: "{{ user_repo_url | default([], true) }}"
 
 - name: Block to execute when new usr repos are added

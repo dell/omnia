@@ -20,7 +20,7 @@
       ansible.builtin.include_vars: "{{ local_repo_access_path }}"
 
     - name: Generate software repository configurations
-      ansible.builtin.include_tasks: create_software_repo_redhat.yml
+      ansible.builtin.include_tasks: create_software_repo.yml
       loop: "{{ software_config.softwares + software_config.amdgpu | default([]) }}"
       when: "'beegfs' in item.name or 'amdgpu' in item.name or 'rocm' in item.name"
       loop_control:
@@ -51,7 +51,7 @@
     - (software_config['repo_config']|lower == "never")
   block:
     - name: Find newly added omnia repos
-      ansible.builtin.include_tasks: find_new_repo.yml
+      ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/find_new_repo.yml"
       loop: "{{ omnia_repo_url | default([], true) }}"
 
 - name: Block to execute when new omnia repos are to be added

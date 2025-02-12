@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,9 +17,6 @@
   ansible.builtin.set_fact:
     cluster_os: "{{ ansible_distribution | lower }}"
 
-- name: Include vars for {{ cluster_os }}
-  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ cluster_os }}.yml"
-
 - name: Validate the input files and values
   ansible.builtin.include_tasks: validation.yml
 
@@ -29,7 +26,4 @@
 - name: Update repos on cluster for {{ cluster_os }}
   block:
     - name: Update user repos for nodes on {{ cluster_os }}
-      ansible.builtin.include_tasks: update_user_repo_{{ cluster_os }}.yml
-
-    - name: Update software repo for nodes on {{ cluster_os }}
-      ansible.builtin.include_tasks: update_software_repo_{{ cluster_os }}.yml
+      ansible.builtin.include_role: "{{ role_path }}/../{{ cluster_os }}"

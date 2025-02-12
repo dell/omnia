@@ -17,19 +17,18 @@
   ansible.builtin.assert:
     that:
       - "item.version is defined"
-      - item.version | default("",true) | length>0
+      - item.version | default("",true) | length > 0
     fail_msg: "{{ version_invalid_fail_msg }} {{ item.name }}"
 
-- name: Check software repo exists in  omnia repo  on Omnia Infrastructure Manager
-  ansible.builtin.stat:
-    path: "{{ cluster_software_path }}/{{ item.name }}/{{ item.version }}"
-  register: check_path_stat
+- name: Check software repo exists in pulp distribution
+  ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os] }} distribution list --name {{ item.name }}_{{ item.version }}"
+  register: check_repo_stat
   delegate_to: localhost
   connection: local
 
 - name: Set variable
   ansible.builtin.set_fact:
-    software_path_url: "http://{{ admin_nic_ip }}:80/install{{ cluster_software_path }}/{{ item.name }}/{{ item.version }}"
+    software_path_url: "{{ check_repo_stat.stdout | from_json | first['base_url'] }}"
 
 - name: Check software repo present in {{ repo_path }}
   ansible.builtin.command: grep -r "{{ software_path_url }}" "{{ repo_path }}"

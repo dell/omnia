@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,14 +31,14 @@
   ansible.builtin.set_fact:
     cluster_os_version: "{{ software_config.cluster_os_version }}"
 
-- name: Set fact for Omnia Infrastructure Manager OS version
-  ansible.builtin.set_fact:
-    oim_os_version: "{{ ansible_distribution_version | lower }}"
+# - name: Set fact for Omnia Infrastructure Manager OS version
+#   ansible.builtin.set_fact:
+#     oim_os_version: "{{ ansible_distribution_version | lower }}"
 
-- name: Set flag if os versions donot match
-  ansible.builtin.set_fact:
-    os_no_match: true
-  when: cluster_os_version != oim_os_version
+# - name: Set flag if os versions donot match
+#   ansible.builtin.set_fact:
+#     os_no_match: true
+#   when: cluster_os_version != oim_os_version
 
 - name: Set distro to jammy (Ubuntu 22 OS)
   ansible.builtin.set_fact:
