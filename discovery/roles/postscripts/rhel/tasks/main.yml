@@ -13,6 +13,7 @@
 # limitations under the License.
 ---
 
+# These tasks will be updated after local repo changes for cuda
 # - name: Pre-requisities for postscripts
 #   ansible.builtin.include_tasks: pre_requisite.yml
 
