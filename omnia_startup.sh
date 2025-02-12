@@ -64,10 +64,10 @@ cleanup_omnia_core() {
     echo -e "${RED} WARNING: This will remove Omnia core container and all files in Omnia Shared Path.${NC}"
     echo -e "${GREEN}You can abort and take backup if you want.${NC}"
     read -p "Are you sure you want to continue with the cleanup? (y/n): " confirm
-    if [ "$confirm" != "n" ] && [ "$confirm" != "N" ]; then
+    if [ "$confirm" = "n" ] || [ "$confirm" = "N" ]; then
         echo -e "${GREEN}Aborting.${NC}"
         exit 0
-    elif [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+    elif [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
         # Remove the container
         remove_container
 
