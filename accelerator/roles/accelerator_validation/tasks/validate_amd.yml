@@ -25,6 +25,10 @@
     file: "{{ software_config_json_file }}"
     name: software_config
 
+- name: Set fact provision_os
+  ansible.builtin.set_fact:
+    provision_os: "{{ software_config.cluster_os_type }}"
+
 - name: Get amdgpu status
   ansible.builtin.set_fact:
     amdgpu_input_status: true
