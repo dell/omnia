@@ -50,24 +50,24 @@
     {{ xcat_path }}/chdef -t site forwarders="{{ pxe_nic_forwarders }}"
   changed_when: true
 
-- name: Make node object for Omnia Infrastructure Manager
+- name: Make node object for Omnia Infrastructure Management (OIM) node
   ansible.builtin.command: >-
-    {{ xcat_path }}/mkdef -t node oim groups=oim mgt=ipmi cons=ipmi ip={{ admin_nic_ip }}
+    {{ xcat_path }}/mkdef -t node oim_node groups=oim_node mgt=ipmi cons=ipmi ip={{ admin_nic_ip }}
     bmc={{ bmc_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
   changed_when: false
   failed_when: false
   when: network_interface_type == "lom"
 
-- name: Make node object for Omnia Infrastructure Manager
+- name: Make node object for Omnia Infrastructure Management (OIM) node
   ansible.builtin.command: >-
-    {{ xcat_path }}/mkdef -t node oim groups=oim mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
+    {{ xcat_path }}/mkdef -t node oim_node groups=oim_node mgt=ipmi cons=ipmi ip={{ admin_nic_ip }} primarynic=mac mac={{ pxe_mac_address }}
   changed_when: false
   failed_when: false
   when: network_interface_type == "dedicated"
 
 - name: Update the site table
   ansible.builtin.shell: >
-    {{ xcat_path }}/chdef -t site excludenodes="oim"
+    {{ xcat_path }}/chdef -t site excludenodes="oim_node"
   changed_when: true
 
 - name: Configure site table

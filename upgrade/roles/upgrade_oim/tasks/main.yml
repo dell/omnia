@@ -16,12 +16,6 @@
   ansible.builtin.include_role:
     name: backup_k8s
 
-# - name: Backup omnia_inventory files
-#   ansible.builtin.copy:
-#     src: "{{ omnia_inventory_dir }}"
-#     dest: "{{ backup_location }}/omnia_inventory"
-#     mode: "{{ file_permission }}"
-
 - name: Import parameters from Omnia current version to upgrade version
   ansible.builtin.include_role:
     name: import_input_parameters
@@ -36,10 +30,10 @@
       ansible.builtin.include_role:
         name: upgrade_discovery
 
-    # - name: Stop telemetry service
-    #   ansible.builtin.include_role:
-    #     name: omnia_telemetry
-    #     tasks_from: stop_omnia_telemetry.yml
+    - name: Stop telemetry service
+      ansible.builtin.include_role:
+        name: omnia_telemetry
+        tasks_from: stop_omnia_telemetry.yml
 
     - name: Upgrade packages required for local repo - nerdctl
       ansible.builtin.include_role:
@@ -49,14 +43,10 @@
       ansible.builtin.include_role:
         name: upgrade_k8s_oim
 
-    # - name: Upgrade omnia_telemetry binary
-    #   ansible.builtin.include_role:
-    #     name: omnia_telemetry
-
-    # - name: Upgrade iDRAC telemetry role
-    #   ansible.builtin.include_role:
-    #     name: upgrade_idrac_telemetry
-
+    - name: Upgrade omnia_telemetry binary
+      ansible.builtin.include_role:
+        name: omnia_telemetry
+    
   rescue:
     - name: Failed to upgrade Omnia Infrastructure Manager
       ansible.builtin.fail:

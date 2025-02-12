@@ -13,5 +13,9 @@
 # limitations under the License.
 ---
 
-# Usage: main.yml
-
+- name: Apply xcat patches
+  ansible.posix.patch:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: present
+  with_items: "{{ xcat_patch_files }}"

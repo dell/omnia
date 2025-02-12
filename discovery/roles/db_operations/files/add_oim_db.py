@@ -27,7 +27,7 @@ if num_args == 5:
 else:
     bmc_nic_ip = "0.0.0.0"
 
-node_name = "oim"
+node_name = "oim_node"
 admin_nic_ip = ipaddress.IPv4Address(admin_nic_ip)
 bmc_nic_ip = ipaddress.IPv4Address(bmc_nic_ip)
 
