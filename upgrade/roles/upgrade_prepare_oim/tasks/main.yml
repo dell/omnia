@@ -53,3 +53,22 @@
 #   ansible.builtin.file:
 #     path: "{{ compute_servicetag_ip_path }}"
 #     state: absent
+
+- name: Check jinja2 version
+  ansible.builtin.command: "pip show jinja2"
+  register: jinja2_info
+  changed_when: false
+  ignore_errors: true
+
+- name: Set jinja2 version as fact
+  ansible.builtin.set_fact:
+    jinja2_version: "{{ (jinja2_info.stdout | regex_search('Version: (\\d+\\.\\d+\\.\\d+)', '\\1') | first) | default('', true) }}"
+  when:
+    - jinja2_info.stdout is defined
+    - jinja2_info.stdout | regex_search('Version: (\\d+\\.\\d+\\.\\d+)')
+
+- name: Install jinja2 version 3.1.5 if needed
+  ansible.builtin.pip:
+    name: jinja2==3.1.5
+  when:
+    - jinja2_version is not defined or (jinja2_version < '3.1.5')
