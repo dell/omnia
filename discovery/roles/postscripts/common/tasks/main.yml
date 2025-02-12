@@ -23,7 +23,6 @@
     - name: Include vars for {{ provision_os }}
       ansible.builtin.include_vars: "{{ role_path }}/../{{ provision_os }}/vars/main.yml"
 
-# These tasks will be updated after local repo changes
     - name: Configure postscripts on {{ provision_os }}
       ansible.builtin.include_tasks: "{{ role_path }}/../{{ provision_os }}/tasks/main.yml"
 
