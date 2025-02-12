@@ -13,10 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: ../utils/check_venv.yml
-  when: not ( check_venv_executed | default(false) | bool )
-
 - name: Update Inventory with ansible_host information
   ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
 
@@ -28,9 +24,10 @@
     - accelerator_validation
   tags: amd, nvidia, intel
 
-- name: Update Repositories/Registries on nodes
-  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
-  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
+# This will get updated once update_user_repo utility is ready
+# - name: Update Repositories/Registries on nodes
+#   ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+#   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
 - name: Gather Cluster Facts
   hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd

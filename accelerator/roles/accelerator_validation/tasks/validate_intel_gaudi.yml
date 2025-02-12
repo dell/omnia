@@ -25,9 +25,6 @@
     file: "{{ software_config_json_file }}"
     name: software_config
 
-- name: Include vars for {{ oim_os }}
-  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
-
 - name: Get Intel Gaudi status
   ansible.builtin.set_fact:
     intel_gaudi_input_status: true
