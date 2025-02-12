@@ -1,0 +1,34 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: pre_requisite.yml
+omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
+software_config_file: "{{ input_project_dir }}/software_config.json"
+invalid_software_config_fail_msg: "Failed. Please provide valid software_config.json file with cluster_os_type, cluster_os_version, repo_config
+and repo_config values."
+software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
+
+# Usage: check_k8s_support.yml
+supported_k8s_version:
+  - 1.29.5
+  - 1.31.4
+success_msg_k8s_version: "Kubernetes Version Validated"
+fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json. Supported versions are - {{ supported_k8s_version }}" # noqa: yaml[line-length]
+kube_version_on_unsupported_os: "Failed. On RHEL 9.4 OS, supported kubernetes version is 1.29.5"  # noqa: yaml[line-length]
+
+# We use k8s_to_kubespray to map k8s version to kubespray version
+k8s_to_kubespray:
+  "1.29.5": "v2.27.0"
+  "1.31.4": "v2.27.0"

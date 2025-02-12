@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,13 +13,28 @@
 #  limitations under the License.
 ---
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: check_venv.yml
-  when: not ( check_venv_executed | default(false) | bool )
-  tags: provision, telemetry, local_repo, nfs_server
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: include_input_dir.yml
+  tags: pcs, provision, kubespray, pulp
 
-- name: Cleanup Omnia Infrastructure Manager
+- name: Create oim group
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    oim_group: true
+  tags: pcs, provision, kubespray, pulp
+
+- name: Execute prerequisite tasks # noqa:role-name[path]
   hosts: localhost
   connection: local
+  gather_facts: false
   roles:
-    - oim_cleanup
+    - oim_cleanup/pre_requisite
+  tags: pcs, provision, kubespray, pulp
+
+- name: Cleanup Omnia Infrastructure Manager # noqa:role-name[path]
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  roles:
+    - oim_cleanup/oim_container_cleanup
