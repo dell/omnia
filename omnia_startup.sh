@@ -61,11 +61,19 @@ setup_omnia_core() {
 # It removes the container and performs the necessary cleanup steps.
 cleanup_omnia_core() {
 
-    # Remove the container
-    remove_container
+    echo -e "${RED} WARNING: This will remove Omnia core container and all files in Omnia Shared Path.${NC}"
+    echo -e "${GREEN}You can abort and take backup if you want.${NC}"
+    read -p "Are you sure you want to continue with the cleanup? (y/n): " confirm
+    if [ "$confirm" != "n" ] && [ "$confirm" != "N" ]; then
+        echo -e "${GREEN}Aborting.${NC}"
+        exit 0
+    elif [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+        # Remove the container
+        remove_container
 
-    # Perform the necessary cleanup steps
-    cleanup_config
+        # Perform the necessary cleanup steps
+        cleanup_config
+    fi
 }
 
 
