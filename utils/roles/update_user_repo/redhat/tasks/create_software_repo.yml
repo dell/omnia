@@ -21,14 +21,15 @@
     fail_msg: "{{ version_invalid_fail_msg }} {{ item.name }}"
 
 - name: Check software repo exists in pulp distribution
-  ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os] }} distribution list --name {{ item.name }}_{{ item.version }}"
+  ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os] }} distribution list --name {{ item.name }}_{{ item.version }} --field name,base_url"
   register: check_repo_stat
   delegate_to: localhost
   connection: local
 
 - name: Set variable
   ansible.builtin.set_fact:
-    software_path_url: "{{ check_repo_stat.stdout | from_json | first['base_url'] }}"
+    software_path_url: "{{ (check_repo_stat.stdout | from_json)[0]['base_url'] }}"
+  when: check_repo_stat | length > 0
 
 - name: Check software repo present in {{ repo_path }}
   ansible.builtin.command: grep -r "{{ software_path_url }}" "{{ repo_path }}"
@@ -41,4 +42,4 @@
     src: "{{ repo_config_template_src }}"
     dest: "{{ repo_path }}/{{ item.name }}-{{ item.version }}-repo.repo"
     mode: "{{ file_permission }}"
-  when: check_path_stat.stat.exists and software_path_url not in check_repo_url.stdout
+  when: check_repo_stat | length > 0 and software_path_url not in check_repo_url.stdout

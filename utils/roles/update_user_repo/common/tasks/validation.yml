@@ -31,9 +31,9 @@
       - software_config.softwares is defined
     fail_msg: "{{ software_config_parameters_fail_msg }}"
 
-- name: Assert the oim_os_type is {{ os_type }}
+- name: Assert the oim_os_type is {{ cluster_os }}
   ansible.builtin.assert:
-    that: software_config.cluster_os_type == os_type
+    that: software_config.cluster_os_type == os_type_map[cluster_os]
     fail_msg: "{{ cluster_os_type_fail_msg }}"
 
 - name: Validate user_repo_url is defined correctly when not none

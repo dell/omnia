@@ -18,7 +18,6 @@ repo_path: "/etc/yum.repos.d"
 
 # Usage:create_software_repo.yml
 repo_config_template_src: "repo_config_template.j2"
-cluster_software_path: "{{ omnia_repo_path }}/cluster/yum"
 
 # Usage:update_user_repo.yml
 usr_repo_config_template_src: "user_repo_config.j2"

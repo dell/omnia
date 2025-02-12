@@ -23,7 +23,6 @@
   ansible.builtin.set_fact:
     cluster_os_type: "{{ software_config.cluster_os_type }}"
     cluster_os_version: "{{ software_config.cluster_os_version }}"
-    omnia_repo_path: "{{ repo_store_path }}"
 
 - name: Initialise new_repos fact
   ansible.builtin.set_fact:

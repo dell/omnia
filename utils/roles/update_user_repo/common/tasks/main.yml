@@ -26,4 +26,5 @@
 - name: Update repos on cluster for {{ cluster_os }}
   block:
     - name: Update user repos for nodes on {{ cluster_os }}
-      ansible.builtin.include_role: "{{ role_path }}/../{{ cluster_os }}"
+      ansible.builtin.include_role:
+        name: "{{ role_path }}/../{{ cluster_os }}"
