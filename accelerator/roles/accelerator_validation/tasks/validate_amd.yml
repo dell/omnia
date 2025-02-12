@@ -63,7 +63,7 @@
 
     - name: Set amdgpu_config_status based on directory existence
       ansible.builtin.set_fact:
-        amdgpu_config_status: "{{ check_amdgpu_dir.stat.exists | ternary(true, false) }}"
+        amdgpu_config_status: true
       when: pulp_amdgpu_output.stdout | length > 0
   rescue:
     - name: Log an error message
@@ -90,7 +90,7 @@
 
     - name: Set rocm_config_status based on directory existence
       ansible.builtin.set_fact:
-        rocm_config_status: "{{ check_rocm_dir.stat.exists | ternary(true, false) }}"
+        rocm_config_status: true
       when: check_rocm_repo.stdout | length > 0
   rescue:
     - name: Log an error message
