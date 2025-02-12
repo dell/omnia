@@ -37,9 +37,15 @@
   changed_when: false
   failed_when: check_repo_url.stderr!=''
 
-- name: Create repo file if software version exists on OIM
-  ansible.builtin.template:
-    src: "{{ repo_config_template_src }}"
-    dest: "{{ repo_path }}/{{ item.name }}-{{ item.version }}-repo.repo"
-    mode: "{{ file_permission }}"
+- name: Create repo file and set repos_update_status
   when: check_repo_stat | length > 0 and software_path_url not in check_repo_url.stdout
+  block:
+    - name: Create repo file if software version exists on OIM
+      ansible.builtin.template:
+        src: "{{ repo_config_template_src }}"
+        dest: "{{ repo_path }}/{{ item.name }}-{{ item.version }}-repo.repo"
+        mode: "{{ file_permission }}"
+
+    - name: Set repos_update_status
+      ansible.builtin.set_fact:
+        repos_update_status: true

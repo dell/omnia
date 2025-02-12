@@ -72,11 +72,16 @@
       with_indexed_items: "{{ omnia_repo_url }}"
       when: item.1.url in new_repos and  software_version_default not in item.1.url
 
+    - name: Set repos_update_status
+      ansible.builtin.set_fact:
+        repos_update_status: true
+
 - name: Clean the yum repos cache
   ansible.builtin.command: dnf clean all
   changed_when: true
 
 - name: Execute update repos
+  when: repos_update_status | default(false)
   block:
     - name: Update yum repos cache
       ansible.builtin.dnf:

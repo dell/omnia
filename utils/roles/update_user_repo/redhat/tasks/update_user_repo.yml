@@ -27,6 +27,7 @@
 - name: Initialise new_repos fact
   ansible.builtin.set_fact:
     new_repos: []
+    repos_update_status: false
 
 - name: Block to execute when usr repos are configured
   when:
@@ -56,3 +57,7 @@
         mode: "{{ file_permission }}"
       with_indexed_items: "{{ user_repo_url }}"
       when: item.1.url in new_repos and software_version_default not in item.1.url
+
+    - name: Set repos_update_status
+      ansible.builtin.set_fact:
+        repos_update_status: true
