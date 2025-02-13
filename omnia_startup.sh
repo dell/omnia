@@ -62,8 +62,8 @@ setup_omnia_core() {
 cleanup_omnia_core() {
 
     echo -e "${RED} WARNING: This will remove Omnia core container and all files in Omnia Shared Path.${NC}"
-    echo -e "${GREEN}You can abort and take backup if you want.${NC}"
-    read -p "Are you sure you want to continue with the cleanup? (y/n): " confirm
+    echo -e "${GREEN} You can abort and take backup if you want.${NC}"
+    read -p " Are you sure you want to continue with the cleanup? (y/n): " confirm
     if [ "$confirm" = "n" ] || [ "$confirm" = "N" ]; then
         echo -e "${GREEN}Aborting.${NC}"
         exit 0
@@ -92,9 +92,9 @@ cleanup_config(){
     if [ -f "$ssh_key_file" ]; then
         # Remove the line from the authorized_keys file.
         sed -i "\|^$(cat $ssh_key_file)$|d" $HOME/.ssh/authorized_keys
-        echo -e "${GREEN}Public key has been removed from authorized_keys.${NC}"
+        echo -e "${GREEN} Public key has been removed from authorized_keys.${NC}"
     else
-        echo -e "${RED}Public key file not found.${NC}"
+        echo -e "${RED} Public key file not found.${NC}"
     fi
 
     # Remove the SSH key pair.
@@ -102,13 +102,13 @@ cleanup_config(){
     ssh_key_file_pub="${ssh_key_file}.pub"
     if [ -f "$ssh_key_file" ] && [ -f "$ssh_key_file_pub" ]; then
         rm -f "$ssh_key_file" "$ssh_key_file_pub"
-        echo -e "${GREEN}SSH key pair have been removed.${NC}"
+        echo -e "${GREEN} SSH key pair have been removed.${NC}"
     else
-        echo -e "${RED}SSH key file not found.${NC}"
+        echo -e "${RED} SSH key file not found.${NC}"
     fi
 
     # Remove the ssh key from the known_hosts file.
-    echo -e "${BLUE}Removing ssh key from known_hosts file.${NC}"
+    echo -e "${BLUE} Removing ssh key from known_hosts file.${NC}"
     ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1
 
 
@@ -116,16 +116,16 @@ cleanup_config(){
     ssh_config_file="$HOME/.ssh/config"
     if [ -f "$ssh_config_file" ]; then
         sed -i '/Host omnia_core/,+5d' "$ssh_config_file"
-        echo -e "${GREEN}Host entry has been removed from config file.${NC}"
+        echo -e "${GREEN} Host entry has been removed from config file.${NC}"
     else
-        echo -e "${RED}Config file not found.${NC}"
+        echo -e "${RED} Config file not found.${NC}"
     fi
 
     # Remove the Omnia core configuration.
-    echo -e "${BLUE}Removing Omnia core configuration.${NC}"
+    echo -e "${BLUE} Removing Omnia core configuration.${NC}"
     rm -rf $omnia_path/omnia
 
-    echo -e "${GREEN}Omnia core configuration has been cleaned up.${NC}"
+    echo -e "${GREEN} Omnia core configuration has been cleaned up.${NC}"
 }
 
 # This function is responsible for removing the Omnia core container.
@@ -139,60 +139,69 @@ remove_container() {
     fetch_config
 
     # Remove the container.
-    echo -e "${BLUE}Removing the Omnia core container.${NC}"
+    echo -e "${BLUE} Removing the Omnia core container.${NC}"
     if podman rm -f omnia_core; then
-        echo -e "${GREEN}Omnia core container has been removed.${NC}"
+        echo -e "${GREEN} Omnia core container has been removed.${NC}"
     else
-        echo -e "${RED}Failed to remove Omnia core container.${NC}"
+        echo -e "${RED} Failed to remove Omnia core container.${NC}"
     fi
 
     # Remove the container image.
     # if podman rmi omnia_core; then
-    #     echo -e "${GREEN}Omnia core image has been removed.${NC}"
+    #     echo -e "${GREEN} Omnia core image has been removed.${NC}"
     # else
-    #     echo -e "${RED}Failed to remove Omnia core image.${NC}"
+    #     echo -e "${RED} Failed to remove Omnia core image.${NC}"
     # fi
 }
 
+
+# This function is responsible for initializing the Omnia core container.
+#
+# It prompts the user for the Omnia shared path and the root
+# password. It then checks if the Omnia shared path exists.
+#
+# The function generates the ssh key pair and copies the private
+# key to the Omnia shared path.
+#
+# The function also copies the ssh public key to the
+# authorized_keys file.
+#
+# The function creates the necessary log directories.
 init_container_config() {
 
-    # Print prompt for the Omnia shared path
-    echo -e "${BLUE}Please provide Omnia shared path:${NC}"
-
-    echo -e "${BLUE}It is recommended to use a NFS share for Omnia shared path. ${NC}"
-    echo -e "${BLUE}If you are not using NFS, make sure enough space is available on the disk. ${NC}"
-
     # Prompt the user for the Omnia shared path.
-    read -p "Enter: " omnia_path
+    echo -e "${BLUE} Please provide Omnia shared path:${NC}"
+
+    echo -e "${BLUE} It is recommended to use a NFS share for Omnia shared path. ${NC}"
+    echo -e "${BLUE} If you are not using NFS, make sure enough space is available on the disk. ${NC}"
+
+    read -p " Enter: " omnia_path
 
     # Check if the Omnia shared path exists.
     if [ ! -d "$omnia_path" ]; then
-        echo -e "${RED}Omnia shared path does not exist!${NC}"
+        echo -e "${RED} Omnia shared path does not exist!${NC}"
         exit
     fi
 
-    # Print prompt for the Omnia core root password
-    echo -e "${BLUE}Please provide Omnia core root password for accessing container:${NC}"
-
     # Prompt the user for the Omnia core root password.
-    read -p "Enter: " -s passwd
+    echo -e "${BLUE} Please provide Omnia core root password for accessing container:${NC}"
 
-    # Print prompt for the Omnia core root password confirmation
-    echo -e "\n${BLUE}Please confirm password:${NC}"
+    read -p " Enter: " -s passwd
 
     # Prompt the user for the Omnia core root password confirmation.
-    read -s -p "Enter: " cnf_passwd
+    echo -e "\n${BLUE} Please confirm password:${NC}"
+    read -s -p " Enter: " cnf_passwd
 
     # Check if the provided passwords match.
     if [ "$passwd" != "$cnf_passwd" ]; then
-        echo -e "${RED}Invalid Omnia core root password, passwords do not match!${NC}"
+        echo -e "${RED} Invalid Omnia core root password, passwords do not match!${NC}"
         exit 1
     fi
 
     # Check if the password contains any of the invalid characters
     invalid_chars='[\\|&;`"><*?!$(){}[\]]'
     if [[ "$passwd" =~ $invalid_chars ]]; then
-        echo -e "${RED}Invalid password, passwords must not contain any of these special characters: [\\|&;\`\"><*?!$(){}[\]]${NC}"
+        echo -e "${RED} Invalid password, passwords must not contain any of these special characters: [\\|&;\`\"><*?!$(){}[\]]${NC}"
         exit 1
     fi
 
@@ -200,10 +209,11 @@ init_container_config() {
     ssh_key_file="/root/.ssh/oim_rsa"
     ssh_port=2222
 
+    # Generate a new ssh key pair.
     if [ -f "$ssh_key_file" ]; then
-        echo -e "\n${BLUE}Skipping generating new ssh key pair.${NC}"
+        echo -e "\n${BLUE} Skipping generating new ssh key pair.${NC}"
     else
-        echo -e "\n${GREEN}Generating a new ssh key pair.${NC}"
+        echo -e "\n${GREEN} Generating a new ssh key pair.${NC}"
         ssh-keygen -t rsa -b 4096 -C "omnia_oim" -q -N '' -f /root/.ssh/oim_rsa
         {
             echo "Host omnia_core"
@@ -216,15 +226,15 @@ init_container_config() {
     fi
 
     # Create the ssh configuration directory if it does not exist.
-    echo -e "${GREEN}Creating the ssh configuration directory if it does not exist.${NC}"
+    echo -e "${GREEN} Creating the ssh configuration directory if it does not exist.${NC}"
     mkdir -p "$omnia_path/omnia/ssh_config/.ssh"
 
     # Copy the ssh private key to the omnia shared path.
-    echo -e "${GREEN}Copying the ssh private key to the omnia shared path.${NC}"
+    echo -e "${GREEN} Copying the ssh private key to the omnia shared path.${NC}"
     cp $ssh_key_file "$omnia_path/omnia/ssh_config/.ssh/id_rsa"
 
     # Copy the ssh public key to the omnia shared path.
-    echo -e "${GREEN}Copying the ssh public key to the omnia shared path.${NC}"
+    echo -e "${GREEN} Copying the ssh public key to the omnia shared path.${NC}"
     cp $ssh_key_file.pub "$omnia_path/omnia/ssh_config/.ssh/id_rsa.pub"
 
     # Get the ssh public key.
@@ -232,30 +242,30 @@ init_container_config() {
 
 
     # Add ssh public key to the authorized_keys.
-    echo -e "${GREEN}Adding ssh public key to the authorized_keys.${NC}"
+    echo -e "${GREEN} Adding ssh public key to the authorized_keys.${NC}"
     if grep -q "$ssh_public_key" $HOME/.ssh/authorized_keys; then
-        echo -e "${BLUE}Skipping adding ssh public key to the authorized_keys.${NC}"
+        echo -e "${BLUE} Skipping adding ssh public key to the authorized_keys.${NC}"
     else
         echo "$ssh_public_key" >> $HOME/.ssh/authorized_keys
         chmod 600 $HOME/.ssh/authorized_keys
     fi
 
     # Add ssh public key to the authorized_keys in the ssh_config directory.
-    echo -e "${GREEN}Adding ssh public key to the authorized_keys in the Omnia ssh_config directory.${NC}"
+    echo -e "${GREEN} Adding ssh public key to the authorized_keys in the Omnia ssh_config directory.${NC}"
     if [ -f "$omnia_path/omnia/ssh_config/.ssh/authorized_keys" ] && grep -q "$ssh_public_key" "$omnia_path/omnia/ssh_config/.ssh/authorized_keys"; then
-        echo -e "${BLUE}Skipping adding ssh public key to the authorized_keys in the Omnia ssh_config directory.${NC}"
+        echo -e "${BLUE} Skipping adding ssh public key to the authorized_keys in the Omnia ssh_config directory.${NC}"
     else
         echo "$ssh_public_key" >> "$omnia_path/omnia/ssh_config/.ssh/authorized_keys"
         chmod 600 "$omnia_path/omnia/ssh_config/.ssh/authorized_keys"
     fi
 
     # Create the log directory if it does not exist.
-    echo -e "${GREEN}Creating the log directory if it does not exist.${NC}"
+    echo -e "${GREEN} Creating the log directory if it does not exist.${NC}"
     mkdir -p "$omnia_path/omnia/log/core/container"
     mkdir -p "$omnia_path/omnia/log/core/playbooks"
 
     # Create the hosts file for cluster in $omnia_path/omnia/hosts
-    echo -e "${GREEN}Creating the hosts file for cluster.${NC}"
+    echo -e "${GREEN} Creating the hosts file for cluster.${NC}"
     touch "$omnia_path/omnia/hosts"
 }
 
@@ -268,7 +278,7 @@ fetch_config() {
 
     # Fetch the metadata from the oim_metadata.yml file.
     echo -e "${GREEN}Fetching the metadata from the oim_metadata.yml file.${NC}"
-    core_config=$(podman exec -ti omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml')
+        core_config=$(podman exec -ti omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml')
 
     # Split the metadata into separate lines.
     IFS=$'\n' read -r -d '' -a config_lines <<<"$core_config"
@@ -293,10 +303,10 @@ fetch_config() {
     done
     # Check if the required configuration is extracted successfully.
     if [ -z "$omnia_path" ] || [ -z "$hashed_passwd" ]; then
-        echo -e "${RED}Failed to fetch data from metadata file.${NC}"
+        echo -e "${RED} Failed to fetch data from metadata file.${NC}"
         exit 1
     else
-        echo -e "${GREEN}Successfully fetched data from metadata file.${NC}"
+        echo -e "${GREEN} Successfully fetched data from metadata file.${NC}"
     fi
 }
 
@@ -316,22 +326,22 @@ validate_oim() {
 
     # Capture the exit status
     if [ $? -eq 0 ]; then
-        echo -e "${BLUE}Podman is installed. Version: $(podman --version)${NC}"
+        echo -e "${BLUE} Podman is installed. Version: $(podman --version)${NC}"
     else
-        echo -e "${RED}Podman is not installed.${NC}"
+        echo -e "${RED} Podman is not installed.${NC}"
         exit 1
     fi
 
     # Enable the podman socket to start at boot
-    echo -e "${BLUE}Enabling podman.socket...${NC}"
+    echo -e "${BLUE} Enabling podman.socket...${NC}"
     systemctl enable podman.socket
 
     # Start the podman socket now
-    echo -e "${BLUE}Starting podman.socket...${NC}"
+    echo -e "${BLUE} Starting podman.socket...${NC}"
     systemctl start podman.socket
 
     # Print a success message after enabling and starting the podman socket
-    echo -e "${GREEN}Podman socket has been enabled and started.${NC}"
+    echo -e "${GREEN} Podman socket has been enabled and started.${NC}"
 }
 
 # Sets up the Omnia core container.
@@ -340,17 +350,17 @@ validate_oim() {
 setup_container() {
 
     # Print message for pulling the Omnia core docker image.
-    echo -e "${BLUE}Pulling the Omnia core image.${NC}"
+    echo -e "${BLUE} Pulling the Omnia core image.${NC}"
 
     # Pull the Omnia core docker image.
     # if podman pull omnia_core:latest; then
-    #     echo -e "${GREEN}Omnia core image has been pulled.${NC}"
+    #     echo -e "${GREEN} Omnia core image has been pulled.${NC}"
     # else
-    #     echo -e "${RED}Failed to pull Omnia core image.${NC}"
+    #     echo -e "${RED} Failed to pull Omnia core image.${NC}"
     # fi
 
     # Run the Omnia core container.
-    echo -e "${GREEN}Running the Omnia core container.${NC}"
+    echo -e "${GREEN} Running the Omnia core container.${NC}"
 
     # Define the container options.
     OPTIONS="-d --restart=always"
@@ -366,9 +376,9 @@ setup_container() {
 
     # Run the container.
     if podman run $OPTIONS omnia_core:latest; then
-        echo -e "${GREEN}Omnia core container has been started.${NC}"
+        echo -e "${GREEN} Omnia core container has been started.${NC}"
     else
-        echo -e "${RED}Failed to start Omnia core container.${NC}"
+        echo -e "${RED} Failed to start Omnia core container.${NC}"
     fi
 }
 
@@ -382,13 +392,13 @@ post_setup_config() {
     mkdir -p "$omnia_path/omnia/tmp/.ansible/tmp"
     chmod 757 "$omnia_path/omnia/tmp/.ansible/tmp"
     # Create the input directory if it does not exist.
-    echo -e "${GREEN}Creating the input directory if it does not exist.${NC}"
+    echo -e "${GREEN} Creating the input directory if it does not exist.${NC}"
     mkdir -p "$omnia_path/omnia/input/project_default/"
 
     # Create the default.yml file if it does not exist.
     # This file contains the name of the project.
     if [ ! -f "$omnia_path/omnia/input/default.yml" ]; then
-        echo -e "${BLUE}Creating default.yml file.${NC}"
+        echo -e "${BLUE} Creating default.yml file.${NC}"
         {
             echo "# This file defines the project name."
             echo "# The name of the project should be set in a directory under input."
@@ -397,22 +407,22 @@ post_setup_config() {
     fi
 
     # Copy input files from pod to /opt/omnia/project_default/
-    echo -e "${BLUE}Copying input files from container to project_default folder.${NC}"
+    echo -e "${BLUE} Copying input files from container to project_default folder.${NC}"
     podman exec -u root omnia_core sh -c 'for file in /omnia/input/*; do cp -r "$file" /opt/omnia/input/project_default/; done'
 
     # Copy shard libraries from pod to /opt/omnia/shard_libraries/
-    echo -e "${BLUE}Copying shard libraries from container to shard_libraries folder.${NC}"
+    echo -e "${BLUE} Copying shard libraries from container to shard_libraries folder.${NC}"
     podman exec -u root omnia_core cp -r /omnia/shared_libraries/ /opt/omnia/
 
     # Create the .data directory if it does not exist.
     # This is where the oim_metadata.yml file is stored.
-    echo -e "${GREEN}Creating the .data directory if it does not exist.${NC}"
+    echo -e "${GREEN} Creating the .data directory if it does not exist.${NC}"
     mkdir -p "$omnia_path/omnia/.data"
 
     oim_metadata_file="$omnia_path/omnia/.data/oim_metadata.yml"
 
     if [ ! -f "$oim_metadata_file" ]; then
-        echo -e "${GREEN}Creating oim_metadata file${NC}"
+        echo -e "${GREEN} Creating oim_metadata file${NC}"
         {
             echo "oim_crt: \"podman\""
             echo "oim_shared_path: $omnia_path"
@@ -466,53 +476,83 @@ start_container_session() {
     ssh omnia_core
 }
 
+
+# Main function to check if omnia_core container is already running.
+# If yes, ask the user if they want to cleanup or reinstall.
+# If no, set it up.
 main() {
     # Check if any other containers with 'omnia' in their name are running
     other_containers=$(podman ps -a --format '{{.Names}}' | grep -E 'omnia' | grep -v 'omnia_core')
+
+    # If there are any, exit
     if [ -n "$other_containers" ]; then
-        echo -e "${RED}There are other omnia container running.${NC}"
-        echo -e "${GREEN}Execute oim_cleanup.yml first to cleanup all containers.${NC}"
+        echo -e "${RED} There are other omnia container running.${NC}"
+        echo -e "${GREEN} Execute oim_cleanup.yml first to cleanup all containers.${NC}"
         exit 1
     fi
 
     # Check if the omnia_core container is already running
-    running_containers=$(podman ps -a --format '{{.Names}}' | grep -E 'omnia_core')
-    if [ -n "$running_containers" ]; then
+    running_containers=$(podman ps -a --format '{{.Names}} {{.State}}' | grep -E 'omnia_core')
+
+    # If yes, set the variable to true
+    if [ -n "$running_containers" ] && [ -n "$(echo "$running_containers" | grep -E 'running')" ]; then
         core_container_status=true
     fi
 
+    # If core container is running
     if [ "$core_container_status" = true ]; then
-        echo -e "${GREEN}Omnia core container is already running.${NC}"
-        echo -e "${GREEN}Do you want to:${NC}"
-        echo -e "${GREEN}1. Cleanup the container.${NC}"
-        echo -e "${GREEN}2. Reinstall the container.${NC}"
-        echo -e "${GREEN}3. Exit. ${NC}"
-        read -p "Enter your choice (1 or 2): " choice
+        echo -e "${GREEN} Omnia core container is already running.${NC}"
+        echo -e "${GREEN} Do you want to:${NC}"
+        echo -e "${GREEN} 1. Cleanup the container.${NC}"
+        echo -e "${GREEN} 2. Reinstall the container.${NC}"
+        echo -e "${GREEN} 3. Exit. ${NC}"
+
+        # Get user input
+        read -p " Enter your choice (1 or 2): " choice
+
+        # If the user wants to cleanup, call the cleanup function
         if [ "$choice" = "1" ]; then
             cleanup_omnia_core
+        # If the user wants to reinstall, call the remove_container function, and then call the setup_omnia_core function
         elif [ "$choice" = "2" ]; then
             echo -e "${GREEN} What configuration do you want to use for reinstallation:${NC}"
-            echo -e "${GREEN}1. Retain Existing configuration.${NC}"
-            echo -e "${GREEN}2. Overwrite and create new configuration.${NC}"
-            echo -e "${GREEN}3. Exit. ${NC}"
-            read -p "Enter your choice (1 or 2): " choice
+            echo -e "${GREEN} 1. Retain Existing configuration.${NC}"
+            echo -e "${GREEN} 2. Overwrite and create new configuration.${NC}"
+            echo -e "${GREEN} 3. Exit. ${NC}"
+            read -p " Enter your choice (1 or 2): " choice
+
+            # If the user wants to retain existing configuration, call the remove_container function
             if [ "$choice" = "1" ]; then
                 remove_container
                 setup_container
                 start_container_session
+            # If the user wants to overwrite and create new configuration, call the cleanup_omnia_core function
             elif [ "$choice" = "2" ]; then
                 cleanup_omnia_core
                 setup_omnia_core
+            # If the user wants to exit, exit
             elif [ "$choice" = "3" ]; then
                 exit
             fi
+        # If the user wants to exit, exit
         elif [ "$choice" = "3" ]; then
             exit
         fi
+    # If core container is not running
     else
+        # If omnia_core container exists and is not running call the remove_container function
+        if [ -n "$running_containers" ]; then
+            echo -e "${RED} The Omnia Core container is not in running state.${NC}"
+            echo -e "${GREEN} Only the core container can be cleaned up.${NC}"
+            echo -e "${GREEN} Container Configurations in the shared directory will not be cleaned up.${NC}"
+            remove_container
+        fi
+
+        # Start the container setup
         echo -e "${GREEN}Starting Omnia core container setup.${NC}"
         setup_omnia_core
     fi
 }
 
+# Call the main function
 main
