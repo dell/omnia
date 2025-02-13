@@ -25,7 +25,3 @@
     option: max_parallel_downloads
     value: "{{ dnf_max_parallel }}"
     backup: true
-
-- name: Install pip modules
-  ansible.builtin.pip:
-    name: "{{ python_package }}"

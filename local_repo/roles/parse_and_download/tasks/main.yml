@@ -13,18 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Define Set facts
-  ansible.builtin.set_fact:
-    yaml_file_path: "{{ nfs_shared_path }}/input/default.yml"
-
-- name: Read project_name from YAML file
-  ansible.builtin.set_fact:
-    project_name: "{{ (lookup('file', yaml_file_path) | from_yaml).project_name | default('Not Found', true) }}"
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
 - name: Define project input path
   ansible.builtin.set_fact:
-    project_input_path: "{{ nfs_shared_path }}/input/{{ project_name }}"
-
+    project_input_path:"{{ hostvars['localhost']['input_project_dir'] }}"
 
 - name: Prepare package takslist
   ansible.builtin.include_tasks: create_tasklist.yml

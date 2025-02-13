@@ -14,20 +14,14 @@
 ---
 
 group_name: "group1"
-#log_file: "{{ base_path }}/task_results.log"
-#slog_file: "{{ base_path }}/stask_results.log"
-#slog_file: "{{ base_path }}"
 nfs_shared_path: "/opt/omnia"
 repo_store_path: "{{ nfs_shared_path }}"
 base_path: "{{ nfs_shared_path }}/offline_repo/{{ group_name }}"
 local_repo_config_path: "{{ project_input_path }}/local_repo_config.yml"
-  
 user_json_file: "{{ project_input_path }}/software_config.json"
 clean_rpms: true
 local_repo_py_module_vars:
-  default_vars: &sw_defaults
-    #log_dir: "{{ base_path }}/local_sw/logs"
-    #csv_file_path: "{{ base_path }}/local_sw"    
+  default_vars: &sw_defaults 
     timeout: 2000  # Timeout in seconds for each thread
     nthreads: 8 # Number of threads 
   amdgpu:

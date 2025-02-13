@@ -16,8 +16,6 @@
 # Usage: main.yml
 nfs_shared_path: "/opt/omnia"
 local_repo_config_file: "{{ project_input_path }}/local_repo_config.yml"
-# composable_role_config_file: "{{ project_input_path }}input/composable_role_config.yml"
-
 var_mount_percentage_limit: 80
 var_mount_overuse_msg: |
   [WARNING] local_repo.yml may fail as /var mount usage has exceeded the limit of {{ var_mount_percentage_limit }}%.
@@ -32,20 +30,8 @@ yum_repos_path: "/etc/yum.repos.d"
 yum_conf_path: "/etc/yum.conf"
 dnf_conf_path: "/etc/dnf/dnf.conf"
 dnf_max_parallel: 10
-repo_pkgs:
-  - jq
-  - createrepo
-  - yum-utils
-  - wget
-  - unzip
-  - tar
-  - dnf-plugins-core
 
 python_version: "{{ ansible_python_interpreter }}"
-python_package:
-  - prettytable
-  - logger
-dpkg_package: "dpkg-dev"
 apt_conf_dest: /etc/apt/apt.conf
 
 root_user_name: "root"
