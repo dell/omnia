@@ -13,11 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Install packages
-  ansible.builtin.dnf:
-    name: "{{ repo_pkgs }}"
-    state: present
-
 - name: Set MaxParallelDownloads for dnf
   community.general.ini_file:
     path: "{{ dnf_conf_path }}"

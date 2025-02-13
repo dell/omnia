@@ -13,10 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
-
 - name: Define project input path
   ansible.builtin.set_fact:
     project_input_path:"{{ hostvars['localhost']['input_project_dir'] }}"
