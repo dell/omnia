@@ -1,9 +1,0 @@
-{
-    "amd_benchmarks": {
-        "cluster": [
-            {"package": "pmix-devel", "type": "rpm", "repo_name": "powertools"},
-            {"package": "libevent-devel", "type": "rpm", "repo_name": "appstream"}
-           
-        ]
-    }
-}
