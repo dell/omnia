@@ -14,7 +14,7 @@
 ---
 
 - name: Register pulp distribution output for all rpm packages baseurl
-  ansible.builtin.command: /usr/local/bin/pulp rpm distribution list --field base_url --field name
+  ansible.builtin.command: /usr/local/bin/pulp rpm distribution list --field base_url,name
   delegate_to: localhost
   register: pulp_distribution_rpm_baseurl
   changed_when: false
