@@ -278,7 +278,7 @@ init_container_config() {
 fetch_config() {
 
     # Fetch the metadata from the oim_metadata.yml file.
-    echo -e "${GREEN}Fetching the metadata from the oim_metadata.yml file.${NC}"
+    echo -e "${GREEN} Fetching the metadata from the oim_metadata.yml file.${NC}"
         core_config=$(podman exec -ti omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml')
 
     # Split the metadata into separate lines.
