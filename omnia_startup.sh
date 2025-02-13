@@ -68,6 +68,10 @@ cleanup_omnia_core() {
         echo -e "${GREEN}Aborting.${NC}"
         exit 0
     elif [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+        
+        # Fetch the configuration from the Omnia core container.
+        fetch_config
+
         # Remove the container
         remove_container
 
@@ -134,9 +138,6 @@ cleanup_config(){
 # If the container is removed successfully, it prints a success message.
 # Otherwise, it prints an error message.
 remove_container() {
-
-    # Fetch the configuration from the Omnia core container.
-    fetch_config
 
     # Remove the container.
     echo -e "${BLUE} Removing the Omnia core container.${NC}"
@@ -523,6 +524,7 @@ main() {
 
             # If the user wants to retain existing configuration, call the remove_container function
             if [ "$choice" = "1" ]; then
+                fetch_config
                 remove_container
                 setup_container
                 start_container_session
