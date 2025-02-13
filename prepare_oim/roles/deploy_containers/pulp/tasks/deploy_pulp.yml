@@ -17,6 +17,8 @@
   ansible.builtin.set_fact:
     pulp_username: "{{ hostvars['localhost']['pulp_username'] }}"
     pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
+    pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+  no_log: true
 
 - name: Create directories for Pulp in shared storage
   ansible.builtin.file:
@@ -31,10 +33,6 @@
 #    src: "{{ nginx_conf_path }}"
 #    dest: "{{ nginx_conf_dest }}"
 #    mode: "{{ pulp_dir_permissions }}"
-
-- name: Set fact for admin nic ip
-  ansible.builtin.set_fact:
-    pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
 
 - name: Create settings.py for Pulp
   ansible.builtin.template:
