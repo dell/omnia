@@ -103,6 +103,7 @@
         name: deploy_containers/pulp
         tasks_from: reload_pulp_nginx.yml
 
+# PCS container has to be deployed after all containers are deployed and configured
 - name: Deploy pcs container
   hosts: oim
   connection: ssh
