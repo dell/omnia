@@ -172,7 +172,21 @@ def get_repo_url_and_content(package):
     raise ValueError(f"Unsupported package prefix for package: {package}")
  
 def create_container_distribution(repo_name,package_content,logger):
-    """Create or update a distribution for repository."""
+    """
+    Create or update a distribution for a repository.
+ 
+    Args:
+        repo_name (str): The name of the repository.
+        package_content (str): The content of the package.
+        logger (logging.Logger): The logger instance.
+ 
+    Returns:
+        bool: True if the distribution is created or updated successfully, False otherwise.
+ 
+    Raises:
+        Exception: If there is an error creating or updating the distribution.
+    """
+   
     try:
         if not execute_command(pulp_container_commands["show_container_distribution"] % (repo_name), logger):
             command = pulp_container_commands["distribute_container_repository"] % (repo_name, repo_name, package_content)
@@ -182,6 +196,7 @@ def create_container_distribution(repo_name,package_content,logger):
             return execute_command(command,logger)
     except Exception as e:
         logger.error(f"Error creating distribution {repo_name}: {e}")
+
  
 def process_image(package,repo_store_path, status_file_path, cluster_os_type, cluster_os_version, version_variables, logger):
     """
