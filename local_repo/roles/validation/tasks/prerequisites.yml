@@ -13,14 +13,19 @@
 # limitations under the License.
 ---
 
-- name: Check JSON syntax of {{ json_file.path }}
-  ansible.builtin.command:
-    cmd: "jq . {{ json_file.path }}"
-  register: json_check
-  ignore_errors: true
-  changed_when: true
+- name: Install packages
+  ansible.builtin.dnf:
+    name: "{{ repo_pkgs }}"
+    state: present
 
-- name: Display JSON errors of {{ json_file.path }}
-  ansible.builtin.fail:
-    msg: "{{ json_check.stderr_lines }}"
-  when: json_check.rc != 0
+- name: Set MaxParallelDownloads for dnf
+  community.general.ini_file:
+    path: "{{ dnf_conf_path }}"
+    section: main
+    option: max_parallel_downloads
+    value: "{{ dnf_max_parallel }}"
+    backup: true
+
+- name: Install pip modules
+  ansible.builtin.pip:
+    name: "{{ python_package }}"

@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,10 @@
 ---
 
 # Usage: main.yml
-local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+nfs_shared_path: "/opt/omnia"
+local_repo_config_file: "{{ project_input_path }}/local_repo_config.yml"
+# composable_role_config_file: "{{ project_input_path }}input/composable_role_config.yml"
+
 var_mount_percentage_limit: 80
 var_mount_overuse_msg: |
   [WARNING] local_repo.yml may fail as /var mount usage has exceeded the limit of {{ var_mount_percentage_limit }}%.
@@ -27,40 +30,35 @@ var_mount_overuse_msg: |
 max_retries: 10
 yum_repos_path: "/etc/yum.repos.d"
 yum_conf_path: "/etc/yum.conf"
-jq_package: jq
+dnf_conf_path: "/etc/dnf/dnf.conf"
+dnf_max_parallel: 10
 repo_pkgs:
+  - jq
   - createrepo
   - yum-utils
   - wget
   - unzip
   - tar
+  - dnf-plugins-core
+
 python_version: "{{ ansible_python_interpreter }}"
 python_package:
-  - requests==2.31.0
-  - pyopenssl==21.0.0
-  - urllib3==1.26.5
-  - distro==1.9.0
+  - prettytable
+  - logger
+dpkg_package: "dpkg-dev"
 apt_conf_dest: /etc/apt/apt.conf
-ubuntu_packages:
-  - iptables
-  - dpkg-dev
 
-# Usage: validate_oim_os.yml
-oim_os_redhat: "redhat"
-oim_os_rocky: "rocky"
-oim_os_ubuntu: "ubuntu"
-oim_os_fail_msg: "Failed. Omnia Infrastructure Manager OS should be RHEL, Rocky or Ubuntu."
 root_user_name: "root"
 user_fail_msg: "Failed. Omnia playbooks should run as root user."
 warning_wait_time_warning: 15
 warning_msg_local_repo: "[WARNING] Omnia will remove any package/software conflicting with the requirements."
 
 # Usage: validate_software_config_json.yml
-sw_config_json_path: "{{ role_path }}/../../../input/software_config.json"
+sw_config_json_path: "{{ project_input_path }}/software_config.json"
 fail_msg_software_config_json_file: "software_config.json file doesn't exist."
 software_config_parameters_fail_msg: "Failed. Please ensure cluster_os_type, cluster_os_verion, repo_config, softwares are defined in software_config.json"
 software_config_softwares_fail_msg: "Failed. softwares list cannot be empty in software_config.json. Atleast one software should be defined."
-missing_json_fail_msg: "The json files for the following software stacks are missing at input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/,
+missing_json_fail_msg: "The json files for the following software stacks are missing at {{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/,
 this might be due to removal of json files from the path or the softwares are not being supported on
 {{ cluster_os_type }} : {{ missing_json_list | map('regex_replace', '\\.json$', '') | list }}"
 specific_softwares:
@@ -77,31 +75,21 @@ specific_softwares:
   - 'openmpi'
   - 'bcm_roce_libraries'
 versions_fail_msg: "Versions were not defined for the following softwares: {{ failed_softwares | join(', ') }} in software_config.json.
-Refer examples/template_{{ cluster_os_type }}_software_config.json and define version details accordingly in input/software_config.json"
-cluster_os_type_fail_msg: "Failed. The supported values of cluster_os_type are rhel, rocky, ubuntu."
-cluster_os_version_fail_msg_rhel: "Failed. The supported values of cluster_os_version is 8.6,8.7 and 8.8 when cluster_os_type is rhel"
-cluster_os_version_fail_msg_rocky: "Failed. The supported values of cluster_os_version is 8.6,8.7 and 8.8 when cluster_os_type is rocky"
-cluster_os_version_fail_msg_ubuntu: "Failed. The supported values of cluster_os_version is 20.04, 22.04 and 24.04 when cluster_os_type is ubuntu"
+Refer examples/template_{{ cluster_os_type }}_software_config.json and define version details accordingly in {{ project_input_path }}/software_config.json"
+cluster_os_type_fail_msg: "Failed. The supported values of cluster_os_type is Fedora"
+cluster_os_version_fail_msg_fedora: "Failed. The supported values of cluster_os_version is 38 when cluster_os_type is Fedora"
 repo_config_fail_msg: "Failed. The supported values of repo_config is always, partial and never"
-cross_os_support_fail_msg: "Cross-OS is not supported: oim_os '{{ oim_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
+# cross_os_support_fail_msg: "Cross-OS is not supported: control_plane_os '{{ control_plane_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
 valid_cluster_os_type:
-  - 'rhel'
-  - 'rocky'
-  - 'ubuntu'
+  - 'fedora'
 rhel_valid_os_versions:
-  - '8.6'
-  - '8.7'
-  - '8.8'
   - '9.4'
 rocky_valid_os_versions:
-  - '8.6'
-  - '8.7'
-  - '8.8'
   - '9.4'
-ubuntu_valid_os_versions:
-  - '20.04'
-  - '22.04'
-  - '24.04'
+
+fedora_valid_os_versions:
+  - '38'
+
 valid_repo_config:
   - 'always'
   - 'partial'
@@ -113,6 +101,8 @@ success_msg_k8s_version: "Kubernetes Version Validated"
 fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
 kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"  # noqa: yaml[line-length]
 
+#Usage: validate_composable_role_config.yml
+fail_msg_composable_config_file: "composable_role_config.yml file doesn't exist."
 # Usage: validate_local_repo_config.yml
 fail_msg_local_repo_config_file: "local_repo_config.yml file doesn't exist."
 local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again. Common syntax Errors:
@@ -121,31 +111,29 @@ repo_store_path_fail_msg: "Failed. Ensure repo_store_path is defined and it shou
 directory_permissions: "0755"
 rhel_os_url_fail_msg_crb: "Please provide code ready builder repo in rhel_os_url in local_repo_config.yml when cluster_os_type is rhel"
 omnia_repo_url_rhel_fail_msg: "Failed. Please ensure omnia_repo_url_rhel is defined and the repos are provided in local_repo_config.yml"
-omnia_repo_url_rhel_url_gpg_key_fail_msg: "Failed. Each item in omnia_repo_url_rhel should have 'url' and 'gpgkey' keys defined"
-omnia_repo_url_rocky_fail_msg: "Failed. Please ensure omnia_repo_url_rocky is defined and the repos are mentioned in local_repo_config.yml"
-omnia_repo_url_rocky_url_gpg_key_fail_msg: "Failed. Each item in omnia_repo_url_rocky should have 'url' and 'gpgkey' keys defined"
-omnia_repo_url_ubuntu_fail_msg: "Failed. Please ensure omnia_repo_url_ubuntu is defined and the repos are mentioned in local_repo_config.yml"
-omnia_repo_url_ubuntu_url_gpg_key_fail_msg: "Failed. Each item in omnia_repo_url_ubuntu should have 'url' and 'gpgkey' keys defined"
+omnia_repo_url_rhel_url_gpg_key_fail_msg: "Failed. Each item in omnia_repo_url_rhel should have 'url', 'gpgkey' and 'name' keys defined"
+# omnia_repo_url_rocky_fail_msg: "Failed. Please ensure omnia_repo_url_rocky is defined and the repos are mentioned in local_repo_config.yml"
+# omnia_repo_url_rocky_url_gpg_key_fail_msg: "Failed. Each item in omnia_repo_url_rocky should have 'url' and 'gpgkey' keys defined"
+# omnia_repo_url_ubuntu_fail_msg: "Failed. Please ensure omnia_repo_url_ubuntu is defined and the repos are mentioned in local_repo_config.yml"
+# omnia_repo_url_ubuntu_url_gpg_key_fail_msg: "Failed. Each item in omnia_repo_url_ubuntu should have 'url' and 'gpgkey' keys defined"
 omnia_registry_fail_msg: "Failed. omnia_registry should be defined in local_repo_config.yml."
 omnia_registry_string_fail_msg: "Each item in omnia_registry should be a string."
-rpm_dir_path: "{{ repo_store_path }}/cluster/{{ cluster_os_type }}/{{ cluster_os_version }}/rpm"
-deb_dir_path: "{{ repo_store_path }}/cluster/{{ cluster_os_type }}/{{ cluster_os_version }}/deb"
 
 # Usage: validate_user_registry.yml
 user_registry_fail_msg: "Failed. Please ensure user_registry is non empty list and
-check if there is any indentation error in input/local_repo_config.yml"
+check if there is any indentation error in {{ project_input_path }}/local_repo_config.yml"
 user_registry_fail_host_cert_path_msg: "Failed. Each item in user_registry should have 'host' and 'cert_path' keys defined"
 time_out: 30
 user_registry_msg: "The following user registries are not reachable: [{{ unreachable_registries | join(', ') }}]. If the user registry is not accessible from the Omnia Infrastructure Manager, Omnia will download all the images for the software listed in software_config.json."   # noqa: yaml[line-length]
-cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the Omnia Infrastructure Manager for host {{ item.item.host }}. Please verify that correct cert_path is given in input/local_repo_config.yml"  # noqa: yaml[line-length]
+cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the Omnia Infrastructure Manager for host {{ item.item.host }}. Please verify that correct cert_path is given in {{ project_input_path }}/local_repo_config.yml"  # noqa: yaml[line-length]
 
 # Usage: validate_user_repo_url.yml
 user_repo_url_fail_msg: "Failed. Please ensure user_repo_url is proper and should not have jinja variables.
-Also ensure that there is no indentation error in input/local_repo_config.yml"
-user_repo_url_fail_url_gpg_key_msg: "Failed. Each item in user_repo_url should have 'url' and 'gpgkey' keys defined"
+Also ensure that there is no indentation error in {{ project_input_path }}/local_repo_config.yml"
+user_repo_url_fail_url_gpg_key_msg: "Failed. Each item in user_repo_url should have 'url', 'gpgkey' and 'name' keys defined"
 
 # Usage: validate_json_path.yml
-json_files_directory: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}"
+json_files_directory: "{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}"
 
 # Usage: validate_json_file.yml
 software_key_fail_msg: "'{{ file_basename }}' key is missing in the JSON file."
@@ -184,7 +172,7 @@ subgroup_software_name_fail_msg: "Please ensure valid software names are defined
 
 # Usage: validate_ubuntu_os_url.yml
 url_format_fail_msg: "Failed. Invalid format for ubuntu_os_url.
-Also ensure that there is no indentation error in input/local_repo_config.yml"
+Also ensure that there is no indentation error in {{ project_input_path }}/local_repo_config.yml"
 url_unreachable_fail_msg: "Failed. Unreachable url {{ ubuntu_os_url }} input provided in ubuntu_os_url.
 This can be due to intermittent internet connectivity issues as well.
 Please ensure that the url mentioned in ubuntu_os_url is reachable and re-run local_repo.yml."
@@ -196,31 +184,31 @@ repo_config_metadata_fail_msg: "Failed: Cannot change repo_config in subsequent 
 
 # Usage: validate_rhel_os_url.yml
 rhel_os_url_fail_msg: "Failed. Please ensure rhel_os_url is non empty list and
-check if there is any indentation error for variable names in input/local_repo_config.yml"
-rhel_os_url_fail_url_gpg_key_msg: "Failed. Each item in rhel_os_url should have 'url' and 'gpgkey' keys defined"
+check if there is any indentation error for variable names in {{ project_input_path }}/local_repo_config.yml"
+rhel_os_url_fail_url_gpg_key_msg: "Failed. Each item in rhel_os_url should have 'url', 'gpgkey' and 'name' keys defined"
 
 # Usage: include_provision_credentials_inputs.yml
 docker_password_fail_msg: "docker password must be mentioned when docker_username is defined."
 warning_wait_time: 30
 warning_msg_docker_username_password_incomplete: "[WARNING] Docker credentials not provided in provision_config_credentials.yml.
 Proceeding without docker credentials."
-provision_config_credentials_filename: "{{ role_path }}/../../../input/provision_config_credentials.yml"
-provision_credentials_vault_path: "{{ role_path }}/../../../input/.provision_credential_vault_key"
+provision_config_credentials_filename: "{{ project_input_path }}/provision_config_credentials.yml"
+provision_credentials_vault_path: "{{ project_input_path }}/.provision_credential_vault_key"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
 provision_config_credentials_syntax_fail_msg: "Failed. Syntax errors present in provision_config_credentials.yml. Fix errors and re-run playbook again."
 conf_file_mode: "0644"
 
 # Usage: validate_bcm_roce.yml
-bcm_roce_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/bcm_roce.json"
+bcm_roce_json_file: "{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/bcm_roce.json"
 fail_msg_bcm_roce_json_file: "bcm_roce.json file is absent. Broadcom RoCE driver packages will not be downloaded."
 bcm_roce_fail_msg: "bcm_roce is provided in software_config.json but neither url nor path is provided in bcm_roce.json file in
- input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/"
+{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/"
 bcm_roce_file_path_missing_msg: "Incorrect bcm_roce_file_path provided. Make sure bcm_roce file is present in the provided
  bcm_roce path."
 bcm_roce_file_path_success_msg: "bcm_roce_file_path validated"
 bcm_roce_file_path_fail_msg: "Failed. The path provided for bcm_roce file is not a tarball. please provide a valid tarball."
 bcm_roce_src_warning_msg: "bcm_roce_libraries will not be installed on the nodes post provisioning. bcm_roce is provided in software_config.json
- but neither url nor path is provided in bcm_roce.json file in input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/"
+ but neither url nor path is provided in bcm_roce.json file in {{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/"
 bcm_roce_src_file_path_missing_msg: "Incorrect bcm_roce_libraries file_path provided. Make sure bcm_roce file is present in the provided
  bcm_roce path."
 bcm_roce_src_file_path_success_msg: "bcm_roce_libraries file_path validated"
@@ -244,7 +232,7 @@ bcm_roce_libraries_warning_msg: "bcm_roce_libraries object not found in bcm_roce
 server_domain_name_blank_msg: "Failed. domain_name is not set in hostname. It should have hostname.domain_name format"
 
 # Usage: validate_site_config.yml
-site_config_file: "{{ role_path }}/../../../input/site_config.yml"
+site_config_file: "{{ project_input_path }}/site_config.yml"
 invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
 proxy_env_fail_msg: "Failed. The values for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in the
 proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the Omnia Infrastructure Manager.
@@ -252,32 +240,3 @@ The no_proxy environment variable should include the Omnia Infrastructure Manage
 update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in Omnia Infrastructure Manager for acccessing internet."
 repo_retries: 5
 repo_delay: 10
-
-# Usage: validate_cuda_ofed_json.yml
-cuda_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json"
-fail_msg_cuda_json_file: |
-  "Failed. input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json file is missing.
-  Please ensure that the cuda.json file is present in the correct location."
-fail_msg_cuda_config: |
- "Please provide either a URL or a file path for the CUDA package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json file.
- The CUDA package is specified in the software_config.json file, but the corresponding URL or file path is missing in the cuda.json file."
-cuda_file_path_missing_msg: |
-  "Please confirm that the file path for the CUDA package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json file is correct.
-  Ensure that the file exists at the location specified in the cuda.json file."
-cuda_version_missing_msg: |
-  "Please check the URL for the CUDA package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/cuda.json file.
-  Ensure that URL is accessible and cuda version specified in the software_config.json file matches the version mentioned in the URL in the cuda.json file."
-ofed_json_file: "{{ role_path }}/../../../input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json"
-fail_msg_ofed_json_file: |
-  "Failed. input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json file is missing.
-  Please ensure that the ofed.json file is present in the correct location."
-fail_msg_ofed_config: |
- "Please provide either a URL or a file path for the OFED package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json file.
- The OFED package is specified in the software_config.json file, but the corresponding URL or file path is missing in the ofed.json file."
-ofed_file_path_missing_msg: |
-  "Please confirm that the file path for the OFED package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json file is correct.
-  Ensure that the file exists at the location specified in the ofed.json file."
-ofed_version_missing_msg: |
-  "Please check the URL for the OFED package in the input/config/{{ cluster_os_type }}/{{ cluster_os_version }}/ofed.json file.
-  Ensure that URL is accessible and ofed version specified in the software_config.json file matches the version mentioned in the URL in the ofed.json file."
-url_success_return_code: 200

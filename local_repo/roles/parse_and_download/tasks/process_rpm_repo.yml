@@ -13,14 +13,16 @@
 # limitations under the License.
 ---
 
-- name: Check JSON syntax of {{ json_file.path }}
-  ansible.builtin.command:
-    cmd: "jq . {{ json_file.path }}"
-  register: json_check
-  ignore_errors: true
-  changed_when: true
+- name: Call prepare_tasklist Python module to prepare software packages tasklist
+  prepare_tasklist:
+    csv_file_path: "{{ base_path }}"
+    user_json_file: "{{ user_json_file }}"
+    local_repo_config_path: "{{ local_repo_config_path }}"
+    log_dir: "{{ base_path }}"
+  register: result
 
-- name: Display JSON errors of {{ json_file.path }}
-  ansible.builtin.fail:
-    msg: "{{ json_check.stderr_lines }}"
-  when: json_check.rc != 0
+- name: Process RPM config
+  process_rpm_config:
+    local_config: "{{ result.local_config }}"
+    log_dir: "{{ base_path }}"
+  register: rpm_result
