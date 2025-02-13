@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,20 +13,8 @@
 # limitations under the License.
 ---
 
-- name: Cleanup provision setup
-  ansible.builtin.import_tasks: clean_provision_setup.yml
-  tags: provision
+- name: Import pre-requisite tasks
+  ansible.builtin.include_tasks: pre_requisite.yml
 
-- name: Cleanup telemetry setup
-  ansible.builtin.import_tasks: clean_telemetry_setup.yml
-  tags:
-    - telemetry
-    - local_repo
-
-- name: Cleanup local repo setup
-  ansible.builtin.import_tasks: clean_local_repo_setup.yml
-  tags: local_repo
-
-- name: Cleanup nfs server
-  ansible.builtin.import_tasks: clean_nfs_server.yml
-  tags: nfs_server
+- name: Check k8s support
+  ansible.builtin.include_tasks: check_k8s_support.yml

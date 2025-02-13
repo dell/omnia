@@ -1,0 +1,78 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+container_removal_failure_msg: " container could not be removed."
+omnia_nfs_share: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia"
+
+# Usage: cleanup_pcs.yml
+pcs_container_name: "omnia_pcs"
+pcs_directory_cleanup:
+  - "{{ omnia_nfs_share }}/pcs"
+  - "{{ omnia_nfs_share }}/log/pcs"
+pcs_service_file_path: "/etc/containers/systemd/{{ pcs_container_name }}.container"
+pcs_firewall_ports:
+  - "5404-5405/udp"
+  - "3121/tcp"
+  - "2224/tcp"
+  - "2222/tcp"
+
+# Usage: cleanup_pulp.yml
+pulp_container_name: "omnia_pulp"
+pulp_cleanup_directory:
+  - "{{ omnia_nfs_share }}/pulp"
+  - "{{ omnia_nfs_share }}/log/pulp"
+
+# Usage: cleanup_provision.yml
+provision_container_name: "omnia_provision"
+provision_cleanup_directory:
+  - "{{ omnia_nfs_share }}/provision"
+  - "{{ omnia_nfs_share }}/log/provision"
+xcat_firewall_ports:
+  - "3001/tcp"
+  - "3001/udp"
+  - "3002/tcp"
+  - "3002/udp"
+  - "7/udp"
+  - "22/tcp"
+  - "22/udp"
+  - "873/tcp"
+  - "873/udp"
+  - "67/udp"
+  - "68/tcp"
+  - "69/tcp"
+  - "69/udp"
+  - "80/tcp"
+  - "80/udp"
+  - "111/udp"
+  - "514/tcp"
+  - "514/udp"
+  - "782/tcp"
+  - "2049/tcp"
+  - "2049/udp"
+  - "4011/tcp"
+  - "623/tcp"
+  - "623/udp"
+  - "161/tcp"
+  - "161/udp"
+  - "162/tcp"
+  - "162/udp"
+  - "2240/tcp"
+
+# Usage: cleanup_kubespray.yml
+kubespray_image_tag: "{{ hostvars['localhost']['kubespray_version'] }}"
+kubespray_container_name: "omnia_kubespray_{{ hostvars['localhost']['kubespray_version'] }}"
+kubespray_cleanup_directory:
+  - "{{ omnia_nfs_share }}/kubespray"
+  - "{{ omnia_nfs_share }}/log/kubespray"
