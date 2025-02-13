@@ -22,11 +22,16 @@
     mode: "{{ item.mode }}"
   loop: "{{ pulp_directories }}"
 
-- name: Create nginx.conf file for Pulp
-  ansible.builtin.template:
-    src: "{{ nginx_conf_path }}"
-    dest: "{{ nginx_conf_dest }}"
-    mode: "{{ pulp_dir_permissions }}"
+# This task creates the nginx.conf file for Pulp
+# - name: Create nginx.conf file for Pulp
+#  ansible.builtin.template:
+#    src: "{{ nginx_conf_path }}"
+#    dest: "{{ nginx_conf_dest }}"
+#    mode: "{{ pulp_dir_permissions }}"
+
+- name: Set fact for admin nic ip
+  ansible.builtin.set_fact:
+    pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
 
 - name: Create settings.py for Pulp
   ansible.builtin.template:
@@ -42,7 +47,6 @@
         image: "{{ pulp_image }}"
         state: present
         restart_policy: always
-        hostname: "{{ pulp_container_name }}"
         volumes: "{{ volumes }}"
         privileged: true
         device:
@@ -74,9 +78,8 @@
         msg: "{{ pulp_deployed_fail_msg }}"
 
 - name: Reset Pulp password
-  ansible.builtin.expect:
-    command: "{{ reset_password_cmd }}"
-    responses: "{{ pulp_responses }}"
+  ansible.builtin.command:
+    cmd: "{{ reset_password_cmd }}"
   retries: "{{ retries_var }}"
   delay: "{{ delay_var }}"
   no_log: true
