@@ -68,5 +68,5 @@ pulp_creds_fail_msg:
   Kindly check the pulp_username and pulp_password in input/provision_config_credentials.yml.
 
 pulp_pwd_min_length: 5
-pulp_password_fail_msg:"Failed. pulp_password should have minimum 5 characters in provision_config_credentials.yml"
+pulp_password_fail_msg: "Failed. pulp_password should have minimum 5 characters in provision_config_credentials.yml"
 
