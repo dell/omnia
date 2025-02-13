@@ -496,59 +496,70 @@ main() {
     running_containers=$(podman ps -a --format '{{.Names}} {{.State}}' | grep -E 'omnia_core')
 
     # If yes, set the variable to true
-    if [ -n "$running_containers" ] && [ -n "$(echo "$running_containers" | grep -E 'running')" ]; then
+    if [ -n "$running_containers" ]; then
         core_container_status=true
     fi
 
     # If core container is running
     if [ "$core_container_status" = true ]; then
-        echo -e "${GREEN} Omnia core container is already running.${NC}"
-        echo -e "${GREEN} Do you want to:${NC}"
-        echo -e "${GREEN} 1. Cleanup the container.${NC}"
-        echo -e "${GREEN} 2. Reinstall the container.${NC}"
-        echo -e "${GREEN} 3. Exit. ${NC}"
-
-        # Get user input
-        read -p " Enter your choice (1 or 2): " choice
-
-        # If the user wants to cleanup, call the cleanup function
-        if [ "$choice" = "1" ]; then
-            cleanup_omnia_core
-        # If the user wants to reinstall, call the remove_container function, and then call the setup_omnia_core function
-        elif [ "$choice" = "2" ]; then
-            echo -e "${GREEN} What configuration do you want to use for reinstallation:${NC}"
-            echo -e "${GREEN} 1. Retain Existing configuration.${NC}"
-            echo -e "${GREEN} 2. Overwrite and create new configuration.${NC}"
+        if [ -n "$(echo "$running_containers" | grep -E 'running')" ]; then
+            echo -e "${GREEN} Omnia core container is already running.${NC}"
+            echo -e "${GREEN} Do you want to:${NC}"
+            echo -e "${GREEN} 1. Cleanup the container.${NC}"
+            echo -e "${GREEN} 2. Reinstall the container.${NC}"
             echo -e "${GREEN} 3. Exit. ${NC}"
+
+            # Get user input
             read -p " Enter your choice (1 or 2): " choice
 
-            # If the user wants to retain existing configuration, call the remove_container function
+            # If the user wants to cleanup, call the cleanup function
             if [ "$choice" = "1" ]; then
-                fetch_config
-                remove_container
-                setup_container
-                start_container_session
-            # If the user wants to overwrite and create new configuration, call the cleanup_omnia_core function
-            elif [ "$choice" = "2" ]; then
                 cleanup_omnia_core
-                setup_omnia_core
+            # If the user wants to reinstall, call the remove_container function, and then call the setup_omnia_core function
+            elif [ "$choice" = "2" ]; then
+                echo -e "${GREEN} What configuration do you want to use for reinstallation:${NC}"
+                echo -e "${GREEN} 1. Retain Existing configuration.${NC}"
+                echo -e "${GREEN} 2. Overwrite and create new configuration.${NC}"
+                echo -e "${GREEN} 3. Exit. ${NC}"
+                read -p " Enter your choice (1 or 2): " choice
+
+                # If the user wants to retain existing configuration, call the remove_container function
+                if [ "$choice" = "1" ]; then
+                    fetch_config
+                    remove_container
+                    setup_container
+                    start_container_session
+                # If the user wants to overwrite and create new configuration, call the cleanup_omnia_core function
+                elif [ "$choice" = "2" ]; then
+                    cleanup_omnia_core
+                    setup_omnia_core
+                # If the user wants to exit, exit
+                elif [ "$choice" = "3" ]; then
+                    exit
+                fi
             # If the user wants to exit, exit
             elif [ "$choice" = "3" ]; then
                 exit
             fi
-        # If the user wants to exit, exit
-        elif [ "$choice" = "3" ]; then
-            exit
-        fi
-    # If core container is not running
-    else
-        # If omnia_core container exists and is not running call the remove_container function
-        if [ -n "$running_containers" ]; then
-            echo -e "${RED} The Omnia Core container is not in running state.${NC}"
-            echo -e "${GREEN} Only the core container can be cleaned up.${NC}"
+        else
+            # If omnia_core container exists and is not running call the remove_container function
+
+            echo -e "${RED} The Omnia Core container is present but not in running state.${NC}"
+            echo -e "${GREEN} Only the core container can be cleanup can be performed.${NC}"
             echo -e "${GREEN} Container Configurations in the shared directory will not be cleaned up.${NC}"
-            remove_container
+            echo -e "${GREEN} Do you want to preform cleanup:${NC}"
+            echo -e "${GREEN} 1. Yes.${NC}"
+            echo -e "${GREEN} 2. No. ${NC}"
+            read -p " Enter your choice (1 or 2): " choice
+            if [ "$choice" = "1" ]; then
+                remove_container
+            elif [ "$choice" = "2" ]; then
+                exit
+            fi
         fi
+            
+    # If core container is not present
+    else
 
         # Start the container setup
         echo -e "${GREEN}Starting Omnia core container setup.${NC}"
