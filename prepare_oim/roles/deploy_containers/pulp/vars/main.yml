@@ -68,10 +68,6 @@ delay_var: 20
 delay_var_five: 5
 delay_var_sixty: 20
 timeout_var: 60
-pulp_creds_fail_msg:
-  Both Pulp username and password are required.
-  Kindly check the pulp_username and pulp_password in input/provision_config_credentials.yml.
-
 reset_password_cmd: bash -c "pulpcore-manager reset-admin-password --password {{ pulp_password }}"
 
 # nginx_conf.j2 vars

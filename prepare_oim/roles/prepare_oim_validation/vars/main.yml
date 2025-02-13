@@ -59,7 +59,14 @@ admin_nic_success_msg: "NIC '{{ admin_nic }}' exists on the system."
 admin_nic_ip_fail_msg: "IP '{{ admin_nic_ip }}' is not assigned to NIC '{{ admin_nic }}'. Please configure the admin IP in OIM and re-run the playbook."
 admin_nic_ip_success_msg: "IP '{{ admin_nic_ip }}' is assigned to NIC '{{ admin_nic }}'."
 
-# Usage: Validate_provision_credentials.yml
-postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config.yml"
+# Usage: validate_credentials.yml
+postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config_credentials.yml"
 min_length: 8
 max_length: 30
+pulp_creds_fail_msg:
+  Both Pulp username and password are required.
+  Kindly check the pulp_username and pulp_password in input/provision_config_credentials.yml.
+
+pulp_pwd_min_length: 5
+pulp_password_fail_msg:"Failed. pulp_password should have minimum 5 characters in provision_config_credentials.yml"
+

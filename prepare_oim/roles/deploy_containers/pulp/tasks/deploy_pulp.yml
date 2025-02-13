@@ -18,11 +18,6 @@
     pulp_username: "{{ hostvars['localhost']['pulp_username'] }}"
     pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
 
-- name: Fail if Pulp username and password are not set
-  ansible.builtin.fail:
-    msg: "{{ pulp_creds_fail_msg }}"
-  when: not (pulp_username | length > 1 and pulp_password | length > 1)
-
 - name: Create directories for Pulp in shared storage
   ansible.builtin.file:
     path: "{{ item.path }}"
