@@ -13,28 +13,21 @@
 # limitations under the License.
 ---
 
-# Usage:create_software_repo_redhat.yml, find_new_repo.yml
+# Usage:create_software_repo.yml, find_new_repo.yml
 repo_path: "/etc/yum.repos.d"
 
-# Usage:create_software_repo_redhat.yml
-repo_config_template_src: "{{ role_path }}/templates/repo_config_template.j2"
-cluster_software_path: "{{ omnia_repo_path }}/cluster/yum"
+# Usage:create_software_repo.yml
+repo_config_template_src: "repo_config_template.j2"
 
-# Usage:update_user_repo_redhat.yml
-usr_repo_config_template_src: "{{ role_path }}/templates/user_repo_config.j2"
+# Usage:update_user_repo.yml
+usr_repo_config_template_src: "user_repo_config.j2"
 
-# Usage:update_software_repo_redhat.yml
-omnia_repo_config_template_src: "{{ role_path }}/templates/omnia_repo_config.j2"
+# Usage:update_software_repo.yml
+omnia_repo_config_template_src: "omnia_repo_config.j2"
 repo_retries: 5
 repo_delay: 10
+repo_update_failure_msg: "The playbook failed due to an error while running dnf makecache.
+     Please check user_repo_url and omnia_repo_url_redhat in local_repo_config.yml and ensure they are correct and reachable"
 
-# Usage:update_user_repo_redhat.yml,update_software_repo_redhat.yml
-os_type: "rocky"
-
-# Usage: validate_repo.yml
-omnia_cluster_repo_path: /etc/yum.repos.d/cluster-rpm-repo.repo
-omnia_pip_conf_path: /etc/pip.conf
-omnia_cluster_repo_fail_msg: "Failed. The playbook failed because the Omnia cluster repository file {{ omnia_cluster_repo_path }} is missing from the node.
-This could be due to an issue during the OS installation. To resolve this, please reprovision the node and re-run the playbook."
-pip_conf_fail_msg: "Failed. The playbook failed because the Omnia pip config file {{ omnia_pip_conf_path }} is missing from the node.
-This could be due to an issue during the OS installation. To resolve this, please reprovision the node and re-run the playbook."
+# Usage:update_user_repo.yml,update_software_repo.yml
+os_type: "rhel"
