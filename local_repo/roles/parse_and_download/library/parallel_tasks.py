@@ -43,7 +43,21 @@ import json
  
 def determine_function(task, repo_store_path, csv_file_path, user_data, version_variables):
     """
-    Determine the function and arguments to execute based on the task's `type` field.
+    Determines the appropriate function and its arguments to process a given task.
+ 
+    Args:
+        task (dict): A dictionary containing information about the task to be processed.
+        repo_store_path (str): The path to the repository store.
+        csv_file_path (str): The path to the CSV file.
+        user_data (dict): A dictionary containing user data.
+        version_variables (dict): A dictionary containing version variables.
+ 
+    Returns:
+        tuple: A tuple containing the function to process the task and its arguments.
+ 
+    Raises:
+        ValueError: If the task type is unknown.
+        RuntimeError: If an error occurs while determining the function.
     """
     try:
         # Ensure the log directory exists

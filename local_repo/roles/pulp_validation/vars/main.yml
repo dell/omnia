@@ -28,9 +28,3 @@ endpoint_timeout: 60
 pulp_status_fail_msg: "Pulp endpoint is not up. Status code: {{ result.status }}"
 container_status_msg: "Pulp container Status: {{ container_info.containers[0].State.Status }}"
 container_status_fail_msg: "Pulp container is not running. Current Status: {{ container_info.containers[0].State.Status }}"
-
-login_cmd: "podman login -u {{ docker_username }} -p {{ docker_password }}"
-retry_count: "5"
-delay_time: "10"
-podman_login_fail_msg: "Podman login failed. Please ensure the podman login credentials in the input/provision_config_credentials.yml are valid.
-If they are, this error can occur due to a pull limit issue or multiple requests. Please try running the playbook again after waiting for a while."

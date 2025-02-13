@@ -20,7 +20,14 @@ import time
 
 def setup_standard_logger(log_dir, log_filename="standard.log"):
     """
-    Set up a standard logger to log to a specified file.
+    Sets up a standard logger to log to a specified file.
+ 
+    Parameters:
+        log_dir (str): The directory where the log file will be saved.
+        log_filename (str, optional): The name of the log file. Defaults to "standard.log".
+ 
+    Returns:
+        logging.Logger: The configured logger instance.
     """
     # Ensure the log directory exists
     os.makedirs(log_dir, exist_ok=True)
@@ -49,4 +56,3 @@ def setup_standard_logger(log_dir, log_filename="standard.log"):
     logger.addHandler(console_handler)
    
     return logger
-

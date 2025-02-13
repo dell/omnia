@@ -43,25 +43,3 @@
   ansible.builtin.debug:
     msg: "{{ pulp_status_fail_msg }}"
   when: result.status != 200
-
-- name: Set facts
-  ansible.builtin.set_fact:
-    docker_username: hostvars['localhost']['docker_username']
-    docker_password: hostvars['localhost']['docker_password']
-  no_log: true  
-
-- name: Podman login
-  ansible.builtin.command: "{{ login_cmd }}"
-  changed_when: true
-  register: podman_login_output
-  retries: "{{ retry_count }}"
-  delay: "{{ delay_time }}"
-  until: podman_login_output.rc == 0
-  no_log: true
-  when: docker_username | length > 1 and docker_password | length > 1
-  
-- name: Podman login check
-  ansible.builtin.fail:
-    msg: "{{ podman_login_fail_msg }} Error: {{ podman_login_output.stderr }}"
-  when: podman_login_output.rc != 0
-

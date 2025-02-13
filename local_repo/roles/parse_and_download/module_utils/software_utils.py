@@ -28,7 +28,19 @@ PACKAGE_TYPES = ['rpm', 'deb', 'tarball', 'image', 'manifest', 'git',
 CSV_COLUMNS = {"column1": "name", "column2": "status"}
  
 def load_json(file_path):
-    """Load JSON data from a file."""
+    """
+    Load JSON data from a file.
+ 
+    Args:
+        file_path (str): The path to the JSON file.
+ 
+    Returns:
+        dict: The loaded JSON data.
+ 
+    Raises:
+        FileNotFoundError: If the file is not found.
+        ValueError: If the JSON parsing fails.
+    """    
     try:
         with open(file_path, 'r') as file:
             return json.load(file)
@@ -38,13 +50,36 @@ def load_json(file_path):
         raise ValueError(f"Error: Failed to parse JSON in file '{file_path}'.")
  
 def load_yaml(file_path):
-    """Load YAML data from a file."""
+    """
+    Load YAML data from a file.
+ 
+    Args:
+        file_path (str): The path to the YAML file.
+ 
+    Returns:
+        dict: The loaded YAML data.
+ 
+    Raises:
+        FileNotFoundError: If the file is not found.
+        yaml.YAMLError: If the YAML parsing fails.
+    """
     with open(file_path, 'r', encoding='utf-8') as file:
         return yaml.safe_load(file)
  
  
 def get_json_file_path(software_name, cluster_os_type, cluster_os_version, user_json_path):
-    """Construct the JSON file path for the given software."""
+    """
+    Generate the file path for a JSON file based on the provided software name, cluster OS type, cluster OS version, and user JSON path.
+ 
+    Parameters:
+        software_name (str): The name of the software.
+        cluster_os_type (str): The type of the cluster operating system.
+        cluster_os_version (str): The version of the cluster operating system.
+        user_json_path (str): The path to the user JSON file.
+ 
+    Returns:
+        str or None: The file path for the JSON file if it exists, otherwise None.
+    """
     base_path = os.path.dirname(os.path.abspath(user_json_path))
     json_path = os.path.join(base_path, f'config/{cluster_os_type}/{cluster_os_version}/{software_name}.json')
     if json_path and os.path.exists(json_path):
@@ -201,9 +236,16 @@ def get_subgroup_dict(user_data):
             subgroup_dict[software_name] = subgroups if isinstance(user_data.get(software_name), list) else [sw['name']]
     return subgroup_dict , software_names
  
- 
 def get_failed_software(file_name):
-    """Retrieve a list of software names with a 'failed' status from a CSV file."""
+    """
+    Retrieves a list of failed software from a CSV file.
+ 
+    Parameters:
+        file_name (str): The name of the CSV file.
+ 
+    Returns:
+        list: A list of failed software.
+    """
     failed_software = []
  
     if not os.path.isfile(file_name):  # Check before opening
@@ -219,8 +261,16 @@ def get_failed_software(file_name):
  
 def parse_json_data(file_path, package_types, failed_list=None, subgroup_list=None):
     """
-    Parse the JSON data and return a list of filtered packages.
-    Filters are applied based on package type and failed package list.
+    Retrieves a filtered list of items from a JSON file.
+ 
+    Parameters:
+        file_path (str): The path to the JSON file.
+        package_types (list): A list of package types to filter.
+        failed_list (list, optional): A list of failed packages to filter. Defaults to None.
+        subgroup_list (list, optional): A list of subgroups to filter. Defaults to None.
+ 
+    Returns:
+        list: The filtered list of items.
     """
     data = load_json(file_path)
     filtered_list = []
@@ -237,18 +287,44 @@ def parse_json_data(file_path, package_types, failed_list=None, subgroup_list=No
     return filtered_list
  
 def check_csv_existence(software, path):
-    """Check if the software's CSV file exists."""
+    """
+    Checks if a CSV file exists for a given software.
+ 
+    Parameters:
+        software (str): The name of the software.
+        path (str): The path to the CSV file.
+ 
+    Returns:
+        bool: True if the CSV file exists, False otherwise.
+    """
     return os.path.isfile(path)
  
 def process_software(software, fresh_installation, json_path, csv_path, subgroup_list):
     """
-    Process a software entry by checking its status,
-    parsing its JSON data, and returning relevant tasks.
+    Processes the given software by parsing JSON data and returning a filtered list of items.
+ 
+    Parameters:
+        software (str): The name of the software.
+        fresh_installation (bool): Indicates whether it is a fresh installation.
+        json_path (str): The path to the JSON file.
+        csv_path (str): The path to the CSV file.
+        subgroup_list (list, optional): A list of subgroups to filter. Defaults to None.
+ 
+    Returns:
+        list: The filtered list of items.
     """
     failed_packages = None if fresh_installation else get_failed_software(csv_path)
     return parse_json_data(json_path, PACKAGE_TYPES, failed_packages, subgroup_list)
  
 def get_software_names(data_path):
-    """Extract software names from JSON."""
+    """
+    Retrieves a list of software names from a given data path.
+ 
+    Parameters:
+        data_path (str): The path to the data file.
+ 
+    Returns:
+        list: A list of software names.
+    """
     data = load_json(data_path)
     return [software['name'] for software in data.get('softwares', [])]
