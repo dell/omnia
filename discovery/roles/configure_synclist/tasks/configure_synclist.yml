@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,20 +19,11 @@
     state: directory
     recurse: true
 
-- name: Check if {{ syncfiles_dir }}/keyrings is not empty # noqa: name[template]
-  ansible.builtin.find:
-    paths: "{{ tmp_keyrings_path }}"
-    file_type: file
-  register: keyring_files
-  when: oim_os in "ubuntu"
-
 - name: Copy synclist in xcat folder
-  vars:
-    is_keyring_not_empty: "{{ keyring_files.matched > 0 if oim_os == 'ubuntu' else False }}"
   ansible.builtin.template:
     src: "{{ synclists_src_path }}"
     dest: "{{ synclists_dest_path }}"
-    mode: "{{ file_permission }}"
+    mode: "{{ dir_permission }}"
 
 - name: Configure synclist to osimage
   ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage -o {{ provision_os_image }} synclists={{ synclists_dest_path }}"

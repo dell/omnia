@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Create directory for omnia files
-  ansible.builtin.file:
-    path: "{{ omnia_files_folder }}"
-    state: directory
-    recurse: true
-    mode: "{{ dir_permission }}"
+- name: Fetch OIM node hostname
+  ansible.builtin.command: hostname
+  register: hostname_result
+  changed_when: false
+
+- name: Set fact for the OIM node hostname
+  ansible.builtin.set_fact:
+    oim_hostname: "{{ hostname_result.stdout }}"
 
 - name: Create local_repo_access.yml file
   ansible.builtin.template:
