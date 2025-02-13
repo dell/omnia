@@ -13,8 +13,6 @@
 # limitations under the License.
 
 #!/bin/sh
-systemctl start corosync
-systemctl start pacemaker
 pcs property set stonith-enabled=false
 pcs property set no-quorum-policy=ignore
 
@@ -64,3 +62,21 @@ pcs constraint order start {{ provision_container_name }} then start {{ kubespra
 {% endif %}
 
 pcs resource defaults update migration-threshold={{ migration_threshold }}
+
+# Loop for a maximum of three minutes
+max_iterations=18
+for ((i=0; i<max_iterations; i++)); do
+    # Check if any pcs resources are stopped
+    if pcs resource | grep "Stopped\|FAILED"; then
+        # If any resources are stopped, sleep for 10 seconds
+        sleep 10
+    else
+        # If all resources are running, exit the loop
+        break
+    fi
+done
+
+# Create a file which signifies the pcs resources were created.
+# This file also contains the resources and its state which ansible can check against. 
+echo "PCS Resources Have Been Created"
+pcs resource | awk -F' ' '{print $2 " " $4}' | sed 's/^\s*//;s/\s*$//' > {{ pcs_start_container_finished }}
