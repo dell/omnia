@@ -16,7 +16,7 @@
 # Usage:<os_type>/update_software_repo.yml
 software_version_default: "omnia_default"
 file_permission: "644"
-local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
+local_repo_access_path: "/opt/omnia/provision/local_repo_access.yml"
 version_invalid_fail_msg: "Ensure valid version is mentioned in software_config.json for "
 
 # Usage:validation.yml
