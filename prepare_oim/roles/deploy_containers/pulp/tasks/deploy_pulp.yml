@@ -90,5 +90,7 @@
   containers.podman.podman_container_exec:
     name: "{{ pulp_container_name }}"
     command: "{{ reset_password_cmd }}"
+  retries: "{{ retries_var }}"
+  delay: "{{ delay_var }}"
   when: pulp_username | length > 1 and pulp_password | length > 1
   no_log: true

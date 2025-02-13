@@ -169,6 +169,10 @@ mkdir -p "$omnia_path/omnia/log/core/playbooks"
 echo -e "${GREEN}Creating the hosts file for cluster.${NC}"
 touch "$omnia_path/omnia/hosts"
 
+# Create the pulp_ha directory if it does not exist.
+echo -e "${GREEN}Creating the log directory if it does not exist.${NC}"
+mkdir -p "$omnia_path/omnia/pulp/pulp_ha"
+
 # Print message for pulling the Omnia core docker image.
 echo -e "${BLUE}Pulling the Omnia core image.${NC}"
 

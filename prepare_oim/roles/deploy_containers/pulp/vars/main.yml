@@ -45,6 +45,7 @@ volumes:
   - "{{ pulp_shared_path }}/settings/pgsql:/var/lib/pgsql:z"
   - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers:z"
   - "{{ shared_storage_path }}/log/pulp:/var/log/pulp:z"
+  - "{{ pulp_ha_dir }}:/root/.config/pulp:z"
 #  - "{{ pulp_shared_path }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
 device_name: "/dev/fuse:/dev/fuse:rwm"
 pulp_container_name: "omnia_pulp"
@@ -70,9 +71,6 @@ timeout_var: 60
 pulp_creds_fail_msg:
   Both Pulp username and password are required.
   Kindly check the pulp_username and pulp_password in input/provision_config_credentials.yml.
-# pulp_responses:
-#  'Please enter new password for user "[^"]+":': "{{ pulp_pwd }}"
-#  'Please enter new password for user "[^"]+" again:': "{{ pulp_pwd }}"
 
 reset_password_cmd: bash -c "pulpcore-manager reset-admin-password --password {{ pulp_password }}"
 
