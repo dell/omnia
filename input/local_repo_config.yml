@@ -92,7 +92,6 @@ omnia_repo_url_rhel:
   - { url: "https://ltb-project.org/rpm/openldap25/9/x86_64", gpgkey: "",name: "ldap"}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/x86_64", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey" ,name: "nvidia-repo"}
   - { url: "https://a2o.github.io/snoopy-packages/repo/centos/9/stable/", gpgkey: "" ,name: "snoopy"}
-  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/", gpgkey: "" ,name: "cuda"} 
 
 # Mandatory
 # This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rocky.
