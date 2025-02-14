@@ -18,3 +18,4 @@
     option: SLURM_CONF
     value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
     no_extra_spaces: true
+    mode: u=rw,g=r,o=r

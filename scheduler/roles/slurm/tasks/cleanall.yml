@@ -9,6 +9,7 @@
     - slurmd
     - munge
   ignore_errors: true
+  register: ignore_errors_reg
 
 - name: Remove files and folders
   ansible.builtin.file:
@@ -19,6 +20,7 @@
     - "{{ slurm_config_dir }}"
     - "/etc/munge/munge.key"
   ignore_errors: true
+  register: ignore_errors_reg
 
 - name: Ensure directories
   ansible.builtin.file:
@@ -26,6 +28,7 @@
     state: directory
     owner: "root"
     group: "root"
+    mode: u=rw,g=r,o=r
   loop:
     - /var/log
 
@@ -44,15 +47,18 @@
     name: slurm
     state: absent
   ignore_errors: true
+  register: ignore_errors_reg
 
 - name: Remove slurm group
   ansible.builtin.group:
     name: slurm
     state: absent
   ignore_errors: true
+  register: ignore_errors_reg
 
 - name: UnSet env variable
   community.general.ini_file:
     path: "/etc/environment"
     option: SLURM_CONF
     state: absent
+    mode: u=rw,g=r,o=r

@@ -21,6 +21,7 @@
   ansible.builtin.file:
     path: "{{ share_path }}/{{ slurm_dir_name }}"
     state: directory
+    mode: u=rw,g=r,o=r
 
 - name: Install and configure Munge
   ansible.builtin.include_tasks: _munge.yml

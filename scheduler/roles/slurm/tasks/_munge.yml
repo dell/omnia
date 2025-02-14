@@ -31,7 +31,6 @@
 - name: Check munge dir
   ansible.builtin.file:
     path: /etc/munge
-    # mode: 0700
     state: directory
 
 - name: Copy munge key
@@ -41,7 +40,7 @@
     owner: munge
     group: munge
     remote_src: true
-    mode: "0400"
+    mode: "{{ munge_mode }}"
 
 - name: Ensure Munge is enabled and running
   ansible.builtin.service:

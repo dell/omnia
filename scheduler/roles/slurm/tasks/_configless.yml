@@ -15,6 +15,7 @@
     section: Unit
     option: ConditionPathExists
     state: absent
+    mode: u=rw,g=r,o=r
   when: slurm_installation_type == 'configless'
   notify:
     - Reload slurmd
@@ -30,6 +31,7 @@
       + ':' + (slurm_conf_dict['SlurmctldPort']
       | string) }}" # HA
     no_extra_spaces: true
+    mode: u=rw,g=r,o=r
   when: slurm_installation_type == 'configless'
   notify:
     - Reload slurmd
@@ -41,6 +43,7 @@
     path: "/etc/environment"
     option: SLURM_CONF
     state: absent
+    mode: u=rw,g=r,o=r
   when: slurm_installation_type == 'configless'
 
 - name: Edit the service ConditionPathExists
@@ -50,6 +53,7 @@
     option: ConditionPathExists
     value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
     no_extra_spaces: true
+    mode: u=rw,g=r,o=r
   when: slurm_installation_type != 'configless'
   notify:
     - Reload slurmd
@@ -62,4 +66,5 @@
     option: SLURM_CONF
     value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
     no_extra_spaces: true
+    mode: u=rw,g=r,o=r
   when: slurm_installation_type != 'configless'

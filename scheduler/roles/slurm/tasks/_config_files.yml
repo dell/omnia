@@ -51,6 +51,7 @@
     option: SLURM_CONF
     value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
     no_extra_spaces: true
+    mode: u=rw,g=r,o=r
 
 - name: All other host configs # TODO: failsafe
   ansible.builtin.template:
@@ -75,6 +76,7 @@
     group: root
     mode: "{{ conf_file_mode }}"
   ignore_errors: true
+  register: ignore_errors_register
   loop:
     - slurm
     - cgroup
@@ -88,6 +90,7 @@
     mode: "{{ conf_file_mode }}"
     backup: true
   ignore_errors: true
+  register: ignore_errors_register
   loop:
     - mpi
     - acct_gather
