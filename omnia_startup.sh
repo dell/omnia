@@ -399,7 +399,7 @@ post_setup_config() {
     chmod 757 "$omnia_path/omnia/tmp/.ansible/tmp"
     # Create the input directory if it does not exist.
     echo -e "${GREEN} Creating the input directory if it does not exist.${NC}"
-    mkdir -p "$omnia_path/omnia/input/project_default/"
+    mkdir -p "$omnia_path/omnia/input/"
 
     # Create the default.yml file if it does not exist.
     # This file contains the name of the project.
@@ -414,7 +414,7 @@ post_setup_config() {
 
     # Copy input files from pod to /opt/omnia/project_default/
     echo -e "${BLUE} Copying input files from container to project_default folder.${NC}"
-    podman exec -u root omnia_core sh -c 'for file in /omnia/input/*; do mv "$file" /opt/omnia/input/project_default/; done'
+    podman exec -u root omnia_core mv /omnia/input /opt/omnia/input/project_default
 
     # Copy shard libraries from pod to /opt/omnia/shard_libraries/
     echo -e "${BLUE} Copying shard libraries from container to shard_libraries folder.${NC}"
