@@ -1,0 +1,30 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+# read_network_spec.yml
+network_spec: "{{ input_project_dir }}/network_spec.yml"
+network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
+
+# check_pulp_status.yml
+pulp_server_ip: "{{ hostvars['localhost']['pulp_server_ip'] }}"
+pulp_container_name: "omnia_pulp"
+pulp_port: "2225"
+pulp_status_url: "http://{{ pulp_server_ip }}:{{ pulp_port }}/pulp/api/v3/status/"
+endpoint_retries: 3
+endpoint_delay: 5
+endpoint_timeout: 60
+pulp_status_fail_msg: "Pulp endpoint is not up. Status code: {{ result.status }}"
+container_status_msg: "Pulp container Status: {{ container_info.containers[0].State.Status }}"
+container_status_fail_msg: "Pulp container is not running. Current Status: {{ container_info.containers[0].State.Status }}"
