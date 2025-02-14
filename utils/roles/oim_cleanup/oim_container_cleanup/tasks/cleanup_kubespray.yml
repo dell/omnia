@@ -1,0 +1,44 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check if {{ kubespray_container_name }} is running # noqa: name[template]
+  containers.podman.podman_container_info:
+    name: "{{ kubespray_container_name }}"
+  register: kubespray_container_status
+  failed_when: false
+
+- name: Stop and Remove Kubespray container
+  when: kubespray_container_status.containers | length != 0
+  block:
+    - name: Stop the Kubespray container
+      containers.podman.podman_container:
+        name: "{{ kubespray_container_name }}"
+        state: stopped
+
+    - name: Remove Kubespray container
+      containers.podman.podman_container:
+        name: "{{ kubespray_container_name }}"
+        state: absent
+
+    - name: Remove Kubespray directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - "{{ kubespray_cleanup_directory }}"
+  rescue:
+    - name: Kubespray container removal failed
+      ansible.builtin.fail:
+        msg: "{{ kubespray_container_name }} {{ container_removal_failure_msg }}"
