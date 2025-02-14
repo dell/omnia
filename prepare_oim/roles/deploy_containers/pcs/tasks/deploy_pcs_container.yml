@@ -117,38 +117,46 @@
       register: wait_result
 
     - name: Add kubespray_name to pcs-resources if k8s_support is defined
-      set_fact:
+      ansible.builtin.set_fact:
         pcs_resources: "{{ pcs_resources + [kubespray_name] }}"
       when: hostvars['localhost']['k8s_support']
-      
+
     - name: Parse PCS resources for any that are not started
       ansible.builtin.shell: |
-          cat {{ pcs_start_shared_finished }} | grep "Stopped\|FAILED"
+        set -o pipefail
+        cat {{ pcs_start_shared_finished }} | grep "Stopped\|FAILED"
+      args:
+        executable: /bin/bash
       register: improper_resources
-      ignore_errors: true
+      failed_when: false
+      changed_when: false
 
     - name: Fail if PCS any resource is stopped or failed
       ansible.builtin.fail:
-        msg: 
-          - "PCS resource(s) in an improper state: {{ improper_resources.stdout_lines}}"
+        msg:
+          - "PCS resource(s) in an improper state: {{ improper_resources.stdout_lines }}"
           - "{{ pcs_failed_resource_msg }}"
       when: improper_resources.stdout_lines | default([]) | length > 0
 
     - name: Parse all created PCS resources
       ansible.builtin.shell: |
+        set -o pipefail
         cat {{ pcs_start_shared_finished }} | awk '{print $1}'
+      args:
+        executable: /bin/bash
       register: resources
-      ignore_errors: true
+      failed_when: false
+      changed_when: false
 
     - name: Check if all pcs-start.sh resources were created
-      set_fact:
+      ansible.builtin.set_fact:
         missing_resources: "{{ missing_resources | default([]) + [item] }}"
       loop: "{{ pcs_resources }}"
       when: item not in resources.stdout_lines
 
     - name: Fail if any resources are missing
       ansible.builtin.fail:
-        msg: 
+        msg:
           - "PCS resource(s) are missing: {{ missing_resources }}"
           - "{{ pcs_failed_resource_msg }}"
       when: missing_resources | default([]) | length > 0

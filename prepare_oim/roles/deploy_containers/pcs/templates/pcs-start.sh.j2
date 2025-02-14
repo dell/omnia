@@ -13,6 +13,22 @@
 # limitations under the License.
 
 #!/bin/sh
+systemctl start corosync
+systemctl start pacemaker
+
+# Check if corosync and pacemaker have started
+if ! systemctl status corosync > /dev/null; then
+    echo "Corosync has not started. Exiting with return code 1."
+    exit 1
+fi
+
+if ! systemctl status pacemaker > /dev/null; then
+    echo "Pacemaker has not started. Exiting with return code 1."
+    exit 1
+fi
+
+echo "Corosync and Pacemaker have started. Continuing with the script."
+
 pcs property set stonith-enabled=false
 pcs property set no-quorum-policy=ignore
 
@@ -56,9 +72,9 @@ pcs resource create {{ kubespray_name }} ocf:heartbeat:podman \
 
 # Create ordering constraints
 pcs constraint order start {{ omnia_core_name }} then start {{ pulp_container_name }}
-pcs constraint order start {{ pulp_container_name }} then start {{ provision_container_name }}
+pcs constraint order start {{ omnia_core_name }} then start {{ provision_container_name }}
 {% if hostvars['localhost']['k8s_support'] %}
-pcs constraint order start {{ provision_container_name }} then start {{ kubespray_name }}
+pcs constraint order start {{ omnia_core_name }} then start {{ kubespray_name }}
 {% endif %}
 
 pcs resource defaults update migration-threshold={{ migration_threshold }}
