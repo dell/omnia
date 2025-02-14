@@ -1,0 +1,30 @@
+ClusterName={{ cluster_name }}
+{% for host in groups['slurm_control_node'] %}
+SlurmctldHost={{ hostvars[host]['inventory_hostname_short'] }}
+{% endfor %}
+{% if slurm_installation_type == "configless"  %}
+{% set slurm_ctld_parameters = (slurm_ctld_parameters | default([]) ) + ['enable_configless'] %}
+{% endif %}
+{% if slurm_ctld_parameters | length > 0 %}
+SlurmctldParameters={{ slurm_ctld_parameters | join(',') }}
+{% endif %}
+{% for key in slurm_conf_dict | sort %}
+{% set val = slurm_conf_dict[key] %}
+{% if val is not none and val != omit %}
+{{ key }}={{ 'yes' if val is sameas true else ('no' if val is sameas false else val) }}
+{% endif %}
+{% endfor %}
+
+# COMPUTE NODES
+NodeName=DEFAULT State=UNKNOWN
+{% if 'slurm_node' in groups %}
+{% for host in groups['slurm_node'] %}
+NodeName={{ hostvars[host]['inventory_hostname_short'] }} CPUs={{ hostvars[host]['ansible_facts']['processor_nproc'] }} Sockets={{ hostvars[host]['ansible_facts']['processor_count'] }} CoresPerSocket={{ hostvars[host]['ansible_facts']['processor_cores'] }} ThreadsPerCore={{ hostvars[host]['ansible_facts']['processor_threads_per_core'] }}
+{% endfor %}
+{% endif %}
+
+# PARTITION INFO #TODO get inventory_hostname_short for looping
+PartitionName=DEFAULT Nodes=ALL Default=YES MaxTime=INFINITE State=UP
+{% if 'slurm_node' in groups %}
+PartitionName={{ slurm_partition_name }} Nodes={{ groups['slurm_node'] | join(',') }} MaxTime=INFINITE State=UP
+{% endif %}

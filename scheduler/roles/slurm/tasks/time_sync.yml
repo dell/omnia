@@ -1,0 +1,19 @@
+---
+  - name: Install chrony
+    ansible.builtin.package:
+      name: chrony
+      state: present
+
+  - name: Ensure chrony dir
+    ansible.builtin.file:
+      path: "/etc/chrony"
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+
+  - name: Configure chrony to sync time with NTP servers
+    ansible.builtin.template:
+      src: chrony.conf.j2
+      dest: /etc/chrony/chrony.conf
+    notify: Restart chrony

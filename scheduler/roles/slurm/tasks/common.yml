@@ -1,0 +1,32 @@
+---
+# tasks file for slurm
+
+#TODO: sync time task
+
+# - name: test hostvar
+#   ansible.builtin.set_fact:
+#     test: "{% for host in groups['app_servers'] %}
+#    {{ hostvars[host]['ansible_facts']['eth0']['ipv4']['address'] }}
+# {% endfor %}"
+
+# - name: Pause hostvar
+#   ansible.builtin.pause:
+
+- name: Install common packages
+  ansible.builtin.package:
+    name: "{{ common_packages[ansible_os_family] }}"
+    state: present 
+
+- name: Sync time
+  ansible.builtin.include_tasks: time_sync.yml
+
+- name: Create user and group
+  ansible.builtin.include_tasks: _user.yml
+
+- name: Create the slurm directory on share
+  ansible.builtin.file:
+    path: "{{ share_path }}/{{ slurm_dir_name }}"
+    state: directory
+
+- name: Install and configure Munge
+  ansible.builtin.include_tasks: _munge.yml
