@@ -54,6 +54,7 @@
   ansible.builtin.template:
     src: "{{ rocm_pref_src }}"
     dest: "{{ preference_path }}"
+    mode: "{{ file_mode }}"
 
 - name: Download GPG keys for each omnia repository
   ansible.builtin.shell:
