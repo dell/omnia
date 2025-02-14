@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 - name: Validate url and gpgkey presence in rhel_os_url
   ansible.builtin.assert:
     that:
+      - "item.name is defined and item.name !='' and item.name is not none "
       - "item.url is defined and item.url !='' and item.url is not none "
       - "item.gpgkey is defined"
     fail_msg: "{{ rhel_os_url_fail_url_gpg_key_msg }}"

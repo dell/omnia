@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,27 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Check for data folder existence
   ansible.builtin.stat:
     path: "{{ meta_dest }}"
   register: data_folder_status
-
+ 
 - name: Create data folder if it doesn't exists
   ansible.builtin.file:
     path: "{{ meta_dest }}"
     state: directory
     mode: "{{ meta_dest_mode }}"
   when: not data_folder_status.stat.exists
-
+ 
 - name: Check if metadata file exists
   ansible.builtin.stat:
     path: "{{ metadata_file_path }}"
   register: metadata_file
-
-- name: Save initial value of repo_config to metadata file if it doesn't exist
+ 
+- name: Save initial value of localrepo run report to metadata file if it doesn't exist
   ansible.builtin.copy:
-    content: "md_repo_config: {{ repo_config }}\n"
+    content: "kubeflow_run: true\n"
     dest: "{{ metadata_file_path }}"
     mode: "{{ metadata_file_mode }}"
   when: not metadata_file.stat.exists

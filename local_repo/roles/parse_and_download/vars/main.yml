@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,42 +13,85 @@
 # limitations under the License.
 ---
 
-# Usage: prerequsites.yml
-offline_directory: "/opt/omnia/offline"
-offline_directory_mode: "0755"
-csv_file_path: "{{ offline_directory }}/download_package_status.csv"
-csv_file_mode: "0644"
+group_name: "group1"
+nfs_shared_path: "/opt/omnia"
+repo_store_path: "{{ nfs_shared_path }}"
+base_path: "{{ nfs_shared_path }}/offline_repo/{{ group_name }}"
+local_repo_config_path: "{{ project_input_path }}/local_repo_config.yml"
+user_json_file: "{{ project_input_path }}/software_config.json"
+clean_rpms: true
+local_repo_py_module_vars:
+  default_vars: &sw_defaults 
+    timeout: 2000  # Timeout in seconds for each thread
+    nthreads: 8 # Number of threads 
+  amdgpu:
+    <<: *sw_defaults
+  cuda:
+    timeout: 7200  
+    nthreads: 2 
+  ofed:
+    timeout: 7200 
+    nthreads: 1
+  freeipa:
+    timeout: 7200 
+    nthreads: 3
+  openldap:
+    timeout: 7200 
+    nthreads: 2
+  nfs:
+    timeout: 7200 
+    nthreads: 1 
+  beegfs:
+    timeout: 7200 
+    nthreads: 1 
+  k8s:
+    timeout: 7200
+    nthreads: 8
+  slurm:
+    timeout: 7200
+    nthreads: 1 
+  jupyter:
+    timeout: 7200 
+    nthreads: 8
+  kubeflow:
+    timeout: 7200 
+    nthreads: 8 
+  kserve:
+    timeout: 7200 
+    nthreads: 8
+  pytorch:
+    timeout: 7200 
+    nthreads: 4 
+  tensorflow:
+    timeout: 7200 
+    nthreads: 4
+  vllm:
+    timeout: 7200 
+    nthreads: 5
+  telemetry:
+    timeout: 7200  
+    nthreads: 8 
+  intel_benchmarks:
+    timeout: 7200  
+    nthreads: 1 
+  amd_benchmarks:
+    timeout: 7200
+    nthreads: 1 
+  utils:
+    timeout: 7200  
+    nthreads: 1 
+  ucx:
+    timeout: 7200  
+    nthreads: 2 
+  openmpi:
+    timeout: 7200  
+    nthreads: 2 
+  csi_driver_powerscale:
+    timeout: 7200  
+    nthreads: 6 
 
-# Usage: run_python_script.yml
-python_script_path: "{{ role_path }}/files/parse_and_download.py"
-python_version: "{{ ansible_python_interpreter }}"
-sw_config_json_path: "{{ role_path }}/../../../input/software_config.json"
-local_repo_config_path: "{{ role_path }}/../../../input/local_repo_config.yml"
-status_file_path: "/opt/omnia/offline/download_package_status.csv"
-yum_repos_path: "/etc/yum.repos.d"
-yum_conf_path: "/etc/yum.conf"
-cluster_repos_path: "/etc/cluster.repos.d"
-python_script_fail_msg: "Failed to download packages."
-apt_conf_src: "{{ role_path }}/templates/apt_conf_temp.j2"
-apt_conf_dest: "/etc/apt/apt.conf"
-apt_conf_partial_dest: "/etc/apt/user_apt.conf"
-custom_repo_path: "/etc/apt/custom_sources"
-custom_repo_path_partial: "/etc/apt/custom_sources_partial"
-directory_permissions: "0755"
-apt_file_mode: "0644"
-max_retries: 10
-parse_message: "{{ software_name }}.json parsed. Status can be checked at /opt/omnia/offline/download_package_status.csv"
-
-# Usage: main.yml
-oim_os_redhat: "redhat"
-oim_os_rocky: "rocky"
-
-# Usage: create_metadata.yml
-meta_dest: "/opt/omnia/offline/.data"
+# Usage create_metadata.yml
+meta_dest: "{{ nfs_shared_path }}/offline_repo/.data"
 meta_dest_mode: '0755'
-metadata_file_path: "/opt/omnia/offline/.data/metadata.yml"
+metadata_file_path: "{{meta_dest}}/localrepo_metadata.yml"
 metadata_file_mode: '0644'
-
-# Usage: display_package_status.yml
-local_repo_execution_msg: "local_repo.yml playbook executed successfully. To provision the nodes user can provide inputs in input/network_spec.yml,
-input/provision_config.yml & input/provision_config_credentials.yml and execute the playbook discovery_provision.yml"

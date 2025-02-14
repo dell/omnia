@@ -1,0 +1,35 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+- name: Include network_spec.yml
+  block:
+    - name: Include network_spec file
+      ansible.builtin.include_vars: "{{ network_spec }}"
+      register: include_network_spec
+      no_log: true
+      tags: init
+  rescue:
+    - name: Failed to include network_spec.yml
+      ansible.builtin.fail:
+        msg: "{{ network_spec_syntax_fail_msg }} Error: {{ include_network_spec.message }}"
+
+- name: Parse network_spec data
+  ansible.builtin.set_fact:
+    network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+  with_dict: "{{ Networks }}"
+
+- name: Set admin network nic and ip
+  ansible.builtin.set_fact:
+    pulp_server_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
