@@ -4,7 +4,7 @@
     "repo_config": "partial",
     "softwares": [
         {"name": "amdgpu", "version": "6.3.1"},
-	    {"name": "bcm_roce", "version": "232.1.133.2"},
+	{"name": "bcm_roce", "version": "232.1.133.2"},
         {"name": "intelgaudi", "version": "1.19.1-26"},
         {"name": "cuda", "version": "12.5.1"},
         {"name": "ofed", "version": "24.07-0.6.1.0"},
