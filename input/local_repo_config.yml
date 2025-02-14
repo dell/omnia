@@ -18,13 +18,6 @@
 # SIMPLY APPEND THE REQUIRD VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 # ***********************************************************************
 
-# Mandatory
-# All the offline repository data for omnia stack will be stored at this path.
-# Please make sure assigned partition has enough space.
-# Ensure 755 permission is given to repo_store_path if user intends to use nfs share mount for repo_store_path
-# Default: /opt/omnia_repo
-repo_store_path: "/opt/omnia_repo"
-
 # Optional
 # This variable accepts the repository urls of the user which contains the packages required for the cluster.
 # always: In this case, Omnia creates a local repo on the Omnia Infrastructure Manager hosting all the packages required for the cluster.
@@ -79,7 +72,7 @@ ubuntu_os_url:
 # and the rhel_os_url configured via proxy in compute nodes
 # Example:
 # rhel_os_url:
-#   - {url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY"}
+#   - {url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY", name: "codeready-builder"}
 rhel_os_url:
 
 ### ADVANCE CONFIGURATIONS FOR LOCAL REPO ###
@@ -90,33 +83,34 @@ rhel_os_url:
 # 'gpgkey' defines gpgkey for the repository
 # If 'gpgkey' is kept empty then gpgcheck=0 for that repository
 omnia_repo_url_rhel:
-  - { url: "https://download.docker.com/linux/centos/$releasever/$basearch/stable", gpgkey: "https://download.docker.com/linux/centos/gpg" }
-  - { url: "https://repo.radeon.com/rocm/rhel9/{{ rocm_version }}/main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
-  - { url: "https://download.fedoraproject.org/pub/epel/9/Everything/$basearch", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9" }
-  - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
-  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel9", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs" }
-  - { url: "https://yum.repos.intel.com/oneapi", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" }
-  - { url: "https://ltb-project.org/rpm/openldap25/$releasever/$basearch", gpgkey: ""}
-  - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/$basearch", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey"}
-  - { url: "https://a2o.github.io/snoopy-packages/repo/centos/9/stable/", gpgkey: ""}
-  
+  - { url: "https://download.docker.com/linux/centos/9/x86_64/stable", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce-repo"}
+  - { url: "https://repo.radeon.com/rocm/rhel9/{{ rocm_version }}/main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key",name: "rocm"}
+  - { url: "https://download.fedoraproject.org/pub/epel/9/Everything/x86_64", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9" ,name: "epel"}
+  - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" ,name: "amdgpu"}
+  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel9", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs" ,name: "beegfs"}
+  - { url: "https://yum.repos.intel.com/oneapi", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" ,name: "oneapi"}
+  - { url: "https://ltb-project.org/rpm/openldap25/9/x86_64", gpgkey: "",name: "ldap"}
+  - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/x86_64", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey" ,name: "nvidia-repo"}
+  - { url: "https://a2o.github.io/snoopy-packages/repo/centos/9/stable/", gpgkey: "" ,name: "snoopy"}
+  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/", gpgkey: "" ,name: "cuda"} 
+
 # Mandatory
 # This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rocky.
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
 # 'url' defines the baseurl for the repository
 # 'gpgkey' defines gpgkey for the repository
 # If 'gpgkey' is kept empty then gpgcheck=0 for that repository
-omnia_repo_url_rocky:
-  - { url: "https://download.docker.com/linux/centos/$releasever/$basearch/stable", gpgkey: "https://download.docker.com/linux/centos/gpg" }
-  - { url: "https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
-  - { url: "https://download.fedoraproject.org/pub/epel/8/Everything/$basearch", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8" }
-  - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
-  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs" }
-  - { url: "https://yum.repos.intel.com/oneapi", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" }
-  - { url: "https://ltb-project.org/rpm/openldap25/$releasever/$basearch", gpgkey: ""}
-  - { url: "http://dl.rockylinux.org/$contentdir/$releasever/PowerTools/$basearch/os/", gpgkey: ""}
-  - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/$basearch", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey"}
-  - { url: "https://a2o.github.io/snoopy-packages/repo/centos/8/stable/", gpgkey: ""}
+# omnia_repo_url_rocky:
+#   - { url: "https://download.docker.com/linux/centos/$releasever/$basearch/stable", gpgkey: "https://download.docker.com/linux/centos/gpg" }
+#   - { url: "https://repo.radeon.com/rocm/rhel8/{{ rocm_version }}/main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+#   - { url: "https://download.fedoraproject.org/pub/epel/8/Everything/$basearch", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8" }
+#   - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+#   - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel8", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs" }
+#   - { url: "https://yum.repos.intel.com/oneapi", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" }
+#   - { url: "https://ltb-project.org/rpm/openldap25/$releasever/$basearch", gpgkey: ""}
+#   - { url: "http://dl.rockylinux.org/$contentdir/$releasever/PowerTools/$basearch/os/", gpgkey: ""}
+#   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/$basearch", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey"}
+#   - { url: "https://a2o.github.io/snoopy-packages/repo/centos/8/stable/", gpgkey: ""}
 
 # Mandatory
 # This variable defines all the repo urls from where deb packages will be downloaded for omnia features when cluster_os_type is ubuntu.
@@ -125,15 +119,15 @@ omnia_repo_url_rocky:
 # 'gpgkey' defines gpgkey for the repository
 # If 'gpgkey' is kept empty then gpgcheck=0 for that repository
 # 'publickey' defines publickey for the repository, if 'gpgkey' is not available for that repository
-omnia_repo_url_ubuntu:
-  - { url: "https://download.docker.com/linux/ubuntu {{ os_release }} stable", gpgkey: "https://download.docker.com/linux/ubuntu/gpg" }
-  - { url: "https://repo.radeon.com/rocm/apt/{{ rocm_version }} {{ os_release }} main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
-  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}} {{ os_release }} non-free", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs" }
-  - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/ubuntu {{ os_release }} main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
-  - { url: "https://ltb-project.org/debian/openldap25/{{ openldap_release }} {{ openldap_release }} main", publickey: "https://ltb-project.org/documentation/_static/RPM-GPG-KEY-LTB-project" }
-  - { url: "https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey" }
-  - { url: "http://ppa.launchpad.net/deadsnakes/ppa/ubuntu {{ os_release }} main", gpgkey: "" }
-  - { url: "https://a2o.github.io/snoopy-packages/repo/ubuntu {{ os_release }} stable", publickey: "https://a2o.github.io/snoopy-packages/snoopy-packages-key.pub" }
-  - { url: "https://vault.habana.ai/artifactory/debian {{ os_release }} main", publickey: "https://vault.habana.ai/artifactory/api/gpg/key/public" }
-  - { url: "https://apt.repos.intel.com/oneapi all main", publickey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" }
+# omnia_repo_url_ubuntu:
+#   - { url: "https://download.docker.com/linux/ubuntu {{ os_release }} stable", gpgkey: "https://download.docker.com/linux/ubuntu/gpg" }
+#   - { url: "https://repo.radeon.com/rocm/apt/{{ rocm_version }} {{ os_release }} main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+#   - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}} {{ os_release }} non-free", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs" }
+#   - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/ubuntu {{ os_release }} main", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" }
+#   - { url: "https://ltb-project.org/debian/openldap25/{{ openldap_release }} {{ openldap_release }} main", publickey: "https://ltb-project.org/documentation/_static/RPM-GPG-KEY-LTB-project" }
+#   - { url: "https://nvidia.github.io/libnvidia-container/stable/deb/amd64 /", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey" }
+#   - { url: "http://ppa.launchpad.net/deadsnakes/ppa/ubuntu {{ os_release }} main", gpgkey: "" }
+#   - { url: "https://a2o.github.io/snoopy-packages/repo/ubuntu {{ os_release }} stable", publickey: "https://a2o.github.io/snoopy-packages/snoopy-packages-key.pub" }
+#   - { url: "https://vault.habana.ai/artifactory/debian {{ os_release }} main", publickey: "https://vault.habana.ai/artifactory/api/gpg/key/public" }
+#   - { url: "https://apt.repos.intel.com/oneapi all main", publickey: "https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" }
 

@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,16 +13,25 @@
 # limitations under the License.
 ---
 
-- name: Delete ports for switch_based
-  hosts: localhost
-  connection: local
+- name: Include input project directory
+  ansible.builtin.import_playbook: ../include_input_dir.yml
+
+- name: Create provision container group
+  ansible.builtin.import_playbook: ../create_container_group.yml
   vars:
+    omnia_provision_group: true
+
+- name: Delete ports for switch_based
+  hosts: omnia_provision
+  connection: ssh
+  vars:
+    provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
     switch_ports_undefined: "Failed.Please provide switch_ports for the switch_ip in the switch inventory"
     switch_ports_empty: "Failed. Please provide switch_ports details to be deleted in switch inventory"
     fail_switch_inventory: "Failed. Please provide proper switch details in switch_based_deletion_config.yml"
-    delete_ports: delete_ports.py
+    delete_ports: "{{ provision_shared_library_path }}/cleanup/delete_ports.py"
     python_version: "{{ ansible_python_interpreter }}"
-    ping_file_path: "{{ playbook_dir }}/../../discovery/roles/discovery_validations/switch_based/files/switch_v3_ping.py"
+    ping_file_path: "{{ provision_shared_library_path }}/validation/switch_v3_ping.py"
   tasks:
     - name: Include vars
       ansible.builtin.include_vars: switch_based_deletion_config.yml
