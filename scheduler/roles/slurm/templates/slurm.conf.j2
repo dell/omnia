@@ -28,3 +28,6 @@ PartitionName=DEFAULT Nodes=ALL Default=YES MaxTime=INFINITE State=UP
 {% if 'slurm_node' in groups %}
 PartitionName={{ slurm_partition_name }} Nodes={{ groups['slurm_node'] | join(',') }} MaxTime=INFINITE State=UP
 {% endif %}
+{% for i in partitions %}
+PartitionName={{ i.PartitionName }}{% for k in i | sort if k != 'PartitionName' %} {{ k }}={{ 'YES' if i[k] is sameas true else ('NO' if i[k] is sameas false else i[k]) }}{% endfor %}
+{% endfor %}

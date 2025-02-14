@@ -21,5 +21,3 @@
        - groups['slurm_control_node'] | difference(ansible_play_hosts) | length | int == 0
      fail_msg: "All control nodes are not reachable."
 
-# - name: DbgPause
-#   ansible.builtin.pause: 

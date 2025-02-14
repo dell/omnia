@@ -1,0 +1,99 @@
+--- #common
+- name: Slurm dict ops
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ __slurm_default_config | ansible.builtin.combine(slurm_config | default({})) }}"
+    cgroup_conf_dict: "{{ __cgroup_default_config | ansible.builtin.combine(cgroup | default({}) ) }}"
+
+- name: Append share path if NFS
+  ansible.builtin.set_fact:
+    slurm_share_prefix: "{{ share_path }}/{{ slurm_dir_name }}"
+
+# file and directory permissions
+- name: Ensure directories - {{ item }}
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user_group }}"
+    mode: "0755"
+  loop:
+    - "{{ slurm_share_prefix }}{{ slurm_config_dir }}"
+    - "{{ slurm_conf_dict['StateSaveLocation'] }}"
+    - "{{ slurm_config_dir }}"
+
+- name: Create slurm.conf
+  ansible.builtin.template: # Create dest directory before 
+    src: "slurm.conf.j2"
+    dest: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    owner: root
+    group: root
+    mode: 644
+  run_once: true
+  notify:
+    - Restart slurmctld
+
+- name: Create cgroup.conf
+  ansible.builtin.template: # Create dest directory before 
+    src: "cgroup.conf.j2"
+    dest: "{{ item }}"
+    owner: root
+    group: root
+    mode: 644
+  loop:
+    - "{{ slurm_share_prefix }}{{ slurm_config_dir }}/cgroup.conf"
+    - "{{ slurm_config_dir }}/cgroup.conf"
+  notify:
+    - Restart slurmctld
+
+# Environment Var SLURM_CONF
+- name: Set env variable
+  community.general.ini_file:
+    path: "/etc/environment"
+    option: SLURM_CONF
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true
+
+- name: All other host configs #TODO: failsafe
+  ansible.builtin.template:
+    src: "all_other.conf.j2"
+    dest: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/{{ item }}.conf"
+    mode: 0644
+    backup: true
+  loop:
+    - mpi
+    - acct_gather
+    - gres
+  when: item in vars
+  notify:
+    - Reload slurmctld
+    - Reload slurmd
+
+- name: Local copy slurm.conf /etc/slurm/conf # parallel writes
+  ansible.builtin.template: # Local copy #FAILSAFE
+    src: "{{ item }}.conf.j2"
+    dest: "{{ slurm_config_dir }}/{{ item }}.conf"
+    owner: root
+    group: root
+    mode: 644
+  ignore_errors: true
+  loop:
+    - slurm
+    - cgroup
+  notify:
+    - Restart slurmctld
+
+- name: All other host local configs #failsafe
+  ansible.builtin.template:
+    src: "all_other.conf.j2"
+    dest: "{{ slurm_config_dir }}/{{ item }}.conf"
+    mode: 0644
+    backup: true
+  ignore_errors: true
+  loop:
+    - mpi
+    - acct_gather
+    - gres
+  when: item in vars
+  notify:
+    - Reload slurmctld
+    - Reload slurmd

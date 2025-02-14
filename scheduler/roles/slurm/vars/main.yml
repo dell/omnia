@@ -6,13 +6,15 @@ cluster_name: cluster
 slurm_uid: 6001
 slurm_user: slurm
 slurm_user_group: slurm
-share_path: /opt/omnia
+share_path: "{{ share_mounted_path }}"
 slurm_share_prefix: ''
 slurm_config_dir: /etc/slurm
 slurm_dir_name: slurm
 slurm_munge_key_path: "{{ share_path }}/{{ slurm_dir_name }}/munge.key"
 slurm_partition_name: normal
 slurm_ctld_parameters: []
+partitions: {}
+_clean_before_install: true
 common_packages: #software_config
    RedHat:
      - firewalld
@@ -29,35 +31,6 @@ slurm_compute_packages:
 slurm_login_packages:
    RedHat:
      - slurm
-slurm_config:
-   ProctrackType: proctrack/cgroup
-cgroup_config: {}
-__cgroup_default_config:
-   CgroupPlugin: autodetect
-   ConstrainCores: yes
-   ConstrainDevices: yes
-   ConstrainRAMSpace: yes
-   ConstrainSwapSpace: yes
-__slurm_default_config:
-   SlurmUser: "{{ slurm_user }}"
-   SlurmctldPort: 6817
-   SlurmdPort: 6818
-   SrunPortRange: "60001-63000"
-   StateSaveLocation: "/var/spool/state"
-   SlurmdSpoolDir: "/var/spool/slurmd"
-   ReturnToService: 2
-   SchedulerType: sched/backfill
-   MpiDefault: None
-   ProctrackType: proctrack/pgid
-   SelectType: select/linear
-   SlurmctldLogFile: /var/log/slurmctld.log
-   SlurmdLogFile: /var/log/slurmd.log
-   SlurmctldPidFile: /var/run/slurmctld.pid
-   SlurmdPidFile: /var/run/slurmd.pid
-   AuthType: auth/munge
-   CryptoType: crypto/munge
-   SlurmctldTimeout: 120
-   SlurmdTimeout: 300
 
 # messages
 inv_validation_fail_msg: "Failed. slurm_control_node and slurm_node groups should be defined in inventory and should have at least one node provided."
