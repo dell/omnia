@@ -1,0 +1,14 @@
+{
+  "amdgpu": {
+    "cluster": [
+        {"package": "kernel-devel", "type": "rpm", "repo_name": "baseos"},
+        {"package": "kernel-headers", "type": "rpm", "repo_name": "baseos"},
+        {"package": "amdgpu-dkms", "type": "rpm", "repo_name": "amdgpu"}
+    ]
+  },
+  "rocm": {
+    "cluster": [
+      {"package": "rocm", "type": "rpm", "repo_name": "rocm"}
+    ]
+  }
+}
