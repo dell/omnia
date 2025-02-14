@@ -169,6 +169,10 @@ mkdir -p "$omnia_path/omnia/log/core/playbooks"
 echo -e "${GREEN}Creating the hosts file for cluster.${NC}"
 touch "$omnia_path/omnia/hosts"
 
+# Create the pulp_ha directory if it does not exist.
+echo -e "${GREEN}Creating the pulp HA directory if it does not exist.${NC}"
+mkdir -p "$omnia_path/omnia/pulp/pulp_ha"
+
 # Print message for pulling the Omnia core docker image.
 echo -e "${BLUE}Pulling the Omnia core image.${NC}"
 
@@ -189,6 +193,7 @@ OPTIONS+=" -v $omnia_path/omnia:/opt/omnia:z"
 OPTIONS+=" -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z"
 OPTIONS+=" -v $omnia_path/omnia/log/core/container:/var/log:z"
 OPTIONS+=" -v $omnia_path/omnia/hosts:/etc/hosts:z"
+OPTIONS+=" -v $omnia_path/omnia/pulp/pulp_ha:/root/.config/pulp:z"
 OPTIONS+=" -e ROOT_PASSWORD_HASH=$hashed_passwd"
 OPTIONS+=" --net=host"
 OPTIONS+=" --name omnia_core"
