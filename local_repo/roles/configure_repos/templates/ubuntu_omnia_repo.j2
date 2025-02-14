@@ -1,4 +1,4 @@
-# For Omnia Repository {{ item.0 + 1 }}
+# For Omnia Repository {{ item.1.name }}
 {% if item.1.gpgkey is defined %}
 {% if item.1.gpgkey | default("", true) | length > 1 %}
 deb [arch=amd64] {{ item.1.url }}
@@ -11,4 +11,3 @@ deb [trusted=yes] {{ item.1.url }}
 deb [arch=amd64] {{ item.1.url }}
 {% endif %}
 {% endif %}
-

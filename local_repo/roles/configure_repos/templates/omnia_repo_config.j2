@@ -1,6 +1,6 @@
 {# For Omnia Repositories #}
-[omnia_repo{{ item.0 + 1 }}]
-name=Omnia Repository {{ item.0 + 1 }}
+[{{ item.1.name }}]
+name=Omnia Repository {{ item.1.name }}
 baseurl={{ item.1.url }}
 {% if "rocm" in item.1.url %}
 priority=60
