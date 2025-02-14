@@ -1,0 +1,40 @@
+{
+    "slurm": {
+        "cluster": [
+            {"package": "nfs-utils", "type": "rpm", "repo_name": "baseos"},
+            {"package": "python3-pip", "type": "rpm", "repo_name": "appstream"},
+            {"package": "bash-completion", "type": "rpm", "repo_name": "baseos"},
+            {"package": "chrony", "type": "rpm", "repo_name": "baseos"},
+            {"package": "pciutils", "type": "rpm", "repo_name": "baseos"},
+            {"package": "openssl", "type": "rpm", "repo_name": "baseos"},
+            {"package": "python3-pexpect", "type": "rpm", "repo_name": "appstream"},
+            {"package": "yum-plugin-versionlock", "type": "rpm", "repo_name": "baseos"},
+            {"package": "network-scripts", "type": "rpm", "repo_name": "baseos"},
+            {"package": "slurm-slurmd", "type": "rpm", "repo_name": "epel"},
+            {"package": "slurm-pmi", "type": "rpm", "repo_name": "epel"},
+            {"package": "slurm-pam_slurm", "type": "rpm", "repo_name": "epel"},
+            {"package": "munge", "type": "rpm", "repo_name": "appstream"},
+            {"package": "munge-libs", "type": "rpm", "repo_name": "appstream"},
+            {"package": "munge-devel", "type": "rpm", "repo_name": "powertools"},
+            {"package": "mariadb-server", "type": "rpm", "repo_name": "appstream"},
+            {"package": "mariadb-devel", "type": "rpm", "repo_name": "appstream"},
+            {"package": "man2html", "type": "rpm", "repo_name": "epel"},
+            {"package": "gcc", "type": "rpm", "repo_name": "appstream"},
+            {"package": "numactl", "type": "rpm", "repo_name": "baseos"},
+            {"package": "hwloc", "type": "rpm", "repo_name": "baseos"},
+            {"package": "lua", "type": "rpm", "repo_name": "appstream"},
+            {"package": "readline", "type": "rpm", "repo_name": "baseos"},
+            {"package": "perl-ExtUtils-MakeMaker", "type": "rpm", "repo_name": "appstream"},
+            {"package": "perl-DBI", "type": "rpm", "repo_name": "baseos"},
+            {"package": "perl-Switch", "type": "rpm", "repo_name": "powertools"},
+            {"package": "libibumad", "type": "rpm", "repo_name": "baseos"},
+            {"package": "slurm-slurmctld", "type": "rpm", "repo_name": "epel"},
+            {"package": "slurm-slurmdbd", "type": "rpm", "repo_name": "epel"},
+            {"package": "make", "type": "rpm", "repo_name": "baseos"},
+            {"package": "pmix-devel", "type": "rpm", "repo_name": "powertools"},
+            {"package": "libevent-devel", "type": "rpm", "repo_name": "appstream"},
+            {"package": "python3-mysql", "type": "rpm", "repo_name": "epel"},
+            {"package": "libssh2-devel", "type": "rpm", "repo_name": "epel"}
+        ]
+    }
+}
