@@ -1,0 +1,72 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Run parallel tasks and handle results
+  block:
+    - name: Run parallel tasks
+      parallel_tasks:
+        tasks: "{{ item.value }}"
+        log_dir: "{{ base_path }}/{{ item.key }}/logs"
+        log_file: "{{ base_path }}/{{ item.key }}_task_results.log"
+        slog_file: "{{ base_path }}"
+        software: "{{ item.key }}"
+        csv_file_path: "{{ base_path }}/{{item.key}}"
+        repo_store_path: "{{ nfs_shared_path }}"
+        user_json_file: "{{ user_json_file }}"
+        nthreads: "{{ (local_repo_py_module_vars[item.key].nthreads | default(local_repo_py_module_vars.default_vars.nthreads)) }}"
+        timeout: "{{ (local_repo_py_module_vars[item.key].timeout | default(local_repo_py_module_vars.default_vars.timeout)) }}" 
+      register: task_results
+
+    - name: Print task results
+      ansible.builtin.debug:
+        msg: "{{ task_results }}"
+
+    - name: Process each task result
+      ansible.builtin.set_fact:
+         overall_status_dict: "{{ overall_status_dict | default({}) | combine({ item.key: task_results.overall_status }) }}"
+
+  rescue:
+    - name: Log the failure with directory details
+      ansible.builtin.debug:
+        msg:
+          - "Parallel tasks encountered an error. Check the logs for details:"
+          - "Log directory: {{ base_path }}/{{ item.key }}/logs"
+          - "Log file: {{ base_path }}/{{ item.key }}_task_results.log"
+  always:
+    - name: Display the pretty table of task results
+      ansible.builtin.debug:
+        msg: "{{ task_results.table_output.split('\n') if task_results.table_output is defined else 'No table output available.' }}"
+
+    - name: Handle overall status (Success, Partial, Failure)
+      block:
+        - name: Confirm Success
+          ansible.builtin.debug:
+            msg: "All tasks completed successfully."
+          when: task_results.overall_status == "SUCCESS"
+
+        - name: Fail for Partial Status
+          ansible.builtin.debug:
+            msg: "Some tasks partially failed. Please review the task details above for more information."
+          when: task_results.overall_status == "PARTIAL"
+
+        - name: Fail for Failure Status
+          ansible.builtin.debug:
+            msg: "Some tasks failed. Please review the task details above for more information."
+          when: task_results.overall_status == "FAILURE"
+
+        - name: Fail for Timeout Status
+          ansible.builtin.debug:
+            msg: "Some tasks failed due to timeout. Please review the task details above for more information."
+          when: task_results.overall_status == "TIMEOUT"

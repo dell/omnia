@@ -1,1 +1,10 @@
-CONTENT_ORIGIN='https://{{ oim_hostname }}:{{ pulp_container_port }}'
+CONTENT_ORIGIN='http://{{ pulp_server_ip }}:{{ pulp_container_port }}'
+TOKEN_AUTH_DISABLED=True
+{% set chars = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)' %}
+{% set random_key = [] -%}
+{% for _ in range(50) -%}
+    {% set _ = random_key.append(chars | random) %}
+{% endfor -%}
+{% set random_key = ''.join(random_key) -%}
+SECRET_KEY='{{ random_key }}'
+
