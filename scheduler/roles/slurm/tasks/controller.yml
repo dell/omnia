@@ -1,0 +1,46 @@
+---
+- name: Install Controller Packages
+  ansible.builtin.debug:
+    msg: "Welcome to Controller {{ ansible_hostname }} {{ slurm_controller_packages[ansible_os_family] }}"
+
+- name: Install controller packages
+  ansible.builtin.package:
+    name: "{{ slurm_controller_packages[ansible_os_family] }}"
+    state: present
+
+- name: Create files - {{ item }} # TODO: file required?
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: touch
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user_group }}"
+    mode: "{{ slurm_mode }}"
+  loop:
+    - "{{ slurm_conf_dict['SlurmctldLogFile'] }}"
+    - "{{ slurm_conf_dict['SlurmctldPidFile'] }}"
+
+# Port Config
+- name: Enable SlurmctldPort
+  ansible.posix.firewalld:
+    port: "{{ slurm_conf_dict['SlurmctldPort'] }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+# Edit service
+- name: Enable the service
+  ansible.builtin.service:
+    name: slurmctld
+    enabled: true
+  register: ctld_service
+
+- name: Edit the service
+  community.general.ini_file:
+    path: "{{ ctld_service['status']['FragmentPath'] | default('/usr/lib/systemd/system/slurmctld.service') }}"
+    section: Unit
+    option: ConditionPathExists
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true
+  notify:
+    - Reload slurmctld
+    - Restart slurmctld

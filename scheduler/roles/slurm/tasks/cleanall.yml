@@ -1,0 +1,58 @@
+---
+# tasks file for slurm
+- name: Stop Services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: stopped
+  loop:
+    - slurmctld
+    - slurmd
+    - munge
+  ignore_errors: true
+
+- name: Remove files and folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ share_path }}/{{ slurm_dir_name }}"
+    - "{{ slurm_config_dir }}"
+    - "/etc/munge/munge.key"
+  ignore_errors: true
+
+- name: Ensure directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "root"
+    group: "root"
+  loop:
+    - /var/log
+
+- name: Remove packages
+  ansible.builtin.dnf:
+    name: "{{ item }}"
+    autoremove: true
+    state: absent
+  loop:
+    - slurm-slurmctld
+    - slurm-slurmd
+    - munge
+
+- name: Remove slurm user
+  ansible.builtin.user:
+    name: slurm
+    state: absent
+  ignore_errors: true
+
+- name: Remove slurm group
+  ansible.builtin.group:
+    name: slurm
+    state: absent
+  ignore_errors: true
+
+- name: UnSet env variable
+  community.general.ini_file:
+    path: "/etc/environment"
+    option: SLURM_CONF
+    state: absent

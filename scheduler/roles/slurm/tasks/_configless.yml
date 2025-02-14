@@ -1,0 +1,65 @@
+---
+- name: Enable the service
+  ansible.builtin.service:
+    name: slurmd
+    enabled: true
+  register: d_service
+
+- name: Get service path
+  ansible.builtin.set_fact:
+    slurmd_service_path: "{{ d_service['status']['FragmentPath'] | default('/usr/lib/systemd/system/slurmd.service') }}"
+
+- name: Edit the service !ConditionPathExists
+  community.general.ini_file:
+    path: "{{ slurmd_service_path }}"
+    section: Unit
+    option: ConditionPathExists
+    state: absent
+  when: slurm_installation_type == 'configless'
+  notify:
+    - Reload slurmd
+    - Restart slurmd
+
+- name: Edit the service ExecStart
+  community.general.ini_file:
+    path: "{{ slurmd_service_path }}"
+    section: Service
+    option: ExecStart
+    value: "/usr/sbin/slurmd -D -s $SLURMD_OPTIONS
+     --conf-server {{ (hostvars[groups['slurm_control_node'] | first])['inventory_hostname_short']
+      + ':' + (slurm_conf_dict['SlurmctldPort']
+      | string) }}" # HA
+    no_extra_spaces: true
+  when: slurm_installation_type == 'configless'
+  notify:
+    - Reload slurmd
+    - Restart slurmd
+
+# Environment Var SLURM_CONF
+- name: Set env variable
+  community.general.ini_file:
+    path: "/etc/environment"
+    option: SLURM_CONF
+    state: absent
+  when: slurm_installation_type == 'configless'
+
+- name: Edit the service ConditionPathExists
+  community.general.ini_file:
+    path: "{{ slurmd_service_path }}"
+    section: Unit
+    option: ConditionPathExists
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true
+  when: slurm_installation_type != 'configless'
+  notify:
+    - Reload slurmd
+    - Restart slurmd
+
+# Environment Var SLURM_CONF
+- name: Set env variable
+  community.general.ini_file:
+    path: "/etc/environment"
+    option: SLURM_CONF
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true
+  when: slurm_installation_type != 'configless'

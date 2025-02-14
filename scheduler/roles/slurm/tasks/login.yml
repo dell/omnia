@@ -1,0 +1,20 @@
+---
+- name: Install login Packages
+  ansible.builtin.debug:
+    msg: "Welcome to Login {{ ansible_hostname }} {{ slurm_login_packages[ansible_os_family] }}"
+
+- name: Install login packages
+  ansible.builtin.package:
+    name: "{{ slurm_login_packages[ansible_os_family] }}"
+    state: present
+
+- name: Append share path
+  ansible.builtin.set_fact:
+    slurm_share_prefix: "{{ share_path }}/{{ slurm_dir_name }}"
+
+- name: Set env variable
+  community.general.ini_file:
+    path: "/etc/environment"
+    option: SLURM_CONF
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true

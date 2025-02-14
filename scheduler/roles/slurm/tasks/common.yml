@@ -1,0 +1,29 @@
+---
+# tasks file for slurm
+- name: Sync time
+  ansible.builtin.include_tasks: time_sync.yml
+
+- name: Install common packages
+  ansible.builtin.package:
+    name: "{{ common_packages[ansible_os_family] }}"
+    state: present
+
+- name: Firewall service running
+  ansible.builtin.systemd_service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Create user and group
+  ansible.builtin.include_tasks: _user.yml
+
+- name: Create the slurm directory on share
+  ansible.builtin.file:
+    path: "{{ share_path }}/{{ slurm_dir_name }}"
+    state: directory
+
+- name: Install and configure Munge
+  ansible.builtin.include_tasks: _munge.yml
+
+- name: Install configs on all
+  ansible.builtin.include_tasks: _config_files.yml

@@ -1,0 +1,53 @@
+---
+- name: Install Compute Packages
+  ansible.builtin.debug:
+    msg: "Welcome to Compute {{ansible_hostname}} {{ slurm_compute_packages[ansible_os_family] }}"
+
+- name: Install compute packages
+  ansible.builtin.package:
+    name: "{{ slurm_compute_packages[ansible_os_family] }}"
+    state: present
+
+- name: Slurm dict op
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ __slurm_default_config | ansible.builtin.combine(slurm_config) }}"
+
+# Port Config
+- name: Enable SlurmdPort
+  ansible.posix.firewalld:
+    port: "{{ slurm_conf_dict['SlurmdPort'] }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+- name: Append share path if NFS
+  ansible.builtin.set_fact:
+    slurm_share_prefix: "{{ share_path }}/{{ slurm_dir_name }}"
+#when: NFS share
+
+# file and directory permissions
+- name: Ensure directories - {{ item }}
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user_group }}"
+    mode: "0755"
+  loop:
+    - "{{ slurm_conf_dict['SlurmdSpoolDir'] }}"
+    # - "{{ slurm_conf_dict['SlurmdLogFile'] | ansible.builtin.dirname }}"
+    # - "{{ slurm_conf_dict['SlurmdPidFile'] | ansible.builtin.dirname}}"
+
+- name: Create files - {{ item }}
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: touch
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user_group }}"
+    mode: 644
+  loop:
+    - "{{ slurm_conf_dict['SlurmdLogFile'] }}"
+    - "{{ slurm_conf_dict['SlurmdPidFile'] }}"
+
+- name: Configless settings
+  ansible.builtin.include_tasks: _configless.yml

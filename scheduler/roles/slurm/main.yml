@@ -1,0 +1,26 @@
+---
+# tasks file for slurm
+#TODO: sync time task
+- name: Slurm dict op
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ __slurm_default_config | ansible.builtin.combine(slurm_config) }}"
+    cgroup_conf_dict: "{{ __slurm_default_config | ansible.builtin.combine(cgroup_config) }}"
+
+- name: Debug
+  ansible.builtin.debug:
+    var: slurm_conf_dict
+
+- name: Include common tasks
+  ansible.builtin.include_tasks: common.yml
+
+- name: Include controller installation tasks
+  ansible.builtin.include_tasks: controller.yml
+  when: '"slurm_control_node" in group_names'
+
+- name: Include compute installation tasks
+  ansible.builtin.include_tasks: compute.yml
+  when: '"slurm_node" in group_names'
+
+- name: Include DB installation tasks
+  ansible.builtin.include_tasks: dbd.yml
+  when: '"slurm_dbd" in group_names'
