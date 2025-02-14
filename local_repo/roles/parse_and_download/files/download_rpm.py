@@ -77,10 +77,10 @@ def process_rpm_package(package, repo_store_path, status_file_path, cluster_os_t
                 subprocess.run(['dnf', 'download', package_name, '--arch=x86_64,noarch',
                         f'--destdir={rpm_directory}'], check=True)
                 # Step 2: Query dependencies of the main package
+                dependencies_cmd = ['repoquery', '--requires', '--resolve', '--recursive', '--arch=x86_64,noarch', package_name]
                 if package_name =='rocm':
                     dependencies_cmd = ['repoquery', '--disablerepo=*', '--enablerepo=omnia_repo_rocm', '--requires', '--resolve', '--recursive',
                             '--arch=x86_64,noarch', package_name]
-                dependencies_cmd = ['repoquery', '--requires', '--resolve', '--recursive', '--arch=x86_64,noarch', package_name]
                 dependencies = subprocess.check_output(dependencies_cmd, text=True).splitlines()
                 dependencies = [dep for dep in dependencies if any(arch in dep for arch in ['x86_64', 'noarch'])]
 
@@ -122,9 +122,9 @@ def process_rpm_package(package, repo_store_path, status_file_path, cluster_os_t
                     status = "Success"
 
                 # Step 2: Query dependencies of the main package
+                dependencies_cmd = ['repoquery', '--requires', '--resolve', '--recursive', '--arch=x86_64,noarch', package_name]
                 if package_name =='rocm':
                     dependencies_cmd = ['repoquery', '--disablerepo=*', '--enablerepo=omnia_repo_rocm', '--requires', '--resolve', '--recursive', '--arch=x86_64,noarch', package_name]
-                dependencies_cmd = ['repoquery', '--requires', '--resolve', '--recursive', '--arch=x86_64,noarch', package_name]
                 dependencies = subprocess.check_output(dependencies_cmd, text=True).splitlines()
                 dependencies = [dep for dep in dependencies if any(arch in dep for arch in ['x86_64', 'noarch'])]
 
