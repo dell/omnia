@@ -265,13 +265,94 @@ init_container_config() {
     mkdir -p "$omnia_path/omnia/log/core/container"
     mkdir -p "$omnia_path/omnia/log/core/playbooks"
 
-# Create the hosts file for cluster in $omnia_path/omnia/hosts
-echo -e "${GREEN}Creating the hosts file for cluster.${NC}"
-touch "$omnia_path/omnia/hosts"
+    # Create the hosts file for cluster in $omnia_path/omnia/hosts
+    echo -e "${GREEN} Creating the hosts file for cluster.${NC}"
+    touch "$omnia_path/omnia/hosts"
 
-# Create the pulp_ha directory if it does not exist.
-echo -e "${GREEN}Creating the pulp HA directory if it does not exist.${NC}"
-mkdir -p "$omnia_path/omnia/pulp/pulp_ha"
+    # Create the pulp_ha directory if it does not exist.
+    echo -e "${GREEN} Creating the pulp HA directory if it does not exist.${NC}"
+    mkdir -p "$omnia_path/omnia/pulp/pulp_ha"
+}
+
+
+# This function is responsible for fetching the configuration from the Omnia core.
+# It uses podman exec to run a command in the Omnia core container.
+# The command retrieves the metadata from the oim_metadata.yml file.
+# The metadata is then parsed and the required configuration is extracted.
+fetch_config() {
+
+    # Fetch the metadata from the oim_metadata.yml file.
+    echo -e "${GREEN} Fetching the metadata from the oim_metadata.yml file.${NC}"
+        core_config=$(podman exec -ti omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml')
+
+    # Split the metadata into separate lines.
+    IFS=$'\n' read -r -d '' -a config_lines <<<"$core_config"
+
+    # Loop through the lines and extract the required configuration.
+    for line in "${config_lines[@]}"; do
+        # Extract the key and value from the line.
+        key=$(echo "$line" | awk -F ':' '{print $1}')
+        value=$(echo "$line" | awk -F ':' '{print $2}')
+
+        # Check the key and assign the value to the corresponding variable.
+        case $key in
+            oim_shared_path)
+                # Assign the shared path.
+                omnia_path=$(echo "$value" | tr -d '[:space:]')
+                ;;
+            omnia_core_hashed_passwd)
+                # Assign the hashed password.
+                hashed_passwd=$(echo "$value" | tr -d '[:space:]')
+                ;;
+        esac
+    done
+    # Check if the required configuration is extracted successfully.
+    if [ -z "$omnia_path" ] || [ -z "$hashed_passwd" ]; then
+        echo -e "${RED} Failed to fetch data from metadata file.${NC}"
+        exit 1
+    else
+        echo -e "${GREEN} Successfully fetched data from metadata file.${NC}"
+    fi
+}
+
+# Validates the OIM (Omnia Infrastructure Manager) by checking if the hostname is
+# configured with a domain name, checking if Podman is installed, enabling and
+# starting the Podman socket.
+validate_oim() {
+    # Check if the hostname is configured with a domain name.
+    if hostname -d; then
+        echo -e "${BLUE}Hostname is configured with a domain name.${NC}"
+    else
+        echo -e "${RED}Invalid hostname, hostname is not configured with a domain name!${NC}"
+        exit 1
+    fi
+
+    podman --version
+
+    # Capture the exit status
+    if [ $? -eq 0 ]; then
+        echo -e "${BLUE} Podman is installed. Version: $(podman --version)${NC}"
+    else
+        echo -e "${RED} Podman is not installed.${NC}"
+        exit 1
+    fi
+
+    # Enable the podman socket to start at boot
+    echo -e "${BLUE} Enabling podman.socket...${NC}"
+    systemctl enable podman.socket
+
+    # Start the podman socket now
+    echo -e "${BLUE} Starting podman.socket...${NC}"
+    systemctl start podman.socket
+
+    # Print a success message after enabling and starting the podman socket
+    echo -e "${GREEN} Podman socket has been enabled and started.${NC}"
+}
+
+# Sets up the Omnia core container.
+# This function pulls the Omnia core Docker image and runs the container.
+# It defines the container options and runs the container.
+setup_container() {
 
     # Print message for pulling the Omnia core docker image.
     echo -e "${BLUE} Pulling the Omnia core image.${NC}"
@@ -286,18 +367,18 @@ mkdir -p "$omnia_path/omnia/pulp/pulp_ha"
     # Run the Omnia core container.
     echo -e "${GREEN} Running the Omnia core container.${NC}"
 
-# Define the container options.
-OPTIONS="-d --restart=always"
-OPTIONS+=" --hostname omnia_core"
-OPTIONS+=" -v $omnia_path/omnia:/opt/omnia:z"
-OPTIONS+=" -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z"
-OPTIONS+=" -v $omnia_path/omnia/log/core/container:/var/log:z"
-OPTIONS+=" -v $omnia_path/omnia/hosts:/etc/hosts:z"
-OPTIONS+=" -v $omnia_path/omnia/pulp/pulp_ha:/root/.config/pulp:z"
-OPTIONS+=" -e ROOT_PASSWORD_HASH=$hashed_passwd"
-OPTIONS+=" --net=host"
-OPTIONS+=" --name omnia_core"
-OPTIONS+=" --cap-add=CAP_AUDIT_WRITE"
+    # Define the container options.
+    OPTIONS="-d --restart=always"
+    OPTIONS+=" --hostname omnia_core"
+    OPTIONS+=" -v $omnia_path/omnia:/opt/omnia:z"
+    OPTIONS+=" -v $omnia_path/omnia/ssh_config/.ssh:/root/.ssh:z"
+    OPTIONS+=" -v $omnia_path/omnia/log/core/container:/var/log:z"
+    OPTIONS+=" -v $omnia_path/omnia/hosts:/etc/hosts:z"
+    OPTIONS+=" -v $omnia_path/omnia/pulp/pulp_ha:/root/.config/pulp:z"
+    OPTIONS+=" -e ROOT_PASSWORD_HASH=$hashed_passwd"
+    OPTIONS+=" --net=host"
+    OPTIONS+=" --name omnia_core"
+    OPTIONS+=" --cap-add=CAP_AUDIT_WRITE"
 
     # Run the container.
     if podman run $OPTIONS omnia_core:latest; then
@@ -333,7 +414,7 @@ post_setup_config() {
 
     # Copy input files from pod to /opt/omnia/project_default/
     echo -e "${BLUE} Copying input files from container to project_default folder.${NC}"
-    podman exec -u root omnia_core sh -c 'for file in /omnia/input/*; do cp -r "$file" /opt/omnia/input/project_default/; done'
+    podman exec -u root omnia_core mv /omnia/input/ /opt/omnia/input/project_default/
 
     # Copy shard libraries from pod to /opt/omnia/shard_libraries/
     echo -e "${BLUE} Copying shard libraries from container to shard_libraries folder.${NC}"
