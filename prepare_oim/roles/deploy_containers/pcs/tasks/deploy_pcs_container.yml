@@ -21,7 +21,7 @@
     mode: "{{ item.mode }}"
   loop: "{{ pcs_directories }}"
 
-- name: Create pcs-start.sh, Quadlet file, and corosync.conf at PCS NFS share
+- name: Create pcs-start.sh and corosync.conf at PCS NFS share and the Quadlet file at the systemd directory
   ansible.builtin.template:
     src: "{{ item.template }}"
     dest: "{{ item.dest }}"
