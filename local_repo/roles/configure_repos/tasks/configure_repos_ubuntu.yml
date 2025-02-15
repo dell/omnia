@@ -50,6 +50,12 @@
   with_indexed_items: "{{ omnia_repo_url_ubuntu }}"
   when: item.1.url is defined and software_config_default not in item.1.url
 
+- name: Create APT preference for ROCm repository
+  ansible.builtin.template:
+    src: "{{ rocm_pref_src }}"
+    dest: "{{ preference_path }}"
+    mode: "{{ file_mode }}"
+
 - name: Download GPG keys for each omnia repository
   ansible.builtin.shell:
     cmd: " set -o pipefail | wget -qO - {{ item.1.gpgkey }} | sudo apt-key --keyring {{ trusted_file_path }} add -"

@@ -1,7 +1,10 @@
 {# For Omnia Repositories #}
-[omnia_repo{{ item.0 + 1 }}]
-name=Omnia Repository {{ item.0 + 1 }}
+[omnia_repo_{{ item.1.name }}]
+name=Omnia Repository {{ item.1.name }}
 baseurl={{ item.1.url }}
+{% if "rocm" in item.1.url %}
+priority=60
+{% endif %}
 {% if item.1.gpgkey is defined %}
 {% if item.1.gpgkey | default("", true) | length > 1 %}
 gpgcheck=1

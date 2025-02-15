@@ -80,6 +80,7 @@
     that:
       - "item.url is defined"
       - "item.gpgkey is defined"
+      - "item.name is defined"
     fail_msg: "{{ omnia_repo_url_rhel_url_gpg_key_fail_msg }}"
   loop: "{{ omnia_repo_url_rhel }}"
   loop_control:
@@ -100,6 +101,7 @@
     that:
       - "item.url is defined"
       - "item.gpgkey is defined"
+      - "item.name is defined"
     fail_msg: "{{ omnia_repo_url_rocky_url_gpg_key_fail_msg }}"
   loop: "{{ omnia_repo_url_rocky }}"
   loop_control:
@@ -121,6 +123,7 @@
     that:
       - "item.url is defined"
       - "item.gpgkey is defined or item.publickey is defined"
+      - "item.name is defined"
     fail_msg: "{{ omnia_repo_url_ubuntu_url_gpg_key_fail_msg }}"
   loop: "{{ omnia_repo_url_ubuntu }}"
   loop_control:
