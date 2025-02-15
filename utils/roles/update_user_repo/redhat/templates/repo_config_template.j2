@@ -1,0 +1,9 @@
+[{{ item.name }}-{{ item.version }}-repo]
+name={{ item.name }}-{{ item.version }}-repo
+baseurl={{ software_path_url }}
+enabled=1
+gpgcheck=0
+skip_if_unavailable=True
+{% if proxy_status is defined and proxy_status %}
+proxy=_none_
+{% endif %}

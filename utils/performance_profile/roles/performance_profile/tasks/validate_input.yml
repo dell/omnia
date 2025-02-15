@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: software_config
+
 - name: Saving distribution of OS
   ansible.builtin.set_fact:
-    compute_os: "{{ ansible_facts['distribution'] | lower }}"
-    compute_os_version: "{{ ansible_distribution_version }}"
+    compute_os: "{{ software_config.cluster_os_type }}"
+    compute_os_version: "{{ software_config.cluster_os_version }}"
 
 - name: Validate inputs
   when:
