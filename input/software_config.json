@@ -3,7 +3,7 @@
     "cluster_os_version": "9.4",
     "repo_config": "always",
     "softwares": [
-        {"name": "amdgpu", "version": "6.2.2"},
+        {"name": "amdgpu", "version": "6.3.1"},
         {"name": "openldap"},
         {"name": "nfs"},
         {"name": "k8s", "version":"1.29.5"},
@@ -13,7 +13,7 @@
     ],
 
     "amdgpu": [
-        {"name": "rocm", "version": "6.2.2" }
+        {"name": "rocm", "version": "6.3.1" }
     ],
     "pytorch": [
         {"name": "pytorch_cpu"},

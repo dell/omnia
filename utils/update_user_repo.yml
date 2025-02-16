@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
 # limitations under the License.
 ---
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: check_venv.yml
-  when: not ( check_venv_executed | default(false) | bool )
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: include_input_dir.yml
 
 - name: Validate whether cross-os is present
   hosts: localhost
@@ -24,11 +24,11 @@
   tasks:
     - name: Validate cluster and Omnia Infrastructure Manager OS versions
       ansible.builtin.include_role:
-        name: update_user_repo
+        name: update_user_repo/common
         tasks_from: check_os_versions.yml
 
 - name: Update repo and registry
   hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
   roles:
-    - update_user_repo
-    - update_user_registry
+    - update_user_repo/common
+    # - update_user_registry # Needs to updated

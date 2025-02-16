@@ -605,7 +605,7 @@ def process_iso(package, repo_store_path, status_file_path, cluster_os_type, clu
             path_support = True
             url_support = False
  
-    iso_directory = os.path.join(repo_store_path, "offline_repo", 'cluster', cluster_os_type, cluster_os_version, 'iso', package_name, version_variables.get(f"{package_name}_version", ''), package_name)
+    iso_directory = os.path.join(repo_store_path, "offline_repo", 'cluster', cluster_os_type, cluster_os_version, 'iso', package_name)
     base_path = iso_directory.strip("/")
     logger.info(f"Processing iso Package to directory: {iso_directory}")
  

@@ -1,0 +1,54 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# - name: Check omnia cluster repo exist
+#   ansible.builtin.stat:
+#     path: "{{ omnia_cluster_repo_path }}"
+#   register: cluster_repo_path_check
+
+# - name: Fail if omnia cluster repo does not exist
+#   ansible.builtin.fail:
+#     msg: "{{ omnia_cluster_repo_fail_msg }}"
+#   when:
+#     - (software_config.repo_config == 'always' or software_config.repo_config == 'partial')
+#     - not cluster_repo_path_check.stat.exists
+
+# - name: Check pip.conf exist
+#   ansible.builtin.stat:
+#     path: "{{ omnia_pip_conf_path }}"
+#   register: pip_conf_check
+
+# - name: Fail if pip.conf does not exist
+#   ansible.builtin.fail:
+#     msg: "{{ pip_conf_fail_msg }}"
+#   when: not pip_conf_check.stat.exists
+
+- name: Validate repo configuration
+  block:
+    - name: Check pulp distribution command
+      ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os] }} distribution list"
+      delegate_to: localhost
+      register: check_pulp_repo
+      changed_when: false
+
+    - name: Fail if pulp repo is not configured
+      ansible.builtin.fail:
+        msg: " {{ repo_fail_msg }} "
+      when: check_pulp_repo.stdout | length == 0
+
+  rescue:
+    - name: Failed - pulp repo is configured
+      ansible.builtin.fail:
+        msg: " {{ repo_fail_msg }} "
