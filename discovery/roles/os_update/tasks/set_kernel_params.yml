@@ -39,7 +39,10 @@
         )
       }}
   with_items: "{{ Categories }}"
-  when: hostvars[inventory_hostname]['Categories'] in item
+  when:
+    - inventory_hostname != "omnia_provision"
+    - "'Categories' in hostvars[inventory_hostname]"
+    - hostvars[inventory_hostname]['Categories'] in item
 
 - name: Store inventory host name
   ansible.builtin.set_fact:
@@ -53,10 +56,10 @@
 - name: Kernel parameters update
   when: cmdline_value != ""
   block:
-    - name: Servicetag Host mapping and run chdef command
-      ansible.builtin.command: "{{ python_version }} {{ servicetag_node_mapping_script }} {{ role_path }} {{ file_path }} {{ inventory_hostname_short }} {{ cmdline_value | quote }}"
+    - name: Run kernel parameter update inside omnia_provision container on OIM
+      ansible.builtin.command: >
+        ssh {{ oim }} "podman container exec --env INVENTORY_HOSTNAME_SHORT={{ inventory_hostname_short }} --env CMDLINE_VALUE={{ cmdline_value | quote }} omnia_provision {{ python_version }} {{ servicetag_node_mapping_script }} {{ file_path_db }} {{ inventory_hostname_short }} {{ cmdline_value | quote }}"
       register: chdef_result
-      changed_when: true
 
     - name: Debug if Error in chdef command run
       ansible.builtin.debug:
