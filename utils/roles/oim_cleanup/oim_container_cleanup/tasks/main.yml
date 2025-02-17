@@ -40,6 +40,7 @@
 
 - name: Cleanup kubespray container
   ansible.builtin.import_tasks: cleanup_kubespray.yml
+  when: hostvars['localhost']['k8s_support']
   tags: kubespray
 
 - name: Reload firewalld to apply changes
