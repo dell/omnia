@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,42 +13,45 @@
 # limitations under the License.
 ---
 
-- name: Ensure parent directory of repo_store_path exists
+- name: Create local_repo_access.yml file
+  ansible.builtin.template:
+    src: "{{ local_repo_access_src_path }}"
+    dest: "{{ local_repo_access_dest_path }}"
+    mode: "{{ file_permission }}"
+
+- name: Include var for local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
+
+- name: Remove existing {{ syncfiles_share_path }} directory # noqa: name[template]
   ansible.builtin.file:
-    path: "/install{{ repo_store_path | dirname }}"
+    path: "{{ syncfiles_share_path }}"
+    state: absent
+
+- name: Remove existing {{ synclists_dir }} directory # noqa: name[template]
+  ansible.builtin.file:
+    path: "{{ synclists_dir }}"
+    state: absent
+
+- name: Create directory syncfiles under /opt/omnia/provision
+  ansible.builtin.file:
+    path: "{{ syncfiles_share_path }}"
     state: directory
     mode: "{{ dir_permission }}"
 
-- name: Create a symbolic link for local_repo in /install of xCAT
+- name: Create repos directory under syncfiles directory
   ansible.builtin.file:
-    src: "{{ repo_store_path }}"
-    dest: "/install{{ repo_store_path }}"
-    state: link
-
-- name: Remove existing {{ syncfiles_dir }}/repos directory # noqa: name[template]
-  ansible.builtin.file:
-    path: "{{ temp_dir_repo }}"
-    state: absent
-
-- name: Create {{ syncfiles_dir }}/repos directory # noqa: name[template]
-  ansible.builtin.file:
-    path: "{{ temp_dir_repo }}"
+    path: "{{ syncfiles_share_path }}/repos"
     state: directory
     mode: "{{ dir_permission }}"
 
-- name: Remove existing {{ syncfiles_dir }}/conf directory # noqa: name[template]
+- name: Create conf directory under syncfiles directory
   ansible.builtin.file:
-    path: "{{ temp_conf_repo }}"
-    state: absent
-
-- name: Create {{ syncfiles_dir }}/conf directory # noqa: name[template]
-  ansible.builtin.file:
-    path: "{{ temp_conf_repo }}"
+    path: "{{ syncfiles_share_path }}/conf"
     state: directory
     mode: "{{ dir_permission }}"
 
 - name: Render pip.conf template
   ansible.builtin.template:
-    src: "{{ pip_conf_src }}"
-    dest: "{{ pip_conf_dest }}"
-    mode: "{{ file_permission }}"
+   src: "{{ pip_conf_src }}"
+   dest: "{{ pip_conf_dest }}"
+   mode: "{{ file_permission }}"
