@@ -58,7 +58,6 @@ docker_packages_ubuntu:
 docker_packages_redhat:
  - docker-ce-{{ docker_version }}
  - docker-ce-cli-{{ docker_version }}
- - docker-buildx-plugin
 cert_packages:
  - curl
  - ca-certificates
