@@ -13,73 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Include provision_config.yml
-  ansible.builtin.include_role:
-    name: discovery_validations/common
-    tasks_from: include_provision_config.yml  # noqa: role-name[path]
-
-- name: Validate discovery parameters
-  ansible.builtin.include_role:
-    name: discovery_validations/common
-    tasks_from: include_network_spec.yml  # noqa: role-name[path]
-
-- name: Fetch the network interfaces in UP state in the system
-  ansible.builtin.shell: |
-    set -o pipefail
-    /usr/sbin/ip a | awk '/state UP/{print $2}'
-  register: nic_addr_up
-  changed_when: false
-
-- name: Validate discovery parameters
-  ansible.builtin.include_role:
-    name: discovery_validations/common
-    tasks_from: validate_admin_nic.yml  # noqa: role-name[path]
-
-- name: Validate domain name
-  ansible.builtin.include_role:
-    name: discovery_validations/common
-    tasks_from: validate_domain_name.yml  # noqa: role-name[path]
-
-- name: Set pxe_nic_forwarders
+- name: Saving distribution and version of OS
   ansible.builtin.set_fact:
-    pxe_nic_forwarders: "{{ network_data.admin_network.DNS | default('', true) }}"
+    oim_os: "{{ ansible_distribution | lower }}"
+    oim_os_version: "{{ ansible_distribution_version | lower }}"
 
-- name: Configure forwarders in site table
-  ansible.builtin.shell: >
-    {{ xcat_path }}/chdef -t site forwarders="{{ pxe_nic_forwarders }}"
-  changed_when: true
-
-- name: Task for creating DNS configuration
-  block:
-    - name: Create DNS configuration
-      ansible.builtin.command: "{{ xcat_sbin_path }}/makedns -n"
-      changed_when: true
-      register: dns_config
-  rescue:
-    - name: Verify DNS configuration is successful
-      ansible.builtin.debug:
-        msg: "{{ dns_config_warning_msg }} {{ dns_config.stderr }}"
-      when: dns_config.stderr is defined
-
-- name: Update local_repo_access.yml
-  ansible.builtin.lineinfile:
-    path: "{{ local_repo_access_dest_path }}"
-    insertafter: EOF
-    line: "{{ item.line }}"
-  with_items:
-    - { line: 'oim_hostname: "{{ oim_hostname }}"' }
-    - { line: 'domain_name: "{{ oim_domain_name }}"' }
-    - { line: 'proxy_status: false' }
-    - { line: 'no_proxy_input_status: false' }
-    - { line: 'user_no_proxy: ""' }
-
-- name: Initiate monitor thread
+- name: Apply patch to confignetwork file
   ansible.builtin.include_role:
-    name: monitor_thread
-    tasks_from: initiate_monitor_status.yml
-
-- name: Restart omnia service
-  ansible.builtin.systemd:
-    name: omnia
-    state: restarted
-    enabled: true
+    name: ubuntu_xcat_patches
+  when:
+    - oim_os == "ubuntu"
+    - oim_os_version | int in [20, 22, 24]

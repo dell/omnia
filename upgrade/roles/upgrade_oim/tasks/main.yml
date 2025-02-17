@@ -16,16 +16,6 @@
   ansible.builtin.include_role:
     name: backup_k8s
 
-- name: Backup omnia_inventory files
-  ansible.builtin.copy:
-    src: "{{ omnia_inventory_dir }}"
-    dest: "{{ backup_location }}/omnia_inventory"
-    mode: "{{ file_permission }}"
-
-- name: Create venv for installed version
-  ansible.builtin.include_tasks: create_older_venv.yml
-  when: not older_os
-
 - name: Import parameters from Omnia current version to upgrade version
   ansible.builtin.include_role:
     name: import_input_parameters
@@ -52,20 +42,11 @@
     - name: Upgrade kubernetes on Omnia Infrastructure Manager
       ansible.builtin.include_role:
         name: upgrade_k8s_oim
-      when: not older_os
 
     - name: Upgrade omnia_telemetry binary
       ansible.builtin.include_role:
         name: omnia_telemetry
-
-    - name: Upgrade iDRAC telemetry role
-      ansible.builtin.include_role:
-        name: upgrade_idrac_telemetry
-
-    - name: Upgrade control_plane to oim in omniadb and xcat
-      ansible.builtin.include_role:
-        name: cp_to_oim
-
+    
   rescue:
     - name: Failed to upgrade Omnia Infrastructure Manager
       ansible.builtin.fail:

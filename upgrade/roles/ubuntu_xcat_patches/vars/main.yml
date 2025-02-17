@@ -13,8 +13,6 @@
 #  limitations under the License.
 ---
 
-# Usage: oim_details_db.yml
-python_version: "{{ ansible_python_interpreter }}"
-oim_db_path: "{{ role_path }}/files/update_oim_db.py"
-xcat_bin_path: "/opt/xcat/bin"
-oim: "oim"
+xcat_patch_files:
+  - { src: "{{ role_path }}/../../../prepare_cp/roles/install_xcat/common/files/confignetwork.patch", dest: "/install/postscripts/confignetwork" }
+upgrade_config_path: "{{ role_path }}/../../upgrade_config.yml"

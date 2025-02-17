@@ -14,9 +14,6 @@
 ---
 
 # Usage: main.yml
-compute_servicetag_ip_path: "/opt/omnia/omnia_inventory/compute_servicetag_ip"
-hostname_inv_path: "/opt/omnia/omnia_inventory/compute_hostname_ip"
-timeout_val: 10
 
 pip_packages:
   - pyopenssl==21.0.0

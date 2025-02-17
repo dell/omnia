@@ -61,10 +61,9 @@ inventory_grps:
     - 'kube_node'
     - 'etcd'
     - 'k8s_cluster'
-kube_version_list_v1_29_5: # noqa: var-naming[pattern]
-    - v1.27.0
-    - v1.28.0
-    - v1.29.5
+kube_version_list_v1_31_4: #noqa: #var-naming[pattern]
+    - v1.30.0
+    - v1.31.4
 k8s_var_src: "../templates/k8s_var.j2"
 k8s_var_dest: "{{ role_path }}/files/k8s_var_{{ kube_version }}.yml"
 bin_path: "/usr/bin"
@@ -80,7 +79,7 @@ binary_package_list: ['crictl']
 user_msg_upgrade: |
 
    ***************************************************************************************************************************************************
-   Kubernetes Upgrade on Omnia Infrastructure Manager is sequential in nature. Upgrade will happen from v1.26.12 -> v1.27.0 -> v1.28.0 -> v1.29.5
+   Kubernetes Upgrade on Omnia Infrastructure Manager is sequential in nature. Upgrade will happen from v1.29.5 -> v1.30.0 -> v1.31.4
 
    The upgrade process will take approx. 15-20 minutes to complete.
    ****************************************************************************************************************************************************
@@ -88,5 +87,5 @@ user_msg_upgrade: |
 upgrade_success_msg: |
 
    ***************************************************************************************************************************************************
-   Successfully upgraded Kubernetes version to v1.29.5 on the Omnia Infrastructure Manager.
+   Successfully upgraded Kubernetes version to v1.31.4 on the Omnia Infrastructure Manager.
    ****************************************************************************************************************************************************

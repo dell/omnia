@@ -58,9 +58,9 @@
 - name: Check for pods presence after restoring etcd
   ansible.builtin.include_tasks: pod_check.yml
 
-- name: Restore timescaledb and idrac telemetry pods
+- name: Restore timescaledb pod
   ansible.builtin.include_tasks: timescaledb.yml
-  when: timescale_pod_status_flag or idrac_telemetry_pod_status_flag
+  when: timescale_pod_status_flag
 
 - name: Restore and start omnia_telemetry.service
   ansible.builtin.include_role:
@@ -70,21 +70,9 @@
       vars:
         binary_files_path: "/opt/omnia/telemetry/dist/omnia_telemetry"
 
-- name: Restore omnia service
-  ansible.builtin.include_role:
-    name: "{{ installed_omnia_path }}/discovery/roles/monitor_thread" # noqa: role-name[path]
-    tasks_from: initiate_monitor_status.yml
-
-- name: Restore omnia_inventory files
-  ansible.builtin.copy:
-    src: "{{ backup_location }}/omnia_inventory/"
-    dest: "{{ omnia_inv_path }}"
-    mode: "{{ file_permission }}"
-  when: omnia_inv_stat.stat.exists
-
-- name: Set installed_version as 1.6.1
+- name: Set installed_version as 1.7
   ansible.builtin.lineinfile:
     path: "{{ meta_path }}"
     regexp: '^installed_version:(.*)$'
     state: present
-    line: 'installed_version: "1.6.1"'
+    line: 'installed_version: "1.7"'

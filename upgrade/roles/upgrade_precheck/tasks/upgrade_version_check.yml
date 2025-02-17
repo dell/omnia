@@ -48,10 +48,10 @@
     msg: "{{ already_upgraded }}"
   when: installed_omnia_version == upgrade_omnia_version
 
-- name: Assert if >= v1.6.1
+- name: Assert if == v1.7
   ansible.builtin.assert:
     that:
-      - installed_omnia_version is version('1.6.1', '>=')
+      - installed_omnia_version is version('1.7', '==')
     fail_msg: "{{ unsupported_omnia_version }}"
 
 - name: Check discovery metadata file status
@@ -74,4 +74,6 @@
     - name: Check installed omnia version and version to be upgraded is same
       ansible.builtin.fail:
         msg: "{{ already_upgraded }}"
-      when: installed_version is defined and installed_version in upgrade_omnia_version
+      when: 
+        - installed_version is defined
+        - installed_version is version(upgrade_omnia_version, '==')

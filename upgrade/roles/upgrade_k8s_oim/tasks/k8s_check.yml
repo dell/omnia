@@ -35,7 +35,7 @@
     path: "{{  track_file_path }}"
   register: file_status
 
-- name: Set k8s_oim_installed to true if k8s is installed and kube version is v1.26.12
+- name: Set k8s_oim_installed to true if k8s is installed and kube version is v1.29.5
   ansible.builtin.set_fact:
     k8s_oim_installed: true
-  when: (kubectl_command_status.rc == 0 and "v1.26.12" in kubernetes_version.stdout) or (file_status.stat.exists and "v1.29.5" not in kubernetes_version.stdout)
+  when: (kubectl_command_status.rc == 0 and "v1.29.5" in kubernetes_version.stdout) or (file_status.stat.exists and "v1.31.4" not in kubernetes_version.stdout)

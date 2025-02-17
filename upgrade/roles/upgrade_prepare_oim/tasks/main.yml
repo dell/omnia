@@ -17,67 +17,35 @@
   ansible.builtin.set_fact:
     oim_os: "{{ ansible_distribution | lower }}"
 
-- name: Prepare OIM for proxy defaults
-  ansible.builtin.include_role:
-    name: configure_proxy
-
 - name: Create telemetry binary with upgrad version
   ansible.builtin.include_role:
     name: omnia_telemetry
     tasks_from: create_binary.yml
 
-- name: Update omnia_appliance required pip packages not supported OS
-  ansible.builtin.pip:
-    requirements: "{{ installed_omnia_path }}/prepare_cp/roles/omnia_appliance_cp/files/requirements_pip.txt"
-  when: older_os
-
-- name: Update omnia_appliance required pip packages if supported OS
+- name: Update omnia_appliance required pip packages
   ansible.builtin.include_role:
     name: omnia_appliance_oim
-  when: not older_os
 
 - name: Prepare venv with required pip packages
   ansible.builtin.command: "{{ ansible_python_interpreter }} -m pip install {{ item }}"
   with_items: "{{ pip_packages }}"
   changed_when: false
 
-- name: Regenerate inventory files
-  ansible.builtin.include_role:
-    name: inventory_tagging
-
-- name: Wait for compute_hostname file to generate
-  ansible.builtin.wait_for:
-    path: "{{ hostname_inv_path }}"
-    state: present
-    timeout: "{{ timeout_val }}"
-
-- name: Refresh inventory
-  ansible.builtin.meta: refresh_inventory
-  changed_when: false
-
-- name: Remove compute_servicetag_ip inventory file
-  ansible.builtin.file:
-    path: "{{ compute_servicetag_ip_path }}"
-    state: absent
-
-- name: Check cryptography version
-  ansible.builtin.command: "pip show cryptography"
-  register: cryptography_info
+- name: Check jinja2 version
+  ansible.builtin.command: "pip show jinja2"
+  register: jinja2_info
   changed_when: false
   ignore_errors: true
-  when: older_os
 
-- name: Set cryptography version as fact
+- name: Set jinja2 version as fact
   ansible.builtin.set_fact:
-    cryptography_version: "{{ (cryptography_info.stdout | regex_search('Version: (\\d+\\.\\d+\\.\\d+)', '\\1') | first) | string }}"
+    jinja2_version: "{{ (jinja2_info.stdout | regex_search('Version: (\\d+\\.\\d+\\.\\d+)', '\\1') | first) | default('', true) }}"
   when:
-    - older_os
-    - cryptography_info.stdout is defined
-    - cryptography_info.stdout | regex_search('Version: (\\d+\\.\\d+\\.\\d+)')
+    - jinja2_info.stdout is defined
+    - jinja2_info.stdout | regex_search('Version: (\\d+\\.\\d+\\.\\d+)')
 
-- name: Install cryptography version 44.0.0 if needed
+- name: Install jinja2 version 3.1.5 if needed
   ansible.builtin.pip:
-    name: cryptography==44.0.0
+    name: jinja2==3.1.5
   when:
-    - older_os
-    - cryptography_version is not defined or (cryptography_version < '44.0.0')
+    - jinja2_version is not defined or (jinja2_version < '3.1.5')

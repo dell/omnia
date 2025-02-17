@@ -56,7 +56,7 @@ crio_socket: /var/run/crio/crio.sock
 metallb_files:
   - "/var/lib/ipaddresspool.yaml"
   - "/var/lib/l2advertisement.yaml"
-bin_dir: /usr/local/bin
+bin_dir: /usr/bin
 grace_period: 0
 kube_folder_path: /root/.kube
 k8s_bin_files:
@@ -134,8 +134,8 @@ file_permission: "0644"
 nerdctl:
   folder_dest: "{{ nerdctl_directory }}/nerdctl"
   folder_permission: "+x"
-  url: "https://github.com/containerd/nerdctl/releases/download/v1.5.0/nerdctl-1.5.0-linux-amd64.tar.gz"
-  archive_dest: "{{ nerdctl_directory }}/nerdctl-1.5.0-linux-amd64.tar.gz"
+  url: "https://github.com/containerd/nerdctl/releases/download/v1.7.4/nerdctl-1.7.4-linux-amd64.tar.gz"
+  archive_dest: "{{ nerdctl_directory }}/nerdctl-1.7.4-linux-amd64.tar.gz"
   binary_files_path:
     - "/usr/local/bin/nerdctl"
     - "/usr/bin/nerdctl"

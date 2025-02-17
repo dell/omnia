@@ -138,7 +138,7 @@
     },
     {
       "package": "registry.k8s.io/pause",
-      "tag": "3.9",
+      "tag": "3.10",
       "type": "image"
     },
     {

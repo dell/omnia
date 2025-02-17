@@ -19,7 +19,7 @@
   changed_when: false
 
 - name: Restore nerdctl
-  when: nerdctl_version is defined and '1.5.0' not in nerdctl_version.stdout
+  when: nerdctl_version is defined and '1.7.4' not in nerdctl_version.stdout
   block:
     - name: Stop all running containers
       ansible.builtin.shell: |
