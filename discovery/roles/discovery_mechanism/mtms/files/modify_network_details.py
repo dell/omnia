@@ -15,7 +15,7 @@
 import ipaddress
 import sys
 import re
-oim = "oim_node"
+oim = "oim"
 
 
 def extract_serial_bmc(stanza_path):
@@ -106,7 +106,7 @@ def cal_uncorrelated_admin_ip(cursor, uncorrelated_admin_start_ip, admin_static_
           admin_ip: A valid uncorrelated admin_ip for the node.
     """
 
-    sql = f'''select admin_ip from cluster.nodeinfo where node!='oim_node' ORDER BY id DESC LIMIT 1'''
+    sql = f'''select admin_ip from cluster.nodeinfo where node!='oim' ORDER BY id DESC LIMIT 1'''
     cursor.execute(sql)
     last_admin_ip = cursor.fetchone()
     uncorr_output = check_presence_admin_ip(cursor, uncorrelated_admin_start_ip)
