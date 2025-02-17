@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,26 +14,11 @@
 ---
 
 # Usage: create_files_local_repo_redhat.yml
-repo_config_template_src: "{{ role_path }}/templates/repo_config_template_redhat.j2"
-cluster_repo_template_src: "{{ role_path }}/templates/cluster_repo_template_redhat.j2"
-repo_config_file: "{{ temp_dir_repo }}/{{ item.name }}-{{ item.version }}-repo.repo"
-cluster_repo_config_file: "{{ temp_dir_repo }}/cluster-rpm-repo.repo"
-file_mode: "0644"
-user_repo_template_src: "{{ role_path }}/templates/user_repo_config.j2"
-omnia_repo_template_src: "{{ role_path }}/templates/omnia_repo_config.j2"
+omnia_repo_template_src: "roles/configure_synclist/templates/omnia_repo_template.j2"
 rhel_os_repo_template_src: "{{ role_path }}/templates/rhel_repo_config.j2"
-beegfs_file_path: "{{ repo_store_path }}/cluster/yum/beegfs/{{ beegfs_version }}"
-amdgpu_file_path: "{{ repo_store_path }}/cluster/yum/amdgpu/{{ amdgpu_version }}"
-rocm_file_path: "{{ repo_store_path }}/cluster/yum/rocm/{{ rocm_version }}"
 dnf_conf_src: "{{ role_path }}/templates/dnf.conf.j2"
-dnf_conf_dest: "{{ syncfiles_dir }}/conf/dnf.conf"
-dnf_file_permission: "0644"
-cluster_repo_template_fail: "Failed. Please run local_repo/local_repo.yml and re-execute discovery/discovery.yml or discovery_provision.yml"
-base_url_redhat: "/install{{ repo_store_path }}/cluster/{{ provision_os }}/{{ provision_os_version }}/rpm"
+dnf_conf_dest: "{{ syncfiles_share_path }}/conf/dnf.conf"
 
 # Usage: configure_synclist.yml
 synclists_src_path: "{{ role_path }}/templates/redhat.synclist.j2"
 synclists_dest_path: "{{ synclists_dir }}/redhat.synclist"
-
-# Usage: create_files_local_registry.yml
-config_user_registry_src_path: "{{ role_path }}/templates/config_user_registry_redhat.toml.j2"
