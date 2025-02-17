@@ -17,7 +17,7 @@
 xcat_path: /opt/xcat/bin
 
 # Usage: configure_kickstart.yml
-xcat_rhel_path:
+xcat_rhel8_path:
   - { src: "{{ role_path }}/../fedora/files/temp_ks_rhel8.tmpl", dest: "/opt/xcat/share/xcat/install/rh/compute.rhels8.tmpl", mode: "0644" }
   - { src: "{{ role_path }}/../fedora/files/temp_pre_rhel8", dest: "/opt/xcat/share/xcat/install/scripts/pre.rhels8", mode: "0644" }
   - { src: "{{ role_path }}/../fedora/files/temp_post_rhel8", dest: "/opt/xcat/share/xcat/install/scripts/post.rhels8", mode: "0644" }
