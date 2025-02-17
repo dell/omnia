@@ -102,8 +102,7 @@
         dest: "{{ repo_config_file_intelgaudi }}"
         mode: "{{ repo_file_permission }}"
       loop: "{{ user_config.softwares + user_config.intelgaudi | default([]) }}"
-      when: "(intelgaudi_name in item.name and intelgaudi_file.stat.exists)
-              or (intel_name in item.name and intel_file.stat.exists)"
+      when: "(item.name in [intelgaudi_name, intel_name]) and (intelgaudi_file.stat.exists or intel_file.stat.exists)"
       loop_control:
         loop_var: item
 
@@ -159,8 +158,7 @@
         dest: "{{ repo_config_file_intelgaudi }}"
         mode: "{{ repo_file_permission }}"
       loop: "{{ user_config.softwares + user_config.intelgaudi | default([]) }}"
-      when: "(intelgaudi_name in item.name and intelgaudi_file.stat.exists)
-              or (intel_name in item.name and intel_file.stat.exists)"
+      when: "(item.name in [intelgaudi_name, intel_name]) and (intelgaudi_file.stat.exists or intel_file.stat.exists)"
       loop_control:
         loop_var: item
 
