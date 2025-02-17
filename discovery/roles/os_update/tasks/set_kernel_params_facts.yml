@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -44,24 +44,3 @@
     - "'Categories' in hostvars[inventory_hostname]"
     - hostvars[inventory_hostname]['Categories'] in item
 
-- name: Store inventory host name
-  ansible.builtin.set_fact:
-    hostname: "{{ inventory_hostname_short }}"
-
-- name: Display warning if cmdline_value is empty
-  ansible.builtin.debug:
-    msg: "{{ warning_msg }}"
-  when: cmdline_value == "" or cmdline_value | length < 1
-
-- name: Kernel parameters update
-  when: cmdline_value != ""
-  block:
-    - name: Run kernel parameter update inside omnia_provision container on OIM
-      ansible.builtin.command: >
-        ssh {{ oim }} "podman container exec --env INVENTORY_HOSTNAME_SHORT={{ inventory_hostname_short }} --env CMDLINE_VALUE={{ cmdline_value | quote }} omnia_provision {{ python_version }} {{ servicetag_node_mapping_script }} {{ file_path_db }} {{ inventory_hostname_short }} {{ cmdline_value | quote }}"
-      register: chdef_result
-
-    - name: Debug if Error in chdef command run
-      ansible.builtin.debug:
-        msg: "{{ chdef_result.stderr }}"
-      when: chdef_result.rc != 0
