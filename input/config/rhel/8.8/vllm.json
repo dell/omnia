@@ -2,7 +2,29 @@
 
   "vllm": {
 
-    "cluster": []
+    "cluster": [
+      {
+        "package": "docker-ce-cli-26.1.3-1.el8",
+        "type": "rpm",
+        "repo_name": "docker-ce-repo"
+      },
+      {
+        "package": "docker-ce-26.1.3-1.el8",
+        "type": "rpm",
+        "repo_name": "docker-ce-repo"
+      },
+      {
+        "package": "docker-buildx-plugin-0.14.0-1.el8",
+        "type": "rpm",
+        "repo_name": "docker-ce-repo"
+      },
+      {
+        "package": "docker-compose-plugin-2.27.0-1.el8",
+        "type": "rpm",
+        "repo_name": "docker-ce-repo"
+      }
+
+    ]
 
   },
   "vllm_amd": {

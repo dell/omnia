@@ -19,6 +19,7 @@ include_local_repo_access_msg: "Failed to include {{ local_repo_access_path }}.
 Please run discovery_provision.yml before running the playbook vllm_build.yml."
 
 # Usage prereq.yml
+vllm_json_path: "{{role_path}}/../../../../input/config/{{ ansible_distribution | lower }}/{{ ansible_distribution_version }}/vllm.json"
 sources_list_dest: /etc/apt/sources.list.d
 docker_repo_temp: templates/docker_repo.j2
 dir_mode: "755"
@@ -31,10 +32,9 @@ docker_packages_ubuntu:
  - docker-buildx-plugin
  - docker-compose-plugin
 docker_packages_redhat:
- - docker-ce-24.0.4
- - docker-ce-cli-24.0.4
- - docker-buildx-plugin
- - docker-compose-plugin
+ - docker-ce-{{ docker_version }}
+ - docker-ce-cli-{{ docker_version }}
+redhat_docker_package_missing: "Failed to extract the version from the docker-ce-cli package. Please ensure that the docker-ce-cli package is present in the vllm.json file, and that it includes a version. For example, the entry in the vllm.json file should resemble: 'docker-ce-cli-26.1.3-1.el8'."   # noqa: yaml[line-length]
 cert_packages:
  - curl
  - ca-certificates

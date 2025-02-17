@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,6 +12,21 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Load and parse vllm.json
+  ansible.builtin.set_fact:
+    vllm: "{{ lookup('file', vllm_json_path) | from_json }}"
+
+- name: Extract docker-ce-cli package version from json file
+  block:
+    - name: Extract docker-ce-cli version
+      ansible.builtin.set_fact:
+        docker_version: "{{ (vllm.vllm.cluster | selectattr('package', 'match', '^docker-ce-cli-') | map(attribute='package') | first).split('-')[3] }}"  # noqa: yaml[line-length]
+
+  rescue:
+    - name: Display message if docker-ce-cli package is not found
+      ansible.builtin.fail:
+        msg: "{{ redhat_docker_package_missing }}"
+
 - name: Add Docker CE repository for RHEL
   ansible.builtin.command: yum-config-manager --add-repo "{{ docker_repo }}"
   changed_when: false
@@ -19,6 +34,21 @@
 - name: Install Docker packages
   ansible.builtin.package:
     name: "{{ docker_packages_redhat }}"
+    state: present
+
+- name: Extract docker-buildx-plugin package information
+  ansible.builtin.set_fact:
+    docker_buildx_plugin_package: "{{ (vllm.vllm.cluster | selectattr('package', 'match', '^docker-buildx-plugin-') | map(attribute='package') | first) }}"
+    docker_compose_plugin_package: "{{ (vllm.vllm.cluster | selectattr('package', 'match', '^docker-compose-plugin-') | map(attribute='package') | first) }}"
+
+- name: Install docker_buildx_plugin_package
+  ansible.builtin.package:
+    name: "{{ docker_buildx_plugin_package }}"
+    state: present
+
+- name: Install docker_compose_plugin_package
+  ansible.builtin.package:
+    name: "{{ docker_compose_plugin_package }}"
     state: present
 
 - name: Start Docker Service
