@@ -14,7 +14,7 @@
 ---
 
 # Usage: set_kernel_params_facts.yml
-warning_msg: "Warning: cmdline_value is empty for {{ hostname }}. No kernel command-line parameters will be set for this node."
+warning_msg: "Warning: cmdline_value is empty for {{ item }}. No kernel command-line parameters will be set for this node."
 
 # Usage: update_kernel_params.yml
 provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
