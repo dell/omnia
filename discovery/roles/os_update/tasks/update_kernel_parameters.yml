@@ -28,7 +28,7 @@
 
 - name: Display warning if cmdline_value is empty
   ansible.builtin.debug:
-    msg: "Warning: Cmdline value is empty for host {{ item }}"
+    msg: "{{ warning_msg }}"
   loop: "{{ hostvars.keys() | difference(['omnia_provision']) }}"
   when: "'cmdline_value' in hostvars[item] and hostvars[item].cmdline_value | length == 0"
 
