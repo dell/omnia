@@ -98,5 +98,5 @@ done
 
 # Create a file which signifies the pcs resources were created.
 # This file also contains the resources and its state which ansible can check against. 
-echo "PCS Resources Have Been Created"
+echo "$(date): PCS Resources Have Been Created"
 pcs resource | awk -F' ' '{print $2 " " $4}' | sed 's/^\s*//;s/\s*$//' > {{ pcs_start_container_finished }}
