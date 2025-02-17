@@ -19,8 +19,6 @@ cuda_search_key: "cuda"
 # Usage: configure_ofed.yml
 ofed_postscripts_path:
   - { src: "{{ role_path }}/../common/templates/omnia_ofed.j2", dest: "/install/postscripts/omnia_ofed", mode: "755" }
-ofed_install_script_path:
-  - { src: "/opt/xcat/share/xcat/ib/scripts/Mellanox/mlnxofed_ib_install", dest: "/install/postscripts/mlnxofed_ib_install", mode: "755" }
 mlnx_ofed_repo: /install/ofed
 repo_permission: "755"
 ofed_permission: "0644"

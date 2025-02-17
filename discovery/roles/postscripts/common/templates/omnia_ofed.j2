@@ -33,19 +33,19 @@ then
     echo "OFED installation completed in Debian" >> /var/log/xcat/xcat.log
   elif [ "$str_os_type" = "redhat" ];then
     if [ "$MAJOR_OS_VERSION" -eq 8 ]; then
+      echo "OFED installation started in RHEL/Rocky 8"
       dnf install -y wget python3 elfutils-libelf-devel kernel-modules-extra atk autofs cairo crash createrepo dracut ed emacs ethtool gcc gcc-gfortran gdb gdb-headless git gtk2 kernel-devel kernel-rpm-macros kernel-tools kernel-tools-libs kexec-tools ksh libcgroup libcgroup-tools libhugetlbfs libnl3 libtool libtool-ltdl lsof m4 make mutt numactl numactl-devel numactl-libs pciutils pciutils-libs perf psmisc python2 python36-devel redhat-rpm-config rpm-build sendmail sudo tcl tcsh tk vim-minimal yum
       dnf groupinstall "Infiniband Support" -y
       dnf install infiniband-diags perftest qperf -y
-      mlnxofed_ib_install -p "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}" -m --add-kernel-support --force -end-
-      echo "exclude=dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi*" >> /etc/yum.conf
-      echo "OFED installation completed in RHEL/Rocky"
     elif [ "$MAJOR_OS_VERSION" -eq 9 ]; then
-      dnf install -y wget python3 elfutils-libelf-devel kernel-modules-extra atk autofs cairo crash createrepo dracut ed emacs ethtool gcc gcc-gfortran gdb gdb-headless git gtk2 kernel-devel kernel-rpm-macros kernel-tools kernel-tools-libs kexec-tools ksh libnl3 libtool libtool-ltdl lsof m4 make mutt numactl numactl-devel numactl-libs pciutils pciutils-libs perf psmisc redhat-rpm-config rpm-build sendmail sudo tcl tcsh tk vim-minimal yum perl-sigtra
-      mkdir /mnt/mlnx
-      mount -o {{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }} /mnt/mlnx
-      NEXTKERNEL=$(sudo grubby --default-kernel | sed 's/.*vmlinuz\-//g')
-      /mnt/mlnx/mlnxofedinstall -k ${NEXTKERNEL} -s /lib/modules/${NEXTKERNEL}/build --force
+      echo "OFED installation started in RHEL/Rocky 9"
+      dnf install -y wget python3 elfutils-libelf-devel kernel-modules-extra atk autofs cairo crash createrepo dracut ed emacs ethtool gcc gcc-gfortran gdb gdb-headless git gtk2 kernel-devel kernel-rpm-macros kernel-tools kernel-tools-libs kexec-tools ksh libnl3 libtool libtool-ltdl lsof m4 make mutt numactl numactl-devel numactl-libs pciutils pciutils-libs perf psmisc redhat-rpm-config rpm-build sendmail sudo tcl tcsh tk vim-minimal yum perl-sigtrap
     fi
+
+    echo "Running mlnxofed_ib_install script"
+    mlnxofed_ib_install -p "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}" -m --add-kernel-support --force -end-
+    echo "exclude=dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi*" >> /etc/yum.conf
+    echo "OFED installation completed in RHEL/Rocky"
   fi
 else
   echo "Mellanox cards not found" >> /var/log/xcat/xcat.log

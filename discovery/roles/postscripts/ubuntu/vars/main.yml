@@ -19,9 +19,6 @@ ubuntu24_version: "24.04"
 # Usage: configure_ofed.yml
 ofed_postscripts_path:
   - { src: "{{ role_path }}/../common/templates/omnia_ofed.j2", dest: "/install/postscripts/omnia_ofed", mode: "755" }
-ofed_install_script_path:
-  - { src: "/opt/xcat/share/xcat/ib/scripts/Mellanox/mlnxofed_ib_install", dest: "/install/postscripts/mlnxofed_ib_install", mode: "755" }
-rhel8_package_path: "/opt/xcat/share/xcat/install/rh/compute.rhels8.pkglist"
 mlnx_ofed_repo: /install/ofed
 repo_permission: "755"
 ofed_permission: "0644"
