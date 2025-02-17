@@ -30,13 +30,14 @@
     mode: "{{ file_permission }}"
   loop: "{{ rpm_base_urls }}"
 
-- name: Generate and copy RHEL OS Repositories
-  ansible.builtin.template:
-    src: "{{ rhel_os_repo_template_src }}"
-    dest: "{{ repos_share_path }}/a_rhel_os_repo{{ item.0 + 1 }}.repo"
-    mode: "{{ file_permission }}"
-  with_indexed_items: "{{ rhel_os_url }}"
-  when: item.1.url is defined
+# Commenting out - waiting for pulp changes for os url to merge
+# - name: Generate and copy RHEL OS Repositories
+#   ansible.builtin.template:
+#     src: "{{ rhel_os_repo_template_src }}"
+#     dest: "{{ repos_share_path }}/a_rhel_os_repo{{ item.0 + 1 }}.repo"
+#     mode: "{{ file_permission }}"
+#   with_indexed_items: "{{ rhel_os_url }}"
+#   when: item.1.url is defined
 
 - name: Render dnf.conf template
   ansible.builtin.template:

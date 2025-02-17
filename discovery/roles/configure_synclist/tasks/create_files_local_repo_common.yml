@@ -13,6 +13,15 @@
 # limitations under the License.
 ---
 
+- name: Create local_repo_access.yml file
+  ansible.builtin.template:
+    src: "{{ local_repo_access_src_path }}"
+    dest: "{{ local_repo_access_dest_path }}"
+    mode: "{{ file_permission }}"
+
+- name: Include var for local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
+
 - name: Remove existing {{ syncfiles_share_path }} directory # noqa: name[template]
   ansible.builtin.file:
     path: "{{ syncfiles_share_path }}"
