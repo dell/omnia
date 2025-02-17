@@ -13,17 +13,11 @@
 #  limitations under the License.
 ---
 
-user_confirmation_msg: "{{ unsupported_os_user_confirmation_msg if ansible_distribution_version in ['8.6', '8.7'] else supported_os_user_confirmation_msg }}"
+user_confirmation_msg: "{{ supported_os_user_confirmation_msg }}"
 
 supported_os_user_confirmation_msg: |
  "* Telemetry service will be unavailable during upgrade execution.
   * Below software version will be upgraded on Omnia Infrastructure Manager
-    nerdctl - 1.5.0 to 1.7.4
-    kubernetes - 1.26.12 to 1.29.5
-  Are you sure you want to upgrade Omnia Infrastructure Manager? Type 'yes' to upgrade OIM."
-
-unsupported_os_user_confirmation_msg: |
- "* Telemetry service will be unavailable during upgrade execution.
-  * Post upgrade, Omnia 1.7 new features are not supported but fixes will available with Omnia 1.7 source on RHEL/Rocky 8.6 and 8.7 OS.
-  * Only omnia 1.6.1 features supported on RHEL/Rocky 8.6 and 8.7.
+    nerdctl - 1.7.4  to 1.7.7
+    kubernetes - 1.29.5 to 1.31.4
   Are you sure you want to upgrade Omnia Infrastructure Manager? Type 'yes' to upgrade OIM."

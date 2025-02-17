@@ -29,5 +29,5 @@
 - name: Check if venv_path is correct
   ansible.builtin.assert:
     that:
-      - venv_path == "/opt/omnia/omnia161_venv"
+      - venv_path == "/opt/omnia/omnia17_venv"
     fail_msg: "{{ venv_fail_msg }}"

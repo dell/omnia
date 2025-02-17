@@ -20,8 +20,8 @@ file_permission: "0644"
 nerdctl:
   folder_dest: "{{ nerdctl_directory }}/nerdctl"
   folder_permission: "+x"
-  url: "https://github.com/containerd/nerdctl/releases/download/v1.7.4/nerdctl-1.7.4-linux-amd64.tar.gz"
-  archive_dest: "{{ nerdctl_directory }}/nerdctl-1.7.4-linux-amd64.tar.gz"
+  url: "https://github.com/containerd/nerdctl/releases/download/v1.7.7/nerdctl-1.7.7-linux-amd64.tar.gz"
+  archive_dest: "{{ nerdctl_directory }}/nerdctl-1.7.7-linux-amd64.tar.gz"
   binary_files_path:
     - "/usr/local/bin/nerdctl"
     - "/usr/bin/nerdctl"

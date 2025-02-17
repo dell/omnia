@@ -33,12 +33,12 @@
   block:
     - name: K8s upgrade in progress (This process may take 10-15 mins to complete)
       ansible.builtin.command: >
-        ansible-playbook {{ kubespray_path }}/kubespray-v2.25.0/upgrade-cluster.yml \
+        ansible-playbook {{ kubespray_path }}/kubespray-v2.27.0/upgrade-cluster.yml \
         -i "{{ inv_path }}" \
         --extra-vars "@{{ k8s_var_dest }}"
       register: kubespray_results
       args:
-        chdir: "{{ kubespray_path }}/kubespray-v2.25.0"
+        chdir: "{{ kubespray_path }}/kubespray-v2.27.0"
       vars:
         kube_version: "{{ kubernetes_version }}"
       when: track_file_check.rc != 0

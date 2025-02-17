@@ -166,4 +166,4 @@
     regexp: '^installed_version:(.*)$'
     insertafter: "EOF"
     state: present
-    line: 'installed_version: "1.7"'
+    line: 'installed_version: "1.7.1.0"'

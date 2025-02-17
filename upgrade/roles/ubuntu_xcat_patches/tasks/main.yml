@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Get Upgrade config variables
+  ansible.builtin.include_vars: "{{ upgrade_config_path }}"
 
-# Usage: main.yml
+#- name: upgrade config variables
+ # ansible.builtin.debug:
+  #  msg: "{{ installed_omnia_path }}"
 
+- name: Revert xCAT patch
+  ansible.builtin.command:
+    cmd: patch -R /install/postscripts/confignetwork {{ installed_omnia_path }}/prepare_cp/roles/install_xcat/common/files/confignetwork.patch
+  register: patch_result
+  failed_when: patch_result.rc not in [0, 1]  # 0 for success, 1 for already reverted
+  changed_when: patch_result.rc == 0
+
+- name: Apply xcat patch
+  ansible.builtin.include_tasks: apply_xcat_patch.yml

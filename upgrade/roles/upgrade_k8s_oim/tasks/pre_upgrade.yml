@@ -22,7 +22,7 @@
   block:
     - name: Get kubespray git repo tarball
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/kubespray-v2.25.0.tar.gz"
+        url: "{{ offline_git_path }}/kubespray-v2.27.0.tar.gz"
         dest: "{{ kubespray_path }}"
         mode: "{{ file_permission }}"
       failed_when: false
@@ -33,12 +33,12 @@
 
 - name: Untar kubespray git repo
   ansible.builtin.unarchive:
-    src: "{{ kubespray_path }}/kubespray-v2.25.0.tar.gz"
+    src: "{{ kubespray_path }}/kubespray-v2.27.0.tar.gz"
     dest: "{{ kubespray_path }}"
 
 - name: Add collections path in kubespray ansible.cfg
   community.general.ini_file:
-    path: "{{ kubespray_path }}/kubespray-v2.25.0/ansible.cfg"
+    path: "{{ kubespray_path }}/kubespray-v2.27.0/ansible.cfg"
     section: defaults
     option: collections_path
     value: "$VIRTUAL_ENV"

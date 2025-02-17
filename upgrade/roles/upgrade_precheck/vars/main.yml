@@ -14,8 +14,8 @@
 ---
 
 # Usage: upgrade_version_check
-unsupported_omnia_version: "Current installed version is below v1.6.1 and sequential upgrade is supported from Omnia v1.6.1 only.
-  Please use upgrade functionality from Omnia 1.6.1 source code to upgrade to v1.6.1"
+unsupported_omnia_version: "Current installed version is below v1.7 and sequential upgrade is supported from Omnia v1.7 only.
+  Please use upgrade functionality from Omnia 1.7 source code to upgrade to v1.7"
 omnia_version_file_absent: "Omnia version file is not present in provided installed omnia path.
   Please provide correct omnia installed source code path and re-run upgrade_oim.yml"
 discovery_execution_req: "discovery_and_provsion.yml is not executed on the Omnia Infrastructure Manager, Please follow documentation for fresh installation."
@@ -28,9 +28,8 @@ omnia_upgrade_version_path: "../../../../.metadata/omnia_version"
 
 # Usage: upgrade_os_check
 unsupported_os: "Current OS {{ ansible_distribution }} {{ ansible_distribution_version }} installed on the Omnia Infrastructure Manager
-  is not supported for upgrade feature in Omnia v1.7. Upgrade is supported on RHEL/Rocky 8.6/8.7/8.8, Ubuntu 20.04/22.04."
-msg_supported_older_os: "After upgrade, new features are not supported on RHEL/Rocky 8.6/8.7"
-activate_supported_venv: "Failed. Upgrade is supported using omnia17_venv only on RHEL/Rocky 8.8 and ubuntu 22.04/20.04."
+  is not supported for upgrade feature in Omnia v1.7.1. Upgrade is supported on RHEL/Rocky 8.8, Ubuntu 20.04/22.04."
+activate_supported_venv: "Failed. Upgrade is supported using omnia171_venv only on RHEL/Rocky 8.8 and ubuntu 22.04/20.04."
 
 # Usage: precheck_local_repo_access.yml
 local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
