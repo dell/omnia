@@ -1,9 +1,0 @@
-[Cluster-RPM-Repo]
-name=Cluster-RPM-Repo
-baseurl=http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/{{ provision_os }}/{{ provision_os_version }}/rpm
-enabled=1
-gpgcheck=0
-skip_if_unavailable=True
-{% if proxy_status %}
-proxy=_none_
-{% endif %}

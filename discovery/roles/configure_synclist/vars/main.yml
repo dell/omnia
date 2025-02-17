@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,38 +14,35 @@
 ---
 
 # Usage: main.yml
+os_type_map:
+  rhel: redhat
+  rocky: rocky
+  ubuntu: ubuntu
 xcat_root_env: "/opt/xcat"
 xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
 xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
-syncfiles_dir: "/opt/omnia/syncfiles"
+network_spec: "/opt/omnia/input/project_default/network_spec.yml"
+local_repo_config: "/opt/omnia/input/project_default/local_repo_config.yml"
+provision_config: "/opt/omnia/input/project_default/provision_config.yml"
 
-# usage: create_local_repo_access_yml_file.yml
-dir_permission: "0755"
-omnia_files_folder: "/opt/omnia"
+# Usage: create_files_local_repo_comman.yml
 local_repo_access_src_path: "{{ role_path }}/templates/local_repo_access.yml.j2"
-local_repo_access_dest_path: "{{ omnia_files_folder }}/offline/local_repo_access.yml"
-file_permission: "0755"
-repo_file_permission: "0644"
-
-# Usage: create_files_local_repo_common.yml
-temp_dir_repo: "{{ syncfiles_dir }}/repos"
-temp_conf_repo: "{{ syncfiles_dir }}/conf"
+local_repo_access_dest_path: "{{ provision_shared_path }}/local_repo_access.yml"
+syncfiles_share_path: "/opt/omnia/provision/syncfiles"
+provision_shared_path: "/opt/omnia/provision"
+repos_share_path: "{{ syncfiles_share_path }}/repos"
+dir_permission: "0755"
+file_permission: "0644"
 pip_conf_src: "{{ role_path }}/templates/pip.conf.j2"
-pip_conf_dest: "{{ syncfiles_dir }}/conf/pip.conf"
+pip_conf_dest: "{{ syncfiles_share_path }}/conf/pip.conf"
 
-# usage: create_files_local_registry.yml
-nerdctl_registry_port: 5001
-config_omnia_registry_src_path: "{{ role_path }}/templates/config_omnia_registry.toml.j2"
+# Usage: create_files_local_repo_redhat.yml
+omnia_repo_template_src: "roles/configure_synclist/templates/omnia_repo_template.j2"
+rhel_os_repo_template_src: "{{ role_path }}/templates/rhel_repo_config.j2"
+dnf_conf_src: "{{ role_path }}/templates/dnf.conf.j2"
+dnf_conf_dest: "{{ syncfiles_share_path }}/conf/dnf.conf"
 
-# usage: configure_synclist.yml
-synclists_dir: "/install/synclists"
+# Usage: configure_synclist.yml
 xcat_path: /opt/xcat/bin
-
-# Usage: create_files_local_repo_redhat.yml, create_files_local_repo_ubuntu.yml, create_files_local_repo_rocky.yml
-beegfs_name: "beegfs"
-amdgpu_name: "amdgpu"
-rocm_name: "rocm"
-intelgaudi_name: "intelgaudi"
-intel_name: "intel"
-software_config_default: "omnia_default"
+synclists_dir: "{{ provision_shared_path }}/install/synclists"
