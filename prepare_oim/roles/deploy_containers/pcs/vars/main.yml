@@ -114,8 +114,6 @@ wait_time_pcs_start: 200
 pcs_start_failed_msg: "pcs-start.sh execution failed."
 pcs_failed_resource_msg: |
   The deployment of pcs resources have failed. To resolve this issue,
-  please exec into the {{ pcs_container_name }} container and run 'pcs resource cleanup'.
-  Check all resources states by running 'pcs resource', if resources are failing
   please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
   After the cleanup, you can re-run the original playbook to deploy the {{ pcs_container_name }} container
   and its resources.

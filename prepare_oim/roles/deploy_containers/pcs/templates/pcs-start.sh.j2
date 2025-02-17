@@ -79,13 +79,17 @@ pcs constraint order start {{ omnia_core_name }} then start {{ kubespray_name }}
 
 pcs resource defaults update migration-threshold={{ migration_threshold }}
 
+# Initialize the total sleep time
+total_sleep_time=0
 # Loop for a maximum of three minutes
 max_iterations=18
 for ((i=0; i<max_iterations; i++)); do
     # Check if any pcs resources are stopped
     if pcs resource | grep "Stopped\|FAILED"; then
         # If any resources are stopped, sleep for 10 seconds
+        echo "Sleeping for 10 seconds. Total sleep time: $total_sleep_time seconds."
         sleep 10
+        total_sleep_time=$((total_sleep_time + 10))
     else
         # If all resources are running, exit the loop
         break
