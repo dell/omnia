@@ -22,10 +22,11 @@
   ansible.builtin.debug:
     msg: "{{ provision_container_status_msg }}"
     verbosity: 2
+  when: provision_container_status.containers[0].State.Status is defined
 
 - name: Fail if provision container status is not running
   ansible.builtin.fail:
     msg: "{{ container_status_fail_msg }}"
   when: 
     - provision_container_status.containers[0].State.Status is defined
-    - provision_container_status.containers[0].State.Status != "running")
+    - provision_container_status.containers[0].State.Status != "running"
