@@ -1,9 +1,0 @@
-[{{ item.name }}-{{ item.version }}-repo]
-name={{ item.name }}-{{item.version}}-repo
-baseurl=http://{{ admin_nic_ip }}:80/install{{ omnia_repo_path }}/cluster/yum/{{ item.name }}/{{ item.version | default('') }}
-enabled=1
-gpgcheck=0
-skip_if_unavailable=True
-{% if proxy_status %}
-proxy=_none_
-{% endif %}

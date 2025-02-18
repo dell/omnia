@@ -13,7 +13,12 @@
 #  limitations under the License.
 
 ---
-# Add task to decypt the creds file and include vars to fetch pulp password. Hardcoding for now.
+- name: Set Fact for Pulp username and password
+  ansible.builtin.set_fact:
+    pulp_username: "{{ hostvars['localhost']['pulp_username'] }}"
+    pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
+    pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+  no_log: true
 
 - name: Create directories for Pulp in shared storage
   ansible.builtin.file:
@@ -22,11 +27,12 @@
     mode: "{{ item.mode }}"
   loop: "{{ pulp_directories }}"
 
-- name: Create nginx.conf file for Pulp
-  ansible.builtin.template:
-    src: "{{ nginx_conf_path }}"
-    dest: "{{ nginx_conf_dest }}"
-    mode: "{{ pulp_dir_permissions }}"
+# This task creates the nginx.conf file for Pulp
+# - name: Create nginx.conf file for Pulp
+#  ansible.builtin.template:
+#    src: "{{ nginx_conf_path }}"
+#    dest: "{{ nginx_conf_dest }}"
+#    mode: "{{ pulp_dir_permissions }}"
 
 - name: Create settings.py for Pulp
   ansible.builtin.template:
@@ -73,16 +79,11 @@
       ansible.builtin.fail:
         msg: "{{ pulp_deployed_fail_msg }}"
 
-- name: Reset Pulp password
-  ansible.builtin.expect:
+- name: Reset Pulp Password
+  containers.podman.podman_container_exec:
+    name: "{{ pulp_container_name }}"
     command: "{{ reset_password_cmd }}"
-    responses: "{{ pulp_responses }}"
   retries: "{{ retries_var }}"
   delay: "{{ delay_var }}"
+  when: pulp_username | length > 1 and pulp_password | length > 1
   no_log: true
-  when: pulp_user | length > 1 and pulp_pwd | length > 1
-
-- name: Fail if Pulp username and password are not set
-  ansible.builtin.fail:
-    msg: "{{ pulp_creds_fail_msg }}"
-  when: not (pulp_user | length > 1 and pulp_pwd | length > 1)

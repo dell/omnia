@@ -1,0 +1,89 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    cuda_gpg_key: ""
+    cuda_debs_folder: ""
+
+- name: Delete cuda repo folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ cuda_tmp_path }}"
+    - "{{ cuda_core_path }}"
+
+- name: Create cuda repo folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "{{ repo_permission }}"
+  with_items:
+    - "{{ cuda_tmp_path }}"
+    - "{{ cuda_core_path }}"
+
+- name: Try extracting cuda rpms
+  block:
+    - name: Extract cuda rpms
+      ansible.builtin.shell: >
+        set -o pipefail && \
+        cd {{ cuda_tmp_path }} && rpm2cpio {{ cuda_toolkit_path }} | cpio -i -d
+      changed_when: true
+  rescue:
+    - name: Invalid cuda rpm file
+      ansible.builtin.fail:
+        msg: "{{ invalid_cuda_rpm_fail_msg }}"
+
+- name: Find cuda rpm folder
+  ansible.builtin.find:
+    paths: "{{ cuda_tmp_path }}/var/"
+    file_type: directory
+  register: cuda_rpm_dir
+
+- name: Find cuda rpm files
+  ansible.builtin.find:
+    paths: "{{ cuda_rpm_dir.files[0].path }}"
+    patterns: "*.rpm"
+  register: cuda_rpm_file
+
+- name: Copy cuda rpm files to cuda core repo
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ cuda_core_path }}"
+    mode: preserve
+    remote_src: true
+  with_items: "{{ cuda_rpm_file.files }}"
+
+- name: Create cuda-core repos
+  ansible.builtin.command: createrepo {{ cuda_core_path }}
+  changed_when: true
+
+- name: Copy CUDA script to postscripts
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ cuda_postscripts_path }}"
+
+- name: Add cuda path in enviornment variable in postscripts
+  ansible.builtin.lineinfile:
+    path: "{{ xcat_rhel8_post_script }}"
+    regexp: 'EOF'
+    line: 'echo "PATH=$PATH:/opt/dell/srvadmin/sbin:/usr/local/sbin:/usr/local/bin/:/usr/local/cuda/bin" >> /etc/bashrc'
+
+- name: Update osimage with cuda repository
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage -o {{ provision_os_image }} -p pkgdir={{ cuda_core_path }}"
+  changed_when: true

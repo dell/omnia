@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,30 +13,44 @@
 # limitations under the License.
 ---
 
-- name: Install prerequisite tasks
-  ansible.builtin.include_tasks: prerequisites.yml
+- name: Define project input path
+  ansible.builtin.set_fact:
+    project_input_path:"{{ hostvars['localhost']['input_project_dir'] }}"
 
-- name: Configure Cluster Repositories for RHEL/Rocky
-  ansible.builtin.include_tasks: cluster_repo_config.yml
-  when: oim_os in oim_os_redhat or oim_os in oim_os_rocky
+- name: Prepare package takslist
+  ansible.builtin.include_tasks: create_tasklist.yml
 
-- name: Configure Cluster Repositories for Ubuntu
-  ansible.builtin.include_tasks: apt_conf_config.yml
-  when: oim_os in oim_os_ubuntu
+- name : Process rpms
+  ansible.builtin.include_tasks: process_rpm_repo.yml
 
-- name: Execute python script to Download Packages
-  ansible.builtin.include_tasks: run_python_script_{{ ansible_distribution | lower }}.yml
-  loop: "{{ software_names }}"
+- name: Run parallel tasks for each group
+  ansible.builtin.include_tasks: execute_parallel_tasks.yml
+  loop: "{{ result.software_dict | dict2items }}"
   loop_control:
-    loop_var: software_name
+    loop_var: item
+  register: task_result
 
-- name: Configure repositories to /etc/yum.repos.d
-  ansible.builtin.include_tasks: yum_repo_config.yml
-  when: oim_os in oim_os_redhat or oim_os in oim_os_rocky
-
-- name: Configure repositories to /etc/apt/sources.list.d
-  ansible.builtin.include_tasks: sources_list_config.yml
-  when: oim_os in oim_os_ubuntu
+- name: Clear the rpm downloaded files
+  ansible.builtin.file:
+    path: "{{ repo_store_path }}/cluster/{{ cluster_os_type }}/{{ cluster_os_version }}/rpm }}"
+    state: absent
+  when: clean_rpms
 
 - name: Create metadata file
   ansible.builtin.include_tasks: create_metadata.yml
+
+- name: Print overall softwares status 
+  ansible.builtin.debug:
+    msg:
+      - "   Name    | Status"
+      - "--------------------"
+      - "{{ overall_status_dict | dict2items | map(attribute='key') | zip(overall_status_dict | dict2items | map(attribute='value')) | map('join', '  |  ') | list }}"
+
+- name: Determine final repository status
+  ansible.builtin.set_fact:
+    final_status: "{{ 'SUCCESS' if 'FAILURE' not in overall_status_dict.values() and 'TIMEOUT' not in overall_status_dict.values() and 'PARTIAL' not in overall_status_dict.values() else 'FAILED' }}"
+
+- name: Local repository status
+  ansible.builtin.debug:
+    msg: "{{ 'localrepository SUCCESS' if final_status == 'SUCCESS' else 'localrepository failed. because some of the packages status are FAILED' }}"
+  failed_when: final_status != 'SUCCESS'

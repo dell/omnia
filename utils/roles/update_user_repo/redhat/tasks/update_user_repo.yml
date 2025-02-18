@@ -1,0 +1,63 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Initialise facts for cluster
+  ansible.builtin.set_fact:
+    beegfs_version: "{{ software_version_default }}"
+    amdgpu_version: "{{ software_version_default }}"
+    rocm_version: "{{ software_version_default }}"
+
+- name: Set facts for cluster
+  ansible.builtin.set_fact:
+    cluster_os_type: "{{ software_config.cluster_os_type }}"
+    cluster_os_version: "{{ software_config.cluster_os_version }}"
+
+- name: Initialise new_repos fact
+  ansible.builtin.set_fact:
+    new_repos: []
+    repos_update_status: false
+
+- name: Block to execute when usr repos are configured
+  when:
+    - "user_repo_url is defined"
+    - "user_repo_url | type_debug == 'list'"
+    - "user_repo_url | length > 0"
+    - (software_config['repo_config'] == "partial") or (software_config['repo_config'] == "never")
+  block:
+    - name: Find newly added usr repos
+      ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/find_new_repo.yml"
+      loop: "{{ user_repo_url | default([], true) }}"
+
+- name: Block to execute when new usr repos are added
+  when:
+    - "new_repos is defined"
+    - "new_repos | type_debug == 'list'"
+    - "new_repos | length > 0"
+  block:
+    - name: Print the user repo urls for which repo files will be created
+      ansible.builtin.debug:
+        var: new_repos
+
+    - name: Configure user repositories
+      ansible.builtin.template:
+        src: "{{ usr_repo_config_template_src }}"
+        dest: "{{ repo_path }}/a_user_repo{{ item.0 + 1 }}{{ansible_date_time.iso8601_basic}}.repo"
+        mode: "{{ file_permission }}"
+      with_indexed_items: "{{ user_repo_url }}"
+      when: item.1.url in new_repos and software_version_default not in item.1.url
+
+    - name: Set repos_update_status
+      ansible.builtin.set_fact:
+        repos_update_status: true

@@ -18,7 +18,7 @@
   changed_when: true
 
 - name: Configure ubuntu postscripts
-  ansible.builtin.include_tasks: "{{ role_path }}/../{{ oim_os }}/tasks/configure_postscripts.yml"
+  ansible.builtin.include_tasks: "{{ role_path }}/../{{ provision_os }}/tasks/configure_postscripts.yml"
 
 - name: Configure ntp postscripts
   ansible.builtin.include_tasks: configure_postscripts_ntp.yml
@@ -46,38 +46,37 @@
   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_cpu_gpu_info"
   changed_when: true
 
-# These tasks will be updated after local repo changes
-# - name: Verify OFED repo created
-#   ansible.builtin.stat:
-#     path: "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}"
-#   register: ofed_repo_stat
-#   when: ofed_config_status
-#
-# - name: Configure postscripts for OFED
-#   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_ofed"
-#   changed_when: true
-#   when:
-#     - ofed_config_status
-#     - ofed_repo_stat.stat.exists
-#
-# - name: Verify CUDA repo created
-#   ansible.builtin.stat:
-#     path: "{{ cuda_core_path }}"
-#   register: cuda_repo_stat
-#   when: cuda_config_status
-#
-# - name: Configure postscripts for CUDA
-#   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_cuda"
-#   changed_when: true
-#   when:
-#     - cuda_config_status
-#     - cuda_repo_stat.stat.exists
-#
-# - name: Configure postscripts for ROCm
-#   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_rocm"
-#   changed_when: true
-#   when: amdgpu_config_status
-#
+- name: Verify OFED repo created
+  ansible.builtin.stat:
+    path: "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}"
+  register: ofed_repo_stat
+  when: ofed_config_status
+
+- name: Configure postscripts for OFED
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_ofed"
+  changed_when: true
+  when:
+    - ofed_config_status
+    - ofed_repo_stat.stat.exists
+
+- name: Verify CUDA repo created
+  ansible.builtin.stat:
+    path: "{{ cuda_core_path }}"
+  register: cuda_repo_stat
+  when: cuda_config_status
+
+- name: Configure postscripts for CUDA
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_cuda"
+  changed_when: true
+  when:
+    - cuda_config_status
+    - cuda_repo_stat.stat.exists
+
+- name: Configure postscripts for ROCm
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_rocm"
+  changed_when: true
+  when: amdgpu_config_status
+
 # - name: Configure postscripts for Intel Gaudi
 #   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_intelgaudi"
 #   changed_when: true

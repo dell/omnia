@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,10 +13,13 @@
 #  limitations under the License.
 ---
 
-# Usage: amd_validation.yml
-software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
-
-# Usage: validate_amdgpu_rocm_repo.yml
+# Usage: validate_amd.yml
+software_config_json_file: "{{ input_project_dir }}/software_config.json"
+pulp_bin_path: /usr/local/bin/pulp
+os_package_map:
+  rhel: rpm
+  rocky: rpm
+  ubuntu: deb
 amdgpu_input_fail_msg: "Failed, software_config.json does not have the amdgpu software stack."
 amdgpu_version_fail_msg: "Failed, software_config.json does not have the version for AMDGPU."
 amdgpu_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading AMDGPU packages."
@@ -25,10 +28,13 @@ rocm_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading ROCM
 amdgpu_fail_msg: "An error occurred while setting the rocm_config_status."
 
 # Usage: include_local_repo_config.yml
-local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+local_repo_config_file: "{{ input_project_dir }}/local_repo_config.yml"
 local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
 
 # Usage: validate_intel_gaudi.yml
+offline_intelgaudi_directory: "{{ repo_store_path }}/cluster/apt"
+offline_gaudi_directory: "{{ repo_store_path }}/cluster/{{ oim_os }}/{{ oim_os_version }}/deb"
+gaudi_search_pattern: "habanalabs*.deb"
 intel_gaudi_input_fail_msg: "Failed, software_config.json does not have the intelgaudi software stack."
 intel_gaudi_repo_fail_msg: "Failed, local_repo.yml is not executed for downloading Intel Gaudi driver packages."
 
