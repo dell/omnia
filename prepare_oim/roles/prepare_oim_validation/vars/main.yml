@@ -65,7 +65,7 @@ min_length: 8
 max_length: 30
 pulp_creds_fail_msg:
   Both Pulp username and password are required.
-  Kindly check the pulp_username and pulp_password in input/provision_config_credentials.yml.
+  Kindly check the pulp_password in input/provision_config_credentials.yml.
 
 pulp_pwd_min_length: 5
 pulp_password_fail_msg: "Failed. pulp_password should have minimum 5 characters in provision_config_credentials.yml"
