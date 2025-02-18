@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,27 +13,38 @@
 #  limitations under the License.
 
 import ipaddress
+import sys
+
+cal_path = "/opt/omnia/shared_libraries/provision/mtms"
+sys.path.insert(0, cal_path)
 import calculate_ip_details
 
 
-def correlation_bmc_to_admin(bmc_ip, admin_ip_subnet, netmask_bits):
+def check_valid_nb(nic_nb, admin_nb):
+
+    if int(admin_nb) <= int(nic_nb):
+        return True
+    else:
+        return False
+
+
+def correlation_admin_to_nic(admin_ip, nic_ip, nic_nb, admin_nb):
     """
-    Calculates the correlated admin ip based on the given bmc_ip, admin_ip_subnet, and netmask_bits.
-
-    Parameters:
-    - bmc_ip (str): The bmc ip that needs to be used to form the correlated admin ip.
-    - admin_ip_subnet (str): The network bits to be used for the correlated admin ip.
-    - netmask_bits (int): The netmask bits of the admin and bmc ip.
-
-    Returns:
-    - final_admin_ip (ipaddress.IPv4Address): The correlated admin ip.
+       Calculates the correlated admin ip
+       Parameters:
+         admin_ip: ip that needs to be used to form correlated admin ip
+         nic_ip: admin range to be used for correlated admin ip
+         nic_nb: netmask bits of nic that needs correlation
+         admin_nb: netmask bits of admin
+       Returns:
+         correlated admin ip
     """
 
-    binary_admin_ip = calculate_ip_details.calculate_binary_ip(admin_ip_subnet)
-    binary_bmc_ip = calculate_ip_details.calculate_binary_ip(bmc_ip)
-    first_x_bits = calculate_ip_details.calculate_first_x_bits(binary_admin_ip, netmask_bits)
-    last_y_bits = calculate_ip_details.calculate_last_y_bits(binary_bmc_ip, netmask_bits)
-    final_admin_ip_binary = first_x_bits + last_y_bits
-    int_final_admin_ip = int(final_admin_ip_binary, 2)
-    final_admin_ip = ipaddress.IPv4Address(int_final_admin_ip)
-    return final_admin_ip
+    binary_admin_ip = calculate_ip_details.calculate_binary_ip(str(admin_ip))
+    binary_nic_ip = calculate_ip_details.calculate_binary_ip(str(nic_ip))
+    first_x_bits = calculate_ip_details.calculate_first_x_bits(binary_nic_ip, nic_nb)
+    last_y_bits = calculate_ip_details.calculate_last_y_bits(binary_admin_ip, nic_nb)
+    final_ip_binary = first_x_bits + last_y_bits
+    int_final_ip = int(final_ip_binary, 2)
+    final_ip = ipaddress.IPv4Address(int_final_ip)
+    return final_ip
