@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,17 +66,3 @@
 - name: Reload firewalld
   ansible.builtin.command: firewall-cmd --reload
   changed_when: true
-
-- name: Restart nerdctl-registry service
-  block:
-    - name: Restart nerdctl-registry service
-      ansible.builtin.systemd:
-        name: nerdctl-registry
-        state: restarted
-      when:
-        - inventory_hostname == "localhost" or
-          inventory_hostname == hostvars['127.0.0.1']['admin_nic_ip']
-  rescue:
-    - name: Failed to restart nerdctl-registry
-      ansible.builtin.debug:
-        msg: "{{ nerdctl_registry_restart_fail_msg }}"

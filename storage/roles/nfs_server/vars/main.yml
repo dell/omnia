@@ -22,4 +22,3 @@ nfs_services:
   - mountd
   - rpc-bind
   - nfs
-nerdctl_registry_restart_fail_msg: "[WARNING] Unable to restart nerdctl-registry service. Please restart nerdctl-registry manually."

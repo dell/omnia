@@ -29,7 +29,7 @@
 - name: Set variable
   ansible.builtin.set_fact:
     software_path_url: "{{ (check_repo_stat.stdout | from_json)[0]['base_url'] }}"
-  when: check_repo_stat | length > 0
+  when: check_repo_stat.stdout | from_json | length > 0
 
 - name: Check software repo present in {{ repo_path }}
   ansible.builtin.command: grep -r "{{ software_path_url }}" "{{ repo_path }}"

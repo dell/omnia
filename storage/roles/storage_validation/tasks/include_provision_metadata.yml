@@ -29,3 +29,4 @@
 - name: Set admin_nic_subnet for nfs server setup
   ansible.builtin.set_fact:
     admin_nic_subnet: "{{ md_admin_nic_subnet }}/{{ md_netmask_bits }}"
+    admin_nic_ip: "{{ md_admin_nic_ip }}"
