@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,6 +53,13 @@
         ldaptoolbox_openldap_olcTLSCACertificateFile: "{{ tls_certificates_directory_path }}/{{ rhel_cert_file }}" # noqa var-naming
         ldaptoolbox_openldap_olcTLSCertificateFile: "{{ tls_certificates_directory_path }}/{{ rhel_cert_file }}" # noqa var-naming
         ldaptoolbox_openldap_olcTLSCertificateKeyFile: "{{ tls_certificates_directory_path }}/{{ rhel_cert_key }}" # noqa var-naming
+    
+    - name: Change ownership of the certificate key file
+      ansible.builtin.file:
+        path: "{{ ldaptoolbox_openldap_olcTLSCertificateKeyFile }}"
+        owner: ldap
+        group: ldap
+        mode: '0600'
 
 - name: Set tls certificate path for omnia playbook
   when: not default_certs

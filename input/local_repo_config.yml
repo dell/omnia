@@ -89,7 +89,7 @@ omnia_repo_url_rhel:
   - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key" ,name: "amdgpu"}
   - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel9", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs" ,name: "beegfs"}
   - { url: "https://yum.repos.intel.com/oneapi", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB" ,name: "oneapi"}
-  - { url: "https://ltb-project.org/rpm/openldap25/9/x86_64", gpgkey: "",name: "ldap"}
+  - { url: "https://ltb-project.org/rpm/openldap26/9/x86_64", gpgkey: "",name: "ldap"}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/x86_64", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey" ,name: "nvidia-repo"}
   - { url: "https://a2o.github.io/snoopy-packages/repo/centos/9/stable/", gpgkey: "" ,name: "snoopy"}
 
