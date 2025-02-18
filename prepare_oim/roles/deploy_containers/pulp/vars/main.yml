@@ -91,11 +91,16 @@ endpoint_timeout: 60
 # verify_ssl_regex: '^verify_ssl = .*'
 # line_to_replace: 'verify_ssl = false'
 # cert_san: "subjectAltName=IP:0.0.0.0,DNS:pulp,DNS:{{ oim_hostname }},DNS:localhost"
-# generate_cert_cmd: "openssl req -x509 -nodes -newkey rsa:2048 -keyout {{ certs_dir }}/pulp_webserver.key -out {{ certs_dir }}/pulp_webserver.crt -days 365 -subj \"/CN={{ oim_hostname }}\" -addext {{ cert_san }}" # noqa: yaml[line-length]
+# generate_cert_cmd: >
+#   openssl req -x509 -nodes -newkey rsa:2048
+#   -keyout {{ certs_dir }}/pulp_webserver.key
+#   -out {{ certs_dir }}/pulp_webserver.crt
+#   -days 365
+#   -subj "/CN={{ oim_hostname }}"
+#   -addext {{ cert_san }}
 # cert_items:
 #  - "{{ certs_dir }}/pulp_webserver.crt"
 #  - "{{ certs_dir }}/pulp_webserver.key"
-
 
 # reload_pulp_nginx.yml
 # pulp_cert_src: "{{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt"
