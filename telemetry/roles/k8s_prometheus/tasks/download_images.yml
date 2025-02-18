@@ -19,6 +19,12 @@
     - name: Check if k8s_prometheus_support is required
       when: hostvars['127.0.0.1']['k8s_prometheus_support']
       block:
+        - name: Load software_config.json as software_config
+          ansible.builtin.include_vars:
+            file: "{{ software_config_file }}"
+            name: software_config
+          register: include_software_config
+
         - name: Load telemetry.json file
           ansible.builtin.set_fact:
             telemetry_package_json: "{{ lookup('file', telemetry_packages_file) | from_json }}"

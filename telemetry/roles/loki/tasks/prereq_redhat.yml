@@ -37,6 +37,15 @@
     name: "{{ docker_packages_redhat }}"
     state: present
 
+- name: Extract docker-buildx-plugin package information
+  ansible.builtin.set_fact:
+    docker_buildx_plugin_package: "{{ (telemetry.telemetry.cluster | selectattr('package', 'match', '^docker-buildx-plugin-') | map(attribute='package') | first) }}"
+
+- name: Install docker_buildx_plugin_package
+  ansible.builtin.package:
+    name: "{{ docker_buildx_plugin_package }}"
+    state: present
+
 - name: Start Docker Service
   ansible.builtin.systemd:
     name: docker
