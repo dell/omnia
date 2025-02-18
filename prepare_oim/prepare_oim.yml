@@ -17,16 +17,10 @@
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
-- name: Create oim group
-  when: not oim_group_status | default(false) | bool
+- name: Create oim group and provision group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   vars:
     oim_group: true
-
-- name: Create provision container group
-  when: not provision_group_status | default(false) | bool
-  ansible.builtin.import_playbook: ../utils/create_container_group.yml
-  vars:
     omnia_provision_group: true
 
 - name: Prepare OIM Validation and Configure Known Hosts

@@ -22,6 +22,7 @@
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   vars:
     omnia_provision_group: true
+    omnia_provision_validation: true
 
 - name: Decrypyt provision_credentials_config.yml
   hosts: localhost
