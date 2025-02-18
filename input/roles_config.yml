@@ -48,7 +48,7 @@ Groups:
     resource_mgr_id: ""
     parent: ""
     network_profile: "/opt/omnia/input/project_default/network_spec.yml"
-    bmc_ip_Range:
+    bmc_ip_range:
       static: ""
     mapping_info: "/opt/omnia/pxe_mapping_file.csv"
     switch_ip: ""
@@ -60,7 +60,7 @@ Groups:
   #  resource_mgr_id: ""
   #  parent: ""
   #  network_profile: "/opt/omnia/input/project_default/network_spec.yml"
-  #  bmc_ip_Range: ""
+  #  bmc_ip_range: ""
   #    static: ""
   #  mapping_info: "/opt/omnia/pxe_mapping_file.csv"
   #  switch_ip: ""
@@ -77,8 +77,8 @@ Groups:
 # The roles are case sensitive
 #   - name:                           - <Mandatory> Name of the role, can be any of the following Omnia defined roles.
 #     system_configuration:           - <Optional> path of server_spec.yml which has the system configuration.
-#     Resource_manager_type:          - <Conditional Mandatory> type of resource manager.The values can be slurm or K8s.
-#     Resource_mgr_profile:           - <Conditional Mandatory> path of omnia_config.yml
+#     resource_manager_type:          - <Conditional Mandatory> type of resource manager.The values can be slurm or K8s.
+#     resource_mgr_profile:           - <Conditional Mandatory> path of omnia_config.yml
 #     groups:                         - <Mandatory> list of groups defined by the user
 #
 
@@ -95,8 +95,8 @@ Roles:
 #
 - name: "default"
   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-  Resource_manager_type: ""
-  Resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
+  resource_manager_type: ""
+  resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
   groups:
       - grps1
 
@@ -108,8 +108,8 @@ Roles:
 # Name of the login role, user is not allowed to change the name of the roles
 #  - name: "login"
 #     system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#     Resource_manager_type: ""
-#     Resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
+#     resource_manager_type: ""
+#     resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #     groups:
 #      - grps1
 #      - grps2
@@ -128,8 +128,8 @@ Roles:
 # Compiler Role: Compiler groups to add into compiler role can be provided in this role
 #  - name: "Compiler"
 #    system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#    Resource_manager_type: ""
-#    Resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
+#    resource_manager_type: ""
+#    resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
 #    groups:
 #      - grps1
 #      - grps2 
@@ -149,8 +149,8 @@ Roles:
 # k8shead Role: Kubernetes master groups to add into k8shead role can be provided in this role
 # - name: "k8shead"
 #   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   Resource_manager_type: ""
-#   Resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
+#   resource_manager_type: ""
+#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
 #     - grps1
 #     - grps2
@@ -169,8 +169,8 @@ Roles:
 # K8s Worker Role: Kubernetes worker groups to add into k8s worker role can be provided in this role
 # - name: "k8sworker"
 #   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   Resource_manager_type: ""
-#   Resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
+#   resource_manager_type: ""
+#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
 #     - grps1
 #     - grps2
@@ -189,8 +189,8 @@ Roles:
 # K8s ETCD Role: Kubernetes etcd groups to add into k8s etcd role can be provided in this role
 # - name: "k8setcd"
 #   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   Resource_manager_type: ""
-#   Resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
+#   resource_manager_type: ""
+#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
 #     - grps1
 #     - grps2
@@ -209,8 +209,8 @@ Roles:
 # Slurm Worker Role: Slurm worker groups to add into Slurm role can be provided in this role
 # - name: "slurmworker"
 #   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   Resource_manager_type: ""
-#   Resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
+#   resource_manager_type: ""
+#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
 #     - grps1
 #     - grps2
@@ -229,8 +229,8 @@ Roles:
 # Slurm DB Daemon Role: Slurm DB Daemon groups to add into Slurm role can be provided in this role
 # - name: "slurmdbd"
 #   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   Resource_manager_type: ""
-#   Resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
+#   resource_manager_type: ""
+#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
 #     - grps1
 #     - grps2
@@ -249,8 +249,8 @@ Roles:
 #
 #  - name: "service"
 #    system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#    Resource_manager_type: ""
-#    Resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
+#    resource_manager_type: ""
+#    resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
 #    groups:
 #      - grps1
 #      - grps2
