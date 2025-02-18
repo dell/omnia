@@ -33,7 +33,7 @@
 #                        - This field will be empty for group of nodes which is associated with ‘login’, ‘compiler’, ‘service’, ‘k8head’,’slurmhead’.
 #                        - If ‘service’ role is not defined, then value will be empty for worker and default role. 
 #     network_profile    - <Mandatory> path of network_spec.yml which contains the network information.
-#     bmc_ip_Range:      - <Conditional Mandatory> BMC IP static range in the format 10.5.0.1-10.5.0.200
+#     bmc_ip_range:      - <Conditional Mandatory> BMC IP static range in the format 10.5.0.1-10.5.0.200
 #        static: ""      - <Mandatory> This field mandatory in case of BMC discovery of subset of nodes
 #     mapping_info:      - <Conditional Mandatory> path of pxe_mapping_file.csv which contains the mapping information.
 #     switch_ip          - <Conditional Mandatory> list of Switch IP and ports.
@@ -98,7 +98,7 @@ Roles:
   resource_manager_type: ""
   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
   groups:
-      - grps1
+      - grp1
 
 
 # login Role:
@@ -111,8 +111,8 @@ Roles:
 #     resource_manager_type: ""
 #     resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #     groups:
-#      - grps1
-#      - grps2
+#      - grp1
+#      - grp2
 
 #
 # Compiler Role:
@@ -131,12 +131,12 @@ Roles:
 #    resource_manager_type: ""
 #    resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
 #    groups:
-#      - grps1
-#      - grps2 
+#      - grp1
+#      - grp2 
 
 
 #
-# k8shead Role: Kubernetes master node groups to add into k8shead role can be provided in this role
+# k8s head Role: Kubernetes master node groups to add into k8shead role can be provided in this role
 # ---------------------------------------------------------------------------------------
 #
 # This role is used to configure the nodes for Kubernetes master.
@@ -146,14 +146,14 @@ Roles:
 #
 # The nodes in this role can be used to run Kubernetes master.
 #
-# k8shead Role: Kubernetes master groups to add into k8shead role can be provided in this role
+# k8s head Role: Kubernetes master groups to add into k8shead role can be provided in this role
 # - name: "k8shead"
 #   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
-#     - grps1
-#     - grps2
+#     - grp1
+#     - grp2
 
 #
 # K8s Worker Role: Kubernetes worker node groups to add into k8s role can be provided in this role
@@ -172,11 +172,11 @@ Roles:
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
-#     - grps1
-#     - grps2
+#     - grp1
+#     - grp2
 
 #
-# K8s ETCD Role: Kubernetes etcd node groups to add into k8s role can be provided in this role
+# K8s etcd Role: Kubernetes etcd node groups to add into k8s role can be provided in this role
 # ---------------------------------------------------------------------------------------------
 #
 # This role is used to configure the nodes for Kubernetes etcd.
@@ -186,14 +186,14 @@ Roles:
 #
 # The nodes in this role can be used to run Kubernetes etcd.
 #
-# K8s ETCD Role: Kubernetes etcd groups to add into k8s etcd role can be provided in this role
+# K8s etcd Role: Kubernetes etcd groups to add into k8s etcd role can be provided in this role
 # - name: "k8setcd"
 #   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
-#     - grps1
-#     - grps2
+#     - grp1
+#     - grp2
 
 #
 # Slurm Worker Role: Slurm worker node groups to add into Slurm role can be provided in this role
@@ -212,8 +212,8 @@ Roles:
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
-#     - grps1
-#     - grps2
+#     - grp1
+#     - grp2
 
 #
 # Slurm DB Daemon Role: Slurm DB Daemon node groups to add into Slurm role can be provided in this role
@@ -232,8 +232,8 @@ Roles:
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
-#     - grps1
-#     - grps2
+#     - grp1
+#     - grp2
 
 
 #
@@ -252,5 +252,5 @@ Roles:
 #    resource_manager_type: ""
 #    resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
 #    groups:
-#      - grps1
-#      - grps2
+#      - grp1
+#      - grp2
