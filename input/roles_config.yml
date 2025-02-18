@@ -33,12 +33,12 @@
 #                        - This field will be empty for group of nodes which is associated with ‘login’, ‘compiler’, ‘service’, ‘k8head’,’slurmhead’.
 #                        - If ‘service’ role is not defined, then value will be empty for worker and default role. 
 #     network_profile    - <Mandatory> path of network_spec.yml which contains the network information.
-#     BMCIP_range:       - <Conditional Mandatory> BMC IP static range in the format 10.5.0.1-10.5.0.200
-#                        - <Mandatory> This field mandatory in case of BMC discovery
+#     bmc_ip_Range:      - <Conditional Mandatory> BMC IP static range in the format 10.5.0.1-10.5.0.200
+#        static: ""      - <Mandatory> This field mandatory in case of BMC discovery of subset of nodes
 #     mapping_info:      - <Conditional Mandatory> path of pxe_mapping_file.csv which contains the mapping information.
-#     SwitchIP           - <Conditional Mandatory> list of Switch IP and ports.
+#     switch_ip          - <Conditional Mandatory> list of Switch IP and ports.
 #                        - <Mandatory> This field mandatory in case of switch based discovery.
-#     Package_profile    - <Mandatory> path of software_config.json which contains the package information.
+#     package_profile    - <Mandatory> path of software_config.json which contains the package information.
 #     architecture       - <Mandatory> architecture of the nodes - x86 or ARM
 #
 
@@ -48,10 +48,11 @@ Groups:
     resource_mgr_id: ""
     parent: ""
     network_profile: "/opt/omnia/input/project_default/network_spec.yml"
-    BMCIP_Range: ""
+    bmc_ip_Range:
+      static: ""
     mapping_info: "/opt/omnia/pxe_mapping_file.csv"
-    SwitchIP: ""
-    Package_profile: "/opt/omnia/input/project_default/software_config.json"
+    switch_ip: ""
+    package_profile: "/opt/omnia/input/project_default/software_config.json"
     architecture: "x86"
 
   #grp2:
@@ -59,10 +60,11 @@ Groups:
   #  resource_mgr_id: ""
   #  parent: ""
   #  network_profile: "/opt/omnia/input/project_default/network_spec.yml"
-  #  BMCIP_Range: ""
+  #  bmc_ip_Range: ""
+  #    static: ""
   #  mapping_info: "/opt/omnia/pxe_mapping_file.csv"
-  #  SwitchIP: ""
-  #  Package_profile: "/opt/omnia/input/project_default/software_config.json"
+  #  switch_ip: ""
+  #  package_profile: "/opt/omnia/input/project_default/software_config.json"
   #  architecture: "x86"
 
 
@@ -252,4 +254,3 @@ Roles:
 #    groups:
 #      - grps1
 #      - grps2
-    
