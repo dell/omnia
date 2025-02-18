@@ -1,9 +1,0 @@
-{% for registry in user_registry %}
-[host."{{ registry.host }}"]
-capabilities = ["pull", "resolve"]
-{% if registry.cert_path is defined and registry.cert_path != "" %}
-ca = "{{ registry.cert_path }}"
-{% else %}
-skip_verify = true
-{% endif %}
-{% endfor %}

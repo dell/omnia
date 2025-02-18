@@ -1,0 +1,39 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Check if k8s is mentioned in software_config.json
+- name: Check if k8s support is true
+  ansible.builtin.set_fact:
+    k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+
+- name: Validate k8s_support variable
+  when: k8s_support
+  block:
+    - name: Extract k8s version
+      ansible.builtin.set_fact:
+        k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | map(attribute='version') | first }}"
+      # noqa: var-naming[no-jinja]
+
+    - name: Assert supported kubernetes version
+      ansible.builtin.assert:
+        that:
+          - k8s_version | default("", false) | length > 1
+          - k8s_version in supported_k8s_version
+        success_msg: "{{ success_msg_k8s_version }}"
+        fail_msg: "{{ fail_msg_k8s_version }}"
+
+    - name: Set Kubespray version based on Kubernetes version
+      ansible.builtin.set_fact:
+        kubespray_version: "{{ k8s_to_kubespray[k8s_version] | default('unknown') }}"

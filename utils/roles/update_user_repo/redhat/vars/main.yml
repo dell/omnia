@@ -1,0 +1,33 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage:create_software_repo.yml, find_new_repo.yml
+repo_path: "/etc/yum.repos.d"
+
+# Usage:create_software_repo.yml
+repo_config_template_src: "repo_config_template.j2"
+
+# Usage:update_user_repo.yml
+usr_repo_config_template_src: "user_repo_config.j2"
+
+# Usage:update_software_repo.yml
+omnia_repo_config_template_src: "omnia_repo_config.j2"
+repo_retries: 5
+repo_delay: 10
+repo_update_failure_msg: "The playbook failed due to an error while running dnf makecache.
+     Please check user_repo_url and omnia_repo_url_redhat in local_repo_config.yml and ensure they are correct and reachable"
+
+# Usage:update_user_repo.yml,update_software_repo.yml
+os_type: "rhel"

@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,133 +13,34 @@
 # limitations under the License.
 ---
 
-- name: Check if cluster repo template present or not
-  ansible.builtin.stat:
-    path: "{{ base_url_redhat }}"
-  register: cluster_repo_stat
+- name: Register pulp distribution output for all rpm packages baseurl
+  ansible.builtin.command: /usr/local/bin/pulp rpm distribution list --field base_url,name
+  delegate_to: localhost
+  register: pulp_distribution_rpm_baseurl
+  changed_when: false
 
-- name: Fail if not present
-  ansible.builtin.fail:
-    msg: "{{ cluster_repo_template_fail }}"
-  when:
-    - not cluster_repo_stat.stat.exists
-    - repo_config == 'partial' or repo_config == 'always'
+- name: Set fact for rpm base_url and name
+  ansible.builtin.set_fact:
+    rpm_base_urls: "{{ pulp_distribution_rpm_baseurl.stdout | from_json }}"
 
-- name: Create repos for compute nodes
-  when: repo_config == 'partial'
-  block:
-    - name: Generate and copy cluster repository configuration
-      ansible.builtin.template:
-        src: "{{ cluster_repo_template_src }}"
-        dest: "{{ cluster_repo_config_file }}"
-        mode: "{{ repo_file_permission }}"
+- name: Use each item in base_url for template
+  ansible.builtin.template:
+    src: "{{ omnia_repo_template_src }}"
+    dest: "{{ repos_share_path }}/{{ item.name }}.repo"
+    mode: "{{ file_permission }}"
+  loop: "{{ rpm_base_urls }}"
 
-    - name: Generate and copy User Repositories
-      ansible.builtin.template:
-        src: "{{ user_repo_template_src }}"
-        dest: "{{ temp_dir_repo }}/a_user_repo{{ item.0 + 1 }}.repo"
-        mode: "{{ file_mode }}"
-      with_indexed_items: "{{ user_repo_url }}"
-      when: item.1.url is defined
-
-    - name: Generate and copy RHEL OS Repositories
-      ansible.builtin.template:
-        src: "{{ rhel_os_repo_template_src }}"
-        dest: "{{ temp_dir_repo }}/a_rhel_os_repo{{ item.0 + 1 }}.repo"
-        mode: "{{ file_mode }}"
-      with_indexed_items: "{{ rhel_os_url }}"
-      when: item.1.url is defined
-
-    - name: Check if beegfs repo exists
-      ansible.builtin.stat:
-        path: "{{ beegfs_file_path }}"
-      register: beegfs_file
-
-    - name: Check if amdgpu repo exists
-      ansible.builtin.stat:
-        path: "{{ amdgpu_file_path }}"
-      register: amdgpu_file
-
-    - name: Check if rocm repo exists
-      ansible.builtin.stat:
-        path: "{{ rocm_file_path }}"
-      register: rocm_file
-
-    - name: Generate and copy software repository configurations
-      ansible.builtin.template:
-        src: "{{ repo_config_template_src }}"
-        dest: "{{ repo_config_file }}"
-        mode: "{{ repo_file_permission }}"
-      loop: "{{ user_config.softwares + user_config.amdgpu | default([]) }}"
-      when: "(beegfs_name in item.name and beegfs_file.stat.exists) or (amdgpu_name in item.name and amdgpu_file.stat.exists)
-              or (rocm_name in item.name and rocm_file.stat.exists)"
-      loop_control:
-        loop_var: item
-
-- name: Create repos for compute nodes
-  when: repo_config == 'always'
-  block:
-    - name: Generate and copy cluster repository configuration
-      ansible.builtin.template:
-        src: "{{ cluster_repo_template_src }}"
-        dest: "{{ cluster_repo_config_file }}"
-        mode: "{{ repo_file_permission }}"
-
-    - name: Check if beegfs repo exists
-      ansible.builtin.stat:
-        path: "{{ beegfs_file_path }}"
-      register: beegfs_file
-
-    - name: Check if amdgpu repo exists
-      ansible.builtin.stat:
-        path: "{{ amdgpu_file_path }}"
-      register: amdgpu_file
-
-    - name: Check if rocm repo exists
-      ansible.builtin.stat:
-        path: "{{ rocm_file_path }}"
-      register: rocm_file
-
-    - name: Generate and copy software repository configurations
-      ansible.builtin.template:
-        src: "{{ repo_config_template_src }}"
-        dest: "{{ repo_config_file }}"
-        mode: "{{ repo_file_permission }}"
-      loop: "{{ user_config.softwares + user_config.amdgpu | default([]) }}"
-      when: "(beegfs_name in item.name and beegfs_file.stat.exists) or (amdgpu_name in item.name and amdgpu_file.stat.exists)
-             or (rocm_name in item.name and rocm_file.stat.exists)"
-      loop_control:
-        loop_var: item
-
-- name: Create repos for compute nodes
-  when: repo_config == 'never'
-  block:
-    - name: Generate and copy User Repositories
-      ansible.builtin.template:
-        src: "{{ user_repo_template_src }}"
-        dest: "{{ temp_dir_repo }}/a_user_repo{{ item.0 + 1 }}.repo"
-        mode: "{{ file_mode }}"
-      with_indexed_items: "{{ user_repo_url }}"
-      when: item.1.url is defined
-
-    - name: Generate and copy RHEL OS Repositories
-      ansible.builtin.template:
-        src: "{{ rhel_os_repo_template_src }}"
-        dest: "{{ temp_dir_repo }}/a_rhel_os_repo{{ item.0 + 1 }}.repo"
-        mode: "{{ file_mode }}"
-      with_indexed_items: "{{ rhel_os_url }}"
-      when: item.1.url is defined
-
-    - name: Generate and copy Omnia Repositories
-      ansible.builtin.template:
-        src: "{{ omnia_repo_template_src }}"
-        dest: "{{ temp_dir_repo }}/omnia_repo{{ item.0 + 1 }}.repo"
-        mode: "{{ file_mode }}"
-      with_indexed_items: "{{ omnia_repo_url_rhel }}"
-      when: item.1.url is defined and software_config_default not in item.1.url
+# Commenting out - waiting for pulp changes for os url to merge
+# - name: Generate and copy RHEL OS Repositories
+#   ansible.builtin.template:
+#     src: "{{ rhel_os_repo_template_src }}"
+#     dest: "{{ repos_share_path }}/a_rhel_os_repo{{ item.0 + 1 }}.repo"
+#     mode: "{{ file_permission }}"
+#   with_indexed_items: "{{ rhel_os_url }}"
+#   when: item.1.url is defined
 
 - name: Render dnf.conf template
   ansible.builtin.template:
     src: "{{ dnf_conf_src }}"
     dest: "{{ dnf_conf_dest }}"
-    mode: "{{ dnf_file_permission }}"
+    mode: "{{ file_permission }}"

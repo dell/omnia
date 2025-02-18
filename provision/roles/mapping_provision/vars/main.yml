@@ -15,6 +15,7 @@
 
 # Usage: mapping_provision.yml
 python_version: "{{ ansible_python_interpreter }}"
+provision_shared_library_path: /opt/omnia/shared_libraries/provision
 rinstall_nodes_py: "{{ provision_shared_library_path }}/mapping/rinstall_nodes.py"
 prov_db_path: "{{ provision_shared_library_path }}/db_operations"
 mapping_provision_msg: " nodes will be booted automatically. Ensure that IPMI is enabled on them. Remaining nodes,

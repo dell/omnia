@@ -17,6 +17,7 @@
 mtms_poweroff_warning_msg: "[WARNING] Power off failed for the discovered nodes using bmc. Error:"
 
 # Usage: fetch_static_discover_nodes.yml
+provision_shared_library_path: /opt/omnia/shared_libraries/provision
 check_static_bmc_file: "{{ provision_shared_library_path }}/mtms/check_static_nodes_status.py"
 check_discover_bmc_file: "{{ provision_shared_library_path }}/mtms/check_discover_nodes_status.py"
 bmc_static_node_group: "bmc_static"

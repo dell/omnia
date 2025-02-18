@@ -215,9 +215,10 @@ cuda_version_warning_msg: "[WARNING] software_config.json does not have the vers
 Hence CUDA will not be installed on the nodes post provisioning."
 cuda_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading CUDA packages.
 CUDA will not be installed on the nodes post provisioning."
-offline_iso_directory: "{{ repo_store_path }}/cluster/{{ provision_os }}/{{ provision_os_version }}/iso"
+offline_iso_directory: "/opt/omnia/offline_repo/cluster/{{ provision_os }}/{{ provision_os_version }}/iso"
 
 # Usage: validate_amdgpu_rocm_repo.yml
+pulp_bin_path: /usr/local/bin/pulp
 amdgpu_input_warning_msg: "[WARNING] software_config.json does not have the amdgpu software stack.
 Hence ROCm will not be installed on the nodes post provisioning."
 amdgpu_version_warning_msg: "[WARNING] software_config.json does not have the version for AMDGPU.
@@ -228,7 +229,10 @@ rocm_version_warning_msg: "[WARNING] software_config.json does not have the vers
 Hence ROCm will not be installed on the nodes post provisioning."
 rocm_repo_warning_msg: "[WARNING] local_repo.yml is not executed for downloading ROCM packages.
 ROCm will not be installed on the nodes post provisioning."
-
+os_package_map:
+  rhel: rpm
+  rocky: rpm
+  ubuntu: deb
 # Usage: validate_intelgaudi_repo.yml
 intelgaudi_version_warning_msg: "[WARNING] software_config.json does not have the version for 'intelgaudi'.
 Hence Habana stack will not be installed on the nodes post provisioning."

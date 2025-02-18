@@ -1,0 +1,53 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_ofed:
+#      Install OFED on all the cluster nodes using OFED ISO file provided
+#
+#################################################################################################################
+echo "---------------------------" >> /var/log/xcat/xcat.log
+
+if [ -f "/etc/debian_version" ];then
+  str_os_type="debian"
+else
+  str_os_type="redhat"
+fi
+
+os_release_data="/etc/os-release"
+
+if [ -f "$os_release_data" ]; then
+    . "$os_release_data"
+    MAJOR_OS_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
+fi
+
+echo "Checking for Mellanox cards"
+mellanox_check=`lspci | grep -i Mellanox`
+if [[ $mellanox_check == *"Mellanox"* ]]
+then
+  if [ "$str_os_type" = "debian" ];then
+    echo "Starting OFED installation in Debian" >> /var/log/xcat/xcat.log
+    apt clean >> /var/log/xcat/xcat.log
+    apt update >> /var/log/xcat/xcat.log
+    apt install graphviz gcc autoconf make quilt dpatch gfortran libltdl-dev tk libnl-route-3-dev libc6-dev m4 debhelper automake dkms libgfortran5 tcl pkg-config bison libnl-3-dev libnl-route-3-200 chrpath autotools-dev flex swig -y >> /var/log/xcat/xcat.log
+    mlnxofed_ib_install -p "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}" -m --without-fw-update --force -end- >> /var/log/xcat/xcat.log
+    systemctl enable openibd >> /var/log/xcat/xcat.log
+    echo "OFED installation completed in Debian" >> /var/log/xcat/xcat.log
+  elif [ "$str_os_type" = "redhat" ];then
+    if [ "$MAJOR_OS_VERSION" -eq 8 ]; then
+      echo "OFED installation started in RHEL/Rocky 8"
+      dnf install -y wget python3 elfutils-libelf-devel kernel-modules-extra atk autofs cairo crash createrepo dracut ed emacs ethtool gcc gcc-gfortran gdb gdb-headless git gtk2 kernel-devel kernel-rpm-macros kernel-tools kernel-tools-libs kexec-tools ksh libcgroup libcgroup-tools libhugetlbfs libnl3 libtool libtool-ltdl lsof m4 make mutt numactl numactl-devel numactl-libs pciutils pciutils-libs perf psmisc python2 python36-devel redhat-rpm-config rpm-build sendmail sudo tcl tcsh tk vim-minimal yum
+      dnf groupinstall "Infiniband Support" -y
+      dnf install infiniband-diags perftest qperf -y
+    elif [ "$MAJOR_OS_VERSION" -eq 9 ]; then
+      echo "OFED installation started in RHEL/Rocky 9"
+      dnf install -y wget python3 elfutils-libelf-devel kernel-modules-extra atk autofs cairo crash createrepo dracut ed emacs ethtool gcc gcc-gfortran gdb gdb-headless git gtk2 kernel-devel kernel-rpm-macros kernel-tools kernel-tools-libs kexec-tools ksh libnl3 libtool libtool-ltdl lsof m4 make mutt numactl numactl-devel numactl-libs pciutils pciutils-libs perf psmisc redhat-rpm-config rpm-build sendmail sudo tcl tcsh tk vim-minimal yum perl-sigtrap
+    fi
+
+    echo "Running mlnxofed_ib_install script"
+    mlnxofed_ib_install -p "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}" -m --add-kernel-support --force -end-
+    echo "exclude=dapl* ibacm infiniband* libmlx* librdma* opensm* ibutils* perftest* openmpi*" >> /etc/yum.conf
+    echo "OFED installation completed in RHEL/Rocky"
+  fi
+else
+  echo "Mellanox cards not found" >> /var/log/xcat/xcat.log
+fi
+echo "-----------------------------" >> /var/log/xcat/xcat.log
