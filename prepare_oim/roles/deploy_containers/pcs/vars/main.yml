@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 pcs_image_name: "omnia_pcs"
 pcs_image_tag: "latest"
 pcs_container_name: "omnia_pcs"
@@ -53,9 +52,8 @@ pcs_container_failure_msg: |
   please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
   After the cleanup, you can re-run the original playbook to deploy the {{ pcs_container_name }} container successfully.
 
-  
-#Usage: pcs-start.sh.j2:Common
-omnia_nfs_share: "{{ oim_shared_path }}/omnia"  # Define NFS share path
+# Usage: pcs-start.sh.j2:Common
+omnia_nfs_share: "{{ oim_shared_path }}/omnia" # Define NFS share path
 oim_metadata_file: "{{ omnia_nfs_share }}/.data/oim_metadata.yml"
 monitor_interval: "30s"
 monitor_timeout: "20s"
@@ -64,7 +62,7 @@ start_timeout: "20s"
 stop_interval: "0s"
 stop_timeout: "90s"
 
-#Usage: pcs-start.sh.j2: omnia_core
+# Usage: pcs-start.sh.j2: omnia_core
 omnia_core_name: "omnia_core"
 core_container_image_tag: "latest"
 core_container_name: "omnia_core"
@@ -73,12 +71,11 @@ core_container_logs_dir: "{{ omnia_nfs_share }}/log/core/container"
 pulp_ha_dir: "{{ omnia_nfs_share }}/pulp/pulp_ha"
 omnia_core_run_opts: "-dt --hostname {{ omnia_core_name }} --restart=always --network=host -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ core_container_logs_dir }}:/var/log:z -v {{ hosts_file }}:/etc/hosts:z -v {{ pulp_ha_dir }}:/root/.config/pulp:z -e ROOT_PASSWORD_HASH={{ hostvars['localhost']['omnia_core_hashed_passwd'] }} --name {{ omnia_core_name }} --cap-add=CAP_AUDIT_WRITE"
 
-#Usage: pcs-start.sh.j2: omnia_provision
+# Usage: pcs-start.sh.j2: omnia_provision
 provision_container_name: "omnia_provision"
 provision_image_name: "omnia_provision"
 provision_image_tag: "latest"
 provision_image: "localhost/{{ provision_image_name }}:{{ provision_image_tag }}"
-omnia_nfs_share: "{{ oim_shared_path }}/omnia"
 provision_dir: "{{ omnia_nfs_share }}/provision"
 xcatdata_dir: "{{ provision_dir }}/xcatdata"
 pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
@@ -86,20 +83,37 @@ install_dir: "{{ provision_dir }}/install"
 tftpboot_dir: "{{ provision_dir }}/tftpboot"
 hosts_file: "{{ omnia_nfs_share }}/hosts"
 provision_logs_dir: "{{ omnia_nfs_share }}/log/provision"
-provision_run_opts: " --network=host --restart=always --hostname {{ oim_hostname }} --privileged -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v {{ xcatdata_dir }}:/xcatdata:z -v {{ install_dir }}:/install:z -v {{ tftpboot_dir }}:/tftpboot:z -v {{ provision_logs_dir }}/xcat:/var/log/xcat:z -v {{ pgsql_data_dir }}:/var/lib/pgsql/data:z -v {{ hosts_file }}:/etc/hosts:z"
+provision_run_opts: " --network=host --restart=always --hostname {{ oim_hostname }} --privileged -v \
+                    {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z \
+                    -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v {{ xcatdata_dir }}:/xcatdata:z -v {{ install_dir }}:/install:z -v \
+                    {{ tftpboot_dir }}:/tftpboot:z -v {{ provision_logs_dir }}/xcat:/var/log/xcat:z -v {{ pgsql_data_dir }}:/var/lib/pgsql/data:z \
+                    -v {{ hosts_file }}:/etc/hosts:z"
 
-#Usage: pcs-start.sh.j2: kubespray
+# Usage: pcs-start.sh.j2: kubespray
 kubespray_image_name: "omnia_kubespray"
 kubespray_version: "{{ hostvars['localhost']['kubespray_version'] }}"
 kubespray_name: "omnia_kubespray_{{ kubespray_version }}"
 kubespray_image: "localhost/{{ kubespray_image_name }}:{{ kubespray_version }}"
-kubespray_run_opts: " -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ hosts_file }}:/etc/hosts:z --network=host --restart=always --cap-add AUDIT_WRITE"
+kubespray_run_opts: " -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ hosts_file }}:/etc/hosts:z \
+                    --network=host --restart=always --cap-add AUDIT_WRITE"
 
-#Usage: pcs-start.sh.j2: pulp
+# Usage: pcs-start.sh.j2: pulp
 pulp_container_name: "omnia_pulp"
 pulp_image: "docker.io/pulp/pulp"
 pulp_port: "2225:80"
 pulp_share: "{{ omnia_nfs_share }}/pulp"
 pulp_run_opts: " --hostname {{ pulp_container_name }} --device /dev/fuse:/dev/fuse:rwm -e PULP_WORKERS=10 -e PULP_API_WORKERS=10 -e PULP_CONTENT_WORKERS=10 -e PULP_GUNICORN_TIMEOUT=30 -e PULP_API_WORKERS_MAX_REQUESTS=1000 -e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50 --restart=always --publish {{ pulp_port }} -v {{ pulp_share }}/settings:/etc/pulp:z -v {{ pulp_share }}/settings/pulp_storage:/var/lib/pulp:z -v {{ pulp_share }}/settings/pgsql:/var/lib/pgsql:z -v {{ pulp_share }}/settings/containers:/var/lib/containers:z -v {{ omnia_nfs_share }}/log/pulp:/var/log/pulp:z"
 
-
+pcs_resources:
+  - "{{ pulp_container_name }}"
+  - "{{ provision_container_name }}"
+  - "{{ omnia_core_name }}"
+pcs_start_container_finished: "/opt/omnia/pcs/pcs-start.finished"
+pcs_start_shared_finished: "{{ pcs_container_dir }}/pcs-start.finished"
+wait_time_pcs_start: 200
+pcs_start_failed_msg: "pcs-start.sh execution failed."
+pcs_failed_resource_msg: |
+  The deployment of pcs resources have failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ pcs_container_name }} container
+  and its resources.
