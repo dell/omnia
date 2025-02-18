@@ -40,11 +40,7 @@
       register: chdef_result
       changed_when: true
       loop: "{{ collected_cmdline_values.keys() }}"
-
-    - name: Debug if Error in chdef command run
-      ansible.builtin.debug:
-        msg: "Error occurred while running chdef for {{ item.item }}: {{ item.stdout }}"
-      when:
-        - "'1 object definitions have been created or modified.' not in item.stdout_lines"
-      loop: "{{ chdef_result.results }}"
-        
+  rescue:
+    - name: Fail if Error in Kernel parameters update
+      ansible.builtin.fail:
+        msg: "{{ invalid_host_msg }}"
