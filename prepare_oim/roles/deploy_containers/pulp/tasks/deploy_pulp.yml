@@ -13,9 +13,8 @@
 #  limitations under the License.
 
 ---
-- name: Set Fact for Pulp username and password
+- name: Set Fact for Pulp password and server IP
   ansible.builtin.set_fact:
-    pulp_username: "{{ hostvars['localhost']['pulp_username'] }}"
     pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
     pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
   no_log: true
@@ -85,5 +84,5 @@
     command: "{{ reset_password_cmd }}"
   retries: "{{ retries_var }}"
   delay: "{{ delay_var }}"
-  when: pulp_username | length > 1 and pulp_password | length > 1
+  when: pulp_password | length > 1
   no_log: true
