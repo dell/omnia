@@ -65,7 +65,7 @@
     - name: Set amdgpu_config_status based on pulp rpm distribution
       ansible.builtin.set_fact:
         amdgpu_config_status: true
-      when: pulp_amdgpu_output.stdout | length > 0
+      when: pulp_amdgpu_output.stdout | from_json | length > 0
   rescue:
     - name: Log an error message
       ansible.builtin.debug:
@@ -93,7 +93,7 @@
     - name: Set rocm_config_status based on pulp rpm distribution
       ansible.builtin.set_fact:
         rocm_config_status: true
-      when: check_rocm_repo.stdout | length > 0
+      when: check_rocm_repo.stdout | from_json | length > 0
   rescue:
     - name: Log an error message
       ansible.builtin.debug:

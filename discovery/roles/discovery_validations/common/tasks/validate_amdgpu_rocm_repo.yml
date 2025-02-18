@@ -43,7 +43,7 @@
     - name: Parse amdgpu repository details
       ansible.builtin.set_fact:
         amdgpu_repo_list: "{{ pulp_amdgpu_output.stdout | from_json }}"
-      when: pulp_amdgpu_output.stdout | length > 0
+      when: pulp_amdgpu_output.stdout | from_json | length > 0
 
     - name: Set amdgpu_base_url and amdgpu_name if repository exists
       ansible.builtin.set_fact:
