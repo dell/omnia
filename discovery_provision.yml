@@ -38,6 +38,7 @@
   ansible.builtin.import_playbook: utils/create_container_group.yml
   vars:
     omnia_provision_group: true
+    omnia_provision_validation: true
 
 - name: Set flag
   hosts: localhost

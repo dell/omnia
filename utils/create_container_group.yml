@@ -27,4 +27,4 @@
       ansible.builtin.include_role:
         name: create_container_group
         tasks_from: create_provision_group.yml
-      when: omnia_provision_group | default(false) | bool
+      when: omnia_provision_validation | default(false) | bool
