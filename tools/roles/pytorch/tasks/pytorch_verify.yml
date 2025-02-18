@@ -97,7 +97,7 @@
     - name: Set gaudi_image_run_cmd
       ansible.builtin.set_fact:
         gaudi_image_run_cmd: "nerdctl run -it --privileged -e HABANA_VISIBLE_DEVICES=all -e OMPI_MCA_btl_vader_single_copy_mechanism=none --cap-add=sys_nice
-           --net=host --ipc=host -v /opt/omnia/:/workspace/ {{ pytorch_gaudi_image }} python /workspace/pytorch_example.py"
+           --net=host --ipc=host -v /opt/omnia/:/workspace/ {{ pytorch_gaudi_image }} python3 /workspace/pytorch_example.py"
 
     - name: Run gaudi container with example file
       ansible.builtin.command: "{{ gaudi_image_run_cmd }}"
