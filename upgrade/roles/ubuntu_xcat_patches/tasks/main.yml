@@ -21,7 +21,7 @@
 
 - name: Revert xCAT patch
   ansible.builtin.command:
-    cmd: patch -R /install/postscripts/confignetwork {{ installed_omnia_path }}/prepare_cp/roles/install_xcat/common/files/confignetwork.patch
+    cmd: patch -R /install/postscripts/confignetwork {{ role_path }}/../../../prepare_oim/roles/install_xcat/common/files/confignetwork.patch
   register: patch_result
   failed_when: patch_result.rc not in [0, 1]  # 0 for success, 1 for already reverted
   changed_when: patch_result.rc == 0
