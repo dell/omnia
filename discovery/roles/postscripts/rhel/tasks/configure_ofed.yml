@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,30 +25,9 @@
     dest: "{{ mlnx_ofed_repo }}/{{ mlnx_ofed_path.split('/')[-1] }}"
     mode: "{{ ofed_permission }}"
 
-- name: Copy mellanox script to postscripts
-  ansible.builtin.copy:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    mode: "{{ item.mode }}"
-  with_items: "{{ ofed_install_script_path }}"
-
 - name: Copy OFED script to postscripts
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
     mode: "{{ item.mode }}"
   with_items: "{{ ofed_postscripts_path }}"
-
-- name: Copy OFED package list
-  ansible.builtin.copy:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    mode: "{{ item.mode }}"
-  with_items:
-    - "{{ ofed_package_path }}"
-
-- name: Add OFED package list to rhel8 packages
-  ansible.builtin.lineinfile:
-    path: "{{ rhel8_package_path }}"
-    insertafter: EOF
-    line: '#INCLUDE:/opt/xcat/share/xcat/install/rh/ib.rhels8.x86_64.pkglist#'

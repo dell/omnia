@@ -13,14 +13,17 @@
 #  limitations under the License.
 ---
 
-# Usage: main.yml
-python_version: "python3.11"
-oim_host_port: "22"
-oim_host_group: "oim"
-provision_container_port: "2223"
-provision_container_name: "omnia_provision"
-kubespray_container_port: "2224"
-kubespray_container_name: "omnia_kubespray"
+- name: Get status of provision container
+  containers.podman.podman_container_info:
+    name: "{{ provision_container_name }}"
+  register: provision_container_status
 
-# Usage: create_provision_group.yml
-provision_container_status_msg: "Provision container Status: {{ provision_container_status.containers[0].State.Status }}"
+- name: Provision container status
+  ansible.builtin.debug:
+    msg: "{{ provision_container_status_msg }}"
+    verbosity: 2
+
+- name: Fail if provision container status is not running
+  ansible.builtin.fail:
+    msg: "{{ container_status_fail_msg }}"
+  when: provision_container_status.containers[0].State.Status != "running"
