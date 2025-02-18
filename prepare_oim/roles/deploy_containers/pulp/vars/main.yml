@@ -79,8 +79,8 @@ reset_password_cmd: bash -c "pulpcore-manager reset-admin-password --password {{
 # http_port: "80"
 
 # create_pulp_config.yml
-pulp_config_cmd: "pulp config create --username {{ pulp_username }}  --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port }} --password {{ pulp_password }} --location {{ pulp_ha_dir }}/cli.toml" # noqa: yaml[line-length]
-pulp_config_cmd_overwrite: "pulp config create --username {{ pulp_username }}  --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port }} --password {{ pulp_password }} --location {{ pulp_ha_dir }}/cli.toml --overwrite" # noqa: yaml[line-length]
+pulp_config_cmd: "pulp config create --username admin  --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port }} --password {{ pulp_password }} --location {{ pulp_ha_dir }}/cli.toml" # noqa: yaml[line-length]
+pulp_config_cmd_overwrite: "pulp config create --username admin  --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port }} --password {{ pulp_password }} --location {{ pulp_ha_dir }}/cli.toml --overwrite" # noqa: yaml[line-length]
 pulp_config_filepath: "{{ pulp_ha_dir }}/cli.toml"
 config_default_dir: "/root/.config/pulp/"
 config_default_loc: "{{ config_default_dir }}/cli.toml"

@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,7 @@ ubuntu24_version: "24.04"
 
 # Usage: configure_ofed.yml
 ofed_postscripts_path:
-  - { src: "{{ role_path }}/../ubuntu/templates/omnia_ofed.j2", dest: "/install/postscripts/omnia_ofed", mode: "755" }
-ofed_install_script_path:
-  - { src: "/opt/xcat/share/xcat/ib/scripts/Mellanox/mlnxofed_ib_install", dest: "/install/postscripts/mlnxofed_ib_install", mode: "755" }
-rhel8_package_path: "/opt/xcat/share/xcat/install/rh/compute.rhels8.pkglist"
+  - { src: "{{ role_path }}/../common/templates/omnia_ofed.j2", dest: "/install/postscripts/omnia_ofed", mode: "755" }
 mlnx_ofed_repo: /install/ofed
 repo_permission: "755"
 ofed_permission: "0644"
@@ -36,7 +33,7 @@ cuda_core_path: /install/cuda/x86_64/cuda-core
 invalid_cuda_rpm_fail_msg: "Failed. Invalid cuda_toolkit_path: {{ cuda_toolkit_path }} provided in provision_config.yml.
 Make sure cuda rpm file is downloaded completely."
 cuda_postscripts_path:
-  - { src: "{{ role_path }}/../ubuntu/templates/omnia_cuda.j2", dest: "/install/postscripts/omnia_cuda", mode: "755" }
+  - { src: "{{ role_path }}/../common/templates/omnia_cuda.j2", dest: "/install/postscripts/omnia_cuda", mode: "755" }
 
 # Usage: configure_rocm.yml
 rocm_postscripts_path:

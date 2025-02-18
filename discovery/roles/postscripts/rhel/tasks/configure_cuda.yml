@@ -64,6 +64,7 @@
     src: "{{ item.path }}"
     dest: "{{ cuda_core_path }}"
     mode: preserve
+    remote_src: true
   with_items: "{{ cuda_rpm_file.files }}"
 
 - name: Create cuda-core repos

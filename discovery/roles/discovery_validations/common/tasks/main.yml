@@ -74,8 +74,8 @@
 # - name: Validate site_config.yml
 #   ansible.builtin.include_tasks: validate_site_config.yml
 
-# - name: Validate OFED and CUDA repo
-#   ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml
+- name: Validate OFED and CUDA repo
+  ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml
 
 - name: Validate AMDGPU and ROCm repo
   ansible.builtin.include_tasks: validate_amdgpu_rocm_repo.yml
