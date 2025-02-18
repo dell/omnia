@@ -14,6 +14,7 @@
 ---
 
 # Usage: download_images.yml
+software_config_file: "{{ role_path }}/../../../input/software_config.json"
 telemetry_packages_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/telemetry.json"
 prom_image_names:
   - quay.io/prometheus-operator/prometheus-operator

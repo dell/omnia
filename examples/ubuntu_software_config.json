@@ -3,8 +3,8 @@
     "cluster_os_version": "24.04",
     "repo_config": "partial",
     "softwares": [
-        {"name": "amdgpu", "version": "6.2.2"},
-        {"name": "bcm_roce", "version": "230.2.54.0"},
+        {"name": "amdgpu", "version": "6.3.1"},
+        {"name": "bcm_roce", "version": "232.1.133.2"},
         {"name": "openldap"},
         {"name": "nfs"},
         {"name": "k8s", "version":"1.31.4"},
@@ -16,10 +16,10 @@
     ],
 
     "bcm_roce": [
-        {"name": "bcm_roce_libraries", "version": "230.2.54.0"}
+        {"name": "bcm_roce_libraries", "version": "232.1.133.2"}
     ],
    "amdgpu": [
-        {"name": "rocm", "version": "6.2.2" }
+        {"name": "rocm", "version": "6.3.1" }
     ],
     "intelgaudi": [
         {"name": "intel"}

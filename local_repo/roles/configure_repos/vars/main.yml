@@ -39,6 +39,7 @@ ubuntu_omnia_repo_src: "templates/ubuntu_omnia_repo.j2"
 apt_update_failure_msg: "The playbook fails due to an error while running apt update.
      Please check user_repo_url and omnia_repo_url_ubuntu in local_repo_config.yml and ensure they are correct and reachable"
 apt_conf_src: "{{ role_path }}/templates/apt_conf_temp.j2"
+rocm_pref_src: "{{ role_path }}/templates/rocm.pref.j2"
 apt_conf_dest: "/etc/apt/apt.conf"
 custom_repo_path: "/etc/apt/custom_sources"
 preference_path: "/etc/apt/custom_sources/preferences.d"

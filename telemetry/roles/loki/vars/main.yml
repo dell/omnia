@@ -58,7 +58,6 @@ docker_packages_ubuntu:
 docker_packages_redhat:
  - docker-ce-{{ docker_version }}
  - docker-ce-cli-{{ docker_version }}
- - docker-buildx-plugin
 cert_packages:
  - curl
  - ca-certificates
@@ -70,7 +69,7 @@ docker_update_repos_fail_msg: "Failed to update the docker repositories. Please 
 from the Omnia Infrastructure Manager and re-run the playbook."
 clean_apt_cache_fail_msg: "Failed to clean the apt cache. Please ensure there are no lock files present and try running the playbook again."
 ubuntu_docker_package_missing: "Failed to extract the version from the docker-ce-cli package. Please ensure that the docker-ce-cli package is present in the telemetry.json file, and that it includes a version. For example, the entry in the telemetry.json file for Ubuntu 24.04 should resemble: 'docker-ce-cli=5:27.3.1-1~ubuntu.24.04~noble'."   # noqa: yaml[line-length]
-redhat_docker_package_missing: "Failed to extract the version from the docker-ce-cli package. Please ensure that the docker-ce-cli package is present in the telemetry.json file, and that it includes a version. For example, the entry in the telemetry.json file should resemble: 'docker-ce-cli-24.0.4-1.el8'."   # noqa: yaml[line-length]
+redhat_docker_package_missing: "Failed to extract the version from the docker-ce-cli package. Please ensure that the docker-ce-cli package is present in the telemetry.json file, and that it includes a version. For example, the entry in the telemetry.json file should resemble: 'docker-ce-cli-26.1.3-1.el8'."   # noqa: yaml[line-length]
 
 # Usage: configure_docker_proxy.yml
 docker_file_mode: "0600"
