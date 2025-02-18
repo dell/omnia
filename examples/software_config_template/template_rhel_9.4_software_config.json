@@ -1,0 +1,28 @@
+{
+    "cluster_os_type": "rhel",
+    "cluster_os_version": "9.4",
+    "repo_config": "always",
+    "softwares": [
+        {"name": "amdgpu", "version": "6.3.1"},
+        {"name": "cuda", "version": "12.5.0"},
+        {"name": "ofed", "version": "24.10-1.1.4.0"},
+        {"name": "freeipa"},
+        {"name": "openldap"},
+        {"name": "secure_login_node"},
+        {"name": "nfs"},
+        {"name": "beegfs", "version": "7.4.2"},
+        {"name": "slurm"},
+        {"name": "k8s", "version":"1.29.5"},
+        {"name": "intel_benchmarks", "version": "2024.1.0"},
+        {"name": "amd_benchmarks"},
+        {"name": "utils"},
+        {"name": "ucx", "version": "1.15.0"},
+        {"name": "openmpi", "version": "4.1.6"},
+        {"name": "csi_driver_powerscale", "version":"v2.11.0"}
+    ],
+
+    "amdgpu": [
+        {"name": "rocm", "version": "6.3.1" }
+    ]
+
+}

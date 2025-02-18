@@ -37,7 +37,7 @@
 
     - name: Set mlnx_ofed_directory
       ansible.builtin.set_fact:
-        mlnx_ofed_directory: "{{ offline_iso_directory }}/ofed/{{ ofed_version }}/"
+        mlnx_ofed_directory: "{{ offline_iso_directory }}/ofed"
 
     - name: Check mlnx_ofed_directory exists or not
       ansible.builtin.stat:
@@ -93,7 +93,7 @@
 
     - name: Set cuda_toolkit_directory
       ansible.builtin.set_fact:
-        cuda_toolkit_directory: "{{ offline_iso_directory }}/cuda/{{ cuda_version }}/"
+        cuda_toolkit_directory: "{{ offline_iso_directory }}/cuda/"
 
     - name: Check cuda_toolkit_directory exists or not
       ansible.builtin.stat:
