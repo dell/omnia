@@ -15,7 +15,7 @@
 ---
 
 - name: Set Kernel parameters
-  ansible.builtin.include_tasks: set_kernel_params.yml
+  ansible.builtin.include_tasks: set_kernel_params_facts.yml
   when:
     - groups['all'] is defined
     - (groups['all'] | length > 0)

@@ -13,13 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Copy RHEL8 kickstart files to xcat configuration path
-  ansible.builtin.copy:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    mode: "{{ item.mode }}"
-  with_items: "{{ xcat_rhel8_path }}"
-
 - name: Configure kickstart file - language
   ansible.builtin.replace:
     path: "{{ xcat_rhel8_tmpl }}"

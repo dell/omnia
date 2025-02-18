@@ -15,7 +15,7 @@
 
 - name: List all hosts from inventory
   ansible.builtin.set_fact:
-    all_hosts: "{{ groups['all'] }}"
+    all_hosts: "{{ groups['all'] | difference(['omnia_provision']) }}"
     host_details: {}
 
 - name: Set the values for variable when ip_addr in inventory
