@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 - name: Update NIC details
-  when: add_network_status
+  when: hostvars['localhost']['add_network_status']
   block:
     - name: Create Table for NIC Info
       ansible.builtin.include_tasks: add_nic_db.yml

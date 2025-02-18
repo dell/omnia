@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,10 +13,12 @@
 #  limitations under the License.
 ---
 
-# Usage: service_tag_mapping.yml
-servicetag_node_mapping_script: "{{ provision_shared_library_path }}/common/servicetag_node_mapping.py"
-file_path: "{{ provision_shared_library_path }}/db_operations"
-python_version: "python3.11"
+# Usage: set_kernel_params_facts.yml
+warning_msg: "Warning: cmdline_value is empty for {{ item }}. No kernel command-line parameters will be set for this node."
 
-# Usage: set_kernel_params.yml
-warning_msg: "Warning: cmdline_value is empty for {{ hostname }}. No kernel command-line parameters will be set for this node."
+# Usage: update_kernel_params.yml
+provision_shared_library_path: "/opt/omnia/shared_libraries/provision"
+servicetag_node_mapping_script: "{{ provision_shared_library_path }}/common/servicetag_node_mapping.py"
+file_path_db: "{{ provision_shared_library_path }}/db_operations"
+python_version: "python3.11"
+invalid_host_msg: Invalid host in inventory file. Please update the inventory file with correct input and rerun the playbook."

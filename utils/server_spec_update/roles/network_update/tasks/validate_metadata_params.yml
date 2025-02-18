@@ -21,7 +21,7 @@
       register: script_output
       changed_when: false
       environment:
-        net_data: "{{ network_data | to_json }}"
+        net_data: "{{ hostvars['localhost']['network_data'] | to_json }}"
 
   rescue:
     - name: Rescue block

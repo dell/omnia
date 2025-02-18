@@ -18,8 +18,8 @@
     - name: Update additional nic details in DB
       ansible.builtin.command: |
          {{ python_version }} {{ update_network_db }} {{ server_spec_path }} {{ host_details[item]['categories'] }}
-         {{ metadata_nicinfo_path }} {{ network_data.admin_network.static_range }}
-         {{ network_data.admin_network.netmask_bits }} {{ host_details[item]['node_detail'] }} {{ omnia_db_path }} {{ inventory_status | default(false) }}
+         {{ metadata_nicinfo_path }} {{  hostvars['localhost']['network_data'].admin_network.static_range }}
+         {{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} {{ host_details[item]['node_detail'] }} {{ omnia_db_path }} {{ inventory_status | default(false) }}
       changed_when: false
       when:
         - host_details | length > 0
