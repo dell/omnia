@@ -52,6 +52,6 @@
 
 - name: Render pip.conf template
   ansible.builtin.template:
-   src: "{{ pip_conf_src }}"
-   dest: "{{ pip_conf_dest }}"
-   mode: "{{ file_permission }}"
+    src: "{{ pip_conf_src }}"
+    dest: "{{ pip_conf_dest }}"
+    mode: "{{ file_permission }}"
