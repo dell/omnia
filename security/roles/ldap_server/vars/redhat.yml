@@ -17,6 +17,8 @@ tls_cert_path: "/etc/openldap/certs/"
 tls_cert_source: "/etc/pki/tls/certs"
 rhel_cert_file: "ldapserver.crt"
 rhel_cert_key: "ldapserver.key"
+file_owner: "root"
+file_group: "ldap"
 ssl_limit: 365
 firewall_ports:
   - 389/tcp

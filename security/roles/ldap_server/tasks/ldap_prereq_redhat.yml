@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -86,6 +86,17 @@
          | basename }}" # noqa var-naming
         ldaptoolbox_openldap_olcTLSCertificateKeyFile: "{{ tls_certificates_directory_path }}/{{ hostvars['127.0.0.1']['tls_certificate_key']
          | basename }}" # noqa var-naming
+
+- name: Change group permissions for certificate files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ file_owner }}"
+    group: "{{ file_group }}"
+    mode: "{{ openldap_cert_permissions }}"
+  with_items:
+    - "{{ ldaptoolbox_openldap_olcTLSCACertificateFile }}"
+    - "{{ ldaptoolbox_openldap_olcTLSCertificateFile }}"
+    - "{{ ldaptoolbox_openldap_olcTLSCertificateKeyFile }}"
 
 - name: Start and enable firewalld
   ansible.builtin.service:

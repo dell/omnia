@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 # Usage: include_security_config.yml
 vault_key_permission: "0644"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
-security_config_file: "{{ role_path }}/../../../input/security_config.yml"
-security_vaultname: "{{ role_path }}/../../../input/.security_vault.key"
-login_node_security_config_file: "{{ role_path }}/../../../input/login_node_security_config.yml"
+security_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/security_config.yml"
+security_vaultname: "{{ hostvars['localhost']['input_project_dir'] }}/.security_vault.key"
+login_node_security_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/login_node_security_config.yml"
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
 security_config_syntax_fail_msg: "Failed. Syntax errors present in security_config.yml. Fix errors and re-run playbook again."
@@ -104,14 +104,14 @@ fail_msg_monitor_root_password: "Failed, Incorrect format provided for Openldap 
 ldap_cert_path_fail_msg: "Failed, LDAP certificate path doesn't exist."
 ldap_cert_path_success_msg: "LDAP certificate path validated"
 fail_msg_ltb_dir: "Failed, LTB directory doesn't exist."
-local_repo_access_config_file: "/opt/omnia/offline/local_repo_access.yml"
+local_repo_access_config_file: "/opt/omnia/provision/local_repo_access.yml"
 
 # Usage: generate_ldap_password_hashes.yml
 hashing_python_file: "{{ role_path }}/files/generate_hash.py"
 python_version: "{{ ansible_python_interpreter }}"
 
 # Usage: ldap_prereq.yml
-openldap_packages_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/openldap.json"
+openldap_packages_file: "{{ hostvars['localhost']['input_project_dir'] }}/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/openldap.json"
 ldap_dir: "/opt/omnia/ldap"
 ltb_git_repo_path: "ansible-role-ldaptoolbox-openldap"
 ldap_git_dir: "/opt/omnia/ldap/ansible-role-ldaptoolbox-openldap"
@@ -122,7 +122,7 @@ ldap_repo_failure_msg: "Failed. The OpenLDAP repository is missing. Please run t
 Once the playbook has been successfully executed, you can rerun the original playbook."
 
 # fetch_software_config.yml
-software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+software_config_json_file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
 freeipa_and_openldap_false_fail_msg: "Both freeipa and openldap are not present in software_config.json.
 Please give one of them in software_config.json and execute local_repo.yml again."
 freeipa_and_openldap_true_fail_msg: "Both freeipa and openldap are present in software_config.json.
