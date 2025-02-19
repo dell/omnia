@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LDAP Configuration",
+  "description": "Schema for LDAP configuration YAML file",
+  "type": "object",
+  "properties": {
+    "domain_name": {
+      "description": "Domain name for LDAP configuration",
+      "type": "string",
+      "pattern": "^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,}$"
+    },
+    "realm_name": {
+      "description": "Kerberos realm name for FreeIPA",
+      "type": "string",
+      "pattern": "^[A-Z0-9.-]+$"
+    },
+    "directory_manager_password": {
+      "description": "Password for LDAP Directory Manager",
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 8,
+          "pattern": "^[^\\-\\'\\\"@\\\\]*$"
+        }
+      ]
+    },
+    "kerberos_admin_password": {
+      "description": "Password for Kerberos admin in FreeIPA",
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 8,
+          "pattern": "^[^\\-\\'\\\"@\\\\]*$"
+        }
+      ]
+    },
+    "ldap_connection_type": {
+      "description": "LDAP connection type (TLS or SSL)",
+      "type": "string",
+      "enum": [
+        "TLS",
+        "SSL"
+      ]
+    },
+    "tls_ca_certificate": {
+      "type": "string",
+      "pattern": "\\.pem$|\\.crt$|^$"
+    },
+    "tls_certificate": {
+      "type": "string",
+      "pattern": "\\.pem$|\\.crt$|^$"
+    },
+    "tls_certificate_key": {
+      "type": "string",
+      "pattern": "\\.key$|^$"
+    },
+    "openldap_db_username": {
+      "description": "Username for OpenLDAP database admin",
+      "type": "string",
+      "pattern": "^[^;\\[\\]`]+$"
+    },
+    "openldap_db_password": {
+      "description": "Password for OpenLDAP database admin",
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 8,
+          "pattern": "^[^\\-\\'\\\"@\\\\]*$"
+        }
+      ]
+    },
+    "openldap_config_username": {
+      "description": "Username for OpenLDAP configuration admin",
+      "type": "string",
+      "pattern": "^[^;\\[\\]`]+$"
+    },
+    "openldap_config_password": {
+      "description": "Password for OpenLDAP configuration admin",
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 8,
+          "pattern": "^[^\\-\\'\\\"@\\\\]*$"
+        }
+      ]
+    },
+    "openldap_monitor_password": {
+      "description": "Password for OpenLDAP monitor admin",
+      "type": "string",
+      "oneOf": [
+        {
+          "maxLength": 0
+        },
+        {
+          "minLength": 8,
+          "pattern": "^[^;\\[\\]`]+$"
+        }
+      ]
+    },
+    "openldap_organization": {
+      "description": "Organization name for OpenLDAP",
+      "type": "string"
+    },
+    "openldap_organizational_unit": {
+      "description": "Organizational unit for OpenLDAP",
+      "type": "string"
+    }
+  },
+  "required": [
+    "domain_name",
+    "realm_name",
+    "directory_manager_password",
+    "kerberos_admin_password",
+    "ldap_connection_type",
+    "openldap_db_username",
+    "openldap_db_password",
+    "openldap_config_username",
+    "openldap_config_password",
+    "openldap_monitor_password",
+    "openldap_organization",
+    "openldap_organizational_unit"
+  ]
+}

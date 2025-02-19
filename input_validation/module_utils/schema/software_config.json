@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "cluster_os_type": {
+      "type": "string",
+      "enum": ["ubuntu", "rhel", "rocky"],
+      "description": "Specifies the type of operating system for the cluster."
+    },
+    "cluster_os_version": {
+      "type": "string",
+      "description": "Specifies the version of the operating system for the cluster."
+    },
+    "repo_config": {
+      "type": "string",
+      "enum": ["always", "partial"],
+      "description": "Specifies how repository configurations are handled."
+    },
+    "softwares": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "version": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "description": "Array of software packages to be configured."
+    },
+    "bcm_roce": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "version": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "description": "Array of BCM RoCE libraries."
+    },
+    "amdgpu": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "version": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "description": "Array of AMDGPU software components."
+    },
+    "pytorch": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "description": "Array of PyTorch components."
+    },
+    "tensorflow": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "description": "Array of TensorFlow components."
+    },
+    "intelgaudi": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "description": "Array of Intel Gaudi components."
+    }
+  },
+  "required": ["cluster_os_type", "cluster_os_version", "repo_config", "softwares"]
+}
