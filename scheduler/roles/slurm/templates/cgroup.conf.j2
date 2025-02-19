@@ -1,0 +1,6 @@
+{% for key in cgroup_conf_dict | sort %}
+{% set val = cgroup_conf_dict[key] %}
+{% if val is not none and val != omit %}
+{{ key }}={{ 'yes' if val is sameas true else ('no' if val is sameas false else val) }}
+{% endif %}
+{% endfor %}

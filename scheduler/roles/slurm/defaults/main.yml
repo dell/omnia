@@ -1,0 +1,30 @@
+---
+# defaults file for slurm
+mpi: {}
+cgroup: {}
+__cgroup_default_config:
+  CgroupPlugin: autodetect
+  ConstrainCores: true
+  ConstrainDevices: true
+  ConstrainRAMSpace: true
+  ConstrainSwapSpace: true
+__slurm_default_config:
+  SlurmUser: "{{ slurm_user }}"
+  SlurmctldPort: 6817
+  SlurmdPort: 6818
+  SrunPortRange: "60001-63000"
+  StateSaveLocation: "/var/spool/state"
+  SlurmdSpoolDir: "/var/spool/slurmd"
+  ReturnToService: 2
+  SchedulerType: sched/backfill
+  MpiDefault: None
+  ProctrackType: proctrack/cgroup
+  SelectType: select/linear
+  SlurmctldLogFile: /var/log/slurmctld.log
+  SlurmdLogFile: /var/log/slurmd.log
+  SlurmctldPidFile: /var/run/slurmctld.pid
+  SlurmdPidFile: /var/run/slurmd.pid
+  AuthType: auth/munge
+  CryptoType: crypto/munge
+  SlurmctldTimeout: 120
+  SlurmdTimeout: 300

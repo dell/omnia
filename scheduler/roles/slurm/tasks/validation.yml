@@ -1,0 +1,22 @@
+---
+- name: Slurm control and node group to contain atleast 1 node
+  ansible.builtin.assert:
+    that:
+      - "'slurm_control_node' in groups"
+      - "'slurm_node' in groups"
+      - groups['slurm_control_node'] | length | int >= 1
+      - groups['slurm_node'] | length | int >= 1
+    fail_msg: "{{ inv_validation_fail_msg }}"
+
+- name: Control node not part of other groups
+  ansible.builtin.assert:
+    that:
+      - groups['slurm_control_node'] | intersect(groups['slurm_node']) | length | int == 0
+      - groups['slurm_control_node'] | intersect(groups['login'] | default([])) | length | int == 0
+    fail_msg: "{{ intersect_validation_fail_msg }}"
+
+- name: Check unreachable
+  ansible.builtin.assert:
+    that:
+      - groups['slurm_control_node'] | difference(ansible_play_hosts) | length | int == 0
+    fail_msg: "All control nodes are not reachable."

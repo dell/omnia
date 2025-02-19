@@ -1,0 +1,40 @@
+---
+# handlers file for slurm
+- name: Restart chrony
+  ansible.builtin.systemd_service:
+    name: "{{ 'chronyd' if ansible_os_family == 'RedHat' else 'chrony' }}"
+    state: restarted
+    enabled: true
+
+- name: Restart munge
+  ansible.builtin.systemd_service:
+    name: munge
+    state: restarted
+
+- name: Reload slurmctld
+  ansible.builtin.systemd_service:
+    name: slurmctld
+    state: reloaded
+    daemon_reload: true
+    enabled: true
+  when: restart_slurm_services and ('slurm_control_node' in group_names)
+
+- name: Restart slurmctld
+  ansible.builtin.systemd_service:
+    name: slurmctld
+    state: restarted
+  when: restart_slurm_services and ('slurm_control_node' in group_names)
+
+- name: Reload slurmd
+  ansible.builtin.systemd_service:
+    name: slurmd
+    state: reloaded
+    daemon_reload: true
+    enabled: true
+  when: restart_slurm_services and ('slurm_node' in group_names)
+
+- name: Restart slurmd
+  ansible.builtin.systemd_service:
+    name: slurmd
+    state: restarted
+  when: restart_slurm_services and ('slurm_node' in group_names)
