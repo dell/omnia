@@ -53,13 +53,6 @@
         ldaptoolbox_openldap_olcTLSCACertificateFile: "{{ tls_certificates_directory_path }}/{{ rhel_cert_file }}" # noqa var-naming
         ldaptoolbox_openldap_olcTLSCertificateFile: "{{ tls_certificates_directory_path }}/{{ rhel_cert_file }}" # noqa var-naming
         ldaptoolbox_openldap_olcTLSCertificateKeyFile: "{{ tls_certificates_directory_path }}/{{ rhel_cert_key }}" # noqa var-naming
-    
-    - name: Change ownership of the certificate key file
-      ansible.builtin.file:
-        path: "{{ ldaptoolbox_openldap_olcTLSCertificateKeyFile }}"
-        owner: ldap
-        group: ldap
-        mode: '0600'
 
 - name: Set tls certificate path for omnia playbook
   when: not default_certs
@@ -93,6 +86,17 @@
          | basename }}" # noqa var-naming
         ldaptoolbox_openldap_olcTLSCertificateKeyFile: "{{ tls_certificates_directory_path }}/{{ hostvars['127.0.0.1']['tls_certificate_key']
          | basename }}" # noqa var-naming
+
+- name: Change group permissions for certificate files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    group: ldap
+    mode: "{{ openldap_cert_permissions }}"
+  with_items:
+    - "{{ ldaptoolbox_openldap_olcTLSCACertificateFile }}"
+    - "{{ ldaptoolbox_openldap_olcTLSCertificateFile }}"
+    - "{{ ldaptoolbox_openldap_olcTLSCertificateKeyFile }}"
 
 - name: Start and enable firewalld
   ansible.builtin.service:

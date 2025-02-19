@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,10 +14,10 @@
 ---
 
 # Usage: include_passwordless_ssh.yml
-passwordless_ssh_config_file: "{{ role_path }}/../../../input/passwordless_ssh_config.yml"
+passwordless_ssh_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/passwordless_ssh_config.yml"
 folder_perm: '644'
 vault_file_perm: '0644'
-vault_filename: "{{ role_path }}/../../../input/.passwordless_ssh_vault_key"
+vault_filename: "{{ hostvars['localhost']['input_project_dir'] }}/.passwordless_ssh_vault_key"
 min_length: 8
 max_length: 30
 fail_msg_passwordless_ssh_config_file: "passwordless_ssh_config.yml file doesn't exist."
