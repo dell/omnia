@@ -70,22 +70,31 @@ class RegularMetricCollector:
             self.regular_metric_output_dict["CPUSystem"] = utility.Result.NO_DATA.value
             self.regular_metric_output_dict["CPUWait"] = utility.Result.NO_DATA.value
 
+
     def get_packet_errors(self):
         '''
-        Retrieve packet error information and store it in the dictionary.
+        Retrieve packet error information and store it in the dictionary
         '''
+        # Get network packet information
         netio = data_collector_psutil.get_packet_info()
 
         if netio is not None:
-            nmcli_output = invoke_commands.call_command("nmcli -t -f DEVICE,TYPE,STATE device status")
-            nmcli_data = common_parser.get_dict_list_format_parser_output(nmcli_output, ":", with_header=0)
-            # Initialize  interfaces list to store only ethernet connected devices
+            # Start with an empty interface list
             interface_list = []
-            # Loop through the nmcli_data and filter interfaces where header2 is ethernet and header3 is connected
-            for i in range(len(nmcli_data['header1'])):
-                if nmcli_data['header2'][i] == 'ethernet' and nmcli_data['header3'][i] == 'connected':
-                    interface_list.append(nmcli_data['header1'][i])
 
+            # Dynamically check link status for each interface in netio
+            for interface in netio.keys():
+                try:
+                    # Check link status using ethtool
+                    ethtool_output = invoke_commands.call_command(f"ethtool {interface} | grep -i 'Link detected.*yes'")
+                    if "yes" in ethtool_output.lower():
+                        # Add interface to the list if the link is active
+                        interface_list.append(interface)
+                except Exception as e:
+                    # Log or handle any errors during the ethtool call
+                    print(f"Error checking link status for interface {interface}: {e}")
+
+            # Process each interface in the updated interface list
             for interface in interface_list:
                 values = netio.get(interface)
                 if values is not None:
@@ -94,7 +103,9 @@ class RegularMetricCollector:
                 else:
                     self.regular_metric_output_dict[f"ErrorsRecv:{interface}"] = utility.Result.NO_DATA.value
                     self.regular_metric_output_dict[f"ErrorsSent:{interface}"] = utility.Result.NO_DATA.value
+
         else:
+            # If netio data is not available, log no data for all metrics
             self.regular_metric_output_dict["ErrorsRecv"] = utility.Result.NO_DATA.value
             self.regular_metric_output_dict["ErrorsSent"] = utility.Result.NO_DATA.value
 
