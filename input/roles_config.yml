@@ -43,7 +43,7 @@
 #
 
 Groups:
-  grp1:
+  grp0:
     location_id: su-1.rack-1
     resource_mgr_id: ""
     parent: ""
@@ -55,7 +55,7 @@ Groups:
     package_profile: "/opt/omnia/input/project_default/software_config.json"
     architecture: "x86"
 
-  #grp2:
+  #grp1:
   #  location_id: su-1.rack-2
   #  resource_mgr_id: ""
   #  parent: ""
@@ -98,7 +98,7 @@ Roles:
   resource_manager_type: ""
   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
   groups:
-      - grp1
+      - grp0
 
 
 # login Role:
@@ -111,8 +111,8 @@ Roles:
 #     resource_manager_type: ""
 #     resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #     groups:
+#      - grp0
 #      - grp1
-#      - grp2
 
 #
 # Compiler Role:
@@ -131,8 +131,8 @@ Roles:
 #    resource_manager_type: ""
 #    resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
 #    groups:
-#      - grp1
-#      - grp2 
+#      - grp0
+#      - grp1 
 
 
 #
@@ -152,8 +152,8 @@ Roles:
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
+#     - grp0
 #     - grp1
-#     - grp2
 
 #
 # K8s Worker Role: Kubernetes worker node groups to add into k8s role can be provided in this role
@@ -172,8 +172,8 @@ Roles:
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
+#     - grp0
 #     - grp1
-#     - grp2
 
 #
 # K8s etcd Role: Kubernetes etcd node groups to add into k8s role can be provided in this role
@@ -192,8 +192,8 @@ Roles:
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
+#     - grp0
 #     - grp1
-#     - grp2
 
 #
 # Slurm Worker Role: Slurm worker node groups to add into Slurm role can be provided in this role
@@ -212,8 +212,8 @@ Roles:
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
+#     - grp0
 #     - grp1
-#     - grp2
 
 #
 # Slurm DB Daemon Role: Slurm DB Daemon node groups to add into Slurm role can be provided in this role
@@ -232,8 +232,8 @@ Roles:
 #   resource_manager_type: ""
 #   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
+#     - grp0
 #     - grp1
-#     - grp2
 
 
 #
@@ -252,5 +252,5 @@ Roles:
 #    resource_manager_type: ""
 #    resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
 #    groups:
+#      - grp0
 #      - grp1
-#      - grp2

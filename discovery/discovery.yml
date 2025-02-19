@@ -70,7 +70,7 @@
 
     - name: Configure synclist
       ansible.builtin.include_role:
-        name: configure_synclist     # noqa: role-name[path]  
+        name: configure_synclist     # noqa: role-name[path]
 
     - name: Discover all nodes
       ansible.builtin.include_role:
