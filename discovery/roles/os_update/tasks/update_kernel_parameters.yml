@@ -14,6 +14,10 @@
 
 ---
 
+- name: Initialise collected_cmdline_values
+  ansible.builtin.set_fact:
+    collected_cmdline_values: {}
+
 - name: Collect cmdline values for all hosts
   ansible.builtin.set_fact:
     collected_cmdline_values: >-
@@ -21,16 +25,17 @@
   loop: "{{ hostvars.keys() | difference(['omnia_provision']) }}"
   when: "'cmdline_value' in hostvars[item] and hostvars[item].cmdline_value | length > 0"
 
-- name: Print cmdline values for all hosts
-  ansible.builtin.debug:
-    msg: "Host: {{ item }}, Cmdline Value: {{ collected_cmdline_values[item] }}"
-  loop: "{{ collected_cmdline_values.keys() }}"
-
 - name: Display warning if cmdline_value is empty
   ansible.builtin.debug:
     msg: "{{ warning_msg }}"
   loop: "{{ hostvars.keys() | difference(['omnia_provision']) }}"
   when: "'cmdline_value' in hostvars[item] and hostvars[item].cmdline_value | length == 0"
+
+- name: Print cmdline values for all hosts
+  ansible.builtin.debug:
+    msg: "Host: {{ item }}, Cmdline Value: {{ collected_cmdline_values[item] }}"
+  loop: "{{ collected_cmdline_values.keys() }}"
+  when:  collected_cmdline_values | length > 0
 
 - name: Kernel parameters update
   when: collected_cmdline_values | length > 0
