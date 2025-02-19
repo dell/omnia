@@ -1,0 +1,42 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Usage: pre_requisite.yml
+cuda_search_key: "cuda"
+
+# Usage: configure_ofed.yml
+ofed_postscripts_path:
+  - { src: "{{ role_path }}/../common/templates/omnia_ofed.j2", dest: "/install/postscripts/omnia_ofed", mode: "755" }
+mlnx_ofed_repo: /install/ofed
+repo_permission: "755"
+ofed_permission: "0644"
+
+# Usage: configure_cuda.yml
+cuda_tmp_path: /tmp/cuda
+cuda_core_path: /install/cuda/x86_64/cuda-core
+invalid_cuda_rpm_fail_msg: "Failed. Invalid cuda_toolkit_path: {{ cuda_toolkit_path }} provided in provision_config.yml.
+Make sure cuda rpm file is downloaded completely."
+cuda_postscripts_path:
+  - { src: "{{ role_path }}/../common/templates/omnia_cuda.j2", dest: "/install/postscripts/omnia_cuda", mode: "755" }
+xcat_path: /opt/xcat/bin
+
+# Usage: configure_rocm.yml
+pulp_port: 2225
+rocm_postscripts_path:
+  - { src: "{{ role_path }}/templates/omnia_rocm.j2", dest: "/install/postscripts/omnia_rocm", mode: "755" }
+
+# Usage: configure_postscripts.yml
+omnia_disable_repo_postscripts_path:
+  - { src: "{{ role_path }}/../rhel/files/omnia_disable_repo", dest: "/install/postscripts/omnia_disable_repo", mode: "755" }

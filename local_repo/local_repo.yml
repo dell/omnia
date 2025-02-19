@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
-- name: Check if virtual environment is active
-  ansible.builtin.import_playbook: ../utils/check_venv.yml
-  when: not ( check_venv_executed | default(false) | bool )
+- name: Create oim group
+  when: not oim_group_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    oim_group: true
 
-- name: Check if package manager is not locked
-  ansible.builtin.import_playbook: ../utils/check_package_lock.yml
-  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
+- name: Read network_spec vars
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Read network_spec vars
+      ansible.builtin.include_role:
+        name: pulp_validation
+        tasks_from: read_network_spec.yml
+
+- name: Validate Pulp Container and Endpoint
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Read network_spec vars
+      ansible.builtin.include_role:
+        name: pulp_validation
 
 - name: Local Repository Playbook
   hosts: localhost
@@ -27,17 +47,5 @@
   gather_facts: true
   roles:
     - validation
-    - configure_registry
-    - configure_repos
     - parse_and_download
-    - manifest
 
-- name: Display package status
-  hosts: localhost
-  connection: local
-  gather_facts: true
-  tasks:
-    - name: Include package_status tasks
-      ansible.builtin.include_role:
-        name: parse_and_download
-        tasks_from: display_package_status.yml

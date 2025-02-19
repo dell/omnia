@@ -18,3 +18,13 @@
   connection: local
   roles:
     - create_container_group
+
+- name: Validate containers are running
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Validate provision container is running
+      ansible.builtin.include_role:
+        name: create_container_group
+        tasks_from: validate_provision_container.yml
+      when: omnia_provision_validation | default(false) | bool

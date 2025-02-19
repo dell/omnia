@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,8 +25,9 @@
     file: "{{ software_config_json_file }}"
     name: software_config
 
-- name: Include vars for {{ oim_os }}
-  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ oim_os }}.yml"
+- name: Set fact provision_os
+  ansible.builtin.set_fact:
+    provision_os: "{{ software_config.cluster_os_type }}"
 
 - name: Get amdgpu status
   ansible.builtin.set_fact:
@@ -47,12 +48,6 @@
   loop_control:
     loop_var: item
 
-- name: Check if the rocm offline repo exists
-  ansible.builtin.stat:
-    path: "{{ offline_rocm_directory }}/rocm/"
-  register: check_rocm_repo
-  when: rocm_input_status
-
 - name: Set amdgpu_config_status
   when: amdgpu_input_status
   block:
@@ -60,22 +55,21 @@
       ansible.builtin.set_fact:
         amdgpu_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'amdgpu') | map(attribute='version') | first }}"
 
-    - name: Set amdgpu_version
-      ansible.builtin.set_fact:
-        amdgpu_directory: "{{ offline_rocm_directory }}/amdgpu/{{ amdgpu_version }}/"
+    - name: Get amdgpu repository details from Pulp
+      ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[provision_os] }} distribution list --name amdgpu_{{ amdgpu_version }}"
+      delegate_to: localhost
+      register: pulp_amdgpu_output
+      changed_when: false
+      no_log: true
 
-    - name: Check amdgpu version directory exists or not
-      ansible.builtin.stat:
-        path: "{{ amdgpu_directory }}"
-      register: check_amdgpu_dir
-
-    - name: Set amdgpu_config_status based on directory existence
+    - name: Set amdgpu_config_status based on pulp rpm distribution
       ansible.builtin.set_fact:
-        amdgpu_config_status: "{{ check_amdgpu_dir.stat.exists | ternary(true, false) }}"
+        amdgpu_config_status: true
+      when: pulp_amdgpu_output.stdout | from_json | length > 0
   rescue:
     - name: Log an error message
       ansible.builtin.debug:
-        msg: " {{ amdgpu_fail_msg }} "
+        msg: " {{ amdgpu_repo_fail_msg }} "
 
     - name: Set amdgpu_config_status to false
       ansible.builtin.set_fact:
@@ -84,53 +78,50 @@
 - name: Set rocm_config_status
   when:
     - rocm_input_status
-    - software_config.repo_config == 'always' or software_config.repo_config == 'partial'
-    - check_rocm_repo.stat.exists
   block:
     - name: Fetch rocm_version
       ansible.builtin.set_fact:
         rocm_version: "{{ software_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
 
-    - name: Set rocm_directory
-      ansible.builtin.set_fact:
-        rocm_directory: "{{ offline_rocm_directory }}/rocm/{{ rocm_version }}/"
+    - name: Get ROCm repository details from Pulp
+      ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[provision_os] }} distribution list --name rocm_{{ rocm_version }}"
+      delegate_to: localhost
+      register: check_rocm_repo
+      changed_when: false
+      no_log: true
 
-    - name: Check rocm_directory exists or not
-      ansible.builtin.stat:
-        path: "{{ rocm_directory }}"
-      register: check_rocm_dir
-
-    - name: Set rocm_config_status based on directory existence
-      ansible.builtin.set_fact:
-        rocm_config_status: "{{ check_rocm_dir.stat.exists | ternary(true, false) }}"
-
-  rescue:
-    - name: Log an error message
-      ansible.builtin.debug:
-        msg: " {{ amdgpu_fail_msg }} "
-
-    - name: Set rocm_config_status to false
-      ansible.builtin.set_fact:
-        rocm_config_status: false
-
-- name: Set rocm_config_status
-  when:
-    - rocm_input_status
-    - software_config.repo_config == 'never' or software_config.repo_config == 'partial'
-    - not check_rocm_repo.stat.exists
-  block:
-    - name: Fetch rocm_version
-      ansible.builtin.set_fact:
-        rocm_version: "{{ software_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
-
-    - name: Set rocm_config_status to true
+    - name: Set rocm_config_status based on pulp rpm distribution
       ansible.builtin.set_fact:
         rocm_config_status: true
+      when: check_rocm_repo.stdout | from_json | length > 0
   rescue:
     - name: Log an error message
       ansible.builtin.debug:
-        msg: " {{ amdgpu_fail_msg }} "
+        msg: " {{ rocm_repo_fail_msg }} "
 
     - name: Set rocm_config_status to false
       ansible.builtin.set_fact:
         rocm_config_status: false
+
+# This will be used in future
+# - name: Set rocm_config_status
+#   when:
+#     - rocm_input_status
+#     - software_config.repo_config == 'never' or software_config.repo_config == 'partial'
+#     - not check_rocm_repo.stat.exists
+#   block:
+#     - name: Fetch rocm_version
+#       ansible.builtin.set_fact:
+#         rocm_version: "{{ software_config.amdgpu | selectattr('name', 'equalto', 'rocm') | map(attribute='version') | first }}"
+
+#     - name: Set rocm_config_status to true
+#       ansible.builtin.set_fact:
+#         rocm_config_status: true
+#   rescue:
+#     - name: Log an error message
+#       ansible.builtin.debug:
+#         msg: " {{ amdgpu_fail_msg }} "
+
+#     - name: Set rocm_config_status to false
+#       ansible.builtin.set_fact:
+#         rocm_config_status: false

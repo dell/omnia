@@ -17,7 +17,7 @@
   ansible.builtin.include_tasks: initialize_facts_nodes.yml
 
 - name: Update DB and Node Object
-  when: add_network_status
+  when:  hostvars['localhost']['add_network_status']
   block:
     - name: Update network db for nic info
       ansible.builtin.include_tasks: update_network_info.yml

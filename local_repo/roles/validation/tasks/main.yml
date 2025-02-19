@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,32 +13,12 @@
 # limitations under the License.
 ---
 
-- name: Warning - Omnia will remove any package/software conflicting with the requirements
-  ansible.builtin.pause:
-    seconds: "{{ warning_wait_time_warning }}"
-    prompt: "{{ warning_msg_local_repo }}"
-
-- name: Check /var mount use percentage
-  ansible.builtin.shell: |
-    set -o pipefail
-    df -h /var | awk 'FNR == 2 {print $5}' | tr -d '%'
-  register: var_mount_use_percentage
-  changed_when: false
-
-- name: Warning - local_repo may fail due to insufficient disk space
-  ansible.builtin.pause:
-    seconds: "{{ warning_wait_time_warning }}"
-    prompt: "{{ var_mount_overuse_msg }}"
-  when: var_mount_use_percentage.stdout | float >= var_mount_percentage_limit
-
-- name: Validate Omnia Infrastructure Manager OS
-  ansible.builtin.include_tasks: validate_oim_os.yml
-
-- name: Validate domain_name
-  ansible.builtin.include_tasks: validate_domain_name.yml
+- name: Define project input path
+  ansible.builtin.set_fact:
+    project_input_path: "{{ hostvars['localhost']['input_project_dir'] }}"
 
 - name: Install prerequisites
-  ansible.builtin.include_tasks: prerequisites_{{ ansible_distribution | lower }}.yml
+  ansible.builtin.include_tasks: prerequisites.yml
 
 - name: Validate software_config.json
   ansible.builtin.include_tasks: validate_software_config_json.yml
@@ -46,21 +26,5 @@
 - name: Validate local_repo_config.yml
   ansible.builtin.include_tasks: validate_local_repo_config.yml
 
-- name: Validate site_config.yml
-  ansible.builtin.include_tasks: validate_site_config.yml
-
-- name: Validate ubuntu_os_url
-  ansible.builtin.include_tasks: validate_ubuntu_os_url.yml
-  when: cluster_os_type == 'ubuntu'
-
 - name: Validate software json files present in config directory
   ansible.builtin.include_tasks: validate_json_path.yml
-
-- name: Validate metadata
-  ansible.builtin.include_tasks: validate_metadata.yml
-
-- name: Validate provision_config_credentials.yml
-  ansible.builtin.include_tasks: validate_provision_config_credentials.yml
-
-- name: Validate bcm_roce.json
-  ansible.builtin.include_tasks: validate_bcm_roce_json.yml

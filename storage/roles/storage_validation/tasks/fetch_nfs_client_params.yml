@@ -121,6 +121,7 @@
   ansible.builtin.add_host:
     name: "{{ admin_nic_ip }}"
     groups: "nfs_server_local"
+    ansible_port: "{{ oim_port }}"
   when:
     - nfs_server_support
     - item.server_ip == "localhost" or

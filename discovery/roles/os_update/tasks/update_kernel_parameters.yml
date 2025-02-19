@@ -1,0 +1,46 @@
+# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+- name: Collect cmdline values for all hosts
+  ansible.builtin.set_fact:
+    collected_cmdline_values: >-
+      {{ collected_cmdline_values | default({}) | combine({ item: hostvars[item].cmdline_value }) }}
+  loop: "{{ hostvars.keys() | difference(['omnia_provision']) }}"
+  when: "'cmdline_value' in hostvars[item] and hostvars[item].cmdline_value | length > 0"
+
+- name: Print cmdline values for all hosts
+  ansible.builtin.debug:
+    msg: "Host: {{ item }}, Cmdline Value: {{ collected_cmdline_values[item] }}"
+  loop: "{{ collected_cmdline_values.keys() }}"
+
+- name: Display warning if cmdline_value is empty
+  ansible.builtin.debug:
+    msg: "{{ warning_msg }}"
+  loop: "{{ hostvars.keys() | difference(['omnia_provision']) }}"
+  when: "'cmdline_value' in hostvars[item] and hostvars[item].cmdline_value | length == 0"
+
+- name: Kernel parameters update
+  when: collected_cmdline_values | length > 0
+  block:
+    - name: Servicetag Host mapping and run chdef command
+      ansible.builtin.command: "{{ python_version }} {{ servicetag_node_mapping_script }} {{ file_path_db }} {{ item }} {{ collected_cmdline_values[item] | quote }}"
+      register: chdef_result
+      changed_when: true
+      loop: "{{ collected_cmdline_values.keys() }}"
+  rescue:
+    - name: Fail if Error in Kernel parameters update
+      ansible.builtin.fail:
+        msg: "{{ invalid_host_msg }}"

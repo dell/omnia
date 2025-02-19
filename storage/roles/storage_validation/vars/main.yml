@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 ---
 
 # Usage: main.yml
-local_repo_access_dest_path: "/opt/omnia/offline/local_repo_access.yml"
+local_repo_access_dest_path: "/opt/omnia/provision/local_repo_access.yml"
 
 # Usage: validate_beegfs_vars.yml
 beegfs_support_success_msg: "beegfs_support validated successfully"
@@ -24,7 +24,7 @@ beegfs_support_failure_msg: "Failed. beegfs_support should be either true or fal
 beegfs_rdma_support_success_msg: "beegfs_rdma_support validated successfully"
 beegfs_rdma_support_failure_msg: "Failed. beegfs_rdma_support should be either true or false"
 beegfs_mgmt_server_success_msg: "beegfs_mgmt_server, validated successfully"
-beegfs_mgmt_server_fail_msg: "Failed. Please enter IP of management server in IPV4 format or remove 'beegfs' details from input/software_config.json"
+beegfs_mgmt_server_fail_msg: "Failed. Please enter IP of management server in IPV4 format or remove 'beegfs' details from {{ input_project_dir }}/software_config.json"
 beegfs_mgmt_server_not_reachable_msg: "Failure, IP provided for beegfs_mgmt_server is not reachable. Please provide reachable IP of beegfs management server"
 beegfs_mounts_fail_msg: "Failed. Please provide a path for mounting beegfs file system"
 beegfs_client_version_success_msg: "beegfs_client_version, validated successfully "
@@ -67,24 +67,30 @@ oim_nfs_server_warning_msg: |
   "In storage_config.yml, under the nfs_client_params variable, server_ip is set to localhost/{{ admin_nic_ip }} and nfs_server is set to true.
   The NFS server will be set up on the Omnia Infrastructure Manager using the admin NIC IP address {{ admin_nic_ip }}.
   The playbook logs will contain the NFS server setup details for the Omnia Infrastructure Manager with IP {{ admin_nic_ip }}."
+oim_port: "22"
 
 # Usage: fetch_beegfs_inputs.yml, fetch_nfs_client_params.yml
 ping_msg: "100% packet loss"
-storage_config_vars: "{{ role_path }}/../../../input/storage_config.yml"
+storage_config_vars: "{{ input_project_dir }}/storage_config.yml"
 
 # Usage: fetch_software_config.yml
-software_config_json_file: "{{ role_path }}/../../../input/software_config.json"
+software_config_json_file: "{{ input_project_dir }}/software_config.json"
 beegfs_directory_rhel_rocky: "{{ repo_store_path }}/cluster/yum/beegfs/{{ beegfs_client_version }}"
+pulp_bin_path: /usr/local/bin/pulp
+os_package_map:
+  rhel: rpm
+  rocky: rpm
+  ubuntu: deb
 beegfs_repo_failure_msg: "Failed, Local repo not present for beegfs. Execute local_repo.yml again."
-local_repo_config_file: "{{ role_path }}/../../../input/local_repo_config.yml"
+local_repo_config_file: "{{ input_project_dir }}/local_repo_config.yml"
 nfs_client_params_failure_msg: "nfs software is present in software_config.json, please provide the nfs_client_params in storage_config.yml"
 beegfs_version_fail_msg: "Failed, Ensure version of beegfs is mentioned in software_config.json"
 storage_config_syntax_fail_msg: "Failed. Syntax errors present in storage_config.yml. Fix errors and re-run playbook again."
-nfs_client_params_k8s_share_fail_msg: "Exactly one entry should be present in nfs_client_params with k8s_share as true in input/storage_config.yml"
+nfs_client_params_k8s_share_fail_msg: "Exactly one entry should be present in nfs_client_params with k8s_share as true in {{ input_project_dir }}/storage_config.yml"
 nfs_client_params_k8s_share_success_msg: "Entry found in nfs_client_params with k8s_share as true"
-nfs_client_params_slurm_share_fail_msg: "Exactly one entry should be present in nfs_client_params with slurm_share as true in input/storage_config.yml"
+nfs_client_params_slurm_share_fail_msg: "Exactly one entry should be present in nfs_client_params with slurm_share as true in {{ input_project_dir }}/storage_config.yml"
 nfs_client_params_slurm_share_success_msg: "Entry found in nfs_client_params with slurm_share as true"
-nfs_client_params_benchmarks_fail_msg: "Atleast one out of k8s_share or slurm_share in input/storage_config.yml should be true \
+nfs_client_params_benchmarks_fail_msg: "Atleast one out of k8s_share or slurm_share in {{ input_project_dir }}/storage_config.yml should be true \
 when ucx/openmpi are installed on cluster nodes."
 nfs_client_params_benchmarks_success_msg: "Entry found in nfs_client_params with slurm_share or k8s_share as true"
 
@@ -117,8 +123,8 @@ At least one slurm_node should be present in the inventory."
 slurm_node_validation_success_msg: "At least one slurm_node exists in the inventory"
 
 # Usage: fetch_omnia_config.yml
-omnia_config_path: "{{ role_path }}/../../../input/omnia_config.yml"
-omnia_vault_path: "{{ role_path }}/../../../input/.omnia_vault_key"
+omnia_config_path: "{{ input_project_dir }}/omnia_config.yml"
+omnia_vault_path: "{{ input_project_dir }}/.omnia_vault_key"
 vault_key_permission: "0644"
 omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
 slurm_installation_type_wrong_failure_msg: "Slurm Installation Type should be either nfs_share or configless in omnia_config.yml"

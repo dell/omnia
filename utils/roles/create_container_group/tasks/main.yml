@@ -19,7 +19,9 @@
     ansible_host: "localhost"
     ansible_port: "{{ oim_host_port }}"
     groups: "{{ oim_host_group }}"
-  when: oim_group | default(false) | bool
+  when:
+    - oim_group | default(false) | bool or
+      omnia_provision_validation | default(false) | bool
 
 - name: Create {{ provision_container_name }} group # noqa: name[template]
   ansible.builtin.add_host:

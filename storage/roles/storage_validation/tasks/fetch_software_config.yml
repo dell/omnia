@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -69,15 +69,18 @@
 - name: Validate beegfs repo incase of always
   when: beegfs_support and repo_config == "always" and cluster_os_type in ["rhel","rocky"]
   block:
-    - name: Check beegfs_directory
-      ansible.builtin.stat:
-        path: "{{ beegfs_directory_rhel_rocky }}"
-      register: check_beegfs_directory
+    - name: Check beegfs repo configured in pulp
+      ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os_type] }} distribution list --name beegfs_{{ beegfs_client_version }}"
+      register: check_beegfs_repo
 
-    - name: Validate beegfs_directory existence
+    - name: Validate beegfs repo existence
       ansible.builtin.assert:
-        that: check_beegfs_directory.stat.exists
+        that: check_beegfs_repo.stdout | from_json | length > 0
         fail_msg: "{{ beegfs_repo_failure_msg }}"
+  rescue:
+    - name: Issue with repo
+      ansible.builtin.fail:
+        msg: "{{ beegfs_repo_failure_msg }}"
 
 - name: Initialize nfs_client_support
   ansible.builtin.set_fact:

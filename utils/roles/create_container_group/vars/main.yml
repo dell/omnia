@@ -21,3 +21,6 @@ provision_container_port: "2223"
 provision_container_name: "omnia_provision"
 kubespray_container_port: "2224"
 kubespray_container_name: "omnia_kubespray"
+
+# Usage: create_provision_group.yml
+provision_container_status_msg: "Provision container Status: {{ provision_container_status.containers[0].State.Status }}"

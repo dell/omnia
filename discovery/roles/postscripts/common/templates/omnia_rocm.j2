@@ -14,12 +14,12 @@ if [[ $amd_check_display_ctrlr == *"Advanced Micro Devices"* || $amd_check_proce
   if [[ $validate_ubuntu_os == "1"  ]]
   then
 
-    echo "deb [trusted=yes] http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/apt/amdgpu/{{ amdgpu_version }} ./" >> /etc/apt/sources.list.d/amdgpu.list
+    echo "deb [trusted=yes] http://{{ amdgpu_base_url }} ./" >> /etc/apt/sources.list.d/amdgpu.list
 
     sudo apt-get update
     sudo apt install "linux-headers-$(uname -r)" "linux-modules-extra-$(uname -r)" -y
     sudo apt install amdgpu-dkms -y
-    
+
     rm /etc/apt/sources.list.d/amdgpu.list
 
     apt-get update
@@ -28,12 +28,12 @@ if [[ $amd_check_display_ctrlr == *"Advanced Micro Devices"* || $amd_check_proce
   else
 
 sudo tee /etc/yum.repos.d/amdgpu.repo <<EOF
-[amdgpu]
-name=amdgpu
-baseurl=http://{{ admin_nic_ip }}:80/install{{ repo_store_path }}/cluster/yum/amdgpu/{{ amdgpu_version }}
+[{{ amdgpu_name }}]
+name={{ amdgpu_name }}
+baseurl={{ amdgpu_base_url }}
 enabled=1
 gpgcheck=0
-{% if proxy_status %}
+{% if proxy_status is defined and proxy_status %}
 proxy=_none_
 {% endif %}
 EOF

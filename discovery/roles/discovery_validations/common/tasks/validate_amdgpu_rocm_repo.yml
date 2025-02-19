@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,25 +34,30 @@
       ansible.builtin.set_fact:
         amdgpu_version: "{{ user_config.softwares | selectattr('name', 'equalto', 'amdgpu') | map(attribute='version') | first }}"
 
-    - name: Set amdgpu_directory
-      ansible.builtin.set_fact:
-        amdgpu_directory: "{{ offline_rocm_directory }}/amdgpu/{{ amdgpu_version }}/"
+    - name: Get amdgpu repository details from Pulp
+      ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[provision_os] }} distribution list --name amdgpu_{{ amdgpu_version }}"
+      delegate_to: localhost
+      register: pulp_amdgpu_output
+      changed_when: false
 
-    - name: Check amdgpu_directory exists or not
-      ansible.builtin.stat:
-        path: "{{ amdgpu_directory }}"
-      register: check_amdgpu_dir
+    - name: Parse amdgpu repository details
+      ansible.builtin.set_fact:
+        amdgpu_repo_list: "{{ pulp_amdgpu_output.stdout | from_json }}"
+      when: pulp_amdgpu_output.stdout | from_json | length > 0
+
+    - name: Set amdgpu_base_url and amdgpu_name if repository exists
+      ansible.builtin.set_fact:
+        amdgpu_base_url: "{{ amdgpu_repo_list[0]['base_url'] | default('') }}"
+        amdgpu_name: "{{ amdgpu_repo_list[0]['name'] | default('') }}"
+        amdgpu_config_status: true
+      when: amdgpu_repo_list | length > 0
 
     - name: Warning - Please wait, This task will take few seconds
       ansible.builtin.pause:
         seconds: "{{ warning_wait_time }}"
         prompt: "{{ amdgpu_repo_warning_msg }}"
-      when: not check_amdgpu_dir.stat.exists
+      when: pulp_amdgpu_output.stdout | length == 0
 
-    - name: Set amdgpu_config_status to true
-      ansible.builtin.set_fact:
-        amdgpu_config_status: true
-      when: check_amdgpu_dir.stat.exists
   rescue:
     - name: Warning - Please wait, This task will take few seconds
       ansible.builtin.pause:

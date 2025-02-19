@@ -15,6 +15,20 @@
 #!/bin/sh
 systemctl start corosync
 systemctl start pacemaker
+
+# Check if corosync and pacemaker have started
+if ! systemctl status corosync > /dev/null; then
+    echo "Corosync has not started. Exiting with return code 1."
+    exit 1
+fi
+
+if ! systemctl status pacemaker > /dev/null; then
+    echo "Pacemaker has not started. Exiting with return code 1."
+    exit 1
+fi
+
+echo "Corosync and Pacemaker have started. Continuing with the script."
+
 pcs property set stonith-enabled=false
 pcs property set no-quorum-policy=ignore
 
@@ -58,9 +72,31 @@ pcs resource create {{ kubespray_name }} ocf:heartbeat:podman \
 
 # Create ordering constraints
 pcs constraint order start {{ omnia_core_name }} then start {{ pulp_container_name }}
-pcs constraint order start {{ pulp_container_name }} then start {{ provision_container_name }}
+pcs constraint order start {{ omnia_core_name }} then start {{ provision_container_name }}
 {% if hostvars['localhost']['k8s_support'] %}
-pcs constraint order start {{ provision_container_name }} then start {{ kubespray_name }}
+pcs constraint order start {{ omnia_core_name }} then start {{ kubespray_name }}
 {% endif %}
 
 pcs resource defaults update migration-threshold={{ migration_threshold }}
+
+# Initialize the total sleep time
+total_sleep_time=0
+# Loop for a maximum of three minutes
+max_iterations=18
+for ((i=0; i<max_iterations; i++)); do
+    # Check if any pcs resources are stopped
+    if pcs resource | grep "Stopped\|FAILED"; then
+        # If any resources are stopped, sleep for 10 seconds
+        echo "Sleeping for 10 seconds. Total sleep time: $total_sleep_time seconds."
+        sleep 10
+        total_sleep_time=$((total_sleep_time + 10))
+    else
+        # If all resources are running, exit the loop
+        break
+    fi
+done
+
+# Create a file which signifies the pcs resources were created.
+# This file also contains the resources and its state which ansible can check against. 
+echo "$(date): PCS Resources Have Been Created"
+pcs resource | awk -F' ' '{print $2 " " $4}' | sed 's/^\s*//;s/\s*$//' > {{ pcs_start_container_finished }}

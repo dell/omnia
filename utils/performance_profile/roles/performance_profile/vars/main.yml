@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 setup_performance_profile_path: "{{ role_path }}/tasks/setup_performance_profile.yml"
 
 # Usage: validate_inputs.yml
-
+software_config_json_file: "{{ input_project_dir }}/software_config.json"
 empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory providing -i inventory."
 python_version: "{{ ansible_python_interpreter }}"
 validate_input_py: "{{ role_path }}/files/validate_input.py"

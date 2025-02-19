@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -81,62 +81,12 @@
   when: item in software_config | dict2items | map(attribute='key') | list
   # noqa: var-naming[no-jinja]
 
-- name: Assert valid values for cluster_os_type
-  ansible.builtin.assert:
-    that:
-      - cluster_os_type in valid_cluster_os_type
-    fail_msg: "{{ cluster_os_type_fail_msg }}"
-
-- name: Assert valid values for cluster_os_version for cluster_os_type rhel
-  ansible.builtin.assert:
-    that:
-      - cluster_os_version in rhel_valid_os_versions
-    fail_msg: "{{ cluster_os_version_fail_msg_rhel }}"
-  when: cluster_os_type == 'rhel'
-
 - name: Assert valid values for cluster_os_version for cluster_os_type rocky
   ansible.builtin.assert:
     that:
       - cluster_os_version in rocky_valid_os_versions
     fail_msg: "{{ cluster_os_version_fail_msg_rocky }}"
   when: cluster_os_type == 'rocky'
-
-- name: Assert valid values for cluster_os_version for cluster_os_type ubuntu
-  ansible.builtin.assert:
-    that:
-      - cluster_os_version in ubuntu_valid_os_versions
-    fail_msg: "{{ cluster_os_version_fail_msg_ubuntu }}"
-  when: cluster_os_type == 'ubuntu'
-
-- name: Set variable 'os_release' to 'jammy' if OS is Ubuntu and version is 22.04
-  ansible.builtin.set_fact:
-    os_release: "jammy"
-  when: cluster_os_type == 'ubuntu' and cluster_os_version == '22.04'
-
-- name: Set variable 'os_release' to 'focal' if OS is Ubuntu and version is 20.04
-  ansible.builtin.set_fact:
-    os_release: "focal"
-  when: cluster_os_type == 'ubuntu' and cluster_os_version == '20.04'
-
-- name: Set variable 'os_release' to 'noble' if OS is Ubuntu and version is 24.04
-  ansible.builtin.set_fact:
-    os_release: "noble"
-  when: cluster_os_type == 'ubuntu' and cluster_os_version == '24.04'
-
-- name: Set Openldap release version for Ubuntu 22.04
-  ansible.builtin.set_fact:
-    openldap_release: "jammy"
-  when: cluster_os_type == 'ubuntu' and os_release == 'jammy'
-
-- name: Set Openldap release version for Ubuntu 20.04
-  ansible.builtin.set_fact:
-    openldap_release: "bullseye"
-  when: cluster_os_type == 'ubuntu' and os_release == 'focal'
-
-- name: Set Openldap release version for Ubuntu 24.04
-  ansible.builtin.set_fact:
-    openldap_release: "trixie"
-  when: cluster_os_type == 'ubuntu' and os_release == 'noble'
 
 - name: Assert valid values for repo_config
   ansible.builtin.assert:
@@ -145,13 +95,13 @@
       - repo_config in valid_repo_config
     fail_msg: "{{ repo_config_fail_msg }}"
 
-- name: Validate oim_os with cluster_os_type
-  ansible.builtin.fail:
-    msg: "{{ cross_os_support_fail_msg }}"
-  when:
-    - (oim_os == 'ubuntu' and cluster_os_type != 'ubuntu') or
-      (oim_os == 'rocky' and cluster_os_type != 'rocky') or
-      (oim_os == 'redhat' and cluster_os_type != 'rhel')
+# - name: Validate control_plane_os with cluster_os_type
+#   ansible.builtin.fail:
+#     msg: "{{ cross_os_support_fail_msg }}"
+#   when:
+#     - (control_plane_os == 'ubuntu' and cluster_os_type != 'ubuntu') or
+#       (control_plane_os == 'rocky' and cluster_os_type != 'rocky') or
+#       (control_plane_os == 'redhat' and cluster_os_type != 'rhel')
 
 - name: Generate software JSON file patterns
   ansible.builtin.set_fact:
@@ -201,38 +151,6 @@
         msg: "{{ versions_fail_msg }}"
       vars:
         failed_softwares: "{{ version_result.results | selectattr('msg', 'equalto', 'Assertion failed') | map(attribute='item.name') | list }}"
-
-- name: Check if k8s support is true
-  ansible.builtin.set_fact:
-    k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
-
-- name: Check virtual ENV
-  ansible.builtin.set_fact:
-    venv_path: "{{ lookup('ansible.builtin.env', 'VIRTUAL_ENV') }}"
-
-- name: Validate k8s_support variable
-  when: k8s_support
-  block:
-    - name: Extract k8s version
-      ansible.builtin.set_fact:
-        k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | map(attribute='version') | first }}"
-      # noqa: var-naming[no-jinja]
-
-    - name: Fail if kubernetes version is other than 1.26.12 or omnia161_venv is not activated for RHEL/Rocky 8.6 or 8.7
-      ansible.builtin.fail:
-        msg: "{{ kube_version_on_unsupported_os }}"
-      when:
-        - cluster_os_type in ['rhel', 'rocky']
-        - cluster_os_version in ['8.6', '8.7']
-        - (omnia161_k8s_version not in k8s_version) or ('omnia161_venv' not in venv_path)
-
-    - name: Assert supported kubernetes version
-      ansible.builtin.assert:
-        that:
-          - k8s_version | default("", false) | length > 1
-          - "('omnia161_venv' in venv_path  and '{{ omnia161_k8s_version }}' in k8s_version) or ( 'omnia17_venv' in venv_path and '{{ omnia17_k8s_version }}' in k8s_version)" # noqa: yaml[line-length]
-        success_msg: "{{ success_msg_k8s_version }}"
-        fail_msg: "{{ fail_msg_k8s_version }}"
 
 - name: Update software versions from software_config.json (softwares)
   ansible.builtin.set_fact:

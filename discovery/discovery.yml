@@ -22,6 +22,7 @@
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   vars:
     omnia_provision_group: true
+    omnia_provision_validation: true
 
 - name: Decrypyt provision_credentials_config.yml
   hosts: localhost
@@ -75,14 +76,25 @@
       ansible.builtin.include_role:
         name: discovery_mechanism/common     # noqa: role-name[path]
 
-# - name: Update kernel parameters
-#   hosts: "all:!localhost,!omnia_provision"
-#   connection: local
-#   gather_facts: true
-#   vars_files:
-#     - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
-#   roles:
-#     - role: os_update
+- name: Set facts for kernel parameters update
+  hosts: all:!localhost:!omnia_provision
+  connection: local
+  gather_facts: true
+  vars_files:
+    - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
+  roles:
+    - role: os_update           # noqa: role-name[path]
+
+- name: Update kernel parameters
+  hosts: omnia_provision
+  connection: ssh
+  vars_files:
+    - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
+  tasks:
+    - name: Update kernel parameters
+      ansible.builtin.include_role:
+        name: os_update                   # noqa: role-name[path]
+        tasks_from: update_kernel_parameters.yml
 
 - name: Discovery roles of Omnia Infrastructure Manager for provisioning
   hosts: omnia_provision

@@ -1,0 +1,106 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Update beegfs,amdgpu,rocm repo when repo_config=partial,always
+  when: (software_config['repo_config']|lower == "partial") or (software_config['repo_config']|lower == "always")
+  block:
+    - name: Local local_repo_access.yml file
+      ansible.builtin.include_vars: "{{ local_repo_access_path }}"
+
+    - name: Generate software repository configurations
+      ansible.builtin.include_tasks: create_software_repo.yml
+      loop: "{{ software_config.softwares + software_config.amdgpu | default([]) }}"
+      when: "'beegfs' in item.name or 'amdgpu' in item.name or 'rocm' in item.name"
+      loop_control:
+        loop_var: item
+
+- name: Set fact for software version from software_config json
+  ansible.builtin.set_fact:
+    "{{ item.name }}_version": "{{ item.version }}"
+  loop: "{{ software_config.softwares + software_config.amdgpu | default([]) }}"
+  when: "('beegfs' in item.name or 'amdgpu' in item.name or 'rocm' in item.name) and item.version is defined"
+  loop_control:
+    loop_var: item
+  # noqa: var-naming[no-jinja]
+
+- name: Set fact for omnia repo url
+  ansible.builtin.set_fact:
+    omnia_repo_url: "{{ lookup('ansible.builtin.vars', 'omnia_repo_url_' + os_type) }}"
+
+- name: Initialise the variable
+  ansible.builtin.set_fact:
+    new_repos: []
+
+- name: Block to update omnia repos when repo_config is never
+  when:
+    - "omnia_repo_url is defined"
+    - "omnia_repo_url  | type_debug == 'list'"
+    - "omnia_repo_url | length > 0"
+    - (software_config['repo_config']|lower == "never")
+  block:
+    - name: Find newly added omnia repos
+      ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/find_new_repo.yml"
+      loop: "{{ omnia_repo_url | default([], true) }}"
+
+- name: Block to execute when new omnia repos are to be added
+  when:
+    - "new_repos is defined"
+    - "new_repos | type_debug == 'list'"
+    - "new_repos | length > 0"
+  block:
+    - name: Print the repo urls for which repo files will be created
+      ansible.builtin.debug:
+        var: new_repos
+
+    - name: Configure omnia repositories
+      ansible.builtin.template:
+        src: "{{ omnia_repo_config_template_src }}"
+        dest: "{{ repo_path }}/omnia_repo_{{ item.0 + 1 }}{{ansible_date_time.iso8601_basic}}.repo"
+        mode: "{{ file_permission }}"
+      with_indexed_items: "{{ omnia_repo_url }}"
+      when: item.1.url in new_repos and  software_version_default not in item.1.url
+
+    - name: Set repos_update_status
+      ansible.builtin.set_fact:
+        repos_update_status: true
+
+- name: Clean the yum repos cache
+  ansible.builtin.command: dnf clean all
+  changed_when: true
+
+- name: Execute update repos
+  when: repos_update_status | default(false)
+  block:
+    - name: Update yum repos cache
+      ansible.builtin.dnf:
+        update_cache: true
+      register: update_repos
+      until: update_repos is not failed
+      retries: "{{ repo_retries }}"
+      delay: "{{ repo_delay }}"
+
+  rescue:
+    - name: Update cache failure
+      ansible.builtin.fail:
+        msg: "{{ repo_update_failure_msg }}"
+
+- name: Run repolist command
+  ansible.builtin.command: dnf repolist
+  changed_when: false
+  register: dnf_repolist
+
+- name: Print repolist output
+  ansible.builtin.debug:
+    var: dnf_repolist.stdout_lines

@@ -1,7 +1,0 @@
-http_proxy={{ proxy[0].http_proxy }}
-https_proxy={{ proxy[0].https_proxy }}
-HTTP_PROXY={{ proxy[0].http_proxy }}
-HTTPS_PROXY={{ proxy[0].https_proxy }}
-no_proxy="localhost,{{ oim_hostname }},*.{{ oim_domain_name }},{{ oim_ip_addresses | join(',') }}{% if no_proxy_input_status %},{{ proxy[0].no_proxy }}{% endif %}"
-NO_PROXY="localhost,{{ oim_hostname }},*.{{ oim_domain_name }},{{ oim_ip_addresses | join(',') }}{% if no_proxy_input_status %},{{ proxy[0].no_proxy }}{% endif %}"
-
