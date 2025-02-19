@@ -14,5 +14,5 @@
 ---
 
 xcat_patch_files:
-  - { src: "{{ role_path }}/../../../prepare_cp/roles/install_xcat/common/files/confignetwork.patch", dest: "/install/postscripts/confignetwork" }
+  - { src: "{{ role_path }}/../../../prepare_oim/roles/install_xcat/common/files/confignetwork.patch", dest: "/install/postscripts/confignetwork" }
 upgrade_config_path: "{{ role_path }}/../../upgrade_config.yml"

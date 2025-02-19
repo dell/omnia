@@ -1,19 +1,34 @@
 ---
 Categories:  # Value auto populated by Omnia upgrade script
 {% for category in server_spec_ns.Categories %}
-{% for group, group_content in category.items() %}
-  - {{ group }}:
-{% for item in group_content %}
-      - network:
-{% for network in item.network %}
-{% for network_key, network_content in network.items() %}
-          - {{ network_key }}:
-{% for key, value in network_content.items() %}
-              {{ key }}: "{{ value }}"
+{% for group_name, group_content in category.items() %}
+  - {{ group_name }}:
+{% for section in group_content %}
+{% if section.network is defined %}
+    - network:
+{% for network in section.network %}
+{% for net_name, net_content in network.items() %}
+        - {{ net_name }}:
+{% for key, value in net_content.items() %}
+            {{ key }}: "{{ value }}"
+{% endfor %}
+            metric:
 {% endfor %}
 {% endfor %}
-
+{% endif %}
+{% if section.os is defined %}
+    - os:
+{% for os in section.os %}
+{% for os_key, os_content in os.items() %}
+        - {{ os_key }}:
+{% for item in os_content %}
+{% for key, value in item.items() %}
+            {{ key }}: "{{ value }}"
 {% endfor %}
+{% endfor %}
+{% endfor %}
+{% endfor %}
+{% endif %}
 {% endfor %}
 {% endfor %}
 {% endfor %}
