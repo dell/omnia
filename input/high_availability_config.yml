@@ -1,0 +1,90 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# ***********************************************************************
+
+# ***********************************************************************
+# High Availability (HA) Configuration for OIM
+# - enable_oim_ha: <Mandatory> Indicates whether to enable high availability (HA) for OIM (Open Information Model). Set to 'true' to enable, 'false' to disable.
+# - virtual_ip_address: <Mandatory if enable_oim_ha is true> The virtual IP address for the OIM HA setup.
+# - active_node_service_tag: <Mandatory if enable_oim_ha is true> The service tag of the active node in the OIM HA setup.
+# - passive_nodes:
+#   - node_service_tags: <Mandatory if enable_oim_ha is true> List of service tags for passive nodes that will take over if the active node fails. Separate tags with commas.
+# ***********************************************************************
+
+oim_ha: 
+  - enable_oim_ha: false
+    virtual_ip_address: ""
+    active_node_service_tag: ""
+    passive_nodes: 
+      - node_service_tags:  
+        [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
+
+# ***********************************************************************
+# High Availability (HA) Configuration for Service Nodes
+# - enable_service_ha: <Mandatory> Indicates whether to enable HA for service nodes. Set to 'true' to enable, 'false' to disable.
+# - service_nodes:
+#   - virtual_ip_address: <Mandatory if enable_service_ha is true> The virtual IP address for the service node HA setup.
+#   - active_node_service_tag: <Mandatory if enable_service_ha is true> The service tag of the active node within this service node HA group.
+#   - passive_nodes:
+#     - node_service_tags: <Mandatory if enable_service_ha is true> List of service tags for passive nodes for this active service node. Separate tags with commas.
+# ***********************************************************************
+
+service_node_ha: 
+  - enable_service_ha: false
+    service_nodes: 
+      - virtual_ip_address: ""
+        active_node_service_tag: ""
+        passive_nodes: 
+          - node_service_tags: 
+            [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
+
+      - virtual_ip_address: ""
+        active_node_service_tag: ""
+        passive_nodes: 
+          - node_service_tags: 
+            [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
+
+# ***********************************************************************
+# High Availability (HA) Configuration for SLURM Head Node
+# - enable_slurm_ha: <Mandatory> Indicates whether to enable HA for the SLURM head node. Set to 'true' to enable, 'false' to disable.
+# - virtual_ip_address: <Mandatory if enable_slurm_ha is true> The virtual IP address for the SLURM head node HA setup.
+# - active_node_service_tags: <Mandatory if enable_slurm_ha is true> The service tag of the active SLURM head node.
+# - passive_nodes:
+#   - node_service_tags: <Mandatory if enable_slurm_ha is true> List of service tags for passive nodes for the SLURM head node. Separate tags with commas.
+# ***********************************************************************
+
+slurm_head_node_ha: 
+  - enable_slurm_ha: false
+    virtual_ip_address: ""
+    active_node_service_tags: ""
+    passive_nodes: 
+      - node_service_tags: 
+        [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
+
+# ***********************************************************************
+# High Availability (HA) Configuration for Kubernetes (K8s) Head Node
+# - enable_k8s_ha: <Mandatory> Indicates whether to enable HA for the Kubernetes (K8s) head node. Set to 'true' to enable, 'false' to disable.
+# - virtual_ip_address: <Mandatory if enable_k8s_ha is true> The virtual IP address for the K8s head node HA setup.
+# - active_node_service_tags: <Mandatory if enable_k8s_ha is true> List of service tags of active K8s head nodes. Separate tags with commas.
+# ***********************************************************************
+
+k8s_head_node_ha: 
+    enable_k8s_ha: false
+    virtual_ip_address: ""
+    active_node_service_tags: 
+      [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
