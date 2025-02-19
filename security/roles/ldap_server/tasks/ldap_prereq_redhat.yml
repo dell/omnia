@@ -90,8 +90,8 @@
 - name: Change group permissions for certificate files
   ansible.builtin.file:
     path: "{{ item }}"
-    owner: root
-    group: ldap
+    owner: "{{ file_owner }}"
+    group: "{{ file_group }}"
     mode: "{{ openldap_cert_permissions }}"
   with_items:
     - "{{ ldaptoolbox_openldap_olcTLSCACertificateFile }}"
