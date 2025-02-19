@@ -43,7 +43,7 @@
 #
 
 Groups:
-  grp1:
+  grp0:
     location_id: su-1.rack-1
     resource_mgr_id: ""
     parent: ""
@@ -98,7 +98,7 @@ Roles:
   resource_manager_type: ""
   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
   groups:
-      - grp1
+      - grp0
 
 
 # login Role:
