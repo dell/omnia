@@ -17,7 +17,7 @@
   block:
     - name: Get OpenLDAP local git repo status
       ansible.builtin.uri:
-        url: "{{ offline_git_path }}/{{ ltb_git_repo_path }}.tar.gz"
+        url: "{{ offline_git_path }}/{{ ltb_git_repo_path }}/{{ ltb_git_repo_path }}.tar.gz"
         return_content: false
       register: ldap_repo_status
   rescue:
@@ -40,7 +40,7 @@
 
 - name: Get LDAP git repo tarball
   ansible.builtin.get_url:
-    url: "{{ offline_git_path }}/{{ ltb_git_repo_path }}.tar.gz"
+    url: "{{ offline_git_path }}/{{ ltb_git_repo_path }}/{{ ltb_git_repo_path }}.tar.gz"
     dest: "{{ ldap_dir }}"
     mode: "{{ file_permission }}"
 
