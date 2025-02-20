@@ -510,18 +510,15 @@ main() {
         if [ -n "$(echo "$running_containers" | grep -E 'running')" ]; then
             echo -e "${GREEN} Omnia core container is already running.${NC}"
             echo -e "${GREEN} Do you want to:${NC}"
-            echo -e "${GREEN} 1. Cleanup the container.${NC}"
-            echo -e "${GREEN} 2. Reinstall the container.${NC}"
+            echo -e "${GREEN} 1. Reinstall the container.${NC}"
+            echo -e "${GREEN} 2. Delete the container and configurations.${NC}"
             echo -e "${GREEN} 3. Exit. ${NC}"
 
             # Get user input
             read -p " Enter your choice (1 or 2): " choice
 
-            # If the user wants to cleanup, call the cleanup function
-            if [ "$choice" = "1" ]; then
-                cleanup_omnia_core
             # If the user wants to reinstall, call the remove_container function, and then call the setup_omnia_core function
-            elif [ "$choice" = "2" ]; then
+            if [ "$choice" = "1" ]; then
                 echo -e "${GREEN} What configuration do you want to use for reinstallation:${NC}"
                 echo -e "${GREEN} 1. Retain Existing configuration.${NC}"
                 echo -e "${GREEN} 2. Overwrite and create new configuration.${NC}"
@@ -542,6 +539,9 @@ main() {
                 elif [ "$choice" = "3" ]; then
                     exit
                 fi
+            # If the user wants to cleanup, call the cleanup function
+            elif [ "$choice" = "2" ]; then
+                cleanup_omnia_core
             # If the user wants to exit, exit
             elif [ "$choice" = "3" ]; then
                 exit
