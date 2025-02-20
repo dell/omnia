@@ -24,22 +24,20 @@
 # roles_config.yml file takes input parameters for the composable roles and groups.
 # This file contains Roles and Groups used by the omnia for cluster formation.
 # Groups: - Groups will contain the list of groups defined by the user. User must define atleast one group.
-#   grpN:                - <Mandatory> "grpN" -  User defined name of the group. Range for N is 0-99
-#     location_id:       - <Mandatory> su-<n>.rack-<n> Scalable unit and rack number range is 0-99.
-#     resource_mgr_id:   - <Conditional Mandatory> list of service tag of active head node(s).
-#                        - Set the value only for group of nodes belonging to k8worker and slurmworker roles, 
-#                        - And empty for other roles.
-#     parent:            - <Conditional Mandatory> list of service tag of associated active service node(s).
-#                        - This field will be empty for group of nodes which is associated with ‘login’, ‘compiler’, ‘service’, ‘k8head’,’slurmhead’.
-#                        - If ‘service’ role is not defined, then value will be empty for worker and default role. 
-#     network_profile    - <Mandatory> path of network_spec.yml which contains the network information.
-#     bmc_ip_range:      - <Conditional Mandatory> BMC IP static range in the format 10.5.0.1-10.5.0.200
-#        static: ""      - <Mandatory> This field mandatory in case of BMC discovery of subset of nodes
-#     mapping_info:      - <Conditional Mandatory> path of pxe_mapping_file.csv which contains the mapping information.
-#     switch_ip          - <Conditional Mandatory> list of Switch IP and ports.
-#                        - <Mandatory> This field mandatory in case of switch based discovery.
-#     package_profile    - <Mandatory> path of software_config.json which contains the package information.
-#     architecture       - <Mandatory> architecture of the nodes - x86 or ARM
+#   grpN:                 - <Mandatory> "grpN" -  User defined name of the group. Range for N is 0-99
+#     location_id:        - <Mandatory> su-<n>.rack-<n> Scalable unit and rack number range is 0-99.
+#     resource_mgr_id:    - <Conditional Mandatory> list of service tag of active head node(s).
+#                         - Set the value only for group of nodes belonging to k8worker and slurmworker roles, 
+#                         - And empty for other roles.
+#     parent:             - <Conditional Mandatory> list of service tag of associated active service node(s).
+#                         - This field will be empty for group of nodes which is associated with ‘login’, ‘compiler’, ‘service’, ‘k8head’,’slurmhead’.
+#                         - If ‘service’ role is not defined, then value will be empty for worker and default role. 
+#     bmc_details:        - <Conditional Mandatory> BMC IP static range in the format 10.5.0.1-10.5.0.200
+#        static_range:    - <Mandatory> This field mandatory in case of BMC discovery of subset of nodes
+#     switch_details      - <Conditional Mandatory> Switch details of the Rack
+#        ip:              - <Mandatory> IP address of the switch
+#        ports:           - <Mandatory> ports of the switch
+#     architecture        - <Mandatory> architecture of the nodes - x86 or ARM
 #
 
 Groups:
@@ -47,26 +45,23 @@ Groups:
     location_id: su-1.rack-1
     resource_mgr_id: ""
     parent: ""
-    network_profile: "/opt/omnia/input/project_default/network_spec.yml"
-    bmc_ip_range:
-      static: ""
-    mapping_info: "/opt/omnia/pxe_mapping_file.csv"
-    switch_ip: ""
-    package_profile: "/opt/omnia/input/project_default/software_config.json"
+    bmc_details:
+      static_range: ""
+    switch_details: 
+      ip: ""
+      ports: ""
     architecture: "x86"
 
-  #grp1:
-  #  location_id: su-1.rack-2
-  #  resource_mgr_id: ""
-  #  parent: ""
-  #  network_profile: "/opt/omnia/input/project_default/network_spec.yml"
-  #  bmc_ip_range: ""
-  #    static: ""
-  #  mapping_info: "/opt/omnia/pxe_mapping_file.csv"
-  #  switch_ip: ""
-  #  package_profile: "/opt/omnia/input/project_default/software_config.json"
-  #  architecture: "x86"
-
+#  grp1:
+#    location_id: su-1.rack-2
+#    resource_mgr_id: ""
+#    parent: ""
+#    bmc_details:
+#      static_range: ""
+#    switch_details:
+#      ip: ""
+#      ports: ""
+#    architecture: "x86"
 
 #************************************************************************************************************************
 #  Roles
@@ -76,63 +71,38 @@ Groups:
 # Note: Nested roles and groups are not supported. 
 # The roles are case sensitive
 #   - name:                           - <Mandatory> Name of the role, can be any of the following Omnia defined roles.
-#     system_configuration:           - <Optional> path of server_spec.yml which has the system configuration.
-#     resource_manager_type:          - <Conditional Mandatory> type of resource manager.The values can be slurm or K8s.
-#     resource_mgr_profile:           - <Conditional Mandatory> path of omnia_config.yml
 #     groups:                         - <Mandatory> list of groups defined by the user
 #
 
-Roles:
 # Default Role:
 # -------------
 #
 # This role is provided to cover the default role of the cluster.
 #
-# The default role is assigned to nodes which do not fit into any
-# specific roles.
+# The default role is assigned to nodes which do not fit into any specific roles.
 # If user wants to just provision the group of nodes without associating with any role,
 # then the default role can be used.
 #
+Roles:
 - name: "default"
-  system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-  resource_manager_type: ""
-  resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
   groups:
       - grp0
 
-
-# login Role:
-# -----------
 #
-# login node groups to add into login role can be provided in this role
-# Name of the login role, user is not allowed to change the name of the roles
-#  - name: "login"
-#     system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#     resource_manager_type: ""
-#     resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
-#     groups:
-#      - grp0
-#      - grp1
-
+# Service Role: Service node groups to add into service role can be provided in this role
+# ------------------------------------------------------------------------------------
 #
-# Compiler Role:
-# --------------
-#
-# This role is used to configure the nodes for compilation.
+# This role is used to configure the nodes for service group.
 #
 # The nodes included in this role will have the necessary tools and
-# configurations to perform compilation.
+# configurations to configure service node.
 #
-# The nodes in this role can be used to compile the code.
+# The nodes in this role can be used to run service.
 #
-# Compiler Role: Compiler groups to add into compiler role can be provided in this role
-#  - name: "Compiler"
-#    system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#    resource_manager_type: ""
-#    resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
-#    groups:
-#      - grp0
-#      - grp1 
+# - name: "service"
+#   groups:
+#     - grp0
+#     - grp1 
 
 
 #
@@ -148,9 +118,6 @@ Roles:
 #
 # k8s head Role: Kubernetes master groups to add into k8shead role can be provided in this role
 # - name: "k8shead"
-#   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   resource_manager_type: ""
-#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
 #     - grp0
 #     - grp1
@@ -168,9 +135,6 @@ Roles:
 #
 # K8s Worker Role: Kubernetes worker groups to add into k8s worker role can be provided in this role
 # - name: "k8sworker"
-#   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   resource_manager_type: ""
-#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
 #     - grp0
 #     - grp1
@@ -188,9 +152,6 @@ Roles:
 #
 # K8s etcd Role: Kubernetes etcd groups to add into k8s etcd role can be provided in this role
 # - name: "k8setcd"
-#   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   resource_manager_type: ""
-#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
 #     - grp0
 #     - grp1
@@ -208,12 +169,10 @@ Roles:
 #
 # Slurm Worker Role: Slurm worker groups to add into Slurm role can be provided in this role
 # - name: "slurmworker"
-#   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   resource_manager_type: ""
-#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
 #   groups:
 #     - grp0
-#     - grp1
+#     - grp1 
+
 
 #
 # Slurm DB Daemon Role: Slurm DB Daemon node groups to add into Slurm role can be provided in this role
@@ -228,29 +187,35 @@ Roles:
 #
 # Slurm DB Daemon Role: Slurm DB Daemon groups to add into Slurm role can be provided in this role
 # - name: "slurmdbd"
-#   system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#   resource_manager_type: ""
-#   resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml"
+#   groups:
+#     - grp0
+#     - grp1 
+
+
+#
+# Login Role:
+# -----------
+#
+# login node groups to add into login role can be provided in this role
+# Name of the login role, user is not allowed to change the name of the roles
+# - name: "login"
 #   groups:
 #     - grp0
 #     - grp1
 
-
 #
-# Service Role: Service node groups to add into service role can be provided in this role
-# ------------------------------------------------------------------------------------
+# Compiler Role:
+# --------------
 #
-# This role is used to configure the nodes for service group.
+# This role is used to configure the nodes for compilation.
 #
 # The nodes included in this role will have the necessary tools and
-# configurations to configure service node.
+# configurations to perform compilation.
 #
-# The nodes in this role can be used to run service.
+# The nodes in this role can be used to compile the code.
 #
-#  - name: "service"
-#    system_configuration: "/opt/omnia/input/project_default/server_spec.yml"
-#    resource_manager_type: ""
-#    resource_mgr_profile: "/opt/omnia/input/project_default/omnia_config.yml" 
-#    groups:
-#      - grp0
-#      - grp1
+# Compiler Role: Compiler groups to add into compiler role can be provided in this role
+# - name: "compiler"
+#   groups:
+#     - grp0
+#     - grp1 
