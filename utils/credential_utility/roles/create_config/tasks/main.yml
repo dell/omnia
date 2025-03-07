@@ -19,7 +19,7 @@
     dest: "{{ omnia_credential_file }}"
     mode: "{{ omnia_credential_file_mode }}"
 
-- name: Include vars for omnia_config_credentials.yml 
+- name: Include vars for omnia_config_credentials.yml
   block:
     - name: Include omnia_credentials.yml
       ansible.builtin.include_vars: "{{ omnia_credential_file }}"
