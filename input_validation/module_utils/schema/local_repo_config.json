@@ -113,8 +113,5 @@
       },
       "description": "URLs for repositories from which DEB packages will be downloaded for Omnia features on Ubuntu."
     }
-  },
-  "required": [
-    "repo_store_path"
-  ]
+  }
 }
