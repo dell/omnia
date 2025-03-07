@@ -17,7 +17,7 @@
   ansible.builtin.set_fact:
     project_input_path:"{{ hostvars['localhost']['input_project_dir'] }}"
 
-- name : Process and configure local_repo_config
+- name: Process and configure local_repo_config
   ansible.builtin.include_tasks: process_rpm_repo.yml
 
 - name: Execute tasks for each group

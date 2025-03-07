@@ -50,7 +50,6 @@
       ansible.builtin.debug:
         msg: "{{ validation_status }}"
 
-
 - name: Create oim group
   when: not oim_group_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
@@ -83,4 +82,3 @@
   roles:
     - validation
     - parse_and_download
-

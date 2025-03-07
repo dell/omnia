@@ -72,7 +72,7 @@ local_repo_py_module_vars:
     timeout: 7200
     nthreads: 8
   intel_benchmarks:
-    timeout: 7200 
+    timeout: 7200
     nthreads: 1
   amd_benchmarks:
     timeout: 7200
