@@ -32,4 +32,3 @@
     - name: Fail to include omnia_config_credentials.yml
       ansible.builtin.fail:
         msg: "{{ password_fail_msg }}: {{ include_omnia_credentials.message }}"
-
