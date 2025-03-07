@@ -29,7 +29,7 @@
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
-- name: Call main.yml with tag "local_repo"
+- name: Call input validator module with tag "local_repo"
   hosts: localhost
   connection: local
   gather_facts: true
@@ -48,7 +48,7 @@
 
     - name: Debug validation status
       ansible.builtin.debug:
-        msg: "{{ messages.validation_success }}"
+        msg: "{{ validation_status }}"
 
 
 - name: Create oim group

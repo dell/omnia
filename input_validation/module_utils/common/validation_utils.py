@@ -139,7 +139,7 @@ def verify_iso_file(iso_file_path, provision_os, provision_os_version):
     if (".iso" not in iso_file_path):
         return en_us_validation_msg.iso_file_path_not_contain_iso_msg
     if not (
-        provision_os.lower() in iso_file_path and provision_os_version in iso_file_path
+        provision_os.lower() in iso_file_path.lower() and provision_os_version in iso_file_path
     ):
         return en_us_validation_msg.iso_file_path_not_contain_os_msg(
             iso_file_path, provision_os, provision_os_version
