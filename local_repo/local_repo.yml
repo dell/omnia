@@ -48,7 +48,7 @@
 
     - name: Debug validation status
       ansible.builtin.debug:
-        msg: "{{ messages.validation_success }}"
+        msg: "{{ validation_status }}"
 
 
 - name: Create oim group
