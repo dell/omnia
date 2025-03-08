@@ -1,4 +1,4 @@
-# CONTRIBUTE
+# CONTRIBUTING
 
 ## Introduction
 We encourage everyone to help us improve Omnia by contributing to the project. Contributions can be as small as documentation updates or adding example use cases, to adding commenting or properly styling code segments, to full feature contributions. We ask that contributors follow our established guidelines for contributing to the project.
@@ -84,6 +84,5 @@ By making a contribution to this project, I certify that:
 (d) I understand and agree that this project and the contribution
     are public and that a record of the contribution (including all
     personal information I submit with it, including my sign-off) is
-    maintained indefinitely and may be redistributed consistent with
-    this project or the open source license(s) involved.
+    maintained indefinitely and may be redistributed in accordance with this project and the open source license(s) involved.
 ```
