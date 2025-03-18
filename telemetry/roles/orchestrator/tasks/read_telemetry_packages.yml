@@ -31,7 +31,7 @@
 
 - name: Create a mapping of package name and version
   ansible.builtin.set_fact:
-    telemetry_package_map: "{{ telemetry_package_map | default({}) | combine({ ((item.package).rsplit('-', 1)[0]): item.package}) }}"
+    telemetry_package_map: "{{ telemetry_package_map | default({}) | combine({((item.package).rsplit('-', 1)[0]): item.package}) }}"
   loop: "{{ telemetry_json['telemetry']['cluster'] }}"
   when: (item.type == "tarball" or item.type == "git")
 

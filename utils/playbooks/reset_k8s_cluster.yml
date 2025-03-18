@@ -13,6 +13,7 @@
 #  limitations under the License.
 ---
 
+
 - name: Initiate Kubernetes installation
   ansible.builtin.import_playbook: kubernetes_sigs.kubespray.reset
   vars:

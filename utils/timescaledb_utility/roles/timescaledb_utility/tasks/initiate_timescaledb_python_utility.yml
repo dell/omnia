@@ -23,7 +23,7 @@
 - name: Check if timescaledb service is up and running
   ansible.builtin.fail:
     msg: "{{ timescaledb_service_failure_msg }}"
-  when:  timescaledb_k8s_name not in k8s_svc.stdout
+  when: timescaledb_k8s_name not in k8s_svc.stdout
 
 - name: Set timescaleDB service IP
   ansible.builtin.set_fact:

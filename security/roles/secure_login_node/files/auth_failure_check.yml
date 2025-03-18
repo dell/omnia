@@ -46,7 +46,7 @@
       ansible.builtin.shell:
         cmd: |
           set -o pipefail
-          journalctl -u {{ ssh_service_name  }} --since "{{ auth_failure_check_time }} minutes ago" | grep "{{ auth_failure_search_key }}"
+          journalctl -u {{ ssh_service_name }} --since "{{ auth_failure_check_time }} minutes ago" | grep "{{ auth_failure_search_key }}"
       changed_when: false
       failed_when: false
       register: auth_failure_check

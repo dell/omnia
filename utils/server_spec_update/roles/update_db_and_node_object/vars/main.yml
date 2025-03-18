@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-#Usage: initialize_facts_nodes.yml
+# Usage: initialize_facts_nodes.yml
 warning_wait_time: 30
 node_warning_msg: "[WARNING] - server_spec_update.yml configuration  will not be applied to the following nodes: {{ unmatched_hosts }}. Please double-check the host entries in your inventory to ensure they are correct."    # noqa: yaml[line-length]
 

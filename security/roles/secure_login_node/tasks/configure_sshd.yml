@@ -17,7 +17,7 @@
   ansible.builtin.set_fact:
     user: "{{ hostvars['127.0.0.1']['user'] }}"
     allow_deny: "{{ hostvars['127.0.0.1']['allow_deny'] }}"
-    
+
 - name: Gathering service facts
   ansible.builtin.service_facts:
 

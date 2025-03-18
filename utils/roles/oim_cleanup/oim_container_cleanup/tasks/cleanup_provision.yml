@@ -26,7 +26,7 @@
       containers.podman.podman_container:
         name: "{{ provision_container_name }}"
         state: stopped
-      failed_when: false  
+      failed_when: false
 
     - name: Remove Provision container
       containers.podman.podman_container:

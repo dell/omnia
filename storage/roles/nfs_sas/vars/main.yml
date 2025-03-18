@@ -44,7 +44,7 @@ mount_dir_permissions: "0777"
 lvm_size: 100%FREE
 exports_file: "/etc/exports"
 default_server_options: "rw,sync,no_root_squash,no_subtree_check"
-timeout: "60"
+task_timeout: "60"
 
 # Usage: nfs_server_packages.yml
 

@@ -16,7 +16,7 @@
 - name: Ensure firewalld is installed
   block:
     - name: Install firewalld
-      ansible.builtin.yum:
+      ansible.builtin.dnf:
         name: firewalld
         state: present
 

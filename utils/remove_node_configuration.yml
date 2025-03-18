@@ -114,7 +114,7 @@
           async: 3600  # Set async timeout (e.g., 1 hour)
           poll: 0  # Non-blocking (continue the playbook without waiting for completion)
           register: k8s_remove_result  # Register the result to capture job ID
-        
+
         - name: Wait for the Kubernetes remove kube_nodes to finish. Logs can be checked at /opt/omnia/log/kubespray/k8s_remove_nodes.log
           ansible.builtin.async_status:
             jid: "{{ k8s_remove_result.ansible_job_id }}"  # Job ID from the previous task

@@ -43,5 +43,5 @@
         path: "{{ nic_configuration_file_path }}"
         marker: "  # {mark} "
         block: |
-          {{ "  " }}up ip rule add from {{ nic_ip_address }} table {{ item.metric }}
-          {{ "  " }}up ip route add default via {{ item.gateway }} table {{ item.metric }}
+          {{ " " }}up ip rule add from {{ nic_ip_address }} table {{ item.metric }}
+          {{ " " }}up ip route add default via {{ item.gateway }} table {{ item.metric }}

@@ -43,6 +43,5 @@ etcd_snapshot_save_fail_msg: "Backup of etcd snapshot failed: {{ snapshot_result
 etcd_snapshot_status_fail_msg: "Backup of etcd snapshot status failed: {{ snapshot_status.stderr }}"
 manifests_dir: "{{ k8s_backup_location }}/manifests"
 shell_script_file: "{{ k8s_backup_location }}/backup.sh"
-file_mode: "744"
 backup_file_source: "backup.sh"
 k8s_backup_location_tarball: "{{ k8s_backup_location }}.tar.gz"

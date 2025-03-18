@@ -1,5 +1,8 @@
 ---
 exclude_paths:
+  - $VIRTUAL_ENV/
+  - /home/runner/.ansible/collections
+  - ~/.ansible/collections
   - .git/
   - .github/
   - accelerator/tests/
@@ -22,6 +25,7 @@ exclude_paths:
   - utils/roles/oim_cleanup/vars/rocky.yml
   - "*ubuntu*"
   - "*rocky*"
+  - utils/provision/switch_based_deletion_config.yml
 
 skip_list:
   - var-naming

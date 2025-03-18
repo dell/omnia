@@ -17,7 +17,7 @@
   ansible.builtin.set_fact:
     project_input_path:"{{ hostvars['localhost']['input_project_dir'] }}"
 
-- name : Process and configure local_repo_config
+- name: Process and configure local_repo_config
   ansible.builtin.include_tasks: process_rpm_repo.yml
 
 - name: Execute tasks for each group
@@ -45,11 +45,10 @@
 
 - name: Determine final repository status
   ansible.builtin.set_fact:
-    final_status: "{{ 'SUCCESS' if 'FAILURE' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and 
-                      'TIMEOUT' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and 
-                      'PARTIAL' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) 
+    final_status: "{{ 'SUCCESS' if 'FAILURE' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and
+                      'TIMEOUT' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and
+                      'PARTIAL' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list)
                       else 'FAILED' }}"
-
 
 - name: Local repository status
   ansible.builtin.debug:

@@ -4,7 +4,7 @@ metadata:
   name: prometheus-slurmexporter-metrics-2
   namespace: default
   annotations:
-      prometheus.io/scrape: 'true'
+    prometheus.io/scrape: 'true'
   labels:
     app: prometheus
     app.kubernetes.io/managed-by: Helm
@@ -12,10 +12,10 @@ metadata:
     component: server
 spec:
   ports:
-  - name: metrics
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
+    - name: metrics
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
   selector:
     app: prometheus
     component: server
@@ -26,5 +26,5 @@ spec:
     scrape_interval: 15s
     static_configs:
       - targets:
-        - http:"{{ ansible_host }}":8080/metrics
+          - http:"{{ ansible_host }}":8080/metrics
   serviceMonitorSelector: {}

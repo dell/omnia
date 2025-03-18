@@ -15,7 +15,8 @@
 
 # Usage: validate_bmc_ranges.yml
 python_version: "{{ ansible_python_interpreter }}"
-bmc_static_ranges_fail_msg: "bmc_conversion_static_start_range, bmc_conversion_static_end_range variables in network_spec.yml shouldn't overlap with default omnia ranges."
+bmc_static_ranges_fail_msg: |
+  "bmc_conversion_static_start_range, bmc_conversion_static_end_range variables in network_spec.yml shouldn't overlap with default omnia ranges."
 bmc_static_ranges_success_msg: "Successfully validated input ranges provided in network_spec.yml"
 bmc_static_range_mismatch_msg: |
   "Range is invalid. Start range should be less than end range for bmc_conversion_static_start_range, bmc_conversion_static_end_range variables
