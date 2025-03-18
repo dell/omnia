@@ -47,9 +47,11 @@
   with_dict: "{{ hostvars[inventory_hostname].nic_info }}"
 
 - name: Gather NIC list
-  ansible.builtin.shell: "/usr/sbin/ip -o link show | awk -F': ' '{print $2}'"
+  ansible.builtin.shell: |
+    set -o pipefail
+    /usr/sbin/ip -o link show | awk -F': ' '{print $2}'
   register: nic_list
-  changed_when: false  # Since we're only gathering information
+  changed_when: false
 
 - name: Validate nic names in inventory file
   ansible.builtin.assert:

@@ -94,8 +94,8 @@
           ansible.builtin.include_role:
             name: "{{ hostvars['127.0.0.1']['ltb_repo_path'] }}"
           vars:
-            ldaptoolbox_openldap_overlay_ppolicy_olcPPolicyHashCleartext: "TRUE"
-            ldaptoolbox_openldap_overlay_ppolicy_olcPPolicyUseLockout: "TRUE"
+            ldaptoolbox_openldap_overlay_ppolicy_olcPPolicyHashCleartext: "TRUE"   # noqa var-naming[pattern]
+            ldaptoolbox_openldap_overlay_ppolicy_olcPPolicyUseLockout: "TRUE"   # noqa var-naming[pattern]
           when: not openldap_status
 
         - name: Include domain setup task for server configuration

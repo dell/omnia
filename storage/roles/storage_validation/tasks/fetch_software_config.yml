@@ -72,6 +72,7 @@
     - name: Check beegfs repo configured in pulp
       ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os_type] }} distribution list --name beegfs_{{ beegfs_client_version }}"
       register: check_beegfs_repo
+      changed_when: false
 
     - name: Validate beegfs repo existence
       ansible.builtin.assert:

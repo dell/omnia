@@ -134,10 +134,10 @@ kube_one_node_validation_fail_msg: "Failed. k8s software is present in software_
 There should be one entry for kube_control_plane in the inventory"
 kube_control_plane_validation_fail_msg: "Failed. k8s software is present in software_config.json.
  kube_control_plane group in inventory must have atleast one node and total node count must be odd"
-kube_HA_setup_warning_msg: "[WARNING] To ensure a clear leader election in a Kubernetes High Availability (HA) setup,
+kube_ha_setup_warning_msg: "[WARNING] To ensure a clear leader election in a Kubernetes High Availability (HA) setup,
  configure the cluster with an odd number of kube_control_plane and etcd nodes (e.g., 3, 5, or 7).
 Proceeding execution with provided nodes."
-kube_NonHA_setup_warning_msg: "[WARNING] In a non-HA setup with multiple control plane nodes and a single etcd node,
+kube_non_ha_setup_warning_msg: "[WARNING] In a non-HA setup with multiple control plane nodes and a single etcd node,
  if the etcd node fails, the entire Kubernetes cluster could experience downtime.
 Proceeding execution with provided nodes."
 kube_one_node_validation_success_msg: "kube_control_plane exists in the inventory"

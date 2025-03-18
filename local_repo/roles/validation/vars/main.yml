@@ -44,9 +44,9 @@ sw_config_json_path: "{{ project_input_path }}/software_config.json"
 fail_msg_software_config_json_file: "software_config.json file doesn't exist."
 software_config_parameters_fail_msg: "Failed. Please ensure cluster_os_type, cluster_os_verion, repo_config, softwares are defined in software_config.json"
 software_config_softwares_fail_msg: "Failed. softwares list cannot be empty in software_config.json. Atleast one software should be defined."
-missing_json_fail_msg: "The json files for the following software stacks are missing at {{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/,
-this might be due to removal of json files from the path or the softwares are not being supported on
-{{ cluster_os_type }} : {{ missing_json_list | map('regex_replace', '\\.json$', '') | list }}"
+missing_json_fail_msg: "The json files for the following software stacks are missing at
+{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/, this might be due to removal of json files from the path or the softwares
+are not being supported on {{ cluster_os_type }} : {{ missing_json_list | map('regex_replace', '\\.json$', '') | list }}"
 specific_softwares:
   - 'beegfs'
   - 'amdgpu'

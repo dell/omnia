@@ -21,10 +21,11 @@
     fail_msg: "{{ version_invalid_fail_msg }} {{ item.name }}"
 
 - name: Check software repo exists in pulp distribution
-  ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os] }} distribution list --name {{ item.name }}_{{ item.version }} --field name,base_url"
+  ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os] }} distribution list --name {{ item.name }}_{{ item.version }} --field name,base_url"  # noqa: yaml[line-length]
   register: check_repo_stat
   delegate_to: localhost
   connection: local
+  changed_when: false
 
 - name: Set variable
   ansible.builtin.set_fact:

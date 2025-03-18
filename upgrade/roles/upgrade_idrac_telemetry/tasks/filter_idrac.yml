@@ -1,1 +1,5 @@
-../../../../telemetry/roles/idrac_telemetry/tasks/filter_idrac.yml
+- name: Include variables from telemetry idrac_telemetry
+  ansible.builtin.include_vars: "../../../../telemetry/roles/idrac_telemetry/vars/main.yml"
+
+- name: Include iDRAC telemetry filtering tasks
+  ansible.builtin.include_tasks: "../../../../telemetry/roles/idrac_telemetry/tasks/filter_idrac.yml"

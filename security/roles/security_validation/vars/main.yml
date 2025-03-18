@@ -111,7 +111,7 @@ hashing_python_file: "{{ role_path }}/files/generate_hash.py"
 python_version: "{{ ansible_python_interpreter }}"
 
 # Usage: ldap_prereq.yml
-openldap_packages_file: "{{ hostvars['localhost']['input_project_dir'] }}/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/openldap.json"
+openldap_packages_file: "{{ hostvars['localhost']['input_project_dir'] }}/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/openldap.json"  # noqa: yaml[line-length]
 ldap_dir: "/opt/omnia/ldap"
 ltb_git_repo_path: "ansible-role-ldaptoolbox-openldap"
 ldap_git_dir: "/opt/omnia/ldap/ansible-role-ldaptoolbox-openldap"

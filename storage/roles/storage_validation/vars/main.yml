@@ -24,7 +24,7 @@ beegfs_support_failure_msg: "Failed. beegfs_support should be either true or fal
 beegfs_rdma_support_success_msg: "beegfs_rdma_support validated successfully"
 beegfs_rdma_support_failure_msg: "Failed. beegfs_rdma_support should be either true or false"
 beegfs_mgmt_server_success_msg: "beegfs_mgmt_server, validated successfully"
-beegfs_mgmt_server_fail_msg: "Failed. Please enter IP of management server in IPV4 format or remove 'beegfs' details from {{ input_project_dir }}/software_config.json"
+beegfs_mgmt_server_fail_msg: "Failed. Please enter IP of management server in IPV4 format or remove 'beegfs' details from {{ input_project_dir }}/software_config.json"   # noqa: yaml[line-length]
 beegfs_mgmt_server_not_reachable_msg: "Failure, IP provided for beegfs_mgmt_server is not reachable. Please provide reachable IP of beegfs management server"
 beegfs_mounts_fail_msg: "Failed. Please provide a path for mounting beegfs file system"
 beegfs_client_version_success_msg: "beegfs_client_version, validated successfully "
@@ -86,9 +86,9 @@ local_repo_config_file: "{{ input_project_dir }}/local_repo_config.yml"
 nfs_client_params_failure_msg: "nfs software is present in software_config.json, please provide the nfs_client_params in storage_config.yml"
 beegfs_version_fail_msg: "Failed, Ensure version of beegfs is mentioned in software_config.json"
 storage_config_syntax_fail_msg: "Failed. Syntax errors present in storage_config.yml. Fix errors and re-run playbook again."
-nfs_client_params_k8s_share_fail_msg: "Exactly one entry should be present in nfs_client_params with k8s_share as true in {{ input_project_dir }}/storage_config.yml"
+nfs_client_params_k8s_share_fail_msg: "Exactly one entry should be present in nfs_client_params with k8s_share as true in {{ input_project_dir }}/storage_config.yml"  # noqa: yaml[line-length]
 nfs_client_params_k8s_share_success_msg: "Entry found in nfs_client_params with k8s_share as true"
-nfs_client_params_slurm_share_fail_msg: "Exactly one entry should be present in nfs_client_params with slurm_share as true in {{ input_project_dir }}/storage_config.yml"
+nfs_client_params_slurm_share_fail_msg: "Exactly one entry should be present in nfs_client_params with slurm_share as true in {{ input_project_dir }}/storage_config.yml"   # noqa: yaml[line-length]
 nfs_client_params_slurm_share_success_msg: "Entry found in nfs_client_params with slurm_share as true"
 nfs_client_params_benchmarks_fail_msg: "Atleast one out of k8s_share or slurm_share in {{ input_project_dir }}/storage_config.yml should be true \
 when ucx/openmpi are installed on cluster nodes."

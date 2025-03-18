@@ -13,7 +13,6 @@
 #  limitations under the License.
 ---
 
-
 - name: Invalid inventory format for Kube
   ansible.builtin.fail:
     msg: "{{ invalid_kube_inventory_fail_msg }}"
@@ -21,6 +20,7 @@
     - "('kube_control_plane' not in groups or 'kube_node' not in groups or 'etcd' not in groups)"
 
 - name: Ensure correct Kubernetes in non-HA setup
+  when: not k8s_head_node_ha[0].enable_k8s_ha
   block:
     - name: Kube control plane group to contain at least 1 kube control plane
       ansible.builtin.assert:
@@ -32,12 +32,12 @@
     - name: Warning Kube control plane group contain multiple kube control plane
       ansible.builtin.pause:
         seconds: "{{ warning_wait_time }}"
-        prompt: "{{ kube_NonHA_setup_warning_msg }}"
+        prompt: "{{ kube_non_ha_setup_warning_msg }}"
       when:
         - groups['kube_control_plane'] | length | int > 1
-  when: k8s_head_node_ha[0].enable_k8s_ha == false
 
 - name: Ensure correct Kubernetes in HA setup
+  when: k8s_head_node_ha[0].enable_k8s_ha
   block:
     - name: Kube control plane group to contain at least 1 kube control plane
       ansible.builtin.assert:
@@ -49,10 +49,10 @@
     - name: Warning Kube control plane group contain even number of nodes in the inventory
       ansible.builtin.pause:
         seconds: "{{ warning_wait_time }}"
-        prompt: "{{ kube_HA_setup_warning_msg }}"
+        prompt: "{{ kube_ha_setup_warning_msg }}"
       when:
         - ((groups['kube_control_plane'] | length | int) % 2) == 0
-  when: k8s_head_node_ha[0].enable_k8s_ha == true
+
 
 - name: Etcd node group to contain atleast 1 etcd node
   ansible.builtin.assert:
