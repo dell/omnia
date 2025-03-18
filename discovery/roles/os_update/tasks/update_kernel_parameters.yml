@@ -21,7 +21,7 @@
 - name: Collect cmdline values for all hosts
   ansible.builtin.set_fact:
     collected_cmdline_values: >-
-      {{ collected_cmdline_values | default({}) | combine({ item: hostvars[item].cmdline_value }) }}
+      {{ collected_cmdline_values | default({}) | combine({item: hostvars[item].cmdline_value}) }}
   loop: "{{ hostvars.keys() | difference(['omnia_provision']) }}"
   when: "'cmdline_value' in hostvars[item] and hostvars[item].cmdline_value | length > 0"
 

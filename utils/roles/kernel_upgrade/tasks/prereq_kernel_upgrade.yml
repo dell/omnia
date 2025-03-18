@@ -33,7 +33,7 @@
   when: "'Subscribed' not in rhsm_status.stdout"
 
 - name: Fetching whether kernel upgrade is supported or not
-  ansible.builtin.yum:
+  ansible.builtin.dnf:
     list: kernel
   register: available_pkgs
   changed_when: false

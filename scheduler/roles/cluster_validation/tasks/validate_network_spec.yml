@@ -50,4 +50,3 @@
       - admin_nic_ip in admin_nic_ips
     fail_msg: "{{ admin_nic_ip_fail_msg }}"
     success_msg: "{{ admin_nic_ip_success_msg }}"
-

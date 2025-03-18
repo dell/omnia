@@ -16,19 +16,19 @@
   ansible.builtin.stat:
     path: "{{ meta_dest }}"
   register: data_folder_status
- 
+
 - name: Create data folder if it doesn't exists
   ansible.builtin.file:
     path: "{{ meta_dest }}"
     state: directory
     mode: "{{ meta_dest_mode }}"
   when: not data_folder_status.stat.exists
- 
+
 - name: Check if metadata file exists
   ansible.builtin.stat:
     path: "{{ metadata_file_path }}"
   register: metadata_file
- 
+
 - name: Save initial value of localrepo run report to metadata file if it doesn't exist
   ansible.builtin.copy:
     content: "kubeflow_run: true\n"

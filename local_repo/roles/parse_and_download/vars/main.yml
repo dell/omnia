@@ -21,77 +21,77 @@ local_repo_config_path: "{{ project_input_path }}/local_repo_config.yml"
 user_json_file: "{{ project_input_path }}/software_config.json"
 clean_rpms: true
 local_repo_py_module_vars:
-  default_vars: &sw_defaults 
+  default_vars: &sw_defaults
     timeout: 2000  # Timeout in seconds for each thread
-    nthreads: 8 # Number of threads 
+    nthreads: 8 # Number of threads
   amdgpu:
     <<: *sw_defaults
   cuda:
-    timeout: 7200  
-    nthreads: 2 
+    timeout: 7200
+    nthreads: 2
   ofed:
-    timeout: 7200 
+    timeout: 7200
     nthreads: 1
   freeipa:
-    timeout: 7200 
+    timeout: 7200
     nthreads: 3
   openldap:
-    timeout: 7200 
+    timeout: 7200
     nthreads: 2
   nfs:
-    timeout: 7200 
-    nthreads: 1 
+    timeout: 7200
+    nthreads: 1
   beegfs:
-    timeout: 7200 
-    nthreads: 1 
+    timeout: 7200
+    nthreads: 1
   k8s:
     timeout: 7200
     nthreads: 8
   slurm:
     timeout: 7200
-    nthreads: 1 
+    nthreads: 1
   jupyter:
-    timeout: 7200 
+    timeout: 7200
     nthreads: 8
   kubeflow:
-    timeout: 7200 
-    nthreads: 8 
+    timeout: 7200
+    nthreads: 8
   kserve:
-    timeout: 7200 
+    timeout: 7200
     nthreads: 8
   pytorch:
-    timeout: 7200 
-    nthreads: 4 
+    timeout: 7200
+    nthreads: 4
   tensorflow:
-    timeout: 7200 
+    timeout: 7200
     nthreads: 4
   vllm:
-    timeout: 7200 
+    timeout: 7200
     nthreads: 5
   telemetry:
-    timeout: 7200  
-    nthreads: 8 
+    timeout: 7200
+    nthreads: 8
   intel_benchmarks:
-    timeout: 7200  
-    nthreads: 1 
+    timeout: 7200
+    nthreads: 1
   amd_benchmarks:
     timeout: 7200
-    nthreads: 1 
+    nthreads: 1
   utils:
-    timeout: 7200  
-    nthreads: 1 
+    timeout: 7200
+    nthreads: 1
   ucx:
-    timeout: 7200  
-    nthreads: 2 
+    timeout: 7200
+    nthreads: 2
   openmpi:
-    timeout: 7200  
-    nthreads: 2 
+    timeout: 7200
+    nthreads: 2
   csi_driver_powerscale:
-    timeout: 7200  
-    nthreads: 6 
+    timeout: 7200
+    nthreads: 6
 
 # Usage create_metadata.yml
 meta_dest: "{{ nfs_shared_path }}/offline_repo/.data"
 meta_dest_mode: '0755'
-metadata_file_path: "{{meta_dest}}/localrepo_metadata.yml"
+metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
 metadata_file_mode: '0644'

@@ -43,13 +43,13 @@ warning_time: 30
 offline_intel_directory: "{{ repo_store_path }}/cluster/apt"
 intelgaudi_version_warning_msg: "Failed, Intel Gaudi version not found."
 
-#Usage: validate_network_spec.yml
+# Usage: validate_network_spec.yml
 network_spec: "{{ input_project_dir }}/network_spec.yml"
 network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
 admin_nic_ip_fail_msg: "IP '{{ admin_nic_ip }}' is not assigned to NIC '{{ admin_nic }}'. Please configure the admin IP in OIM and re-run the playbook."
 admin_nic_ip_success_msg: "IP '{{ admin_nic_ip }}' is assigned to NIC '{{ admin_nic }}'."
 
-#Usage: include_provision_config_credentails.yml
+# Usage: include_provision_config_credentails.yml
 provision_vault_path: "{{ input_project_dir }}/.provision_vault_key"
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
 provision_credentials_config_filename: "{{ input_project_dir }}/provision_config_credentials.yml"
@@ -61,7 +61,7 @@ conf_file_mode: "0644"
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
 ha_config_syntax_fail_msg: "Failed. Syntax errors present in high_availability_config.yml. Fix errors and re-run playbook again."
 
-#Usage: generate_k8s_vars.yml
+# Usage: generate_k8s_vars.yml
 k8s_var_common_src: "../templates/common_vars_template.j2"
 k8s_var_final_src: "../templates/final_template.j2"
 k8s_var_dest: "/opt/omnia/kubespray/k8s_all_vars.yml"
@@ -132,10 +132,13 @@ invalid_kube_inventory_fail_msg: "Failed. k8s software is present in software_co
 Invalid inventory format, specify kube_control_plane, kube_node and etcd"
 kube_one_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
 There should be one entry for kube_control_plane in the inventory"
-kube_control_plane_validation_fail_msg: "Failed. k8s software is present in software_config.json. kube_control_plane group in inventory must have atleast one node and total node count must be odd"
-kube_HA_setup_warning_msg: "[WARNING] To ensure a clear leader election in a Kubernetes High Availability (HA) setup, configure the cluster with an odd number of kube_control_plane and etcd nodes (e.g., 3, 5, or 7).
+kube_control_plane_validation_fail_msg: "Failed. k8s software is present in software_config.json.
+ kube_control_plane group in inventory must have atleast one node and total node count must be odd"
+kube_HA_setup_warning_msg: "[WARNING] To ensure a clear leader election in a Kubernetes High Availability (HA) setup,
+ configure the cluster with an odd number of kube_control_plane and etcd nodes (e.g., 3, 5, or 7).
 Proceeding execution with provided nodes."
-kube_NonHA_setup_warning_msg: "[WARNING] In a non-HA setup with multiple control plane nodes and a single etcd node, if the etcd node fails, the entire Kubernetes cluster could experience downtime.
+kube_NonHA_setup_warning_msg: "[WARNING] In a non-HA setup with multiple control plane nodes and a single etcd node,
+ if the etcd node fails, the entire Kubernetes cluster could experience downtime.
 Proceeding execution with provided nodes."
 kube_one_node_validation_success_msg: "kube_control_plane exists in the inventory"
 kube_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.

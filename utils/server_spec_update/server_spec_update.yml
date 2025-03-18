@@ -28,7 +28,7 @@
   roles:
     - ../roles/servicetag_host_mapping
 
-- name: server_spec validation
+- name: Server_spec validation
   hosts: localhost
   connection: local
   roles:

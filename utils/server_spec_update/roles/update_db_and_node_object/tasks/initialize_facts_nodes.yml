@@ -20,7 +20,7 @@
 
 - name: Set the values for variable when ip_addr in inventory
   ansible.builtin.set_fact:
-    host_details: "{{ host_details | combine({host: { 'node_detail': host, 'categories': hostvars[host]['Categories'] } }) }}"
+    host_details: "{{ host_details | combine({host: {'node_detail': host, 'categories': hostvars[host]['Categories']}}) }}"
   with_items: "{{ all_hosts }}"
   loop_control:
     loop_var: host
@@ -30,7 +30,7 @@
 
 - name: Set the values for variable when service or node_name in inventory
   ansible.builtin.set_fact:
-    host_details: "{{ host_details | combine({host: { 'node_detail': (host is match('^[a-zA-Z0-9]+$') | ternary(hostvars[host]['ansible_host'], host)), 'categories': hostvars[host]['Categories'] } }) }}"  # noqa: yaml[line-length]
+    host_details: "{{ host_details | combine({host: {'node_detail': (host is match('^[a-zA-Z0-9]+$') | ternary(hostvars[host]['ansible_host'], host)), 'categories': hostvars[host]['Categories']}}) }}"  # noqa: yaml[line-length]
   with_items: "{{ all_hosts }}"
   loop_control:
     loop_var: host
@@ -41,7 +41,7 @@
 # unmatched_hosts define a list of hosts that are not present in the host_details dictionary
 - name: Register hosts entries not present in host_details
   ansible.builtin.set_fact:
-    unmatched_hosts: "{{ unmatched_hosts | default([]) + [item] if item not in host_details }}"         
+    unmatched_hosts: "{{ unmatched_hosts | default([]) + [item] if item not in host_details }}"
   loop: "{{ all_hosts }}"
   when: item not in host_details
 

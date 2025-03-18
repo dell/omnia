@@ -42,12 +42,12 @@
   failed_when: false
   args:
     executable: /bin/bash
-  when: node_has_gaudi3 == false
+  when: not node_has_gaudi3
 
 - name: Update node accelerator status
   ansible.builtin.set_fact:
     node_has_gaudi2: true
-  when: node_has_gaudi3 == false and lspci_output.stdout | length > 0
+  when: not node_has_gaudi3 and lspci_output.stdout | length > 0
 
 - name: Set run_intel_gaudi_tests parameter
   ansible.builtin.set_fact:

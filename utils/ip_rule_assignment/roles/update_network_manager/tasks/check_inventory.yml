@@ -15,6 +15,6 @@
 
 - name: Fail if no inventory is provided
   ansible.builtin.fail:
-    msg: "{{inventory_not_provided}}"
+    msg: "{{ inventory_not_provided }}"
   when:
     - groups['all'] is not defined or (groups['all'] | length == 0)

@@ -27,7 +27,7 @@
   roles:
     - { role: node_deletion/user_confirmation } # noqa: role-name[path]
     - { role: common, tags: 'credentials_config' }
-   
+
 - name: Delete node
   hosts: omnia_provision
   connection: ssh

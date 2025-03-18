@@ -43,7 +43,7 @@
     body_format: json
     validate_certs: false
     use_proxy: false
-    timeout: "{{ timeout }}"
+    timeout: "{{ task_timeout }}"
     headers:
       sessionKey: "{{ session_key.json.status[0].response }}"
       datatype: json
@@ -73,7 +73,7 @@
     body_format: json
     validate_certs: false
     use_proxy: false
-    timeout: "{{ timeout }}"
+    timeout: "{{ task_timeout }}"
     headers:
       sessionKey: "{{ session_key.json.status[0].response }}"
       datatype: json
@@ -88,7 +88,7 @@
     body_format: json
     validate_certs: false
     use_proxy: false
-    timeout: "{{ timeout }}"
+    timeout: "{{ task_timeout }}"
     headers:
       sessionKey: "{{ session_key.json.status[0].response }}"
       datatype: json

@@ -36,7 +36,7 @@
       failed_when: "'FAILED' in upgrade_plan_register.stderr"
 
     - name: "Upgrade Compute Node Packages with version {{ item }}"
-      ansible.builtin.yum:
+      ansible.builtin.dnf:
         name: "{{ item }}"
         disable_excludes: kubernetes
         update_cache: true

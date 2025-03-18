@@ -87,7 +87,7 @@ success_msg_k8s_version: "Kubernetes Version Validated"
 fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
 kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"  # noqa: yaml[line-length]
 
-#Usage: validate_composable_role_config.yml
+# Usage: validate_composable_role_config.yml
 fail_msg_composable_config_file: "composable_role_config.yml file doesn't exist."
 # Usage: validate_local_repo_config.yml
 fail_msg_local_repo_config_file: "local_repo_config.yml file doesn't exist."

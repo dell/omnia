@@ -14,7 +14,7 @@
 ---
 
 - name: Ensure firewalld is installed and running
-  ansible.builtin.yum:
+  ansible.builtin.dnf:
     name: firewalld
     state: present
   tags: pcs, provision

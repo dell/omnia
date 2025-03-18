@@ -15,8 +15,7 @@
 
 - name: Update node_name in Omnia db from control_plane to oim
   ansible.builtin.command: |
-     {{ python_version }} {{ oim_db_path }}  
-
+     {{ python_version }} {{ oim_db_path }}
 
 - name: Update the node details in xcat table site
   ansible.builtin.command: "{{ xcat_bin_path }}/chdef -t site excludenodes=''"
@@ -37,6 +36,3 @@
   ansible.builtin.command: "{{ xcat_bin_path }}/chdef -t site excludenodes={{ oim }}"
   changed_when: true
   register: set_excludenodes_value
-
-
-

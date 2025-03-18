@@ -50,4 +50,3 @@
   ansible.builtin.command: firewall-cmd --reload
   changed_when: false
   when: "compute_os != 'ubuntu'"
-

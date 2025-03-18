@@ -44,7 +44,7 @@ local_repo_config_path: "{{ role_path }}/../../../input/local_repo_config.yml"
 buildkit_dir: "{{ repo_store_path }}/cluster/git/buildkit"
 
 # Usage prereq.yml
-telemetry_json_path: "{{role_path}}/../../../input/config/{{ ansible_distribution | lower }}/{{ ansible_distribution_version }}/telemetry.json"
+telemetry_json_path: "{{ role_path }}/../../../input/config/{{ ansible_distribution | lower }}/{{ ansible_distribution_version }}/telemetry.json"
 sources_list_dest: /etc/apt/sources.list.d
 docker_repo_temp: templates/docker_repo.j2
 dir_mode: "755"

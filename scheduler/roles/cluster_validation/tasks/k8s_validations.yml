@@ -20,7 +20,7 @@
   when:
     - "('kube_control_plane' not in groups or 'kube_node' not in groups or 'etcd' not in groups)"
 
-- name: Ensure correct Kubernetes in non-HA setup 
+- name: Ensure correct Kubernetes in non-HA setup
   block:
     - name: Kube control plane group to contain at least 1 kube control plane
       ansible.builtin.assert:
@@ -33,7 +33,7 @@
       ansible.builtin.pause:
         seconds: "{{ warning_wait_time }}"
         prompt: "{{ kube_NonHA_setup_warning_msg }}"
-      when: 
+      when:
         - groups['kube_control_plane'] | length | int > 1
   when: k8s_head_node_ha[0].enable_k8s_ha == false
 

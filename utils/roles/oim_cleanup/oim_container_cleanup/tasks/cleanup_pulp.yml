@@ -26,8 +26,8 @@
       containers.podman.podman_container:
         name: "{{ pulp_container_name }}"
         state: stopped
-      failed_when: false 
-      
+      failed_when: false
+
     - name: Remove Pulp container
       containers.podman.podman_container:
         name: "{{ pulp_container_name }}"

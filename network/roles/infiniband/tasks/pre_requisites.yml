@@ -109,7 +109,7 @@
   when: snmp_trap_destination | length > 1
 
 - name: Install netaddr
-  ansible.builtin.pip: 
+  ansible.builtin.pip:
     name: netaddr
     state: present
 

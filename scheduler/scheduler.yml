@@ -72,7 +72,7 @@
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/playbooks/k8s_start_setup.yml"
         dest: "{{ k8s_nfs_share }}/k8s_start_setup.yml"
-    
+
     - name: Ensure /log/kubespray directory exists
       ansible.builtin.file:
         path: "{{ k8s_logs_dir }}"

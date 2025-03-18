@@ -50,7 +50,7 @@ base_pv_file: "{{ role_path }}/../../input_params/base_vars.yml"
 # Usage: volume.yml
 lun1: 0
 lun2: 1
-timeout: 60
+task_timeout: 60
 # Usage: ports.yml
 port_ip: 192.168.25.
 port_netmask: 255.255.255.0

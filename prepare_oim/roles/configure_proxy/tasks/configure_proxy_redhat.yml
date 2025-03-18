@@ -14,7 +14,7 @@
 ---
 
 - name: Install Squid package
-  ansible.builtin.yum:
+  ansible.builtin.dnf:
     name: squid
     state: present
 

@@ -28,14 +28,14 @@
 
 - name: Include validate inventory file
   ansible.builtin.include_tasks: validate_inventory.yml
-  when: 
+  when:
     - hostvars.keys() | length > 0
     - groups['all'] is defined
     - groups['all'] | length > 0
 
 - name: Validate inventory status
   ansible.builtin.include_tasks: validation_status_check.yml
-  when: not inventory_status | default(false) 
+  when: not inventory_status | default(false)
 
 - name: Include validate_server_spec file
   ansible.builtin.include_tasks: validate_server_spec.yml

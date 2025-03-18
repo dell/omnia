@@ -22,11 +22,11 @@
         log_file: "{{ base_path }}/{{ item.key }}_task_results.log"
         slog_file: "{{ base_path }}"
         software: "{{ item.key }}"
-        csv_file_path: "{{ base_path }}/{{item.key}}"
+        csv_file_path: "{{ base_path }}/{{ item.key }}"
         repo_store_path: "{{ nfs_shared_path }}"
         user_json_file: "{{ user_json_file }}"
         nthreads: "{{ (local_repo_py_module_vars[item.key].nthreads | default(local_repo_py_module_vars.default_vars.nthreads)) }}"
-        timeout: "{{ (local_repo_py_module_vars[item.key].timeout | default(local_repo_py_module_vars.default_vars.timeout)) }}" 
+        timeout: "{{ (local_repo_py_module_vars[item.key].timeout | default(local_repo_py_module_vars.default_vars.timeout)) }}"
       register: task_results
 
     - name: Print task results
@@ -35,10 +35,7 @@
 
     - name: Set fact for overall status
       ansible.builtin.set_fact:
-         overall_status_dict: "{{ overall_status_dict | default({}) | combine({ item.key: task_results.overall_status }) }}"
-
-
-
+        overall_status_dict: "{{ overall_status_dict | default({}) | combine({item.key: task_results.overall_status}) }}"
   rescue:
     - name: Log the failure
       ansible.builtin.debug:

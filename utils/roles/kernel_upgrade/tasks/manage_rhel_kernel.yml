@@ -14,8 +14,9 @@
 ---
 
 - name: Upgrading kernel
-  ansible.builtin.command: "yum upgrade kernel-{{ rhsm_kernel_version }} -y"
-  changed_when: true
+  ansible.builtin.dnf:
+    name: "kernel-{{ rhsm_kernel_version }}"
+    state: present
 
 - name: Reboot
   ansible.builtin.reboot:
