@@ -12,9 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-        
+
 - name: Remove kubernetes nodes
   ansible.builtin.import_playbook: kubernetes_sigs.kubespray.remove_node
   vars:
     skip_confirmation: true
     skip_http_proxy_on_os_packages: true
+

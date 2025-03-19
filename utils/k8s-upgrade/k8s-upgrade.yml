@@ -5,7 +5,7 @@
   gather_facts: true
   serial: 1
   roles:
-    - role: upgrade-manager
+    - role: upgrade_manager
       tags: manager
 
 - name: "Upgrade k8s Compute Nodes "
@@ -15,5 +15,5 @@
   serial: 2
 
   roles:
-    - role: upgrade-compute
+    - role: upgrade_compute
       tags: compute

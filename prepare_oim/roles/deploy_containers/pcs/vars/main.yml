@@ -91,11 +91,17 @@ install_dir: "{{ provision_dir }}/install"
 tftpboot_dir: "{{ provision_dir }}/tftpboot"
 hosts_file: "{{ omnia_nfs_share }}/hosts"
 provision_logs_dir: "{{ omnia_nfs_share }}/log/provision"
-provision_run_opts: " --network=host --restart=always --hostname {{ oim_hostname }} --privileged -v \
-                    {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh{{ selinux_option }} -v {{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }} \
-                    -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v {{ xcatdata_dir }}:/xcatdata{{ selinux_option }} -v {{ install_dir }}:/install{{ selinux_option }} -v \
-                    {{ tftpboot_dir }}:/tftpboot{{ selinux_option }} -v {{ provision_logs_dir }}/xcat:/var/log/xcat{{ selinux_option }} -v {{ pgsql_data_dir }}:/var/lib/pgsql/data{{ selinux_option }} \
-                    -v {{ hosts_file }}:/etc/hosts{{ selinux_option }}"
+provision_run_opts: >-
+  --network=host --restart=always --hostname {{ oim_hostname }} --privileged
+  -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh{{ selinux_option }}
+  -v {{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }}
+  -v /sys/fs/cgroup:/sys/fs/cgroup:ro
+  -v {{ xcatdata_dir }}:/xcatdata{{ selinux_option }}
+  -v {{ install_dir }}:/install{{ selinux_option }}
+  -v {{ tftpboot_dir }}:/tftpboot{{ selinux_option }}
+  -v {{ provision_logs_dir }}/xcat:/var/log/xcat{{ selinux_option }}
+  -v {{ pgsql_data_dir }}:/var/lib/pgsql/data{{ selinux_option }}
+  -v {{ hosts_file }}:/etc/hosts{{ selinux_option }}
 
 # Usage: pcs-start.sh.j2: kubespray
 kubespray_image_name: "omnia_kubespray"

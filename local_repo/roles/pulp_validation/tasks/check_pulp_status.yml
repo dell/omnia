@@ -25,10 +25,10 @@
   ansible.builtin.debug:
     msg: "{{ container_status_msg }}"
 
-#- name: Fail if container status is not running
-#  ansible.builtin.fail:
-#    msg: "{{ container_status_fail_msg }}"
-#  when: container_info.containers[0].State.Status != "running"
+# - name: Fail if container status is not running
+#   ansible.builtin.fail:
+#     msg: "{{ container_status_fail_msg }}"
+#   when: container_info.containers[0].State.Status != "running"
 
 - name: Check if Pulp endpoint is up
   ansible.builtin.uri:
