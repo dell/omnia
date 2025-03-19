@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 ---
+
 # deploy_pulp.yml
 shared_storage_path: "{{ oim_shared_path }}/omnia"
 pulp_shared_path: "{{ shared_storage_path }}/pulp"
@@ -40,12 +41,12 @@ settings_py_path: "{{ pulp_shared_path }}/settings/settings.py"
 pulp_container_port: "2225"
 settings_tmp_path: "{{ role_path }}/templates/settings_template.j2"
 volumes:
-  - "{{ pulp_shared_path }}/settings:/etc/pulp:z"
-  - "{{ pulp_shared_path }}/settings/pulp_storage:/var/lib/pulp:z"
-  - "{{ pulp_shared_path }}/settings/pgsql:/var/lib/pgsql:z"
-  - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers:z"
-  - "{{ shared_storage_path }}/log/pulp:/var/log/pulp:z"
-  - "{{ pulp_shared_path }}/pulp_ha:/root/.config/pulp:z"
+  - "{{ pulp_shared_path }}/settings:/etc/pulp{{ selinux_option }}"
+  - "{{ pulp_shared_path }}/settings/pulp_storage:/var/lib/pulp{{ selinux_option }}"
+  - "{{ pulp_shared_path }}/settings/pgsql:/var/lib/pgsql{{ selinux_option }}"
+  - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers{{ selinux_option }}"
+  - "{{ shared_storage_path }}/log/pulp:/var/log/pulp{{ selinux_option }}"
+  - "{{ pulp_shared_path }}/pulp_ha:/root/.config/pulp{{ selinux_option }}"
 #  - "{{ pulp_shared_path }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
 device_name: "/dev/fuse:/dev/fuse:rwm"
 pulp_container_name: "omnia_pulp"

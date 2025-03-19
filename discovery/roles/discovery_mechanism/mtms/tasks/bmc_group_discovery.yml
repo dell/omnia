@@ -13,11 +13,11 @@
 #  limitations under the License.
 ---
 
-- name: Perform bmc discover on static range
+- name: Perform bmc discover on static range for the group - "{{ item.key }}"
   ansible.builtin.include_tasks: bmc_static_discovery.yml
 
-- name: Create database for discovery bmc mode
+- name: Update omniadb for the group - "{{ item.key }}"
   ansible.builtin.include_tasks: update_db_static.yml
 
-- name: Update node objects for static bmc mode
+- name: Update node objects for the group - "{{ item.key }}"
   ansible.builtin.include_tasks: update_node_obj.yml

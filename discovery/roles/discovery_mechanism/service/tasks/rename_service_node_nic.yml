@@ -1,0 +1,48 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Create a dictionary of NICs to their IPs
+  ansible.builtin.set_fact:
+    nic_ip_mapping: >-
+      {{
+        nic_ip_mapping | default({}) |
+        combine({item: ([ansible_facts[item].ipv4.address] | default([])) +
+        (ansible_facts[item].ipv4_secondaries | default([]) | map(attribute='address') | list)
+        })
+      }}
+  with_items: "{{ ansible_facts.interfaces }}"
+  when:
+    - ansible_facts[item] is defined
+    - (ansible_facts[item].ipv4 is defined or ansible_facts[item].ipv4_secondaries is defined)
+
+- name: Convert nic_ip_mapping to ip_to_nic_mapping
+  ip_to_nic:
+    nic_ip_mapping: "{{ nic_ip_mapping }}"
+  register: result
+
+- name: Set fact for ip_to_nic_mapping
+  ansible.builtin.set_fact:
+    ip_to_nic_mapping: "{{ result.ip_to_nic_mapping }}"
+
+- name: Set fact for service_nic
+  ansible.builtin.set_fact:
+    service_nic: "{{ ip_to_nic_mapping[inventory_hostname][0] }}"
+    management_admin_nic: "{{ hostvars['omnia_provision']['admin_nic'] }}"
+
+- name: Rename service node NIC with same name as MN admin NIC
+  when: service_nic != management_admin_nic
+  ansible.builtin.shell: >
+    ip link set {{ service_nic }} name {{ management_admin_nic }}
+  changed_when: true

@@ -1,0 +1,78 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Configure child groups with xcatmaster and servicenode
+  ansible.builtin.command: >
+    {{ xcat_bin_path }}/chdef -t group -o {{ item_group }}
+    servicenode={{ item_service.value.admin_ip }}
+    xcatmaster={{ item_service.value.admin_ip }}
+    conserver={{ item_service.value.admin_ip }}
+    monserver={{ item_service.value.admin_ip }}
+  loop: "{{ hierarchical_service_node_data | dict2items | subelements('value.child_groups') }}"
+  loop_control:
+    loop_var: item_pair
+  vars:
+    item_service: "{{ item_pair.0 }}"
+    item_group: "{{ item_pair.1 }}"
+  when: item_service.value.service_tag == hostvars[inventory_hostname]['service_tag']
+  changed_when: true
+
+- name: Make hosts on service nodes
+  block:
+    - name: Run makehosts on all service nodes
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makehosts -n"
+      changed_when: true
+      register: makehosts_result
+  rescue:
+    - name: Log warning if makehosts fails
+      ansible.builtin.debug:
+        msg: "{{ hosts_entry_warning_msg }} {{ makehosts_result.stderr }}"
+      when: makehosts_result.stderr is defined
+
+- name: Task for creating DHCP configuration
+  block:
+    - name: Create DHCP configuration
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makedhcp -n"
+      changed_when: true
+      register: create_dhcp_config
+  rescue:
+    - name: DHCP configuration failed
+      ansible.builtin.fail:
+        msg: "{{ dhcp_config_fail_msg }} {{ create_dhcp_config.stderr }}"
+      when: create_dhcp_config.stderr is defined
+
+- name: Make DNS on service nodes
+  block:
+    - name: Run makedns -n
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makedns -n"
+      changed_when: true
+      register: dns_config
+  rescue:
+    - name: Log warning if DNS configuration fails
+      ansible.builtin.debug:
+        msg: "{{ dns_config_warning_msg }} {{ dns_config.stderr }}"
+      when: dns_config.stderr is defined
+
+- name: Make DHCP apply on service node group
+  block:
+    - name: Run makedhcp -a
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makedhcp -a"
+      changed_when: true
+      register: makedhcp_result
+  rescue:
+    - name: Log failure message if makedhcp -a fails
+      ansible.builtin.fail:
+        msg: "{{ dhcp_config_apply_fail_msg }} {{ makedhcp_result.stderr }}"
+      when: makedhcp_result.stderr is defined

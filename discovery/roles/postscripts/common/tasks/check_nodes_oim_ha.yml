@@ -1,0 +1,37 @@
+# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Initialize omnia_oim_status
+  ansible.builtin.set_fact:
+    omnia_oim_status: false
+
+- name: Fetch nodes with group oim
+  ansible.builtin.command: "{{ xcat_path }}/lsdef oim"
+  changed_when: false
+  register: check_omnia_oim
+  failed_when: false
+
+- name: Set omnia_oim_status
+  ansible.builtin.set_fact:
+    omnia_oim_status: true
+  when:
+    - check_omnia_oim.stderr is defined
+    - '"error" not in check_omnia_oim.stderr | lower'
+
+- name: Warning - not found any nodes
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ all_nodes_warning_msg }}"
+  when: not omnia_oim_status

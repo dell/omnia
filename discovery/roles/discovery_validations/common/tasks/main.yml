@@ -56,6 +56,9 @@
 - name: Include local_repo variables
   ansible.builtin.include_tasks: include_local_repo_config.yml
 
+- name: Include high_availabiliity variables
+  ansible.builtin.include_tasks: include_high_availability_config.yml
+
 - name: Validate service_node repo
   ansible.builtin.include_tasks: validate_service_node_repo.yml
   when: service_role_required | default(false)
@@ -99,6 +102,9 @@
 
 - name: Validate AMDGPU and ROCm repo
   ansible.builtin.include_tasks: validate_amdgpu_rocm_repo.yml
+
+- name: Validate racadm repo
+  ansible.builtin.include_tasks: validate_racadm_repo.yml
 
 # - name: Validate Broadcom repo
 #   ansible.builtin.include_tasks: validate_broadcom_repo.yml

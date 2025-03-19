@@ -83,6 +83,11 @@
   ansible.builtin.include_tasks: configure_service_role_xcat_details.yml
   when: service_role_required | default(false)
 
+- name: Add setupdhcp attributes for service node group
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t group -o service setupdhcp=1"
+  changed_when: true
+  when: hierarchical_provision_status | default(false)
+
 - name: Configure system password
   ansible.builtin.shell: >
     {{ xcat_sbin_path }}/chtab key=system passwd.username=root passwd.password=`openssl passwd -1 {{ provision_password }}`

@@ -42,4 +42,4 @@
 
     - name: Create service node groups
       ansible.builtin.include_tasks: create_service_node_groups.yml
-      when: '"first_layer" not in ansible_run_tags'
+      when: hierarchical_provision_status | default(false)

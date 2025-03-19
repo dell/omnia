@@ -13,20 +13,16 @@
 #  limitations under the License.
 ---
 
-# Usage: main.yml
-discovery_mech_vars_common:
-  - "{{ role_path }}/../oim/vars/main.yml"
-xcat_path: /opt/xcat/bin
+- name: Create dir for syncfiles
+  ansible.builtin.file:
+    path: "{{ service_node_sync_files[0]['dest'] }}"
+    state: directory
+    mode: "{{ syncfiles_mode }}"
 
-# Usage: update_db_mapping.yml
-db_path: "{{ provision_shared_library_path }}/db_operations"
-passive_oim_mapping: "mapping"
-
-# Usage: node_object_creation_mapping.yml
-mapping_node_group: "mapping"
-temp_pxe_file_path: "/opt/omnia/provision/temp_pxe_file.csv"
-file_mode: "0644"
-
-# Usage: check_nodes_mapping.yml
-mapping_nodes_warning_msg: "[WARNING] Nodes provided in mapping file were already provisioned by omnia using other discovery mechanism."
-warning_wait_time: 10
+- name: Copy syncfiles directory from localhost to service host
+  ansible.posix.synchronize:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    recursive: true
+  delegate_to: localhost
+  with_items: "{{ service_node_sync_files }}"

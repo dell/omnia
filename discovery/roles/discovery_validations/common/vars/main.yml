@@ -44,11 +44,12 @@ spec_file:
   - "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
   - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
 provision_config_filename: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
-provision_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/.provision_vault_key"
-ansible_vault_search_key: "$ANSIBLE_VAULT;"
 provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
 spec_syntax_fail_msg: "Failed. Syntax errors present in either network_spec.yml or server_spec.yml. Fix the errors and re-run."
-provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
+
+# Usage: include_high_availability_config.yml
+high_availability_config_path: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
+high_availability_config_syntax_fail_msg: "Failed. Syntax errors present in high_availability_config.yml. Fix errors and re-run playbook again."
 
 # Usage: fetch_composable_roles_config.yml
 roles_config_path: "{{ hostvars['localhost']['input_project_dir'] }}/roles_config.yml"
@@ -246,6 +247,12 @@ service_node_repo_failed_msg: "[Failed] It seems you have not executed local_rep
 service_node package is required for service role provisioning."
 pulp_repo_fail_msg: "Failed. It seems pulp is not configured properly.
 Run local_repo/local_repo.yml with required packages in software_config.yml."
+
+# Usage: validate_racadm_repo.yml
+racadm_warning_msg: |
+  "[WARNING] local_repo.yml is not executed for downloading racadm packages.
+  Hence, racadm will not be installed on the nodes post provisioning."
+racadm_pulp_name: tarballracadm
 
 # Usage: validate_intelgaudi_repo.yml
 intelgaudi_version_warning_msg: "[WARNING] software_config.json does not have the version for 'intelgaudi'.

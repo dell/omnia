@@ -13,24 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Fetch the admin_ip and serial from cluster.nodeinfo
-  community.postgresql.postgresql_query:
-    db: omniadb
-    login_user: postgres
-    query: SELECT admin_ip,service_tag FROM cluster.nodeinfo WHERE role like '%service%';
-    login_password: "{{ postgresdb_password }}"
-  become: true
-  become_user: postgres
-  register: query_status
-  failed_when: false
-  no_log: true
+- name: Update selinux policy
+  ansible.builtin.command: chcon -R {{ selinux_policy }} {{ provision_shared_path }}
+  changed_when: false
 
 - name: Create groups for service node
   ansible.builtin.add_host:
-    name: "{{ item.admin_ip }}"
+    name: "{{ hierarchical_service_node_data[item]['admin_ip'] }}"
     groups: "service_nodes"
-    service_tag: "{{ item.service_tag }}"
-  loop: "{{ query_status.query_result }}"
-  when:
-    - query_status.query_result is defined
-    - query_status.query_result | length > 0
+    service_tag: "{{ hierarchical_service_node_data[item]['service_tag'] }}"
+    child_groups: "{{ hierarchical_service_node_data[item]['child_groups'] | list }}"
+  loop: "{{ hierarchical_service_node_data.keys() }}"

@@ -18,6 +18,11 @@
     name: "{{ provision_container_name }}"
   register: provision_container_status
 
+- name: Check if provision container is present
+  ansible.builtin.fail:
+    msg: "{{ prepare_oim_not_executed_msg }}"
+  when: provision_container_status.containers | length == 0
+
 - name: Provision container status
   ansible.builtin.debug:
     msg: "{{ provision_container_status_msg }}"

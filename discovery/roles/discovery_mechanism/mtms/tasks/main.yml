@@ -21,8 +21,6 @@
       when:
         - item.value.bmc_static_status is defined
         - item.value.bmc_static_status
-        - item.value.parent is defined
-        - item.value.parent | length < 1
       loop: "{{ groups_roles_info | dict2items }}"
 
 - name: Perform operations for dynamic range

@@ -22,5 +22,8 @@
 - name: Validate network spec
   ansible.builtin.include_tasks: validate_network_spec.yml
 
+- name: Validate high availability config
+  ansible.builtin.include_tasks: validate_high_availability.yml
+
 - name: Check k8s support
   ansible.builtin.include_tasks: check_k8s_support.yml

@@ -17,8 +17,8 @@
   ansible.builtin.include_tasks: include_omnia_config.yml
   tags: 'omnia_config'
 
-- name: Include provision_config_credentials.yml
-  ansible.builtin.include_tasks: include_provision_config_credentials.yml
+- name: Include omnia_config_credentials.yml
+  ansible.builtin.include_tasks: include_omnia_config_credentials.yml
   tags: 'credentials_config'
 
 - name: Include storage_config.yml
