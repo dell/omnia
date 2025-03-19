@@ -321,13 +321,13 @@ def get_failed_software(file_name):
 def parse_json_data(file_path, package_types, failed_list=None, subgroup_list=None):
     """
     Retrieves a filtered list of items from a JSON file.
- 
+
     Parameters:
         file_path (str): The path to the JSON file.
         package_types (list): A list of package types to filter.
-        failed_list (list, optional): A list of failed packages to filter. Defaults to None.
+        failed_list (list, optional): A list of failed packages. Defaults to None.
         subgroup_list (list, optional): A list of subgroups to filter. Defaults to None.
- 
+
     Returns:
         list: The filtered list of items.
     """
@@ -337,10 +337,22 @@ def parse_json_data(file_path, package_types, failed_list=None, subgroup_list=No
     for key, package in data.items():
         if subgroup_list is None or key in subgroup_list:
             for value in package.values():
-                filtered_list.extend([
-                    item for item in value
-                    if item.get("type") in package_types and (failed_list is None or item.get("package") in failed_list)
-                ])
+                for item in value:
+                    # Get package name
+                    pkg_name = item.get("package")
+
+                    # Construct possible match keys based on available fields
+                    match_keys = {pkg_name}  # Base case: package name only
+
+                    if "tag" in item and item["tag"]:
+                        match_keys.add(f"{pkg_name}:{item['tag']}")  # Add package:tag
+
+                    if "digest" in item and item["digest"]:
+                        match_keys.add(f"{pkg_name}:{item['digest']}")  # Add package:digest
+
+                    # Apply filtering
+                    if item.get("type") in package_types and (failed_list is None or any(match in failed_list for match in match_keys)):
+                        filtered_list.append(item)
 
     return filtered_list
 

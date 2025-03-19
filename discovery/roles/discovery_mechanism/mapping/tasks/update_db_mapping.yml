@@ -1,4 +1,4 @@
-# Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 
 - name: Integrate mapping file with DB
   mapping_nodeinfo_db_update:
-    db_path: "{{ db_path }}"
     node_details: "{{ mapping_details }}"
     domain_name: "{{ domain_name }}"
     discovery_mechanism: "{{ mapping_node_group }}"
@@ -26,3 +25,23 @@
   ansible.builtin.debug:
     msg: "{{ db_update_output }}"
     verbosity: 2
+
+- name: Register passive node(s) list
+  ansible.builtin.set_fact:
+    passive_node_details: "{{ high_availability_config.ansible_facts.oim_ha.passive_nodes.node_details | default([]) }}"
+  when: enable_oim_ha
+
+- name: Integrate passive OIM node mappings with DB
+  mapping_nodeinfo_db_update:
+    node_details: "{{ passive_node_details }}"
+    domain_name: "{{ domain_name }}"
+    discovery_mechanism: "{{ passive_oim_mapping }}"
+  changed_when: true
+  register: ha_db_update_output
+  when: enable_oim_ha
+
+- name: Show passive node DB update output
+  ansible.builtin.debug:
+    msg: "{{ ha_db_update_output }}"
+    verbosity: 2
+  when: enable_oim_ha

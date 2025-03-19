@@ -89,9 +89,10 @@
     - name: Discover all nodes
       ansible.builtin.include_role:
         name: discovery_mechanism/service     # noqa: role-name[path]
+      when: hostvars['omnia_provision']['hierarchical_provision_status'] | default(false)
 
 - name: Set facts for kernel parameters update
-  hosts: all:!localhost:!omnia_provision
+  hosts: all:!localhost:!omnia_provision:!service_nodes
   connection: local
   gather_facts: true
   vars_files:

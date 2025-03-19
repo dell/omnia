@@ -13,24 +13,9 @@
 # limitations under the License.
 ---
 
-- name: Copy service node script to postscripts
+- name: Copy racadm script to postscripts
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
     mode: "{{ item.mode }}"
-  with_items: "{{ servive_node_postscripts_path }}"
-
-- name: Configure postscripts to get cpu info
-  ansible.builtin.command: "{{ xcat_path }}/chdef -t group -o service -p postscripts=omnia_service_node"
-  changed_when: true
-
-- name: Remove NTP postscript from service group
-  ansible.builtin.command: "{{ xcat_path }}/chdef service -m postscripts=setupntp"
-  changed_when: true
-
-- name: Copy genesis package
-  ansible.builtin.copy:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
-    mode: "{{ item.mode }}"
-  with_items: "{{ genesis_package_path }}"
+  with_items: "{{ racadm_postscripts_path }}"

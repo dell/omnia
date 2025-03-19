@@ -50,6 +50,21 @@
     state: directory
     mode: "{{ dir_permission }}"
 
+- name: Create PCS directory under syncfiles directory
+  ansible.builtin.file:
+    path: "{{ syncfiles_share_path }}/pcs"
+    state: directory
+    mode: "{{ dir_permission }}"
+  when: enable_oim_ha
+
+- name: Create symlinks for PCS files
+  ansible.builtin.file:
+    src: "{{ item.src }}"
+    dest: "{{ syncfiles_share_path }}/pcs/{{ item.src | basename }}"
+    state: link
+  loop: "{{ pcs_files }}"
+  when: enable_oim_ha
+
 - name: Render pip.conf template
   ansible.builtin.template:
     src: "{{ pip_conf_src }}"

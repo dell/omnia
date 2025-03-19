@@ -26,7 +26,7 @@ perl_badlang_env: 0
 # Usage: configure_dhcp.yml
 dhcp_config_fail_msg: "Failed. makedhcp -n command is not successful. Error:"
 hosts_entry_warning_msg: "[WARNING] makehosts command is not successful. Error:"
-dhcp_config_apply_fail_msg: "Failed. makedhcp -a command is not successful. Error:"
+dhcp_config_apply_fail_msg: "Failed. makedhcp -l command is not successful. Error:"
 dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
 xcat_sbin_path: /opt/xcat/sbin
 
@@ -37,3 +37,5 @@ empty_discover_node_msg: |
 
 # Usage: service_node_postgres_setting.yml
 pg_hba_conf_path: /var/lib/pgsql/data/pg_hba.conf
+provision_shared_path: /opt/omnia/provision/
+selinux_policy: "system_u:object_r:container_file_t:s0"

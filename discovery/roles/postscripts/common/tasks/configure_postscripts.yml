@@ -77,6 +77,11 @@
   changed_when: true
   when: amdgpu_config_status
 
+- name: Configure postscripts for ROCm
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_racadm"
+  changed_when: true
+  when: racadm_config_status
+
 # - name: Configure postscripts for Intel Gaudi
 #   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_intelgaudi"
 #   changed_when: true

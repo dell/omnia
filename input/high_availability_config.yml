@@ -35,15 +35,12 @@
 # ***********************************************************************
 
 oim_ha: 
-  - enable_oim_ha: false
-    virtual_ip_address: ""
-    active_node_service_tag: ""
-    nfs_share:
-    - { server_ip: "", server_share_path: "" }
-    passive_nodes: 
-      - node_details:
-        - {SERVICE_TAG: "", HOSTNAME: "", ADMIN_MAC: "", ADMIN_IP: "", BMC_IP: ""}
-        - {SERVICE_TAG: "", HOSTNAME: "", ADMIN_MAC: "", ADMIN_IP: "", BMC_IP: ""}
+  enable_oim_ha: false
+  virtual_ip_address: ""
+  active_node_service_tag: ""
+  passive_nodes: 
+    node_details:
+      - {SERVICE_TAG : "",HOSTNAME: "",ADMIN_MAC: "",ADMIN_IP: "",BMC_IP: ""}
 
 
 # ***********************************************************************

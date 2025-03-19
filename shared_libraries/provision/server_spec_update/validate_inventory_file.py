@@ -38,6 +38,7 @@ def validate_inventory(category_list, hostvars):
     # Remove localhost from inventory
     hostvars.pop('localhost','none')
     hostvars.pop('omnia_provision','none')
+    hostvars.pop('service_nodes','none')
 
     # Validate hosts in inventory file
     for host, host_data in hostvars.items():
@@ -58,13 +59,13 @@ def validate_inventory(category_list, hostvars):
             sys.exit(f"Failed, Categories not provided in inventory for host: {host}")
         if len(host_data['Categories']) == 0:
             sys.exit(f"Failed, Categories not provided in inventory for host: {host}")
-            
+
        # Check if host is part of multiple groups
         group_names = host_data.get('group_names', [])
         if len(group_names) > 1:
             sys.exit(f"Failed, host {host_ip} is part of multiple groups: {group_names}. A host can only belong to one group.")
         print(f"Host {host_ip} belongs to group: {group_names[0]}")
-        
+
     # Validate categories in inventory with server_spec
     for host, host_data in hostvars.items():
         if 'Categories' in host_data.keys() and host_data['Categories'] not in category_list:

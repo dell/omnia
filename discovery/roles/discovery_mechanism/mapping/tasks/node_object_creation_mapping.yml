@@ -53,3 +53,20 @@
   when:
     - item.bmc_ip != ""
     - item.admin_mac | lower not in node_mac_list.stdout | lower
+
+- name: Register passive node(s) list
+  ansible.builtin.set_fact:
+    passive_node_details: "{{ high_availability_config.ansible_facts.oim_ha.passive_nodes.node_details | default([]) }}"
+  when: enable_oim_ha
+
+- name: Create high availability node object(s) from passive nodes provided by user
+  ansible.builtin.shell: >
+    {{ xcat_path }}/mkdef -t node "{{ passive_node_details[idx1].HOSTNAME.split('.')[0] }}" groups=oim,all
+    ip="{{ passive_node_details[idx1].ADMIN_IP | trim }}" bmc="{{ passive_node_details[idx1].BMC_IP | trim }}" mgt=ipmi
+    mac="{{ passive_node_details[idx1].ADMIN_MAC | trim }}" hostnames="{{ passive_node_details[idx1].HOSTNAME | trim }}"
+    serial="{{ passive_node_details[idx1].SERVICE_TAG | trim }}" netboot=xnba arch=x86_64  -f
+  with_items: "{{ passive_node_details }}"
+  changed_when: true
+  loop_control:
+    index_var: idx1
+  when: enable_oim_ha

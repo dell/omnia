@@ -1,3 +1,7 @@
 {{ syncfiles_share_path }}/conf/pip.conf -> /etc/pip.conf
 {{ syncfiles_share_path }}/conf/dnf.conf -> /etc/dnf/dnf.conf
 {{ syncfiles_share_path }}/repos/* -> /etc/yum.repos.d/*
+
+{% if enable_oim_ha %}
+{{ syncfiles_share_path }}/pcs/{{ pcs_container_name }}.container -> {{ container_systemd_dir }}/{{ pcs_container_name }}.container
+{% endif %}

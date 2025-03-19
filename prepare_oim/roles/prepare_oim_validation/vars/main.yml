@@ -27,8 +27,6 @@ ssh_connection_fail_msg: "Failed. SSH connection failed. Please verify passwordl
 
 # Usage: pre_requisite.yml
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
-provision_vault_path: "{{ input_project_dir }}/.provision_vault_key"
-ansible_vault_search_key: "$ANSIBLE_VAULT;"
 network_spec: "{{ input_project_dir }}/network_spec.yml"
 network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
 software_config_file: "{{ input_project_dir }}/software_config.json"
@@ -64,3 +62,7 @@ pulp_creds_fail_msg:
 
 pulp_pwd_min_length: 5
 pulp_password_fail_msg: "Failed. pulp_password should have minimum 5 characters in omnia_config_credentials.yml"
+
+# Usage: include_high_availability_config.yml
+high_availability_config_path: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
+high_availability_config_syntax_fail_msg: "Failed. Syntax errors present in high_availability_config.yml. Fix errors and re-run playbook again."

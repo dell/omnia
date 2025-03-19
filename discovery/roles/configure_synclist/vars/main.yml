@@ -25,6 +25,7 @@ perl_badlang_env: 0
 network_spec: "/opt/omnia/input/project_default/network_spec.yml"
 local_repo_config: "/opt/omnia/input/project_default/local_repo_config.yml"
 provision_config: "/opt/omnia/input/project_default/provision_config.yml"
+pcs_vars: "{{ role_path }}/../../../prepare_oim/roles/deploy_containers/pcs/vars/main.yml"
 
 # Usage: create_files_local_repo_comman.yml
 local_repo_access_src_path: "{{ role_path }}/templates/local_repo_access.yml.j2"
@@ -46,3 +47,6 @@ dnf_conf_dest: "{{ syncfiles_share_path }}/conf/dnf.conf"
 # Usage: configure_synclist.yml
 xcat_path: /opt/xcat/bin
 synclists_dir: "{{ provision_shared_path }}/install/synclists"
+
+pcs_files:
+  - {src: "/opt/omnia/pcs/omnia_pcs.container"}

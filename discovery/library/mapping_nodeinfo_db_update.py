@@ -15,10 +15,9 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-import json
-import sys
+from ansible.module_utils import omniadb_connection
 
-def nodeinfo_db_update(node_details, domain_name, discovery_mechanism, db_path):
+def nodeinfo_db_update(node_details, domain_name, discovery_mechanism):
     """
     Updates the database with node information from the provided JSON node_details.
 
@@ -26,8 +25,6 @@ def nodeinfo_db_update(node_details, domain_name, discovery_mechanism, db_path):
     service tag exists in the database, and either inserts a new record or logs that the
     node already exists.
     """
-    sys.path.insert(0, db_path)
-    import omniadb_connection
 
     existing_nodes = []
     new_nodes = []
@@ -37,6 +34,9 @@ def nodeinfo_db_update(node_details, domain_name, discovery_mechanism, db_path):
     cursor = conn.cursor()
 
     for node_data in node_details:
+        # Convert all keys in node_data to lowercase
+        node_data = {k.lower(): v for k, v in node_data.items()}
+
         temp_mac = node_data.get("admin_mac")
         temp_service_tag = node_data.get("service_tag")
         temp_admin_ip = node_data.get("admin_ip") or None
@@ -69,7 +69,6 @@ def nodeinfo_db_update(node_details, domain_name, discovery_mechanism, db_path):
 
 def main():
     module_args = dict(
-        db_path=dict(type="str", required=True),
         node_details=dict(type="list", elements="dict", required=True),
         domain_name=dict(type="str", required=True),
         discovery_mechanism=dict(type="str", required=True)
@@ -77,13 +76,12 @@ def main():
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
-    db_path = module.params["db_path"]
     node_details = module.params["node_details"]
     domain_name = module.params["domain_name"]
     discovery_mechanism = module.params["discovery_mechanism"]
 
     try:
-        new_nodes, existing_nodes = nodeinfo_db_update(node_details, domain_name, discovery_mechanism, db_path)
+        new_nodes, existing_nodes = nodeinfo_db_update(node_details, domain_name, discovery_mechanism)
         module.exit_json(changed=True, msg="Database updated successfully", existing_nodes=existing_nodes, new_nodes=new_nodes)
     except Exception as e:
         module.fail_json(msg=str(e))

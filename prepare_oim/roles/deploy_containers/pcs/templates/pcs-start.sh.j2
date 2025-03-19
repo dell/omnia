@@ -38,7 +38,7 @@ pcs resource create {{ omnia_core_name }} ocf:heartbeat:podman \
  reuse=true \
  run_opts="{{ omnia_core_run_opts }}" \
  op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
- op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} \
  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
 
 pcs resource create {{ pulp_container_name }} ocf:heartbeat:podman \
@@ -47,7 +47,7 @@ pcs resource create {{ pulp_container_name }} ocf:heartbeat:podman \
  reuse=true \
  run_opts="{{ pulp_run_opts }}" \
  op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
- op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} \
  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
 
 pcs resource create {{ provision_container_name }} ocf:heartbeat:podman \
@@ -56,7 +56,7 @@ pcs resource create {{ provision_container_name }} ocf:heartbeat:podman \
  reuse=true \
  run_opts="{{ provision_run_opts }}" \
  op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
- op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} \
  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
 
 {% if hostvars['localhost']['k8s_support'] %}
@@ -66,8 +66,14 @@ pcs resource create {{ kubespray_name }} ocf:heartbeat:podman \
  reuse=true \
  run_opts="{{ kubespray_run_opts }}" \
  op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
- op start interval={{ start_interval }} timeout={{ start_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} \
  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
+{% endif %}
+
+{% if hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.enable_oim_ha %}
+pcs resource create VIP ocf:heartbeat:IPaddr2 \
+        ip={{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.virtual_ip_address }} cidr_netmask={{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} \
+        op monitor interval={{ monitor_interval }}
 {% endif %}
 
 # Create ordering constraints

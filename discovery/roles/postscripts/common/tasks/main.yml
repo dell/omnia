@@ -13,6 +13,11 @@
 # limitations under the License.
 ---
 
+- name: Include metadata vars
+  ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
+  register: include_metadata
+  no_log: true
+
 - name: Configure postscripts
   environment:
     XCATROOT: "{{ xcat_root_env }}"
@@ -28,6 +33,10 @@
 
     - name: Check all node group status
       ansible.builtin.include_tasks: check_nodes_all.yml
+
+    - name: Check omnia_oim group status
+      ansible.builtin.include_tasks: check_nodes_oim_ha.yml
+      when: enable_oim_ha
 
     - name: Check service node group status
       ansible.builtin.include_tasks: check_nodes_service.yml

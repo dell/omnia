@@ -13,4 +13,19 @@
 #  limitations under the License.
 ---
 
-# serice node vars will be added here
+# Usage: rename_service_node_nic.yml, set_service_node_details.yml
+xcat_bin_path: "/opt/xcat/bin"
+xcat_sbin_path: "/opt/xcat/sbin"
+dhcp_config_fail_msg: "Failed. makedhcp -n command is not successful. Error:"
+
+# Usage: set_service_node_details.yml
+hosts_entry_warning_msg: "[WARNING] makehosts command is not successful. Error:"
+dhcp_config_apply_fail_msg: "Failed. makedhcp -a command is not successful. Error:"
+dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
+
+# Usage: copy_syncfiles.yml
+syncfiles_mode: "0755"
+service_node_sync_files:
+  - { src: "{{ hostvars['omnia_provision']['syncfiles_share_path'] }}", dest: "{{ hostvars['omnia_provision']['provision_shared_path'] }}" }
+  - { src: "/opt/omnia/provision/install", dest: "/" }
+  - { src: "/opt/omnia/provision/tftpboot", dest: "/" }

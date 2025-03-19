@@ -20,3 +20,16 @@
 - name: Configure network and hostname postbootscripts
   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postbootscripts=\"confignetwork -s,omnia_hostname\""
   changed_when: true
+
+- name: Copy PCS postboot script to postscripts
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ pcs_postbootscript_path }}"
+  when: enable_oim_ha
+
+- name: Configure pcs container setup postbootscripts
+  ansible.builtin.command: "{{ xcat_path }}/chdef oim -p postbootscripts=\"omnia_pcs_setup\""
+  changed_when: true
+  when: enable_oim_ha

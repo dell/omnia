@@ -13,10 +13,17 @@
 # limitations under the License.
 ---
 
-- name: Encrypt credentials file
+- name: Include high_availability_config.yml
   block:
-    - name: Encrypt omnia_config_credentials.yml
-      ansible.builtin.command: >-
-        ansible-vault encrypt {{ omnia_credential_file }}
-        --vault-password-file {{ omnia_credential_vault_path }}
-      changed_when: false
+    - name: Include high_availability_config.yml
+      ansible.builtin.include_vars: "{{ high_availability_config_path }}"
+      register: high_availability_config
+      tags: init
+  rescue:
+    - name: Failed to include high_availability_config.yml
+      ansible.builtin.fail:
+        msg: "{{ high_availability_config_syntax_fail_msg }} Error: {{ high_availability_config.message }}"
+
+- name: Set high_availability_status
+  ansible.builtin.set_fact:
+    enable_oim_ha: "{{ high_availability_config.ansible_facts.oim_ha.enable_oim_ha | default(false) }}"
