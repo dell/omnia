@@ -1,0 +1,69 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Refresh mounts - sometimes the mounts fail
+  ansible.builtin.shell: |
+    umount {{ share_path }}
+    mount -a
+  register: refresh_mounts
+  ignore_errors: true
+  changed_when: refresh_mounts == 0
+
+- name: Update hosts file for all slurm groups
+  block:
+    - name: Update hosts file for all slurm groups
+      ansible.builtin.lineinfile:
+        dest: "{{ hosts_file_dest }}"
+        line: "{{ hostvars[item]['ansible_default_ipv4']['address'] }} {{ hostvars[item]['ansible_nodename'] | split('.') | first }}
+         {{ hostvars[item]['ansible_fqdn'] }}"
+        state: present
+        create: true
+        mode: "{{ hosts_file_mode }}"
+      with_items: "{{ ansible_play_hosts_all }}"
+  rescue:
+    - name: Updating hosts file failed
+      ansible.builtin.fail:
+        msg: "{{ hosts_update_fail_msg }}"
+
+- name: Install common packages
+  ansible.builtin.package:
+    name: "{{ common_packages[ansible_os_family] }}"
+    state: present
+
+- name: Firewall service running
+  ansible.builtin.systemd_service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Create user and group
+  ansible.builtin.include_tasks: _user.yml
+
+- name: Create the slurm directory on share
+  ansible.builtin.file:
+    path: "{{ share_path }}/{{ slurm_dir_name }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ common_mode }}"
+  run_once: true
+
+- name: Install and configure Munge
+  ansible.builtin.include_tasks: _munge.yml
+
+- name: Slurm dict ops
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ __slurm_default_config | ansible.builtin.combine(slurm_config | default({})) }}"
+    cgroup_conf_dict: "{{ __cgroup_default_config | ansible.builtin.combine(cgroup | default({})) }}"
+    slurm_dbd_conf_dict: "{{ __slurm_dbd_default_config | ansible.builtin.combine(slurm_dbd_config | default({})) }}"

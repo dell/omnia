@@ -77,20 +77,6 @@
   when:
     - slurm_installation_type | default("", true) not in ["nfs_share", "configless"]
 
-- name: Assert mariadb_password
-  ansible.builtin.assert:
-    that:
-      - mariadb_password | default("", true) | length > 1
-      - mariadb_password | length > min_length | int - 1
-      - mariadb_password | length < max_length | int + 1
-      - '"-" not in mariadb_password '
-      - '"\\" not in mariadb_password '
-      - '"\"" not in mariadb_password '
-      - " \"'\" not in mariadb_password "
-    success_msg: "{{ success_msg_mariadb_password }}"
-    fail_msg: "{{ fail_msg_mariadb_password }}"
-  when: slurm_support
-
 - name: Verify the value of restart_slurm_services
   ansible.builtin.assert:
     that:
@@ -188,8 +174,3 @@
     slurm_installation_type: "{{ slurm_installation_type }}"
   no_log: true
 
-- name: Encrypt input config file
-  ansible.builtin.command: >-
-    ansible-vault encrypt {{ input_project_dir }}/{{ config_filename }}
-    --vault-password-file {{ input_project_dir }}/{{ config_vaultname }}
-  changed_when: false

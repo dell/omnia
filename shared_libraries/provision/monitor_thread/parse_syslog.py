@@ -298,7 +298,7 @@ def add_group_details(node_info_db: tuple, groups_inventory) -> None:
     Parameters:
         node_info_db (tuple): A tuple containing the service tag, admin IP, CPU, GPU, and hostname from the database.
         groups_inventory (dict): A dictionary containing the groups and hosts.
-    
+
     Returns:
         None
     """
@@ -325,7 +325,7 @@ def generate_inventory(groups_inventory: tuple) -> None:
 
     Returns:
         None
-    
+
     Raises:
         Exception: If an error occurs while writing the inventory file.
     """
@@ -345,14 +345,14 @@ def generate_inventory(groups_inventory: tuple) -> None:
         # Write the updated inventory back to the file
         with open(omnia_inventory_file, 'w') as file:
             file.write(existing_inventory)
-    
+
     except FileNotFoundError:
         # Print an error message if the file is not found
         syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory: File not found:", omnia_inventory_file)
     except PermissionError:
         # Print an error message if the file cannot be accessed due to insufficient permissions
         syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory: Permission denied:", omnia_inventory_file)
-     except Exception as e:
+    except Exception as e:
         syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory: Exception occurred: {str(type(e))} {str(e)}")
 
 def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:

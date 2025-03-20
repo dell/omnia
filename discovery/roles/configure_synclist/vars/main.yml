@@ -46,7 +46,7 @@ dnf_conf_dest: "{{ syncfiles_share_path }}/conf/dnf.conf"
 
 # Usage: configure_synclist.yml
 xcat_path: /opt/xcat/bin
-synclists_dir: "{{ provision_shared_path }}/install/synclists"
+synclists_dir: "/install/synclists"
 
 pcs_files:
   - {src: "/opt/omnia/pcs/omnia_pcs.container"}

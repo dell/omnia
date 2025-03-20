@@ -154,6 +154,11 @@ subgroup_software_list:
     - 'tensorflow_cpu'
     - 'tensorflow_amd'
     - 'tensorflow_nvidia'
+  slurm:
+    - 'slurm_control_node'
+    - 'slurm_node'
+    - 'slurm_dbd'
+    - 'login'
 subgroup_software_name_fail_msg: "Please ensure valid software names are defined in subgroups in the software_config.json file."
 
 # Usage: validate_ubuntu_os_url.yml

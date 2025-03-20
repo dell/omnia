@@ -1,0 +1,21 @@
+# ADD DEFAULTS
+{% for key in slurm_dbd_conf_dict | sort %}
+{% set val = slurm_dbd_conf_dict[key] %}
+{% if val is not none and val != omit %}
+{{ key }}={{ 'yes' if val is sameas true else ('no' if val is sameas false else val) }}
+{% endif %}
+{% endfor %}
+
+{% if 'slurm_dbd' in groups %}
+# USER DEFINED SLURM DBD INFO
+DbdHost={{ hostvars[groups['slurm_dbd'][0]]['ansible_nodename'] | split('.') | first }}
+DbdPort={{ slurm_dbd_port }}
+{% endif %}
+
+# DATABASE INFO
+StorageHost={{ slurm_db_host }}
+{% if slurm_db_port is not none and slurm_db_port != omit %}
+StoragePort={{ slurm_db_port }}
+{% endif %}
+StorageUser={{ slurm_dbd_db_username }}
+StoragePass={{ slurm_dbd_db_password }}

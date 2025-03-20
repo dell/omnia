@@ -1,0 +1,32 @@
+{
+    "slurm": {
+        "cluster": [
+            {"package": "munge", "type": "rpm", "repo_name": "appstream"},
+            {"package": "firewalld", "type": "rpm", "repo_name": "baseos"},
+            {"package": "python3-firewall", "type": "rpm", "repo_name": "baseos"}
+        ]
+    },
+    "slurm_control_node": {
+        "cluster": [
+            {"package": "slurm-slurmctld", "type": "rpm", "repo_name": "epel"}
+        ]
+    },
+    "slurm_node": {
+        "cluster": [
+            {"package": "slurm-slurmd", "type": "rpm", "repo_name": "epel"}
+        ]
+    },
+    "slurm_dbd":{
+        "cluster": [
+            {"package": "slurm-slurmdbd", "type": "rpm", "repo_name": "epel"},
+            {"package": "python3-PyMySQL", "type": "rpm", "repo_name": "appstream"},
+            {"package": "mysql-server", "type": "rpm", "repo_name": "appstream"},
+            {"package": "mariadb-server", "type": "rpm", "repo_name": "appstream"}
+        ]
+    },
+    "login":{
+        "cluster": [
+            {"package": "slurm", "type": "rpm", "repo_name": "epel"}
+        ]
+    }
+}

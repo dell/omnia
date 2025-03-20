@@ -1,0 +1,94 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Enable the service
+  ansible.builtin.service:
+    name: slurmd
+    enabled: true
+  register: d_service
+
+- name: Get service path
+  ansible.builtin.set_fact:
+    slurmd_service_path: "{{ d_service['status']['FragmentPath'] | default(slurmd_service_default_path) }}"
+
+- name: Edit the service !ConditionPathExists
+  community.general.ini_file:
+    path: "{{ slurmd_service_path }}"
+    section: Unit
+    option: ConditionPathExists
+    state: absent
+    mode: u=rw,g=r,o=r
+  when: slurm_installation_type == 'configless'
+  notify:
+    - Reload slurmd
+    - Restart slurmd
+
+- name: Edit the service ExecStart
+  community.general.ini_file:
+    path: "{{ slurmd_service_path }}"
+    section: Service
+    option: ExecStart
+    value: "/usr/sbin/slurmd -D -s $SLURMD_OPTIONS
+     --conf-server {{ (hostvars[groups['slurm_control_node'] | first])['inventory_hostname_short']
+      + ':' + (slurm_conf_dict['SlurmctldPort']
+      | string) }}" # HA
+    no_extra_spaces: true
+    mode: u=rw,g=r,o=r
+  when: slurm_installation_type == 'configless'
+  notify:
+    - Reload slurmd
+    - Restart slurmd
+
+- name: Set env variable
+  community.general.ini_file:
+    path: "/etc/environment"
+    option: SLURM_CONF
+    state: absent
+    mode: u=rw,g=r,o=r
+  when: slurm_installation_type == 'configless'
+
+- name: Edit the service ConditionPathExists
+  community.general.ini_file:
+    path: "{{ slurmd_service_path }}"
+    section: Unit
+    option: ConditionPathExists
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true
+    mode: u=rw,g=r,o=r
+  when: slurm_installation_type != 'configless'
+  notify:
+    - Reload slurmd
+
+- name: Edit the service to fetch specific conf
+  community.general.ini_file:
+    path: "{{ slurmd_service_path }}"
+    section: Service
+    option: ExecStart
+    value: "/usr/sbin/slurmd -D -s $SLURMD_OPTIONS -f {{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true
+    mode: u=rw,g=r,o=r
+  when: slurm_installation_type != 'configless'
+  notify:
+    - Reload slurmd
+
+- name: Set env variable
+  community.general.ini_file:
+    path: "{{ sys_env_path }}"
+    option: SLURM_CONF
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true
+    mode: u=rw,g=r,o=r
+  when: slurm_installation_type != 'configless'
+  notify:
+    - Restart slurmd

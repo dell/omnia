@@ -1,0 +1,104 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Is slurm_db_host defined
+  ansible.builtin.set_fact:
+    slurm_db_host: "{{ ansible_facts['nodename'] | split('.') | first }}"
+  when: (slurm_db_host is not defined) or (not slurm_db_host)
+
+- name: Is slurm_db_port defined
+  ansible.builtin.set_fact:
+    slurm_db_port: "{{ slurm_db_port_default }}"
+  when: (slurm_db_port is not defined) or (not slurm_db_port)
+
+- name: Is slurm_db_type defined
+  ansible.builtin.set_fact:
+    slurm_db_type: "{{ slurm_db_type_default }}"
+  when: (slurm_db_type is not defined) or (not slurm_db_type)
+
+- name: Setup DB tasks
+  ansible.builtin.include_tasks: db.yml
+  vars:
+    delegated_hostname: "{{ slurm_db_host }}"
+  args:
+    apply:
+      delegate_to: "{{ slurm_db_host }}"
+  run_once: true
+
+- name: Install DBD packages
+  ansible.builtin.package:
+    name: "{{ slurm_dbd_packages[ansible_os_family] }}"
+    state: present
+
+- name: Create files - {{ item }} # TODO: file required?
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: touch
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user_group }}"
+    mode: "{{ slurm_mode }}"
+  loop:
+    - "{{ slurm_dbd_conf_dict['LogFile'] }}"
+    - "{{ slurm_dbd_conf_dict['PidFile'] }}"
+
+- name: Create slurmdbd.conf
+  ansible.builtin.template:
+    src: "dbd.conf.j2"
+    dest: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurmdbd.conf"
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user }}"
+    mode: "{{ slurm_dbd_mode }}"
+  run_once: true
+  notify:
+    - Restart slurmctld
+    - Restart slurmdbd
+
+- name: Local copy slurmdbd.conf /etc/slurm/
+  ansible.builtin.template:
+    src: "dbd.conf.j2"
+    dest: "{{ slurm_config_dir }}/slurmdbd.conf"
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user }}"
+    mode: "{{ slurm_dbd_mode }}"
+  when: '"slurm_dbd" in group_names'
+  notify:
+    - Restart slurmdbd
+    - Restart slurmctld
+
+# Port Config
+- name: Enable SlurmdbdPort
+  ansible.posix.firewalld:
+    port: "{{ slurm_dbd_port }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+# Edit service
+- name: Enable the service
+  ansible.builtin.service:
+    name: slurmdbd
+    enabled: true
+  register: ctld_service
+
+- name: Edit the service
+  community.general.ini_file:
+    path: "{{ ctld_service['status']['FragmentPath'] | default(slurmdbd_service_default_path) }}"
+    section: Unit
+    option: ConditionPathExists
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurmdbd.conf"
+    no_extra_spaces: true
+    mode: "{{ slurm_mode }}"
+  notify:
+    - Reload slurmdbd
+    - Restart slurmdbd

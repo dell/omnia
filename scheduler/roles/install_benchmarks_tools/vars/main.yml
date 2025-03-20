@@ -12,29 +12,23 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
-compiler_dir_ucx: "/compile/ucx-{{ hostvars['127.0.0.1']['ucx_version'] }}/ucx"
+compiler_dir_ucx: "/compile/ucx-{{ openmpi_software_version }}/ucx"
 ucx_dir: "ucx"
-benchmarks_dir_ucx: "/benchmarks/ucx-{{ hostvars['127.0.0.1']['ucx_version'] }}/ucx"
-compiler_dir_openmpi: "/compile/openmpi-{{ hostvars['127.0.0.1']['openmpi_version'] }}/openmpi"
+benchmarks_dir_ucx: "/benchmarks/ucx-{{ ucx_software_version }}/ucx"
+compiler_dir_openmpi: "/compile/openmpi-{{ openmpi_software_version }}/openmpi"
 openmpi_dir: "openmpi"
 slurm_dir: "slurm"
 usr_dir: "usr"
-benchmarks_dir_openmpi: "/benchmarks/openmpi-{{ hostvars['127.0.0.1']['openmpi_version'] }}/openmpi"
+benchmarks_dir_openmpi: "/benchmarks/openmpi-{{ openmpi_software_version }}/openmpi"
 dir_mode: '0755'
 cplus_compiler_error: "Warning: the gcc-c++ packages are not installed"
 clang_compiler_error: "Warning: the clang compiler packages are not installed"
-software_config_file: "{{ role_path }}/../../../input/software_config.json"
-local_repo_access_config_file: "/opt/omnia/offline/local_repo_access.yml"
+software_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
+local_repo_access_config_file: "/opt/omnia/provision/local_repo_access.yml"
 copy_mode: '0644'
-ucx_info_cmd: "/ucx_info"
-bin_folder: "/bin"
+ucx_info_cmd: "ucx_info"
+bin_folder: "bin"
 openmpi_info_cmd: "./mpirun --version"
 ucx_info_error: "Failed. ucx install and compile in the share path failed."
 openmpi_info_error: "Failed. openmpi install and compile in the share path failed."
 installation_warning: "OpenMPI and UCX are not installed since share path is not available."
-redhat_os: "redhat"
-rocky_os: "rocky"
-ubuntu_os: "ubuntu"
-supported_os_type: ["ubuntu", "redhat", "rocky"]
-supported_os_version: ["20.04", "24.04", "8.6", "8.7", "8.8"]

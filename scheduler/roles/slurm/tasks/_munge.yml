@@ -1,0 +1,65 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Install munge packages
+  ansible.builtin.package:
+    name: "{{ munge_packages[ansible_os_family] }}"
+    state: present
+
+- name: Check if slurm munge key exists on share
+  ansible.builtin.stat:
+    path: "{{ slurm_munge_key_path | default('') }}"
+  register: slurm_key_path
+
+- name: Set the munge key path
+  ansible.builtin.set_fact:
+    slurm_munge_key_path: "{{ share_path }}/{{ slurm_dir_name }}/munge.key"
+  when: not slurm_key_path.stat.exists
+
+- name: Generate munge key
+  ansible.builtin.command: "dd if=/dev/random of={{ slurm_munge_key_path }} bs=1024 count=1"
+  when: not slurm_key_path.stat.exists
+  run_once: true
+  register: munge_output
+  changed_when: munge_output.rc == 0
+  failed_when: munge_output.rc != 0
+
+- name: Wait until the shared munge key file exists
+  ansible.builtin.wait_for:
+    path: "{{ slurm_munge_key_path }}"
+    state: present
+    timeout: "{{ munge_key_timeout }}"
+
+- name: Check munge dir
+  ansible.builtin.file:
+    path: "{{ munge_key_dest | dirname }}"
+    state: directory
+    owner: "{{ munge_user }}"
+    group: "{{ munge_group }}"
+    mode: "{{ munge_dir_mode }}"
+
+- name: Copy munge key
+  ansible.builtin.copy:
+    src: "{{ slurm_munge_key_path }}"
+    dest: "{{ munge_key_dest }}"
+    owner: "{{ munge_user }}"
+    group: "{{ munge_group }}"
+    remote_src: true
+    mode: "{{ munge_mode }}"
+
+- name: Ensure Munge is enabled and running
+  ansible.builtin.service:
+    name: munge
+    enabled: true
+    state: started
