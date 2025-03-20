@@ -38,7 +38,8 @@ files = {
     "storage_config": "storage_config.yml",
     "telemetry_config": "telemetry_config.yml",
     "site_config": "site_config.yml",
-    "roles_config": "roles_config.yml"
+    "roles_config": "roles_config.yml",
+    "high_availability_config": "high_availability_config.yml"
 }
 
 # Tags and the files that will be run based off of it
@@ -64,6 +65,7 @@ input_file_inventory = {
     "roce": [files["roce_plugin_config"]],
     "storage": [files["storage_config"]],
     "proxy": [files["site_config"]],
+    "high_availability": [files["high_availability_config"]],
     "all": [
         files["passwordless_ssh_config"],
         files["local_repo_config"],
@@ -80,7 +82,8 @@ input_file_inventory = {
         files["software_config"],
         files["storage_config"],
         # files["site_config"],
-        files["roles_config"]
+        files["roles_config"],
+        files["high_availability_config"]
     ],
 }
 

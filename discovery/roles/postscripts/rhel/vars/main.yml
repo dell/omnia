@@ -40,3 +40,11 @@ rocm_postscripts_path:
 # Usage: configure_postscripts.yml
 omnia_disable_repo_postscripts_path:
   - { src: "{{ role_path }}/../rhel/files/omnia_disable_repo", dest: "/install/postscripts/omnia_disable_repo", mode: "755" }
+
+# Usage: configure_postbootscripts.yml
+pcs_postbootscript_path:
+  - { src: "{{ role_path }}/templates/omnia_pcs_setup.j2", dest: "/install/postscripts/omnia_pcs_setup", mode: "755" }
+
+# Usage: configure_racadm.yml
+racadm_postscripts_path:
+  - { src: "{{ role_path }}/templates/omnia_racadm.j2", dest: "/install/postscripts/omnia_racadm", mode: "755" }

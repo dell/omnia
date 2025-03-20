@@ -29,4 +29,4 @@
       ansible.builtin.include_tasks: check_nodes_switch_based.yml
 
     - name: Configure dhcp
-      ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/configure_dhcp.yml"
+      ansible.builtin.include_tasks: "{{ role_path }}/../oim/tasks/configure_dhcp.yml"

@@ -18,6 +18,6 @@
      {{ python_version }} {{ update_db_static_path }} {{ item.value.bmc_details.static_range }} {{ static_ip_file }} {{ item.key }}
      {{ domain_name }} {{ network_data.admin_network.static_range }} {{ pxe_nic_subnet }}
      {{ network_data.admin_network.netmask_bits }} {{ correlation_status }} {{ admin_uncorrelated_node_start_ip }} {{ mtms_db_path }}
-     {{ item.value.location_id }} {{ item.value.architecture }} {{ item.value.roles | join(',') }}
+     {{ item.value.location_id }} {{ item.value.architecture }} {{ item.value.roles | join(',') }} {{ item.value.parent }}
   register: bmc_static_db_status
   changed_when: false

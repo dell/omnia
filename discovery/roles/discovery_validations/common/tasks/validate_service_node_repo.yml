@@ -1,0 +1,68 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set default service_node status
+  ansible.builtin.set_fact:
+    service_node_input_status: false
+    service_node_repo_status: false
+
+- name: Get service_node status
+  ansible.builtin.set_fact:
+    service_node_input_status: true
+  loop: "{{ user_config.softwares | default([]) }}"
+  when:
+    - "'service_node' in item.name"
+  loop_control:
+    loop_var: item
+
+- name: Set service_node repo status
+  when: service_node_input_status
+  block:
+    - name: Get xCAT repository details from Pulp
+      ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[provision_os] }} distribution list --name xcat-repo --field name,base_url"
+      delegate_to: localhost
+      register: pulp_xcat_repo_output
+      changed_when: false
+
+    - name: Get xCAT dependency repository details from Pulp
+      ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[provision_os] }} distribution list --name xcat-dep --field name,base_url"
+      delegate_to: localhost
+      register: pulp_xcat_dep_output
+      changed_when: false
+
+    - name: Parse xCAT repository details
+      ansible.builtin.set_fact:
+        xcat_repo_list: "{{ pulp_xcat_repo_output.stdout | from_json }}"
+      when: pulp_xcat_repo_output.stdout | from_json | length > 0
+
+    - name: Parse xCAT dependency repository details
+      ansible.builtin.set_fact:
+        xcat_dep_list: "{{ pulp_xcat_dep_output.stdout | from_json }}"
+      when: pulp_xcat_dep_output.stdout | from_json | length > 0
+
+    - name: Set service_node_repo with xCAT and xCAT dependencies
+      ansible.builtin.set_fact:
+        service_node_repo: "{{ (xcat_repo_list | default([])) + (xcat_dep_list | default([])) | list }}"
+      when: xcat_repo_list is defined or xcat_dep_list is defined
+
+    - name: Failed - Service node package is required for service role provisioning
+      ansible.builtin.fail:
+        msg: "{{ service_node_repo_warning_msg }}"
+      when: service_node_repo | length == 0
+
+  rescue:
+    - name: Failed - it seems local_repo not executed properly
+      ansible.builtin.fail:
+        msg: "{{ pulp_repo_fail_msg }}"

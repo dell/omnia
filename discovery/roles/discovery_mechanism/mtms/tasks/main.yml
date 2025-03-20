@@ -16,21 +16,20 @@
 - name: Perform operations for static range
   when: bmc_static_status
   block:
-    - name: BMC discover for first layer of nodes
-      ansible.builtin.include_tasks: bmc_first_layer.yml
+    - name: BMC discover for the group
+      ansible.builtin.include_tasks: bmc_group_discovery.yml
       when:
-        - '"first_layer" in ansible_run_tags'
         - item.value.bmc_static_status is defined
         - item.value.bmc_static_status
       loop: "{{ groups_roles_info | dict2items }}"
-
-    - name: Configure dhcp
-      ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/configure_dhcp.yml"
 
 - name: Perform operations for dynamic range
   when:
     - discovery_mech_dynamic_bmc
   block:
+    - name: Configure dhcp
+      ansible.builtin.include_tasks: "{{ role_path }}/../oim/tasks/configure_dhcp.yml"
+
     - name: Before starting dynamic discovery wait for "{{ dhcp_timeout }}"
       ansible.builtin.pause:
         seconds: "{{ dhcp_timeout }}"
@@ -50,8 +49,11 @@
       ansible.builtin.include_tasks: update_node_obj.yml
       when: dynamic_final_status
 
+- name: Common tasks for bmc static and dynamic discovery
+  when: bmc_static_status or discovery_mech_dynamic_bmc
+  block:
     - name: Configure dhcp
-      ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/configure_dhcp.yml"
+      ansible.builtin.include_tasks: "{{ role_path }}/../oim/tasks/configure_dhcp.yml"
 
-- name: Delete the stanzas file
-  ansible.builtin.include_tasks: delete_stanzas.yml
+    - name: Delete the stanzas file
+      ansible.builtin.include_tasks: delete_stanzas.yml

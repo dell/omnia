@@ -50,6 +50,7 @@ def fetch_mapping_details(groups_roles_info, csv_data):
             "bmc_details": groups_roles_info[group]["bmc_details"],
             "switch_details": groups_roles_info[group]["switch_details"],
             "architecture": groups_roles_info[group]["architecture"],
+            "hierarchical_provision_status": groups_roles_info[group]["hierarchical_provision_status"]
         }
         filtered_nodes.append(node_data)
 

@@ -15,6 +15,7 @@
 
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
+  tags: first_layer
   connection: local
   tasks:
     - name: Set dynamic run tags including 'provision'
@@ -23,6 +24,7 @@
         cacheable: true
 
 - name: Invoke get_config_credentials.yml
+  tags: first_layer
   ansible.builtin.import_playbook: utils/credential_utility/get_config_credentials.yml
 
 - name: Include input project directory

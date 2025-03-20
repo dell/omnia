@@ -19,10 +19,16 @@ xcat_path_env: "/opt/xcat/bin:/opt/xcat/sbin:/opt/xcat/share/xcat/tools"
 xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
 xcat_path: /opt/xcat/bin
+omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 
 # Usage: check_nodes_all.yml
 all_nodes_warning_msg: "[WARNING] Not found any nodes using the given discovery mechanism.
-Verify all the input parameters are valid and re-run provision.yml or discovery_provision.yml"
+Verify all the input parameters are valid and re-run discovery_provision.yml"
+
+# Usage: check_nodes_service.yml
+service_nodes_warning_msg: "[WARNING] Service nodes not found. The service role is mentioned in the roles_config.yml file,
+but no nodes were found for this role using the specified discovery mechanism.
+Please verify that all the input parameters are valid and re-run the discovery_provision.yml"
 
 # Usage: configure_postscripts.yml
 mlnx_ofed_repo: /install/ofed
@@ -44,3 +50,9 @@ setup_ntp_warning_msg: |
 warning_time: 30
 async_time: 300
 poll_time: 15
+
+# Usage: configure_service_node.yml
+servive_node_postscripts_path:
+  - { src: "{{ role_path }}/templates/omnia_service_node.j2", dest: "/install/postscripts/omnia_service_node", mode: "755" }
+genesis_package_path:
+  - { src: "{{ role_path }}/../rhel/files/xcat-genesis-base-x86_64.tar.gz", dest: "/install/xcat-genesis-base-x86_64.tar.gz", mode: "755" }

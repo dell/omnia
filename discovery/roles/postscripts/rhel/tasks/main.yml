@@ -27,3 +27,7 @@
 - name: Configure ROCm postscripts
   ansible.builtin.include_tasks: configure_rocm.yml
   when: amdgpu_config_status
+
+- name: Configure racadm postscripts
+  ansible.builtin.include_tasks: configure_racadm.yml
+  when: racadm_config_status

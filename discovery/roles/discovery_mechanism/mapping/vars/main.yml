@@ -15,11 +15,12 @@
 
 # Usage: main.yml
 discovery_mech_vars_common:
-  - "{{ role_path }}/../common/vars/main.yml"
+  - "{{ role_path }}/../oim/vars/main.yml"
 xcat_path: /opt/xcat/bin
 
 # Usage: update_db_mapping.yml
 db_path: "{{ provision_shared_library_path }}/db_operations"
+passive_oim_mapping: "mapping"
 
 # Usage: node_object_creation_mapping.yml
 mapping_node_group: "mapping"

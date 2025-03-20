@@ -1,0 +1,11 @@
+{
+    "racadm": {
+      "cluster": [
+      {
+        "package": "racadm",
+        "type": "tarball",
+        "url": "https://dl.dell.com/FOLDER12638439M/1/Dell-iDRACTools-Web-LX-11.3.0.0-795_A00.tar.gz"
+      }
+      ]
+    }
+}

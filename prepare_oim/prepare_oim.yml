@@ -61,8 +61,8 @@
   tags: deploy_containers
   roles:
     - role: deploy_containers/common  # noqa:role-name[path]
-    - role: deploy_containers/pulp  # noqa:role-name[path]
     - role: deploy_containers/provision  # noqa:role-name[path]
+    - role: deploy_containers/pulp  # noqa:role-name[path]
     - role: deploy_containers/kubespray  # noqa:role-name[path]
 
 - name: Add all containers to known hosts on omnia core
@@ -84,6 +84,15 @@
       vars:
         target_port: "{{ kubespray_ssh_port }}"
 
+- name: Configure Pulp container
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Configure Pulp container tasks # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/pulp
+        tasks_from: create_pulp_config.yml
+
 - name: Configure provision container
   hosts: omnia_provision
   connection: ssh
@@ -92,14 +101,6 @@
       ansible.builtin.include_role:
         name: deploy_containers/provision
         tasks_from: configure_provision_container.yml
-
-- name: Configure Pulp container
-  hosts: localhost
-  tasks:
-    - name: Configure Pulp container tasks # noqa:role-name[path]
-      ansible.builtin.include_role:
-        name: deploy_containers/pulp
-        tasks_from: create_pulp_config.yml
 
 # PCS container has to be deployed after all containers are deployed and configured
 - name: Deploy pcs container

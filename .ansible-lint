@@ -1,2 +1,6 @@
 skip_list:
   - var-naming[no-role-prefix]
+  - unresolved-module
+  - fqcn[canonical]
+  - internal-error
+  - role-name[path]

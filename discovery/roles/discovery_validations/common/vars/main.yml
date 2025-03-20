@@ -19,6 +19,7 @@ provision_validation_vars:
   - "{{ role_path }}/../mtms/vars/main.yml"
   - "{{ role_path }}/../switch_based/vars/main.yml"
 provision_shared_library_path: /opt/omnia/shared_libraries/provision
+ansible_tag_fail_msg: "Please run the playbook with the tag 'first_layer' only. Other tags are not allowed."
 
 # Usage: validate_provision_container.yml
 xcatd_service: "xcatd.service"
@@ -43,15 +44,17 @@ spec_file:
   - "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
   - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
 provision_config_filename: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
-provision_vault_path: "{{ hostvars['localhost']['input_project_dir'] }}/.provision_vault_key"
-ansible_vault_search_key: "$ANSIBLE_VAULT;"
 provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
 spec_syntax_fail_msg: "Failed. Syntax errors present in either network_spec.yml or server_spec.yml. Fix the errors and re-run."
-provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
+
+# Usage: include_high_availability_config.yml
+high_availability_config_path: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
+high_availability_config_syntax_fail_msg: "Failed. Syntax errors present in high_availability_config.yml. Fix errors and re-run playbook again."
 
 # Usage: fetch_composable_roles_config.yml
 roles_config_path: "{{ hostvars['localhost']['input_project_dir'] }}/roles_config.yml"
 roles_config_syntax_fail_msg: "Failed. Syntax errors present in role_config.yml. Fix errors and re-run playbook again."
+omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 
 # Usage: include_local_repo_config.yml
 local_repo_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/local_repo_config.yml"
@@ -158,12 +161,6 @@ If switch details are given,then provide proper node_name too."
 pxe_switch_unreachable: "Failed. Given switch is unreachable. Please provide correct switch IP in provision_config.yml."
 provision_option_fail_msg: "[WARNING]. Ignoring pxe_switch_ip when pxe_mapping_file_path provided"
 
-# Usage: validate_provision_credentials.yml
-min_username_length: 4
-provision_password_fail_msg: "Failed. Incorrect provision_password format in provision_config_credentials.yml"
-postgresdb_password_fail_msg: "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8 in provision_config_credentials.yml"
-fail_msg_bmc_credentials: "Failed. bmc_username, bmc_password are invalid in provision_config_credentials.yml"
-
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: |
   "Failed! Please provide all the required provision parameters in provision_config.yml, namely,
@@ -244,6 +241,18 @@ os_package_map:
   rhel: rpm
   rocky: rpm
   ubuntu: deb
+
+# Usage: validate_service_nodes.yml
+service_node_repo_failed_msg: "[Failed] It seems you have not executed local_repo.yml with service_node in software_config.yml.
+service_node package is required for service role provisioning."
+pulp_repo_fail_msg: "Failed. It seems pulp is not configured properly.
+Run local_repo/local_repo.yml with required packages in software_config.yml."
+
+# Usage: validate_racadm_repo.yml
+racadm_warning_msg: |
+  "[WARNING] local_repo.yml is not executed for downloading racadm packages.
+  Hence, racadm will not be installed on the nodes post provisioning."
+racadm_pulp_name: tarballracadm
 
 # Usage: validate_intelgaudi_repo.yml
 intelgaudi_version_warning_msg: "[WARNING] software_config.json does not have the version for 'intelgaudi'.

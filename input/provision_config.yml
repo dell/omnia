@@ -48,7 +48,7 @@ pxe_mapping_file_path: ""
 # To enable switch based discovery, set enable_switch_based to true
 # If enable_switch_based is set to true, Following inputs should be provided:
 # switch_based_details should be provided in provision_config.yml
-# switch_snmp3_username and switch_snmp3_password should be provided in provision_config_credentials.yml
+# switch_snmp3_username and switch_snmp3_password should be provided in omnia_config_credentials.yml
 # bmc_network details with oim_nic_name, netmask_bits, static_range and dynamic_range should be provided in network_spec.yml
 # Warning: If enable_switch_based is set to true, bmc discovery will be skipped.
 # For enabling bmc discovery, set enable_switch_based to false and provide bmc_network details in network_spec.yml

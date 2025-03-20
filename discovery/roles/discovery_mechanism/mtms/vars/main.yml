@@ -36,7 +36,7 @@ dynamic_mode: "dynamic"
 # Usage: update_xcat_network_discovery_range.yml
 update_bmc_network_python: "{{ provision_shared_library_path }}/mtms/update_bmc_network.py"
 
-# Usage: update_db.yml
+# Usage: update_db_static.yml
 update_db_static_path: "{{ provision_shared_library_path }}/mtms/mtms_db.py"
 mtms_db_path: "{{ provision_shared_library_path }}/db_operations"
 

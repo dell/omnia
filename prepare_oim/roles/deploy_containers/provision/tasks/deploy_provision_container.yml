@@ -44,9 +44,9 @@
   failed_when: false
   when: provision_container_info.containers | length == 0
 
-- name: Pull Podman image from localhost
+- name: Pull Podman image
   containers.podman.podman_image:
-    name: "localhost/{{ provision_image_name }}"
+    name: "{{ provision_image_name }}"
     tag: "{{ provision_image_tag }}"
     state: present
   register: image_pull_result

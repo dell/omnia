@@ -36,9 +36,9 @@ kubespray_image_pull_fail_msg: |
   After rectifying the issues, you can re-run the playbook to successfully pull the provision image.
 wait_time: 10
 kubespray_volumes:
-  - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z"
-  - "{{ omnia_nfs_share }}:/opt/omnia:z"
-  - "{{ hosts_file }}:/etc/hosts:z"
+  - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh{{ selinux_option }}"
+  - "{{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }}"
+  - "{{ hosts_file }}:/etc/hosts{{ selinux_option }}"
 kubespray_container_success_msg: "The {{ kubespray_container_name }} container has been successfully deployed."
 kubespray_container_failure_msg: |
   The deployment of the {{ kubespray_container_name }} container has failed. To resolve this issue,

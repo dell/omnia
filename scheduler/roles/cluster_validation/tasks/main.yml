@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -26,6 +26,9 @@
 
 - name: Set login_node_required status
   ansible.builtin.include_tasks: set_login_node_status.yml
+
+- name: Include high_availability variables
+  ansible.builtin.include_tasks: include_high_availability_config.yml
 
 - name: Perform validations
   ansible.builtin.include_tasks: validations.yml

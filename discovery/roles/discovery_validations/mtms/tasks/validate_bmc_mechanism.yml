@@ -23,7 +23,7 @@
   when:
     - '"first_layer" not in ansible_run_tags'
     - network_data.bmc_network.oim_nic_name | default('', true) | length > 0
-    - network_data.bmc_network.static_range | length > 0
+    - network_data.bmc_network.dynamic_conversion_static_range | length > 0
     - network_data.bmc_network.dynamic_range | length > 0
     - network_data.bmc_network.netmask_bits | int >= 1
     - network_data.bmc_network.netmask_bits | int <= 32

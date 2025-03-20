@@ -1,0 +1,79 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_servie_role:
+#      Install packages required for service node
+#
+#################################################################################################################
+
+# Define log file
+LOGFILE="/var/log/xcat/xcat.log"
+
+echo "--------------------------" >> "$LOGFILE"
+echo "Starting service node required packages installation" >> "$LOGFILE"
+
+# List of required packages
+PACKAGES=(
+    "initscripts"
+    "xCATsn"
+    "goconserver"
+    "perl-Net-Telnet"
+    "perl-Expect"
+    "rsync"
+)
+
+# Install each package and log a simple message
+for pkg in "${PACKAGES[@]}"; do
+    echo "**** Installing Package - $pkg..." >> "$LOGFILE"
+    dnf install -y "$pkg"
+    if [[ $? -eq 0 ]]; then
+        echo "$pkg installed successfully." >> "$LOGFILE"
+    else
+        echo "**** Error installing $pkg. Check logs for details." >> "$LOGFILE"
+    fi
+done
+
+echo "Updating enviornment variables" >> "$LOGFILE"
+echo "source /etc/profile.d/xcat.sh" >> "/root/.bashrc"
+
+wget "http://{{ admin_nic_ip }}:80/install/xcat-genesis-base-x86_64.tar.gz" -O /tmp/xcat-genesis-base-x86_64.tar.gz 
+genesis_url_status=$?
+if [ $genesis_url_status -eq 0 ]; then
+    tar -zxvf /tmp/xcat-genesis-base-x86_64.tar.gz -C /tmp
+    genesis_rpm_file=`rpm -qa | grep xCAT-genesis-base-x86_64`
+    rpm -e --nodeps $genesis_rpm_file
+    rpm -ivh /tmp/xCAT-genesis-base-x86_64-2.16.4-snap202308211541.noarch.rpm
+    mknb x86_64
+fi
+
+{% if omnia_share_option == "NFS" %}
+# Create omnia_path directory if it does not exist
+echo "Creating omnia shared path directory if it does not exist" >> "$LOGFILE"
+mkdir -p {{ oim_shared_path }}
+
+# Validate if NFS server is reachable
+echo "Validating if NFS server is reachable" >> "$LOGFILE"
+ping -c1 -W1 {{ nfs_server_ip }} > /dev/null
+if [ $? -ne 0 ]; then
+    echo -e "NFS server {{ nfs_server_ip }} is not reachable." >> "$LOGFILE"
+    exit 1
+fi
+
+# Mount NFS server share path in Omnia share path
+echo "Mounting NFS server share path in Omnia share path" >> "$LOGFILE"
+mount -t nfs -o nosuid,rw,sync,hard,intr,timeo=30 {{ nfs_server_ip }}:{{ nfs_server_share_path }} {{ oim_shared_path }}
+
+# Validate if NFS server share path is mounted
+echo "Validating if NFS server share path is mounted" >> "$LOGFILE"
+if grep -qs "{{ nfs_server_ip }}:{{ nfs_server_share_path }}" /proc/mounts; then
+    echo -e "NFS server share path is mounted." >> "$LOGFILE"
+else
+    echo -e "NFS server share path is not mounted. Provide valid NFS server details" >> "$LOGFILE"
+    exit 1
+fi
+
+# Add NFS server share to /etc/fstab to mount on startup
+echo "{{ nfs_server_ip }}:{{ nfs_server_share_path }} {{ oim_shared_path }} nfs nosuid,rw,sync,hard,intr" >> /etc/fstab
+{% endif %}
+
+echo "--------------------------" >> "$LOGFILE"
+echo "All service node packages installed successfully." >> "$LOGFILE"

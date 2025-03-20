@@ -1,0 +1,19 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_racadm:
+#      Install racadm on all the cluster nodes using racadm tarball provided
+#
+#################################################################################################################
+echo "--------------------------" >> /var/log/xcat/xcat.log
+
+LOG_FILE="/var/log/xcat/xcat.log"
+
+echo "Installing racadm" >> "$LOG_FILE"
+wget "{{ pulp_tarball_list[0].base_url }}/racadm.tar.gz" -O /tmp/racadm.tar.gz
+racadm_url_status=$?
+if [ $racadm_url_status -eq 0 ]; then
+    tar -zxvf /tmp/racadm.tar.gz -C /tmp
+    cd /tmp/iDRACTools/racadm && echo "y" | bash install_racadm.sh
+fi
+echo "Successfully installed racadm" >> "$LOG_FILE"
+echo "-----------------------------" >> "$LOG_FILE"

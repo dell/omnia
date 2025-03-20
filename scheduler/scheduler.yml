@@ -37,9 +37,9 @@
         name: cluster_validation
         tasks_from: validation_status_check.yml
 
-# - name: Update Repositories/Registries on nodes
-#   ansible.builtin.import_playbook: ../utils/update_user_repo.yml
-#   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
+- name: Update Repositories/Registries on nodes
+  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
 - name: Apply common Slurm installation and config
   hosts: slurm_control_node, slurm_node, login
@@ -81,7 +81,7 @@
 
     - name: Execute ansible-playbook for Kubernetes setup asynchronously
       ansible.builtin.shell:
-        cmd: ansible-playbook {{ k8s_nfs_share }}/k8s_start_setup.yml -i {{ k8s_nfs_share }}/inv_k8s --extra-vars "@{{ k8s_nfs_share }}/k8s_all_vars.yml" -vvv | /usr/bin/tee {{ k8s_logs_dir }}//k8s_deployment.log
+        cmd: /venv/bin/ansible-playbook {{ k8s_nfs_share }}/k8s_start_setup.yml -i {{ k8s_nfs_share }}/inv_k8s --extra-vars "@{{ k8s_nfs_share }}/k8s_all_vars.yml" -vvv | /usr/bin/tee {{ k8s_logs_dir }}//k8s_deployment.log
       async: 3600  # Set async timeout (e.g., 1 hour)
       poll: 0  # Non-blocking (continue the playbook without waiting for completion)
       register: result  # Register the result to capture job ID
@@ -95,7 +95,42 @@
       delay: 10  # Wait 10 seconds between retries
 
 - name: Add nodes to kubernetes cluster
-  ansible.builtin.import_playbook: "{{ playbook_dir }}/playbooks/k8s_add_node.yml"
+  hosts: omnia_kubespray
+  vars:
+    k8s_nfs_share: "/opt/omnia/kubespray"
+    k8s_logs_dir: "/opt/omnia/log/kubespray"
+    dir_mode: '0755'
+  tasks:
+    - block:
+        - name: Copy k8s_add_node to kubespray nfs share
+          ansible.builtin.copy:
+            src: "{{ playbook_dir }}/playbooks/k8s_add_node.yml"
+            dest: "{{ k8s_nfs_share }}/k8s_add_node.yml"
+
+        - name: Ensure log/kubespray directory exists
+          ansible.builtin.file:
+            path: "{{ k8s_logs_dir }}"
+            state: directory
+            mode: "{{ dir_mode }}"
+
+        - name: Execute ansible-playbook for Kubernetes setup asynchronously
+          ansible.builtin.shell:
+            cmd: /venv/bin/ansible-playbook {{ k8s_nfs_share }}/k8s_add_node.yml -i {{ k8s_nfs_share }}/inv_k8s --extra-vars "@{{ k8s_nfs_share }}/k8s_all_vars.yml" -vvv | /usr/bin/tee {{ k8s_logs_dir }}//k8s_add_node.log
+          async: 3600  # Set async timeout (e.g., 1 hour)
+          poll: 0  # Non-blocking (continue the playbook without waiting for completion)
+          register: result  # Register the result to capture job ID
+
+        - name: Wait for the Kubernetes installation to finish. Logs can be checked at /opt/omnia/log/kubespray/k8s_add_node.log
+          ansible.builtin.async_status:
+            jid: "{{ result.ansible_job_id }}"  # Job ID from the previous task
+          register: job_result
+          until: job_result.finished
+          retries: 60  # Retry the task 60 times (1 hour total)
+          delay: 10  # Wait 10 seconds between retries
+      when:
+        - hostvars['127.0.0.1']['k8s_support']
+        - hostvars[groups['kube_control_plane'][0]]['k8s_installation_status']
+        - hostvars[groups['kube_control_plane'][0]]['k8s_new_nodes'] != ''
 
 - name: Prepare habana container runtime
   hosts: kube_node

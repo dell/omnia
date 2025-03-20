@@ -25,6 +25,7 @@ pulp_status_url: "http://{{ pulp_server_ip }}:{{ pulp_port }}/pulp/api/v3/status
 endpoint_retries: 3
 endpoint_delay: 5
 endpoint_timeout: 60
+
 pulp_status_fail_msg: "Pulp endpoint is not up. Status code: {{ result.status }}"
-container_status_msg: "Pulp container Status: {{ container_info.containers[0].State.Status }}"
-container_status_fail_msg: "Pulp container is not running. Current Status: {{ container_info.containers[0].State.Status }}"
+pulp_container_success_msg: "The {{ pulp_container_name }} container is up and running."
+pulp_container_fail_msg: "The Pulp Container is not found on the oim.Please run prepare_oim.yml first, and then rerun local_repo.yml"

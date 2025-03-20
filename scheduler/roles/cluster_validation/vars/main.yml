@@ -57,11 +57,16 @@ provision_credentials_vault_path: "{{ input_project_dir }}/.provision_credential
 provision_config_cred_syntax_fail_msg: "Failed. Syntax errors present in provision_credentials_config.yml. Fix errors and re-run playbook again."
 conf_file_mode: "0644"
 
+# Usage: include_high_availability_config.yml
+ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
+ha_config_syntax_fail_msg: "Failed. Syntax errors present in high_availability_config.yml. Fix errors and re-run playbook again."
+
 #Usage: generate_k8s_vars.yml
 k8s_var_common_src: "../templates/common_vars_template.j2"
 k8s_var_final_src: "../templates/final_template.j2"
 k8s_var_dest: "/opt/omnia/kubespray/k8s_all_vars.yml"
 file_permission: "0644"
+pulp_registry_port: "2225"
 
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"
@@ -69,13 +74,9 @@ config_vaultname: .omnia_vault_key
 vault_key_permission: "0644"
 min_length: 8
 max_length: 30
-omnia20_k8s_version: '1.31.4'
 omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
 fail_msg_mariadb_password: "maria_db password not given in correct format."
 success_msg_mariadb_password: "mariadb_password validated"
-success_msg_k8s_version: "Kubernetes Version Validated"
-fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json for this virtual environment. Supported versions for omnia17_venv: 1.29.5, and for omnia161_venv: 1.26.12." # noqa: yaml[line-length]
-kube_version_on_unsupported_os: "Failed. On RHEL/Rocky 8.6 or 8.7 OS, supported kubernetes version is 1.26.12 and suppported virtual environment is omnia161_venv only"  # noqa: yaml[line-length]
 success_msg_k8s_cni: "Kubernetes CNI Validated"
 fail_msg_k8s_cni: "Kubernetes CNI not correct."
 supported_topology_manager_policy: ['none', 'best-effort', 'restricted', 'single-numa-node']
@@ -130,8 +131,13 @@ Inventory support groups are slurm_control_node, slurm_node, kube_control_plane,
 invalid_kube_inventory_fail_msg: "Failed. k8s software is present in software_config.json.
 Invalid inventory format, specify kube_control_plane, kube_node and etcd"
 kube_one_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
-There should be exactly one entry for kube_control_plane in the inventory"
-kube_one_node_validation_success_msg: "One kube_control_plane exists in the inventory"
+There should be one entry for kube_control_plane in the inventory"
+kube_control_plane_validation_fail_msg: "Failed. k8s software is present in software_config.json. kube_control_plane group in inventory must have atleast one node and total node count must be odd"
+kube_HA_setup_warning_msg: "[WARNING] To ensure a clear leader election in a Kubernetes High Availability (HA) setup, configure the cluster with an odd number of kube_control_plane and etcd nodes (e.g., 3, 5, or 7).
+Proceeding execution with provided nodes."
+kube_NonHA_setup_warning_msg: "[WARNING] In a non-HA setup with multiple control plane nodes and a single etcd node, if the etcd node fails, the entire Kubernetes cluster could experience downtime.
+Proceeding execution with provided nodes."
+kube_one_node_validation_success_msg: "kube_control_plane exists in the inventory"
 kube_node_validation_fail_msg: "Failed. k8s software is present in software_config.json.
 At least one kube_node should be present in the inventory."
 kube_node_validation_success_msg: " At least one kube_node exists in the inventory"

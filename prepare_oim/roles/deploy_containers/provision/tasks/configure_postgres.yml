@@ -14,6 +14,10 @@
 
 ---
 
+- name: Set Admin IP
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+
 - name: Wait till xcat-init.bash execution is completed (This task may take 10 mins)
   ansible.builtin.wait_for:
     path: "{{ xcat_init_finished }}"
@@ -23,7 +27,7 @@
   register: wait_result
 
 - name: Setup postgres database (This task may take 10 mins)
-  ansible.builtin.command: "{{ pgsqlsetup_path }} -i -V"
+  ansible.builtin.command: "{{ pgsqlsetup_path }} -i -l {{ admin_nic_ip }} -V"
   changed_when: true
   no_log: true
   environment:
@@ -64,9 +68,38 @@
   no_log: true
   when: not key_status.stat.exists
 
-- name: Set default pg_hba_conf_update
+- name: Set default update variables
   ansible.builtin.set_fact:
     pg_hba_conf_update: false
+    postgresql_conf_updated: false
+    pg_hba_conf_admin_update: false
+    cfgloc_updated: false
+
+- name: Read cfgloc file
+  ansible.builtin.slurp:
+    path: "{{ cfgloc_path }}"
+  register: cfgloc_content
+
+- name: Update cfgloc with correct host IP
+  ansible.builtin.replace:
+    path: "{{ cfgloc_path }}"
+    regexp: "(?<=host=)[^|]+"
+    replace: "{{ admin_nic_ip }}"
+  register: cfgloc_updated
+  when: "admin_nic_ip not in cfgloc_content.content | b64decode"
+
+- name: Read postgresql.conf file
+  ansible.builtin.slurp:
+    path: "{{ postgresql_conf_path }}"
+  register: postgresql_conf_content
+
+- name: Ensure listen_addresses contains admin_nic_ip
+  ansible.builtin.replace:
+    path: "{{ postgresql_conf_path }}"
+    regexp: "^(listen_addresses\\s*=\\s*'[^']*)'"
+    replace: "\\1,{{ admin_nic_ip }}'"
+  register: postgresql_conf_updated
+  when: "admin_nic_ip not in postgresql_conf_content.content | b64decode"
 
 - name: Read pg_hba_conf file
   ansible.builtin.slurp:
@@ -76,6 +109,10 @@
 - name: Set pg_hba_conf_update status
   ansible.builtin.set_fact:
     pg_hba_conf_update: "{{ pg_hba_conf_content.content | b64decode | regex_search('^local\\s+all\\s+all\\s+md5', multiline=True) is not none }}"
+    pg_hba_conf_admin_update: >-
+      {{ pg_hba_conf_content.content | b64decode |
+      regex_search('^host\s+all\s+all\s+' ~ admin_nic_ip ~ '/32\s+md5',
+      multiline=True) is not none }}
 
 - name: Check pg_hba_conf_update status
   when: not pg_hba_conf_update
@@ -97,6 +134,7 @@
         regexp: "^local(.*)all(.*)all(.*)"
         replace: "local   all             all                                     md5"
       register: pg_hba_conf_update
+      when: not pg_hba_conf_update
 
   rescue:
     - name: Failed to set PostgreSQL password for postgres user
@@ -106,8 +144,25 @@
       ansible.builtin.fail:
         msg: "{{ postgres_set_password_fail_msg }} Error: {{ postgresdb_config.module_error }}"
 
+- name: Ensure host entry exists in pg_hba.conf
+  ansible.builtin.lineinfile:
+    path: "{{ pg_hba_conf_path }}"
+    line: "host    all          all        {{ admin_nic_ip }}/32      md5"
+    state: present
+    insertafter: "^# IPv4 local connections:"
+    regexp: "^host\\s+all\\s+all\\s+{{ admin_nic_ip }}/32\\s+md5"
+  register: pg_hba_conf_admin_update
+  when: not pg_hba_conf_admin_update
+
 - name: Restart PostgreSQL service
   ansible.builtin.systemd:
     name: postgresql
     state: restarted
-  when: pg_hba_conf_update.changed # noqa: no-handler
+  when: # noqa: no-handler
+    - pg_hba_conf_update.changed or pg_hba_conf_admin_update.changed or postgresql_conf_updated.changed
+
+- name: Restart xcatd service
+  ansible.builtin.systemd:
+    name: xcatd
+    state: restarted
+  when: cfgloc_updated.changed # noqa: no-handler

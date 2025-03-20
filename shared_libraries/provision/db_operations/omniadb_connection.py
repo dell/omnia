@@ -75,7 +75,7 @@ def create_connection_xcatdb():
     return conn
 
 
-def insert_node_info(service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, group_name, role, location_id,
+def insert_node_info(service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, group_name, role, parent, location_id,
                      architecture, discovery_mechanism, bmc_mode, switch_ip, switch_name, switch_port):
     """
     Inserts node information into the cluster.nodeinfo table.
@@ -104,13 +104,13 @@ def insert_node_info(service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, g
     cursor = conn.cursor()
 
     sql = '''INSERT INTO cluster.nodeinfo(
-                service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, group_name, role, location_id, architecture,
+                service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, group_name, role, parent, location_id, architecture,
                 discovery_mechanism, bmc_mode, switch_ip, switch_name, switch_port)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
 
     params = (
         service_tag, node, hostname, admin_mac, str(admin_ip) if admin_ip else None,
-        str(bmc_ip) if bmc_ip else None, group_name, role, location_id, architecture,
+        str(bmc_ip) if bmc_ip else None, group_name, role, parent, location_id, architecture,
         discovery_mechanism, bmc_mode, str(switch_ip) if switch_ip else None, switch_name,
         switch_port
     )

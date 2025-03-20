@@ -12,29 +12,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
+        
 - name: Remove kubernetes nodes
   ansible.builtin.import_playbook: kubernetes_sigs.kubespray.remove_node
   vars:
-    kube_proxy_mode: 'iptables'
     skip_confirmation: true
     skip_http_proxy_on_os_packages: true
-    override_system_hostname: false
-    container_manager: "containerd"
-    dashboard_enabled: true
-    helm_enabled: true
-    kube_network_plugin: "{{ hostvars['localhost']['k8s_cni'] }}"
-    kube_service_addresses: "{{ hostvars['localhost']['k8s_service_addresses'] }}"
-    kube_pods_subnet: "{{ hostvars['localhost']['k8s_pod_network_cidr'] }}"
-    unsafe_show_logs: true
-    metallb_enabled: true
-    metallb_speaker_enabled: true
-    kube_proxy_strict_arp: true
-    metallb_config:
-      address_pools:
-        primary:
-          ip_range:
-            - "{{ hostvars['localhost']['pod_external_ip_range'] }}"
-          auto_assign: true
-      layer2:
-        - primary

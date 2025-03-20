@@ -1,10 +1,10 @@
 containerd_registries_mirrors:
-  - prefix: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+  - prefix: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
     mirrors:
-      - host: "http://{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+      - host: "http://{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
         capabilities: ["pull", "resolve"]
         skip_verify: true
  
 containerd_registry_auth:
-  - registry: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+  - registry: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
     password: "{{ hostvars['localhost']['pulp_password'] }}"

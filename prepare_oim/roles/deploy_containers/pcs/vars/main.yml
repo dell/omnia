@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 pcs_image_name: "omnia_pcs"
 pcs_image_tag: "latest"
 pcs_container_name: "omnia_pcs"
@@ -19,7 +20,9 @@ read_write_mode: "0644"
 read_write_execute_mode: "0744"
 pcs_container_dir: "{{ oim_shared_path }}/omnia/pcs"
 pcs_container_log_dir: "{{ oim_shared_path }}/omnia/log/pcs"
-container_systemd_dir: "/etc/containers/systemd/"
+container_systemd_dir: "/etc/containers/systemd"
+network_spec: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
+network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
 pcs_directories:
   - { path: "{{ pcs_container_log_dir }}", mode: "{{ read_write_mode }}" }
   - { path: "{{ pcs_container_dir }}", mode: "{{ read_write_execute_mode }}" }
@@ -29,6 +32,7 @@ migration_threshold: 0
 pcs_startup_file:
   - {template: "pcs-start.sh.j2", dest: "{{ oim_shared_path }}/omnia/pcs/pcs-start.sh", mode: "{{ read_write_execute_mode }}" }
   - {template: "corosync.conf.j2", dest: "{{ oim_shared_path }}/omnia/pcs/corosync.conf", mode: "{{ read_write_mode }}" }
+  - {template: "pcs-container.container.j2", dest: "{{ oim_shared_path }}/omnia/pcs/{{ pcs_container_name }}.container", mode: "{{ read_write_mode }}" }
   - {template: "pcs-container.container.j2", dest: "{{ container_systemd_dir }}/{{ pcs_container_name }}.container", mode: "{{ read_write_mode }}" }
 
 pcs_image_pull_fail_msg: >
@@ -42,9 +46,9 @@ pcs_volumes:
   - /etc/localtime:/etc/localtime:ro
   - /run/podman/podman.sock:/run/podman/podman.sock:ro
   - "{{ pcs_container_dir }}/pcs-start.sh:/opt/omnia/pcs/pcs-start.sh"
-  - "{{ pcs_container_dir }}/corosync.conf:/etc/corosync/corosync.conf:z"
-  - "{{ pcs_container_log_dir }}:/var/log/cluster:z"
-  - "{{ oim_shared_path }}/omnia:/opt/omnia:z"
+  - "{{ pcs_container_dir }}/corosync.conf:/etc/corosync/corosync.conf{{ selinux_option }}"
+  - "{{ pcs_container_log_dir }}:/var/log/cluster{{ selinux_option }}"
+  - "{{ oim_shared_path }}/omnia:/opt/omnia{{ selinux_option }}"
 
 pcs_container_success_msg: "The {{ pcs_container_name }} container has been successfully deployed."
 pcs_container_failure_msg: |
@@ -55,8 +59,8 @@ pcs_container_failure_msg: |
 # Usage: pcs-start.sh.j2:Common
 omnia_nfs_share: "{{ oim_shared_path }}/omnia" # Define NFS share path
 oim_metadata_file: "{{ omnia_nfs_share }}/.data/oim_metadata.yml"
-monitor_interval: "30s"
-monitor_timeout: "20s"
+monitor_interval: "60s"
+monitor_timeout: "100s"
 start_interval: "0s"
 start_timeout: "20s"
 stop_interval: "0s"
@@ -70,16 +74,16 @@ omnia_core_image: "{{ omnia_core_name }}:{{ core_container_image_tag }}"
 core_container_logs_dir: "{{ omnia_nfs_share }}/log/core/container"
 pulp_ha_dir: "{{ omnia_nfs_share }}/pulp/pulp_ha"
 omnia_core_run_opts: "-dt --hostname {{ omnia_core_name }} --restart=always --network=host \
-                     -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z \
-                     -v {{ core_container_logs_dir }}:/var/log:z -v {{ hosts_file }}:/etc/hosts:z \
-                     -v {{ pulp_ha_dir }}:/root/.config/pulp:z -e ROOT_PASSWORD_HASH={{ hostvars['localhost']['omnia_core_hashed_passwd'] }} \
+                     -v {{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }} -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh{{ selinux_option }} \
+                     -v {{ core_container_logs_dir }}:/var/log{{ selinux_option }} -v {{ hosts_file }}:/etc/hosts{{ selinux_option }} \
+                     -v {{ pulp_ha_dir }}:/root/.config/pulp{{ selinux_option }} -e ROOT_PASSWORD_HASH={{ hostvars['localhost']['omnia_core_hashed_passwd'] }} \
                      --name {{ omnia_core_name }} --cap-add=CAP_AUDIT_WRITE"
 
 # Usage: pcs-start.sh.j2: omnia_provision
 provision_container_name: "omnia_provision"
 provision_image_name: "omnia_provision"
 provision_image_tag: "latest"
-provision_image: "localhost/{{ provision_image_name }}:{{ provision_image_tag }}"
+provision_image: "{{ provision_image_name }}:{{ provision_image_tag }}"
 provision_dir: "{{ omnia_nfs_share }}/provision"
 xcatdata_dir: "{{ provision_dir }}/xcatdata"
 pgsql_data_dir: "{{ xcatdata_dir }}/pgsql/data"
@@ -88,18 +92,18 @@ tftpboot_dir: "{{ provision_dir }}/tftpboot"
 hosts_file: "{{ omnia_nfs_share }}/hosts"
 provision_logs_dir: "{{ omnia_nfs_share }}/log/provision"
 provision_run_opts: " --network=host --restart=always --hostname {{ oim_hostname }} --privileged -v \
-                    {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z -v {{ omnia_nfs_share }}:/opt/omnia:z \
-                    -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v {{ xcatdata_dir }}:/xcatdata:z -v {{ install_dir }}:/install:z -v \
-                    {{ tftpboot_dir }}:/tftpboot:z -v {{ provision_logs_dir }}/xcat:/var/log/xcat:z -v {{ pgsql_data_dir }}:/var/lib/pgsql/data:z \
-                    -v {{ hosts_file }}:/etc/hosts:z"
+                    {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh{{ selinux_option }} -v {{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }} \
+                    -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v {{ xcatdata_dir }}:/xcatdata{{ selinux_option }} -v {{ install_dir }}:/install{{ selinux_option }} -v \
+                    {{ tftpboot_dir }}:/tftpboot{{ selinux_option }} -v {{ provision_logs_dir }}/xcat:/var/log/xcat{{ selinux_option }} -v {{ pgsql_data_dir }}:/var/lib/pgsql/data{{ selinux_option }} \
+                    -v {{ hosts_file }}:/etc/hosts{{ selinux_option }}"
 
 # Usage: pcs-start.sh.j2: kubespray
 kubespray_image_name: "omnia_kubespray"
 kubespray_version: "{{ hostvars['localhost']['kubespray_version'] }}"
 kubespray_name: "omnia_kubespray_{{ kubespray_version }}"
-kubespray_image: "localhost/{{ kubespray_image_name }}:{{ kubespray_version }}"
-kubespray_run_opts: " -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh:z \
-                    -v {{ omnia_nfs_share }}:/opt/omnia:z -v {{ hosts_file }}:/etc/hosts:z \
+kubespray_image: "{{ kubespray_image_name }}:{{ kubespray_version }}"
+kubespray_run_opts: " -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh{{ selinux_option }} \
+                    -v {{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }} -v {{ hosts_file }}:/etc/hosts{{ selinux_option }} \
                     --network=host --restart=always --cap-add AUDIT_WRITE"
 
 # Usage: pcs-start.sh.j2: pulp
@@ -111,11 +115,11 @@ pulp_run_opts: " --hostname {{ pulp_container_name }} --device /dev/fuse:/dev/fu
                -e PULP_WORKERS=10 -e PULP_API_WORKERS=10 -e PULP_CONTENT_WORKERS=10 \
                -e PULP_GUNICORN_TIMEOUT=30 -e PULP_API_WORKERS_MAX_REQUESTS=1000 \
                -e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50 --restart=always --publish {{ pulp_port }} \
-               -v {{ pulp_share }}/settings:/etc/pulp:z \
-               -v {{ pulp_share }}/settings/pulp_storage:/var/lib/pulp:z \
-               -v {{ pulp_share }}/settings/pgsql:/var/lib/pgsql:z \
-               -v {{ pulp_share }}/settings/containers:/var/lib/containers:z \
-               -v {{ omnia_nfs_share }}/log/pulp:/var/log/pulp:z"
+               -v {{ pulp_share }}/settings:/etc/pulp{{ selinux_option }} \
+               -v {{ pulp_share }}/settings/pulp_storage:/var/lib/pulp{{ selinux_option }} \
+               -v {{ pulp_share }}/settings/pgsql:/var/lib/pgsql{{ selinux_option }} \
+               -v {{ pulp_share }}/settings/containers:/var/lib/containers{{ selinux_option }} \
+               -v {{ omnia_nfs_share }}/log/pulp:/var/log/pulp{{ selinux_option }}"
 
 pcs_resources:
   - "{{ pulp_container_name }}"

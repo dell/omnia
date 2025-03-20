@@ -14,8 +14,19 @@
 
 ---
 
-- name: Include oim_metadata file
+- name: Include metadata vars
   ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
+  register: include_metadata
+  no_log: true
+
+- name: Initialize SELinux policy
+  ansible.builtin.set_fact:
+    selinux_option: ":z"
+
+- name: Set SELinux policy
+  ansible.builtin.set_fact:
+    selinux_option: ""
+  when: omnia_share_option == 'NFS'
 
 - name: Get oim node name
   ansible.builtin.command: hostname -s

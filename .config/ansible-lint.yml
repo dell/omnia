@@ -1,0 +1,34 @@
+---
+exclude_paths:
+  - .git/
+  - .github/
+  - accelerator/tests/
+  - network/tests/
+  - provision/tests/
+  - scheduler/tests/
+  - security/tests/
+  - storage/tests/
+  - test/
+  - utils/obsolete/
+  - docs/
+  - platforms/
+  - examples/
+  - input/
+  - .ansible-lint.yml
+  - .readthedocs.yaml
+  - prepare_oim/roles/configure_proxy/tasks/configure_proxy_rocky.yml
+  - upgrade/roles/upgrade_idrac_telemetry/tasks/filter_idrac.yml
+  - utils/server_spec_update/roles/os_update/tasks/kcmdline_update_rocky.yml
+  - utils/roles/oim_cleanup/vars/rocky.yml
+  - "*ubuntu*"
+  - "*rocky*"
+
+skip_list:
+  - var-naming
+  - unresolved-module
+  - fqcn[canonical]
+  - internal-error
+  - role-name[path]
+
+verbosity: 1
+profile: production

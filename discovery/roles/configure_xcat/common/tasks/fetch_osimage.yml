@@ -52,7 +52,7 @@
     service_os_image: "None"
 
 - name: Set service os image
-  when: '"first_layer" in ansible_run_tags'
+  when: service_role_required
   block:
     - name: Fetch xcat service osimage name
       ansible.builtin.shell: >

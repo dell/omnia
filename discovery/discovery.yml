@@ -37,7 +37,9 @@
 - name: Create provision container group
   when: not provision_group_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
-  tags: first_layer
+  tags:
+    - always
+    - first_layer
   vars:
     omnia_provision_group: true
     omnia_provision_validation: true
@@ -45,13 +47,15 @@
 - name: Validate discovery parameters
   hosts: omnia_provision
   connection: ssh
-  tags: first_layer
+  tags:
+    - always
+    - first_layer
   tasks:
     - name: Validate discovery parameters
       ansible.builtin.include_role:
         name: discovery_validations/common                    # noqa: role-name[path]
 
-- name: Validate discovery parameters
+- name: Discovery from oim node
   hosts: omnia_provision
   connection: ssh
   tags: first_layer
@@ -76,10 +80,19 @@
 
     - name: Discover all nodes
       ansible.builtin.include_role:
-        name: discovery_mechanism/common     # noqa: role-name[path]
+        name: discovery_mechanism/oim     # noqa: role-name[path]
+
+- name: Discovery from service nodes
+  hosts: service_nodes
+  connection: ssh
+  tasks:
+    - name: Discover all nodes
+      ansible.builtin.include_role:
+        name: discovery_mechanism/service     # noqa: role-name[path]
+      when: hostvars['omnia_provision']['hierarchical_provision_status'] | default(false)
 
 - name: Set facts for kernel parameters update
-  hosts: all:!localhost:!omnia_provision
+  hosts: all:!localhost:!omnia_provision:!service_nodes
   connection: local
   gather_facts: true
   vars_files:

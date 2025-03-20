@@ -50,7 +50,8 @@ xcat_firewall_ports:
   - "162/tcp"
   - "162/udp"
   - "2240/tcp"
-
+  - "5432/tcp"
+  - "5432/udp"
 
 pcs_firewall_ports:
   - "5404-5405/udp"

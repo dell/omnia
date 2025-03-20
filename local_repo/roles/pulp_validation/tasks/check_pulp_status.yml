@@ -13,19 +13,26 @@
 # limitations under the License.
 
 ---
-- name: Gather facts on Pulp container
-  containers.podman.podman_container_info:
-    name: "{{ pulp_container_name }}"
-  register: container_info
 
-- name: Pulp container status
-  ansible.builtin.debug:
-    msg: "{{ container_status_msg }}"
+- name: Get dependencies from local repo
+  block:
+    - name: Gather facts on Pulp container
+      containers.podman.podman_container_info:
+        name: "{{ pulp_container_name }}"
+      register: container_info
 
-# - name: Fail if container status is not running
-#  ansible.builtin.fail:
-#    msg: "{{ container_status_fail_msg }}"
-#  when: container_info.containers[0].State.Status != "running"
+    - name: Success if pulp container is running
+      ansible.builtin.debug:
+        msg: "{{ pulp_container_success_msg }}"
+      when:
+        - container_info.containers | length > 0
+        - container_info.containers[0].State.Status == 'running'
+
+    - name: Fail if pulp container is not running
+      ansible.builtin.fail:
+        msg: "{{ pulp_container_fail_msg }}"
+      when:
+        - container_info.containers | length == 0 or container_info.containers[0].State.Status != 'running'
 
 - name: Check if Pulp endpoint is up
   ansible.builtin.uri:

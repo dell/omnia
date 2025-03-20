@@ -1,0 +1,415 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "oim_ha": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "enable_oim_ha": {
+            "type": "boolean"
+          },
+          "virtual_ip_address": {
+            "type": "string"
+          },
+          "active_node_service_tag": {
+            "type": "string"
+          },
+          "nfs_share": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "server_ip": {
+                  "type": "string"
+                },
+                "server_share_path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "server_ip",
+                "server_share_path"
+              ]
+            }
+          },
+          "passive_nodes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "node_details": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "SERVICE_TAG": {
+                        "type": "string"
+                      },
+                      "HOSTNAME": {
+                        "type": "string"
+                      },
+                      "ADMIN_MAC": {
+                        "type": "string"
+                      },
+                      "ADMIN_IP": {
+                        "type": "string"
+                      },
+                      "BMC_IP": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "required": [
+                "node_details"
+              ]
+            }
+          }
+        },
+        "required": [
+          "enable_oim_ha"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "enable_oim_ha": {
+                  "const": true
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "virtual_ip_address",
+                "active_node_service_tag",
+                "nfs_share",
+                "passive_nodes"
+              ],
+              "properties": {
+                "virtual_ip_address": {
+                  "type": "string",
+                  "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+                },
+                "active_node_service_tag": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9]+$"
+                },
+                "nfs_share": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "server_ip": {
+                        "type": "string",
+                        "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+                      },
+                      "server_share_path": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "server_ip",
+                      "server_share_path"
+                    ]
+                  }
+                },
+                "passive_nodes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "node_details": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "SERVICE_TAG": {
+                              "type": "string",
+                              "pattern": "^[a-zA-Z0-9]+$"
+                            },
+                            "HOSTNAME": {
+                              "type": "string"
+                            },
+                            "ADMIN_MAC": {
+                              "type": "string",
+                              "pattern": "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
+                            },
+                            "ADMIN_IP": {
+                              "type": "string",
+                              "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+                            },
+                            "BMC_IP": {
+                              "type": "string",
+                              "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+                            }
+                          },
+                          "required": [
+                            "SERVICE_TAG",
+                            "ADMIN_MAC"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "node_details"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "service_node_ha": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "enable_service_ha": {
+            "type": "boolean"
+          },
+          "service_nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "virtual_ip_address": {
+                  "type": "string"
+                },
+                "active_node_service_tag": {
+                  "type": "string"
+                },
+                "passive_nodes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "node_service_tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[a-zA-Z0-9]+$"
+                        }
+                      }
+                    },
+                    "required": [
+                      "node_service_tags"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "virtual_ip_address",
+                "active_node_service_tag",
+                "passive_nodes"
+              ]
+            }
+          }
+        },
+        "required": [
+          "enable_service_ha"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "enable_service_ha": {
+                  "const": true
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "service_nodes": {
+                  "items": {
+                    "required": [
+                      "virtual_ip_address",
+                      "active_node_service_tag",
+                      "passive_nodes"
+                    ],
+                    "properties": {
+                      "virtual_ip_address": {
+                        "type": "string",
+                        "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+                      },
+                      "active_node_service_tag": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9]+$"
+                      },
+                      "passive_nodes": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "node_service_tags": {
+                              "type": "array",
+                              "minItems": 1,
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[a-zA-Z0-9]+$"
+                              }
+                            }
+                          },
+                          "required": [
+                            "node_service_tags"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "slurm_head_node_ha": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "enable_slurm_ha": {
+            "type": "boolean"
+          },
+          "virtual_ip_address": {
+            "type": "string"
+          },
+          "active_node_service_tags": {
+            "type": "string"
+          },
+          "passive_nodes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "node_service_tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9]+$"
+                  }
+                }
+              },
+              "required": [
+                "node_service_tags"
+              ]
+            }
+          }
+        },
+        "required": [
+          "enable_slurm_ha"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "enable_slurm_ha": {
+                  "const": true
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "virtual_ip_address",
+                "active_node_service_tags",
+                "passive_nodes"
+              ],
+              "properties": {
+                "virtual_ip_address": {
+                  "type": "string",
+                  "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+                },
+                "active_node_service_tags": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9]+$"
+                },
+                "passive_nodes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "node_service_tags": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[a-zA-Z0-9]+$"
+                        }
+                      }
+                    },
+                    "required": [
+                      "node_service_tags"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "k8s_head_node_ha": {
+      "type": "object",
+      "properties": {
+        "enable_k8s_ha": {
+          "type": "boolean"
+        },
+        "virtual_ip_address": {
+          "type": "string"
+        },
+        "active_node_service_tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9]+$"
+          }
+        }
+      },
+      "required": [
+        "enable_k8s_ha"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "enable_k8s_ha": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "virtual_ip_address",
+              "active_node_service_tags"
+            ],
+            "properties": {
+              "virtual_ip_address": {
+                "type": "string",
+                "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+              },
+              "active_node_service_tags": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9]+$"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

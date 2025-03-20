@@ -25,11 +25,11 @@
     dest: "{{ synclists_dest_path }}"
     mode: "{{ dir_permission }}"
 
-- name: Configure synclist to osimage
+- name: Configure synclist to compute osimage
   ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage -o {{ provision_os_image }} synclists={{ synclists_dest_path }}"
   changed_when: true
 
-- name: Configure synclist to osimage
-  ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage -o {{ service_os_image }} synclists={{ synclists_dest_path }} otherpkgdir=''"
+- name: Configure synclist to service osimage
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage -o {{ service_os_image }} synclists={{ synclists_dest_path }} otherpkgdir='' otherpkglist=''"
   changed_when: true
-  when: '"first_layer" in ansible_run_tags'
+  when: service_role_required

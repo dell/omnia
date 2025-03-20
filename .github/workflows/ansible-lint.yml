@@ -1,94 +1,36 @@
-name: Ansible Lint  # feel free to pick your own name
+name: Ansible Lint
 
 on:
   pull_request:
     branches:
       - main
-      - release-1.4
-      - release-1.4.0.1
-      - release-1.4.1
-      - release-1.4.2
-      - devel-1.4.2
-      - devel-1.4.2.1
-      - devel-1.4.2.2
-      - devel-1.5
-      - release-1.5.1
-      - release-1.6
-      - release-1.7
+      - staging
+      - release_1.7.1
+      - pub/new_architecture
 
 jobs:
-  ansible-lint:
-
+  build:
+    name: Ansible Lint
     runs-on: ubuntu-latest
-
     steps:
-    # Important: This sets up your GITHUB_WORKSPACE environment variable
-    - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: ansible-lint 
-      # replace "master" with any valid ref
-      uses: ansible/ansible-lint-action@c37fb7b4bda2c8cb18f4942716bae9f11b0dc9bc
-      with:
-        # [required]
-        # Paths to ansible files (i.e., playbooks, tasks, handlers etc..)
-        # or valid Ansible directories according to the Ansible role
-        # directory structure.
-        # If you want to lint multiple ansible files, use the following syntax
-        # targets: |
-        #   playbook_1.yml
-        #   playbook_2.yml
-        targets: |
-          /github/workspace/omnia.yml
-          /github/workspace/discovery_provision.yml
-          /github/workspace/local_repo/local_repo.yml
-          /github/workspace/server_spec_update/server_spec_update.yml
-          /github/workspace/scheduler/job_based_user_access.yml
-          /github/workspace/security/user_passwordless_ssh.yml
-          /github/workspace/storage/nfs_sas.yml
-          /github/workspace/storage/powervault.yml
-          /github/workspace/telemetry/add_node_idrac.yml
-          /github/workspace/tools/jupyterhub.yml
-          /github/workspace/tools/kserve.yml
-          /github/workspace/tools/kubeflow.yml
-          /github/workspace/tools/pytorch.yml
-          /github/workspace/tools/tensorflow.yml
-          /github/workspace/tools/vllm.yml
-          /github/workspace/utils/control_plane_cleanup.yml
-          /github/workspace/utils/delete_node.yml
-          /github/workspace/utils/remove_node_configuration.yml
-          /github/workspace/utils/reset_cluster_configuration.yml
-          /github/workspace/utils/update_user_repo.yml
-          /github/workspace/utils/servicetag_host_mapping.yml
-          /github/workspace/utils/software_update/software_update.yml
-          /github/workspace/utils/timescaledb_utility/timescaledb_utility.yml
-          /github/workspace/utils/ip_rule_assignment/ip_rule_assignment.yml
-          /github/workspace/utils/nodeinfo_db/nodeinfo_db.yml
-          # [optional]
-        # Arguments to override a package and its version to be set explicitly.
-        # Must follow the example syntax.
-        override-deps: |
-          ansible==6.7.0
-          ansible-lint==6.13.1
-        # [optional]
-        # Arguments to be passed to the ansible-lint
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-        # Options:
-        #   -q                    quieter, although not silent output
-        #   -p                    parseable output in the format of pep8
-        #   --parseable-severity  parseable output including severity of rule
-        #   -r RULESDIR           specify one or more rules directories using one or
-        #                         more -r arguments. Any -r flags override the default
-        #                         rules in ansiblelint/rules, unless -R is also used.
-        #   -R                    Use default rules in ansiblelint/rules in addition to
-        #                         any extra
-        #                         rules directories specified with -r. There is no need
-        #                         to specify this if no -r flags are used
-        #   -t TAGS               only check rules whose id/tags match these values
-        #   -x SKIP_LIST          only check rules whose id/tags do not match these
-        #                         values
-        #   --nocolor             disable colored output
-        #   --exclude=EXCLUDE_PATHS
-        #                         path to directories or files to skip. This option is
-        #                         repeatable.
-        #   -c C                  Specify configuration file to use. Defaults to ".ansible-lint"
-        args: "-x 305"
+      - name: Install Ansible and Ansible Lint
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible
+
+      - name: Install Ansible Collections from requirements.yml
+        run: |
+          ansible-galaxy collection install -r .config/requirements.yml --force
+
+      - name: Run ansible-lint
+        uses: ansible/ansible-lint@main
+        with:
+          args: --config=.config/ansible-lint.yml

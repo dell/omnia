@@ -60,6 +60,7 @@ def mapping_file_db_update():
         fqdn_hostname = f"{node}.{domain_name}"
         group_name = node_data.get("group_name")
         role = node_data.get("roles")
+        parent = node_data.get("parent")
         location_id = node_data.get("location_id")
         architecture = node_data.get("architecture")
 
@@ -79,7 +80,7 @@ def mapping_file_db_update():
         if not exists:
             # Insert new node record
             omniadb_connection.insert_node_info(temp_service_tag, node, fqdn_hostname, temp_mac, temp_admin_ip, temp_bmc_ip,
-            group_name, role, location_id, architecture, discovery_mechanism, None, None, None, None)
+            group_name, role, parent, location_id, architecture, discovery_mechanism, None, None, None, None)
         else:
             existing_mac.append(temp_mac)
             sys.stdout.write(f"{temp_mac} already present in DB.\n")

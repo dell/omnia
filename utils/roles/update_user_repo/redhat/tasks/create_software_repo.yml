@@ -36,9 +36,12 @@
   register: check_repo_url
   changed_when: false
   failed_when: check_repo_url.stderr!=''
+  when: software_path_url is defined
 
 - name: Create repo file and set repos_update_status
-  when: check_repo_stat | length > 0 and software_path_url not in check_repo_url.stdout
+  when:
+    - software_path_url is defined
+    - software_path_url not in check_repo_url.stdout
   block:
     - name: Create repo file if software version exists on OIM
       ansible.builtin.template:

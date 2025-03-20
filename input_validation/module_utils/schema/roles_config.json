@@ -16,12 +16,12 @@
             "resource_mgr_id": {
               "type": "string",
               "pattern": "^[a-zA-Z0-9,]*$",
-              "description": "List of service tag of active head node(s). Set the value only for group of nodes belonging to k8worker and slurmworker roles, and empty for other roles."
+              "description": "List of service tag of active head node(s). Set the value only for group of nodes belonging to kube_node and slurm_node roles, and empty for other roles."
             },
             "parent": {
               "type": "string",
               "pattern": "^[a-zA-Z0-9,]*$",
-              "description": "List of service tag of associated active service node(s). This field will be empty for group of nodes which is associated with ‘login’, ‘compiler’, ‘service’, ‘k8head’,’slurmhead’. If ‘service’ role is not defined, then value will be empty for worker and default role."
+              "description": "List of service tag of associated active service node(s). This field will be empty for group of nodes which is associated with ‘login’, ‘compiler’, ‘service’, ‘kube_control_plane’,’slurm_control_plane’. If ‘service’ role is not defined, then value will be empty for worker and default role."
             },
             "bmc_details": {
               "type": "object",
@@ -76,12 +76,14 @@
             "enum": [
               "default",
               "service",
-              "k8head",
-              "k8worker",
-              "k8etcd",
-              "slurmworker",
-              "slurmdbd",
+              "kube_control_plane",
+              "kube_node",
+              "etcd",
+              "slurm_control_node",
+              "slurm_node",
+              "slurm_dbd",
               "login",
+              "auth_server",
               "compiler"
             ]
           },

@@ -1,0 +1,33 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Service node serial
+  ansible.builtin.debug:
+    msg: "{{ hostvars[inventory_hostname]['service_tag'] }}"
+    verbosity: 2
+
+- name: Set fact hierarchical_service_node_data
+  ansible.builtin.set_fact:
+    hierarchical_service_node_data: "{{ hostvars['omnia_provision']['hierarchical_service_node_data'] }}"
+
+- name: Rename nic interface on service node
+  ansible.builtin.include_tasks: rename_service_node_nic.yml
+
+- name: Set Service node details to node object
+  ansible.builtin.include_tasks: set_service_node_details.yml
+
+- name: Copy syncfiles dir to service node
+  ansible.builtin.include_tasks: copy_syncfiles.yml
+  when: "hostvars['omnia_provision']['omnia_share_option'] == 'Local'"

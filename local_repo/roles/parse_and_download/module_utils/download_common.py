@@ -496,18 +496,20 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
     relative_path = output_file
     base_path = tarball_directory.strip("/")
     distribution_name = repository_name
+    # This just makes the request look like a real browser request, preventing some servers from blocking it
+    agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
  
     if path_support == False and url_support == True:
         try:
             # Using wget to check if the URL exists (returns 0 for success, non-zero for failure)
-            subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
+            subprocess.run(['wget', '-q', '--spider', '--tries=1','--user-agent',agent, url], check=True)
  
             # Check if the tarball already exists
             if os.path.exists(tarball_path):
                 logger.info(f"Tarball Package {package_name} already exists at {tarball_path}")
                 try:
                     logger.info("Verifying for package download completion")
-                    subprocess.run(['wget', '-c','-O', tarball_path, url], check=True)
+                    subprocess.run(['wget', '-c','-O', tarball_path,'--user-agent', agent, url], check=True)
                     status = "Success"
                     status = process_file_without_download(repository_name, output_file, relative_path, base_path, distribution_name, package_name, tarball_path, logger)
  
@@ -525,7 +527,7 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
             elif url:
                 # Using wget to download the tarball from the URL
                 try:
-                    subprocess.run(['wget', '-O', tarball_path, url], check=True)
+                    subprocess.run(['wget', '-O', tarball_path, '--user-agent', agent, url], check=True)
                     status = "Success"
                     status = process_file_without_download(repository_name, output_file, relative_path, base_path, distribution_name, package_name, tarball_path, logger)
                 except subprocess.CalledProcessError as e:

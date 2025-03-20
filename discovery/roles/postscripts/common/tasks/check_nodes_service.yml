@@ -1,0 +1,40 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Initialize service_node_status
+  ansible.builtin.set_fact:
+    service_node_status: false
+
+- name: Fetch nodes with group service
+  when: service_role_required | default(false)
+  block:
+    - name: Fetch nodes with group service
+      ansible.builtin.command: "{{ xcat_path }}/lsdef service"
+      changed_when: false
+      register: check_service_nodes
+      failed_when: false
+
+    - name: Set service_node_status
+      ansible.builtin.set_fact:
+        service_node_status: true
+      when:
+        - check_service_nodes.stderr is defined
+        - '"error" not in check_service_nodes.stderr | lower'
+
+    - name: Warning - not found any service nodes
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ service_nodes_warning_msg }}"
+      when: not service_node_status

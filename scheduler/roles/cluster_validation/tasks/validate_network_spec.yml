@@ -34,7 +34,7 @@
 - name: Set admin network nic and ip
   ansible.builtin.set_fact:
     admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
-    admin_nic: "{{ network_data.admin_network.nic_name }}"
+    admin_nic: "{{ network_data.admin_network.oim_nic_name }}"
 
 - name: Get all IPv4 addresses assigned to the NIC
   ansible.builtin.set_fact:

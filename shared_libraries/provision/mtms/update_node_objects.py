@@ -46,27 +46,27 @@ def get_node_obj():
     update_node_obj_nm()
 
 
-def update_node_obj_nm():
+def update_node_obj_nm(chain_os=chain_os):
     """
     Updates the node objects in the database.
 
     - This function establishes a connection with omniadb and retrieves the service tags of the nodes
       from the cluster.nodeinfo table.
-    - It then iterates over the service tags and converts them to lowercase. 
+    - It then iterates over the service tags and converts them to lowercase.
     - After that, it iterates over the service tags again and converts them to uppercase.
     - For each service tag, it retrieves the node, admin_ip, bmc_ip, bmc_mode, role, group_name, and
-      architecture from the cluster.nodeinfo table. 
-    - If the bmc_mode is None, it prints "No device is found!". 
+      architecture from the cluster.nodeinfo table.
+    - If the bmc_mode is None, it prints "No device is found!".
     - If the bmc_mode is "static", it checks if the service_os_image is not "None" and if the
-      role contains the string "service". 
-    - If both conditions are true, it sets the chain_os variable to "osimage={service_os_image}". 
-    - It then executes a command to update the node objects using the /opt/xcat/bin/chdef command. 
+      role contains the string "service".
+    - If both conditions are true, it sets the chain_os variable to "osimage={service_os_image}".
+    - It then executes a command to update the node objects using the /opt/xcat/bin/chdef command.
     - If the bmc_mode is "dynamic", it executes a command to update the node objects using the
       /opt/xcat/bin/chdef command.
     - Finally, it closes the cursor and the database connection.
 
     Parameters:
-        None
+        chain_os (str): osimage name string
 
     Returns:
         None

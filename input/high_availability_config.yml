@@ -22,17 +22,26 @@
 # - enable_oim_ha: <Mandatory> Indicates whether to enable high availability (HA) for OIM (Open Information Model). Set to 'true' to enable, 'false' to disable.
 # - virtual_ip_address: <Mandatory if enable_oim_ha is true> The virtual IP address for the OIM HA setup.
 # - active_node_service_tag: <Mandatory if enable_oim_ha is true> The service tag of the active node in the OIM HA setup.
+# - nfs_share: <Mandatory if enable_oim_ha is true> NFS server details for shared storage
+#   - server_ip: The IP address of the NFS server
+#   - server_share_path: The shared directory path on the NFS server
 # - passive_nodes:
-#   - node_service_tags: <Mandatory if enable_oim_ha is true> List of service tags for passive nodes that will take over if the active node fails. Separate tags with commas.
+#   - node_details: <Mandatory if enable_oim_ha is true> List of passive node configurations containing:
+#     - SERVICE_TAG: The service tag of the passive node
+#     - HOSTNAME: The fully qualified domain name of the passive node
+#     - ADMIN_MAC: The MAC address of the admin network interface
+#     - ADMIN_IP: The IP address for the admin network
+#     - BMC_IP: The IP address of the Baseboard Management Controller
 # ***********************************************************************
 
 oim_ha: 
-  - enable_oim_ha: false
-    virtual_ip_address: ""
-    active_node_service_tag: ""
-    passive_nodes: 
-      - node_service_tags:  
-        [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
+  enable_oim_ha: false
+  virtual_ip_address: ""
+  active_node_service_tag: ""
+  passive_nodes: 
+    node_details:
+      - {SERVICE_TAG : "",HOSTNAME: "",ADMIN_MAC: "",ADMIN_IP: "",BMC_IP: ""}
+
 
 # ***********************************************************************
 # High Availability (HA) Configuration for Service Nodes
@@ -50,14 +59,12 @@ service_node_ha:
       - virtual_ip_address: ""
         active_node_service_tag: ""
         passive_nodes: 
-          - node_service_tags: 
-            [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
+          - node_service_tags: [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
 
       - virtual_ip_address: ""
         active_node_service_tag: ""
         passive_nodes: 
-          - node_service_tags: 
-            [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
+          - node_service_tags: [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
 
 # ***********************************************************************
 # High Availability (HA) Configuration for SLURM Head Node
@@ -73,8 +80,7 @@ slurm_head_node_ha:
     virtual_ip_address: ""
     active_node_service_tags: ""
     passive_nodes: 
-      - node_service_tags: 
-        [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
+      - node_service_tags: [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
 
 # ***********************************************************************
 # High Availability (HA) Configuration for Kubernetes (K8s) Head Node
@@ -84,7 +90,6 @@ slurm_head_node_ha:
 # ***********************************************************************
 
 k8s_head_node_ha: 
-    enable_k8s_ha: false
+  - enable_k8s_ha: false
     virtual_ip_address: ""
-    active_node_service_tags: 
-      [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
+    active_node_service_tags: [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]

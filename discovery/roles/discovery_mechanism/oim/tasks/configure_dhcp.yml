@@ -40,7 +40,7 @@
 - name: Task for applying DHCP configuration
   block:
     - name: Apply DHCP Configuration
-      ansible.builtin.command: "{{ xcat_sbin_path }}/makedhcp -a"
+      ansible.builtin.command: "{{ xcat_sbin_path }}/makedhcp -l"
       changed_when: true
       register: apply_dhcp_config
   rescue:

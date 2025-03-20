@@ -30,7 +30,9 @@
     diskful_osimage_status: true
   when:
     - provision_os in diskful_osimage_check.stdout
+    - provision_os_version in diskful_osimage_check.stdout
 
 - name: Create diskful osimage
   ansible.builtin.command: "{{ xcat_sbin_path }}/copycds {{ iso_file_path }}"
   changed_when: true
+  when: not diskful_osimage_status

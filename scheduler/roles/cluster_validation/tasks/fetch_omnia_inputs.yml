@@ -102,14 +102,6 @@
 - name: Validate k8s_support variable
   when: k8s_support
   block:
-    - name: Assert supported kubernetes version
-      ansible.builtin.assert:
-        that:
-          - k8s_version | default("", false) | length > 1
-          - " ('{{ omnia20_k8s_version }}' in k8s_version)" # noqa: yaml[line-length]
-        success_msg: "{{ success_msg_k8s_version }}"
-        fail_msg: "{{ fail_msg_k8s_version }}"
-
     - name: Assert kubernetes cni
       ansible.builtin.assert:
         that:

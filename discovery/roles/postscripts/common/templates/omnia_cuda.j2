@@ -6,40 +6,80 @@
 #################################################################################################################
 echo "--------------------------" >> /var/log/xcat/xcat.log
 
-if [ -f "/etc/debian_version" ];then
+if [ -f "/etc/debian_version" ]; then
   str_os_type="debian"
 else
   str_os_type="redhat"
 fi
 
-echo "Checking for NVIDIA cards" >> /var/log/xcat/xcat.log
-nvidia_check=`lspci | grep -i nvidia`
-if [[ $nvidia_check == *"NVIDIA"* ]]
-then
-  if [ "$str_os_type" = "debian" ];then
-    echo "Starting CUDA installation in Debian" >> /var/log/xcat/xcat.log
-    echo "deb [trusted=yes] http://{{ admin_nic_ip }}:80{{ cuda_core_path }}/var/{{ cuda_debs_folder }} /" >> /etc/apt/sources.list.d/cuda.list
-    apt clean >> /var/log/xcat/xcat.log
-    apt update >> /var/log/xcat/xcat.log
-    apt install cuda cuda-drivers-fabricmanager -y >> /var/log/xcat/xcat.log
-    systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >> /var/log/xcat/xcat.log
+LOG_FILE="/var/log/xcat/xcat.log"
+echo "Checking for NVIDIA cards" >> "$LOG_FILE"
+nvidia_check=$(lspci | grep -i nvidia)
+
+if [[ $nvidia_check == *"NVIDIA"* ]]; then
+  if [ "$str_os_type" = "debian" ]; then
+    CUDA_REPO_URL="http://{{ admin_nic_ip }}:80{{ cuda_core_path }}/var/{{ cuda_debs_folder }}"
+    DEFAULT_SOURCE_LIST="/etc/apt/sources.list.d"
+    if [[ "{{ cuda_version }}" > "12.8.0" ]] || [[ "{{ cuda_version }}" == "12.8.0" ]]; then
+      echo "Starting CUDA {{ cuda_version }} installation in Debian" >> "$LOG_FILE"
+      echo "Running apt clean and update..." >> "$LOG_FILE"
+      echo "deb [trusted=yes] $CUDA_REPO_URL /" >> "$DEFAULT_SOURCE_LIST/cuda.list"
+      apt clean >> "$LOG_FILE" 2>&1
+      apt update >> "$LOG_FILE" 2>&1
+      echo "# Installing dkms ..." >> "$LOG_FILE"
+      apt install -y dkms >> "$LOG_FILE" 2>&1
+
+      wget -O Packages "$CUDA_REPO_URL/Packages" >> "$LOG_FILE"
+      NVIDIA_DRIVER_PKG=$(grep -E "Package: nvidia-driver-[0-9]+-open" Packages | cut -d ' ' -f2 | sort -V | tail -n 1)
+      NVIDIA_FABRICMANAGER_PKG=$(grep -E "Package: nvidia-fabricmanager-[0-9]+" Packages | cut -d ' ' -f2 | sort -V | tail -n 1)
+
+      echo "# Installing nvidia driver : $NVIDIA_DRIVER_PKG \n nvidia fabric manager: $NVIDIA_FABRICMANAGER_PKG" >> "$LOG_FILE"
+      apt install -y  $NVIDIA_DRIVER_PKG $NVIDIA_FABRICMANAGER_PKG >> "$LOG_FILE" 2>&1
+
+      echo "# Installing CUDA..." >> "$LOG_FILE"
+      apt install -y cuda >> "$LOG_FILE" 2>&1
+    else
+      echo "Starting CUDA installation in Debian" >> "$LOG_FILE"
+      echo "$CUDA_REPO_ENTRY" >> "$DEFAULT_SOURCE_LIST/cuda.list"
+      apt clean >> "$LOG_FILE"
+      apt update >> "$LOG_FILE"
+      apt install cuda cuda-drivers-fabricmanager -y >> "$LOG_FILE"
+    fi
+    systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target >> "$LOG_FILE"
     echo "PATH=$PATH:/usr/local/cuda/bin" >> /root/.bashrc
-    rm -rf /etc/apt/sources.list.d/cuda.list
-    apt clean >> /var/log/xcat/xcat.log
-    apt update >> /var/log/xcat/xcat.log
-    echo "CUDA installation completed in Debian" >> /var/log/xcat/xcat.log
-  elif [ "$str_os_type" = "redhat" ];then
-    echo "Starting CUDA installation in RHEL/Rocky" >> /var/log/xcat/xcat.log
-    dnf groupinstall "Development Tools" -y
-    dnf install kernel-devel kernel-headers -y
-    dnf clean all
-    dnf install nvidia-driver cuda-drivers kmod-nvidia-latest-dkms dkms llvm-libs -y
-    dnf -y install cuda cuda-drivers-fabricmanager
-    systemctl enable nvidia-persistenced
-    systemctl start nvidia-persistenced
-    echo "CUDA installation completed in RHEL/Rocky" >> /var/log/xcat/xcat.log
+    apt clean >> "$LOG_FILE"
+    apt update >> "$LOG_FILE"
+    echo "# CUDA {{ cuda_version }}installation completed successfully in Debian" >> "$LOG_FILE"
+
+  elif [ "$str_os_type" = "redhat" ]; then
+
+    if [[ "{{ cuda_version }}" > "12.8.0" ]] || [[ "{{ cuda_version }}" == "12.8.0" ]]; then
+      echo "Starting CUDA installation in RHEL/Rocky" >> "$LOG_FILE"
+      echo "# Executing groupinstall 'Development Tools'" >> "$LOG_FILE"
+      dnf groupinstall "Development Tools" -y
+      echo "# Installing kernel-devel & kernel-headers" >> "$LOG_FILE"
+      dnf install kernel-devel kernel-headers -y >> "$LOG_FILE"
+      dnf clean all
+      echo "# Installing cuda kmod-nvidia-open-dkms nvidia-driver nvidia-fabricmanager llvm-libs" >> "$LOG_FILE"
+      dnf install cuda kmod-nvidia-open-dkms nvidia-driver nvidia-fabricmanager llvm-libs -y >> "$LOG_FILE"
+      systemctl enable nvidia-persistenced
+      systemctl start nvidia-persistenced
+      echo "CUDA installation completed in RHEL/Rocky" >> "$LOG_FILE"
+    else
+      echo "Starting CUDA installation in RHEL/Rocky" >> "$LOG_FILE"
+      dnf groupinstall "Development Tools" -y
+      dnf install kernel-devel kernel-headers -y
+      dnf clean all
+      dnf install nvidia-driver cuda-drivers kmod-nvidia-latest-dkms dkms llvm-libs -y
+      dnf -y install cuda cuda-drivers-fabricmanager
+      systemctl enable nvidia-persistenced
+      systemctl start nvidia-persistenced
+      echo "CUDA installation completed in RHEL/Rocky" >> "$LOG_FILE"
+
+    fi
   fi
 else
-  echo "NVIDIA cards not found" >> /var/log/xcat/xcat.log
+  echo "NVIDIA cards not found" >> "$LOG_FILE"
 fi
-echo "-----------------------------" >> /var/log/xcat/xcat.log
+
+echo "-----------------------------" >> "$LOG_FILE"

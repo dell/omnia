@@ -54,7 +54,7 @@
     - name: Deploy the Kubespray container
       containers.podman.podman_container:
         name: "{{ kubespray_container_name }}"
-        image: "localhost/{{ kubespray_image_name }}:{{ kubespray_image_tag }}"
+        image: "{{ kubespray_image_name }}:{{ kubespray_image_tag }}"
         state: present
         restart_policy: always
         hostname: "{{ kubespray_container_name }}"
