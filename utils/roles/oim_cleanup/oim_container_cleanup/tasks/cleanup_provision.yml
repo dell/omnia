@@ -48,6 +48,7 @@
         permanent: true
       loop: "{{ xcat_firewall_ports }}"
       changed_when: true
+
   rescue:
     - name: Provision container removal failed
       ansible.builtin.fail:

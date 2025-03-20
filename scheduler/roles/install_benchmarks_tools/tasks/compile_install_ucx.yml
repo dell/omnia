@@ -46,7 +46,7 @@
 
     - name: Copy the ucx.tar.gz file into nfs share
       ansible.builtin.get_url:
-        url: "{{ offline_tarball_path }}/{{ ucx_dir }}.tar.gz"
+        url: "{{ offline_tarball_path }}/ucx/{{ ucx_dir }}.tar.gz"
         dest: "{{ omnia_share_path }}/{{ compiler_dir_ucx }}/"
         mode: "{{ copy_mode }}"
       run_once: true

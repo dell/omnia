@@ -1,0 +1,43 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Include slurm_conf tasks
+  ansible.builtin.include_tasks: _edit_conf.yml
+  when: '"slurm_control_node" in group_names'
+
+- name: Include common tasks
+  ansible.builtin.include_tasks: common.yml
+  when: '"slurm_node" in group_names'
+
+- name: Include compute installation tasks
+  ansible.builtin.include_tasks: compute.yml
+  when: '"slurm_node" in group_names'
+
+- name: Restart slurmctld
+  ansible.builtin.systemd_service:
+    name: slurmctld
+    state: restarted
+  when: restart_slurm_services and ('slurm_control_node' in group_names)
+
+- name: Assemble all slurm_nodes
+  ansible.builtin.debug:
+    var: all_nodes
+
+- name: Restart slurmd on all nodes
+  ansible.builtin.systemd_service:
+    name: slurmd
+    state: restarted
+  when: restart_slurm_services and ('slurm_control_node' in group_names) and (node_check.changed or partition_check.changed) and all_nodes is defined
+  delegate_to: "{{ item }}"
+  loop: "{{ all_nodes }}"

@@ -1,0 +1,66 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Install controller packages
+  ansible.builtin.package:
+    name: "{{ slurm_controller_packages[ansible_os_family] }}"
+    state: present
+
+- name: Create files - {{ item }} # TODO: file required?
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: touch
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user_group }}"
+    mode: "{{ slurm_mode }}"
+  loop:
+    - "{{ slurm_conf_dict['SlurmctldLogFile'] }}"
+    - "{{ slurm_conf_dict['SlurmctldPidFile'] }}"
+
+# Port Config
+- name: Enable SlurmctldPort
+  ansible.posix.firewalld:
+    port: "{{ slurm_conf_dict['SlurmctldPort'] }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+# Edit service
+- name: Enable the service
+  ansible.builtin.service:
+    name: slurmctld
+    enabled: true
+  register: ctld_service
+
+- name: Edit the service
+  community.general.ini_file:
+    path: "{{ ctld_service['status']['FragmentPath'] | default(slurm_ctld_service_default_path) }}"
+    section: Unit
+    option: ConditionPathExists
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true
+    mode: u=rw,g=r,o=r
+  notify:
+    - Reload slurmctld
+
+- name: Edit the service to fetch specific conf
+  community.general.ini_file:
+    path: "{{ ctld_service['status']['FragmentPath'] | default(slurm_ctld_service_default_path) }}"
+    section: Service
+    option: ExecStart
+    value: "/usr/sbin/slurmctld -D -f {{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf -s $SLURMCTLD_OPTIONS"
+    no_extra_spaces: true
+    mode: u=rw,g=r,o=r
+  notify:
+    - Reload slurmctld

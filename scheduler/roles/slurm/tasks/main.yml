@@ -1,0 +1,52 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Validate inventory
+  ansible.builtin.include_tasks: validation.yml
+  run_once: true
+
+- name: Set slurmdbd host to slurmctld if not specified
+  ansible.builtin.add_host:
+    name: "{{ groups['slurm_control_node'][0] }}" # HA
+    groups: slurm_dbd
+  when: ('slurm_dbd' not in groups) or (('slurm_dbd' in groups) and (groups['slurm_dbd']|length == 0))
+
+- name: Initialize controller_running status
+  ansible.builtin.set_fact:
+    controller_running: false
+
+- name: Check existing cluster
+  when: ('slurm_control_node' in group_names)
+  block:
+    - name: Populate service facts
+      ansible.builtin.service_facts:
+
+    - name: Check the status of slurmctld
+      ansible.builtin.set_fact:
+        controller_running: true
+      when:
+        - "'slurmctld.service' in ansible_facts.services"
+        - "ansible_facts.services['slurmctld.service'].state == 'running'"
+
+- name: Check if the controller was running
+  ansible.builtin.set_fact:
+    slurmctld_status: "{{ hostvars[groups['slurm_control_node'][0]]['controller_running'] }}" # HA
+
+- name: Existing cluster
+  ansible.builtin.include_tasks: add_node.yml
+  when: slurmctld_status
+
+- name: Fresh cluster install
+  ansible.builtin.include_tasks: new_install.yml
+  when: not slurmctld_status

@@ -1,0 +1,121 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Append share path if NFS
+  ansible.builtin.set_fact:
+    slurm_share_prefix: "{{ share_path }}/{{ slurm_dir_name }}"
+
+- name: Ensure Slurm conf share dir
+  ansible.builtin.file:
+    path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}"
+    state: directory
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "{{ common_mode }}"
+
+- name: Ensure directories for slurm ops
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user_group }}"
+    mode: "{{ common_mode }}"
+  loop:
+    - "{{ slurm_conf_dict['StateSaveLocation'] }}"
+    - "{{ slurm_config_dir }}"
+
+- name: Create node list
+  ansible.builtin.set_fact:
+    slurm_node_list: "{{ (slurm_node_list | default([])) + [hostvars[item]['ansible_nodename'] | split('.') | first] }}"
+  loop: "{{ groups['slurm_node'] }}"
+
+- name: Create slurm.conf
+  ansible.builtin.template:
+    src: "slurm.conf.j2"
+    dest: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "{{ conf_file_mode }}"
+  run_once: true
+  notify:
+    - Restart slurmctld
+
+- name: Create cgroup.conf
+  ansible.builtin.template:
+    src: "cgroup.conf.j2"
+    dest: "{{ item }}"
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "{{ conf_file_mode }}"
+  loop:
+    - "{{ slurm_share_prefix }}{{ slurm_config_dir }}/cgroup.conf"
+    - "{{ slurm_config_dir }}/cgroup.conf"
+  notify:
+    - Restart slurmctld
+    - Restart slurmdbd
+
+- name: Set env variable
+  community.general.ini_file:
+    path: "{{ sys_env_path }}"
+    option: SLURM_CONF
+    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    no_extra_spaces: true
+    mode: u=rw,g=r,o=r
+
+- name: All other host configs
+  ansible.builtin.template:
+    src: "all_other.conf.j2"
+    dest: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/{{ item }}.conf"
+    mode: "{{ conf_file_mode }}"
+    backup: true
+  loop:
+    - mpi
+    - acct_gather
+    - gres
+  when: item in vars
+  notify:
+    - Reload slurmctld
+    - Reload slurmd
+
+- name: Local copy slurm.conf /etc/slurm/
+  ansible.builtin.template:
+    src: "{{ item }}.conf.j2"
+    dest: "{{ slurm_config_dir }}/{{ item }}.conf"
+    owner: root
+    group: root
+    mode: "{{ conf_file_mode }}"
+  ignore_errors: true
+  register: ignore_errors_register
+  loop:
+    - slurm
+    - cgroup
+  notify:
+    - Restart slurmctld
+
+- name: All other host local configs
+  ansible.builtin.template:
+    src: "all_other.conf.j2"
+    dest: "{{ slurm_config_dir }}/{{ item }}.conf"
+    mode: "{{ conf_file_mode }}"
+    backup: true
+  ignore_errors: true
+  register: ignore_errors_register
+  loop:
+    - mpi
+    - acct_gather
+    - gres
+  when: item in vars
+  notify:
+    - Reload slurmctld
+    - Reload slurmd

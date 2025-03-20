@@ -12,14 +12,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Include vars storage_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
+
+- name: Get slurm share path
+  ansible.builtin.set_fact:
+    omnia_share_path: "{{ nfs_client_params | selectattr('slurm_share', 'equalto', true) | map(attribute='client_share_path') | first }}"
 
 - name: Check if share path exists on each node
   ansible.builtin.stat:
-    path: "{{ hostvars['127.0.0.1']['share_path'] }}"
+    path: "{{ omnia_share_path }}"
   register: share_path_info
 
 - name: Set the omnia share path
   ansible.builtin.set_fact:
-    omnia_share_path: "{{ hostvars['127.0.0.1']['share_path'] }}"
     share_exists: true
   when: share_path_info.stat.exists

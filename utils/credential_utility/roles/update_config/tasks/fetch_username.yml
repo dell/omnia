@@ -16,11 +16,16 @@
 - name: Fetch "{{ username }}" if empty # noqa name[template]
   when:
     - vars[username] is defined
-    - (vars[username] | length == 0) or (type.key == "default")
+    - (vars[username] | length == 0)
   block:
-    - name: Prompt user for Username
+    - name: Fetch credential rule for "{{ username }}" # noqa name[template]
+      fetch_credential_rule:
+        credential_field: "{{ username }}"
+      register: credential_rule
+
+    - name: Prompt user for "{{ username }}" # noqa name[template]
       ansible.builtin.pause:
-        prompt: "Enter the [{{ type.key }}] - {{ username }}:"
+        prompt: "[{{ username }}] {{ lookup('vars', type.key ~ '_input') }} {{ credential_rule.msg }} Enter value"
       register: username_input
 
     - name: Validate mandatory username not empty
@@ -28,7 +33,13 @@
         msg: "{{ mandatory_credentials_msg }}"
       when:
         - mandatory_credentials_status
-        - password_input.user_input | length == 0
+        - username_input.user_input | length == 0
+
+    - name: Validate input credential - "{{ username }}" # noqa name[template]
+      validate_credentials:
+        credential_field: "{{ username }}"
+        credential_input: "{{ username_input.user_input }}"
+      when: username_input.user_input | length != 0
 
     - name: Update vars file with entered username
       ansible.builtin.lineinfile:

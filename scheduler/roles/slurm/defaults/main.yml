@@ -1,0 +1,57 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+slurm_db_port_default: 3306
+slurm_db_type_default: mariadb
+slurm_db_username_default: root
+slurm_db_password_default: ""
+slurmctld_service_default_path: '/usr/lib/systemd/system/slurmctld.service'
+slurmd_service_default_path: '/usr/lib/systemd/system/slurmd.service'
+slurmdbd_service_default_path: '/usr/lib/systemd/system/slurmdbd.service'
+sys_env_path: '/etc/environment'
+mpi: {}
+cgroup: {}
+__cgroup_default_config:
+  CgroupPlugin: autodetect
+  ConstrainCores: true
+  ConstrainDevices: true
+  ConstrainRAMSpace: true
+  ConstrainSwapSpace: true
+__slurm_default_config:
+  SlurmUser: "{{ slurm_user }}"
+  SlurmctldPort: 6817
+  SlurmdPort: 6818
+  SrunPortRange: "60001-63000"
+  StateSaveLocation: "/var/spool/state"
+  SlurmdSpoolDir: "/var/spool/slurmd"
+  ReturnToService: 2
+  SchedulerType: sched/backfill
+  MpiDefault: None
+  ProctrackType: proctrack/cgroup
+  SelectType: select/linear
+  SlurmctldLogFile: /var/log/slurmctld.log
+  SlurmdLogFile: /var/log/slurmd.log
+  SlurmctldPidFile: /var/run/slurmctld.pid
+  SlurmdPidFile: /var/run/slurmd.pid
+  AuthType: auth/munge
+  CryptoType: crypto/munge
+  SlurmctldTimeout: 120
+  SlurmdTimeout: 300
+__slurm_dbd_default_config:
+  AuthType: auth/munge
+  LogFile: /var/log/slurmdbd.log
+  PidFile: /var/run/slurmdbd.pid
+  SlurmUser: "{{ slurm_user }}"
+  StorageType: accounting_storage/mysql
+  StorageLoc: slurm_acct_db

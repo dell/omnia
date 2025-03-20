@@ -1,0 +1,54 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Append share path if NFS
+  ansible.builtin.set_fact:
+    slurm_share_prefix: "{{ share_path }}/{{ slurm_dir_name }}"
+
+- name: Remove the slurm nodes
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    state: absent
+    regexp: "^NodeName={{ item }} "
+  register: node_check
+  loop: "{{ groups['slurm_node'] }}"
+
+- name: Get slurm info output if slurm is installed
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    scontrol show node | awk '/NodeName/ {print $1}' | cut -d= -f2
+  register: slurm_nodes
+  changed_when: slurm_nodes.rc == 0
+
+- name: Assemble all slurm_nodes
+  ansible.builtin.set_fact:
+    rem_nodes: "{{ (slurm_nodes['stdout_lines'] | difference(groups['slurm_node'])) | unique | sort }}"
+
+- name: Edit the partition
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    state: present
+    line: "PartitionName={{ slurm_partition_name }} Nodes={{ rem_nodes | join(',') }} MaxTime=INFINITE State=UP"
+    regexp: "^PartitionName={{ slurm_partition_name }} "
+  when: rem_nodes
+  register: partition_check
+
+- name: Edit the partition
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+    state: present
+    line: 'PartitionName={{ slurm_partition_name }} Nodes="" MaxTime=INFINITE State=UP'
+    regexp: "^PartitionName={{ slurm_partition_name }} "
+  when: not rem_nodes
+  register: partition_check

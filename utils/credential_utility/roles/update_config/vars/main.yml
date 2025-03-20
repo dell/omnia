@@ -16,15 +16,13 @@
 omnia_credential_file: "{{ input_project_dir }}/omnia_config_credentials.yml"
 omnia_credential_vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
 
-# Usage: fetch_default_credentials.yml
-default_warning_msg: "WARNING: The following are default credentials. If left empty default credentials will be used. Please enter valid inputs."
-
 # Usage: fetch_optional_credentials.yml
-optional_warning_msg: "WARNING: The following are optional default. If left empty these credentials will be skipped. Please enter valid inputs."
+optional_warning_msg: "WARNING: The following are optional credentials. If left empty these credentials will be skipped. Please enter valid inputs."
 
 # Usage: fetch_mandatory_credentials.yml
 mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left them empty. Please enter valid inputs."
-
+mandatory_input: "is a [MANDATORY] credential and cannot be left empty."
+optional_input: "is an [OPTIONAL] credential and can be left empty to skip."
 # Usage: fetch_password.yml
 mandatory_password_fail_msg: "Failed. Please provide valid password for mandatory credential."
 password_match_fail_msg: "Failed. Passwords do not match. Please try again."
@@ -63,16 +61,15 @@ omnia_credentials:
       password:
         - docker_password
   slurm:
-    default:
+    mandatory:
       password:
-        - mariadb_password
+        - slurm_db_password
   openldap:
     mandatory:
       password:
         - openldap_db_password
         - openldap_config_password
         - openldap_monitor_password
-    default:
       username:
         - openldap_db_username
         - openldap_config_username

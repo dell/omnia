@@ -1,0 +1,65 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Get slurm_db_password from hostvars
+  ansible.builtin.set_fact:
+    slurm_db_password: "{{ hostvars['localhost']['slurm_db_password'] }}"
+
+- name: Is slurm_db_username defined
+  ansible.builtin.set_fact:
+    slurm_db_username: "{{ slurm_db_username_default }}"
+  when: (slurm_db_username is not defined) or (not slurm_db_username)
+
+- name: Set new_install fact to false
+  ansible.builtin.set_fact:
+    new_install: false
+
+- name: Reload services
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Is mariadb installed # Currently can show up even if mysql/mariadb are uninstalled if the facts were not refreshed
+  ansible.builtin.set_fact:
+    new_install: true
+  when:
+    - slurm_db_type == "mariadb"
+    - ("mariadb.service" not in ansible_facts['services'] or ansible_facts.services['mariadb.service'].state != 'running')
+
+- name: Is mysql installed # Currently can show up even if mysql/mariadb are uninstalled if the facts were not refreshed
+  ansible.builtin.set_fact:
+    new_install: true
+  when:
+    - slurm_db_type == "mysql"
+    - ("mysqld.service" not in ansible_facts['services'] or ansible_facts.services['mysqld.service'].state != 'running')
+
+- name: Create new database # TODO: Decide on a method to determine when to create new db
+  ansible.builtin.include_tasks: _create_db.yml
+  when: new_install
+
+- name: Add db user - shortname
+  community.mysql.mysql_user:
+    login_user: "{{ slurm_db_username }}"
+    login_password: "{{ slurm_db_password }}"
+    name: "{{ slurm_dbd_db_username }}"
+    password: "{{ slurm_dbd_db_password }}"
+    host: "{{ hostvars[groups['slurm_dbd'][0]]['ansible_nodename'] | split('.') | first }}"
+    priv: "{{ slurm_dbd_conf_dict['StorageLoc'] }}.*:ALL,GRANT"
+    login_unix_socket: "{{ slurm_db_login_unix_socket }}"
+    state: present
+  notify:
+    - Restart slurmctld
+    - Restart slurmdbd

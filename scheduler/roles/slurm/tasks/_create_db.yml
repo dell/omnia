@@ -1,0 +1,90 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Gather facts
+  ansible.builtin.setup:
+
+- name: Install db packages
+  ansible.builtin.dnf:
+    name: "{{ db_packages[ansible_os_family][slurm_db_type] }}"
+    state: present
+
+- name: Enable and start the mysql service
+  ansible.builtin.service:
+    name: mysqld
+    enabled: true
+    state: started
+  when: slurm_db_type == mysql
+
+- name: Enable and start the mariadb service
+  ansible.builtin.service:
+    name: mariadb
+    enabled: true
+    state: started
+  when: slurm_db_type == mariadb
+
+- name: Create my.cnf.d file
+  ansible.builtin.lineinfile:
+    path: "{{ db_conf_file }}"
+    line: "[client-server]"
+    create: true
+    mode: "{{ slurm_db_cnf_mode }}"
+
+- name: Include my.cnf.d directory
+  ansible.builtin.lineinfile:
+    path: "{{ db_conf_file }}"
+    insertafter: '^\[client-server\]'
+    line: '!includedir /etc/my.cnf.d'
+
+- name: Set db port
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_mysql_cnf_path }}"
+    regexp: '^port=.*'
+    insertafter: '^[mysqld]'
+    line: "port={{ slurm_db_port }}"
+  when: slurm_db_type == mysql
+  notify:
+    - Restart mysqld
+    - Restart slurmctld
+    - Restart slurmdbd
+
+- name: Set db port
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_mariadb_cnf_path }}"
+    regexp: '^port=.*'
+    insertafter: '^[mysqld]'
+    line: "port={{ slurm_db_port }}"
+  when: slurm_db_type == mariadb
+  notify:
+    - Restart mariadb
+    - Restart slurmctld
+    - Restart slurmdbd
+
+- name: Enable db port
+  ansible.posix.firewalld:
+    port: "{{ slurm_db_port }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+
+- name: Add ansible db user
+  community.mysql.mysql_user:
+    login_user: "{{ slurm_db_username_default }}"
+    login_password: "{{ slurm_db_password_default }}"
+    name: "{{ slurm_db_username }}"
+    password: "{{ slurm_db_password }}"
+    host: "localhost"
+    priv: '*.*:ALL,GRANT'
+    login_unix_socket: "{{ slurm_db_login_unix_socket }}"
+    state: present

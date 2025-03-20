@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  tasks:
+    - name: Set dynamic run tags including 'slurm'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['slurm']) | unique }}"
+        cacheable: true
+
+- name: Invoke get_config_credentials.yml
+  when: not config_file_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+
 - name: Update Inventory with ansible_host information
   ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
   when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
 
 - name: Gather facts from all the nodes
-  hosts: slurm_control_node, kube_control_plane, slurm_node, kube_node, login, etcd
+  hosts: kube_control_plane, kube_node, login, etcd
 
 - name: Include input project directory
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
@@ -40,13 +53,6 @@
 - name: Update Repositories/Registries on nodes
   ansible.builtin.import_playbook: ../utils/update_user_repo.yml
   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
-
-- name: Apply common Slurm installation and config
-  hosts: slurm_control_node, slurm_node, login
-  gather_facts: false
-  any_errors_fatal: true
-  roles:
-    - slurm_common
 
 - name: Prepare kube control plane for kubernetes installations
   hosts: kube_control_plane
@@ -177,35 +183,12 @@
   roles:
     - k8s_csi_powerscale_plugin
 
-- name: Apply slurm control node config
-  hosts: slurm_control_node
-  gather_facts: false
+- name: Install Slurm
+  hosts: slurm_control_node, slurm_node, slurm_dbd, login
+  any_errors_fatal: true
   roles:
-    - slurm_manager
-
-- name: Configure Slurm worker nodes
-  hosts: slurm_node, login
-  gather_facts: false
-  roles:
-    - slurm_workers
-
-- name: Start slurm services on slurm control node
-  hosts: slurm_control_node
-  gather_facts: false
-  roles:
-    - slurm_start_services
-
-- name: Start slurm services on slurm node and login
-  hosts: slurm_node, login
-  gather_facts: false
-  roles:
-    - slurm_workers_service
-
-- name: Setup slurm pam authentication
-  hosts: slurm_control_node, slurm_node, login
-  gather_facts: true
-  roles:
-    - slurm_pam
+    - slurm
+    # - slurm_pam
 
 - name: Compile and install the ucx and openmpi on the nfs share of compute nodes
   hosts: slurm_control_node, kube_control_plane

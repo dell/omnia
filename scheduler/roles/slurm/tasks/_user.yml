@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Create slurm group
+  ansible.builtin.group:
+    name: slurm
+    state: present
 
-- name: Notify user about default inputs
-  ansible.builtin.debug:
-    msg: "{{ default_warning_msg }}"
-
-- name: Fetch default credentials
-  ansible.builtin.include_tasks: prompt_credentials.yml
-  loop: "{{ type.value | dict2items }}"
-  loop_control:
-    loop_var: field
+- name: Add the user 'slurm' with uid 6001 and a primary group of 'slurm'
+  ansible.builtin.user:
+    name: slurm
+    comment: Slurm User Account
+    uid: "{{ slurm_uid }}"
+    group: slurm
+    create_home: false # TODO: if share path is /home this is needed

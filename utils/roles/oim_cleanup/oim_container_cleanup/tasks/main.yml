@@ -17,33 +17,26 @@
   ansible.builtin.yum:
     name: firewalld
     state: present
-  tags: pcs, provision
 
 - name: Start and enable firewalld
   ansible.builtin.service:
     name: firewalld
     state: started
     enabled: true
-  tags: pcs, provision
 
 - name: Cleanup pcs container
   ansible.builtin.import_tasks: cleanup_pcs.yml
-  tags: pcs
 
 - name: Cleanup provision container
   ansible.builtin.import_tasks: cleanup_provision.yml
-  tags: provision
 
 - name: Cleanup pulp container
   ansible.builtin.import_tasks: cleanup_pulp.yml
-  tags: pulp
 
 - name: Cleanup kubespray container
   ansible.builtin.import_tasks: cleanup_kubespray.yml
   when: hostvars['localhost']['k8s_support']
-  tags: kubespray
 
 - name: Reload firewalld to apply changes
   ansible.builtin.command: firewall-cmd --reload
   changed_when: true
-  tags: pcs, provision

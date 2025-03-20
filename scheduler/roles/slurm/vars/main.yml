@@ -1,0 +1,91 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+cluster_name: cluster # TODO: direct load vars omnia_config.yml
+slurm_uid: 6001
+slurm_user: slurm
+slurm_user_group: slurm
+slurm_installation_type: "{{ hostvars['localhost']['slurm_installation_type'] }}" # TODO direct load vars omnia_config.yml
+restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] }}"
+slurm_db_username: "{{ hostvars['localhost']['slurm_db_username'] | default('root') }}"
+slurm_db_password: "{{ hostvars['localhost']['slurm_db_password'] }}"
+slurm_db_host: "{{ hostvars['localhost']['slurm_db_host'] | default(false) }}"
+slurm_db_port: "{{ hostvars['localhost']['slurm_db_port'] | default(3306) }}"
+slurm_db_type: "{{ hostvars['localhost']['slurm_db_type'] | default('mariadb') }}"
+share_path: "{{ hostvars['localhost']['share_path'] }}" # TODO: direct load vars omnia_config.yml
+slurm_share_prefix: ""
+slurm_config_dir: /etc/slurm
+slurm_dir_name: slurm
+slurm_dbd_port: 6819
+slurm_dbd_db_username: "{{ slurm_user }}"
+slurm_dbd_db_password: slurmPassword123!
+slurm_db_login_unix_socket: /var/lib/mysql/mysql.sock
+slurm_mysql_cnf_path: /etc/my.cnf.d/mysql-server.cnf
+slurm_mariadb_cnf_path: /etc/my.cnf.d/mariadb-server.cnf
+slurm_munge_key_path: "{{ share_path }}/{{ slurm_dir_name }}/munge.key"
+slurm_partition_name: normal
+mariadb: mariadb
+mysql: mysql
+root_user: root
+root_group: root
+munge_user: munge
+munge_group: munge
+munge_key_timeout: 300
+munge_key_dest: "/etc/munge/munge.key"
+db_conf_file: "/etc/my.cnf"
+slurm_ctld_parameters: []
+partitions: {}
+_clean_before_install: false
+_force_install_nfs: true
+conf_file_mode: "0644"
+slurm_mode: "0644"
+munge_mode: "0400"
+munge_dir_mode: "0700"
+common_mode: "0755"
+slurm_dbd_mode: "0600"
+slurm_db_cnf_mode: "0600"
+common_packages:
+  RedHat:
+    - firewalld
+    - python3-firewall
+munge_packages:
+  RedHat:
+    - munge
+slurm_controller_packages:
+  RedHat:
+    - slurm-slurmctld
+slurm_compute_packages:
+  RedHat:
+    - slurm-slurmd
+slurm_login_packages:
+  RedHat:
+    - slurm
+slurm_dbd_packages:
+  RedHat:
+    - slurm-slurmdbd
+db_packages:
+  RedHat:
+    mysql:
+      - python3-PyMySQL
+      - mysql-server
+    mariadb:
+      - python3-PyMySQL
+      - mariadb-server
+hosts_file_dest: "/etc/hosts"
+hosts_file_mode: "0644"
+# messages
+hosts_update_fail_msg: "Failed to update hosts file with node details.
+ Remove unreachable IP addresses from slurm_node or login group of inventory and re-run the playbook."
+inv_validation_fail_msg: "Failed. slurm_control_node and slurm_node groups should be defined in inventory and should have at least one node provided."
+intersect_validation_fail_msg: "Failed. Node mentioned in slurm_control_node group should not be part of slurm_node or login group"

@@ -53,7 +53,7 @@
 
     - name: Copy the openmpi.tar.gz file into nfs share
       ansible.builtin.get_url:
-        url: "{{ offline_tarball_path }}/{{ openmpi_dir }}.tar.gz"
+        url: "{{ offline_tarball_path }}/openmpi/{{ openmpi_dir }}.tar.gz"
         dest: "{{ omnia_share_path }}/{{ compiler_dir_openmpi }}/"
         mode: "{{ copy_mode }}"
       run_once: true
@@ -85,13 +85,12 @@
         - ucx_dir_data.stat.exists
         - ucx_cmd.rc == 0
 
-    - name: Construct the command to compile the openmpi when slurm support is true
-      when: slurm_support
-      ansible.builtin.include_tasks: openmpi_cmd_with_slurm.yml
-
-    - name: Construct the command to compile the openmpi when slurm support is false
-      when: not slurm_support
-      ansible.builtin.include_tasks: openmpi_cmd_without_slurm.yml
+    - name: Construct openmpi compile the command with ucx and slurm
+      ansible.builtin.set_fact:
+        openmpi_compile_cmd: "../configure --prefix={{ omnia_share_path }}/{{ benchmarks_dir_openmpi }}
+         --enable-mpi1-compatibility --enable-prte-prefix-by-default
+         {{ '--with-slurm=yes' if slurm_support else '--with-slurm=no' }}{{ ' --with-ucx=' + ucx_dir_data.stat.path + ' ' if ucx_installed else ' ' }}CC=clang
+          CXX=clang++ 2>&1 | tee config.out"
 
     - name: Create a build directory inside openmpi folder
       ansible.builtin.file:
@@ -104,9 +103,10 @@
       ansible.builtin.shell: "{{ openmpi_compile_cmd }}" # noqa: command-instead-of-shell
       args:
         chdir: "{{ omnia_share_path }}/{{ compiler_dir_openmpi }}/{{ openmpi_dir }}-{{ openmpi_software_version }}/build"
-      changed_when: false
+      register: mpi_config
+      changed_when: mpi_config.rc == 0
       run_once: true
-      failed_when: false
+      failed_when: mpi_config.rc != 0
 
     - name: Run command "run 'make -j 8' and make install"
       ansible.builtin.shell: |
