@@ -35,7 +35,6 @@ pulp_cleanup_directory:
   - "{{ omnia_nfs_share }}/pulp/pulp_ha/cli.toml"
   - "{{ omnia_nfs_share }}/log/pulp"
   - "{{ omnia_nfs_share }}/pulp/settings"
-  - "/opt/omnia/offline_repo/"
 
 # Usage: cleanup_provision.yml
 provision_container_name: "omnia_provision"

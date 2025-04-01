@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Import pre-requisite tasks
-  ansible.builtin.include_tasks: pre_requisite.yml
-
-- name: Check k8s support
-  ansible.builtin.include_tasks: check_k8s_support.yml
-
-- name: Check pulp offline repo
-  ansible.builtin.include_tasks: pulp_offline_repo.yml
+- name: Remove offline repo directory if exist
+  ansible.builtin.file:
+    path: "{{ offline_repo_path }}"
+    state: absent
