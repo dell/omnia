@@ -4,7 +4,7 @@
   "properties": {
     "cluster_os_type": {
       "type": "string",
-      "enum": ["ubuntu", "rhel", "rocky"],
+      "enum": ["rhel"],
       "description": "Specifies the type of operating system for the cluster."
     },
     "cluster_os_version": {
@@ -17,7 +17,7 @@
     },
     "repo_config": {
       "type": "string",
-      "enum": ["always", "partial"],
+      "enum": ["always", "partial", "never"],
       "description": "Specifies how repository configurations are handled."
     },
     "softwares": {
@@ -66,6 +66,17 @@
         "required": ["name"]
       },
       "description": "Array of PyTorch components."
+    },
+    "slurm":{
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "description": "Array of slurm components."
     },
     "tensorflow": {
       "type": "array",

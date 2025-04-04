@@ -28,6 +28,27 @@
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
+- name: Call input validator module with tag "local_repo"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    input_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
+    project_name: "{{ hostvars['localhost']['project_name'] }}"
+    originating_playbook: "local_repo"
+  tasks:
+    - name: Validate omnia input config
+      validate_input:
+        omnia_base_dir: "{{ input_dir }}/../"
+        project_name: "{{ project_name }}"
+        tag_names: "{{ (originating_playbook is defined and originating_playbook) | ternary([originating_playbook], ansible_run_tags) }}"
+        files: "{{ files | default([]) }}"
+      register: validation_status
+
+    - name: Debug validation status
+      ansible.builtin.debug:
+        msg: "{{ validation_status }}"
+
 - name: Create oim group
   when: not oim_group_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/create_container_group.yml

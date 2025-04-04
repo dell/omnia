@@ -23,7 +23,20 @@ import subprocess
 from ansible.module_utils.basic import AnsibleModule
 
 import sys
-sys.path.append("module_utils/common")
+# Get the absolute path to the "input_validation/module_utils/common" directory
+playbook_dir = os.getenv('ANSIBLE_PLAYBOOK_DIR', os.getcwd())  # Fallback to current working directory
+input_validation_path = os.path.join(playbook_dir, '..', 'input_validation', 'module_utils', 'common')
+
+# Get the absolute path to the "input_validation/module_utils/validation_flows" directory
+validation_flows_path = os.path.join(playbook_dir, '..', 'input_validation', 'module_utils', 'validation_flows')
+
+# Get the absolute path to the "input_validation/module_utils/schema" directory
+schema_path = os.path.join(playbook_dir, '..', 'input_validation', 'module_utils', 'schema')
+
+# Add these paths to sys.path
+sys.path.append(input_validation_path)
+sys.path.append(validation_flows_path)
+sys.path.append(schema_path)
 
 import logical_validation
 import validation_utils
@@ -90,7 +103,7 @@ def main():
     tag_names = eval(module.params["tag_names"])
     single_files = module.params["files"]
 
-    schema_base_file_path = "./module_utils/schema/"
+    schema_base_file_path = schema_path + "/"
     directory_path = os.path.join(omnia_base_dir, project_name)
 
     input_file_inventory = config.input_file_inventory

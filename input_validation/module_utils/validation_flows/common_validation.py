@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import json
+import os
 import validation_utils
 import config
 import en_us_validation_msg
@@ -28,10 +29,15 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
     cluster_os_type = data["cluster_os_type"]
     cluster_os_version = data["cluster_os_version"]
     os_version_ranges = config.os_version_ranges
+    oim_os = os.name
+
+    # Check if the OS type matches the system level OS value
+    if oim_os.lower() != cluster_os_type.lower():
+        errors.append(create_error_msg("oim_os", oim_os, en_us_validation_msg.os_type_fail_msg(cluster_os_type,oim_os)))
 
     if cluster_os_type.lower() in os_version_ranges:
         version_range = os_version_ranges[cluster_os_type.lower()]
-        if cluster_os_type.lower() in ["rhel", "rocky"]:
+        if cluster_os_type.lower() in ["rhel"]:
             if float(cluster_os_version) != float(version_range[0]):
                 errors.append(create_error_msg("cluster_os_version", cluster_os_version, en_us_validation_msg.os_version_fail_msg(cluster_os_type, version_range[0], None)))
         elif cluster_os_type.lower() == "ubuntu":
@@ -43,7 +49,7 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
     if not_valid_iso_msg:
         errors.append(create_error_msg("iso_file_path", iso_file_path, not_valid_iso_msg))
     softwares = data["softwares"]
-    need_additional_software_info = ["bcm_roce", "amdgpu", "vllm", "pytorch", "tensorflow", "intelgaudi"]
+    need_additional_software_info = ["bcm_roce", "amdgpu", "vllm", "pytorch", "tensorflow", "intelgaudi","slurm"]
     filtered_softwares = [item for item in softwares if item.get("name") in need_additional_software_info]
 
     for software_name in filtered_softwares:
@@ -61,15 +67,52 @@ def validate_local_repo_config(input_file_path, data, logger, module, omnia_base
     software_config_json = json.load(open(software_config_file_path, "r"))
     cluster_os_type = software_config_json["cluster_os_type"]
 
-    ubuntu_os_url = data["ubuntu_os_url"]
-    if cluster_os_type == "ubuntu":
-        if validation_utils.is_string_empty(ubuntu_os_url):
-            errors.append(create_error_msg("ubuntu_os_url", ubuntu_os_url, en_us_validation_msg.ubuntu_os_url_msg))
+    # ubuntu_os_url = data["ubuntu_os_url"]
+    # if cluster_os_type == "ubuntu":
+    #     if validation_utils.is_string_empty(ubuntu_os_url):
+    #         errors.append(create_error_msg("ubuntu_os_url", ubuntu_os_url, en_us_validation_msg.ubuntu_os_url_msg))
 
     rhel_os_url = data["rhel_os_url"]
     if cluster_os_type == "rhel":
         if validation_utils.is_string_empty(rhel_os_url):
             errors.append(create_error_msg("rhel_os_url", rhel_os_url, en_us_validation_msg.rhel_os_url_msg))
+
+    omnia_repo_url_rhel = data["omnia_repo_url_rhel"]
+    if cluster_os_type == "rhel":
+        for repo in omnia_repo_url_rhel:
+            url = repo.get('url', '')  # Default to empty string if key doesn't exist
+            gpgkey = repo.get('gpgkey', '')  # Default to empty string if key doesn't exist
+            name = repo.get('name', '')  # Default to empty string if key doesn't exist
+            policy = repo.get('policy')
+            sslcacert = repo.get('sslcacert', '')
+            sslclientkey = repo.get('sslclientkey', '')
+            sslclientcert = repo.get('sslclientcert', '')
+
+            # Check that policy is one of 'always', 'partial', or 'never'
+            if policy not in ["always", "partial", "never"]:
+                errors.append(create_error_msg("policy", policy, "Policy should be one of ['always', 'partial', 'never']")))
+            
+            # Check that url, gpgkey, and name are not None or empty strings
+            if url is None or url == '':
+                errors.append(create_error_msg("url", url, "URL cannot be empty."))
+            if gpgkey is None or gpgkey == '':
+                errors.append(create_error_msg("gpgkey", gpgkey, "GPG Key cannot be empty."))
+            if name is None or name == '':
+                errors.append(create_error_msg("name", name, "Name cannot be empty."))
+
+            # Check SSL-related fields can be empty or have a value
+            if sslclientkey and not sslclientcert:
+                errors.append(create_error_msg("sslclientkey", sslclientkey, "If sslclientkey is provided, sslclientcert must also be provided."))
+            if sslclientcert and not sslclientkey:
+                errors.append(create_error_msg("sslclientcert", sslclientcert, "If sslclientcert is provided, sslclientkey must also be provided."))
+            
+            # perform additional checks for SSL-related fields if needed
+            #  to verify the paths to the SSL files if they are not empty.
+            if sslclientkey and not os.path.exists(sslclientkey):
+                errors.append(create_error_msg("sslclientkey", sslclientkey, f"SSL client key path does not exist: {sslclientkey}"))
+            if sslclientcert and not os.path.exists(sslclientcert):
+                errors.append(create_error_msg("sslclientcert", sslclientcert, f"SSL client certificate path does not exist: {sslclientcert}"))
+
 
     return errors
 

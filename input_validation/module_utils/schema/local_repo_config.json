@@ -66,55 +66,32 @@
           },
           "gpgkey": {
             "type": "string"
+          },
+          "sslcacert": {
+            "type": "string"
+          },
+          "sslclientkey": {
+            "type": "string"
+          },
+          "sslclientcert": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "policy": {
+            "type": "string",
+            "enum": ["always", "partial", "never"]
           }
         },
         "required": [
-          "url"
+          "url",
+          "gpgkey",
+          "name",
+          "policy"
         ]
       },
-      "description": "URLs for repositories from which RPMs will be downloaded for Omnia features on RHEL."
-    },
-    "omnia_repo_url_rocky": {
-      "type": ["array", "null"],
-      "items": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string"
-          },
-          "gpgkey": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "url"
-        ]
-      },
-      "description": "URLs for repositories from which RPMs will be downloaded for Omnia features on Rocky Linux."
-    },
-    "omnia_repo_url_ubuntu": {
-      "type": ["array", "null"],
-      "items": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string"
-          },
-          "gpgkey": {
-            "type": "string"
-          },
-          "publickey": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "url"
-        ]
-      },
-      "description": "URLs for repositories from which DEB packages will be downloaded for Omnia features on Ubuntu."
+      "description": "URLs for repositories from which RPMs will be downloaded for Omnia features on RHEL, with SSL configuration options and policy."
     }
-  },
-  "required": [
-    "repo_store_path"
-  ]
+  }
 }

@@ -13,21 +13,23 @@
 # limitations under the License.
 ---
 
-- name: Validate rhel_os_url
-  ansible.builtin.assert:
-    that:
-      - "rhel_os_url is defined"
-      - "rhel_os_url | type_debug == 'list'"
-      - "rhel_os_url | length > 0"
-    fail_msg: "{{ rhel_os_url_fail_msg }}"
 
-- name: Validate url and gpgkey presence in rhel_os_url
-  ansible.builtin.assert:
-    that:
-      - "item.name is defined and item.name !='' and item.name is not none "
-      - "item.url is defined and item.url !='' and item.url is not none "
-      - "item.gpgkey is defined"
-    fail_msg: "{{ rhel_os_url_fail_url_gpg_key_msg }}"
-  loop: "{{ rhel_os_url }}"
-  loop_control:
-    loop_var: item
+#redundant file and code??? are we using it somewhere else???
+# - name: Validate rhel_os_url
+#   ansible.builtin.assert:
+#     that:
+#       - "rhel_os_url is defined"
+#       - "rhel_os_url | type_debug == 'list'"
+#       - "rhel_os_url | length > 0"
+#     fail_msg: "{{ rhel_os_url_fail_msg }}"
+
+# - name: Validate url and gpgkey presence in rhel_os_url
+#   ansible.builtin.assert:
+#     that:
+#       - "item.name is defined and item.name !='' and item.name is not none "
+#       - "item.url is defined and item.url !='' and item.url is not none "
+#       - "item.gpgkey is defined"
+#     fail_msg: "{{ rhel_os_url_fail_url_gpg_key_msg }}"
+#   loop: "{{ rhel_os_url }}"
+#   loop_control:
+#     loop_var: item
