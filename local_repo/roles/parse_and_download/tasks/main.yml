@@ -41,7 +41,7 @@
     msg:
       - "   Name    | Status"
       - "--------------------"
-      - "{{ overall_status_dict | default({}) | dict2items | map(attribute='key') | zip(overall_status_dict | default({}) | dict2items | map(attribute='value') | map('lower')) | map('join', '  |  ') | list }}"  # noqa: yaml[line-length]
+      - "{{ overall_status_dict | default({}) | dict2items | map(attribute='key') | zip(overall_status_dict | default({}) | dict2items | map(attribute='value') | map('lower')) | map('join', '  |  ') | list }}" # noqa: yaml[line-length]
 
 - name: Determine final repository status
   ansible.builtin.set_fact:

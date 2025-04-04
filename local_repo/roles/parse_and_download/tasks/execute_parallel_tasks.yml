@@ -35,7 +35,7 @@
 
     - name: Set fact for overall status
       ansible.builtin.set_fact:
-        overall_status_dict: "{{ overall_status_dict | default({}) | combine({item.key: task_results.overall_status}) }}"
+        overall_status_dict: "{{ overall_status_dict | default({}) | combine({ item.key: task_results.overall_status }) }}"
   rescue:
     - name: Log the failure
       ansible.builtin.debug:

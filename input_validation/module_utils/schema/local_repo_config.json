@@ -94,4 +94,5 @@
       "description": "URLs for repositories from which RPMs will be downloaded for Omnia features on RHEL, with SSL configuration options and policy."
     }
   }
+  }
 }

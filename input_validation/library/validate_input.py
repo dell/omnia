@@ -102,8 +102,8 @@ def main():
     project_name = module.params["project_name"]
     tag_names = eval(module.params["tag_names"])
     single_files = module.params["files"]
-
-    schema_base_file_path = schema_path + "/"
+    
+    schema_base_file_path = "./module_utils/schema/"
     directory_path = os.path.join(omnia_base_dir, project_name)
 
     input_file_inventory = config.input_file_inventory
