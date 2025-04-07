@@ -43,7 +43,7 @@
       "description": "URL for Ubuntu OS packages, mandatory when cluster_os_type is Ubuntu."
     },
     "rhel_os_url": {
-      "type": ["array", "null"],
+      "type": "object",
       "properties": {
         "gpgkey": {
           "type": "string",
@@ -51,10 +51,12 @@
         },
         "url": {
           "type": "string",
-          "format": "uri"
+          "format": "uri",
+          "minLength": 1
         }
       },
       "required": ["gpgkey", "url"]
+
     },
     "omnia_repo_url_rhel": {
       "type": ["array", "null"],
@@ -68,13 +70,16 @@
             "type": "string"
           },
           "sslcacert": {
-            "type": "string"
+            "type": "string",
+            "minLength": 0
           },
           "sslclientkey": {
-            "type": "string"
+            "type": "string",
+            "minLength": 0
           },
           "sslclientcert": {
-            "type": "string"
+            "type": "string",
+            "minLength": 0
           },
           "name": {
             "type": "string"
@@ -89,10 +94,55 @@
           "gpgkey",
           "name",
           "policy"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "sslcacert": { "minLength": 1 }
+              }
+            },
+            "then": {
+              "required": ["sslclientkey", "sslclientcert"],
+              "properties": {
+                "sslclientkey": { "minLength": 1 },
+                "sslclientcert": { "minLength": 1 }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "sslclientkey": { "minLength": 1 }
+              }
+            },
+            "then": {
+              "required": ["sslcacert", "sslclientcert"],
+              "properties": {
+                "sslcacert": { "minLength": 1 },
+                "sslclientcert": { "minLength": 1 }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "sslclientcert": { "minLength": 1 }
+              }
+            },
+            "then": {
+              "required": ["sslcacert", "sslclientkey"],
+              "properties": {
+                "sslcacert": { "minLength": 1 },
+                "sslclientkey": { "minLength": 1 }
+              }
+            }
+          }
         ]
       },
       "description": "URLs for repositories from which RPMs will be downloaded for Omnia features on RHEL, with SSL configuration options and policy."
     }
+  },
+  "required": ["rhel_os_url","omnia_repo_url_rhel"],
+  "additionalProperties": false
   }
-  }
-}
