@@ -115,25 +115,7 @@ os_version_ranges = {
     "ubuntu": ["20.04", "22.04", "24.04"] 
 }
 
-softwares_stack_rhel_94 = {
-    "amdgpu": ["6.3.1"]
-    "cuda":  ["12.8.0"]
-    "ofed":  ["24.10-1.1.4.0"]
-    "service_node": None
-    "freeipa": None
-    "openldap": None
-    "secure_login_node": None
-    "nfs": None
-    "beegfs": ["7.4.5"]
-    "slurm": None
-    "k8s": ["1.29.5"]
-    "intel_benchmarks": ["2024.1.0"]
-    "amd_benchmarks": None
-    "utils": None
-    "ucx": ["1.15.0"]
-    "openmpi":  ["4.1.6"]
-    "csi_driver_powerscale": ["v2.11.0"]
-}
+
 
 # Dict of the file that can be encrypted and it's ansible vault key
 def get_vault_password(yaml_file):
