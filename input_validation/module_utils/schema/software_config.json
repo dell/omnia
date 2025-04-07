@@ -12,7 +12,8 @@
       "description": "Specifies the version of the operating system for the cluster."
     },
     "iso_file_path": {
-      "type": "string",
+      "type": "string", 
+      "pattern": "^.*\\.iso$",
       "description": "Path of the ISO file to be used for provisioning the clusters"
     },
     "repo_config": {
