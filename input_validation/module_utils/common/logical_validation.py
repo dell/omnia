@@ -18,7 +18,7 @@ sys.path.append("module_utils/validation_flows")
 import provision_validation
 import common_validation
 import roles_validation
-import local_repo_validation
+#import local_repo_validation
 
 # L2 Validation Code - validate anything that could not have been validated with JSON schema
 # Main validation code that calls one of the validation functions based on the tag(s) used. input_file_inventory in validate_input.py contains dict of the tags being called.
@@ -31,7 +31,7 @@ def validate_input_logic(input_file_path, data, logger, module, omnia_base_dir, 
         "server_spec.yml": common_validation.validate_server_spec,
         "omnia_config.yml": common_validation.validate_omnia_config,
         "network_config.yml": common_validation.validate_network_config,
-        "local_repo_config.yml": common_validation.validate_local_repo_config,
+        #"local_repo_config.yml": local_repo_validation.validate_local_repo_config,
         "telemetry_config.yml": common_validation.validate_telemetry_config,
         "security_config.yml": common_validation.validate_security_config,
         "passwordless_ssh_config.yml": common_validation.validate_usernames,
