@@ -21,44 +21,10 @@
     bcm_roce_libraries_version: "omnia_default"
     intelgaudi_version: "omnia_default"
 
-# all the commented blocks of code is taken care of as part of input_validation
-
-# - name: Check that the software_config.json exists
-#   ansible.builtin.stat:
-#     path: "{{ sw_config_json_path }}"
-#   register: stat_result
-
-# - name: Fail if software_config.json file doesn't exist
-#   ansible.builtin.fail:
-#     msg: "{{ fail_msg_software_config_json_file }}"
-#   when: not stat_result.stat.exists
-
-# - name: Check JSON syntax of software_config.json
-#   ansible.builtin.command:
-#     cmd: "jq . {{ sw_config_json_path }}"
-#   register: json_check
-#   ignore_errors: true
-#   changed_when: true
-
-# - name: Display JSON errors of software_config.json
-#   ansible.builtin.fail:
-#     msg: "{{ json_check.stderr_lines }}"
-#   when: json_check.rc != 0
-
 - name: Load software_config.json
   ansible.builtin.include_vars:
     file: "{{ sw_config_json_path }}"
     name: software_config
-
-# in l1 validation we have these are required values so they will be defined hence its a redundant check
-# - name: Assert cluster_os_type, cluster_os_version, repo_config and softwares
-#   ansible.builtin.assert:
-#     that:
-#       - software_config.cluster_os_type is defined
-#       - software_config.cluster_os_version is defined
-#       - software_config.repo_config is defined
-#       - software_config.softwares is defined
-#     fail_msg: "{{ software_config_parameters_fail_msg }}"
 
 - name: Set facts for cluster
   ansible.builtin.set_fact:
@@ -83,29 +49,6 @@
   loop: "{{ software_names }}"
   when: item in software_config | dict2items | map(attribute='key') | list
   # noqa: var-naming[no-jinja]
-
-#Valid values for the parameters is taken care as part of l2 validation in common_validation.py
-# - name: Assert valid values for cluster_os_version for cluster_os_type rocky
-#   ansible.builtin.assert:
-#     that:
-#       - cluster_os_version in rocky_valid_os_versions
-#     fail_msg: "{{ cluster_os_version_fail_msg_rocky }}"
-#   when: cluster_os_type == 'rocky'
-
-# - name: Assert valid values for repo_config
-#   ansible.builtin.assert:
-#     that:
-#       - repo_config is defined
-#       - repo_config in valid_repo_config
-#     fail_msg: "{{ repo_config_fail_msg }}"
-
-# - name: Validate control_plane_os with cluster_os_type
-#   ansible.builtin.fail:
-#     msg: "{{ cross_os_support_fail_msg }}"
-#   when:
-#     - (control_plane_os == 'ubuntu' and cluster_os_type != 'ubuntu') or
-#       (control_plane_os == 'rocky' and cluster_os_type != 'rocky') or
-#       (control_plane_os == 'redhat' and cluster_os_type != 'rhel')
 
 - name: Generate software JSON file patterns
   ansible.builtin.set_fact:
