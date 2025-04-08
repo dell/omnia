@@ -13,16 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Check that the local_repo_config.yml exists
-  ansible.builtin.stat:
-    path: "{{ local_repo_config_file }}"
-  register: stat_result
-
-- name: Fail if local_repo_config.yml file doesn't exist
-  ansible.builtin.fail:
-    msg: "{{ fail_msg_local_repo_config_file }}"
-  when: not stat_result.stat.exists
-
 - name: Include variable file local_repo_config.yml
   block:
     - name: Include variable file local_repo_config.yml
@@ -34,26 +24,6 @@
       ansible.builtin.fail:
         msg: "{{ local_repo_config_syntax_fail_msg }} Possible Syntax Error Hints: {{ include_local_repo_config.message }}"
 
-# - name: Validate repo_store_path
-#   ansible.builtin.assert:
-#     that:
-#       - "repo_store_path is defined"
-#       - "repo_store_path !='/install'"
-#       - "'/' in repo_store_path[0]"
-#       - "repo_store_path[-1] != '/'"
-#     fail_msg: "{{ repo_store_path_fail_msg }}"
-
-# - name: Create repo_store_path folder
-#   ansible.builtin.file:
-#     path: "{{ repo_store_path }}"
-#     state: directory
-#     mode: "{{ directory_permissions }}"
-
-# Checked as part of L1 schema validations
-# - name: Check if rhel_os_url is provided incase of cluster_os_type rhel
-#   ansible.builtin.fail:
-#     msg: "{{ rhel_os_url_fail_msg_crb }}"
-#   when: cluster_os_type == "rhel" and rhel_os_url is none
 
 # - name: Validate rhel_os_url
 #   ansible.builtin.include_tasks: validate_rhel_os_url.yml
