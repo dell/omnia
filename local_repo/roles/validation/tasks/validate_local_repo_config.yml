@@ -24,60 +24,7 @@
       ansible.builtin.fail:
         msg: "{{ local_repo_config_syntax_fail_msg }} Possible Syntax Error Hints: {{ include_local_repo_config.message }}"
 
+ - name: Validate user_registry
+   ansible.builtin.include_tasks: validate_user_registry.yml
+   when: user_registry is not none
 
-# - name: Validate rhel_os_url
-#   ansible.builtin.include_tasks: validate_rhel_os_url.yml
-#   when: rhel_os_url is not none
-
-# - name: Validate user_repo_url
-#   ansible.builtin.include_tasks: validate_user_repo_url.yml
-#   when: user_repo_url is not none
-
-# - name: Validate user_registry
-#   ansible.builtin.include_tasks: validate_user_registry.yml
-#   when: user_registry is not none
-
-
-# L2 validations for the omnia_repo_url_rhel is taken care of in common_validations.py
-# - name: Validate omnia_repo_url_rhel
-#   ansible.builtin.assert:
-#     that:
-#       - "omnia_repo_url_rhel is defined"
-#       - "omnia_repo_url_rhel | type_debug == 'list'"
-#       - "omnia_repo_url_rhel | length > 0"
-#     fail_msg: "{{ omnia_repo_url_rhel_fail_msg }}"
-#   when: cluster_os_type == 'rhel'
-
-# - name: Validate url and gpgkey presence in omnia_repo_url_rhel
-#   ansible.builtin.assert:
-#     that:
-#       - "item.url is defined"
-#       - "item.gpgkey is defined"
-#       - "item.name is defined and item.name !='' and item.name is not none"
-#     fail_msg: "{{ omnia_repo_url_rhel_url_gpg_key_fail_msg }}"
-#   loop: "{{ omnia_repo_url_rhel }}"
-#   loop_control:
-#     loop_var: item
-#   when: cluster_os_type == 'rhel'
-
-
-#since we are not supporting rocky should we coment out this code or still keep tit as it is?
-# - name: Validate omnia_repo_url_rocky
-#   ansible.builtin.assert:
-#     that:
-#       - "omnia_repo_url_rocky is defined"
-#       - "omnia_repo_url_rocky | type_debug == 'list'"
-#       - "omnia_repo_url_rocky | length > 0"
-#     fail_msg: "{{ omnia_repo_url_rocky_fail_msg }}"
-#   when: cluster_os_type == 'rocky'
-
-# - name: Validate url and gpgkey presence in omnia_repo_url_rocky
-#   ansible.builtin.assert:
-#     that:
-#       - "item.url is defined"
-#       - "item.gpgkey is defined"
-#     fail_msg: "{{ omnia_repo_url_rocky_url_gpg_key_fail_msg }}"
-#   loop: "{{ omnia_repo_url_rocky }}"
-#   loop_control:
-#     loop_var: item
-#   when: cluster_os_type == 'rocky'
