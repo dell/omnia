@@ -24,7 +24,7 @@
       ansible.builtin.fail:
         msg: "{{ local_repo_config_syntax_fail_msg }} Possible Syntax Error Hints: {{ include_local_repo_config.message }}"
 
- - name: Validate user_registry
-   ansible.builtin.include_tasks: validate_user_registry.yml
-   when: user_registry is not none
+- name: Validate user_registry
+  ansible.builtin.include_tasks: validate_user_registry.yml
+  when: user_registry is not none
 
