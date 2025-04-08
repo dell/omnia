@@ -12,9 +12,12 @@
         "url": {
           "type": "string",
           "format": "uri"
+        },
+        "name": {
+          "type": "string"
         }
       },
-      "required": ["gpgkey", "url"]
+      "required": ["gpgkey", "url", "name"]
     },
     "user_registry": {
       "type": ["object", "null"],
@@ -53,9 +56,12 @@
           "type": "string",
           "format": "uri",
           "minLength": 1
+        },
+        "name": {
+          "type": "string"
         }
       },
-      "required": ["gpgkey", "url"]
+      "required": ["gpgkey", "url", "name"]
 
     },
     "omnia_repo_url_rhel": {
@@ -86,7 +92,7 @@
           },
           "policy": {
             "type": "string",
-            "enum": ["always", "partial", "never"]
+            "enum": ["always", "partial", "never", ""]
           }
         },
         "required": [
