@@ -35,4 +35,13 @@ def validate_local_repo_config(input_file_path, data, logger, module, omnia_base
         if validation_utils.is_string_empty(rhel_os_url):
             errors.append(create_error_msg("rhel_os_url", rhel_os_url, en_us_validation_msg.rhel_os_url_msg))
 
+    if cluster_os_type == "rhel":
+    # Check that omnia_repo_url_rhel is defined, is a list, and has at least one item
+        if omnia_repo_url_rhel is None:
+            errors.append(create_error_msg("omnia_repo_url_rhel", omnia_repo_url_rhel, "omnia_repo_url_rhel is not defined"))
+        if not isinstance(omnia_repo_url_rhel, list):
+            errors.append(create_error_msg("omnia_repo_url_rhel", omnia_repo_url_rhel, "omnia_repo_url_rhel should be a list."))
+        if len(omnia_repo_url_rhel) == 0:
+            errors.append(create_error_msg("omnia_repo_url_rhel", omnia_repo_url_rhel, "omnia_repo_url_rhel should have at least one item."))
+
     return errors
