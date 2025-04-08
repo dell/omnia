@@ -29,12 +29,25 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
     cluster_os_type = data["cluster_os_type"]
     cluster_os_version = data["cluster_os_version"]
     os_version_ranges = config.os_version_ranges
-    oim_os = validation_utils.get_os_type()
+    software_config_input_file_path = input_file_path
+    file_name = os.path.basename(software_config_input_file_path)
+    directory_path = os.path.dirname(input_file_path)
+
+    json_files_directory = f"{directory_path}/config/{cluster_os_type}/{cluster_os_version}"
+    
+    #check if the sofwtare_config.json has valid json syntax
+    is_valid = is_valid_json(input_file_path)
+    if is_valid:
+        errors.append(create_error_msg("software_config.json", input_file_path, "The sofwtare_config.json doesnt have json syntax errors"))
+    else:
+        errors.append(create_error_msg("software_config.json", input_file_path, "The sofwtare_config.json have json syntax errors"))
 
     # Check if the OS type matches the system level OS value
+    oim_os = validation_utils.get_os_type()
     if oim_os.lower() != cluster_os_type.lower():
         errors.append(create_error_msg("oim_os", oim_os, en_us_validation_msg.os_type_fail_msg(cluster_os_type,oim_os)))
-
+    
+    #check if os version is in specified range eg: rhel-9.4
     if cluster_os_type.lower() in os_version_ranges:
         version_range = os_version_ranges[cluster_os_type.lower()]
         if cluster_os_type.lower() in ["rhel"]:
@@ -44,17 +57,85 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
             if cluster_os_version not in version_range:
                 errors.append(create_error_msg("cluster_os_version", cluster_os_version, en_us_validation_msg.os_version_fail_msg(cluster_os_type, version_range[0], version_range[1])))
 
-    softwares = data["softwares"]
-    need_additional_software_info = ["bcm_roce", "amdgpu", "vllm", "pytorch", "tensorflow", "intelgaudi","slurm"]
-    filtered_softwares = [item for item in softwares if item.get("name") in need_additional_software_info]
+    # Extract software names
+    software_names = [software["name"] for software in data["softwares"] if "name" in software]
 
-    for software_name in filtered_softwares:
-        name = software_name["name"]
-        if not data.get(name):
-            errors.append(create_error_msg(f"{name}", None, en_us_validation_msg.software_mandatory_fail_msg(name)))
+    # Generate subgroup_softwares dictionary
+    subgroup_softwares = {}
+    for item in software_names:
+        if item in data:
+            subgroup_softwares[item] = data[item]
+    
+    # Generate software JSON file patterns
+    software_json_list = [f"{name}.json" for name in software_names]
+
+    filtered_json_files_list = find_json_files(json_files_directory, software_json_list)
+
+    # Extract file names from available_json_list and check that no json files are missing
+    available_json_list = [os.path.basename(file) for file in filtered_json_files_list]
+
+    missing_json_list = evaluate_missing_json_files(software_json_list, available_json_list)
+
+    if missing_json_list:
+        missing_json_fail_msg = f"Missing JSON files: {', '.join(missing_json_list)}"
+        errors.append(create_error_msg("Missing JSON files", missing_json_list, missing_json_fail_msg))
+    else:
+        errors.append(create_error_msg("JSON files are present", missing_json_list, "No JSON file missing"))
+
+
+    #the softwares which has specific versions like amdgpu and bcmroce check that version property is defined for them
+    # Validate versions and collect results
+    results = []
+    all_softwares = data["softwares"] + data.get("amdgpu", []) + data.get("bcm_roce", [])
+
+    for item in all_softwares:
+        if "name" in item:
+            if item["name"] not in software_names or ("version" in item and item["version"]):
+                results.append({"item": item, "evaluated_to": True})
+            else:
+                results.append({"item": item, "evaluated_to": False, "msg": "Assertion failed"})
+
+    # Show failed assertions
+    failed_softwares = [result["item"]["name"] for result in results if not result["evaluated_to"]]
+    if failed_softwares:
+        versions_fail_msg = f"Versions were not defined for softwares: {', '.join(failed_softwares)}"
+        errors.append(create_error_msg("Versions missing", failed_softwares, "version  missing"))
+    else:
+        errors.append(create_error_msg("No Versions missing", failed_softwares, "no versions missing"))
+
+    # Update software versions from software_config.json (softwares)
+    software_versions = {}
+    for item in data.get("softwares", []):
+        if "version" in item:
+            software_versions[f"{item['name']}_version"] = item["version"]
+
+    # Update software versions from software_config.json (custom)
+    for item in data.get("custom", []):
+        if "version" in item:
+            software_versions[f"{item['name']}_version"] = item["version"]
 
     return errors
 
+# #Dynamically create subgroup_software_list
+# def create_subgroup_software_list(data):
+#     known_keys = {"cluster_os_type", "cluster_os_version", "iso_file_path", "repo_config", "softwares", "custom"}
+#     subgroup_software_list = {}
+#     for key in data.keys():
+#         if key not in known_keys:
+#             subgroup_software_list[key] = [item["name"] for item in data[key] if "name" in item]
+#     return subgroup_software_list
+
+def find_json_files(directory, patterns):
+    matched_files = []
+    for root, dirs, files in os.walk(directory):
+        for pattern in patterns:
+            for filename in fnmatch.filter(files, pattern):
+                matched_files.append(os.path.join(root, filename))
+    return matched_files
+
+def evaluate_missing_json_files(software_json_list, available_json_list):
+    missing_json_list = list(set(software_json_list) - set(available_json_list))
+    return missing_json_list
 
 def validate_security_config(input_file_path, data, logger, module, omnia_base_dir, project_name):
     errors = []

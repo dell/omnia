@@ -19,6 +19,7 @@ import subprocess
 import yaml
 import en_us_validation_msg
 import config
+import json
 
 def get_os_type():
     with open("/etc/os-release") as f:
@@ -137,6 +138,14 @@ def decrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
         password_full_path,
     ]
     return run_subprocess(cmd)
+
+def is_valid_json(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            json.load(file)
+        return True
+    except json.JSONDecodeError:
+        return False
 
 # Below are common functions used in L2 validation (logical_validation.py)
 def is_string_empty(value):
