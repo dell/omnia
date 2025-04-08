@@ -29,7 +29,7 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
     cluster_os_type = data["cluster_os_type"]
     cluster_os_version = data["cluster_os_version"]
     os_version_ranges = config.os_version_ranges
-    oim_os = os.name
+    oim_os = validation_utils.get_os_type()
 
     # Check if the OS type matches the system level OS value
     if oim_os.lower() != cluster_os_type.lower():
