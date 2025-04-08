@@ -27,4 +27,3 @@
 - name: Validate user_registry
   ansible.builtin.include_tasks: validate_user_registry.yml
   when: user_registry is not none
-
