@@ -29,6 +29,7 @@ def validate_local_repo_config(input_file_path, data, logger, module, omnia_base
     software_config_file_path = create_file_path(input_file_path, file_names["software_config"])
     software_config_json = json.load(open(software_config_file_path, "r"))
     cluster_os_type = software_config_json["cluster_os_type"]
+     omnia_repo_url_rhel = data["omnia_repo_url_rhel"]
 
     rhel_os_url = data["rhel_os_url"]
     if cluster_os_type.lower() == "rhel":
