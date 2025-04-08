@@ -31,7 +31,8 @@
         },
         "required": ["name"]
       },
-      "description": "Array of software packages to be configured."
+      "description": "Array of software packages to be configured.",
+      "minItems": 1
     },
     "bcm_roce": {
       "type": "array",
