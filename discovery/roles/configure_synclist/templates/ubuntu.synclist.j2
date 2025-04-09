@@ -1,4 +1,5 @@
 {{ syncfiles_dir }}/repos/* -> /etc/apt/sources.list.d/*
+{{ syncfiles_dir }}/preferences/* -> /etc/apt/preferences.d/*
 {{ syncfiles_dir }}/conf/pip.conf -> /etc/pip.conf
 
 {% if repo_config == "always" %}

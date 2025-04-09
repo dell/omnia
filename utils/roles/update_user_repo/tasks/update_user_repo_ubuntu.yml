@@ -154,6 +154,33 @@
         dest: "{{ repo_path }}/"
         mode: "{{ file_permission }}"
 
+    - name: Create directory {{ tmp_user_repo_pref_path }}
+      ansible.builtin.file:
+        path: "{{ tmp_user_repo_pref_path }}"
+        state: directory
+        mode: "{{ file_permission }}"
+      become: true
+      delegate_to: localhost
+      connection: local
+      run_once: true
+
+    - name: Configure user repo preference file
+      ansible.builtin.template:
+        src: "{{ usr_repo_pref_template_src }}"
+        dest: "{{ tmp_user_repo_pref_path }}/a_user_repo_pref{{ item.0 + 1 }}-pin-600"
+        mode: "{{ file_permission }}"
+      with_indexed_items: "{{ user_repo_url | default([]) }}"
+      when: software_version_default not in item.1.url
+      delegate_to: localhost
+      connection: local
+      run_once: true
+
+    - name: Copy preference files to compute
+      ansible.builtin.copy:
+        src: "{{ tmp_user_repo_pref_path }}/"
+        dest: "{{ preference_path }}/"
+        mode: "{{ file_permission }}"
+
 - name: Set fact for dist
   ansible.builtin.set_fact:
     dist: "{{ hostvars['127.0.0.1']['distro'] }}"

@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 ---
 
 # Usage: create_files_local_repo.yml
+temp_dir_preferences: "{{ syncfiles_dir }}/preferences"
 repo_config_template_src: "{{ role_path }}/templates/repo_config_template_ubuntu.j2"
 repo_config_template_intelgaudi_src: "{{ role_path }}/templates/repo_config_template_intelgaudi_ubuntu.j2"
 cluster_repo_template_src: "{{ role_path }}/templates/cluster_repo_template_ubuntu.j2"
@@ -23,6 +24,8 @@ cluster_repo_config_file: "{{ temp_dir_repo }}/cluster-deb.list"
 file_mode: "0644"
 dir_mode: "0755"
 user_repo_template_src: "{{ role_path }}/templates/user_repo_config_ubuntu.j2"
+repo_pref_template_src: "{{ role_path }}/templates/repo_pref_config_ubuntu.j2"
+omnia_repo_pref_template_src: "{{ role_path }}/templates/omnia_local_repo_pref_config_ubuntu.j2"
 omnia_repo_template_src: "{{ role_path }}/templates/omnia_repo_config_ubuntu.j2"
 beegfs_file_path: "{{ repo_store_path }}/cluster/apt/beegfs/{{ beegfs_version }}"
 amdgpu_file_path: "{{ repo_store_path }}/cluster/apt/amdgpu/{{ amdgpu_version }}"

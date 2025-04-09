@@ -44,16 +44,6 @@ echo "{{ admin_nic_ip }} {{ oim_hostname }}" >> /etc/hosts
 echo "Installed omnia packages" >> /var/log/xcat/xcat.log
 echo "---------------------------" >> /var/log/xcat/xcat.log
 
-# Creating preference file for local repo
-echo "Creating preference file " >> /var/log/xcat/xcat.log
-# Create the preferences file
-cat <<EOF > "/etc/apt/preferences.d/omnia_pref_pin_600"
-Package: *
-Pin: origin {{ admin_nic_ip }}
-Pin-Priority: 600
-EOF
-chmod 644 "/etc/apt/preferences.d/omnia_pref_pin_600"
-
 echo "Removing default netplan file" >> /var/log/xcat/xcat.log
 rm -f /etc/netplan/50-cloud-init.yaml
 rm -f /etc/netplan/00-installer-config.yaml

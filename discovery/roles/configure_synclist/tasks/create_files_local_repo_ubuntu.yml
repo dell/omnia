@@ -24,6 +24,18 @@
   when:
     - not cluster_repo_stat.stat.exists
 
+- name: Remove existing {{ temp_dir_preferences }} directory # noqa: name[template]
+  ansible.builtin.file:
+    path: "{{ temp_dir_preferences }}"
+    state: absent
+
+- name: Create existing {{ temp_dir_preferences }} directory # noqa: name[template]
+  ansible.builtin.file:
+    path: "{{ temp_dir_preferences }}"
+    state: directory
+    mode: "{{ dir_mode }}"
+  become: true
+
 - name: Create repos for compute nodes
   when: repo_config == 'partial'
   block:
@@ -59,6 +71,14 @@
       with_indexed_items: "{{ user_repo_url }}"
       when: item.1.gpgkey is defined and item.1.gpgkey != ''
       changed_when: false
+
+    - name: Generate and copy preference file for User Repositories
+      ansible.builtin.template:
+        src: "{{ repo_pref_template_src }}"
+        dest: "{{ temp_dir_preferences }}/a_user_repo{{ item.0 + 1 }}-pin-600"
+        mode: "{{ file_mode }}"
+      with_indexed_items: "{{ user_repo_url }}"
+      when: item.1.url is defined
 
     - name: Check if beegfs repo exists
       ansible.builtin.stat:
@@ -162,6 +182,12 @@
       loop_control:
         loop_var: item
 
+    - name: Generate and copy preference file for OIM local repo
+      ansible.builtin.template:
+        src: "{{ omnia_repo_pref_template_src }}"
+        dest: "{{ temp_dir_preferences }}/omnia_loacl_repo{{ item.0 + 1 }}-pin-600"
+        mode: "{{ file_mode }}"
+
 # never case
 - name: Create repos for compute nodes
   when: repo_config == 'never'
@@ -212,6 +238,18 @@
       ansible.builtin.template:
         src: "{{ omnia_repo_template_src }}"
         dest: "{{ temp_dir_repo }}/omnia_repo{{ item.0 + 1 }}.list"
+        mode: "{{ file_mode }}"
+      with_indexed_items: "{{ omnia_repo_url_ubuntu }}"
+      when:
+        - item.1.url is defined
+        - software_config_default not in item.1.url
+        - check_repo_url is defined
+        - item.1.url not in check_repo_url.stdout|default([])
+
+    - name: Generate and copy preference file for Omnia Repositories
+      ansible.builtin.template:
+        src: "{{ repo_pref_template_src }}"
+        dest: "{{ temp_dir_preferences }}/a_omnia_repo{{ item.0 + 1 }}-pin-600"
         mode: "{{ file_mode }}"
       with_indexed_items: "{{ omnia_repo_url_ubuntu }}"
       when:
