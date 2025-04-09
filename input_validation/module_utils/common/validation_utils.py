@@ -139,6 +139,112 @@ def decrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
     ]
     return run_subprocess(cmd)
 
+def validate_cluster_items(cluster_items, json_file_path):
+    failures = []
+    successes = []
+    for item in cluster_items:
+        item_type = item.get('type')
+        if item_type == 'rpm':
+            if 'package' not in item or 'repo_name' not in item:
+                failures.append(f"Failed. Missing required properties for 'rpm' in file '{json_file_path}'.")
+            else:
+                successes.append(f"Success. Valid 'rpm' item in file '{json_file_path}'.")
+        elif item_type == 'ansible_galaxy_collection':
+            if 'package' not in item or 'version' not in item:
+                failures.append(f"Failed. Missing required properties for 'ansible_galaxy_collection' in file '{json_file_path}'.")
+            else:
+                successes.append(f"Success. Valid 'ansible_galaxy_collection' item in file '{json_file_path}'.")
+        elif item_type == 'git':
+            if 'package' not in item or 'version' not in item or 'url' not in item:
+                failures.append(f"Failed. Missing required properties for 'git' in file '{json_file_path}'.")
+            else:
+                successes.append(f"Success. Valid 'git' item in file '{json_file_path}'.")
+        elif item_type == 'image':
+            if 'package' not in item or ('tag' not in item and 'digest' not in item):
+                failures.append(f"Failed. Missing required properties for 'image' in file '{json_file_path}'.")
+            else:
+                successes.append(f"Success. Valid 'image' item in file '{json_file_path}'.")
+        elif item_type == 'tarball':
+            if 'package' not in item or 'url' not in item:
+                failures.append(f"Failed. Missing required properties for 'tarball' in file '{json_file_path}'.")
+            else:
+                successes.append(f"Success. Valid 'tarball' item in file '{json_file_path}'.")
+        elif item_type == 'shell':
+            if 'package' not in item or 'url' not in item:
+                failures.append(f"Failed. Missing required properties for 'shell' in file '{json_file_path}'.")
+            else:
+                successes.append(f"Success. Valid 'shell' item in file '{json_file_path}'.")
+        elif item_type == 'iso':
+            if 'package' not in item or 'url' not in item:
+                failures.append(f"Failed. Missing required properties for 'iso' in file '{json_file_path}'.")
+            else:
+                successes.append(f"Success. Valid 'iso' item in file '{json_file_path}'.")
+        elif item_type == 'manifest':
+            if 'package' not in item or 'url' not in item:
+                failures.append(f"Failed. Missing required properties for 'manifest' in file '{json_file_path}'.")
+            else:
+                successes.append(f"Success. Valid 'manifest' item in file '{json_file_path}'.")
+    return successes, failures
+
+
+#software_config_json_file_path= /opt/omnia/input/project_default/input/software_config.json
+def validate_software_subgroup_config_file(files_list,software_config_json_file_path):
+    # Extract file names from files_list
+    failures = []
+    validation_results = []
+
+    # Read the software_config.json file
+    try:
+        with open(software_config_json_file_path, 'r') as file:
+            software_config = json.load(file)
+    except json.JSONDecodeError:
+        return [], [f"Failed. JSON syntax error in file '{software_config_json_file_path}'."]
+
+    for json_file_path in files_list:
+        try:
+            # Read JSON file
+            with open(json_file_path, 'r') as file:
+                json_data = json.load(file)
+
+            # Extract filename without extension
+            file_basename = os.path.splitext(os.path.basename(json_file_path))[0]
+            validation_results.append(("file_basename",file_basename, True))
+
+            # Check if software name key exists
+            if file_basename in json_data:
+                validation_results.append((json_file_path, True))
+            else:
+                validation_results.append((json_file_path, False))
+                failures.append(f"Failed. Invalid software name: '{file_basename}' in file '{json_file_path}'.")
+
+            # Extract subgroup names
+            subgroup_names = software_config.get(file_basename, [])
+
+            subgroup_names = [item['name'] for item in subgroup_names if 'name' in item]
+            validation_results.append(("subgroup_names",subgroup_names))
+
+            # Append the basename with subgroup
+            subgroup_with_basename = subgroup_names + [file_basename]
+            validation_results.append(("subgroup_with_basename",subgroup_with_basename))
+
+            # Loop over each item in subgroup_with_basename
+            for subgroup_basename in subgroup_with_basename:
+                if subgroup_basename in json_data:
+                    if 'cluster' in json_data[subgroup_basename]:
+                        cluster_items = json_data[subgroup_basename]['cluster']
+                        item_successes, item_failures = validate_cluster_items(cluster_items, json_file_path)
+                        validation_results.append("item_successes",item_successes)
+                        failures.extend(item_failures)
+
+        except json.JSONDecodeError:
+            validation_results.append((json_file_path, False))
+            failures.append(f"Failed. JSON syntax error in file '{json_file_path}'.")
+
+   # faliures.append(create_error_msg("subgroup_names",subgroup_names,"subgroup_names"))
+    #failures.append(create_error_msg("subgroup_with_basename",subgroup_with_basename,"subgroup_with_basename"))
+
+    return validation_results, failures
+
 def is_valid_json(file_path):
     try:
         with open(file_path, 'r') as file:

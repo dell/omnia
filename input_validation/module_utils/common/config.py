@@ -115,6 +115,21 @@ os_version_ranges = {
    # "ubuntu": ["20.04", "22.04", "24.04"] 
 }
 
+specific_softwares = [
+    'beegfs',
+    'amdgpu',
+    'k8s',
+    'cuda',
+    'ofed',
+    'bcm_roce',
+    'ucx',
+    'rocm',
+    'intelgaudi',
+    'intel_benchmarks',
+    'openmpi',
+    'bcm_roce_libraries'
+]
+
 
 
 # Dict of the file that can be encrypted and it's ansible vault key

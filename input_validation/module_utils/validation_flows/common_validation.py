@@ -17,6 +17,7 @@ import os
 import validation_utils
 import config
 import en_us_validation_msg
+import fnmatch
 
 file_names = config.files
 create_error_msg = validation_utils.create_error_msg
@@ -24,22 +25,22 @@ create_file_path = validation_utils.create_file_path
 contains_software = validation_utils.contains_software
 check_mandatory_fields = validation_utils.check_mandatory_fields
 
+
+
 def validate_software_config(input_file_path, data, logger, module, omnia_base_dir, project_name):
     errors = []
     cluster_os_type = data["cluster_os_type"]
     cluster_os_version = data["cluster_os_version"]
     os_version_ranges = config.os_version_ranges
+    softwares_with_versions = config.specific_softwares
     software_config_input_file_path = input_file_path
     file_name = os.path.basename(software_config_input_file_path)
     directory_path = os.path.dirname(input_file_path)
-
     json_files_directory = f"{directory_path}/config/{cluster_os_type}/{cluster_os_version}"
     
     #check if the sofwtare_config.json has valid json syntax
-    is_valid = is_valid_json(input_file_path)
-    if is_valid:
-        errors.append(create_error_msg("software_config.json", input_file_path, "The sofwtare_config.json doesnt have json syntax errors"))
-    else:
+    is_valid = validation_utils.is_valid_json(input_file_path)
+    if not is_valid:
         errors.append(create_error_msg("software_config.json", input_file_path, "The sofwtare_config.json have json syntax errors"))
 
     # Check if the OS type matches the system level OS value
@@ -58,52 +59,80 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
                 errors.append(create_error_msg("cluster_os_version", cluster_os_version, en_us_validation_msg.os_version_fail_msg(cluster_os_type, version_range[0], version_range[1])))
 
     # Extract software names
+    #eg: software_names: ['amdgpu', 'cuda', 'ofed', 'openldap', 'nfs', 'k8s' , 'slurm'] software_names
     software_names = [software["name"] for software in data["softwares"] if "name" in software]
 
     # Generate subgroup_softwares dictionary
+    #eg:subgroup_softwares: {'amdgpu': [{'name': 'rocm', 'version': '6.3.1'}], 
+    #'slurm': [{'name': 'slurm_control_node'}, {'name': 'slurm_node'}, {'name': 'login'}]} subgroup_softwares
     subgroup_softwares = {}
     for item in software_names:
         if item in data:
             subgroup_softwares[item] = data[item]
     
     # Generate software JSON file patterns
+    #software_json_list: ['amdgpu.json', 'cuda.json', 'ofed.json', 'openldap.json', 'nfs.json', 'k8s.json', 'slurm.json']
     software_json_list = [f"{name}.json" for name in software_names]
 
+    #this checkf for the above files in the nfs share input directory is present or not
+    #only if the files are present it returns the list of those files
+    #filtered_json_files_list: ['/opt/omnia/input/project_default/input/config/rhel/9.4/amdgpu.json', 
+    #'/opt/omnia/input/project_default/input/config/rhel/9.4/cuda.json', 
+    #'/opt/omnia/input/project_default/input/config/rhel/9.4/ofed.json', '/opt/omnia/input/project_default/input/config/rhel/9.4/openldap.json',
+    #'/opt/omnia/input/project_default/input/config/rhel/9.4/nfs.json']
     filtered_json_files_list = find_json_files(json_files_directory, software_json_list)
 
-    # Extract file names from available_json_list and check that no json files are missing
+    #the below code performs syntax validation for those files
+    validation_results = []
+    # For loop to validate JSON syntax for each file in the list
+    for json_file_path in filtered_json_files_list:
+        is_valid = validation_utils.is_valid_json(json_file_path) 
+        if not is_valid:
+            validation_results.append((json_file_path, is_valid))
+
+    #if there are syntax errros for the files it will collate them in a list and append it to errors  
+    if len(validation_results) > 0:
+        errors.append(create_error_msg("JSON Files", validation_results, "The above mentioned files have json syntax errors. Please correct them before proceeding"))
+
+
+
+    # Extract file names from filtered_json_files_list
     available_json_list = [os.path.basename(file) for file in filtered_json_files_list]
 
+    #if a software is define din the software_config.json and corresponding json file is missing from config folder
+    #it will evaluate it and throw error
     missing_json_list = evaluate_missing_json_files(software_json_list, available_json_list)
 
     if missing_json_list:
-        missing_json_fail_msg = f"Missing JSON files: {', '.join(missing_json_list)}"
+        missing_json_fail_msg = "Mentioned JSON files are missing from "+json_files_directory
         errors.append(create_error_msg("Missing JSON files", missing_json_list, missing_json_fail_msg))
-    else:
-        errors.append(create_error_msg("JSON files are present", missing_json_list, "No JSON file missing"))
 
+    
+    version_result = []
 
-    #the softwares which has specific versions like amdgpu and bcmroce check that version property is defined for them
-    # Validate versions and collect results
-    results = []
-    all_softwares = data["softwares"] + data.get("amdgpu", []) + data.get("bcm_roce", [])
-
-    for item in all_softwares:
-        if "name" in item:
-            if item["name"] not in software_names or ("version" in item and item["version"]):
-                results.append({"item": item, "evaluated_to": True})
+    # Validation of version property for specific softwares
+    #version_result: [{'item': {'name': 'amdgpu', 'version': '6.3.1'}, 'evaluated_to': True},
+    # {'item': {'name': 'cuda', 'version': '12.5.0'}, 'evaluated_to': True}, 
+    # {'item': {'name': 'ofed', 'version': '24.10-1.1.4.0'}, 'evaluated_to': True}, 
+    # {'item': {'name': 'k8s', 'version': '1.31.4'}, 'evaluated_to': True}, 
+    # {'item': {'name': 'rocm', 'version': '6.3.1'}, 'evaluated_to': True}] 
+    for item in data['softwares'] + data.get('amdgpu', []) + data.get('bcm_roce', []):
+        if 'name' in item:
+            if item['name'] in softwares_with_versions:
+                if 'version' in item and item['version']:
+                    version_result.append({'item': item, 'evaluated_to': True})
+                else:
+                    version_result.append({'item': item, 'evaluated_to': False, 'msg': 'Assertion failed'})
             else:
-                results.append({"item": item, "evaluated_to": False, "msg": "Assertion failed"})
+                continue
 
-    # Show failed assertions
-    failed_softwares = [result["item"]["name"] for result in results if not result["evaluated_to"]]
+    # Versions were not defined for softwares
+    failed_softwares = [result['item']['name'] for result in version_result if result.get('msg') == 'Assertion failed']
     if failed_softwares:
-        versions_fail_msg = f"Versions were not defined for softwares: {', '.join(failed_softwares)}"
-        errors.append(create_error_msg("Versions missing", failed_softwares, "version  missing"))
-    else:
-        errors.append(create_error_msg("No Versions missing", failed_softwares, "no versions missing"))
+        errors.append(create_error_msg("failed_softwares", failed_softwares, "failed_softwares"))
 
     # Update software versions from software_config.json (softwares)
+    # software_versions: {'amdgpu_version': '6.3.1', 'cuda_version': '12.5.0', 'ofed_version': '24.10-1.1.4.0', 'k8s_version': '1.31.4'} 
     software_versions = {}
     for item in data.get("softwares", []):
         if "version" in item:
@@ -114,6 +143,10 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
         if "version" in item:
             software_versions[f"{item['name']}_version"] = item["version"]
 
+    validate_software_subgroup_config_file, failures= validation_utils.validate_software_subgroup_config_file(filtered_json_files_list,input_file_path)
+    errors.append(create_error_msg("validate_software_subgroup_config_file",validate_software_subgroup_config_file+failures,"validate_software_subgroup_config_file"))
+    
+    
     return errors
 
 # #Dynamically create subgroup_software_list
@@ -124,6 +157,7 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
 #         if key not in known_keys:
 #             subgroup_software_list[key] = [item["name"] for item in data[key] if "name" in item]
 #     return subgroup_software_list
+
 
 def find_json_files(directory, patterns):
     matched_files = []
