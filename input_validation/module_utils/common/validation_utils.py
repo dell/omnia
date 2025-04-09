@@ -240,9 +240,6 @@ def validate_software_subgroup_config_file(files_list,software_config_json_file_
             validation_results.append((json_file_path, False))
             failures.append(f"Failed. JSON syntax error in file '{json_file_path}'.")
 
-   # faliures.append(create_error_msg("subgroup_names",subgroup_names,"subgroup_names"))
-    #failures.append(create_error_msg("subgroup_with_basename",subgroup_with_basename,"subgroup_with_basename"))
-
     return validation_results, failures
 
 def is_valid_json(file_path):

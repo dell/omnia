@@ -49,7 +49,7 @@
       "description": "URL for Ubuntu OS packages, mandatory when cluster_os_type is Ubuntu."
     },
     "rhel_os_url": {
-      "type": "object",
+      "type": "array",
       "minProperties": 3,
       "properties": {
         "gpgkey": {

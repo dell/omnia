@@ -149,15 +149,6 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
     
     return errors
 
-# #Dynamically create subgroup_software_list
-# def create_subgroup_software_list(data):
-#     known_keys = {"cluster_os_type", "cluster_os_version", "iso_file_path", "repo_config", "softwares", "custom"}
-#     subgroup_software_list = {}
-#     for key in data.keys():
-#         if key not in known_keys:
-#             subgroup_software_list[key] = [item["name"] for item in data[key] if "name" in item]
-#     return subgroup_software_list
-
 
 def find_json_files(directory, patterns):
     matched_files = []
