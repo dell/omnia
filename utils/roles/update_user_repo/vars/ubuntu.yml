@@ -25,7 +25,7 @@ cluster_software_path: "{{ omnia_repo_path }}/cluster/apt"
 
 # Usage:update_user_repo_ubuntu.yml
 usr_repo_config_template_src: "{{ role_path }}/templates/user_repo_config_ubuntu.j2"
-usr_repo_pref_template_src: "{{ role_path }}/templates/user_repo_preference_ubuntu.j2"
+preference_user_repo_src: "{{ role_path }}/templates/preference_user_repo.j2"
 tmp_update_repo_file_path: "/tmp/update_repo_util"
 update_keyring_file_path: "{{ tmp_update_repo_file_path }}/user_repo_keyrings"
 tmp_user_repo_path: "{{ tmp_update_repo_file_path }}/user_repo_files"

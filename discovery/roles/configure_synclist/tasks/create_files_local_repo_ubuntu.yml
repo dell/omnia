@@ -74,8 +74,8 @@
 
     - name: Generate and copy preference file for User Repositories
       ansible.builtin.template:
-        src: "{{ repo_pref_template_src }}"
-        dest: "{{ temp_dir_preferences }}/a_user_repo{{ item.0 + 1 }}-pin-600"
+        src: "{{ preference_user_repo_src }}"
+        dest: "{{ temp_dir_preferences }}/a_user_repo{{ item.0 + 1 }}-pin-650"
         mode: "{{ file_mode }}"
       with_indexed_items: "{{ user_repo_url }}"
       when: item.1.url is defined
@@ -125,6 +125,12 @@
       when: "(item.name in [intelgaudi_name, intel_name]) and (intelgaudi_file.stat.exists or intel_file.stat.exists)"
       loop_control:
         loop_var: item
+
+    - name: Generate and copy preference file for OIM local repo
+      ansible.builtin.template:
+        src: "{{ preference_local_repo_src }}"
+        dest: "{{ temp_dir_preferences }}/oim_local_repo{{ item.0 + 1 }}-pin-600"
+        mode: "{{ file_mode }}"
 
 # always
 - name: Create repos for compute nodes
@@ -184,8 +190,8 @@
 
     - name: Generate and copy preference file for OIM local repo
       ansible.builtin.template:
-        src: "{{ omnia_repo_pref_template_src }}"
-        dest: "{{ temp_dir_preferences }}/omnia_loacl_repo{{ item.0 + 1 }}-pin-600"
+        src: "{{ preference_local_repo_src }}"
+        dest: "{{ temp_dir_preferences }}/oim_local_repo{{ item.0 + 1 }}-pin-600"
         mode: "{{ file_mode }}"
 
 # never case
@@ -219,6 +225,14 @@
       with_indexed_items: "{{ user_repo_url }}"
       when: item.1.url is defined
 
+    - name: Generate and copy preference file for User Repositories
+      ansible.builtin.template:
+        src: "{{ preference_user_repo_src }}"
+        dest: "{{ temp_dir_preferences }}/a_user_repo{{ item.0 + 1 }}-pin-650"
+        mode: "{{ file_mode }}"
+      with_indexed_items: "{{ user_repo_url }}"
+      when: item.1.url is defined
+
     - name: Download and save GPG keys for each user repository
       ansible.builtin.shell:
         cmd: "set -o pipefail | wget -q {{ item.1.gpgkey }} -O - | gpg --dearmor | sudo tee {{ tmp_keyrings_path }}/a_user_repo{{ item.0 + 1 }}.gpg"
@@ -248,7 +262,7 @@
 
     - name: Generate and copy preference file for Omnia Repositories
       ansible.builtin.template:
-        src: "{{ repo_pref_template_src }}"
+        src: "{{ preference_omnia_repo_src }}"
         dest: "{{ temp_dir_preferences }}/a_omnia_repo{{ item.0 + 1 }}-pin-600"
         mode: "{{ file_mode }}"
       with_indexed_items: "{{ omnia_repo_url_ubuntu }}"
