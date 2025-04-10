@@ -13,21 +13,37 @@
 #  limitations under the License.
 
 ---
+# Task to enable pulp https endpoint access from the OIM
 # - name: Copy Pulp server certificate to host
-#   ansible.builtin.copy:
-#     src: "{{ pulp_cert_src }}"
-#     dest: "{{ ca_trust_path }}"
-#     remote_src: true
+#  ansible.builtin.copy:
+#    src: "{{ pulp_cert_src }}"
+#    dest: "{{ ca_trust_path }}"
+#    mode: "{{ logs_dir_permission }}"
+#    remote_src: true
 
 - name: Run nginx reload command on Pulp container
   containers.podman.podman_container_exec:
     name: "{{ pulp_container_name }}"
     command: "{{ nginx_reload_cmd }}"
-  retries: "{{ retries_var }}"
+  retries: "{{ nginx_retries_var }}"
   delay: "{{ delay_var_sixty }}"
   register: nginx_reload_result
   until: nginx_reload_result.rc == 0
 
-# - name: Update CA trust
-#   ansible.builtin.command:
-#     cmd: update-ca-trust
+# Task to enable pulp https endpoint access from the OIM
+# - name: Add Pulp Certificate to TrustStore
+#  ansible.builtin.command:
+#    cmd: update-ca-trust
+#  changed_when: false
+
+- name: Check if Pulp endpoint is up
+  ansible.builtin.uri:
+    url: "{{ pulp_status_url }}"
+    method: GET
+    validate_certs: false
+    return_content: true
+  register: result
+  retries: "{{ endpoint_retries }}"
+  delay: "{{ endpoint_delay }}"
+  timeout: "{{ endpoint_timeout }}"
+  until: result.status == 200

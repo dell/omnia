@@ -13,8 +13,19 @@
 # limitations under the License.
 ---
 
+- name: Initialize list of tags
+  ansible.builtin.set_fact:
+    omnia_run_tags: "{{ ansible_run_tags | default([]) }}"
+  when: omnia_run_tags is not defined
+
 - name: Validate if Omnia Credential file exists
   ansible.builtin.include_tasks: validate_omnia_credential_file.yml
 
 - name: Include pre_requisite.yml
   ansible.builtin.include_tasks: pre_requisite.yml
+
+- name: Include composable_roles_config
+  ansible.builtin.include_tasks: include_composable_roles_config.yml
+  when:
+    - (omnia_run_tags | default([]) | difference(['all']) | length == 0)
+      or 'provision' in (omnia_run_tags | default([]))

@@ -15,7 +15,7 @@
 
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
-  tags: first_layer
+  tags: management_layer
   connection: local
   tasks:
     - name: Set dynamic run tags including 'provision'
@@ -24,18 +24,18 @@
         cacheable: true
 
 - name: Invoke get_config_credentials.yml
-  tags: first_layer
+  tags: management_layer
   ansible.builtin.import_playbook: utils/credential_utility/get_config_credentials.yml
 
 - name: Include input project directory
-  tags: first_layer
+  tags: management_layer
   ansible.builtin.import_playbook: utils/include_input_dir.yml
 
 - name: Validate inventory
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: first_layer
+  tags: management_layer
   tasks:
     - name: Set inventory_status
       ansible.builtin.set_fact:
@@ -52,7 +52,7 @@
 
 - name: Create provision container group
   ansible.builtin.import_playbook: utils/create_container_group.yml
-  tags: first_layer
+  tags: management_layer
   vars:
     omnia_provision_group: true
     omnia_provision_validation: true
@@ -61,7 +61,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tags: first_layer
+  tags: management_layer
   tasks:
     - name: Set provision_group_status and project_dir_status
       ansible.builtin.set_fact:
@@ -73,7 +73,7 @@
   ansible.builtin.import_playbook: discovery/discovery.yml       # noqa:role-name[path]
 
 - name: Server spec configuration
-  tags: first_layer
+  tags: management_layer
   ansible.builtin.import_playbook: utils/server_spec_update/server_spec_update.yml   # noqa:role-name[path]
   when: inventory_status | default(false) | bool
 

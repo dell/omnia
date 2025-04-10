@@ -23,3 +23,16 @@
     - name: Failed to include_high_availability_config.yml
       ansible.builtin.fail:
         msg: "{{ ha_config_syntax_fail_msg }} Error: {{ include_ha_config.message }}"
+
+- name: Set high_availability_status
+  ansible.builtin.set_fact:
+    enable_k8s_ha: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.enable_k8s_ha | default(false) }}"
+    k8s_vip: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.virtual_ip_address }}"
+
+- name: Validate virtual_ip_address details when enable_k8s_ha is provided
+  ansible.builtin.assert:
+    that:
+      - k8s_vip is defined
+      - k8s_vip | length > 1
+    fail_msg: "{{ ha_vip_address_fail_msg }}"
+  when: enable_k8s_ha

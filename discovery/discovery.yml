@@ -15,7 +15,7 @@
 
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
-  tags: first_layer
+  tags: management_layer
   connection: local
   tasks:
     - name: Set dynamic run tags including 'provision'
@@ -27,19 +27,19 @@
 - name: Invoke get_config_credentials.yml
   when: not config_file_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
-  tags: first_layer
+  tags: management_layer
 
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
-  tags: first_layer
+  tags: management_layer
 
 - name: Create provision container group
   when: not provision_group_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   tags:
     - always
-    - first_layer
+    - management_layer
   vars:
     omnia_provision_group: true
     omnia_provision_validation: true
@@ -49,7 +49,7 @@
   connection: ssh
   tags:
     - always
-    - first_layer
+    - management_layer
   tasks:
     - name: Validate discovery parameters
       ansible.builtin.include_role:
@@ -58,7 +58,7 @@
 - name: Discovery from oim node
   hosts: omnia_provision
   connection: ssh
-  tags: first_layer
+  tags: management_layer
   tasks:
     - name: Discovery roles of Omnia Infrastructure Manager for provisioning
       ansible.builtin.include_role:
@@ -97,7 +97,7 @@
   gather_facts: true
   vars_files:
     - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
-  tags: first_layer
+  tags: management_layer
   roles:
     - role: os_update           # noqa: role-name[path]
 
@@ -106,7 +106,7 @@
   connection: ssh
   vars_files:
     - "{{ hostvars['localhost']['input_project_dir'] }}/server_spec.yml"
-  tags: first_layer
+  tags: management_layer
   tasks:
     - name: Update kernel parameters
       ansible.builtin.include_role:
@@ -116,7 +116,7 @@
 - name: Discovery roles of Omnia Infrastructure Manager for provisioning
   hosts: omnia_provision
   connection: ssh
-  tags: first_layer
+  tags: management_layer
   roles:
     - role: postscripts/common             # noqa: role-name[path]
     - role: configure_os_image/common      # noqa: role-name[path]
@@ -137,6 +137,6 @@
 - name: Update metadata
   hosts: localhost
   connection: local
-  tags: first_layer
+  tags: management_layer
   roles:
     - role: metadata_update

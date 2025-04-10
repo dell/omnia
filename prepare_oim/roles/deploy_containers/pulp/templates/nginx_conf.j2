@@ -4,11 +4,11 @@
 # The "nginx" package on fedora creates this user and group.
 user nginx nginx;
 # Gunicorn docs suggest this value.
-worker_processes 1;
+worker_processes {{ nginx_template_vars.worker_processes }};
 daemon off;
 events {
-    worker_connections 1024;  # increase if you have lots of clients
-    accept_mutex off;  # set to 'on' if nginx worker_processes > 1
+    worker_connections {{ nginx_template_vars.worker_connections }};  # increase if you have lots of clients
+    accept_mutex {{ nginx_template_vars.accept_mutex }};  # set to 'on' if nginx worker_processes > 1
 }
 
 http {
@@ -19,14 +19,14 @@ http {
 
     # If left at the default of 1024, nginx emits a warning about being unable
     # to build optimal hash types.
-    types_hash_max_size 4096;
+    types_hash_max_size {{ nginx_template_vars.types_hash_max_size }};
 
     upstream pulp-content {
-         server 127.0.0.1:{{ nginx_conf_vars.pulp_content_port }};
+         server {{ nginx_template_vars.server_content_ip }}:{{ nginx_template_vars.pulp_content_port }};
     }
 
     upstream pulp-api {
-         server 127.0.0.1:{{ nginx_conf_vars.pulp_api_port }};
+         server {{ nginx_template_vars.server_api_ip }}:{{ nginx_template_vars.pulp_api_port }};
     }
 
     server {
@@ -34,17 +34,17 @@ http {
         listen {{ pulp_container_port }} ssl deferred;
 
         # SSL certificates
-        ssl_certificate {{ pulp_server_crt_path }};
-        ssl_certificate_key {{ pulp_server_key_path }};
-        # listen 80 default_server deferred;
-        server_name $hostname;
+        ssl_certificate {{ nginx_template_vars.pulp_server_crt_path }};
+        ssl_certificate_key {{ nginx_template_vars.pulp_server_key_path }};
+        # listen {{ nginx_template_vars.http_port }} default_server deferred;
+        server_name {{ pulp_server_ip }};
 
         # The default client_max_body_size is 1m. Clients uploading
         # files larger than this will need to chunk said files.
-        client_max_body_size 10m;
+        client_max_body_size {{ nginx_template_vars.client_max_body_size }};
 
         # Gunicorn docs suggest this value.
-        keepalive_timeout 5;
+        keepalive_timeout {{ nginx_template_vars.keepalive_timeout }};
 
         location /pulp/content/ {
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -104,10 +104,10 @@ http {
         }
     }
     server {
-        listen {{ http_port }};
-        server_name $hostname;
+        listen {{ nginx_template_vars.http_port }};
+        server_name {{ pulp_server_ip }};
 
         # Redirect HTTP to HTTPS
-        return 301 https://$host:{{ pulp_container_port }}$request_uri;
+        return 301 https://{{ pulp_server_ip }}:{{ pulp_container_port }}$request_uri;
     }
 }

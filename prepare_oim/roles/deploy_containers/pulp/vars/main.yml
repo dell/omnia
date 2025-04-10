@@ -13,8 +13,7 @@
 #  limitations under the License.
 
 ---
-
-# deploy_pulp.yml
+# Usage: deploy_pulp_container.yml
 shared_storage_path: "{{ oim_shared_path }}/omnia"
 pulp_shared_path: "{{ shared_storage_path }}/pulp"
 pulp_logs_dir: "{{ oim_shared_path }}/omnia/log/pulp"
@@ -22,8 +21,7 @@ pulp_dir_permissions: "0755"
 pulp_pgsql_dir_permissions: "0750"
 logs_dir_permission: "0644"
 pulp_ha_dir: "/opt/omnia/pulp/pulp_ha"
-# certs_dir: "/opt/omnia/pulp/settings/certs"
-
+certs_dir: "/opt/omnia/pulp/settings/certs"
 pulp_directories:
   - { path: "{{ pulp_shared_path }}", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_logs_dir }}", mode: "{{ logs_dir_permission }}" }
@@ -32,11 +30,9 @@ pulp_directories:
   - { path: "{{ pulp_shared_path }}/settings/pgsql", mode: "{{ pulp_pgsql_dir_permissions }}" }
   - { path: "{{ pulp_shared_path }}/settings/containers", mode: "{{ pulp_dir_permissions }}" }
   - { path: "{{ pulp_shared_path }}/pulp_ha", mode: "{{ pulp_dir_permissions }}" }
-#  - { path: "{{ pulp_shared_path }}/nginx", mode: "{{ pulp_dir_permissions }}" }
-#  - { path: "{{ certs_dir }}", mode: "{{ pulp_dir_permissions }}" }
-
-# nginx_conf_path: "{{ role_path }}/templates/nginx_conf.j2"
-# nginx_conf_dest: "{{ pulp_shared_path }}/nginx/nginx.conf"
+  - { path: "{{ pulp_shared_path }}/nginx", mode: "{{ pulp_dir_permissions }}" }
+nginx_conf_path: "{{ role_path }}/templates/nginx_conf.j2"
+nginx_conf_dest: "{{ pulp_shared_path }}/nginx/nginx.conf"
 settings_py_path: "{{ pulp_shared_path }}/settings/settings.py"
 pulp_container_port: "2225"
 settings_tmp_path: "{{ role_path }}/templates/settings_template.j2"
@@ -47,7 +43,7 @@ volumes:
   - "{{ pulp_shared_path }}/settings/containers:/var/lib/containers{{ selinux_option }}"
   - "{{ shared_storage_path }}/log/pulp:/var/log/pulp{{ selinux_option }}"
   - "{{ pulp_shared_path }}/pulp_ha:/root/.config/pulp{{ selinux_option }}"
-#  - "{{ pulp_shared_path }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
+  - "{{ pulp_shared_path }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro{{ selinux_option | replace(':', ',') }}"
 device_name: "/dev/fuse:/dev/fuse:rwm"
 pulp_container_name: "omnia_pulp"
 pulp_image: "docker.io/pulp/pulp"
@@ -63,7 +59,7 @@ pulp_deployed_fail_msg:
   The deployment of the {{ pulp_container_name }} container has failed. To resolve this issue,
   please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
   After the cleanup, you can re-run the original playbook to deploy the {{ pulp_container_name }} container successfully.
-pulp_port: "2225:80"
+pulp_port: "2225:2225"
 retries_var: 6
 delay_var: 20
 delay_var_five: 5
@@ -71,40 +67,52 @@ delay_var_sixty: 20
 timeout_var: 60
 reset_password_cmd: bash -c "pulpcore-manager reset-admin-password --password {{ pulp_password }}"
 
-# nginx_conf.j2 vars
-# nginx_conf_vars:
-#  pulp_content_port: "24816"
-#  pulp_api_port: "24817"
-# pulp_server_crt_path: "/etc/pulp/certs/pulp_webserver.crt"
-# pulp_server_key_path: "/etc/pulp/certs/pulp_webserver.key"
-# http_port: "80"
+# Usage: nginx_conf.j2
+nginx_template_vars:
+  worker_processes: 1
+  worker_connections: 1024
+  accept_mutex: 'off'
+  types_hash_max_size: 4096
+  server_content_ip: 127.0.0.1
+  pulp_content_port: 24816
+  server_api_ip: 127.0.0.1
+  pulp_api_port: 24817
+  pulp_server_crt_path: "/etc/pulp/certs/pulp_webserver.crt"
+  pulp_server_key_path: "/etc/pulp/certs/pulp_webserver.key"
+  http_port: 80
+  client_max_body_size: 10m
+  keepalive_timeout: 5
 
-# create_pulp_config.yml
-pulp_config_cmd: "pulp config create --username admin  --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port }} --password {{ pulp_password }} --location {{ pulp_ha_dir }}/cli.toml" # noqa: yaml[line-length]
-pulp_config_cmd_overwrite: "pulp config create --username admin  --base-url http://{{ pulp_server_ip }}:{{ pulp_container_port }} --password {{ pulp_password }} --location {{ pulp_ha_dir }}/cli.toml --overwrite" # noqa: yaml[line-length]
+# Usage: create_pulp_config.yml
+pulp_config_cmd: "pulp config create --username admin  --base-url https://{{ pulp_server_ip }}:{{ pulp_container_port }} --password {{ pulp_password }} --location {{ pulp_ha_dir }}/cli.toml --no-verify-ssl" # noqa: yaml[line-length]
+pulp_config_cmd_overwrite: "pulp config create --username admin  --base-url https://{{ pulp_server_ip }}:{{ pulp_container_port }} --password {{ pulp_password }} --location {{ pulp_ha_dir }}/cli.toml --no-verify-ssl --overwrite" # noqa: yaml[line-length]
 pulp_config_filepath: "{{ pulp_ha_dir }}/cli.toml"
 config_default_dir: "/root/.config/pulp/"
 config_default_loc: "{{ config_default_dir }}/cli.toml"
-pulp_status_url: "http://{{ pulp_server_ip }}:{{ pulp_container_port }}/pulp/api/v3/status/"
+cert_san_ip: 0.0.0.0
+cert_validity_days: 365
+cert_items:
+  crt_path: "{{ certs_dir }}/pulp_webserver.crt"
+  key_path: "{{ certs_dir }}/pulp_webserver.key"
+
+generate_cert_cmd: >
+  openssl req -x509 -nodes -newkey rsa:2048
+  -keyout {{ cert_items.key_path }}
+  -out {{ cert_items.crt_path }}
+  -days {{ cert_validity_days }}
+  -subj "/CN={{ pulp_server_ip }}"
+  -addext {{ cert_san }}
+hosts_file_dest: "/etc/hosts"
+hosts_file_mode: "0644"
+hosts_update_fail_msg: "Failed to update hosts file. Ensure the file is writable and rerun the playbook."
+
+# Usage: reload_pulp_nginx.yml
+# pulp_cert_src: "{{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt"
+# ca_trust_path: "/etc/pki/ca-trust/source/anchors/"
+nginx_reload_cmd: "nginx -s reload"
+nginx_retries_var: 10
+omnia_container_name: "omnia_core"
+pulp_status_url: "https://{{ pulp_server_ip }}:{{ pulp_container_port }}/pulp/api/v3/status/"
 endpoint_retries: 10
 endpoint_delay: 10
 endpoint_timeout: 60
-# verify_ssl_regex: '^verify_ssl = .*'
-# line_to_replace: 'verify_ssl = false'
-# cert_san: "subjectAltName=IP:0.0.0.0,DNS:pulp,DNS:{{ oim_hostname }},DNS:localhost"
-# generate_cert_cmd: >
-#   openssl req -x509 -nodes -newkey rsa:2048
-#   -keyout {{ certs_dir }}/pulp_webserver.key
-#   -out {{ certs_dir }}/pulp_webserver.crt
-#   -days 365
-#   -subj "/CN={{ oim_hostname }}"
-#   -addext {{ cert_san }}
-# cert_items:
-#  - "{{ certs_dir }}/pulp_webserver.crt"
-#  - "{{ certs_dir }}/pulp_webserver.key"
-
-# reload_pulp_nginx.yml
-# pulp_cert_src: "{{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt"
-# ca_trust_path: "/etc/pki/ca-trust/source/anchors/"
-# nginx_reload_cmd: "nginx -s reload"
-# omnia_container_name: "omnia_core"

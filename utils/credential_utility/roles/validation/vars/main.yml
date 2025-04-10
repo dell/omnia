@@ -25,3 +25,7 @@ invalid_software_config_fail_msg: "Failed. Please provide valid software_config.
 and repo_config values."
 software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
 password_fail_msg: "Failed. Syntax errors present in omnia_config_credentails.yml. Fix errors and re-run playbook again."
+
+# Usage: include_composable_roles_config.yml
+roles_config_path: "{{ input_project_dir }}/roles_config.yml"
+roles_config_syntax_fail_msg: "Failed. Syntax errors present in role_config.yml. Fix errors and re-run playbook again."

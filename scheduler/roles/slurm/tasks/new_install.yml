@@ -19,7 +19,7 @@
   ansible.builtin.include_tasks: _config_files.yml
   when: '"slurm_control_node" in group_names'
 
-- name: Include controller installation tasks
+- name: Include controller installation tasks (This will take a few minutes for nfs_share slurm)
   ansible.builtin.include_tasks: controller.yml
   when: '"slurm_control_node" in group_names'
 

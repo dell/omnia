@@ -18,27 +18,9 @@
   register: include_metadata
   no_log: true
 
-- name: Include roles_config.yml
-  block:
-    - name: Include roles_config.yml
-      ansible.builtin.include_vars: "{{ roles_config_path }}"
-      register: include_roles_config
-      tags: init
-  rescue:
-    - name: Failed to include  roles_config.yml
-      ansible.builtin.fail:
-        msg: "{{ roles_config_syntax_fail_msg }} Error: {{ include_roles_config.message }}"
-
-- name: Determine layer
+- name: Set Facts for composable roles data
   ansible.builtin.set_fact:
-    layer: "{{ 'first' if 'first_layer' in ansible_run_tags else 'default' }}"
-
-- name: Fetch composable roles data
-  fetch_roles_config:
-    roles_data: "{{ Roles }}"
-    groups_data: "{{ Groups }}"
-    layer: "{{ layer }}"
-  register: composable_roles_output
+    composable_roles_output: "{{ hostvars['localhost']['composable_roles_output'] }}"
 
 - name: Set Facts for composable roles data
   ansible.builtin.set_fact:

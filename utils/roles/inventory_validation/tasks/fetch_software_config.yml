@@ -44,6 +44,10 @@
       ansible.builtin.fail:
         msg: "{{ ha_config_syntax_fail_msg }} Error: {{ include_ha_config.message }}"
 
+- name: Set high_availability_status
+  ansible.builtin.set_fact:
+    enable_k8s_ha: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.enable_k8s_ha | default(false) }}"
+
 - name: Set k8s, slurm, freeipa and openldap support
   ansible.builtin.set_fact:
     k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"

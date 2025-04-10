@@ -20,7 +20,7 @@
     - "('kube_control_plane' not in groups or 'kube_node' not in groups or 'etcd' not in groups)"
 
 - name: Ensure correct Kubernetes in non-HA setup
-  when: k8s_head_node_ha[0].enable_k8s_ha
+  when: not enable_k8s_ha
   block:
     - name: Kube control plane group to contain at least 1 kube control plane
       ansible.builtin.assert:
@@ -37,7 +37,7 @@
         - groups['kube_control_plane'] | length | int > 1
 
 - name: Ensure correct Kubernetes in HA setup
-  when: k8s_head_node_ha[0].enable_k8s_ha
+  when: enable_k8s_ha
   block:
     - name: Kube control plane group to contain at least 1 kube control plane
       ansible.builtin.assert:

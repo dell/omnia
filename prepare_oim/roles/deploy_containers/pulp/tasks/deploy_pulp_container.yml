@@ -13,12 +13,6 @@
 #  limitations under the License.
 
 ---
-- name: Set Fact for Pulp password and server IP
-  ansible.builtin.set_fact:
-    pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
-    pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
-  no_log: true
-
 - name: Create directories for Pulp in shared storage
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -26,12 +20,11 @@
     mode: "{{ item.mode }}"
   loop: "{{ pulp_directories }}"
 
-# This task creates the nginx.conf file for Pulp
-# - name: Create nginx.conf file for Pulp
-#  ansible.builtin.template:
-#    src: "{{ nginx_conf_path }}"
-#    dest: "{{ nginx_conf_dest }}"
-#    mode: "{{ pulp_dir_permissions }}"
+- name: Create nginx.conf file for Pulp
+  ansible.builtin.template:
+    src: "{{ nginx_conf_path }}"
+    dest: "{{ nginx_conf_dest }}"
+    mode: "{{ pulp_dir_permissions }}"
 
 - name: Create settings.py for Pulp
   ansible.builtin.template:

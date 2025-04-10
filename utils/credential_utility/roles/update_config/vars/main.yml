@@ -35,13 +35,11 @@ username_fail_msg: "Failed. Please provide valid username."
 omnia_credentials:
   provision:
     mandatory:
-      password:
-        - provision_password
-    optional:
       username:
         - bmc_username
         - switch_snmp3_username
       password:
+        - provision_password
         - bmc_password
         - switch_snmp3_password
   prepare_oim:

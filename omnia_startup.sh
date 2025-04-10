@@ -145,7 +145,7 @@ cleanup_config(){
             cp "$fstab_file" "$fstab_file.bak"
 
             # Remove the line from the fstab file.
-             sed -i "$omnia_path/d" "$fstab_file"
+             sed -i "\#$omnia_path#d" "$fstab_file"
              if [ $? -ne 0 ]; then
                 echo -e "${RED} Failed to remove the entry from /etc/fstab.${NC}"
             fi
@@ -505,6 +505,8 @@ setup_container() {
         echo -e "${GREEN} Omnia core container has been started.${NC}"
     else
         echo -e "${RED} Failed to start Omnia core container.${NC}"
+        echo -e "${RED} Make sure the Omnia core image is present.${NC}"
+        exit 1
     fi
 }
 

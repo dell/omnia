@@ -68,6 +68,27 @@
 - name: Install and configure munge
   ansible.builtin.include_tasks: _munge.yml
 
+- name: Edit out the PATH config for nfs_share
+  when: (slurm_installation_type == nfs_share_slurm)
+  block:
+    - name: Comment line beginning with PATH= in /etc/bashrc
+      ansible.builtin.lineinfile:
+        path: "/etc/bashrc"
+        regexp: '^PATH=.*'
+        line: '# \g<0>'
+        backrefs: true
+
+    - name: Comment line beginning with export PATH= in /root/.bashrc
+      ansible.builtin.lineinfile:
+        path: "/root/.bashrc"
+        regexp: '^export PATH=.*'
+        line: '# \g<0>'
+        backrefs: true
+  rescue:
+    - name: Edit out the PATH failure
+      ansible.builtin.debug:
+        msg: "{{ path_edit_msg }}"
+
 - name: Slurm dict ops
   ansible.builtin.set_fact:
     slurm_conf_dict: "{{ __slurm_default_config | ansible.builtin.combine(slurm_config | default({})) }}"

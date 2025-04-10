@@ -13,11 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Initialize list of tags
-  ansible.builtin.set_fact:
-    omnia_run_tags: "{{ ansible_run_tags | default([]) }}"
-  when: omnia_run_tags is not defined
-
 - name: Fetch omnia credentials
   ansible.builtin.include_tasks: fetch_credentials.yml
   loop: "{{ omnia_credentials | dict2items }}"

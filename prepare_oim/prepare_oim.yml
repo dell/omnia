@@ -114,6 +114,15 @@
         name: deploy_containers/pulp
         tasks_from: create_pulp_config.yml
 
+- name: Reload pulp nginx
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Reload pulp nginx # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/pulp
+        tasks_from: reload_pulp_nginx.yml
+
 - name: Configure provision container
   hosts: omnia_provision
   connection: ssh

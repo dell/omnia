@@ -17,7 +17,9 @@
     },
     "slurm_node": {
         "cluster": [
-            {"package": "slurm-slurmd", "type": "rpm", "repo_name": "epel"}
+            {"package": "slurm-slurmd", "type": "rpm", "repo_name": "epel"},
+            {"package": "slurm-pam_slurm", "type": "rpm", "repo_name": "epel"}
+
         ]
     },
     "login":{

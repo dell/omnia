@@ -40,8 +40,7 @@ oim_ha:
   active_node_service_tag: ""
   passive_nodes:
     node_details:
-      - {SERVICE_TAG : "",HOSTNAME: "",ADMIN_MAC: "",ADMIN_IP: "",BMC_IP: ""}
-
+      - {SERVICE_TAG: "", HOSTNAME: "", ADMIN_MAC: "", ADMIN_IP: "", BMC_IP: ""}
 
 # ***********************************************************************
 # High Availability (HA) Configuration for Service Nodes
@@ -50,7 +49,8 @@ oim_ha:
 #   - virtual_ip_address: <Mandatory if enable_service_ha is true> The virtual IP address for the service node HA setup.
 #   - active_node_service_tag: <Mandatory if enable_service_ha is true> The service tag of the active node within this service node HA group.
 #   - passive_nodes:
-#     - node_service_tags: <Mandatory if enable_service_ha is true> List of service tags for passive nodes for this active service node. Separate tags with commas.
+#     - node_service_tags: <Mandatory if enable_service_ha is true> List of service tags for passive nodes for this active
+#       service node. Separate tags with commas.
 # ***********************************************************************
 
 service_node_ha:

@@ -12,6 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Check slurm support
+  when: slurm_support is not defined or not slurm_support
+  block:
+    - name: Slurm not enabled in sofware_config.json
+      ansible.builtin.debug:
+        msg: "{{ slurm_support_msg }}"
+
+    - name: Skip slurm deployment
+      ansible.builtin.meta: end_play
+
+- name: Check share support for nfs
+  when: (slurm_installation_type == nfs_share_slurm) and (share_path is not defined or not share_path)
+  block:
+    - name: Slurm install type is NFS but share path not available
+      ansible.builtin.debug:
+        msg: "{{ share_unavailable_msg }}"
+
+    - name: Skip slurm deployment
+      ansible.builtin.meta: end_play
+
 - name: Slurm control and node group to contain at least 1 node
   ansible.builtin.assert:
     that:

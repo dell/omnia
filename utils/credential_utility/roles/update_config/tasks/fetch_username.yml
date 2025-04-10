@@ -17,6 +17,9 @@
   when:
     - vars[username] is defined
     - (vars[username] | length == 0)
+    - username is not search('bmc|switch')
+      or 'bmc' in username and ( composable_roles_output.bmc_static_status or composable_roles_output.switch_status )
+      or 'switch' in username and composable_roles_output.switch_status
   block:
     - name: Fetch credential rule for "{{ username }}" # noqa name[template]
       fetch_credential_rule:

@@ -31,3 +31,4 @@ prepare_oim_not_executed_msg: "Provision container not found. Please execute pre
 # Usage: validate_kubespray_conatiner.yml
 kubespray_container_status_msg: "Kubespray container Status: {{ kubespray_container_status.containers[0].State.Status }}"
 kubespray_container_fail_msg: "Kubespray container is not running. Current Status: {{ kubespray_container_status.containers[0].State.Status }}"
+prepare_oim_kubespray_not_executed_msg: "Kubespray container not found. Please execute prepare_oim.yml to deploy all required containers."

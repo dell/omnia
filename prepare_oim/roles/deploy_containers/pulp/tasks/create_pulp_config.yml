@@ -13,9 +13,17 @@
 #  limitations under the License.
 
 ---
-- name: Set fact for admin nic ip
+- name: Set Fact for Pulp Server with Admin IP or VIP
   ansible.builtin.set_fact:
     pulp_server_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+  when: not hostvars['oim']['hostname_enabled']
+  no_log: true
+
+- name: Configure Pulp Server with hostname when hostname_enabled is true
+  ansible.builtin.set_fact:
+    pulp_server_ip: "" # Placeholder for Pulp hostname
+  when: hostvars['oim']['hostname_enabled']
+  no_log: true
 
 - name: Check if Pulp configuration file exists
   ansible.builtin.stat:
@@ -41,56 +49,71 @@
     src: "{{ pulp_config_filepath }}"
     dest: "{{ config_default_loc }}"
     mode: "{{ logs_dir_permission }}"
+    remote_src: true
 
-- name: Check if Pulp endpoint is up
-  ansible.builtin.uri:
-    url: "{{ pulp_status_url }}"
-    method: GET
-    validate_certs: false
-    return_content: true
-  register: result
-  retries: "{{ endpoint_retries }}"
-  delay: "{{ endpoint_delay }}"
-  timeout: "{{ endpoint_timeout }}"
-  until: result.status == 200
+- name: Set cert_san fact based on hostname
+  ansible.builtin.set_fact:
+    cert_san: subjectAltName=IP:{{ cert_san_ip }},DNS:{{ pulp_server_ip }},DNS:pulp,DNS:localhost
+  when: hostvars['oim']['hostname_enabled']
+  no_log: true
 
-# Set verify_ssl to false in Pulp config
-# This allows to skip the SSL certificate verification as Pulp certificate is self-signed
+- name: Set cert_san fact based on IP
+  ansible.builtin.set_fact:
+    cert_san: subjectAltName=IP:{{ pulp_server_ip }},DNS:pulp,DNS:localhost
+  when: not hostvars['oim']['hostname_enabled']
+  no_log: true
 
-# - name: Set verify_ssl to false in pulp config
-#  ansible.builtin.replace:
-#    path: "{{ pulp_config_filepath }}"
-#    regexp: "{{ verify_ssl_regex }}"
-#    replace: "{{ line_to_replace }}"
-#    backup: false
+# CERT GENERATION USING community.crypto x509_certificate MODULE
+# - name: Generate private key
+#   community.crypto.openssl_privatekey:
+#     path: "{{ cert_items.key_path }}"
+#     size: 2048
+#     type: RSA
+#     mode: '0600'
 
-# - name: Ensure the pulp group exists
-#  ansible.builtin.group:
-#    name: pulp
-#    state: present
+# - name: Generate CSR with SAN and key usages
+#   community.crypto.openssl_csr:
+#     path: "{{ cert_items.csr_path }}"
+#     privatekey_path: "{{ cert_items.key_path }}"
+#     common_name: "{{ oim_hostname }}"
+#     subject_alt_name:
+#       - "IP:0.0.0.0"
+#       - "DNS:pulp"
+#       - "DNS:{{ oim_hostname }}"
+#       - "DNS:localhost"
+#     key_usage:
+#       - digitalSignature
+#       - keyEncipherment
+#     extended_key_usage:
+#       - serverAuth
+#     basic_constraints:
+#       - "CA:TRUE"
+#     mode: '0644'
 
-# Generating Pulp certificate using ansible module openssl
-# - name: Generate a self-signed certificate using OpenSSL
-#  community.crypto.x509_certificate:
-#    path: "{{ certs_dir }}/pulp_webserver.crt"
-#    privatekey_path: "{{ certs_dir }}/pulp_webserver.key"
-#    state: present
-#    selfsigned: yes
-#    common_name: "{{ oim_hostname }}"
-#    provider: selfsigned
-#    days: 365
-#    extra_extensions:
-#      - name: subjectAltName
-#        value: "{{ cert_san }}"
+# - name: Generate self-signed certificate (no command module)
+#   community.crypto.x509_certificate:
+#     path: "{{ cert_items.crt_path }}"
+#     privatekey_path: "{{ cert_items.key_path }}"
+#     provider: selfsigned
+#     # selfsigned_not_before: "now"
+#     selfsigned_not_after: "+365d"
+#     selfsigned_version: 3
+#     selfsigned_create_subject_key_identifier: always_create
+#     return_content: true
 
-# - name: Generating Pulp certificate using openssl pckg
-#  ansible.builtin.command:
-#    cmd: "{{ generate_cert_cmd }}"
-#  changed_when: false
+- name: Generating Pulp SSL Certificate
+  ansible.builtin.command:
+    cmd: "{{ generate_cert_cmd }}"
+  changed_when: false
 
-# - name: Change group ownership of SSL certificate
-#  ansible.builtin.file:
-#    path: "{{ item }}"
-#    group: pulp
-#    state: file
-#  loop: "{{ cert_items }}"
+- name: Ensure the pulp group exists
+  ansible.builtin.group:
+    name: pulp
+    state: present
+
+- name: Change group ownership of SSL certificate and key
+  ansible.builtin.file:
+    path: "{{ item }}"
+    group: pulp
+    state: file
+  loop: "{{ cert_items.values() }}"

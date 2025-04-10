@@ -14,4 +14,4 @@
 
 ---
 - name: Deploy pulp container tasks
-  ansible.builtin.include_tasks: deploy_pulp.yml
+  ansible.builtin.include_tasks: deployment_prereq.yml

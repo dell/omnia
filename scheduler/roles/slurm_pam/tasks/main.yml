@@ -23,20 +23,6 @@
         slurm_confpth: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_folder }}{{ slurm_conf_file_pth }}"
       when: slurm_installation_type == 'nfs_share'
 
-    - name: Slurm Control Node group to contain exactly 1 node
-      ansible.builtin.assert:
-        that: "groups['slurm_control_node'] | length | int == 1"
-        fail_msg: "{{ slurm_control_node_group_fail_msg }}"
-        success_msg: "{{ slurm_control_node_group_success_msg }}"
-      delegate_to: localhost
-
-    - name: Slurm node group to contain atleast 1 node
-      ansible.builtin.assert:
-        that: "groups['slurm_node'] | length | int >= 1"
-        fail_msg: "{{ slurm_node_group_fail_msg }}"
-        success_msg: "{{ slurm_node_group_success_msg }}"
-      delegate_to: localhost
-
     - name: Install slurm-pam_slurm
       ansible.builtin.package:
         name: slurm-pam_slurm
@@ -52,13 +38,3 @@
     - name: Configure slurm pam for Slurm nodes
       ansible.builtin.include_tasks: slurm_pam_compute.yml
       when: inventory_hostname in groups['slurm_node']
-
-    - name: Configure slurm pam for login node
-      ansible.builtin.include_tasks: slurm_pam_login_node.yml
-      when:
-        - groups['login'] is defined
-        - inventory_hostname in groups['login']
-
-    - name: Configure slurm pam for Slurm Control Node node
-      ansible.builtin.include_tasks: slurm_pam_manager.yml
-      when: inventory_hostname in groups['slurm_control_node']

@@ -180,6 +180,13 @@
     replace: '# \1'
     backup: true
 
+- name: Comment line beginning with export PATH= in /root/.bashrc
+  ansible.builtin.replace:
+    path: "/root/.bashrc"
+    regexp: '^(export PATH=.*)$'
+    replace: '# \1'
+    backup: true
+
 - name: Enable etc enviroment
   ansible.builtin.shell: source {{ sys_env_path }} # noqa: command-instead-of-shell
   changed_when: false

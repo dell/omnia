@@ -1,4 +1,4 @@
-CONTENT_ORIGIN='http://{{ pulp_server_ip }}:{{ pulp_container_port }}'
+CONTENT_ORIGIN='https://{{ pulp_server_ip }}:{{ pulp_container_port }}'
 TOKEN_AUTH_DISABLED=True
 {% set chars = 'abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)' %}
 {% set random_key = [] -%}

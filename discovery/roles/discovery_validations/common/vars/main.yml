@@ -19,7 +19,7 @@ provision_validation_vars:
   - "{{ role_path }}/../mtms/vars/main.yml"
   - "{{ role_path }}/../switch_based/vars/main.yml"
 provision_shared_library_path: /opt/omnia/shared_libraries/provision
-ansible_tag_fail_msg: "Please run the playbook with the tag 'first_layer' only. Other tags are not allowed."
+ansible_tag_fail_msg: "Please run the playbook with the tag 'management_layer' only. Other tags are not allowed."
 
 # Usage: validate_provision_container.yml
 xcatd_service: "xcatd.service"
@@ -52,8 +52,6 @@ high_availability_config_path: "{{ hostvars['localhost']['input_project_dir'] }}
 high_availability_config_syntax_fail_msg: "Failed. Syntax errors present in high_availability_config.yml. Fix errors and re-run playbook again."
 
 # Usage: fetch_composable_roles_config.yml
-roles_config_path: "{{ hostvars['localhost']['input_project_dir'] }}/roles_config.yml"
-roles_config_syntax_fail_msg: "Failed. Syntax errors present in role_config.yml. Fix errors and re-run playbook again."
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 
 # Usage: include_local_repo_config.yml
@@ -143,7 +141,7 @@ fail_cidr_ip_range: "Failed, Cidr overlaps with"
 
 # Usage: validate_discovery_params.yml
 validation_range_file: "{{ provision_shared_library_path }}/validation/validate_input_ranges.py"
-first_layer_discovery_mechanism_fail_msg: |
+management_layer_discovery_mechanism_fail_msg: |
   "Failed. Please provide valid details either for mapping or bmc discovery mechanism for the first layer of nodes and re-run the playbook.
   For mapping discovery, please provide the pxe_mapping_file_path in the provision_config.yml file.
   For bmc discovery, please provide the bmc_details in the roles_config.yml file."

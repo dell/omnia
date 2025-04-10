@@ -80,14 +80,14 @@ Groups:
 # +---------------------+----------------+    +-------------+----------------+
 # | Role Name          | Layer          |    | Role Name   | Layer          |
 # +---------------------+----------------+    +-------------+----------------+
-# | service            | front end      |    | kube_node   | compute        |
-# | login              | front end      |    | slurm_node  | compute        |
-# | auth_server        | front end      |    | default     | compute        |
-# | compiler           | front end      |    |             |                |
-# | kube_control_plane | front end      |    |             |                |
-# | etcd               | front end      |    |             |                |
-# | slurm_control_node | front end      |    |             |                |
-# | slurm_dbd          | front end      |    |             |                |
+# | service            | management      |    | kube_node   | compute        |
+# | login              | management      |    | slurm_node  | compute        |
+# | auth_server        | management      |    | default     | compute        |
+# | compiler           | management      |    |             |                |
+# | kube_control_plane | management      |    |             |                |
+# | etcd               | management      |    |             |                |
+# | slurm_control_node | management      |    |             |                |
+# | slurm_dbd          | management      |    |             |                |
 # +---------------------+----------------+    +-------------+----------------+
 
 # Default Role:
@@ -110,7 +110,7 @@ Roles:
 # Service Role: Service node groups to add into service role can be provided in this role
 # ------------------------------------------------------------------------------------
 #
-# This role is used to configure the nodes for service group. It belongs to the front end layer.
+# This role is used to configure the nodes for service group. It belongs to the management layer.
 #
 # The nodes included in this role will have the necessary tools and
 # configurations to configure service node.
@@ -127,7 +127,7 @@ Roles:
 # k8s head Role: Kubernetes master node groups to add into kube_control_plane role can be provided in this role
 # ---------------------------------------------------------------------------------------
 #
-# This role is used to configure the nodes for Kubernetes master. It belongs to the front end layer.
+# This role is used to configure the nodes for Kubernetes master. It belongs to the management layer.
 #
 # The nodes included in this role will have the necessary tools and
 # configurations to run Kubernetes master.
@@ -144,7 +144,7 @@ Roles:
 # K8s etcd Role: Kubernetes etcd node groups to add into k8s role can be provided in this role
 # ---------------------------------------------------------------------------------------------
 #
-# This role is used to configure the nodes for Kubernetes etcd. It belongs to the front end layer.
+# This role is used to configure the nodes for Kubernetes etcd. It belongs to the management layer.
 #
 # The nodes included in this role will have the necessary tools and
 # configurations to run Kubernetes etcd.
@@ -178,7 +178,7 @@ Roles:
 # Slurm Head Role: Slurm head node groups to add into Slurm role can be provided in this role
 # ------------------------------------------------------------------------------------------
 #
-# This role is used to configure the nodes for Slurm head. It belongs to the front end layer.
+# This role is used to configure the nodes for Slurm head. It belongs to the management layer.
 #
 # The nodes included in this role will have the necessary tools and
 # configurations to run Slurm head.
@@ -196,7 +196,7 @@ Roles:
 # Slurm DB Daemon Role: Slurm DB Daemon node groups to add into Slurm role can be provided in this role
 # ----------------------------------------------------------------------------------------------------
 #
-# This role is used to configure the nodes for Slurm DB Daemon. It belongs to the front end layer.
+# This role is used to configure the nodes for Slurm DB Daemon. It belongs to the management layer.
 #
 # The nodes included in this role will have the necessary tools and
 # configurations to run Slurm DB Daemon.
@@ -230,7 +230,7 @@ Roles:
 # Login Role:
 # -----------
 #
-# This role is used to configure the nodes for user logins. It belongs to the front end layer.
+# This role is used to configure the nodes for user logins. It belongs to the management layer.
 #
 # The nodes included in this role will have the necessary tools and configurations
 # to support user login activities.
@@ -246,7 +246,7 @@ Roles:
 # Auth Server Role:
 # -----------------
 #
-# This role is used to configure the nodes for authentication. It belongs to the front end layer.
+# This role is used to configure the nodes for authentication. It belongs to the management layer.
 #
 # The nodes included in this role will have the necessary tools and configurations
 # to support authentication activities.
@@ -262,7 +262,7 @@ Roles:
 # Compiler Role:
 # --------------
 #
-# This role is used to configure the nodes for compilation. It belongs to the front end layer.
+# This role is used to configure the nodes for compilation. It belongs to the management layer.
 #
 # The nodes included in this role will have the necessary tools and
 # configurations to perform compilation.

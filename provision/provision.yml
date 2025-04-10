@@ -14,12 +14,12 @@
 ---
 
 - name: Include input project directory
-  tags: first_layer
+  tags: management_layer
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
 - name: Create provision container group
-  tags: first_layer
+  tags: management_layer
   when: not provision_group_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   vars:
@@ -29,7 +29,7 @@
 - name: Prepare Omnia Infrastructure Manager for provisioning nodes
   hosts: omnia_provision
   connection: ssh
-  tags: first_layer
+  tags: management_layer
   roles:
     - role: provision_validation
     - role: mapping_provision

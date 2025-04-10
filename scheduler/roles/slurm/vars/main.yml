@@ -19,12 +19,13 @@ slurm_user: slurm
 slurm_user_group: slurm
 slurm_installation_type: "{{ hostvars['localhost']['slurm_installation_type'] }}" # TODO direct load vars omnia_config.yml
 restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] }}"
-slurm_db_username: "{{ hostvars['localhost']['slurm_db_username'] | default('root') }}"
+slurm_db_username: "{{ hostvars['localhost']['slurm_db_username'] | default('dbuser') }}"
 slurm_db_password: "{{ hostvars['localhost']['slurm_db_password'] }}"
 slurm_db_host: "{{ hostvars['localhost']['slurm_db_host'] | default(false) }}"
 slurm_db_port: "{{ hostvars['localhost']['slurm_db_port'] | default(3306) }}"
 slurm_db_type: "{{ hostvars['localhost']['slurm_db_type'] | default('mariadb') }}"
 share_path: "{{ hostvars['localhost']['share_path'] }}" # TODO: direct load vars omnia_config.yml
+slurm_support: "{{ hostvars['localhost']['slurm_support'] }}"
 slurm_share_prefix: "/"
 slurm_config_dir: etc/slurm
 slurm_dir_name: "slurm/"
@@ -89,6 +90,7 @@ db_packages:
       - mariadb-server
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
+
 # messages
 hosts_update_fail_msg: "Failed to update hosts file with node details.
  Remove unreachable IP addresses from slurm_node or login group of inventory and re-run the playbook."
@@ -99,3 +101,6 @@ intersect_validation_fail_msg: "Failed. Node mentioned in slurm_control_node gro
 utils_support: "{{ hostvars['localhost']['utils_support'] }}"
 software_config_json_file: "{{ input_project_dir }}/software_config.json"
 utils_packages_file: "{{ input_project_dir }}/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/utils.json"
+path_edit_msg: "Editing the bashrc failed, please manually source the /etc/environment for slurm"
+slurm_support_msg: "Slurm is not added in software_config, hence skipping slurm deployment"
+share_unavailable_msg: "Slurm install type is nfs_share, but share_path not available, hence skipping slurm deployment"

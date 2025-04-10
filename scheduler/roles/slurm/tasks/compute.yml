@@ -29,7 +29,7 @@
     - "{{ slurm_conf_dict['SrunPortRange'] }}"
 
 # file and directory permissions
-- name: Ensure directories - {{ item }}
+- name: Ensure directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
