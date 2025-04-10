@@ -1,0 +1,87 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+- name: Re-create pcs-start.sh with all container resources
+  ansible.builtin.template:
+    src: "{{ item.template }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ pcs_resource_script }}"
+
+- name: Remove the PCS resource finished file if it exists
+  ansible.builtin.file:
+    path: "{{ pcs_container_resources_shared_finished }}"
+    state: absent
+
+- name: Run the updated PCS resource script to create all container resources
+  containers.podman.podman_container_exec:
+    name: "{{ pcs_container_name }}"
+    command: "/bin/bash {{ pcs_resource_script_path }}"
+
+- name: Validate pcs-start script completed and the created PCS resources are started
+  block:
+    - name: Wait for pcs resource creation to complete
+      ansible.builtin.wait_for:
+        path: "{{ pcs_container_resources_shared_finished }}"
+        state: present
+        timeout: "{{ wait_time_pcs_start }}"
+        msg: "{{ pcs_start_failed_msg }}"
+      register: wait_result
+
+    - name: Add kubespray_name to pcs-resources if k8s_support is defined
+      ansible.builtin.set_fact:
+        pcs_resources: "{{ pcs_resources + [kubespray_name] }}"
+      when: hostvars['localhost']['k8s_support']
+
+    - name: Parse PCS resources for any that are not started
+      ansible.builtin.shell: |
+        set -o pipefail
+        cat {{ pcs_container_resources_shared_finished }} | grep "Stopped\|FAILED"
+      args:
+        executable: /bin/bash
+      register: improper_resources
+      failed_when: false
+      changed_when: false
+
+    - name: Fail if PCS any resource is stopped or failed
+      ansible.builtin.fail:
+        msg:
+          - "PCS resource(s) in an improper state: {{ improper_resources.stdout_lines }}"
+          - "{{ pcs_failed_resource_msg }}"
+      when: improper_resources.stdout_lines | default([]) | length > 0
+
+    - name: Parse all created PCS resources
+      ansible.builtin.shell: |
+        set -o pipefail
+        cat {{ pcs_container_resources_shared_finished }} | awk '{print $1}'
+      args:
+        executable: /bin/bash
+      register: resources
+      failed_when: false
+      changed_when: false
+
+    - name: Check if all pcs-start.sh resources were created
+      ansible.builtin.set_fact:
+        missing_resources: "{{ missing_resources | default([]) + [item] }}"
+      loop: "{{ pcs_resources }}"
+      when: item not in resources.stdout_lines
+
+    - name: Fail if any resources are missing
+      ansible.builtin.fail:
+        msg:
+          - "PCS resource(s) are missing: {{ missing_resources }}"
+          - "{{ pcs_failed_resource_msg }}"
+      when: missing_resources | default([]) | length > 0

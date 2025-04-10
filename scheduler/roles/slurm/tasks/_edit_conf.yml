@@ -16,17 +16,17 @@
   ansible.builtin.lineinfile:
     path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
     state: absent
-    line: "NodeName={{ item }}"
-    regexp: "^NodeName={{ item }} "
+    line: "NodeName={{ hostvars[item]['ansible_nodename'] | split('.') | first }}"
+    regexp: "^NodeName={{ hostvars[item]['ansible_nodename'] | split('.') | first }} "
   register: node_check
   check_mode: true
-  loop: "{{ slurm_node_list }}"
+  loop: "{{ groups['slurm_node'] }}"
 
 - name: Insert node only if not exists
   ansible.builtin.lineinfile:
     path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
     state: present
-    line: "NodeName={{ hostvars[item.item]['inventory_hostname_short'] }}
+    line: "NodeName={{ hostvars[item.item]['ansible_nodename'] | split('.') | first }}
      CPUs={{ hostvars[item.item]['ansible_facts']['processor_nproc'] }}
      Sockets={{ hostvars[item.item]['ansible_facts']['processor_count'] }}
      CoresPerSocket={{ hostvars[item.item]['ansible_facts']['processor_cores'] }}
@@ -35,6 +35,10 @@
   register: node_check
   when: not item.changed
   loop: "{{ node_check.results }}"
+
+- name: Enable etc enviroment
+  ansible.builtin.shell: source {{ sys_env_path }} # noqa: command-instead-of-shell
+  changed_when: false
 
 - name: Get slurm info output slurm computes # Requires controller service running
   ansible.builtin.shell: >

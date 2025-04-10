@@ -261,16 +261,21 @@ def validate_default_lease_time(default_lease_time):
 
 
 def verify_iso_file(iso_file_path, provision_os, provision_os_version):
-    if (".iso" not in iso_file_path):
+    if ".iso" not in iso_file_path:
         return en_us_validation_msg.iso_file_path_not_contain_iso_msg
-    if not (
-        provision_os.lower() in iso_file_path.lower() and provision_os_version in iso_file_path
-    ):
+      
+    iso_path_lower = iso_file_path.lower()
+    os_name_matches = provision_os.lower() in iso_path_lower
+    version_matches = provision_os_version in iso_path_lower
+
+    if not (os_name_matches and version_matches):
         return en_us_validation_msg.iso_file_path_not_contain_os_msg(
             iso_file_path, provision_os, provision_os_version
         )
-    if not (verify_path(iso_file_path)):
+
+    if not verify_path(iso_file_path):
         return en_us_validation_msg.iso_file_path_fail_msg
+
     return ""
 
 

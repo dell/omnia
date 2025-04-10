@@ -31,7 +31,7 @@
 
 - name: Determine layer
   ansible.builtin.set_fact:
-    layer: "{{ 'first' if 'first_layer' in ansible_run_tags else 'default' }}"
+    layer: "{{ 'first' if 'management_layer' in ansible_run_tags else 'default' }}"
 
 - name: Fetch composable roles data
   fetch_roles_config:

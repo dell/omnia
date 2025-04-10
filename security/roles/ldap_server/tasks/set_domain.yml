@@ -12,11 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Get path env
+  ansible.builtin.shell: echo $PATH # noqa: command-instead-of-shell
+  changed_when: false
+  register: path_out
+
+- name: Get path env
+  ansible.builtin.set_fact:
+    env_path_list: "{{ (path_out.stdout | split(':') | reject('search', 'openldap') | list) }}"
 
 - name: Adding the path in the bashrc files
   ansible.builtin.lineinfile:
     path: "{{ env_var_path }}"
-    line: "export PATH=/usr/local/openldap/sbin:/usr/local/openldap/bin:$PATH"
+    line: "export PATH=/usr/local/openldap/sbin:/usr/local/openldap/bin:{{ env_path_list | join(':') }}"
     insertafter: EOF
     state: present
 

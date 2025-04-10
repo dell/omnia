@@ -200,10 +200,11 @@ spec:
       initContainers:
         - name: install-multus-binary
           image: {{ pulp_container_name }}/k8snetworkplumbingwg/multus-cni:{{ multus_version }}
-          command:
-            {% for cmd in multus_command %}
-            - "{{ cmd }}"
-            {% endfor %}
+          command: 
+            - "cp"
+            - "-f"
+            - "/usr/src/multus-cni/bin/multus-shim"
+            - "/host/opt/cni/bin/multus-shim"
           resources:
             requests:
               cpu: "10m"

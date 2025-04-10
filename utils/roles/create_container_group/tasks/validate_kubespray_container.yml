@@ -20,7 +20,7 @@
 
 - name: Check if kubespray container is present
   ansible.builtin.fail:
-    msg: "{{ prepare_oim_not_executed_msg }}"
+    msg: "{{ prepare_oim_kubespray_not_executed_msg }}"
   when: kubespray_container_status.containers | length == 0
 
 - name: Kubespray container status

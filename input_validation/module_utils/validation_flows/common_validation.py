@@ -166,12 +166,12 @@ def validate_security_config(input_file_path, data, logger, module, omnia_base_d
     errors = []
     passwordless_ssh_config_file_path = create_file_path(input_file_path, file_names["passwordless_ssh_config"])
     passwordless_ssh_config_json = validation_utils.load_yaml_as_json(passwordless_ssh_config_file_path, omnia_base_dir, project_name, logger, module)
-    
+
     authentication_type = passwordless_ssh_config_json["authentication_type"]
 
     if authentication_type == "ldap":
-        mandatory_fields = ["ldap_connection_type", "openldap_db_username", "openldap_db_password", 
-                            "openldap_config_username", "openldap_config_password", "openldap_monitor_password", 
+        mandatory_fields = ["ldap_connection_type", "openldap_db_username", "openldap_db_password",
+                            "openldap_config_username", "openldap_config_password", "openldap_monitor_password",
                             "openldap_organization", "openldap_organizational_unit"]
         check_mandatory_fields(mandatory_fields, data, errors)
     elif authentication_type == "freeipa":
@@ -219,18 +219,18 @@ def validate_storage_config(input_file_path, data, logger, module, omnia_base_di
 
 def validate_high_availability_config(input_file_path, data, logger, module, omnia_base_dir, project_name):
     errors = []
-    
+
     def validate_ha_config(ha_data, mandatory_fields, errors, config_type=None):
         try:
             check_mandatory_fields(mandatory_fields, ha_data, errors)
-            
+
             # Special handling for OIM HA
             if config_type == "oim_ha":
                 # Validate NFS share
                 if 'nfs_share' in ha_data:
                     nfs_data = ha_data['nfs_share'][0] if isinstance(ha_data['nfs_share'], list) else ha_data['nfs_share']
                     check_mandatory_fields(["server_ip", "server_share_path"], nfs_data, errors)
-                
+
                 # Validate passive nodes with detailed node information
                 if 'passive_nodes' in ha_data:
                     node_details_fields = ["SERVICE_TAG", "HOSTNAME", "ADMIN_MAC", "ADMIN_IP", "BMC_IP"]
@@ -242,18 +242,18 @@ def validate_high_availability_config(input_file_path, data, logger, module, omn
             elif 'passive_nodes' in ha_data:
                 for passive_node in ha_data['passive_nodes']:
                     check_mandatory_fields(["node_service_tags"], passive_node, errors)
-                    
+
         except KeyError as e:
             logger.error(f"Missing key in HA data: {e}")
             errors.append(f"Missing key in HA data: {e}")
-    
+
     ha_configs = [
         ("oim_ha", ["virtual_ip_address", "active_node_service_tag", "passive_nodes", "nfs_share"]),
         ("service_node_ha", ["service_nodes"]),
         ("slurm_head_node_ha", ["virtual_ip_address", "active_node_service_tags", "passive_nodes"]),
         ("k8s_head_node_ha", ["virtual_ip_address", "active_node_service_tags"])
     ]
-    
+
     for config_name, mandatory_fields in ha_configs:
         ha_data = data.get(config_name)
         if ha_data:
@@ -267,7 +267,7 @@ def validate_high_availability_config(input_file_path, data, logger, module, omn
                     validate_ha_config(ha_data, mandatory_fields, errors, config_type=config_name)
         else:
             logger.warning(f"Configuration for {config_name} not found.")
-    
+
     return errors
 
 # for k8s_access_config.yml and passwordless_ssh_config.yml this is run
@@ -328,6 +328,10 @@ def validate_server_spec(input_file_path, data, logger, module, omnia_base_dir, 
     server_spec_nicnetworks = []
     network_spec_networks = []
 
+    # Early return if Categories are None or empty
+    if server_groups is None:
+        return errors
+
     network_spec_file_path = create_file_path(input_file_path, file_names["network_spec"])
     network_spec_json = validation_utils.load_yaml_as_json(network_spec_file_path, omnia_base_dir, project_name, logger, module)
 
@@ -344,7 +348,7 @@ def validate_server_spec(input_file_path, data, logger, module, omnia_base_dir, 
                             if 'nicdevices' in network_value:
                                 if not network_key.startswith(network_value.get('nicdevices')):
                                     errors.append(create_error_msg(f'{network_key}', None, en_us_validation_msg.server_spec_network_key_fail_msg(network_value['nicdevices'])))
-                                    
+
     # Collecting network_spec nicnetwork names
     for key, network in network_spec_json.items():
         for nw in network:
@@ -362,7 +366,7 @@ def get_admin_bmc_networks(input_file_path, logger, module, omnia_base_dir, proj
     network_spec_file_path = create_file_path(input_file_path, file_names["network_spec"])
     network_spec_json = validation_utils.load_yaml_as_json(network_spec_file_path, omnia_base_dir, project_name, logger, module)
     admin_bmc_networks = {}
-    
+
     for network in network_spec_json["Networks"]:
         for key, value in network.items():
             if key in ["admin_network", "bmc_network"]:
@@ -384,18 +388,18 @@ def validate_omnia_config(input_file_path, data, logger, module, omnia_base_dir,
     pod_external_ip_range = data["pod_external_ip_range"]
     k8s_service_addresses = data["k8s_service_addresses"]
     k8s_pod_network_cidr = data["k8s_pod_network_cidr"]
-    
+
     run_intel_gaudi_tests = data["run_intel_gaudi_tests"]
     csi_powerscale_driver_secret_file_path = data["csi_powerscale_driver_secret_file_path"]
     csi_powerscale_driver_values_file_path = data["csi_powerscale_driver_values_file_path"]
-    
+
     #verify intel_gaudi with sofwate config json
     software_config_file_path = create_file_path(input_file_path, file_names["software_config"])
     software_config_json = json.load(open(software_config_file_path, "r"))
     softwares = software_config_json["softwares"]
     if contains_software(softwares, "intelgaudi") and not run_intel_gaudi_tests:
         errors.append(create_error_msg("run_intel_gaudi_tests", run_intel_gaudi_tests, en_us_validation_msg.intel_gaudi_fail_msg))
- 
+
     #verify csi with sofwate config json
     software_config_file_path = create_file_path(input_file_path, file_names["software_config"])
     software_config_json = json.load(open(software_config_file_path, "r"))
@@ -412,7 +416,7 @@ def validate_omnia_config(input_file_path, data, logger, module, omnia_base_dir,
     # Check IP range overlap between omnia IPs, admin network, and bmc network
     ip_ranges = [admin_static_range, bmc_static_range, admin_dynamic_range, bmc_dynamic_range, pod_external_ip_range, k8s_service_addresses, k8s_pod_network_cidr]
     does_overlap, _ = validation_utils.check_overlap(ip_ranges)
-    
+
     if does_overlap:
         errors.append(create_error_msg("IP overlap -", None, en_us_validation_msg.ip_overlap_fail_msg))
 
@@ -428,7 +432,7 @@ def validate_telemetry_config(input_file_path, data, logger, module, omnia_base_
     software_config_json = json.load(open(software_config_file_path, "r"))
     # Check that telemetry is present in software_config.json and if at least one of the telemetry_supoort var is true, check that these fields are not empty
     softwares = software_config_json["softwares"]
-    
+
     if contains_software(softwares, "telemetry"):
         if idrac_telemetry_support or omnia_telemetry_support or visualization_support:
             mandatory_fields = ["pod_external_ip_range", "k8s_cni", "k8s_service_addresses", "k8s_pod_network_cidr", "timescaledb_user", "timescaledb_password"]
@@ -476,7 +480,7 @@ def validate_telemetry_config(input_file_path, data, logger, module, omnia_base_
     prometheus_gaudi_support = data["prometheus_gaudi_support"]
     k8s_prometheus_support = data["k8s_prometheus_support"]
     prometheus_scrape_interval = data["prometheus_scrape_interval"]
-    
+
     if prometheus_gaudi_support:
         mandatory_fields = ["k8s_prometheus_support", "prometheus_scrape_interval"]
         check_mandatory_fields(mandatory_fields, data, errors)
@@ -496,7 +500,7 @@ def validate_telemetry_config(input_file_path, data, logger, module, omnia_base_
     pod_external_ip_range = data["pod_external_ip_range"]
     k8s_service_addresses = data["k8s_service_addresses"]
     k8s_pod_network_cidr = data["k8s_pod_network_cidr"]
-    
+
     ip_ranges = [admin_static_range, admin_dynamic_range, pod_external_ip_range, k8s_service_addresses, k8s_pod_network_cidr]
 
     does_overlap, overlap_ips = validation_utils.check_overlap(ip_ranges)

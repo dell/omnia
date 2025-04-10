@@ -291,70 +291,52 @@ def add_hostname_inventory(inventory_file: str, hostname: str) -> None:
         # Change the permission of the file to readonly
         os.chmod(inventory_file, 0o444)
 
-def add_group_details(node_info_db: tuple, groups_inventory) -> None:
+def generate_inventory_for_node(node_info_db: tuple) -> None:
     """
-    Adds group details to the groups_inventory dictionary.
+    generate_inventory_for_node: Generates the inventory file for the node based on the information in the database.
 
     Parameters:
         node_info_db (tuple): A tuple containing the service tag, admin IP, CPU, GPU, and hostname from the database.
-        groups_inventory (dict): A dictionary containing the groups and hosts.
-
+    
     Returns:
         None
     """
     try:
+       omnia_inventory_file = "/opt/omnia/omnia_inventory/cluster_layout"
+        # Read the inventory file
+       if not os.path.exists(omnia_inventory_file):
+       # Create a new file if it doesn't exist
+          with open(omnia_inventory_file, 'w+') as file:
+             existing_inventory = file.read()
+       else:
+          # Open the file in read mode if it exists
+          with open(omnia_inventory_file, 'r') as file:
+             existing_inventory = file.read()
+
        # unpacking
        hostname, roles_name = node_info_db[8], node_info_db[9]
        roles_list = roles_name.strip().split(",")
        for group in roles_list:
            group = group.strip()
-           if group not in groups_inventory:
-               groups_inventory[group] = []
-           if hostname not in groups_inventory[group]:
-               groups_inventory[group].append(hostname)
-
-    except Exception as e:
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:add_group_details: Exception occurred: {str(type(e))} {str(e)}")
-
-def generate_inventory(groups_inventory: tuple) -> None:
-    """
-    Generates the inventory file based on the groups and hosts.
-
-    Parameters:
-        groups_inventory (tuple): A tuple containing the groups and hosts.
-
-    Returns:
-        None
-
-    Raises:
-        Exception: If an error occurs while writing the inventory file.
-    """
-    try:
-        omnia_inventory_file = "/opt/omnia/omnia_inventory/cluster_layout"
-        # Read the inventory file
-        with open(omnia_inventory_file, 'w+') as file:
-            existing_inventory = file.read()
-
-        # Add the new groups and hosts to the existing inventory
-        for group, hosts in groups_inventory.items():
-            if group not in existing_inventory:
+           if group in existing_inventory:
+                existing_inventory += f"{hostname}\n"
+           elif group not in existing_inventory:
                 existing_inventory += f"\n[{group}]\n"
-            for host in hosts:
-                existing_inventory += f"{host}\n"
+                existing_inventory += f"{hostname}\n"
 
         # Write the updated inventory back to the file
-        with open(omnia_inventory_file, 'w') as file:
-            file.write(existing_inventory)
+       with open(omnia_inventory_file, 'w') as file:
+           file.write(existing_inventory)
 
     except FileNotFoundError:
         # Print an error message if the file is not found
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory: File not found:", omnia_inventory_file)
+        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory_for_node: File not found:", omnia_inventory_file)
     except PermissionError:
         # Print an error message if the file cannot be accessed due to insufficient permissions
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory: Permission denied:", omnia_inventory_file)
+        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory_for_node: Permission denied:", omnia_inventory_file)
     except Exception as e:
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory: Exception occurred: {str(type(e))} {str(e)}")
-
+        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory_for_node: Exception occurred: {str(type(e))} {str(e)}")
+     
 def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:
     """
 	Update the inventory files based on the changes in the node information.

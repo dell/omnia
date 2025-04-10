@@ -61,11 +61,16 @@
   vars:
     oim_group: true
 
-- name: Read network_spec and omnia_credentials vars
+- name: Read high availability, network_spec, and omnia_credentials vars
   hosts: localhost
   connection: local
   gather_facts: true
   tasks:
+    - name: Read high availability vars
+      ansible.builtin.include_role:
+        name: pulp_validation
+        tasks_from: validate_high_availability.yml
+
     - name: Read network_spec vars
       ansible.builtin.include_role:
         name: pulp_validation

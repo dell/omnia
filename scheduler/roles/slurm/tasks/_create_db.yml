@@ -80,8 +80,8 @@
 
 - name: Add ansible db user
   community.mysql.mysql_user:
-    login_user: "{{ slurm_db_username_default }}"
-    login_password: "{{ slurm_db_password }}"
+    login_user: "root"
+    login_password: "" # blank first time
     name: "{{ slurm_db_username }}"
     password: "{{ slurm_db_password }}"
     host: "localhost"

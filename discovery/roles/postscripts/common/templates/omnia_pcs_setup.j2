@@ -67,6 +67,7 @@ fi
 echo "{{ nfs_server_ip }}:{{ nfs_server_share_path }} {{ oim_shared_path }} nfs nosuid,rw,sync,hard,intr" >> /etc/fstab
 {% endif %}
 
+podman load -i {{ container_images_path }}
 # Start the pcs container
 sudo sudo systemctl start omnia_pcs
 echo "$(date) - INFO - Finished OIM Passive node setup" >> "$LOGFILE"

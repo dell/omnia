@@ -19,14 +19,15 @@
   register: refresh_mounts
   ignore_errors: true
   changed_when: refresh_mounts.rc == 0
+  when: slurm_installation_type == nfs_share_slurm
 
 - name: Update hosts file for all slurm groups
   block:
     - name: Update hosts file for all slurm groups
       ansible.builtin.lineinfile:
         dest: "{{ hosts_file_dest }}"
-        line: "{{ hostvars[item]['ansible_default_ipv4']['address'] }} {{ hostvars[item]['ansible_nodename'] | split('.') | first }}
-         {{ hostvars[item]['ansible_fqdn'] }}"
+        line: "{{ hostvars[item]['ansible_default_ipv4']['address'] }} {{ hostvars[item]['ansible_fqdn'] }}
+         {{ hostvars[item]['ansible_nodename'] | split('.') | first }}"
         state: present
         create: true
         mode: "{{ hosts_file_mode }}"
@@ -61,11 +62,32 @@
     owner: root
     group: root
     mode: "{{ common_mode }}"
-  when: (slurm_installation_type == 'nfs_share')
+  when: (slurm_installation_type == nfs_share_slurm)
   run_once: true
 
 - name: Install and configure munge
   ansible.builtin.include_tasks: _munge.yml
+
+- name: Edit out the PATH config for nfs_share
+  when: (slurm_installation_type == nfs_share_slurm)
+  block:
+    - name: Comment line beginning with PATH= in /etc/bashrc
+      ansible.builtin.lineinfile:
+        path: "/etc/bashrc"
+        regexp: '^PATH=.*'
+        line: '# \g<0>'
+        backrefs: true
+
+    - name: Comment line beginning with export PATH= in /root/.bashrc
+      ansible.builtin.lineinfile:
+        path: "/root/.bashrc"
+        regexp: '^export PATH=.*'
+        line: '# \g<0>'
+        backrefs: true
+  rescue:
+    - name: Edit out the PATH failure
+      ansible.builtin.debug:
+        msg: "{{ path_edit_msg }}"
 
 - name: Slurm dict ops
   ansible.builtin.set_fact:

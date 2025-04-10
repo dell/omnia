@@ -86,6 +86,7 @@
         path: "{{ slurmd_service_path }}"
         section: Unit
         option: ConditionPathExists
+        state: absent
         value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
         mode: "{{ conf_file_mode }}"
       notify:

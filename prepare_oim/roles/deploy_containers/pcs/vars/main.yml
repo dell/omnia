@@ -13,6 +13,7 @@
 # limitations under the License.
 ---
 
+# Usage: deploy_pcs_container.yml
 pcs_image_name: "omnia_pcs"
 pcs_image_tag: "latest"
 pcs_container_name: "omnia_pcs"
@@ -28,12 +29,14 @@ pcs_directories:
   - { path: "{{ pcs_container_dir }}", mode: "{{ read_write_execute_mode }}" }
   - { path: "{{ container_systemd_dir }}", mode: "{{ read_write_mode }}" }
 
-migration_threshold: 0
 pcs_startup_file:
   - {template: "pcs-start.sh.j2", dest: "{{ oim_shared_path }}/omnia/pcs/pcs-start.sh", mode: "{{ read_write_execute_mode }}" }
   - {template: "corosync.conf.j2", dest: "{{ oim_shared_path }}/omnia/pcs/corosync.conf", mode: "{{ read_write_mode }}" }
   - {template: "pcs-container.container.j2", dest: "{{ oim_shared_path }}/omnia/pcs/{{ pcs_container_name }}.container", mode: "{{ read_write_mode }}" }
   - {template: "pcs-container.container.j2", dest: "{{ container_systemd_dir }}/{{ pcs_container_name }}.container", mode: "{{ read_write_mode }}" }
+
+pcs_resource_script:
+  - {template: "pcs-container-resource-init.sh.j2", dest: "{{ oim_shared_path }}/omnia/pcs/pcs-start.sh", mode: "{{ read_write_execute_mode }}" }
 
 pcs_image_pull_fail_msg: >
   The pull of the provision image {{ pcs_image_name }}:{{ pcs_image_tag }} has failed.
@@ -42,10 +45,11 @@ pcs_image_pull_fail_msg: >
 pcs_image_not_found_msg: "The specified image {{ pcs_image_name }}:{{ pcs_image_tag }} is not found."
 
 wait_time: 10
+pcs_resource_script_path: "/opt/omnia/pcs/pcs-start.sh"
 pcs_volumes:
   - /etc/localtime:/etc/localtime:ro
   - /run/podman/podman.sock:/run/podman/podman.sock:ro
-  - "{{ pcs_container_dir }}/pcs-start.sh:/opt/omnia/pcs/pcs-start.sh"
+  - "{{ pcs_container_dir }}/pcs-start.sh:{{ pcs_resource_script_path }}"
   - "{{ pcs_container_dir }}/corosync.conf:/etc/corosync/corosync.conf{{ selinux_option }}"
   - "{{ pcs_container_log_dir }}:/var/log/cluster{{ selinux_option }}"
   - "{{ oim_shared_path }}/omnia:/opt/omnia{{ selinux_option }}"
@@ -59,12 +63,16 @@ pcs_container_failure_msg: |
 # Usage: pcs-start.sh.j2:Common
 omnia_nfs_share: "{{ oim_shared_path }}/omnia" # Define NFS share path
 oim_metadata_file: "{{ omnia_nfs_share }}/.data/oim_metadata.yml"
-monitor_interval: "60s"
+monitor_interval: "30s"
 monitor_timeout: "100s"
 start_interval: "0s"
 start_timeout: "20s"
 stop_interval: "0s"
 stop_timeout: "90s"
+
+migration_threshold: 0
+ha_migration_threshold: 1
+pcs_group: omnia
 
 # Usage: pcs-start.sh.j2: omnia_core
 omnia_core_name: "omnia_core"
@@ -140,6 +148,8 @@ pcs_resources:
   - "{{ omnia_core_name }}"
 pcs_start_container_finished: "/opt/omnia/pcs/pcs-start.finished"
 pcs_start_shared_finished: "{{ pcs_container_dir }}/pcs-start.finished"
+pcs_container_resources_finished: "/opt/omnia/pcs/pcs-resources.finished"
+pcs_container_resources_shared_finished: "{{ pcs_container_dir }}/pcs-resources.finished"
 wait_time_pcs_start: 200
 pcs_start_failed_msg: "pcs-start.sh execution failed."
 pcs_failed_resource_msg: |

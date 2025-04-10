@@ -13,17 +13,15 @@
 #  limitations under the License.
 ---
 
-- name: Service node serial
-  ansible.builtin.debug:
-    msg: "{{ hostvars[inventory_hostname]['service_tag'] }}"
-    verbosity: 2
+- name: Set virtual IP as admin IP if OIM high availability is enabled
+  when:
+    - hostvars['localhost']['enable_oim_ha'] | default(false)
+    - hostvars['localhost']['vip_status'] | default(false)
+  block:
+    - name: Set original_admin_nic_ip
+      ansible.builtin.set_fact:
+        original_admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
 
-- name: Set fact hierarchical_service_node_data
-  ansible.builtin.set_fact:
-    hierarchical_service_node_data: "{{ hostvars['omnia_provision']['hierarchical_service_node_data'] }}"
-
-- name: Rename nic interface on service node
-  ansible.builtin.include_tasks: rename_service_node_nic.yml
-
-- name: Set Service node details to node object
-  ansible.builtin.include_tasks: set_service_node_details.yml
+    - name: Set admin_nic_ip
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.virtual_ip_address }}"

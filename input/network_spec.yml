@@ -1,4 +1,32 @@
 ---
+
+# This file is used to specify the network configuration.
+#
+# The variables in this file are divided into two sections: 'admin_network' and 'bmc_network'.
+# 'admin_network' is a mandatory field, essential for PXE boot and host communication."
+# 'bmc_network' is optional and must be specified only if dynamic bmc discovery is required.
+#
+# The 'admin_network' section contains the following variables:
+# - 'oim_nic_name': The name of the interface on the OIM server associated with the admin network.
+# - 'netmask_bits': The number of bits in the subnet mask.
+# - 'primary_oim_admin_ip': The admin IP address of the OIM server which is configured.
+# - 'static_range': The range of static IP addresses available on the admin network.
+# - 'dynamic_range': The range of dynamic IP addresses available on the admin network.
+# - 'correlation_to_admin': Whether the OIM server's BMC IP is correlated with the admin IP.
+# - 'admin_uncorrelated_node_start_ip': The IP address of the first node when correlation not generated for admin IP from static ranges.
+# - 'network_gateway': The gateway IP address of the admin network.
+# - 'DNS': The external DNS server IP address for the admin network. 
+# - 'MTU': Maximum Transmission Unit for the admin network.
+#
+# The 'bmc_network' section contains the following variables:
+# - 'oim_nic_name': The name of the interface on the OIM server associated with the BMC network.
+# - 'netmask_bits': The number of bits in the subnet mask.
+# - 'dynamic_range': The range of dynamic IP addresses available on the BMC network.
+# - 'dynamic_conversion_static_range': The range of static IP addresses that can be converted from dynamic IP addresses on the BMC network.
+# - 'reassignment_to_static': Whether the BMC IP addresses are reassigned to static IP addresses.
+# - 'network_gateway': The gateway IP address of the BMC network.
+# - 'MTU': Maximum Transmission Unit for the BMC network.
+
     Networks:
     - admin_network:
         oim_nic_name: "eno1"
@@ -22,8 +50,17 @@
         MTU: "1500"
 
 # **********************************************************************
-# Following are the templates for providing additional network details
-# If vlan creation is required ensure vlan name is provided in the format NIC.vlan_id(eth1.101) in server_spec.yml
+# Additional network configurations:
+# The following variables are applicable for additional networks:
+# - 'netmask_bits': The number of bits in the subnet mask.
+# - 'CIDR': Classless Inter-Domain Routing (CIDR) address and range. If this is provided, 'static_range' is not required.
+# - 'static_range': The range of static IP addresses available on the network. If this is provided, 'CIDR' is not required.
+# - 'network_gateway': The gateway IP address of the network.
+# - 'MTU': Maximum Transmission Unit for the network.
+# - 'VLAN': The virtual LAN (VLAN) ID for the network.
+#
+# NOTE: If vlan creation is required ensure vlan name is provided in the format NIC.vlan_id(eth1.101) in server_spec.yml
+#
 # **********************************************************************
 
 #    - nic_network1:

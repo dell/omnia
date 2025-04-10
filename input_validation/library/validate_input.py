@@ -318,8 +318,9 @@ def main():
                         error.message = en_us_validation_msg.invalid_location_id_msg
                     elif 'ports' in error_path:
                         error.message = en_us_validation_msg.invalid_switch_ports_msg
-                    elif 'is not of type' in error.message:
-                        error.message = en_us_validation_msg.invalid_attributes_role_msg
+                    # TODO: Add a syntax error message for roles
+                    # elif 'is not of type' in error.message:
+                    #     error.message = en_us_validation_msg.invalid_attributes_role_msg
                     error_msg = f"Validation Error at {error_path}: {error.message}"
 
                     # For passwords, mask the value so that no password values are logged

@@ -56,7 +56,7 @@
         name: "{{ kubespray_container_name }}"
         image: "{{ kubespray_image_name }}:{{ kubespray_image_tag }}"
         state: present
-        restart_policy: always
+        restart_policy: "no"
         hostname: "{{ kubespray_container_name }}"
         network_mode: host
         volumes: "{{ kubespray_volumes }}"

@@ -64,6 +64,7 @@
   ansible.posix.firewalld:
     port: "{{ slurm_dbd_port }}/tcp"
     permanent: true
+    zone: public
     state: enabled
     immediate: true
 
@@ -73,7 +74,7 @@
     dest: "{{ slurmdbd_service_default_path }}"
     remote_src: true
     mode: preserve
-  when: (slurm_installation_type == 'nfs_share') and _force_install_nfs
+  when: (slurm_installation_type == nfs_share_slurm) and _force_install_nfs
 
 - name: Enable the service
   ansible.builtin.systemd_service:
@@ -121,7 +122,7 @@
     owner: "{{ root_user }}"
     group: "{{ root_group }}"
     mode: "{{ conf_file_mode }}"
-  when: (slurm_installation_type == 'nfs_share') and _force_install_nfs
+  when: (slurm_installation_type == nfs_share_slurm) and _force_install_nfs
   notify:
     - Reload slurmdbd
     - Restart slurmdbd
@@ -135,13 +136,13 @@
     owner: "{{ root_user }}"
     group: "{{ root_group }}"
     mode: "{{ conf_file_mode }}"
-  when: (slurm_installation_type == 'configless') or not _force_install_nfs
+  when: (slurm_installation_type == configless_slurm) or not _force_install_nfs
   notify:
     - Reload slurmdbd
     - Restart slurmdbd
 
 - name: Set dbd symbolic links
-  when: slurm_installation_type == 'nfs_share'
+  when: slurm_installation_type == nfs_share_slurm
   block:
     - name: Create directory for symbolic link
       ansible.builtin.file:

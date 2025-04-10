@@ -144,15 +144,36 @@
       ansible.builtin.fail:
         msg: "{{ postgres_set_password_fail_msg }} Error: {{ postgresdb_config.module_error }}"
 
-- name: Ensure host entry exists in pg_hba.conf
-  ansible.builtin.lineinfile:
-    path: "{{ pg_hba_conf_path }}"
-    line: "host    all          all        {{ admin_nic_ip }}/32      md5"
-    state: present
-    insertafter: "^# IPv4 local connections:"
-    regexp: "^host\\s+all\\s+all\\s+{{ admin_nic_ip }}/32\\s+md5"
-  register: pg_hba_conf_admin_update
-  when: not pg_hba_conf_admin_update
+- name: Ensure host entries exists in pg_hba.conf
+  block:
+    - name: Add admin_nic_ip to pg_hba.conf
+      when: not pg_hba_conf_admin_update
+      ansible.builtin.lineinfile:
+        path: "{{ pg_hba_conf_path }}"
+        line: "host    all          all        {{ admin_nic_ip }}/32      md5"
+        state: present
+        insertafter: "^# IPv4 local connections:"
+        regexp: "^host\\s+all\\s+all\\s+{{ admin_nic_ip }}/32\\s+md5"
+      register: pg_hba_conf_admin_update
+
+    - name: Add original OIM admin IP to pg_hba.conf
+      when: hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.enable_oim_ha | default(false)
+      ansible.builtin.lineinfile:
+        path: "{{ pg_hba_conf_path }}"
+        line: "host    all          all        {{ hostvars['localhost']['original_admin_nic_ip'] }}/32      md5"
+        state: present
+        insertafter: "^# IPv4 local connections:"
+        regexp: "^host\\s+all\\s+all\\s+{{ hostvars['localhost']['original_admin_nic_ip'] }}/32\\s+md5"
+
+    - name: Add all passive OIM admin IPs to pg_hba.conf
+      when: hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.enable_oim_ha | default(false) and item.ADMIN_IP is defined
+      ansible.builtin.lineinfile:
+        path: "{{ pg_hba_conf_path }}"
+        line: "host    all          all        {{ item.ADMIN_IP }}/32      md5"
+        state: present
+        insertafter: "^# IPv4 local connections:"
+        regexp: "^host\\s+all\\s+all\\s+{{ item.ADMIN_IP }}/32\\s+md5"
+      loop: "{{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.passive_nodes.node_details | default([]) }}"
 
 - name: Restart PostgreSQL service
   ansible.builtin.systemd:

@@ -32,10 +32,14 @@
 # Port Config
 - name: Enable SlurmctldPort
   ansible.posix.firewalld:
-    port: "{{ slurm_conf_dict['SlurmctldPort'] }}/tcp"
+    port: "{{ item }}/tcp"
     permanent: true
+    zone: public
     state: enabled
     immediate: true
+  loop:
+    - "{{ slurm_conf_dict['SlurmctldPort'] }}"
+    - "{{ slurm_conf_dict['SrunPortRange'] }}"
 
 #  if service installed locally - this following copy not required
 - name: Copy the slurctld service local for both configless and nfs
@@ -44,7 +48,7 @@
     dest: "{{ slurmctld_service_default_path }}"
     remote_src: true
     mode: preserve
-  when: (slurm_installation_type == 'nfs_share') and _force_install_nfs
+  when: (slurm_installation_type == nfs_share_slurm) and _force_install_nfs
 
 - name: Enable the service
   ansible.builtin.systemd_service:
@@ -88,21 +92,6 @@
     - Reload slurmctld
     - Restart slurmctld
 
-- name: Add environment for nfs case
-  community.general.ini_file:
-    path: "{{ ctld_service_path }}"
-    section: Service
-    option: Environment
-    value: '"LD_LIBRARY_PATH={{ installroot }}usr/lib64/"'
-    no_extra_spaces: true
-    owner: "{{ root_user }}"
-    group: "{{ root_group }}"
-    mode: "{{ conf_file_mode }}"
-  when: (slurm_installation_type == 'nfs_share') and _force_install_nfs
-  notify:
-    - Reload slurmctld
-    - Restart slurmctld
-
 - name: Remove environment for configless case
   community.general.ini_file:
     path: "{{ ctld_service_path }}"
@@ -112,10 +101,28 @@
     owner: "{{ root_user }}"
     group: "{{ root_group }}"
     mode: "{{ conf_file_mode }}"
-  when: (slurm_installation_type == 'configless') or not _force_install_nfs
   notify:
     - Reload slurmctld
     - Restart slurmctld
+
+- name: Add environment for nfs case above Execstart
+  ansible.builtin.lineinfile:
+    path: "{{ ctld_service_path }}"
+    insertbefore: '^ExecStart='
+    line: 'Environment="LD_LIBRARY_PATH={{ slurm_share_prefix }}/usr/lib64/"'
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "{{ conf_file_mode }}"
+  when: (slurm_installation_type == nfs_share_slurm) and _force_install_nfs
+  notify:
+    - Reload slurmctld
+    - Restart slurmctld
+
+- name: Remove the local slurm conf
+  ansible.builtin.file:
+    path: "/{{ slurm_config_dir }}/slurm.conf"
+    state: absent
+  when: slurm_installation_type == nfs_share_slurm
 
 - name: Get path env
   ansible.builtin.shell: echo $PATH # noqa: command-instead-of-shell
@@ -144,7 +151,7 @@
     - "{{ ['LD_LIBRARY_PATH', false] }}"
 
 - name: Handle NFS envs
-  when: (slurm_installation_type == 'nfs_share') and _force_install_nfs
+  when: (slurm_installation_type == nfs_share_slurm) and _force_install_nfs
   block:
     - name: Set env special paths
       ansible.builtin.set_fact:
@@ -165,6 +172,20 @@
         - "{{ ['PATH', env_path_list] }}"
         - "{{ ['SLURM_CONF', env_slurm_conf] }}"
         - "{{ ['LD_LIBRARY_PATH', ld_library_path] }}"
+
+- name: Comment line beginning with PATH= in /etc/bashrc
+  ansible.builtin.replace:
+    path: "/etc/bashrc"
+    regexp: '^(PATH=.*)$'
+    replace: '# \1'
+    backup: true
+
+- name: Comment line beginning with export PATH= in /root/.bashrc
+  ansible.builtin.replace:
+    path: "/root/.bashrc"
+    regexp: '^(export PATH=.*)$'
+    replace: '# \1'
+    backup: true
 
 - name: Enable etc enviroment
   ansible.builtin.shell: source {{ sys_env_path }} # noqa: command-instead-of-shell

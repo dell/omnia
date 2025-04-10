@@ -11,19 +11,17 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+
 ---
 
-- name: Initialize variable
-  ansible.builtin.set_fact:
-    discovery_mech_dynamic_bmc: false
-
-- name: Assign value if config file exists
-  ansible.builtin.set_fact:
-    discovery_mech_dynamic_bmc: true
-  when:
-    - '"management_layer" not in ansible_run_tags'
-    - network_data.bmc_network.oim_nic_name | default('', true) | length > 0
-    - network_data.bmc_network.dynamic_conversion_static_range | length > 0
-    - network_data.bmc_network.dynamic_range | length > 0
-    - network_data.bmc_network.netmask_bits | int >= 1
-    - network_data.bmc_network.netmask_bits | int <= 32
+# Usage: main.yml
+images_directory_path: "{{ oim_shared_path }}/omnia/images"
+read_write_mode: "0644"
+container_tag: "latest"
+container_tar_file: "omnia_images.tar"
+kubespray_tag: "v2.27.0"
+container_images:
+  - "omnia_core:{{ container_tag }}"
+  - "omnia_pcs:{{ container_tag }}"
+  - "omnia_provision:{{ container_tag }}"
+  - "pulp:{{ container_tag }}"

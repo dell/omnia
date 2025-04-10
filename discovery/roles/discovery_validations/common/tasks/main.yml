@@ -30,10 +30,10 @@
     postgresdb_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
   no_log: true
 
-- name: Check if only first_layer tag is present
+- name: Check if only management_layer tag is present
   ansible.builtin.assert:
     that:
-      - ansible_run_tags | default(['all']) | intersect(['first_layer']) | length == 1
+      - ansible_run_tags | default(['all']) | intersect(['management_layer']) | length == 1
     fail_msg: "{{ ansible_tag_fail_msg }}"
   when: "'all' not in ansible_run_tags"
 

@@ -30,7 +30,7 @@
   failed_when: false
   changed_when: false
   when:
-    - '"first_layer" not in ansible_run_tags'
+    - '"management_layer" not in ansible_run_tags'
     - discovery_mech_dynamic_bmc
 
 - name: Delete the extra node objects

@@ -27,7 +27,6 @@ import parse_syslog
 import omniadb_connection
 
 node_details = {}
-groups_inventory = {}  # groups_inventory = {"kube_control_plane": ["hostname1", "hostname2"], "kube_node": ["hostname3", "hostname4"]}
 
 # MonitoringThread is a thread class which reads node details every 3 mins 
 # and updates the same to postgresSQL database.
@@ -142,7 +141,7 @@ def add_details_to_db():
             updated_node_info = parse_syslog.get_updated_cpu_gpu_info(node)     # Collects latest CPU & GPU details from computes.log file
             parse_syslog.update_db(cursor, node, updated_node_info)             # Updates DB with latest info.
             parse_syslog.update_inventory(node_info_db, updated_node_info)      # Updates inventory with latest info.
-            parse_syslog.add_group_details(node_info_db, groups_inventory)       # Updates group inventory with latest info.
+            parse_syslog.generate_inventory_for_node(node_info_db)       # Updates group inventory /opt/omnia/omnia_inventory/cluster_layout with latest info.
 
         if xcat_status is not db_status:
             sql_update_status = "Update cluster.nodeinfo set status = %s where node = %s"
@@ -155,7 +154,7 @@ def add_details_to_db():
         if not db_service_tag and xcat_service_tag:
             sql_serial = "Update cluster.nodeinfo set service_tag = %s where node = %s"
             cursor.execute(sql_serial, (xcat_service_tag, node))
-    parse_syslog.generate_inventory(groups_inventory)               # generates the inventory /opt/omnia/omnia_inventory/cluster_layout file
+
     conn.close()
 
 

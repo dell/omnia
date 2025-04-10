@@ -17,13 +17,11 @@
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
   tags: always
 
-- name: Create kubespray container group
+- name: Create provision container group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   vars:
-    omnia_kubespray_group: true
     omnia_provision_group: true
     omnia_provision_validation: true
-    omnia_kubespray_validation: true
   tags: always
 
 - name: Warning and User confirmation for removing slurm and kube node
@@ -74,6 +72,13 @@
   roles:
     - { role: remove_node/remove_slurm_node } # noqa: role-name[path]
 
+- name: Create kubespray container group
+  tags: kube_node
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    omnia_kubespray_group: true
+    omnia_kubespray_validation: true
+
 - name: Proceeding to remove kube node
   tags: kube_node
   hosts: omnia_provision
@@ -93,6 +98,7 @@
   tags: kube_node
   vars:
     node: "{{ hostvars['remove_nodes']['nodes_removing'] }}"
+    user_inventory_path: "{{ ansible_inventory_sources[0] }}"
     kubespray_nfs_share: "/opt/omnia/kubespray"
     kubespray_log_path: "/opt/omnia/log/kubespray/remove_kube_node.yml"
     dir_mode: '0755'
@@ -106,11 +112,20 @@
             dest: "{{ kubespray_nfs_share }}/remove_kube_node.yml"
             mode: "{{ dir_mode }}"
 
+        - name: Inventory provided ,copy user inventory to nfs share
+          ansible.builtin.copy:
+            src: "{{ user_inventory_path }}"
+            dest: "{{ kubespray_nfs_share }}/inv_remove_k8s"
+            mode: "{{ dir_mode }}"
+          when:
+            - user_inventory_path is defined
+            - (user_inventory_path | length > 0)
+
         - name: Execute ansible-playbook for Kubernetes add node asynchronously
           ansible.builtin.shell:
             cmd: >
               set -o pipefail &&
-              /venv/bin/ansible-playbook {{ kubespray_nfs_share }}/remove_kube_node.yml -i {{ kubespray_nfs_share }}/inv_k8s
+              /venv/bin/ansible-playbook {{ kubespray_nfs_share }}/remove_kube_node.yml -i {{ kubespray_nfs_share }}/inv_remove_k8s
               --extra-vars "@{{ kubespray_nfs_share }}/k8s_all_vars.yml"
               --extra-vars "node={{ node }}" -vvv | /usr/bin/tee {{ kubespray_log_path }}
           async: 3600  # Set async timeout (e.g., 1 hour)

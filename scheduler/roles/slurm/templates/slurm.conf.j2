@@ -2,7 +2,7 @@ ClusterName={{ cluster_name }}
 {% for host in groups['slurm_control_node'] %}
 SlurmctldHost={{ hostvars[host]['ansible_nodename'] | split('.') | first }}
 {% endfor %}
-{% if slurm_installation_type == "configless"  %}
+{% if slurm_installation_type == configless_slurm  %}
 {% set slurm_ctld_parameters = (slurm_ctld_parameters | default([]) ) + ['enable_configless'] %}
 {% endif %}
 {% if slurm_ctld_parameters | length > 0 %}

@@ -33,3 +33,8 @@
 - name: Set admin network nic and ip
   ansible.builtin.set_fact:
     pulp_server_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
+
+- name: Overwrite pulp IP with virtual IP if OIM high availability is enabled
+  ansible.builtin.set_fact:
+    pulp_server_ip: "{{ oim_ha_data.ansible_facts.oim_ha.virtual_ip_address }}"
+  when: oim_ha_data.ansible_facts.oim_ha.enable_oim_ha | default(false) and oim_ha_data.ansible_facts.oim_ha.virtual_ip_address is defined

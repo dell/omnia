@@ -58,7 +58,7 @@
     path: "{{ sys_env_path }}"
     option: SLURM_CONF
     value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
-    state: "{{ 'present' if (slurm_installation_type == 'nfs_share') else 'absent' }}"
+    state: "{{ 'present' if (slurm_installation_type == nfs_share_slurm) else 'absent' }}"
     no_extra_spaces: true
     mode: u=rw,g=r,o=r
 

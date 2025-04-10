@@ -16,6 +16,7 @@
   ansible.builtin.group:
     name: slurm
     state: present
+    gid: "{{ slurm_uid }}"
 
 - name: Add the user 'slurm' with uid 6001 and a primary group of 'slurm'
   ansible.builtin.user:

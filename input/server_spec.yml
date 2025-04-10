@@ -1,33 +1,24 @@
 ---
-Categories:
-  - category-1:
-      - network:
-          - ensp0:
-              nicnetwork: "nic_network1"
-              nictypes: "ethernet"
-              metric: 
-          - ensp0.5:
-              nicnetwork: "nic_network2"
-              nictypes: "vlan"
-              nicdevices: "ensp0"
-              metric: 
-      - os:
-          - kernel:
-              - cmdline: ""
-
-  - category-2:
-      - network:
-          - eno1:
-              nicnetwork: "nic_network1"
-              nictypes: "ethernet"
-
-# **********************************************************************
-# Following are the templates for providing additional network and OS details.
-# Users may include the `os` or `network` sections individually if only one
-# of them needs to be configured, or both together as well.
+# This file is used to specify the server configuration.
 #
-# - Use space (' ') as a delimiter in case of multiple parameters for cmdline.
-# **********************************************************************
+# The categories are defined as following sections:
+# - 'network': This section is used to specify the network configuration of the server. The value should be a dictionary, where the key is the
+#              interface name and the value is a dictionary of the interface specifications. The interface specifications should include the
+#              following keys:
+#              - 'nicnetwork': The network associated with this interface, which must be pre-defined in network_spec.yml
+#              - 'nictypes': Specify the interface type, which can be one of the following: ethernet, vlan, or infiniband.
+#              - 'metric': The interface metric. To use this configuration, ensure the gateway for the network is specified in network_spec.yml.
+#
+#   Note: When using VLAN, the interface name should be in the format `interface.vlan_id` (e.g. enp2s0.10) or `vlan.id` (e.g. vlan.10)
+#
+# - 'os': This section is used to specify the OS specific settings.
+#         The OS specifications should include the following keys:
+#         - 'kernel': The kernel specific parameters. The value should be a dictionary, where the key is 'cmdline' and the
+#                     value is a string of the kernel parameters. The kernel parameters should be provided as a
+#                     string and each parameter should be separated by a space (' ').
+#
+# Following are the templates for providing additional network and OS details.
+# Users may include the `os` or `network` sections individually if only one of them needs to be configured, or both together as well.
 #
 # Example for configuring only network settings:
 # Categories:
@@ -43,3 +34,27 @@ Categories:
 #       - os:
 #           - kernel:
 #               - cmdline: "iommu=pt intel_iommu=off pci=realloc=off processor.max_cstate=0 intel_idle.max_cstate=0 intel_pstate=disable"
+#
+# Note: To apply the specified configuration to the server, use the inventory format provided in examples/inventory/server_spec_inv.
+
+Categories:
+#   - category-1:
+#       - network:
+#           - ensp0:
+#               nicnetwork: "nic_network1"
+#               nictypes: "ethernet"
+#               metric:
+#           - ensp0.5:
+#               nicnetwork: "nic_network2"
+#               nictypes: "vlan"
+#               nicdevices: "ensp0"
+#               metric:
+#       - os:
+#           - kernel:
+#               - cmdline: ""
+
+#   - category-2:
+#       - network:
+#           - eno1:
+#               nicnetwork: "nic_network1"
+#               nictypes: "ethernet"

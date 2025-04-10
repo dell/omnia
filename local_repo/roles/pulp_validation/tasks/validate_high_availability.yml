@@ -29,15 +29,3 @@
   ansible.builtin.set_fact:
     oim_ha_data: "{{ high_availability_config | default({}) | combine({item.key: item.value}) }}"
   with_dict: "{{ oim_ha }}"
-
-- name: Set high_availability_status
-  ansible.builtin.set_fact:
-    enable_oim_ha: "{{ high_availability_config.ansible_facts.oim_ha.enable_oim_ha | default(false) }}"
-
-- name: Set vip_status
-  ansible.builtin.set_fact:
-    vip_status: >-
-      {{
-        oim_ha_data.ansible_facts.oim_ha.virtual_ip_address is defined and
-        oim_ha_data.ansible_facts.oim_ha.virtual_ip_address | length > 1 | default(false)
-      }}

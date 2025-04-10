@@ -3,7 +3,7 @@
   "type": "object",
   "properties": {
     "oim_ha": {
-      "type": "array",
+      "type": "object",
       "items": {
         "type": "object",
         "properties": {
@@ -167,7 +167,7 @@
       }
     },
     "service_node_ha": {
-      "type": "array",
+      "type": "object",
       "items": {
         "type": "object",
         "properties": {
@@ -273,7 +273,7 @@
       }
     },
     "slurm_head_node_ha": {
-      "type": "array",
+      "type": "object",
       "items": {
         "type": "object",
         "properties": {

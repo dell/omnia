@@ -128,7 +128,7 @@ cleanup_config(){
 
     # Remove the Omnia core configuration.
     echo -e "${BLUE} Removing Omnia core configuration.${NC}"
-    rm -rf $omnia_path/omnia/{hosts,input,log,offline_repo,omnia_inventory,pulp,provision,kubespray,pcs,services,shared_libraries,ssh_config,tmp,.data}
+    rm -rf $omnia_path/omnia/{hosts,input,log,offline_repo,omnia_inventory,pulp,provision,kubespray,pcs,services,shared_libraries,ssh_config,tmp,images,.data}
 
     # Unmount the NFS shared path if the share option is NFS.
     if [ "$share_option" = "NFS" ]; then
@@ -145,7 +145,7 @@ cleanup_config(){
             cp "$fstab_file" "$fstab_file.bak"
 
             # Remove the line from the fstab file.
-             sed -i "$omnia_path/d" "$fstab_file"
+             sed -i "\#$omnia_path#d" "$fstab_file"
              if [ $? -ne 0 ]; then
                 echo -e "${RED} Failed to remove the entry from /etc/fstab.${NC}"
             fi
@@ -505,6 +505,8 @@ setup_container() {
         echo -e "${GREEN} Omnia core container has been started.${NC}"
     else
         echo -e "${RED} Failed to start Omnia core container.${NC}"
+        echo -e "${RED} Make sure the Omnia core image is present.${NC}"
+        exit 1
     fi
 }
 

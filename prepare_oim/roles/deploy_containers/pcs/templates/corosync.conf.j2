@@ -16,14 +16,15 @@ nodelist {
     name: {{ oim_node_name }}
     nodeid: 1
   }
-{% if hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.enable_oim_ha %}
+{% if hostvars['localhost']['enable_oim_ha'] %}
 {%- for node_details in hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.passive_nodes.node_details %}
-  
+{% if node_details.ADMIN_IP is defined %}
   node {
     ring0_addr: {{ node_details.ADMIN_IP }}
     name: {{ node_details.HOSTNAME }}
     nodeid: {{ loop.index + 1 }}
   }
+{% endif %}
 {%- endfor %}
 {% endif %}
 

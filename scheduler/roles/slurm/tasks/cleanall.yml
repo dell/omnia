@@ -2,7 +2,7 @@
 # tasks file for slurm
 - name: Append share path if NFS
   ansible.builtin.set_fact:
-    slurm_share_prefix: "{{ share_path + '/' + slurm_dir_name if (slurm_installation_type == 'nfs_share') else '/' }}"
+    slurm_share_prefix: "{{ share_path + '/' + slurm_dir_name if (slurm_installation_type == nfs_share_slurm) else '/' }}"
 
 - name: Just force systemd to reread configs
   ansible.builtin.systemd_service:
@@ -11,6 +11,7 @@
 
 - name: Populate service facts
   ansible.builtin.service_facts:
+  no_log: true
 
 - name: Stop Services
   ansible.builtin.systemd_service:
@@ -33,12 +34,14 @@
   register: refresh_mounts
   ignore_errors: true
   changed_when: refresh_mounts.rc == 0
+  when: slurm_installation_type == nfs_share_slurm
 
 - name: Remove share slurm path
   ansible.builtin.file:
     path: "{{ share_path }}/{{ slurm_dir_name }}"
     state: absent
   run_once: true
+  when: slurm_installation_type == nfs_share_slurm
 
 - name: Remove files and folders
   ansible.builtin.file:

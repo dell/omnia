@@ -22,12 +22,14 @@
   ansible.builtin.package:
     name: firewalld
     state: present
+  when: use_firewall
 
 - name: Start and enable firewalld
   ansible.builtin.service:
     name: firewalld
     state: started
     enabled: true
+  when: use_firewall
 
 - name: Start and enable rpcbind and nfs-server service
   ansible.builtin.service:
@@ -56,13 +58,16 @@
 - name: Exporting the shared directories
   ansible.builtin.command: exportfs -r
   changed_when: true
+  when: use_firewall
 
 - name: Configuring firewall
   ansible.builtin.command: "firewall-cmd --permanent --add-service={{ item }}"
   changed_when: true
   with_items:
     - "{{ nfs_services }}"
+  when: use_firewall
 
 - name: Reload firewalld
   ansible.builtin.command: firewall-cmd --reload
   changed_when: true
+  when: use_firewall

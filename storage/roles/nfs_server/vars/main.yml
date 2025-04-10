@@ -22,3 +22,4 @@ nfs_services:
   - mountd
   - rpc-bind
   - nfs
+use_firewall: false # TODO: slurm nfs install is being blocked by firewall, this is a temporary workaround

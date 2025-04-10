@@ -21,6 +21,7 @@
   ansible.posix.firewalld:
     port: "{{ item }}/tcp"
     permanent: true
+    zone: public
     state: enabled
     immediate: true
   loop:
@@ -28,7 +29,7 @@
     - "{{ slurm_conf_dict['SrunPortRange'] }}"
 
 # file and directory permissions
-- name: Ensure directories - {{ item }}
+- name: Ensure directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory

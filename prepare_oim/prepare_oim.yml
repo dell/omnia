@@ -54,13 +54,34 @@
         name: deploy_containers/common
         tasks_from: add_known_hosts.yml
 
-- name: Deploy all container
+# - name: Validate high availability config
+#   ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+#   when: hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.enable_oim_ha | default(false)
+
+- name: Deploy the PCS container
   hosts: oim
   connection: ssh
   gather_facts: false
   tags: deploy_containers
   roles:
     - role: deploy_containers/common  # noqa:role-name[path]
+    - role: deploy_containers/pcs  # noqa:role-name[path]
+
+- name: Configure admin_ip with VIP if high availability is enabled
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Configure virtual IP as admin_ip task # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/common
+        tasks_from: set_vip.yml
+
+- name: Deploy all other containers
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags: deploy_containers
+  roles:
     - role: deploy_containers/provision  # noqa:role-name[path]
     - role: deploy_containers/pulp  # noqa:role-name[path]
     - role: deploy_containers/kubespray  # noqa:role-name[path]
@@ -102,14 +123,22 @@
         name: deploy_containers/provision
         tasks_from: configure_provision_container.yml
 
-# PCS container has to be deployed after all containers are deployed and configured
-- name: Deploy pcs container
+- name: Deploy PCS container resources
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Create all PCS container resources # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/pcs
+        tasks_from: deploy_pcs_container_resources.yml
+
+- name: Save container images to NFS share
   hosts: oim
   connection: ssh
   gather_facts: false
-  tags: deploy_containers
   roles:
-    - role: deploy_containers/pcs  # noqa:role-name[path]
+    - role: save_container_images
+      when: hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.enable_oim_ha and omnia_share_option == 'NFS'
 
 - name: Prepare oim completion
   hosts: localhost

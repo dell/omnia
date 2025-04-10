@@ -17,13 +17,11 @@
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
   tags: always
 
-- name: Create kubespray container group
+- name: Create provision container group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   vars:
-    omnia_kubespray_group: true
     omnia_provision_group: true
     omnia_provision_validation: true
-    omnia_kubespray_validation: true
   tags: always
 
 - name: Warning and User confirmation for removing cluster
@@ -50,6 +48,13 @@
   roles:
     - { role: remove_cluster/remove_slurm_cluster } # noqa: role-name[path]
 
+- name: Create kubespray container group
+  tags: k8s_cluster
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    omnia_kubespray_group: true
+    omnia_kubespray_validation: true
+
 - name: Proceeding to remove kubernets cluster
   tags: k8s_cluster
   hosts: localhost
@@ -62,6 +67,7 @@
   tags: k8s_cluster
   hosts: omnia_kubespray
   vars:
+    user_inventory_path: "{{ ansible_inventory_sources[0] }}"
     kubespray_nfs_share: "/opt/omnia/kubespray"
     kubespray_log_path: "/opt/omnia/log/kubespray/k8s_reset_cluster.log"
     dir_mode: '0755'
@@ -74,12 +80,21 @@
             dest: "{{ kubespray_nfs_share }}/reset_k8s_cluster.yml"
             mode: "{{ dir_mode }}"
 
+        - name: Inventory provided ,copy user inventory to nfs share
+          ansible.builtin.copy:
+            src: "{{ user_inventory_path }}"
+            dest: "{{ kubespray_nfs_share }}/inv_reset_k8s"
+            mode: "{{ dir_mode }}"
+          when:
+            - user_inventory_path is defined
+            - (user_inventory_path | length > 0)
+
         - name: Execute ansible-playbook for Kubernetes setup asynchronously
           ansible.builtin.shell:
             cmd: >-
               set -o pipefail &&
               /venv/bin/ansible-playbook {{ kubespray_nfs_share }}/reset_k8s_cluster.yml
-              -i {{ kubespray_nfs_share }}/inv_k8s
+              -i {{ kubespray_nfs_share }}/inv_reset_k8s
               --extra-vars "@{{ kubespray_nfs_share }}/k8s_all_vars.yml" -vvv
               | /usr/bin/tee {{ kubespray_log_path }}
           async: 3600  # Set async timeout (e.g., 1 hour)

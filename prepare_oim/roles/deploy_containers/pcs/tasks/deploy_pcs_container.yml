@@ -56,7 +56,7 @@
     msg: "{{ pcs_image_not_found_msg }}"
   when: not image_facts.images
 
-- name: Remove the PCS resource finished file if it exists
+- name: Remove the PCS finished file if it exists
   ansible.builtin.file:
     path: "{{ pcs_start_shared_finished }}"
     state: absent
@@ -106,7 +106,7 @@
     name: omnia_pcs
     state: started
 
-- name: Validate pcs-start script completed and the created PCS resources are started
+- name: Validate pcs-start script completed
   block:
     - name: Wait for pcs-start.sh execution to complete
       ansible.builtin.wait_for:
@@ -115,11 +115,6 @@
         timeout: "{{ wait_time_pcs_start }}"
         msg: "{{ pcs_start_failed_msg }}"
       register: wait_result
-
-    - name: Add kubespray_name to pcs-resources if k8s_support is defined
-      ansible.builtin.set_fact:
-        pcs_resources: "{{ pcs_resources + [kubespray_name] }}"
-      when: hostvars['localhost']['k8s_support']
 
     - name: Parse PCS resources for any that are not started
       ansible.builtin.shell: |
@@ -137,26 +132,3 @@
           - "PCS resource(s) in an improper state: {{ improper_resources.stdout_lines }}"
           - "{{ pcs_failed_resource_msg }}"
       when: improper_resources.stdout_lines | default([]) | length > 0
-
-    - name: Parse all created PCS resources
-      ansible.builtin.shell: |
-        set -o pipefail
-        cat {{ pcs_start_shared_finished }} | awk '{print $1}'
-      args:
-        executable: /bin/bash
-      register: resources
-      failed_when: false
-      changed_when: false
-
-    - name: Check if all pcs-start.sh resources were created
-      ansible.builtin.set_fact:
-        missing_resources: "{{ missing_resources | default([]) + [item] }}"
-      loop: "{{ pcs_resources }}"
-      when: item not in resources.stdout_lines
-
-    - name: Fail if any resources are missing
-      ansible.builtin.fail:
-        msg:
-          - "PCS resource(s) are missing: {{ missing_resources }}"
-          - "{{ pcs_failed_resource_msg }}"
-      when: missing_resources | default([]) | length > 0

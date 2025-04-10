@@ -49,12 +49,16 @@
         name: "{{ slurm_compute_packages[ansible_os_family] }}"
         state: present
 
-    - name: Enable SlurmdPort for login node # login
+    - name: Enable SlurmdPort
       ansible.posix.firewalld:
-        port: "{{ slurm_conf_dict['SlurmdPort'] }}/tcp"
+        port: "{{ item }}/tcp"
         permanent: true
+        zone: public
         state: enabled
         immediate: true
+      loop:
+        - "{{ slurm_conf_dict['SlurmdPort'] }}"
+        - "{{ slurm_conf_dict['SrunPortRange'] }}"
 
     - name: Enable the service
       ansible.builtin.service:

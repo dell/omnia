@@ -170,6 +170,11 @@
   any_errors_fatal: true
   roles:
     - slurm
+
+- name: Install Slurm_pam
+  hosts: slurm_node
+  any_errors_fatal: true
+  roles:
     - slurm_pam
 
 - name: Compile and install the ucx and openmpi on the nfs share of compute nodes

@@ -52,6 +52,7 @@ admin_nic_ip_success_msg: "IP '{{ admin_nic_ip }}' is assigned to NIC '{{ admin_
 # Usage: include_high_availability_config.yml
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
 ha_config_syntax_fail_msg: "Failed. Syntax errors present in high_availability_config.yml. Fix errors and re-run playbook again."
+ha_vip_address_fail_msg: "When k8s HA is enabled , provide k8s_head_node_ha.virtual_ip_address in high_availability_config.yml"
 
 # Usage: generate_k8s_vars.yml
 k8s_var_common_src: "../templates/common_vars_template.j2"

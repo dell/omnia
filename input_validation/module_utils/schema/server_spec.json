@@ -2,40 +2,41 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-      "Categories": {
-          "type": "array",
-          "items": {
-              "type": "object",
-              "patternProperties": {
-                  "^[a-zA-Z0-9_-]+$": {
-                      "type": "array",
-                      "items": {
-                          "type": "object",
-                          "properties": {
-                              "network": {
-                                  "type": "array",
-                                  "items": {
-                                      "type": "object",
-                                      "patternProperties": {
-                                          "^[a-zA-Z0-9_-]+$": {
-                                              "type": "object",
-                                              "properties": {
-                                                  "nicnetwork": { "type": "string" },
-                                                  "nictypes": { "type": "string" },
-                                                  "nicdevices": { "type": "string" },
-                                                  "metric": { "type": "string" }
-                                              },
-                                              "required": ["nicnetwork", "nictypes"],
-                                              "additionalProperties": false
-                                          }
-                                      }
-                                  }
-                              },
-                              "os": {
-                                  "type": "array",
-                                  "items": {
-                                      "type": "object",
-                                      "properties": {
+    "Categories": {
+        "type": ["array", "null"],
+        "default": [],
+        "items": {
+            "type": "object",
+            "patternProperties": {
+                "^[a-zA-Z0-9_-]+$": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "network": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "patternProperties": {
+                                        "^[a-zA-Z0-9_-]+$": {
+                                            "type": "object",
+                                            "properties": {
+                                                "nicnetwork": { "type": "string" },
+                                                "nictypes": { "type": "string" },
+                                                "nicdevices": { "type": "string" },
+                                                "metric": { "type": "string" }
+                                            },
+                                            "required": ["nicnetwork", "nictypes"],
+                                            "additionalProperties": false
+                                        }
+                                    }
+                                }
+                            },
+                            "os": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
                                         "kernel": {
                                             "type": "array",
                                             "items": {
@@ -48,18 +49,16 @@
                                             }
                                         }
                                     }
-
-                                  },
-                                  
-                                  "required": ["kernel"],
-                                  "additionalProperties": false
-                              }
-                          },
-                          "additionalProperties": false
-                      }
-                  }
-              }
-          }
-      }
+                                },
+                                "required": ["kernel"],
+                                "additionalProperties": false
+                            }
+                        },
+                        "additionalProperties": false
+                    }
+                }
+            }
+        }
+    }
   }
 }
