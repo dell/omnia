@@ -17,7 +17,6 @@
       "description": "Path of the ISO file to be used for provisioning the clusters"
     },
     "repo_config": {
-      "type": "string",
       "enum": ["always", "partial", "never"],
       "description": "Specifies how repository configurations are handled."
     },

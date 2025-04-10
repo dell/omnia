@@ -48,7 +48,7 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
     if oim_os.lower() != cluster_os_type.lower():
         errors.append(create_error_msg("oim_os", oim_os, en_us_validation_msg.os_type_fail_msg(cluster_os_type,oim_os)))
     
-    #check if os version is in specified range eg: rhel-9.4
+    #check if os version is in specified range eg: rhel-9.4 modify this for minor version check with pattern
     if cluster_os_type.lower() in os_version_ranges:
         version_range = os_version_ranges[cluster_os_type.lower()]
         if cluster_os_type.lower() in ["rhel"]:

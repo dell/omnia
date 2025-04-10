@@ -50,39 +50,45 @@
     },
     "rhel_os_url": {
       "type": "array",
-      "minProperties": 3,
-      "properties": {
-        "gpgkey": {
-          "type": "string",
-          "format": "uri",
-          "minLength": 1
-        },
-        "url": {
-          "type": "string",
-          "format": "uri",
-          "minLength": 1
-        },
-        "name": {
-          "type": "string",
-          "pattern": "^(?!\\s*$).+",
-          "minLength": 1
-        }
-      },
-      "required": ["gpgkey", "url", "name"]
+      "minItems": 1,
+      "items": {
+          "type": "object",
+          "properties": {
+          "gpgkey": {
+            "type": "string",
+            "format": "uri",
+            "minLength": 1,
+            "pattern": "^(?!\\s*$).+"  
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "minLength": 1,
+            "pattern": "^(?!\\s*$).+" 
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\s*$).+"  
+          }
+          },
+	    "required": ["gpgkey", "url", "name"],
+	    "additionalProperties": false
+      }
     },
     "omnia_repo_url_rhel": {
       "type": ["array", "null"],
       "items": {
         "type": "object",
         "properties": {
-          "url": {
+            "url": {
             "type": "string",
-            "format": "uri",
+            "pattern": "^https?:\\/\\/(?!\\s*$).+",
             "minLength": 1
           },
           "gpgkey": {
             "type": "string",
-            "format": "uri",
+            "pattern": "^https?:\\/\\/(?!\\s*$).+",
             "minLength": 1
           },
           "sslcacert": {
@@ -103,8 +109,7 @@
             "minLength": 1
           },
           "policy": {
-            "type": "string",
-            "pattern": "^(?:\\s*(?:always|partial|never)?\\s*)$"
+            "enum": ["always", "partial", "never", ""]
           }
         },
         "required": [

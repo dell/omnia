@@ -57,7 +57,7 @@ def createLogger(project_name, tag_name=None):
     if tag_name:
         log_filename = f"{tag_name}_validation_omnia_{project_name}.log"
     else:
-        log_filename = f"validation_omnia_{project_name}.log"
+        log_filename = f"validation_omnia_{tag_name}.log"
     logging.basicConfig(
         filename=log_filename,
         format="%(asctime)s %(message)s",

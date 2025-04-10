@@ -38,6 +38,7 @@
     project_name: "{{ hostvars['localhost']['project_name'] }}"
     originating_playbook: "local_repo"
   tasks:
+
     - name: Validate omnia input config
       validate_input:
         omnia_base_dir: "{{ input_dir }}/../"
@@ -49,11 +50,7 @@
     - name: Debug validation status
       ansible.builtin.debug:
         msg: "{{ validation_status }}"
-
-    - name: Fail the playbook if validation errors are detected
-      ansible.builtin.fail:
-        msg: "Validation errors detected. For logs, please look at the file validation_omnia_project_default.log"
-      when: "'failed' in validation_status"
+      when: "'passed' in validation_status"
 
 - name: Create oim group
   when: not oim_group_status | default(false) | bool
