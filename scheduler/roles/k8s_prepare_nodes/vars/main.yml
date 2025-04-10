@@ -28,3 +28,13 @@ Remove unreachable IP addresses from kube_node or etcd group of inventory and re
 invalid_nfs_share_path: "Failed. client_share_path: {{ share_path }} in nfs_client_params mentioned in storage_config.yml is not mounted.
 Configure NFS client by providing required inputs in nfs_client_params variable of storage_config.yml.
 Use one of client_share_path in nfs_client_params for usage of k8s in NFS share."
+
+# Usage: fetch_k8s_nodes.yml
+docker_login_fail_msg: "If repo_config: never, please check the credentials and re-execute playbook. Skip otherwise."
+k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
+
+# Usage: generate_k8s_vars.yml
+k8s_var_final_src: "final_template.j2"
+k8s_var_dest: "/opt/omnia/kubespray/k8s_all_vars.yml"
+file_permission: "0644"
+pulp_registry_port: "2225"

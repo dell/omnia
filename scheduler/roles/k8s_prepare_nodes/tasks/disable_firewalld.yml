@@ -1,4 +1,4 @@
-#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -11,10 +11,14 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 ---
-- name: Render vars file - k8s_all_vars.yml for kube version
-  ansible.builtin.template:
-    src: "{{ k8s_var_final_src }}"
-    dest: "{{ k8s_var_dest }}"
-    mode: "{{ file_permission }}"
+- name: Fetch latest service facts
+  ansible.builtin.service_facts:
+  no_log: true
+
+- name: Stop and disable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: stopped
+    enabled: false
+  when: "'firewalld.service' in ansible_facts['services'].keys()"

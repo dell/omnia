@@ -38,7 +38,3 @@
 
 - name: Include gather_facts playbook
   ansible.builtin.include_tasks: gather_fact_resolution.yml
-
-- name: Generate k8s var file
-  ansible.builtin.include_tasks: generate_k8s_vars.yml
-  when: hostvars['127.0.0.1']['k8s_support']

@@ -16,4 +16,3 @@ docker_image_repo: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry
 quay_image_repo: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
 docker_rh_repo_base_url: "{{ hostvars['localhost']['docker_rh_repo_base_url'] | default('') }}"
 docker_rh_repo_gpgkey: "{{ hostvars['localhost']['docker_rh_repo_gpgkey'] | default('') }}"
-

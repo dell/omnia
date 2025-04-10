@@ -16,6 +16,9 @@
 - name: Perform nerdctl login
   when: hostvars['127.0.0.1']['k8s_support']
   block:
+    - name: Generate k8s var file
+      ansible.builtin.include_tasks: generate_k8s_vars.yml
+
     - name: Copy docker login file
       ansible.builtin.include_tasks: docker_login.yml
 
@@ -24,3 +27,16 @@
 
     # - name: Validate share_path is NFS
     #   ansible.builtin.include_tasks: validate_share_path.yml
+
+    - name: Fetch the nodes where k8s is running
+      ansible.builtin.include_tasks: fetch_k8s_nodes.yml
+      when: '"kube_control_plane" in group_names'
+
+    - name: Disable firewalld
+      ansible.builtin.include_tasks: disable_firewalld.yml
+      when: '"kube_control_plane" in group_names'
+
+- name: Perform nerdctl login
+  when: not hostvars['127.0.0.1']['k8s_support']
+  ansible.builtin.debug:
+    msg: "k8s is not supported, skipping prepare nodes"

@@ -1,0 +1,64 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Validate k8s_support variable
+  when: k8s_support
+  block:
+    - name: Assert kubernetes cni
+      ansible.builtin.assert:
+        that:
+          - k8s_cni | default("", true) | length > 1
+          - "('calico' in k8s_cni) or ('flannel' in k8s_cni)"
+        success_msg: "{{ success_msg_k8s_cni }}"
+        fail_msg: "{{ fail_msg_k8s_cni }}"
+
+    - name: Assert pod external IP range
+      ansible.builtin.assert:
+        that:
+          - pod_external_ip_range | default("", true) | length > 9
+          - ("'/' in pod_external_ip_range") or ("'-' in pod_external_ip_range")
+        success_msg: "{{ success_msg_pod_external_ip_range }}"
+        fail_msg: "{{ fail_msg_pod_external_ip_range }}"
+
+    - name: Assert kubernetes service addresses
+      ansible.builtin.assert:
+        that:
+          - k8s_service_addresses | default("", true) | length > 9
+          - '"/" in k8s_service_addresses'
+        success_msg: "{{ success_msg_k8s_service_addresses }}"
+        fail_msg: "{{ fail_msg_k8s_service_addresses }}"
+
+    - name: Assert kubernetes pod network CIDR
+      ansible.builtin.assert:
+        that:
+          - k8s_pod_network_cidr | default("", true) | length > 9
+          - '"/" in k8s_pod_network_cidr'
+        success_msg: "{{ success_msg_k8s_pod_network_cidr }}"
+        fail_msg: "{{ fail_msg_k8s_pod_network_cidr }}"
+
+    - name: Assert kubernetes topology manager policy
+      ansible.builtin.assert:
+        that:
+          - topology_manager_policy | default("", true) | length > 1
+          - "topology_manager_policy in supported_topology_manager_policy"
+        success_msg: "{{ success_msg_k8s_toplogy_manager_policy }}"
+        fail_msg: "{{ fail_msg_k8s_toplogy_manager_policy }}"
+
+    - name: Assert kubernetes topology manager scope
+      ansible.builtin.assert:
+        that:
+          - topology_manager_scope | default("", true) | length > 1
+          - "topology_manager_scope in supported_topology_manager_scope"
+        success_msg: "{{ success_msg_k8s_toplogy_manager_scope }}"
+        fail_msg: "{{ fail_msg_k8s_toplogy_manager_scope }}"
