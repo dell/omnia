@@ -40,7 +40,7 @@
   when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
 
 - name: Gather facts from all the nodes
-  hosts: slurm_control_node, slurm_node, slurm_dbd, login, kube_control_plane, kube_node, etcd
+  hosts: login, kube_control_plane, kube_node, etcd
   gather_facts: true
 
 - name: Validate scheduler input parameters
@@ -59,12 +59,6 @@
     omnia_kubespray_group: true
     omnia_kubespray_validation: true
   when: hostvars['127.0.0.1']['k8s_support']
-
-- name: Prepare kube control plane for kubernetes installations
-  hosts: kube_control_plane
-  gather_facts: true
-  roles:
-    - k8s_manager
 
 - name: Prepare kube control plane, kube nodes and etcd for kubernetes installations
   hosts: kube_control_plane, kube_node, etcd
