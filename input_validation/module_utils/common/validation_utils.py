@@ -208,7 +208,6 @@ def validate_software_subgroup_config_file(files_list,software_config_json_file_
 
             # Extract filename without extension
             file_basename = os.path.splitext(os.path.basename(json_file_path))[0]
-            validation_results.append(("file_basename",file_basename, True))
 
             # Check if software name key exists
             if file_basename in json_data:
@@ -221,11 +220,9 @@ def validate_software_subgroup_config_file(files_list,software_config_json_file_
             subgroup_names = software_config.get(file_basename, [])
 
             subgroup_names = [item['name'] for item in subgroup_names if 'name' in item]
-            validation_results.append(("subgroup_names",subgroup_names))
 
             # Append the basename with subgroup
             subgroup_with_basename = subgroup_names + [file_basename]
-            validation_results.append(("subgroup_with_basename",subgroup_with_basename))
 
             # Loop over each item in subgroup_with_basename
             for subgroup_basename in subgroup_with_basename:
@@ -233,11 +230,9 @@ def validate_software_subgroup_config_file(files_list,software_config_json_file_
                     if 'cluster' in json_data[subgroup_basename]:
                         cluster_items = json_data[subgroup_basename]['cluster']
                         item_successes, item_failures = validate_cluster_items(cluster_items, json_file_path)
-                        validation_results.append("item_successes",item_successes)
                         failures.extend(item_failures)
 
         except json.JSONDecodeError:
-            validation_results.append((json_file_path, False))
             failures.append(f"Failed. JSON syntax error in file '{json_file_path}'.")
 
     return validation_results, failures

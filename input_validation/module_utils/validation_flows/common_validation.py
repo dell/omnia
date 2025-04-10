@@ -131,20 +131,20 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
     if failed_softwares:
         errors.append(create_error_msg("failed_softwares", failed_softwares, "failed_softwares"))
 
-    # Update software versions from software_config.json (softwares)
-    # software_versions: {'amdgpu_version': '6.3.1', 'cuda_version': '12.5.0', 'ofed_version': '24.10-1.1.4.0', 'k8s_version': '1.31.4'} 
-    software_versions = {}
-    for item in data.get("softwares", []):
-        if "version" in item:
-            software_versions[f"{item['name']}_version"] = item["version"]
+    # # Update software versions from software_config.json (softwares)
+    # # software_versions: {'amdgpu_version': '6.3.1', 'cuda_version': '12.5.0', 'ofed_version': '24.10-1.1.4.0', 'k8s_version': '1.31.4'} 
+    # software_versions = {}
+    # for item in data.get("softwares", []):
+    #     if "version" in item:
+    #         software_versions[f"{item['name']}_version"] = item["version"]
 
-    # Update software versions from software_config.json (custom)
-    for item in data.get("custom", []):
-        if "version" in item:
-            software_versions[f"{item['name']}_version"] = item["version"]
+    # # Update software versions from software_config.json (custom)
+    # for item in data.get("custom", []):
+    #     if "version" in item:
+    #         software_versions[f"{item['name']}_version"] = item["version"]
 
     validate_software_subgroup_config_file, failures= validation_utils.validate_software_subgroup_config_file(filtered_json_files_list,input_file_path)
-    errors.append(create_error_msg("validate_software_subgroup_config_file",validate_software_subgroup_config_file+failures,"validate_software_subgroup_config_file"))
+    errors.append(create_error_msg("Software config subgroup validation failed for",validate_software_subgroup_config_file+failures,"please resolve the issues first before proceeding."))
     
     
     return errors
