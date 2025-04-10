@@ -36,5 +36,4 @@ k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
 # Usage: generate_k8s_vars.yml
 k8s_var_final_src: "final_template.j2"
 k8s_var_dest: "/opt/omnia/kubespray/k8s_all_vars.yml"
-file_permission: "0644"
 pulp_registry_port: "2225"
