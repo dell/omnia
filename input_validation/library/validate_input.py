@@ -21,6 +21,7 @@ import logging
 import jsonschema
 import subprocess
 from ansible.module_utils.basic import AnsibleModule
+from prettytable import PrettyTable
 
 import sys
 # Get the absolute path to the "input_validation/module_utils/common" directory
@@ -43,27 +44,44 @@ import validation_utils
 import config
 import en_us_validation_msg
 
-def createLogger(project_name, tag_name=None):
+schema_errors=[]
+logical_validation_errors=[]
+
+def createLogger(project_name, tag_name,log_filename=None):
     """
     Creates a logger object for the given project name and tag name.
 
     Args:
         project_name (str): The name of the project.
         tag_name (str, optional): The name of the tag. Defaults to None.
+        if one tag name is there eg: local_repo log file name will be local_repo_input_validation.log
+        else for more than one tags log file name will be validation_omnia_{project_name}.log
 
     Returns:
         logging.Logger: The logger object.
     """
-    if tag_name:
-        log_filename = f"{tag_name}_validation_omnia_{project_name}.log"
+     # Determine tag based on type and number of tags
+    if isinstance(tag_name, list):
+        if len(tag_name) == 1:
+            tag = str(tag_name[0]).strip("[]'\"")
+        else:
+            tag = None  # Multiple tags, so we ignore tag
+    elif isinstance(tag_name, str):
+        tag = tag_name.strip("[]'\"")
+
+    # Determine log filename
+    if tag:
+        log_filename = f"input_validation_{tag}.log"
     else:
-        log_filename = f"validation_omnia_{tag_name}.log"
+        log_filename = f"input_validation_omnia.log"
+
+
     logging.basicConfig(
         filename=log_filename,
         format="%(asctime)s %(message)s",
         filemode="w"
     )
-    logger = logging.getLogger(tag_name if tag_name else project_name)
+    logger = logging.getLogger(tag if tag else project_name)
     logger.setLevel(logging.DEBUG)
     return logger
 
@@ -116,7 +134,7 @@ def main():
     validation_status = {}
     vstatus = []
 
-    logger = createLogger(project_name)
+    logger = createLogger(project_name,tag_names)
 
 ### Functions related to files, pathing, and verifying if they exist ###
 # Function to get all files of a specific type recursively from a directory
@@ -305,8 +323,11 @@ def main():
             # Validate the input file with the schema and output the errors
             validator = jsonschema.Draft7Validator(schema)
             errors = sorted(validator.iter_errors(input_data), key=lambda e: e.path)
+            
+            
 
             # if errors exist, then print an error with the line number
+            
             if errors:
                 for error in errors:
                     error_path = ".".join(map(str, error.path))
@@ -322,6 +343,7 @@ def main():
                     # elif 'is not of type' in error.message:
                     #     error.message = en_us_validation_msg.invalid_attributes_role_msg
                     error_msg = f"Validation Error at {error_path}: {error.message}"
+                    
 
                     # For passwords, mask the value so that no password values are logged
                     if (error.path[-1] in passwords_set):
@@ -331,6 +353,7 @@ def main():
                         error_msg = f"Validation Error at {error_path}: {' '.join(parts)}"
                     # For all other fields, just log the value
                     logger.error(error_msg)
+                    
 
                     # get the line number and log it
                     line_number, is_line_num = None, False
@@ -342,7 +365,14 @@ def main():
                     if line_number:
                         message = f"Error occurs on line {line_number}" if is_line_num else f"Error occurs on object or list entry on line {line_number}"
                         logger.error(message)
+                    
+                        
+                    schema_errors.append(error_msg)
+                        
                 logger.error(en_us_validation_msg.get_schema_failed(input_file_path))
+                
+                schema_errors.append(en_us_validation_msg.get_schema_failed(input_file_path))
+                
                 return False
             else:
                 logger.info(en_us_validation_msg.get_schema_success(input_file_path))
@@ -350,12 +380,15 @@ def main():
         except jsonschema.exceptions.SchemaError as se:
             message = f"Internal schema validation error: {se.message}"
             logger.error(message)
+           # schema_errors.append(message)
         except ValueError as ve:
             message = f"Value error: {ve}"
             logger.error(message)
+           # schema_errors.append(message)
         except Exception as e:
             message = f"An unexpected error occurred: {e}"
             logger.error(message)
+           # schema_errors.append(message)
 
     # Code to run the L2 validation validate_input_logic function.
     def validate_logic(input_file_path, logger, module, omnia_base_dir, project_name):
@@ -384,6 +417,7 @@ def main():
 
             # Print errors, if the error value is None then send a separate message.
             # This is for values where it did not have a single key as the error
+            schema_errors=[]
             if errors:
                 for error in errors:
                     error_key = error['error_key']
@@ -394,11 +428,14 @@ def main():
                     if error_value is None:
                         message = f"Validation Error at {error_key} {error_msg}"
                         logger.error(message)
+                        logical_validation_errors.append(message)
                     elif isinstance(error_value, str):
                         message = f"Validation Error at {error_key}: '{error_value}' {error_msg}"
+                        logical_validation_errors.append(message)
                         logger.error(message)
                     else:
                         message = f"Validation Error at {error_key}: {error_value} {error_msg}"
+                        logical_validation_errors.append(message)
                         logger.error(message)
 
                     # log the line number based off of the input config file extension
@@ -406,6 +443,7 @@ def main():
                         line_number, is_line_num = get_json_line_number(input_file_path, error_key)
                         if line_number:
                             message = f"Error occurs on line {line_number}" if is_line_num else f"Error occurs on object or list entry on line {line_number}"
+                            logical_validation_errors.append(message)
                             logger.error(message)
                     if "yml" in extension:
                         if error_value is None:
@@ -413,9 +451,11 @@ def main():
                         line_number, is_line_num = get_yml_line_number(input_file_path, error_key)
                         if line_number:
                             message = f"Error occurs on line {line_number}" if is_line_num else f"Error occurs on object or list entry on line {line_number}"
+                            logical_validation_errors.append(message)
                             logger.error(message)
 
                 logger.error(en_us_validation_msg.get_logic_failed(input_file_path))
+                logical_validation_errors.append(en_us_validation_msg.get_logic_failed(input_file_path))
                 return False
             else:
                 logger.info(en_us_validation_msg.get_logic_success(input_file_path))
@@ -485,7 +525,9 @@ def main():
                 raise FileNotFoundError(error_message)
 
             # Validate the schema of the input file (L1)
-            schema_status = validate_schema(input_file_path, schema_file_path)
+            
+            schema_status= validate_schema(input_file_path, schema_file_path)
+            
             # Append the validation status for the input file
             validation_status[project_name]["status"].append({input_file_path: "Passed" if schema_status else "Failed"})
             if len(tag_names) == 0:
@@ -519,9 +561,11 @@ def main():
                     raise FileNotFoundError(error_message)
 
                 # Validate the schema of the input file (L1)
+                
                 schema_status = validate_schema(input_file_path, schema_file_path)
                 # Validate the logic of the input file (L2)
                 logic_status = validate_logic(input_file_path, logger, module, omnia_base_dir, project_name)
+                
 
                 # Append the validation status for the input file
                 validation_status[project_name]["status"].append({input_file_path: "Passed" if (schema_status and logic_status) else "Failed"})
@@ -543,12 +587,21 @@ def main():
         tag = validation_status[project_name]['tag']
         failed_files = [file for item in status for file, result in item.items() if result == 'Failed']
         passed_files = [file.split("/")[-1] for item in status for file, result in item.items() if result == 'Passed']
+        schema_error_msgs = f"The schema errors: {schema_errors}."
+        logical_error_msgs = f"The logical errors: {logical_validation_errors}."
+        #table= validation_utils.create_error_tables(schema_errors)
+
+        logger.error(schema_error_msgs)
+        
+        logger.error(logical_error_msgs)
+        #error_table = validation_utils.format_errors_as_table(errors, input_file_path, extension)
         message = (
-            "Input validation failed for: %s input configuration(s). Validation passed for %s. "
-            "Tag(s) run: %s. Look at the logs for more details: filename=validation_omnia_%s.log"
-            % (failed_files, passed_files, tag, project_name)
+            f"SchemaInput validation failed for: {failed_files} input configuration(s). "
+            f"Validation passed for {passed_files}. Tag(s) run: {tag}. "
+           # f"Look at the logs for more details: filename={log_filename}\n"
+           # f"Errors:\n{error_table}"
         )
-        module.fail_json(msg=message)
+        module.fail_json(msg="Input Validation failed", table_output=table)
     else:
         message = (
             "Input validation completed for project: %s input configs. Look at the logs for more details: filename=validation_omnia_%s.log"

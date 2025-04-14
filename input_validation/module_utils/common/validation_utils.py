@@ -20,6 +20,7 @@ import yaml
 import en_us_validation_msg
 import config
 import json
+from prettytable import PrettyTable
 
 def get_os_type():
     with open("/etc/os-release") as f:
@@ -138,6 +139,47 @@ def decrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
         password_full_path,
     ]
     return run_subprocess(cmd)
+
+def create_error_tables(errors):
+    error_groups = {}
+    current_group = []
+
+    # Process the schema errors
+    for error in errors:
+        if error.startswith('##########') and error.endswith('##########'):
+            key = error[10:-10]
+            error_groups[key] = '\n'.join(current_group)
+            current_group=[]
+        else:
+            current_group.append(error)
+
+
+    # Create a PrettyTable
+    table = PrettyTable()
+
+    # Define the headers for the table
+    table.field_names = ["Heading", "Validation Status"]
+
+    # Add rows to the table
+    for heading, errors in error_groups.items():
+        table.add_row([heading, errors])
+        table.add_row(["", ""])
+
+    # Wrap the table string with asterisks
+    full_table = "\n" + ("*" * 90) + "\n"
+    full_table += str(table)
+    full_table += "\n" + ("*" * 80)
+
+    # Define the output file path
+    file_path = "/root/sakshi/omnia/xyz.txt"
+
+    # Write the table to a file
+    with open(file_path, 'w') as f:
+        f.write(str(full_table))
+
+    return full_table
+
+
 
 def validate_cluster_items(cluster_items, json_file_path):
     failures = []

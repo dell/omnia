@@ -144,7 +144,9 @@ def validate_software_config(input_file_path, data, logger, module, omnia_base_d
     #         software_versions[f"{item['name']}_version"] = item["version"]
 
     validate_software_subgroup_config_file, failures= validation_utils.validate_software_subgroup_config_file(filtered_json_files_list,input_file_path)
-    errors.append(create_error_msg("Software config subgroup validation failed for",validate_software_subgroup_config_file+failures,"please resolve the issues first before proceeding."))
+    
+    if failures:
+        errors.append(create_error_msg("Software config subgroup validation failed for",validate_software_subgroup_config_file+failures,"please resolve the issues first before proceeding."))
     
     
     return errors
