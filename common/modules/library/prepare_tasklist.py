@@ -17,8 +17,8 @@
 import os
 from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.standard_logger import setup_standard_logger
-from ansible.module_utils.software_utils import (
+from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
+from ansible.module_utils.local_repo.software_utils  import (
     validate_repo_mappings,
     get_software_names,
     check_csv_existence,
@@ -36,7 +36,7 @@ from ansible.module_utils.software_utils import (
 )
 
 # Import configuration constants individually (excluding fresh_installation_status)
-from ansible.module_utils.config import (
+from ansible.module_utils.local_repo.config import (
     CSV_FILE_PATH_DEFAULT,
     USER_JSON_FILE_DEFAULT,
     LOCAL_REPO_CONFIG_PATH_DEFAULT,

@@ -15,7 +15,7 @@
 import os
 import subprocess
 import json
-from ansible.module_utils.standard_logger import setup_standard_logger
+from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 
 # Function to execute a shell command
 def execute_command(cmd_string,logger,type_json=False):

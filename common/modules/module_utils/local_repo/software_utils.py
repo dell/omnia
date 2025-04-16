@@ -22,7 +22,7 @@ from jinja2 import Template
 import requests
 
 # Import default variables from config.py
-from ansible.module_utils.config import (
+from ansible.module_utils.local_repo.config import (
     PACKAGE_TYPES,
     CSV_COLUMNS,
     SOFTWARE_CONFIG_SUBDIR,

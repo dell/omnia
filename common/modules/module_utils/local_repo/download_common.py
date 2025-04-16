@@ -18,9 +18,9 @@ import shlex
 import tarfile
 import shutil
 from jinja2 import Template
-from ansible.module_utils.standard_logger import setup_standard_logger
-from ansible.module_utils.parse_and_download import write_status_to_file,execute_command
-from ansible.module_utils.config import (
+from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
+from ansible.module_utils.local_repo.parse_and_download import write_status_to_file,execute_command
+from ansible.module_utils.local_repo.config import (
     pulp_file_commands
 )
 

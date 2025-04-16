@@ -15,7 +15,7 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.standard_logger import setup_standard_logger
+from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 import json
 import logging
 import subprocess
@@ -25,10 +25,9 @@ import os
 import requests
 from datetime import datetime
 from functools import partial
-from ansible.module_utils.config import (
+from ansible.module_utils.local_repo.config import (
     pulp_rpm_commands
 )
-
 
 def execute_command(cmd_string, log,type_json=None, seconds=None):
     """

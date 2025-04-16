@@ -17,9 +17,11 @@
 import os
 import re
 from datetime import datetime
+from prettytable import PrettyTable
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.process_parallel import execute_parallel, log_table_output
-from ansible.module_utils.download_common import (
+
+from ansible.module_utils.local_repo.process_parallel import execute_parallel, log_table_output
+from ansible.module_utils.local_repo.download_common import (
     process_manifest,
     process_tarball,
     process_git,
@@ -28,18 +30,17 @@ from ansible.module_utils.download_common import (
     process_iso,
     process_pip
 )
-from ansible.module_utils.download_image import process_image
-from ansible.module_utils.download_rpm import process_rpm
-from ansible.module_utils.standard_logger import setup_standard_logger
-from prettytable import PrettyTable
+from ansible.module_utils.local_repo.download_image import process_image
+from ansible.module_utils.local_repo.download_rpm import process_rpm
+from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 
-from ansible.module_utils.software_utils import (
+from ansible.module_utils.local_repo.software_utils import (
     load_json,
     set_version_variables,
     get_subgroup_dict
 )
 
-from ansible.module_utils.config import (
+from ansible.module_utils.local_repo.config import (
     DEFAULT_NTHREADS,
     DEFAULT_TIMEOUT,
     LOG_DIR_DEFAULT,
@@ -53,7 +54,6 @@ from ansible.module_utils.config import (
     SOFTWARE_CSV_HEADER,
     STATUS_CSV_HEADER
 )
-
 
 def update_status_csv(csv_dir, software, overall_status):
     """

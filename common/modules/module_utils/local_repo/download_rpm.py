@@ -14,7 +14,7 @@
 
 import subprocess
 import os
-from ansible.module_utils.parse_and_download import write_status_to_file
+from ansible.module_utils.local_repo.parse_and_download import write_status_to_file
  
 def process_rpm(package, repo_store_path, status_file_path, cluster_os_type, cluster_os_version, logger):
     """
