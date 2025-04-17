@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.validate_utils import validate_certificates
+from ansible.module_utils.local_repo.validate_utils import validate_certificates
 
 def main():
     """

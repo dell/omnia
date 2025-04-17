@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.common_functions import decrypt_certificate, encrypt_certificate
+from ansible.module_utils.local_repo.common_functions import decrypt_certificate, encrypt_certificate
 
 def run_module():
     """

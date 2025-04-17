@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.common_functions import load_yaml_file, get_repo_list
-from ansible.module_utils.registry_utils import (
+from ansible.module_utils.local_repo.common_functions import load_yaml_file, get_repo_list
+from ansible.module_utils.local_repo.registry_utils import (
     validate_user_registry,
     check_reachability,
     find_invalid_cert_paths

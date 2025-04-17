@@ -1,6 +1,6 @@
 import os
 import yaml
-from ansible.module_utils.common_functions import (
+from ansible.module_utils.local_repo.common_functions import (
     load_yaml_file,
     get_repo_list,
 )

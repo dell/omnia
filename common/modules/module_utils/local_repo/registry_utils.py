@@ -1,5 +1,5 @@
 import requests
-from ansible.module_utils.common_functions import is_file_exists
+from ansible.module_utils.local_repo.common_functions import is_file_exists
 
 def validate_user_registry(user_registry):
     """
