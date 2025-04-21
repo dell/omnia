@@ -45,52 +45,18 @@ def is_file_exists(file_path):
     """
     return os.path.isfile(file_path)
 
-def decrypt_certificate(cert_path, vault_password_file):
-    """
-    Decrypts the given certificate file using Ansible Vault.
+def is_encrypted(file_path):
+    with open(file_path, 'r') as f:
+        first_line = f.readline()
+    return "$ANSIBLE_VAULT" in first_line
 
-    Args:
-        cert_path (str): The path to the certificate file.
-        vault_password_file (str): The path to the Ansible Vault password file.
+def run_vault_command(command, file_path, vault_key):
+    cmd = [
+        "ansible-vault",
+        command,
+        file_path,
+        "--vault-password-file", vault_key
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return result.returncode, result.stdout.strip(), result.stderr.strip()
 
-    Returns:
-        int: 1 if successful, 0 if failed.
-    """
-    if not os.path.exists(cert_path):
-        return 0
-
-    try:
-        subprocess.run(
-            ["ansible-vault", "decrypt", cert_path, "--vault-password-file", vault_password_file],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        return 1
-    except subprocess.CalledProcessError:
-        return 0
-
-def encrypt_certificate(cert_path, vault_password_file):
-    """
-    Encrypts the given certificate file using Ansible Vault.
-
-    Args:
-        cert_path (str): The path to the certificate file.
-        vault_password_file (str): The path to the Ansible Vault password file.
-
-    Returns:
-        int: 1 if successful, 0 if failed.
-    """
-    if not os.path.exists(cert_path):
-        return 0
-
-    try:
-        subprocess.run(
-            ["ansible-vault", "encrypt", cert_path, "--vault-password-file", vault_password_file],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        return 1
-    except subprocess.CalledProcessError:
-        return 0

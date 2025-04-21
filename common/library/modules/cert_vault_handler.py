@@ -1,77 +1,89 @@
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.local_repo.common_functions import decrypt_certificate, encrypt_certificate
+from ansible.module_utils.local_repo.common_functions import is_encrypted, run_vault_command
+import os
 
-def run_module():
-    """
-    Runs the Ansible module for certificate encryption and decryption.
+def process_file(file_path, vault_key, mode):
+    if not os.path.isfile(file_path):
+        return None, f"File not found: {file_path}"
 
-    This function takes in three parameters: action, cert_path, and vault_password_file.
-    The 'action' parameter specifies whether to encrypt or decrypt the certificate.
-    The 'cert_path' parameter is the path to the certificate file.
-    The 'vault_password_file' parameter is the path to the vault password file.
+    currently_encrypted = is_encrypted(file_path)
 
-    The function returns a dictionary containing the result of the operation.
-    The dictionary includes the following keys:
-    - changed: A boolean indicating whether the operation was successful.
-    - message: A string describing the result of the operation.
-    - status: An integer indicating the status of the operation.
-    """
-    module_args = {
-        "action": {
-            "type": "str",
-            "required": True,
-            "choices": ["encrypt", "decrypt"]
-        },
-        "cert_path": {
-            "type": "str",
-            "required": True
-        },
-        "vault_password_file": {
-            "type": "str",
-            "required": True,
-            "no_log": True
-        }
-    }
+    if mode == 'encrypt':
+        if currently_encrypted:
+            return False, f"Already encrypted: {file_path}"
+        else:
+            code, out, err = run_vault_command('encrypt', file_path, vault_key)
+            if code == 0:
+                return True, f"Encrypted: {file_path}"
+            else:
+                return False, f"Failed to encrypt {file_path}: {err}"
 
-    result = {
-        "changed": False,
-        "message": "",
-        "status": 0
-    }
+    elif mode == 'decrypt':
+        if not currently_encrypted:
+            return False, f"Already decrypted: {file_path}"
+        else:
+            code, out, err = run_vault_command('decrypt', file_path, vault_key)
+            if code == 0:
+                return True, f"Decrypted: {file_path}"
+            else:
+                return False, f"Failed to decrypt {file_path}: {err}"
 
+    return False, f"Invalid mode for {file_path}"
+
+def main():
     module = AnsibleModule(
-        argument_spec=module_args,
+        argument_spec=dict(
+            file_path=dict(type='str', required=False),
+            dir_path=dict(type='str', required=False),
+            vault_key=dict(type='str', required=True),
+            mode=dict(type='str', required=True, choices=['encrypt', 'decrypt'])
+        ),
+        mutually_exclusive=[['file_path', 'dir_path']],
+        required_one_of=[['file_path', 'dir_path']],
         supports_check_mode=False
     )
 
-    action = module.params['action']
-    cert_path = module.params['cert_path']
-    vault_password_file = module.params['vault_password_file']
+    file_path = module.params['file_path']
+    dir_path = module.params['dir_path']
+    vault_key = module.params['vault_key']
+    mode = module.params['mode']
 
-    if action == 'decrypt':
-        status = decrypt_certificate(cert_path, vault_password_file)
-        result['status'] = status
-        result['message'] = "Certificate decrypted successfully." if status == 1 else "Decryption failed. Please check the path or vault key."
+    if not os.path.isfile(vault_key):
+        module.fail_json(msg=f"Vault key file not found: {vault_key}")
 
-    elif action == 'encrypt':
-        status = encrypt_certificate(cert_path, vault_password_file)
-        result['status'] = status
-        result['message'] = "Certificate encrypted successfully." if status == 1 else "Encryption failed. Please check the path or vault key."
+    messages = []
+    changed = False
 
-    result['changed'] = (status == 1)
-    if status == 0:
-        module.fail_json(msg=result['message'], **result)
+    if file_path:
+        result, msg = process_file(file_path, vault_key, mode)
+        if result is None:
+            module.fail_json(msg=msg)
+        changed = changed or result
+        messages.append(msg)
 
-    module.exit_json(**result)
+    elif dir_path:
+        if not os.path.isdir(dir_path):
+            module.fail_json(msg=f"Directory not found: {dir_path}")
 
-def main():
-    """
-    This is the main entry point of the module, responsible for calling the run_module function.
-    It does not take any parameters and does not return any values.
-    """
-    run_module()
+        files = [os.path.join(dir_path, f) for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f))]
+        if not files:
+            module.exit_json(changed=False, msg="No files to process in the directory.")
+
+        successes = 0
+        for f in files:
+            result, msg = process_file(f, vault_key, mode)
+            messages.append(msg)
+            if result:
+                changed = True
+                successes += 1
+
+        if successes == 0:
+            module.exit_json(changed=False, msg="No changes made. Files were already in desired state:\n" + "\n".join(messages))
+
+    module.exit_json(changed=changed, msg="; ".join(messages))
 
 if __name__ == '__main__':
     main()
+
