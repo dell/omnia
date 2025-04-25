@@ -13,6 +13,13 @@
 #  limitations under the License.
 ---
 
+- name: Update DHCP server for admin_network in the networks table with management admin ip
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    {{ xcat_sbin_path }}/tabch netname="admin_network" networks.dhcpserver="{{ management_admin_nic_ip }}"
+  register: tabch_output
+  changed_when: tabch_output.rc == 0
+
 - name: Load service_ha_config if file exists, else set empty dict
   ansible.builtin.set_fact:
     service_ha_config: "{{ (lookup('file', service_ha_config_path, errors='ignore') or '{}') | from_json }}"
@@ -87,3 +94,10 @@
       ansible.builtin.fail:
         msg: "{{ dhcp_config_apply_fail_msg }} {{ makedhcp_result.stderr }}"
       when: makedhcp_result.stderr is defined
+
+- name: Update DHCP server for admin_network in the networks table using shell
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    {{ xcat_sbin_path }}/tabch netname="admin_network" networks.dhcpserver="<xcatmaster>"
+  register: tabch_output
+  changed_when: tabch_output.rc == 0

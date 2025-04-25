@@ -60,3 +60,10 @@
       ansible.builtin.debug:
         msg: "{{ dns_config_warning_msg }} {{ dns_config.stderr }}"
       when: dns_config.stderr is defined
+
+- name: Update DHCP server for admin_network in the networks table using shell
+  ansible.builtin.shell: >
+    set -o pipefail && \
+    {{ xcat_sbin_path }}/tabch netname="admin_network" networks.dhcpserver="<xcatmaster>"
+  register: tabch_output
+  changed_when: tabch_output.rc == 0

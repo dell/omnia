@@ -40,6 +40,7 @@
   ansible.builtin.set_fact:
     service_nic: "{{ ip_to_nic_mapping[inventory_hostname][0] }}"
     management_admin_nic: "{{ hostvars['omnia_provision']['admin_nic'] }}"
+    management_admin_nic_ip: "{{ hostvars['omnia_provision']['admin_nic_ip'] }}"
 
 - name: Rename service node NIC with same name as MN admin NIC
   when: service_nic != management_admin_nic
