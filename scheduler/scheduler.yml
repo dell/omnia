@@ -110,6 +110,13 @@
   roles:
     - update_containerd_config
 
+- name: Deploy plugins on kube control nodes
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  roles:
+    - common_plugins
+  # - multus_and_whereabouts
+
 - name: Prepare habana container runtime
   hosts: kube_node
   gather_facts: false
@@ -127,13 +134,6 @@
   gather_facts: false
   roles:
     - k8s_amd
-
-- name: Deploy plugins on kube control nodes
-  hosts: kube_control_plane[0]
-  gather_facts: false
-  roles:
-    - common_plugins
-  # - multus_and_whereabouts
 
 - name: Install Slurm
   hosts: slurm_control_node, slurm_node, login

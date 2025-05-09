@@ -24,3 +24,17 @@
       when:
         - install_nvidia_container_toolkit
         - not hostvars['127.0.0.1']['nvidia_gpu_operator_support']
+
+    - name: Deploy nvidia device plugin
+      ansible.builtin.include_tasks: deploy_nvidia_device_plugin.yml
+      when:
+        - install_nvidia_container_toolkit
+        - not hostvars['127.0.0.1']['nvidia_gpu_operator_support']
+        - inventory_hostname == groups['kube_control_plane'][0]
+
+    - name: Install NVIDIA GPU operator
+      ansible.builtin.include_tasks: deploy_nvidia_gpu_operator.yml
+      when:
+        - hostvars['localhost']['is_nvidia_cluster'] is defined
+        - hostvars['127.0.0.1']['nvidia_gpu_operator_support']
+        - inventory_hostname == groups['kube_control_plane'][0]

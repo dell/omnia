@@ -19,6 +19,12 @@
   changed_when: false
   failed_when: false
 
+- name: Create directory for temp k8s files
+  ansible.builtin.file:
+    path: "{{ k8s_tmp_dir }}"
+    state: directory
+    recurse: true
+
 # Get deployed pods list
 - name: Get K8s pods
   ansible.builtin.command: kubectl get pods --all-namespaces
@@ -31,33 +37,6 @@
   ansible.builtin.command: kubectl get ds --all-namespaces
   changed_when: false
   register: k8s_daemonset
-
-- name: Create directory for temp k8s files
-  ansible.builtin.file:
-    path: "{{ k8s_tmp_dir }}"
-    state: directory
-    recurse: true
-
-- name: Install python3.11
-  ansible.builtin.package:
-    name: python3.11
-    state: present
-
-- name: Ensure pip is available for Python 3.11 using ensurepip
-  ansible.builtin.command: python3.11 -m ensurepip
-  changed_when: false
-
-- name: Install pip packages from offline repo
-  ansible.builtin.pip:
-    name: "{{ item.name }}=={{ item.version }}"
-    executable: /usr/local/bin/pip3.11
-    extra_args: >
-      --find-links={{ hostvars['localhost']['offline_pip_module_path'] }}/{{ item.name }}=={{ item.version }}/
-      --trusted-host={{ hostvars['localhost']['admin_nic_ip'] }}
-      --no-index
-  loop: "{{ pip_packages }}"
-  loop_control:
-    label: "{{ item.name }}=={{ item.version }}"
 
 - name: Fetch helm path
   block:

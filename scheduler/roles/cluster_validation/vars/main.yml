@@ -42,6 +42,9 @@ intel_gaudi_repo_fail_msg: "Failed, local_repo.yml is not executed for downloadi
 warning_time: 30
 offline_intel_directory: "{{ repo_store_path }}/cluster/apt"
 intelgaudi_version_warning_msg: "Failed, Intel Gaudi version not found."
+success_msg_nvidia_gpu_operator_version: "Success. nvidia gpu operator version is mentioned." # noqa: yaml[line-length]
+fail_msg_nvidia_gpu_operator_version: "Failed. nvidia gpu operator version is not provided in software_config.json. Please include nvidia gpu operator version in input/software_config.json and rerun the playbook." # noqa: yaml[line-length]
+fail_msg_k8s_support_false: "Failed. k8s is not present in software_config.json, please add k8s in input/software_config.json and rerun the playbook."  # noqa: yaml[line-length]
 
 # Usage: validate_network_spec.yml
 network_spec: "{{ input_project_dir }}/network_spec.yml"

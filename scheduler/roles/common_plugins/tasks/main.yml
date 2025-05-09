@@ -25,14 +25,6 @@
       ansible.builtin.include_tasks: deploy_kubernetes_dashboard.yml
       when: common_plugin['kubernetes_dashboard']
 
-    - name: Deploy nvidia device plugin
-      ansible.builtin.include_tasks: deploy_nvidia_device_plugin.yml
-      when: common_plugin['nvidia-device-plugin']
-
-    - name: Deploy amdgpu device plugin
-      ansible.builtin.include_tasks: deploy_amdgpu_device_plugin.yml
-      when: common_plugin['amdgpu-device-plugin']
-
     - name: Deploy habana device plugin
       ansible.builtin.include_tasks: deploy_habana_device_plugin.yml
       when: common_plugin['habanalabs-device-plugin']
@@ -48,9 +40,3 @@
     - name: Deploy nfs client provisioner
       ansible.builtin.include_tasks: deploy_nfs_client_provisioner.yml
       when: common_plugin['nfs-subdir-external-provisioner']
-
-    - name: Install NVIDIA GPU operator
-      ansible.builtin.include_tasks: deploy_nvidia_gpu_operator.yml
-      when:
-        - hostvars['localhost']['is_nvidia_cluster'] is defined
-        - hostvars['127.0.0.1']['nvidia_gpu_operator_support']

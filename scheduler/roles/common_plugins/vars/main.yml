@@ -33,12 +33,6 @@ k8s_dashboard_loadbalancer_file_dest: "{{ k8s_tmp_dir }}/k8s_dashboard_load_bala
 nfs_server_manager_node: "{{ ansible_host }}"
 mpi_operator_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/{{ hostvars['localhost']['mpi_operator'] }}/{{ hostvars['localhost']['mpi_operator'] }}.yml" # noqa: yaml[line-length]
 mpi_operator_dest_url: "{{ k8s_tmp_dir }}/{{ hostvars['localhost']['mpi_operator'] }}.yml"
-nvidia_runtime_source: "nvidia_runtime_class.yml"
-nvidia_runtime_dest: "{{ k8s_tmp_dir }}/nvidia-runtime_class.yml"
-nvidia_device_plugin_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/nvidia-device-plugin/nvidia-device-plugin.tar.gz"
-nvidia_device_plugin_dest_repo: "{{ k8s_tmp_dir }}/nvidia-device-plugin.tar.gz"
-mig_strategy: none
-gpu_discovery_feature: true
 xilinx_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/xilinx-device-plugin/xilinx-device-plugin.yml"
 xilinx_device_plugin_yaml_dest: "{{ k8s_tmp_dir }}/xilinx-device-plugin.yml"
 spark_operator_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/spark-operator-v1beta2-1.3.8-3.1.1.tar.gz"
@@ -52,25 +46,4 @@ nfs_subdir_external_provisioner_repo: "{{ hostvars['localhost']['offline_tarball
 nfs_subdir_external_provisioner_dest_repo: "{{ k8s_tmp_dir }}/nfs-subdir-external-provisioner-4.0.18.tar.gz"
 helm_install_fail_msg: "Failed to fetch helm path. Please verify helm installation and ensure the environment variable PATH is correctly set in the node.
 Re-run the playbook after verification."
-
-# Usage: deploy_nvidia_gpu_operator.yml
-nvidia_gpu_operator_path: "{{ k8s_tmp_dir }}/nvidia-gpu-operator-v{{ hostvars['localhost']['nvidia_gpu_operator_version'] }}"
-nvidia_gpu_operator_config_file_path: "{{ nvidia_gpu_operator_path }}/gpu_operator_config.yml"
-nvidia_gpu_operator_helm_chart: "nvidia-gpu-operator-v{{ hostvars['localhost']['nvidia_gpu_operator_version'] }}.tar.gz"
-nvidia_gpu_operator_helm_chart_path: "/tmp/{{ nvidia_gpu_operator_helm_chart }}"
-fail_msg_nvidia_gpu_operator_helm_chart_download: "Failed to get nvidia gpu operator helm chart from local repo location: {{ offline_tarball_path }}"
-permission_644: "0644"
-owner_value: "root"
-group_value: "root"
-gpu_operators_namespace: "gpu-operator"
-timeout_min_sec: 600s
-directory_permissions: "0755"
-
-# Usage: prereq.yml
-pip_packages:
-  - name: kubernetes
-    version: 32.0.1
-  - name: prettytable
-    version: 3.14.0
-
 ansible_python_interpreter: /usr/bin/python3.11

@@ -25,6 +25,13 @@ hosts_file_mode: "0644"
 hosts_update_fail_msg: "Failed to update hosts file with node details.
 Remove unreachable IP addresses from kube_node or etcd group of inventory and re-run the playbook."
 
+# Usage: prereq.yml
+pip_packages:
+  - name: kubernetes
+    version: 32.0.1
+  - name: prettytable
+    version: 3.14.0
+
 # Usage: validate_share_path.yml
 invalid_nfs_share_path: "Failed. client_share_path: {{ share_path }} in nfs_client_params mentioned in storage_config.yml is not mounted.
 Configure NFS client by providing required inputs in nfs_client_params variable of storage_config.yml.

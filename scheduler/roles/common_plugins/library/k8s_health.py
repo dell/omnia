@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 from ansible.module_utils.basic import AnsibleModule
 from kubernetes import client, config
 from kubernetes.config.config_exception import ConfigException
