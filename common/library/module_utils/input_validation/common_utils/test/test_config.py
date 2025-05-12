@@ -44,7 +44,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(self.config.input_file_inventory, {
             'scheduler': ['omnia_config.yml', 'software_config.json'],
             'provision': ['provision_config.yml', 'network_spec.yml',
-                         'software_config.json', 'roles_config.yml'],
+                         'software_config.json', 'roles_config.yml',
+                         'high_availability_config.yml'],
             'server_spec': ['server_spec.yml'],
             'security': ['security_config.yml', 'login_node_security_config.yml',
                          'passwordless_ssh_config.yml', 'software_config.json'],
