@@ -30,5 +30,5 @@ xcat_start_fail_msg: "Failed to start xcatd services on {{ hostvars[inventory_ho
 syncfiles_mode: "0755"
 service_node_sync_files:
   - { src: "{{ hostvars['omnia_provision']['syncfiles_share_path'] }}", dest: "{{ hostvars['omnia_provision']['provision_shared_path'] }}" }
-  - { src: "/opt/omnia/provision/install", dest: "/" }
+  - { src: "/opt/omnia/provision/install", dest: "/", rsync_opts: ["--exclude=autoinst"] }
   - { src: "/opt/omnia/provision/tftpboot", dest: "/" }

@@ -22,8 +22,5 @@
   ansible.builtin.set_fact:
     booted_service_nodes_data: "{{ hostvars['omnia_provision']['booted_service_nodes_data'] }}"
 
-- name: Rename nic interface on service node
-  ansible.builtin.include_tasks: rename_service_node_nic.yml
-
 - name: Set Service node details to node object
   ansible.builtin.include_tasks: set_service_node_details.yml

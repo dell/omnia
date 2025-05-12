@@ -14,4 +14,8 @@
 ---
 
 - name: Setup nfs server
-  ansible.builtin.include_tasks: "nfs_server_setup_{{ ansible_distribution | lower }}.yml"
+  ansible.builtin.include_tasks: "nfs_server_setup.yml"
+
+- name: Configure firewall
+  ansible.builtin.include_tasks: "firewall_{{ ansible_os_family | lower }}.yml" # TODO: firewall for debian
+  when: use_firewall

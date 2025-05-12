@@ -12,16 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
 - name: Include storage_config.yml file
   ansible.builtin.include_vars: "{{ storage_config_vars }}"
-
-- name: Set compute os
-  ansible.builtin.set_fact:
-    compute_os: "{{ ansible_distribution | lower }}"
-
-- name: Include vars for {{ compute_os }}
-  ansible.builtin.include_vars: "{{ role_path }}/vars/{{ compute_os }}.yml"
 
 - name: Install NFS client with bolt-on support
   ansible.builtin.include_tasks: nfs_client.yml

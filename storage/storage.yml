@@ -26,7 +26,7 @@
   when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
 
 - name: Gather facts from all the nodes
-  hosts: slurm_control_node, slurm_node, slurm_dbd, login, kube_control_plane, kube_node, etcd
+  hosts: slurm_control_node, slurm_node, login, kube_control_plane, kube_node, etcd
   gather_facts: true
 
 - name: Check if package manager is not locked
@@ -55,15 +55,7 @@
   tags: beegfs
 
 - name: Install NFS server on nfs_server_cluster
-  hosts: nfs_server_cluster
-  gather_facts: true
-  roles:
-    - nfs_server
-  tags: nfs_client
-
-- name: Install NFS server on nfs_server_cluster
-  hosts: nfs_server_local
-  connection: ssh
+  hosts: nfs_server_cluster, nfs_server_local
   gather_facts: true
   roles:
     - nfs_server

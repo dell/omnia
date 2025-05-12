@@ -21,13 +21,15 @@ if os.getenv('UNIT_TESTING') == 'true':
     from input_validation.validation_flows import (
         roles_validation,
         common_validation,
-        provision_validation
+        provision_validation,
+        high_availability_validation
     )
 else:
     from ansible.module_utils.input_validation.validation_flows import ( # type: ignore
         roles_validation,
         common_validation,
-        provision_validation
+        provision_validation,
+        high_availability_validation
     )
 
 
@@ -72,7 +74,9 @@ def validate_input_logic(
         "login_node_security_config.yml": common_validation.validate_login_node_security_config,
         "site_config.yml": common_validation.validate_site_config,
         "roles_config.yml": roles_validation.validate_roles_config,
-        "high_availability_config.yml": common_validation.validate_high_availability_config}
+        "high_availability_config.yml": high_availability_validation.validate_high_availability_config
+    }
+
 
     path_parts = input_file_path.split("/")
     file_name = path_parts[-1]

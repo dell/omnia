@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,21 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Install nfs-kernel-server package
-  ansible.builtin.apt:
-    name: nfs-kernel-server
+- name: Install nfs-utils
+  ansible.builtin.package:
+    name: "{{ nfs_server_packages[ansible_os_family] }}"
     state: present
-    update_cache: true
 
-- name: Start and enable nfs-kernel-server service
+- name: Start and enable rpcbind and nfs-server service
   ansible.builtin.service:
     name: "{{ item }}"
-    state: restarted
+    state: started
     enabled: true
-  with_items:
-    - rpcbind
-    - nfs-kernel-server
+  loop: "{{ nfs_restart_services[ansible_os_family] }}"
 
 - name: Creating NFS share directory
   ansible.builtin.file:
@@ -34,15 +30,18 @@
     state: directory
     mode: "{{ nfs_share_dir_mode }}"
   loop: "{{ hostvars['127.0.0.1']['nfs_client_params'] }}"
+  notify:
+    - Restart NFS services
+    - Reloading NFS export table
   when: item.server_ip == ansible_host or hostvars['127.0.0.1']['admin_nic_ip'] in ansible_host
 
-- name: Adding NFS share entries in /etc/exports
+- name: Adding NFS share entries in /etc/exports for nodes
   ansible.builtin.lineinfile:
     path: "{{ exports_file_path }}"
     line: "{{ item.server_share_path }} {{ hostvars['127.0.0.1']['admin_nic_subnet'] }}(rw,sync,no_root_squash)"
-  with_items: "{{ hostvars['127.0.0.1']['nfs_client_params'] }}"
+  register: exports_result
+  loop: "{{ hostvars['127.0.0.1']['nfs_client_params'] }}"
+  notify:
+    - Restart NFS services
+    - Reloading NFS export table
   when: item.server_ip == ansible_host or hostvars['127.0.0.1']['admin_nic_ip'] in ansible_host
-
-- name: Exporting the shared directories
-  ansible.builtin.command: exportfs -r
-  changed_when: true

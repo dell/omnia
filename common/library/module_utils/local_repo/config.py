@@ -29,7 +29,6 @@ CSV_FILE_PATH_DEFAULT = "/tmp/status_results_table.csv"
 DEFAULT_REPO_STORE_PATH = "/tmp/offline_repo"
 USER_JSON_FILE_DEFAULT = ""
 DEFAULT_STATUS_FILENAME = "status.csv"
-
 STATUS_CSV_HEADER = 'name,type,status\n'
 SOFTWARE_CSV_HEADER = "name,status"
 
@@ -46,7 +45,7 @@ FRESH_INSTALLATION_STATUS = True
 # Used by software_utils.py
 # ----------------------------
 PACKAGE_TYPES = ['rpm', 'deb', 'tarball', 'image', 'manifest', 'git',
-                 'pip_module', 'deb', 'shell', 'ansible_galaxy_collection', 'iso']
+                 'pip_module', 'deb', 'shell', 'ansible_galaxy_collection', 'iso', 'rpm_list']
 CSV_COLUMNS = {"column1": "name", "column2": "status"}
 SOFTWARE_CONFIG_SUBDIR = "config"
 RPM_LABEL_TEMPLATE = "RPMs for {key}"
@@ -54,7 +53,6 @@ OMNIA_REPO_KEY = "omnia_repo_url_rhel"
 RHEL_OS_URL = "rhel_os_url"
 SOFTWARES_KEY = "softwares"
 USER_REPO_URL = "user_repo_url"
-VAULT_KEY_PATH = "/opt/omnia/input/project_default/.omnia_config_credentials_key"
 REPO_CONFIG = { "always": "immediate", "partial": "on_demand", "never": "streamed" }
 
 # ----------------------------
@@ -112,3 +110,8 @@ pulp_rpm_commands = {
     "check_distribution": "pulp rpm distribution show --name %s"
 }
 STANDARD_LOG_FILE_PATH = "/opt/omnia/log/local_repo/standard.log"
+
+# ----------------------------
+# Used by cert_vault_handle.py
+# ----------------------------
+CERT_KEYS = ["sslcacert", "sslclientkey", "sslclientcert"]

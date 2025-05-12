@@ -130,16 +130,13 @@
         name: os_update                   # noqa: role-name[path]
         tasks_from: update_kernel_parameters.yml
 
-- name: Discovery roles of Omnia Infrastructure Manager for provisioning
+- name: Configure postscripts
   hosts: omnia_provision
   connection: ssh
   tags: management_layer
   roles:
     - role: postscripts/common             # noqa: role-name[path]
-    - role: configure_os_image/common      # noqa: role-name[path]
-    - role: monitor_thread
 
-# Commenting as syncfiles are not needed with NFS, which is now must for hierarchical provision
 - name: Copying syncfiles for discovery from service nodes
   hosts: service_nodes
   connection: ssh
@@ -150,7 +147,14 @@
         tasks_from: copy_syncfiles.yml
       when:
         - hostvars['omnia_provision']['hierarchical_provision_status'] | default(false)
-#         - hostvars['omnia_provision']['omnia_share_option'] == 'Local'
+
+- name: Configure os image and monitor service
+  hosts: omnia_provision
+  connection: ssh
+  tags: management_layer
+  roles:
+    - role: configure_os_image/common      # noqa: role-name[path]
+    - role: monitor_thread
 
 - name: Update metadata
   hosts: localhost

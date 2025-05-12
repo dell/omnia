@@ -26,12 +26,28 @@
   ansible.builtin.assert:
     that:
       - bmc_static_status or discovery_mech_mapping
-    fail_msg: "{{ management_layer_discovery_mechanism_fail_msg }}"
+    fail_msg: "{{ management_layer_discovery_mechanism_fail_msg.splitlines() | join(' ') }}"
   when: '"management_layer" in ansible_run_tags'
+
+- name: Get nodes with all statuses as false
+  ansible.builtin.set_fact:
+    failed_groups: >-
+      {{
+        groups_roles_info | dict2items
+        | selectattr('value.bmc_static_status', 'equalto', False)
+        | selectattr('value.mapping_status', 'equalto', False)
+        | selectattr('value.switch_status', 'equalto', False)
+        | map(attribute='key') | list
+      }}
+
+- name: Groups with invalid discovery mechanism
+  ansible.builtin.fail:
+    msg: "{{ invalid_groups_msg.splitlines() | join(' ') }}"
+  when: failed_groups | length > 0
 
 - name: Validate if all discovery mechanisms valid for default execution
   ansible.builtin.assert:
     that:
       - bmc_static_status or discovery_mech_mapping or discovery_mech_switch_based or discovery_mech_dynamic_bmc
-    fail_msg: "{{ default_layer_discovery_mechanism_fail_msg }}"
+    fail_msg: "{{ default_layer_discovery_mechanism_fail_msg.splitlines() | join(' ') }}"
   when: '"management_layer" not in ansible_run_tags'

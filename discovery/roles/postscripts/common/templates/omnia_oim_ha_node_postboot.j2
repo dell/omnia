@@ -1,0 +1,76 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_oim_ha_node:
+#      Configure a passive OIM node.
+#################################################################################################################
+# Define log file
+LOGFILE="/var/log/xcat/xcat.log"
+
+# Get the directory of the log file
+log_dir=$(dirname "$LOGFILE")
+
+# Create the log directory if it doesn't exist
+if [ ! -d "$log_dir" ]; then
+    mkdir -p "$log_dir"
+fi
+
+# Create the log file if it doesn't exist
+if [ ! -f "$LOGFILE" ]; then
+    touch "$LOGFILE"
+fi
+
+echo "--------------------------" >> "$LOGFILE"
+echo "$(date) - INFO - Starting OIM Passive node setup." >> "$LOGFILE"
+
+{% if omnia_share_option == "NFS" %}
+# Create omnia_path directory if it does not exist
+echo "INFO: Creating omnia shared path directory if it does not exist" >> "$LOGFILE"
+mkdir -p {{ oim_shared_path }}
+
+# Validate if NFS server is reachable
+echo "INFO: Validating if NFS server is reachable." >> "$LOGFILE"
+ping -c1 -W1 {{ nfs_server_ip }} > /dev/null
+if [ $? -ne 0 ]; then
+    echo -e "INFO: NFS server {{ nfs_server_ip }} is not reachable." >> "$LOGFILE"
+    exit 1
+fi
+
+# Mount NFS server share path in Omnia share path
+echo "INFO: Mounting NFS server share path in Omnia share path." >> "$LOGFILE"
+mount -t nfs -o nosuid,rw,sync,hard,intr,timeo=30 {{ nfs_server_ip }}:{{ nfs_server_share_path }} {{ oim_shared_path }}
+
+# Validate if NFS server share path is mounted
+echo "INFO: Validating if NFS server share path is mounted." >> "$LOGFILE"
+if grep -qs "{{ nfs_server_ip }}:{{ nfs_server_share_path }}" /proc/mounts; then
+    echo -e "INFO: NFS server share path is mounted." >> "$LOGFILE"
+else
+    echo -e "INFO: NFS server share path is not mounted. Provide valid NFS server details." >> "$LOGFILE"
+    exit 1
+fi
+
+# Add NFS server share to /etc/fstab to mount on startup
+echo "{{ nfs_server_ip }}:{{ nfs_server_share_path }} {{ oim_shared_path }} nfs nosuid,rw,sync,hard,intr" >> /etc/fstab
+{% endif %}
+
+echo "INFO: Loading container images." >> "$LOGFILE"
+podman load -i {{ container_images_path }} || { echo "ERROR: Loading container images." >> "$LOGFILE"; exit 1; }
+
+echo -e "INFO: Copying omnia_pcs quadlet file from NFS." >> "$LOGFILE"
+cp {{ oim_shared_path }}/omnia/pcs/{{ pcs_container_name }}.container {{ container_systemd_dir }}/{{ pcs_container_name }}.container
+
+echo -e "INFO: Copying omnia_core ssh configs from NFS." >> "$LOGFILE"
+cp {{ oim_shared_path }}/omnia/ssh_config/.ssh/oim_rsa /root/.ssh/oim_rsa
+cp {{ oim_shared_path }}/omnia/ssh_config/.ssh/config /root/.ssh/config
+
+systemctl daemon-reload
+# Enable and start podman.socket
+echo -e "INFO: Enabling and starting the podman socket." >> "$LOGFILE"
+sudo systemctl enable podman.socket || { echo "ERROR: Enabling podman.socket." >> "$LOGFILE"; exit 1; }
+sudo systemctl start podman.socket || { echo "ERROR: Starting podman.socket." >> "$LOGFILE"; exit 1; }
+
+# Start the omnia_pcs service
+echo -e "INFO: Starting the omnia_pcs service." >> "$LOGFILE"
+sudo systemctl start omnia_pcs || { echo "ERROR: Starting omnia_pcs service." >> "$LOGFILE"; exit 1; }
+
+echo "$(date) - INFO - Finished OIM Passive node setup." >> "$LOGFILE"
+echo "---------------------------"

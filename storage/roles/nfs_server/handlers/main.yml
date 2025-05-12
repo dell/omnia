@@ -12,22 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Prepare software packages tasklist
-  prepare_tasklist:
-    csv_file_path: "{{ base_path }}"
-    user_json_file: "{{ user_json_file }}"
-    local_repo_config_path: "{{ local_repo_config_path }}"
-    log_dir: "{{ base_path }}"
-    key_path: "{{ project_input_path }}"
-  register: result
+- name: Restart NFS services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  with_items: "{{ nfs_restart_services[ansible_os_family] }}"
 
-- name: Process URL mirrors from local_repo_config
-  process_rpm_config:
-    local_config: "{{ result.local_config }}"
-    log_dir: "{{ base_path }}"
-  register: rpm_result
-
-- name: Regenerate DNF cache
-  ansible.builtin.dnf:
-    update_cache: true
-  changed_when: false
+- name: Reloading NFS export table
+  ansible.builtin.command: exportfs -rav # -r: Reloads the export table from /etc/exports. -a: Applies all changes (exports and unexports).
+  changed_when: true

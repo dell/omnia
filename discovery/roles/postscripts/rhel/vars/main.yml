@@ -43,7 +43,7 @@ omnia_disable_repo_postscripts_path:
 
 # Usage: configure_postbootscripts.yml
 pcs_postbootscript_path:
-  - { src: "{{ role_path }}/templates/omnia_oim_ha_node.j2", dest: "/install/postscripts/omnia_oim_ha_node", mode: "755" }
+  - { src: "{{ role_path }}/templates/omnia_oim_ha_node_postboot.j2", dest: "/install/postscripts/omnia_oim_ha_node_postboot", mode: "755" }
 
 service_node_postbootscript_path:
   - { src: "{{ role_path }}/templates/omnia_service_node_postboot.j2", dest: "/install/postscripts/omnia_service_node_postboot", mode: "755" }

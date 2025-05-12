@@ -5,7 +5,4 @@
 {% if pulp_protocol == 'https' %}
 {{ pulp_cert_path }}/pulp_webserver.crt -> /etc/pki/ca-trust/source/anchors/
 {% endif %}
- 
-{% if enable_oim_ha %}
-{{ syncfiles_share_path }}/pcs/{{ pcs_container_name }}.container -> {{ container_systemd_dir }}/{{ pcs_container_name }}.container
-{% endif %}
+

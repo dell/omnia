@@ -177,6 +177,7 @@ def roles_groups_mapping(groups_data, roles_data, layer):
 
                 roles_groups_data[role] = {}
                 roles_groups_data[role][group] = groups_data[group]
+                groups_roles_info[group]["mapping_status"] = False
                 groups_roles_info[group]['switch_status'] = grp_switch_check
                 groups_roles_info[group]['bmc_static_status'] = grp_bmc_check
 

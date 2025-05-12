@@ -57,9 +57,11 @@ nfs_not_configured: "When enabling OIM HA or Service Node HA or Heirarchical clu
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 omnia_images_path: "/opt/omnia/images/omnia_images.tar"
 omnia_images_path_fail_msg: |
-  "Images tarball doesnot exists. To support either Service node HA or OIM HA input must be provided in
-  high_availability_config.yml before running the prepare_oim playbook.
-  Please execute the oim_cleanup.yml and re-run the prepare_oim.yml playbook with high_availability_config.yml input."
+  "Images tarball does not exist. To support either OIM HA or heirarchical provisioning, input must be provided in
+  the high_availability_config.yml or roles_config.yml before running the prepare_oim.yml playbook.
+  For a Hierarchical Cluster, service node role should be defined in the roles_config.yml.
+  Please run oim_cleanup.yml and then re-run prepare_oim.yml with the appropriate inputs."
+
 # invalid_share_option_msg: |
 #   [ERROR] Invalid value \"{{ omnia_share_option }}\" provided for omnia share path type.
 #   For hierarchical-based discovery and provisioning, this must be set to \"NFS\".
@@ -167,6 +169,12 @@ management_layer_discovery_mechanism_fail_msg: |
   For bmc discovery, please provide the bmc_details in the roles_config.yml file."
 default_layer_discovery_mechanism_fail_msg: |
   "Failed. Please provide valid details either for mapping, bmc or switch_based discovery mechanism for the nodes and re-run the playbook.
+  For mapping discovery, please provide the pxe_mapping_file_path in the provision_config.yml file.
+  For bmc static discovery, please provide the bmc_details in the roles_config.yml file.
+  For bmc dynamic discovery, please provide the bmc_network details in the network_spec.yml file.
+  For switch_based discovery, provide bmc_details and switch_details in roles_config.yml"
+invalid_groups_msg: |
+  "Failed, all discovery mechanism invalid for groups: [{{ failed_groups | list | join(', ') }}]
   For mapping discovery, please provide the pxe_mapping_file_path in the provision_config.yml file.
   For bmc static discovery, please provide the bmc_details in the roles_config.yml file.
   For bmc dynamic discovery, please provide the bmc_network details in the network_spec.yml file.

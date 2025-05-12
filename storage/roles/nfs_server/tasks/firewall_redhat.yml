@@ -12,22 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Prepare software packages tasklist
-  prepare_tasklist:
-    csv_file_path: "{{ base_path }}"
-    user_json_file: "{{ user_json_file }}"
-    local_repo_config_path: "{{ local_repo_config_path }}"
-    log_dir: "{{ base_path }}"
-    key_path: "{{ project_input_path }}"
-  register: result
+- name: Install firewalld
+  ansible.builtin.package:
+    name: firewalld
+    state: present
 
-- name: Process URL mirrors from local_repo_config
-  process_rpm_config:
-    local_config: "{{ result.local_config }}"
-    log_dir: "{{ base_path }}"
-  register: rpm_result
+- name: Start and enable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
 
-- name: Regenerate DNF cache
-  ansible.builtin.dnf:
-    update_cache: true
-  changed_when: false
+- name: Enable nfs ports
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  with_items: "{{ nfs_ports }}"
+
+- name: Enable nfs services
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    state: enabled
+    permanent: true
+    immediate: true
+  with_items: "{{ nfs_services }}"

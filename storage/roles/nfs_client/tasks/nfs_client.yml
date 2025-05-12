@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,10 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Initialize variable for client_mount_options
-  ansible.builtin.set_fact:
-    mount_option_status: false
-
 - name: Initialize variable when client_share_path value is not given
   ansible.builtin.set_fact:
     client_mount_path: "{{ item.server_share_path }}"
@@ -24,97 +20,58 @@
 - name: Initialize variable when client_share_path value is given
   ansible.builtin.set_fact:
     client_mount_path: "{{ item.client_share_path }}"
-  when: item.client_share_path | default("", true) | length > 1
-
-- name: Verify client_mount_options value
-  ansible.builtin.set_fact:
-    mount_option_status: true
-  when: item.client_mount_options | default("", true) | length > 1
+  when: item.client_share_path | default("", true) | length >= 1
 
 - name: Fetch server_ip and server_share_path from list when nfs sever is not localhost
   ansible.builtin.set_fact:
-    temp_server_ip: "{{ item.server_ip }}"
-    temp_server_sharepath: "{{ item.server_share_path }}"
     nfs_server_ip: "{{ item.server_ip }}"
   when: item.server_ip != "localhost"
 
 - name: Fetch server_ip and server_share_path from list when nfs sever is localhost
   ansible.builtin.set_fact:
-    temp_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
-    temp_server_sharepath: "{{ item.server_share_path }}"
     nfs_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
   when: item.server_ip == "localhost"
 
-- name: Creating string for mount point
-  ansible.builtin.set_fact:
-    mount_exp: "{{ temp_server_ip }}:{{ temp_server_sharepath }} on {{ client_mount_path }} type"
-
 - name: Package installation for NFS
   ansible.builtin.package:
-    name: "{{ nfs_packages }}"
+    name: "{{ nfs_packages[ansible_os_family] }}"
     state: present
 
-- name: Check mounted share
-  ansible.builtin.shell: >
-    set -o pipefail && \
-    mount | grep nfs
-  changed_when: false
-  register: mounted_share
-  failed_when: false
+- name: Mount facts items to dict
+  ansible.builtin.set_fact:
+    mounted_dict: "{{ ansible_mounts | items2dict(key_name='mount', value_name='device') }}"
+    mount_needed: false
+    nfs_src: "{{ nfs_server_ip }}:{{ item.server_share_path }}"
 
-- name: Create directory and mount NFS
-  when: mount_exp not in mounted_share.stdout
-  block:
-    - name: Create directory for NFS client
-      block:
-        - name: Create the directory for mounting NFS client with server_share_path as client_share_path
-          ansible.builtin.file:
-            path: "{{ client_mount_path }}"
-            state: directory
-            mode: "{{ file_perm }}"
-      rescue:
-        - name: Status of creating folder for NFS mount
-          ansible.builtin.fail:
-            msg: "{{ client_mount_path }} {{ client_folder_msg }}"
+- name: Check if mount
+  ansible.builtin.set_fact:
+    mount_needed: true
+  when: (client_mount_path not in mounted_dict) or (mounted_dict[client_mount_path] != nfs_src)
 
-    - name: Mount NFS client
-      block:
-        - name: Mount NFS client when mount options are provided # noqa: command-instead-of-module
-          ansible.builtin.command: "mount -o {{ item.client_mount_options }} -t nfs {{ nfs_server_ip }}:{{ item.server_share_path }} {{ client_mount_path }}"
-          changed_when: true
-          async: "{{ sync_value }}"
-          poll: "{{ poll_value }}"
-          register: nfs_mount_status
-          when: mount_option_status
+- name: Create the directory for mounting NFS client with server_share_path as client_share_path
+  ansible.builtin.file:
+    path: "{{ client_mount_path }}"
+    state: directory
+    mode: "{{ mounted_dir_perm }}"
+  register: dir_check
+  ignore_errors: true
 
-        - name: Mount NFS client when mount options are not provided # noqa: command-instead-of-module
-          ansible.builtin.command: >-
-            mount -o {{ default_client_mount_options }} -t nfs {{ nfs_server_ip }}:{{ item.server_share_path }} {{ client_mount_path }}
-          changed_when: true
-          async: "{{ sync_value }}"
-          poll: "{{ poll_value }}"
-          register: nfs_mount_status
-          when: not mount_option_status
+- name: Check dir creation
+  ansible.builtin.set_fact:
+    mount_needed: true
+  when: dir_check.failed
 
-      rescue:
-        - name: Status of NFS mount when NFS server is not available on mentioned server_share_path
-          ansible.builtin.fail:
-            msg: "{{ mount_message }} on IP {{ nfs_server_ip }}"
-          when: "'async' not in nfs_mount_status.msg"
+- name: Handle stale file handle by forcing unmount
+  ansible.builtin.command: "umount -l {{ client_mount_path }}"
+  when: dir_check.failed
+  register: unmount_result
+  changed_when: unmount_result.rc == 0
 
-        - name: Status message of mount when NFS server service is not rechable on NFS server
-          ansible.builtin.fail:
-            msg: "{{ mount_msg }}"
-          when: "'async' in nfs_mount_status.msg"
-
-    - name: NFS mount configuration when client_mount_options were specified
-      ansible.builtin.lineinfile:
-        path: "{{ fstab_path }}"
-        line: "{{ nfs_server_ip }}:{{ item.server_share_path }}     {{ client_mount_path }}  nfs     {{ item.client_mount_options }}"
-      when: mount_option_status
-
-    - name: NFS mount configuration when client_mount_options were not specified
-      ansible.builtin.lineinfile:
-        path: "{{ fstab_path }}"
-        line: "{{ nfs_server_ip }}:{{ item.server_share_path }}     {{ client_mount_path }}  nfs     {{ default_client_mount_options }}"
-      when: not mount_option_status
+- name: Retry mounting NFS share after unmount
+  ansible.posix.mount:
+    src: "{{ nfs_src }}"
+    path: "{{ client_mount_path }}"
+    opts: "{{ item.client_mount_options | default(default_client_mount_options) }}"
+    state: mounted
+    fstype: nfs
+  when: mount_needed

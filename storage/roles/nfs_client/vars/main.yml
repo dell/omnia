@@ -17,12 +17,12 @@
 storage_config_vars: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
 
 # Usage: nfs_client.yml
-file_perm: "0777"
-powervault_vars_filename: "powervault_vars.yml"
-fstab_path: "/etc/fstab"
-mount_message: "Failed to mount NFS client, Make sure NFS server is running on mentioned server_share_path"
-client_folder_msg: "is a stale folder. Please give some other folder for mount"
+mounted_dir_perm: "0755"
 default_client_mount_options: "nosuid,rw,sync,hard,intr"
-mount_msg: "nfs-server.service might not be running on NFS Server. Please check or start services"
-sync_value: 300
-poll_value: 5
+nfs_packages:
+  RedHat:
+    - nfs-utils
+    - nfs4-acl-tools
+  Debian:
+    - nfs-common
+    - nfs4-acl-tools

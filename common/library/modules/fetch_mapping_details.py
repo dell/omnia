@@ -35,6 +35,7 @@ def fetch_mapping_details(groups_roles_info, csv_data):
 
     for _, node  in nodes.items():
         group = node["GROUP_NAME"]
+        groups_roles_info[group]["mapping_status"] = True
 
         node_data = {
             "service_tag": node["SERVICE_TAG"],
@@ -54,7 +55,7 @@ def fetch_mapping_details(groups_roles_info, csv_data):
         }
         filtered_nodes.append(node_data)
 
-    return filtered_nodes
+    return filtered_nodes, groups_roles_info
 
 def main():
     module_args = dict(
@@ -68,9 +69,9 @@ def main():
         groups_roles_info = module.params["groups_roles_info"]
         node_df = module.params["mapping_file_data"]
 
-        filtered_nodes = fetch_mapping_details(groups_roles_info, node_df)
+        filtered_nodes, groups_roles_info = fetch_mapping_details(groups_roles_info, node_df)
 
-        module.exit_json(changed=False, mapping_details=filtered_nodes, mapping_required=bool(filtered_nodes))
+        module.exit_json(changed=False, mapping_details=filtered_nodes, mapping_required=bool(filtered_nodes), groups_roles_info=groups_roles_info)
 
     except Exception as e:
         module.fail_json(error=str(e))

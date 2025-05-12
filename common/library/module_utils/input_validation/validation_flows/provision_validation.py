@@ -175,7 +175,8 @@ def _validate_admin_network(network):
         errors.extend(_validate_ip_ranges(
             admin_net["static_range"],
             admin_net["dynamic_range"],
-            "admin_network"
+            "admin_network",
+            netmask
         ))
 
     return errors
@@ -230,12 +231,13 @@ def _validate_bmc_network(network):
         errors.extend(_validate_ip_ranges(
             bmc_net["dynamic_conversion_static_range"],
             bmc_net["dynamic_range"],
-            "bmc_network"
+            "bmc_network",
+            netmask
         ))
 
     return errors
 
-def _validate_ip_ranges(static_range, dynamic_range, network_type):
+def _validate_ip_ranges(static_range, dynamic_range, network_type, netmask_bits):
     """
     Validates and checks for overlap between static and dynamic IP ranges.
 
@@ -243,6 +245,7 @@ def _validate_ip_ranges(static_range, dynamic_range, network_type):
         static_range (str): IP range for static addresses (format: "start_ip-end_ip")
         dynamic_range (str): IP range for dynamic addresses (format: "start_ip-end_ip")
         network_type (str): Type of network being validated ("admin_network" or "bmc_network")
+        netmask_bits (str): The netmask bits value to validate IP ranges against
 
     Returns:
         list: List of validation errors for IP ranges, empty if no errors found
@@ -250,6 +253,7 @@ def _validate_ip_ranges(static_range, dynamic_range, network_type):
     Validates:
         - IP range format
         - Overlap between static and dynamic ranges
+        - IP ranges are within valid netmask boundaries
     """
     errors = []
 
@@ -280,6 +284,26 @@ def _validate_ip_ranges(static_range, dynamic_range, network_type):
                 f"{network_type}.ranges",
                 range_info,
                 en_us_validation_msg.range_ip_check_overlap_msg
+            ))
+
+    # Validate that IP ranges are within the netmask boundaries
+    if netmask_bits:
+        # Check static range
+        if (validation_utils.validate_ipv4_range(static_range) and
+            not validation_utils.is_range_within_netmask(static_range, netmask_bits)):
+            errors.append(create_error_msg(
+                f"{network_type}.static_range",
+                static_range,
+                en_us_validation_msg.range_netmask_boundary_fail_msg
+            ))
+
+        # Check dynamic range
+        if (validation_utils.validate_ipv4_range(dynamic_range) and
+            not validation_utils.is_range_within_netmask(dynamic_range, netmask_bits)):
+            errors.append(create_error_msg(
+                f"{network_type}.dynamic_range",
+                dynamic_range,
+                en_us_validation_msg.range_netmask_boundary_fail_msg
             ))
 
     return errors

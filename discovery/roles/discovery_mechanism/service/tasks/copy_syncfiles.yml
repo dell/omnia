@@ -24,5 +24,7 @@
     src: "{{ item.src }}"
     dest: "{{ item.dest }}"
     recursive: true
+    rsync_opts: "{{ item.rsync_opts | default([]) }}"
   delegate_to: localhost
+  no_log: true
   with_items: "{{ service_node_sync_files }}"

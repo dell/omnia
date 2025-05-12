@@ -17,9 +17,24 @@
 nfs_share_dir_mode: "0777"
 exports_file_path: /etc/exports
 
-# Usage: nfs_server_setup_redhat.yml,
-nfs_services:
+# Usage: nfs_server_setup.yml,
+nfs_server_packages:
+  RedHat:
+    - nfs-utils
+  Debian:
+    - nfs-kernel-server
+nfs_services: # for firewall
   - mountd
   - rpc-bind
   - nfs
-use_firewall: false # TODO: slurm nfs install is being blocked by firewall, this is a temporary workaround
+nfs_ports:
+  - "2049/tcp"
+  - "111/tcp"
+nfs_restart_services:
+  RedHat:
+    - rpcbind
+    - nfs-server
+  Debian:
+    - rpcbind
+    - nfs-kernel-server
+use_firewall: true # TODO: slurm nfs install is being blocked by firewall, this is a temporary workaround

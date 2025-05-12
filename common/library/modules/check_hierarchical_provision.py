@@ -17,25 +17,45 @@
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.discovery.omniadb_connection import get_data_from_db # type: ignore
 
-invalid_tags_msg = "These tags are either not a service node not in booted state. \
-    Please check in omniadb for the state of nodes."
+invalid_tags_msg = "These tags are not of a service node. \
+    Please give correct input in parent field in roles_config.yml, \
+    or for service node HA in high_availability_config.yml"
 
 def get_booted_service_nodes_data():
     """
-    This function retrieves the data of booted service nodes from the database.
-    It takes no parameters.
-    It returns a dictionary containing the data from db of booted service nodes.
+    This function retrieves all service node data from the database
+    and ensures they are all in 'booted' state. If not, it raises an error.
+    Returns a dictionary of booted service node data.
     """
     query_result = get_data_from_db(
         table_name='cluster.nodeinfo',
-        filter_dict={'status': 'booted', 'role': "service_node"},
+        filter_dict={'role': "service_node"},
     )
+
     data = {}
+    not_booted_nodes = []
+
     for sn in query_result:
         node = sn['node']
-        admin_ip = sn['admin_ip'],
-        service_tag= sn['service_tag']
-        data[service_tag] = {'admin_ip': admin_ip[0], 'service_tag': service_tag, 'node': node}
+        status = sn.get('status', '')
+        admin_ip = sn['admin_ip']
+        service_tag = sn['service_tag']
+
+        if status != 'booted':
+            not_booted_nodes.append(service_tag)
+            continue
+
+        data[service_tag] = {
+            'admin_ip': admin_ip,
+            'service_tag': service_tag,
+            'node': node
+        }
+
+    if not_booted_nodes:
+        raise ValueError(f"The following service nodes are not in booted state: {', '.join(not_booted_nodes)}.\
+            For hierarchical provisioning, all service nodes must be in 'booted' state.\
+            Either wait till all the service nodes are booted or remove these nodes using utility playbook delete_node.yml")
+
     return data
 
 def get_service_node_ha_dict(service_node_ha_data, booted_service_nodes_data):

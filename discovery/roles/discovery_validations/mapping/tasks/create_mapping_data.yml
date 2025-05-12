@@ -23,6 +23,7 @@
   ansible.builtin.set_fact:
     mapping_details: "{{ mapping_details_output.mapping_details }}"
     discovery_mech_mapping: "{{ mapping_details_output.mapping_required }}"
+    groups_roles_info: "{{ mapping_details_output.groups_roles_info }}"
 
 - name: Show mapping data
   ansible.builtin.debug:

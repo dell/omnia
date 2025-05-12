@@ -60,6 +60,7 @@ def main():
         "user_json_file": {"type": "str", "required": False, "default": USER_JSON_FILE_DEFAULT},
         "local_repo_config_path": {"type": "str", "required": False, "default": LOCAL_REPO_CONFIG_PATH_DEFAULT},
         "log_dir": {"type": "str", "required": False, "default": LOG_DIR_DEFAULT},
+        "key_path": {"type": "str", "required": True}
     }
 
     module = AnsibleModule(argument_spec=module_args)
@@ -67,7 +68,7 @@ def main():
     user_json_file = module.params["user_json_file"]
     local_repo_config_path = module.params["local_repo_config_path"]
     csv_file_path = module.params["csv_file_path"]
-
+    vault_key_path = module.params["key_path"]
     logger = setup_standard_logger(log_dir)
     start_time = datetime.now().strftime("%I:%M:%S %p")
     logger.info(f"Start execution time: {start_time}")
@@ -149,12 +150,12 @@ def main():
             logger.info(f"failed_packages: {failed_packages}")
 
             software_dict[software] = tasks
- 
+
         software_dict=transform_package_dict(software_dict)
-        local_config, url_result = parse_repo_urls(repo_config, local_repo_config_path , version_variables)
+        local_config, url_result = parse_repo_urls(repo_config, local_repo_config_path , version_variables, vault_key_path)
         if not url_result:
             module.fail_json(f"{local_config} is not reachable or invalid, please check and provide correct URL")
- 
+
         module.exit_json(changed=False, software_dict=software_dict  , local_config=local_config)
         logger.info(f"Package processing completed: {software_dict}")
 

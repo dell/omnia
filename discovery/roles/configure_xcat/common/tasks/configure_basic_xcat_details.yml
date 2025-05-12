@@ -100,7 +100,7 @@
 - name: Configure admin_network in networks table
   ansible.builtin.shell: >
     {{ xcat_path }}/chdef -t network -o admin_network net={{ pxe_nic_subnet }} mask={{ pxe_nic_netmask }} mgtifname={{ pxe_nic }}
-    gateway={{ pxe_nic_ip }} dhcpserver={{ pxe_nic_ip }} tftpserver={{ pxe_nic_ip }} staticrange="{{ pxe_nic_start_range }}-{{ pxe_nic_end_range }}"
+    gateway=\<xcatmaster\> dhcpserver={{ pxe_nic_ip }} tftpserver=\<xcatmaster\> staticrange="{{ pxe_nic_start_range }}-{{ pxe_nic_end_range }}"
     dynamicrange="{{ pxe_nic_dynamic_start_range }}-{{ pxe_nic_dynamic_end_range }}" mtu={{ network_data.admin_network.MTU }}
   changed_when: true
   when: network_interface_type == "dedicated"
@@ -108,7 +108,7 @@
 - name: Configure admin_network in networks table
   ansible.builtin.shell: >
     {{ xcat_path }}/chdef -t network -o admin_network net={{ pxe_nic_subnet }} mask={{ pxe_nic_netmask }} mgtifname={{ pxe_nic }}
-    gateway={{ pxe_nic_ip }} dhcpserver={{ pxe_nic_ip }} tftpserver={{ pxe_nic_ip }}
+    gateway=\<xcatmaster\> dhcpserver={{ pxe_nic_ip }} tftpserver=\<xcatmaster\>
     staticrange="{{ pxe_nic_start_range }}-{{ pxe_nic_end_range }}" mtu={{ network_data.admin_network.MTU }}
   changed_when: true
   when: network_interface_type == "lom"

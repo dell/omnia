@@ -34,4 +34,8 @@ if [ "$str_os_type" = "debian" ];then
 fi
 echo "Updating CA trust store"
 update-ca-trust extract
+
+echo "Enabling root ssh login"
+sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' {{ sshd_config_file }}
+
 echo "-----------------------------"

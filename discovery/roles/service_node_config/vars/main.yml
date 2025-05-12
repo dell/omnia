@@ -24,6 +24,7 @@ pcs_container_tmpl: "{{ pcs_container_name }}.container.j2"
 pcs_start_tmpl: "pcs-start.sh.j2"
 file_permissions: '0755'
 corosync_tmpl: "corosync.conf.j2"
+failure_timeout: '100s'
 
 # Usage: configure_non_ha_servicenode_config.yml
 service_node_dir: "{{ service_node_base_dir }}/{{ item.service_tag }}"

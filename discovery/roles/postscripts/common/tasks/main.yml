@@ -18,6 +18,10 @@
   register: include_metadata
   no_log: true
 
+- name: Include vars from the pcs container
+  ansible.builtin.include_vars: "{{ pcs_vars }}"
+  when: enable_oim_ha or service_role_required
+
 - name: Configure postscripts
   environment:
     XCATROOT: "{{ xcat_root_env }}"

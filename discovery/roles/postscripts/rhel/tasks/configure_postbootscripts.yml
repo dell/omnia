@@ -38,7 +38,7 @@
   when: service_role_required
 
 - name: Configure pcs container setup postbootscripts
-  ansible.builtin.command: "{{ xcat_path }}/chdef oim_ha_node -p postbootscripts=\"omnia_oim_ha_node\""
+  ansible.builtin.command: "{{ xcat_path }}/chdef oim_ha_node -p postbootscripts=\"omnia_oim_ha_node_postboot\""
   changed_when: true
   when: enable_oim_ha
 
