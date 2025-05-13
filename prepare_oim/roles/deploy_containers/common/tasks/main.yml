@@ -26,7 +26,9 @@
 - name: Set SELinux policy
   ansible.builtin.set_fact:
     selinux_option: ""
-  when: omnia_share_option == 'NFS'
+  when:
+    - omnia_share_option == 'NFS'
+    - nfs_type == 'external'
 
 - name: Get oim node name
   ansible.builtin.command: hostname -s

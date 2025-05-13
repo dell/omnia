@@ -63,6 +63,10 @@ pcs_firewall_services:
   - "http"
   - "https"
 
+internal_nfs_services:
+  - nfs
+  - rpc-bind
+
 # Usage:
 prepare_oim_completion_msg: |
   The playbook prepare_oim.yml has completed successfully. To create the offline repositories and

@@ -191,6 +191,9 @@ def transform_package_dict(data):
         for item in items:
             if item.get("type") == "rpm":
                 rpm_packages[key].append(item["package"])
+            elif item.get("type") == "rpm_list":
+                rpm_packages[key].extend(item["package_list"])
+                
             else:
                 transformed_items.append(item)
 

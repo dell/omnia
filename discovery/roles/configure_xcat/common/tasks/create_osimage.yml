@@ -93,7 +93,6 @@
       changed_when: true
 
     - name: Modify service osimages with xCAT install directory
-      when: service_role_required
       ansible.builtin.command: "{{ xcat_path }}/chdef -t osimage {{ service_os_image }} pkgdir={{ xcat_install_dir }}"
       changed_when: true
 

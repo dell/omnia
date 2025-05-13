@@ -145,6 +145,16 @@ def server_spec_network_key_fail_msg(nic_device):
 ip_overlap_fail_msg = "admin network, bmc network and k8 network and IP ranges should not have any IP overlap. Check omnia_config.yml and network_spec.yml"
 telemetry_ip_overlap_fail_msg = "admin network, telemetry network and IP ranges should not have any IP overlap. Check telemetry_config.yml and network_spec.yml"
 
+# high_availability
+virtual_ip_not_in_admin_subnet = "virtual ip address provided is not in admin subnet. Check high_availability_config.yml and network_spec.yml"
+virtual_ip_not_valid = "should be outside the admin static and dynamic ranges. Check high_availability_config.yml and network_spec.yml"
+duplicate_virtual_ip = "is already used. Please give unique virtual ip address"
+invalid_passive_node_service_tag = "active node and passive node service tag cannot be same."
+group_not_found = "is not defined in the roles_config. Please define the group in roles_config."
+role_node_found = "is not defined in roles_config. Please define the role in roles_config."
+duplicate_active_node_service_tag = "the service tag configured for a active node is already present elsewhere in the config file. "
+duplicate_passive_node_service_tag = "the service tag configured for a passive node is already present elsewhere in the config file. "
+
 def user_name_duplicate(duplicate_usernames):
     return f'duplicate username detected {duplicate_usernames}. Check that usernames are unique in k8s_access_config.yml and passwordless_ssh_config.yml'
 
