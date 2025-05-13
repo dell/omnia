@@ -41,6 +41,19 @@
   ansible.builtin.fail:
     msg: "{{ nfs_not_configured }}"
 
+- name: Fail if Internal NFS is used with HA
+  when: nfs_used and nfs_type == "internal" and (enable_oim_ha or enable_service_ha)
+  ansible.builtin.fail:
+    msg: "{{ ha_nfs_error_msg }}"
+
+- name: Warn if internal NFS is used with service_node role
+  when: nfs_used and nfs_type == "internal" and
+        ('service_node' in roles_data)
+  ansible.builtin.pause:
+    prompt: >
+      {{ nfs_internal_warning_msg }}
+    seconds: "{{ warning_wait_time_10s }}"
+
 - name: Check if image tarball is present
   when: (enable_oim_ha or enable_service_ha or 'service_node' in roles_data)
   block:

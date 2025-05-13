@@ -73,6 +73,13 @@ service_node_not_found_msg: |
 oim_ha_node_not_found_msg: |
   "Service role not defiened in roles_config.yml but enable_service_ha is made as True.
   Kindly define service_node role in roles config and rerun the playbook."
+nfs_internal_warning_msg: |
+  "WARNING: It is recommended to use External NFS for hierarchical cluster.
+  If you must use Internal NFS, ensure OIM has enough storage space and sufficient hardware resources."
+ha_nfs_error_msg: |
+  ERROR: Internal NFS is not supported with HA OIM or Service HA.
+  Please configure External NFS for HA capabilities.
+warning_wait_time_10s: 10
 
 # Usage: include_local_repo_config.yml
 local_repo_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/local_repo_config.yml"
