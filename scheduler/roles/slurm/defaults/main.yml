@@ -37,7 +37,7 @@ __slurm_default_config:
   SlurmdSpoolDir: "/var/spool/slurmd"
   ReturnToService: 2
   SchedulerType: sched/backfill
-  MpiDefault: None
+  MpiDefault: none
   TaskPlugin: task/cgroup
   ProctrackType: proctrack/cgroup
   PrologFlags: contain

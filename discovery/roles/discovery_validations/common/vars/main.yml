@@ -173,6 +173,12 @@ default_layer_discovery_mechanism_fail_msg: |
   For bmc static discovery, please provide the bmc_details in the roles_config.yml file.
   For bmc dynamic discovery, please provide the bmc_network details in the network_spec.yml file.
   For switch_based discovery, provide bmc_details and switch_details in roles_config.yml"
+invalid_groups_msg: |
+  "Failed, all discovery mechanism invalid for groups: [{{ failed_groups | list | join(', ') }}]
+  For mapping discovery, please provide the pxe_mapping_file_path in the provision_config.yml file.
+  For bmc static discovery, please provide the bmc_details in the roles_config.yml file.
+  For bmc dynamic discovery, please provide the bmc_network details in the network_spec.yml file.
+  For switch_based discovery, provide bmc_details and switch_details in roles_config.yml"
 
 # Usage: validate_provision_vars.yml
 input_provision_fail_msg: |

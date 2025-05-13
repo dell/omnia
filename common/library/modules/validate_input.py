@@ -52,8 +52,10 @@ def createlogger(project_name, tag_name=None):
         log_filename = f"{tag_name}_validation_omnia_{project_name}.log"
     else:
         log_filename = f"validation_omnia_{project_name}.log"
+
+    log_file_path = os.path.join(config.input_validator_log_path, log_filename)
     logging.basicConfig(
-        filename=log_filename,
+        filename=log_file_path,
         format="%(asctime)s %(message)s",
         filemode="w"
     )
@@ -231,6 +233,8 @@ def main():
 
     logger.error(en_us_validation_msg.get_footer())
 
+    log_file_name = os.path.join(config.input_validator_log_path, f"validation_omnia_{project_name}.log")
+
     # Ansible success/failure message
     if False in vstatus:
         status = validation_status[project_name]['status']
@@ -243,12 +247,12 @@ def main():
             f"Input validation failed for: {failed_files} input configuration(s). \
                 Validation passed for {passed_files}. "
             f"Tag(s) run: {tag}. Look at the logs for more details: \
-                filename=validation_omnia_{project_name}.log"
+                filename={log_file_name}"
             )
         module.fail_json(msg=message)
     else:
         message = f"Input validation completed for project: {validation_status} input configs. \
-            Look at the logs for more details: filename=validation_omnia_{project_name}.logs"
+            Look at the logs for more details: filename={log_file_name}"
         module.exit_json(msg=message)
 
 

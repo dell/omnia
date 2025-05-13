@@ -25,7 +25,6 @@ perl_badlang_env: 0
 network_spec: "/opt/omnia/input/project_default/network_spec.yml"
 local_repo_config: "/opt/omnia/input/project_default/local_repo_config.yml"
 provision_config: "/opt/omnia/input/project_default/provision_config.yml"
-pcs_vars: "{{ role_path }}/../../../prepare_oim/roles/deploy_containers/pcs/vars/main.yml"
 
 # Usage: create_files_local_repo_common.yml
 local_repo_access_src_path: "{{ role_path }}/templates/local_repo_access.yml.j2"
@@ -49,6 +48,3 @@ trust_store_path: /etc/pki/ca-trust/extracted
 xcat_path: /opt/xcat/bin
 synclists_dir: "/install/synclists"
 pulp_cert_path: /opt/omnia/pulp/settings/certs
-
-pcs_files:
-  - {src: "/opt/omnia/pcs/omnia_pcs.container"}

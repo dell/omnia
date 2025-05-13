@@ -40,12 +40,11 @@ hashed_passwd=""
 # It prompts the user for the Omnia shared path and the root password.
 # It checks if the Omnia shared path exists.
 setup_omnia_core() {
+    # Validate the system environment
+    validate_oim
 
     # Initialize the container configuration
     init_container_config
-
-    # Validate the system environment
-    validate_oim
 
     # Setup the container
     setup_container
@@ -197,6 +196,7 @@ init_container_config() {
     share_option=""
 
     # Prompt the user to choose the type of Omnia shared path
+    echo -e "${BLUE} ----------------- Omnia shared path configuration ----------------${NC}"
     echo -e "${BLUE} Please choose the type of Omnia shared path in Omnia Infrastructure Manager (OIM) :${NC}"
     echo -e "${BLUE} It is recommended to use a NFS share for Omnia shared path. ${NC}"
     echo -e "${BLUE} If you are not using NFS, make sure enough space is available on the disk. ${NC}"
@@ -334,6 +334,14 @@ init_container_config() {
     echo -e "${GREEN} Creating the ssh configuration directory if it does not exist.${NC}"
     mkdir -p "$omnia_path/omnia/ssh_config/.ssh"
 
+    # Copy the omnia_core ssh config to the shared path.
+    echo -e "${GREEN} Copying the omnia_core ssh config to the omnia shared path.${NC}"
+    cp "$HOME/.ssh/config" "$omnia_path/omnia/ssh_config/.ssh/config"
+
+    # Copy the oim_rsa ssh key to the shared path.
+    echo -e "${GREEN} Copying the oim_rsa ssh key to the omnia shared path.${NC}"
+    cp "$HOME/.ssh/oim_rsa" "$omnia_path/omnia/ssh_config/.ssh/oim_rsa"
+
     # Copy the ssh private key to the omnia shared path.
     echo -e "${GREEN} Copying the ssh private key to the omnia shared path.${NC}"
     cp $ssh_key_file "$omnia_path/omnia/ssh_config/.ssh/id_rsa"
@@ -435,6 +443,24 @@ fetch_config() {
 # configured with a domain name, checking if Podman is installed, enabling and
 # starting the Podman socket.
 validate_oim() {
+    # Check if the hostname is set
+    hostname_value=$(hostname)
+    if [[ -z "$hostname_value" ]]; then
+        echo -e "${RED}Hostname is not set!${NC}"
+        exit 1
+    fi
+
+    # Check if the hostname is static
+    static_hostname=$(hostnamectl --static)
+    current_hostname=$(hostname)
+    if [[ "$static_hostname" != "$current_hostname" ]]; then
+        echo -e "${RED}Static Hostname is unset. Current: '$current_hostname', Static: '$static_hostname'${NC}"
+        echo -e "${RED}Please set the static hostname and try again.${NC}"
+        echo -e "${BLUE}Command to set hostname: hostnamectl set-hostname <hostname>${NC}"
+        echo -e "${RED}Exiting...${NC}"
+        exit 1
+    fi
+
     # Check if the hostname is configured with a domain name.
     domain_name=$(hostname -d)
     if [[ -n "$domain_name" ]]; then
@@ -512,6 +538,10 @@ setup_container() {
         echo -e "${RED} Make sure the Omnia core image is present.${NC}"
         exit 1
     fi
+
+    # Waiting for container to be ready
+    sleep 2
+
 }
 
 # This function sets up the configuration for the Omnia core.
@@ -612,9 +642,6 @@ start_container_session() {
     --------------------------------------------------------------------------------------------------------------------------------------------------
     ${NC}"
 
-    # Waiting for container to be ready
-    sleep 2
-
     # Entering Omnia-core container
     ssh omnia_core
 }
@@ -650,14 +677,18 @@ main() {
             echo -e "${GREEN} Do you want to:${NC}"
             PS3="Select the option number: "
 
-            select opt in "Reinstall the container" "Delete the container and configurations" "Exit"; do
+            select opt in "Enter omnia_core container" "Reinstall the container" "Delete the container and configurations" "Exit"; do
                 case $opt in
-                    "Reinstall the container")
+                    "Enter omnia_core container")
                         choice=1
                         break
                         ;;
-                    "Delete the container and configurations")
+                    "Reinstall the container")
                         choice=2
+                        break
+                        ;;
+                    "Delete the container and configurations")
+                        choice=3
                         break
                         ;;
                     "Exit")
@@ -671,8 +702,12 @@ main() {
                 esac
             done
 
-            # If the user wants to reinstall, call the remove_container function, and then call the setup_omnia_core function
+            # If the user wants to enter omnia_core container
             if [ "$choice" = "1" ]; then
+                start_container_session
+            fi
+            # If the user wants to reinstall, call the remove_container function, and then call the setup_omnia_core function
+            if [ "$choice" = "2" ]; then
                 echo -e "${GREEN} What configuration do you want to use for reinstallation:${NC}"
 
                 PS3="Select the option number: "
@@ -711,7 +746,7 @@ main() {
                 fi
 
             # If the user wants to cleanup, call the cleanup function
-            elif [ "$choice" = "2" ]; then
+            elif [ "$choice" = "3" ]; then
                 cleanup_omnia_core
             fi
         else

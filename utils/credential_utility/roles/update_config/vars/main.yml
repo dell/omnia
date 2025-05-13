@@ -23,56 +23,38 @@ optional_warning_msg: "WARNING: The following are optional credentials. If left 
 mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left them empty. Please enter valid inputs."
 mandatory_input: "is a [MANDATORY] credential and cannot be left empty."
 optional_input: "is an [OPTIONAL] credential and can be left empty to skip."
-# Usage: fetch_password.yml
-mandatory_password_fail_msg: "Failed. Please provide valid password for mandatory credential."
+
+# Usage: prompt_credentials.yml
+mandatory_password_fail_msg: "Failed. Password is required for mandatory credential or any username input. Please provide valid password."
 password_match_fail_msg: "Failed. Passwords do not match. Please try again."
 password_fail_msg: "Failed. Please provide valid password."
-
-# Usage: fetch_username.yml
 mandatory_credentials_msg: "Failed. Please provide valid username for mandatory credential."
 username_fail_msg: "Failed. Please provide valid username."
 
 omnia_credentials:
   provision:
     mandatory:
-      username:
-        - bmc_username
-        - switch_snmp3_username
-      password:
-        - provision_password
-        - bmc_password
-        - switch_snmp3_password
+      - { password: provision_password }
+      - { username: bmc_username, password: bmc_password }
+      - { username: switch_snmp3_username, password: switch_snmp3_password }
   prepare_oim:
     optional:
-      username:
-        - docker_username
+      - { username: docker_username, password: docker_password }
     mandatory:
-      password:
-        - docker_password
-        - postgresdb_password
-        - pulp_password
+      - { password: postgresdb_password }
+      - { password: pulp_password }
   local_repo:
     optional:
-      username:
-        - docker_username
-    mandatory:
-      password:
-        - docker_password
+      - { username: docker_username, password: docker_password }
   slurm:
     mandatory:
-      password:
-        - slurm_db_password
+      - { password: slurm_db_password }
   openldap:
     mandatory:
-      password:
-        - openldap_db_password
-        - openldap_config_password
-        - openldap_monitor_password
-      username:
-        - openldap_db_username
-        - openldap_config_username
+      - { username: openldap_db_username, password: openldap_db_password }
+      - { username: openldap_config_username, password: openldap_config_password }
+      - { password: openldap_monitor_password }
   freeipa:
     mandatory:
-      password:
-        - kerberos_admin_password
-        - directory_manager_password
+      - { password: kerberos_admin_password }
+      - { password: directory_manager_password }

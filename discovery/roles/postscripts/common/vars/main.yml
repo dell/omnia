@@ -20,7 +20,7 @@ xcat_manpath_env: "/opt/xcat/share/man:$MANPATH"
 perl_badlang_env: 0
 xcat_path: /opt/xcat/bin
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
-
+pcs_vars: "{{ role_path }}/../../../../prepare_oim/roles/deploy_containers/pcs/vars/main.yml"
 # Usage: check_nodes_all.yml
 all_nodes_warning_msg: "[WARNING] Not found any nodes using the given discovery mechanism.
 Verify all the input parameters are valid and re-run discovery_provision.yml"
@@ -68,9 +68,11 @@ supported_roles:
 genesis_package_path:
   - { src: "{{ role_path }}/../rhel/files/xcat-genesis-base-x86_64.tar.gz", dest: "/install/xcat-genesis-base-x86_64.tar.gz", mode: "755" }
 
-# Usage: omnia_oim_ha_node.j2
+# Usage: omnia_oim_ha_node_postboot.j2
 container_tar_file: "omnia_images.tar"
 container_images_path: "{{ oim_shared_path }}/omnia/images/{{ container_tar_file }}"
+
+# Usage: omnia_oim_ha_node.j2
 persistent_rules_file: "/etc/udev/rules.d/70-persistent-net.rules"
 
 # Usage: omnia_hostname.j2

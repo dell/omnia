@@ -26,25 +26,85 @@ run_or_fail() {
 echo "--------------------------" >> "$LOGFILE"
 echo "$(date) - INFO - Starting Omnia Service node postboot configuration" >> "$LOGFILE"
 
+
+{% if omnia_share_option == "NFS" %}
+# Create omnia_path directory if it does not exist
+echo "Creating omnia shared path directory if it does not exist" >> "$LOGFILE"
+mkdir -p {{ oim_shared_path }}
+
+# Validate if NFS server is reachable
+echo "Validating if NFS server is reachable" >> "$LOGFILE"
+ping -c1 -W1 {{ nfs_server_ip }} > /dev/null
+if [ $? -ne 0 ]; then
+    echo -e "NFS server {{ nfs_server_ip }} is not reachable." >> "$LOGFILE"
+    exit 1
+fi
+
+# Mount NFS server share path in Omnia share path
+echo "Mounting NFS server share path in Omnia share path" >> "$LOGFILE"
+mount -t nfs -o nosuid,rw,sync,hard,intr,timeo=30 {{ nfs_server_ip }}:{{ nfs_server_share_path }} {{ oim_shared_path }}
+
+## Commenting as xcat creates a seperate file for each nodes on all SNs and MNs, doing mount will replace all.
+# echo "Creating a mount for to /install and /tftpboot"
+# sudo mkdir -p /install
+# mount -t nfs -o nosuid,rw,sync,hard,intr,timeo=30 {{ nfs_server_ip }}:{{ nfs_server_share_path }}/omnia/provision/install /install
+# sudo mkdir -p /tftpboot
+# mount -t nfs -o nosuid,rw,sync,hard,intr,timeo=30 {{ nfs_server_ip }}:{{ nfs_server_share_path }}/omnia/provision/tftpboot /tftpboot
+
+sudo rm -rf /etc/hosts
+ln -s {{ oim_shared_path }}/omnia/hosts /etc/hosts
+# sudo rm -rf /etc/dhcp
+# ln -s {{ oim_shared_path }}/omnia/provision/xcatdata/etc/dhcp /etc/dhcp
+
+
+# Validate if NFS server share path is mounted
+echo "Validating if NFS server share path is mounted" >> "$LOGFILE"
+if grep -qs "{{ nfs_server_ip }}:{{ nfs_server_share_path }}" /proc/mounts; then
+    echo -e "NFS server share path is mounted." >> "$LOGFILE"
+else
+    echo -e "NFS server share path is not mounted. Provide valid NFS server details" >> "$LOGFILE"
+    exit 1
+fi
+
+# Add NFS server share to /etc/fstab to mount on startup
+echo "Adding entry in /etc/fstab for mount on startup"
+echo "{{ nfs_server_ip }}:{{ nfs_server_share_path }} {{ oim_shared_path }} nfs nosuid,rw,sync,hard,intr" >> /etc/fstab
+## Commenting these as mount not needed
+# echo "{{ nfs_server_ip }}:{{ nfs_server_share_path }}/omnia/provision/install /install nfs nosuid,rw,sync,hard,intr" >> /etc/fstab
+# echo "{{ nfs_server_ip }}:{{ nfs_server_share_path }}/omnia/provision/tftpboot /tftpboot nfs nosuid,rw,sync,hard,intr" >> /etc/fstab
+
+{% endif %}
+# Load container images
+if [ -f "{{ container_images_path }}" ]; then
+    echo "Loading container images" >> "$LOGFILE"
+    podman load -i "{{ container_images_path }}" >> "$LOGFILE" 2>&1
+else
+    echo "Container image file not found at {{ container_images_path }}" >> "$LOGFILE"
+fi
+
 # Get node serial
-log "--- Getting node serial ---"
+log "INFO:--- Getting node serial ---"
 nodeid=$(dmidecode -s system-serial-number 2>>"$LOGFILE")
 log "[DEBUG] Current node serial: $nodeid"
 
-log "--- Restarting xcatd ---"
+log "INFO:--- Restarting xcatd ---"
 run_or_fail sudo /opt/xcat/sbin/restartxcatd -v
 
 
 # Check if the container file exists
 if [ -f "{{ oim_shared_path }}/omnia/service_nodes/$nodeid/{{ pcs_container_name }}.container" ]; then
-    # Create symlink if the file exists
-    ln -sf "{{ oim_shared_path }}/omnia/service_nodes/$nodeid/{{ pcs_container_name }}.container" \
+    log "INFO:--- Copying omnia_pcs container file to /etc/containers/systemd/ ---"
+    cp "{{ oim_shared_path }}/omnia/service_nodes/$nodeid/{{ pcs_container_name }}.container" \
            "{{ container_systemd_dir }}/{{ pcs_container_name }}.container"
 
-    log "--- Reloading systemd ---"
+    log "INFO:--- Reloading systemd ---"
     run_or_fail sudo systemctl daemon-reload
 
-    log "--- Starting omnia_pcs container ---"
+    log "INFO: Enabling and starting the podman socket."
+    run_or_fail sudo systemctl enable podman.socket
+    run_or_fail sudo systemctl start podman.socket
+
+    log "INFO:--- Starting omnia_pcs container ---"
     run_or_fail sudo systemctl start omnia_pcs
 else
     log "Container file {{ oim_shared_path }}/omnia/service_nodes/$nodeid/{{ pcs_container_name }}.container not found. Skipping steps."
