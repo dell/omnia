@@ -40,3 +40,6 @@
       metadata:
         annotations:
           storageclass.kubernetes.io/is-default-class: "true"
+
+- name: Include pod status
+  ansible.builtin.include_tasks: pod_status.yml

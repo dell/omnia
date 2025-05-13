@@ -13,35 +13,75 @@
 #  limitations under the License.
 ---
 
+# Usage: main.yml
 common_plugin:
   kubernetes_dashboard: true
-  habanalabs-device-plugin: true
+  habanalabs-device-plugin: false
   mpi-operator: true
   xilinx-device-plugin: true
   nfs-subdir-external-provisioner: true
+  multus-device-plugin: true
+  whereabouts-device-plugin: true
 
-k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
-minimal_gaudi_k8s_version: "1.27"
+# Usage: prereq.yml
 k8s_tmp_dir: "/root/k8s"
+helm_install_fail_msg: "Failed to fetch helm path. Please verify helm installation and ensure the environment variable PATH is correctly set in the node.
+ Re-run the playbook after verification."
+ansible_python_interpreter: /usr/bin/python3.11
+
+# Usage: deploy_kubernetes_dashboard.yml
 k8s_dashboard_admin_file_source: "k8s_dashboard_admin.yaml"
 k8s_dashboard_admin_file_dest: "{{ k8s_tmp_dir }}/k8s_dashboard_admin.yaml"
 file_mode: "0644"
 k8s_dashboard_loadbalancer_file_source: "k8s-dashboard-loadbalancer.yml"
 k8s_dashboard_loadbalancer_file_dest: "{{ k8s_tmp_dir }}/k8s_dashboard_load_balancer.yaml"
 nfs_server_manager_node: "{{ ansible_host }}"
+
+# Usage: deploy_mpi_operator.yml
 mpi_operator_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/{{ hostvars['localhost']['mpi_operator'] }}/{{ hostvars['localhost']['mpi_operator'] }}.yml" # noqa: yaml[line-length]
 mpi_operator_dest_url: "{{ k8s_tmp_dir }}/{{ hostvars['localhost']['mpi_operator'] }}.yml"
+
+# Usage: deploy_xilinx_device_plugin.yml
 xilinx_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/xilinx-device-plugin/xilinx-device-plugin.yml"
 xilinx_device_plugin_yaml_dest: "{{ k8s_tmp_dir }}/xilinx-device-plugin.yml"
-spark_operator_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/spark-operator-v1beta2-1.3.8-3.1.1.tar.gz"
-rocm_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}//rocm-device-plugin/rocm-device-plugin.yml"
-rocm_device_plugin_dest_url: "{{ k8s_tmp_dir }}/rocm-device-plugin.yml"
+
+# Usage: deploy_habana_device_plugin.yml
 habana_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/habana-device-plugin.yaml"
 node_label_for_habana_device_plugin: "intel.com/gaudi.present"
-nfs_dir_mode: "0777"
-pod_wait_time: 300
+k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
+minimal_gaudi_k8s_version: "1.27"
+
+# Usage: deploy_nfs_client_provisioner.yml
 nfs_subdir_external_provisioner_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tar.gz" # noqa: yaml[line-length]
 nfs_subdir_external_provisioner_dest_repo: "{{ k8s_tmp_dir }}/nfs-subdir-external-provisioner-4.0.18.tar.gz"
-helm_install_fail_msg: "Failed to fetch helm path. Please verify helm installation and ensure the environment variable PATH is correctly set in the node.
-Re-run the playbook after verification."
-ansible_python_interpreter: /usr/bin/python3.11
+
+# Usage deploy_multus_device_plugin.yml
+network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
+input_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
+project_name: "{{ hostvars['localhost']['project_name'] }}"
+network_spec_path: "{{ input_dir }}/network_spec.yml"
+pulp_container_name: "{{ admin_nic_ip }}:2225"
+multus_config: "true"
+multus_deployment_template: "{{ role_path }}/templates/multus-daemonset.j2"
+multus_deployment_manifest: "/opt/omnia/offline_repo/cluster/manifest/multus-daemonset/multus-daemonset.yml"
+multus_deployment_manifest_path: "{{ hostvars['localhost']['offline_manifest_path'] }}/multus-daemonset/multus-daemonset.yml"
+multus_deployment_manifest_mode: "0644"
+multus_version: "v4.1.4-thick"
+memory_limit_kube_multus: "1Gi"
+memory_limit_multus_binary: "1Gi"
+multus_command:
+  - sh
+  - -c
+  - |
+    if [ ! -f /host/opt/cni/bin/multus-shim ]; then
+      cp /usr/src/multus-cni/bin/multus-shim /host/opt/cni/bin/multus-shim;
+    fi
+multus_deployment_dest_path: "{{ k8s_tmp_dir }}/multus-daemonset.yml"
+
+# Usage deploy_whereabouts_device_plugin.yml
+whereabouts_git_url: "{{ hostvars['localhost']['offline_git_path'] }}/whereabouts/whereabouts.tar.gz"
+whereabouts_dest_folder: "{{ k8s_tmp_dir }}/whereabouts.tar.gz"
+whereabouts_folder: "{{ k8s_tmp_dir }}/whereabouts"
+tmp_folder: "{{ k8s_tmp_dir }}"
+wherabout_crds_folder: "{{ k8s_tmp_dir }}/whereabouts/doc/crds"
+git_permissions: "0644"
