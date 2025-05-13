@@ -12,7 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
 - name: Check ucx directory on the nfs share exist
   ansible.builtin.stat:
     path: "{{ omnia_share_path }}/{{ benchmarks_dir_ucx }}/{{ bin_folder }}"
@@ -32,9 +31,9 @@
     - ucx_info.rc == 0
 
 - name: Execute UCX installation tasks if share path exists
-  when: ucx_installed is not defined or not ucx_installed
+  when: not ucx_installed
   block:
-    - name: Creates /mnt/share/compile/ucx directory
+    - name: Creates <mounted_nfs_share>/compile/ucx directory
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
@@ -100,3 +99,7 @@
       ansible.builtin.fail:
         msg: "{{ ucx_info_error }}"
       when: ucx_info.rc != 0
+
+    - name: Set fact if ucx installation is successful
+      ansible.builtin.set_fact:
+        ucx_installed: true
