@@ -53,6 +53,16 @@
     permanent: true
   loop: "{{ pcs_firewall_services }}"
 
+- name: Enable NFS-related services
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    state: enabled
+    permanent: true
+  loop: "{{ internal_nfs_services }}"
+  when:
+    - omnia_share_option == 'NFS'
+    - nfs_type == 'internal'
+
 - name: Reload firewalld to apply changes
   ansible.builtin.command: firewall-cmd --reload
   changed_when: true

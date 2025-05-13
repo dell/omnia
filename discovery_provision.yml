@@ -24,6 +24,7 @@
         cacheable: true
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations
+  tags: management_layer
   ansible.builtin.import_playbook: input_validation/validate_config.yml
 
 - name: Invoke get_config_credentials.yml

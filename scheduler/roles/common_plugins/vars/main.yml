@@ -15,8 +15,6 @@
 
 common_plugin:
   kubernetes_dashboard: true
-  nvidia-device-plugin: true
-  amdgpu-device-plugin: true
   habanalabs-device-plugin: true
   mpi-operator: true
   xilinx-device-plugin: true

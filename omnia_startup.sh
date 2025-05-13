@@ -36,6 +36,74 @@ core_container_status=false
 omnia_path=""
 hashed_passwd=""
 
+is_local_ip() {
+    local ip_to_check="$1"
+
+    # Get all local IP addresses (excluding loopback)
+    local local_ips
+    local_ips=$(hostname -I)
+
+    # Check if the IP matches any local IP
+    if echo "$local_ips" | grep -qw "$ip_to_check"; then
+        return 0  # IP is local
+    else
+        return 1  # IP is not local
+    fi
+}
+
+check_internal_nfs_export() {
+    nfs_server_ip=$1
+    nfs_server_share_path=$2
+
+    if is_local_ip "$nfs_server_ip"; then
+        echo "The provided NFS server IP ($nfs_server_ip) belongs to the current system."
+    else
+        echo "The provided NFS server IP ($nfs_server_ip) is NOT the current system's IP."
+        exit 1
+    fi
+
+    # Query the remote server for exports
+    exports=$(showmount -e "$nfs_server_ip" 2>/dev/null)
+
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}ERROR: Unable to contact NFS server at $nfs_server_ip. Ensure NFS and rpcbind are running, and firewall allows access.${NC}"
+        exit 1
+    fi
+
+    # Check if path is in the export list
+    if echo "$exports" | awk '{print $1}' | grep -Fxq "$nfs_server_share_path"; then
+        echo -e "${GREEN}Path $nfs_server_share_path is exported by $nfs_server_ip.${NC}"
+    else
+        echo -e "${RED}ERROR: Path $nfs_server_share_path is NOT exported by $nfs_server_ip.${NC}"
+        exit 1
+    fi
+}
+
+display_supported_use_cases() {
+    # Color definitions
+    BLUE='\033[1;34m'
+    YELLOW='\033[1;33m'
+    GREEN='\033[1;32m'
+    NC='\033[0m' # No Color
+
+    # Introductory Guidance
+    echo -e "${BLUE} ----------------- Omnia Shared Path Configuration ---------------- ${NC}"
+    echo -e "${BLUE} Please choose the type of Omnia shared path in Omnia Infrastructure Manager (OIM): ${NC}"
+    echo -e "${BLUE} It is recommended to use a external NFS share for the Omnia shared path. ${NC}"
+    echo -e "${BLUE} If you are not using NFS, make sure enough space is available on the disk. ${NC}"
+    echo -e "${YELLOW} Using a Extrenal NFS share is mandatory for Omnia shared path if you are planning to have high availability in OIM or require a hierarchical cluster. ${NC}"
+    echo -e "\nSupported Use Cases:\n"
+
+    # Table content
+    {
+        echo -e "Share Option\tType\tDescription\tAdditional Info"
+        echo -e "${GREEN}NFS\tExternal\tExternal NFS server(outside OIM) created by user\tMust be reachable from OIM and service nodes. Mounts on OIM. Recommended for HA and hierarchical clusters.${NC}"
+        echo -e "NFS\tInternal\tNFS server created by user in OIM\tUsed only for flat provisioning. No HA or hierarchical support. No mount performed."
+        echo -e "Local\tDisk\tDisk storage in OIM\tUsed only for flat provisioning. No HA or hierarchical support."
+    } | column -t -s $'\t'
+}
+
+
 # This function is responsible for initializing the Omnia core container
 # It prompts the user for the Omnia shared path and the root password.
 # It checks if the Omnia shared path exists.
@@ -130,7 +198,7 @@ cleanup_config(){
     rm -rf $omnia_path/omnia/{hosts,input,log,offline_repo,omnia_inventory,pulp,provision,kubespray,pcs,services,shared_libraries,ssh_config,tmp,images,.data}
 
     # Unmount the NFS shared path if the share option is NFS.
-    if [ "$share_option" = "NFS" ]; then
+    if [ "$share_option" = "NFS" ] && [ "$nfs_type" = "external" ]; then
         umount "$omnia_path"
         if [ $? -eq 0 ]; then
             echo -e "${GREEN} NFS shared path has been unmounted.${NC}"
@@ -192,15 +260,9 @@ remove_container() {
 # The function creates the necessary log directories.
 init_container_config() {
 
-
     share_option=""
-
-    # Prompt the user to choose the type of Omnia shared path
-    echo -e "${BLUE} ----------------- Omnia shared path configuration ----------------${NC}"
-    echo -e "${BLUE} Please choose the type of Omnia shared path in Omnia Infrastructure Manager (OIM) :${NC}"
-    echo -e "${BLUE} It is recommended to use a NFS share for Omnia shared path. ${NC}"
-    echo -e "${BLUE} If you are not using NFS, make sure enough space is available on the disk. ${NC}"
-    echo -e "${YELLOW} Using a NFS share is mandatory for Omnia shared path if you are planning to have a high availability in OIM or require hierarchical cluster.${NC}"
+    # Display the supported use cases
+    display_supported_use_cases
 
     # Display the choices for the user
     echo -e "${BLUE} Choose the type of Omnia shared path:${NC}"
@@ -233,23 +295,49 @@ init_container_config() {
             # Check if the Omnia shared path is absolute path and path exists.
             if [[ "$omnia_path" != /* ]] || [ ! -d "$omnia_path" ]; then
                 echo -e "${RED} Omnia shared path is not an absolute path or does not exist! Please re-run omnia_startup.sh with valid Omnia shared path${NC}"
-                exit
+                exit 1
             fi
             ;;
         "NFS")
-            # Prompt the user for the NFS server IP.
-            echo -e "${BLUE} Please provide the NFS server IP:${NC}"
-            read -p "NFS server IP: " nfs_server_ip
+            echo -e "${BLUE} Select NFS type:${NC}"
+            select nfs_type in "External (Recommended)" "Internal"; do
+                case $nfs_type in
+                    "External (Recommended)")
+                        echo -e "${BLUE} Please provide the external NFS server IP:${NC}"
+                        read -p "External NFS server IP: " nfs_server_ip
 
-            # Prompt the user for the NFS server share path.
-            echo -e "${BLUE} Please provide the NFS server share path:${NC}"
-            read -p "NFS server share path: " nfs_server_share_path
+                        echo -e "${BLUE} Please provide the external NFS server share path:${NC}"
+                        read -p "External NFS share path: " nfs_server_share_path
 
-            # Prompt the user for the Omnia share path.
-            echo -e "${BLUE} Please provide the Omnia share path:${NC}"
-            read -p "Omnia share path: " omnia_path
+                        echo -e "${BLUE} Please provide the OIM client share path (mount target):${NC}"
+                        read -p "Omnia shared path: " omnia_path
+                        nfs_type="external"
+                        break
+                        ;;
+                    "Internal")
+                        echo -e "${BLUE} Please provide the OIM server IP:${NC}"
+                        read -p "OIM server IP: " nfs_server_ip
+
+                        echo -e "${BLUE} Please provide the OIM server share path:${NC}"
+                        read -p "OIM server share path: " nfs_server_share_path
+
+                        echo -e "${BLUE} Checking if the OIM server share path is mounted${NC}"
+                        check_internal_nfs_export "$nfs_server_ip" "$nfs_server_share_path"
+
+                        # Note: No mounting performed here
+                        echo -e "${YELLOW}Note: Internal NFS does not support HA OIM or hierarchical cluster. Proceeding...${NC}"
+                        nfs_type="internal"
+                        omnia_path="$nfs_server_share_path"
+                        break
+                        ;;
+                    *)
+                        echo -e "${RED}Invalid option. Please choose 1 or 2.${NC}"
+                        ;;
+                esac
+            done
             ;;
     esac
+
 
     # Prompt the user for the Omnia core root password.
     echo -e "${BLUE} Please provide Omnia core root password for accessing container:${NC}"
@@ -283,31 +371,45 @@ init_container_config() {
         echo -e "${BLUE} Creating omnia shared path directory if it does not exist.${NC}"
         mkdir -p $omnia_path
 
-        # Validate if NFS server is reachable
-        echo -e "${BLUE} Validating if NFS server is reachable.${NC}"
-        ping -c1 -W1 $nfs_server_ip > /dev/null
-        if [ $? -ne 0 ]; then
-            echo -e "${RED} NFS server $nfs_server_ip is not reachable.${NC}"
-            exit 1
-        fi
-
         # Mount NFS server share path in Omnia share path
-        echo -e "${BLUE} Mounting NFS server share path in Omnia share path.${NC}"
-        mount -t nfs -o nosuid,rw,sync,hard,intr,timeo=30 $nfs_server_ip:$nfs_server_share_path $omnia_path
+        if [[ "$nfs_type" == "external" ]]; then
 
-        # Validate if NFS server share path is mounted
-        echo -e "${BLUE} Validating if NFS server share path is mounted.${NC}"
-	# strip the trailing slash from nfs_server_share_path
-	strip_nfs_server_share_path="${nfs_server_share_path%/}"
-        if grep -qs "$nfs_server_ip:$strip_nfs_server_share_path" /proc/mounts; then
-            echo -e "${GREEN} NFS server share path is mounted.${NC}"
+            if is_local_ip "$nfs_server_ip"; then
+                echo -e "${RED} Error: NFS server $nfs_server_ip is a local IP.${NC}"
+                echo -e "${RED} Please provide an external NFS server IP or re-run omnia_startup.sh with valid options.${NC}"
+                exit 1
+            fi
+
+            # Validate if NFS server is reachable
+            echo -e "${BLUE} Validating if NFS server is reachable.${NC}"
+            ping -c1 -W1 $nfs_server_ip > /dev/null
+            if [ $? -ne 0 ]; then
+                echo -e "${RED} NFS server $nfs_server_ip is not reachable.${NC}"
+                exit 1
+            fi
+
+            echo -e "${BLUE} Mounting NFS server share path in Omnia share path.${NC}"
+            mount -t nfs -o nosuid,rw,sync,hard,intr,timeo=30 "$nfs_server_ip:$nfs_server_share_path" "$omnia_path"
+            if [[ $? -ne 0 ]]; then
+                echo -e "${RED} Failed to mount NFS. Please check the IP and path.${NC}"
+                exit 1
+            fi
+            # Validate if NFS server share path is mounted
+            echo -e "${BLUE} Validating if NFS server share path is mounted.${NC}"
+            # strip the trailing slash from nfs_server_share_path
+            strip_nfs_server_share_path="${nfs_server_share_path%/}"
+            if grep -qs "$nfs_server_ip:$strip_nfs_server_share_path" /proc/mounts; then
+                echo -e "${GREEN} NFS server share path is mounted.${NC}"
+            else
+                echo -e "${RED} NFS server share path is not mounted. Provide valid NFS server details. ${NC}"
+                exit 1
+            fi
+            # Add NFS server share to /etc/fstab to mount on startup
+            echo "$nfs_server_ip:$nfs_server_share_path $omnia_path nfs nosuid,rw,sync,hard,intr" >> /etc/fstab
         else
-            echo -e "${RED} NFS server share path is not mounted. Provide valid NFS server details. ${NC}"
-            exit 1
+            echo -e "${BLUE} Using internal NFS path without mounting.${NC}"
         fi
 
-        # Add NFS server share to /etc/fstab to mount on startup
-        echo "$nfs_server_ip:$nfs_server_share_path $omnia_path nfs nosuid,rw,sync,hard,intr" >> /etc/fstab
     fi
 
     hashed_passwd=$(openssl passwd -1 $passwd)
@@ -428,6 +530,10 @@ fetch_config() {
                 # Assign the share option.
                 share_option=$(echo "$value" | tr -d '[:space:]')
                 ;;
+            nfs_type)
+                # Assign the share option.
+                nfs_type=$(echo "$value" | tr -d '[:space:]')
+                ;;
         esac
     done
     # Check if the required configuration is extracted successfully.
@@ -513,7 +619,7 @@ setup_container() {
 
     selinux_option=":z"
 
-    if [ "$share_option" = "NFS" ]; then
+    if [ "$share_option" = "NFS" ] && [ "$nfs_type" = "external" ]; then
         selinux_option=""
     fi
 
@@ -601,6 +707,7 @@ post_setup_config() {
             {
             echo "nfs_server_ip: $nfs_server_ip"
             echo "nfs_server_share_path: $nfs_server_share_path"
+            echo "nfs_type: $nfs_type"
         } >> "$oim_metadata_file"
         fi
     fi
