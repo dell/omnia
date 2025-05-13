@@ -21,4 +21,6 @@
 
     - name: Deploy amdgpu device plugin
       ansible.builtin.include_tasks: deploy_amdgpu_device_plugin.yml
-      when: inventory_hostname == groups['kube_control_plane'][0]
+      when:
+        - hostvars['localhost']['is_amd_cluster'] is defined
+        - inventory_hostname == groups['kube_control_plane'][0]

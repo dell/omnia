@@ -37,10 +37,6 @@
 - name: Execute Openmpi installation tasks if share path exists
   when: openmpi_installed is not defined or not openmpi_installed
   block:
-    - name: Set the openmpi installed variable to false
-      ansible.builtin.set_fact:
-        ucx_installed: false
-
     - name: Creates compile and benchmarks directory on the nfs share
       ansible.builtin.file:
         path: "{{ item }}"
@@ -69,21 +65,6 @@
       ansible.builtin.stat:
         path: "{{ omnia_share_path }}/{{ benchmarks_dir_ucx }}"
       register: ucx_dir_data
-      run_once: true
-
-    - name: Run the ucx_info command
-      when: ucx_dir_data.stat.exists
-      ansible.builtin.command: "{{ omnia_share_path }}/{{ benchmarks_dir_ucx }}/{{ bin_folder }}/{{ ucx_info_cmd }} -v"
-      register: ucx_cmd
-      changed_when: false
-      run_once: true
-
-    - name: Set the ucx installed variable to true if ucx command executed
-      ansible.builtin.set_fact:
-        ucx_installed: true
-      when:
-        - ucx_dir_data.stat.exists
-        - ucx_cmd.rc == 0
 
     - name: Construct openmpi compile the command with ucx and slurm
       ansible.builtin.set_fact:
@@ -99,7 +80,7 @@
         mode: "{{ dir_mode }}"
       run_once: true
 
-    - name: Run command ../Configure --prefix=/install path
+    - name: Run command ../configure --prefix=/install path
       ansible.builtin.shell: "{{ openmpi_compile_cmd }}" # noqa: command-instead-of-shell
       args:
         chdir: "{{ omnia_share_path }}/{{ compiler_dir_openmpi }}/{{ openmpi_dir }}-{{ openmpi_software_version }}/build"

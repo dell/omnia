@@ -22,7 +22,6 @@
 - name: Deploy Nvidia Device plugin
   when:
     - "'nvidia-device-plugin' not in k8s_pods.stdout"
-    - hostvars['localhost']['is_nvidia_cluster'] is defined
   block:
     - name: Copy nvidia_runtime_class.yml file
       ansible.builtin.copy:

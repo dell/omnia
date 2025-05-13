@@ -22,7 +22,6 @@
 - name: Deploy ROCm Device plugin
   when:
     - "'amdgpu-device-plugin-daemonset' not in k8s_pods.stdout"
-    - hostvars['localhost']['is_amd_cluster'] is defined
   block:
     - name: Download ROCm device plugin manifest
       ansible.builtin.get_url:
