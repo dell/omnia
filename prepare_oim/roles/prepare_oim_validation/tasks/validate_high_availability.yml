@@ -38,21 +38,24 @@
 - name: Set high_availability_status
   ansible.builtin.set_fact:
     enable_oim_ha: "{{ high_availability_config.ansible_facts.oim_ha.enable_oim_ha | default(false) }}"
+    enable_service_ha: "{{ high_availability_config.ansible_facts.service_node_ha.enable_service_ha | default(false) }}"
 
 - name: Register NFS Check
   ansible.builtin.set_fact:
     nfs_used: "{{ omnia_share_option == 'NFS' }}"
 
-- name: Fail if enable OIM is true, but NFS is not configured
-  when: enable_oim_ha and not nfs_used
+- name: Fail if HA is enabled but external NFS is not configured
+  when: >
+    (enable_oim_ha or enable_service_ha) and
+    (not nfs_used or (nfs_type | default('') != 'external'))
   ansible.builtin.fail:
-    msg: "{{ nfs_not_configured }}"
-
+    msg: >-
+      {{ nfs_not_configured if not nfs_used else ha_nfs_error_msg }}
 
 - name: Set vip_status
   ansible.builtin.set_fact:
     vip_status: >-
       {{
-        oim_ha_data.ansible_facts.oim_ha.virtual_ip_address is defined and
-        oim_ha_data.ansible_facts.oim_ha.virtual_ip_address | length > 1 | default(false)
+        oim_ha_data.ansible_facts.oim_ha.admin_virtual_ip_address is defined and
+        oim_ha_data.ansible_facts.oim_ha.admin_virtual_ip_address | length > 1 | default(false)
       }}

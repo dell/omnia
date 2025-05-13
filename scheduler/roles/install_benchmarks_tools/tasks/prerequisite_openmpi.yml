@@ -23,6 +23,7 @@
 
 - name: Populate service facts
   ansible.builtin.service_facts:
+  no_log: true
 
 - name: Set slurm_support variable
   ansible.builtin.set_fact:

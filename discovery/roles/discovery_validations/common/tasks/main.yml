@@ -94,8 +94,8 @@
 - name: Validate domain name
   ansible.builtin.include_tasks: validate_domain_name.yml
 
-# - name: Validate site_config.yml
-#   ansible.builtin.include_tasks: validate_site_config.yml
+- name: Validate site_config.yml
+  ansible.builtin.include_tasks: validate_site_config.yml
 
 - name: Validate OFED and CUDA repo
   ansible.builtin.include_tasks: validate_ofed_cuda_repo.yml

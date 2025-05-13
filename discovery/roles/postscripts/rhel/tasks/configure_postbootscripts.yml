@@ -13,6 +13,19 @@
 # limitations under the License.
 ---
 
+- name: Determine xCAT group string for postscript modification
+  ansible.builtin.set_fact:
+    sn_oim_group_list: >-
+      {{
+        [ 'oim_ha_node' if omnia_oim_status | bool else '',
+          'service_node' if service_node_status | bool else '' ]
+        | select('!=', '') | list
+      }}
+
+- name: Set xcat_target_groups as comma-separated string
+  ansible.builtin.set_fact:
+    service_oim_groups: "{{ sn_oim_group_list | join(',') }}"
+
 - name: Configure postbootscripts
   ansible.builtin.command: "{{ xcat_path }}/chdef all postbootscripts=\"otherpkgs\""
   changed_when: true
@@ -37,12 +50,25 @@
   with_items: "{{ service_node_postbootscript_path }}"
   when: service_role_required
 
+- name: Copy allow firewall postboot script to postscripts
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  with_items: "{{ allow_firewall_postbootscript_path }}"
+  when: service_oim_groups != ''
+
 - name: Configure pcs container setup postbootscripts
   ansible.builtin.command: "{{ xcat_path }}/chdef oim_ha_node -p postbootscripts=\"omnia_oim_ha_node_postboot\""
   changed_when: true
-  when: enable_oim_ha
+  when: omnia_oim_status
 
 - name: Configure service node postboot script to postscripts
   ansible.builtin.command: "{{ xcat_path }}/chdef service_node -p postbootscripts=\"omnia_service_node_postboot\""
   changed_when: true
-  when: service_role_required
+  when: service_node_status
+
+- name: Configure firewalld setup postbootscripts on service or OIM Ha node
+  ansible.builtin.command: "{{ xcat_path }}/chdef {{ service_oim_groups }} -p postbootscripts=\"omnia_allow_firewall_ports\""
+  changed_when: true
+  when: service_oim_groups != ''

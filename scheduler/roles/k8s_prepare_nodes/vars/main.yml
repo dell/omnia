@@ -46,6 +46,8 @@ enable_k8s_ha: "{{ hostvars['localhost']['enable_k8s_ha'] }}"
 k8s_vip: "{{ hostvars['localhost']['k8s_vip'] }}"
 external_lb_ip: "{{ hostvars['localhost']['external_lb_ip'] }}"
 lb_port: "{{ hostvars['localhost']['lb_port'] }}"
+enable_routed_internet: "{{ hostvars['localhost']['enable_routed_internet'] }}"
+proxy_port: "3128"
 # Usage: configure_firewall.yml
 common_packages:
   RedHat:

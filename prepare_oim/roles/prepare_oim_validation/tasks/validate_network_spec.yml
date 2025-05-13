@@ -66,3 +66,23 @@
 - name: Extract network address
   ansible.builtin.set_fact:
     admin_net_addr: "{{ network_address_output.stdout.split('=')[1] }}"
+
+- name: Initialize network_interface_type
+  ansible.builtin.set_fact:
+    network_interface_type: ""
+    bmc_details_status: false
+
+- name: Checking BMC network input
+  ansible.builtin.set_fact:
+    bmc_details_status: true
+  when:
+    - network_data.bmc_network.oim_nic_name | default("", true) | length > 0
+    - network_data.bmc_network.netmask_bits | default("", true) | length > 0
+    - network_data.bmc_network.dynamic_range | default("", true) | length > 0
+
+- name: Set network_interface_type if LOM
+  ansible.builtin.set_fact:
+    network_interface_type: "{{ 'lom' | default('') }}"
+  when:
+    - bmc_details_status
+    - network_data.admin_network.oim_nic_name == network_data.bmc_network.oim_nic_name

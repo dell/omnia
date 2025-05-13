@@ -232,6 +232,8 @@ VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in admin s
                                  "Check high_availability_config.yml and network_spec.yml")
 VIRTUAL_IP_NOT_VALID = ("should be outside the admin static and dynamic ranges. "
                        "Check high_availability_config.yml and network_spec.yml")
+bmc_virtual_ip_not_valid = "should be outside any bmc static and dynamic ranges. Check high_availability_config.yml, network_spec.yml, and roles_config.yml"
+feild_must_be_empty = "feild must be empty."
 DUPLICATE_VIRTUAL_IP = "is already used. Please give unique virtual ip address"
 INVALID_PASSIVE_NODE_SERVICE_TAG = "active node and passive node service tag cannot be same."
 GROUP_NOT_FOUND = "is not defined in the roles_config. Please define the group in roles_config."
@@ -240,6 +242,7 @@ DUPLICATE_ACTIVE_NODE_SERVICE_TAG = ("the service tag configured for a active no
                                     "present elsewhere in the config file. ")
 DUPLICATE_PASSIVE_NODE_SERVICE_TAG = ("the service tag configured for a passive node is already "
                                      "present elsewhere in the config file. ")
+
 def user_name_duplicate(duplicate_usernames):
     """Returns error message for duplicate usernames found in configuration files."""
     return (f'duplicate username detected {duplicate_usernames}. Check that usernames are unique '

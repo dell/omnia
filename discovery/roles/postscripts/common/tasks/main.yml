@@ -40,7 +40,6 @@
 
     - name: Check omnia_oim group status
       ansible.builtin.include_tasks: check_nodes_oim_ha.yml
-      when: enable_oim_ha
 
     - name: Check service_node group status
       ansible.builtin.include_tasks: check_nodes_service.yml
