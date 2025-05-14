@@ -33,4 +33,6 @@
       ansible.builtin.include_role:
         name: create_container_group
         tasks_from: validate_kubespray_container.yml
-      when: omnia_kubespray_validation | default(false) | bool
+      when:
+        - omnia_kubespray_validation | default(false) | bool
+        - hostvars['localhost']['k8s_support']
