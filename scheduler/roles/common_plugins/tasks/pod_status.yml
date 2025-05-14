@@ -15,8 +15,8 @@
 
 - name: Run Kubernetes health check module
   k8s_health:
-    retries: 5
-    delay: 30
+    retries: 30
+    delay: 5
   register: k8s_status
   failed_when: false
 
@@ -59,7 +59,7 @@
     (k8s_status.not_ready_nodes | length > 0) or
     (k8s_status.failed_pods | length > 0)
 
-- name: All good message
+- name: K8S Status
   ansible.builtin.debug:
     msg: "All Kubernetes nodes are Ready and all pods are Running or Succeeded."
   when: >

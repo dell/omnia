@@ -116,12 +116,6 @@
   roles:
     - common_plugins
 
-# - name: Prepare habana container runtime
-#   hosts: kube_node
-#   gather_facts: false
-#   roles:
-#     - k8s_habana_container_runtime
-
 - name: Install nvidia-container-toolkit on nodes with Nvidia GPU
   hosts: kube_control_plane, kube_node, etcd
   gather_facts: false

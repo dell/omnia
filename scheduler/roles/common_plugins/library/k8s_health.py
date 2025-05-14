@@ -48,7 +48,7 @@ def wait_for_pods(namespace, retries, delay):
         for ns in namespaces:
             pods += v1.list_namespaced_pod(namespace=ns).items
 
-        all_ready = all(pod.status.phase in ['Running', 'Succeeded'] for pod in pods)
+        all_ready = all(pod.status.phase in ['Running', 'Succeeded', 'Completed'] for pod in pods)
         pods_status_info = [dict(
             name=pod.metadata.name,
             namespace=pod.metadata.namespace,
@@ -62,7 +62,7 @@ def wait_for_pods(namespace, retries, delay):
 
         time.sleep(delay)
 
-    failed_pods = [pod for pod in pods_status_info if pod['status'] not in ['Running', 'Succeeded']]
+    failed_pods = [pod for pod in pods_status_info if pod['status'] not in ['Running', 'Succeeded', 'Completed']]
     return False, "", pods_status_info, failed_pods
 
 def display_table(data, headers):

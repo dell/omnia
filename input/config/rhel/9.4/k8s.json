@@ -219,7 +219,7 @@
       },
       {
         "package": "registry.k8s.io/nfd/node-feature-discovery",
-        "tag": "v0.16.4",
+        "tag": "v0.12.1",
         "type": "image"
       },
       {
