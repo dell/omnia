@@ -27,7 +27,7 @@ fail_msg_provision_config_file: "provision_config.yml file doesn't exist."
 # Usage: pre-requisites.yml
 os_supported_ubuntu: "ubuntu"
 selinux_warning: "Warning! SELinux status is disabled by user. No SELinux policy is loaded"
-telemetry_config_file: "{{ role_path }}/../../../input/telemetry_config.yml"
+telemetry_config_file: "{{ input_project_dir }}/telemetry_config.yml"
 fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist."
 pip_packages:
   - omsdk==1.2.513
@@ -134,9 +134,9 @@ min_length_grafana: 5
 # Usage: validate_site_config.yml
 site_config_file: "{{ role_path }}/../../../input/site_config.yml"
 invalid_proxy_failure_msg: "Failed. Both http_proxy and https_proxy should be set for proxy variable provided in site_config.yml"
-proxy_env_fail_msg: "Failed. The values for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in the
-proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the Omnia Infrastructure Manager.
-The no_proxy environment variable should include the Omnia Infrastructure Manager hostname and the admin network IP address."
+# proxy_env_fail_msg: "Failed. The values for http_proxy {{ proxy[0].http_proxy }} and https_proxy {{ proxy[0].https_proxy }} in the
+# proxy variable of the site_config.yml should be set as environment variables http_proxy and https_proxy in the Omnia Infrastructure Manager.
+# The no_proxy environment variable should include the Omnia Infrastructure Manager hostname and the admin network IP address."
 update_repos_fail_msg: "Failed to update repos. Verify proxy configuration in Omnia Infrastructure Manager for acccessing internet."
 oim_os_redhat: "redhat"
 oim_os_rocky: "rocky"
@@ -155,3 +155,14 @@ provision_credentials_vault_path: "{{ role_path }}/../../../input/.provision_cre
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
 provision_config_credentials_syntax_fail_msg: "Failed. Syntax errors present in provision_config_credentials.yml. Fix errors and re-run playbook again."
 conf_file_mode: "0644"
+
+# Usage: validate_idrac_inventory.yml
+bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
+bmc_group_data_file_not_found_msg: "Failed. The BMC data file: {{ bmc_group_data_filename }} does not exist."
+
+# Usage: validate_telemetry_container.yml
+telemetry_container_status_msg: "Telemetry container Status: {{ telemetry_container_status.containers[0].State.Status }}"
+telemetry_container_fail_msg: "Telemetry container {{ telemetry_container }} is not running.
+ Current Status: {{ telemetry_container_status.containers[0].State.Status }}"
+prepare_oim_telemetry_not_executed_msg: "Telemetry container {{ telemetry_container }} not found.
+ Please execute prepare_oim.yml to deploy all required containers."

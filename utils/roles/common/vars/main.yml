@@ -26,3 +26,7 @@ credentials_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_conf
 
 storage_config_filename: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
 storage_config_syntax_fail_msg: "Failed. Syntax errors present in storage_config.yml. Fix errors and re-run playbook again."
+
+# Usage: fetch_software_config.yml
+input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
+software_config_json_file: "{{ input_project_dir }}/software_config.json"

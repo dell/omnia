@@ -87,6 +87,7 @@ def switch_snmp3_username_fail_msg(min_username_length, max_length):
 switch_snmp3_password_fail_msg = "switch_snmp3_password must be at least 3 characters. Must not contain '-', '\\', "'", or '"'"
 
 # telemetry_config.yml
+unsupported_idrac_telemetry_collection_type= "unsupported"
 def boolean_fail_msg(value):
     return f"{value} must be set to either true or false."
 appliance_k8s_pod_net_cidr_fail_msg = "appliance_k8s_pod_net_cidr value is either empty or invalid. Please provide CIDR notation such as 192.168.0.0/16"

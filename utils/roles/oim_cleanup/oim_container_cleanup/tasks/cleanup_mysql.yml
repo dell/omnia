@@ -1,0 +1,50 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check if {{ mysql_container_name }} container is present # noqa: name[template]
+  containers.podman.podman_container_info:
+    name: "{{ mysql_container_name }}"
+  register: mysql_container_status
+  failed_when: false
+
+- name: Stop and Remove MySQL container
+  when: mysql_container_status.containers | length != 0
+  block:
+    - name: Stop the mysql container
+      containers.podman.podman_container:
+        name: "{{ mysql_container_name }}"
+        state: stopped
+      failed_when: false
+
+    - name: Remove MySQL container
+      containers.podman.podman_container:
+        name: "{{ mysql_container_name }}"
+        state: absent
+        force_delete: true
+
+    - name: Remove all listed secrets
+      ansible.builtin.command: podman secret rm "{{ item }}"
+      loop: "{{ secrets }}"
+      changed_when: false
+
+    - name: Remove telemetry directory
+      ansible.builtin.file:
+        path: "{{ idrac_telemetry_dir }}"
+        state: absent
+
+  rescue:
+    - name: Container MySQL removal failed
+      ansible.builtin.fail:
+        msg: "{{ mysql_container_name }} {{ container_removal_failure_msg }}"

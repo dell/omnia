@@ -32,3 +32,8 @@ kube_version_on_unsupported_os: "Failed. On RHEL 9.4 OS, supported kubernetes ve
 k8s_to_kubespray:
   "1.29.5": "v2.27.0"
   "1.31.4": "v2.27.0"
+
+# Usage  check_idrac_telemetry_support.yml
+telemetry_config_file: "telemetry_config.yml"
+fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist in the input folder."
+telemetry_config_syntax_fail_msg: "Failed. Syntax errors present in telemetry_config.yml. Fix errors and re-run playbook again. Common syntax Errors:"

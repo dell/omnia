@@ -130,7 +130,7 @@ kubespray_run_opts: >-
 # Usage: pcs-start.sh.j2: pulp
 pulp_container_name: "omnia_pulp"
 pulp_image: "docker.io/pulp/pulp"
-pulp_port: "2225:80"
+pulp_port: "{{ pulp_server_port }}:80"
 pulp_share: "{{ omnia_nfs_share }}/pulp"
 pulp_run_opts: >-
   --hostname {{ pulp_container_name }} --device /dev/fuse:/dev/fuse:rwm
