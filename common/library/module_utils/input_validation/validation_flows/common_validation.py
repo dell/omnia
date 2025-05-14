@@ -282,57 +282,18 @@ def validate_omnia_config(input_file_path, data, logger, module, omnia_base_dir,
 
 def validate_telemetry_config(input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name):
     errors = []
+    idrac_collection_type = ["Prometheus"] # currently supports only Prometheus
     idrac_telemetry_support = data["idrac_telemetry_support"]
-    omnia_telemetry_support = data["omnia_telemetry_support"]
+    idrac_telemetry_collection_type = data["idrac_telemetry_collection_type"]
     visualization_support = data["visualization_support"]
 
-    software_config_file_path = create_file_path(input_file_path, file_names["software_config"])
-    software_config_json = json.load(open(software_config_file_path, "r"))
-    # Check that telemetry is present in software_config.json and if at least one of the telemetry_supoort var is true, check that these fields are not empty
-    softwares = software_config_json["softwares"]
-
-    if contains_software(softwares, "telemetry"):
-        if idrac_telemetry_support or omnia_telemetry_support or visualization_support:
-            mandatory_fields = ["pod_external_ip_range", "k8s_cni", "k8s_service_addresses", "k8s_pod_network_cidr", "timescaledb_user", "timescaledb_password"]
-            check_mandatory_fields(mandatory_fields, data, errors)
-
     if idrac_telemetry_support:
-        mandatory_fields = ["idrac_username", "idrac_password", "mysqldb_user", "mysqldb_password", "mysqldb_root_password"]
-        check_mandatory_fields(mandatory_fields, data, errors)
+        valid_collection_types = {item.lower() for item in idrac_collection_type}
+        if idrac_telemetry_collection_type.lower() not in valid_collection_types:
+            errors.append(create_error_msg("idrac_telemetry_collection_type", idrac_telemetry_collection_type, en_us_validation_msg.unsupported_idrac_telemetry_collection_type))
 
-    if omnia_telemetry_support:
-        mandatory_fields = ["omnia_telemetry_collection_interval", "collect_regular_metrics", "collect_health_check_metrics", "collect_gpu_metrics", "fuzzy_offset", "metric_collection_timeout"]
-        check_mandatory_fields(mandatory_fields, data, errors)
-
-        # fuzzy_offset should be between 60 and omnia_telemetry_collection_interval value
-        fuzzy_offset = data["fuzzy_offset"]
-        if fuzzy_offset < 60 or fuzzy_offset > data["omnia_telemetry_collection_interval"]:
-            errors.append(create_error_msg("fuzzy_offset", fuzzy_offset, en_us_validation_msg.fuzzy_offset_fail_msg))
-
-        # metric_collection_timeout should be greater than 0 and less than omnia_telemetry_collection_interval value
-        metric_collection_timeout = data["metric_collection_timeout"]
-        if (metric_collection_timeout < 0 or metric_collection_timeout > data["omnia_telemetry_collection_interval"]):
-            errors.append(create_error_msg("metric_collection_timeout", metric_collection_timeout, en_us_validation_msg.metric_collection_timeout_fail_msg))
-
-    if visualization_support:
-        mandatory_fields = ["grafana_username", "grafana_password", "mount_location"]
-        check_mandatory_fields(mandatory_fields, data, errors)
-
-        # '/' is mandatory at the end of the mount_location path.
-        mount_location = data["mount_location"]
-        if mount_location[-1] != "/":
-            errors.append(create_error_msg("mount_location", mount_location, en_us_validation_msg.mount_location_fail_msg))
-
-        # grafana_password should not be kept 'admin'
-        grafana_password = data["grafana_password"]
-        if grafana_password == "admin":
-            errors.append(create_error_msg("grafana_password", grafana_password, en_us_validation_msg.grafana_password_fail_msg))
-
-
-    # Check that mysqldb_user is not root
-    if data["mysqldb_user"] == "root":
-        errors.append(create_error_msg("mysqldb_user", data["mysqldb_user"], en_us_validation_msg.mysqldb_user_fail_msg))
-
+    # preserved below code for future use
+    '''
     # Added code for Omnia 1.7 k8 prometheus support parameters
     # Validate prometheus_gaudi_support, k8s_prometheus_support, and prometheus_scrape_interval
     prometheus_gaudi_support = data["prometheus_gaudi_support"]
@@ -364,5 +325,5 @@ def validate_telemetry_config(input_file_path, data, logger, module, omnia_base_
     does_overlap, overlap_ips = validation_utils.check_overlap(ip_ranges)
     if does_overlap:
         errors.append(create_error_msg("IP overlap -", None, en_us_validation_msg.telemetry_ip_overlap_fail_msg))
-
+    '''
     return errors

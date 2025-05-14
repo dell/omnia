@@ -1,0 +1,156 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+- name: Create MySQL directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "{{ root_read_write }}"
+  loop: "{{ mysql_dirs }}"
+
+- name: Check if MySQL container is present # noqa: name[template]
+  containers.podman.podman_container_info:
+    name: "{{ mysql_container_name }}"
+  register: mysql_container_info
+  failed_when: false
+
+- name: Pull Podman image
+  containers.podman.podman_image:
+    name: "{{ mysql_docker_image }}"
+    tag: "{{ mysql_image_tag }}"
+    state: present
+  register: image_pull_result
+
+- name: Fail if the MySQL container image pull fails
+  ansible.builtin.fail:
+    msg: "{{ mysql_image_pull_fail_msg }}"
+  when: image_pull_result.failed
+
+- name: Verify if the MySQL image exists
+  containers.podman.podman_image_info:
+    name: "{{ mysql_docker_image }}:{{ mysql_image_tag }}"
+  register: image_facts
+
+- name: Fail if the MySQL image is not found
+  ansible.builtin.fail:
+    msg: "{{ mysql_image_not_found_msg }}"
+  when: not image_facts.images
+
+- name: Deploy MySQL container and check deployment status
+  block:
+    - name: Create MySQL_root_password secret
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo -n '{{ hostvars['localhost']['mysqldb_root_password'] }}' | podman secret create '{{ mysql_root_password }}' -
+      changed_when: false
+      no_log: true
+
+    - name: Create MySQLdb_password secret
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo -n '{{ hostvars['localhost']['mysqldb_password'] }}' | podman secret create '{{ mysql_user_password }}'  -
+      changed_when: false
+      no_log: true
+
+    - name: Create MySQLdb_user secret
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo -n '{{ hostvars['localhost']['mysqldb_user'] }}' | podman secret create '{{ mysql_user }}' -
+      changed_when: false
+      no_log: true
+
+    - name: Deploy the MySQL container
+      containers.podman.podman_container:
+        name: "{{ mysql_container_name }}"
+        image: "{{ mysql_docker_image }}:{{ mysql_image_tag }}"
+        state: present
+        restart_policy: "no"
+        network_mode: host
+        volumes: "{{ mysql_volumes }}"
+        secrets:
+          - "{{ mysql_root_password }}"
+          - "{{ mysql_user }}"
+          - "{{ mysql_user_password }}"
+        env:
+          MYSQL_DATABASE: "{{ mysql_database }}"
+        entrypoint: "{{ bin_sh }}"
+        command:
+          - -c
+          - >
+            export MYSQL_ROOT_PASSWORD=$(cat {{ mysql_container_root_password_secret_path }}) &&
+            export MYSQL_USER=$(cat {{ mysql_container_user_secret_path }}) &&
+            export MYSQL_PASSWORD=$(cat {{ mysql_container_user_password_secret_path }}) &&
+            exec /usr/local/bin/docker-entrypoint.sh mysqld
+      no_log: true
+
+    - name: Start the MySQL container
+      containers.podman.podman_container:
+        name: "{{ mysql_container_name }}"
+        state: "started"
+
+    - name: Check if MySQL container is running after deployment
+      containers.podman.podman_container_info:
+        name: "{{ mysql_container_name }}"
+      register: mysql_container_status
+
+    - name: Notify user of MySQL deployment status
+      ansible.builtin.debug:
+        msg: "{{ mysql_container_success_msg }}"
+      when:
+        - mysql_container_status.containers | length > 0
+        - mysql_container_status.containers[0].State.Status == 'running'
+
+    - name: Check if {{ mysql_port }} port is started # noqa: name[template]
+      ansible.builtin.wait_for:
+        host: localhost
+        port: "{{ mysql_port }}"
+        state: started
+        timeout: "{{ wait_time }}"
+      failed_when: false
+      when: mysql_container_status.containers | length > 0
+
+    - name: Set fact for temporary file
+      ansible.builtin.set_fact:
+        tmp_file_path: "{{ tmp_path }}{{ init_sql_file }}"
+
+    - name: Copy static SQL file to host
+      ansible.builtin.copy:
+        src: "{{ init_sql_file }}"
+        dest: "{{ tmp_file_path }}"
+        mode: "{{ root_read_write }}"
+
+    - name: Copy file "/tmp/init_telemetrydb.sql" on the host to the "MySQL" container's root folder
+      containers.podman.podman_container_copy:
+        src: "{{ tmp_file_path }}"
+        dest: "{{ tmp_file_path }}"
+        container: "{{ mysql_container_name }}"
+
+    - name: Execute SQL in MySQL container using podman_container_exec
+      containers.podman.podman_container_exec:
+        name: "{{ mysql_container_name }}"
+        command: "/bin/sh -c 'mysql -u root -p'{{ hostvars['localhost']['mysqldb_root_password'] }}' < '{{ tmp_file_path }}''"
+      register: sql_exec_result
+      no_log: true
+
+    - name: Remove the temporary MySQL file
+      ansible.builtin.file:
+        path: "{{ tmp_file_path }}"
+        state: absent
+
+  rescue:
+    - name: Container MySQL deployment failed
+      ansible.builtin.fail:
+        msg: "{{ mysql_container_failure_msg }}"

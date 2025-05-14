@@ -15,32 +15,36 @@
 
 # Usage: initiate_telemetry.yml
 python_version: "{{ ansible_python_interpreter }}"
-mysqldb_name: "idrac_telemetrysource_services_db"
+mysqldb_name: "telemetrydb"
 timescaledb_name: "telemetry_metrics"
-mysqldb_insert_fail_msg: "Failed to add iDRAC credential details to the mysql database.
-This could be due to the tables in the mysqldb not being accessible at the moment. Please try running the playbook again after some time."
-idrac_telemetry_pod_wait_fail_msg: "Execution failed as the idrac-telemetry pods did not start within the expected time.
-Please re-run the playbook after verifying that the idrac-telemetry pods are in running state by executing the command 'kubectl get pods -A.'"
-mysqldb_pod_wait_fail_msg: "Execution failed as the mysqldb pods did not start within the expected time.
-Please re-run the playbook after verifying that the mysqldb pods are in running state by executing the command 'kubectl get pods -A.'"
+telemetry_report_path: "/opt/omnia/telemetry/idrac_telemetry_report.yml"
+# report_template_path: "/opt/omnia/telemetry/templates/telemetry_report.j2"
+mysqldb_insert_fail_msg: "Failed to add/get iDRAC credential details in the mysql database.
+ This could be due to the tables in the mysqldb not being accessible at the moment. Please try running the playbook again after some time."
 db_retries: 10
 db_delay: 10
+mysqldb_container_port: 3306
+filemode: "0644"
+mysqldb_host: "127.0.0.1"
+telemetry_report: |
+  ===== Telemetry Summary Report =====
 
-# Usage: mysqldb_deployment.yml
-mysql_pv_name: mysqldb-storage
-mysqldb_storage: 1Gi
-mysqldb_pvc_name: mysqldb-storage-claim
-mysqldb_k8s_name: mysqldb
-statefulset_replicas: 1
-mysqldb_container_port1: 3306
-mysqldb_port1: "3306"
-mysqldb_container_port2: 33060
+  Total IPs Found: {{ idrac_ip_count }}
+  IPs List:
+    {% for item in idrac_ip %}
+    - {{ item }}
+    {% endfor %}
 
-# Usage: idrac_telemetry_deployment.yml
-idrac_telemetry_k8s_name: idrac-telemetry
-activemq_http_port_1: 8161
-activemq_http_port_2: 61616
-messagebus_http_port: "61613"
-configui_http_port: "8082"
+  IP with Telemetry not supported: {{ failed_idrac_count }}
+  IPs List (Telemetry not supported):
+    {% for item in failed_idrac %}
+    - {{ item }}
+    {% endfor %}
 
-add_idrac_fail_msg: "Execute the telemetry.yml playbook to ensure that the iDRAC pods are running before triggering the add_idrac_node.yml playbook."
+  IPs with Telemetry Initiated: {{ filtered_idrac_count }}
+  IPs List (Telemetry Activated):
+    {% for item in telemetry_idrac %}
+    - {{ item }}
+    {% endfor %}
+
+  =====================================

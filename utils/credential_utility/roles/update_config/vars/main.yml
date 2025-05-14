@@ -58,3 +58,7 @@ omnia_credentials:
     mandatory:
       - { password: kerberos_admin_password }
       - { password: directory_manager_password }
+  idrac_telemetry:
+    mandatory:
+      - { username: mysqldb_user, password: mysqldb_password }
+      - { password: mysqldb_root_password }

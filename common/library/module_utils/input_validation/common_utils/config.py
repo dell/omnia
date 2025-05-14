@@ -60,7 +60,7 @@ input_file_inventory = {
         files["passwordless_ssh_config"],
         files["software_config"]
     ],
-    "monitoring": [files["telemetry_config"]],
+    "telemetry": [files["telemetry_config"]],
     "local_repo": [files["local_repo_config"], files["software_config"]],
     "k8s": [files["k8s_access_config"]],
     "roce": [files["roce_plugin_config"]],
@@ -69,7 +69,8 @@ input_file_inventory = {
     "prepare_oim": [
         files["high_availability_config"],
         files["roles_config"],
-        files["network_spec"]
+        files["network_spec"],
+        files["telemetry_config"]
     ],
     "high_availability": [files["high_availability_config"]],
     "all": [

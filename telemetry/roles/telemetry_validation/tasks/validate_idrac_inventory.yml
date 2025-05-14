@@ -13,9 +13,20 @@
 # limitations under the License.
 ---
 
-- name: Validate idrac inventory
-  when:
-    - groups['idrac'] is not defined or
-      groups['idrac'] | length | int < 1
+- name: Validate BMC group data file exists
+  ansible.builtin.stat:
+    path: "{{ bmc_group_data_filename }}"
+  register: bmc_group_data_stat
+
+- name: Fail if BMC group data file does not exist
   ansible.builtin.fail:
-    msg: "{{ idrac_inventory_msg }}"
+    msg: "{{ bmc_group_data_file_not_found_msg }}"
+  when: not bmc_group_data_stat.stat.exists
+
+- name: Read BMC group data
+  ansible.builtin.set_fact:
+    bmc_group_data: "{{ lookup('file', bmc_group_data_filename).splitlines() }}"
+
+- name: Extract BMC_IP values
+  ansible.builtin.set_fact:
+    bmc_ips: "{{ bmc_group_data[1:] | map('split', ',') | map('first') | list }}"

@@ -24,19 +24,6 @@
     msg: "{{ fail_msg_telemetry_config_file }}"
   when: not stat_result.stat.exists
 
-- name: Check telemetry_config.yml file is encrypted
-  ansible.builtin.command: cat {{ telemetry_config_file }}
-  changed_when: false
-  register: config_content
-  no_log: true
-
-- name: Decrpyt telemetry_login_vars.yml
-  ansible.builtin.command: >-
-    ansible-vault decrypt {{ telemetry_config_file }}
-    --vault-password-file {{ vault_filename }}
-  changed_when: false
-  when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-
 - name: Include variable file telemetry_config.yml
   block:
     - name: Include variable file telemetry_config.yml
@@ -111,103 +98,49 @@
     - not k8s_prometheus_support
     - not prometheus_gaudi_support
 
-- name: Assert usernames and passwords in telemetry_login_vars.yml
-  when: idrac_telemetry_support or omnia_telemetry_support
-  block:
-    - name: Assert timescaledb user name
-      ansible.builtin.assert:
-        that:
-          - timescaledb_user | length > 1
-          - '"-" not in timescaledb_user '
-          - '"\\" not in timescaledb_user '
-          - '"\"" not in timescaledb_user '
-          - " \"'\" not in timescaledb_user "
-      no_log: true
 
-    - name: Assert timescaledb user password
-      ansible.builtin.assert:
-        that:
-          - timescaledb_password | length > 1
-          - '"-" not in timescaledb_password '
-          - '"\\" not in timescaledb_password '
-          - '"\"" not in timescaledb_password '
-          - " \"'\" not in timescaledb_password "
-          - '"@" not in timescaledb_password '
-      no_log: true
+# # Include validations for omnia telemetry
+# - name: Validate omnia telemetry
+#   ansible.builtin.include_tasks: validate_omnia_telemetry.yml
+#   when: omnia_telemetry_support
 
-  rescue:
-    - name: Validation issue in telemetry_config.yml
-      ansible.builtin.fail:
-        msg: "{{ login_vars_fail_msg }}"
+# - name: Include grafana validations
+#   ansible.builtin.include_tasks: validate_grafana_params.yml
+#   when: visualization_support
 
-# Include validations for idrac telemetry
-- name: Validate idrac telemetry
-  ansible.builtin.include_tasks: validate_idrac_telemetry.yml
-  when: idrac_telemetry_support
+# - name: Validate k8s prometheus, scrape interval and prometheus gaudi
+#   ansible.builtin.include_tasks: validate_k8s_prometheus_prometheus_gaudi.yml
+#   when: k8s_prometheus_support or prometheus_gaudi_support
 
-# Include validations for omnia telemetry
-- name: Validate omnia telemetry
-  ansible.builtin.include_tasks: validate_omnia_telemetry.yml
-  when: omnia_telemetry_support
+# - name: Validate k8s prometheus when prometheus gaudi is true
+#   ansible.builtin.include_tasks: validate_prometheus_gaudi.yml
+#   when: prometheus_gaudi_support
 
-- name: Include grafana validations
-  ansible.builtin.include_tasks: validate_grafana_params.yml
-  when: visualization_support
+# # Validate k8s inputs
+# - name: Assert k8s_cni
+#   ansible.builtin.assert:
+#     that:
+#       - k8s_cni == "calico" or k8s_cni == "flannel"
+#     fail_msg: "{{ invalid_k8s_cni }}"
 
-- name: Validate k8s prometheus, scrape interval and prometheus gaudi
-  ansible.builtin.include_tasks: validate_k8s_prometheus_prometheus_gaudi.yml
-  when: k8s_prometheus_support or prometheus_gaudi_support
+# - name: Assert pod external IP range
+#   ansible.builtin.assert:
+#     that:
+#       - pod_external_ip_range | default("", true) | length > 9
+#       - ("'/' in pod_external_ip_range") or ("'-' in pod_external_ip_range")
+#     fail_msg: "{{ invalid_pod_external_ip_range }}"
+#   when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
 
-- name: Validate k8s prometheus when prometheus gaudi is true
-  ansible.builtin.include_tasks: validate_prometheus_gaudi.yml
-  when: prometheus_gaudi_support
+# - name: Assert kubernetes service addresses
+#   ansible.builtin.assert:
+#     that:
+#       - k8s_service_addresses | default("", true) | length > 9
+#       - '"/" in k8s_service_addresses'
+#     fail_msg: "{{ invalid_k8s_service_addresses }}"
 
-# Validate k8s inputs
-- name: Assert k8s_cni
-  ansible.builtin.assert:
-    that:
-      - k8s_cni == "calico" or k8s_cni == "flannel"
-    fail_msg: "{{ invalid_k8s_cni }}"
-
-- name: Assert pod external IP range
-  ansible.builtin.assert:
-    that:
-      - pod_external_ip_range | default("", true) | length > 9
-      - ("'/' in pod_external_ip_range") or ("'-' in pod_external_ip_range")
-    fail_msg: "{{ invalid_pod_external_ip_range }}"
-  when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
-
-- name: Assert kubernetes service addresses
-  ansible.builtin.assert:
-    that:
-      - k8s_service_addresses | default("", true) | length > 9
-      - '"/" in k8s_service_addresses'
-    fail_msg: "{{ invalid_k8s_service_addresses }}"
-
-- name: Assert kubernetes pod network CIDR
-  ansible.builtin.assert:
-    that:
-      - k8s_pod_network_cidr | default("", true) | length > 9
-      - '"/" in k8s_pod_network_cidr'
-    fail_msg: "{{ invalid_k8s_pod_network_cidr }}"
-
-# Encrypt telemetry_config.yml
-- name: Create ansible vault key
-  ansible.builtin.set_fact:
-    vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
-  when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
-
-- name: Save vault key
-  ansible.builtin.lineinfile:
-    path: "{{ vault_filename }}"
-    line: "{{ vault_key }}"
-    mode: "{{ vault_file_perm }}"
-    owner: root
-    create: true
-  when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
-
-- name: Encrypt telemetry_config.yml file
-  ansible.builtin.command: >-
-    ansible-vault encrypt {{ telemetry_config_file }}
-    --vault-password-file {{ vault_filename }}
-  changed_when: false
+# - name: Assert kubernetes pod network CIDR
+#   ansible.builtin.assert:
+#     that:
+#       - k8s_pod_network_cidr | default("", true) | length > 9
+#       - '"/" in k8s_pod_network_cidr'
+#     fail_msg: "{{ invalid_k8s_pod_network_cidr }}"

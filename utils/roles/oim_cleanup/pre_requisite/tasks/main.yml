@@ -18,3 +18,6 @@
 
 - name: Check k8s support
   ansible.builtin.include_tasks: check_k8s_support.yml
+
+- name: Check idrac_telemetry_support support
+  ansible.builtin.include_tasks: check_idrac_telemetry_support.yml

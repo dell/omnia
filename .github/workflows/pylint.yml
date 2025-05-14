@@ -1,10 +1,12 @@
 name: Pylint
 
 on:
-  pull_request:
+  push:
     branches:
+      - main
       - staging
       - pub/new_architecture
+      - pub/telemetry
 
 jobs:
   build:
@@ -13,7 +15,7 @@ jobs:
       matrix:
         python-version: ["3.11"]
     env:
-      PYLINT_THRESHOLD: 8
+      PYLINT_THRESHOLD: 8  # 👈 Set your desired threshold here
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
@@ -24,18 +26,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pylint
-
-    - name: Get changed Python files
-      id: changed-files
+    - name: Analysing the code with pylint
       run: |
-        git fetch origin ${{ github.base_ref }}
-        FILES=$(git diff --name-only origin/${{ github.base_ref }} HEAD -- '*.py' || true)
-        FILES="${FILES//$'\n'/ }"  # Convert newlines to space-separated string
-        echo "files=$FILES" >> "$GITHUB_OUTPUT"
-
-    - name: Run pylint on changed files
-      if: steps.changed-files.outputs.files != ''
-      run: |
-        echo "Running pylint on: ${{ steps.changed-files.outputs.files }}"
-        pylint ${{ steps.changed-files.outputs.files }} --fail-under=${PYLINT_THRESHOLD}
-
+        pylint $(git ls-files '*.py')  --fail-under=${PYLINT_THRESHOLD}

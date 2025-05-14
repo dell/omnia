@@ -33,3 +33,6 @@
 
 - name: Check service_node role is present in roles_config.yml
   ansible.builtin.include_tasks: check_service_role.yml
+
+- name: Check_idrac_telemetry support
+  ansible.builtin.include_tasks: check_idrac_telemetry_support.yml

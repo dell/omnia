@@ -28,6 +28,7 @@
     - high_availability
     - server_spec
     - prepare_oim
+    - telemetry
 
 - name: Validate omnia input config
   hosts: localhost

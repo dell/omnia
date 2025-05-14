@@ -17,13 +17,6 @@
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
   tags: always
 
-- name: Create provision container group
-  ansible.builtin.import_playbook: ../utils/create_container_group.yml
-  vars:
-    omnia_provision_group: true
-    omnia_provision_validation: true
-  tags: always
-
 - name: Warning and User confirmation for removing cluster
   hosts: localhost
   connection: local
@@ -31,6 +24,13 @@
   roles:
     - { role: remove_cluster/user_confirmation } # noqa: role-name[path]
     - { role: common }
+  tags: always
+
+- name: Create provision container group
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    omnia_provision_group: true
+    omnia_provision_validation: true
   tags: always
 
 - name: Host Mapping
@@ -73,6 +73,7 @@
     dir_mode: '0755'
   tasks:
     - name: Execute tasks for Reset kubernetes setup
+      when: hostvars['localhost']['k8s_support']
       block:
         - name: Copy reset_k8s_cluste to kubespray nfs share
           ansible.builtin.copy:

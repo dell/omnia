@@ -15,21 +15,21 @@
 
 - name: Set iDRAC count incrementer
   ansible.builtin.set_fact:
-    idrac_awx_count: "{{ idrac_awx_count | int + 1 }}"
+    idrac_ip_count: "{{ idrac_ip_count | int + 1 }}"
     datacenter_license: false
     firmware_version: false
 
 - name: Set iDRAC IP list
   ansible.builtin.set_fact:
-    awx_idrac: "{{ awx_idrac + [item] }}"
+    idrac_ip: "{{ idrac_ip + [item] }}"
 
 - name: Filter iDRAC
   block:
     - name: Get system inventory
       dellemc.openmanage.idrac_system_info:
         idrac_ip: "{{ item }}"
-        idrac_user: "{{ idrac_username }}"
-        idrac_password: "{{ idrac_password }}"
+        idrac_user: "{{ hostvars['localhost']['bmc_username'] }}"
+        idrac_password: "{{ hostvars['localhost']['bmc_password'] }}"
         validate_certs: false
       register: idrac_system_info_cli
 
@@ -52,8 +52,8 @@
     - name: Get firmware version
       dellemc.openmanage.idrac_firmware_info:
         idrac_ip: "{{ item }}"
-        idrac_user: "{{ idrac_username }}"
-        idrac_password: "{{ idrac_password }}"
+        idrac_user: "{{ hostvars['localhost']['bmc_username'] }}"
+        idrac_password: "{{ hostvars['localhost']['bmc_password'] }}"
         validate_certs: false
       register: idrac_firmware_info_cli
 
@@ -78,8 +78,8 @@
 
 - name: Set variables for filtered iDRACs
   when:
-    - datacenter_license is true
-    - firmware_version is true
+    - datacenter_license
+    - firmware_version
   block:
     - name: Set iDRAC list
       ansible.builtin.set_fact:
@@ -88,3 +88,16 @@
     - name: Set counter value
       ansible.builtin.set_fact:
         filtered_idrac_count: "{{ filtered_idrac_count | int + 1 }}"
+
+- name: Set variables for unsupported iDRACs
+  when:
+    - not datacenter_license
+    - not firmware_version
+  block:
+    - name: Set iDRAC list
+      ansible.builtin.set_fact:
+        failed_idrac: "{{ failed_idrac + [item] }}"
+
+    - name: Set counter value
+      ansible.builtin.set_fact:
+        failed_idrac_count: "{{ failed_idrac_count | int + 1 }}"

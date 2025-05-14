@@ -12,28 +12,31 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Tasks for k8s_start_services role
+  when:
+    - hostvars['127.0.0.1']['k8s_support']
+  block:
+    - name: Validate kubernets groups
+      ansible.builtin.fail:
+        msg: "{{ kube_inv_fail_msg }}"
+      when: groups['kube_control_plane'] is not defined or groups['kube_node'] is not defined or groups['etcd'] is not defined
 
-- name: Validate kubernets groups
-  ansible.builtin.fail:
-    msg: "{{ kube_inv_fail_msg }}"
-  when: groups['kube_control_plane'] is not defined or groups['kube_node'] is not defined or groups['etcd'] is not defined
+    - name: Check if Kubernetes is installed
+      ansible.builtin.command: kubectl get nodes -o json
+      register: kubectl_output
+      ignore_errors: true
+      delegate_to: "{{ groups['kube_control_plane'] | first }}"
+      changed_when: false
 
-- name: Add all hosts to group k8s_cluster
-  ansible.builtin.add_host:
-    name: '{{ item }}'
-    groups: k8s_cluster
-  with_items:
-    - "{{ groups['kube_control_plane'] }}"
-    - "{{ groups['kube_node'] }}"
+    - name: Fail if kubernetes is not installed
+      ansible.builtin.fail:
+        msg: "{{ kube_not_installed }}"
+      when: kubectl_output.rc != 0
 
-- name: Check if Kubernetes is installed
-  ansible.builtin.command: kubectl get nodes -o json
-  register: kubectl_output
-  ignore_errors: true
-  delegate_to: "{{ groups['kube_control_plane'] | first }}"
-  changed_when: false
-
-- name: Fail if kubernetes is not installed
-  ansible.builtin.fail:
-    msg: "{{ kube_not_installed }}"
-  when: kubectl_output.rc != 0
+    - name: Add all hosts to group k8s_cluster
+      ansible.builtin.add_host:
+        name: '{{ item }}'
+        groups: k8s_cluster
+      with_items:
+        - "{{ groups['kube_control_plane'] }}"
+        - "{{ groups['kube_node'] }}"
