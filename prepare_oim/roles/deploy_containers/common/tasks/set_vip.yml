@@ -24,4 +24,4 @@
 
     - name: Set admin_nic_ip
       ansible.builtin.set_fact:
-        admin_nic_ip: "{{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.virtual_ip_address }}"
+        admin_nic_ip: "{{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.admin_virtual_ip_address }}"

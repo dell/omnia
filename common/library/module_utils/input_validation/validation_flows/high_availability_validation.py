@@ -60,12 +60,38 @@ def get_admin_static_dynamic_ranges(network_spec_json):
                 }
     return admin_network
 
+def get_bmc_network(network_spec_json):
+    for network in network_spec_json["Networks"]:
+        for key, value in network.items():
+            if key == "bmc_network":
+                static_range = value.get("dynamic_range", "N/A")
+                dynamic_range = value.get("dynamic_conversion_static_range", "N/A")
+                bmc_network = {
+                    "dynamic_range": static_range,
+                    "dynamic_conversion_static_range": dynamic_range,
+                }
+    return bmc_network
+
 def get_admin_netmaskbits(network_spec_json):
     for network in network_spec_json["Networks"]:
         for key, value in network.items():
             if key == "admin_network":
                 netmaskbits = value.get("netmask_bits", "N/A")
     return netmaskbits
+
+def get_admin_nic_name(network_spec_json):
+    for network in network_spec_json["Networks"]:
+        for key, value in network.items():
+            if key == "admin_network":
+                admin_nic_name = value.get("oim_nic_name", "N/A")
+    return admin_nic_name
+
+def get_bmc_nic_name(network_spec_json):
+    for network in network_spec_json["Networks"]:
+        for key, value in network.items():
+            if key == "bmc_network":
+                bmc_nic_name = value.get("oim_nic_name", "N/A")
+    return bmc_nic_name
 
 def get_primary_oim_admin_ip(network_spec_json):
     for network in network_spec_json["Networks"]:
@@ -105,7 +131,7 @@ def validate_vip_address(errors, config_type, vip_address, service_node_vip, adm
         if not validation_utils.is_ip_in_subnet(oim_admin_ip, admin_netmaskbits, vip_address):
             errors.append(create_error_msg(f"{config_type} virtual_ip_address", vip_address, en_us_validation_msg.virtual_ip_not_in_admin_subnet))
 
-def validate_service_node_ha(errors, config_type, ha_data, network_spec_data, all_service_tags, ha_node_vip_list):
+def validate_service_node_ha(errors, config_type, ha_data, network_spec_data, roles_config_json, all_service_tags, ha_node_vip_list):
     active_node_service_tag = ha_data.get('active_node_service_tag')
     passive_nodes = ha_data.get('passive_nodes', [])
     vip_address = ha_data.get('virtual_ip_address')
@@ -122,11 +148,44 @@ def validate_service_node_ha(errors, config_type, ha_data, network_spec_data, al
     if vip_address:
         validate_vip_address(errors, config_type, vip_address, ha_node_vip_list, admin_network, admin_netmaskbits, oim_admin_ip)
 
+def validate_oim_ha(errors, config_type, ha_data, network_spec_data, roles_config_json, all_service_tags, ha_node_vip_list):
+    admin_virtual_ip = ha_data.get('admin_virtual_ip_address', "")
+    bmc_virtual_ip = ha_data.get('bmc_virtual_ip_address', "")
+
+    admin_nic_name = network_spec_data['admin_nic_name']
+    admin_network = network_spec_data['admin_network']
+    admin_netmaskbits = network_spec_data['admin_netmaskbits']
+    oim_admin_ip = network_spec_data['oim_admin_ip']
+
+    bmc_network = network_spec_data['bmc_network']
+    bmc_nic_name = network_spec_data['bmc_nic_name']
+
+    if admin_virtual_ip:
+        validate_vip_address(errors, config_type, admin_virtual_ip, ha_node_vip_list, admin_network, admin_netmaskbits, oim_admin_ip)
+    
+    if admin_nic_name == bmc_nic_name:
+        roles_groups = roles_config_json.get("Groups", [])
+        for _, group_data in roles_groups.items():
+            static_range = group_data.get("bmc_details", {}).get("static_range", '')
+            if static_range:
+                bmc_vip_conflict = validation_utils.is_ip_within_range(static_range, bmc_virtual_ip)
+                if bmc_vip_conflict:
+                    errors.append(create_error_msg(f"{config_type} bmc_virtual_ip_address conflict with roles_config:", bmc_virtual_ip, en_us_validation_msg.bmc_virtual_ip_not_valid))
+
+        if bmc_network["dynamic_range"] != 'N/A':       
+            bmc_vip_conflict_dynamic = validation_utils.is_ip_within_range(bmc_network["dynamic_range"], bmc_virtual_ip)
+        if bmc_network["dynamic_conversion_static_range"] != 'N/A':
+            bmc_vip_conflict_dynamic_conversion = validation_utils.is_ip_within_range(bmc_network["dynamic_conversion_static_range"], bmc_virtual_ip)
+        if bmc_vip_conflict_dynamic or bmc_vip_conflict_dynamic_conversion:
+            errors.append(create_error_msg(f"{config_type} bmc_virtual_ip_address conflict with network_spec", bmc_virtual_ip, en_us_validation_msg.bmc_virtual_ip_not_valid))
+    elif bmc_virtual_ip:
+        errors.append(create_error_msg("bmc_virtual_ip_address", bmc_virtual_ip, "For use only with a LOM configuration, " + en_us_validation_msg.feild_must_be_empty))
+
 # Dispatch table maps config_type to validation handler
 ha_validation = {
     "service_node_ha": validate_service_node_ha,
     # Add more config_type functions here as needed
-    #"oim_ha":validation_oim_ha,
+    "oim_ha": validate_oim_ha,
     #"slurm_head_node_ha":validation_slurm_head_node_ha
     #"k8s_head_node_ha":validation_k8s_head_node_ha
 }
@@ -138,8 +197,14 @@ def validate_high_availability_config(input_file_path, data, logger, module, omn
     network_spec_file_path = create_file_path(input_file_path, file_names["network_spec"])
     network_spec_json = validation_utils.load_yaml_as_json(network_spec_file_path, omnia_base_dir, project_name, logger, module)
 
+    # load roles_config for L2 validations
+    roles_config_json = get_roles_config_json(input_file_path, logger, module, omnia_base_dir, module_utils_base, project_name)
+
     network_spec_info = {
         "admin_network": get_admin_static_dynamic_ranges(network_spec_json),
+        "admin_nic_name": get_admin_nic_name(network_spec_json),
+        "bmc_network": get_bmc_network(network_spec_json),
+        "bmc_nic_name": get_bmc_nic_name(network_spec_json),
         "admin_netmaskbits": get_admin_netmaskbits(network_spec_json),
         "oim_admin_ip": get_primary_oim_admin_ip(network_spec_json)
     }
@@ -159,30 +224,31 @@ def validate_high_availability_config(input_file_path, data, logger, module, omn
                 for passive_node in ha_data['passive_nodes']:
                     check_mandatory_fields(["node_service_tags"], passive_node, errors)
 
-
             if config_type in ha_validation:
-                ha_validation[config_type](errors, config_type, ha_data, network_spec_info, all_service_tags, ha_node_vip_list)
+                ha_validation[config_type](errors, config_type, ha_data, network_spec_info, roles_config_json, all_service_tags, ha_node_vip_list)
 
             # append all the active and passive node service tags to a set
             all_service_tags.add(ha_data['active_node_service_tag'])
             for node_service_tag in ha_data.get('passive_nodes', []):
                 all_service_tags.update(node_service_tag.get('node_service_tags', []))
 
-            ha_node_vip_list.append(ha_data['virtual_ip_address'])
+            if 'virtual_ip_address' in ha_data:
+                ha_node_vip_list.append(ha_data['virtual_ip_address'])
+            elif 'admin_virtual_ip_address' in ha_data:
+                ha_node_vip_list.append(ha_data['admin_virtual_ip_address'])
+            elif 'bmc_virtual_ip_address' in ha_data:
+                ha_node_vip_list.append(ha_data['bmc_virtual_ip_address'])
 
         except KeyError as e:
             logger.error(f"Missing key in HA data: {e}")
             errors.append(f"Missing key in HA data: {e}")
 
     ha_configs = [
-        ("oim_ha", ["virtual_ip_address", "active_node_service_tag", "passive_nodes"]),
+        ("oim_ha", ["admin_virtual_ip_address", "active_node_service_tag", "passive_nodes"]),
         ("service_node_ha", ["service_nodes"]),
         ("slurm_head_node_ha", ["virtual_ip_address", "active_node_service_tags", "passive_nodes"]),
         ("k8s_head_node_ha", ["virtual_ip_address", "active_node_service_tags"])
     ]
-
-    # load roles_config for L2 validations
-    roles_config_json = get_roles_config_json(input_file_path, logger, module, omnia_base_dir, module_utils_base, project_name)
 
     for config_name, mandatory_fields in ha_configs:
         ha_data = data.get(config_name)
@@ -190,7 +256,13 @@ def validate_high_availability_config(input_file_path, data, logger, module, omn
             ha_data = ha_data[0] if isinstance(ha_data, list) else ha_data
             enable_key = f'enable_{config_name.split("_")[0]}_ha'
             if ha_data.get(enable_key):
-                if config_name == "service_node_ha":
+                if config_name == "oim_ha":
+                    ha_role = "oim_ha_node" #expected role to be defined in roles_config
+                    check_and_validate_ha_role_in_roles_config(errors, roles_config_json, ha_role)
+                    if network_spec_info["admin_nic_name"] == network_spec_info["bmc_nic_name"]:
+                        mandatory_fields.append("bmc_virtual_ip_address")
+                    validate_ha_config(ha_data, mandatory_fields, errors, config_type=config_name)
+                elif config_name == "service_node_ha":
                     ha_role = "service_node" #expected role to be defined in roles_config
                     check_and_validate_ha_role_in_roles_config(errors, roles_config_json, ha_role)
                     for service_node in ha_data['service_nodes']:

@@ -12,15 +12,32 @@ runc_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostv
 etcd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['etcd_package'] }}/{{ hostvars['localhost']['etcd_package'] }}.tar.gz"
 containerd_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['containerd_package'] }}/{{ hostvars['localhost']['containerd_package'] }}.tar.gz"
 helm_download_url: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['helm_package'] }}/{{ hostvars['localhost']['helm_package'] }}.tar.gz"
-registry_host: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
-kube_image_repo: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
-docker_image_repo: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
-quay_image_repo: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
-github_image_repo: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
+registry_host: "{{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_registry_port }}"
+kube_image_repo: "{{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_registry_port }}"
+docker_image_repo: "{{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_registry_port }}"
+quay_image_repo: "{{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_registry_port }}"
+github_image_repo: "{{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_registry_port }}"
 docker_rh_repo_base_url: "{{ hostvars['localhost']['docker_rh_repo_base_url'] | default('') }}"
 docker_rh_repo_gpgkey: "{{ hostvars['localhost']['docker_rh_repo_gpgkey'] | default('') }}"
 {% else %}
-# Online mode include no_proxy config 
-no_proxy: "localhost,127.0.0.1,{{ hostvars['localhost']['admin_nic_ip'] }},{{ hostvars['localhost']['k8s_service_addresses'] }},{{ hostvars['localhost']['k8s_pod_network_cidr'] }}"  # noqa: yaml[line-length]
-additional_no_proxy: ""   # noqa: yaml[line-length]
+# Online mode
+kube_image_repo: "registry.k8s.io"
+docker_image_repo: "docker.io"
+quay_image_repo: "quay.io"
+docker_rh_repo_base_url: ""
+docker_rh_repo_gpgkey: ""
+    {% if enable_routed_internet %}
+# Include proxy config on clusters with partial or no dedicated internet access    
+        {% if enable_k8s_ha %}
+http_proxy: "http://{{ kube_vip }}:{{ proxy_port }}"
+https_proxy: "http://{{ kube_vip }}:{{ proxy_port }}"
+        {% else %}
+http_proxy: "http://{{ admin_nic_ip }}:{{ proxy_port }}"
+https_proxy: "http://{{ admin_nic_ip }}:{{ proxy_port }}"
+        {% endif %}
+    {% else %}
+# Include no_proxy config on cluster with dedicated internet
+no_proxy: "localhost,127.0.0.1,{{ hostvars['localhost']['admin_nic_ip'] }},{{ hostvars['localhost']['k8s_service_addresses'] }},{{ hostvars['localhost']['k8s_pod_network_cidr'] }},{{ hostvars['localhost']['oim_hostname'] }},{{ hostvars['localhost']['domain_name'] }}"   # noqa: yaml[line-length]
+additional_no_proxy: "{{ hostvars['localhost']['user_no_proxy'] if hostvars['localhost']['no_proxy_input_status'] else '' }}"   # noqa: yaml[line-length]
+    {% endif %}
 {% endif %}

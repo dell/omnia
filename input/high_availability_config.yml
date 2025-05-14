@@ -20,7 +20,8 @@
 # ***********************************************************************
 # High Availability (HA) Configuration for OIM
 # - enable_oim_ha: <Mandatory> Indicates whether to enable high availability (HA) for OIM (Open Information Model). Set to 'true' to enable, 'false' to disable.
-# - virtual_ip_address: <Mandatory if enable_oim_ha is true> The virtual IP address for the OIM HA setup.
+# - admin_virtual_ip_address: <Mandatory if enable_oim_ha is true> The admin virtual IP address for the OIM HA setup.
+# - bmc_virtual_ip_address: <Mandatory if enable_oim_ha is true and setup is LOM> The BMC virtual IP address for the OIM HA setup.
 # - active_node_service_tag: <Mandatory if enable_oim_ha is true> The service tag of the active node in the OIM HA setup.
 # - nfs_share: <Mandatory if enable_oim_ha is true> NFS server details for shared storage
 #   - server_ip: The IP address of the NFS server
@@ -36,7 +37,8 @@
 
 oim_ha:
   enable_oim_ha: false
-  virtual_ip_address: ""
+  admin_virtual_ip_address: ""
+  bmc_virtual_ip_address: ""
   active_node_service_tag: ""
   passive_nodes:
     - node_service_tags: [] # List of service tags, separated by commas. e.g. ["ABC","DEF"]
