@@ -82,9 +82,15 @@ pcs constraint order start {{ omnia_core_name }} then start {{ kubespray_name }}
 pcs resource defaults update migration-threshold={{ migration_threshold }}
 
 {% if hostvars['localhost']['enable_oim_ha'] %}
-pcs resource create VIP ocf:heartbeat:IPaddr2 \
-        ip={{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.virtual_ip_address }} cidr_netmask={{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} \
+pcs resource create admin_VIP ocf:heartbeat:IPaddr2 \
+        ip={{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.admin_virtual_ip_address }} cidr_netmask={{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} \
         op monitor interval={{ monitor_interval }} --group {{ pcs_group }}
+
+{% if hostvars['localhost']['network_interface_type'] == 'lom' %}
+pcs resource create bmc_VIP ocf:heartbeat:IPaddr2 \
+        ip={{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.bmc_virtual_ip_address }} cidr_netmask={{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} \
+        op monitor interval={{ monitor_interval }} --group {{ pcs_group }}
+{% endif %}
 
 pcs resource defaults update migration-threshold={{ ha_migration_threshold }}
 pcs resource defaults update failure-timeout={{ failure_timeout }}

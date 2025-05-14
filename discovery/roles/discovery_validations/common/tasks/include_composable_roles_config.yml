@@ -26,7 +26,7 @@
     switch_status: "{{ composable_roles_output.switch_status }}"
     groups_roles_info: "{{ composable_roles_output.groups_roles_info }}"
 
-- name: Validate in service HA if respective roles are defined
+- name: Validate in OIM HA if respective roles are defined
   when: (enable_oim_ha and not 'oim_ha_node' in roles_data)
   ansible.builtin.fail:
     msg: "{{ oim_ha_node_not_found_msg }}"
@@ -75,20 +75,17 @@
   register: hierarchical_output
   when: '"management_layer" not in ansible_run_tags'
 
-- name: Set fact for service_node role required
+- name: Set fact for service_node role required and other facts
   ansible.builtin.set_fact:
     service_role_required: "{{ 'true' if 'service_node' in roles_groups_data else 'false' }}"
+    oim_ha_role_required: "{{ 'true' if 'oim_ha_node' in roles_groups_data else 'false' }}"
     booted_service_nodes_data: "{{ hierarchical_output.booted_service_nodes_data | default({}) }}"
     hierarchical_provision_status: "{{ hierarchical_output.hierarchical_provision_status | default(false) }}"
     groups_roles_info: "{{ hierarchical_output.groups_roles_info | default(groups_roles_info) }}"
 
-- name: Set fact for service_node role required
-  ansible.builtin.set_fact:
-    service_role_required: "{{ 'true' if 'service_node' in roles_groups_data else 'false' }}"
-
 - name: Get the group(s) for OIM HA
   when:
-    - "'oim_ha_node' in roles_data"
+    - oim_ha_role_required
     - enable_oim_ha | default(False)
   ansible.builtin.set_fact:
     oim_ha_groups: "{{ roles_data['oim_ha_node']['groups'] | default([]) }}"

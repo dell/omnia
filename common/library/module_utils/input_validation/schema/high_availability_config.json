@@ -8,7 +8,10 @@
         "enable_oim_ha": {
           "type": "boolean"
         },
-        "virtual_ip_address": {
+        "admin_virtual_ip_address": {
+          "type": "string"
+        },
+        "bmc_virtual_ip_address": {
           "type": "string"
         },
         "active_node_service_tag": {
@@ -48,12 +51,16 @@
           },
           "then": {
             "required": [
-              "virtual_ip_address",
+              "admin_virtual_ip_address",
               "active_node_service_tag",
               "passive_nodes"
             ],
             "properties": {
-              "virtual_ip_address": {
+              "admin_virtual_ip_address": {
+                "type": "string",
+                "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
+              },
+              "bmc_virtual_ip_address": {
                 "type": "string",
                 "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
               },

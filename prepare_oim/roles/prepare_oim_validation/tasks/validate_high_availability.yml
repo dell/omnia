@@ -56,6 +56,6 @@
   ansible.builtin.set_fact:
     vip_status: >-
       {{
-        oim_ha_data.ansible_facts.oim_ha.virtual_ip_address is defined and
-        oim_ha_data.ansible_facts.oim_ha.virtual_ip_address | length > 1 | default(false)
+        oim_ha_data.ansible_facts.oim_ha.admin_virtual_ip_address is defined and
+        oim_ha_data.ansible_facts.oim_ha.admin_virtual_ip_address | length > 1 | default(false)
       }}

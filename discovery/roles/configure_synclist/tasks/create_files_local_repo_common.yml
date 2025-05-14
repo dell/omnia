@@ -26,6 +26,7 @@
   ansible.builtin.set_fact:
     pulp_protocol: "{{ pulp_content_origin | urlsplit('scheme') | lower }}"
     pulp_server_ip: "{{ pulp_content_origin | urlsplit('hostname') }}"
+    pulp_server_port: "{{ pulp_content_origin | urlsplit('port') }}"
 
 - name: Create local_repo_access.yml file
   ansible.builtin.template:

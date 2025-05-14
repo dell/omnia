@@ -69,6 +69,15 @@
     - ofed_repo_stat.stat.exists
     - not enable_oim_ha
 
+- name: Configure postscripts for OFED
+  ansible.builtin.command: "{{ xcat_path }}/chdef {{ service_oim_groups }} -m postscripts=omnia_ofed"
+  changed_when: true
+  when:
+    - service_oim_groups != ''
+    - ofed_config_status
+    - ofed_repo_stat.stat.exists
+    - not enable_oim_ha
+
 - name: Verify CUDA repo created
   ansible.builtin.stat:
     path: "{{ cuda_core_path }}"
@@ -83,10 +92,27 @@
     - cuda_repo_stat.stat.exists
     - not enable_oim_ha
 
+- name: Configure postscripts for OFED
+  ansible.builtin.command: "{{ xcat_path }}/chdef {{ service_oim_groups }} -m postscripts=omnia_cuda"
+  changed_when: true
+  when:
+    - service_oim_groups != ''
+    - ofed_config_status
+    - ofed_repo_stat.stat.exists
+    - not enable_oim_ha
+
 - name: Configure postscripts for ROCm
   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_rocm"
   changed_when: true
   when:
+    - amdgpu_config_status
+    - not enable_oim_ha
+
+- name: Configure postscripts for ROCm
+  ansible.builtin.command: "{{ xcat_path }}/chdef {{ service_oim_groups }} -m postscripts=omnia_rocm"
+  changed_when: true
+  when:
+    - service_oim_groups != ''
     - amdgpu_config_status
     - not enable_oim_ha
 
@@ -107,3 +133,17 @@
 #   changed_when: true
 #   when:
 #     - RoCE_config_status
+
+# - name: Configure postscripts for Intel Gaudi
+#   ansible.builtin.command: "{{ xcat_path }}/chdef {{ service_oim_groups }} -m postscripts=omnia_intelgaudi"
+#   changed_when: true
+#   when:
+#     - intelgaudi_config_status
+#     - service_oim_groups != ''
+
+# - name: Configure postscripts for RoCE
+#   ansible.builtin.command: "{{ xcat_path }}/chdef {{ service_oim_groups }} -m postscripts=omnia_roce"
+#   changed_when: true
+#   when:
+#     - RoCE_config_status
+#     - service_oim_groups != ''

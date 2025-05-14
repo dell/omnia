@@ -1,10 +1,12 @@
+{% if hostvars['localhost']['k8s_offline_install'] %}
 containerd_registries_mirrors:
-  - prefix: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
+  - prefix: "{{ pulp_server_ip }}:{{ pulp_registry_port }}"
     mirrors:
-      - host: "http://{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
+      - host: "{{ pulp_protocol }}://{{ pulp_server_ip }}:{{ pulp_registry_port }}"
         capabilities: ["pull", "resolve"]
-        skip_verify: true
+        skip_verify: {{ 'false' if pulp_protocol == 'https' else 'true' }}
  
 containerd_registry_auth:
   - registry: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ pulp_registry_port }}"
     password: "{{ hostvars['localhost']['pulp_password'] }}"
+{% endif %}

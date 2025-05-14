@@ -148,6 +148,8 @@ telemetry_ip_overlap_fail_msg = "admin network, telemetry network and IP ranges 
 # high_availability
 virtual_ip_not_in_admin_subnet = "virtual ip address provided is not in admin subnet. Check high_availability_config.yml and network_spec.yml"
 virtual_ip_not_valid = "should be outside the admin static and dynamic ranges. Check high_availability_config.yml and network_spec.yml"
+bmc_virtual_ip_not_valid = "should be outside any bmc static and dynamic ranges. Check high_availability_config.yml, network_spec.yml, and roles_config.yml"
+feild_must_be_empty = "feild must be empty."
 duplicate_virtual_ip = "is already used. Please give unique virtual ip address"
 invalid_passive_node_service_tag = "active node and passive node service tag cannot be same."
 group_not_found = "is not defined in the roles_config. Please define the group in roles_config."

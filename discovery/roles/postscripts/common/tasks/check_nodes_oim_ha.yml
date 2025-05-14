@@ -17,21 +17,24 @@
   ansible.builtin.set_fact:
     omnia_oim_status: false
 
-- name: Fetch nodes with group oim_ha_node
-  ansible.builtin.command: "{{ xcat_path }}/lsdef oim_ha_node"
-  changed_when: false
-  register: check_omnia_oim
-  failed_when: false
+- name: Fetch nodes with group service_node
+  when: oim_ha_role_required | default(false)
+  block:
+    - name: Fetch nodes with group oim_ha_node
+      ansible.builtin.command: "{{ xcat_path }}/lsdef oim_ha_node"
+      changed_when: false
+      register: check_omnia_oim
+      failed_when: false
 
-- name: Set omnia_oim_status
-  ansible.builtin.set_fact:
-    omnia_oim_status: true
-  when:
-    - check_omnia_oim.stderr is defined
-    - '"error" not in check_omnia_oim.stderr | lower'
+    - name: Set omnia_oim_status
+      ansible.builtin.set_fact:
+        omnia_oim_status: true
+      when:
+        - check_omnia_oim.stderr is defined
+        - '"error" not in check_omnia_oim.stderr | lower'
 
-- name: Warning - not found any nodes
-  ansible.builtin.pause:
-    seconds: "{{ warning_wait_time }}"
-    prompt: "{{ all_nodes_warning_msg }}"
-  when: not omnia_oim_status
+    - name: Warning - not found any nodes
+      ansible.builtin.pause:
+        seconds: "{{ warning_wait_time }}"
+        prompt: "{{ all_nodes_warning_msg }}"
+      when: not omnia_oim_status
