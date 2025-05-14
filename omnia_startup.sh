@@ -680,7 +680,8 @@ post_setup_config() {
     podman exec -u root omnia_core bash -c "
     mkdir -p /opt/omnia/input/project_default
     cp -r /omnia/input/* /opt/omnia/input/project_default
-    rm -rf /omnia/input"
+    rm -rf /omnia/input 
+    rm -rf /omnia/omnia_startup.sh"
 
     # Copy shared libraries from /omnia to /opt/omnia/shard_libraries/ inside omnia_core container
     echo -e "${BLUE} Copying shared libraries from container to shared_libraries folder.${NC}"

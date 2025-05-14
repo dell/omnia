@@ -1,0 +1,62 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+- name: Prepare ActiveMQ directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop: "{{ activemq_directories }}"
+
+- name: Check if {{ activemq_container_name }} is already running and port is occupied # noqa: name[template]
+  containers.podman.podman_container_info:
+    name: "{{ activemq_container_name }}"
+  register: activemq_container_info
+  failed_when: false
+
+- name: Deploy ActiveMQ container and check deployment status
+  block:
+    - name: Deploy the Activemq container
+      containers.podman.podman_container:
+        name: "{{ activemq_container_name }}"
+        image: "{{ activemq_image }}"
+        state: present
+        restart_policy: "no"
+        detach: true
+        network_mode: host
+        volumes: "{{ activemq_volumes }}"
+
+    - name: Start the ActiveMQ container
+      containers.podman.podman_container:
+        name: "{{ activemq_container_name }}"
+        state: "started"
+
+    - name: Check if Activemq container is running after deployment
+      containers.podman.podman_container_info:
+        name: "{{ activemq_container_name }}"
+      register: activemq_container_status
+
+    - name: Notify user of ActiveMQ container deployment status
+      ansible.builtin.debug:
+        msg: "{{ activemq_container_success_msg }}"
+      when:
+        - activemq_container_status.containers | length > 0
+        - activemq_container_status.containers[0].State.Status == 'running'
+
+  rescue:
+    - name: ActiveMQ container deployment failed
+      ansible.builtin.fail:
+        msg: "{{ activemq_container_failure_msg }}"

@@ -7,6 +7,7 @@ on:
       - staging
       - release_1.7.1
       - pub/new_architecture
+      - pub/telemetry
 
 jobs:
   build:

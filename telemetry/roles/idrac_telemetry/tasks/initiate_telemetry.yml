@@ -34,32 +34,69 @@
         idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
         idrac_telemetry_scripting_stable_commit: "1f4bb26"
         idrac_telemetry_scripting_folder: iDRAC-Telemetry-Scripting
-        login_vars_file: "{{ playbook_dir }}/input_params/telemetry_login_vars.yml"
-        vault_filename: "{{ playbook_dir }}/input_params/.login_vault_key"
-        idrac_inventory_filename: "/opt/omnia/idrac_inventory"
-        idrac_file_existence: "iDRAC inventory file does not exist. Check /opt/omnia/idrac_inventory."
-        monitor_config_file: "{{ playbook_dir }}/../input/monitor_config.yml"
-        monitor_config_vault_filename: "{{ playbook_dir }}/../input/.monitor_vault_key"
-        min_firmware_version_reqd: 3
+        min_firmware_version_reqd: 4
         datacenter_license: false
         firmware_version: false
-        file_perm: '0644'
+        skipped_idrac: []
         telemetry_idrac: []
         service_type: 3
         auth_type: 1
-        idrac_awx_count: 0
+        idrac_ip_count: 0
         filtered_idrac_count: 0
+        failed_idrac_count: 0
         failed_idrac: []
-        awx_idrac: []
+        idrac_ip: []
+
+    - name: Fetch and filter iDRAC details from mysqlDB
+      block:
+        - name: Add iDRAC host in mysqlDB
+          block:
+            - name: Check if services table exists
+              community.mysql.mysql_query:
+                login_host: "{{ mysqldb_host }}"
+                login_port: "{{ mysqldb_container_port }}"
+                login_user: "{{ mysqldb_user }}"
+                login_password: "{{ mysqldb_password }}"
+                query: "SHOW TABLES FROM {{ mysqldb_name }}"
+              register: services_table_exists
+              until: services_table_exists is not failed and services_table_exists.query_result[0] | length > 1
+              retries: "{{ db_retries }}"
+              delay: "{{ db_delay }}"
+              no_log: true
+
+            - name: Fetch iDRAC details of telemetry configured iDRACs
+              community.mysql.mysql_query:
+                login_host: "{{ mysqldb_host }}"
+                login_port: "{{ mysqldb_container_port }}"
+                login_user: "{{ mysqldb_user }}"
+                login_password: "{{ mysqldb_password }}"
+                query: "SELECT ip from {{ mysqldb_name + '.services' }}"
+              register: db_idrac_ip
+              until: db_idrac_ip is not failed
+              retries: "{{ db_retries }}"
+              delay: "{{ db_delay }}"
+              no_log: true
+
+            - name: Extract list of IPs from query_result
+              ansible.builtin.set_fact:
+                db_idrac_ips: "{{ db_idrac_ip.query_result[0] | map(attribute='ip') | list }}"
+
+            - name: Generate filtered iDRAC IP list
+              ansible.builtin.set_fact:
+                filtered_bmc_ips: "{{ bmc_ips | difference(db_idrac_ips) }}"
+      rescue:
+        - name: Show failure msg
+          ansible.builtin.fail:
+            msg: "{{ mysqldb_insert_fail_msg }}"
 
 # Filter iDRACs matching telemetry pre-requisites
 
     - name: Add iDRAC nodes and initiate telemetry
       ansible.builtin.include_tasks: filter_idrac.yml
-      with_items: "{{ groups['idrac'] }}"
+      with_items: "{{ filtered_bmc_ips }}"
       loop_control:
         index_var: idrac_index
- #     no_log: true
+      # no_log: true
 
 # Add iDRAC Credentials in DB and enable telemetry fetching
 
@@ -69,7 +106,7 @@
         - name: Git clone telemetry initialization repo
           ansible.builtin.git:
             repo: "{{ idrac_telemetry_scripting_repo }}"
-            dest: "{{ mount_location + idrac_telemetry_scripting_folder }}"
+            dest: "/opt/omnia/telemetry/{{ idrac_telemetry_scripting_folder }}"
             version: "{{ idrac_telemetry_scripting_stable_commit }}"
           register: telemetry_collection
 
@@ -78,7 +115,7 @@
             "{{ python_version }}" ./ConfigurationScripts/EnableOrDisableAllTelemetryReports.py -ip "{{ item }}"
             -u "{{ idrac_username }}" -p "{{ idrac_password }}" -s Enabled
           args:
-            chdir: "{{ mount_location + idrac_telemetry_scripting_folder }}"
+            chdir: "/opt/omnia/telemetry/{{ idrac_telemetry_scripting_folder }}"
           with_items: "{{ telemetry_idrac }}"
           changed_when: false
           no_log: true
@@ -91,110 +128,51 @@
     - name: Add iDRAC details in mysqldb
       when: telemetry_idrac is defined and (telemetry_idrac | length > 0)
       block:
-        - name: Wait for idrac-telemetry pod to come to ready state
-          block:
-            - name: Wait for idrac-telemetry pod to come to ready state
-              ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ idrac_telemetry_k8s_name }}"
-              changed_when: false
-          rescue:
-            - name: Failed - idrac-telemetry pod is not running
-              ansible.builtin.fail:
-                msg: "{{ idrac_telemetry_pod_wait_fail_msg }}"
-
-        - name: Wait for mysqldb pod to come to ready state
-          block:
-            - name: Wait for mysqldb pod to come to ready state
-              ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ mysqldb_k8s_name }}"
-              changed_when: false
-          rescue:
-            - name: Failed - mysqldb pod is not running
-              ansible.builtin.fail:
-                msg: "{{ mysqldb_pod_wait_fail_msg }}"
-
-        - name: Get mysqlDB svc IP
-          ansible.builtin.command: kubectl get svc "{{ mysqldb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.clusterIP}'
-          changed_when: false
-          register: mysql_svc_ip
-
-        - name: Get mysqlDB svc port
-          ansible.builtin.command: kubectl get svc "{{ mysqldb_k8s_name }}" -n "{{ namespace }}" -o=jsonpath='{.spec.ports[0].port}'
-          changed_when: false
-          register: mysql_svc_port
-
         - name: Add iDRAC host in mysqlDB
-          environment:
-            no_proxy: "{{ mysql_svc_ip.stdout }}"
-          block:
-            - name: Check if services table exists
-              community.mysql.mysql_query:
-                login_host: "{{ mysql_svc_ip.stdout }}"
-                login_port: "{{ mysql_svc_port.stdout }}"
-                login_user: "{{ mysqldb_user }}"
-                login_password: "{{ mysqldb_password }}"
-                query: "SHOW TABLES FROM {{ mysqldb_name }}"
-              register: services_table_exists
-              until: services_table_exists is not failed and services_table_exists.query_result[0] | length > 1
-              retries: "{{ db_retries }}"
-              delay: "{{ db_delay }}"
-              no_log: true
-
-            - name: Add iDRAC host in mysqlDB
-              community.mysql.mysql_query:
-                login_host: "{{ mysql_svc_ip.stdout }}"
-                login_port: "{{ mysql_svc_port.stdout }}"
-                login_user: "{{ mysqldb_user }}"
-                login_password: "{{ mysqldb_password }}"
-                login_db: "{{ mysqldb_name }}"
-                query: INSERT IGNORE INTO {{ mysqldb_name + '.services' }} (ip, serviceType, authType, auth)
-                      VALUES (%s, %s, %s ,'{"password":"{{ idrac_password | quote }}","username":"{{ idrac_username | quote }}"}')
-                positional_args:
-                  - "{{ item }}"
-                  - "{{ service_type }}"
-                  - "{{ auth_type }}"
-              with_items: "{{ telemetry_idrac }}"
-              register: add_idrac_to_db
-              until: add_idrac_to_db is not failed
-              retries: "{{ db_retries }}"
-              delay: "{{ db_delay }}"
-              no_log: true
+          community.mysql.mysql_query:
+            login_host: "{{ mysqldb_host }}"
+            login_port: "{{ mysqldb_container_port }}"
+            login_user: "{{ mysqldb_user }}"
+            login_password: "{{ mysqldb_password }}"
+            login_db: "{{ mysqldb_name }}"
+            query: INSERT IGNORE INTO {{ mysqldb_name + '.services' }} (ip, serviceType, authType, auth)
+                  VALUES (%s, %s, %s ,'{"password":"{{ bmc_password | quote }}","username":"{{ bmc_username | quote }}"}')
+            positional_args:
+              - "{{ item }}"
+              - "{{ service_type }}"
+              - "{{ auth_type }}"
+          with_items: "{{ telemetry_idrac }}"
+          register: add_idrac_to_db
+          until: add_idrac_to_db is not failed
+          retries: "{{ db_retries }}"
+          delay: "{{ db_delay }}"
+          no_log: true
       rescue:
         - name: Show failure msg
           ansible.builtin.fail:
             msg: "{{ mysqldb_insert_fail_msg }}"
 
-# Initiate iDRAC collection
-    - name: Initiate telemetry collection
+# # Initiate iDRAC collection
+#     - name: Initiate telemetry collection
+#       when: telemetry_idrac is defined and (telemetry_idrac | length > 0)
+#       block:
+#         - name: Initiate telemetry-collector
+#           containers.podman.podman_container_exec:
+#             name : "{{ idrac_telemetry_pod }}"
+#             command: 'nohup go run cmd/redfishread/redfishread.go &'
+#             tty: true
+#           changed_when: false
+
+    - name: Create and update telemetry report from template
       when: telemetry_idrac is defined and (telemetry_idrac | length > 0)
       block:
-        - name: Wait for idrac-telemetry pod to come to ready state
-          block:
-            - name: Wait for idrac-telemetry pod to come to ready state
-              ansible.builtin.command: kubectl wait --for=condition=ready --timeout=10m -n "{{ namespace }}" pod -l app="{{ idrac_telemetry_k8s_name }}"
-              changed_when: false
-          rescue:
-            - name: Failed - idrac-telemetry pod is not running
-              ansible.builtin.fail:
-                msg: "{{ idrac_telemetry_pod_wait_fail_msg }}"
+        - name: Create telemetry report
+          ansible.builtin.template:
+            src: telemetry_report.j2
+            dest: "{{ telemetry_report_path }}"
+            mode: "{{ filemode }}"
+            force: true
 
-        - name: Get idrac-telemetry pod name
-          ansible.builtin.command: kubectl get pods -n "{{ namespace }}" -l app="{{ idrac_telemetry_k8s_name }}" -o jsonpath="{.items[0].metadata.name}"
-          changed_when: false
-          register: idrac_telemetry_pod
-
-        - name: Wait for 15 sec for mysqldb to be ready with updated values
-          ansible.builtin.pause:
-            seconds: 15
-
-        - name: Initiate telemetry-collector
-          ansible.builtin.shell: >-
-            kubectl exec --stdin --tty "{{ idrac_telemetry_pod.stdout }}" -n "{{ namespace }}"
-            -c telemetry-receiver -- nohup go run cmd/redfishread/redfishread.go &
-          changed_when: false
-
-    - name: Telemetry report
-      ansible.builtin.debug:
-        msg:
-          - "Count of iDRAC IPs found: {{ idrac_awx_count }}"
-          - "List of iDRAC IPs found: {{ awx_idrac }}"
-          - "Count of iDRAC IPs where telemetry is initiated: {{ filtered_idrac_count }}"
-          - "List of iDRAC IPs where telemetry is initiated: {{ telemetry_idrac }}"
+        - name: Telemetry Report
+          ansible.builtin.debug:
+            msg: "{{ telemetry_report.splitlines() }}"

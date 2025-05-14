@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+- name: Include software_config.yml
+  ansible.builtin.include_tasks: fetch_software_config.yml
+
 - name: Include omnia_config.yml
   ansible.builtin.include_tasks: include_omnia_config.yml
   tags: 'omnia_config'

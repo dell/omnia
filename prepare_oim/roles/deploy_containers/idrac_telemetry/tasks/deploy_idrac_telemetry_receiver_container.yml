@@ -1,0 +1,83 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+- name: Prepare iDRAC Telemtery Receiver directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop: "{{ idrac_telemetry_receiver_directories }}"
+
+- name: Check if {{ idrac_telemetry_receiver_container_name }} is already running and port is occupied # noqa: name[template]
+  containers.podman.podman_container_info:
+    name: "{{ idrac_telemetry_receiver_container_name }}"
+  register: idrac_receiver_container_info
+  failed_when: false
+
+- name: Checkout iDRAC Telemetry GitHub repo
+  ansible.builtin.git:
+    repo: "{{ idrac_telemetry_github }}"
+    dest: "{{ idrac_telemetry_reference_path }}"
+    version: "{{ reference_tools_stable_commit }}"
+    update: false
+  register: clone_idrac_telemetry
+  until: clone_idrac_telemetry is succeeded
+  retries: "{{ max_retries }}"
+  delay: "{{ delay_count }}"
+  failed_when: false
+
+- name: Fail if iDRAC telemetry Git clone fails
+  ansible.builtin.fail:
+    msg: "{{ idrac_git_clone_error_msg }}"
+  when: clone_idrac_telemetry is failed
+
+- name: Deploy iDRAC Telemtery Receiver container and check deployment status
+  block:
+    - name: Deploy the iDRAC telemetry receiver container
+      containers.podman.podman_container:
+        name: "{{ idrac_telemetry_receiver_container_name }}"
+        image: "{{ idrac_telemetry_receiver_go_image }}"
+        state: present
+        restart_policy: "no"
+        hostname: "{{ idrac_telemetry_receiver_container_name }}"
+        network_mode: host
+        volumes: "{{ idrac_telemetry_receiver_volumes }}"
+        working_dir: "/go/src/github.com/telemetry-reference-tools"
+        privileged: false
+        env: "{{ idrac_telemetry_receiver_env }}"
+        command: /bin/sh -c "./scripts/example/idrac-telemetry-receiver.sh"
+
+    - name: Start the iDRAC Telemtery Receiver container
+      containers.podman.podman_container:
+        name: "{{ idrac_telemetry_receiver_container_name }}"
+        state: started
+
+    - name: Check if iDRAC Telemtery Receiver container is running after deployment
+      containers.podman.podman_container_info:
+        name: "{{ idrac_telemetry_receiver_container_name }}"
+      register: idrac_receiver_container_status
+
+    - name: Notify user of iDRAC Telemtery Receiver container deployment status
+      ansible.builtin.debug:
+        msg: "{{ idrac_telemetry_receiver_container_success_msg }}"
+      when:
+        - idrac_receiver_container_status | length > 0
+        - idrac_receiver_container_status.containers[0].State.Status == 'running'
+
+  rescue:
+    - name: Failure for iDRAC Telemtery Receiver container deployment
+      ansible.builtin.fail:
+        msg: "{{ idrac_telemetry_receiver_container_failure_msg }}"

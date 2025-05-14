@@ -1,0 +1,116 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+omnia_nfs_share: "{{ oim_shared_path }}/omnia"
+idrac_telemetry_dir: "{{ omnia_nfs_share }}/telemetry/idrac_telemetry" # For idrac_telemetry
+root_read_write: "0644"
+mysql_docker_image: "docker.io/library/mysql"
+mysql_container_name: "mysqldb"
+mysql_image_tag: "8.0"
+mysql_image_pull_fail_msg: |
+  The pull of the MySQL image {{ mysql_container_name }}:{{ mysql_image_tag }} has failed.
+  To resolve this issue, please address the following error message: {{ image_pull_result.msg }}.
+  After rectifying the issues, you can re-run the playbook to successfully pull the mysqldb image.
+mysql_database: "idrac_telemetrydb"
+mysql_container_success_msg: "The MySQL container {{ mysql_container_name }} has been successfully created and is running."
+mysql_container_failure_msg: |
+  The deployment of the {{ mysql_container_name }} container has failed. To resolve this issue,
+  please run the utils/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ mysql_container_name }} container successfully.
+mysql_image_not_found_msg: |
+  MySQL image {{ mysql_container_name }}:{{ mysql_image_tag }} not found.
+  Please check if image is available and re-run the playbook.
+mysql_dir: "{{ idrac_telemetry_dir }}/mysqldb"
+mysql_data_volume: "{{ mysql_dir }}/mysql_data"
+mysql_log_volume: "{{ omnia_nfs_share }}/log/mysqldb"
+mysql_volumes:
+ - "{{ mysql_data_volume }}:/opt/omnia{{ selinux_option }}"
+ - "{{ mysql_log_volume }}:/opt/omnia/log{{ selinux_option }}"
+mysql_dirs:
+ - "{{ mysql_data_volume }}"
+ - "{{ mysql_log_volume }}"
+mysql_port: 3306
+init_sql_file: "init_telemetrydb.sql"
+tmp_path: "/tmp/"
+mysql_root_password: "mysql_root_password"
+mysql_user_password: "mysql_user_password"
+mysql_user: "mysql_user"
+secrets:
+ - "{{ mysql_root_password }}"
+ - "{{ mysql_user }}"
+ - "{{ mysql_user_password }}"
+container_secret_path: "/run/secrets/"
+bin_sh: "/bin/sh"
+mysql_container_root_password_secret_path: "{{ container_secret_path }}/{{ mysql_root_password }}"
+mysql_container_user_secret_path: "{{ container_secret_path }}/{{ mysql_user }}"
+mysql_container_user_password_secret_path: "{{ container_secret_path }}/{{ mysql_user_password }}"
+
+# Usage: deploy_activemq_container.yml
+activemq_logs_dir: "{{ omnia_nfs_share }}/log/telemetry/activemq"
+activemq_dir: "{{ idrac_telemetry_dir }}/activemq"
+activemq_directories:
+ - { path: "{{ activemq_logs_dir }}", mode: "0744" }
+ - { path: "{{ activemq_dir }}", mode: "0744" }
+
+activemq_container_name: "activemq"
+activemq_image: "docker.io/rmohr/activemq:5.14.3"
+wait_time: 10
+activemq_volumes:
+  # - "{{ activemq_logs_dir }}:/opt/activemq/data/{{ selinux_option }}"
+ - "{{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }}"
+activemq_container_success_msg: "The {{ activemq_container_name }} container has been successfully deployed."
+activemq_container_failure_msg: |
+  The deployment of the {{ activemq_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ activemq_container_name }} container successfully.
+
+# deploy_idrac_receiver_container.yml
+idrac_telemetry_receiver_logs_dir: "{{ omnia_nfs_share }}/log/telemetry/idrac_telemetry_receiver"
+idrac_telemetry_receiver_dir_path: "{{ idrac_telemetry_dir }}/idrac_telemetry_receiver"
+idrac_telemetry_github: https://github.com/dell/iDRAC-Telemetry-Reference-Tools.git
+idrac_telemetry_reference_path: "{{ idrac_telemetry_receiver_dir_path }}/iDRAC-Telemetry-Reference-Tools"
+reference_tools_stable_commit: "3e78774"
+max_retries: 10
+delay_count: 5
+idrac_git_clone_error_msg: |
+  Failed to clone iDRAC Telemetry GitHub repository from {{ idrac_telemetry_github }}
+  to {{ idrac_telemetry_reference_path }}.
+  Failure: {{ clone_idrac_telemetry.stderr | default(clone_idrac_telemetry.msg, true) | default('Unknown error', true) }}
+idrac_telemetry_receiver_directories:
+ - { path: "{{ idrac_telemetry_receiver_logs_dir }}", mode: "0744" }
+ - { path: "{{ idrac_telemetry_receiver_dir_path }}", mode: "0744" }
+ - { path: "{{ idrac_telemetry_reference_path }}", mode: "0744" }
+idrac_telemetry_receiver_container_name: "idrac_telemetry_receiver"
+idrac_telemetry_receiver_go_image: "docker.io/library/golang:1.17"
+idrac_telemetry_receiver_volumes:
+  # - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh{{ selinux_option }}"
+ - "{{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }}"
+ - "{{ idrac_telemetry_reference_path }}:/go/src/github.com/telemetry-reference-tools{{ selinux_option }}"
+idrac_telemetry_receiver_env:
+ MESSAGEBUS_HOST: "127.0.0.1"
+ MESSAGEBUS_PORT: "61613"
+ CONFIGUI_HTTP_PORT: "3000"
+ MYSQL_DATABASE: "{{ mysql_database }}"
+ MYSQL_USER: "{{ hostvars['localhost']['mysqldb_user'] }}"
+ MYSQL_PASSWORD: "{{ hostvars['localhost']['mysqldb_password'] }}"
+ MYSQL_HOST: "127.0.0.1"
+ MYSQL_HOST_PORT: "3306"
+ HTTP_PROXY: ""
+ HTTPS_PROXY: ""
+idrac_telemetry_receiver_container_success_msg: "The {{ idrac_telemetry_receiver_container_name }} container has been successfully deployed."
+idrac_telemetry_receiver_container_failure_msg: |
+  The deployment of the {{ idrac_receiver_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ idrac_receiver_container_name }} container successfully.

@@ -21,34 +21,26 @@
   ansible.builtin.set_fact:
     oim_os: "{{ ansible_distribution | lower }}"
 
-- name: Read software config file
-  ansible.builtin.include_tasks: read_software_config.yml
-
 - name: Proceed with telemetry validation if telemetry entry present in software_config.json
-  when: telemetry_entry_present
   block:
     - name: Validate telemetry_config.yml
       ansible.builtin.include_tasks: validate_telemetry_config.yml
 
-    - name: Include variables for telemetry
-      when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
-      block:
-        - name: Validate site_config.yml
-          ansible.builtin.include_tasks: validate_site_config.yml
+    # - name: Include variables for telemetry
+    #   when: idrac_telemetry_support or omnia_telemetry_support or visualization_support
+    #   block:
+    #     - name: Validate site_config.yml
+    #       ansible.builtin.include_tasks: validate_site_config.yml
 
-        - name: Include provision_config.yml for timezone
-          ansible.builtin.include_tasks: include_provision_config.yml
+    #     - name: Include provision_config.yml for timezone
+    #       ansible.builtin.include_tasks: include_provision_config.yml
 
-        - name: Validate provision_config_credentials.yml
-          ansible.builtin.include_tasks: validate_provision_config_credentials.yml
+        # - name: Validate provision_config_credentials.yml
+        #   ansible.builtin.include_tasks: validate_provision_config_credentials.yml
 
-        - name: Check pre-requisites for telemetry and visualizations
-          ansible.builtin.include_tasks: pre-requisites.yml
+    - name: Check pre-requisites for telemetry and visualizations
+      ansible.builtin.include_tasks: pre-requisites.yml
 
     - name: Validate iDRAC inventory
       ansible.builtin.include_tasks: validate_idrac_inventory.yml
       when: idrac_telemetry_support
-
-    - name: Set the docker version for slurm telemetry
-      ansible.builtin.include_tasks: set_docker_os.yml
-      when: slurm_telemetry_support

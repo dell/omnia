@@ -73,3 +73,17 @@
 - name: Generate software JSON file names
   ansible.builtin.set_fact:
     software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
+
+- name: Fetch telemetry status from telemetry_config.yml
+  fetch_telemetry_status:
+    telemetry_config_path: "{{ telemetry_config_path }}"
+  register: result
+  when: "'telemetry' in (omnia_run_tags | default([]))
+        or 'prepare_oim' in (omnia_run_tags | default([]))"
+
+- name: Set run tags for telemetry
+  ansible.builtin.set_fact:
+    omnia_run_tags: "{{ (omnia_run_tags | default([])) + result.telemetry_status_list | unique }}"
+  when:
+    - not result.skipped | default(false)
+    - result.telemetry_status_list | length > 0

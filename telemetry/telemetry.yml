@@ -13,13 +13,49 @@
 # limitations under the License.
 ---
 
-- name: Update Inventory with ansible_host information
-  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
-  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
+# - name: Update Inventory with ansible_host information
+#   ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
+#   when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
 
-- name: Check if package manager is not locked
-  ansible.builtin.import_playbook: ../utils/check_package_lock.yml
-  when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
+# - name: Check if package manager is not locked
+#   ansible.builtin.import_playbook: ../utils/check_package_lock.yml
+#   when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
+
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Set dynamic run tags including 'telemetry'
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['telemetry']) | unique }}"
+        cacheable: true
+
+- name: Invoke get_config_credentials.yml
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+
+- name: Create provision container group
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    oim_group: true
+
+- name: Validate containers are running
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Validate telemetry container is running
+      ansible.builtin.include_role:
+        name: telemetry_validation
+        tasks_from: validate_telemetry_container.yml
+      loop:
+        - "activemq"
+        - "idrac_receiver"
+        - "mysqldb"
+      loop_control:
+        loop_var: telemetry_container
 
 - name: Validate telemetry input parameters
   hosts: localhost
@@ -31,64 +67,13 @@
         name: telemetry_validation
         tasks_from: validation_status_check.yml
 
-- name: Validate kubernetes cluster
-  hosts: kube_control_plane
-  gather_facts: false
-  any_errors_fatal: true
-  tasks:
-    - name: Validate k8s cluster
-      ansible.builtin.include_role:
-        name: telemetry_validation
-        tasks_from: validate_k8s_setup.yml
-
-- name: Update Repositories/Registries on nodes
-  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
-  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
+# - name: Update Repositories/Registries on nodes
+#   ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+#   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
 - name: Telemetry for omnia
   hosts: localhost
   connection: local
-  gather_facts: true
+  gather_facts: false
   roles:
-    - orchestrator
-    - grafana
-    - loki
-    - timescaledb
     - idrac_telemetry
-    - grafana_config
-
-- name: Prepare OIM for Telemetry
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  roles:
-    - omnia_telemetry_prepare_oim
-  tags: omnia_telemetry
-
-- name: Install Omnia Telemetry
-  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
-  gather_facts: false
-  roles:
-    - omnia_telemetry_acquisition
-  tags: omnia_telemetry
-
-- name: Pull Kube Prometheus stack images for compute clusters
-  hosts: kube_control_plane, kube_node, etcd
-  gather_facts: false
-  tasks:
-    - name: Pull images to nodes
-      ansible.builtin.include_role:
-        name: k8s_prometheus
-        tasks_from: download_images.yml
-
-- name: Install Kube Prometheus stack for compute clusters
-  hosts: kube_control_plane
-  gather_facts: false
-  roles:
-    - k8s_prometheus
-
-- name: Install Gaudi Prometheus metric exporter for compute clusters
-  hosts: kube_control_plane
-  gather_facts: false
-  roles:
-    - prometheus_gaudi
