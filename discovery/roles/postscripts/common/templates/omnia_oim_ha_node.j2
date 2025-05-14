@@ -33,9 +33,9 @@ if [ "$str_os_type" = "redhat" ]; then
     sudo dnf install -y podman
 fi
 
-echo "INFO: Renaming admin interface to {{ hostvars['omnia_provision']['admin_nic'] }}." >> "$LOGFILE"
-# Ensure the management interface name is the same as active OIM, if not add the active OIM's interface name as an alternative name
+# Ensure the management interface name is the same as the active OIM, if not change it to the active OIM's interface name.
 if ! ifconfig | grep -w {{ hostvars['omnia_provision']['admin_nic'] }}; then
+    echo "INFO: Renaming admin interface to {{ hostvars['omnia_provision']['admin_nic'] }}." >> "$LOGFILE"
     passive_oim_node_ips="{{ hostvars['omnia_provision']['passive_oim_nodes'].query_result | map(attribute='admin_ip') | join(' ') }}"
     for admin_ip in ${passive_oim_node_ips};do
         INTERFACE=$(ip addr show | awk "/${admin_ip}/{print \$NF; exit}")
