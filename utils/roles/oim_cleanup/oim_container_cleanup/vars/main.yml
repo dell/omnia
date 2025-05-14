@@ -30,7 +30,7 @@ pcs_firewall_ports:
   - "2222/tcp"
 
 # Usage: cleanup_pulp.yml
-pulp_container_name: "omnia_pulp"
+pulp_container_name: "pulp"
 pulp_cleanup_directory:
   - "{{ omnia_nfs_share }}/pulp/pulp_ha/cli.toml"
   - "{{ omnia_nfs_share }}/log/pulp"

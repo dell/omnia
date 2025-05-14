@@ -22,7 +22,7 @@ logs_dir_permission: "0644"
 pulp_ha_dir: "/opt/omnia/pulp/pulp_ha"
 settings_py_path: "{{ pulp_shared_path }}/settings/settings.py"
 device_name: "/dev/fuse:/dev/fuse:rwm"
-pulp_container_name: "omnia_pulp"
+pulp_container_name: "pulp"
 pulp_image: "docker.io/pulp/pulp"
 arg_list:
   - "-e PULP_WORKERS=10"

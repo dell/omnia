@@ -26,6 +26,7 @@
 
 - name: Set fact for pulp protocol
   ansible.builtin.set_fact:
+    pulp_protocol: "{{ pulp_content_origin | urlsplit('scheme') | lower }}"
     pulp_server_port: "{{ pulp_content_origin | urlsplit('port') }}"
 
 - name: Re-create pcs-start.sh with all container resources

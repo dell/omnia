@@ -47,7 +47,7 @@ pcs resource create {{ pulp_container_name }} ocf:heartbeat:podman \
  name={{ pulp_container_name }} \
  image={{ pulp_image }} \
  reuse=true \
- run_opts="{{ pulp_run_opts }}" \
+ run_opts="{{ pulp_run_opts_https if pulp_protocol == 'https' else pulp_run_opts_http }}" \
  op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
  op start interval={{ start_interval }} timeout={{ start_timeout }} \
  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }} --group {{ pcs_group }}
