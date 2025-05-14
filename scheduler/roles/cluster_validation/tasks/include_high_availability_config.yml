@@ -24,8 +24,14 @@
       ansible.builtin.fail:
         msg: "{{ ha_config_syntax_fail_msg }} Error: {{ include_ha_config.message }}"
 
+- name: Parse high_availability_config data
+  ansible.builtin.set_fact:
+    oim_ha_data: "{{ include_ha_config | default({}) | combine({item.key: item.value}) }}"
+  with_dict: "{{ oim_ha }}"
+
 - name: Set high_availability_status
   ansible.builtin.set_fact:
+    enable_oim_ha: "{{ include_ha_config.ansible_facts.oim_ha.enable_oim_ha | default(false) }}"
     enable_k8s_ha: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.enable_k8s_ha | default(false) }}"
     k8s_vip: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.virtual_ip_address }}"
     external_lb_ip: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.external_loadbalancer_ip }}"

@@ -48,6 +48,9 @@ pcs_postbootscript_path:
 service_node_postbootscript_path:
   - { src: "{{ role_path }}/templates/omnia_service_node_postboot.j2", dest: "/install/postscripts/omnia_service_node_postboot", mode: "755" }
 
+allow_firewall_postbootscript_path:
+  - { src: "{{ role_path }}/templates/omnia_allow_firewall_ports.j2", dest: "/install/postscripts/omnia_allow_firewall_ports", mode: "755" }
+
 # Usage: configure_racadm.yml
 racadm_postscripts_path:
   - { src: "{{ role_path }}/templates/omnia_racadm.j2", dest: "/install/postscripts/omnia_racadm", mode: "755" }
