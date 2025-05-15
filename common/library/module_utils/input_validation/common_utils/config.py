@@ -13,8 +13,15 @@
 # limitations under the License.
 """Configuration module for input validation utilities."""
 
+from datetime import datetime
 import os
 
+
+input_validator_log = '/opt/omnia/log/core/playbooks/input_validator/'
+
+module_log_dir = {
+    "input_validator_log": input_validator_log + "/_"+ datetime.now().strftime('_%d-%m-%Y.log')
+}
 
 input_validator_log_path = '/opt/omnia/log/core/playbooks/'
 
