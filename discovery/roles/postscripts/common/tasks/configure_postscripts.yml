@@ -32,7 +32,7 @@
   with_items: "{{ common_postscripts_path }}"
 
 - name: Configure postscripts to configure network
-  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_nic_autoconnect"
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=\"omnia_nic_autoconnect,confignetwork -s\""
   changed_when: true
 
 - name: Configure postscripts to configure hostname
