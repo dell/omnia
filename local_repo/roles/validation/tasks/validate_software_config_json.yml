@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Set facts with omnia_default version
   ansible.builtin.set_fact:
     beegfs_version: "omnia_default"
@@ -74,13 +73,6 @@
   ansible.builtin.set_fact:
     software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
 
-- name: Generate software names having subgroup
-  ansible.builtin.set_fact:
-    subgroup_softwares: "{{ subgroup_softwares | default({}) | combine({item: software_config[item]}) }}"
-  loop: "{{ software_names }}"
-  when: item in software_config | dict2items | map(attribute='key') | list
-  # noqa: var-naming[no-jinja]
-
 - name: Assert valid values for cluster_os_version for cluster_os_type rocky
   ansible.builtin.assert:
     that:
@@ -95,17 +87,9 @@
       - repo_config in valid_repo_config
     fail_msg: "{{ repo_config_fail_msg }}"
 
-# - name: Validate control_plane_os with cluster_os_type
-#   ansible.builtin.fail:
-#     msg: "{{ cross_os_support_fail_msg }}"
-#   when:
-#     - (control_plane_os == 'ubuntu' and cluster_os_type != 'ubuntu') or
-#       (control_plane_os == 'rocky' and cluster_os_type != 'rocky') or
-#       (control_plane_os == 'redhat' and cluster_os_type != 'rhel')
-
 - name: Generate software JSON file patterns
   ansible.builtin.set_fact:
-    software_json_list: "{{ software_names | map('regex_replace', '^(.*)$', '\\1.json') | list }}"
+    software_json_list: "{{ software_names | map('regex_replace', '$', '.json') | list }}"
 
 - name: Find JSON files in {{ json_files_directory }}
   ansible.builtin.find:
@@ -159,7 +143,6 @@
   when: item.version is defined
   loop_control:
     loop_var: item
-  # noqa: var-naming[no-jinja]
 
 - name: Update software versions from software_config.json (custom)
   ansible.builtin.set_fact:
@@ -168,14 +151,14 @@
   when: item.version is defined
   loop_control:
     loop_var: item
-  # noqa: var-naming[no-jinja]
+
+- name: Generate software names having subgroup
+  ansible.builtin.set_fact:
+    subgroup_softwares: "{{ subgroup_softwares | default({}) | combine({item: software_config[item] | map(attribute='name')}) }}"
+  loop: "{{ software_names | intersect(software_config.keys() | list) }}"
 
 - name: Update software versions from software_config.json (subgroup)
   ansible.builtin.include_tasks: validate_software_config_subgroup_json.yml
   with_dict: "{{ subgroup_softwares }}"
   loop_control:
     loop_var: subgroup
-  vars:
-    subgroup_software_name: "{{ subgroup.key }}"
-  when: subgroup_software_name is defined
-  # noqa: var-naming[no-jinja]
