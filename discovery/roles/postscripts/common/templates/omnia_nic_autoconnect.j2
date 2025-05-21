@@ -2,62 +2,38 @@
 ################################################################################################################
 #  omnia_nic_autoconnect:
 #      Configure autoconnect to all active nic in all the cluster nodes
-#      The nic name might change between the installation and 1st boot
-#      Active all the nics with network link during system boot
-#
 #################################################################################################################
-echo "Starting to process .nmconnection files..."
+# Define log file
+LOGFILE="/var/log/xcat/xcat.log"
 
-# Check if nmcli is available
-nmcli_available=false
-if command -v nmcli >/dev/null 2>&1; then
-    if nmcli -t -f UUID connection show >/dev/null 2>&1; then
-        nmcli_available=true
-    fi
+# Get the directory of the log file
+log_dir=$(dirname "$LOGFILE")
+
+# Create the log directory if it doesn't exist
+if [ ! -d "$log_dir" ]; then
+    mkdir -p "$log_dir"
 fi
 
-if [ "$nmcli_available" = true ]; then
-    echo "-- nmcli is available, proceeding to check NICs --"
-
-    # Loop through all interfaces except 'lo'
-    for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v lo); do
-        state=$(cat /sys/class/net/$iface/operstate)
-
-        echo "DEBUG: Checking interface: $iface, state: $state"
-
-        if [ "$state" = "up" ]; then
-            echo "DEBUG: Interface $iface is UP, checking corresponding .nmconnection file..."
-
-            conn_file="/etc/NetworkManager/system-connections/${iface}.nmconnection"
-
-            if [ -f "$conn_file" ]; then
-                echo "DEBUG: Found connection file: $conn_file"
-
-                # Check if link is detected (physical connection)
-                if ethtool "$iface" | grep -E -i "Link detected.*yes" >/dev/null 2>&1; then
-                    echo "DEBUG: Link detected for $iface, modifying autoconnect..."
-
-                    # Modify autoconnect
-                    sed -i 's/autoconnect=false/autoconnect=true/' "$conn_file"
-                else
-                    echo "DEBUG: Link NOT detected for $iface, skipping modification..."
-                fi
-            else
-                echo "DEBUG: Connection file for $iface does not exist, skipping..."
-            fi
-        else
-            echo "DEBUG: Interface $iface is NOT UP, skipping..."
-        fi
-    done
-
-    # Restart NetworkManager to apply changes
-    echo "DEBUG: Restarting NetworkManager service..."
-    systemctl restart NetworkManager
-
-    # Show active connections after restart
-    echo "DEBUG: Showing nmcli connection show output:"
-    nmcli connection show
-else
-    echo "-- nmcli not available, exiting --"
-    exit 1
+# Create the log file if it doesn't exist
+if [ ! -f "$LOGFILE" ]; then
+    touch "$LOGFILE"
 fi
+
+echo "--------------------------" >> "$LOGFILE"
+echo "$(date) - INFO - Starting Omnia NIC Autoconnect script." >> "$LOGFILE"
+
+# Get a list of all active NetworkManager connection profiles
+mapfile -t profiles < <(nmcli -g NAME connection show --active)
+
+# Loop through each profile
+for profile in "${profiles[@]}"; do
+  # Set autoconnect priority to 10 for each active profile
+  echo "Setting autoconnect for $profile." >> "$LOGFILE"
+  nmcli connection modify "$profile" connection.autoconnect yes || { echo "ERROR: Using nmcli to set autoconnect" >> "$LOGFILE"; exit 1; }
+  nmcli connection modify "$profile" connection.autoconnect-priority 10 || { echo "ERROR: Using nmcli to set autoconnect priority." >> "$LOGFILE"; exit 1; }
+done
+
+systemctl reload NetworkManager
+
+echo "$(date) - INFO - Finished Omnia NIC Autoconnect script." >> "$LOGFILE"
+echo "---------------------------" >> "$LOGFILE"
