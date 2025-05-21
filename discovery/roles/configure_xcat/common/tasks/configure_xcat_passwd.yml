@@ -19,6 +19,7 @@
     - name: Update IPMI table
       ansible.builtin.command: "{{ xcat_sbin_path }}/chtab key=ipmi passwd.username={{ bmc_username }} passwd.password={{ bmc_password }}"
       changed_when: true
+      no_log: true
 
     - name: Check for IPMI entries in password table
       ansible.builtin.shell: >

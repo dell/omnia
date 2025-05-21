@@ -20,7 +20,6 @@ containerd_cert_path: '/etc/containerd/certs.d'
 grep_command: grep -q "{{ item.host }}" "{{ containerd_cert_path }}/_default/hosts.toml"
 file_permissions: "0644"
 mode: "0755"
-pulp_port: 2225
 pulp_username: "admin"
 pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
 update_registry_template_src: "{{ role_path }}/templates/hosts.toml_template.j2"

@@ -1,0 +1,50 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Tasks for common plugins role
+  when:
+    - hostvars['127.0.0.1']['k8s_support']
+    - "'kube_control_plane' in group_names"
+  block:
+    - name: Run pre requesties
+      ansible.builtin.include_tasks: prereq.yml
+
+    - name: Deploy Kubernetes Dashboard Plugin
+      ansible.builtin.include_tasks: deploy_kubernetes_dashboard.yml
+      when: common_plugin['kubernetes_dashboard']
+
+    - name: Deploy habana device plugin
+      ansible.builtin.include_tasks: deploy_habana_device_plugin.yml
+      when: common_plugin['habanalabs-device-plugin']
+
+    - name: Deploy mpi operator
+      ansible.builtin.include_tasks: deploy_mpi_operator.yml
+      when: common_plugin['mpi-operator']
+
+    - name: Deploy xilinx device plugin
+      ansible.builtin.include_tasks: deploy_xilinx_device_plugin.yml
+      when: common_plugin['xilinx-device-plugin']
+
+    - name: Deploy nfs client provisioner
+      ansible.builtin.include_tasks: deploy_nfs_client_provisioner.yml
+      when: common_plugin['nfs-subdir-external-provisioner']
+
+    - name: Deploy multus device plugin
+      ansible.builtin.include_tasks: deploy_multus_device_plugin.yml
+      when: common_plugin['multus-device-plugin']
+
+    - name: Deploy whereabouts device plugin
+      ansible.builtin.include_tasks: deploy_whereabouts_device_plugin.yml
+      when: common_plugin['whereabouts-device-plugin']

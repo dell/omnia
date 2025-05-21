@@ -1,0 +1,50 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Rollout coredns pod
+- name: Wait for CoreDNS to restart
+  ansible.builtin.command: kubectl rollout restart deployment/coredns -n kube-system  --timeout=5m
+  changed_when: false
+  failed_when: false
+
+- name: Create directory for temp k8s files
+  ansible.builtin.file:
+    path: "{{ k8s_tmp_dir }}"
+    state: directory
+    recurse: true
+
+# Get deployed pods list
+- name: Get K8s pods
+  ansible.builtin.command: kubectl get pods --all-namespaces
+  changed_when: false
+  register: k8s_pods
+  tags: init
+
+# Get deployed daemonset list
+- name: Get K8s daemonset
+  ansible.builtin.command: kubectl get ds --all-namespaces
+  changed_when: false
+  register: k8s_daemonset
+
+- name: Fetch helm path
+  block:
+    - name: Fetch helm path
+      ansible.builtin.command: whereis helm
+      changed_when: false
+      register: helm_full_path
+  rescue:
+    - name: Helm not installed
+      ansible.builtin.fail:
+        msg: "{{ helm_install_fail_msg }}"

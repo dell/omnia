@@ -37,3 +37,19 @@
     - "'firewalld.service' in ansible_facts.services"
     - ansible_facts.services['firewalld.service'].state == 'running'
     - ansible_os_family == 'RedHat'
+
+- name: Stop containerd service
+  ansible.builtin.systemd:
+    name: containerd
+    state: stopped
+    enabled: false
+
+- name: Remove containerd binaries, configs, and state directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ containerd_paths_to_remove }}"
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true

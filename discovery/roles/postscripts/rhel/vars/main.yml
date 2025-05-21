@@ -33,7 +33,6 @@ cuda_postscripts_path:
 xcat_path: /opt/xcat/bin
 
 # Usage: configure_rocm.yml
-pulp_port: 2225
 rocm_postscripts_path:
   - { src: "{{ role_path }}/templates/omnia_rocm.j2", dest: "/install/postscripts/omnia_rocm", mode: "755" }
 
@@ -47,6 +46,9 @@ pcs_postbootscript_path:
 
 service_node_postbootscript_path:
   - { src: "{{ role_path }}/templates/omnia_service_node_postboot.j2", dest: "/install/postscripts/omnia_service_node_postboot", mode: "755" }
+
+allow_firewall_postbootscript_path:
+  - { src: "{{ role_path }}/templates/omnia_allow_firewall_ports.j2", dest: "/install/postscripts/omnia_allow_firewall_ports", mode: "755" }
 
 # Usage: configure_racadm.yml
 racadm_postscripts_path:

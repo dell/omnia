@@ -99,7 +99,8 @@
         name: deploy_containers/common
         tasks_from: add_known_hosts.yml
       vars:
-        target_port: "{{ provision_ssh_port }}"
+        target_container: "omnia_provision"
+        target_port: "2223"
 
     - name: Add kubespray container host keys to known_hosts of omnia_core  # noqa:role-name[path]
       ansible.builtin.include_role:

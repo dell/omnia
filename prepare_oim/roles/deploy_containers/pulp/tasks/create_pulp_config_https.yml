@@ -117,3 +117,14 @@
     group: pulp
     state: file
   loop: "{{ cert_items.values() }}"
+
+- name: Copy Pulp crt to container trust
+  ansible.builtin.copy:
+    src: "{{ pulp_cert_src }}"
+    dest: "{{ ca_trust_path }}"
+    mode: "{{ logs_dir_permission }}"
+
+- name: Add Pulp Certificate to TrustStore
+  ansible.builtin.command:
+    cmd: update-ca-trust extract
+  changed_when: false

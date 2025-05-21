@@ -96,6 +96,7 @@
     - hostvars['127.0.0.1']['k8s_support']
     - hostvars[groups['kube_control_plane'][0]]['k8s_installation_status']
     - hostvars['127.0.0.1']['enable_k8s_ha']
+    - not hostvars[groups['kube_control_plane'][0]]['kube_vip_present']
 
 - name: Add nodes to kubernetes cluster
   ansible.builtin.import_playbook: playbooks/k8s_add_node_install.yml
@@ -104,18 +105,29 @@
     - hostvars[groups['kube_control_plane'][0]]['k8s_installation_status']
     - hostvars[groups['kube_control_plane'][0]]['k8s_new_nodes'] != ''
 
-# - name: Update containerd config on nodes
-# hosts: kube_control_plane, kube_node
-# gather_facts: false
-# roles:
-# - update_containerd_config
+- name: Update containerd config on nodes
+  hosts: kube_control_plane, kube_node
+  gather_facts: false
+  roles:
+    - update_containerd_config
 
-# - name: Start K8s worker servers on kube control nodes
-# hosts: kube_control_plane
-# gather_facts: false
-# roles:
-# - k8s_start_services
-# - multus_and_whereabouts
+- name: Deploy plugins on kube control nodes
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  roles:
+    - common_plugins
+
+- name: Install nvidia-container-toolkit on nodes with Nvidia GPU
+  hosts: kube_control_plane, kube_node, etcd
+  gather_facts: false
+  roles:
+    - k8s_nvidia_container_toolkit
+
+- name: Install Plugin only when one of nodes with AMD GPU
+  hosts: kube_control_plane, kube_node, etcd
+  gather_facts: false
+  roles:
+    - k8s_amd
 
 - name: Install Slurm
   hosts: slurm_control_node, slurm_node, login

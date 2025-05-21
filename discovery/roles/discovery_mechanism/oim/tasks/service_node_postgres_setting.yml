@@ -21,7 +21,7 @@
     - name: Warning - No new service node got discovered
       ansible.builtin.pause:
         prompt: "{{ no_service_node_msg }}"
-        seconds: "{{ warning_time_10 }}"
+        seconds: "{{ waiting_time_10 }}"
 
 - name: Update PostgreSQL configuration file and restart PostgreSQL
   when: discovered_service_nodes | length > 0

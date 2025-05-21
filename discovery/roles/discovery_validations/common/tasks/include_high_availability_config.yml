@@ -21,6 +21,7 @@
 - name: Register NFS Check
   ansible.builtin.set_fact:
     nfs_used: "{{ omnia_share_option == 'NFS' }}"
+    nfs_type: "{{ nfs_type | default('') }}"
 
 - name: Include high_availability_config.yml
   block:

@@ -41,10 +41,6 @@
         mode: "{{ mode }}"
       when: not dir_chk.stat.exists
 
-    - name: Set fact admin ip
-      ansible.builtin.set_fact:
-        admin_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
-
     - name: Ensure _default/hosts.toml is overwritten or created from template
       ansible.builtin.template:
         src: "{{ update_registry_template_src }}"

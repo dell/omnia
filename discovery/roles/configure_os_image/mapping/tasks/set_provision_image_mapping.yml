@@ -17,7 +17,6 @@
   block:
     - name: Set osimage to node object for mapping
       nodeset:
-        db_path: "{{ db_operations_file_path }}"
         discovery_mechanism: "{{ mapping_node_group }}"
         install_osimage: "{{ provision_os_image }}"
         service_osimage: "{{ service_os_image }}"

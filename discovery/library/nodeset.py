@@ -14,9 +14,12 @@
 
 #!/usr/bin/python
 
-from ansible.module_utils.basic import AnsibleModule
-import sys
+"""Ansible custom module to set osimage for nodes in a cluster based on discovery mechanism."""
+
 import subprocess
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils import omniadb_connection
+
 
 def validate_osimage(osimage):
     """Validates if the given `osimage` is a string."""
@@ -24,11 +27,11 @@ def validate_osimage(osimage):
         raise ValueError("osimage must be a string")
     return osimage
 
-def nodeset_mapping_nodes(install_osimage, service_osimage, discovery_mechanism):
+def nodeset_mapping_nodes(install_osimage, service_osimage, discovery_mechanism, module):
     """
-    Retrieves the nodes from the cluster.nodeinfo table in omniadb and sets the osimage using nodeset.
+    Retrieves the nodes from the cluster.nodeinfo table in omniadb and
+    then sets the osimage using nodeset command.
     """
-    import omniadb_connection
 
     # Establish connection with cluster.nodeinfo
     conn = omniadb_connection.create_connection()
@@ -43,15 +46,15 @@ def nodeset_mapping_nodes(install_osimage, service_osimage, discovery_mechanism)
     service_osimage = validate_osimage(service_osimage)
 
     # Establish connection with omniadb
-    conn_x = omniadb_connection.create_connection_xcatdb()
-    cursor_x = conn_x.cursor()
+    conn = omniadb_connection.create_connection_xcatdb()
+    cursor = conn.cursor()
     new_mapping_nodes = []
     changed = False
 
     for node in node_name:
         sql = "SELECT exists(SELECT node FROM nodelist WHERE node = %s AND status IS NULL)"
-        cursor_x.execute(sql, (node[0],))
-        output = cursor_x.fetchone()[0]
+        cursor.execute(sql, (node[0],))
+        output = cursor.fetchone()[0]
 
         if output:
             if service_osimage != "None" and 'service_node' in node[1]:
@@ -61,30 +64,36 @@ def nodeset_mapping_nodes(install_osimage, service_osimage, discovery_mechanism)
 
             new_mapping_nodes.append(node[0])
             command = ["/opt/xcat/sbin/nodeset", node[0], f"osimage={osimage}"]
-            subprocess.run(command, capture_output=True, shell=False, check=True)
-            changed = True
-    cursor_x.close()
-    conn_x.close()
+            try:
+                subprocess.run(command, capture_output=True, shell=False, check=True)
+                changed = True
+            except subprocess.CalledProcessError as e:
+                module.warn(f"Failed to execute command '{command}' for node {node[0]}: {e}")
+
+    cursor.close()
+    conn.close()
 
     return {"changed": changed, "nodes_updated": new_mapping_nodes}
 
 def main():
-    module_args = dict(
-        db_path=dict(type="str", required=True),
-        discovery_mechanism=dict(type="str", required=True),
-        install_osimage=dict(type="str", required=True),
-        service_osimage=dict(type="str", required=True)
-    )
+    """
+    Main function to handle the nodeset ansible custom module.
+    """
+    module_args = {
+        'discovery_mechanism':{'type':"str", 'required':True},
+        'install_osimage':{'type':"str", 'required':True},
+        'service_osimage':{'type':"str", 'required':True}
+    }
 
     module = AnsibleModule( argument_spec=module_args, supports_check_mode=True)
-    sys.path.insert(0, module.params["db_path"])  # Change this to the actual path
 
     try:
         if module.params["discovery_mechanism"] == "mapping":
             result = nodeset_mapping_nodes(
                 module.params["install_osimage"],
                 module.params["service_osimage"],
-                module.params["discovery_mechanism"]
+                module.params["discovery_mechanism"],
+                module
             )
             module.exit_json(**result)
     except Exception as e:

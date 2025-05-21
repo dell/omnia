@@ -1,5 +1,5 @@
-server = "https://{{ admin_ip }}:{{ pulp_port }}"
-[host."http://{{ admin_ip }}:{{ pulp_port }}"]
+server = "https://{{ pulp_server_ip }}:{{ pulp_registry_port }}"
+[host."http://{{ pulp_server_ip }}:{{ pulp_registry_port }}"]
   capabilities = ["pull","resolve"]
   skip_verify = {{ skip_verify | default(true) | lower | regex_replace('["\']', '') }}
   override_path = {{ override_path | default(false) | lower | regex_replace('["\']', '') }}

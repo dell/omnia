@@ -22,7 +22,7 @@ logs_dir_permission: "0644"
 pulp_ha_dir: "/opt/omnia/pulp/pulp_ha"
 settings_py_path: "{{ pulp_shared_path }}/settings/settings.py"
 device_name: "/dev/fuse:/dev/fuse:rwm"
-pulp_container_name: "omnia_pulp"
+pulp_container_name: "pulp"
 pulp_image: "docker.io/pulp/pulp"
 arg_list:
   - "-e PULP_WORKERS=10"
@@ -127,9 +127,10 @@ generate_cert_cmd: >
   -subj "/CN={{ pulp_server_ip }}"
   -addext {{ cert_san }}
 
+pulp_cert_src: "{{ pulp_shared_path }}/settings/certs/pulp_webserver.crt"
+ca_trust_path: "/etc/pki/ca-trust/source/anchors/"
+
 # Usage: reload_pulp_nginx.yml
-# pulp_cert_src: "{{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt"
-# ca_trust_path: "/etc/pki/ca-trust/source/anchors/"
 nginx_reload_cmd: "nginx -s reload"
 nginx_retries_var: 10
 omnia_container_name: "omnia_core"

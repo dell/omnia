@@ -128,20 +128,34 @@ kubespray_run_opts: >-
   --network=host --restart=always --cap-add AUDIT_WRITE
 
 # Usage: pcs-start.sh.j2: pulp
-pulp_container_name: "omnia_pulp"
+pulp_container_name: "pulp"
 pulp_image: "docker.io/pulp/pulp"
-pulp_port: "2225:80"
+pulp_port_http: "{{ pulp_server_port }}:80"
+pulp_port_https: "{{ pulp_server_port }}:{{ pulp_server_port }}"
 pulp_share: "{{ omnia_nfs_share }}/pulp"
-pulp_run_opts: >-
+pulp_run_opts_http: >-
   --hostname {{ pulp_container_name }} --device /dev/fuse:/dev/fuse:rwm
   -e PULP_WORKERS=10 -e PULP_API_WORKERS=10 -e PULP_CONTENT_WORKERS=10
   -e PULP_GUNICORN_TIMEOUT=30 -e PULP_API_WORKERS_MAX_REQUESTS=1000
-  -e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50 --restart=always --publish {{ pulp_port }}
+  -e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50 --restart=always --publish {{ pulp_port_http }}
   -v {{ pulp_share }}/settings:/etc/pulp{{ selinux_option }}
   -v {{ pulp_share }}/settings/pulp_storage:/var/lib/pulp{{ selinux_option }}
   -v {{ pulp_share }}/settings/pgsql:/var/lib/pgsql{{ selinux_option }}
   -v {{ pulp_share }}/settings/containers:/var/lib/containers{{ selinux_option }}
   -v {{ omnia_nfs_share }}/log/pulp:/var/log/pulp{{ selinux_option }}
+
+pulp_run_opts_https: >-
+  --hostname {{ pulp_container_name }} --device /dev/fuse:/dev/fuse:rwm
+  -e PULP_WORKERS=10 -e PULP_API_WORKERS=10 -e PULP_CONTENT_WORKERS=10
+  -e PULP_GUNICORN_TIMEOUT=30 -e PULP_API_WORKERS_MAX_REQUESTS=1000
+  -e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50 --restart=always --publish {{ pulp_port_https }}
+  -v {{ pulp_share }}/settings:/etc/pulp{{ selinux_option }}
+  -v {{ pulp_share }}/settings/pulp_storage:/var/lib/pulp{{ selinux_option }}
+  -v {{ pulp_share }}/settings/pgsql:/var/lib/pgsql{{ selinux_option }}
+  -v {{ pulp_share }}/settings/containers:/var/lib/containers{{ selinux_option }}
+  -v {{ omnia_nfs_share }}/log/pulp:/var/log/pulp{{ selinux_option }}
+  -v {{ pulp_share }}/pulp_ha:/root/.config/pulp{{ selinux_option }}
+  -v {{ pulp_share }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro{{ selinux_option | replace(':', ',') }}
 
 pcs_resources:
   - "{{ pulp_container_name }}"

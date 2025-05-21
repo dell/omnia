@@ -1,0 +1,76 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# - name: Run Kubernetes health check module
+#   k8s_health:
+#     retries: 30
+#     delay: 5
+#   register: k8s_status
+#   failed_when: false
+
+- name: Run Kubernetes health check module
+  k8s_health:
+    retries: 30
+    delay: 5
+    track_module_name: "{{ track_module_name }}"
+    track_file_path: "/tmp/deployment_track.json"
+  register: k8s_status
+  failed_when: false
+
+- name: Handle case when Kubernetes is not accessible
+  ansible.builtin.debug:
+    msg: "Kubernetes not found or not accessible: {{ k8s_status.msg }}"
+  when: not k8s_status.k8s_accessible
+
+- name: Skip remaining tasks if Kubernetes is inaccessible
+  ansible.builtin.meta: end_host
+  when: not k8s_status.k8s_accessible
+
+- name: Handle namespace not found
+  ansible.builtin.fail:
+    msg: "Namespace error: {{ k8s_status.namespace_error }}"
+  when: k8s_status.namespace_error | length > 0
+
+- name: Display node status table
+  ansible.builtin.debug:
+    msg: "{{ k8s_status.node_table.split('\n') }}"
+
+- name: Display pod status table
+  ansible.builtin.debug:
+    msg: "{{ k8s_status.pod_table.split('\n') }}"
+
+- name: Warn if any node is NotReady
+  ansible.builtin.debug:
+    msg: "Some nodes are NotReady: {{ k8s_status.not_ready_nodes }}"
+  when: k8s_status.not_ready_nodes | length > 0
+
+- name: Warn if any pods are not Running or Succeeded
+  ansible.builtin.debug:
+    msg: "Some pods failed: {{ k8s_status.failed_pods }}"
+  when: k8s_status.failed_pods | length > 0
+
+- name: Fail if any node or pod is not healthy
+  ansible.builtin.fail:
+    msg: "Cluster issues detected."
+  when: >
+    (k8s_status.not_ready_nodes | length > 0) or
+    (k8s_status.failed_pods | length > 0)
+
+- name: K8S Status
+  ansible.builtin.debug:
+    msg: "All Kubernetes nodes are Ready and all pods are Running or Succeeded."
+  when: >
+    (k8s_status.not_ready_nodes | length == 0) and
+    (k8s_status.failed_pods | length == 0)

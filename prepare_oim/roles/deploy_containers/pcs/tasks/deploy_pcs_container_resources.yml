@@ -14,6 +14,21 @@
 
 ---
 
+- name: Run pulp status command on omnia_core container
+  ansible.builtin.command: /usr/local/bin/pulp status
+  delegate_to: localhost
+  changed_when: false
+  register: pulp_status_output
+
+- name: Set pulp content origin value
+  ansible.builtin.set_fact:
+    pulp_content_origin: "{{ (pulp_status_output.stdout | from_json).content_settings.content_origin }}"
+
+- name: Set fact for pulp protocol
+  ansible.builtin.set_fact:
+    pulp_protocol: "{{ pulp_content_origin | urlsplit('scheme') | lower }}"
+    pulp_server_port: "{{ pulp_content_origin | urlsplit('port') }}"
+
 - name: Re-create pcs-start.sh with all container resources
   ansible.builtin.template:
     src: "{{ item.template }}"

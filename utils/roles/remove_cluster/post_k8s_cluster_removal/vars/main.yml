@@ -14,6 +14,9 @@
 ---
 # Usage: main.yml
 k8s_tmp_dir: "/root/k8s"
+containerd_paths_to_remove:
+  - /etc/containerd
+  - /run/containerd
 
 # Usage: update_firewall_redhat.yml
 k8s_firewall_ports_list:

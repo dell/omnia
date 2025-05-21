@@ -15,3 +15,4 @@
 
 - name: Update registry on compute nodes
   ansible.builtin.include_tasks: update_registry.yml
+  when: hostvars['127.0.0.1']['k8s_support']

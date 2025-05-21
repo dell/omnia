@@ -19,6 +19,7 @@
     k8s_new_nodes_list: []
     k8s_new_nodes: ''
     k8s_installation_status: false
+    kube_vip_present: false
 
 - name: Check whether k8s is installed
   ansible.builtin.command: kubectl get nodes -o='Name'
@@ -30,6 +31,17 @@
   ansible.builtin.set_fact:
     k8s_installation_status: true
   when: kubectl_status.rc == 0
+
+- name: Get K8s pods
+  ansible.builtin.command: kubectl get pods --all-namespaces
+  changed_when: false
+  register: k8s_pods
+  failed_when: false
+
+- name: Set kube_vip_present flag
+  ansible.builtin.set_fact:
+    kube_vip_present: true
+  when: "'kube-vip' in k8s_pods.stdout"
 
 - name: Gather the new nodes from inventory
   when: k8s_installation_status

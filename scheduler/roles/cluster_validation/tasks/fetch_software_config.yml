@@ -20,6 +20,7 @@
     set_intel_config_status: false
     set_intel_input_status: false
     set_intelgaudi_input_status: false
+    nvidia_gpu_operator_support: false
 
 - name: Load software_config.json
   ansible.builtin.include_vars:
@@ -34,6 +35,10 @@
 - name: Check if slurm support is true
   ansible.builtin.set_fact:
     slurm_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'slurm') | list | length > 0 }}"
+
+- name: Check if nvidia gpu operator support is true
+  ansible.builtin.set_fact:
+    nvidia_gpu_operator_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'nvidia_gpu_operator') | list | length > 0 }}"
 
 - name: Set facts for cluster
   ansible.builtin.set_fact:
@@ -96,6 +101,31 @@
           - openmpi_version | default("", true) | length > 1
         success_msg: "{{ success_msg_openmpi_version }}"
         fail_msg: "{{ fail_msg_openmpi_version }}"
+
+- name: Validate nvidia gpu operator version when nvidia gpu operator is required
+  when: nvidia_gpu_operator_support is true
+  block:
+    - name: Get nvidia gpu operator version
+      ansible.builtin.set_fact:
+        nvidia_gpu_operator_version: "{{ item.version }}"
+      loop: "{{ software_config.softwares | default([]) }}"
+      when:
+        - "'nvidia_gpu_operator' in item.name"
+        - item.version is defined
+      loop_control:
+        loop_var: item
+
+    - name: Assert nvidia gpu operator version
+      ansible.builtin.assert:
+        that:
+          - nvidia_gpu_operator_version | default("", true) | length > 1
+        success_msg: "{{ success_msg_nvidia_gpu_operator_version }}"
+        fail_msg: "{{ fail_msg_nvidia_gpu_operator_version }}"
+
+    - name: Fail when nvidia_gpu_operator_support is true and k8s_support is false
+      ansible.builtin.fail:
+        msg: "{{ fail_msg_k8s_support_false }}"
+      when: not k8s_support
 
 - name: Prepare kubernetes installation variables
   when: k8s_support is true

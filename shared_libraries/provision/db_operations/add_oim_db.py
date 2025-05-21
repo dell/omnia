@@ -45,8 +45,8 @@ def oim_details_db():
     """
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
-    sql = "select admin_mac from cluster.nodeinfo where admin_mac=%s"
-    cursor.execute(sql, (pxe_mac_address,))
+    sql = "select admin_mac from cluster.nodeinfo where admin_mac=%s or node=%s"
+    cursor.execute(sql, (pxe_mac_address, node_name))
     pxe_mac_op = cursor.fetchone()
     if pxe_mac_op is None:
             if str(bmc_nic_ip) == "0.0.0.0":

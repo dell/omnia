@@ -1,0 +1,26 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Install amd device plugin if cluster has atleast one amd node
+  when: hostvars['127.0.0.1']['k8s_support']
+  block:
+    - name: Check pre-requisite for amd
+      ansible.builtin.include_tasks: check_pre_requisite.yml
+
+    - name: Deploy amdgpu device plugin
+      ansible.builtin.include_tasks: deploy_amdgpu_device_plugin.yml
+      when:
+        - hostvars['localhost']['is_amd_cluster'] is defined
+        - inventory_hostname == groups['kube_control_plane'][0]

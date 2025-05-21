@@ -13,10 +13,16 @@
 #  limitations under the License.
 ---
 
-- name: Tasks for k8s_start_services role
-  when:
-    - hostvars['127.0.0.1']['k8s_support']
-    - "'kube_control_plane' in group_names"
-  block:
-    - name: Deploy K8s services
-      ansible.builtin.include_tasks: deploy_k8s_services.yml
+- name: Install nvidia-container-toolkit
+  ansible.builtin.package:
+    name: nvidia-container-toolkit
+    state: present
+
+- name: Configure nvidia-container-toolkit runtime
+  ansible.builtin.command: nvidia-ctk runtime configure --runtime=containerd
+  changed_when: false
+
+- name: Restart containerd
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted

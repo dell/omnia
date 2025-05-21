@@ -200,7 +200,7 @@ spec:
       initContainers:
         - name: install-multus-binary
           image: {{ pulp_container_name }}/k8snetworkplumbingwg/multus-cni:{{ multus_version }}
-          command: 
+          command:
             - "cp"
             - "-f"
             - "/usr/src/multus-cni/bin/multus-shim"

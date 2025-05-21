@@ -1,0 +1,55 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Get whereabouts plugin git folder
+  ansible.builtin.get_url:
+    url: "{{ whereabouts_git_url }}"
+    dest: "{{ whereabouts_dest_folder }}"
+    mode: "{{ git_permissions }}"
+
+- name: Unarchive whereabouts git folder
+  ansible.builtin.unarchive:
+    src: "{{ whereabouts_dest_folder }}"
+    dest: "{{ tmp_folder }}"
+    mode: "{{ git_permissions }}"
+    remote_src: true
+
+- name: Apply whereabouts crds
+  ansible.builtin.command: "kubectl apply -f {{ wherabout_crds_folder }}"
+  changed_when: true
+
+# - name: Deploy whereabouts CRDs
+#   kubernetes.core.k8s:
+#     state: present
+#     src: "{{ item }}"
+#   loop: "{{ lookup('ansible.builtin.fileglob', wherabout_crds_folder ~ '/*.yaml', wantlist=True) }}"
+#   changed_when: true
+
+# - name: Deploy whereabouts crds
+#   kubernetes.core.k8s:
+#     state: present
+#     src: "{{ wherabout_crds_folder }}"
+#   changed_when: true
+
+- name: Update imagePullPolicy
+  ansible.builtin.command: >
+    kubectl patch daemonset whereabouts -n kube-system --type='json'
+    -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value":"IfNotPresent"}]'
+  changed_when: false
+
+- name: Include pod status
+  ansible.builtin.include_tasks: pod_status.yml
+  vars:
+    track_module_name: "whereabouts-device-plugin"

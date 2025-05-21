@@ -39,3 +39,14 @@
       ansible.builtin.command: ssh-keyscan localhost >> /root/.ssh/known_hosts
       changed_when: true
       failed_when: false
+
+- name: Append to omnia core's SSH config file
+  when: target_container is defined and target_port is defined
+  ansible.builtin.blockinfile:
+    path: "{{ ssh_config }}"
+    block: |
+      Host {{ target_container }}
+        HostName localhost
+        Port {{ target_port }}
+        User root
+        StrictHostKeyChecking no

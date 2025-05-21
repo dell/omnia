@@ -13,9 +13,11 @@
 # limitations under the License
 
 ---
-- name: Set ucx software status
+- name: Set software status
   ansible.builtin.set_fact:
     ucx_software_status: false
+    ucx_installed: false
+    share_exists: false
 
 - name: Load software_config.json as software_config
   ansible.builtin.include_vars:
@@ -52,7 +54,3 @@
     - item.version is defined
   loop_control:
     loop_var: item
-
-- name: Set fact for share path
-  ansible.builtin.set_fact:
-    share_exists: false

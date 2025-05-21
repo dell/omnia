@@ -13,10 +13,12 @@
 #  limitations under the License.
 
 #!/usr/bin/python
-
-from ansible.module_utils.basic import AnsibleModule
+"""
+Ansible module to verify switch connectivity and BMC static range matching.
+"""
 import subprocess
 import ipaddress
+from ansible.module_utils.basic import AnsibleModule
 
 def get_matching_interface_ip(ip_range: str, interface: str, netmask_bits: int):
     """
@@ -63,17 +65,20 @@ def is_ip_reachable(ip):
     return result.returncode == 0
 
 def verify_switch(switch_ip, bmc_static_range, netmask_bits, oim_nic_name):
+    """
+    Verifies the switch by checking if it is reachable and if the BMC static range matches the NIC.
+    """
     interface_data = get_matching_interface_ip(bmc_static_range, oim_nic_name, netmask_bits)
     ping_status = is_ip_reachable(switch_ip)
-
     return ping_status, interface_data
 
 def main():
-    module_args = dict(
-        groups_roles_info=dict(type='dict', required=True),
-        netmask_bits=dict(type='str', required=True),
-        oim_nic_name=dict(type='str', required=True)
-    )
+    "Main function to run the verify_switch module."
+    module_args = {
+        'groups_roles_info':{'type':'dict', 'required':True},
+        'netmask_bits':{'type':'str', 'required':True},
+        'oim_nic_name':{'type':'str', 'required':True}
+    }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
@@ -87,13 +92,19 @@ def main():
     ping_status = False
 
     for group, details in groups_roles_info.items():
+        if not details.get("switch_status"):
+            continue
+
         switch_info = details.get("switch_details", {})
         switch_ip = switch_info.get("ip")
         bmc_static_range = details.get("bmc_details", {}).get('static_range', '')
 
         if switch_ip:
             try:
-                ping_status, bmc_interface_data = verify_switch(switch_ip, bmc_static_range, netmask_bits, oim_nic_name)
+                ping_status, bmc_interface_data = verify_switch(switch_ip,
+                                                                bmc_static_range,
+                                                                netmask_bits,
+                                                                oim_nic_name)
             except Exception as e:
                 print(str(e))
 

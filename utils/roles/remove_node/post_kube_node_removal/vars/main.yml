@@ -33,3 +33,8 @@ k8s_firewall_ports_list:
     # others
     - "9090/tcp"
     - "8080/tcp"
+
+# Usage: main.yml
+containerd_paths_to_remove:
+  - /etc/containerd
+  - /run/containerd

@@ -26,7 +26,9 @@
 - name: Set SELinux policy
   ansible.builtin.set_fact:
     selinux_option: ""
-  when: omnia_share_option == 'NFS'
+  when:
+    - omnia_share_option == 'NFS'
+    - nfs_type == 'external'
 
 - name: Get oim node name
   ansible.builtin.command: hostname -s
@@ -41,8 +43,8 @@
     oim_node_name: "{{ oim_node_name.stdout }}"
     admin_net_addr: "{{ hostvars['localhost']['admin_net_addr'] }}"
     admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
-    docker_username: hostvars['localhost']['docker_username']
-    docker_password: hostvars['localhost']['docker_password']
+    docker_username: "{{ hostvars['localhost']['docker_username'] }}"
+    docker_password: "{{ hostvars['localhost']['docker_password'] }}"
   no_log: true
 
 - name: Export firewall ports for pcs container

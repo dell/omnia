@@ -42,6 +42,9 @@ intel_gaudi_repo_fail_msg: "Failed, local_repo.yml is not executed for downloadi
 warning_time: 30
 offline_intel_directory: "{{ repo_store_path }}/cluster/apt"
 intelgaudi_version_warning_msg: "Failed, Intel Gaudi version not found."
+success_msg_nvidia_gpu_operator_version: "Success. nvidia gpu operator version is mentioned." # noqa: yaml[line-length]
+fail_msg_nvidia_gpu_operator_version: "Failed. nvidia gpu operator version is not provided in software_config.json. Please include nvidia gpu operator version in input/software_config.json and rerun the playbook." # noqa: yaml[line-length]
+fail_msg_k8s_support_false: "Failed. k8s is not present in software_config.json, please add k8s in input/software_config.json and rerun the playbook."  # noqa: yaml[line-length]
 
 # Usage: validate_network_spec.yml
 network_spec: "{{ input_project_dir }}/network_spec.yml"
@@ -53,13 +56,6 @@ admin_nic_ip_success_msg: "IP '{{ admin_nic_ip }}' is assigned to NIC '{{ admin_
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
 ha_config_syntax_fail_msg: "Failed. Syntax errors present in high_availability_config.yml. Fix errors and re-run playbook again."
 ha_vip_address_fail_msg: "When k8s HA is enabled , provide k8s_head_node_ha.virtual_ip_address in high_availability_config.yml"
-
-# Usage: generate_k8s_vars.yml
-k8s_var_common_src: "../templates/common_vars_template.j2"
-k8s_var_final_src: "../templates/final_template.j2"
-k8s_var_dest: "/opt/omnia/kubespray/k8s_all_vars.yml"
-file_permission: "0644"
-pulp_registry_port: "2225"
 
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"

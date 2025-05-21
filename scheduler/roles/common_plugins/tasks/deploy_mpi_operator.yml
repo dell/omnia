@@ -1,0 +1,31 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Download MPI Operator manifest
+  ansible.builtin.get_url:
+    url: "{{ mpi_operator_yaml_url }}"
+    dest: "{{ mpi_operator_dest_url }}"
+    mode: "{{ file_mode }}"
+
+- name: Install MPI Operator from URL
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ mpi_operator_dest_url }}"
+  when: "'mpi-operator' not in k8s_pods.stdout"
+
+- name: Include pod status
+  ansible.builtin.include_tasks: pod_status.yml
+  vars:
+    track_module_name: "mpi-operator"

@@ -98,6 +98,15 @@
         "type": "tarball",
         "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz"
       },
+      {"package": "python3.11", "type": "rpm", "repo_name": "appstream"},
+      {
+        "package": "kubernetes==32.0.1",
+        "type": "pip_module"
+      },
+      {
+        "package": "prettytable==3.14.0",
+        "type": "pip_module"
+      },
       {
         "package": "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
         "tag": "v4.0.2",
@@ -210,7 +219,7 @@
       },
       {
         "package": "registry.k8s.io/nfd/node-feature-discovery",
-        "tag": "v0.16.4",
+        "tag": "v0.12.1",
         "type": "image"
       },
       {
