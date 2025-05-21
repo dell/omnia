@@ -31,6 +31,7 @@ for profile in "${profiles[@]}"; do
   echo "Setting autoconnect for $profile." >> "$LOGFILE"
   nmcli connection modify "$profile" connection.autoconnect yes || { echo "ERROR: Using nmcli to set autoconnect" >> "$LOGFILE"; exit 1; }
   nmcli connection modify "$profile" connection.autoconnect-priority 10 || { echo "ERROR: Using nmcli to set autoconnect priority." >> "$LOGFILE"; exit 1; }
+  nmcli connection up "$profile" || { echo "ERROR: Using nmcli to active the connection profile." >> "$LOGFILE"; exit 1; }
 done
 
 systemctl reload NetworkManager
