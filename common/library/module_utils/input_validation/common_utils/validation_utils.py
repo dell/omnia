@@ -11,14 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# pylint: disable=import-error
 import os
-import re
 import ipaddress
 import subprocess
 import yaml
-from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
-from ansible.module_utils.input_validation.common_utils import config
+
+if os.getenv('UNIT_TESTING') == 'true':
+    from input_validation.common_utils import en_us_validation_msg, config
+else:
+    from ansible.module_utils.input_validation.common_utils import ( # type: ignore
+        en_us_validation_msg, config
+    )
+
 
 def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module):
     try:

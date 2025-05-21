@@ -11,11 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# pylint: disable=import-error
 import json
-from ansible.module_utils.input_validation.common_utils import validation_utils
-from ansible.module_utils.input_validation.common_utils import config
-from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
+import os
+
+if os.getenv('UNIT_TESTING') == 'true':
+    from input_validation.common_utils import validation_utils, config, en_us_validation_msg
+else:
+    from ansible.module_utils.input_validation.common_utils import ( # type: ignore
+        validation_utils, config, en_us_validation_msg
+    )
 
 file_names = config.files
 create_error_msg = validation_utils.create_error_msg

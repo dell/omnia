@@ -11,12 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# pylint: disable=import-error
 import ipaddress
 import json
-from ansible.module_utils.input_validation.common_utils import validation_utils
-from ansible.module_utils.input_validation.common_utils import config
-from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
+import os
+
+if os.getenv('UNIT_TESTING') == 'true':
+    from input_validation.common_utils import validation_utils, config, en_us_validation_msg
+else:
+    from ansible.module_utils.input_validation.common_utils import ( # type: ignore
+        validation_utils,config,en_us_validation_msg
+    )
 
 file_names = config.files
 create_error_msg = validation_utils.create_error_msg
@@ -28,11 +33,11 @@ check_mandatory_fields = validation_utils.check_mandatory_fields
 def get_roles_config_json(input_file_path, logger, module, omnia_base_dir, module_utils_base, project_name):
     roles_config_file_path = create_file_path(input_file_path, file_names["roles_config"])
     roles_config_json = validation_utils.load_yaml_as_json(roles_config_file_path, omnia_base_dir, project_name, logger, module)
-    
+
     return roles_config_json
 
 def check_and_validate_ha_role_in_roles_config(errors, roles_config_json, ha_role):
-    
+
     # Get groups and roles
     groups_configured = roles_config_json.get('Groups',{})
     roles_configured = roles_config_json.get('Roles',[])
@@ -94,7 +99,7 @@ def validate_vip_address(errors, config_type, vip_address, service_node_vip, adm
     if vip_address in service_node_vip:
         errors.append(create_error_msg(f"{config_type} virtual_ip_address:", vip_address, en_us_validation_msg.duplicate_virtual_ip))
     else:
-        # virtual_ip_address is mutually exclusive with admin static and dynamic ranges                 
+        # virtual_ip_address is mutually exclusive with admin static and dynamic ranges
         vip_within_static_range = validation_utils.is_ip_within_range(admin_network["static_range"], vip_address)
         vip_within_dynamic_range = validation_utils.is_ip_within_range(admin_network["dynamic_range"], vip_address)
 
@@ -143,7 +148,7 @@ def validate_high_availability_config(input_file_path, data, logger, module, omn
         "admin_netmaskbits": get_admin_netmaskbits(network_spec_json),
         "oim_admin_ip": get_primary_oim_admin_ip(network_spec_json)
     }
-    
+
     def validate_ha_config(ha_data, mandatory_fields, errors, config_type=None):
         try:
             check_mandatory_fields(mandatory_fields, ha_data, errors)

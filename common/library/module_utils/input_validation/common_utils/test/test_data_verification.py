@@ -42,7 +42,8 @@ class TestDataVerification(unittest.TestCase):
 
         This test case validates the data_verification function with a valid input.
         """
-        test_file_path = "/opt/omnia/common/library/module_utils/input_validation/schema/provision_config.json"
+        test_file_path = (
+        "/opt/omnia/common/library/module_utils/input_validation/schema/provision_config.json")
         logger = logging.getLogger("test")
         logger.setLevel(logging.INFO)
         self.assertTrue(self.data_verification.file_exists(test_file_path, None, logger))
