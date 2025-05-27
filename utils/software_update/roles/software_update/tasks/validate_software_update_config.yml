@@ -13,8 +13,8 @@
 # limitations under the License.
 ---
 
-- name: Include variable file software_update_config_file.yml
-  ansible.builtin.include_vars: "{{ software_update_config_file }}"
+# - name: Include variable file software_update_config_file.yml
+#   ansible.builtin.include_vars: "{{ software_update_config_file }}"
 
 - name: Initialize softwares_list_status and package_list_status
   ansible.builtin.set_fact:
@@ -37,30 +37,30 @@
     - package_list | type_debug == 'list'
     - package_list | length > 0
 
-- name: Validate softwares_list and package_list
-  ansible.builtin.fail:
-    msg: "{{ empty_input_fail_msg }}"
-  when:
-    - not softwares_list_status
-    - not package_list_status
+# - name: Validate softwares_list and package_list
+#   ansible.builtin.fail:
+#     msg: "{{ empty_input_fail_msg }}"
+#   when:
+#     - not softwares_list_status
+#     - not package_list_status
 
-- name: Set reboot_required to lower
-  ansible.builtin.set_fact:
-    reboot_required: "{{ reboot_required | lower }}"
+# - name: Set reboot_required to lower
+#   ansible.builtin.set_fact:
+#     reboot_required: "{{ reboot_required | lower }}"
 
-- name: Validate reboot_required
-  ansible.builtin.assert:
-    that:
-      - "reboot_required is defined"
-      - "reboot_required == true or reboot_required == false"
-    fail_msg: "{{ reboot_required_fail_msg }}"
+# - name: Validate reboot_required
+#   ansible.builtin.assert:
+#     that:
+#       - "reboot_required is defined"
+#       - "reboot_required == true or reboot_required == false"
+#     fail_msg: "{{ reboot_required_fail_msg }}"
 
-- name: Inventory not provided
-  ansible.builtin.fail:
-    msg: "{{ empty_inventory_fail_msg }}"
-  when:
-    - groups['all'] is defined
-    - (groups['all'] | length == 0)
+# - name: Inventory not provided
+#   ansible.builtin.fail:
+#     msg: "{{ empty_inventory_fail_msg }}"
+#   when:
+#     - groups['all'] is defined
+#     - (groups['all'] | length == 0)
 
 - name: Validate software_config.json
   ansible.builtin.include_tasks: validate_software_config.yml

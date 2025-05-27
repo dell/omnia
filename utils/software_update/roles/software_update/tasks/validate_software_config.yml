@@ -63,3 +63,6 @@
     - name: Failed to validate json file
       ansible.builtin.fail:
         msg: "{{ invalid_json_fail_msg }}"
+
+- name: Include variable file software_update_config_file.yml
+  ansible.builtin.include_vars: "{{ software_update_config_file }}"
