@@ -33,6 +33,7 @@ pcs property set stonith-enabled=false
 pcs property set no-quorum-policy=ignore
 
 pcs resource group add {{ pcs_group }}
+pcs resource group add {{ vip_group }}
 
 pcs resource create {{ omnia_core_name }} ocf:heartbeat:podman \
  image={{ omnia_core_image }} \
