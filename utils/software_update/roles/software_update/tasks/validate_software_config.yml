@@ -36,7 +36,8 @@
       software_config.cluster_os_type | length < 1 or
       software_config.cluster_os_version | length < 1 or
       software_config.repo_config | length < 1 or
-      software_config.softwares is not defined
+      software_config.softwares is not defined or
+      software_config.additional_software is not defined
 
 - name: Set facts for cluster
   ansible.builtin.set_fact:
@@ -44,25 +45,30 @@
     cluster_os_type: "{{ software_config.cluster_os_type }}"
     cluster_os_version: "{{ software_config.cluster_os_version }}"
     softwares: "{{ software_config.softwares }}"
+    additional_software: "{{ software_config.additional_software }}"
 
-- name: Check softwares_list mentioned in software_config.json
+- name: Fail if 'additional_software' is in softwares but additional_software list is missing or empty
   ansible.builtin.fail:
     msg: "{{ invalid_software_fail_msg }}"
-  when: not (software_config.softwares | selectattr('name', 'equalto', item) | list | length > 0)
-  with_items: "{{ softwares_list }}"
+  when:
+    (software_config.softwares | selectattr('name', 'equalto', 'additional_software') | list | length > 0)
+    and
+    (software_config.additional_software is not defined or software_config.additional_software | length == 0)
 
 - name: Validate json file
   block:
     - name: Valid json path present
       ansible.builtin.stat:
-        path: "{{ json_folder }}/{{ item }}.json"
+        path: "{{ json_folder }}/{{ item.name }}.json"
       register: json_check
-      with_items: "{{ softwares_list }}"
+      with_items: "{{ additional_software }}"
       failed_when: not json_check.stat.exists
   rescue:
     - name: Failed to validate json file
       ansible.builtin.fail:
         msg: "{{ invalid_json_fail_msg }}"
 
-- name: Include variable file software_update_config_file.yml
-  ansible.builtin.include_vars: "{{ software_update_config_file }}"
+- name: Validate additional software inputs
+  ansible.builtin.include_role:
+    name: software_update
+    tasks_from: validate_additional_software.yml

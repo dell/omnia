@@ -13,14 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Validate software update inputs
+- name: Validate software config inputs
   hosts: localhost
   connection: local
   tasks:
-    - name: Validate software update inputs
+    - name: Validate software config inputs
       ansible.builtin.include_role:
         name: software_update
-        tasks_from: validate_software_update_config.yml
+        tasks_from: validate_software_config.yml
 
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost

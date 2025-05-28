@@ -14,7 +14,7 @@
 ---
 
 # Usage: validate_software_update_config.yml
-software_update_config_file: "{{ role_path }}/../../../../input/project_default/config/{{ cluster_os_type }}/{{ cluster_os_version }}/additional_software.json"
+additional_software_file: "{{ role_path }}/../../../../input/project_default/config/{{ cluster_os_type }}/{{ cluster_os_version }}/additional_software.json"
 reboot_required_fail_msg: "Failed. reboot_required should be either true or false in software_update_config.yml"
 empty_input_fail_msg: "Failed. Either of softwares_list and package_list details should be provided as list in software_update_config.yml"
 empty_inventory_fail_msg: "Failed. inventory not provided. Re-run playbook with inventory provided."
@@ -24,7 +24,7 @@ invalid_software_config_fail_msg: "Failed. Please provide valid input/software_c
 and repo_config values."
 json_folder: "{{ role_path }}/../../../../input/project_default/config/{{ cluster_os_type }}/{{ cluster_os_version }}"
 invalid_json_fail_msg: "Failed. json files for softwares mentioned in softwares list missing in {{ json_folder }}"
-invalid_software_fail_msg: "Faied. Software mentioned in softwares_list is not present in input/software_config.json"
+invalid_software_fail_msg: "'additional_software' is present in software_config.json but additional_software list is missing or empty in software_config.json"
 
 # Usage: include_software_config.yml
 software_config_file: "{{ role_path }}/../../../../input/project_default/software_config.json"
