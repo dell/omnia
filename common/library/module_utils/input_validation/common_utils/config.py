@@ -40,7 +40,8 @@ files = {
     "telemetry_config": "telemetry_config.yml",
     "site_config": "site_config.yml",
     "roles_config": "roles_config.yml",
-    "high_availability_config": "high_availability_config.yml"
+    "high_availability_config": "high_availability_config.yml",
+    "additional_software": "additional_software.json"
 }
 
 # Tags and the files that will be run based off of it
@@ -75,6 +76,7 @@ input_file_inventory = {
         files["network_spec"]
     ],
     "high_availability": [files["high_availability_config"]],
+    "additional_software": [files["additional_software"]],
     "all": [
         files["passwordless_ssh_config"],
         files["local_repo_config"],

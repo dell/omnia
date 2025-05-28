@@ -31,6 +31,7 @@ create_error_msg = validation_utils.create_error_msg
 create_file_path = validation_utils.create_file_path
 contains_software = validation_utils.contains_software
 check_mandatory_fields = validation_utils.check_mandatory_fields
+flatten_sub_groups = validation_utils.flatten_sub_groups
 
 def validate_software_config(
     input_file_path, data,
@@ -40,7 +41,7 @@ def validate_software_config(
     cluster_os_type = data["cluster_os_type"]
     cluster_os_version = data["cluster_os_version"]
     os_version_ranges = config.os_version_ranges
-    
+
     if cluster_os_type.lower() in os_version_ranges:
         version_range = os_version_ranges[cluster_os_type.lower()]
         if cluster_os_type.lower() in ["rhel", "rocky"]:
@@ -135,7 +136,7 @@ def validate_local_repo_config(
         if json_path is None:
             errors.append(create_error_msg("Validation Error: ", None ,en_us_validation_msg.json_file_mandatory(json_path)))
         else:
-            try: 
+            try:
                 subgroup_softwares = subgroup_dict.get(software, None)
                 #for each subgroup for a software check for corresponding entry in software.json
                 #eg: for amd the amd.json should contain both amd and rocm entries
@@ -143,13 +144,13 @@ def validate_local_repo_config(
                     json_data = json.load(file)
                 for subgroup_software in subgroup_softwares:
                     result, fail_data = validation_utils.validate_softwaresubgroup_entries(subgroup_software,json_path,json_data,validation_results,failures)
-            
+
             except (FileNotFoundError, json.JSONDecodeError) as e:
                 errors.append(create_error_msg("Error opening or reading JSON file:", json_path, str(e)))
 
     if fail_data:
         errors.append(create_error_msg("Software config subgroup validation failed for",fail_data,"Please resolve the issues first before proceeding."))
-    
+
     return errors
 
 def validate_security_config(input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name):
@@ -451,5 +452,81 @@ def validate_telemetry_config(input_file_path, data, logger, module, omnia_base_
     does_overlap, overlap_ips = validation_utils.check_overlap(ip_ranges)
     if does_overlap:
         errors.append(create_error_msg("IP overlap -", None, en_us_validation_msg.telemetry_ip_overlap_fail_msg))
+
+    return errors
+
+def validate_additional_software(
+        input_file_path, data, logger, module, omnia_base_dir,
+        module_utils_base, project_name):
+    """
+    Validates the additional software configuration.
+
+    Args:
+        input_file_path (str): The path to the input file.
+        data (dict): The data to be validated.
+        logger (Logger): A logger instance.
+        module (Module): A module instance.
+        omnia_base_dir (str): The base directory of the Omnia configuration.
+        module_utils_base (str): The base directory of the module utils.
+        project_name (str): The name of the project.
+
+    Returns:
+        list: A list of errors encountered during validation.
+
+    """
+    errors = []
+    # Get all keys in the data
+    sub_groups = flatten_sub_groups(list(data.keys()))
+
+    # Check if additional_software is not given in the config
+    if "additional_software" not in sub_groups:
+        errors.append(
+            create_error_msg(
+                "additional_software.json",
+                None,
+                en_us_validation_msg.ADDITIONAL_SOFTWARE_FAIL_MSG))
+        return errors
+
+    # Get the roles config file
+    config_file_path = omnia_base_dir.replace("../", "")
+    roles_config_file_path = create_file_path(
+        config_file_path, file_names["roles_config"])
+
+    roles_config_json = validation_utils.load_yaml_as_json(
+        roles_config_file_path, omnia_base_dir, project_name, logger, module)
+    valid_roles = roles_config_json['Roles']
+
+    # Set of unique role names
+    available_roles_and_groups = set(role['name'] for role in roles_config_json['Roles'])
+    available_roles_and_groups.add("additional_software")
+
+    # Add the set of all unique group names
+    available_roles_and_groups.update(group for role in valid_roles for group in role['groups'])
+
+    # Check if a role or group name is present in the roles config file
+    for sub_group in sub_groups:
+        if sub_group not in available_roles_and_groups:
+            errors.append(
+                create_error_msg(
+                    "additional_software.json",
+                    None,
+                    en_us_validation_msg.ADDITIONAL_SOFTWARE_SUBGROUP_FAIL_MSG.format(sub_group)))
+
+    # Validate subgroups defined for additional_software in software_config.json
+    # also present in additioanl_software.json
+    software_config_file_path = create_file_path(config_file_path, file_names["software_config"])
+    software_config_json = json.load(open(software_config_file_path, "r"))
+
+    sub_groups_in_software_config = list(sub_group['name'] for sub_group in
+                                            software_config_json["additional_software"])
+
+    # Check for the additional_software key in software_config.json
+    for sub_group in sub_groups_in_software_config:
+        if sub_group not in sub_groups:
+            errors.append(
+                create_error_msg(
+                    "software_config.json",
+                    None,
+                    en_us_validation_msg.MISSING_IN_ADDITIONAL_SOFTWARE_MSG.format(sub_group)))
 
     return errors

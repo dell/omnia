@@ -42,7 +42,8 @@ def validate_input_logic(input_file_path, data, logger, module, omnia_base_dir, 
         "login_node_security_config.yml": common_validation.validate_login_node_security_config,
         "site_config.yml": common_validation.validate_site_config,
         "roles_config.yml": roles_validation.validate_roles_config,
-        "high_availability_config.yml": high_availability_validation.validate_high_availability_config
+        "high_availability_config.yml": high_availability_validation.validate_high_availability_config,
+        "additional_software.json": common_validation.validate_additional_software
     }
 
     path_parts = input_file_path.split("/")

@@ -226,7 +226,6 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
     repo_entries = local_yaml.get(OMNIA_REPO_KEY, [])
     rhel_repo_entry = local_yaml.get(RHEL_OS_URL,[])
     user_repo_entry = local_yaml.get(USER_REPO_URL,[])
-    policy = REPO_CONFIG.get(repo_config)
     parsed_repos = []
     vault_key_path = os.path.join(vault_key_path, ".local_repo_credentials_key")
     if user_repo_entry:
@@ -237,6 +236,8 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
             ca_cert = url_.get("sslcacert", "")
             client_key = url_.get("sslclientkey", "")
             client_cert = url_.get("sslclientcert", "")
+            policy_given = url_.get("policy", repo_config)
+            policy = REPO_CONFIG.get(policy_given)
             for path in [ca_cert, client_key, client_cert]:
                 mode = "decrypt"
                 if path and is_encrypted(path):
@@ -262,6 +263,8 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
         name = url_.get("name","unknown")
         url = url_.get("url","")
         gpgkey = url_.get("gpgkey")
+        policy_given = url_.get("policy", repo_config)
+        policy = REPO_CONFIG.get(policy_given)
         if not is_remote_url_reachable(url):
             return url, False
 
@@ -270,7 +273,7 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
             "url": url,
             "gpgkey": gpgkey if gpgkey else "null",
             "version": "null",
-            "policy": "on_demand"
+            "policy": policy
         })
 
     for repo in repo_entries:
@@ -278,6 +281,8 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
         url = repo.get("url", "")
         gpgkey = repo.get("gpgkey")
         version = version_variables.get(f"{name}_version")
+        policy_given = repo.get("policy", repo_config)
+        policy = REPO_CONFIG.get(policy_given)
         try:
             rendered_url = Template(url).render(version_variables)
         except Exception as e:
@@ -297,7 +302,7 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
             "url": rendered_url,
             "gpgkey": gpgkey if gpgkey else "null",
             "version": version if version else "null",
-            "policy": "on_demand"
+            "policy": policy
         })
 
     return json.dumps(parsed_repos), True
