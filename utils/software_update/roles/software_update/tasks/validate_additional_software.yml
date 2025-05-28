@@ -91,24 +91,3 @@
     }}
   loop_control:
     label: "{{ item }}"
-# - name: Set reboot_required to lower
-#   ansible.builtin.set_fact:
-#     reboot_required: "{{ reboot_required | lower }}"
-
-# - name: Validate reboot_required
-#   ansible.builtin.assert:
-#     that:
-#       - "reboot_required is defined"
-#       - "reboot_required == true or reboot_required == false"
-#     fail_msg: "{{ reboot_required_fail_msg }}"
-
-# - name: Inventory not provided
-#   ansible.builtin.fail:
-#     msg: "{{ empty_inventory_fail_msg }}"
-#   when:
-#     - groups['all'] is defined
-#     - (groups['all'] | length == 0)
-
-# - name: Validate software_config.json
-#   ansible.builtin.include_tasks: validate_software_config.yml
-#   when: softwares_list_status
