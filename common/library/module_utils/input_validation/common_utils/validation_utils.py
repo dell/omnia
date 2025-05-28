@@ -392,6 +392,22 @@ def is_ip_in_subnet(admin_oim_ip, netmask_bits, vip_address):
     ip = ipaddress.IPv4Address(vip_address)
     return ip in subnet
 
+def flatten_sub_groups(sub_groups):
+    """
+    Flattens a list of sub-groups,
+        where each sub-group can contain multiple groups separated by commas.
+
+    Args:
+        sub_groups (list): A list of sub-groups.
+
+    Returns:
+        list: A flattened list of individual groups.
+    """
+    result = []
+    for group in sub_groups:
+        result.extend(group.split(','))
+    return result
+
 def validate_cluster_items(cluster_items, json_file_path):
     failures = []
     successes = []

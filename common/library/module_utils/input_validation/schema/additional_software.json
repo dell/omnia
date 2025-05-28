@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "patternProperties": {
+    "^[a-zA-Z0-9_,]+$": {
+      "type": "object",
+      "properties": {
+        "cluster": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "oneOf": [
+              {
+                "properties": {
+                  "package": { "type": "string", "minLength": 1 },
+                  "type": { "const": "rpm" },
+                  "repo_name": { "type": "string", "minLength": 1 },
+                  "reboot_required": { "type": "string", "minLength": 1, "enum": ["true", "false"] }
+                },
+                "required": ["package", "type", "repo_name"],
+                "additionalProperties": false
+              },
+              {
+                "properties": {
+                  "package_list": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 },
+                    "minItems": 1
+                  },
+                  "type": { "const": "rpm_list" },
+                  "repo_name": { "type": "string", "minLength": 1 },
+                  "reboot_required": { "type": "string", "minLength": 1, "enum": ["true", "false"] }
+                },
+                "required": ["package_list", "type", "repo_name"],
+                "additionalProperties": false
+              },
+              {
+                "properties": {
+                  "package": { "type": "string", "minLength": 1 },
+                  "type": { "const": "image" },
+                  "tag": { "type": "string" },
+                  "digest": { "type": "string" }
+                },
+                "required": ["package", "type"],
+                "oneOf": [
+                  { "required": ["tag"] },
+                  { "required": ["digest"] }
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "required": ["cluster"],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

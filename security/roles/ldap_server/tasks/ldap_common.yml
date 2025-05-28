@@ -18,4 +18,6 @@
     ldaptoolbox_openldap_config_olcRootPW_hash: "{{ hostvars['127.0.0.1']['openldap_config_password_hash'] }}" # noqa var-naming
     ldaptoolbox_openldap_database_olcRootPW_hash: "{{ hostvars['127.0.0.1']['openldap_db_password_hash'] }}" # noqa var-naming
     ldaptoolbox_openldap_monitor_olcRootPW_hash: "{{ hostvars['127.0.0.1']['openldap_monitor_password_hash'] }}" # noqa var-naming
+    ldaptoolbox_openldap_config_olcRootDN: "cn={{ hostvars['127.0.0.1']['openldap_config_username'] }},cn=config" # noqa var-naming
+    ldaptoolbox_openldap_database_olcRootDN: "cn={{ hostvars['127.0.0.1']['openldap_db_username'] }},{{ ldaptoolbox_openldap_suffix }}" # noqa var-naming
   no_log: true

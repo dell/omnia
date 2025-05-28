@@ -76,7 +76,12 @@ def update_node_obj_nm(chain_os=chain_os):
     # Establish a connection with omniadb
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
-    sql = """select service_tag from cluster.nodeinfo where discovery_mechanism = %s"""
+    sql = """
+        SELECT service_tag
+        FROM cluster.nodeinfo
+        WHERE discovery_mechanism = %s
+        AND (status IS NULL OR status != 'booted')
+        """
     cursor.execute(sql, (discovery_mechanism,))
     serial_output = cursor.fetchall()
     for i in range(0, len(serial_output)):
@@ -96,8 +101,10 @@ def update_node_obj_nm(chain_os=chain_os):
             if mode is None:
                 print("No device is found!")
             if mode == "static":
-                if service_os_image != "None" and 'service' in role:
+                if 'service_node' in role:
                     chain_os = f"osimage={service_os_image}"
+                else:
+                    chain_os = f"osimage={provision_os_image}"
                 command = ["/opt/xcat/bin/chdef", node_name, f"ip={admin_ip}", f"groups={groups_static},{role},{group_name}",
                            f"chain={chain_os}", f"xcatmaster={oim_admin_ip}"]
                 subprocess.run(command)

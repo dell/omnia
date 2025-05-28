@@ -64,17 +64,16 @@ pcs_container_failure_msg: |
 omnia_nfs_share: "{{ oim_shared_path }}/omnia" # Define NFS share path
 oim_metadata_file: "{{ omnia_nfs_share }}/.data/oim_metadata.yml"
 monitor_interval: "30s"
-monitor_timeout: "60s"
+monitor_timeout: "100s"
 start_interval: "0s"
 start_timeout: "20s"
 stop_interval: "0s"
-stop_timeout: "60s"
+stop_timeout: "90s"
 
 migration_threshold: 0
 ha_migration_threshold: 1
-failure_timeout: "60s"
+failure_timeout: "100s"
 pcs_group: omnia
-vip_group: omnia_vip
 
 # Usage: pcs-start.sh.j2: omnia_core
 omnia_core_name: "omnia_core"

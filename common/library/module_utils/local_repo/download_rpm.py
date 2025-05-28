@@ -16,7 +16,7 @@ import subprocess
 import os
 from ansible.module_utils.local_repo.parse_and_download import write_status_to_file
  
-def process_rpm(package, repo_store_path, status_file_path, cluster_os_type, cluster_os_version, logger):
+def process_rpm(package, repo_store_path, status_file_path, cluster_os_type, cluster_os_version, repo_config_value, logger):
     """
     Downloads a list of RPM packages and writes the status of the download to a file.
 
@@ -37,22 +37,26 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type, clu
 
     logger.info("#" * 30 + f" {process_rpm.__name__} start " + "#" * 30)  # Start of function
     try:
-        rpm_list = list(set(package["rpm_list"]))
-        logger.info(f"{package['package']} - List of rpms is {rpm_list}")
-        rpm_directory = os.path.join(repo_store_path, 'offline_repo', 'cluster', cluster_os_type, cluster_os_version, 'rpm')
-        logger.info(f"rpm_dir {rpm_directory}")
-        os.makedirs(rpm_directory, exist_ok=True)
-        dnf_download_command = ['dnf', 'download', '--resolve', '--alldeps', '--arch=x86_64,noarch',
-            f'--destdir={rpm_directory}'] + rpm_list
-        rpm_result = subprocess.run(dnf_download_command, check=False, capture_output=True, text=True)
-        logger.info(f"RPM Download success stdout {rpm_result.stdout}")
-        logger.info(f"Return code {rpm_result.returncode}")
-        if rpm_result.returncode == 0:
-            logger.info(f"RPM download Successful {rpm_result.stdout}")
-            status = "Success"
+        if repo_config_value == "always":
+            rpm_list = list(set(package["rpm_list"]))
+            logger.info(f"{package['package']} - List of rpms is {rpm_list}")
+            rpm_directory = os.path.join(repo_store_path, 'offline_repo', 'cluster', cluster_os_type, cluster_os_version, 'rpm')
+            logger.info(f"rpm_dir {rpm_directory}")
+            os.makedirs(rpm_directory, exist_ok=True)
+            dnf_download_command = ['dnf', 'download', '--resolve', '--alldeps', '--arch=x86_64,noarch',
+                f'--destdir={rpm_directory}'] + rpm_list
+            rpm_result = subprocess.run(dnf_download_command, check=False, capture_output=True, text=True)
+            logger.info(f"RPM Download success stdout {rpm_result.stdout}")
+            logger.info(f"Return code {rpm_result.returncode}")
+            if rpm_result.returncode == 0:
+                logger.info(f"RPM download Successful {rpm_result.stdout}")
+                status = "Success"
+            else:
+                logger.error(f"RPM error Return code - {rpm_result.returncode} \nstderr - {rpm_result.stderr}")
+                status = "Failed"
         else:
-            logger.error(f"RPM error Return code - {rpm_result.returncode} \nstderr - {rpm_result.stderr}")
-            status = "Failed"
+            status = "Success"
+            logger.info(f"RPM wont be downloaded when repo_config is partial or never")
     except Exception as e:
         logger.error(f"Error processing rpm packages: {str(e)}")
         status = "Failed"
