@@ -1,9 +1,0 @@
-{
-    "intel_benchmarks": {
-        "cluster": [
-            {"package": "intel-basekit-{{ intel_benchmarks_version }}", "type": "rpm", "repo_name": "oneapi"},
-            {"package": "intel-hpckit-{{ intel_benchmarks_version }}", "type": "rpm", "repo_name": "oneapi"}
-           
-        ]
-    }
-}

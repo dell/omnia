@@ -134,7 +134,7 @@ extensions = {
 }
 
 os_version_ranges = {
-    "rhel": ["9.4"],
+    "rhel": ["9.6"],
     #"rocky": ["9.4"],
     #"ubuntu": ["20.04", "22.04", "24.04"]
 }

@@ -11,14 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# pylint: disable=import-error,no-name-in-module,line-too-long
 import os
 import logging
 import multiprocessing
 import time
 import threading
 from jinja2 import Template
-
+from ansible.module_utils.local_repo.common_functions import load_yaml_file
 # Global lock for logging synchronization
 log_lock = multiprocessing.Lock()
 
@@ -28,14 +28,12 @@ def log_table_output(table_output, log_file):
     Args:
         table_output (str): The table output to be written to the log file.
         log_file (str): The path of the log file where the table output should be written.
-
     Raises:
         RuntimeError: If there is an error during the file writing process or directory creation.
     """
     try:
         # Ensure the directory for the log file exists
         os.makedirs(os.path.dirname(log_file), exist_ok=True)
-        
         # Write the table output to the log file
         with open(log_file, "w") as file:
             file.write("Command Execution Results Table:\n")  # Add a header to the table
@@ -49,35 +47,26 @@ def setup_logger(log_dir,log_file_path):
     Sets up and configures a logger to write logs to a specified file.
     Args:
         log_file_path (str): The path where the log file will be saved.
-
     Returns:
         logging.Logger: The configured logger instance.
     """
-
     # Ensure the log directory exists
     os.makedirs(log_dir, exist_ok=True)
-
     logger = logging.getLogger(log_file_path)  # Create a logger with the provided log file path
     logger.setLevel(logging.INFO)  # Set the log level to INFO
-
     # Check if the logger already has handlers to avoid duplicate log entries
     if not logger.hasHandlers():
         # Create a file handler to write logs to the specified file
         file_handler = logging.FileHandler(log_file_path)
-        
         # Define the format for log messages
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        
         # Apply the formatter to the file handler
         file_handler.setFormatter(formatter)
-        
         # Add the file handler to the logger
         logger.addHandler(file_handler)
-
     return logger
 
-def execute_task(task, determine_function, user_data, version_variables, repo_store_path, csv_file_path,logger, timeout=None):
-
+def execute_task(task, determine_function, user_data, version_variables, repo_store_path, csv_file_path,logger, user_registries, timeout=None):
     """
     Executes a task by determining the appropriate function to call, managing execution time, 
     handling timeouts, and logging the results.
@@ -89,19 +78,19 @@ def execute_task(task, determine_function, user_data, version_variables, repo_st
         repo_store_path (str): The path to the repository where files are stored.
         csv_file_path (str): Path to a CSV file to be processed as part of the task.
         logger (logging.Logger): The logger instance for logging the task's execution.
-        timeout (float, optional): The maximum time allowed for the task to execute. If `None`, no timeout is enforced.
+        timeout (float, optional): The maximum time allowed for the task to execute.
+        user_registries (str): List of user registries 
 
     Returns:
         dict: A dictionary containing the task information, its execution status, any output, and any errors.
     """
-
     try:
         start_time = time.time()  # Track the start time of the task execution
         with log_lock:
             logger.info(f"### {execute_task.__name__} start ###")  # Log task start
 
         # Determine the function and its arguments using the provided `determine_function`
-        function, args = determine_function(task, repo_store_path, csv_file_path, user_data, version_variables)
+        function, args = determine_function(task, repo_store_path, csv_file_path, user_data, version_variables, user_registries)
 
         while True:
             elapsed_time = time.time() - start_time  # Calculate elapsed time
@@ -141,7 +130,6 @@ def execute_task(task, determine_function, user_data, version_variables, repo_st
             "output": result,
             "error": ""
         }
-
     except Exception as e:
         # Log the error if the task fails
         with log_lock:
@@ -154,11 +142,9 @@ def execute_task(task, determine_function, user_data, version_variables, repo_st
             "error": str(e)  # Include the error message
         }
 
-def worker_process(task, determine_function, user_data,version_variables, repo_store_path, csv_file_path, log_dir, result_queue, timeout):
-
+def worker_process(task, determine_function, user_data,version_variables, repo_store_path, csv_file_path, log_dir, result_queue, user_registries, timeout):
     """
     Executes a task in a separate worker process, logs the process execution, and puts the result in a result queue.
-
     Args:
         task (dict): The task to be processed, containing details like the package to be processed.
         determine_function (function): A function that determines the function to call and its arguments for the task.
@@ -167,32 +153,24 @@ def worker_process(task, determine_function, user_data,version_variables, repo_s
         log_dir (str): Directory where log files for the worker process should be saved.
         result_queue (multiprocessing.Queue): Queue for putting the result of the task execution (used for inter-process communication).
         timeout (float): The maximum allowed time for the task execution.
-
+        user_registries (str): List of user registries
     Returns:
         None: The result is placed into the `result_queue`, so no return value is needed.
     """
-    # Define the log file path for the current worker process using the process name (ensures unique log files)
-    #thread_log_path = os.path.join(log_dir, f"task_{multiprocessing.current_process().name}_log.log")
-
     #Define the log file path using process ID for uniqueness
     thread_log_path = os.path.join(log_dir, f"package_status_{os.getpid()}.log")
-
     # Setup logger specific to this worker process
     logger = setup_logger(log_dir,thread_log_path)
-
     try:
         # Log the start of the worker process execution
         with log_lock:
            # logger.info(f"Worker process {multiprocessing.current_process().name} started  execution.")
-           logger.info(f"Worker process {os.getpid()} started  execution.")
-
+            logger.info(f"Worker process {os.getpid()} started  execution.")
         # Execute the task by calling the `execute_task` function and passing necessary arguments
-        result = execute_task(task, determine_function, user_data, version_variables, repo_store_path, csv_file_path, logger, timeout)
-
+        result = execute_task(task, determine_function, user_data, version_variables, repo_store_path, csv_file_path, logger,  user_registries, timeout)
         result["logname"] = f"package_status_{os.getpid()}.log"
         # Put the result of the task execution into the result_queue for further processing
         result_queue.put(result)
-
         # Log the successful completion of the task execution
         with log_lock:
            # logger.info(f"Worker process {multiprocessing.current_process().name} completed task execution.")
@@ -202,26 +180,23 @@ def worker_process(task, determine_function, user_data,version_variables, repo_s
         with log_lock:
             #logger.error(f"Worker process {multiprocessing.current_process().name} encountered an error: {str(e)}")
             logger.error(f"Worker process {os.getpid()} encountered an error: {str(e)}")
-
         # If an error occurs, put a failure result in the queue indicating task failure
         result_queue.put({"task": task, "status": "FAILED", "output": "", "error": str(e)})
 
-    
-def execute_parallel(tasks, determine_function, nthreads, repo_store_path, csv_file_path,log_dir, user_data, version_variables, standard_logger, timeout):
-    
+def execute_parallel(tasks, determine_function, nthreads, repo_store_path, csv_file_path,log_dir, user_data, version_variables, standard_logger, local_repo_config_path, timeout):
     """
     Executes a list of tasks in parallel using multiple worker processes.
-
     Args:
         tasks (list): A list of tasks (dictionaries) that need to be processed in parallel.
-        determine_function (function): A function that determines which function to execute and its arguments for each task.
+        determine_function (function): A function that determines which function to 
+        execute and its arguments for each task.
         nthreads (int): The number of worker processes to run in parallel.
         repo_store_path (str): Path to the repository where task-related files are stored.
         csv_file_path (str): Path to a CSV file that may be needed for processing some tasks.
         log_dir (str): Directory where log files for the worker processes will be saved.
         standard_logger (logging.Logger): A shared logger for overall task execution.
         timeout (float, optional): The maximum time allowed for all tasks to execute. If `None`, no timeout is enforced.
-
+        local_repo_config_path (str): Path for local_repo_config.yml
     Returns:
         tuple: A tuple containing:
             - overall_status (str): The overall status of task execution ("SUCCESS", "FAILED", "PARTIAL", "TIMEOUT").
@@ -229,10 +204,11 @@ def execute_parallel(tasks, determine_function, nthreads, repo_store_path, csv_f
     """
     # Create a shared queue for collecting task results from worker processes
     result_queue = multiprocessing.Manager().Queue()
-
     with log_lock:
         standard_logger.info("Starting parallel task execution.")  # Log the start of parallel execution
 
+    config = load_yaml_file(local_repo_config_path)
+    user_registries = config.get("user_registry", [])
     # Create a pool of worker processes to handle the tasks
     with multiprocessing.Pool(processes=nthreads) as pool:
         task_results = []  # List to hold references to the async results of the tasks
@@ -242,13 +218,11 @@ def execute_parallel(tasks, determine_function, nthreads, repo_store_path, csv_f
             package_template = Template(task.get('package', None))
             package_name = package_template.render(**version_variables)
             task['package'] = package_name
-            task_results.append(pool.apply_async(worker_process, (task, determine_function, user_data, version_variables, repo_store_path, csv_file_path, log_dir, result_queue, timeout)))
+            task_results.append(pool.apply_async(worker_process, (task, determine_function, user_data, version_variables, repo_store_path, csv_file_path, log_dir, result_queue, user_registries, timeout)))
 
         pool.close()  # Close the pool to new tasks once all have been submitted
-
         start_time = time.time()  # Start time for overall task execution
         tasks_are_not_completed = False  # Flag to track if timeout occurred before all tasks completed
-
         # Check the status of the tasks periodically and enforce the timeout if necessary
         while task_results:
             elapsed_time = time.time() - start_time  # Calculate elapsed time
@@ -277,10 +251,8 @@ def execute_parallel(tasks, determine_function, nthreads, repo_store_path, csv_f
         # Check if all tasks failed, all succeeded, or if there was a mix (partial success)
         all_failed = all(result["status"] == "FAILED" for result in task_results_data)
         overall_status = "FAILED" if all_failed else "SUCCESS" if all(result["status"] == "SUCCESS" for result in task_results_data) else "PARTIAL"
-
     # Log the final status of task execution
     with log_lock:
         standard_logger.info(f"Task execution finished with overall status: {overall_status}")
-
     # Return the overall status and the results of each task
     return overall_status, task_results_data

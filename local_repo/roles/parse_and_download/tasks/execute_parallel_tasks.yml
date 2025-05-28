@@ -25,6 +25,7 @@
         csv_file_path: "{{ base_path }}/{{ item.key }}"
         repo_store_path: "{{ nfs_shared_path }}"
         user_json_file: "{{ user_json_file }}"
+        local_repo_config_path: "{{ local_repo_config_path }}"
         nthreads: "{{ (local_repo_py_module_vars[item.key].nthreads | default(local_repo_py_module_vars.default_vars.nthreads)) }}"
         timeout: "{{ (local_repo_py_module_vars[item.key].timeout | default(local_repo_py_module_vars.default_vars.timeout)) }}"
       register: task_results

@@ -1,9 +1,0 @@
-{
-    "amd_benchmarks": {
-        "cluster": [
-            {"package": "libpmix-dev", "type": "deb", "repo_name": "noble"},
-            {"package": "libevent-dev", "type": "deb", "repo_name": "noble"}
-           
-        ]
-    }
-}

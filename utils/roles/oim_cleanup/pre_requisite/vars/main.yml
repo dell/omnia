@@ -26,7 +26,7 @@ supported_k8s_version:
   - 1.31.4
 success_msg_k8s_version: "Kubernetes Version Validated"
 fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json. Supported versions are - {{ supported_k8s_version }}" # noqa: yaml[line-length]
-kube_version_on_unsupported_os: "Failed. On RHEL 9.4 OS, supported kubernetes version is 1.29.5"  # noqa: yaml[line-length]
+kube_version_on_unsupported_os: "Failed. On RHEL 9.6 OS, supported kubernetes version is 1.29.5"  # noqa: yaml[line-length]
 
 # We use k8s_to_kubespray to map k8s version to kubespray version
 k8s_to_kubespray:

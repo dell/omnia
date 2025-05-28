@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -14,14 +14,8 @@
 ---
 
 - name: Servicetag Host mapping
-  ansible.builtin.command: "{{ python }} {{ servicetag_host_mapping_script }} {{ db_path }} {{ ansible_inventory_sources | quote }}"
-  register: servicetag_host_mapping_result
-  changed_when: true
-
-- name: Verify Error in Servicetag Host mapping
-  ansible.builtin.fail:
-    msg: "{{ servicetag_host_mapping_result.stdout_lines[-1] }}"
-  when: servicetag_host_mapping_result is defined and 'Error' in servicetag_host_mapping_result.stdout
+  servicetag_host_mapping:
+    inventory_sources: "{{ [host_mapping_inventory.dest] }}"
 
 - name: Clear facts
   ansible.builtin.meta: clear_facts

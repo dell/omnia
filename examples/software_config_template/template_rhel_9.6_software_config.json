@@ -1,6 +1,6 @@
 {
     "cluster_os_type": "rhel",
-    "cluster_os_version": "9.4",
+    "cluster_os_version": "9.6",
     "repo_config": "always",
     "softwares": [
         {"name": "amdgpu", "version": "6.3.1"},

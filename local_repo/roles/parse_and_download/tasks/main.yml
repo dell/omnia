@@ -15,7 +15,9 @@
 
 - name: Define project input path
   ansible.builtin.set_fact:
-    project_input_path:"{{ hostvars['localhost']['input_project_dir'] }}"
+    project_input_path: "{{ hostvars['localhost']['input_project_dir'] }}"
+    update_metadata: false
+    show_softwares_status: false
 
 - name: Process and configure local_repo_config
   ansible.builtin.include_tasks: process_rpm_repo.yml
@@ -40,22 +42,52 @@
     state: absent
   when: clean_rpms
 
-- name: Create metadata file
-  ansible.builtin.include_tasks: create_metadata.yml
-
-- name: Print overall software status
-  ansible.builtin.debug:
-    msg:
-      - "   Name    | Status"
-      - "--------------------"
-      - "{{ overall_status_dict | default({}) | dict2items | map(attribute='key') | zip(overall_status_dict | default({}) | dict2items | map(attribute='value') | map('lower')) | map('join', '  |  ') | list }}"  # noqa: yaml[line-length]
-
 - name: Determine final repository status
   ansible.builtin.set_fact:
     final_status: "{{ 'SUCCESS' if 'FAILURE' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and
                       'TIMEOUT' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and
                       'PARTIAL' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list)
                       else 'FAILED' }}"
+
+- name: Check if metadata file exists
+  ansible.builtin.stat:
+    path: "{{ metadata_file_path }}"
+  register: metadata_file
+
+- name: Set update metadata flag
+  ansible.builtin.set_fact:
+    update_metadata: "{{ true | bool }}"
+  when:
+    - metadata_file.stat.exists
+    - final_status == 'SUCCESS'
+
+- name: Persist local repoitory information into metadata file localrepo_metadata.yml
+  localrepo_metadata_manager:
+    software_config_path: "{{ sw_config_json_path }}"
+    localrepo_config_path: "{{ local_repo_config_path }}"
+    output_file: "{{ metadata_file_path }}"
+    update_metadata: "{{ update_metadata }}"
+  register: policy_result
+  when:
+    - final_status == 'SUCCESS'
+
+- name: Show updated keys
+  ansible.builtin.debug:
+    var: policy_result.diff
+  when: update_metadata
+
+- name: Run custom parallel task to print overall software status
+  parallel_tasks:
+    tasks: []
+    software: []
+    overall_status_dict: "{{ overall_status_dict }}"
+    show_softwares_status: "{{ true | bool }}"
+  register: status_results
+  when: overall_status_dict is defined and overall_status_dict | length > 0
+
+- name: Print overall software status
+  ansible.builtin.debug:
+    msg: "{{ status_results.msg.split('\n') if status_results.msg is defined else sw_download_msg }}"
 
 - name: Local repository status
   ansible.builtin.debug:

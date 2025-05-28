@@ -452,7 +452,6 @@ def validate_telemetry_config(input_file_path, data, logger, module, omnia_base_
     does_overlap, overlap_ips = validation_utils.check_overlap(ip_ranges)
     if does_overlap:
         errors.append(create_error_msg("IP overlap -", None, en_us_validation_msg.telemetry_ip_overlap_fail_msg))
-
     return errors
 
 def validate_additional_software(
@@ -528,5 +527,4 @@ def validate_additional_software(
                     "software_config.json",
                     None,
                     en_us_validation_msg.MISSING_IN_ADDITIONAL_SOFTWARE_MSG.format(sub_group)))
-
     return errors

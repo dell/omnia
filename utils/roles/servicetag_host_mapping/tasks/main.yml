@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -18,10 +18,34 @@
     msg: "{{ empty_inventory_fail_msg }}"
   when:
     - groups['all'] is defined
-    - (groups['all'] | length == 0)
+    - groups['all']
+        | difference(
+            filter_groups
+            | select('in', groups.keys() | list)
+            | map('extract', groups)
+            | list
+            | flatten
+          )
+        | length == 0
 
 - name: Check discovery_provision.yml execution status
   ansible.builtin.include_tasks: check_provision_status.yml
 
+- name: Transfer inventory shared temp folder
+  ansible.builtin.copy:
+    src: "{{ ansible_inventory_sources[0] }}"
+    dest: "{{ host_mapping_inventory.dest }}"
+    force: true
+    mode: "{{ host_mapping_inventory.mode }}"
+
 - name: Apply service tag mapping for inventory
   ansible.builtin.include_tasks: service_tag_mapping.yml
+
+- name: Update user inventory with host ip changes
+  ansible.builtin.copy:
+    src: "{{ host_mapping_inventory.dest }}"
+    dest: "{{ ansible_inventory_sources[0] }}"
+    force: true
+    mode: "{{ host_mapping_inventory.mode }}"
+  delegate_to: localhost
+  connection: local

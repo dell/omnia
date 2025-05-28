@@ -209,7 +209,7 @@ def check_overlap(ip_list):
 
     # Convert IP ranges and CIDR to ipaddress objects
     for item in ip_list:
-        if item == '' or item== 'N/A':
+        if item == '' or item == 'N/A':
             continue
         if "-" in item:
             start_ip, end_ip = item.split("-")

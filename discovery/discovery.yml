@@ -109,7 +109,7 @@
       when: hostvars['omnia_provision']['hierarchical_provision_status'] | default(false)
 
 - name: Set facts for kernel parameters update
-  hosts: all:!localhost:!omnia_provision:!service_nodes
+  hosts: all:!localhost:!omnia_provision:!service_nodes:!oim
   connection: local
   gather_facts: true
   vars_files:

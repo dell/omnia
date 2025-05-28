@@ -29,6 +29,9 @@
 - name: Validate software json files present in config directory
   ansible.builtin.include_tasks: validate_json_path.yml
 
+- name: Validate metadata
+  ansible.builtin.include_tasks: validate_metadata.yml
+
 - name: Run Kubernetes JSON Generator
   ansible.builtin.include_tasks: dynamic_k8s_json.yml
   when: dynamic_k8s_generation

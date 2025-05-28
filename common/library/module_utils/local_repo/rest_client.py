@@ -18,7 +18,6 @@ import ssl
 import base64
 from urllib.parse import urlparse
 
-
 class RestClient:
     """
     REST client to interact with HTTP(S) endpoints using JSON-based POST and GET requests.
@@ -40,7 +39,7 @@ class RestClient:
             "Content-type": "application/json",
             "Authorization": f"Basic {auth_encoded}"
         }
-    
+
     def get_connection(self):
         """
         Creates an HTTP or HTTPS connection to the server.

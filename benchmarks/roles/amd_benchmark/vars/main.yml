@@ -19,7 +19,7 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with slurm_control_node and slurm_node group."
 cluster_os_type_success_msg: "cluster_os_type validated"
 supported_os_check_dict:
-  rhel: ["9.4"]
+  rhel: ["9.6"]
 cluster_os_type_fail_msg: "Failed. Incorrect cluster_os_type selected. Supported OS and versions are {{ supported_os_check_dict | string }}"
 # Usage: pre_requisites.yml
 slurm_running_fail_msg: "Failed. slurm services are not running in the node {{ inventory_hostname }}.
