@@ -37,7 +37,7 @@ It supports check mode and can conditionally update metadata only if changes are
 """
 
 def main():
-    
+
     argument_spec = {
         "software_config_path": {"type": "str", "required": True},
         "localrepo_config_path": {"type": "str", "required": True},

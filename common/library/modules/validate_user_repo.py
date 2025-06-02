@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# pylint: disable=import-error
 #!/usr/bin/python
 
 from ansible.module_utils.basic import AnsibleModule
@@ -30,17 +30,18 @@ def main():
              boolean indicating whether the validation failed, and a message
              describing the result.
     """
-    module_args = dict(
-        local_repo_config_path=dict(type='str', required=True),
-        certs_path=dict(type='str', required=True),
-        repo_key=dict(type='str', required=False, default="user_repo_url")
-    )
+    module_args = {
+        "local_repo_config_path": {"type": "str", "required": True},
+        "certs_path": {"type": "str", "required": True},
+        "repo_key": {"type": "str", "required": False, "default": "user_repo_url"},
+    }
 
-    result = dict(
-        changed=False,
-        failed=False,
-        msg=""
-    )
+    result = {
+        "changed": False,
+        "failed": False,
+        "msg": "",
+    }
+
 
     module = AnsibleModule(
         argument_spec=module_args,

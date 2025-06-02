@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=import-error
 
 #!/usr/bin/python
 
@@ -32,10 +33,10 @@ def main():
     :return: A dictionary with the results of the validation and reachability checks.
     """
     module = AnsibleModule(
-        argument_spec=dict(
-            timeout=dict(type='int', default=5),
-            config_file=dict(type='str', required=True),
-        ),
+        argument_spec={
+            "timeout": {"type": "int", "default": 5},
+            "config_file": {"type": "str", "required": True}
+        },
         supports_check_mode=True
     )
 

@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# pylint: disable=import-error
 
 #!/usr/bin/python
 
@@ -29,7 +30,6 @@ Functions:
 import logging
 import os
 from configparser import ConfigParser
-# pylint: disable=no-name-in-module,E0401
 import ansible.module_utils.input_validation.common_utils.data_fetch as get
 import ansible.module_utils.input_validation.common_utils.data_validation as validate
 import ansible.module_utils.input_validation.common_utils.data_verification as verify
@@ -86,13 +86,14 @@ def main():
         ValueError: If there is a value error.
         Exception: If there is an unexpected error.
     """
-    module_args = dict(
-        omnia_base_dir=dict(type="str", required=True),
-        project_name=dict(type="str", required=True),
-        tag_names=dict(type="str", required=True),
-        files=dict(type="list", elements="str", required=False),
-        module_utils_path=dict(type="str", required=False, default=None)
-    )
+    module_args = {
+        "omnia_base_dir": {"type": "str", "required": True},
+        "project_name": {"type": "str", "required": True},
+        "tag_names": {"type": "str", "required": True},
+        "files": {"type": "list", "elements": "str", "required": False},
+        "module_utils_path": {"type": "str", "required": False, "default": None}
+    }
+
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     module_utils_base = module.params["module_utils_path"]

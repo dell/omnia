@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# pylint: disable=import-error
 #!/usr/bin/python
 
 import os
@@ -49,9 +49,11 @@ def main():
     Prepares package lists and processes software based on user and repository configurations.
 
     This function initializes the module arguments and logger. It loads user data from a JSON file
-    and repository configuration from a YAML file, retrieves cluster OS details, and determines the list
-    of software. It then computes a boolean flag for fresh installation based on the CSV file's existence.
-    For new software, the flag is enforced to True. The software is then processed, and the package tasks
+    and repository configuration from a YAML file, retrieves cluster OS details, determines list
+    of software.
+    It then computes a boolean flag for fresh installation based on the CSV file's existence.
+    For new software, the flag is enforced to True.
+    The software is then processed, and the package tasks
     are aggregated and returned.
     """
 
