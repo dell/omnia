@@ -11,17 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+Configuration utilities for Omnia input validation modules.
+"""
 from datetime import datetime
 import os
 
-input_validator_log = '/opt/omnia/log/core/playbooks/input_validator/'
+INPUT_VALIDATOR_LOG = '/opt/omnia/log/core/playbooks/input_validator/'
 
 module_log_dir = {
-    "input_validator_log": input_validator_log + "/_"+ datetime.now().strftime('_%d-%m-%Y.log')
+    "input_validator_log": INPUT_VALIDATOR_LOG + "/_"+ datetime.now().strftime('_%d-%m-%Y.log')
 }
 
-input_validator_log_path = '/opt/omnia/log/core/playbooks/'
+# log path for input validator
+INPUT_VALIDATOR_LOG_PATH = '/opt/omnia/log/core/playbooks/'
 
 # dict to hold the file names. If any file's name changes just change it here.
 files = {

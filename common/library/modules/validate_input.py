@@ -53,7 +53,7 @@ def createlogger(project_name, tag_name=None):
     else:
         log_filename = f"validation_omnia_{project_name}.log"
 
-    log_file_path = os.path.join(config.input_validator_log_path, log_filename)
+    log_file_path = os.path.join(config.INPUT_VALIDATOR_LOG_PATH, log_filename)
     logging.basicConfig(
         filename=log_file_path,
         format="%(asctime)s %(message)s",
@@ -189,7 +189,7 @@ def main():
                 for name in input_file_inventory[tag_name]:
                     validation_status.update(project_data)
                     fname, _ = os.path.splitext(name)
-                    
+
                     # If there's a replacement rule for the current tag_name, apply it
                     if tag_name in config.tag_file_replacements and fname in config.tag_file_replacements[tag_name]:
                         fname = config.tag_file_replacements[tag_name][fname]
@@ -243,7 +243,7 @@ def main():
 
     logger.error(en_us_validation_msg.get_footer())
 
-    log_file_name = os.path.join(config.input_validator_log_path, f"validation_omnia_{project_name}.log")
+    log_file_name = os.path.join(config.INPUT_VALIDATOR_LOG_PATH, f"validation_omnia_{project_name}.log")
 
     # Ansible success/failure message
     if False in vstatus:
