@@ -67,7 +67,7 @@
           - "o=bind"
           - "type=none"
           - "device={{ item.path }}"
-      loop: "{{ mysqldb_podman_volumes }}"
+      loop: "{{ idrac_telemetry_receiver_podman_volumes }}"
 
     - name: Deploy the iDRAC telemetry receiver container
       containers.podman.podman_container:
