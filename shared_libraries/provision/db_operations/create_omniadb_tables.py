@@ -11,7 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-# pylint: disable=wrong-import-position, import-error, invalid-name, broad-except, missing-function-docstring, line-too-long, missing-module-docstring
+# pylint: disable=wrong-import-position, import-error,  
 
 """
 This script setups the omniadb.
@@ -35,8 +35,9 @@ def create_db():
     """
     Create a database connection to the PostgreSQL database.
 
-    This function establishes a connection to the PostgreSQL database using the provided password.
-    It reads the encrypted password from a file, decrypts it using the provided key, and connects to the database.
+    This function establishes a connection to the PostgreSQL database using 
+    the provided password.It reads the encrypted password from a file,
+    decrypts it using the provided key, and connects to the database.
 
     Parameters:
         None
@@ -103,9 +104,11 @@ def create_db_schema(conn):
 def create_db_table(conn):
     """
     Creates a table named 'nodeinfo' in the 'cluster' schema if it doesn't already exist.
-    The table has columns for 'ID', 'service_tag', 'node', 'hostname', 'group_name', 'role', 'parent', admin_mac',
-    'admin_ip', 'bmc_ip', 'status', 'architecture', 'location_id', 'discovery_mechanism', 'bmc_mode', 'switch_ip',
+    The table has columns for 'ID', 'service_tag', 'node', 'hostname', 'group_name', 'role', 
+    'parent', admin_mac','admin_ip', 'bmc_ip', 'status', 'architecture', 'location_id', 
+    'discovery_mechanism', 'bmc_mode', 'switch_ip',
     'switch_name', 'switch_port', 'cpu', 'gpu', 'cpu_count', and 'gpu_count'.
+    
     The 'ID' column is a serial number, primary key, and unique.
     The function executes the SQL query to create the table and prints a message.
     The function closes the cursor.
