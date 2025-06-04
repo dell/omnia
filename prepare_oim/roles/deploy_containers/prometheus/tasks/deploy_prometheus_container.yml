@@ -18,7 +18,7 @@
   ansible.builtin.file:
     path: "{{ prometheus_dir }}"
     state: directory
-    mode: "{{ dir_mode }}"
+    mode: "{{ dir_permissions_755 }}"
 
 - name: Check if {{ prometheus_container_name }} is already running and port is occupied # noqa: name[template]
   containers.podman.podman_container_info:
@@ -33,7 +33,7 @@
       ansible.builtin.file:
         path: "{{ item.path }}"
         state: directory
-        mode: "{{ dir_mode }}"
+        mode: "{{ dir_permissions_755 }}"
       loop: "{{ prometheus_podman_volumes }}"
 
     - name: Create prometheus.yml at Prometheus NFS share
@@ -68,7 +68,7 @@
           - "--storage.tsdb.path=/prometheus"
         log_driver: "json-file"
         log_opt:
-          path: "{{ prometheus_logs_dir }}/prometheus.log"
+          path: "{{ prometheus_log_dir }}/prometheus.log"
 
     - name: Check if Prometheus container is running after deployment
       containers.podman.podman_container_info:

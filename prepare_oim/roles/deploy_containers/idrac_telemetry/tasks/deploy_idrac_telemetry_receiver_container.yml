@@ -58,6 +58,17 @@
 - name: Deploy iDRAC Telemtery Receiver container and check deployment status
   when: idrac_receiver_container_info.containers | length == 0 or idrac_receiver_container_info.containers[0].State.Status != 'running'
   block:
+    - name: Create Podman bind-mounted volumes for idrac_telemetry_receiver
+      containers.podman.podman_volume:
+        name: "{{ item.name }}"
+        state: present
+        driver: local
+        options:
+          - "o=bind"
+          - "type=none"
+          - "device={{ item.path }}"
+      loop: "{{ mysqldb_podman_volumes }}"
+
     - name: Deploy the iDRAC telemetry receiver container
       containers.podman.podman_container:
         name: "{{ idrac_telemetry_receiver_container_name }}"
@@ -76,7 +87,7 @@
         entrypoint: "{{ idrac_telemetry_receiver_entry_script }}"
         log_driver: "json-file"
         log_opt:
-          path: "{{ idrac_telemetry_receiver_logs_dir }}/idrac_telemetry_receiver.log"
+          path: "{{ idrac_telemetry_receiver_log_dir }}/idrac_telemetry_receiver.log"
 
     - name: Check if iDRAC Telemtery Receiver container is running after deployment
       containers.podman.podman_container_info:

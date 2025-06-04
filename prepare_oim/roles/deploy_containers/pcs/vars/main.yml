@@ -216,6 +216,8 @@ activemq_run_opts: >-
 # idrac_telemetry_receiver
 idrac_telemetry_receiver_run_opts: >-
   --network=host
+  --log-driver=json-file
+  --log-opt path={{ idrac_telemetry_receiver_log_dir }}/idrac_telemetry_receiver.log
   --secret {{ mysql_user }},type=env,target=MYSQL_USER
   --secret {{ mysql_user_password }},type=env,target=MYSQL_PASSWORD
   {% for volume in idrac_telemetry_receiver_volumes %}
@@ -246,6 +248,8 @@ prometheus_pump_run_opts: >-
 # prometheus
 prometheus_run_opts: >-
   --network=host
+  --log-driver=json-file
+  --log-opt path={{ prometheus_log_dir }}/prometheus.log
   {% for key, value in prometheus_env.items() %}
   --env {{ key }}={{ value }}
   {% endfor %}

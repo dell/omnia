@@ -30,7 +30,7 @@
         state: directory
         mode: "{{ dir_permissions_755 }}"
       loop:
-        - "{{ grafana_logs_dir }}"
+        - "{{ grafana_log_dir }}"
         - "{{ grafana_dashboard_dir }}"
         - "{{ grafana_data_dir }}"
 

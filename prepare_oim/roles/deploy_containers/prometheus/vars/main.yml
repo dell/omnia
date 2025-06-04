@@ -13,23 +13,24 @@
 #  limitations under the License.
 
 omnia_nfs_share: "{{ oim_shared_path }}/omnia"
-dir_mode: "0755"
+dir_permissions_755: "0755"
 file_mode: "0644"
-telemetry_dir_path: "{{ omnia_nfs_share }}/telemetry"
 max_retries: 10
 delay_count: 5
+telemetry_data_dir: "{{ omnia_nfs_share }}/telemetry"
+telemetry_log_dir: "{{ omnia_nfs_share }}/log/telemetry"
 
 # Usage: deploy_prometheus_pump_container.yml
-prometheus_pump_logs_dir: "{{ omnia_nfs_share }}/log/telemetry/prometheus_pump"
-prometheus_pump_dir: "{{ telemetry_dir_path }}/prometheus_pump"
+prometheus_pump_log_dir: "{{ telemetry_log_dir }}/prometheus_pump"
+prometheus_pump_dir: "{{ telemetry_data_dir }}/prometheus_pump"
 prometheus_pump_init_script:
  - template: "{{ role_path }}/templates/prometheus_pump_init.sh.j2"
    dest: "{{ prometheus_pump_dir }}/prometheus_pump.sh"
-   mode: "{{ dir_mode }}"
+   mode: "{{ dir_permissions_755 }}"
 prometheus_pump_entry_script: "/opt/omnia/telemetry/prometheus_pump/prometheus_pump.sh"
 prometheus_pump_directories:
- - { path: "{{ prometheus_pump_logs_dir }}", mode: "0755" }
- - { path: "{{ prometheus_pump_dir }}", mode: "0755" }
+ - { path: "{{ prometheus_pump_log_dir }}", mode: "{{ dir_permissions_755}}" }
+ - { path: "{{ prometheus_pump_dir }}", mode: "{{ dir_permissions_755}}" }
 idrac_telemetry_receiver_dir_path: "{{ omnia_nfs_share }}/telemetry/idrac_telemetry/idrac_telemetry_receiver"
 idrac_telemetry_reference_path: "{{ idrac_telemetry_receiver_dir_path }}/iDRAC-Telemetry-Reference-Tools"
 prometheus_pump_volumes:
@@ -49,13 +50,13 @@ prometheus_pump_container_failure_msg: |
   After cleanup, re-run the prepare_oim.yml playbook to successfully deploy the {{ prometheus_pump_container_name }} container.
 
 # Usage: deploy_prometheus_container.yml
-prometheus_logs_dir: "{{ omnia_nfs_share }}/log/telemetry/prometheus"
-prometheus_data_dir: "{{ telemetry_dir_path }}/prometheus/prometheus_data"
-prometheus_dir: "{{ telemetry_dir_path }}/prometheus"
+prometheus_log_dir: "{{ telemetry_log_dir }}/prometheus"
+prometheus_dir: "{{ telemetry_data_dir }}/prometheus"
+prometheus_data_dir: "{{ prometheus_dir }}/prometheus_data"
 proemetheus_yml_temp_src: "{{ role_path }}/templates/prometheus_yml.j2"
 prometheus_podman_volumes:
  - { name: "prometheus_data", path: "{{ prometheus_data_dir }}" }
- - { name: "prometheus_log", path: "{{ prometheus_logs_dir }}" }
+ - { name: "prometheus_log", path: "{{ prometheus_log_dir }}" }
 prometheus_container_name: "prometheus"
 prometheus_image: "docker.io/prom/prometheus:v2.36.0"
 prometheus_volumes:

@@ -22,12 +22,12 @@ grafana_image: "docker.io/grafana/grafana"
 grafana_image_tag: "9.2.2"
 grafana_container_name: "grafana"
 dir_permissions_755: "0755"
-grafana_logs_dir: "{{ omnia_nfs_share }}/log/telemetry/grafana"
+grafana_log_dir: "{{ omnia_nfs_share }}/log/telemetry/grafana"
 grafana_data_dir: "{{ omnia_nfs_share }}/telemetry/grafana/data"
 grafana_dashboard_dir: "{{ omnia_nfs_share }}/telemetry/grafana/dashboards"
 grafana_podman_volumes:
   - { name: "grafana_data", path: "{{ grafana_data_dir }}" }
-  - { name: "grafana_log", path: "{{ grafana_logs_dir }}" }
+  - { name: "grafana_log", path: "{{ grafana_log_dir }}" }
 grafana_volumes:
   - "grafana_data:/var/lib/grafana{{ selinux_option }}"
   - "grafana_log:/var/log/grafana{{ selinux_option }}"

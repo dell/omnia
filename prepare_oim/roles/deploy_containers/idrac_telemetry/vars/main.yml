@@ -13,11 +13,14 @@
 # limitations under the License.
 ---
 
-# Usage: deploy_mysql_container.yml
 omnia_nfs_share: "{{ oim_shared_path }}/omnia"
-idrac_telemetry_dir: "{{ omnia_nfs_share }}/telemetry/idrac_telemetry" # For idrac_telemetry
+telemetry_data_dir: "{{ omnia_nfs_share }}/telemetry"
+telemetry_log_dir: "{{ omnia_nfs_share }}/log/telemetry"
+idrac_telemetry_dir: "{{ telemetry_data_dir }}/idrac_telemetry"
 dir_permissions_755: "0755"
 root_read_write: "0644"
+
+# Usage: deploy_mysql_container.yml
 mysql_docker_image: "docker.io/library/mysql"
 mysql_container_name: "mysqldb"
 mysql_image_tag: "8.0"
@@ -36,20 +39,19 @@ mysql_image_not_found_msg: |
   MySQL image {{ mysql_container_name }}:{{ mysql_image_tag }} not found.
   Please check if image is available and re-run the playbook.
 mysql_data_dir: "{{ idrac_telemetry_dir }}/mysqldb"
-mysql_log_volume: "{{ omnia_nfs_share }}/log/telemetry/mysqldb"
+mysql_log_dir: "{{ telemetry_log_dir }}/mysqldb"
 mysqldb_podman_volumes:
   - { name: "mysqldb_data", path: "{{ mysql_data_dir }}" }
-  - { name: "mysqldb_log", path: "{{ mysql_log_volume }}" }
+  - { name: "mysqldb_log", path: "{{ mysql_log_dir }}" }
 mysql_port: 3306
 mysql_root_password: "mysql_root_password"
 mysql_user_password: "mysql_user_password"
 mysql_user: "mysql_user"
-# container_secret_path: "/run/secrets/"
 mysql_secrets:
   - { name: "{{ mysql_root_password }}", value: "{{ hostvars['localhost']['mysqldb_root_password'] }}" }
   - { name: "{{ mysql_user_password }}", value: "{{ hostvars['localhost']['mysqldb_password'] }}" }
   - { name: "{{ mysql_user }}", value: "{{ hostvars['localhost']['mysqldb_user'] }}" }
-bin_sh: "/bin/sh"
+# bin_sh: "/bin/sh"
 mysql_entry_script: "/usr/local/bin/mysqldb_init.sh"
 mysqldb_init_script:
   - {template: "mysqldb_init.sh.j2", dest: "{{ idrac_telemetry_dir }}/mysqldb_init.sh", mode: "{{ dir_permissions_755 }}" }
@@ -72,16 +74,16 @@ mysql_database_create_failure_msg: |
   The creation of the MySQL database {{ mysql_database }} has failed.
 
 # Usage: deploy_activemq_container.yml
-activemq_logs_dir: "{{ omnia_nfs_share }}/log/telemetry/activemq"
+activemq_log_dir: "{{ telemetry_log_dir }}/activemq"
 activemq_dir: "{{ idrac_telemetry_dir }}/activemq"
 activemq_directories:
-  - { path: "{{ activemq_logs_dir }}", mode: "{{ dir_permissions_755 }}" }
+  - { path: "{{ activemq_log_dir }}", mode: "{{ dir_permissions_755 }}" }
   - { path: "{{ activemq_dir }}", mode: "{{ dir_permissions_755 }}" }
 activemq_container_name: "activemq"
 activemq_image: "docker.io/rmohr/activemq:5.14.3"
 wait_time: 10
 activemq_podman_volumes:
-  - { name: "activemq_log", path: "{{ activemq_logs_dir }}" }
+  - { name: "activemq_log", path: "{{ activemq_log_dir }}" }
 activemq_volumes:
   - "activemq_log:/opt/activemq/data/{{ selinux_option }}"
 activemq_container_success_msg: "The {{ activemq_container_name }} container has been successfully deployed."
@@ -92,7 +94,7 @@ activemq_container_failure_msg: |
   After cleanup, re-run the prepare_oim.yml playbook to successfully deploy the {{ activemq_container_name }} container.
 
 # Usage: deploy_idrac_telemetry_receiver_container.yml
-idrac_telemetry_receiver_logs_dir: "{{ omnia_nfs_share }}/log/telemetry/idrac_telemetry_receiver"
+idrac_telemetry_receiver_log_dir: "{{ telemetry_log_dir }}/idrac_telemetry_receiver"
 idrac_telemetry_receiver_dir_path: "{{ idrac_telemetry_dir }}/idrac_telemetry_receiver"
 idrac_telemetry_github: https://github.com/dell/iDRAC-Telemetry-Reference-Tools.git
 idrac_telemetry_reference_git_clone_path: "/opt/omnia/telemetry/idrac_telemetry/idrac_telemetry_receiver/iDRAC-Telemetry-Reference-Tools"
@@ -105,7 +107,7 @@ idrac_git_clone_error_msg: |
   to {{ idrac_telemetry_reference_path }}.
   Failure: {{ clone_idrac_telemetry.stderr | default(clone_idrac_telemetry.msg, true) | default('Unknown error', true) }}
 idrac_telemetry_receiver_directories:
-  - { path: "{{ idrac_telemetry_receiver_logs_dir }}", mode: "{{ dir_permissions_755 }}" }
+  - { path: "{{ idrac_telemetry_receiver_log_dir }}", mode: "{{ dir_permissions_755 }}" }
   - { path: "{{ idrac_telemetry_receiver_dir_path }}", mode: "{{ dir_permissions_755 }}" }
   - { path: "{{ idrac_telemetry_reference_path }}", mode: "{{ dir_permissions_755 }}" }
 idrac_telemetry_receiver_container_name: "idrac_telemetry_receiver"
@@ -115,9 +117,12 @@ idrac_telemetry_receiver_init_script:
   - template: "idrac_telemetry_receiver_init.sh.j2"
     dest: "{{ idrac_telemetry_dir }}/idrac_telemetry_receiver_init.sh"
     mode: "{{ dir_permissions_755 }}"
+idrac_telemetry_receiver_podman_volumes:
+  - { name: "idrac_telemetry_receiver_log", path: "{{ idrac_telemetry_receiver_log_dir }}" }
 idrac_telemetry_receiver_volumes:
   - "{{ idrac_telemetry_reference_path }}:/go/src/github.com/telemetry-reference-tools{{ selinux_option }}"
   - "{{ idrac_telemetry_dir }}/idrac_telemetry_receiver_init.sh:{{ idrac_telemetry_receiver_entry_script }}{{ selinux_option }}"
+  - "idrac_telemetry_receiver_log:/idrac_telemetry_receiver/log{{ selinux_option }}"
 idrac_telemetry_receiver_env:
   MESSAGEBUS_HOST: "127.0.0.1"
   MESSAGEBUS_PORT: "61613"
