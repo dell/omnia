@@ -13,14 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Create directories and render configuration files for HA nodes
-  telemetry_pcs_template:
-    service_nodes_metadata: "{{ hostvars['localhost']['service_nodes_metadata'] }}"
-    service_node_base_dir: "{{ service_node_base_dir }}"
-    file_permissions: "{{ file_permissions }}"
-    oim_shared_path: "{{ oim_shared_path }}"
-    vars_file: "{{ role_path }}/vars/main.yml"
-    tmpl_telemetry: "{{ role_path }}/templates/pcs_telemetry.sh.j2"
-    telemetry_vars_file: "{{ hostvars['localhost']['input_project_dir'] }}/telemetry_config.yml"
-  delegate_to: localhost
-  connection: local
+- name: Run the updated PCS resource script to create all container resources
+  containers.podman.podman_container_exec:
+    name: "{{ pcs_container_name }}"
+    command: "/bin/bash {{ pcs_telemetry_resource_script_path }}"

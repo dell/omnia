@@ -24,7 +24,7 @@ import shutil
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.discovery.standard_functions import (
     create_directory,
-    render_template,
+    render_template_multi_pass,
     load_vars_file
 )
 
@@ -106,7 +106,7 @@ def main():
         telemetry_dir = os.path.join(service_dir, 'telemetry')
         idrac_telemetry_dir = os.path.join(telemetry_dir, 'idrac_telemetry')
         activemq_dir = os.path.join(idrac_telemetry_dir, 'activemq')
-        mysql_dir = os.path.join(idrac_telemetry_dir, 'mysql')
+        mysql_dir = os.path.join(idrac_telemetry_dir, 'mysqldb')
         idrac_telemetry_receiver_dir = os.path.join(idrac_telemetry_dir, 'idrac_telemetry_receiver')
         prometheus_dir = os.path.join(telemetry_dir, 'prometheus')
         prometheus_pump_dir = os.path.join(telemetry_dir, 'prometheus_pump')
@@ -114,7 +114,7 @@ def main():
         log_dir = os.path.join(service_dir, 'log')
         telemetry_log_dir = os.path.join(log_dir, 'telemetry')
         activemq_log = os.path.join(telemetry_log_dir, 'activemq')
-        mysql_log = os.path.join(telemetry_log_dir, 'mysql')
+        mysql_log = os.path.join(telemetry_log_dir, 'mysqldb')
         idrac_telemetry_receiver_log = os.path.join(telemetry_log_dir, 'idrac_telemetry_receiver')
         prometheus_log = os.path.join(telemetry_log_dir, 'prometheus')
         prometheus_pump_log = os.path.join(telemetry_log_dir, 'prometheus_pump')
@@ -140,7 +140,7 @@ def main():
         }
 
         # Render the telemetry templates
-        render_template(tmpl_telemetry, pcs_telemetry_script_path, context)
+        render_template_multi_pass(tmpl_telemetry, pcs_telemetry_script_path, context, passes=5)
 
         os.chmod(pcs_telemetry_script_path, file_mode)
 

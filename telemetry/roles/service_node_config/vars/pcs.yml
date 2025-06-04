@@ -1,0 +1,132 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: pcs_deployment.yml
+omnia_nfs_share: "{{ oim_shared_path }}/omnia"
+telemetry_data_dir: "{{ omnia_nfs_share }}/service_nodes/{{ service_tag }}/telemetry"
+telemetry_log_dir: "{{ omnia_nfs_share }}/service_nodes/{{ service_tag }}/log/telemetry"
+oim_telemetry_dir_path: "{{ omnia_nfs_share }}/telemetry"
+oim_idrac_telemetry_dir: "{{ oim_telemetry_dir_path }}/idrac_telemetry"
+telemetry_pcs_group: "omnia_telemetry"
+monitor_interval: "30s"
+monitor_timeout: "60s"
+start_interval: "0s"
+start_timeout: "20s"
+stop_interval: "0s"
+stop_timeout: "60s"
+
+####################################
+# MySQL Container Configuration
+####################################
+mysql_root_password: "mysql_root_password"
+mysql_user_password: "mysql_user_password"
+mysql_user: "mysql_user"
+mysql_docker_image: "docker.io/library/mysql:8.0"
+mysql_container_name: "mysqldb"
+mysql_database: "idrac_telemetrydb"
+mysql_port: 3306
+mysql_entry_script: "/usr/local/bin/mysqldb_init.sh"
+
+mysql_run_opts: >-
+  --restart=no
+  --network=host
+  --secret {{ mysql_root_password }},type=env,target=MYSQL_ROOT_PASSWORD
+  --secret {{ mysql_user }},type=env,target=MYSQL_USER
+  --secret {{ mysql_user_password }},type=env,target=MYSQL_PASSWORD
+  --env MYSQL_DATABASE={{ mysql_database }}
+  --volume mysqldb_data:/var/lib/mysql
+  --volume mysqldb_log:/var/log/mysql
+  --volume {{ oim_idrac_telemetry_dir }}/mysqldb_init.sh:{{ mysql_entry_script }}
+  --entrypoint {{ mysql_entry_script }}
+  --detach
+
+####################################
+# ActiveMQ Container Configuration
+####################################
+activemq_container_name: "activemq"
+activemq_image: "docker.io/rmohr/activemq:5.14.3"
+activemq_run_opts: >-
+  --network=host
+  --volume activemq_log:/opt/activemq/data
+  --detach
+  --name {{ activemq_container_name }}
+
+####################################
+# iDRAC Telemetry Receiver Container
+####################################
+idrac_telemetry_receiver_container_name: "idrac_telemetry_receiver"
+idrac_telemetry_receiver_go_image: "docker.io/library/golang:1.17"
+oim_idrac_telemetry_receiver_dir_path: "{{ oim_idrac_telemetry_dir }}/idrac_telemetry_receiver"
+oim_idrac_telemetry_reference_path: "{{ idrac_telemetry_receiver_dir_path }}/iDRAC-Telemetry-Reference-Tools"
+idrac_telemetry_receiver_entry_script: "/usr/local/bin/idrac_telemetry_receiver_init.sh"
+
+idrac_telemetry_receiver_run_opts: >-
+  --network=host
+  --secret {{ mysql_user }},type=env,target=MYSQL_USER
+  --secret {{ mysql_user_password }},type=env,target=MYSQL_PASSWORD
+  --volume {{ oim_idrac_telemetry_reference_path }}:/go/src/github.com/telemetry-reference-tools
+  --volume {{ oim_idrac_telemetry_dir }}/idrac_telemetry_receiver_init.sh:{{ idrac_telemetry_receiver_entry_script }}
+  --workdir=/go/src/github.com/telemetry-reference-tools
+  --env MESSAGEBUS_HOST="127.0.0.1"
+  --env MESSAGEBUS_PORT="61613"
+  --env CONFIGUI_HTTP_PORT="3000"
+  --env MYSQL_DATABASE={{ mysql_database }}
+  --env MYSQL_HOST="127.0.0.1"
+  --env MYSQL_HOST_PORT={{ mysql_port }}
+  --env HTTP_PROXY=""
+  --env HTTPS_PROXY=""
+  --entrypoint {{ idrac_telemetry_receiver_entry_script }}
+  --detach
+
+####################################
+# Prometheus Container
+####################################
+
+prometheus_dir: "{{ telemetry_data_dir }}/prometheus"
+prometheus_container_name: "prometheus"
+prometheus_image: "docker.io/prom/prometheus:v2.43.0"
+prometheus_env:
+  PROMETHEUS_DB: "poweredge_telemetry_metrics"
+  node.name: "127.0.0.1"
+prometheus_run_opts: >-
+  --network=host
+  --env PROMETHEUS_DB="poweredge_telemetry_metrics"
+  --env node.name="127.0.0.1"
+  --volume {{ prometheus_dir }}/prometheus.yml:/config/prometheus.yml
+  --volume prometheus_data:/prometheus
+  --volume prometheus_log:/prometheus/log
+  --detach
+
+####################################
+# Prometheus Pump Container
+####################################
+prometheus_pump_entry_script: "/opt/omnia/telemetry/prometheus_pump/prometheus_pump.sh"
+prometheus_pump_container_name: "prometheus_pump"
+oim_prometheus_pump_dir: "{{ oim_telemetry_dir_path }}/prometheus_pump"
+prometheus_pump_receiver_env:
+  MESSAGEBUS_HOST: "localhost"
+  MESSAGEBUS_PORT: "61613"
+  PROMETHEUSDB_SERVER: "prometheus"
+prometheus_pump_image: "docker.io/library/golang:1.17"
+prometheus_pump_run_opts: >-
+  --network=host
+  --env MESSAGEBUS_HOST="locahost"
+  --env MESSAGEBUS_PORT="61613"
+  --env PROMETHEUSDB_SERVER="prometheus"
+  --volume {{ oim_idrac_telemetry_reference_path }}:/go/src/github.com/telemetry-reference-tools
+  --volume {{ oim_prometheus_pump_dir }}:/opt/omnia/telemetry/prometheus_pump
+  -w /go/src/github.com/telemetry-reference-tools
+  --entrypoint {{ prometheus_pump_entry_script }}
+  --detach

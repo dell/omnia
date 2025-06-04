@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,6 +66,23 @@
 #   ansible.builtin.import_playbook: ../utils/update_user_repo.yml
 #   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
+- name: Configure oim ha node for telemetry
+  hosts: oim_ha_node
+  connection: ssh
+  gather_facts: false
+  roles:
+    - oim_ha_node_config
+
+- name: Render template for telemetry
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Render template for telemetry
+      ansible.builtin.include_role:
+        name: service_node_config
+        tasks_from: render_telemetry_template.yml
+
 - name: Configure service nodes for telemetry
   hosts: sn_admin
   connection: ssh
@@ -73,15 +90,25 @@
   roles:
     - service_node_config
 
-- name: Deployment of telemetry container in service node
-  hosts: sn_active
-  connection: ssh
-  gather_facts: false
-  tasks:
-    - name: Deployment of telemetry container in service node
-      ansible.builtin.include_role:
-        name: service_node_config
-        tasks_from: pcs_deployment.yml
+# - name: Deployment of telemetry container in service node
+#   hosts: sn_active
+#   connection: local
+#   gather_facts: false
+#   tasks:
+#     - name: Deployment of telemetry container in service node
+#       ansible.builtin.include_role:
+#         name: service_node_config
+#         tasks_from: pcs_container_deployment.yml
+
+# - name: Update prometheus configuration in OIM
+#   hosts: oim
+#   connection: ssh
+#   gather_facts: false
+#   tasks:
+#     - name: Render PCS template for telemetry
+#       ansible.builtin.include_role:
+#         name: service_node_config
+#         tasks_from: prometheus_config_update.yml
 
 - name: Enable idrac telemetry in OIM
   hosts: localhost

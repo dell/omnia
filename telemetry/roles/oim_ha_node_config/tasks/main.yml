@@ -1,0 +1,49 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Service node configuration
+  when:
+    - hostvars['localhost']['idrac_telemetry_support']
+  block:
+    - name: Set service_node_config role role_path
+      ansible.builtin.set_fact:
+        service_node_config_role_path: "{{ role_path }}/../service_node_config/tasks"
+
+    - name: Include tasks for podman secrets
+      ansible.builtin.include_tasks: "{{ service_node_config_role_path }}/create_podman_secrets.yml"
+
+    - name: Include tasks for podman volume - mysql
+      ansible.builtin.include_tasks: "{{ service_node_config_role_path }}/create_podman_volume.yml"
+      vars:
+        podman_volume_name: "{{ mysqldb_podman_volumes }}"
+
+    - name: Include tasks for podman volume - activemq
+      ansible.builtin.include_tasks: "{{ service_node_config_role_path }}/create_podman_volume.yml"
+      vars:
+        podman_volume_name: "{{ activemq_podman_volumes }}"
+
+    - name: Include tasks for podman volume - idrac_telemetry_receiver
+      ansible.builtin.include_tasks: "{{ service_node_config_role_path }}/create_podman_volume.yml"
+      vars:
+        podman_volume_name: "{{ idrac_telemetry_receiver_podman_volumes }}"
+
+    - name: Include tasks for podman volume - prometheus
+      ansible.builtin.include_tasks: "{{ service_node_config_role_path }}/create_podman_volume.yml"
+      when: hostvars['localhost']['idrac_telemetry_collection_type'] == "prometheus"
+      vars:
+        podman_volume_name: "{{ prometheus_podman_volumes }}"
+
+    - name: Include tasks for podman images
+      ansible.builtin.include_tasks: "{{ service_node_config_role_path }}/pull_podman_images.yml"
