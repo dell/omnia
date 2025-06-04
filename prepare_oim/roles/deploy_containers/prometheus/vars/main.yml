@@ -29,8 +29,8 @@ prometheus_pump_init_script:
    mode: "{{ dir_permissions_755 }}"
 prometheus_pump_entry_script: "/opt/omnia/telemetry/prometheus_pump/prometheus_pump.sh"
 prometheus_pump_directories:
- - { path: "{{ prometheus_pump_log_dir }}", mode: "{{ dir_permissions_755}}" }
- - { path: "{{ prometheus_pump_dir }}", mode: "{{ dir_permissions_755}}" }
+ - { path: "{{ prometheus_pump_log_dir }}", mode: "{{ dir_permissions_755 }}" }
+ - { path: "{{ prometheus_pump_dir }}", mode: "{{ dir_permissions_755 }}" }
 idrac_telemetry_receiver_dir_path: "{{ omnia_nfs_share }}/telemetry/idrac_telemetry/idrac_telemetry_receiver"
 idrac_telemetry_reference_path: "{{ idrac_telemetry_receiver_dir_path }}/iDRAC-Telemetry-Reference-Tools"
 prometheus_pump_volumes:
