@@ -88,6 +88,7 @@
     - role: deploy_containers/provision  # noqa:role-name[path]
     - role: deploy_containers/pulp  # noqa:role-name[path]
     - role: deploy_containers/kubespray  # noqa:role-name[path]
+    - role: deploy_containers/squid
 
 - name: Add all containers to known hosts on omnia core
   hosts: localhost

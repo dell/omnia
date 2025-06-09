@@ -25,6 +25,16 @@
       ansible.builtin.fail:
         msg: "{{ server_spec_syntax_fail_msg }} Error: {{ include_server_spec.message }}"
 
+- name: Prepare filtered hostvars without excluded hosts
+  ansible.builtin.set_fact:
+    filtered_hostvars: >-
+      {{
+        hostvars
+        | dict2items
+        | rejectattr('key', 'in', ['localhost','oim','omnia_provision','service_nodes'])
+        | items2dict
+      }}
+
 - name: Parse server_spec data for categories
   ansible.builtin.set_fact:
     category_list: "{{ category_list | default([]) + [item.key] }}"
@@ -32,15 +42,13 @@
 
 - name: Validate inventory file
   block:
-    - name: Validate the inventory file
-      ansible.builtin.command: |
-        {{ python_version }} {{ validate_inventory_py }} {{ inventory_status | default(false) }}
-      register: script_output
-      changed_when: false
-      environment:
-        host_data: "{{ hostvars | to_json }}"
+    - name: Validate using custom module
+      validate_server_spec_inventory:
+        inventory_status: "{{ inventory_status | default(false) | string | upper }}"
+        host_data: "{{ filtered_hostvars }}"
         category_list: "{{ category_list }}"
+      register: script_output
   rescue:
     - name: Failed to validate inventory file
       ansible.builtin.fail:
-        msg: "{{ inventory_fail_msg }} Error: {{ script_output.stderr }}"
+        msg: "{{ inventory_fail_msg }} Error: {{ script_output.msg }}"

@@ -73,7 +73,6 @@
     groups_roles_info: "{{ groups_roles_info }}"
     service_node_ha_data: "{{ service_node_ha_data }}"
   register: hierarchical_output
-  when: '"management_layer" not in ansible_run_tags'
 
 - name: Set fact for service_node role required and other facts
   ansible.builtin.set_fact:
@@ -95,3 +94,12 @@
     msg: "{{ groups_roles_info }}"
     verbosity: 2
   when: bmc_static_status or switch_status
+
+- name: Warn if hierarchical_provision_status is false and service_node role present in roles_groups_data
+  ansible.builtin.pause:
+    prompt: "{{ hierarchical_provision_warning_msg }}"
+    seconds: "{{ warning_wait_time_10s }}"
+  when:
+    - "'management_layer' not in ansible_run_tags"
+    - not hierarchical_provision_status
+    - "'service_node' in roles_data"

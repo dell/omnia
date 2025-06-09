@@ -26,6 +26,7 @@ hosts_update_fail_msg: "Failed to update hosts file with node details.
 Remove unreachable IP addresses from kube_node or etcd group of inventory and re-run the playbook."
 
 # Usage: prereq.yml
+python_package_name: "{{ hostvars['localhost']['python_package'] }}"
 pip_packages:
   - name: kubernetes
     version: 32.0.1

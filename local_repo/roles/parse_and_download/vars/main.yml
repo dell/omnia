@@ -89,9 +89,8 @@ local_repo_py_module_vars:
     timeout: 7200
     nthreads: 6
 
+sw_download_msg: "The specified software packages have already been downloaded."
 # Usage create_metadata.yml
 meta_dest: "{{ nfs_shared_path }}/offline_repo/.data"
-meta_dest_mode: '0755'
 metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
-metadata_file_mode: '0644'
-pulp_repo_path: "/etc/yum.repos.d/pulp.repo"
+metadata_warn_msg: "Warning: Metadata has changed since the last run! execution may fail if there is no internet on OIM , still you want to continue..."

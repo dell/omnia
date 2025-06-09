@@ -13,19 +13,23 @@
 #  limitations under the License.
 ---
 
-- name: Install python3.11
+- name: Install "{{ python_package_name }}"
   ansible.builtin.package:
-    name: python3.11
+    name: "{{ python_package_name }}"
     state: present
 
-- name: Ensure pip is available for Python 3.11 using ensurepip
-  ansible.builtin.command: python3.11 -m ensurepip
+- name: Ensure pip is available using ensurepip for "{{ python_package_name }}"
+  ansible.builtin.command: "{{ python_package_name }} -m ensurepip"
   changed_when: false
+
+- name: Extract python version from python package name
+  ansible.builtin.set_fact:
+    python_version: "{{ python_package_name | regex_search('([0-9]+\\.[0-9]+)') }}"
 
 - name: Install pip packages from offline repo
   ansible.builtin.pip:
     name: "{{ item.name }}=={{ item.version }}"
-    executable: /usr/local/bin/pip3.11
+    executable: "/usr/local/bin/pip{{ python_version }}"
     extra_args: >
       --find-links={{ hostvars['localhost']['offline_pip_module_path'] }}/{{ item.name }}=={{ item.version }}/
       --trusted-host={{ hostvars['localhost']['pulp_server_ip'] }}

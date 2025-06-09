@@ -21,30 +21,53 @@
     - name: Run pre requesties
       ansible.builtin.include_tasks: prereq.yml
 
+    - name: Evaluate the track file
+      ansible.builtin.include_tasks: track_file.yml
+
+    - name: Check the status of k8s nodes and pods before deploying plugins
+      ansible.builtin.include_tasks: pod_status.yml
+      vars:
+        track_module_name: "k8s_deployment"
+      when: deployment_status.get('k8s_deployment', '') != 'success'
+
     - name: Deploy Kubernetes Dashboard Plugin
       ansible.builtin.include_tasks: deploy_kubernetes_dashboard.yml
-      when: common_plugin['kubernetes_dashboard']
+      when:
+        - common_plugin['kubernetes_dashboard']
+        - deployment_status.get('kubernetes_dashboard', '') != 'success'
 
     - name: Deploy habana device plugin
       ansible.builtin.include_tasks: deploy_habana_device_plugin.yml
-      when: common_plugin['habanalabs-device-plugin']
+      when:
+        - common_plugin['habanalabs-device-plugin']
+        - deployment_status.get('habanalabs-device-plugin', '') != 'success'
 
     - name: Deploy mpi operator
       ansible.builtin.include_tasks: deploy_mpi_operator.yml
-      when: common_plugin['mpi-operator']
+      when:
+        - common_plugin['mpi-operator']
+        - deployment_status.get('mpi-operator', '') != 'success'
 
     - name: Deploy xilinx device plugin
       ansible.builtin.include_tasks: deploy_xilinx_device_plugin.yml
-      when: common_plugin['xilinx-device-plugin']
+      when:
+        - common_plugin['xilinx-device-plugin']
+        - deployment_status.get('xilinx-device-plugin', '') != 'success'
 
     - name: Deploy nfs client provisioner
       ansible.builtin.include_tasks: deploy_nfs_client_provisioner.yml
-      when: common_plugin['nfs-subdir-external-provisioner']
+      when:
+        - common_plugin['nfs-subdir-external-provisioner']
+        - deployment_status.get('nfs-subdir-external-provisioner', '') != 'success'
 
     - name: Deploy multus device plugin
       ansible.builtin.include_tasks: deploy_multus_device_plugin.yml
-      when: common_plugin['multus-device-plugin']
+      when:
+        - common_plugin['multus-device-plugin']
+        - deployment_status.get('multus-device-plugin', '') != 'success'
 
     - name: Deploy whereabouts device plugin
       ansible.builtin.include_tasks: deploy_whereabouts_device_plugin.yml
-      when: common_plugin['whereabouts-device-plugin']
+      when:
+        - common_plugin['whereabouts-device-plugin']
+        - deployment_status.get('whereabouts-device-plugin', '') != 'success'

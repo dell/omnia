@@ -30,19 +30,6 @@
   ansible.builtin.command: "kubectl apply -f {{ wherabout_crds_folder }}"
   changed_when: true
 
-# - name: Deploy whereabouts CRDs
-#   kubernetes.core.k8s:
-#     state: present
-#     src: "{{ item }}"
-#   loop: "{{ lookup('ansible.builtin.fileglob', wherabout_crds_folder ~ '/*.yaml', wantlist=True) }}"
-#   changed_when: true
-
-# - name: Deploy whereabouts crds
-#   kubernetes.core.k8s:
-#     state: present
-#     src: "{{ wherabout_crds_folder }}"
-#   changed_when: true
-
 - name: Update imagePullPolicy
   ansible.builtin.command: >
     kubectl patch daemonset whereabouts -n kube-system --type='json'

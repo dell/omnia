@@ -1,0 +1,7 @@
+{
+    "amd_benchmarks": {
+        "cluster": [
+            {"package": "gcc-gfortran", "type": "rpm", "repo_name": "appstream"}
+        ]
+    }
+}

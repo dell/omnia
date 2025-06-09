@@ -67,6 +67,13 @@ topology_manager_policy: "none"
 # Default value assigned is "container".
 topology_manager_scope: "container"
 
+# Kubernetes Offline Install
+# If set to true, all packages/images will be pulled from OIM local repo.
+# If set to false, all packages/images will be pulled from source via internet.
+# It can either be true or false
+# Default value is true, means packages/images will be pulled from OIM local repo
+k8s_offline_install: true
+
 # ----------------------------VERIFY INTEL GAUDI INSTALLATION------------------------------------------------------
 
 # It's recommended to do extensive tests hl_qual and hccl when installing a new Gaudi node. This takes around 20mins.
@@ -86,10 +93,3 @@ csi_powerscale_driver_secret_file_path: ""
 # User need to download values.yaml file and fill required data in values.yaml file. Provided the path of the values.yaml file here.
 # mention configurable values
 csi_powerscale_driver_values_file_path: ""
-
-# Kubernetes Offline Install
-# If set to true, all packages/images will be pulled from OIM local repo.
-# If set to false, all packages/images will be pulled from source via internet.
-# It can either be true or false
-# Default value is true, means packages/images will be pulled from OIM local repo
-k8s_offline_install: true

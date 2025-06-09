@@ -33,6 +33,25 @@ pcs property set stonith-enabled=false
 pcs property set no-quorum-policy=ignore
 
 pcs resource group add {{ pcs_group }}
+pcs resource group add {{ vip_group }}
+pcs constraint colocation add {{ vip_group }} with {{ pcs_group }} INFINITY
+
+pcs resource defaults update migration-threshold={{ migration_threshold }}
+pcs resource defaults update failure-timeout={{ failure_timeout }}
+
+{% if hostvars['localhost']['enable_oim_ha'] %}
+pcs resource create admin_VIP ocf:heartbeat:IPaddr2 \
+        ip={{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.admin_virtual_ip_address }} cidr_netmask={{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} \
+        op monitor interval={{ monitor_interval }} --group {{ vip_group }}
+
+{% if hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.bmc_virtual_ip_address is defined %}
+pcs resource create bmc_VIP ocf:heartbeat:IPaddr2 \
+        ip={{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.bmc_virtual_ip_address }} cidr_netmask={{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} \
+        op monitor interval={{ monitor_interval }} --group {{ vip_group }}
+{% endif %}
+
+pcs resource defaults update migration-threshold={{ ha_migration_threshold }}
+{% endif %}
 
 pcs resource create {{ omnia_core_name }} ocf:heartbeat:podman \
  image={{ omnia_core_image }} \
@@ -72,29 +91,26 @@ pcs resource create {{ kubespray_name }} ocf:heartbeat:podman \
  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }} --group {{ pcs_group }}
 {% endif %}
 
+{% if hostvars['localhost']['enable_routed_internet'] %}
+pcs resource create {{ squid_container_name }} ocf:heartbeat:podman \
+ name={{ squid_container_name }} \
+ image={{ squid_image }} \
+ reuse=true \
+ run_opts="{{ squid_run_opts }}" \
+ op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
+ op start interval={{ start_interval }} timeout={{ start_timeout }} \
+ op stop interval={{ stop_interval }}  timeout={{ stop_timeout }} --group {{ pcs_group }}
+{% endif %}
+
 # Create ordering constraints
-pcs constraint order start {{ omnia_core_name }} then start {{ pulp_container_name }}
-pcs constraint order start {{ omnia_core_name }} then start {{ provision_container_name }}
-{% if hostvars['localhost']['k8s_support'] %}
-pcs constraint order start {{ omnia_core_name }} then start {{ kubespray_name }}
-{% endif %}
-
-pcs resource defaults update migration-threshold={{ migration_threshold }}
-
-{% if hostvars['localhost']['enable_oim_ha'] %}
-pcs resource create admin_VIP ocf:heartbeat:IPaddr2 \
-        ip={{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.admin_virtual_ip_address }} cidr_netmask={{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} \
-        op monitor interval={{ monitor_interval }} --group {{ pcs_group }}
-
-{% if hostvars['localhost']['network_interface_type'] == 'lom' %}
-pcs resource create bmc_VIP ocf:heartbeat:IPaddr2 \
-        ip={{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.bmc_virtual_ip_address }} cidr_netmask={{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} \
-        op monitor interval={{ monitor_interval }} --group {{ pcs_group }}
-{% endif %}
-
-pcs resource defaults update migration-threshold={{ ha_migration_threshold }}
-pcs resource defaults update failure-timeout={{ failure_timeout }}
-{% endif %}
+# commenting as group and contraint does not work together
+# pcs constraint order start {{ omnia_core_name }} then start {{ pulp_container_name }}
+# pcs constraint order start {{ omnia_core_name }} then start {{ provision_container_name }}
+# {% if hostvars['localhost']['k8s_support'] %}
+# {% endif %}
+# {% if hostvars['localhost']['enable_routed_internet'] %}
+# pcs constraint order start {{ omnia_core_name }} then start {{ squid_container_name }}
+# {% endif %}
 
 # Initialize the total sleep time
 total_sleep_time=0

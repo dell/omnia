@@ -61,6 +61,11 @@
         pcs_resources: "{{ pcs_resources + [kubespray_name] }}"
       when: hostvars['localhost']['k8s_support']
 
+    - name: Add squid_name to pcs-resources if enable_routed_internet is true
+      ansible.builtin.set_fact:
+        pcs_resources: "{{ pcs_resources + [squid_name] }}"
+      when: hostvars['localhost']['enable_routed_internet']
+
     - name: Parse PCS resources for any that are not started
       ansible.builtin.shell: |
         set -o pipefail

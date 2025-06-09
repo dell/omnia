@@ -13,25 +13,18 @@
 #  limitations under the License.
 ---
 
-# - name: Run Kubernetes health check module
-#   k8s_health:
-#     retries: 30
-#     delay: 5
-#   register: k8s_status
-#   failed_when: false
-
 - name: Run Kubernetes health check module
   k8s_health:
-    retries: 30
-    delay: 5
+    retries: "{{ retries_count }}"
+    delay: "{{ delay_time }}"
     track_module_name: "{{ track_module_name }}"
-    track_file_path: "/tmp/deployment_track.json"
+    track_file_path: "{{ track_file_path }}"
   register: k8s_status
   failed_when: false
 
 - name: Handle case when Kubernetes is not accessible
   ansible.builtin.debug:
-    msg: "Kubernetes not found or not accessible: {{ k8s_status.msg }}"
+    msg: "{{ k8s_not_accessible_msg }}"
   when: not k8s_status.k8s_accessible
 
 - name: Skip remaining tasks if Kubernetes is inaccessible
@@ -40,7 +33,7 @@
 
 - name: Handle namespace not found
   ansible.builtin.fail:
-    msg: "Namespace error: {{ k8s_status.namespace_error }}"
+    msg: "{{ k8s_namespace_error_msg }}"
   when: k8s_status.namespace_error | length > 0
 
 - name: Display node status table
@@ -53,24 +46,24 @@
 
 - name: Warn if any node is NotReady
   ansible.builtin.debug:
-    msg: "Some nodes are NotReady: {{ k8s_status.not_ready_nodes }}"
+    msg: "{{ k8s_node_not_ready }}"
   when: k8s_status.not_ready_nodes | length > 0
 
 - name: Warn if any pods are not Running or Succeeded
   ansible.builtin.debug:
-    msg: "Some pods failed: {{ k8s_status.failed_pods }}"
+    msg: "{{ k8s_pods_failed_msg }}"
   when: k8s_status.failed_pods | length > 0
 
 - name: Fail if any node or pod is not healthy
   ansible.builtin.fail:
-    msg: "Cluster issues detected."
+    msg: "{{ k8s_cluster_issue_msg }}"
   when: >
     (k8s_status.not_ready_nodes | length > 0) or
     (k8s_status.failed_pods | length > 0)
 
 - name: K8S Status
   ansible.builtin.debug:
-    msg: "All Kubernetes nodes are Ready and all pods are Running or Succeeded."
+    msg: "{{ k8s_status_success_msg }}"
   when: >
     (k8s_status.not_ready_nodes | length == 0) and
     (k8s_status.failed_pods | length == 0)

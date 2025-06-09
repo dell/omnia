@@ -127,13 +127,29 @@ def get_type_dict(clust_list):
     for pkg_dict in clust_list:
         pkgtype = pkg_dict.get('type')
         if pkgtype == 'rpm_list':
+            # Add package_list to RPM_LIST_BASE
             type_dict[RPM_LIST_BASE] = type_dict.get(
-                RPM_LIST_BASE, []) + pkg_dict.get('package_list')
-        else:  # image and rpm
+               RPM_LIST_BASE, []) + pkg_dict.get('package_list')
+
+        elif pkgtype == 'image' and pkg_dict.get('tag') is not None: 
+            # Add package:tag to type_dict
+            type_dict[pkgtype] = type_dict.get(
+                pkgtype, []) + [pkg_dict.get('package') + ":" + pkg_dict.get('tag')]
+
+        elif pkgtype == 'image' and pkg_dict.get('digest') is not None:
+            # Add package@sha256:digest to type_dict
+            type_dict[pkgtype] = type_dict.get(
+                pkgtype, []) + [pkg_dict.get('package') + '@sha256:' + pkg_dict.get('digest')]
+
+        elif pkgtype == 'rpm':  # rpm
+                # Add package to rpm key
             type_dict[pkgtype] = type_dict.get(
                 pkgtype, []) + [pkg_dict.get('package')]
+
+        # Update reboot required values
         reboot_val = pkg_dict.get(REBOOT_KEY, False)
         type_dict[REBOOT_KEY] = type_dict.get(REBOOT_KEY, False) or reboot_val
+
     return type_dict
 
 
@@ -208,7 +224,7 @@ def main():
         addl_soft = module.params.get('software_bundle')
         roles_config = module.params.get('roles_config')
         sw_cfg_data = read_json_file(module.params.get('software_config'), module)
-
+  
     sw_list = [sw_dict.get('name') for sw_dict in sw_cfg_data.get('softwares')]
     if addl_key not in sw_list:
         module.exit_json(

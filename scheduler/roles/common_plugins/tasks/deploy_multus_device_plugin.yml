@@ -26,25 +26,40 @@
   ansible.builtin.set_fact:
     admin_nic_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
 
-- name: Render Multus Deployment Manifest
-  ansible.builtin.template:
-    src: "{{ multus_deployment_template }}"
-    dest: "{{ multus_deployment_manifest }}"
-    mode: "{{ multus_deployment_manifest_mode }}"
+- name: Delete existing Multus deployment manifest file
+  ansible.builtin.file:
+    path: "{{ multus_deployment_manifest }}"
+    state: absent
+
+- name: Deploy multus v4.1.4-thick from renedered template
   when: multus_config
-  delegate_to: localhost
+  block:
+    - name: Render Multus Deployment Manifest
+      ansible.builtin.template:
+        src: "{{ multus_deployment_template }}"
+        dest: "{{ multus_deployment_manifest }}"
+        mode: "{{ multus_deployment_manifest_mode }}"
 
-# - name: Download Multus device plugin manifest
-#   ansible.builtin.get_url:
-#     url: "{{ multus_deployment_manifest_path }}"
-#     dest: "{{ multus_deployment_dest_path }}"
-#     mode: "{{ file_mode }}"
+    - name: Deploy multus device plugin
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ multus_deployment_manifest }}"
+      changed_when: true
 
-- name: Deploy multus device plugin
-  kubernetes.core.k8s:
-    state: present
-    src: "{{ multus_deployment_manifest_path }}"
-  changed_when: true
+- name: Deploy multus from k8s json
+  when: not multus_config
+  block:
+    - name: Download Multus Deployment Manifest
+      ansible.builtin.get_url:
+        url: "{{ multus_deployment_manifest_path }}"
+        dest: "{{ multus_deployment_manifest }}"
+        mode: "{{ file_mode }}"
+
+    - name: Deploy multus device plugin
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ multus_deployment_manifest }}"
+      changed_when: true
 
 - name: Include pod status
   ansible.builtin.include_tasks: pod_status.yml

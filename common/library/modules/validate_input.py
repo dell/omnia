@@ -189,6 +189,12 @@ def main():
                 for name in input_file_inventory[tag_name]:
                     validation_status.update(project_data)
                     fname, _ = os.path.splitext(name)
+                    
+                    # If there's a replacement rule for the current tag_name, apply it
+                    if tag_name in config.tag_file_replacements and fname in config.tag_file_replacements[tag_name]:
+                        fname = config.tag_file_replacements[tag_name][fname]
+
+                    error_message = f"name:  {name}"
                     schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
                     input_file_path = None
 

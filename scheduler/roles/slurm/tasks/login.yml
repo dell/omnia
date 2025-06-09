@@ -32,6 +32,16 @@
     no_extra_spaces: true
     mode: "{{ conf_file_mode }}"
 
+- name: Enable srun port range
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    zone: public
+    state: enabled
+    immediate: true
+  loop:
+    - "{{ slurm_conf_dict['SrunPortRange'] }}"
+
 - name: Login node configless
   when: slurm_installation_type == configless_slurm
   block:
@@ -58,7 +68,6 @@
         immediate: true
       loop:
         - "{{ slurm_conf_dict['SlurmdPort'] }}"
-        - "{{ slurm_conf_dict['SrunPortRange'] }}"
 
     - name: Enable the service
       ansible.builtin.service:

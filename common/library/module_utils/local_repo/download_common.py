@@ -17,14 +17,165 @@ import subprocess
 import shlex
 import tarfile
 import shutil
+import time
 from jinja2 import Template
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.parse_and_download import write_status_to_file,execute_command
+from ansible.module_utils.local_repo.rest_client import RestClient
+from ansible.module_utils.local_repo.common_functions import load_pulp_config
 from ansible.module_utils.local_repo.config import (
-    pulp_file_commands
+    pulp_file_commands,
+    CLI_FILE_PATH,
+    POST_TIMEOUT,
+    ISO_POLL_VAL,
+    TAR_POLL_VAL,
+    FILE_POLL_VAL,
+    FILE_URI
 )
 
- 
+def wait_for_task(task_href, base_url, username, password, logger, timeout=3600, interval=3):
+    """
+    Polls a Pulp task until it reaches a terminal state: completed, failed, or canceled.
+
+    Args:
+        task_href (str): Relative URL to the task
+        base_url (str): Base URL of the Pulp server
+        username (str): Username for basic auth.
+        password (str): Password for basic auth.
+        logger (logging.Logger): Logger instance.
+        timeout (int): Max time to wait in seconds. Default is 3600 (1 hour).
+        interval (int): Polling interval in seconds. Default is 3.
+
+    Returns:
+        bool: True if task completed successfully, False if failed, canceled, or timeout.
+    """
+    rest_client = RestClient(base_url, username, password)
+
+    parsed_base = base_url.rstrip('/')
+    if task_href.startswith(parsed_base):
+        uri = task_href[len(parsed_base):]
+    else:
+        uri = task_href
+
+    start = time.time()
+
+    while (time.time() - start) < timeout:
+        task = rest_client.get(uri)
+        if task is None:
+            logger.error(f"Failed to get task info from {uri}")
+            return False
+
+        state = task.get("state", "unknown")
+        if state == "completed":
+            return True
+        elif state in ("failed", "canceled"):
+            return False
+
+        time.sleep(interval)
+
+    logger.error("Timeout waiting for task to complete")
+    return False
+
+def handle_file_upload(repository_name, relative_path, file_url, poll_interval, logger):
+    """
+    Ensure repository exists, then POST a file to Pulp and wait for the task to complete.
+
+    Args:
+        repository_name (str): Name of the repository.
+        relative_path (str): Relative path for the file in the repository.
+        file_url (str): URL of the file to upload.
+        poll_interval: Polling time
+        logger (logging.Logger): Logger instance.
+
+    Returns:
+        str: "Success" if operation completes successfully, "Failed" otherwise.
+    """
+    # Check if repository exists
+    result = execute_command(pulp_file_commands["show_repository"] % repository_name, logger)
+    if not result:
+        logger.info(f"Repository {repository_name} does not exist. Creating it...")
+        if not execute_command(pulp_file_commands["create_repository"] % repository_name, logger):
+            logger.error(f"Failed to create repository: {repository_name}")
+            return "Failed"
+    else:
+        logger.info(f"Repository {repository_name} already exists.")
+
+    # Fetch repository info with JSON parsing
+    result = execute_command(pulp_file_commands["show_repository"] % repository_name, logger, type_json=True)
+    if not result:
+        logger.error(f"Failed to fetch repository info for: {repository_name}")
+        return "Failed"
+
+    repo_info = result["stdout"]
+    pulp_href = repo_info.get("pulp_href")
+
+    # Load config for authentication and base_url
+    config = load_pulp_config(CLI_FILE_PATH)
+    base_url = config["base_url"]
+
+    # Initialize RestClient
+    client = RestClient(base_url, config["username"], config["password"])
+
+    data = {
+        "file_url": file_url,
+        "relative_path": relative_path,
+        "repository": pulp_href
+    }
+
+    response = client.post(FILE_URI, data)
+
+    if not response:
+        logger.error(f"Failed to POST file to repository {repository_name}.")
+        return "Failed"
+
+    task_href = response.get("task")
+    if not task_href:
+        logger.error("Task href not found in POST response.")
+        return "Failed"
+
+    # Wait for task completion
+    task_result = wait_for_task(task_href, base_url, config["username"], config["password"], logger, timeout=POST_TIMEOUT, interval=poll_interval)
+
+    if task_result:
+        return "Success"
+    else:
+        return "Failed"
+
+def handle_post_request(repository_name, relative_path, base_path, file_url, poll_interval,logger):
+    """
+    Handles the full Pulp upload and distribution process for a given repository and file.
+    Args:
+        repository_name (str): Name of the Pulp repository.
+        relative_path (str): Path where the file should be stored inside the repository.
+        base_path (str): The base path for the distribution.
+        file_url (str): URL of the file to be uploaded.
+        poll_interval: Interval for polling
+        logger (logging.Logger): Logger for logging messages and errors.
+
+    Returns:
+        str: "Success" if the operation completes successfully, "Failed" otherwise.
+    """
+    result = handle_file_upload(repository_name, relative_path, file_url, poll_interval,logger)
+    if result =="Success":
+        distribution_name = repository_name
+        logger.info("Creating publication...")
+        if not execute_command(pulp_file_commands["publication_create"] % (repository_name), logger):
+            logger.error(f"Failed to create publication for repository: {repository_name}")
+            result = "Failed"
+
+        logger.info("Checking distribution...")
+        if not execute_command(pulp_file_commands["show_distribution"] % (distribution_name), logger):
+            logger.info(f"Distribution {distribution_name} does not exist. Creating it...")
+            if not execute_command(pulp_file_commands["distribution_create"] % (distribution_name, base_path, repository_name), logger):
+                logger.error(f"Failed to create distribution: {distribution_name}")
+                result = "Failed"
+        else:
+            logger.info(f"Distribution {distribution_name} already exists. Updating it...")
+            if not execute_command(pulp_file_commands["distribution_update"] % (distribution_name, base_path, repository_name), logger):
+                logger.error(f"Failed to update distribution: {distribution_name}")
+                result = "Failed"
+    return result
+
 def process_file(repository_name, output_file, relative_path, base_path, distribution_name, url, file_path, logger):
     """
     Process a file using Pulp, ensuring it is downloaded and stored in the specified file_path.
@@ -99,8 +250,7 @@ def process_file(repository_name, output_file, relative_path, base_path, distrib
  
     except Exception as e:
         logger.error(f"Error processing file: {e}")
-        return "Failed"
- 
+        return "Failed" 
     finally:
         logger.info("#" * 30 + f" {process_file.__name__} end " + "#" * 30)  # End of function
  
@@ -160,14 +310,12 @@ def process_file_without_download(repository_name, output_file, relative_path, b
             if not execute_command(pulp_file_commands["distribution_update"] % (distribution_name, base_path, repository_name), logger):
                 logger.error(f"Failed to update distribution: {distribution_name}")
                 return "Failed"
- 
         logger.info(f"Processing for file {url} completed successfully!")
         return "Success"
  
     except Exception as e:
         logger.error(f"Error processing file: {e}")
         return "Failed"
- 
     finally:
         logger.info("#" * 30 + f" {process_file_without_download.__name__} end " + "#" * 30)  # End of function
  
@@ -202,7 +350,6 @@ def process_manifest(file,repo_store_path, status_file_path,logger):
  
         # Ensure the manifest directory exists
         manifest_directory = os.path.join(repo_store_path, "offline_repo", "cluster", "manifest", package_name)
-        os.makedirs(manifest_directory, exist_ok=True)
  
         # # Determine the manifest file path
         file_path = os.path.join(manifest_directory, f"{package_name}.yaml")
@@ -211,9 +358,7 @@ def process_manifest(file,repo_store_path, status_file_path,logger):
         output_file =  package_name + ".yml"
         relative_path = output_file
         base_path = manifest_directory.strip("/")
-        distribution_name = repository_name
-        status = "Success"
-        status = process_file(repository_name, output_file, relative_path, base_path, distribution_name, url, file_path, logger)
+        status = handle_post_request(repository_name, relative_path, base_path, url, FILE_POLL_VAL, logger)
     except Exception as e:
         logger.error(f"Error processing manifest: {e}")
         status= "Failed"
@@ -419,8 +564,7 @@ def process_ansible_galaxy_collection(file, repo_store_path, status_file_path, l
             except Exception as e:
                 logger.error(f"Error processing ansible-galaxy-collection: {e}")
                 status = "Failed"
- 
- 
+                
     except subprocess.CalledProcessError as e:
         logger.error(f"Error executing ansible-galaxy commands: {e}")
         status = "Failed"
@@ -434,23 +578,23 @@ def process_ansible_galaxy_collection(file, repo_store_path, status_file_path, l
  
         logger.info("#" * 30 + f" {process_ansible_galaxy_collection.__name__} end " + "#" * 30)  # End of function
         return status
- 
+
 def process_tarball(package, repo_store_path, status_file_path, version_variables, logger):
     """
     Process a tarball package.
- 
+
     Args:
         package (dict): The package information.
         repo_store_path (str): The path to the repository store.
         status_file_path (str): The path to the status file.
         version_variables (dict): The version variables.
         logger (logging.Logger): The logger.
- 
+
     Returns:
         str: The status of the operation.
     """
     logger.info("#" * 30 + f" {process_tarball.__name__} start " + "#" * 30)  # Start of function
- 
+
     path = None
     url = None
     path_support = False
@@ -464,25 +608,24 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
         url = url_template.render(**version_variables)
     if 'path' in package:
         path = package['path']
- 
+
     logger.info(f"Processing Tarball Package: {package_name}, URL: {url}, Path: {path}")
     url = shlex.quote(url).strip("'\"")
- 
+
     if path is not None and len(path) > 1:
         if os.path.isfile(path):
             path_support = True
             url_support = False
- 
+
     # Creating the local path to save the tarball
     tarball_directory = os.path.join(repo_store_path, "offline_repo", 'cluster', 'tarball', package_name)
- 
+
     logger.info(f"Processing tarball to directory: {tarball_directory}")
-    os.makedirs(tarball_directory, exist_ok=True)  # Ensure the directory exists
- 
+
     # Use the package name for the tarball filename
     tarball_path = os.path.join(tarball_directory, f"{package_name}.tar.gz")
     tarball_path = shlex.quote(tarball_path).strip("'\"")
- 
+
     repository_name = "tarball" + package_name
     output_file = package_name + ".tar.gz"
     relative_path = output_file
@@ -490,41 +633,14 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
     distribution_name = repository_name
     # This just makes the request look like a real browser request, preventing some servers from blocking it
     agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36"
- 
+
     if path_support == False and url_support == True:
         try:
             # Using wget to check if the URL exists (returns 0 for success, non-zero for failure)
             subprocess.run(['wget', '-q', '--spider', '--tries=1','--user-agent',agent, url], check=True)
- 
-            # Check if the tarball already exists
-            if os.path.exists(tarball_path):
-                logger.info(f"Tarball Package {package_name} already exists at {tarball_path}")
+            if url:
                 try:
-                    logger.info("Verifying for package download completion")
-                    subprocess.run(['wget', '-c','-O', tarball_path,'--user-agent', agent, url], check=True)
-                    status = "Success"
-                    status = process_file_without_download(repository_name, output_file, relative_path, base_path, distribution_name, package_name, tarball_path, logger)
- 
-                except subprocess.CalledProcessError as e:
-                    logger.error(f"Error executing tarball commands: {e}")
-                    status = "Failed"
-                except Exception as e:
-                    logger.error(f"Error processing tarball: {e}")
-                    status = "Failed"
-                finally:
-                    # Write the status to the file
-                    write_status_to_file(status_file_path, package_name, package_type, status, logger)
-                    logger.info("#" * 30 + f" {process_tarball.__name__} end " + "#" * 30)  # End of function
-                    return status
-            elif url:
-                # Using wget to download the tarball from the URL
-                try:
-                    subprocess.run(['wget', '-O', tarball_path, '--user-agent', agent, url], check=True)
-                    status = "Success"
-                    status = process_file_without_download(repository_name, output_file, relative_path, base_path, distribution_name, package_name, tarball_path, logger)
-                except subprocess.CalledProcessError as e:
-                    logger.error(f"Error executing tarball commands: {e}")
-                    status = "Failed"
+                    status = handle_post_request(repository_name, relative_path, base_path, url, TAR_POLL_VAL,logger)
                 except Exception as e:
                     logger.error(f"Error processing tarball: {e}")
                     status = "Failed"
@@ -554,11 +670,11 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
             write_status_to_file(status_file_path, package_name, package_type, status, logger)
             logger.info("#" * 30 + f" {process_tarball.__name__} end " + "#" * 30)  # End of function
             return status
- 
+            
 def process_iso(package, repo_store_path, status_file_path, cluster_os_type, cluster_os_version, version_variables, logger):
     """
     Process an ISO package.
- 
+
     Args:
         package (dict): A dictionary containing the package information.
         repo_store_path (str): The path to the repository store.
@@ -567,10 +683,10 @@ def process_iso(package, repo_store_path, status_file_path, cluster_os_type, clu
         cluster_os_version (str): The version of the cluster operating system.
         version_variables (dict): A dictionary of version variables.
         logger (logging.Logger): The logger instance.
- 
+
     Returns:
         str: The status of the ISO package processing.
- 
+
     Raises:
         subprocess.CalledProcessError: If an error occurs while executing iso commands.
         Exception: If an error occurs while processing the ISO package.
@@ -583,7 +699,7 @@ def process_iso(package, repo_store_path, status_file_path, cluster_os_type, clu
     package_name = package['package']
     package_type = package['type']
     repository_name = "iso" + package_name
- 
+
     distribution_name = repository_name
     if 'url' in package:
         url_template = Template(package.get('url', None))  # Use Jinja2 Template for URL
@@ -591,20 +707,18 @@ def process_iso(package, repo_store_path, status_file_path, cluster_os_type, clu
         url = url_template.render(**version_variables)
     if 'path' in package:
         path = package['path']
- 
+
     logger.info(f"Processing iso Package: {package_name}, URL: {url}, Path: {path}")
- 
+
     if path is not None and len(path) > 1:
         if os.path.isfile(path):
             path_support = True
             url_support = False
- 
+
     iso_directory = os.path.join(repo_store_path, "offline_repo", 'cluster', cluster_os_type, cluster_os_version, 'iso', package_name)
     base_path = iso_directory.strip("/")
     logger.info(f"Processing iso Package to directory: {iso_directory}")
- 
-    os.makedirs(iso_directory, exist_ok=True)
- 
+
     if path_support == False and url_support == True:
         try:
             download_file_name = url.split('/')
@@ -622,15 +736,7 @@ def process_iso(package, repo_store_path, status_file_path, cluster_os_type, clu
             else:
                 # Using wget to check if the URL exists (returns 0 for success, non-zero for failure)
                 subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
-                iso_tmp_file =  os.path.join('/tmp', download_file_name[-1])
-                # Using wget to download the iso file from the URL
-                subprocess.run(['wget', '-O', iso_tmp_file, url], check=True)
-                shutil.move(iso_tmp_file, iso_file_path)
-                # Process the iso file using Pulp commands
-                logger.info("Processing iso with Pulp...")
-                status = "Success"
-                status = process_file_without_download(repository_name, output_file, relative_path, base_path, distribution_name, package_name, iso_file_path, logger)
- 
+                status = handle_post_request(repository_name, relative_path, base_path, url, ISO_POLL_VAL,logger)
         except subprocess.CalledProcessError as e:
             logger.error(f"Error executing iso commands: {e}")
             status = "Failed"
@@ -642,7 +748,7 @@ def process_iso(package, repo_store_path, status_file_path, cluster_os_type, clu
             write_status_to_file(status_file_path, package_name, package_type, status, logger)
             logger.info("#" * 30 + f" {process_iso.__name__} end " + "#" * 30)  # End of function
             return status
- 
+
     elif path_support == True and url_support == False:
         try:
             shutil.copy(path, iso_directory)
@@ -665,11 +771,11 @@ def process_iso(package, repo_store_path, status_file_path, cluster_os_type, clu
             write_status_to_file(status_file_path, package_name, package_type, status, logger)
             logger.info("#" * 30 + f" {process_iso.__name__} end " + "#" * 30)  # End of function
             return status
- 
+
 def process_pip(package, repo_store_path, status_file_path, logger):
     """
     Process a pip package using Pulp.
- 
+
     Args:
         package (dict): Package info with 'package' (name) and optional 'version'.
         repo_store_path (str): Path to store the downloaded package.

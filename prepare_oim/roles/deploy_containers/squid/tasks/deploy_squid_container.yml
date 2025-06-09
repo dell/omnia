@@ -1,0 +1,65 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Create directories for squid in shared storage
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop: "{{ squid_directories }}"
+
+- name: Create squid.conf for squid
+  ansible.builtin.template:
+    src: "{{ squid_conf_tmp_path }}"
+    dest: "{{ squid_conf_shared_path }}"
+    mode: "{{ squid_dir_permissions }}"
+  notify:
+    - Reload squid
+
+- name: Deploy squid container and check deployment status
+  block:
+    - name: Deploy the squid container
+      containers.podman.podman_container:
+        name: "{{ squid_container_name }}"
+        image: "{{ squid_image }}"
+        state: present
+        restart_policy: "on-failure"
+        hostname: "{{ squid_container_name }}"
+        volumes: "{{ volumes }}"
+        privileged: true
+        ports:
+          - "{{ squid_port }}"
+
+    - name: Start the squid container
+      containers.podman.podman_container:
+        name: "{{ squid_container_name }}"
+        state: started
+
+    - name: Check if squid container is running after deployment
+      containers.podman.podman_container_info:
+        name: "{{ squid_container_name }}"
+      register: squid_container_status
+
+    - name: Notify user of sqid container deployment status
+      ansible.builtin.debug:
+        msg: "{{ squid_deployed_msg }}"
+      when:
+        - squid_container_status.containers | length > 0
+        - squid_container_status.containers[0].State.Status == 'running'
+
+  rescue:
+    - name: Squid container deployment failed
+      ansible.builtin.fail:
+        msg: "{{ squid_deployed_fail_msg }}"

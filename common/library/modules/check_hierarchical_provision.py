@@ -14,12 +14,10 @@
 
 #!/usr/bin/python
 
+"""Ansible module to check hierarchical provisioning status and service node HA configuration."""
+
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.discovery.omniadb_connection import get_data_from_db # type: ignore
-
-invalid_tags_msg = "These tags are not of a service node. \
-    Please give correct input in parent field in roles_config.yml, \
-    or for service node HA in high_availability_config.yml"
 
 def get_booted_service_nodes_data():
     """
@@ -52,29 +50,43 @@ def get_booted_service_nodes_data():
         }
 
     if not_booted_nodes:
-        raise ValueError(f"The following service nodes are not in booted state: {', '.join(not_booted_nodes)}.\
-            For hierarchical provisioning, all service nodes must be in 'booted' state.\
-            Either wait till all the service nodes are booted or remove these nodes using utility playbook delete_node.yml")
-
+        raise ValueError(
+            f"The following service nodes are not in the 'booted' state: \
+            {', '.join(not_booted_nodes)}. \
+            For hierarchical provisioning of compute nodes or adding new management layer nodes, \
+            all service nodes initiated for provisioning must be in the 'booted' state. \
+            Please wait until all service nodes are booted, or \
+            remove the nodes experiencing provisioning failures \
+            using the utils/delete_node.yml playbook."
+        )
     return data
 
 def get_service_node_ha_dict(service_node_ha_data, booted_service_nodes_data):
     """
-    This function generates a dictionary containing the high availability (HA) configuration for service nodes.
+    Generate a dictionary containing the high availability (HA) configuration for service nodes.
 
-    Parameters:
-    service_node_ha_data (dict): A dictionary containing high availability configuration for service nodes.
-    booted_service_nodes_data (dict): A dictionary containing data of booted service nodes.
+    Args:
+        service_node_ha_data (dict): Dictionary containing HA data for service nodes.
+        booted_service_nodes_data (dict): Dictionary containing data of booted service nodes.
 
     Returns:
-    dict: A dictionary containing HA configuration for service nodes.
+        dict: A dictionary containing the computed HA configuration for service nodes.
 
-    Return dict Eg:
+    Example:
         {
-            'ABCD123': {'virtual_ip_address': '10.5.0.111', 'active': True, 'passive_nodes': ['PQR1234']},
-            'PQR1234': {'virtual_ip_address': '10.5.0.111', 'active': False, 'active_service_tag': 'ABCD123'}
+            'ABCD123': {
+                'virtual_ip_address': '10.5.0.111',
+                'active': True,
+                'passive_nodes': ['PQR1234']
+            },
+            'PQR1234': {
+                'virtual_ip_address': '10.5.0.111',
+                'active': False,
+                'active_service_tag': 'ABCD123'
+            }
         }
     """
+
     sn_ha_data = {}
     sn_vip_list = []
     invalid_tags = []
@@ -105,16 +117,21 @@ def get_service_node_ha_dict(service_node_ha_data, booted_service_nodes_data):
                     continue
                 if passive_node_tag in sn_ha_data:
                     raise ValueError('Duplicate entries found for passive_node_service_tags field.')
-                sn_ha_data[passive_node_tag] = {'virtual_ip_address': sn_vip, 'active': False, 'active_service_tag': active_sn_tag }
+                sn_ha_data[passive_node_tag] = {'virtual_ip_address': sn_vip,
+                                                'active': False,
+                                                'active_service_tag': active_sn_tag }
                 if passive_node_tag not in booted_service_nodes_data:
                     invalid_tags.append(passive_node_tag)
                 passive_nodes_tags_list.append(passive_node_tag)
         sn_ha_data[active_sn_tag]['passive_nodes'] = passive_nodes_tags_list
     if invalid_tags:
-        raise ValueError(
-            f"Error: These service tags '{invalid_tags}' mentioned in 'high_availability_config.yml' "
-            f"for service node HA are invalid."
-            f"{invalid_tags_msg}"
+        raise ValueError(f" ERROR: \
+            These service tags '{invalid_tags}' mentioned in 'high_availability_config.yml' \
+            for service node HA may be incorrect, or the node might not have been provisioned. \
+            * If service_node not provisioned, verify the input in roles_config.yml and execute discovery_provision.yml \
+            playbook with 'management_layer' tag. \
+            * If service_node is already provisioned with management layer nodes, verify the input in\
+            high_availability_config.yml and execute discovery_provision.yml"
         )
     return sn_ha_data
 
@@ -126,9 +143,12 @@ def check_hierarchical_provision(group, parent, booted_service_nodes_data):
     if parent in booted_service_nodes_data:
         return True
     raise ValueError(
-        f"Error: The service tag '{parent}' specified in the 'parent' field for group '{group}' in roles_config.yml is invalid."
-        f"{invalid_tags_msg}"
-    )
+        f"Error: The service tag '{parent}' specified in the 'parent' field for group '{group}' \
+        in roles_config.yml may be incorrect, or the node might not have been provisioned. \
+        Please verify the input in roles_config.yml and execute discovery_provision.yml playbook \
+        with 'management_layer' tag to provision service nodes."
+        )
+
 
 def combine_booted_service_with_ha_data(booted_service_nodes_data, service_node_ha_data):
     """
@@ -139,7 +159,7 @@ def combine_booted_service_with_ha_data(booted_service_nodes_data, service_node_
     service_node_ha_data (dict): A dictionary containing service node HA data.
 
     Returns:
-    dict: A dictionary containing the combined data of booted service nodes and service node HA data.
+    dict: A dict containing the combined data of booted service nodes and service node HA data.
          Example:
          {
              'ABCD123': {
@@ -187,14 +207,23 @@ def combine_booted_service_with_ha_data(booted_service_nodes_data, service_node_
 
 def get_hierarchical_data(groups_roles_info, booted_service_nodes_data):
     """
-    This function generates hierarchical data from the provided groups_roles_info and booted_service_nodes_data.
-    It checks for hierarchical provisioning status for each group, updates the groups_roles_info with the status, and updates the booted_service_nodes_data with child groups.
-    Parameters:
-        groups_roles_info (dict): A dictionary containing group information.
-        booted_service_nodes_data (dict): A dictionary containing booted service node information.
+    Generate hierarchical data from groups_roles_info and booted_service_nodes_data.
+
+    This function checks the hierarchical provisioning status for each group,
+    updates the groups_roles_info with the status, and adds child group data
+    to booted_service_nodes_data.
+
+    Args:
+        groups_roles_info (dict): Dictionary containing group information.
+        booted_service_nodes_data (dict): Dictionary containing booted service node information.
+
     Returns:
-        tuple: A tuple containing the updated groups_roles_info, booted_service_nodes_data, and hierarchical_provision_status.
+        tuple: A tuple containing:
+            - updated groups_roles_info (dict)
+            - updated booted_service_nodes_data (dict)
+            - hierarchical_provision_status (dict)
     """
+
 
     hierarchical_provision_status = False
 
@@ -215,10 +244,13 @@ def get_hierarchical_data(groups_roles_info, booted_service_nodes_data):
     return groups_roles_info, booted_service_nodes_data, hierarchical_provision_status
 
 def main():
-    module_args = dict(
-        groups_roles_info=dict(type="dict", required=True),
-        service_node_ha_data=dict(type="dict", required=True)
-    )
+    """
+        Main function to execute the check_hierarchical_provision custom module.
+    """
+    module_args = {
+        'groups_roles_info': {'type':"dict", 'required':True},
+        'service_node_ha_data': {'type':"dict", 'required':True}
+    }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
@@ -226,8 +258,10 @@ def main():
         groups_roles_info = module.params["groups_roles_info"]
         service_node_ha_data = module.params["service_node_ha_data"]
         booted_service_nodes_data = get_booted_service_nodes_data()
-        service_node_ha_data = get_service_node_ha_dict(service_node_ha_data, booted_service_nodes_data)
-        booted_service_nodes_data = combine_booted_service_with_ha_data(booted_service_nodes_data, service_node_ha_data)
+        service_node_ha_data = get_service_node_ha_dict(service_node_ha_data,
+                                                        booted_service_nodes_data)
+        booted_service_nodes_data = combine_booted_service_with_ha_data(booted_service_nodes_data,
+                                                                        service_node_ha_data)
 
         groups_roles_info, booted_service_nodes_data, hierarchical_provision_status  = \
             get_hierarchical_data(groups_roles_info, booted_service_nodes_data)

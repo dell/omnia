@@ -1,0 +1,52 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+shared_storage_path: "{{ oim_shared_path }}/omnia"
+squid_shared_path: "{{ shared_storage_path }}/squid"
+squid_logs_dir: "{{ shared_storage_path }}/log/squid"
+squid_dir_permissions: "0755"
+logs_dir_permission: "0777"
+squid_container_name: "squid"
+squid_safe_ports:
+  - 80    # http
+  - 443   # https
+  - 2225  # pulp
+  - 21    # ftp
+  - 1025-65535
+squid_image: "docker.io/ubuntu/squid"
+squid_deployed_msg: "The {{ squid_container_name }} container has been successfully deployed."
+squid_deployed_fail_msg:
+  The deployment of the {{ squid_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the prepare_oim.yml playbook to deploy the {{ squid_container_name }} container successfully.
+
+# Usage: deploy_squid_container.yml
+squid_conf_tmp_path: "{{ role_path }}/templates/squid_conf_template.j2"
+squid_conf_shared_path: "{{ squid_shared_path }}/squid.conf"
+squid_port: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['oim']['squid_proxy_port'] }}:{{ hostvars['oim']['squid_proxy_port'] }}"
+squid_directories:
+  - { path: "{{ squid_shared_path }}", mode: "{{ squid_dir_permissions }}" }
+  - { path: "{{ squid_logs_dir }}", mode: "{{ logs_dir_permission }}" }
+  - { path: "{{ squid_shared_path }}/cache", mode: "{{ squid_dir_permissions }}" }
+volumes:
+  - "{{ squid_shared_path }}/cache:/var/spool/squid"
+  - "{{ squid_shared_path }}/squid.conf:/etc/squid/squid.conf"
+  # - "{{ squid_shared_path }}/snippet.conf:/etc/squid/conf.d/snippet.conf"
+  - "{{ squid_logs_dir }}:/var/log/squid"
+
+# Usage: handlers/main.yml
+reload_squid_cmd: /usr/sbin/squid -k restart
+squid_reload_retries: 3
+squid_reload_delay: 20

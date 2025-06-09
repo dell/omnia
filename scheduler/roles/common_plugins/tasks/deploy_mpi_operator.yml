@@ -23,7 +23,6 @@
   kubernetes.core.k8s:
     state: present
     src: "{{ mpi_operator_dest_url }}"
-  when: "'mpi-operator' not in k8s_pods.stdout"
 
 - name: Include pod status
   ansible.builtin.include_tasks: pod_status.yml

@@ -16,9 +16,10 @@
 # TODO: Add support for deb and deb_list
 - name: Install rpm packages on node by node loop
   ansible.builtin.include_tasks: _rpm_reboot.yml
-  when: "'rpm' in grouped_packages.grp_pkg_map[grp.key]"
   loop: "{{ grp.value }}" # list of nodes in group
   loop_control:
     loop_var: node
-
-# images/deb can come next
+  when:
+    - grouped_packages.grp_pkg_map[grp.key] is defined
+    - "'rpm' in grouped_packages.grp_pkg_map[grp.key]"
+    - grouped_packages.grp_pkg_map[grp.key].rpm | length > 0

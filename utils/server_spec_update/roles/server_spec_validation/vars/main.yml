@@ -54,5 +54,4 @@ fail_msg_metadata_missing: "Failed, discovery_provision.yml not executed hence m
 fail_msg_invalid_metadata: "Failed. Invalid entries in metadata.yml. Execute discovery_provision.yml playbook and run again."
 
 # Usage: validate_inventory.yml
-validate_inventory_py: "{{ provision_shared_library_path }}/server_spec_update/validate_inventory_file.py"
 inventory_fail_msg: "Failed, invalid inventory format: "

@@ -23,7 +23,10 @@ import jsonschema
 from ansible.module_utils.input_validation.common_utils import logical_validation
 
 
-def schema(input_file_path, schema_file_path, passwords_set, omnia_base_dir, project_name, logger, module):
+def schema(
+        input_file_path, schema_file_path,
+        passwords_set, omnia_base_dir,
+        project_name, logger, module):
     """
     Validates the input file against a JSON schema.
 
@@ -35,17 +38,18 @@ def schema(input_file_path, schema_file_path, passwords_set, omnia_base_dir, pro
         bool: True if the validation is successful, False otherwise.
     """
     try:
-        input_data, extension = get.input_data(input_file_path, omnia_base_dir, project_name, logger, module)
+        input_data, extension = get.input_data(
+                                input_file_path, omnia_base_dir,
+                                project_name, logger, module)
 
         # If input_data is None, it means there was a YAML syntax error
         if input_data is None:
             return False
 
         # Load schema
-        schema = json.load(open(schema_file_path, "r"))
+        schema = json.load(open(schema_file_path, "r", encoding="utf-8"))
         logger.debug(en_us_validation_msg.get_validation_initiated(input_file_path))
 
-        # Validate the input file with the schema and output the errors
         validator = jsonschema.Draft7Validator(schema)
         errors = sorted(validator.iter_errors(input_data), key=lambda e: e.path)
 
@@ -67,7 +71,7 @@ def schema(input_file_path, schema_file_path, passwords_set, omnia_base_dir, pro
                 error_msg = f"Validation Error at {error_path}: {error.message}"
 
                 # For passwords, mask the value so that no password values are logged
-                if (error.path[-1] in passwords_set):
+                if error.path[-1] in passwords_set:
                     parts = error.message.split(' ', 1)
                     if parts:
                         parts[0] = f"'{'*' * (len(parts[0]) - 2)}'"
@@ -78,28 +82,34 @@ def schema(input_file_path, schema_file_path, passwords_set, omnia_base_dir, pro
                 # get the line number and log it
                 line_number, is_line_num = None, False
                 if "json" in extension:
-                    line_number, is_line_num = get.json_line_number(input_file_path, error_path, module)
+                    line_number, is_line_num = get.json_line_number(
+                                                input_file_path, error_path, module)
                 elif "yml" in extension:
-                    line_number, is_line_num = get.yml_line_number(input_file_path, error_path, omnia_base_dir, project_name)
+                    line_number, is_line_num = get.yml_line_number(
+                                        input_file_path, error_path, omnia_base_dir, project_name)
                     logger.info(line_number, is_line_num)
                 if line_number:
-                    message = f"Error occurs on line {line_number}" if is_line_num else f"Error occurs on object or list entry on line {line_number}"
+                    message = (
+                            f"Error occurs on line {line_number}"
+                            if is_line_num
+                            else f"Error occurs on object or list entry on line {line_number}"
+                            )
                     logger.error(message)
             logger.error(en_us_validation_msg.get_schema_failed(input_file_path))
             return False
         else:
             logger.info(en_us_validation_msg.get_schema_success(input_file_path))
             return True
-    except jsonschema.exceptions.SchemaError as se:
-        message = f"Internal schema validation error: {se.message}"
+    except jsonschema.exceptions.SchemaError as schemaerror:
+        message = f"Internal schema validation error: {schemaerror.message}"
         logger.error(message)
         return False
-    except ValueError as ve:
-        message = f"Value error: {ve}"
+    except ValueError as valueerror:
+        message = f"Value error: {valueerror}"
         logger.error(message)
         return False
-    except Exception as e:
-        message = f"An unexpected error occurred: {e}"
+    except Exception as exception:
+        message = f"An unexpected error occurred: {exception}"
         logger.error(message)
         return False
 
@@ -123,9 +133,13 @@ def logic(input_file_path, logger, module, omnia_base_dir, module_utils_base, pr
         Exception: If an unexpected error occurs.
     """
     try:
-        input_data, extension = get.input_data(input_file_path, omnia_base_dir, project_name, logger, module)
+        input_data, extension = get.input_data(
+                                input_file_path, omnia_base_dir, project_name, logger, module)
 
-        errors = logical_validation.validate_input_logic(input_file_path, input_data, logger, module, omnia_base_dir, module_utils_base, project_name)
+        errors = logical_validation.validate_input_logic(
+                                    input_file_path, input_data,
+                                    logger, module, omnia_base_dir,
+                                    module_utils_base, project_name)
 
         # Print errors, if the error value is None then send a separate message.
         # This is for values where it did not have a single key as the error
@@ -139,18 +153,28 @@ def logic(input_file_path, logger, module, omnia_base_dir, module_utils_base, pr
 
                 # log the line number based off of the input config file extension
                 if "yml" in extension:
-                    result = get.yml_line_number(input_file_path, error_key, omnia_base_dir, project_name)
+                    result = get.yml_line_number(
+                                input_file_path, error_key,
+                                omnia_base_dir, project_name)
                     if result is not None:
                         line_number, is_line_num = result
                         if line_number:
-                            message = f"Error occurs on line {line_number}" if is_line_num else f"Error occurs on object or list entry on line {line_number}"
+                            message = (
+                                    f"Error occurs on line {line_number}"
+                                    if is_line_num
+                                    else f"Error occurs on object or list on line {line_number}"
+                                      )
                             logger.error(message)
                 elif "json" in extension:
                     result = get.json_line_number(input_file_path, error_key, module)
                     if result is not None:
                         line_number, is_line_num = result
                         if line_number:
-                            message = f"Error occurs on line {line_number}" if is_line_num else f"Error occurs on object or list entry on line {line_number}"
+                            message = (
+                                    f"Error occurs on line {line_number}"
+                                    if is_line_num
+                                    else f"Error occurs on object or list on line {line_number}"
+                                    )
                             logger.error(message)
 
             logger.error(en_us_validation_msg.get_logic_failed(input_file_path))
@@ -158,11 +182,11 @@ def logic(input_file_path, logger, module, omnia_base_dir, module_utils_base, pr
         else:
             logger.info(en_us_validation_msg.get_logic_success(input_file_path))
             return True
-    except ValueError as ve:
-        message = f"Value error: {ve}"
+    except ValueError as valueerror:
+        message = f"Value error: {valueerror}"
         logger.error(message, exc_info=True)
         return False
-    except Exception as e:
-        message = f"An unexpected error occurred: {e}"
+    except Exception as exception:
+        message = f"An unexpected error occurred: {exception}"
         logger.error(message, exc_info=True)
         return False

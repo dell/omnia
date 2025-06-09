@@ -25,7 +25,6 @@ dns_config_warning_msg: "[WARNING] makedns -n command is not successful. Error:"
 service_retries: 3
 xcatd_service: "xcatd.service"
 xcat_start_fail_msg: "Failed to start xcatd services on {{ hostvars[inventory_hostname]['service_tag'] }}"
-
 # Usage: copy_syncfiles.yml
 syncfiles_mode: "0755"
 service_node_sync_files:

@@ -25,6 +25,21 @@
       "type":"string",
       "pattern":"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)-(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
     },
+    "k8s_pod_network_cidr": {
+      "type": "string",
+      "pattern":"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$",
+      "description": "CIDR for the Kubernetes Pod Network (e.g., 10.233.64.0/18)"
+    },
+    "topology_manager_policy": {
+      "enum": ["none", "best-effort", "restricted", "single-numa-node"],
+      "default": "none",
+      "description": "Kubernetes Topology manager policies"
+    },
+    "topology_manager_scope": {
+      "enum": ["container", "pod"],
+      "default": "container",
+      "description": "Kubernetes Topology manager scope"
+    },
     "run_intel_gaudi_tests": {
       "description": "Set to true to run validation tests; default will not run the tests.",
       "type": "boolean"
@@ -38,6 +53,11 @@
       "description": "File path for the values.yaml file.",
       "type": "string",
       "pattern": "^$|^/?([a-zA-Z0-9_-]+(/?[a-zA-Z0-9_-]+)*)$"
+    },
+    "k8s_offline_install": {
+      "type": "boolean",
+      "description": "If true, packages/images will be pulled from OIM local repo; if false, pulled from internet.",
+      "default": true
     }
 },
   "required": [
@@ -47,5 +67,6 @@
      "k8s_service_addresses",
      "k8s_pod_network_cidr",
      "pod_external_ip_range",
-     "run_intel_gaudi_tests"]
+     "run_intel_gaudi_tests",
+     "k8s_offline_install"]
 }

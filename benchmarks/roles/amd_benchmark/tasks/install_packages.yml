@@ -33,6 +33,7 @@
     - name: Install Package
       ansible.builtin.package:
         name: "{{ item.package }}"
+        use: "{{ ansible_facts['pkg_mgr'] }}"
         state: present
       when:
         - custom_config.amd_benchmarks.cluster[item_index].repo_name is defined

@@ -17,10 +17,9 @@
   hosts: localhost
   connection: local
   tasks:
-    - name: Set dynamic run tags including 'slurm'
-      when: not (hostvars['127.0.0.1']['config_file_status'] | default(false) | bool)
+    - name: Set dynamic run tags including k8s
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['slurm']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['k8s']) | unique }}"
         cacheable: true
 
 - name: Invoke get_config_credentials.yml
@@ -52,6 +51,11 @@
       ansible.builtin.include_role:
         name: cluster_validation
         tasks_from: validation_status_check.yml
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations for k8s
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+  when:
+    - hostvars['127.0.0.1']['k8s_support']
 
 - name: Create kubespray container group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
@@ -110,6 +114,13 @@
   gather_facts: false
   roles:
     - update_containerd_config
+
+- name: Pull k8s images
+  hosts: kube_control_plane, kube_node, etcd
+  gather_facts: false
+  any_errors_fatal: true
+  roles:
+    - k8s_prepare_images
 
 - name: Deploy plugins on kube control nodes
   hosts: kube_control_plane[0]

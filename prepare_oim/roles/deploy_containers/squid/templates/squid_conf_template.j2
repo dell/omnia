@@ -1,0 +1,92 @@
+# squid.conf
+
+# Adapt to list your (internal) IP networks from where browsing
+# should be allowed
+acl localnet src {{ hostvars['localhost'].network_data.admin_network.static_range.split('-')[0] }}/{{ hostvars['localhost'].network_data.admin_network.netmask_bits }}
+acl localnet src {{ hostvars['localhost'].network_data.admin_network.dynamic_range.split('-')[0] }}/{{ hostvars['localhost'].network_data.admin_network.netmask_bits }}
+
+# List of ports where access is allowed
+{% set listOfAddedPorts = [] %}
+# Ports from squid_safe_ports in vars file
+{% for port in squid_safe_ports %}
+{% if port not in listOfAddedPorts %}
+{% set tmp = listOfAddedPorts.append(port) %}
+acl Safe_ports port {{ port }}
+{% endif %}
+{% endfor %}
+
+# Ports from local_repo_config.yml
+{% if hostvars['localhost']['omnia_repo_url_rhel'] is defined and hostvars['localhost']['omnia_repo_url_rhel'] %}
+{% for repo in hostvars['localhost']['omnia_repo_url_rhel'] if repo.port is defined %}
+{% if repo.port not in listOfAddedPorts %}
+{% set _ = listOfAddedPorts.append(repo.port) %}
+acl Safe_ports port {{ repo.port }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if hostvars['localhost']['rhel_os_url'] is defined and hostvars['localhost']['rhel_os_url'] %}
+{% for repo in hostvars['localhost']['rhel_os_url'] if repo.port is defined %}
+{% if repo.port not in listOfAddedPorts %}
+{% set _ = listOfAddedPorts.append(repo.port) %}
+acl Safe_ports port {{ repo.port }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+#
+# Recommended minimum Access Permission configuration:
+#
+# Deny requests to certain unsafe ports
+http_access deny !Safe_ports
+
+# Deny CONNECT to other than secure SSL ports
+#http_access deny CONNECT !SSL_ports
+
+# Only allow cachemgr access from localhost
+http_access allow localhost manager
+http_access deny manager
+
+# This default configuration only allows localhost requests because a more
+# permissive Squid installation could introduce new attack vectors into the
+# network by proxying external TCP connections to unprotected services.
+http_access allow localhost
+
+# The two deny rules below are unnecessary in this default configuration
+# because they are followed by a "deny all" rule. However, they may become
+# critically important when you start allowing external requests below them.
+
+# Protect web applications running on the same server as Squid. They often
+# assume that only local users can access them at "localhost" ports.
+http_access deny to_localhost
+
+# Protect cloud servers that provide local users with sensitive info about
+# their server via certain well-known link-local (a.k.a. APIPA) addresses.
+http_access deny to_linklocal
+
+#
+# INSERT YOUR OWN RULE(S) HERE TO ALLOW ACCESS FROM YOUR CLIENTS
+#
+
+# For example, to allow access from your local networks, you may uncomment the
+# following rule (and/or add rules that match your definition of "local"):
+http_access allow localnet
+
+# And finally deny all other access to this proxy
+http_access deny all
+
+# Squid normally listens to port 3128
+http_port {{ hostvars['oim']['squid_proxy_port'] }}
+
+# Uncomment and adjust the following to add a disk cache directory.
+#cache_dir ufs /var/spool/squid 100 16 256
+
+# Leave coredumps in the first cache dir
+coredump_dir /var/spool/squid
+
+#
+# Add any of your own refresh_pattern entries above these.
+#
+refresh_pattern ^ftp:           1440    20%     10080
+refresh_pattern -i (/cgi-bin/|\?) 0     0%      0
+refresh_pattern .               0       20%     4320

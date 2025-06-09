@@ -14,8 +14,6 @@
 ---
 
 # Usage: ldap_prereq_Redhat.yml
-ldaptoolbox_openldap_config_olcRootDN: "cn={{ hostvars['127.0.0.1']['openldap_config_username'] }},cn=config" # noqa var-naming
-ldaptoolbox_openldap_database_olcRootDN: "cn={{ hostvars['127.0.0.1']['openldap_db_username'] }},{{ ldaptoolbox_openldap_suffix }}" # noqa var-naming
 ldaptoolbox_openldap_monitor_olcRootDN: "cn=monitor" # noqa var-naming
 ldaptoolbox_olcPasswordHash: "{SHA}" # noqa var-naming
 openldap_configuration_mode: "0600"

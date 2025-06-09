@@ -31,10 +31,6 @@
     mode: "{{ item.mode }}"
   with_items: "{{ common_postscripts_path }}"
 
-- name: Configure postscripts to configure network
-  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_nic_autoconnect"
-  changed_when: true
-
 - name: Configure postscripts to configure hostname
   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_hostname"
   changed_when: true
@@ -67,7 +63,6 @@
   when:
     - ofed_config_status
     - ofed_repo_stat.stat.exists
-    - not enable_oim_ha
 
 - name: Configure postscripts for OFED
   ansible.builtin.command: "{{ xcat_path }}/chdef {{ service_oim_groups }} -m postscripts=omnia_ofed"
@@ -76,7 +71,6 @@
     - service_oim_groups != ''
     - ofed_config_status
     - ofed_repo_stat.stat.exists
-    - not enable_oim_ha
 
 - name: Verify CUDA repo created
   ansible.builtin.stat:
@@ -90,7 +84,6 @@
   when:
     - cuda_config_status
     - cuda_repo_stat.stat.exists
-    - not enable_oim_ha
 
 - name: Configure postscripts for OFED
   ansible.builtin.command: "{{ xcat_path }}/chdef {{ service_oim_groups }} -m postscripts=omnia_cuda"
@@ -99,14 +92,12 @@
     - service_oim_groups != ''
     - ofed_config_status
     - ofed_repo_stat.stat.exists
-    - not enable_oim_ha
 
 - name: Configure postscripts for ROCm
   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_rocm"
   changed_when: true
   when:
     - amdgpu_config_status
-    - not enable_oim_ha
 
 - name: Configure postscripts for ROCm
   ansible.builtin.command: "{{ xcat_path }}/chdef {{ service_oim_groups }} -m postscripts=omnia_rocm"
@@ -114,14 +105,12 @@
   when:
     - service_oim_groups != ''
     - amdgpu_config_status
-    - not enable_oim_ha
 
 - name: Configure postscripts for ROCm
-  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_racadm"
+  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postbootscripts=omnia_racadm"
   changed_when: true
   when:
     - racadm_config_status
-    - not enable_oim_ha
 
 # - name: Configure postscripts for Intel Gaudi
 #   ansible.builtin.command: "{{ xcat_path }}/chdef all -p postscripts=omnia_intelgaudi"

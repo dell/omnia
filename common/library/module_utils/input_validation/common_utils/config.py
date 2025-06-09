@@ -40,7 +40,8 @@ files = {
     "telemetry_config": "telemetry_config.yml",
     "site_config": "site_config.yml",
     "roles_config": "roles_config.yml",
-    "high_availability_config": "high_availability_config.yml"
+    "high_availability_config": "high_availability_config.yml",
+    "additional_software": "additional_software.json"
 }
 
 # Tags and the files that will be run based off of it
@@ -62,7 +63,10 @@ input_file_inventory = {
     ],
     "monitoring": [files["telemetry_config"]],
     "local_repo": [files["local_repo_config"], files["software_config"]],
-    "k8s": [files["k8s_access_config"]],
+    "k8s": [
+        files["omnia_config"],
+        files["high_availability_config"]
+    ],
     "roce": [files["roce_plugin_config"]],
     "storage": [files["storage_config"]],
     "proxy": [files["site_config"]],
@@ -72,6 +76,7 @@ input_file_inventory = {
         files["network_spec"]
     ],
     "high_availability": [files["high_availability_config"]],
+    "additional_software": [files["additional_software"]],
     "all": [
         files["passwordless_ssh_config"],
         files["local_repo_config"],
@@ -90,6 +95,17 @@ input_file_inventory = {
         files["roles_config"],
         files["high_availability_config"]
     ],
+}
+
+# Define a mapping in config.py (or dynamically in the code) for future tag-to-filename replacements
+tag_file_replacements = {
+    "k8s": {
+        "omnia_config": "k8s_scheduler",  # Replace omnia_config with k8s_scheduler for k8s tag
+    },
+    "slurm": {
+        "omnia_config": "slurm_scheduler",  # Example for another tag "slurm"
+    },
+    # Add more tag-based file mappings as needed
 }
 
 # All of the passwords fields
@@ -118,13 +134,43 @@ extensions = {
 }
 
 os_version_ranges = {
-    "rhel": ["9.4"],
-    "rocky": ["9.4"],
-    "ubuntu": ["20.04", "22.04", "24.04"]
+    "rhel": ["9.6"],
+    #"rocky": ["9.4"],
+    #"ubuntu": ["20.04", "22.04", "24.04"]
+}
+
+
+#dictionary used for local repo package type mapping
+TYPE_REQUIREMENTS = {
+    "rpm": ["package", "repo_name"],
+    "ansible_galaxy_collection": ["package", "version"],
+    "git": ["package", "version", "url"],
+    "image": ["package", ["tag", "digest"]],  # Special: one of tag or digest
+    "tarball": ["package", "url"],
+    "shell": ["package", "url"],
+    "iso": ["package", "url"],
+    "manifest": ["package", "url"],
+    "pip_module":["package"]
 }
 
 # Dict of the file that can be encrypted and it's ansible vault key
 def get_vault_password(yaml_file):
+    """
+    Retrieves the vault password file name associated with a given YAML file.
+
+    This function maps a specific YAML file name to its corresponding Ansible Vault
+    password file. It is typically used to locate the decryption key required for
+    accessing encrypted configuration files.
+
+    Parameters:
+        yaml_file (str): The full path to the YAML configuration file.
+
+    Returns:
+        str: The name of the vault password file corresponding to the YAML file.
+
+    Raises:
+        KeyError: If the YAML file is not found in the predefined mapping.
+    """
     vault_passwords = {
         "omnia_config_credentials.yml": ".omnia_config_credentials_key",
     }

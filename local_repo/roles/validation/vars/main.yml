@@ -13,6 +13,16 @@
 # limitations under the License.
 ---
 
+# Usage: dynamic_k8s_json.yml
+dynamic_k8s_json_file: "{{ dynamic_k8s_json_folder }}/v{{ k8s_version }}/k8s_v{{ k8s_version }}.json"
+base_k8s_json_file: "{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/k8s.json"
+dynamic_k8s_json_folder: "/opt/omnia/k8s_dynamic_json"
+kubespray_url: "https://github.com/kubernetes-sigs/kubespray.git"
+package_type_list: ["rpm", "deb", "tarball", "image", "manifest", "pip_module", "git"]
+dynamic_k8s_json_log_dir: "/opt/omnia/log/local_repo"
+base_k8s_json_bkp_file: "{{ dynamic_k8s_json_folder }}/k8s_bkp.json"
+dynamic_k8s_generation: false
+
 # Usage: main.yml
 nfs_shared_path: "/opt/omnia"
 local_repo_config_file: "{{ project_input_path }}/local_repo_config.yml"
@@ -70,7 +80,7 @@ repo_config_fail_msg: "Failed. The supported values of repo_config is always, pa
 valid_cluster_os_type:
   - 'fedora'
 rhel_valid_os_versions:
-  - '9.4'
+  - '9.6'
 rocky_valid_os_versions:
   - '9.4'
 
@@ -140,8 +150,8 @@ Please ensure that the url mentioned in ubuntu_os_url is reachable and re-run lo
 http_key: http
 
 # Usage: validate_metadata.yml
-metadata_file_path: "/opt/omnia/offline/.data/metadata.yml"
-repo_config_metadata_fail_msg: "Failed: Cannot change repo_config in subsequent runs. Please use the repo_config:{{ md_repo_config }} in software_config.json"
+meta_dest: "{{ nfs_shared_path }}/offline_repo/.data"
+metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
 
 # Usage: validate_rhel_os_url.yml
 rhel_os_url_fail_msg: "Failed. Please ensure rhel_os_url is non empty list and

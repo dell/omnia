@@ -26,18 +26,13 @@ docker_image_repo: "docker.io"
 quay_image_repo: "quay.io"
 docker_rh_repo_base_url: ""
 docker_rh_repo_gpgkey: ""
-    {% if enable_routed_internet %}
+{% if enable_routed_internet %}
 # Include proxy config on clusters with partial or no dedicated internet access    
-        {% if enable_k8s_ha %}
-http_proxy: "http://{{ kube_vip }}:{{ proxy_port }}"
-https_proxy: "http://{{ kube_vip }}:{{ proxy_port }}"
-        {% else %}
-http_proxy: "http://{{ admin_nic_ip }}:{{ proxy_port }}"
-https_proxy: "http://{{ admin_nic_ip }}:{{ proxy_port }}"
-        {% endif %}
-    {% else %}
+http_proxy: "http://{{ hostvars['localhost']['admin_nic_ip'] }}:{{ proxy_port }}"
+https_proxy: "http://{{ hostvars['localhost']['admin_nic_ip'] }}:{{ proxy_port }}"
+{% else %}
 # Include no_proxy config on cluster with dedicated internet
 no_proxy: "localhost,127.0.0.1,{{ hostvars['localhost']['admin_nic_ip'] }},{{ hostvars['localhost']['k8s_service_addresses'] }},{{ hostvars['localhost']['k8s_pod_network_cidr'] }},{{ hostvars['localhost']['oim_hostname'] }},{{ hostvars['localhost']['domain_name'] }}"   # noqa: yaml[line-length]
 additional_no_proxy: "{{ hostvars['localhost']['user_no_proxy'] if hostvars['localhost']['no_proxy_input_status'] else '' }}"   # noqa: yaml[line-length]
-    {% endif %}
+{% endif %}
 {% endif %}

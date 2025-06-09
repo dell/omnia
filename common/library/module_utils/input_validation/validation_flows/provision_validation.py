@@ -31,7 +31,7 @@ def validate_provision_config(input_file_path, data, logger, module, omnia_base_
 
      # Call validate_software_config from common_validation
     software_errors = common_validation.validate_software_config(
-        input_file_path,
+        software_config_file_path,
         software_config_json,
         logger,
         module,

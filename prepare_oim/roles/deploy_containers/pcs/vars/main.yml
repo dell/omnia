@@ -64,16 +64,17 @@ pcs_container_failure_msg: |
 omnia_nfs_share: "{{ oim_shared_path }}/omnia" # Define NFS share path
 oim_metadata_file: "{{ omnia_nfs_share }}/.data/oim_metadata.yml"
 monitor_interval: "30s"
-monitor_timeout: "100s"
+monitor_timeout: "60s"
 start_interval: "0s"
 start_timeout: "20s"
 stop_interval: "0s"
-stop_timeout: "90s"
+stop_timeout: "60s"
 
 migration_threshold: 0
 ha_migration_threshold: 1
-failure_timeout: "100s"
+failure_timeout: "60s"
 pcs_group: omnia
+vip_group: omnia_vip
 
 # Usage: pcs-start.sh.j2: omnia_core
 omnia_core_name: "omnia_core"
@@ -156,6 +157,18 @@ pulp_run_opts_https: >-
   -v {{ omnia_nfs_share }}/log/pulp:/var/log/pulp{{ selinux_option }}
   -v {{ pulp_share }}/pulp_ha:/root/.config/pulp{{ selinux_option }}
   -v {{ pulp_share }}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro{{ selinux_option | replace(':', ',') }}
+
+# Usage: pcs-start.sh.j2: squid
+squid_container_name: "squid"
+squid_name: "squid"
+squid_image: "docker.io/ubuntu/squid"
+squid_port: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['oim']['squid_proxy_port'] }}:{{ hostvars['oim']['squid_proxy_port'] }}"
+squid_share: "{{ omnia_nfs_share }}/squid"
+squid_run_opts: >-
+  --hostname {{ squid_container_name }} --restart=on-failure --publish {{ squid_port }}
+  -v {{ squid_share }}/cache:/var/spool/squid{{ selinux_option }}
+  -v {{ squid_share }}/squid.conf:/etc/squid/squid.conf{{ selinux_option }}
+  -v {{ omnia_nfs_share }}/log/squid:/var/log/squid{{ selinux_option }}
 
 pcs_resources:
   - "{{ pulp_container_name }}"

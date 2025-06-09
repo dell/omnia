@@ -35,7 +35,7 @@
   when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
 - name: Benchmarks for AMD
-  hosts: slurm_control_node, slurm_node, login
+  hosts: slurm_control_node
   gather_facts: true
   roles:
     - amd_benchmark

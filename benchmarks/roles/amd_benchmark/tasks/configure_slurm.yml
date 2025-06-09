@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,84 +13,65 @@
 #  limitations under the License.
 ---
 
-- name: Update slurm.conf in configless mode
+- name: Set default run once value
+  ansible.builtin.set_fact:
+    run_once_conditional: false
+
+- name: Set slurm.conf path for nfs_share
+  ansible.builtin.set_fact:
+    slurm_conf_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_conf_path }}"
+    run_once_conditional: true
+  when: hostvars['127.0.0.1']['slurm_installation_type'] == 'nfs_share'
+
+- name: Update SelectType in slurm.conf
+  ansible.builtin.replace:
+    path: "{{ slurm_conf_path }}"
+    regexp: 'SelectType=(.*)'
+    replace: 'SelectType=select/cons_tres'
+  register: set_select_type_status
+  run_once: "{{ run_once_conditional }}"
+
+- name: Add SelectTypeParameters in slurm.conf
+  ansible.builtin.lineinfile:
+    path: "{{ slurm_conf_path }}"
+    insertafter: '^SelectType='
+    line: 'SelectTypeParameters=CR_Core'
+  register: set_select_type_parm_status
+  run_once: "{{ run_once_conditional }}"
+
+- name: Set default slurm restart value
+  ansible.builtin.set_fact:
+    restart_slurm: false
+
+- name: Check if slurm services need to be restarted
+  ansible.builtin.set_fact:
+    restart_slurm: true
   when:
-    - hostvars['127.0.0.1']['slurm_installation_type'] == "configless"
-    - "'slurm_control_node' in group_names"
-  block:
-    - name: Update SelectType in slurm.conf
-      ansible.builtin.replace:
-        path: "{{ slurm_conf_path }}"
-        regexp: 'SelectType=(.*)'
-        replace: 'SelectType=select/cons_tres'
+    - hostvars['127.0.0.1']['restart_slurm_services']
+    - (set_select_type_status is changed) or (set_select_type_parm_status is changed)
 
-    - name: Add SelectTypeParameters in slurm.conf
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_conf_path }}"
-        insertafter: '^SelectType='
-        line: 'SelectTypeParameters=CR_Core'
+- name: Restart slurmcltd service
+  ansible.builtin.include_tasks: restart_slurm.yml
+  vars:
+    slurm_service_type: "slurmctld"
+  when: restart_slurm
 
-    - name: Add SelectTypeParameters in slurm.conf
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_conf_path }}"
-        insertafter: '^SelectType='
-        line: 'SelectTypeParameters=CR_Core'
+- name: Get list of slurm compute nodes
+  ansible.builtin.command: sinfo -h -r --format="%n"
+  register: sinfo_output
+  delegate_to: "{{  groups['slurm_control_node'] | first }}"
+  failed_when: false
+  changed_when: false
+  run_once: true
+  when: restart_slurm
 
-- name: Update slurm.conf in nfs mode
-  when:
-    - hostvars['127.0.0.1']['slurm_installation_type'] == 'nfs_share'
-  block:
-    - name: Append share_path to variables when slurm_installation_type is nfs_share
-      ansible.builtin.set_fact:
-        slurm_conf_path: "{{ hostvars['127.0.0.1']['share_path'] }}{{ slurm_nfs_folder }}{{ slurm_conf_path }}"
-
-    - name: Update SelectType in slurm.conf
-      ansible.builtin.replace:
-        path: "{{ slurm_conf_path }}"
-        regexp: 'SelectType=(.*)'
-        replace: 'SelectType=select/cons_tres'
-
-    - name: Add SelectTypeParameters in slurm.conf
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_conf_path }}"
-        insertafter: '^SelectType='
-        line: 'SelectTypeParameters=CR_Core'
-
-    - name: Add SelectTypeParameters in slurm.conf
-      ansible.builtin.lineinfile:
-        path: "{{ slurm_conf_path }}"
-        insertafter: '^SelectType='
-        line: 'SelectTypeParameters=CR_Core'
-
-- name: Restart slurmd on slurm_node
-  ansible.builtin.systemd:
-    name: slurmd
-    state: restarted
-    enabled: true
-  register: slurmd_status
-  until: slurmd_status is succeeded
-  retries: 5
-  delay: 30
-  when: "'slurm_node' in group_names"
-
-- name: Restart slurmd on login
-  ansible.builtin.systemd:
-    name: slurmd
-    state: restarted
-    enabled: true
-  register: slurmd_status
-  until: slurmd_status is succeeded
-  retries: 5
-  delay: 30
-  when: "'login' in group_names"
-
-- name: Restart slurmctld on slurm_control_node
-  ansible.builtin.systemd:
-    name: slurmctld
-    state: restarted
-    enabled: true
-  register: slurmctld_status
-  until: slurmctld_status is succeeded
-  retries: 5
-  delay: 30
-  when: "'slurm_control_node' in group_names"
+- name: Restart slurmd service
+  ansible.builtin.include_tasks: restart_slurm.yml
+  vars:
+    slurm_service_type: "slurmd"
+  args:
+    apply:
+      delegate_to: "{{ item }}"
+  run_once: true
+  loop: "{{ sinfo_output.stdout_lines }}"
+  when: restart_slurm

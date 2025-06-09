@@ -40,9 +40,9 @@
       register: val_mapping_msg
 
   rescue:
-    - name: Rescue block
+    - name: Error in validating mapping file
       ansible.builtin.fail:
-        msg: "{{ val_mapping_msg.stderr }}"
+        msg: "{{ pxe_path_fail_msg }}. Error: {{ val_mapping_msg.stderr }}"
       when: val_mapping_msg.stderr is defined
 
 - name: Read host mapping file from CSV file and return a dictionary

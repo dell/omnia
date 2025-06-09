@@ -22,7 +22,7 @@ nvidia_device_plugin_dest_repo: "{{ k8s_tmp_dir }}/nvidia-device-plugin.tar.gz"
 mig_strategy: none
 gpu_discovery_feature: true
 file_mode: "0644"
-ansible_python_interpreter: /usr/bin/python3.11
+ansible_python_interpreter: "/usr/bin/{{ hostvars['localhost']['python_package'] }}"
 
 # Usage: deploy_nvidia_gpu_operator.yml
 nvidia_gpu_operator_path: "{{ k8s_tmp_dir }}/nvidia-gpu-operator-v{{ hostvars['localhost']['nvidia_gpu_operator_version'] }}"

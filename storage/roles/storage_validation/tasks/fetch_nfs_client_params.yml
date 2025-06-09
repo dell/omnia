@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,42 +17,6 @@
   ansible.builtin.set_fact:
     nfs_client_support: false
     nfs_server_support: false
-
-- name: Verify server_ip variable declaration
-  ansible.builtin.assert:
-    that:
-      - item.server_ip is defined
-    success_msg: "{{ server_ip_success_msg }}"
-    fail_msg: "{{ server_ip_fail_msg }}"
-
-- name: Verify server_share_path variable declaration
-  ansible.builtin.assert:
-    that:
-      - item.server_share_path is defined
-    success_msg: "{{ server_share_path_success_msg }}"
-    fail_msg: "{{ server_share_path_fail_msg }}"
-
-- name: Verify client_share_path variable declaration
-  ansible.builtin.assert:
-    that:
-      - item.client_share_path is defined
-    success_msg: "{{ client_share_path_success_msg }}"
-    fail_msg: "{{ client_share_path_fail_msg }}"
-
-- name: Verify client_mount_options variable declaration
-  ansible.builtin.assert:
-    that:
-      - item.client_mount_options is defined
-    success_msg: "{{ client_mount_options_success_msg }}"
-    fail_msg: "{{ client_mount_options_fail_msg }}"
-
-- name: Verify nfs_server variable declaration
-  ansible.builtin.assert:
-    that:
-      - item.nfs_server is defined
-      - item.nfs_server == true or item.nfs_server == false
-    success_msg: "{{ nfs_server_success_msg }}"
-    fail_msg: "{{ nfs_server_fail_msg }}"
 
 - name: Updating nfs_client_support value
   ansible.builtin.set_fact:

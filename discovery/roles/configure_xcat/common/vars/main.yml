@@ -45,7 +45,7 @@ xcat_proxy_patch_file:
   - { src: "{{ role_path }}/files/otherpkgs_updated.patch", dest: "/install/postscripts/otherpkgs", mode: "755" }
   - { src: "{{ role_path }}/files/yum_updated.patch", dest: "/opt/xcat/lib/perl/xCAT/Yum.pm", mode: "755" }
 
-# Usage: configure_xcat_basic_details
+# Usage: configure_xcat_basic_details.yml
 python_version: "{{ ansible_python_interpreter }}"
 network_spec_path: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
 path_db: "{{ provision_shared_library_path }}/db_operations"

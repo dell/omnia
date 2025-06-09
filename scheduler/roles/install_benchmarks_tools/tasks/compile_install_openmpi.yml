@@ -65,6 +65,7 @@
       ansible.builtin.stat:
         path: "{{ omnia_share_path }}/{{ benchmarks_dir_ucx }}"
       register: ucx_dir_data
+      when: ucx_installed
 
     - name: Construct openmpi compile the command with ucx and slurm
       ansible.builtin.set_fact:

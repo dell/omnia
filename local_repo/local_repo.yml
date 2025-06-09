@@ -22,6 +22,9 @@
         omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['local_repo']) | unique }}"
         cacheable: true
 
+- name: Invoke validate_config.yml to perform L1 and L2 validations for local repo
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+
 - name: Invoke get_config_credentials.yml
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
 - name: Include input project directory

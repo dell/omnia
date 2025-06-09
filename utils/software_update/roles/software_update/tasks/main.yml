@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Get the software organized by group
   group_package_map:
     input_path: "{{ hostvars['localhost']['input_project_dir'] }}"
@@ -24,7 +25,7 @@
     query: |
       SELECT node,hostname,admin_ip,role,group_name,service_tag
       FROM cluster.nodeinfo
-      WHERE node!='oim';
+      WHERE node!='oim' and status = 'booted';
     login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
   register: db_result
   delegate_to: omnia_provision
@@ -35,6 +36,12 @@
      | combine({item.group_name: (grouped_nodes[item.group_name] | default([]))
       + [item.admin_ip]}) }}" # admin_ip is the IP address of the node
   loop: "{{ db_result.query_result }}"
+
+- name: Pull images for group
+  ansible.builtin.include_tasks: image_pulling.yml
+  loop: "{{ grouped_nodes | default({}) | dict2items }}"
+  loop_control:
+    loop_var: grp
 
 - name: Install the rpm for group
   ansible.builtin.include_tasks: install_packages.yml

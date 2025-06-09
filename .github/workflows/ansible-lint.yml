@@ -7,6 +7,10 @@ on:
       - staging
       - release_1.7.1
       - pub/new_architecture
+      - pub/telemetry
+      - pub/composable_software_roles
+      - pub/local_repo
+      - pub/telemetry_restructure
 
 jobs:
   build:

@@ -397,8 +397,8 @@ init_container_config() {
             # Validate if NFS server share path is mounted
             echo -e "${BLUE} Validating if NFS server share path is mounted.${NC}"
             # strip the trailing slash from nfs_server_share_path
-            strip_nfs_server_share_path="${nfs_server_share_path%/}"
-            if grep -qs "$nfs_server_ip:$strip_nfs_server_share_path" /proc/mounts; then
+            nfs_server_share_path="${nfs_server_share_path%/}"
+            if grep -qs "$nfs_server_ip:$nfs_server_share_path" /proc/mounts; then
                 echo -e "${GREEN} NFS server share path is mounted.${NC}"
             else
                 echo -e "${RED} NFS server share path is not mounted. Provide valid NFS server details. ${NC}"

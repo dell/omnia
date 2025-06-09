@@ -53,7 +53,7 @@ OMNIA_REPO_KEY = "omnia_repo_url_rhel"
 RHEL_OS_URL = "rhel_os_url"
 SOFTWARES_KEY = "softwares"
 USER_REPO_URL = "user_repo_url"
-REPO_CONFIG = { "always": "immediate", "partial": "on_demand", "never": "streamed" }
+REPO_CONFIG = { "always": "on_demand", "partial": "on_demand", "never": "streamed" }
 
 # ----------------------------
 # Used by download_common.py
@@ -69,8 +69,12 @@ pulp_file_commands = {
     "distribution_create": "pulp file distribution create --name %s --base-path %s --repository %s",
     "distribution_update": "pulp file distribution update --name %s --base-path %s --repository %s",
 }
-
-
+CLI_FILE_PATH = "/root/.config/pulp/cli.toml"
+POST_TIMEOUT = 3600
+TAR_POLL_VAL = 3
+FILE_POLL_VAL = 1
+ISO_POLL_VAL = 15
+FILE_URI = "/pulp/api/v3/content/file/files/"
 # ----------------------------
 # Used by download_image.py
 # ----------------------------
@@ -80,6 +84,10 @@ pulp_container_commands = {
     "show_container_repo": "pulp container repository show --name %s",
     "create_container_remote": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '[\"%s\"]'",
     "create_container_remote_for_digest": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s",
+    "create_user_remote_tag": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '[\"%s\"]' --ca-cert %s --client-key %s --tls-validation false",
+    "update_user_remote_tag": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --ca-cert %s --client-key %s --tls-validation false",
+    "update_user_remote_digest": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s  --ca-cert %s --client-key %s --tls-validation false",
+    "create_user_remote_digest": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --ca-cert %s --client-key %s --tls-validation false",
     "update_remote_for_digest": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s",
     "update_container_remote": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s'",
     "show_container_remote": "pulp container remote show --name %s",
@@ -115,3 +123,8 @@ STANDARD_LOG_FILE_PATH = "/opt/omnia/log/local_repo/standard.log"
 # Used by cert_vault_handle.py
 # ----------------------------
 CERT_KEYS = ["sslcacert", "sslclientkey", "sslclientcert"]
+
+# ----------------------------
+# Used by process_metadata.py
+# ----------------------------
+metadata_rerun_file_path = "/opt/omnia/offline_repo/.data/localrepo_rerun_metadata.yml"

@@ -44,7 +44,7 @@
     - role: update_db_and_node_object
 
 - name: Apply OS-specific kernel parameters
-  hosts: all:!omnia_provision
+  hosts: all:!localhost:!omnia_provision:!service_nodes:!oim
   become: true
   connection: ssh
   vars_files:

@@ -15,6 +15,7 @@
 import os
 import subprocess
 import yaml
+import toml
 
 def load_yaml_file(path):
     """
@@ -104,7 +105,8 @@ def process_file(file_path, vault_key, mode):
         mode (str): The mode of operation, either 'encrypt' or 'decrypt'.
 
     Returns:
-        tuple: A tuple containing a boolean indicating whether the operation was successful and a message.
+        tuple: A tuple containing a boolean indicating whether the
+        operation was successful and a message.
     """
     if not os.path.isfile(file_path):
         return False, f"File not found: {file_path}"
@@ -136,3 +138,25 @@ def process_file(file_path, vault_key, mode):
         message = f"Invalid mode for {file_path}"
 
     return success, message
+
+def load_pulp_config(path):
+    """
+    Load Pulp CLI configuration from a TOML file.
+
+    Args:
+        path (str): Path to the Pulp CLI config file.
+
+    Returns:
+        dict: A dictionary containing the following keys:
+            - username (str): Pulp username
+            - password (str): Pulp password.
+            - base_url (str): Base URL for Pulp API".
+    """
+    with open(path, "r", encoding = "utf-8") as f:
+        config = toml.load(f)
+    cli_config = config.get("cli", {})
+    return {
+        "username": cli_config.get("username", ""),
+        "password": cli_config.get("password", ""),
+        "base_url": cli_config.get("base_url", "")
+    }

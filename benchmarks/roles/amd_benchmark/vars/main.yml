@@ -19,7 +19,7 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 invalid_inventory_fail_msg: "Failed. Invalid inventory format. Provide inventory with slurm_control_node and slurm_node group."
 cluster_os_type_success_msg: "cluster_os_type validated"
 supported_os_check_dict:
-  rhel: ["9.4"]
+  rhel: ["9.6"]
 cluster_os_type_fail_msg: "Failed. Incorrect cluster_os_type selected. Supported OS and versions are {{ supported_os_check_dict | string }}"
 # Usage: pre_requisites.yml
 slurm_running_fail_msg: "Failed. slurm services are not running in the node {{ inventory_hostname }}.
@@ -48,10 +48,8 @@ nfs_client_params_slurm_share_success_msg: "Entry found in nfs_client_params wit
 
 # Usage: fetch_omnia_inputs.yml
 config_filename: "omnia_config.yml"
-config_vaultname: .omnia_vault_key
-vault_key_permission: "0644"
 omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
-file_perm: '0755'
-input_config_failure_msg: "None of the parameters in omnia_config.yml should be empty."
 slurm_installation_type_empty_failure_msg: "Slurm Installation type cannot be empty in omnia_config.yml"
 slurm_installation_type_wrong_failure_msg: "Slurm Installation Type should be either nfs_share or configless in omnia_config.yml"
+restart_services_success_msg: "restart_slurm_services successfully validated"
+restart_services_failure_msg: "Failed. restart_slurm_services accepts true or false in omnia_config.yml"

@@ -1,0 +1,44 @@
+{
+  "title": "omnia_config.yaml",
+  "description": "Omina config related parameters",
+  "type": "object",
+  "properties": {
+    "k8s_cni": {
+      "description": "Kubernetes internal network for services",
+      "enum":["calico", "flannel"]
+    },
+    "k8s_service_addresses": {
+      "description": "Kubernetes pod network CIDR for internal network",
+      "type":"string",
+      "pattern":"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
+    },
+    "pod_external_ip_range": {
+      "description": "Kubernetes pod network CIDR for internal network",
+      "type":"string",
+      "pattern":"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)-(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$"
+    },
+    "k8s_pod_network_cidr": {
+      "type": "string",
+      "pattern":"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$",
+      "description": "CIDR for the Kubernetes Pod Network (e.g., 10.233.64.0/18)"
+    },
+    "topology_manager_policy": {
+      "enum": ["none", "best-effort", "restricted", "single-numa-node"],
+      "default": "none",
+      "description": "Kubernetes Topology manager policies"
+    },
+    "topology_manager_scope": {
+      "enum": ["container", "pod"],
+      "default": "container",
+      "description": "Kubernetes Topology manager scope"
+    }
+},
+  "required": [
+     "k8s_cni",
+     "k8s_service_addresses",
+     "k8s_pod_network_cidr",
+     "pod_external_ip_range",
+     "topology_manager_policy",
+     "topology_manager_scope"
+     ]
+}

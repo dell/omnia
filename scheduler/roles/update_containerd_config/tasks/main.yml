@@ -13,5 +13,8 @@
 # limitations under the License.
 ---
 
-- name: Update registry on compute nodes
-  ansible.builtin.include_tasks: update_registry.yml
+- name: Update containerd config
+  when: hostvars['127.0.0.1']['k8s_support']
+  block:
+    - name: Update registry on compute nodes
+      ansible.builtin.include_tasks: update_registry.yml

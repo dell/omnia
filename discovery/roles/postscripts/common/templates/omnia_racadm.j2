@@ -9,11 +9,31 @@ echo "--------------------------" >> /var/log/xcat/xcat.log
 LOG_FILE="/var/log/xcat/xcat.log"
 
 echo "Installing racadm" >> "$LOG_FILE"
-wget "{{ pulp_tarball_list[0].base_url }}/racadm.tar.gz" -O /tmp/racadm.tar.gz
+URL="{{ pulp_tarball_list[0].base_url }}"
+
+for i in {1..5}; do
+    if curl --head --silent --fail "$URL" > /dev/null; then
+        echo "$URL is reachable." >> "$LOG_FILE"
+        break
+    else
+        echo "Attempt $i: $URL not reachable. Retrying in 5 seconds..." >> "$LOG_FILE"
+        sleep 5
+    fi
+done
+wget "$URL/racadm.tar.gz" -O /tmp/racadm.tar.gz
 racadm_url_status=$?
 if [ $racadm_url_status -eq 0 ]; then
     tar -zxvf /tmp/racadm.tar.gz -C /tmp
-    cd /tmp/iDRACTools/racadm && echo "y" | bash install_racadm.sh
+    cd /tmp/iDRACTools/racadm
+    echo "y" | bash install_racadm.sh
+    install_status=$?
+    if [ $install_status -ne 0 ]; then
+        echo "[ERROR] racadm installation script failed with code $install_status" >> "$LOG_FILE"
+    else
+        echo "[INFO] racadm installed successfully" >> "$LOG_FILE"
+    fi
+else
+    echo "[ERROR] Failed to download racadm" >> "$LOG_FILE"
 fi
 echo "Successfully installed racadm" >> "$LOG_FILE"
 echo "-----------------------------" >> "$LOG_FILE"

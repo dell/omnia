@@ -1,4 +1,4 @@
-#  Copyright 2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ common_plugin:
 k8s_tmp_dir: "/root/k8s"
 helm_install_fail_msg: "Failed to fetch helm path. Please verify helm installation and ensure the environment variable PATH is correctly set in the node.
  Re-run the playbook after verification."
-ansible_python_interpreter: /usr/bin/python3.11
+ansible_python_interpreter: "/usr/bin/{{ hostvars['localhost']['python_package'] }}"
 
 # Usage: deploy_kubernetes_dashboard.yml
 k8s_dashboard_admin_file_source: "k8s_dashboard_admin.yaml"
@@ -42,8 +42,8 @@ mpi_operator_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/{{ 
 mpi_operator_dest_url: "{{ k8s_tmp_dir }}/{{ hostvars['localhost']['mpi_operator'] }}.yml"
 
 # Usage: deploy_xilinx_device_plugin.yml
-xilinx_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/xilinx-device-plugin/xilinx-device-plugin.yml"
-xilinx_device_plugin_yaml_dest: "{{ k8s_tmp_dir }}/xilinx-device-plugin.yml"
+xilinx_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/{{ hostvars['localhost']['xilinx_device_plugin_pkg'] }}/{{ hostvars['localhost']['xilinx_device_plugin_pkg'] }}.yml" # noqa: yaml[line-length]
+xilinx_device_plugin_yaml_dest: "{{ k8s_tmp_dir }}/{{ hostvars['localhost']['xilinx_device_plugin_pkg'] }}.yml"
 
 # Usage: deploy_habana_device_plugin.yml
 habana_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/habana-device-plugin.yaml"
@@ -52,19 +52,18 @@ k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
 minimal_gaudi_k8s_version: "1.27"
 
 # Usage: deploy_nfs_client_provisioner.yml
-nfs_subdir_external_provisioner_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tar.gz" # noqa: yaml[line-length]
-nfs_subdir_external_provisioner_dest_repo: "{{ k8s_tmp_dir }}/nfs-subdir-external-provisioner-4.0.18.tar.gz"
+nfs_subdir_external_provisioner_repo: "{{ hostvars['localhost']['offline_tarball_path'] }}/{{ hostvars['localhost']['nfs_subdir_external_provisioner_pkg'] }}/{{ hostvars['localhost']['nfs_subdir_external_provisioner_pkg'] }}.tar.gz" # noqa: yaml[line-length]
+nfs_subdir_external_provisioner_dest_repo: "{{ k8s_tmp_dir }}/{{ hostvars['localhost']['nfs_subdir_external_provisioner_pkg'] }}.tar.gz"
 
 # Usage deploy_multus_device_plugin.yml
 network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
 input_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 project_name: "{{ hostvars['localhost']['project_name'] }}"
 network_spec_path: "{{ input_dir }}/network_spec.yml"
-pulp_container_name: "{{ admin_nic_ip }}:{{ pulp_registry_port }}"
-multus_config: "true"
+multus_config: true
 multus_deployment_template: "{{ role_path }}/templates/multus-daemonset.j2"
-multus_deployment_manifest: "/opt/omnia/offline_repo/cluster/manifest/multus-daemonset/multus-daemonset.yml"
-multus_deployment_manifest_path: "{{ hostvars['localhost']['offline_manifest_path'] }}/multus-daemonset/multus-daemonset.yml"
+multus_deployment_manifest: "{{ k8s_tmp_dir }}/multus-daemonset.yml"
+multus_deployment_manifest_path: "{{ hostvars['localhost']['offline_manifest_path'] }}/{{ hostvars['localhost']['multus_daemonset_pkg'] }}/{{ hostvars['localhost']['multus_daemonset_pkg'] }}.yml" # noqa: yaml[line-length]
 multus_deployment_manifest_mode: "0644"
 multus_version: "v4.1.4-thick"
 memory_limit_kube_multus: "1Gi"
@@ -79,9 +78,20 @@ multus_command:
 multus_deployment_dest_path: "{{ k8s_tmp_dir }}/multus-daemonset.yml"
 
 # Usage deploy_whereabouts_device_plugin.yml
-whereabouts_git_url: "{{ hostvars['localhost']['offline_git_path'] }}/whereabouts/whereabouts.tar.gz"
-whereabouts_dest_folder: "{{ k8s_tmp_dir }}/whereabouts.tar.gz"
+whereabouts_git_url: "{{ hostvars['localhost']['offline_git_path'] }}/{{ hostvars['localhost']['whereabouts_pkg'] }}/{{ hostvars['localhost']['whereabouts_pkg'] }}.tar.gz" # noqa: yaml[line-length]
+whereabouts_dest_folder: "{{ k8s_tmp_dir }}/{{ hostvars['localhost']['whereabouts_pkg'] }}.tar.gz"
 whereabouts_folder: "{{ k8s_tmp_dir }}/whereabouts"
 tmp_folder: "{{ k8s_tmp_dir }}"
 wherabout_crds_folder: "{{ k8s_tmp_dir }}/whereabouts/doc/crds"
 git_permissions: "0644"
+
+# Usage: pod_status.yml
+retries_count: "30"
+delay_time: "5"
+track_file_path: "/tmp/deployment_track.json"
+k8s_not_accessible_msg: "Kubernetes not found or not accessible: {{ k8s_status.msg }}"
+k8s_namespace_error_msg: "Namespace error: {{ k8s_status.namespace_error }}"
+k8s_node_not_ready: "Some nodes are NotReady: {{ k8s_status.not_ready_nodes }}"
+k8s_pods_failed_msg: "Some pods failed: {{ k8s_status.failed_pods }}"
+k8s_cluster_issue_msg: "Cluster issues detected."
+k8s_status_success_msg: "All Kubernetes nodes are Ready and all pods are Running or Succeeded."

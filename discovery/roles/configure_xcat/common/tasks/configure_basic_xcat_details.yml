@@ -79,17 +79,10 @@
   ansible.builtin.command: "{{ xcat_path }}/chdef -t site domain=\"{{ domain_name }}\""
   changed_when: true
 
-- name: Configure service_node role related details
-  ansible.builtin.include_tasks: configure_service_role_xcat_details.yml
-  when: service_role_required | default(false)
-
-- name: Add setupdhcp attributes for booted service nodes group
-  ansible.builtin.command: >
-    {{ xcat_path }}/chdef
-    {{ booted_service_nodes_data.keys() | map('extract', booted_service_nodes_data) | map(attribute='node') | join(',') }}
-    setupdhcp=1
+# As we don't want to mount tftpboot and install dir form MN to SN
+- name: Set sharedtftp in clustersite
+  ansible.builtin.command: "{{ xcat_path }}/chdef -t site clustersite sharedtftp=0 installloc=''"
   changed_when: true
-  when: hierarchical_provision_status | default(false)
 
 - name: Configure system password
   ansible.builtin.shell: >

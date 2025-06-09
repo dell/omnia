@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,42 +13,10 @@
 #  limitations under the License.
 ---
 
-- name: Check if omnia_vault_key exists
-  ansible.builtin.stat:
-    path: "{{ role_path }}/../../../input/{{ config_vaultname }}"
-  register: vault_key_result
-
-- name: Create ansible vault key if it does not exist
-  ansible.builtin.set_fact:
-    vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
-  when: not vault_key_result.stat.exists
-
-- name: Save vault key
-  ansible.builtin.lineinfile:
-    path: "{{ role_path }}/../../../input/{{ config_vaultname }}"
-    line: "{{ vault_key }}"
-    mode: "{{ vault_key_permission }}"
-    owner: root
-    create: true
-  when: not vault_key_result.stat.exists
-
-- name: Check if omnia config file is encrypted
-  ansible.builtin.command: cat {{ role_path }}/../../../input/{{ config_filename }}
-  changed_when: false
-  register: config_content
-  no_log: true
-
-- name: Decrpyt omnia_config.yml
-  ansible.builtin.command: >-
-    ansible-vault decrypt {{ role_path }}/../../../input/{{ config_filename }}
-    --vault-password-file {{ role_path }}/../../../input/{{ config_vaultname }}
-  when: "'$ANSIBLE_VAULT;' in config_content.stdout"
-  changed_when: true
-
 - name: Include variable file omnia_config.yml
   block:
     - name: Include variable file omnia_config.yml
-      ansible.builtin.include_vars: "{{ role_path }}/../../../input/{{ config_filename }}"
+      ansible.builtin.include_vars: "{{ input_project_dir }}/{{ config_filename }}"
       register: include_omnia_config
       no_log: true
   rescue:
@@ -70,8 +38,9 @@
   when:
     - slurm_installation_type | default("", true) not in ["nfs_share", "configless"]
 
-- name: Encrypt input config file
-  ansible.builtin.command: >-
-    ansible-vault encrypt {{ role_path }}/../../../input/{{ config_filename }}
-    --vault-password-file {{ role_path }}/../../../input/{{ config_vaultname }}
-  changed_when: false
+- name: Verify the value of restart_slurm_services
+  ansible.builtin.assert:
+    that:
+      - restart_slurm_services == true or restart_slurm_services == false
+    success_msg: "{{ restart_services_success_msg }}"
+    fail_msg: "{{ restart_services_failure_msg }}"

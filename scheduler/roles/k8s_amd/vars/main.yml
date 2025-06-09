@@ -18,4 +18,4 @@ k8s_tmp_dir: "/root/k8s"
 rocm_device_plugin_yaml_url: "{{ hostvars['localhost']['offline_manifest_path'] }}/rocm-device-plugin/rocm-device-plugin.yml"
 rocm_device_plugin_dest_url: "{{ k8s_tmp_dir }}/rocm-device-plugin.yml"
 file_mode: "0644"
-ansible_python_interpreter: /usr/bin/python3.11
+ansible_python_interpreter: "/usr/bin/{{ hostvars['localhost']['python_package'] }}"

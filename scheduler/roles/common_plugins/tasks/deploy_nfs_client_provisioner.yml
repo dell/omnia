@@ -28,7 +28,6 @@
       nfs:
         server: "{{ hostvars['127.0.0.1']['k8s_nfs_server_ip'] }}"
         path: "{{ hostvars['127.0.0.1']['k8s_server_share_path'] }}"
-  when: "'nfs-subdir-external-provisioner' not in k8s_pods.stdout"
 
 - name: Set NFS Client Provisioner as default StorageClass
   kubernetes.core.k8s:

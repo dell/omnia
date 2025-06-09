@@ -1,4 +1,4 @@
-#  Copyright 2022 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -17,26 +17,6 @@
   ansible.builtin.set_fact:
     beegfs_connauth_status: false
 
-- name: Set beegfs_rdma_support, beegfs_unmount_client, beegfs_version_change value
-  ansible.builtin.set_fact:
-    beegfs_rdma_support: "{{ beegfs_rdma_support | lower }}"
-    beegfs_unmount_client: "{{ beegfs_unmount_client | lower }}"
-    beegfs_version_change: "{{ beegfs_version_change | lower }}"
-
-- name: Assert beegfs_rdma_support
-  ansible.builtin.assert:
-    that:
-      - beegfs_rdma_support == true or beegfs_rdma_support == false
-    success_msg: "{{ beegfs_rdma_support_success_msg }}"
-    fail_msg: "{{ beegfs_rdma_support_failure_msg }}"
-
-- name: Assert beegfs_mgmt_server
-  ansible.builtin.assert:
-    that:
-      - beegfs_mgmt_server | length > 1
-    success_msg: "{{ beegfs_mgmt_server_success_msg }}"
-    fail_msg: "{{ beegfs_mgmt_server_fail_msg }}"
-
 - name: Validate beegfs_mgmt_server inputs
   when: beegfs_mgmt_server | length > 1
   block:
@@ -50,18 +30,6 @@
       ansible.builtin.fail:
         msg: "{{ beegfs_mgmt_server_not_reachable_msg }}"
       when: ping_msg in beegfs_mgmt_server_reachablility.stdout
-
-- name: Verify beegfs_mounts is not empty
-  ansible.builtin.fail:
-    msg: " {{ beegfs_mounts_fail_msg }}"
-  when: beegfs_mounts | length < 1
-
-- name: Assert beegfs_unmount_client
-  ansible.builtin.assert:
-    that:
-      - beegfs_unmount_client == true or beegfs_unmount_client == false
-    success_msg: "{{ beegfs_unmount_client_success_msg }}"
-    fail_msg: "{{ beegfs_unmount_client_failure_msg }}"
 
 - name: Validate beegfs_client_version
   ansible.builtin.assert:
@@ -88,13 +56,6 @@
       ansible.builtin.set_fact:
         beegfs_connauth_status: true
       when: file_result.stat.exists
-
-- name: Assert beegfs_version_change
-  ansible.builtin.assert:
-    that:
-      - beegfs_version_change == true or beegfs_version_change == false
-    success_msg: "{{ beegfs_version_change_success_msg }}"
-    fail_msg: "{{ beegfs_version_change_failure_msg }}"
 
 - name: Assert beegfs_unmount_client when beegfs_version_change
   ansible.builtin.assert:

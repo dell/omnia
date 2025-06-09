@@ -142,7 +142,8 @@ omnia_repo_url_rhel:
 # Update to true if required to connect to the Pulp server using HTTPS.
 pulp_protocol_https: false
 
-# By default, enable_routed_internet should be set to true for clusters with partial or no dedicated internet access.
-# It is recommended to disable routed internet access (false) if the compute cluster has direct internet access,
-# or if local repository mode is set to Always, to ensure packages are pulled from the Omnia repository.
+# enable_routed_internet should be set to true for clusters having partial or no dedicated internet access.
+# enable_routed_internet should be set to false for clusters having dedicated internet access.
+# When set to true, Squid Proxy will be deployed on OIM and will be used for routing requests from compute nodes.
+# By default, enable_routed_internet is set to true.
 enable_routed_internet: true

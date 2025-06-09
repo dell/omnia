@@ -30,8 +30,10 @@
   ansible.builtin.command: "{{ xcat_path }}/chdef all postbootscripts=\"otherpkgs\""
   changed_when: true
 
-- name: Configure network and hostname postbootscripts
-  ansible.builtin.command: "{{ xcat_path }}/chdef all -p postbootscripts=\"confignetwork -s,omnia_hostname\""
+- name: Configure postbootscripts
+  ansible.builtin.command: >
+    {{ xcat_path }}/chdef all -p
+    postbootscripts="omnia_nic_autoconnect,confignetwork -s,omnia_hostname"
   changed_when: true
 
 - name: Copy PCS postboot script to postscripts

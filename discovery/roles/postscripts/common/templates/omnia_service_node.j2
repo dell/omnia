@@ -50,7 +50,7 @@ if [ $genesis_url_status -eq 0 ]; then
     rpm -e --nodeps $genesis_rpm_file
     rpm -ivh /tmp/xCAT-genesis-base-x86_64-2.16.4-snap202308211541.noarch.rpm
     echo "Executing mknb x86_64 command -" >> "$LOGFILE"
-    /opt/xcat/sbin/mknb x86_64 >> "$LOGFILE"
+    XCATBYPASS=1 /opt/xcat/sbin/mknb x86_64 >> "$LOGFILE"
     if [[ $? -eq 0 ]]; then
         echo " mknb x86_64 command execution successfully." >> "$LOGFILE"
     else
@@ -71,8 +71,8 @@ if [ "$str_os_type" = "redhat" ]; then
     sudo dnf install -y podman
 fi
 
-# sudo systemctl enable podman.socket || { echo "Error enabling podman.socket." >> "$LOGFILE"; exit 1; }
-# sudo systemctl start podman.socket || { echo "Error starting podman.socket." >> "$LOGFILE"; exit 1; }
+# Configuring service node for rsyslog
+echo -e 'module(load="imudp") \ninput(type="imudp" port="514")' | sudo tee /etc/rsyslog.d/01-receiver.conf > /dev/null
 
 log "INFO: Renaming admin interface to {{ hostvars['omnia_provision']['admin_nic'] }}."
 # Ensure the management interface name is the same as active OIM, if not add the active OIM's interface name as an alternative name
@@ -96,8 +96,13 @@ if ! ifconfig | grep -w {{ hostvars['omnia_provision']['admin_nic'] }}; then
     # 70-persistent-net.rules must be used as the file for consistent interface naming
     [ -f {{ persistent_rules_file }} ] || touch {{ persistent_rules_file }}
     echo "SUBSYSTEM==\"net\",ACTION==\"add\",ATTR{address}==\"${MAC}\",ATTR{type}==\"${TYPE}\",NAME=\"{{ hostvars['omnia_provision']['admin_nic'] }}\"" >> {{ persistent_rules_file }}
+    CONNECTION_PROFILE=$(nmcli -f name,device connection show | grep -w ${INTERFACE} | cut -d' ' -f1)
+    log "INFO: CONNECTION_PROFILE - ${CONNECTION_PROFILE}"
+    nmcli connection modify ${CONNECTION_PROFILE} connection.interface-name \"\"
+    log "INFO: Executing command- nmcli connection modify ${CONNECTION_PROFILE} match.interface-name {{ hostvars['omnia_provision']['admin_nic'] }}"
+    nmcli connection modify ${CONNECTION_PROFILE} match.interface-name {{ hostvars['omnia_provision']['admin_nic'] }} || { echo "ERROR: Using nmcli to match the interface name." >> "$LOGFILE"; exit 1; }
 
-    log "INFO: Renamed the admin interface to {{ hostvars['omnia_provision']['admin_nic'] }}."
+    log "INFO: Renamed the admin interface ${CONNECTION_PROFILE} to {{ hostvars['omnia_provision']['admin_nic'] }}."
 fi
 
 log "--------------------------"
