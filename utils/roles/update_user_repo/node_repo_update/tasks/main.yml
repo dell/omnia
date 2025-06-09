@@ -15,6 +15,6 @@
 
 - name: Validate the input files and values
   ansible.builtin.include_tasks: validation.yml
-  
+
 - name: Create repo base on os_type
   ansible.builtin.include_tasks: "{{ ansible_os_family | lower }}.yml"

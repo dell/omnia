@@ -17,9 +17,10 @@
     - name: DNF install the rpms {{ node }}
       ansible.builtin.dnf:
         name: "{{ grouped_packages.grp_pkg_map[grp.key].rpm | default([]) }}"
-        state: latest
-        update_only: true
+        state: present
+        # update_only: true
       register: dnf_install
+      # check_mode: true
       when: "'rpm' in grouped_packages.grp_pkg_map[grp.key]"
       delegate_to: "{{ node }}"
 

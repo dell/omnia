@@ -62,7 +62,7 @@
 
 - name: Process omnia_repo_urls in one line
   ansible.builtin.set_fact:
-    omnia_repo_url_processed: "{{ omnia_repo_url_processed | default([]) | list 
+    omnia_repo_url_processed: "{{ omnia_repo_url_processed | default([]) | list
      + [item | combine({'name': version_dict[item.name]}) if item.name in version_dict.keys() else item] }}"
   loop: "{{ omnia_repo_url_rhel | default([]) }}"
   loop_control:
@@ -88,6 +88,7 @@
   ansible.builtin.command: dnf clean all
   changed_when: true
 
+# handler
 - name: Execute update repos
   when: repos_update_status | default(false)
   block:
