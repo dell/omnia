@@ -62,7 +62,7 @@ def main():
             continue
         service_tag = node['service_tag']
         # service_node_name = node['hostname']
-        service_active_nic_ip = node['admin_ip'] if node.get('enable_service_ha') else node['virtual_ip_address']
+        service_active_nic_ip = node['virtual_ip_address'] if node.get('enable_service_ha') else node[' admin_ip']
 
         # # Create the node directories
         service_dir = os.path.join(base_dir, service_tag)
