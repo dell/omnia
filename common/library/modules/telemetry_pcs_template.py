@@ -77,17 +77,12 @@ def main():
 
     # Initialize the results list
     results = []
-    passive_nodes = []
 
     # Process each node
     for _, node in service_nodes.items():
         # Skip nodes that are HA-enabled but not active
         if node.get('enable_service_ha') and not node.get('active'):
             continue
-
-        # If telemetry is enabled and the node is active, collect its passive_node
-        if node.get('enable_service_ha') and node.get('active'):
-            passive_nodes.extend(node.get('passive_nodes'))
 
         # Extract the node parameters
 
@@ -146,19 +141,6 @@ def main():
 
         # Add the result to the list
         results.append(f"Processed node {service_tag}")
-
-        # Copy rendered active node directory to passive node directories
-        for passive_service_tag in passive_nodes:
-            passive_service_tag_telemetry_dir = os.path.join(base_dir, passive_service_tag, 'telemetry')
-            passive_service_tag_log_dir = os.path.join(base_dir, passive_service_tag, 'log', 'telemetry')
-
-
-            if not os.path.exists(passive_service_tag_telemetry_dir):
-                shutil.copytree(telemetry_dir, passive_service_tag_telemetry_dir, symlinks=True)
-
-            if not os.path.exists(passive_service_tag_log_dir):
-                shutil.copytree(log_dir, passive_service_tag_log_dir, symlinks=True)
-            results.append(f"Copied config from active node: {service_tag} to passive node: {passive_service_tag}")
 
     # Exit the module
     module.exit_json(changed=True, msg="Nodes processed successfully", results=results)

@@ -58,9 +58,11 @@ def main():
 
     # Process each node
     for _, node in service_nodes.items():
+        if node.get('enable_service_ha') and not node.get('active'):
+            continue
         service_tag = node['service_tag']
         # service_node_name = node['hostname']
-        service_admin_nic_ip = node['admin_ip']
+        service_active_nic_ip = node['admin_ip'] if node.get('enable_service_ha') else node['virtual_ip_address']
 
         # # Create the node directories
         service_dir = os.path.join(base_dir, service_tag)
@@ -71,7 +73,7 @@ def main():
         # Create the template context
         context = {
             'service_tag': service_tag,
-            'service_admin_nic_ip': service_admin_nic_ip
+            'service_active_nic_ip': service_active_nic_ip
         }
 
         # Render the telemetry templates

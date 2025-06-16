@@ -7,4 +7,4 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 5s
     static_configs:
-      - targets: [ '{{ service_admin_nic_ip }}:2112' ]
+      - targets: [ '{{ service_active_nic_ip }}:2112' ]
