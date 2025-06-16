@@ -19,7 +19,8 @@ delay_count: 5
 # Usage: deploy_grafana_container.yml
 omnia_nfs_share: "{{ oim_shared_path }}/omnia"
 grafana_image: "docker.io/grafana/grafana"
-grafana_image_tag: "9.2.2"
+# Tag is fixed for grafana image as of 12-06-2025
+grafana_image_tag: "12.0.1"
 grafana_container_name: "grafana"
 dir_permissions_755: "0755"
 grafana_log_dir: "{{ omnia_nfs_share }}/log/telemetry/grafana"

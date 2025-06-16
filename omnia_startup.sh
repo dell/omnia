@@ -702,6 +702,7 @@ post_setup_config() {
             echo "oim_shared_path: $omnia_path"
             echo "omnia_version: $omnia_release"
             echo "oim_hostname: $(hostname)"
+            echo "oim_node_name: $(hostname -s)"
             echo "domain_name: $domain_name"
             echo "omnia_core_hashed_passwd: $hashed_passwd"
             echo "omnia_share_option: $share_option"

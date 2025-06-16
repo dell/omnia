@@ -96,6 +96,23 @@
         pcs_resources: "{{ pcs_resources + [squid_name] }}"
       when: hostvars['localhost']['enable_routed_internet']
 
+    - name: Add idract_telemetry to pcs-resources if idrac_telemetry_support is true
+      ansible.builtin.set_fact:
+        pcs_resources: "{{ pcs_resources + telemetry_group_resources }}"
+      when: hostvars['localhost']['idrac_telemetry_support']
+
+    - name: Add visualization to pcs-resources if visualization_support is true
+      ansible.builtin.set_fact:
+        pcs_resources: "{{ pcs_resources + visualization_group_resources }}"
+      when: hostvars['localhost']['visualization_support']
+
+    - name: Add prometheus to pcs-resources if idrac_telemetry_support and idrac_telemetry_collection_type is prometheus
+      ansible.builtin.set_fact:
+        pcs_resources: "{{ pcs_resources + prometheus_group_resources }}"
+      when:
+        - hostvars['localhost']['idrac_telemetry_support']
+        - hostvars['localhost']['idrac_telemetry_collection_type'] == "prometheus"
+
     - name: Parse PCS resources for any that are not started
       ansible.builtin.shell: |
         set -o pipefail

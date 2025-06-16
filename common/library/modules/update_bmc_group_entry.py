@@ -149,12 +149,13 @@ def add_bmc_entries(nodes, existing_entries, bmc_creds, module, result):
                     result['unreachable_bmc'].append(bmc_ip)
             result['changed'] = True
 
-def verify_bmc_entries(existing_entries, bmc_creds, module, result):
+def verify_bmc_entries(nodes, bmc_creds, module, result):
     """
     Verify reachability and authentication of BMC entries in the existing entries.
     """
 
-    for bmc_ip, _ in existing_entries.items():
+    for node in nodes:
+        bmc_ip = node.get('bmc_ip')
         is_valid, code = is_bmc_reachable_or_auth(bmc_ip, bmc_creds.get('username'),
                                                   bmc_creds.get('password'), module)
         if is_valid:
@@ -172,7 +173,7 @@ def verify_bmc_entries(existing_entries, bmc_creds, module, result):
 def main():
     "Main function for the custom ansible module - update_bmc_group_entry"
     module_args = {
-        'csv_path': {'type': 'str', 'required': True},
+        'csv_path': {'type': 'str', 'required': False, 'default': '/opt/omnia/telemetry/bmc_group_entries.csv' },
         'nodes': {'type': 'list', 'elements': 'dict', 'required': False, 'default': []},
         'bmc_username': {'type': 'str', 'required': False, 'no_log': True},
         'bmc_password': {'type': 'str', 'required': False, 'no_log': True},
@@ -203,7 +204,7 @@ def main():
         delete_bmc_entries(nodes, existing_entries, result)
         write_entries_csv(csv_path, existing_entries)
     elif verify_bmc:
-        verify_bmc_entries(existing_entries, bmc_creds, module, result)
+        verify_bmc_entries(nodes, bmc_creds, module, result)
     else:
         add_bmc_entries(nodes, existing_entries, bmc_creds, module, result)
         write_entries_csv(csv_path, existing_entries)

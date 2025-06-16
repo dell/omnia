@@ -60,6 +60,12 @@
     prompt: "{{ warning_idrac_telemetry_support_false }}"
   when: not idrac_telemetry_support
 
+- name: Warning for idrac_telemetry_support is currently set to true
+  ansible.builtin.pause:
+    seconds: "{{ pause_time_15 }}"
+    prompt: "{{ warning_idrac_telemetry_support_true }}"
+  when: idrac_telemetry_support
+
 # - name: Validate k8s prometheus, scrape interval and prometheus gaudi
 #   ansible.builtin.include_tasks: validate_k8s_prometheus_prometheus_gaudi.yml
 #   when: k8s_prometheus_support or prometheus_gaudi_support

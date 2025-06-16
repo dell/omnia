@@ -47,42 +47,6 @@
   when: item.BMC_IP is not match('^\\d{1,3}(\\.\\d{1,3}){3}$')
   loop: "{{ bmc_dict_list }}"
 
-- name: Validate BMC reachability
-  update_bmc_group_entry:
-    csv_path: "{{ bmc_group_data_filename }}"
-    bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
-    bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
-    verify_bmc: true
-  register: bmc_result
-
-- name: Show verified BMC entries
-  when: bmc_result.verified_bmc | length > 0
-  ansible.builtin.debug:
-    msg: "BMC entries valid for IPs: {{ bmc_result.verified_bmc | join(', ') }}."
-
-- name: Show Redfish Disabled Warning
-  when: bmc_result.redfish_disabled | length > 0
-  ansible.builtin.debug:
-    msg: "{{ redfish_disabled_msg | replace('\n', ' ') }}"
-
-- name: Show Invalid BMC Credentials
-  when: bmc_result.invalid_creds | length > 0
-  ansible.builtin.debug:
-    msg: "{{ invalid_creds_msg | replace('\n', ' ') }}"
-
-- name: Show Unreachable BMC IPs
-  when: bmc_result.unreachable_bmc | length > 0
-  ansible.builtin.debug:
-    msg: "{{ unreachable_bmc_msg | replace('\n', ' ') }}"
-
-- name: Warning for user to fix BMC issues
-  when: >
-    (bmc_result.redfish_disabled | length > 0) or
-    (bmc_result.invalid_creds | length > 0) or
-    (bmc_result.unreachable_bmc | length > 0)
-  ansible.builtin.fail:
-    msg: "{{ invalid_bmc_fail_msg | replace('\n', ' ') }}"
-
 - name: Extract BMC_IP values for federated telemetry
   when: hostvars['localhost']['federated_idrac_telemetry_collection']
   block:

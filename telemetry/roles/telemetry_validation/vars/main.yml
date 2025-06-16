@@ -18,15 +18,21 @@ omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 telemetry_config_file: "{{ input_project_dir }}/telemetry_config.yml"
 fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist."
 pause_time_15: 15
+bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
 warning_telemetry_support_false: |
-  "Warning. idrac_telemetry_support and visualization_support are false in telemetry_config.yml.
+  "[WARNING] idrac_telemetry_support and visualization_support are false in telemetry_config.yml.
   Omnia does not deploy telemetry feature if none of the support category is true."
 telemetry_config_syntax_fail_msg: "Failed. Syntax errors present in telemetry_config.yml. Fix errors and re-run playbook again."
 warning_idrac_telemetry_support_false: |
-  "Warning: idrac_telemetry_support is set to false in telemetry_config.yml. This means iDRAC telemetry will not be activated.
+  "[WARNING] idrac_telemetry_support is set to false in telemetry_config.yml. This means iDRAC telemetry will not be activated.
   To use telemetry, set idrac_telemetry_support to true in telemetry_config.yml.
   Note that Omnia does not support disabling telemetry if containers are already running.
   To remove telemetry containers, use the utils/oim_cleanup.yml playbook."
+warning_idrac_telemetry_support_true: |
+  "[WARNING] idrac_telemetry_support is set to true in telemetry_config.yml.
+  iDRAC telemetry will be activated for all BMC IPs listed in {{ bmc_group_data_filename }}.
+  Confirm that all BMC IPs are reachable from the OIM and respective service nodes for telemetry to function properly.
+  Additionally, ensure that Redfish is enabled and the iDRAC has a datacenter license with a firmware version greater than 4."
 
 # # Usage: include_provision_config.yml
 # provision_config_file: "{{ input_project_dir }}/provision_config.yml"
@@ -67,29 +73,12 @@ warning_idrac_telemetry_support_false: |
 # dnf_conf_path: "/etc/dnf/dnf.conf"
 
 # Usage: validate_idrac_inventory.yml
-bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
 bmc_group_data_file_not_found_msg: "Failed. The BMC data file: {{ bmc_group_data_filename }} does not exist.
  Please execute discovery_provision.yml to Generate BMC data file."
 bmc_group_data_headers: "BMC_IP,GROUP_NAME,PARENT"
 bmc_group_data_invalid_msg: "Failed. Invalid BMC data file: {{ bmc_group_data_filename }}.
  Please execute discovery_provision.yml to Generate BMC data file."
-bmc_group_data_invalid_ip_msg: "Failed. Invalid BMC IP"
-waiting_time_30: 30
-redfish_disabled_msg: |
-  Redfish is disabled on the following BMC IPs: {{ bmc_result.redfish_disabled | join(', ') }}.
-  Please enable Redfish on above BMC IPs and execute telemetry.yml.
-invalid_creds_msg: |
-  The following BMC IPs have invalid credentials: {{ bmc_result.invalid_creds | join(', ') }}.
-  Kinldy make sure corect `bmc_username` and `bmc_password` is present in omnia_config_credential.yml file.
-  And all nodes BMC credentials should be same.
-  Rectify the issue and re-execute telemetry.yml.
-unreachable_bmc_msg: |
-  The following BMC IPs are unreachable: {{ bmc_result.unreachable_bmc | join(', ') }}.
-  Please provide BMC IPs which are reachable from OIM
-  else remove unreachable BMC entries from {{ bmc_group_data_filename }} file.
-invalid_bmc_fail_msg: |
-  [Failed] Some BMC IPs are not valid. Kindly address the issues mentioned above and
-  execute telemetry.yml. If issues not resolved, please remove the invalid BMC IPs from {{ bmc_group_data_filename }} file.
+bmc_group_data_invalid_ip_msg: "Failed. Invalid BMC IP present in the file: {{ bmc_group_data_filename }}. BMC IP"
 
 # Usage: validate_telemetry_container.yml
 telemetry_container_status_msg: "Telemetry container Status: {{ telemetry_container_status.containers[0].State.Status }}"

@@ -18,7 +18,8 @@ omnia_nfs_share: "{{ oim_shared_path }}/omnia"
 dir_permissions_755: "0755"
 loki_container_name: "loki"
 loki_image: docker.io/grafana/loki
-loki_image_tag: "3.4.1"
+# Tag is fixed for grafana/loki image as of 12-06-2025
+loki_image_tag: "3.5.1"
 loki_promtail_config_dir: "{{ omnia_nfs_share }}/telemetry/loki_promtail"
 container_config_mnt: "/mnt/config"
 loki_podman_volumes:
@@ -52,7 +53,8 @@ delay_count: 5
 # Usage: deploy_promtail_container.yml
 promtail_container_name: "promtail"
 promtail_image: docker.io/grafana/promtail
-promtail_image_tag: "3.4.1"
+# Tag is fixed for grafana/promtail image as of 12-06-2025
+promtail_image_tag: "3.5.1"
 promtail_volumes:
   - "{{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }}"
   - "loki_promtail_config:{{ container_config_mnt }}{{ selinux_option }}"

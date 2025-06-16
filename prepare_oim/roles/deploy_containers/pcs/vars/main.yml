@@ -133,7 +133,7 @@ kubespray_run_opts: >-
 
 # Usage: pcs-start.sh.j2: pulp
 pulp_container_name: "pulp"
-pulp_image: "docker.io/pulp/pulp"
+pulp_image: "docker.io/pulp/pulp:3.80"
 pulp_port_http: "{{ pulp_server_port }}:80"
 pulp_port_https: "{{ pulp_server_port }}:{{ pulp_server_port }}"
 pulp_share: "{{ omnia_nfs_share }}/pulp"
@@ -164,7 +164,7 @@ pulp_run_opts_https: >-
 # Usage: pcs-start.sh.j2: squid
 squid_container_name: "squid"
 squid_name: "squid"
-squid_image: "docker.io/ubuntu/squid"
+squid_image: "docker.io/ubuntu/squid:6.6-24.04_beta"
 squid_port: "{{ hostvars['localhost']['admin_nic_ip'] }}:{{ hostvars['oim']['squid_proxy_port'] }}:{{ hostvars['oim']['squid_proxy_port'] }}"
 squid_share: "{{ omnia_nfs_share }}/squid"
 squid_run_opts: >-
@@ -231,6 +231,11 @@ idrac_telemetry_receiver_run_opts: >-
   --entrypoint {{ idrac_telemetry_receiver_entry_script }}
   --detach
 
+telemetry_group_resources:
+  - "{{ mysql_container_name }}"
+  - "{{ activemq_container_name }}"
+  - "{{ idrac_telemetry_receiver_container_name }}"
+
 # prometheus_pump
 prometheus_pump_run_opts: >-
   --network=host
@@ -258,6 +263,10 @@ prometheus_run_opts: >-
   {% endfor %}
   --name {{ prometheus_container_name }}
   --detach
+
+prometheus_group_resources:
+  - "{{ prometheus_container_name }}"
+  - "{{ prometheus_pump_container_name }}"
 
 # Usage: pcs-container-resource-init.sh: visualization
 visualization_pcs_group: omnia_visualization
@@ -300,6 +309,11 @@ promtail_run_opts: >-
 promtail_run_cmd: >-
   --config.file={{ container_config_mnt }}/promtail-config.yaml
 promtail_monitor_cmd: "/usr/bin/promtail -version"
+
+visualization_group_resources:
+  - "{{ grafana_container_name }}"
+  - "{{ loki_container_name }}"
+  - "{{ promtail_container_name }}"
 
 secret_dir_permission: "0700"
 podman_secrets_dir: "{{ oim_shared_path }}/omnia/.secrets"

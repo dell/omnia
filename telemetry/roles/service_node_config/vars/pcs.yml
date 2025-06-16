@@ -35,7 +35,7 @@ pcs_sn_container_resources_finished: "/opt/omnia/pcs/pcs_sn_container_resources_
 mysql_root_password: "mysql_root_password"
 mysql_user_password: "mysql_user_password"
 mysql_user: "mysql_user"
-mysql_docker_image: "docker.io/library/mysql:8.0"
+mysql_docker_image: "docker.io/library/mysql:9.3.0"
 mysql_container_name: "mysqldb"
 mysql_database: "idrac_telemetrydb"
 mysql_port: 3306
@@ -58,7 +58,7 @@ mysql_run_opts: >-
 # ActiveMQ Container Configuration
 ####################################
 activemq_container_name: "activemq"
-activemq_image: "docker.io/rmohr/activemq:5.14.3"
+activemq_image: "docker.io/rmohr/activemq:5.15.9"
 activemq_run_opts: >-
   --network=host
   --volume activemq_log:/opt/activemq/data
@@ -69,7 +69,7 @@ activemq_run_opts: >-
 # iDRAC Telemetry Receiver Container
 ####################################
 idrac_telemetry_receiver_container_name: "idrac_telemetry_receiver"
-idrac_telemetry_receiver_go_image: "docker.io/library/golang:1.17"
+idrac_telemetry_receiver_go_image: "docker.io/library/golang:1.24"
 oim_idrac_telemetry_receiver_dir_path: "{{ oim_telemetry_dir_path }}/idrac_telemetry/idrac_telemetry_receiver"
 oim_idrac_telemetry_reference_path: "{{ oim_telemetry_dir_path }}/idrac_telemetry/idrac_telemetry_receiver/iDRAC-Telemetry-Reference-Tools"
 idrac_telemetry_receiver_entry_script: "/usr/local/bin/idrac_telemetry_receiver_init.sh"
@@ -101,7 +101,7 @@ idrac_telemetry_receiver_run_opts: >-
 
 prometheus_dir: "{{ telemetry_data_dir }}/prometheus"
 prometheus_container_name: "prometheus"
-prometheus_image: "docker.io/prom/prometheus:v2.36.0"
+prometheus_image: "docker.io/prom/prometheus:v3.4.1"
 prometheus_run_opts: >-
   --network=host
   --env PROMETHEUS_DB="poweredge_telemetry_metrics"
@@ -118,7 +118,7 @@ prometheus_log_dir: "{{ telemetry_log_dir }}/prometheus"
 prometheus_pump_entry_script: "/opt/omnia/telemetry/prometheus_pump/prometheus_pump.sh"
 prometheus_pump_container_name: "prometheus_pump"
 oim_prometheus_pump_dir: "{{ oim_telemetry_dir_path }}/prometheus_pump"
-prometheus_pump_image: "docker.io/library/golang:1.17"
+prometheus_pump_image: "docker.io/library/golang:1.24"
 prometheus_pump_run_opts: >-
   --network=host
   --log-driver=json-file

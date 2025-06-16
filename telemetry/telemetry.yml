@@ -170,10 +170,14 @@
           IP with Telemetry not supported: {{ failed_idrac_count }}
           IPs with Telemetry Initiated: {{ telemetry_idrac_count }}
 
+          {% if failed_idrac_count > 0 %}
+          Potential reasons for telemetry not being initiated include Redfish connectivity problems, timeout issues,
+          iDRAC9 datacenter license constraints, or firmware-related problems.
           IPs List (Telemetry not supported):
           {% for item in failed_idrac %}
             - {{ item }}
           {% endfor %}
+          {% endif %}
   tasks:
     - name: Telemetry Report Overview
       ansible.builtin.debug:

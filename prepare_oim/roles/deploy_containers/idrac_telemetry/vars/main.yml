@@ -23,7 +23,8 @@ root_read_write: "0644"
 # Usage: deploy_mysql_container.yml
 mysql_docker_image: "docker.io/library/mysql"
 mysql_container_name: "mysqldb"
-mysql_image_tag: "8.0"
+# Tag is fixed for mysql image as of 12-06-2025
+mysql_image_tag: "9.3.0"
 mysql_image_pull_fail_msg: |
   The pull of the MySQL image {{ mysql_container_name }}:{{ mysql_image_tag }} has failed.
   To resolve this issue, please address the following error message: {{ image_pull_result.msg }}.
@@ -86,7 +87,8 @@ activemq_directories:
   - { path: "{{ activemq_log_dir }}", mode: "{{ dir_permissions_755 }}" }
   - { path: "{{ activemq_dir }}", mode: "{{ dir_permissions_755 }}" }
 activemq_container_name: "activemq"
-activemq_image: "docker.io/rmohr/activemq:5.14.3"
+# Tag is fixed for activemq image as of 12-06-2025
+activemq_image: "docker.io/rmohr/activemq:5.15.9"
 wait_time: 10
 activemq_podman_volumes:
   - { name: "activemq_log", path: "{{ activemq_log_dir }}" }
@@ -129,7 +131,8 @@ idrac_telemetry_receiver_directories:
   - { path: "{{ idrac_telemetry_receiver_dir_path }}", mode: "{{ dir_permissions_755 }}" }
   - { path: "{{ idrac_telemetry_reference_path }}", mode: "{{ dir_permissions_755 }}" }
 idrac_telemetry_receiver_container_name: "idrac_telemetry_receiver"
-idrac_telemetry_receiver_go_image: "docker.io/library/golang:1.17"
+# Tag is fixed for golang image as of 12-06-2025
+idrac_telemetry_receiver_go_image: "docker.io/library/golang:1.24"
 idrac_telemetry_receiver_entry_script: "/usr/local/bin/idrac_telemetry_receiver_init.sh"
 idrac_telemetry_receiver_init_script:
   - template: "idrac_telemetry_receiver_init.sh.j2"

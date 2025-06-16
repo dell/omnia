@@ -29,12 +29,29 @@ mysqldb_container_port: 3306
 filemode: "0644"
 mysqldb_host: "127.0.0.1"
 min_firmware_version_reqd: 4
+waiting_time_30: 30
 idrac_telemetry_enable_fail_msg: |
   Failed. Error enabling telemetry on iDRAC. Possible causes include timeout or Redfish connectivity issues.
   Please retry the playbook after some time.
 filter_idrac_fail_msg: |
   Failed. Error filtering iDRACs. Possible causes include timeout or Redfish connectivity issues.
   Please retry the playbook after some time.
+bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
+redfish_disabled_msg: |
+  Redfish is disabled on the following BMC IPs: {{ bmc_result.redfish_disabled | join(', ') }}.
+  Please enable Redfish on above BMC IPs and execute telemetry.yml.
+invalid_creds_msg: |
+  The following BMC IPs have invalid credentials: {{ bmc_result.invalid_creds | join(', ') }}.
+  Kinldy make sure corect `bmc_username` and `bmc_password` is present in omnia_config_credential.yml file.
+  And all nodes BMC credentials should be same.
+  Rectify the issue and re-execute telemetry.yml.
+unreachable_bmc_msg: |
+  The following BMC IPs are unreachable: {{ bmc_result.unreachable_bmc | join(', ') }}.
+  Please provide BMC IPs which are reachable from OIM
+  else remove unreachable BMC entries from {{ bmc_group_data_filename }} file.
+invalid_bmc_warning_msg: |
+  [WARNING] Some BMC IPs are not valid. Kindly address the issues mentioned above and execute telemetry.yml.
+  Telemetry feature wont be enabled for these BMC IPs from {{ bmc_group_data_filename }} file.
 
 # Usage: trigger_telemetry_collection.yml
 idrac_telemetry_container: "idrac_telemetry_receiver"
@@ -46,7 +63,6 @@ prometheus_reload:
   delay: 5
 
 # Usage: create_telemetry_report.yml
-bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
 telemetry_report_path_oim: "/opt/omnia/telemetry/idrac_telemetry_report.yml"
 telemetry_report_path_sn: "{{ omnia_nfs_share }}/telemetry/idrac_telemetry_report.yml"
 telemetry_report_template: "telemetry_report.j2"

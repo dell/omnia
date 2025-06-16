@@ -25,7 +25,8 @@ squid_safe_ports:
   - 2225  # pulp
   - 21    # ftp
   - 1025-65535
-squid_image: "docker.io/ubuntu/squid"
+# Tag is fixed for the Squid container image as of 10-06-2025
+squid_image: "docker.io/ubuntu/squid:6.6-24.04_beta"
 squid_deployed_msg: "The {{ squid_container_name }} container has been successfully deployed."
 squid_deployed_fail_msg:
   The deployment of the {{ squid_container_name }} container has failed. To resolve this issue,

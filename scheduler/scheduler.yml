@@ -147,7 +147,7 @@
     - slurm
 
 - name: Install Slurm_pam
-  hosts: slurm_node
+  hosts: slurm_node,login
   any_errors_fatal: true
   roles:
     - slurm_pam

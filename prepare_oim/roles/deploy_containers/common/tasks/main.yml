@@ -33,18 +33,11 @@
     - nfs_type == 'external'
   tags: always
 
-- name: Get oim node name
-  ansible.builtin.command: hostname -s
-  register: oim_node_name
-  changed_when: false
-  tags: always
-
 - name: Set variables for containers deployment
   ansible.builtin.set_fact:
     admin_nic: "{{ hostvars['localhost']['admin_nic'] }}"
     admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
     admin_nic_forwarders: "{{ hostvars['localhost'].network_data.admin_network.DNS | default('', true) }}"
-    oim_node_name: "{{ oim_node_name.stdout }}"
     admin_net_addr: "{{ hostvars['localhost']['admin_net_addr'] }}"
     admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
     docker_username: "{{ hostvars['localhost']['docker_username'] }}"

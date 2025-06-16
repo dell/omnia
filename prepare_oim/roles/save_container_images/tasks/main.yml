@@ -29,6 +29,11 @@
   ansible.builtin.set_fact:
     container_images: "{{ container_images + ['omnia_kubespray:' + kubespray_tag] }}"
 
+- name: Add squid to container image list if enable_routed_internet is true
+  when: hostvars['localhost']['enable_routed_internet'] | default(false)
+  ansible.builtin.set_fact:
+    container_images: "{{ container_images + ['docker.io/ubuntu/squid:' + squid_tag] }}"
+
 - name: Add telemetry to container image list if telemetry_support is true
   when: hostvars['localhost']['idrac_telemetry_support'] | default(false)
   ansible.builtin.set_fact:
