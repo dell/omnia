@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# pylint: disable=import-error,no-name-in-module,line-too-long,too-many-positional-arguments,too-many-arguments
+"""This module handles downloading RPM files for local repository"""
+
 import subprocess
 import os
 from ansible.module_utils.local_repo.parse_and_download import write_status_to_file
- 
+
 def process_rpm(package, repo_store_path, status_file_path, cluster_os_type, cluster_os_version, repo_config_value, logger):
     """
     Downloads a list of RPM packages and writes the status of the download to a file.
@@ -64,4 +67,3 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type, clu
         write_status_to_file(status_file_path, package["package"], "rpm", status, logger)
         logger.info("#" * 30 + f" {process_rpm.__name__} end " + "#" * 30)
         return status
-

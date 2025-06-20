@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-
 - name: Validate JSON file
   block:
     - name: Check if 'cluster' key exists within '{{ file_basename }}'
@@ -25,75 +23,75 @@
     - name: Check each item in 'cluster' for required properties based on 'type=rpm'
       ansible.builtin.assert:
         that:
-          - "item.package is defined and item.repo_name is defined"
+          - "rpm_item.package is defined and rpm_item.repo_name is defined"
         fail_msg: "{{ rpm_properties_fail_msg }}"
       loop: "{{ json_data.ansible_facts[file_basename].cluster | selectattr('type', 'equalto', 'rpm') | list }}"
       loop_control:
-        loop_var: item
+        loop_var: rpm_item
 
     - name: Check each item in 'cluster' for required properties based on 'type=ansible_galaxy_collection'
       ansible.builtin.assert:
         that:
-          - "item.package is defined and item.version is defined"
+          - "galaxy_item.package is defined and galaxy_item.version is defined"
         fail_msg: "{{ ansible_galaxy_properties_fail_msg }}"
       loop: "{{ json_data.ansible_facts[file_basename].cluster | selectattr('type', 'equalto', 'ansible_galaxy_collection') | list }}"
       loop_control:
-        loop_var: item
+        loop_var: galaxy_item
 
     - name: Check each item in 'cluster' for required properties based on 'type=git'
       ansible.builtin.assert:
         that:
-          - "item.package is defined and item.version is defined and item.url is defined"
+          - "git_item.package is defined and git_item.version is defined and git_item.url is defined"
         fail_msg: "{{ git_properties_fail_msg }}"
       loop: "{{ json_data.ansible_facts[file_basename].cluster | selectattr('type', 'equalto', 'git') | list }}"
       loop_control:
-        loop_var: item
+        loop_var: git_item
 
     - name: Check each item in 'cluster' for required properties based on 'type=image'
       ansible.builtin.assert:
         that:
-          - "item.package is defined"
-          - ("item.tag is defined") or ("item.digest is defined")
+          - "image_item.package is defined"
+          - "image_item.tag is defined or image_item.digest is defined"
         fail_msg: "{{ image_properties_fail_msg }}"
       loop: "{{ json_data.ansible_facts[file_basename].cluster | selectattr('type', 'equalto', 'image') | list }}"
       loop_control:
-        loop_var: item
+        loop_var: image_item
 
     - name: Check each item in 'cluster' for required properties based on 'type=tarball'
       ansible.builtin.assert:
         that:
-          - "item.package is defined and item.url is defined"
+          - "tarball_item.package is defined and tarball_item.url is defined"
         fail_msg: "{{ tarball_properties_fail_msg }}"
       loop: "{{ json_data.ansible_facts[file_basename].cluster | selectattr('type', 'equalto', 'tarball') | list }}"
       loop_control:
-        loop_var: item
+        loop_var: tarball_item
 
     - name: Check each item in 'cluster' for required properties based on 'type=shell'
       ansible.builtin.assert:
         that:
-          - "item.package is defined and item.url is defined"
+          - "shell_item.package is defined and shell_item.url is defined"
         fail_msg: "{{ shell_properties_fail_msg }}"
       loop: "{{ json_data.ansible_facts[file_basename].cluster | selectattr('type', 'equalto', 'shell') | list }}"
       loop_control:
-        loop_var: item
+        loop_var: shell_item
 
     - name: Check each item in 'cluster' for required properties based on 'type=iso'
       ansible.builtin.assert:
         that:
-          - "item.package is defined and item.url is defined"
+          - "iso_item.package is defined and iso_item.url is defined"
         fail_msg: "{{ iso_properties_fail_msg }}"
       loop: "{{ json_data.ansible_facts[file_basename].cluster | selectattr('type', 'equalto', 'iso') | list }}"
       loop_control:
-        loop_var: item
+        loop_var: iso_item
 
     - name: Check each item in 'cluster' for required properties based on 'type=manifest'
       ansible.builtin.assert:
         that:
-          - "item.package is defined and item.url is defined"
+          - "manifest_item.package is defined and manifest_item.url is defined"
         fail_msg: "{{ manifest_properties_fail_msg }}"
       loop: "{{ json_data.ansible_facts[file_basename].cluster | selectattr('type', 'equalto', 'manifest') | list }}"
       loop_control:
-        loop_var: item
+        loop_var: manifest_item
 
   rescue:
     - name: Handle validation failure

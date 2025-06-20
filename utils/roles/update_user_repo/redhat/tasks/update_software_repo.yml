@@ -82,12 +82,11 @@
       loop_control:
         loop_var: item
 
-    - name: Configure omnia repositories
-      ansible.builtin.template:
-        src: "{{ omnia_repo_config_template_src }}"
-        dest: "{{ repo_path }}/{{ item.final_repo_name }}.repo"
-        mode: "{{ file_permission }}"
+    - name: Configure omnia repositories with baseurl presence check
+      ansible.builtin.include_tasks: create_omnia_repo.yml
       loop: "{{ omnia_repo_url_processed }}"
+      loop_control:
+        loop_var: item
       when: item.url in new_repos and software_version_default not in item.url
 
     - name: Set repos_update_status

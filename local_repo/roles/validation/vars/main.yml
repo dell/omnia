@@ -131,7 +131,7 @@ user_registry_fail_msg: "Failed. Please ensure user_registry is non empty list a
 check if there is any indentation error in {{ project_input_path }}/local_repo_config.yml"
 user_registry_fail_host_cert_path_msg: "Failed. Each item in user_registry should have 'host' and 'cert_path' keys defined"
 time_out: 30
-user_registry_msg: "The following user registries are not reachable: [{{ unreachable_registries | join(', ') }}]. If the user registry is not accessible from the Omnia Infrastructure Manager, Omnia will download all the images for the software listed in software_config.json."   # noqa: yaml[line-length]
+user_registry_msg: "Above host registries are not reachable. If the user registry is not accessible from the Omnia Infrastructure Manager, Omnia will download all the images for the software listed in software_config.json."   # noqa: yaml[line-length]
 cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the Omnia Infrastructure Manager for host {{ item.item.host }}. Please verify that correct cert_path is given in {{ project_input_path }}/local_repo_config.yml"  # noqa: yaml[line-length]
 
 # Usage: validate_user_repo_url.yml

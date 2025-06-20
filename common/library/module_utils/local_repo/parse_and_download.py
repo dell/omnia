@@ -11,70 +11,76 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# pylint: disable=import-error,no-name-in-module,line-too-long
 import os
 import subprocess
 import json
+import re
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 
-# Function to execute a shell command
-def execute_command(cmd_string,logger,type_json=False):
+
+def mask_sensitive_data(cmd_string):
+    """
+    Masks sensitive data in command strings such as passwords, usernames, and tokens.
+    """
+    cmd_string = re.sub(r'(--password\s+)([^\s]+)', r'\1******', cmd_string)
+    cmd_string = re.sub(r'(--username\s+)([^\s]+)', r'\1******', cmd_string)
+    cmd_string = re.sub(r'(--token\s+)([^\s]+)', r'\1******', cmd_string)
+    return cmd_string
+
+def execute_command(cmd_string, logger, type_json=False):
     """
     Executes a shell command and captures the output (both stdout and stderr).
 
     Args:
         cmd_string (str): The shell command to execute.
         logger (logging.Logger): Logger instance for logging the process and errors.
-        type_json (bool): If set to `True`, the function will attempt to parse the command's output as JSON.
+        type_json (bool): If True, attempts to parse stdout as JSON.
 
     Returns:
-        dict or bool: Returns a dictionary with 'returncode', 'stdout', and 'stderr' on success, or `False` on failure.
+        dict or bool: Command execution details or False on failure.
     """
-
-    logger.info("#" * 30 + f" {execute_command.__name__} start " + "#" * 30)  # Start of function
+    logger.info("#" * 30 + f" {execute_command.__name__} start " + "#" * 30)
     status = {}
-    try:
-        # Log the command being executed
-        logger.info(f"Executing command: {cmd_string}")
 
-        # Execute the shell command and capture its output
+    try:
+        # Mask sensitive info before logging
+        safe_cmd_string = mask_sensitive_data(cmd_string)
+        logger.info(f"Executing command: {safe_cmd_string}")
+
+        # Run the command
         cmd = subprocess.run(
             cmd_string,
-            universal_newlines=True,  # Ensures the output is returned as strings (not bytes)
-            stdout=subprocess.PIPE,   # Capture standard output
-            stderr=subprocess.PIPE,   # Capture standard error
-            shell=True,               # Run the command in the shell
+            universal_newlines=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            shell=True,
         )
 
-        # Store command execution details
         status["returncode"] = cmd.returncode
         status["stdout"] = cmd.stdout.strip() if cmd.stdout else None
         status["stderr"] = cmd.stderr.strip() if cmd.stderr else None
 
-        # Check for command failure based on return code
         if cmd.returncode != 0:
             logger.error(f"Command failed with return code {cmd.returncode}")
-            logger.error(f"Error: {cmd.stderr}")
+            logger.error(f"Error: {status['stderr']}")
             return False
 
-        # Attempt to parse JSON output if requested
         if type_json and status["stdout"]:
             try:
                 status["stdout"] = json.loads(status["stdout"])
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON output: {e}")
+            except json.JSONDecodeError as error:
+                logger.error(f"Failed to parse JSON output: {error}")
                 return False
 
-        # Return the command status (stdout, stderr, and return code)
         return status
 
-    # Log any exception that occurs during command execution
-    except Exception as e:
-        logger.error(f"Error executing command: {e}")
+    except Exception as error:
+        logger.error(f"Error executing command: {error}")
         return False
+
     finally:
-        # Log function end
-        logger.info("#" * 30 + f" {execute_command.__name__} end " + "#" * 30)  # End of function
+        logger.info("#" * 30 + f" {execute_command.__name__} end " + "#" * 30)
 
 
 def write_status_to_file(status_file_path, package_name, package_type, status, logger):
@@ -121,8 +127,8 @@ def write_status_to_file(status_file_path, package_name, package_type, status, l
                 f.write(f"{package_name},{package_type},{status}\n")
 
         logger.info(f"Status written to {status_file_path} for {package_name}.")
-    except Exception as e:
-        logger.error(f"Failed to write to status file: {status_file_path}. Error: {str(e)}")
-        raise RuntimeError(f"Failed to write to status file: {status_file_path}. Error: {str(e)}")
+    except Exception as error:
+        logger.error(f"Failed to write to status file: {status_file_path}. Error: {str(error)}")
+        raise RuntimeError(f"Failed to write to status file: {status_file_path}. Error: {str(error)}") from error
     finally:
         logger.info("#" * 30 + f" {write_status_to_file.__name__} end " + "#" * 30)  # End of function

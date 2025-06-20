@@ -10,7 +10,6 @@
       "gpgkey": {
         "type": "string",
         "pattern": "^(|https?:\\/\\/\\S.+)$"
-
       },
       "url": {
         "type": "string",
@@ -26,10 +25,65 @@
       "policy": {
         "type": "string",
         "enum": ["always", "partial", "never"]
+      },
+      "sslcacert": {
+        "type": ["string","null"]
+      },
+      "sslclientkey": {
+        "type": ["string","null"]
+      },
+      "sslclientcert": {
+        "type": ["string","null"]
       }
     },
     "required": ["gpgkey", "url", "name"],
-    "additionalProperties": false
+    "allOf": [
+          {
+            "if": {
+              "required": ["sslcacert"],
+              "properties": {
+                "sslcacert": { "minLength": 1 }
+              }
+            },
+            "then": {
+              "required": ["sslclientkey", "sslclientcert"],
+              "properties": {
+                "sslclientkey": { "minLength": 1 },
+                "sslclientcert": { "minLength": 1 }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": ["sslclientkey"],
+              "properties": {
+                "sslclientkey": { "minLength": 1 }
+              }
+            },
+            "then": {
+              "required": ["sslcacert", "sslclientcert"],
+              "properties": {
+                "sslcacert": { "minLength": 1 },
+                "sslclientcert": { "minLength": 1 }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": ["sslclientcert"],
+              "properties": {
+                "sslclientcert": { "minLength": 1 }
+              }
+            },
+            "then": {
+              "required": ["sslcacert", "sslclientkey"],
+              "properties": {
+                "sslcacert": { "minLength": 1 },
+                "sslclientkey": { "minLength": 1 }
+              }
+            }
+          }
+        ]
   }
 },
 
@@ -41,6 +95,10 @@
             "type": "string",
             "pattern": "^(?!\\s*$).+",
             "minLength": 1
+          },
+          "key_path": {
+            "type": "string",
+            "pattern": "^(?!\\s*$).+"
           },
           "host": {
             "type": "string",

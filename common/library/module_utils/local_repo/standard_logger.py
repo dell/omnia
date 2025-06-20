@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# pylint: disable=unused-import
 import os
 import logging
 import threading
@@ -31,28 +31,28 @@ def setup_standard_logger(log_dir, log_filename="standard.log"):
     """
     # Ensure the log directory exists
     os.makedirs(log_dir, exist_ok=True)
- 
+
     log_filepath = os.path.join(log_dir, log_filename)
-   
+
     # Create a logger
     logger = logging.getLogger("task_logger")
     logger.setLevel(logging.DEBUG)
-   
+
     # Create file handler and set level to debug
     file_handler = logging.FileHandler(log_filepath)
     file_handler.setLevel(logging.DEBUG)
-   
+
     # Create a console handler for error-level logging to stdout
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.ERROR)
-   
+
     # Create formatter and add it to handlers
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
-   
+
     # Add handlers to logger
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
-   
+
     return logger

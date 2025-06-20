@@ -33,10 +33,10 @@
   ansible.builtin.set_fact:
     baseurl_present: >-
       {{ (hostvars['localhost']['pulp_output_fact']
-          | selectattr('name', 'equalto', software_item)
-          | map(attribute='base_url')
-          | list
-          | length) > 0 }}
+           | selectattr('name', 'equalto', software_item)
+           | map(attribute='base_url')
+           | list
+           | length > 0) | bool }}
 
 - name: Create repo file on node
   ansible.builtin.template:

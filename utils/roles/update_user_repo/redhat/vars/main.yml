@@ -21,6 +21,7 @@ repo_config_template_src: "repo_config_template.j2"
 
 # Usage:update_user_repo.yml
 usr_repo_config_template_src: "user_repo_config.j2"
+userrepo_baseurl_fail_msg: "Baseurl not defined for {{ item.name }}. Please run local_repo.yml playbook and then run update_user_repo.yml"
 
 # Usage:update_software_repo.yml
 omnia_repo_config_template_src: "omnia_repo_config.j2"
@@ -31,3 +32,7 @@ repo_update_failure_msg: "The playbook failed due to an error while running dnf 
 
 # Usage:update_user_repo.yml,update_software_repo.yml
 os_type: "rhel"
+pulp_cert_path: /etc/pki/ca-trust/source/anchors/pulp_webserver.crt
+
+# Usage: create_omnia_repo.yml
+omnia_repo_baseurl_fail_msg: "Baseurl not defined for {{ item.final_repo_name }}. Please run local_repo.yml playbook and then run update_user_repo.yml"

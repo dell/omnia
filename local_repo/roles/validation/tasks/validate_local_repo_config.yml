@@ -23,21 +23,6 @@
       ansible.builtin.fail:
         msg: "{{ local_repo_config_syntax_fail_msg }} Possible Syntax Error Hints: {{ include_local_repo_config.message }}"
 
-# - name: Validate repo_store_path
-#   ansible.builtin.assert:
-#     that:
-#       - "repo_store_path is defined"
-#       - "repo_store_path !='/install'"
-#       - "'/' in repo_store_path[0]"
-#       - "repo_store_path[-1] != '/'"
-#     fail_msg: "{{ repo_store_path_fail_msg }}"
-
-# - name: Create repo_store_path folder
-#   ansible.builtin.file:
-#     path: "{{ repo_store_path }}"
-#     state: directory
-#     mode: "{{ directory_permissions }}"
-
 - name: Check if rhel_os_url is provided incase of cluster_os_type rhel
   ansible.builtin.fail:
     msg: "{{ rhel_os_url_fail_msg_crb }}"
@@ -46,14 +31,6 @@
 - name: Validate rhel_os_url
   ansible.builtin.include_tasks: validate_rhel_os_url.yml
   when: rhel_os_url is not none
-
-- name: Validate user_repo_url
-  ansible.builtin.include_tasks: validate_user_repo_url.yml
-  when: user_repo_url is not none
-
-- name: Validate user_registry
-  ansible.builtin.include_tasks: validate_user_registry.yml
-  when: user_registry is not none
 
 - name: Validate omnia_repo_url_rhel
   ansible.builtin.assert:

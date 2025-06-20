@@ -11,16 +11,82 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# pylint: disable=import-error,no-name-in-module,line-too-long
+# pylint: disable=import-error,no-name-in-module,line-too-long,too-many-positional-arguments,too-many-locals,too-many-arguments,unused-import
+"""This module handles parallel processing tasks for local repository."""
+
 import os
 import logging
 import multiprocessing
+import subprocess
 import time
 import threading
+import yaml
 from jinja2 import Template
 from ansible.module_utils.local_repo.common_functions import load_yaml_file
+from ansible.module_utils.local_repo.config import (
+    OMNIA_CREDENTIALS_YAML_PATH,
+    OMNIA_CREDENTIALS_VAULT_PATH
+)
 # Global lock for logging synchronization
 log_lock = multiprocessing.Lock()
+
+import subprocess
+import yaml
+import requests
+
+import subprocess
+import yaml
+import requests
+
+def load_docker_credentials(vault_yml_path, vault_password_file):
+    """
+    Decrypts an Ansible Vault YAML file, extracts docker_username and docker_password,
+    and optionally validates them by logging in to Docker Hub if both are present.
+
+    Args:
+        vault_yml_path (str): Path to the encrypted Ansible Vault YAML file.
+        vault_password_file (str): Path to the vault password file.
+
+    Returns:
+        tuple: (docker_username, docker_password) or (None, None) if not provided.
+
+    Raises:
+        RuntimeError: If decryption, parsing, or Docker login fails (when credentials are provided).
+    """
+    try:
+        # Decrypt the vault file
+        result = subprocess.run(
+            ["ansible-vault", "view", vault_yml_path, "--vault-password-file", vault_password_file],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        data = yaml.safe_load(result.stdout)
+        docker_username = data.get("docker_username")
+        docker_password = data.get("docker_password")
+
+        # If either credential is missing, skip validation
+        if not docker_username or not docker_password:
+            return None, None
+
+        # Validate Docker Hub credentials
+        response = requests.post(
+            "https://hub.docker.com/v2/users/login/",
+            json={"username": docker_username, "password": docker_password},
+            timeout=10
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError("Docker Hub authentication failed: Invalid username or password.")
+
+        return docker_username, docker_password
+
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(f"Vault decryption failed: {error.stderr.strip()}") from error
+    except yaml.YAMLError as error:
+        raise RuntimeError(f"Failed to parse decrypted YAML: {error}") from error
+    except requests.RequestException as error:
+        raise RuntimeError(f"Failed to contact Docker Hub: {error}") from error
 
 def log_table_output(table_output, log_file):
     """
@@ -66,7 +132,7 @@ def setup_logger(log_dir,log_file_path):
         logger.addHandler(file_handler)
     return logger
 
-def execute_task(task, determine_function, user_data, version_variables, repo_store_path, csv_file_path,logger, user_registries, timeout=None):
+def execute_task(task, determine_function, user_data, version_variables, repo_store_path, csv_file_path,logger, user_registries,docker_username, docker_password, timeout=None):
     """
     Executes a task by determining the appropriate function to call, managing execution time, 
     handling timeouts, and logging the results.
@@ -90,7 +156,7 @@ def execute_task(task, determine_function, user_data, version_variables, repo_st
             logger.info(f"### {execute_task.__name__} start ###")  # Log task start
 
         # Determine the function and its arguments using the provided `determine_function`
-        function, args = determine_function(task, repo_store_path, csv_file_path, user_data, version_variables, user_registries)
+        function, args = determine_function(task, repo_store_path, csv_file_path, user_data, version_variables, user_registries, docker_username, docker_password)
 
         while True:
             elapsed_time = time.time() - start_time  # Calculate elapsed time
@@ -142,7 +208,7 @@ def execute_task(task, determine_function, user_data, version_variables, repo_st
             "error": str(e)  # Include the error message
         }
 
-def worker_process(task, determine_function, user_data,version_variables, repo_store_path, csv_file_path, log_dir, result_queue, user_registries, timeout):
+def worker_process(task, determine_function, user_data,version_variables, repo_store_path, csv_file_path, log_dir, result_queue, user_registries,docker_username, docker_password, timeout):
     """
     Executes a task in a separate worker process, logs the process execution, and puts the result in a result queue.
     Args:
@@ -167,7 +233,7 @@ def worker_process(task, determine_function, user_data,version_variables, repo_s
            # logger.info(f"Worker process {multiprocessing.current_process().name} started  execution.")
             logger.info(f"Worker process {os.getpid()} started  execution.")
         # Execute the task by calling the `execute_task` function and passing necessary arguments
-        result = execute_task(task, determine_function, user_data, version_variables, repo_store_path, csv_file_path, logger,  user_registries, timeout)
+        result = execute_task(task, determine_function, user_data, version_variables, repo_store_path, csv_file_path, logger,  user_registries,docker_username, docker_password, timeout)
         result["logname"] = f"package_status_{os.getpid()}.log"
         # Put the result of the task execution into the result_queue for further processing
         result_queue.put(result)
@@ -209,6 +275,10 @@ def execute_parallel(tasks, determine_function, nthreads, repo_store_path, csv_f
 
     config = load_yaml_file(local_repo_config_path)
     user_registries = config.get("user_registry", [])
+    try:
+        docker_username, docker_password = load_docker_credentials(OMNIA_CREDENTIALS_YAML_PATH, OMNIA_CREDENTIALS_VAULT_PATH)
+    except RuntimeError as e:
+        raise
     # Create a pool of worker processes to handle the tasks
     with multiprocessing.Pool(processes=nthreads) as pool:
         task_results = []  # List to hold references to the async results of the tasks
@@ -218,7 +288,7 @@ def execute_parallel(tasks, determine_function, nthreads, repo_store_path, csv_f
             package_template = Template(task.get('package', None))
             package_name = package_template.render(**version_variables)
             task['package'] = package_name
-            task_results.append(pool.apply_async(worker_process, (task, determine_function, user_data, version_variables, repo_store_path, csv_file_path, log_dir, result_queue, user_registries, timeout)))
+            task_results.append(pool.apply_async(worker_process, (task, determine_function, user_data, version_variables, repo_store_path, csv_file_path, log_dir, result_queue, user_registries,docker_username, docker_password, timeout)))
 
         pool.close()  # Close the pool to new tasks once all have been submitted
         start_time = time.time()  # Start time for overall task execution

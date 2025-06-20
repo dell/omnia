@@ -41,6 +41,9 @@
 
 - name: Block to execute when new user repos are added
   when:
+    - "user_repo_url is defined"
+    - "user_repo_url | type_debug == 'list'"
+    - "user_repo_url | length > 0"
     - "new_repos is defined"
     - "new_repos | type_debug == 'list'"
     - "new_repos | length > 0"

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Define project input path
   ansible.builtin.set_fact:
     project_input_path: "{{ hostvars['localhost']['input_project_dir'] }}"
@@ -47,8 +46,16 @@
   register: cert_check_result
   failed_when: cert_check_result.failed | default(false)
 
-- name: Run custom module to check user registry reachability
+- name: Check user registry reachability
   check_user_registry:
     config_file: "{{ local_repo_config_file }}"
     timeout: "{{ time_out }}"
   register: registry_check_result
+
+- name: Warning - Display unreachable registries
+  ansible.builtin.pause:
+    prompt: "{{ registry_check_result.unreachable_registries | join(', ') }}\n{{ user_registry_msg }}"
+    seconds: "{{ warning_wait_time_warning }}"
+  when:
+    - registry_check_result.unreachable_registries is defined
+    - registry_check_result.unreachable_registries | length > 0
