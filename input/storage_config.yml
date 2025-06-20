@@ -44,7 +44,7 @@
 # - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: true, k8s_share: false }
 nfs_client_params:
    - { server_ip: "", # Provide the IP of the NFS server
-       server_share_path: /mnt/omnia_home_share, #default path when nfs_server true
+       server_share_path: /mnt/omnia_home_share, # default path when nfs_server true
        client_share_path: /home,
        client_mount_options: "nosuid,rw,sync,hard,intr",
        nfs_server: false,
