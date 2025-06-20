@@ -12,7 +12,7 @@
       "description": "Specifies the version of the operating system for the cluster."
     },
     "iso_file_path": {
-      "type": "string", 
+      "type": "string",
       "pattern": "^.*\\.iso$",
       "description": "Path of the ISO file to be used for provisioning the clusters"
     },
@@ -32,6 +32,18 @@
         "required": ["name"]
       },
       "description": "Array of software packages to be configured."
+    },
+    "additional_software": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "version": { "type": "string" }
+        },
+        "required": ["name"]
+      },
+      "description": "Array of additional software packages to be configured."
     },
     "bcm_roce": {
       "type": "array",

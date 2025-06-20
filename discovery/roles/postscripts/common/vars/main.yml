@@ -77,3 +77,10 @@ persistent_rules_file: "/etc/udev/rules.d/70-persistent-net.rules"
 
 # Usage: omnia_hostname.j2
 sshd_config_file: "/etc/ssh/sshd_config"
+
+# Usage: generate_group_based_postscripts.yml
+grp_additional_software_template_path: "{{ role_path }}/templates/omnia_additional_softwares.j2"
+grp_additional_software_postscripts_dest_path: "/install/postscripts/omnia_additional_softwares_{{ item }}"
+
+# Usage: configure_postscripts_additional_softwares.yml
+group_with_add_sw_not_found_msg: "No groups with additional software packages is found. Skipping xCAT postscripts assignment."

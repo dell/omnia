@@ -20,36 +20,31 @@
       - item.version | default("",true) | length > 0
     fail_msg: "{{ version_invalid_fail_msg }} {{ item.name }}"
 
-- name: Check software repo exists in pulp distribution
-  ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os] }} distribution list --name {{ item.name }}_{{ item.version }} --field name,base_url"  # noqa: yaml[line-length]
-  register: check_repo_stat
-  delegate_to: localhost
-  connection: local
-  changed_when: false
+- name: Check if software repo file exists on node
+  ansible.builtin.stat:
+    path: "{{ repo_path }}/{{ item.name }}_{{ item.version }}.repo"
+  register: repo_file_check
 
-- name: Set variable
+- name: Set fact for jinja template
   ansible.builtin.set_fact:
-    software_path_url: "{{ (check_repo_stat.stdout | from_json)[0]['base_url'] }}"
-  when: check_repo_stat.stdout | from_json | length > 0
+    software_item: "{{ item.name }}_{{ item.version }}"
 
-- name: Check software repo present in {{ repo_path }}
-  ansible.builtin.command: grep -r "{{ software_path_url }}" "{{ repo_path }}"
-  register: check_repo_url
-  changed_when: false
-  failed_when: check_repo_url.stderr!=''
-  when: software_path_url is defined
+- name: Check if base_url is present for the given software_item
+  ansible.builtin.set_fact:
+    baseurl_present: >-
+      {{ (hostvars['localhost']['pulp_output_fact']
+          | selectattr('name', 'equalto', software_item)
+          | map(attribute='base_url')
+          | list
+          | length) > 0 }}
 
-- name: Create repo file and set repos_update_status
-  when:
-    - software_path_url is defined
-    - software_path_url not in check_repo_url.stdout
-  block:
-    - name: Create repo file if software version exists on OIM
-      ansible.builtin.template:
-        src: "{{ repo_config_template_src }}"
-        dest: "{{ repo_path }}/{{ item.name }}-{{ item.version }}-repo.repo"
-        mode: "{{ file_permission }}"
+- name: Create repo file on node
+  ansible.builtin.template:
+    src: "{{ repo_config_template_src }}"
+    dest: "{{ repo_path }}/{{ software_item }}.repo"
+    mode: "{{ file_permission }}"
+  when: baseurl_present
 
-    - name: Set repos_update_status
-      ansible.builtin.set_fact:
-        repos_update_status: true
+- name: Set repos_update_status
+  ansible.builtin.set_fact:
+    repos_update_status: true

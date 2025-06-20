@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Install software from package_list
-  block:
-    - name: Install software from package_list # noqa: package-latest
-      ansible.builtin.package:
-        name: "{{ hostvars['localhost']['package_list'] }}"
-        state: latest
-  rescue:
-    - name: Failed to install package from package_list
-      ansible.builtin.fail:
-        msg: "{{ package_list_install_fail_msg }}"
+- name: Copy Pulp certificate to nodes
+  ansible.builtin.copy:
+    src: "{{ pulp_cert_src }}"
+    dest: "{{ ca_trust_path }}"
+    mode: "{{ file_permission }}"
+  delegate_to: localhost
+
+- name: Add Pulp certificate to TrustStore
+  ansible.builtin.command:
+    cmd: update-ca-trust extract
+  changed_when: false

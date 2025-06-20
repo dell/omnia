@@ -25,6 +25,7 @@ playbook or role.
 """
 
 import os
+import re
 from ansible.module_utils.basic import AnsibleModule
 import  ansible.module_utils.discovery.omniadb_connection as omniadb # pylint: disable=all
 
@@ -91,6 +92,7 @@ def service_tag_host_mapping():
                 # Iterate content line by line
                 result_lines, is_content_modified = update_inventory_file_entries(
                     inventory_file_path, lines, result_lines, is_content_modified)
+                
 
             if is_content_modified:
                 any_changes = True
@@ -148,7 +150,7 @@ def update_inventory_file_entries(
                     )
                 # Check if the line have a service tag, node name or hostname
                 # but doesn't have ansible_host
-                if host and host.isalnum() and "ansible_host=" not in next_line:
+                if host and re.fullmatch(r"[A-Za-z0-9.]+", host) and "ansible_host=" not in next_line:
 
                     next_line, is_content_modified = get_host_admin_ip(
                         host, group_status, token)

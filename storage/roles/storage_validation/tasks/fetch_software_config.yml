@@ -39,33 +39,6 @@
   ansible.builtin.set_fact:
     nfs_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'nfs') | list | length > 0 }}"
 
-- name: Check if k8s support is true
-  ansible.builtin.set_fact:
-    k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
-
-- name: Check if slurm support is true
-  ansible.builtin.set_fact:
-    slurm_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'slurm') | list | length > 0 }}"
-
-- name: Check if ucx is true
-  ansible.builtin.set_fact:
-    ucx_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'ucx') | list | length > 0 }}"
-
-- name: Check if openmpi is true
-  ansible.builtin.set_fact:
-    openmpi_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openmpi') | list | length > 0 }}"
-
-- name: Validate beegfs version
-  when: beegfs_support
-  block:
-    - name: Extract beegfs version
-      ansible.builtin.set_fact:
-        beegfs_client_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'beegfs') | map(attribute='version') | first }}"
-  rescue:
-    - name: Unable to fetch beegfs version
-      ansible.builtin.fail:
-        msg: "{{ beegfs_version_fail_msg }}"
-
 - name: Validate beegfs repo incase of always
   when: beegfs_support and repo_config == "always" and cluster_os_type in ["rhel","rocky"]
   block:
@@ -96,37 +69,6 @@
     - name: Failed to storage_config.yml
       ansible.builtin.fail:
         msg: "{{ storage_config_syntax_fail_msg }} Error: {{ include_storage_config.message }}"
-
-- name: Set facts for cluster
-  ansible.builtin.set_fact:
-    cluster_os_type: "{{ software_config.cluster_os_type }}"
-
-- name: Check if nfs_client_params has exactly one entry with k8s_share as true
-  ansible.builtin.assert:
-    that: nfs_client_params | selectattr('k8s_share', 'defined') | selectattr('k8s_share', 'equalto', true) | list | length == 1
-    fail_msg: "{{ nfs_client_params_k8s_share_fail_msg }}"
-    success_msg: "{{ nfs_client_params_k8s_share_success_msg }}"
-  when: k8s_support
-
-- name: Check if nfs_client_params has exactly one entry with slurm_share as true
-  ansible.builtin.assert:
-    that: nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1
-    fail_msg: "{{ nfs_client_params_slurm_share_fail_msg }}"
-    success_msg: "{{ nfs_client_params_slurm_share_success_msg }}"
-  when:
-    - slurm_support
-    - slurm_installation_type == "nfs_share"
-    - cluster_os_type not in compute_os_ubuntu
-
-# Check if both slurm_share and k8s_share not are defined for benchmarks
-- name: Fail if both slurm_share and k8s_share not are defined for benchmarks
-  ansible.builtin.assert:
-    that: ( nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1)
-      or (nfs_client_params | selectattr('k8s_share', 'defined') | selectattr('k8s_share', 'equalto', true) | list | length == 1)
-    fail_msg: "{{ nfs_client_params_benchmarks_fail_msg }}"
-    success_msg: "{{ nfs_client_params_benchmarks_success_msg }}"
-  when:
-    - (ucx_support is true) or (openmpi_support is true)
 
 - name: Update nfs_client_support
   ansible.builtin.set_fact:

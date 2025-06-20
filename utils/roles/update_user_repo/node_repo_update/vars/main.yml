@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+repo_path: "/etc/yum.repos.d"
+versioned_softwares:
+  - beegfs
+  - amdgpu
+  - rocm
 
-# Usage: update_pulp_crt.yml
-pulp_cert_src: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
-ca_trust_path: "/etc/pki/ca-trust/source/anchors/"
+pulp_ssl_ca_cert: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 
 # Usage:<os_type>/update_software_repo.yml
 software_version_default: "omnia_default"
-file_permission: "644"
-local_repo_access_path: "/opt/omnia/provision/local_repo_access.yml"
+file_permission: "0644"
 version_invalid_fail_msg: "Ensure valid version is mentioned in software_config.json for "
 
 # Usage:validation.yml
@@ -38,6 +40,8 @@ usr_repo_url_fail_msg: "Failed. Please ensure user_repo_url in local_repo_config
 # Usage:validate_repo.yml
 pulp_bin_path: /usr/local/bin/pulp
 os_package_map:
+  RedHat: rpm
+  Debian: deb
   redhat: rpm
   rocky: rpm
   ubuntu: deb

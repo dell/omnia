@@ -12,19 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Read json from software path
+  ansible.builtin.include_vars:
+    file: "{{ json_files_directory }}/{{ subgroup.key }}.json"
+    name: sub_soft
 
 - name: Validate software_config subgroups
   ansible.builtin.assert:
     that:
-      - item.name in subgroup_software_list[subgroup_software_name]
-    fail_msg: "Failed. Invalid software name: '{{ item.name }}' in subgroup '{{ subgroup_software_name }}'. {{ subgroup_software_name_fail_msg }}"
-  with_items: "{{ subgroup.value }}"
+      - subgroup.value | difference(sub_soft.keys()) | length | int == 0
+    fail_msg: "Failed. Invalid softwares '{{ subgroup.value | difference(sub_soft.keys()) }}' in
+     subgroup '{{ subgroup.key }}'. {{ subgroup_software_name_fail_msg }}"
 
-- name: Update software versions from software_config.json '{{ subgroup_software_name }}'
+- name: Update software versions from software_config.json '{{ subgroup.key }}'
   ansible.builtin.set_fact:
     "{{ item.name }}_version": "{{ item.version }}"
-  loop: "{{ software_config[subgroup_software_name] | default([]) }}"
+  loop: "{{ software_config[subgroup.key] | default([]) }}"
   when: item.version is defined
   loop_control:
     loop_var: item
-  # noqa: var-naming[no-jinja]

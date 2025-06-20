@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,14 +20,12 @@
 - name: Local local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_dest_path }}"
 
-- name: Fetch omnia_config.yml
-  ansible.builtin.include_tasks: fetch_omnia_config.yml
-
 - name: Fetch software_config.json and check for beegfs and nfs support
   ansible.builtin.include_tasks: fetch_software_config.yml
 
-- name: Validate beegfs variables
-  ansible.builtin.include_tasks: validate_beegfs_vars.yml
+- name: Validate beegfs inputs
+  ansible.builtin.include_tasks: fetch_beegfs_inputs.yml
+  when: beegfs_support
 
 - name: Include provision metadata file
   ansible.builtin.include_tasks: include_provision_metadata.yml

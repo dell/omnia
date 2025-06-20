@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-local_repo_access_path: "/opt/omnia/offline/local_repo_access.yml"
-software_config_file: "{{ role_path }}/../../../input/software_config.json"
-custom_image_json_file: "{{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/custom_image.json"
-empty_image_list_msg: "No image is mentioned in custom_image.json. Please mention required images in custom_image.json"
+# Install packages on nodes
+# TODO: Add support for deb and deb_list
+- name: Install rpm packages on node by node loop
+  ansible.builtin.include_tasks: _rpm_reboot.yml
+  loop: "{{ grp.value }}" # list of nodes in group
+  loop_control:
+    loop_var: node
+  when:
+    - grouped_packages.grp_pkg_map[grp.key] is defined
+    - "'rpm' in grouped_packages.grp_pkg_map[grp.key]"
+    - grouped_packages.grp_pkg_map[grp.key].rpm | length > 0

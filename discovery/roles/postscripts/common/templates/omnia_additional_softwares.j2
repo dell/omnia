@@ -1,0 +1,22 @@
+#!/bin/bash
+################################################################################################################
+#  omnia_additional_softwares_{{ item }}:
+#      Install additional software packages required for the group
+#################################################################################################################
+
+LOGFILE="/var/log/xcat/xcat.log"
+
+echo "--------------------------" >> "$LOGFILE"
+echo "Starting additional software package installation" >> "$LOGFILE"
+
+ALL_PACKAGES=(
+    {% for pkg in packages %} "{{ pkg }}" {% endfor %}
+)
+
+# Install all packages in one command
+if ! dnf install -y "${ALL_PACKAGES[@]}" >> "$LOGFILE" 2>&1; then
+    echo "ERROR: Some packages failed to install. Check $LOGFILE for details." >> "$LOGFILE"
+    exit 1
+else
+    echo "SUCCESS: All packages installed successfully!" >> "$LOGFILE"
+fi

@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,8 @@
 # limitations under the License.
 ---
 
-- name: Reboot node
-  block:
-    - name: Reboot node (This task will take some time)
-      ansible.builtin.reboot:
-  rescue:
-    - name: Failed to reboot node
-      ansible.builtin.fail:
-        msg: "{{ reboot_fail_msg }}"
+- name: Validate the input files and values
+  ansible.builtin.include_tasks: validation.yml
+
+- name: Create repo base on os_type
+  ansible.builtin.include_tasks: "{{ ansible_os_family | lower }}.yml"

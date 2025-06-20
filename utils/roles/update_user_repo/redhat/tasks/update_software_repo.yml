@@ -13,18 +13,29 @@
 # limitations under the License.
 ---
 
-- name: Update beegfs,amdgpu,rocm repo when repo_config=partial,always
-  when: (software_config['repo_config']|lower == "partial") or (software_config['repo_config']|lower == "always")
-  block:
-    - name: Local local_repo_access.yml file
-      ansible.builtin.include_vars: "{{ local_repo_access_path }}"
+- name: Include vars from local_repo_access.yml file
+  ansible.builtin.include_vars: "{{ local_repo_access_path }}"
 
-    - name: Generate software repository configurations
-      ansible.builtin.include_tasks: create_software_repo.yml
-      loop: "{{ software_config.softwares + software_config.amdgpu | default([]) }}"
-      when: "'beegfs' in item.name or 'amdgpu' in item.name or 'rocm' in item.name"
-      loop_control:
-        loop_var: item
+- name: Get pulp distribution result
+  ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os] }} distribution list"
+  register: pulp_output
+  delegate_to: localhost
+  changed_when: false
+
+- name: Add pulp_output_fact to hostvars['localhost']
+  ansible.builtin.add_host:
+    name: localhost
+    pulp_output_fact: "{{ pulp_output.stdout | from_json }}"
+  delegate_to: localhost
+  run_once: true
+  when: pulp_output.stdout | from_json | length > 0
+
+- name: Generate software repository configurations
+  ansible.builtin.include_tasks: create_software_repo.yml
+  loop: "{{ software_config.softwares + software_config.amdgpu | default([]) }}"
+  when: "'beegfs' in item.name or 'amdgpu' in item.name or 'rocm' in item.name"
+  loop_control:
+    loop_var: item
 
 - name: Set fact for software version from software_config json
   ansible.builtin.set_fact:
@@ -48,11 +59,11 @@
     - "omnia_repo_url is defined"
     - "omnia_repo_url  | type_debug == 'list'"
     - "omnia_repo_url | length > 0"
-    - (software_config['repo_config']|lower == "never")
   block:
     - name: Find newly added omnia repos
       ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/find_new_repo.yml"
       loop: "{{ omnia_repo_url | default([], true) }}"
+
 
 - name: Block to execute when new omnia repos are to be added
   when:
@@ -64,13 +75,20 @@
       ansible.builtin.debug:
         var: new_repos
 
+    - name: Process omnia_repo_urls in one line
+      ansible.builtin.set_fact:
+        omnia_repo_url_processed: "{{ omnia_repo_url | map('combine', {'final_repo_name': item.name ~ ('_' ~ (lookup('vars', item.name + '_version') | default('')) if (item.name + '_version') in vars else '')}) | list }}" # noqa: yaml[line-length]
+      loop: "{{ omnia_repo_url }}"
+      loop_control:
+        loop_var: item
+
     - name: Configure omnia repositories
       ansible.builtin.template:
         src: "{{ omnia_repo_config_template_src }}"
-        dest: "{{ repo_path }}/omnia_repo_{{ item.0 + 1 }}{{ansible_date_time.iso8601_basic}}.repo"
+        dest: "{{ repo_path }}/{{ item.final_repo_name }}.repo"
         mode: "{{ file_permission }}"
-      with_indexed_items: "{{ omnia_repo_url }}"
-      when: item.1.url in new_repos and  software_version_default not in item.1.url
+      loop: "{{ omnia_repo_url_processed }}"
+      when: item.url in new_repos and software_version_default not in item.url
 
     - name: Set repos_update_status
       ansible.builtin.set_fact:

@@ -13,22 +13,40 @@
 # limitations under the License.
 ---
 
-- name: Include software config variables
-  ansible.builtin.include_tasks: include_software_config.yml
-  when: hostvars['localhost']['softwares_list_status']
+- name: Get the software organized by group
+  group_package_map:
+    input_path: "{{ hostvars['localhost']['input_project_dir'] }}"
+  register: grouped_packages
+  delegate_to: localhost
+  connection: local
 
-- name: Update repo cache
-  ansible.builtin.include_tasks: update_repo_cache.yml
+- name: Get all discovered nodes from DB
+  community.postgresql.postgresql_query:
+    login_db: omniadb
+    login_user: postgres
+    query: |
+      SELECT node,hostname,admin_ip,role,group_name,service_tag
+      FROM cluster.nodeinfo
+      WHERE node!='oim' and status = 'booted';
+    login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+  register: db_result
+  delegate_to: omnia_provision
 
-- name: Install packages from softwares_list
-  ansible.builtin.include_tasks: package_installation_softwares_list.yml
-  when: hostvars['localhost']['softwares_list_status']
-  with_items: "{{ hostvars['localhost']['softwares_list'] }}"
+- name: Group nodes by group_name
+  ansible.builtin.set_fact:
+    grouped_nodes: "{{ grouped_nodes | default({})
+     | combine({item.group_name: (grouped_nodes[item.group_name] | default([]))
+      + [item.admin_ip]}) }}" # admin_ip is the IP address of the node
+  loop: "{{ db_result.query_result }}"
 
-- name: Install packages from package_list
-  ansible.builtin.include_tasks: package_installation_package_list.yml
-  when: hostvars['localhost']['package_list_status']
+- name: Pull images for group
+  ansible.builtin.include_tasks: image_pulling.yml
+  loop: "{{ grouped_nodes | default({}) | dict2items }}"
+  loop_control:
+    loop_var: grp
 
-- name: Reboot nodes if required
-  ansible.builtin.include_tasks: reboot_nodes.yml
-  when: hostvars['localhost']['reboot_required']
+- name: Install the rpm for group
+  ansible.builtin.include_tasks: install_packages.yml
+  loop: "{{ grouped_nodes | default({}) | dict2items }}"
+  loop_control:
+    loop_var: grp

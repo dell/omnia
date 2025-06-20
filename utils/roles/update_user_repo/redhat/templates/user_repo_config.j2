@@ -1,16 +1,10 @@
-{# For User Repositories #}
-[user_repo{{ item.0 + 1 }}_{{ ansible_date_time.iso8601_basic }}]
-name=User Repository {{ item.0 + 1 }} {{ ansible_date_time.iso8601_basic }}
-baseurl={{ item.1.url }}
-{% if item.1.gpgkey is defined %}
-{% if item.1.gpgkey | default("", true) | length > 1 %}
-gpgcheck=1
-gpgkey={{ item.1.gpgkey }}
-{% else %}
-gpgcheck=0
-{% endif %}
-{% else %}
-gpgcheck=0
-{% endif %}
+[Omnia-RPM-Repo{{ item.name }}]
+name=Omnia-Repo-{{ item.name }}
+baseurl={{ (pulp_dist_result | selectattr('name', 'equalto', item.name) | map(attribute='base_url') | list | first) }}
 enabled=1
+gpgcheck=0
 skip_if_unavailable=True
+{% if pulp_protocol_https %}
+sslverify=1
+sslcacert=/etc/pki/ca-trust/source/anchors/pulp_webserver.crt
+{% endif %}

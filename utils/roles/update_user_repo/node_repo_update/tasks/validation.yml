@@ -13,12 +13,20 @@
 # limitations under the License.
 ---
 
-- name: Check if repo file exists on node
-  ansible.builtin.stat:
-    path: "{{ repo_path }}/{{ item.name }}.repo"
-  register: repo_file_check
+- name: Read local repo config
+  ansible.builtin.include_vars:
+    file: "{{ local_repo_config_file }}"
 
-- name: Update list if repo file is missing
-  ansible.builtin.set_fact:
-    new_repos: "{{ new_repos | default([]) + [item.url] }}"
-  when: not repo_file_check.stat.exists
+- name: Validate user_repo_url is defined correctly when not none
+  ansible.builtin.fail:
+    msg: "{{ usr_repo_url_fail_msg }}"
+  when:
+    - user_repo_url is not none
+    - user_repo_url is not defined
+    - user_repo_url | length == 0
+    - user_repo_url | type_debug != 'list'
+
+- name: Read software_config json
+  ansible.builtin.include_vars:
+    file: "{{ software_config_json_file }}"
+    name: software_config

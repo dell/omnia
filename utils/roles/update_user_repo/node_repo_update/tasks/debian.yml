@@ -13,16 +13,4 @@
 # limitations under the License.
 ---
 
-- name: Update Inventory with ansible_host information
-  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
-  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
-
-- name: Update Repositories/Registries on nodes
-  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
-  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
-
-- name: Pull images to nodes
-  hosts: kube_node, kube_control_plane
-  gather_facts: false
-  roles:
-    - pull_images_to_nodes
+# This need to be updated when we support for ubuntu

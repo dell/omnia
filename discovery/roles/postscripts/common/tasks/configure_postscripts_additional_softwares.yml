@@ -1,0 +1,59 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create a list of discovered groups
+  ansible.builtin.set_fact:
+    discovered_groups: "{{ discovered_groups | default([]) + item.split(',') | map('trim') | list }}"
+  loop: "{{ discovered_nodes | map(attribute='group_name') | list }}"
+
+- name: Fetch list of unique groups from discovered groups
+  ansible.builtin.set_fact:
+    unique_groups: "{{ discovered_groups | unique }}"
+
+- name: Collect all RPM package groups that are discovered into a list
+  ansible.builtin.set_fact:
+    fetch_rpm_package_groups: >-
+      {{
+        group_to_additional_sw_package_map
+        | dict2items
+        | selectattr('key', 'in', unique_groups)
+        | selectattr('value', 'defined')
+        | selectattr('value', 'contains', 'rpm')
+        | map(attribute='key')
+        | list
+      }}
+
+- name: Generate postscripts for groups in fetch_rpm_package_groups
+  ansible.builtin.template:
+    src: "{{ grp_additional_software_template_path }}"
+    dest: "{{ grp_additional_software_postscripts_dest_path }}"
+    mode: "{{ file_permissions }}"
+  loop: "{{ fetch_rpm_package_groups }}"
+  vars:
+    group_name: "{{ item }}"
+    packages: >-
+      {{ group_to_additional_sw_package_map[item].rpm | default([]) }}
+
+- name: Apply additional software postscripts to xCAT groups
+  block:
+    - name: Apply postscripts to xCAT groups
+      ansible.builtin.command:
+        cmd: "{{ xcat_path }}/chdef {{ item }} -p postscripts=omnia_additional_softwares_{{ item }}"
+      loop: "{{ fetch_rpm_package_groups }}"
+      changed_when: true
+  rescue:
+    - name: Warn about missing group
+      ansible.builtin.debug:
+        msg: "{{ group_with_add_sw_not_found_msg }}"

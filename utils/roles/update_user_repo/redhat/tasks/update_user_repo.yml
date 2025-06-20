@@ -29,18 +29,17 @@
     new_repos: []
     repos_update_status: false
 
-- name: Block to execute when usr repos are configured
+- name: Block to check if any new user repos are added
   when:
     - "user_repo_url is defined"
     - "user_repo_url | type_debug == 'list'"
     - "user_repo_url | length > 0"
-    - (software_config['repo_config'] == "partial") or (software_config['repo_config'] == "never")
   block:
-    - name: Find newly added usr repos
+    - name: Check for newly added user repos
       ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/find_new_repo.yml"
       loop: "{{ user_repo_url | default([], true) }}"
 
-- name: Block to execute when new usr repos are added
+- name: Block to execute when new user repos are added
   when:
     - "new_repos is defined"
     - "new_repos | type_debug == 'list'"
@@ -50,13 +49,12 @@
       ansible.builtin.debug:
         var: new_repos
 
-    - name: Configure user repositories
-      ansible.builtin.template:
-        src: "{{ usr_repo_config_template_src }}"
-        dest: "{{ repo_path }}/a_user_repo{{ item.0 + 1 }}{{ansible_date_time.iso8601_basic}}.repo"
-        mode: "{{ file_permission }}"
-      with_indexed_items: "{{ user_repo_url }}"
-      when: item.1.url in new_repos and software_version_default not in item.1.url
+    - name: Loop through user repos and configure repofile
+      ansible.builtin.include_tasks: generate_user_repofile.yml
+      loop: "{{ user_repo_url | default([], true) }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: item.url in new_repos and software_version_default not in item.url
 
     - name: Set repos_update_status
       ansible.builtin.set_fact:

@@ -189,7 +189,7 @@ def main():
                 for name in input_file_inventory[tag_name]:
                     validation_status.update(project_data)
                     fname, _ = os.path.splitext(name)
-                    
+
                     # If there's a replacement rule for the current tag_name, apply it
                     if tag_name in config.tag_file_replacements and fname in config.tag_file_replacements[tag_name]:
                         fname = config.tag_file_replacements[tag_name][fname]
@@ -247,23 +247,55 @@ def main():
 
     # Ansible success/failure message
     if False in vstatus:
-        status = validation_status[project_name]['status']
-        tag = validation_status[project_name]['tag']
-        failed_files = [file for item in status for file, result in item.items() \
-                        if result == 'Failed']
-        passed_files = [file.split("/")[-1] for item in status for file, result in item.items() \
-                        if result == 'Passed']
-        message = (
-            f"Input validation failed for: {failed_files} input configuration(s). \
-                Validation passed for {passed_files}. "
-            f"Tag(s) run: {tag}. Look at the logs for more details: \
-                filename={log_file_name}"
-            )
-        module.fail_json(msg=message)
+        generate_log_failure_message(log_file_name, project_name, validation_status, module)
     else:
-        message = f"Input validation completed for project: {validation_status} input configs. \
+        generate_log_success_message(log_file_name, validation_status, module)
+
+
+def generate_log_failure_message(log_file_name, project_name, validation_status, module):
+    """
+    Generates a failure message for the log file.
+
+    Args:
+        log_file_name (str): The name of the log file.
+        project_name (str): The name of the project.
+        validation_status (dict): The validation status.
+        module (AnsibleModule): The Ansible module.
+
+    Returns:
+        None
+    """
+    status = validation_status[project_name]['status']
+    tag = validation_status[project_name]['tag']
+    failed_files = [file for item in status for file, result in item.items() \
+                    if result == 'Failed']
+    passed_files = [file.split("/")[-1] for item in status for file, result in item.items() \
+                    if result == 'Passed']
+    message = (
+        f"Input validation failed for: {failed_files} input configuration(s). \
+            Validation passed for {passed_files}. "
+        f"Tag(s) run: {tag}. Look at the logs for more details: \
+            filename={log_file_name}"
+        )
+    module.fail_json(msg=message)
+
+
+def generate_log_success_message(log_file_name, validation_status, module):
+    """
+    Generates a success message for the log file.
+
+    Args:
+        log_file_name (str): The name of the log file.
+        project_name (str): The name of the project.
+        validation_status (dict): The validation status.
+        module (AnsibleModule): The Ansible module.
+
+    Returns:
+        None
+    """
+    message = f"Input validation completed for project: {validation_status} input configs. \
             Look at the logs for more details: filename={log_file_name}"
-        module.exit_json(msg=message)
+    module.exit_json(msg=message)
 
 
 if __name__ == "__main__":

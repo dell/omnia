@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,22 +12,92 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# local_repo has to be run before software_update
 
-- name: Validate software update inputs
+- name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
   tasks:
-    - name: Validate software update inputs
-      ansible.builtin.include_role:
-        name: software_update
-        tasks_from: validate_software_update_config.yml
+    - name: Set dynamic run tags including 'additional_software'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['additional_software']) | unique }}"
+        cacheable: true
 
-- name: Update Inventory with ansible_host information
-  ansible.builtin.import_playbook: ../servicetag_host_mapping.yml
+- name: Invoke validate_config.yml to perform L1 and L2 validations with additional_software tag
+  ansible.builtin.import_playbook: ../../input_validation/validate_config.yml
 
-- name: Package update
-  hosts: all
-  gather_facts: true
+- name: Invoke get_config_credentials.yml
+  when: not config_file_status | default(false) | bool
+  ansible.builtin.import_playbook: ../credential_utility/get_config_credentials.yml
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../include_input_dir.yml
+
+- name: Check for additional_software in software_config.json
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Parse software_config.json
+      ansible.builtin.set_fact:
+        software_config: "{{ include_software_config.content | b64decode | from_json }}"
+      when: software_config_content.content is defined
+      failed_when: false
+
+    - name: Check if additional_software is present in software_config.json
+      ansible.builtin.set_fact:
+        additional_software_present: "{{ 'additional_software' in software_config }}"
+      when: software_config is defined
+      failed_when: false
+
+    - name: Fail if additional_software is not present in software_config.json
+      ansible.builtin.fail:
+        msg: "Failed! Update additional_software entry in software_config.json and provide packages details in additional_software.json"
+      when: additional_software_present is not defined or not additional_software_present
+
+# Get all nodes to update repo
+- name: Get the nodes to update repo from DB and create new group
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Get the software organized by group
+      group_package_map:
+        input_path: "{{ hostvars['localhost']['input_project_dir'] }}"
+      register: grouped_packages
+
+    - name: Get all discovered nodes from DB
+      community.postgresql.postgresql_query:
+        login_db: omniadb
+        login_user: postgres
+        query: |
+          SELECT node,hostname,admin_ip,role,group_name,service_tag
+          FROM cluster.nodeinfo
+          WHERE node!='oim';
+        login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
+      register: db_result
+      delegate_to: omnia_provision
+
+    - name: Create ansible group to update repo
+      ansible.builtin.add_host:
+        name: "{{ node.admin_ip }}"
+        groups: "addl_repo"
+      when: node.group_name in grouped_packages.grp_pkg_map.keys()
+      loop: "{{ db_result.query_result }}"
+      loop_control:
+        loop_var: node
+
+# Update user repo
+- name: Update user repo
+  hosts: addl_repo
+  # gather_facts: false
   roles:
-    - role: ../roles/update_user_repo   # noqa: role-name[path]
-    - role: software_update
+    - ../roles/update_user_repo/common
+    # update_user_registry
+
+- name: Get the additional software organized by group
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - software_update

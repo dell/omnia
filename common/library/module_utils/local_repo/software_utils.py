@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 import os
 import json
 import csv
 import yaml
-from collections import defaultdict
-import re
 from jinja2 import Template
 import requests
 from ansible.module_utils.local_repo.common_functions import is_encrypted, process_file
@@ -34,6 +33,7 @@ from ansible.module_utils.local_repo.config import (
     USER_REPO_URL,
     REPO_CONFIG
 )
+
 
 def load_json(file_path):
     """
@@ -57,6 +57,7 @@ def load_json(file_path):
     except json.JSONDecodeError:
         raise ValueError(f"Error: Failed to parse JSON in file '{file_path}'.")
 
+
 def load_yaml(file_path):
     """
     Load YAML data from a file.
@@ -74,19 +75,24 @@ def load_yaml(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         return yaml.safe_load(file)
 
+
 def validate_repo_mappings(yaml_data, json_data):
     """
     Validates the repository mappings in the given JSON data against the YAML data.
 
     Args:
         yaml_data (dict): The YAML data containing the repository mappings.
-        json_data (str): The path to the JSON file or the JSON data containing the package information.
+        json_data (str): The path to the JSON file or the JSON data
+        containing the package information.
 
     Returns:
         list: A list of error messages for invalid repository mappings.
     """
-    valid_repos = [repo["name"] for repo in yaml_data.get("omnia_repo_url_rhel", [])]
-    valid_repos.extend(['baseos' , 'appstream', 'codeready-builder'])
+    user_repos = yaml_data.get("user_repo_url") or []
+    omnia_repos = yaml_data.get("omnia_repo_url_rhel") or []
+
+    valid_repos = [repo["name"] for repo in (user_repos + omnia_repos)]
+    valid_repos.extend(['baseos', 'appstream', 'codeready-builder'])
     data = load_json(json_data)
 
     errors = []
@@ -98,7 +104,8 @@ def validate_repo_mappings(yaml_data, json_data):
                         repo_name = package.get("repo_name")
                         if repo_name not in valid_repos:
                             error_msg = (
-                                f"Error: Repository '{repo_name}' for package '{package['package']}' "
+                                f"Error: Repository '{repo_name}' for "
+                                f"package '{package['package']}' "
                                 f"in subgroup '{section}' is not found in local_repo_config.yml"
                             )
                             errors.append(error_msg)
@@ -107,7 +114,8 @@ def validate_repo_mappings(yaml_data, json_data):
 
 def get_json_file_path(software_name, cluster_os_type, cluster_os_version, user_json_path):
     """
-    Generate the file path for a JSON file based on the provided software name, cluster OS type, cluster OS version, and user JSON path.
+    Generate the file path for a JSON file based on the provided software name,
+     cluster OS type, cluster OS version, and user JSON path.
 
     Parameters:
         software_name (str): The name of the software.
@@ -119,14 +127,18 @@ def get_json_file_path(software_name, cluster_os_type, cluster_os_version, user_
         str or None: The file path for the JSON file if it exists, otherwise None.
     """
     base_path = os.path.dirname(os.path.abspath(user_json_path))
-    json_path = os.path.join(base_path, f'{SOFTWARE_CONFIG_SUBDIR}/{cluster_os_type}/{cluster_os_version}/{software_name}.json')
+    json_path = os.path.join(
+        base_path,
+        f'{SOFTWARE_CONFIG_SUBDIR}/{cluster_os_type}/{cluster_os_version}/{software_name}.json')
     if os.path.exists(json_path):
         return json_path
     return None
 
+
 def get_csv_file_path(software_name, user_csv_dir):
     """
-    Generates the absolute path of the CSV file based on the software name and the user-provided CSV directory.
+    Generates the absolute path of the CSV file based on the software name
+    and the user-provided CSV directory.
 
     Parameters:
         software_name (str): The name of the software.
@@ -135,16 +147,20 @@ def get_csv_file_path(software_name, user_csv_dir):
     Returns:
         str: The absolute path of the CSV file if it exists, otherwise None.
     """
-    status_csv_file_path = os.path.join(user_csv_dir, software_name, DEFAULT_STATUS_FILENAME)
+    status_csv_file_path = os.path.join(
+        user_csv_dir, software_name, DEFAULT_STATUS_FILENAME)
     return status_csv_file_path
+
 
 def is_remote_url_reachable(remote_url, timeout=10, client_cert=None, client_key=None, ca_cert=None):
     """
     Check if a remote URL is reachable with or without SSL client certs.
-    If SSL certs are provided, the function will attempt to use them; otherwise, it defaults to a standard HTTP request.
+    If SSL certs are provided, the function will attempt to use them; otherwise,
+    it defaults to a standard HTTP request.
     Args:
         remote_url (str): The URL to check for reachability.
-        timeout (int, optional): The maximum number of seconds to wait for a response. Defaults to 10.
+        timeout (int, optional): The maximum number of seconds to wait for a response.
+        Defaults to 10.
         client_cert (str, optional): Path to the client certificate file. Defaults to None.
         client_key (str, optional): Path to the client key file. Defaults to None.
         ca_cert (str, optional): Path to the CA certificate file. Defaults to None.
@@ -166,6 +182,7 @@ def is_remote_url_reachable(remote_url, timeout=10, client_cert=None, client_key
         return response.status_code == 200
     except Exception:
         return False
+
 
 def transform_package_dict(data):
     """
@@ -193,7 +210,7 @@ def transform_package_dict(data):
                 rpm_packages[key].append(item["package"])
             elif item.get("type") == "rpm_list":
                 rpm_packages[key].extend(item["package_list"])
-                
+
             else:
                 transformed_items.append(item)
 
@@ -208,6 +225,7 @@ def transform_package_dict(data):
 
     return result
 
+
 def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vault_key_path):
     """
     Parses the repository URLs from the given local repository configuration file.
@@ -218,20 +236,22 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
         vault_key_path: Ansible vault key path
     Returns:
         tuple: A tuple where the first element is either the parsed repository URLs as a JSON string
-               (on success) or the rendered URL (if unreachable), and the second element is a boolean
+               (on success) or the rendered URL (if unreachable),
+                and the second element is a boolean
                indicating success (True) or failure (False).
         str: The parsed repository URLs as a JSON string.
     """
     local_yaml = load_yaml(local_repo_config_path)
     repo_entries = local_yaml.get(OMNIA_REPO_KEY, [])
-    rhel_repo_entry = local_yaml.get(RHEL_OS_URL,[])
-    user_repo_entry = local_yaml.get(USER_REPO_URL,[])
+    rhel_repo_entry = local_yaml.get(RHEL_OS_URL, [])
+    user_repo_entry = local_yaml.get(USER_REPO_URL, [])
     parsed_repos = []
-    vault_key_path = os.path.join(vault_key_path, ".local_repo_credentials_key")
+    vault_key_path = os.path.join(
+        vault_key_path, ".local_repo_credentials_key")
     if user_repo_entry:
         for url_ in user_repo_entry:
-            name = url_.get("name","unknown")
-            url = url_.get("url","")
+            name = url_.get("name", "unknown")
+            url = url_.get("url", "")
             gpgkey = url_.get("gpgkey")
             ca_cert = url_.get("sslcacert", "")
             client_key = url_.get("sslclientkey", "")
@@ -245,7 +265,8 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
                     if result is False:
                         return f"Error during decrypt for user repository path:{path}", False
 
-            if not is_remote_url_reachable(url, client_cert=client_cert, client_key=client_key, ca_cert=ca_cert):
+            if not is_remote_url_reachable(url, client_cert=client_cert,
+                                           client_key=client_key, ca_cert=ca_cert):
                 return url, False
 
             parsed_repos.append({
@@ -260,8 +281,8 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
             })
 
     for url_ in rhel_repo_entry:
-        name = url_.get("name","unknown")
-        url = url_.get("url","")
+        name = url_.get("name", "unknown")
+        url = url_.get("url", "")
         gpgkey = url_.get("gpgkey")
         policy_given = url_.get("policy", repo_config)
         policy = REPO_CONFIG.get(policy_given)
@@ -294,7 +315,7 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
             continue
 
         # Edge case for oneapi, snoopy, nvidia-repo
-        elif not is_remote_url_reachable(rendered_url) and name not in ["oneapi","snoopy","nvidia-repo"]:
+        elif not is_remote_url_reachable(rendered_url) and name not in ["oneapi", "snoopy", "nvidia-repo"]:
             return rendered_url, False
 
         parsed_repos.append({
@@ -306,6 +327,7 @@ def parse_repo_urls(repo_config, local_repo_config_path, version_variables, vaul
         })
 
     return json.dumps(parsed_repos), True
+
 
 def set_version_variables(user_data, software_names, cluster_os_version):
     """
@@ -334,6 +356,7 @@ def set_version_variables(user_data, software_names, cluster_os_version):
     version_variables["cluster_os_version"] = cluster_os_version
     return version_variables
 
+
 def get_subgroup_dict(user_data):
     """
     Returns a tuple containing a dictionary mapping software names to subgroup lists,
@@ -345,9 +368,12 @@ def get_subgroup_dict(user_data):
     for sw in user_data.get(SOFTWARES_KEY, []):
         software_name = sw['name']
         software_names.append(software_name)
-        subgroups = [sw['name']] + [item['name'] for item in user_data.get(software_name, [])]
-        subgroup_dict[software_name] = subgroups if isinstance(user_data.get(software_name), list) else [sw['name']]
+        subgroups = [sw['name']] + [item['name']
+                                    for item in user_data.get(software_name, [])]
+        subgroup_dict[software_name] = subgroups if isinstance(
+            user_data.get(software_name), list) else [sw['name']]
     return subgroup_dict, software_names
+
 
 def get_csv_software(file_name):
     """
@@ -366,9 +392,11 @@ def get_csv_software(file_name):
 
     with open(file_name, mode='r') as csv_file:
         reader = csv.DictReader(csv_file)
-        csv_software = [row.get(CSV_COLUMNS["column1"], "").strip() for row in reader]
+        csv_software = [row.get(CSV_COLUMNS["column1"], "").strip()
+                        for row in reader]
 
     return csv_software
+
 
 def get_failed_software(file_name):
     """
@@ -392,6 +420,7 @@ def get_failed_software(file_name):
                            if row.get(CSV_COLUMNS["column2"], "").strip().lower() == "failed"]
 
     return failed_software
+
 
 def parse_json_data(file_path, package_types, failed_list=None, subgroup_list=None):
     """
@@ -420,16 +449,19 @@ def parse_json_data(file_path, package_types, failed_list=None, subgroup_list=No
                     match_keys = {pkg_name}  # Base case: package name only
 
                     if "tag" in item and item["tag"]:
-                        match_keys.add(f"{pkg_name}:{item['tag']}")  # Add package:tag
+                        # Add package:tag
+                        match_keys.add(f"{pkg_name}:{item['tag']}")
 
                     if "digest" in item and item["digest"]:
-                        match_keys.add(f"{pkg_name}:{item['digest']}")  # Add package:digest
+                        # Add package:digest
+                        match_keys.add(f"{pkg_name}:{item['digest']}")
 
                     # Apply filtering
                     if item.get("type") in package_types and (failed_list is None or any(match in failed_list for match in match_keys)):
                         filtered_list.append(item)
 
     return filtered_list
+
 
 def check_csv_existence(path):
     """
@@ -442,6 +474,7 @@ def check_csv_existence(path):
         bool: True if the CSV file exists, False otherwise.
     """
     return os.path.isfile(path)
+
 
 def process_software(software, fresh_installation, json_path, csv_path, subgroup_list):
     """
@@ -457,14 +490,18 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
     Returns:
         list: The filtered list of items.
     """
-    failed_packages = None if fresh_installation else get_failed_software(csv_path)
+    failed_packages = None if fresh_installation else get_failed_software(
+        csv_path)
     rpm_package_type = ['rpm']
     rpm_tasks = []
     if failed_packages is not None and any("RPMs" in software for software in failed_packages):
-        rpm_tasks = parse_json_data(json_path, rpm_package_type, None, subgroup_list)
+        rpm_tasks = parse_json_data(
+            json_path, rpm_package_type, None, subgroup_list)
 
-    combined = parse_json_data(json_path, PACKAGE_TYPES, failed_packages, subgroup_list) + rpm_tasks
+    combined = parse_json_data(
+        json_path, PACKAGE_TYPES, failed_packages, subgroup_list) + rpm_tasks
     return combined, failed_packages
+
 
 def get_software_names(data_path):
     """
@@ -478,4 +515,3 @@ def get_software_names(data_path):
     """
     data = load_json(data_path)
     return [software['name'] for software in data.get(SOFTWARES_KEY, [])]
-

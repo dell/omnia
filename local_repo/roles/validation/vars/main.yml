@@ -156,30 +156,6 @@ manifest_properties_fail_msg: "Missing required properties for an item of type '
 shell_properties_fail_msg: "Missing required properties for an item of type 'shell' in the JSON file '{{ file_basename }}.json'."
 iso_properties_fail_msg: "Missing required properties for an item of type 'iso' in the JSON file '{{ file_basename }}.json'."
 validation_failure_msg: "Validation failed for JSON file: {{ json_file.path }}. Please ensure all properties are defined in all items based on type"
-subgroup_software_list:
-  bcm_roce:
-    - 'bcm_roce_libraries'
-  amdgpu:
-    - 'rocm'
-  intelgaudi:
-    - 'intel'
-  vllm:
-    - 'vllm_amd'
-    - 'vllm_nvidia'
-  pytorch:
-    - 'pytorch_cpu'
-    - 'pytorch_amd'
-    - 'pytorch_nvidia'
-    - 'pytorch_gaudi'
-  tensorflow:
-    - 'tensorflow_cpu'
-    - 'tensorflow_amd'
-    - 'tensorflow_nvidia'
-  slurm:
-    - 'slurm_control_node'
-    - 'slurm_node'
-    - 'slurm_dbd'
-    - 'login'
 subgroup_software_name_fail_msg: "Please ensure valid software names are defined in subgroups in the software_config.json file."
 
 # Usage: validate_ubuntu_os_url.yml

@@ -59,3 +59,7 @@
     - name: Configuration of service_node role postscripts
       ansible.builtin.include_tasks: configure_postscripts_service.yml
       when: service_node_status
+
+    - name: Configuration of additional sowftware packages postscripts
+      ansible.builtin.include_tasks: configure_postscripts_additional_softwares.yml
+      when: all_node_status and additional_software_packages

@@ -1,4 +1,4 @@
-# Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,17 @@
 # limitations under the License.
 ---
 
-- name: Update repo - Ubuntu
-  ansible.builtin.command: apt update
-  changed_when: false
-  when: ansible_distribution | lower == os_supported_ubuntu
+- name: Set baseurl_present based on existence of base_url for item.name
+  ansible.builtin.set_fact:
+    baseurl_present: >-
+      {{ (pulp_dist_result
+          | selectattr('name', 'equalto', item.name)
+          | map(attribute='base_url')
+          | list
+          | length) > 0 }}
 
-- name: Update repo - RHEL/Rocky
-  ansible.builtin.command: dnf clean all
-  changed_when: false
-  when:
-    - ansible_distribution | lower == os_supported_rhel or
-      ansible_distribution | lower == os_supported_rocky
+- name: Configure user repository
+  ansible.builtin.template:
+    src: "{{ usr_repo_config_template_src }}"
+    dest: "{{ repo_path }}/{{ item.name }}.repo"
+    mode: "{{ file_permission }}"

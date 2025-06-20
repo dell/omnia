@@ -135,3 +135,23 @@
   loop_control:
     loop_var: item
   # noqa: var-naming[no-jinja]
+
+- name: Initialize additional_software_packages
+  ansible.builtin.set_fact:
+    additional_software_packages: false
+
+- name: Set additional_software when defined in software_config
+  ansible.builtin.set_fact:
+    additional_software_packages: true
+  when: "'additional_software' in software_names"
+
+- name: Fetch additional software packages
+  group_package_map:
+    input_path: "{{ hostvars['localhost']['input_project_dir'] }}"
+  register: group_to_additional_sw_package_map
+  when: additional_software_packages
+
+- name: Set fact for group_to_additional_sw_package_map
+  ansible.builtin.set_fact:
+    group_to_additional_sw_package_map: "{{ group_to_additional_sw_package_map.grp_pkg_map }}"
+  when: additional_software_packages

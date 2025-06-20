@@ -144,6 +144,7 @@ os_version_ranges = {
 #dictionary used for local repo package type mapping
 TYPE_REQUIREMENTS = {
     "rpm": ["package", "repo_name"],
+    "rpm_list": ["package_list", "repo_name"],
     "ansible_galaxy_collection": ["package", "version"],
     "git": ["package", "version", "url"],
     "image": ["package", ["tag", "digest"]],  # Special: one of tag or digest

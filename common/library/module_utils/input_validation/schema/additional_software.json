@@ -7,7 +7,7 @@
       "properties": {
         "cluster": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "items": {
             "type": "object",
             "oneOf": [
@@ -16,7 +16,7 @@
                   "package": { "type": "string", "minLength": 1 },
                   "type": { "const": "rpm" },
                   "repo_name": { "type": "string", "minLength": 1 },
-                  "reboot_required": { "type": "string", "minLength": 1, "enum": ["true", "false"] }
+                  "reboot_required": { "type": "boolean", "minLength": 1 }
                 },
                 "required": ["package", "type", "repo_name"],
                 "additionalProperties": false
@@ -30,7 +30,7 @@
                   },
                   "type": { "const": "rpm_list" },
                   "repo_name": { "type": "string", "minLength": 1 },
-                  "reboot_required": { "type": "string", "minLength": 1, "enum": ["true", "false"] }
+                  "reboot_required": { "type": "boolean", "minLength": 1 }
                 },
                 "required": ["package_list", "type", "repo_name"],
                 "additionalProperties": false
