@@ -24,6 +24,7 @@
 # This takes a list of dicts with possible keys server_ip, server_share_path, client_share_path, client_mount_options, nfs_server, slurm_share, k8s_share
 # When 'nfs_server' value is true, Omnia will setup NFS server and mount NFS client, provided ansible has SSH access to the server.
 # When 'nfs_server' value is false, USER will have to Setup EXTERNAL NFS server with all the necessary permissions and access to the nodes, whereever the NFS share will be mounted.
+# In that case, the USER must manually update 'server_ip' and 'server_share_path' below with the correct values.
 # Setting up of NFS server on Omnia Infrastructure Manager or "localhost" or <admin_ip> is not supported.
 # If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
 # Its mandatory to provide atleast one entry in nfs_client_params
@@ -36,11 +37,11 @@
 # Example for supporting multiple mount points:
 # nfs_client_params:
 #    - { server_ip: 198.168.0.1,server_share_path: "/mnt/share1", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard", nfs_server: true, slurm_share: false, k8s_share: true }
-#    - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true}
+#    - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false, slurm_share: true, k8s_share: true }
 # Example for multiple mount file system:
 # nfs_client_params:
-# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: false, k8s_share: true}
-# - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: true, k8s_share: false}
+# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: false, k8s_share: true }
+# - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard", nfs_server: false , slurm_share: true, k8s_share: false }
 nfs_client_params:
    - { server_ip: "", # Provide the IP of the NFS server
        server_share_path: /mnt/omnia_home_share,
