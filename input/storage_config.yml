@@ -24,7 +24,7 @@
 # This takes a list of dicts with possible keys server_ip, server_share_path, client_share_path, client_mount_options, nfs_server, slurm_share, k8s_share
 # When 'nfs_server' value is true, Omnia will setup NFS server and mount NFS client, provided ansible has SSH access to the server.
 # When 'nfs_server' value is false, USER will have to Setup EXTERNAL NFS server with all the necessary permissions and access to the nodes, whereever the NFS share will be mounted.
-# In that case, the USER must manually update 'server_ip' and 'server_share_path' below with the correct values.
+# In both the cases, the USER must manually update 'server_ip' and 'server_share_path' below with the correct values.
 # Setting up of NFS server on Omnia Infrastructure Manager or "localhost" or <admin_ip> is not supported.
 # If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
 # Its mandatory to provide atleast one entry in nfs_client_params
