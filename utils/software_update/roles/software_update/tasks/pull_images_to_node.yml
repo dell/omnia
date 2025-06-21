@@ -22,7 +22,6 @@
       ansible.builtin.command: "which nerdctl"
       register: nerdctl_check
       delegate_to: "{{ target_node }}"
-      changed_when: true
       ignore_errors: true
 
     - name: Set nerdctl_installed fact
@@ -36,7 +35,6 @@
     - name: Pull image using nerdctl on {{ target_node }}
       ansible.builtin.command: "nerdctl pull {{ item }}"
       delegate_to: "{{ target_node }}"
-      changed_when: true
-      failed_when: false
+      ignore_errors: true
       loop: "{{ images_to_pull }}"
       when: nerdctl_installed and images_to_pull | length > 0

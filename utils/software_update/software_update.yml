@@ -74,7 +74,7 @@
         query: |
           SELECT node,hostname,admin_ip,role,group_name,service_tag
           FROM cluster.nodeinfo
-          WHERE node!='oim';
+          WHERE node!='oim' and status = 'booted';
         login_password: "{{ hostvars['localhost']['postgresdb_password'] }}"
       register: db_result
       delegate_to: omnia_provision
@@ -91,10 +91,8 @@
 # Update user repo
 - name: Update user repo
   hosts: addl_repo
-  # gather_facts: false
   roles:
     - ../roles/update_user_repo/common
-    # update_user_registry
 
 - name: Get the additional software organized by group
   hosts: localhost
