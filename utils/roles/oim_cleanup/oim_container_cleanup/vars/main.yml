@@ -98,10 +98,7 @@ loki_firewall_ports:
   - "3100/tcp"
 
 ntp_firewall_service: ntp
-
-# Usage: cleanup_kubespray.yml
-kubespray_image_tag: "{{ hostvars['localhost']['kubespray_version'] }}"
-kubespray_container_name: "omnia_kubespray_{{ hostvars['localhost']['kubespray_version'] }}"
+kubespray_image_name: "omnia_kubespray"
 kubespray_cleanup_directory:
   - "{{ omnia_nfs_share }}/kubespray"
   - "{{ omnia_nfs_share }}/log/kubespray"

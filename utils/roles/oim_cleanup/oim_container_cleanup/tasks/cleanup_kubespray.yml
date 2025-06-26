@@ -13,34 +13,38 @@
 #  limitations under the License.
 ---
 
-- name: Check if {{ kubespray_container_name }} is running # noqa: name[template]
-  containers.podman.podman_container_info:
-    name: "{{ kubespray_container_name }}"
-  register: kubespray_container_status
-  failed_when: false
-
-- name: Stop and Remove Kubespray container
-  when: kubespray_container_status.containers | length != 0
-  block:
-    - name: Stop the Kubespray container
-      containers.podman.podman_container:
-        name: "{{ kubespray_container_name }}"
-        state: stopped
+- name: Stop and remove all instances of the Omnia Kubespray container(s)
+  loop: "{{ hostvars['localhost']['kubespray_versions'] }}"
+  block: 
+    - name: Check if {{ kubespray_image_name }}_{{ item }} is running # noqa: name[template]
+      containers.podman.podman_container_info:
+        name: "{{ kubespray_image_name }}_{{ item }}"
+      register: kubespray_container_status
       failed_when: false
 
-    - name: Remove Kubespray container
-      containers.podman.podman_container:
-        name: "{{ kubespray_container_name }}"
-        state: absent
-        force_delete: true
+    - name: Stop and Remove Kubespray container
+      when: kubespray_container_status.containers | length != 0
+      block:
+        - name: Stop the Kubespray container
+          containers.podman.podman_container:
+            name: "{{ kubespray_image_name }}_{{ item }}"
+            state: stopped
+          failed_when: false
 
-    - name: Remove Kubespray directory
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      with_items:
-        - "{{ kubespray_cleanup_directory }}"
-  rescue:
-    - name: Kubespray container removal failed
-      ansible.builtin.fail:
-        msg: "{{ kubespray_container_name }} {{ container_removal_failure_msg }}"
+        - name: Remove Kubespray container
+          containers.podman.podman_container:
+            name: "{{ kubespray_image_name }}_{{ item }}"
+            state: absent
+            force_delete: true
+
+        - name: Remove Kubespray directories
+          ansible.builtin.file:
+            path: "{{ directory }}"
+            state: absent
+          loop: "{{ kubespray_cleanup_directory }}"
+          loop_control:
+            loop_var: directory
+      rescue:
+        - name: Kubespray container removal failed
+          ansible.builtin.fail:
+            msg: "{{ kubespray_image_name }}_{{ item }} {{ container_removal_failure_msg }}"

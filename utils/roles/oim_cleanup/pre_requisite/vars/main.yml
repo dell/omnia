@@ -22,16 +22,24 @@ software_config_syntax_fail_msg: "Failed. Syntax errors present in software_conf
 
 # Usage: check_k8s_support.yml
 supported_k8s_version:
-  - 1.29.5
+  - 1.28.0
+  - 1.30.4
   - 1.31.4
+  - 1.29.0
+  - 1.30.0
+  - 1.32.5
+
 success_msg_k8s_version: "Kubernetes Version Validated"
 fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json. Supported versions are - {{ supported_k8s_version }}" # noqa: yaml[line-length]
-kube_version_on_unsupported_os: "Failed. On RHEL 9.6 OS, supported kubernetes version is 1.29.5"  # noqa: yaml[line-length]
 
 # We use k8s_to_kubespray to map k8s version to kubespray version
 k8s_to_kubespray:
-  "1.29.5": "v2.27.0"
+  "1.28.0": "v2.26.0"
+  "1.30.4": "v2.26.0"
+  "1.29.0": "v2.27.0"
   "1.31.4": "v2.27.0"
+  "1.30.0": "v2.28.0"
+  "1.32.5": "v2.28.0"
 
 # Usage  check_idrac_telemetry_support.yml
 telemetry_config_file: "telemetry_config.yml"

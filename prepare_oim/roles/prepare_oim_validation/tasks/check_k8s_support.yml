@@ -16,24 +16,26 @@
 # Check if k8s is mentioned in software_config.json
 - name: Check if k8s support is true
   ansible.builtin.set_fact:
-    k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+    k8s_support: "{{ software_config.softwares | selectattr('name', 'in', ['k8s', 'service_k8s']) | list | length > 0 }}"
 
 - name: Validate k8s_support variable
   when: k8s_support
   block:
     - name: Extract k8s version
       ansible.builtin.set_fact:
-        k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | map(attribute='version') | first }}"
+        k8s_version: "{{ software_config.softwares | selectattr('name', 'in', ['k8s', 'service_k8s']) | map(attribute='version') | list }}"
       # noqa: var-naming[no-jinja]
 
     - name: Assert supported kubernetes version
       ansible.builtin.assert:
         that:
-          - k8s_version | default("", false) | length > 1
-          - k8s_version in supported_k8s_version
+          - item in supported_k8s_version
         success_msg: "{{ success_msg_k8s_version }}"
         fail_msg: "{{ fail_msg_k8s_version }}"
+      loop: "{{ k8s_version }}"
+      loop_control:
+        loop_var: item
 
     - name: Set Kubespray version based on Kubernetes version
       ansible.builtin.set_fact:
-        kubespray_version: "{{ k8s_to_kubespray[k8s_version] | default('unknown') }}"
+        kubespray_versions: "{{ k8s_version | map('extract', k8s_to_kubespray) | default(['unknown']) | map('default', 'unknown') | list | unique }}"
