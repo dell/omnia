@@ -34,7 +34,8 @@
   ansible.builtin.import_tasks: cleanup_pulp.yml
 
 - name: Cleanup kubespray container
-  ansible.builtin.import_tasks: cleanup_kubespray.yml
+  ansible.builtin.include_tasks: cleanup_kubespray.yml
+  loop: "{{ hostvars['localhost']['kubespray_versions'] }}"
   when: hostvars['localhost']['k8s_support']
 
 - name: Cleanup iDRAC Telemetry containers

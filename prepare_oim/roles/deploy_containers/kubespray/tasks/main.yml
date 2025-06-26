@@ -16,4 +16,5 @@
 
 - name: Deploying the kubespray container
   ansible.builtin.include_tasks: deploy_kubespray_container.yml
+  loop: "{{ kubespray_versions }}"
   when: hostvars['localhost']['k8s_support']

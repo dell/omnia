@@ -14,7 +14,6 @@
 ---
 
 - name: Stop and remove all instances of the Omnia Kubespray container(s)
-  loop: "{{ hostvars['localhost']['kubespray_versions'] }}"
   block: 
     - name: Check if {{ kubespray_image_name }}_{{ item }} is running # noqa: name[template]
       containers.podman.podman_container_info:
@@ -44,6 +43,7 @@
           loop: "{{ kubespray_cleanup_directory }}"
           loop_control:
             loop_var: directory
+          failed_when: false
       rescue:
         - name: Kubespray container removal failed
           ansible.builtin.fail:

@@ -29,40 +29,48 @@
       register: kubespray_container_info
       failed_when: false
 
-    - name: Check if {{ kubespray_ssh_ports[item] }} is occupied # noqa: name[template]
+    - name: Set {{ kubespray_image_name }}_{{ item }} port variable
+      ansible.builtin.set_fact:
+        kubespray_ssh_port: "{{ kubespray_ssh_ports[item] }}"
+
+    - name: Check if {{ kubespray_ssh_port }} is occupied # noqa: name[template]
       ansible.builtin.wait_for:
         host: localhost
         port: "{{ kubespray_ssh_ports[item] }}"
         state: stopped
         timeout: "{{ wait_time }}"
-        msg: "{{ kubespray_port_occupied_msg | replace('{{ kubespray_ssh_port }}', '{{ kubespray_ssh_ports[item] }}') }}"
+        msg: "{{ kubespray_port_occupied_msg }}"
       register: kubespray_port_check
       failed_when: false
       when: kubespray_container_info.containers | length == 0
-  loop: "{{ kubespray_versions }}"
 
 - name: Deploy Kubespray container(s) and check deployment status
   block:
     - name: Deploy Kubespray container(s)
       block:
+        - name: Set Kubespray image tag
+          ansible.builtin.set_fact:
+            kubespray_image_tag: "{{ item }}"
+            kubespray_container_name: "{{ kubespray_image_name }}_{{ item }}"
+
         - name: Pull the Kubespray image
           containers.podman.podman_image:
-            name: "{{ kubespray_image_name }}:{{ item }}"
+            name: "{{ kubespray_image_name }}:{{ kubespray_image_tag }}"
             state: present
           register: image_pull_result
 
         - name: Fail if the Kubespray image pull fails
           ansible.builtin.fail:
-            msg: "{{ kubespray_image_pull_fail_msg | replace('{{ kubespray_image_tag }}', '{{ item }}')}}"
+            msg: "{{ kubespray_image_pull_fail_msg }}"
           when: image_pull_result.failed
 
         - name: Deploy the Kubespray container(s)
           containers.podman.podman_container:
-            name: "{{ kubespray_image_name }}_{{ item }}"
-            image: "{{ kubespray_image_name }}:{{ item }}"
+            name: "{{ kubespray_container_name }}"
+            image: "{{ kubespray_image_name }}:{{ kubespray_image_tag }}"
             state: present
             restart_policy: "no"
-            hostname: "{{ kubespray_image_name }}_{{ item }}"
+            hostname: "{{ kubespray_container_name}}"
             network_mode: host
             volumes: "{{ kubespray_volumes }}"
             cap_add:
@@ -70,23 +78,21 @@
 
         - name: Start the Kubespray container
           containers.podman.podman_container:
-            name: "{{ kubespray_image_name }}_{{ item }}"
+            name: "{{ kubespray_container_name}}"
             state: started
 
         - name: Check if Kubespray container is running after deployment
           containers.podman.podman_container_info:
-            name: "{{ kubespray_image_name }}_{{ item }}"
+            name: "{{ kubespray_container_name}}"
           register: kubespray_container_status
 
         - name: Notify user of Kubespray container deployment status
           ansible.builtin.debug:
-            msg: "The {{ kubespray_image_name }}_{{ item }} container has been successfully deployed."
+            msg: "The {{ kubespray_container_name }} container has been successfully deployed."
           when:
             - kubespray_container_status.containers | length > 0
             - kubespray_container_status.containers[0].State.Status == 'running'
-      loop: "{{ kubespray_versions }}"
-
   rescue:
     - name: Kubespray container deployment failed
       ansible.builtin.fail:
-        msg: "{{ kubespray_container_failure_msg | replace('{{ kubespray_container_name }}', '{{ kubespray_image_name }}_{{ item }}')}}"
+        msg: "{{ kubespray_container_failure_msg }}"
