@@ -13,37 +13,39 @@
 # limitations under the License.
 ---
 - name: Read current GRUB_CMDLINE_LINUX
-  command: grep '^GRUB_CMDLINE_LINUX=' /etc/default/grub
+  ansible.builtin.command: grep '^GRUB_CMDLINE_LINUX=' /etc/default/grub
   register: grub_cmdline
   changed_when: false
 
 - name: Ensure iommu=pt is present
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/default/grub
     regexp: '^GRUB_CMDLINE_LINUX="(.*)"'
     line: 'GRUB_CMDLINE_LINUX="\1 iommu=pt"'
-    backrefs: yes
+    backrefs: true
   when: '"iommu=pt" not in grub_cmdline.stdout'
 
 - name: Ensure intel_iommu=on is present
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/default/grub
     regexp: '^GRUB_CMDLINE_LINUX="(.*)"'
     line: 'GRUB_CMDLINE_LINUX="\1 intel_iommu=on"'
-    backrefs: yes
+    backrefs: true
   when: '"intel_iommu=on" not in grub_cmdline.stdout'
 
 - name: Update GRUB configuration
-  command: update-grub
-  when: grub_cmdline.changed
+  ansible.builtin.command: update-grub
+  when: '"iommu=pt" not in grub_cmdline.stdout or "intel_iommu=on" not in grub_cmdline.stdout'
+  changed_when: false
 
 - name: Prompt for reboot
   ansible.builtin.pause:
     seconds: "{{ warning_wait_time }}"
     prompt: "{{ reboot_warning_msg }}"
-  when: grub_cmdline.changed
+  when: '"iommu=pt" not in grub_cmdline.stdout or "intel_iommu=on" not in grub_cmdline.stdout'
 
 - name: Initiate reboot
+  when: '"iommu=pt" not in grub_cmdline.stdout or "intel_iommu=on" not in grub_cmdline.stdout'
   block:
     - name: Rebooting node (This task will take some time)
       ansible.builtin.reboot:
@@ -52,4 +54,3 @@
     - name: Failed to reboot node
       ansible.builtin.fail:
         msg: "{{ reboot_fail_msg }}"
-  when: grub_cmdline.changed

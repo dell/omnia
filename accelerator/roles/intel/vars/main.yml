@@ -19,6 +19,7 @@ intel_gaudi_kernel_module_to_load:
   - habanalabs
   - habanalabs_cn
   - habanalabs_en
+  - habanalabs_compat
 
 # TODO: move to a central config file
 intel_habana_packages:
