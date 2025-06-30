@@ -39,11 +39,10 @@
 
 - name: Create gaudi-network.sh
   when: not check_scale_up_script.stat.exists
-  ansible.builtin.blockinfile:
-    path: "{{ intel_scale_up_ports_script_path }}"
-    create: true
+  ansible.builtin.copy:
+    dest: "{{ intel_scale_up_ports_script_path }}"
     mode: "{{ file_permissions }}"
-    block: |
+    content: |
       #!/bin/bash
       EXT_PORTS="24"
       RETRIES=10

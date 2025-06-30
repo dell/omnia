@@ -14,7 +14,7 @@ spec:
       template:
         spec:
           containers:
-            - image: vault.habana.ai/gaudi-docker/1.19.2/ubuntu24.04/habanalabs/pytorch-installer-2.5.1:latest
+            - image: vault.habana.ai/gaudi-docker/1.21.1/ubuntu24.04/habanalabs/pytorch-installer-2.6.0:latest
               name: gaudi-llm-ds-ft-launcher
               env:
                 - name: HF_HOME
@@ -66,11 +66,11 @@ spec:
 
                   git clone  https://github.com/huggingface/optimum-habana /optimum-habana;
                   cd /optimum-habana;
-                  git checkout v1.15.0;
+                  git checkout v1.17.0;
                   sed -i '194s|deepspeed|deepspeed --force_multi|' optimum/habana/distributed/distributed_runner.py;
                   retry_until_success pip install .;
                   retry_until_success pip install -r examples/language-modeling/requirements.txt;
-                  retry_until_success pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.19.0;
+                  retry_until_success pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.21.0;
 
                   mpirun --npernode 1 \
                     --tag-output \
@@ -108,7 +108,7 @@ spec:
 
                     git clone  https://github.com/huggingface/optimum-habana /optimum-habana
                     cd /optimum-habana
-                    git checkout v1.15.0
+                    git checkout v1.17.0
                     hf_home_var="os.environ[\"HF_HOME\"] = \"${HF_HOME}\""
                     token_var="os.environ[\"HUGGING_FACE_HUB_TOKEN\"] = \"${HUGGING_FACE_HUB_TOKEN}\""
                     https_var="os.environ[\"https_proxy\"] = \"${https_proxy}\""
@@ -121,7 +121,7 @@ spec:
                     sed -i "60i\\${no_proxy_var}" examples/language-modeling/run_lora_clm.py
                     retry_until_success pip install .
                     retry_until_success pip install -r examples/language-modeling/requirements.txt
-                    retry_until_success pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.19.0
+                    retry_until_success pip install git+https://github.com/HabanaAI/DeepSpeed.git@1.21.0
                     ';
 
                     eval $(ssh-agent);
@@ -172,7 +172,7 @@ spec:
         spec:
           hostIPC: true
           containers:
-            - image: vault.habana.ai/gaudi-docker/1.19.2/ubuntu24.04/habanalabs/pytorch-installer-2.5.1:latest
+            - image: vault.habana.ai/gaudi-docker/1.21.1/ubuntu24.04/habanalabs/pytorch-installer-2.6.0:latest
               name: gaudi-llm-ds-ft-worker
               command: ["/bin/bash", "-c"]
               args:

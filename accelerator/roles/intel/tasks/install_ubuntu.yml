@@ -19,6 +19,9 @@
 - name: Install drivers on Gaudi nodes
   when: node_has_accelerator
   block:
+    - name: make sure required kernel command line are set
+      ansible.builtin.include_tasks: verify_kernel_boot_cmdline.yml
+
     - name: Gather package facts
       ansible.builtin.package_facts:
         manager: auto

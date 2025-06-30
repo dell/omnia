@@ -19,6 +19,7 @@ intel_gaudi_kernel_module_to_load:
   - habanalabs
   - habanalabs_cn
   - habanalabs_en
+  - habanalabs_compat
 
 # TODO: move to a central config file
 intel_habana_packages:
@@ -70,3 +71,6 @@ intel_scale_up_ports_service_name: "gaudi-network.service"
 file_permissions: "0755"
 svc_file_permissions: "0644"
 gaudi3_pci_vendor_device_class: "1da3:1060:1200"
+warning_wait_time: 30  # Time to wait for user input
+reboot_warning_msg: "Changes have been made to the GRUB configuration. Do you want to reboot the system now? Press 'Enter' to continue or 'Ctrl+C' to abort."
+reboot_fail_msg: "Failed to reboot the node. Please check the system manually."

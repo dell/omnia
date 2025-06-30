@@ -50,7 +50,7 @@ FreeIPA,GNU-General Public License v3.0," FreeIPA, an integrated security infor
 NVIDIA device plugin,Apache License 2.0,NVIDIA device plugin for Kubernetes,0.14.4
 rocm device plugin,Apache License 2.0,Kubernetes (k8s) device plugin to enable registration of AMD GPU to a container cluster,0.19.0
 xilinx-device-plugin,Apache License 2.0,The AMD-Xilinx device plugin for Kubernetes is a Daemonset deployed on the Kubernetes(k8s) cluster,1.2.0
-habanalabs-k8s-device-plugin,Apache License 2.0,HABANA device plugin for Kubernetes,1.19.2
+habanalabs-k8s-device-plugin,Apache License 2.0,HABANA device plugin for Kubernetes,1.21.1
 Jupyterhub,BSD-3-Clause license,Multi-user server for Jupyter notebooks,3.2.0
 Kserve,Apache License 2.0,Standardized Serverless ML Inference Platform on Kubernetes,0.13.0
 kubeflow,Apache-2.0,A repository for Kustomize manifests,1.9.1

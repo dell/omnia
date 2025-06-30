@@ -5,7 +5,7 @@
     "softwares": [
         {"name": "amdgpu", "version": "6.3.1"},
         {"name": "bcm_roce", "version": "232.1.133.2"},
-        {"name": "intelgaudi", "version": "1.19.2-32"},
+        {"name": "intelgaudi", "version": "1.21.1-16"},
         {"name": "cuda", "version": "12.8.0"},
         {"name": "ofed", "version": "24.01-0.3.3.1"},
         {"name": "openldap"},
