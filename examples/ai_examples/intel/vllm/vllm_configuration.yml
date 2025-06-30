@@ -34,7 +34,7 @@ spec:
         app: vllm-llama-app
     spec:
       containers:
-        - image: vault.habana.ai/gaudi-docker/1.19.2/ubuntu24.04/habanalabs/pytorch-installer-2.5.1:latest
+        - image: vault.habana.ai/gaudi-docker/1.21.1/ubuntu24.04/habanalabs/pytorch-installer-2.6.0:latest
           name: vllm-llama-openai
           imagePullPolicy: Always
           workingDir: /root
@@ -63,7 +63,7 @@ spec:
             - "/bin/sh"
             - "-c"
             - |
-              git clone -b v0.6.4.post2+Gaudi-1.19.2 https://github.com/HabanaAI/vllm-fork.git
+              git clone -b v0.7.2+Gaudi-1.21.0 https://github.com/HabanaAI/vllm-fork.git
               cd vllm-fork
               pip install -v -r requirements-hpu.txt
               export VLLM_TARGET_DEVICE=hpu

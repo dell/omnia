@@ -1,0 +1,55 @@
+# Copyright 2025 Intel Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Read current GRUB_CMDLINE_LINUX
+  command: grep '^GRUB_CMDLINE_LINUX=' /etc/default/grub
+  register: grub_cmdline
+  changed_when: false
+
+- name: Ensure iommu=pt is present
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="(.*)"'
+    line: 'GRUB_CMDLINE_LINUX="\1 iommu=pt"'
+    backrefs: yes
+  when: '"iommu=pt" not in grub_cmdline.stdout'
+
+- name: Ensure intel_iommu=on is present
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX="(.*)"'
+    line: 'GRUB_CMDLINE_LINUX="\1 intel_iommu=on"'
+    backrefs: yes
+  when: '"intel_iommu=on" not in grub_cmdline.stdout'
+
+- name: Update GRUB configuration
+  command: update-grub
+  when: grub_cmdline.changed
+
+- name: Prompt for reboot
+  ansible.builtin.pause:
+    seconds: "{{ warning_wait_time }}"
+    prompt: "{{ reboot_warning_msg }}"
+  when: grub_cmdline.changed
+
+- name: Initiate reboot
+  block:
+    - name: Rebooting node (This task will take some time)
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+  rescue:
+    - name: Failed to reboot node
+      ansible.builtin.fail:
+        msg: "{{ reboot_fail_msg }}"
+  when: grub_cmdline.changed

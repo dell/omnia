@@ -45,11 +45,11 @@ rccl,MIT License,The ROCm Communication Collectives Library (RCCL) is a stand-al
 beegfs,BeeGFS (formerly known as FhGFS) END USER LICENSE,Public repository for the BeeGFS Parallel File System,7.4.5
 Beegfs-Client,GPLv2,"BeeGFS is a parallel file system, developed and optimized for high-performance computing.",7.4.5
 CUDA toolkit,NVIDIA Software License,"The NVIDIA® CUDA® Toolkit provides a development environment for creating high-performance, GPU-accelerated applications.",12.8
-Intel Gaudi3 driver,MIT license,Intel Gaudi3 drivers,1.19.2
+Intel Gaudi3 driver,MIT license,Intel Gaudi3 drivers,1.21.1
 NVIDIA device plugin,Apache License 2.0,NVIDIA device plugin for Kubernetes,0.14.4
 rocm device plugin,Apache License 2.0,Kubernetes (k8s) device plugin to enable registration of AMD GPU to a container cluster,0.19.0
 xilinx-device-plugin,Apache License 2.0,The AMD-Xilinx device plugin for Kubernetes is a Daemonset deployed on the Kubernetes(k8s) cluster,1.2.0
-habanalabs-k8s-device-plugin,Apache License 2.0,HABANA device plugin for Kubernetes,1.19.2
+habanalabs-k8s-device-plugin,Apache License 2.0,HABANA device plugin for Kubernetes,1.21.1
 Jupyterhub,BSD-3-Clause license,Multi-user server for Jupyter notebooks,3.2.0
 Kserve,Apache License 2.0,Standardized Serverless ML Inference Platform on Kubernetes,0.13.0
 kubeflow,Apache-2.0,A repository for Kustomize manifests,1.9.1
@@ -109,8 +109,8 @@ Tensorflow AMD,Apache-2.0 license,An Open Source Machine Learning Framework for 
 Tensorflow NVIDIA,Apache-2.0 license,An Open Source Machine Learning Framework for Everyone,23.12-tf2-py3
 Kustomize,Apache License 2.0,Customization of kubernetes YAML configurations,5.4.3
 nfs-subdir-external-provisioner,Apache License 2.0,Dynamic sub-dir volume provisioner on a remote NFS server.,4.0.18
-habana-container-runtime,Apache License 2.0,Habana container runtime,1.19.2
-hccl,Habana Outbound Software License Agreement,The Habana Collective Communications Library (HCCL) is Intel® Gaudi®’s emulation layer of the NVIDIA Collective Communication Library (NCCL) and is included in the Intel Gaudi software suite.,1.19.2
+habana-container-runtime,Apache License 2.0,Habana container runtime,1.21.1
+hccl,Habana Outbound Software License Agreement,The Habana Collective Communications Library (HCCL) is Intel® Gaudi®’s emulation layer of the NVIDIA Collective Communication Library (NCCL) and is included in the Intel Gaudi software suite.,1.21.1
 nvidia-container-toolkit,Apache License 2.0,NVIDIA container runtime library,1.17.5
 helm-charts,Apache-2.0 license,The source for Dell Helm charts.,csi-isilon-2.13.0
 csi-powerscale driver,Apache-2.0 license,CSI Driver for Dell PowerScale,2.13.0
