@@ -20,4 +20,3 @@
   loop_control:
     loop_var: kubespray_version
   when: hostvars['localhost']['k8s_support']
-  

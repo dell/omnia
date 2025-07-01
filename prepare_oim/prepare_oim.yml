@@ -59,7 +59,7 @@
   gather_facts: false
   tasks:
     - name: Include prepare_kubespray_validation role
-      ansible.builtin.include_role: 
+      ansible.builtin.include_role:
         name: prepare_kubespray_validation
       loop: "{{ hostvars['localhost']['kubespray_versions'] | default([]) }}"
       loop_control:

@@ -27,7 +27,7 @@
   block:
     - name: Extract k8s version
       ansible.builtin.set_fact:
-        k8s_versions: "{{ software_config.softwares | selectattr('name', 'in', ['k8s', 'service_k8s']) | map(attribute='version') | list }}" # noqa: var-naming[no-jinja]
+        k8s_versions: "{{ software_config.softwares | selectattr('name', 'in', ['k8s', 'service_k8s']) | map(attribute='version') | list }}"
 
     - name: Check if the k8s metadata file exists
       ansible.builtin.stat:
@@ -80,7 +80,7 @@
         mode: "{{ file_permission }}"
         owner: root
         group: root
-    
+
     - name: Append prefix to k8s version(s)
       ansible.builtin.set_fact:
         kube_versions_list: "{{ kube_versions_list | default([]) + ['v' + item] }}"
@@ -106,7 +106,7 @@
 
     - name: Set Kubespray version based on Kubernetes version
       ansible.builtin.set_fact:
-         kubespray_versions: "{{ kubespray_versions | default([]) + [k8s_to_kubespray_comp_ver.compatible_tags[version]] }}"
+        kubespray_versions: "{{ kubespray_versions | default([]) + [k8s_to_kubespray_comp_ver.compatible_tags[version]] }}"
       when:
         - k8s_to_kubespray_comp_ver.compatible_tags is defined
         - k8s_to_kubespray_comp_ver.compatible_tags is not none
