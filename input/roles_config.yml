@@ -77,19 +77,21 @@ Groups:
 
 # This table lists the roles and the layers they belong to in the cluster.
 
-# +---------------------+-----------------+     +-------------+----------------+
-# | Role Name          | Layer            |     | Role Name   | Layer          |
-# +---------------------+-----------------+     +-------------+----------------+
-# | oim_ha_node        | management       |     | kube_node   | compute        |
-# | service_node       | management       |     | slurm_node  | compute        |
-# | login              | management       |     | default     | compute        |
-# | auth_server        | management       |     |             |                |
-# | compiler_node      | management       |     |             |                |
-# | kube_control_plane | management       |     |             |                |
-# | etcd               | management       |     |             |                |
-# | slurm_control_node | management       |     |             |                |
-# | slurm_dbd          | management       |     |             |                |
-# +---------------------+-----------------+     +-------------+----------------+
+# +---------------------------+------------------+     +-------------------+----------------+
+# | Role Name                  | Layer           |     | Role Name         | Layer          |
+# +---------------------------+------------------+     +-------------------+----------------+
+# | oim_ha_node                | management      |     | default           | compute        |
+# | service_kube_control_plane | management      |     | service_kube_node | compute        |
+# | service_etcd               | management      |     | kube_node         | compute        |
+# | service_node (future use)  | management      |     | slurm_node        | compute        |
+# | login                      | management      |     |                   |                |
+# | auth_server                | management      |     |                   |                |
+# | compiler_node              | management      |     |                   |                |
+# | kube_control_plane         | management      |     |                   |                |
+# | etcd                       | management      |     |                   |                |
+# | slurm_control_node         | management      |     |                   |                |
+# | slurm_dbd                  | management      |     |                   |                |
+# +---------------------------+------------------+     +-------------------+----------------+
 
 # Default Role:
 # -------------
@@ -122,6 +124,7 @@ Roles:
   #   groups:
   #     - grp0
 
+#
 # Service k8s head Role: Service Cluster Kubernetes master node for groups to add into service_kube_control_plane role can be provided in this role
 # ----------------------------------------------------------------------------------------------------
 # 
