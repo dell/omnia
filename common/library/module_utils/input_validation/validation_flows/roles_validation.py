@@ -254,14 +254,17 @@ def validate_roles_config(input_file_path, data, logger, module, omnia_base_dir,
     # it is not supported now, for future use
     service_role_defined = False
     if validation_utils.key_value_exists(roles, NAME, "service_node"):
-        service_role_defined = True
-        try:
-            if not validate_service_node_in_software_config(input_file_path):
+        # service_role_defined = True
+        errors.append(create_error_msg("roles_config.yml", None, \
+                                        en_us_validation_msg.SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG))
+        if service_role_defined:   
+            try:
+                if not validate_service_node_in_software_config(input_file_path):
+                    errors.append(create_error_msg("software_config.json", None, \
+                                            en_us_validation_msg.SERVICE_NODE_ENTRY_MISSING_ROLES_CONFIG_MSG))
+            except Exception as e:
                 errors.append(create_error_msg("software_config.json", None, \
-                                        en_us_validation_msg.SERVICE_NODE_ENTRY_MISSING_ROLES_CONFIG_MSG))
-        except Exception as e:
-            errors.append(create_error_msg("software_config.json", None, \
-                                        f"An error occurred while validating software_config.json: {str(e)}"))
+                                            f"An error occurred while validating software_config.json: {str(e)}"))
 
     if len(errors) <= 0:
         # List of groups which need to have their resource_mgr_id set
