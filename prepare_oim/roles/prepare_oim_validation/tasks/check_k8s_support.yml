@@ -100,7 +100,7 @@
         check_version: true
       register: k8s_to_kubespray_comp_ver
 
-    - name: Print compatiable kubespray tags
+    - name: Print compatible kubespray tags
       ansible.builtin.debug:
         msg: "{{ k8s_to_kubespray_comp_ver.compatible_tags }}"
 
