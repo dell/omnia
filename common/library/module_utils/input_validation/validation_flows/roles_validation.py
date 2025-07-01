@@ -158,6 +158,7 @@ def validate_group_role_separation(logger, roles):
 
     return errors
 
+# Below function will be used to validate service_node entry in roles_config ()
 def validate_service_node_in_software_config(input_file_path):
     """
     verifies service_node entry present in sofwate config.json
@@ -249,15 +250,19 @@ def validate_roles_config(input_file_path, data, logger, module, omnia_base_dir,
         service_cluster_str = ', '.join(defined_service_roles)
         errors.append(create_error_msg("Roles", service_cluster_str, en_us_validation_msg.service_cluster_roles_msg))
 
-    # Role Service_node is defined in roles_config.yml,
-    # verify service_node entry present in sofwate_config.json
-    # If no entry is present, then fail the input validator
+    # Fail if Role Service_node is defined in roles_config.yml,
+    # it is not supported now, for future use
     service_role_defined = False
     if validation_utils.key_value_exists(roles, NAME, "service_node"):
-        service_role_defined = True
-        if not validate_service_node_in_software_config(input_file_path):
-            errors.append(create_error_msg("software_config.yml", None, \
-                                       en_us_validation_msg.SERVICE_NODE_ENTRY_MISSING_ROLES_CONFIG_MSG))
+        # service_role_defined = True
+            
+        errors.append(create_error_msg("roles_config.yml", None, \
+                                        en_us_validation_msg.SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG))
+        if service_role_defined:
+            # Check if service_node is present in software_config.yml only when role service_node is defined in roles_config.yml
+            if not validate_service_node_in_software_config(input_file_path):
+                errors.append(create_error_msg("software_config.yml", None, \
+                                        en_us_validation_msg.SERVICE_NODE_ENTRY_MISSING_ROLES_CONFIG_MSG))
 
     if len(errors) <= 0:
         # List of groups which need to have their resource_mgr_id set
@@ -290,7 +295,7 @@ def validate_roles_config(input_file_path, data, logger, module, omnia_base_dir,
                     if role[NAME] in empty_parent_roles and not validation_utils.is_string_empty(groups[group].get(PARENT, None)):
                         # If parent is not empty and group is associated with login, compiler_node, service_node, kube_control_plane, or slurm_control_plane
                         errors.append(create_error_msg(group, f'Group {group} should not have parent defined.', en_us_validation_msg.parent_service_node_msg))
-                    if not service_role_defined and (role[NAME] == K8WORKER or role[NAME] == SLURMWORKER or role[NAME] == DEFAULT):
+                    if not service_role_defined and (role[NAME] == SERVICE_K8S_WORKER or role[NAME] == K8WORKER or role[NAME] == SLURMWORKER or role[NAME] == DEFAULT):
                         # If a service_node role is not present, the parent is not empty and the group is associated with worker or default roles.
                         if not validation_utils.is_string_empty(groups[group].get(PARENT, None)):
                             errors.append(create_error_msg(group, f'Group {group} should not have parent defined.', en_us_validation_msg.parent_service_role_msg))

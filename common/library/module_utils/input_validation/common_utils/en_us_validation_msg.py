@@ -26,9 +26,15 @@ invalid_switch_ip_msg = "Please provide a valid switch IPv4 address (example: 10
 grp_role_msg = "Please associate this group with a role."
 parent_service_node_msg = "Group is associated with login, compiler_node, service_node, \
     kube_control_plane, slurm_control_plane, service_kube_control_plane role(s)."
-parent_service_role_dne_msg = "A service_node role must be present when the parent is provided."
-parent_service_role_msg = "A service_node role does not exist, the parent should be empty \
-    for any group associated with worker or default roles."
+parent_service_role_dne_msg = (
+    "Parent field is only supported for the 'service_node' role, which is currently not supported"
+    "and reserved for future use. Please remove the 'parent' field from this role's group definition."
+)
+parent_service_role_msg = (
+    "A 'service_node' role is not defined, so the 'parent' field should be empty for groups associated"
+    "with 'worker' or 'default' roles. Note that 'service_node' is a reserved role for future use and is"
+    "not currently valid in the role_config."
+)
 bmc_static_range_invalid_msg = "Static range should be in the following format: \
     IPv4Start-IPv4End (example: 10.5.0.1-10.5.0.200)."
 overlapping_static_range = "bmc_detail's static_range is overlapping with other static ranges."
@@ -52,6 +58,11 @@ duplicate_group_name_in_layers_msg = "The following groups are mapped to both fr
 SERVICE_NODE_ENTRY_MISSING_ROLES_CONFIG_MSG = "The role service_node defined in roles_config.yml," \
     " but service_node entry missing in sofware_config.json, " \
     "Please rerun local repo with service_node entry in software_config.json to deploy service nodes successfully"
+SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG = (
+    "The 'service_node' role defined in roles_config.yml is not currently supported "
+    "and is reserved for future use. Please remove or update this role to avoid "
+    "configuration errors."
+)
 
 # provision_config.yml
 default_lease_time_fail_msg = "Please provide a valid default_lease_time."
