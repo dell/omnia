@@ -50,5 +50,4 @@ kubespray_container_failure_msg: |
 
 # Usage create_kubespray_metadata.yml
 metadata_file_path: "/opt/omnia/kubespray/k8s_metadata.yml"
-k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
 file_mode: '0644'

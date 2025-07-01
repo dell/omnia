@@ -82,8 +82,9 @@
         group: root
     
     - name: Append prefix to k8s version(s)
-      set_fact:
-        kube_versions_list: "{{ k8s_versions | map('v' + item) | list }}"
+      ansible.builtin.set_fact:
+        kube_versions_list: "{{ kube_versions_list | default([]) + ['v' + item] }}"
+      loop: "{{ k8s_versions }}"
 
     - name: Generate Kubernetes JSON files
       dynamic_k8s_json:
