@@ -71,6 +71,7 @@ input_file_inventory = {
     "storage": [files["storage_config"]],
     "proxy": [files["site_config"]],
     "prepare_oim": [
+        files["software_config"],
         files["high_availability_config"],
         files["roles_config"],
         files["network_spec"],

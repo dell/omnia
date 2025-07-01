@@ -57,6 +57,10 @@
   when:
     - hostvars['127.0.0.1']['k8s_support']
 
+- name: Update Repositories/Registries on nodes
+  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
+  when: not ( update_user_repo_executed | default(false) | bool )
+
 - name: Create kubespray container group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   vars:

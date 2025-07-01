@@ -13,21 +13,6 @@
 # limitations under the License.
 
 #!/bin/sh
-systemctl start corosync
-systemctl start pacemaker
-
-# Check if corosync and pacemaker have started
-if ! systemctl status corosync > /dev/null; then
-    echo "Corosync has not started. Exiting with return code 1."
-    exit 1
-fi
-
-if ! systemctl status pacemaker > /dev/null; then
-    echo "Pacemaker has not started. Exiting with return code 1."
-    exit 1
-fi
-
-echo "Corosync and Pacemaker have started. Continuing with the script."
 
 pcs property set stonith-enabled=false
 pcs property set no-quorum-policy=ignore

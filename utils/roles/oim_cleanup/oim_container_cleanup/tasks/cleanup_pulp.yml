@@ -19,36 +19,29 @@
   register: pulp_container_status
   failed_when: false
 
-- name: Stop and Remove Pulp container
+- name: Stop the Pulp container
+  containers.podman.podman_container:
+    name: "{{ pulp_container_name }}"
+    state: stopped
   when: pulp_container_status.containers | length != 0
-  block:
-    - name: Stop the Pulp container
-      containers.podman.podman_container:
-        name: "{{ pulp_container_name }}"
-        state: stopped
-      failed_when: false
+  failed_when: false
 
-    - name: Remove Pulp container
-      containers.podman.podman_container:
-        name: "{{ pulp_container_name }}"
-        state: absent
-        force_delete: true
+- name: Remove Pulp container
+  containers.podman.podman_container:
+    name: "{{ pulp_container_name }}"
+    state: absent
+    force_delete: true
 
-    - name: Remove Pulp and Offline repo Directory
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-        force: true
-      with_items:
-        - "{{ pulp_cleanup_directory }}"
+- name: Remove Pulp and Offline repo Directory
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+    force: true
+  with_items:
+    - "{{ pulp_cleanup_directory }}"
 
-    - name: Remove track file when pulp is in https
-      ansible.builtin.file:
-        path: "{{ track_file_path }}"
-        state: absent
-      when: hostvars['localhost']['pulp_protocol_https']
-
-  rescue:
-    - name: Pulp container removal failed
-      ansible.builtin.fail:
-        msg: "{{ pulp_container_name }} {{ container_removal_failure_msg }}"
+- name: Remove track file when pulp is in https
+  ansible.builtin.file:
+    path: "{{ track_file_path }}"
+    state: absent
+  when: hostvars['localhost']['pulp_protocol_https']

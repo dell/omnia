@@ -38,6 +38,8 @@ pulp_cleanup_directory:
   - "{{ omnia_nfs_share }}/pulp/pulp_ha/cli.toml"
   - "{{ omnia_nfs_share }}/log/pulp"
   - "{{ omnia_nfs_share }}/pulp/settings"
+  - "{{ omnia_nfs_share }}/pulp/nginx"
+  - "{{ omnia_nfs_share }}/input/project_default/.local_repo_credentials_key"
   - "{{ omnia_nfs_share }}/offline_repo/"
   - "{{ omnia_nfs_share }}/log/local_repo/"
   - "{{ omnia_nfs_share }}/k8s_dynamic_json/"

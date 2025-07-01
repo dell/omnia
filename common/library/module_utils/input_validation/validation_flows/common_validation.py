@@ -213,13 +213,15 @@ def validate_storage_config(input_file_path, data, logger, module, omnia_base_di
         client_mount_options_set = set(client_mount_options.split(","))
         if not (client_mount_options_set.issubset(allowed_options)):
             errors.append(create_error_msg("client_mount_options", client_mount_options, en_us_validation_msg.CLIENT_MOUNT_OPTIONS_FAIL_MSG))
-        if nfs_client_params["slurm_share"]:
+        slurm_share_raw = str(nfs_client_params.get("slurm_share", "false")).strip().lower()
+        if slurm_share_raw == "true":
             if not slurm_share_val:
                 slurm_share_val = True
             else:
                 multiple_slurm_share_val = True
 
-        if nfs_client_params["k8s_share"]:
+        k8s_share_raw = str(nfs_client_params.get("k8s_share", "false")).strip().lower()
+        if k8s_share_raw == "true":
             if not k8s_share_val:
                 k8s_share_val = True
             else:

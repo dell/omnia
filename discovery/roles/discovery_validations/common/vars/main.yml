@@ -76,11 +76,11 @@ omnia_images_path_fail_msg: |
 #   Please rerun 'omnia_startup.sh' and enter correct omnia share path type as \"NFS\"
 #   to continue with hierarchical-based discovery and provisioning.
 service_node_not_found_msg: |
-  "Service role not defiened in roles_config.yml but enable_service_ha is made as True.
-  Kindly define service_node role in roles config and rerun the playbook."
+  "The service role is not defined in the roles_config.yml, but enable_service_ha is set to True.
+  Kindly define the service_node role in roles_config and rerun the playbook."
 oim_ha_node_not_found_msg: |
-  "Service role not defiened in roles_config.yml but enable_service_ha is made as True.
-  Kindly define service_node role in roles config and rerun the playbook."
+  "The OIM HA role is not defined in the roles_config.yml, but enable_oim_ha is set to True.
+  Kindly define the oim_ha_node role in roles_config and rerun the playbook."
 nfs_internal_warning_msg: |
   "WARNING: It is recommended to use External NFS for hierarchical cluster.
   If you must use Internal NFS, ensure OIM has enough storage space and sufficient hardware resources."

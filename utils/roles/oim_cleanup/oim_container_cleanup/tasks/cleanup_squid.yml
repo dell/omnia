@@ -19,29 +19,22 @@
   register: squid_container_status
   failed_when: false
 
-- name: Stop and Remove Squid container
+- name: Stop the Squid container
+  containers.podman.podman_container:
+    name: "{{ squid_container_name }}"
+    state: stopped
   when: squid_container_status.containers | length != 0
-  block:
-    - name: Stop the Squid container
-      containers.podman.podman_container:
-        name: "{{ squid_container_name }}"
-        state: stopped
-      failed_when: false
+  failed_when: false
 
-    - name: Remove Squid container
-      containers.podman.podman_container:
-        name: "{{ squid_container_name }}"
-        state: absent
-        force_delete: true
+- name: Remove Squid container
+  containers.podman.podman_container:
+    name: "{{ squid_container_name }}"
+    state: absent
+    force_delete: true
 
-    - name: Remove Squid Directories
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      with_items:
-        - "{{ squid_cleanup_directories }}"
-
-  rescue:
-    - name: Squid container removal failed
-      ansible.builtin.fail:
-        msg: "{{ squid_container_name }} {{ container_removal_failure_msg }}"
+- name: Remove Squid Directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ squid_cleanup_directories }}"
