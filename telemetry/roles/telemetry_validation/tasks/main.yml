@@ -25,6 +25,10 @@
     - name: Include high_availability_config variables
       ansible.builtin.include_tasks: include_high_availability_config.yml
 
+    - name: Validate image tars exists
+      ansible.builtin.include_tasks: "{{ role_path }}/../../../common/tasks/common/validate_image_tars.yml"
+      when: federated_idrac_telemetry_collection
+
     - name: Include local_repo_access variables
       ansible.builtin.include_tasks: read_software_config.yml
       when: federated_idrac_telemetry_collection

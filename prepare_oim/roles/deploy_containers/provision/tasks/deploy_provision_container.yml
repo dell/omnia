@@ -93,7 +93,7 @@
         name: "{{ provision_container_name }}"
       register: provision_container_status
 
-    - name: Notify user of PCS container deployment status
+    - name: Notify user of provision container deployment status
       ansible.builtin.debug:
         msg: "{{ provision_container_success_msg }}"
       when:

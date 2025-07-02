@@ -6,7 +6,8 @@
       "max_failures": {
         "type": "integer",
         "default": 3,
-        "minimum": 1
+        "minimum": 3,
+        "maximum": 3
       },
       "failure_reset_interval": {
         "type": "integer",
@@ -29,8 +30,7 @@
       "alert_email_address": {
         "type": "string",
         "default": "",
-        "format": "email",
-        "pattern": "^$|^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+        "format": "email"
       },
       "smtp_server": {
       "type": "array",
@@ -55,7 +55,7 @@
             "minLength": 0
           }
         },
-        "oneOf": [
+        "anyOf": [
           {
             "properties": {
               "host": { "minLength": 1 },
@@ -80,7 +80,7 @@
       "user": {
         "type": "string",
         "default": "",
-        "pattern": "^([a-zA-Z0-9_-]+(?:@[0-9]{1,3}(?:\\.[0-9]{1,3}){3})?(?:\\s+[a-zA-Z0-9_-]+(?:@[0-9]{1,3}(?:\\.[0-9]{1,3}){3})?)*)?$"
+        "pattern": "^$|^(?!-)[a-zA-Z]+[0-9-]*[@]((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|(?!-)[a-zA-Z]+[0-9-]*$"
       },
       "allow_deny": {
         "type": "string",
@@ -100,4 +100,4 @@
       "max_failures"
     ]
   }
-  
+

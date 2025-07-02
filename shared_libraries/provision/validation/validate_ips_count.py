@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+This script calculates the number of IP addresses in a given range.
+"""
 import ipaddress
 import sys
 
@@ -22,7 +24,7 @@ start_ip = ipaddress.ip_address(start_ip)
 end_ip = ipaddress.ip_address(end_ip)
 if start_ip and end_ip:
     ip_range = ipaddress.summarize_address_range(start_ip, end_ip)
-    count = 0
+    CNT = 0
     for subnet in ip_range:
-        count += subnet.num_addresses
-    print(count)
+        CNT += subnet.num_addresses
+    print(CNT)

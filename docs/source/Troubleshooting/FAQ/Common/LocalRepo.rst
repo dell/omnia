@@ -15,8 +15,8 @@ Local Repository
 
     * URL to download the software packages mentioned in ``<cluster_os_type>/<cluster_os_version>/<software>.json`` is correct, and the repository is reachable.
     * Docker credentials provided in ``input/provision_config_credentials`` is correct.
-    * Sufficient disk space is available while downloading the package. For disk space considerations, see the `Omnia installation guide <../../../OmniaInstallGuide/index.html>`_.
+    * Sufficient disk space is available while downloading the package. For disk space considerations, see the `Omnia installation guide <../../../OmniaInstallGuide/RHEL_new/RHELSpace.html>`_.
 
-If the ``local_repo.yml`` is executed successfully without any package download failures, a "success" message is displayed as shown below:
+If the ``local_repo.yml`` is executed successfully without any package download failures, a ``Successful`` message is displayed as shown below:
 
 .. image:: ../../../images/local_repo_success.png

@@ -11,31 +11,34 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+"""
+This module contains functions for inserting OIM details into the database.
+"""
 
 import sys
-import omniadb_connection
 import ipaddress
+import omniadb_connection
 
-num_args = len(sys.argv) - 1
-admin_nic_ip = sys.argv[1]
-network_interface_type = sys.argv[2]
-pxe_mac_address = sys.argv[3]
-oim_hostname = sys.argv[4]
-bmc_default = "0.0.0.0"
-if num_args == 5:
-    bmc_nic_ip = sys.argv[5]
+NUM_ARGS = len(sys.argv) - 1
+ADMIN_NIC_IP = sys.argv[1]
+NETWORK_INTERFACE_TYPE = sys.argv[2]
+PXE_MAC_ADDRESS = sys.argv[3]
+OIM_HOSTNAME = sys.argv[4]
+BMC_DEFAULT = "0.0.0.0"
+if NUM_ARGS == 5:
+    BMC_NIC_IP = sys.argv[5]
 else:
-    bmc_nic_ip = "0.0.0.0"
+    BMC_NIC_IP = "0.0.0.0"
 
-node_name = "oim"
-admin_nic_ip = ipaddress.IPv4Address(admin_nic_ip)
-bmc_nic_ip = ipaddress.IPv4Address(bmc_nic_ip)
-
+NODE_NAME = "oim"
+ADMIN_NIC_IP = ipaddress.IPv4Address(ADMIN_NIC_IP)
+BMC_NIC_IP = ipaddress.IPv4Address(BMC_NIC_IP)
 
 def oim_details_db():
     """
-    Connects to the database, executes a query to check if the pxe_mac_address exists in the cluster.nodeinfo table,
-    and then inserts a new row for OIM node if the pxe_mac_address is not found.
+    Connects to the database, executes a query to check if the PXE_MAC_ADDRESS exists in
+    the cluster.nodeinfo table, and then inserts a new row for OIM node if the
+    PXE_MAC_ADDRESS is not found.
 
     Parameters:
         None
@@ -46,15 +49,18 @@ def oim_details_db():
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
     sql = "select admin_mac from cluster.nodeinfo where admin_mac=%s or node=%s"
-    cursor.execute(sql, (pxe_mac_address, node_name))
+    cursor.execute(sql, (PXE_MAC_ADDRESS, NODE_NAME))
     pxe_mac_op = cursor.fetchone()
     if pxe_mac_op is None:
-            if str(bmc_nic_ip) == "0.0.0.0":
-                omniadb_connection.insert_node_info(None, node_name, oim_hostname, pxe_mac_address, admin_nic_ip,
-                None, None, None, None, None, None, None, None, None, None, None)
-            else:
-                omniadb_connection.insert_node_info(None, node_name, oim_hostname, pxe_mac_address, admin_nic_ip,
-                bmc_nic_ip, None, None, None, None, None, None, None, None, None, None)
-
+        if str(BMC_NIC_IP) == "0.0.0.0":
+            omniadb_connection.insert_node_info(
+                None, NODE_NAME, OIM_HOSTNAME, PXE_MAC_ADDRESS, ADMIN_NIC_IP, None,
+                None, None, None, None, None, None, None, None, None, None
+            )
+        else:
+            omniadb_connection.insert_node_info(
+                None, NODE_NAME, OIM_HOSTNAME, PXE_MAC_ADDRESS, ADMIN_NIC_IP, BMC_NIC_IP,
+                None, None, None, None, None, None, None, None, None, None
+            )
 
 oim_details_db()

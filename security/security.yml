@@ -19,9 +19,12 @@
   tasks:
     - name: Set dynamic run tags including 'local_repo'
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['freeipa'] + ['openldap']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['freeipa'] + ['openldap'] + ['security']) | unique }}"
         cacheable: true
       when: not (hostvars['127.0.0.1']['config_file_status'] | default(false) | bool)
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
 
 - name: Invoke get_config_credentials.yml
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml

@@ -1,9 +1,9 @@
-Omnia Installation Guide
+Omnia Deployment Guide
 =========================
 
-* `Quick installation guide for RHEL/Rocky Linux clusters <RHEL/index.html>`_
+* `Deploy Omnia container on RHEL platforms <RHEL_new/index.html>`_
 
-* `Quick installation guide for Ubuntu clusters <Ubuntu/index.html>`_
+* `Advanced Configurations <AdvancedConfigurations/index.html>`_
 
 * `Maintenance <Maintenance/index.html>`_
 
@@ -17,7 +17,7 @@ Omnia Installation Guide
 .. toctree::
     :hidden:
 
-    RHEL/index
-    Ubuntu/index
+    RHEL_new/index
+    AdvancedConfigurations/index
     Maintenance/index
     samplefiles

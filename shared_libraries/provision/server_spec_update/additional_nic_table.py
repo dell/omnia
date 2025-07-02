@@ -11,36 +11,41 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""
+This script is used to create a 'nicinfo' table in the 'cluster' schema of the database.
+"""
+import sys
+import os
 import yaml
-import sys, os
 
 node_db_path = sys.argv[2]
 sys.path.insert(0, node_db_path)
 import omniadb_connection
 
 network_spec_file_path = os.path.abspath(sys.argv[1])
-with open(network_spec_file_path, "r") as file:
+with open(network_spec_file_path, "r", encoding="utf-8") as file:
     data = yaml.safe_load(file)
 
 
 def create_nicinfo_table():
     """
-	Create the 'nicinfo' table in the 'cluster' schema if it doesn't already exist.
+        Create the 'nicinfo' table in the 'cluster' schema if it doesn't already exist.
 
-	The table has columns for various network related information such as IP addresses, types, and metrics.
-	It also has a foreign key constraint to the 'nodeinfo' table in the 'cluster' schema.
+        The table has columns for various network related information such as IP addresses,
+            types, and metrics.
+        It also has a foreign key constraint to the 'nodeinfo' table in the 'cluster' schema.
 
-	The function also dynamically adds columns to the 'nicinfo' table based on the data in the 'Networks' list.
-	If the 'VLAN' key is present in the data, it also adds columns for the VLAN information.
+        The function also dynamically adds columns to the 'nicinfo' table based on the data
+            in the 'Networks' list.
+        If the 'VLAN' key is present in the data, it also adds columns for the VLAN information.
 
-	Finally, it commits the changes to the database and prints a success message.
+        Finally, it commits the changes to the database and prints a success message.
 
-	Parameters:
-	None
+        Parameters:
+        None
 
-	Returns:
-	None
+        Returns:
+        None
 	"""
 
     conn = omniadb_connection.create_connection()
@@ -57,13 +62,21 @@ def create_nicinfo_table():
         for col, value in info.items():
             if col not in ('admin_network', 'bmc_network'):
                 if value.get('VLAN'):
-                    col_sql = f"ALTER TABLE cluster.nicinfo ADD COLUMN IF NOT EXISTS {col} VARCHAR(60), ADD COLUMN IF NOT EXISTS {col}_ip INET, " \
-                              f"ADD COLUMN IF NOT EXISTS {col}_type VARCHAR(30), ADD COLUMN IF NOT EXISTS {col}_metric VARCHAR(10), " \
-                              f"ADD COLUMN IF NOT EXISTS {col}_device VARCHAR(30)"
+                    col_sql = (
+                        f"ALTER TABLE cluster.nicinfo ADD COLUMN IF NOT EXISTS {col} VARCHAR(60), "
+                        f"ADD COLUMN IF NOT EXISTS {col}_ip INET, "
+                        f"ADD COLUMN IF NOT EXISTS {col}_type VARCHAR(30), "
+                        f"ADD COLUMN IF NOT EXISTS {col}_metric VARCHAR(10), "
+                        f"ADD COLUMN IF NOT EXISTS {col}_device VARCHAR(30)"
+                    )
                     cursor.execute(col_sql)
                 else:
-                    col_sql = f"ALTER TABLE cluster.nicinfo ADD COLUMN IF NOT EXISTS {col} VARCHAR(60), ADD COLUMN IF NOT EXISTS {col}_ip INET, " \
-                              f"ADD COLUMN IF NOT EXISTS {col}_type VARCHAR(30), ADD COLUMN IF NOT EXISTS {col}_metric VARCHAR(10)"
+                    col_sql = (
+                        f"ALTER TABLE cluster.nicinfo ADD COLUMN IF NOT EXISTS {col} VARCHAR(60), "
+                        f"ADD COLUMN IF NOT EXISTS {col}_ip INET, "
+                        f"ADD COLUMN IF NOT EXISTS {col}_type VARCHAR(30), "
+                        f"ADD COLUMN IF NOT EXISTS {col}_metric VARCHAR(10)"
+                    )
                     cursor.execute(col_sql)
 
     conn.commit()

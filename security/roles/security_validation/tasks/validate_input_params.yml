@@ -18,13 +18,6 @@
     authentication_system: "{{ authentication_system | lower }}"
     enable_secure_login_node: "{{ enable_secure_login_node | lower }}"
 
-- name: Verify the value of authentication_system
-  ansible.builtin.assert:
-    that:
-      - "authentication_system == 'openldap' or authentication_system == 'freeipa'"
-    success_msg: "{{ authentication_system_success_msg }}"
-    fail_msg: "{{ authentication_system_fail_msg }}"
-
 - name: Verify the value of enable_secure_login_node
   ansible.builtin.assert:
     that:
@@ -39,14 +32,6 @@
   when:
     - enable_secure_login_node
     - not login_node_required
-
-- name: Validate the domain name
-  ansible.builtin.assert:
-    that:
-      - domain_name is regex("^(?!-)[A-Za-z0-9-]+([\\-\\.]{1}[a-z0-9]+)*\\.[A-Za-z]{2,}$")
-    success_msg: "{{ domain_name_success_msg }}"
-    fail_msg: "{{ domain_name_fail_msg }}"
-  when: authentication_system == 'openldap' or authentication_system == 'freeipa'
 
 # - name: Validate http_proxy, https_proxy and no_proxy configured as environment variables
 #   ansible.builtin.assert:

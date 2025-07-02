@@ -76,3 +76,17 @@
     dest: "{{ ldap_dir }}/{{ ltb_git_repo_path }}/tasks/main.yml"
     regexp: '^(.*repository)'
     replace: '#\1'
+
+- name: Set variables for LTB role path
+  ansible.builtin.set_fact:
+    ltb_repo_path: "{{ ldap_dir }}/{{ ltb_git_repo_path }}"
+
+- name: Check certificate files exist
+  ansible.builtin.stat:
+    path: "{{ ltb_repo_path }}"
+  register: dir_status
+
+- name: Fail if LTB role directory doesn't exist
+  ansible.builtin.fail:
+    msg: "{{ fail_msg_ltb_dir }}"
+  when: not dir_status.stat.exists

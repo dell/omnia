@@ -11,12 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+This script processes the high availability configuration for service nodes
+    and generates a JSON output.
+"""
 import sys
-import yaml
 import json
 import os
 import traceback
+import yaml
 
 if len(sys.argv) != 3:
     print("Usage: python script.py <db_operations_file_path> <high_availability_config_path>")
@@ -124,9 +127,9 @@ try:
         sys.exit(1)
 
     # Write JSON output
-    output_dir = "/opt/omnia/service_nodes/"
-    os.makedirs(output_dir, exist_ok=True)
-    output_file_path = os.path.join(output_dir, 'service_ha_config_data.json')
+    OUTPUT_DIR = "/opt/omnia/service_nodes/"
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    output_file_path = os.path.join(OUTPUT_DIR, 'service_ha_config_data.json')
     with open(output_file_path, 'w') as outfile:
         json.dump(results, outfile, indent=4)
 

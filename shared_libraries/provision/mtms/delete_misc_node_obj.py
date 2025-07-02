@@ -11,7 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""This module contains functions for deleting misc node objects."""
 import subprocess
 import sys
 
@@ -20,7 +20,7 @@ sys.path.insert(0, db_path)
 
 import omniadb_connection
 
-reg_value = "node-"
+REG_VALUE = "node-"
 
 
 def extract_nodes():
@@ -29,11 +29,11 @@ def extract_nodes():
 
     This function connects to the xcatdb and retrieves the list of nodes from the nodelist table.
     It then iterates over the list of nodes and checks if the node name contains the value of the
-    `reg_value` variable. If it does, it splits the node name by '-' and takes the last element
+    `REG_VALUE` variable. If it does, it splits the node name by '-' and takes the last element
     (uppercased) as the `st` variable. It then executes a SQL query to check if the `service_tag`
-    of the node exists in the `cluster.nodeinfo` table and the `bmc_mode` is either 'static' or NULL.
-    If the query returns a positive result, it executes a command to remove the node from the
-    nodelist using the `rmdef` command.
+    of the node exists in the `cluster.nodeinfo` table and the `bmc_mode` is either 
+    'static' or NULL. If the query returns a positive result, it executes a command to 
+    remove the node from the nodelist using the `rmdef` command.
 
     Parameters:
         None
@@ -50,17 +50,18 @@ def extract_nodes():
     cursor_x.execute(sql)
     node_names = cursor_x.fetchall()
     for node in node_names:
-        if reg_value in node[0]:
+        if REG_VALUE in node[0]:
             st = node[0].split('-')[-1].upper()
             print(st)
-            sql = f"select exists(select service_tag from cluster.nodeinfo where service_tag='{st}' and (bmc_mode='static' or bmc_mode is NULL))"
+            sql = f"""select exists(select service_tag from cluster.nodeinfo where
+              service_tag='{st}' and (bmc_mode='static' or bmc_mode is NULL))"""
             cursor.execute(sql)
             op = cursor.fetchone()[0]
             if op:
                 print(op)
                 command = f"/opt/xcat/bin/rmdef {node[0]}"
                 command_list = command.split()
-                subprocess.run(command_list, capture_output=True)
+                subprocess.run(command_list, capture_output=True,check=False)
 
     cursor_x.close()
     conn_x.close()

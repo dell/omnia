@@ -32,7 +32,8 @@ def encrypt_config_file():
     It then writes the key to a file located at '/opt/omnia/.postgres/.postgres_pass.key'.
     The function reads the key from the file and creates a Fernet object.
     The database password is encoded and encrypted using the Fernet object.
-    The encrypted password is then written to a file located at '/opt/omnia/.postgres/.encrypted_pwd'.
+    The encrypted password is then written to a file located at
+    '/opt/omnia/.postgres/.encrypted_pwd'.
 
     Parameters:
         None
@@ -57,11 +58,14 @@ def main():
     """
     Initiates the encryption of the database password and saves it to a file.
 
-    This function calls the `encrypt_config_file` function, which generates a new key using the Fernet encryption algorithm.
+    This function calls the `encrypt_config_file` function,
+    which generates a new key using the Fernet encryption algorithm.
+
     It then writes the key to a file located at '/opt/omnia/.postgres/.postgres_pass.key'.
     The function reads the key from the file and creates a Fernet object.
     The database password is encoded and encrypted using the Fernet object.
-    The encrypted password is then written to a file located at '/opt/omnia/.postgres/.encrypted_pwd'.
+    The encrypted password is then written to a file located
+        at '/opt/omnia/.postgres/.encrypted_pwd'.
 
     Parameters:
         None

@@ -28,7 +28,7 @@ Functions:
 
 import logging
 import os
-from configparser import ConfigParser
+
 # pylint: disable=no-name-in-module,E0401
 import ansible.module_utils.input_validation.common_utils.data_fetch as get
 import ansible.module_utils.input_validation.common_utils.data_validation as validate
@@ -53,7 +53,7 @@ def createlogger(project_name, tag_name=None):
     else:
         log_filename = f"validation_omnia_{project_name}.log"
 
-    log_file_path = os.path.join(config.input_validator_log_path, log_filename)
+    log_file_path = os.path.join(config.INPUT_VALIDATOR_LOG_PATH, log_filename)
     logging.basicConfig(
         filename=log_file_path,
         format="%(asctime)s %(message)s",
@@ -171,8 +171,15 @@ def main():
                 raise FileNotFoundError(error_message)
 
             # Validate the schema of the input file (L1)
-            schema_status = validate.schema(input_file_path, schema_file_path, passwords_set, \
-                                            omnia_base_dir, project_name, logger, module)
+            schema_status = validate.schema({
+                "input_file_path": input_file_path,
+                "schema_file_path": schema_file_path,
+                "passwords_set": passwords_set,
+                "omnia_base_dir": omnia_base_dir,
+                "project_name": project_name,
+                "logger": logger,
+                "module": module,
+            })
             # Append the validation status for the input file
             validation_status[project_name]["status"].append(
                 {input_file_path: "Passed" if schema_status else "Failed"})
@@ -191,7 +198,8 @@ def main():
                     fname, _ = os.path.splitext(name)
 
                     # If there's a replacement rule for the current tag_name, apply it
-                    if tag_name in config.tag_file_replacements and fname in config.tag_file_replacements[tag_name]:
+                    if (tag_name in config.tag_file_replacements and
+                            fname in config.tag_file_replacements[tag_name]):
                         fname = config.tag_file_replacements[tag_name][fname]
 
                     error_message = f"name:  {name}"
@@ -199,8 +207,10 @@ def main():
                     input_file_path = None
 
                     if not verify.file_exists(schema_file_path, module, logger):
-                        error_message = f"The file schema: {fname}.json does not exist in directory: \
-                            {schema_base_file_path}."
+                        error_message = (
+                            f"The file schema: {fname}.json does not exist "
+                            f"in directory: {schema_base_file_path}."
+                        )
                         logger.info(error_message)
                         module.fail_json(msg=error_message)
                         raise FileNotFoundError(error_message)
@@ -211,19 +221,34 @@ def main():
                         input_file_path = yml_files_dic[name]
 
                     if input_file_path is None:
-                        error_message = f"file not found in directory: {omnia_base_dir}/{project_name}"
+                        error_message = (
+                            f"file not found in directory: {omnia_base_dir}/{project_name}"
+                        )
                         logger.error(error_message)
                         module.fail_json(msg=error_message)
                         raise FileNotFoundError(error_message)
 
                     # Validate the schema of the input file (L1)
-                    schema_status = validate.schema(input_file_path, schema_file_path, passwords_set, \
-                                                    omnia_base_dir, project_name, logger, module)
+                    schema_status = validate.schema({
+                                        "input_file_path": input_file_path,
+                                        "schema_file_path": schema_file_path,
+                                        "passwords_set": passwords_set,
+                                        "omnia_base_dir": omnia_base_dir,
+                                        "project_name": project_name,
+                                        "logger": logger,
+                                        "module": module,
+                                    })
 
                     # Validate the logic of the input file (L2) if L1 is success
                     logic_status = (
-                        validate.logic(input_file_path, logger, module, omnia_base_dir, \
-                                                    module_utils_base, project_name)
+                        validate.logic({
+                                    "input_file_path": input_file_path,
+                                    "module_utils_base": module_utils_base,
+                                    "omnia_base_dir": omnia_base_dir,
+                                    "project_name": project_name,
+                                    "logger": logger,
+                                    "module": module,
+                                })
                     ) if schema_status else False
 
                     # Append the validation status for the input file
@@ -243,7 +268,8 @@ def main():
 
     logger.error(en_us_validation_msg.get_footer())
 
-    log_file_name = os.path.join(config.input_validator_log_path, f"validation_omnia_{project_name}.log")
+    log_file_name = os.path.join(config.INPUT_VALIDATOR_LOG_PATH,
+                                 f"validation_omnia_{project_name}.log")
 
     # Ansible success/failure message
     if False in vstatus:

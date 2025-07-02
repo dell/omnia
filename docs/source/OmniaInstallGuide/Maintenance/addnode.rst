@@ -3,7 +3,7 @@ Adding new nodes
 
 **Provisioning the new node**
 
-A new node can be provisioned using the following ways, based on the `discovery mechanism <../Ubuntu/Provision/DiscoveryMechanisms/index.html>`_ used:
+A new node can be provisioned using the following ways, based on the `discovery mechanism <../RHEL_new/Provision/DiscoveryMechanisms/index.html>`_ used:
 
 1. Using a **mapping file**:
 
@@ -15,13 +15,13 @@ A new node can be provisioned using the following ways, based on the `discovery 
 
         ansible-playbook discovery_provision.yml
 
-    *  Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook (if ``bmc_ip`` is not provided in the mapping file) is executed and the target node lists as **booted** in the `nodeinfo table <../Ubuntu/Provision/ViewingDB.html>`_.
+    *  Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook (if ``bmc_ip`` is not provided in the mapping file) is executed and the target node lists as **booted** in the `nodeinfo table <../RHEL_new/Provision/ViewingDB.html>`_.
 
 
 
 2. Using **BMC** method:
 
-    * Update ``discover_ranges`` under ``bmc_network`` in ``input/network_spec.yml`` with the desired range of IPs to be discovered. For more information, `click here <../Ubuntu/Provision/provisionparams.html#id6>`_.
+    * Update ``discover_ranges`` under ``bmc_network`` in ``input/network_spec.yml`` with the desired range of IPs to be discovered. For more information, `click here <../RHEL_new/Provision/provisionparams.html#id6>`_.
     * Run ``discovery_provision.yml`` ::
 
         ansible-playbook discovery_provision.yml
@@ -42,10 +42,10 @@ A new node can be provisioned using the following ways, based on the `discovery 
 
         ansible-playbook discovery_provision.yml
 
-    * Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook is executed and the target node lists as **booted** in the `nodeinfo table <../Ubuntu/Provision/ViewingDB.html>`_.
+    * Manually PXE boot the target servers after the ``discovery_provision.yml`` playbook is executed and the target node lists as **booted** in the `nodeinfo table <../RHEL_new/Provision/ViewingDB.html>`_.
 
 
-Verify that the node has been provisioned successfully by checking the Omnia `nodeinfo table <../Ubuntu/Provision/ViewingDB.html>`_.
+Verify that the node has been provisioned successfully by checking the Omnia `nodeinfo table <../RHEL_new/Provision/ViewingDB.html>`_.
 
 **Adding new compute nodes to the cluster**
 

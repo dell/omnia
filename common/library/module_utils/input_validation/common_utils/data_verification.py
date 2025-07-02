@@ -11,10 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+This module contains functions for verifying the existence of files and directories.
+"""
 #!/usr/bin/python
 
 import os
+
 
 # Function to verify if a file exists at the given path
 def file_exists(file_path, module, logger):
@@ -28,14 +31,14 @@ def file_exists(file_path, module, logger):
         bool: True if the file exists, False otherwise.
     """
     if os.path.exists(file_path) and os.path.isfile(file_path):
-        message = "The file %s exists" % file_path
+        message = f"The file {file_path} exists"
         logger.info(message)
         return True
-    else:
-        message = "The file %s does not exist" % file_path
-        logger.error(message)
-        module.fail_json(msg=message)
-        return False
+    message = f"The file {file_path} does not exist"
+    logger.error(message)
+    module.fail_json(msg=message)
+    return False
+
 
 # Function to verify if a directory exists at the given path
 def directory_exists(directory_path, module, logger):
@@ -49,11 +52,10 @@ def directory_exists(directory_path, module, logger):
         bool: True if the directory exists, False otherwise.
     """
     if os.path.exists(directory_path) and os.path.isdir(directory_path):
-        message = "The directory %s exists." % directory_path
+        message = f"The directory {directory_path} exists."
         logger.info(message)
         return True
-    else:
-        message = "The directory %s does not exist." % directory_path
-        logger.error(message)
-        module.fail_json(msg=message)
-        return False
+    message = f"The directory {directory_path} does not exist."
+    logger.error(message)
+    module.fail_json(msg=message)
+    return False

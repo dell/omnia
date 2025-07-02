@@ -12,12 +12,38 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+---
+
 - name: Pull podman images from tar file
   block:
-    - name: Load podman images
+    - name: Load required image tarballs using podman
       containers.podman.podman_load:
-        input: "{{ omnia_images_tar }}"
+        input: "{{ omnia_images_dir_path }}/{{ item.key }}"
+      loop: "{{ hostvars['localhost']['container_images'] | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      register: podman_load_result
   rescue:
-    - name: Failed to load the telemetry images
+    - name: Set the failure message for loading images
+      ansible.builtin.set_fact:
+        failed_images: >-
+          {{ podman_load_result.results
+            | selectattr('failed', 'defined')
+            | selectattr('failed', 'equalto', true)
+            | map(attribute='item.value')
+            | list }}
+        failed_img_tarballs: >-
+          {{ podman_load_result.results
+            | selectattr('failed', 'defined')
+            | selectattr('failed', 'equalto', true)
+            | map(attribute='item.key')
+            | list }}
+
+    - name: Prompt to show failed images
+      ansible.builtin.pause:
+        seconds: 10
+        prompt: "{{ load_images_fail_msg }}"
+
+    - name: Failed to load the images
       ansible.builtin.fail:
-        msg: "{{ load_images_fail_msg }}"
+        msg: "{{ load_images_fail_msg | replace('\n', ' ') }}"

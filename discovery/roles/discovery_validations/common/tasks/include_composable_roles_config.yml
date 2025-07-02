@@ -64,19 +64,9 @@
       | selectattr('value.parent', 'truthy')
       | list | length == 0
 
-- name: Check if image tarball is present
+- name: Verify if tarballs for container images exist
+  ansible.builtin.include_tasks: "{{ role_path }}/../../../../common/tasks/common/validate_image_tars.yml"
   when: (enable_oim_ha or enable_service_ha or 'service_node' in roles_data)
-  block:
-    - name: Check if omnia_images.tar exists
-      ansible.builtin.stat:
-        path: "{{ omnia_images_path }}"
-      register: omnia_images_check
-      changed_when: not omnia_images_check.stat.exists
-
-    - name: Fail if omnia_images.tar doesn't exist
-      ansible.builtin.fail:
-        msg: "{{ omnia_images_path_fail_msg }}"
-      when: not omnia_images_check.stat.exists
 
 - name: Fetch hierarchical data
   check_hierarchical_provision:

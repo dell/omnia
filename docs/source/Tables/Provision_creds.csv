@@ -54,3 +54,11 @@ Optional","* Username for Dockerhub account used for Docker logins.
 
 Optional","* Password for Dockerhub account used for Docker logins.
 * This value is mandatory if ``docker_username`` is provided."
+"**pulp_password**
+
+``string``
+
+Mandatory","* To authenticate with the Pulp repository, an username and password must be provided
+* The password must be >= 5 characters
+* By default, Pulp sets the username to ``admin``
+* By default, the password value is ``Dell1234``"

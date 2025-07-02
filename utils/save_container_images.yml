@@ -1,0 +1,58 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: save_container_images.yml  playbook to call from other playbook
+
+# ---- When we want to use the image already mentioned in save_container_images roles var ---
+# - name: Save Container Images
+#   ansible.builtin.import_playbook: <path_to_utils>/save_container_images.yml
+#   vars:
+#     # visualization_support: true
+#     # idrac_telemetry_support: true
+#     # k8s_support: true
+#     # enable_routed_internet: true
+
+
+# ---- When we want to save specifice images list ---
+# - name: Save Container Images
+#   ansible.builtin.import_playbook: <path_to_utils>/save_container_images.yml
+#   vars:
+#     container_images:
+#       - "docker.io/library/mysql:9.3.0"
+#       - "docker.io/rmohr/activemq:5.15.9"
+#       - "docker.io/library/golang:1.24"
+#       - "docker.io/prom/prometheus:v3.4.1"
+#       - "docker.io/grafana/grafana:12.0.1"
+#       - "docker.io/grafana/loki:3.5.1"
+#       - "docker.io/grafana/promtail:3.5.1"
+
+# ---- When we pass both kind vars - *_support and container_images -  container_images way will work ---
+
+# ---- When we call the playbook directly it will create tar for all base conatainer images -----
+# ansible-playboot utils/save_container_images.yml
+
+- name: Create oim group and provision group
+  when: not oim_group | default(false) | bool
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    oim_group: true
+
+- name: Save container images to NFS share
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags: oim_ha
+  roles:
+    - role: save_container_images  # noqa:role-name[path]

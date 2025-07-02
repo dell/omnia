@@ -21,9 +21,3 @@ telemetry_vars:
   - "{{ role_path }}/../../../prepare_oim/roles/deploy_containers/loki/vars/main.yml"
   - "{{ role_path }}/../../../prepare_oim/roles/deploy_containers/common/vars/main.yml"
 oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
-
-# Usage: pull_podman_images.yml
-omnia_images_tar: "{{ omnia_nfs_share }}/images/omnia_images.tar"
-load_images_fail_msg: |
-  "Failed to load the telemetry images from the tar file {{ omnia_images_tar }}.
-  Ensure the tar file is present in the shared folder by running prepare_oim.yml and re-run telemetry.yml again."

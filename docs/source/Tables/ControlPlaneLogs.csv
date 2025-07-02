@@ -23,7 +23,6 @@ CA Transaction Log,/var/log/pki/pki-tomcat/ca/transactions,FreeIPA PKI Transacti
 KRB5KDC,/var/log/krb5kdc.log,KDC Utilization,This log is available when FreeIPA or 389ds is set up ( ie when enable_security_support is set to ‘true’).
 Secure logs,/var/log/secure,Login Error Codes,This log is available when FreeIPA or 389ds is set up ( ie when enable_security_support is set to ‘true’).
 HTTPD logs,/var/log/httpd/ *,FreeIPA API Calls,This log is available when FreeIPA or 389ds is set up ( ie when enable_security_support is set to ‘true’).
-DNF logs,/var/log/dnf.log,Installation Logs,This log is configured on Rocky OS.
 BeeGFS Logs,/var/log/beegfs-client.log,BeeGFS Logs,This log is configured on BeeGFS client nodes.
 Compute Logs,/var/log/xcat/computes.log,Logs system messages from all cluster nodes.,This log is configured by Default.
 Cluster deployment logs,/var/log/xcat/cluster.log,Logs deployment  messages from all cluster nodes.,This log is configured by Default.

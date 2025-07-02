@@ -5,4 +5,4 @@ Network Topologies
 
     dedicated
     lom
-    hybrid
+    Hybrid

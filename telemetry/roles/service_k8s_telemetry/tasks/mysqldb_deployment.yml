@@ -12,3 +12,95 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+
+- name: Persistent volume claim for mysqldb
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: "{{ mysqldb_pvc_name }}"
+        namespace: "{{ telemetry_namespace }}"
+      spec:
+        storageClassName: "{{ storage_class_name }}"
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: "{{ mysqldb_storage }}"
+
+- name: Mysqldb pod definition
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: "{{ mysqldb_k8s_name }}"
+        namespace: "{{ telemetry_namespace }}"
+      spec:
+        selector:
+          matchLabels:
+            app: "{{ mysqldb_k8s_name }}"
+        serviceName: "{{ mysqldb_k8s_name }}"
+        replicas: "{{ statefulset_replicas }}"
+        template:
+          metadata:
+            labels:
+              app: "{{ mysqldb_k8s_name }}"
+          spec:
+            volumes:
+              - name: mysqldb-pvc
+                persistentVolumeClaim:
+                  claimName: "{{ mysqldb_pvc_name }}"
+
+            containers:
+              - name: mysqldb
+                image: "{{ mysql_image }}"
+                imagePullPolicy: "IfNotPresent"
+                volumeMounts:
+                  - mountPath: /var/lib/mysql/
+                    name: mysqldb-pvc
+                env:
+                  - name: MYSQL_DATABASE
+                    value: "{{ mysqldb_name }}"
+                  - name: MYSQL_USER
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ mysqldb_secrets_name }}"
+                        key: mysqldb_user
+                  - name: MYSQL_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ mysqldb_secrets_name }}"
+                        key: mysqldb_password
+                  - name: MYSQL_ROOT_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: "{{ mysqldb_secrets_name }}"
+                        key: mysqldb_root_password
+                ports:
+                  - containerPort: "{{ mysqldb_container_port1 }}"
+                  - containerPort: "{{ mysqldb_container_port2 }}"
+
+- name: Service for mysqldb
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "{{ mysqldb_k8s_name }}"
+        namespace: "{{ telemetry_namespace }}"
+        labels:
+          app: "{{ mysqldb_k8s_name }}"
+      spec:
+        type: ClusterIP
+        ports:
+          - name: mysqldb-http-port-1
+            port: "{{ mysqldb_container_port1 }}"
+          - name: mysqldb-http-port-2
+            port: "{{ mysqldb_container_port2 }}"
+        selector:
+          app: "{{ mysqldb_k8s_name }}"

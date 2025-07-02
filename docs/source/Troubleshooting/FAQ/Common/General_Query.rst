@@ -1,9 +1,9 @@
 General Query
 ==============
 
-⦾ **What to do if playbook execution fails due to external (network, hardware etc) failure?**
+⦾ **What to do if any playbook execution fails due to external (network, hardware etc) failure?**
 
-**Resolution**: Re-run the playbook whose execution failed once the issue is resolved.
+**Resolution**: Re-run the failed playbook once the issue is resolved.
 
 ⦾ **What are the licenses required when deploying a cluster through Omnia?**
 

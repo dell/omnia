@@ -30,8 +30,8 @@
 #                         - Set the value only for group of nodes belonging to kube_node and slurm_node roles,
 #                         - And empty for other roles.
 #     parent:             - <Conditional Mandatory> list of service tag of associated active service node(s).
-#                         - This field will be empty for group of nodes which is associated with ‘login’, ‘compiler_node’, ‘service’,
-#                         - ‘auth_server’, ‘kube_control_plane’, ‘etcd’, 'slurm_control_node’, ‘slurm_dbd’.
+#                         - This field will be empty for group of nodes which is associated with ‘login’, ‘compiler_node’, ‘service_node’,
+#                         - ‘auth_server’, ‘service_kube_control_plane’, 'service_etcd', ‘kube_control_plane’, ‘etcd’, 'slurm_control_node’, ‘slurm_dbd’.
 #                         - If ‘service’ role is not defined, then value will be empty for worker and default role.
 #     bmc_details:        - <Conditional Mandatory> BMC IP static range in the format 10.5.0.1-10.5.0.200
 #        static_range:    - <Mandatory> This field mandatory in case of BMC discovery of subset of nodes
@@ -122,7 +122,63 @@ Roles:
   #   groups:
   #     - grp0
 
+# Service k8s head Role: Service Cluster Kubernetes master node for groups to add into service_kube_control_plane role can be provided in this role
+# ----------------------------------------------------------------------------------------------------
+# 
+# This role is used to configure kubernetes master on service cluster.
 #
+# This role should not have same group as of K8s head Role.
+#
+# The nodes included in this role will have the necessary tools and
+# configurations to configure kubernetes master on service cluster.
+#
+# The nodes in this role can be used to run kubernetes master on service cluster.
+#
+# Service k8s head Role: Service Cluster Kubernetes master node for groups to add into service_kube_control_plane role can be provided in this role
+  - name: "service_kube_control_plane"
+    groups:
+      - grp0
+      - grp1
+
+#
+# Service etcd Role: Service Cluster Kubernetes etcd node groups to add into service cluster k8s role can be provided in this role
+# ------------------------------------------------------------------------------------
+#
+# This role is used to configure the nodes for Kubernetes etcd on service cluster.
+#
+# This role should not have same group as of K8s etcd Role.
+#
+# The nodes included in this role will have the necessary tools and
+# configurations to configure Kubernetes etcd on service cluster.
+#
+# The nodes in this role can be used to run Kubernetes etcd on service cluster.
+#
+# Service etcd Role: Service Cluster Kubernetes etcd node groups to add into service cluster k8s role can be provided in this role
+  - name: "service_etcd"
+    groups:
+      - grp0
+      - grp1
+
+#
+# Service k8s Worker Role: Service Cluster Kubernetes worker node groups to add into service cluster k8s role can be provided in this role
+# ------------------------------------------------------------------------------------
+#
+# This role is used to configure the nodes for Kubernetes worker on service cluster.
+#
+# This role should not have same group as of K8s Worker node.
+#
+# The nodes included in this role will have the necessary tools and
+# configurations to configure Kubernetes worker on service cluster.
+#
+# The nodes in this role can be used to run Kubernetes worker on service cluster.
+#
+# Service k8s Worker Role: Service Cluster Kubernetes worker node groups to add into service cluster k8s role can be provided in this role
+  - name: "service_kube_node"
+    groups:
+      - grp0
+      - grp1
+
+# ----------------------------------------Not Supported ( Future Use )---------------------------------
 # Service Node Role: Service node groups to add into service_node role can be provided in this role
 # ------------------------------------------------------------------------------------
 #
@@ -139,7 +195,7 @@ Roles:
   #     - grp1
 
 #
-# k8s head Role: Kubernetes master node groups to add into kube_control_plane role can be provided in this role
+# K8s head Role: Kubernetes master node groups to add into kube_control_plane role can be provided in this role
 # ---------------------------------------------------------------------------------------
 #
 # This role is used to configure the nodes for Kubernetes master. It belongs to the management layer.
@@ -149,7 +205,7 @@ Roles:
 #
 # The nodes in this role can be used to run Kubernetes master.
 #
-# k8s head Role: Kubernetes master groups to add into etcd role can be provided in this role
+# K8s head Role: Kubernetes master groups to add into etcd role can be provided in this role
   # - name: "kube_control_plane"
   #   groups:
   #     - grp0

@@ -11,21 +11,32 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+"""
+This module is used to calculate the correlated admin ip
+"""
 
 import ipaddress
 import sys
 
-cal_path = "/opt/omnia/shared_libraries/provision/mtms"
-sys.path.insert(0, cal_path)
+CAL_PATH = "/opt/omnia/shared_libraries/provision/mtms"
+sys.path.insert(0, CAL_PATH)
 import calculate_ip_details
 
-
 def check_valid_nb(nic_nb, admin_nb):
+    """
+    Checks if the netmask bits of admin is less than or equal to nic
 
+    Parameters:
+      nic_nb: netmask bits of nic that needs correlation
+      admin_nb: netmask bits of admin
+
+    Returns:
+      True if admin netmask bits is less than or equal to nic netmask bits
+      False if admin netmask bits is greater than nic netmask bits
+    """
     if int(admin_nb) <= int(nic_nb):
         return True
-    else:
-        return False
+    return False
 
 
 def correlation_admin_to_nic(admin_ip, nic_ip, nic_nb, admin_nb):

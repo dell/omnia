@@ -27,7 +27,7 @@ from ansible.module_utils.basic import AnsibleModule
 
 def load_rules(file_path):
     """Loads validation rules from a JSON file."""
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
 
 def validate_input(field, value, rules):
@@ -43,11 +43,11 @@ def validate_input(field, value, rules):
 
 def main():
     """Main module function."""
-    module_args = dict(
-        credential_field=dict(type="str", required=True),
-        credential_input=dict(type="str", required=True),
-        module_utils_path=dict(type="str", required=False, default=None)
-    )
+    module_args = {
+        "credential_field": {"type": "str", "required": True},
+        "credential_input": {"type": "str", "required": True},
+        "module_utils_path": {"type": "str", "required": False, "default": None}
+    }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     params = module.params

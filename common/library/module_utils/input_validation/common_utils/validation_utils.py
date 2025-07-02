@@ -11,9 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+This module contains utility functions for input validation.
+"""
 import os
-import re
 import ipaddress
 import subprocess
 import yaml
@@ -21,6 +22,23 @@ from ansible.module_utils.input_validation.common_utils import en_us_validation_
 from ansible.module_utils.input_validation.common_utils import config
 
 def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module):
+    """
+    Loads a YAML file as JSON.
+
+    Args:
+        yaml_file (str): The path to the YAML file.
+        omnia_base_dir (str): The base directory of the Omnia project.
+        project_name (str): The name of the project.
+        logger (Logger): A logger instance.
+        module (AnsibleModule): An Ansible module instance.
+
+    Returns:
+        dict: The loaded YAML data as JSON.
+
+    Raises:
+        FileNotFoundError: If the YAML file is not found.
+        yaml.YAMLError: If there is a syntax error in the YAML file.
+    """
     try:
         if is_file_encrypted(yaml_file):
             data = process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, module)
@@ -38,7 +56,8 @@ def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module):
         error_parts.append(f"Syntax error when loading YAML file '{yaml_file}'")
 
         if hasattr(e, 'problem_mark'):
-            error_parts.append(f"at line {e.problem_mark.line + 1}, column {e.problem_mark.column + 1}")
+            error_parts.append(
+                f"at line {e.problem_mark.line + 1}, column {e.problem_mark.column + 1}")
             if hasattr(e, 'problem'):
                 error_parts.append(f"Problem: {e.problem}")
             if hasattr(e, 'context'):
@@ -48,28 +67,86 @@ def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module):
 
         error_context = " | ".join(error_parts)
         logger.error(error_context)
-        # Instead of raising exception immediately, return None to indicate validation failure, in case there are other validations to perform
+        # Instead of raising exception immediately, return None to indicate
+        # validation failure, in case there are other validations to perform
         return None
 
 def create_error_msg(key, value, msg):
+    """
+    Creates an error message dictionary.
+
+    Args:
+        key (str): The key of the error.
+        value (str): The value of the error.
+        msg (str): The error message.
+
+    Returns:
+        dict: The error message dictionary.
+    """
     return {"error_key": key, "error_value": value, "error_msg": msg}
 
 def create_file_path(input_file_path, other_file):
+    """
+    Creates a file path by replacing the last part of the input file path with another file name.
+
+    Args:
+        input_file_path (str): The input file path.
+        other_file (str): The name of the other file.
+
+    Returns:
+        str: The new file path.
+    """
     path_parts = input_file_path.split("/")
     path_parts[-1] = other_file
     final_path = ("/").join(path_parts)
     return final_path
 
 def contains_software(softwares, name):
+    """
+    Checks if a software is present in the list of softwares.
+
+    Args:
+        softwares (list): The list of softwares.
+        name (str): The name of the software to check.
+
+    Returns:
+        bool: True if the software is present, False otherwise.
+    """
     return any(name in software["name"].lower() for software in softwares)
 
 def check_mandatory_fields(mandatory_fields, data, errors):
+    """
+    Checks if all mandatory fields are present in the data.
+
+    Args:
+        mandatory_fields (list): The list of mandatory fields.
+        data (dict): The data to check.
+        errors (list): The list of errors.
+
+    Returns:
+        None
+    """
     for field in mandatory_fields:
         if is_string_empty(data[field]):
-            errors.append(create_error_msg(field, data[field], en_us_validation_msg.mandatory_field_fail_msg))
+            errors.append(
+                create_error_msg(
+                    field, data[field], en_us_validation_msg.MANDATORY_FIELD_FAIL_MSG
+                )
+            )
 
-# Below functions used to deal with encrypted files (Check if a file is encrypted, if yes then get the vault password, decrypt file, load data, encrypt file again)
+# Below functions used to deal with encrypted files
+# (Check if a file is encrypted, if yes then get the vault password,
+# decrypt file, load data, encrypt file again)
 def is_file_encrypted(file_path):
+    """
+    Checks if a file is encrypted.
+
+    Args:
+        file_path (str): The path to the file.
+
+    Returns:
+        bool: True if the file is encrypted, False otherwise.
+    """
     try:
         with open(file_path, 'r') as file:
             first_line = file.readline().strip()
@@ -78,6 +155,19 @@ def is_file_encrypted(file_path):
         return False
 
 def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, module):
+    """
+    Decrypts an encrypted file, loads the data, and encrypts the file again.
+
+    Args:
+        yaml_file (str): The path to the encrypted file.
+        omnia_base_dir (str): The base directory of the Omnia project.
+        project_name (str): The name of the project.
+        logger (Logger): A logger instance.
+        module (AnsibleModule): An Ansible module instance.
+
+    Returns:
+        dict: The loaded data from the encrypted file.
+    """
     vault_password_file = config.get_vault_password(yaml_file)
     decrypted_file = decrypt_file(omnia_base_dir, project_name, yaml_file, vault_password_file)
     if decrypted_file:
@@ -90,14 +180,25 @@ def process_encrypted_file(yaml_file, omnia_base_dir, project_name, logger, modu
             logger.error("File {%s} not found" % yaml_file)
             module.fail_json(msg="File {%s} not found" % (yaml_file))
         except yaml.YAMLError as e:
-            logger.error("Error loading YAML(%s)" % e)
-            module.fail_json(msg="Error loading YAML(%s)" % (e))
+            logger.error(f"Error loading YAML: {e}")
+            module.fail_json(f"Error loading YAML: {e}")
     else:
-        unable_to_decrypt_fail_msg = (f"Error occured when attempting to decrypt file. Please check that the assoicated vault file exists for {yaml_file}")
+        unable_to_decrypt_fail_msg = (
+            f"Error occured when attempting to decrypt file. "
+            f"Please check that the assoicated vault file exists for {yaml_file}")
         logger.error(unable_to_decrypt_fail_msg)
         module.fail_json(unable_to_decrypt_fail_msg)
 
 def run_subprocess(cmd):
+    """
+    Runs a subprocess command and returns True if successful, False otherwise.
+
+    Args:
+        cmd (list): The command to run.
+
+    Returns:
+        bool: True if the command was successful, False otherwise.
+    """
     try:
         subprocess.run(
             cmd,
@@ -111,6 +212,18 @@ def run_subprocess(cmd):
         return False
 
 def encrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
+    """
+    Encrypts a file using Ansible Vault.
+
+    Args:
+        omnia_base_dir (str): The base directory of the Omnia project.
+        project_name (str): The name of the project.
+        vault_file (str): The path to the file to encrypt.
+        vault_password_file (str): The path to the Ansible Vault password file.
+
+    Returns:
+        bool: True if the encryption was successful, False otherwise.
+    """
     password_full_path = omnia_base_dir + project_name + "/" + vault_password_file
     cmd = [
         "ansible-vault",
@@ -122,6 +235,18 @@ def encrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
     return run_subprocess(cmd)
 
 def decrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
+    """
+    Decrypts a file using Ansible Vault.
+
+    Args:
+        omnia_base_dir (str): The base directory of the Omnia project.
+        project_name (str): The name of the project.
+        vault_file (str): The path to the file to decrypt.
+        vault_password_file (str): The path to the Ansible Vault password file.
+
+    Returns:
+        bool: True if the decryption was successful, False otherwise.
+    """
     password_full_path = omnia_base_dir + project_name + "/" + vault_password_file
     cmd = [
         "ansible-vault",
@@ -134,6 +259,15 @@ def decrypt_file(omnia_base_dir, project_name, vault_file, vault_password_file):
 
 # Below are common functions used in L2 validation (logical_validation.py)
 def is_string_empty(value):
+    """
+    Checks if a string is empty.
+
+    Args:
+        value (str): The string to check.
+
+    Returns:
+        bool: True if the string is empty, False otherwise.
+    """
     if value is None:
         return True
     if not isinstance(value, str):
@@ -141,17 +275,46 @@ def is_string_empty(value):
     return len(value.strip()) < 1
 
 def verify_path(file_path):
+    """
+    Verifies if a file exists at the given path.
+
+    Args:
+        file_path (str): The path to the file.
+
+    Returns:
+        bool: True if the file exists, False otherwise.
+    """
     if not os.path.exists(file_path):
         return False
     return os.path.isfile(file_path)
 
 def validate_default_lease_time(default_lease_time):
+    """
+    Validates the default lease time.
+
+    Args:
+        default_lease_time (int): The default lease time.
+
+    Returns:
+        bool: True if the default lease time is valid, False otherwise.
+    """
     return 21600 <= int(default_lease_time) <= 31536000
 
 
 def verify_iso_file(iso_file_path, provision_os, provision_os_version):
+    """
+    Verifies if the ISO file path is valid.
+
+    Args:
+        iso_file_path (str): The path to the ISO file.
+        provision_os (str): The provision OS.
+        provision_os_version (str): The provision OS version.
+
+    Returns:
+        str: An error message if the ISO file path is invalid, empty string otherwise.
+    """
     if ".iso" not in iso_file_path:
-        return en_us_validation_msg.iso_file_path_not_contain_iso_msg
+        return en_us_validation_msg.ISO_FILE_PATH_NOT_CONTAIN_ISO_MSG
 
     iso_path_lower = iso_file_path.lower()
     os_name_matches = provision_os.lower() in iso_path_lower
@@ -163,13 +326,23 @@ def verify_iso_file(iso_file_path, provision_os, provision_os_version):
         )
 
     if not verify_path(iso_file_path):
-        return en_us_validation_msg.iso_file_path_fail_msg
+        return en_us_validation_msg.ISO_FILE_PATH_FAIL_MSG
 
     return ""
 
 
 # validate timezone (input_tz: str, available_timezone_file_path: str) -> bool
 def validate_timezone(input_tz, available_timezone_file_path):
+    """
+    Validates the timezone.
+
+    Args:
+        input_tz (str): The input timezone.
+        available_timezone_file_path (str): The path to the file containing available timezones.
+
+    Returns:
+        bool: True if the timezone is valid, False otherwise.
+    """
     all_timezones = []
     with open(available_timezone_file_path, "r") as file:
         content = file.read()
@@ -178,9 +351,18 @@ def validate_timezone(input_tz, available_timezone_file_path):
     return input_tz in all_timezones
 
 
-def is_valid_password(
-    password,
-):  # Checks if the password meets the specified requirements: Length of at least 8 characters. Does not contain '-', '\', "'", or '"'.
+# Checks if the password meets the specified requirements:
+# Length of at least 8 characters. Does not contain '-', '\', "'", or '"'.
+def is_valid_password(password):
+    """
+    Validates the password.
+
+    Args:
+        password (str): The password to validate.
+
+    Returns:
+        bool: True if the password is valid, False otherwise.
+    """
     if not isinstance(password, str):
         return False
     if len(password) <= 8 or len(password) >= 30:
@@ -192,6 +374,17 @@ def is_valid_password(
     return True
 
 def validate_username(username, min_username_length, max_length):
+    """
+    Validates the username.
+
+    Args:
+        username (str): The username to validate.
+        min_username_length (int): The minimum length of the username.
+        max_length (int): The maximum length of the username.
+
+    Returns:
+        bool: True if the username is valid, False otherwise.
+    """
     if not (min_username_length <= len(username) < max_length):
         return False
 
@@ -204,12 +397,22 @@ def validate_username(username, min_username_length, max_length):
 
 # check_overlap(ip_list: list[dict[str, str]]) -> tuple[bool, list[tuple]]:
 def check_overlap(ip_list):
+    """
+    Checks for IP range overlap.
+
+    Args:
+        ip_list (list): A list of IP ranges and CIDR.
+
+    Returns:
+        tuple: A tuple containing a boolean indicating if there is an overlap,
+            and a list of overlapping IP ranges.
+    """
     ranges = []
     overlaps = []
 
     # Convert IP ranges and CIDR to ipaddress objects
     for item in ip_list:
-        if item == '' or item == 'N/A':
+        if item in ('', 'N/A'):
             continue
         if "-" in item:
             start_ip, end_ip = item.split("-")
@@ -263,18 +466,25 @@ def validate_ipv4_range(ip_range) -> bool:
 
         if end_ip >= start_ip:
             return True
-        else:
-            return False
+        return False
     except ValueError:
         return False
 
 def validate_netmask_bits(bits):
+    """
+    Validates if the given netmask bits are within the valid range.
+
+    Args:
+        bits (str): The netmask bits to be validated.
+
+    Returns:
+        bool: True if the netmask bits are valid, False otherwise.
+    """
     try:
         bits_int = int(bits)
         if 1 <= bits_int <= 32:
             return True
-        else:
-            return False
+        return False
     except (ValueError, TypeError):
         return False
 
@@ -284,7 +494,8 @@ def check_bmc_static_range_overlap(static_range, static_range_group_mapping) -> 
 
     Args:
         static_range (str): The static BMC range to check for overlaps.
-        static_range_group_mapping (Dict[str, str]): A dictionary mapping group names to their corresponding bmc static ranges.
+        static_range_group_mapping (Dict[str, str]):
+            A dictionary mapping group names to their corresponding bmc static ranges.
 
     Returns:
         list: A list of group names that have overlapping ranges with the given static_range.
@@ -382,11 +593,33 @@ def is_range_within_netmask(ip_range, netmask_bits):
         return False
 
 def is_ip_within_range(ip_range, ip):
+    """
+    Check if a given IP falls within a specified IP range.
+
+    Args:
+        ip_range (str): The IP range in format "start_ip-end_ip"
+            (e.g., "192.168.1.10-192.168.1.50").
+        ip (str): The IP address to check.
+
+    Returns:
+        bool: True if the IP is within the range, False otherwise.
+    """
     start_ip, end_ip = [ipaddress.IPv4Address(part.strip()) for part in ip_range.split('-')]
     target_ip = ipaddress.IPv4Address(ip)
-    return (start_ip <= target_ip <= end_ip)
+    return start_ip <= target_ip <= end_ip
 
 def is_ip_in_subnet(admin_oim_ip, netmask_bits, vip_address):
+    """
+    Check if a given IP falls within the subnet defined by the admin OIM IP and netmask bits.
+
+    Args:
+        admin_oim_ip (str): The admin OIM IP address.
+        netmask_bits (int or str): The netmask bits (e.g., 20 for /20).
+        vip_address (str): The IP address to check.
+
+    Returns:
+        bool: True if the IP is within the subnet, False otherwise.
+    """
     # Create the subnet from the reference IP and netmask bits
     subnet = ipaddress.IPv4Network(f"{admin_oim_ip}/{netmask_bits}", strict=False)
     ip = ipaddress.IPv4Address(vip_address)
@@ -409,6 +642,16 @@ def flatten_sub_groups(sub_groups):
     return result
 
 def validate_cluster_items(cluster_items, json_file_path):
+    """
+    Validates the cluster items in a JSON file based on predefined type requirements.
+
+    Args:
+        cluster_items (list): A list of cluster items to validate.
+        json_file_path (str): The path to the JSON file.
+
+    Returns:
+        tuple: A tuple containing two lists - one for successful validations and one for failures.
+    """
     failures = []
     successes = []
 
@@ -430,19 +673,37 @@ def validate_cluster_items(cluster_items, json_file_path):
             has_one_alt = any(any(alt in item for alt in group) for group in alt_fields_groups)
 
             if missing_flat or not has_one_alt:
-                failures.append(f"Failed. Missing required properties for '{item_type}' in file '{json_file_path}'.")
+                failures.append(
+                    f"Failed. Missing required properties for '{item_type}' in file "
+                    f"'{json_file_path}'.")
             else:
                 successes.append(f"Success. Valid '{item_type}' item in file '{json_file_path}'.")
         else:
             missing_fields = [field for field in required_fields if field not in item]
             if missing_fields:
-                failures.append(f"Failed. Missing {missing_fields} for '{item_type}' in file '{json_file_path}'.")
+                failures.append(
+                    f"Failed. Missing {missing_fields} for '{item_type}' in file "
+                    f"'{json_file_path}'.")
             else:
                 successes.append(f"Success. Valid '{item_type}' item in file '{json_file_path}'.")
 
     return successes, failures
 
-def validate_softwaresubgroup_entries(software_name, json_path, json_data, validation_results, failures):
+def validate_softwaresubgroup_entries(
+        software_name, json_path, json_data, validation_results, failures):
+    """
+    Validates the entries for a specific software subgroup in a JSON file.
+
+    Args:
+        software_name (str): The name of the software.
+        json_path (str): The path to the JSON file.
+        json_data (dict): The JSON data.
+        validation_results (list): A list to store the validation results.
+        failures (list): A list to store the failure messages.
+
+    Returns:
+        tuple: A tuple containing the updated validation results and failures.
+    """
     try:
         #check for the key in software.json
         if software_name in json_data:
@@ -453,10 +714,13 @@ def validate_softwaresubgroup_entries(software_name, json_path, json_data, valid
                 if item_failures:
                     failures.append(f"{item_failures}")
             else:
-                failures.append(f"Failed. Invalid JSON format for: '{software_name}' in file '{json_path}'. Cluster property is missing")    
+                failures.append(
+                    f"Failed. Invalid JSON format for: '{software_name}'"
+                    f" in file '{json_path}'. Cluster property is missing")
         else:
             validation_results.append((json_path, False))
-            failures.append(f"Failed. Invalid software name: '{software_name}' in file '{json_path}'.")
+            failures.append(
+                f"Failed. Invalid software name: '{software_name}' in file '{json_path}'.")
 
     except KeyError as e:
         failures.append(f"Failed. Missing key {str(e)} in file '{json_path}'.")

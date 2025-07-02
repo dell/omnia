@@ -11,7 +11,9 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""
+This script is used to validate if the given IP address is pingable.
+"""
 import platform
 import subprocess
 import sys
@@ -19,33 +21,33 @@ import ipaddress
 
 host = sys.argv[1]
 
-def validate_ip(host):
+def validate_ip(host_ip):
     """
-	Validates if the given `host` is a valid IP address.
+    Validates if the given `host` is a valid IP address.
 
-	Parameters:
-	- `host` (str): The IP address to validate.
+    Parameters:
+    - host_ip (str): The IP address to validate.
 
-	Returns:
-	- bool: True if the IP address is valid, False otherwise.
-	"""
+    Returns:
+    - bool: True if the IP address is valid, False otherwise.
+    """
 
     try:
-        ipaddress.ip_address(host)
+        ipaddress.ip_address(host_ip)
         return True
     except ValueError:
         return False
 
 def ping():
     """
-	Returns True if host (str) responds to a ping request.
+    Returns True if host (str) responds to a ping request.
 
-	Parameters:
-	- `host` (str): The IP address to ping.
+    Parameters:
+    - `host` (str): The IP address to ping.
 
-	Returns:
-	- bool: True if the host responds to a ping request, False otherwise.
-	"""
+    Returns:
+    - bool: True if the host responds to a ping request, False otherwise.
+    """
 
     # Option for the number of packets as a function of
     param = '-n' if platform.system().lower() == 'windows' else '-c'
@@ -57,7 +59,7 @@ def ping():
 
     return subprocess.call(command) == 0
 
-ping_op = ping()
-if not ping_op:
+PING_OP = ping()
+if not PING_OP:
     print(host)
     sys.exit(" is not pingable. Please provide reachable switches in switch based discovery.")

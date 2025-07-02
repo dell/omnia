@@ -11,11 +11,14 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""
+This module is used to validate server specification.
+"""
 import sys
-import yaml
 import json
 import os
+import yaml
+
 
 def fetch_server_spec_data(server_spec_file_path):
     """
@@ -28,7 +31,7 @@ def fetch_server_spec_data(server_spec_file_path):
 	:rtype: dict
 	"""
 
-    with open(server_spec_file_path, "r") as file:
+    with open(server_spec_file_path, "r", encoding="utf-8") as file:
         data = yaml.safe_load(file)
 
     json_data = json.dumps(data)
@@ -39,7 +42,7 @@ def fetch_server_spec_data(server_spec_file_path):
     for category in server_spec_data['Categories']:
         for ctg_key, ctg_value in category.items():
             grp_dict = {}
-            if ctg_key in category_data.keys():
+            if ctg_key in category_data:
                 sys.exit("Duplicate group details found in server spec.")
 
             for group in ctg_value:
@@ -47,12 +50,14 @@ def fetch_server_spec_data(server_spec_file_path):
                     net_dict = {}
                     nicnetwork_set = set()  # To track duplicate nicnetwork values
                     for network in grp_value:
-                        for net_key, net_val in network.items():
+                        for _, net_val in network.items():
                             if 'nicnetwork' in net_val:
                                 if net_val['nicnetwork'] in nicnetwork_set:
-                                    sys.exit(f"Duplicate nicnetwork '{net_val['nicnetwork']}' found in group '{ctg_key}' in server spec.")
+                                    sys.exit((
+                                        f"Duplicate nicnetwork '{net_val['nicnetwork']}' "
+                                        f"found in group '{ctg_key}' in server spec."))
                                 nicnetwork_set.add(net_val['nicnetwork'])
-                            if all(keys in net_dict.keys() for keys in dict(network).keys()):
+                            if all(keys in net_dict for keys in dict(network).keys()):
                                 sys.exit("Duplicate network details found in server spec.")
                             net_dict.update(dict(network))
                     grp_dict[grp_key] = net_dict
@@ -102,8 +107,9 @@ def validate_network_details(network_data, category_data):
                         if 'nicdevices' not in net_val or not net_val['nicdevices']:
                             sys.exit("Nic device details missing in server spec.")
 
-                    if (net_val['nictypes'] == 'vlan'):
-                        if ('VLAN' not in network_data[net_val['nicnetwork']].keys() or len(network_data[net_val['nicnetwork']]['VLAN']) == 0):
+                    if net_val['nictypes'] == 'vlan':
+                        if ('VLAN' not in network_data[net_val['nicnetwork']].keys() or
+                            len(network_data[net_val['nicnetwork']]['VLAN']) == 0):
                             sys.exit("VLAN ID not provided in network spec for VLAN network.")
 
             elif grp_key == "os":
@@ -116,18 +122,19 @@ def validate_network_details(network_data, category_data):
 
 def main():
     """
-	The main function of the program.
+    The main function of the program.
 
-	This function takes the path of the network specification file from the command line argument,
-	retrieves the network data from the environment variable, loads it as JSON,
-	fetches the category data from the network specification file, and validates the network details.
+    This function takes the path of the network specification file from the command line argument,
+    retrieves the network data from the environment variable, loads it as JSON,
+    fetches the category data from the network specification file,
+        and validates the network details.
 
-	Parameters:
-	- None
+    Parameters:
+    - None
 
-	Returns:
-	- None
-	"""
+    Returns:
+    - None
+    """
 
     network_spec_file_path = os.path.abspath(sys.argv[1])
     network_string = os.environ.get('net_data')

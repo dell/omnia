@@ -17,7 +17,8 @@ This module provides functionality for running BMC discovery on a range of IP ad
 """
 
 import re
-import sys, os
+import sys
+import os
 import subprocess
 
 
@@ -114,7 +115,7 @@ def run_bmc_discover(final_range):
 		None
 	"""
 
-
+    command = []
     if bmc_mode == "static":
         command = ["/opt/xcat/bin/bmcdiscover", "--range", final_range, "-z"]
     elif bmc_mode == "dynamic":
@@ -122,13 +123,14 @@ def run_bmc_discover(final_range):
     try:
         node_objs = subprocess.run(command, capture_output=True, timeout=600, check=True)
         if os.path.exists(stanza_path):
-            with open(stanza_path, 'r+') as f:
+            with open(stanza_path, 'r+', encoding="utf-8") as f:
                 f.write(node_objs.stdout.decode())
         else:
             print(f"File {stanza_path} does not exist. Unable to write to it.")
     except subprocess.TimeoutExpired:
         print(
-            "The discovery did not finish within the timeout period.Please provide a smaller range or a correct range.")
+            "The discovery did not finish within the timeout period.Please provide " \
+            "a smaller range or a correct range.")
 
 
 create_ranges()

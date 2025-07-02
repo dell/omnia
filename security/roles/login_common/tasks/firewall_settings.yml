@@ -48,10 +48,3 @@
   ansible.builtin.command: firewall-cmd --reload
   changed_when: true
   tags: firewalld
-
-- name: Stop and disable firewalld
-  ansible.builtin.service:
-    name: firewalld
-    state: stopped
-    enabled: false
-  tags: firewalld

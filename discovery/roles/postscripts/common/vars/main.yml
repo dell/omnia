@@ -77,8 +77,7 @@ genesis_package_path:
   - { src: "{{ role_path }}/../rhel/files/xcat-genesis-base-x86_64.tar.gz", dest: "/install/xcat-genesis-base-x86_64.tar.gz", mode: "755" }
 
 # Usage: omnia_oim_ha_node_postboot.j2
-container_tar_file: "omnia_images.tar"
-container_images_path: "{{ oim_shared_path }}/omnia/images/{{ container_tar_file }}"
+container_images_path: "{{ oim_shared_path }}/omnia/images/"
 
 # Usage: omnia_oim_ha_node.j2
 persistent_rules_file: "/etc/udev/rules.d/70-persistent-net.rules"

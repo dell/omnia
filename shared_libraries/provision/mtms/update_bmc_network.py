@@ -96,7 +96,8 @@ def update_networks_table():
         netmask = details[0]
         subnet = details[1]
         network_name = create_network_name("bmc_network", subnet)
-        command = ["/opt/xcat/bin/chdef", "-t", "network", "-o", network_name, f"net={subnet}", f"mask={netmask}", f"staticrange={start_ip}-{end_ip}"]
+        command = ["/opt/xcat/bin/chdef", "-t", "network", "-o", network_name,
+                   f"net={subnet}", f"mask={netmask}", f"staticrange={start_ip}-{end_ip}"]
         try:
             subprocess.run(command, capture_output=True, check=True)
         except subprocess.CalledProcessError as e:

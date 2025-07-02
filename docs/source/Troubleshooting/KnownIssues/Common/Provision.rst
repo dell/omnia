@@ -1,20 +1,23 @@
 Provision
 ==========
 
-⦾ **Why doesn't my newly discovered server list a MAC ID in the cluster.nodeinfo table?**
-
-Due to internal MAC ID conflicts on the target nodes, the MAC address will be listed against the target node using this format ``MAC ADDRESS 1 | MAC ADDRESS 2! *NOIP*`` in the xCAT node object.
+⦾ **Why doesn't my newly discovered server list a MAC ID in the** ``cluster.nodeinfo`` **table?**
 
 .. image:: ../../../images/MACConflict.png
 
+**Potential Cause**: Due to internal MAC ID conflicts on the target nodes, the MAC address will be listed against the target node using this format ``MAC ADDRESS 1 | MAC ADDRESS 2! *NOIP*`` in the xCAT node object.
 
-⦾ **Why does we see** ``TASK [provision_validation : Failed - Assign admin nic IP]`` **while executing** ``discovery_provision.yml`` **playbook?**
+**Resolution**: Follow the below steps to resolve this issue:
 
-.. image:: ../../../images/AdminNICErrors.png
+    1. Establish a SSH connection to the ``omnia_core`` container using the following command: ::
 
-**Potential Cause:** Omnia validates the admin NIC IP on the OIM. If the user has not assigned an admin NIC IP in case of dedicated network interface type, an error message is returned. There is a parsing logic that is being applied on the blank IP and hence, the error displays twice.
+        ssh omnia_core
 
-**Resolution**: Ensure a OIM IP is assigned to the admin NIC.
+    2. Establish a SSH connection to the ``omnia_provision`` container from inside the ``omnia_core`` container using the following command: ::
+
+        ssh omnia_provision
+
+    3. Execute the ``lsdef`` command from the ``omnia_provision`` container.
 
 
 ⦾ **Why are some target servers not reachable after PXE booting them?**
@@ -56,34 +59,37 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 **Resolution**: User needs to ensure that there are no duplicate entries for the same partition in provision_config.yml.
 
 
-⦾ **After executing** ``disocvery_provision.yml`` **, why is the node status in OmniaDB being displayed as "standingby"?**
+⦾ **After executing** ``disocvery_provision.yml`` **, why is the node status in OmniaDB being displayed as** ``standingby`` **?**
 
 **Resolution**: For any discovery mechanism other than switch-based, do the following:
 
-    1. Execute the following command: ::
+    1. Establish a SSH connection to the ``omnia_core`` container using the following command: ::
+
+        ssh omnia_core
+
+    2. Establish a SSH connection to the ``omnia_provision`` container from inside the ``omnia_core`` container using the following command: ::
+
+        ssh omnia_provision
+    
+    3. Execute the following command: ::
 
         chdef <node> status=””
 
-    2. Then run: ::
+    4. Then run: ::
 
         rinstall <node>
 
-    Where <node> refers to the node column in the OmniaDB, which has a “standingby” status.
+    *Where ``<node>`` refers to the node column in the OmniaDB, which has a ``standingby`` status.*
 
 
-⦾ **Why does the** ``discovery_provision.yml`` **playbook execution fail at task: "prepare_oim needs to be executed"?**
+⦾ **Why does the** ``discovery_provision.yml`` **playbook execution fail at task:** ``prepare_oim needs to be executed`` **?**
 
-**Potential Cause**: Invalid input provided in ``network_spec.yml`` for ``admin_network`` or ``bmc_network`` fields.
+**Potential Cause**: The ``omnia_provision`` container is not up and running.
 
-**Resolution**: Perform a cleanup using ``oim_cleanup.yml`` with ``--tags provision`` & then re-run the ``discovery_provision.yml`` playbook. Execute the following command:
-
-    ::
-
-        ansible-playbook utils/oim_cleanup.yml --tags provision
-        ansible-playbook discovery_provision.yml
+**Resolution**: Perform a cleanup using ``oim_cleanup.yml`` and re-run the ``prepare_oim.yml`` playbook to bring up the ``omnia_provision`` container. After ``prepare_oim.yml`` playbook has been executed successfully, re-deploy the cluster using the steps mentioned in the `Omnia deployment guide <../../../OmniaInstallGuide/RHEL_new/index.html>`.
 
 
-⦾ **While executing** ``discovery_provision.yml`` **playbook from the OIM, some of the cluster nodes fail to boot up and omniadb captures the node status as "failed".**
+⦾ **While executing** ``discovery_provision.yml`` **playbook from the from the** ``omnia_core`` **container, some of the cluster nodes fail to boot up and omniadb captures the node status as** ``failed``.
 
 .. image:: ../../../images/waco_node_boot_failure.png
 
@@ -91,5 +97,5 @@ Due to internal MAC ID conflicts on the target nodes, the MAC address will be li
 
 **Resolution**: Perform the following steps:
 
-    1. Delete the failed node from the db using ``delete_node.yml`` playbook utility. For more information, `click here <../../../OmniaInstallGuide/Maintenance/deletenode.html>`_.
+    1. Delete the failed node from using ``delete_node.yml`` playbook utility. For more information, `click here <../../../OmniaInstallGuide/Maintenance/deletenode.html>`_.
     2. Re-provision the node by re-running the ``discovery_provision.yml`` playbook.

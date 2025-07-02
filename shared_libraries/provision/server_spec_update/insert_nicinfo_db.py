@@ -11,16 +11,14 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-import psycopg2 as pg
-from cryptography.fernet import Fernet
-
 """
 This module contains functions for inserting NIC information into a database.
 """
+import psycopg2 as pg
+from cryptography.fernet import Fernet
 
-key_file_path = '/opt/omnia/.postgres/.postgres_pass.key'
-pass_file_path = '/opt/omnia/.postgres/.encrypted_pwd'
+KEY_FILE_PATH = '/opt/omnia/.postgres/.postgres_pass.key'
+PASS_FILE_PATH = '/opt/omnia/.postgres/.encrypted_pwd'
 
 def create_connection():
     """
@@ -39,11 +37,11 @@ def create_connection():
         psycopg2.OperationalError: If the database connection fails.
 
     """
-    with open(key_file_path, 'rb') as passfile:
+    with open(KEY_FILE_PATH, 'rb') as passfile:
         key = passfile.read()
     fernet = Fernet(key)
 
-    with open(pass_file_path, 'rb') as datafile:
+    with open(PASS_FILE_PATH, 'rb') as datafile:
         encrypted_file_data = datafile.read()
     decrypted_pwd = fernet.decrypt(encrypted_file_data).decode()
     # Create database connection
@@ -58,18 +56,18 @@ def create_connection():
     return conn
 
 
-def check_presence_id(cursor, id):
+def check_presence_id(cursor, nic_id):
     """
         Check presence of bmc ip in DB.
         Parameters:
             cursor: Pointer to omniadb DB.
-            id: id whose presence we need to check in DB.
+            nic_id: nic_id whose presence we need to check in DB.
         Returns:
             bool: that gives true or false if the bmc ip is present in DB.
     """
 
-    query = f'''SELECT EXISTS(SELECT id FROM cluster.nicinfo WHERE id=%s)'''
-    cursor.execute(query, (id,))
+    query = '''SELECT EXISTS(SELECT id FROM cluster.nicinfo WHERE id=%s)'''
+    cursor.execute(query, (nic_id,))
     output = cursor.fetchone()[0]
     return output
 
@@ -107,8 +105,11 @@ def insert_nic_info(ip, db_data):
             except Exception as e:
                 print(e)
         elif op:
-            set_clause = ', '.join(f'{col} = COALESCE({col}, %({col})s)' if col != 'category' and col.endswith(
-                'ip') else f'{col} = %({col})s' for col in db_data.keys())
+            set_clause = ', '.join(
+                f'{col} = COALESCE({col}, %({col})s)' if col != 'category' and col.endswith('ip')
+                else f'{col} = %({col})s'
+                for col in db_data.keys()
+            )
             query = f"UPDATE cluster.nicinfo SET {set_clause} WHERE id=%(id)s"
 
             try:
@@ -122,4 +123,3 @@ def insert_nic_info(ip, db_data):
 
     cursor.close()
     conn.close()
-    

@@ -53,7 +53,16 @@ echo "{{ nfs_server_ip }}:{{ nfs_server_share_path }} {{ oim_shared_path }} nfs 
 {% endif %}
 
 echo "INFO: Loading container images." >> "$LOGFILE"
-podman load -i {{ container_images_path }} || { echo "ERROR: Loading container images." >> "$LOGFILE"; exit 1; }
+
+for tar in {{ container_images_path }}*.tar; do
+  echo "INFO: Loading container image from $tar" >> "$LOGFILE"
+  if podman load -i "$tar" >> "$LOGFILE" 2>&1; then
+    echo "INFO: Successfully loaded $tar" >> "$LOGFILE"
+  else
+    echo "ERROR: Failed to load $tar" >> "$LOGFILE"
+  fi
+done
+
 
 echo -e "INFO: Copying omnia_pcs quadlet file from NFS." >> "$LOGFILE"
 cp {{ oim_shared_path }}/omnia/pcs/{{ pcs_container_name }}.container {{ container_systemd_dir }}/{{ pcs_container_name }}.container

@@ -13,40 +13,78 @@
 # limitations under the License.
 
 #!/usr/bin/python
-
-from ansible.module_utils.basic import AnsibleModule
+"""Ansible module to check the status of nodes in a group."""
 import subprocess
+from ansible.module_utils.basic import AnsibleModule
 
 def run_cmd(cmd):
-    run = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    """
+    Executes a shell command and returns the result.
+
+    Parameters:
+        cmd (str): The shell command to execute.
+
+    Returns:
+        Tuple[bool, str, str]: A tuple containing the success status of the command,
+                              the standard error output, and the standard output.
+    """
+    run = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=False)
     if 'ERROR' in run.stderr:
         return False, run.stderr.strip(), run.stdout.strip()
-    else:
-        return True, run.stderr.strip(), run.stdout.strip()
+    return True, run.stderr.strip(), run.stdout.strip()
 
 def get_discover_nodes(group_name):
-    cmd = f'/opt/xcat/bin/lsdef -t group -o {group_name} | grep members | sed -n "/members=/s/    members=//p"'
-    status, err, out = run_cmd(cmd)
+    """
+    Retrieves the list of nodes that are part of the 'group_name' group.
+
+    Returns:
+        list: A list of nodes.
+
+    Raises:
+        None
+    """
+    cmd = (
+        f"/opt/xcat/bin/lsdef -t group -o {group_name} "
+        "| grep members "
+        '| sed -n "/members=/s/    members=//p"'
+    )
+    status, _, out = run_cmd(cmd)
     if status and out:
         return out.split(',')
-    else:
-        return []
+    return []
 
 def check_discover_nodes(nodelist):
+    """
+    This function checks the status of a list of nodes and returns a
+    list of nodes that are in the 'booted' status.
+
+    Parameters:
+        nodelist (list): A list of nodes to check.
+
+    Returns:
+        list: A list of nodes that are in the 'booted' status.
+
+    Raises:
+        None
+    """
     bmc_list = []
     for node in nodelist:
         node = node.strip()
-        cmd = f'/opt/xcat/bin/lsdef {node} -i status -c | sed -n "/{node}: status=/s/{node}: status=//p"'
-        status, err, out = run_cmd(cmd)
+        cmd = (
+            f"/opt/xcat/bin/lsdef {node} -i status -c "
+            f'| sed -n "/{node}: status=/s/{node}: status=//p"'
+        )
+        status, _, out = run_cmd(cmd)
         if status and not out.strip():
             bmc_list.append(node)
     return bmc_list
 
 def main():
+    """
+    Main function
+    """
     module = AnsibleModule(
-        argument_spec=dict(
-            group_name=dict(type='str', required=True)
-        )
+        argument_spec={"group_name": {"type": 'str', "required": True}}
     )
 
     group_name = module.params['group_name']
@@ -54,7 +92,11 @@ def main():
     try:
         nodelist = get_discover_nodes(group_name)
         if not nodelist:
-            module.exit_json(changed=False, discovered_nodes=[], message=f"No members found in group {group_name}")
+            module.exit_json(
+                changed=False,
+                discovered_nodes=[],
+                message=f"No members found in group {group_name}"
+            )
 
         new_nodes = check_discover_nodes(nodelist)
         module.exit_json(changed=False, discovered_nodes=new_nodes)

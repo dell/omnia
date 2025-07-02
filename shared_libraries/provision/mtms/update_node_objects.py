@@ -11,7 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""This module contains functions for updating node objects."""
 import subprocess
 import sys
 
@@ -21,13 +21,13 @@ sys.path.insert(0, db_path)
 import omniadb_connection
 
 node_obj_nm = []
-groups_static = "all,bmc_static"
-groups_dynamic = "all,bmc_dynamic"
-chain_setup = "runcmd=bmcsetup"
+GROUPS_STATIC = "all,bmc_static"
+GROUPS_DYNAMIC = "all,bmc_dynamic"
+CHAIN_SETUP = "runcmd=bmcsetup"
 provision_os_image = sys.argv[1]
 service_os_image = sys.argv[2]
-chain_os = f"osimage={provision_os_image}"
-discovery_mechanism = "mtms"
+CHAIN_OS = f"osimage={provision_os_image}"
+DISCOVERY_MECHANISM = "mtms"
 
 
 def get_node_obj():
@@ -39,7 +39,7 @@ def get_node_obj():
 	"""
 
     command = "/opt/xcat/bin/lsdef"
-    node_objs = subprocess.run(command.split(), capture_output=True)
+    node_objs = subprocess.run(command.split(), capture_output=True,check=False)
     temp = str(node_objs.stdout).split('\n')
     for i in range(0, len(temp) - 1):
         node_obj_nm.append(temp[i].split(' ')[0])
@@ -47,12 +47,12 @@ def get_node_obj():
     update_node_obj_nm()
 
 
-def update_node_obj_nm(chain_os=chain_os):
+def update_node_obj_nm(chain_os=CHAIN_OS):
     """
     Updates the node objects in the database.
 
-    - This function establishes a connection with omniadb and retrieves the service tags of the nodes
-      from the cluster.nodeinfo table.
+    - This function establishes a connection with omniadb and retrieves the service tags of the 
+      nodes from the cluster.nodeinfo table.
     - It then iterates over the service tags and converts them to lowercase.
     - After that, it iterates over the service tags again and converts them to uppercase.
     - For each service tag, it retrieves the node, admin_ip, bmc_ip, bmc_mode, role, group_name, and
@@ -79,15 +79,15 @@ def update_node_obj_nm(chain_os=chain_os):
     sql = """
         SELECT service_tag
         FROM cluster.nodeinfo
-        WHERE discovery_mechanism = %s
+        WHERE DISCOVERY_MECHANISM = %s
         AND (status IS NULL OR status != 'booted')
         """
-    cursor.execute(sql, (discovery_mechanism,))
+    cursor.execute(sql, (DISCOVERY_MECHANISM,))
     serial_output = cursor.fetchall()
-    for i in range(0, len(serial_output)):
+    for i, _ in enumerate(serial_output):
         if serial_output[i][0] is not None:
             serial_output[i] = str(serial_output[i][0]).lower()
-    for i in range(0, len(serial_output)):
+    for i, _ in enumerate(serial_output):
         print(serial_output[i])
         if serial_output[i][0] is not None:
             serial_output[i] = serial_output[i].upper()
@@ -96,7 +96,7 @@ def update_node_obj_nm(chain_os=chain_os):
                      FROM cluster.nodeinfo
                      WHERE service_tag = %s"""
             cursor.execute(sql, params)
-            node_name, admin_ip, bmc_ip, mode, role, group_name, architecture = cursor.fetchone()
+            node_name, admin_ip, bmc_ip, mode, role, group_name, _ = cursor.fetchone()
 
             if mode is None:
                 print("No device is found!")
@@ -105,15 +105,16 @@ def update_node_obj_nm(chain_os=chain_os):
                     chain_os = f"osimage={service_os_image}"
                 else:
                     chain_os = f"osimage={provision_os_image}"
-                command = ["/opt/xcat/bin/chdef", node_name, f"ip={admin_ip}", f"groups={groups_static},{role},{group_name}",
+                command = ["/opt/xcat/bin/chdef", node_name, f"ip={admin_ip}",
+                           f"groups={GROUPS_STATIC},{role},{group_name}",
                            f"chain={chain_os}", f"xcatmaster={oim_admin_ip}"]
-                subprocess.run(command)
+                subprocess.run(command, check=False)
             if mode == "dynamic":
                 command = ["/opt/xcat/bin/chdef", node_name,
-                           f"ip={admin_ip}", f"groups={groups_dynamic}",
-                           f"chain={chain_setup},{chain_os}",
+                           f"ip={admin_ip}", f"groups={GROUPS_DYNAMIC}",
+                           f"chain={CHAIN_SETUP},{chain_os}",
                            f"bmc={bmc_ip}", f"xcatmaster={oim_admin_ip}"]
-                subprocess.run(command)
+                subprocess.run(command,check=False)
 
     cursor.close()
     conn.close()

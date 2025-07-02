@@ -46,6 +46,11 @@ Mandatory",The network gateway IP is the assigned IP address of the NIC that con
 ``IP address``
 
 Optional","The IP of the extrernal DNS server. A DNS server, or Domain Name System server, translates domain names into IP addresses that computers use to identify each other on the network."
+,"**primary_oim_admin_ip**
+
+``IP address``
+
+Mandatory",The IP of the primary NIC connected to the OIM.
 ,"**MTU**
 
 ``integer``

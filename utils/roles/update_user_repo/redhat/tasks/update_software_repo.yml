@@ -16,20 +16,6 @@
 - name: Include vars from local_repo_access.yml file
   ansible.builtin.include_vars: "{{ local_repo_access_path }}"
 
-- name: Get pulp distribution result
-  ansible.builtin.command: "{{ pulp_bin_path }} {{ os_package_map[cluster_os] }} distribution list"
-  register: pulp_output
-  delegate_to: localhost
-  changed_when: false
-
-- name: Add pulp_output_fact to hostvars['localhost']
-  ansible.builtin.add_host:
-    name: localhost
-    pulp_output_fact: "{{ pulp_output.stdout | from_json }}"
-  delegate_to: localhost
-  run_once: true
-  when: pulp_output.stdout | from_json | length > 0
-
 - name: Generate software repository configurations
   ansible.builtin.include_tasks: create_software_repo.yml
   loop: "{{ software_config.softwares + software_config.amdgpu | default([]) }}"

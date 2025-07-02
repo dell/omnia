@@ -14,43 +14,54 @@
 
 #!/usr/bin/python
 
-""" Main L1 Validation code. Get the JSON schema and input file to validate """
+"""Main L1 Validation code. Get the JSON schema and input file to validate"""
 
 import json
+import jsonschema
 import ansible.module_utils.input_validation.common_utils.data_fetch as get
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
-import jsonschema
 from ansible.module_utils.input_validation.common_utils import logical_validation
 
 
-def schema(
-        input_file_path, schema_file_path,
-        passwords_set, omnia_base_dir,
-        project_name, logger, module):
+def schema(config):
     """
     Validates the input file against a JSON schema.
 
     Args:
-        input_file_path (str): The path to the input file.
-        schema_file_path (str): The path to the schema file.
+        config: dict with keys:
+        - input_file_path
+        - schema_file_path
+        - passwords_set
+        - omnia_base_dir
+        - project_name
+        - logger
+        - module
 
     Returns:
         bool: True if the validation is successful, False otherwise.
     """
+    input_file_path = config["input_file_path"]
+    schema_file_path = config["schema_file_path"]
+    passwords_set = config["passwords_set"]
+    omnia_base_dir = config["omnia_base_dir"]
+    project_name = config["project_name"]
+    logger = config["logger"]
+    module = config["module"]
     try:
         input_data, extension = get.input_data(
-                                input_file_path, omnia_base_dir,
-                                project_name, logger, module)
+            input_file_path, omnia_base_dir, project_name, logger, module
+        )
 
         # If input_data is None, it means there was a YAML syntax error
         if input_data is None:
             return False
 
         # Load schema
-        schema = json.load(open(schema_file_path, "r", encoding="utf-8"))
+        with open(schema_file_path, "r", encoding="utf-8") as schema_file:
+            j_schema = json.load(schema_file)
         logger.debug(en_us_validation_msg.get_validation_initiated(input_file_path))
 
-        validator = jsonschema.Draft7Validator(schema)
+        validator = jsonschema.Draft7Validator(j_schema)
         errors = sorted(validator.iter_errors(input_data), key=lambda e: e.path)
 
         # if errors exist, then print an error with the line number
@@ -59,20 +70,20 @@ def schema(
                 error_path = ".".join(map(str, error.path))
 
                 # Custom error messages for regex pattern failures
-                if 'Groups' == error_path:
-                    error.message = en_us_validation_msg.invalid_group_name_msg
-                elif 'location_id' in error_path:
-                    error.message = en_us_validation_msg.invalid_location_id_msg
-                elif 'ports' in error_path:
-                    error.message = en_us_validation_msg.invalid_switch_ports_msg
+                if "Groups" == error_path:
+                    error.message = en_us_validation_msg.INVALID_GROUP_NAME_MSG
+                elif "location_id" in error_path:
+                    error.message = en_us_validation_msg.INVALID_LOCATION_ID_MSG
+                elif "ports" in error_path:
+                    error.message = en_us_validation_msg.INVALID_SWITCH_PORTS_MSG
                 # TODO: Add a syntax error message for roles
                 # elif 'is not of type' in error.message:
-                #     error.message = en_us_validation_msg.invalid_attributes_role_msg
+                #     error.message = en_us_validation_msg.INVALID_ATTRIBUTES_ROLE_MSG
                 error_msg = f"Validation Error at {error_path}: {error.message}"
 
                 # For passwords, mask the value so that no password values are logged
-                if error.path[-1] in passwords_set:
-                    parts = error.message.split(' ', 1)
+                if error.path and error.path[-1] in passwords_set:
+                    parts = error.message.split(" ", 1)
                     if parts:
                         parts[0] = f"'{'*' * (len(parts[0]) - 2)}'"
                     error_msg = f"Validation Error at {error_path}: {' '.join(parts)}"
@@ -83,23 +94,24 @@ def schema(
                 line_number, is_line_num = None, False
                 if "json" in extension:
                     line_number, is_line_num = get.json_line_number(
-                                                input_file_path, error_path, module)
+                        input_file_path, error_path, module
+                    )
                 elif "yml" in extension:
                     line_number, is_line_num = get.yml_line_number(
-                                        input_file_path, error_path, omnia_base_dir, project_name)
+                        input_file_path, error_path, omnia_base_dir, project_name
+                    )
                     logger.info(line_number, is_line_num)
                 if line_number:
                     message = (
-                            f"Error occurs on line {line_number}"
-                            if is_line_num
-                            else f"Error occurs on object or list entry on line {line_number}"
-                            )
+                        f"Error occurs on line {line_number}"
+                        if is_line_num
+                        else f"Error occurs on object or list entry on line {line_number}"
+                    )
                     logger.error(message)
             logger.error(en_us_validation_msg.get_schema_failed(input_file_path))
             return False
-        else:
-            logger.info(en_us_validation_msg.get_schema_success(input_file_path))
-            return True
+        logger.info(en_us_validation_msg.get_schema_success(input_file_path))
+        return True
     except jsonschema.exceptions.SchemaError as schemaerror:
         message = f"Internal schema validation error: {schemaerror.message}"
         logger.error(message)
@@ -113,17 +125,20 @@ def schema(
         logger.error(message)
         return False
 
+
 # Code to run the L2 validation validate_input_logic function.
-def logic(input_file_path, logger, module, omnia_base_dir, module_utils_base, project_name):
+def logic(config):
     """
     Validates the logic of the input file.
 
     Args:
-        input_file_path (str): The path to the input file.
-        logger (logging.Logger): The logger object.
-        module (AnsibleModule): The Ansible module.
-        omnia_base_dir (str): The base directory of Omnia.
-        project_name (str): The name of the project.
+    config: dict with keys:
+        - input_file_path (str): The path to the input file.
+        - omnia_base_dir (str): The base directory of Omnia.
+        - module_utils_base (str): The base directory of the module utils.
+        - project_name (str): The name of the project.
+        - logger (logging.Logger): The logger object.
+        - module (AnsibleModule): The Ansible module.
 
     Returns:
         bool: True if the logic validation is successful, False otherwise.
@@ -132,14 +147,26 @@ def logic(input_file_path, logger, module, omnia_base_dir, module_utils_base, pr
         ValueError: If a value error occurs.
         Exception: If an unexpected error occurs.
     """
+    input_file_path = config["input_file_path"]
+    omnia_base_dir = config["omnia_base_dir"]
+    module_utils_base = config["module_utils_base"]
+    project_name = config["project_name"]
+    logger = config["logger"]
+    module = config["module"]
     try:
         input_data, extension = get.input_data(
-                                input_file_path, omnia_base_dir, project_name, logger, module)
+            input_file_path, omnia_base_dir, project_name, logger, module
+        )
 
         errors = logical_validation.validate_input_logic(
-                                    input_file_path, input_data,
-                                    logger, module, omnia_base_dir,
-                                    module_utils_base, project_name)
+            input_file_path,
+            input_data,
+            logger,
+            module,
+            omnia_base_dir,
+            module_utils_base,
+            project_name,
+        )
 
         # Print errors, if the error value is None then send a separate message.
         # This is for values where it did not have a single key as the error
@@ -154,16 +181,16 @@ def logic(input_file_path, logger, module, omnia_base_dir, module_utils_base, pr
                 # log the line number based off of the input config file extension
                 if "yml" in extension:
                     result = get.yml_line_number(
-                                input_file_path, error_key,
-                                omnia_base_dir, project_name)
+                        input_file_path, error_key, omnia_base_dir, project_name
+                    )
                     if result is not None:
                         line_number, is_line_num = result
                         if line_number:
                             message = (
-                                    f"Error occurs on line {line_number}"
-                                    if is_line_num
-                                    else f"Error occurs on object or list on line {line_number}"
-                                      )
+                                f"Error occurs on line {line_number}"
+                                if is_line_num
+                                else f"Error occurs on object or list on line {line_number}"
+                            )
                             logger.error(message)
                 elif "json" in extension:
                     result = get.json_line_number(input_file_path, error_key, module)
@@ -171,17 +198,16 @@ def logic(input_file_path, logger, module, omnia_base_dir, module_utils_base, pr
                         line_number, is_line_num = result
                         if line_number:
                             message = (
-                                    f"Error occurs on line {line_number}"
-                                    if is_line_num
-                                    else f"Error occurs on object or list on line {line_number}"
-                                    )
+                                f"Error occurs on line {line_number}"
+                                if is_line_num
+                                else f"Error occurs on object or list on line {line_number}"
+                            )
                             logger.error(message)
 
             logger.error(en_us_validation_msg.get_logic_failed(input_file_path))
             return False
-        else:
-            logger.info(en_us_validation_msg.get_logic_success(input_file_path))
-            return True
+        logger.info(en_us_validation_msg.get_logic_success(input_file_path))
+        return True
     except ValueError as valueerror:
         message = f"Value error at {input_file_path}: {valueerror}"
         logger.error(message, exc_info=True)

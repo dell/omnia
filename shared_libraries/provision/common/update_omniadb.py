@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import sys, os
-import subprocess
+"""
+This script updates the status of a node in the cluster.nodeinfo table in omniadb.
+"""
+import sys
+import os
 
 db_path = os.path.abspath(sys.argv[1])
 node = sys.argv[2]
@@ -21,7 +23,7 @@ node = sys.argv[2]
 sys.path.insert(0, db_path)
 import omniadb_connection
 
-def update_node_status(node):
+def update_node_status(node_obj):
     """
 	Updates the status of a node in the cluster.nodeinfo table in omniadb.
 
@@ -40,7 +42,7 @@ def update_node_status(node):
         SET status = 'booted'
         WHERE node = %s
     """
-    cursor.execute(update_status_query, (node,))
+    cursor.execute(update_status_query, (node_obj,))
     cursor.close()
     conn.close()
 

@@ -11,32 +11,30 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-
 """
 This script setups the omniadb.
 
 The module creates the omniadb database and cluster.nodeinfo table
 """
 
-
 import sys
+from cryptography.fernet import Fernet
+import psycopg2
 
 db_path = sys.argv[1]
 sys.path.insert(0, db_path)
 import omniadb_connection
-import psycopg2
-from cryptography.fernet import Fernet
 
-key_file_path = '/opt/omnia/.postgres/.postgres_pass.key'
-pass_file_path = '/opt/omnia/.postgres/.encrypted_pwd'
+KEY_FILE_PATH = "/opt/omnia/.postgres/.postgres_pass.key"
+PASS_FILE_PATH = "/opt/omnia/.postgres/.encrypted_pwd"
 
 def create_db():
     """
     Create a database connection to the PostgreSQL database.
 
     This function establishes a connection to the PostgreSQL database using the provided password.
-    It reads the encrypted password from a file, decrypts it using the provided key, and connects to the database.
+    It reads the encrypted password from a file, decrypts it using the provided key, and 
+    connects to the database.
 
     Parameters:
         None
@@ -45,11 +43,11 @@ def create_db():
         None
     """
 
-    with open(key_file_path, 'rb') as passfile:
+    with open(KEY_FILE_PATH, "rb") as passfile:
         key = passfile.read()
     fernet = Fernet(key)
 
-    with open(pass_file_path, 'rb') as datafile:
+    with open(PASS_FILE_PATH, "rb") as datafile:
         encrypted_file_data = datafile.read()
     decrypted_pwd = fernet.decrypt(encrypted_file_data).decode()
     conn = None
@@ -58,11 +56,15 @@ def create_db():
         # And also there is a default database exist named as 'postgres'.
         # Default host is 'localhost' or '127.0.0.1'
         # And default port is '54322'.
-        conn = psycopg2.connect("user='postgres' password='" + decrypted_pwd + "' host='localhost' port='5432'")
-        print('db connected')
+        conn = psycopg2.connect(
+            "user='postgres' password='"
+            + decrypted_pwd
+            + "' host='localhost' port='5432'"
+        )
+        print("db connected")
 
-    except Exception as err:
-        print("DB not connected")
+    except psycopg2.Error as err:
+        print(f"DB not connected. {err}")
 
     if conn is not None:
         conn.autocommit = True
@@ -75,9 +77,9 @@ def create_db():
         list_database = cursor.fetchall()
 
         if ("omniadb",) in list_database:
-            print("'{}' Database already exists".format("omniadb"))
+            print("omniadb Database already exists")
         else:
-            sql = ''' CREATE database omniadb '''
+            sql = """ CREATE database omniadb """
             cursor.execute(sql)
             print("Database created successfully !!")
 
@@ -95,7 +97,7 @@ def create_db_schema(conn):
         None
     """
     cursor = conn.cursor()
-    sql = ''' CREATE SCHEMA IF NOT EXISTS cluster'''
+    sql = """ CREATE SCHEMA IF NOT EXISTS cluster"""
     cursor.execute(sql)
     cursor.close()
 
@@ -103,16 +105,16 @@ def create_db_schema(conn):
 def create_db_table(conn):
     """
     Creates a table named 'nodeinfo' in the 'cluster' schema if it doesn't already exist.
-    The table has columns for 'ID', 'service_tag', 'node', 'hostname', 'group_name', 'role', 'parent', admin_mac',
-    'admin_ip', 'bmc_ip', 'status', 'architecture', 'location_id', 'discovery_mechanism', 'bmc_mode', 'switch_ip',
-    'switch_name', 'switch_port', 'cpu', 'gpu', 'cpu_count', and 'gpu_count'.
-    The 'ID' column is a serial number, primary key, and unique.
+    The table has columns for 'ID', 'service_tag', 'node', 'hostname', 'group_name', 'role', 
+    'parent', admin_mac', 'admin_ip', 'bmc_ip', 'status', 'architecture', 'location_id', 
+    'discovery_mechanism', 'bmc_mode', 'switch_ip', 'switch_name', 'switch_port', 'cpu', 'gpu', 
+    'cpu_count', and 'gpu_count'. The 'ID' column is a serial number, primary key, and unique.
     The function executes the SQL query to create the table and prints a message.
     The function closes the cursor.
     """
     cursor = conn.cursor()
 
-    sql = '''CREATE TABLE IF NOT EXISTS cluster.nodeinfo(
+    sql = """CREATE TABLE IF NOT EXISTS cluster.nodeinfo(
         ID SERIAL NOT NULL PRIMARY KEY UNIQUE,
         service_tag VARCHAR(30),
         node VARCHAR(30),
@@ -134,10 +136,11 @@ def create_db_table(conn):
         cpu VARCHAR(10),
         gpu VARCHAR(10),
         cpu_count INTEGER,
-        gpu_count INTEGER)'''
+        gpu_count INTEGER)"""
     cursor.execute(sql)
     print(" DB changes are done")
     cursor.close()
+
 
 def main():
     """
@@ -162,5 +165,5 @@ def main():
     create_db_table(conn)
     conn.close()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

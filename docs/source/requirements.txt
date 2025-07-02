@@ -7,3 +7,4 @@ myst-parser
 configargparse
 appdirs
 immutables
+sphinx-design

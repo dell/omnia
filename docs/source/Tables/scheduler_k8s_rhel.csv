@@ -18,14 +18,6 @@
      Required       ","* These addresses will be used by Loadbalancer for assigning External IPs to K8s services
 * Make sure the IP range is not assigned to any node in the cluster.
 * **Sample values**: ""10.11.0.100-10.11.0.150"" , ""10.11.0.0/16""                            "
-"**ansible_config_file_path**
-
-     ``string``
-
-     Required           ","* Path to directory hosting ansible config file (ansible.cfg file)
-* This directory is on the host running ansible, if ansible is installed   using dnf
-* If ansible is installed using pip, this path should be set                        
-* **Default value**: ``/etc/ansible``                                           "
 "**k8s_service_addresses**
 
      ``string``
@@ -58,3 +50,10 @@
 * **Default value**: ``container``
 
 **Example**: ``topology_manager_scope: ""container""``"
+"**k8s_offline_install** 
+
+      ``boolean``
+
+      Optional","* **Default value**: ``true``.
+* With the variable set to ``true``,  all packages and images necessary to set up a Kubernetes cluster are pulled from the OIM local repository.
+* With the variable set to ``false``,  all packages and images necessary to set up a Kubernetes cluster are pulled from the internet instead of the OIM local repository. If you set the value to ``false``, ensure that the value of ``enable_routed_internet`` in ``local_repo_config.yml`` is ``true``. To know more, `click here <../CreateLocalRepo/InputParameters.html#opt-omnia-input-project-default-local-repo-config-yml>`_."

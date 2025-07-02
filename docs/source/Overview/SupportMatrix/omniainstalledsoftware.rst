@@ -1,7 +1,18 @@
 Software Installed by Omnia
 ===========================
 
-   .. csv-table:: Softwares installed by Omnia
-      :file: ../../Tables/omnia_installed_software.csv
+.. dropdown:: Software support matrix for RHEL clusters
+
+   .. csv-table::
+      :file: ../../Tables/software_matrix_rhel.csv
       :header-rows: 1
       :keepspace:
+      :class: longtable
+
+.. dropdown:: Unsupported packages
+
+   .. csv-table::
+      :file: ../../Tables/unsupported_packages.csv
+      :header-rows: 1
+      :keepspace:
+      :class: longtable

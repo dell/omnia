@@ -11,7 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""This module provisions discovered nodes with the rinstall command."""
 
 import sys
 import subprocess
@@ -20,8 +20,7 @@ db_path = sys.argv[1]
 sys.path.insert(0, db_path)
 
 import omniadb_connection
-discovery_mechanism = "mapping"
-
+DISCOVERY_MECHANISM = "mapping"
 
 def provision_map_nodes_bmc():
     """
@@ -39,8 +38,8 @@ def provision_map_nodes_bmc():
     # Establish connection with cluster.nodeinfo
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
-    sql = "SELECT node FROM cluster.nodeinfo WHERE discovery_mechanism = %s AND bmc_ip IS NOT NULL"
-    cursor.execute(sql, (discovery_mechanism,))
+    sql = "SELECT node FROM cluster.nodeinfo WHERE DISCOVERY_MECHANISM = %s AND bmc_ip IS NOT NULL"
+    cursor.execute(sql, (DISCOVERY_MECHANISM,))
     node_name = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -57,10 +56,9 @@ def provision_map_nodes_bmc():
             mapping_bmc_nodes.append(node[0])
             command = f"/opt/xcat/bin/rinstall {node[0]}"
             command_list = command.split()
-            node_objs = subprocess.run(command_list, capture_output=True)
+            _ = subprocess.run(command_list, capture_output=True, check=False)
     print(mapping_bmc_nodes)
     cursor_x.close()
     conn_x.close()
-
 
 provision_map_nodes_bmc()

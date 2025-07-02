@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+This module deletes the switch ports from the database.
+"""
 import sys
 import subprocess
 
@@ -24,6 +26,12 @@ node_obj = ""
 
 
 def check_switch_table():
+    """
+    Checks if the cluster.nodeinfo table has any entries.
+
+    Returns:
+        str: "true" if the table has entries, and exits with an error message if not.
+    """
     # Check if cluster.nodeinfo has valid input for switch_based entry
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
@@ -37,33 +45,47 @@ def check_switch_table():
 
 
 def delete_node_object(nodename):
+    """
+    Deletes the node object from the cluster.nodeinfo table.
+
+    Parameters:
+        nodename (str): The name of the node to be deleted.
+
+    Returns:
+        None
+    """
     # Delete the entry from /etc/hosts
     print("hello=", nodename)
     command = f"/opt/xcat/sbin/makehosts -d {nodename}"
-    temp = subprocess.run([f'{command}'], shell=True)
+    subprocess.run([f'{command}'], shell=True, check=False)
 
     # Delete the nodes from xcat
     command = f"/opt/xcat/bin/rmdef {nodename}"
     print(command)
-    temp = subprocess.run([f'{command}'], shell=True)
+    subprocess.run([f'{command}'], shell=True, check=False)
 
     # Run DHCP and dns
-    command = f"/opt/xcat/sbin/makedhcp -a"
-    temp = subprocess.run([f'{command}'], shell=True)
+    command = "/opt/xcat/sbin/makedhcp -a"
+    subprocess.run([f'{command}'], shell=True, check=False)
 
-    command = f"/opt/xcat/sbin/makedhcp -n"
-    temp = subprocess.run([f'{command}'], shell=True)
+    command = "/opt/xcat/sbin/makedhcp -n"
+    subprocess.run([f'{command}'], shell=True, check=False)
 
-    command = f"/opt/xcat/sbin/makedns -n"
-    temp = subprocess.run([f'{command}'], shell=True)
-
+    command = "/opt/xcat/sbin/makedns -n"
+    subprocess.run([f'{command}'], shell=True, check=False)
 
 def delete_switch_db_details():
+    """
+    Deletes the switch details from the cluster.switchinfo table.
+
+    Returns:
+        None
+    """
     switch_op = check_switch_table()
     conn = omniadb_connection.create_connection()
     cursor = conn.cursor()
     ports = switch_ports.split(',')
-    sql = '''select switch_name from cluster.switchinfo where switch_ip= '{switch_ip}' '''.format(switch_ip=switch_ip)
+    sql = f"select switch_name from cluster.switchinfo where switch_ip = '{switch_ip}'"
     cursor.execute(sql)
     switch_name = cursor.fetchone()[0]
     print(ports)
@@ -75,48 +97,50 @@ def delete_switch_db_details():
 
                 for j in range(start_port, end_port):
                     port = str(j)
-                    sql = '''select exists(select switch_port from cluster.nodeinfo where switch_port = '{switch_port_key}' and switch_name='{switch_v3_name}')'''.format(
-                        switch_port_key=port, switch_v3_name=switch_name)
+                    sql = (f"select exists(select switch_port from cluster.nodeinfo "
+                           f"where switch_port = '{port}' and switch_name='{switch_name}')")
                     cursor.execute(sql)
                     output = cursor.fetchone()[0]
                     if output:
-                        sql = '''select node from cluster.nodeinfo where switch_port = '{switch_port_key}' and switch_name='{switch_v3_name}' '''.format(
-                            switch_port_key=port, switch_v3_name=switch_name)
+                        sql = (f"select node from cluster.nodeinfo "
+                               f"where switch_port = '{port}' and switch_name='{switch_name}'")
                         cursor.execute(sql)
                         node_obj = cursor.fetchone()[0]
 
-                        sql = '''delete from cluster.nodeinfo where switch_port = '{switch_port_key}' and switch_name='{switch_v3_name}' '''.format(
-                            switch_port_key=port, switch_v3_name=switch_name)
+                        sql = (f"delete from cluster.nodeinfo "
+                               f"where switch_port = '{port}' and switch_name='{switch_name}'")
                         cursor.execute(sql)
 
                         delete_node_object(node_obj)
 
                     else:
-                        print("switch_port=", port, " for switch_ip=", switch_ip, "not present in the DB")
+                        print("switch_port=", port,
+                              " for switch_ip=", switch_ip, "not present in the DB")
 
             else:
                 port = str(ports[i])
                 print(port)
-                sql = '''select exists(select switch_port from cluster.nodeinfo where switch_port = '{switch_port_key}' and switch_name='{switch_v3_name}')'''.format(
-                    switch_port_key=port, switch_v3_name=switch_name)
+                sql = (f"select exists(select switch_port from cluster.nodeinfo "
+                       f"where switch_port = '{port}' and switch_name='{switch_name}')")
                 cursor.execute(sql)
                 output = cursor.fetchone()[0]
 
                 if output:
-                    sql = '''select node from cluster.nodeinfo where switch_port = '{switch_port_key}' and switch_name='{switch_v3_name}' '''.format(
-                        switch_port_key=port, switch_v3_name=switch_name)
+                    sql = (f"select node from cluster.nodeinfo "
+                           f"where switch_port = '{port}' and switch_name='{switch_name}'")
                     cursor.execute(sql)
                     node_obj = cursor.fetchone()[0]
 
-                    sql = '''delete from cluster.nodeinfo where switch_port = '{switch_port_key}' and switch_name='{switch_v3_name}' '''.format(
-                        switch_port_key=port, switch_v3_name=switch_name)
+                    sql = (f"delete from cluster.nodeinfo "
+                           f"where switch_port = '{port}' and switch_name='{switch_name}'")
                     cursor.execute(sql)
 
                     delete_node_object(node_obj)
                     print(node_obj)
 
                 else:
-                    print("switch_port=", port, "for switch_ip=", switch_ip, "not present in the DB")
+                    print("switch_port=", port,
+                          "for switch_ip=", switch_ip, "not present in the DB")
 
 
 delete_switch_db_details()

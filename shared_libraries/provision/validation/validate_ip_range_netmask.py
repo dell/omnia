@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+This file checks if a given IP range is within a specified netmask.
+"""
 import ipaddress
 import sys
 
@@ -41,7 +43,7 @@ def main():
 	It splits the `ip_range` argument by "-" and assigns the resulting values
 	to `start_ip` and `end_ip`. It then calls the `is_static_range_within_netmask`
 	function with the `start_ip`, `end_ip`, and `netmask` as arguments.
-	
+
 	If any exception occurs during the execution of the function, the `result`
 	variable is set to False. Finally, the value of `result` is printed.
 
@@ -58,9 +60,9 @@ def main():
 
         start_ip = ip_range.split("-")[0]
         end_ip = ip_range.split("-")[1]
-    
+
         result = is_static_range_within_netmask(start_ip, end_ip, int(netmask))
-    except:
+    except Exception:
         result = False
     print(result)
 

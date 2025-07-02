@@ -13,7 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+This script checks if an IP address is within a given IP range.
+"""
 import sys
 
 def ip_range_check(ip_range, ip):
@@ -40,7 +42,10 @@ def main():
     """
 	Executes the main function of the program.
 
-	This function takes two command line arguments, `ip_range` and `ip`, and performs an IP range check using the `ip_range_check` function. If the IP is within the range, the function returns `True`, otherwise it returns `False`. The result is then printed to the console.
+	This function takes two command line arguments, `ip_range` and `ip`,
+        and performs an IP range check using the `ip_range_check` function.
+    If the IP is within the range, the function returns `True`,
+        otherwise it returns `False`. The result is then printed to the console.
 
 	Parameters:
 	- `ip_range` (str): The IP range to check against.
@@ -53,9 +58,9 @@ def main():
     try:
         ip_range = sys.argv[1]
         ip = sys.argv[2]
-    
+
         result = ip_range_check(ip_range, ip)
-    except:
+    except Exception:
         result = False
     print(result)
 

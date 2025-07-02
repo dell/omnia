@@ -34,6 +34,7 @@ warning_idrac_telemetry_support_true: |
   Confirm that all BMC IPs are reachable from the OIM and respective service nodes for telemetry to function properly.
   Make sure that Redfish is enabled and the iDRAC has a datacenter license.
   Also, ensure that the firmware version is greater than 4 for iDRAC9 or greater than 1 for iDRAC10."
+warning_federated_telemetry_support: "Failed: Federated iDRAC Telemetry Collection is not supported yet and will be available in future releases."
 
 # # Usage: include_provision_config.yml
 # provision_config_file: "{{ input_project_dir }}/provision_config.yml"
@@ -44,6 +45,15 @@ warning_idrac_telemetry_support_true: |
 # k8s_prom_gaudi_inventory_fail_msg: "Inventory comprising kube_control_plane, kube_node and etcd groups should be passed  \
 # when k8s_prometheus_support or prometheus_gaudi_support is true in telemetry_config.yml."
 # prometheus_scrape_interval_fail_msg: "Failed. prometheus_scrape_interval accepts integer values greater than 0"
+
+# Usage: validate_image_tars.yml
+# noqa: yaml[line-length]
+omnia_images_tar_missing_msg: |
+  Following images tarball(s) are missing: {{ missing_tars }}.
+  To ensure these tar files are present at {{ omnia_images_dir_path }}, execute the utility below:
+    `ansible-playbook utils/save_container_images.yml -e 'visualization_support=true idrac_telemetry_support=true k8s_support=true'`
+  After saving the images, re-run the telemetry playbook.
+
 # Usage: read_software_config.yml
 software_config_file: "{{ input_project_dir }}/software_config.json"
 local_repo_sn_missing_msg: |

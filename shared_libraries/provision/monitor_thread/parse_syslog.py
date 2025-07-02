@@ -11,25 +11,27 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-import commentedconfigparser
+"""This module contains functions for parsing syslog messages."""
 import os
 import syslog
 from psycopg2.extensions import cursor
+import commentedconfigparser
 
 def get_count(line: str) -> int:
     """
-	Splits a line of text by the '=' character and returns the second element of the resulting list as an integer.
+    Splits a line of text by the '=' character and returns the second element of the resulting 
+    list as an integer.
 
-	Parameters:
-		line (str): The line of text to be split.
+    Parameters:
+            line (str): The line of text to be split.
 
-	Returns:
-		int: The second element of the split line as an integer. If the split line has only one element, returns 0.
-	"""
+    Returns:
+            int: The second element of the split line as an integer. If the split line has only 
+            one element, returns 0.
+    """
 
     # Split the input string by '=' character
-    split_line = line.split('=')
+    split_line = line.split("=")
 
     # If the split string has more than one element, return the second element as an integer
     if len(split_line) > 1:
@@ -41,15 +43,16 @@ def get_count(line: str) -> int:
 
 def get_node_info_db(cursor: cursor, node: str) -> tuple:
     """
-	Retrieves the node information from the database.
+    Retrieves the node information from the database.
 
-	Parameters:
-		cursor (cursor): The cursor object used to execute the SQL query.
-		node (str): The node name.
+    Parameters:
+            cursor (cursor): The cursor object used to execute the SQL query.
+            node (str): The node name.
 
-	Returns:
-		tuple: A tuple containing the service tag, admin IP, CPU, GPU, CPU count, GPU count, status, admin MAC, and hostname of the node.
-	"""
+    Returns:
+            tuple: A tuple containing the service tag, admin IP, CPU, GPU, CPU count, 
+            GPU count, status, admin MAC, and hostname of the node.
+    """
 
     # Define the SQL query to retrieve node information
     query = """
@@ -82,24 +85,24 @@ def get_node_info_db(cursor: cursor, node: str) -> tuple:
 
 def get_updated_cpu_gpu_info(node: str) -> tuple:
     """
-	Retrieves the updated CPU and GPU information for a given node.
+    Retrieves the updated CPU and GPU information for a given node.
 
-	Parameters:
-		node (str): The name of the node.
+    Parameters:
+            node (str): The name of the node.
 
-	Returns:
-		tuple: A tuple containing the updated CPU and GPU information.
-				The tuple contains the following elements:
-					- cpu (str): The type of CPU.
-					- gpu (str): The type of GPU.
-					- cpu_count (int): The count of CPU.
-					- gpu_count (int): The count of GPU.
+    Returns:
+            tuple: A tuple containing the updated CPU and GPU information.
+            The tuple contains the following elements:
+                    - cpu (str): The type of CPU.
+                    - gpu (str): The type of GPU.
+                    - cpu_count (int): The count of CPU.
+                    - gpu_count (int): The count of GPU.
 
-	Raises:
-		FileNotFoundError: If the log file is not found.
-		IOError: If there is an issue reading the log file.
-		Exception: If there is any other exception.
-	"""
+    Raises:
+            FileNotFoundError: If the log file is not found.
+            IOError: If there is an issue reading the log file.
+            Exception: If there is any other exception.
+    """
 
     # Define the strings to search for GPU and CPU
     nvidia_gpu_str = "NVIDIA GPU Found"
@@ -119,11 +122,11 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
     cpu_found = False
 
     # Define the path to the log file
-    computes_log_file_path = '/var/log/xcat/computes.log'
+    computes_log_file_path = "/var/log/xcat/computes.log"
 
     try:
         # Open the log file
-        with open(computes_log_file_path, 'r', encoding='utf-8') as file:
+        with open(computes_log_file_path, "r", encoding="utf-8") as file:
             # Read the contents of the file
             contents = file.readlines()
             if contents:
@@ -132,7 +135,7 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
                     # Check if the node name is present in the line
                     if node in line:
                         # Check if the GPU have been found
-                        if gpu_found == False:
+                        if not gpu_found:
                             # Check if the Nvidia GPU str is present in the line
                             if nvidia_gpu_str in line:
                                 gpu = "nvidia"
@@ -153,7 +156,7 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
                                 gpu_found = True
 
                         # Check if the CPU has been found
-                        if cpu_found == False:
+                        if not cpu_found:
                             # Check if the Intel CPU str is present in the line
                             if intel_cpu_str in line:
                                 cpu = "intel"
@@ -169,35 +172,49 @@ def get_updated_cpu_gpu_info(node: str) -> tuple:
                                 cpu_found = True
 
                         # Break out of the loop if both GPU and CPU have been found
-                        if cpu_found == True and gpu_found == True:
+                        if cpu_found and gpu_found:
                             break
 
     except FileNotFoundError:
         # Log an error if the file is not found
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:get_updated_cpu_gpu_info: File '{computes_log_file_path}' not found")
-    except IOError as err:
+        syslog.syslog(
+            syslog.LOG_ERR,
+            f"parse_syslog:get_updated_cpu_gpu_info: File '{computes_log_file_path}' not found",
+        )
+    except IOError:
         # Log an error if there is an issue reading the file
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:get_updated_cpu_gpu_info: Error reading file '{computes_log_file_path}'")
+        syslog.syslog(
+            syslog.LOG_ERR,
+            f"parse_syslog:get_updated_cpu_gpu_info: Error reading file '{computes_log_file_path}'",
+        )
     except Exception as err:
         # Log an error if there is any other exception
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:get_updated_cpu_gpu_info: Exception in '{computes_log_file_path}' parsing: " + str(type(err)) + " " + str(err))
+        syslog.syslog(
+            syslog.LOG_ERR,
+            f"""parse_syslog:get_updated_cpu_gpu_info: Exception in '{computes_log_file_path}' 
+            parsing: """
+            + str(type(err))
+            + " "
+            + str(err),
+        )
     finally:
-        # Return the CPU and GPU information
-        return (cpu, gpu, cpu_count, gpu_count)
+        pass
+    return (cpu, gpu, cpu_count, gpu_count)
 
 
 def update_db(cursor: cursor, node: str, updated_node_info: tuple) -> None:
     """
-	Update the database with the provided updated node information.
+    Update the database with the provided updated node information.
 
-	Parameters:
-		cursor (cursor): The cursor object used to execute the SQL query.
-		node (str): The name of the node.
-		updated_node_info (tuple): A tuple containing the updated CPU, GPU, CPU count, and GPU count.
+    Parameters:
+            cursor (cursor): The cursor object used to execute the SQL query.
+            node (str): The name of the node.
+            updated_node_info (tuple): A tuple containing the updated CPU, GPU, CPU count, 
+            and GPU count.
 
-	Returns:
-		None
-	"""
+    Returns:
+            None
+    """
 
     # Unpack the updated node information tuple
     cpu, gpu, cpu_count, gpu_count = updated_node_info
@@ -221,20 +238,20 @@ def update_db(cursor: cursor, node: str, updated_node_info: tuple) -> None:
 
 def remove_hostname_inventory(inventory_file: str, hostname: str) -> None:
     """
-	Remove a hostname from the inventory file.
+    Remove a hostname from the inventory file.
 
-	Parameters:
-		inventory_file (str): The path to the inventory file.
-		hostname (str): The hostname to remove.
+    Parameters:
+            inventory_file (str): The path to the inventory file.
+            hostname (str): The hostname to remove.
 
-	Returns:
-		None
-	"""
+    Returns:
+            None
+    """
 
     try:
         # Read the inventory file
         config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
-        config.read(inventory_file, encoding='utf-8')
+        config.read(inventory_file, encoding="utf-8")
 
         # Change the permission of the file
         os.chmod(inventory_file, 0o644)
@@ -242,16 +259,22 @@ def remove_hostname_inventory(inventory_file: str, hostname: str) -> None:
         # Remove hostname if exists in the inventory file
         if not config.remove_option(inventory_file, hostname):
             # Log a message if the hostname is not found
-            syslog.syslog(syslog.LOG_INFO, f"parse_syslog:remove_hostname_inventory: '{hostname}' is not found in '{inventory_file}'")
+            syslog.syslog(
+                syslog.LOG_INFO,
+                f"""parse_syslog:remove_hostname_inventory: '{hostname}' is 
+                not found in '{inventory_file}'""",
+            )
             return
 
         # Write the updated inventory file
-        with open(inventory_file, 'w', encoding='utf-8') as configfile:
+        with open(inventory_file, "w", encoding="utf-8") as configfile:
             config.write(configfile, space_around_delimiters=False)
 
-    except (OSError,
-            Exception) as err:
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:remove_hostname_inventory: {str(type(err))} {str(err)}")
+    except (OSError, Exception) as err:
+        syslog.syslog(
+            syslog.LOG_ERR,
+            f"parse_syslog:remove_hostname_inventory: {str(type(err))} {str(err)}",
+        )
     finally:
         # Change the permission of the file to readonly
         os.chmod(inventory_file, 0o444)
@@ -259,20 +282,20 @@ def remove_hostname_inventory(inventory_file: str, hostname: str) -> None:
 
 def add_hostname_inventory(inventory_file: str, hostname: str) -> None:
     """
-	Adds a hostname to the inventory file.
+    Adds a hostname to the inventory file.
 
-	Parameters:
-		inventory_file (str): The path to the inventory file.
-		hostname (str): The hostname to add.
+    Parameters:
+            inventory_file (str): The path to the inventory file.
+            hostname (str): The hostname to add.
 
-	Returns:
-		None
-	"""
+    Returns:
+            None
+    """
 
     try:
         # Read the config file
         config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
-        config.read(inventory_file, encoding='utf-8')
+        config.read(inventory_file, encoding="utf-8")
 
         # Change the permission of the file
         os.chmod(inventory_file, 0o644)
@@ -281,35 +304,42 @@ def add_hostname_inventory(inventory_file: str, hostname: str) -> None:
         config.set(inventory_file, hostname)
 
         # Write the inventory file
-        with open(inventory_file, 'w', encoding='utf-8') as configfile:
+        with open(inventory_file, "w", encoding="utf-8") as configfile:
             config.write(configfile, space_around_delimiters=False)
 
-    except (OSError,
-            Exception) as err:
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:add_hostname_inventory: {str(type(err))} {str(err)}")
+    except (OSError, Exception) as err:
+        syslog.syslog(
+            syslog.LOG_ERR,
+            f"parse_syslog:add_hostname_inventory: {str(type(err))} {str(err)}",
+        )
     finally:
         # Change the permission of the file to readonly
         os.chmod(inventory_file, 0o444)
 
+
 def generate_inventory_for_node(node_info_db: tuple) -> None:
     """
-    generate_inventory_for_node: Generates the inventory file for the node based on the information in the database.
+    generate_inventory_for_node: Generates the inventory file for the node based on 
+    the information in the database.
 
     Parameters:
-        node_info_db (tuple): A tuple containing the service tag, admin IP, CPU, GPU, hostname and role from the database.
-    
+        node_info_db (tuple): A tuple containing the service tag, admin IP, CPU, GPU, 
+        hostname and role from the database.
+
     Returns:
         None
     """
     try:
         inventory_file = "/opt/omnia/omnia_inventory/cluster_layout"
-        inventory_header = "# This file is generated by omnia, and should not be edited\n"
+        inventory_header = (
+            "# This file is generated by omnia, and should not be edited\n"
+        )
 
         if not os.path.exists(inventory_file):
-          # Create a new file if it doesn't exist
-          with open(inventory_file, 'w', encoding='utf-8') as file:
-             file.write(inventory_header)
-             file.flush()
+            # Create a new file if it doesn't exist
+            with open(inventory_file, "w", encoding="utf-8") as file:
+                file.write(inventory_header)
+                file.flush()
         else:
             # Change the permission of the file
             os.chmod(inventory_file, 0o644)
@@ -320,51 +350,62 @@ def generate_inventory_for_node(node_info_db: tuple) -> None:
 
         # Read the config file
         config = commentedconfigparser.CommentedConfigParser(allow_no_value=True)
-        config.read(inventory_file, encoding='utf-8')
+        config.read(inventory_file, encoding="utf-8")
 
         for group in roles_list:
             group = group.strip()
-            if 'default' in group:
+            if "default" in group:
                 continue
-            else:
-                # Check if the section exists, otherwise create it
-                if not config.has_section(group):
-                    config.add_section(group)
 
-                # Set the hostname under the correct section
-                config.set(group, hostname, None)  # Use None as value since no value is required
+            # Check if the section exists, otherwise create it
+            if not config.has_section(group):
+                config.add_section(group)
+
+            # Set the hostname under the correct section
+            config.set(
+                group, hostname, None
+            )  # Use None as value since no value is required
 
         # Write the inventory file
-        with open(os.path.abspath(inventory_file), 'w', encoding='utf-8') as configfile:
+        with open(os.path.abspath(inventory_file), "w", encoding="utf-8") as configfile:
             config.write(configfile, space_around_delimiters=False)
             configfile.flush()
 
-    except (OSError,
-            Exception) as err:
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory_for_node: {str(type(err))} {str(err)}")
+    except (OSError, Exception) as err:
+        syslog.syslog(
+            syslog.LOG_ERR,
+            f"parse_syslog:generate_inventory_for_node: {str(type(err))} {str(err)}",
+        )
     finally:
         # Change the permission of the file to readonly
         os.chmod(inventory_file, 0o444)
 
-     
+
 def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:
     """
-	Update the inventory files based on the changes in the node information.
+    Update the inventory files based on the changes in the node information.
 
-	Parameters:
-		node_info_db (tuple): A tuple containing the service tag, admin IP, CPU, GPU, and hostname from the database.
-		updated_node_info (tuple): A tuple containing the updated CPU and GPU information.
+    Parameters:
+            node_info_db (tuple): A tuple containing the service tag, admin IP, CPU, GPU, 
+            and hostname from the database. updated_node_info (tuple): A tuple containing 
+            the updated CPU and GPU information.
 
-	Returns:
-		None
+    Returns:
+            None
 
-	Raises:
-		Exception: If an error occurs during the update process.
+    Raises:
+            Exception: If an error occurs during the update process.
     """
 
     try:
         # Unpack the node information from the tuples
-        service_tag, admin_ip, db_cpu, db_gpu, hostname = node_info_db[0], node_info_db[1], node_info_db[2], node_info_db[3], node_info_db[8]
+        _, admin_ip, db_cpu, db_gpu, hostname = (
+            node_info_db[0],
+            node_info_db[1],
+            node_info_db[2],
+            node_info_db[3],
+            node_info_db[8],
+        )
         updated_cpu, updated_gpu = updated_node_info[0], updated_node_info[1]
 
         # No modification in inventory if no hostname
@@ -381,11 +422,15 @@ def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:
         if updated_cpu != db_cpu:
             if db_cpu:
                 # Remove existing hostname from corresponding inventory file
-                inventory_file_str = "compute_cpu_intel" if db_cpu == "intel" else "compute_cpu_amd"
+                inventory_file_str = (
+                    "compute_cpu_intel" if db_cpu == "intel" else "compute_cpu_amd"
+                )
                 remove_hostname_inventory(inventory_file_str, hostname)
             if updated_cpu:
                 # Add hostname to corresponding inventory file
-                inventory_file_str = "compute_cpu_intel" if updated_cpu == "intel" else "compute_cpu_amd"
+                inventory_file_str = (
+                    "compute_cpu_intel" if updated_cpu == "intel" else "compute_cpu_amd"
+                )
                 add_hostname_inventory(inventory_file_str, hostname)
                 # Add hostname and admin ip to compute_hostname_ip inventory file
                 hostname_ip_str = f"{hostname} ansible_host={admin_ip}"
@@ -412,4 +457,7 @@ def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:
                     inventory_file_str = "compute_gpu_intel"
                 add_hostname_inventory(inventory_file_str, hostname)
     except Exception as e:
-        syslog.syslog(syslog.LOG_ERR, f"parse_syslog:update_inventory: Exception occurred: {str(type(e))} {str(e)}")
+        syslog.syslog(
+            syslog.LOG_ERR,
+            f"parse_syslog:update_inventory: Exception occurred: {str(type(e))} {str(e)}",
+        )

@@ -11,7 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""Module for mapping file database operations."""
 import sys
 import json
 
@@ -22,14 +22,12 @@ import omniadb_connection
 
 mapping_details = json.loads(sys.argv[2])
 domain_name = sys.argv[3]
-discovery_mechanism = "mapping"
+DISCOVERY_MECHANISM = "mapping"
 admin_mac = []
 hostname = []
 admin_ip = []
 bmc_ip = []
 nan = float('nan')
-
-
 
 def mapping_file_db_update():
     """
@@ -79,8 +77,11 @@ def mapping_file_db_update():
 
         if not exists:
             # Insert new node record
-            omniadb_connection.insert_node_info(temp_service_tag, node, fqdn_hostname, temp_mac, temp_admin_ip, temp_bmc_ip,
-            group_name, role, parent, location_id, architecture, discovery_mechanism, None, None, None, None)
+            omniadb_connection.insert_node_info(temp_service_tag, node,
+                                                fqdn_hostname, temp_mac, temp_admin_ip,
+                                                temp_bmc_ip, group_name, role, parent, location_id,
+                                                architecture, DISCOVERY_MECHANISM,
+                                                None, None, None, None)
         else:
             existing_mac.append(temp_mac)
             sys.stdout.write(f"{temp_mac} already present in DB.\n")

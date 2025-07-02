@@ -11,29 +11,34 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""
+Database connection utilities for Omnia discovery modules.
+"""
+import sys
 import psycopg2 as pg
 from psycopg2.extras import DictCursor
 from cryptography.fernet import Fernet
-import sys
 
-key_file_path = '/opt/omnia/.postgres/.postgres_pass.key'
-pass_file_path = '/opt/omnia/.postgres/.encrypted_pwd'
 
-with open(key_file_path, 'rb') as passfile:
+KEY_FILE_PATH = "/opt/omnia/.postgres/.postgres_pass.key"
+PASS_FILE_PATH = "/opt/omnia/.postgres/.encrypted_pwd"
+
+with open(KEY_FILE_PATH, "rb") as passfile:
     key = passfile.read()
 fernet = Fernet(key)
 
-with open(pass_file_path, 'rb') as datafile:
+with open(PASS_FILE_PATH, "rb") as datafile:
     encrypted_file_data = datafile.read()
 decrypted_pwd = fernet.decrypt(encrypted_file_data).decode()
+
 
 def create_connection():
     """
     Create a database connection to the omniadb.
 
     This function establishes a connection to the omniadb database using the provided password.
-    It reads the encrypted password from a file, decrypts it using the provided key, and connects to the database.
+    It reads the encrypted password from a file,
+        decrypts it using the provided key, and connects to the database.
 
     Parameters:
         None
@@ -52,12 +57,14 @@ def create_connection():
     conn.autocommit = True
     return conn
 
+
 def create_connection_xcatdb():
     """
     Create a database connection to the xcatdb.
 
     This function establishes a connection to the xcatdb database using the provided password.
-    It reads the encrypted password from a file, decrypts it using the provided key, and connects to the database.
+    It reads the encrypted password from a file,
+        decrypts it using the provided key, and connects to the database.
 
     Parameters:
         None
@@ -77,8 +84,24 @@ def create_connection_xcatdb():
     return conn
 
 
-def insert_node_info(service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, group_name, role, parent, location_id,
-                     architecture, discovery_mechanism, bmc_mode, switch_ip, switch_name, switch_port):
+def insert_node_info(
+    service_tag,
+    node,
+    hostname,
+    admin_mac,
+    admin_ip,
+    bmc_ip,
+    group_name,
+    role,
+    parent,
+    location_id,
+    architecture,
+    discovery_mechanism,
+    bmc_mode,
+    switch_ip,
+    switch_name,
+    switch_port,
+):
     """
     Inserts node information into the cluster.nodeinfo table.
 
@@ -106,21 +129,34 @@ def insert_node_info(service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, g
     conn = create_connection()
     cursor = conn.cursor()
 
-    sql = '''INSERT INTO cluster.nodeinfo(
+    sql = """INSERT INTO cluster.nodeinfo(
                 service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, group_name, role, parent, location_id, architecture,
                 discovery_mechanism, bmc_mode, switch_ip, switch_name, switch_port)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)'''
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
 
     params = (
-        service_tag, node, hostname, admin_mac, str(admin_ip) if admin_ip else None,
-        str(bmc_ip) if bmc_ip else None, group_name, role, parent, location_id, architecture,
-        discovery_mechanism, bmc_mode, str(switch_ip) if switch_ip else None, switch_name,
-        switch_port
+        service_tag,
+        node,
+        hostname,
+        admin_mac,
+        str(admin_ip) if admin_ip else None,
+        str(bmc_ip) if bmc_ip else None,
+        group_name,
+        role,
+        parent,
+        location_id,
+        architecture,
+        discovery_mechanism,
+        bmc_mode,
+        str(switch_ip) if switch_ip else None,
+        switch_name,
+        switch_port,
     )
 
     cursor.execute(sql, params)
     conn.commit()
     conn.close()
+
 
 def insert_switch_info(switch_name, switch_ip, group):
     """
@@ -136,13 +172,15 @@ def insert_switch_info(switch_name, switch_ip, group):
     conn = create_connection()
     cursor = conn.cursor()
     # Insert switch details to cluster.switchinfo table
-    sql = '''INSERT INTO cluster.switchinfo(switch_name,switch_ip, group_name) VALUES (%s,%s,%s)'''
+    sql = """INSERT INTO cluster.switchinfo(switch_name,switch_ip, group_name) VALUES (%s,%s,%s)"""
     params = (switch_name, switch_ip, group)
     cursor.execute(sql, params)
 
-    return f"Inserted switch_ip: {switch_ip} with switch_name: {switch_name} into cluster.switchinfo table"
+    return (f"Inserted switch_ip: {switch_ip} with switch_name: "
+            f"{switch_name} into cluster.switchinfo table")
 
-def get_data_from_db(db='omniadb', table_name='cluster.nodeinfo', filter_dict={}):
+
+def get_data_from_db(db="omniadb", table_name="cluster.nodeinfo", filter_dict=None):
     """
     Retrieves data from the database based on the provided filter.
 
@@ -160,7 +198,8 @@ def get_data_from_db(db='omniadb', table_name='cluster.nodeinfo', filter_dict={}
     """
     conn = get_db_connection(db)
     cursor = conn.cursor(cursor_factory=DictCursor)
-
+    if filter_dict is None:
+        filter_dict = {}
     filter_query, params = create_filter_query(filter_dict)
 
     query = f"SELECT * FROM {table_name} WHERE true{filter_query}"
@@ -189,7 +228,7 @@ def create_filter_query(filter_dict):
     params = []
 
     for col, val in filter_dict.items():
-        if col == 'role':
+        if col == "role":
             filter_query += f" AND {col} ~* %s"
             params.append(f".*{val}.*")
         else:
@@ -197,6 +236,7 @@ def create_filter_query(filter_dict):
             params.append(val)
 
     return filter_query, params
+
 
 def get_db_connection(db):
     """
@@ -211,16 +251,17 @@ def get_db_connection(db):
     Raises:
         Exception: If the database connection fails.
     """
-    if db == 'omniadb':
+    if db == "omniadb":
         conn = create_connection()
-    elif db == 'xcatdb':
+    elif db == "xcatdb":
         conn = create_connection_xcatdb()
     else:
         sys.exit(f"Invalid database: {db}")
 
     return conn
 
-def execute_select_query(query, db='omniadb', params=None):
+
+def execute_select_query(query, db="omniadb", params=None):
     """
     Executes a user-provided query on the given database and returns the result.
 

@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+This module is used to validate CIDR.
+"""
 import ipaddress
 import sys
 
@@ -34,7 +36,8 @@ def validate_cidr(cidr):
 
 def main():
     """
-	The main function that takes a single argument `cidr` from the command line and prints the result of the `validate_cidr` function.
+	The main function that takes a single argument `cidr` from the command line and
+        prints the result of the `validate_cidr` function.
 
 	Parameters:
 		None

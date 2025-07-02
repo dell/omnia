@@ -66,10 +66,19 @@ prometheus_podman_volumes:
   - { name: "prometheus_log", path: "{{ prometheus_log_dir }}" }
 
 # Usage: pull_podman_images.yml
-omnia_images_tar: "{{ omnia_nfs_share }}/images/omnia_images.tar"
+omnia_images_dir_path: "{{ oim_shared_path }}/omnia/images"
 load_images_fail_msg: |
-  "Failed to load the telemetry images from the tar file {{ omnia_images_tar }}.
-  Ensure the tar file is present in the shared folder by running prepare_oim.yml and re-run telemetry.yml again."
+  Failed to load images from the tar file {{ failed_images }}.
+  Image tar file may be corrupt. To save a new image tar file, remove existing tar:
+    cd /opt/omnia/images && \
+    rm -f {{ failed_img_tarballs | join(' ') }}
+
+  and then execute the utility below:
+
+    ansible-playbook {{ playbook_dir }}/../utils/save_container_images.yml -v \
+      -e 'container_images=[{{ failed_images | map('to_json') | join(',') }}]'
+
+  After saving the images, re-run the telemetry playbook.
 
 # Usage: render_telemetry_template.yml
 service_node_base_dir: "/opt/omnia/service_nodes"

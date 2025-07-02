@@ -13,94 +13,132 @@
 # limitations under the License.
 
 ### All of these messages are used in logical_validation.py
+"""
+This module contains validation messages in English (US) for input validation.
+These messages are used to provide user-friendly error messages during configuration validation.
+"""
 
-# roles_config.yml
-max_number_of_roles_msg = "A max of 100 roles can be supported."
-min_number_of_groups_msg = "At least 1 group is required."
-min_number_of_roles_msg = "At least 1 role is required."
-max_number_of_roles_per_group_msg = "Groups can support a maximum of 5 roles."
-resource_mgr_id_msg = "The resource_mgr_id is mandatory if the group is mapped to kube_node or \
-    slurm_node roles."
-grp_exist_msg = "A valid group must be provided."
-invalid_switch_ip_msg = "Please provide a valid switch IPv4 address (example: 10.5.0.1)."
-grp_role_msg = "Please associate this group with a role."
-parent_service_node_msg = "Group is associated with login, compiler_node, service_node, \
-    kube_control_plane, slurm_control_plane role(s)."
-parent_service_role_dne_msg = "A service_node role must be present when the parent is provided."
-parent_service_role_msg = "A service_node role does not exist, the parent should be empty \
-    for any group associated with worker or default roles."
-bmc_static_range_invalid_msg = "Static range should be in the following format: \
-    IPv4Start-IPv4End (example: 10.5.0.1-10.5.0.200)."
-overlapping_static_range = "bmc_detail's static_range is overlapping with other static ranges."
-duplicate_switch_ip_port_msg = "Please remove duplicate ports."
-switch_details_incomplete_msg = "If providing switch details, please provide both the IP and \
-    Ports fields."
-switch_details_no_bmc_details_msg = "If switch details are provided then bmc_detail's \
-    static_range must also be provided."
-invalid_group_name_msg = "Groups must be defined in the form of grp<n> where n is 0-99."
-invalid_location_id_msg = "location_id must follow the format SU-<n>.RACK-<n> where n is 0-99.\
-     This input is case-sensitive. Please use uppercase letters only."
-invalid_attributes_role_msg = "Please provide valid attributes for the role, both 'name' and \
-    'groups' are mandatory."
-no_groups_msg = "Outer Group object was probably not defined."
-no_roles_msg = "Outer Role object was probably not defined."
-invalid_switch_ports_msg = "Please provide any port ranges as start-end (example: 0-15,4:4,51-53)."
-duplicate_group_name_msg = "Duplicate group names are not allowed."
-empty_or_syntax_error_roles_config_msg = "File is either empty or contains syntax errors. File must contain valid YAML with 'Roles' and 'Groups' sections along with valid syntax. Check the file content and ensure proper YAML formatting."
-duplicate_group_name_in_layers_msg = "The following groups are mapped to both frontend and compute layers, which is not allowed for group: [{0}] in frontend layer: [{1}] and compute layer: [{2}]"
-SERVICE_NODE_ENTRY_MISSING_ROLES_CONFIG_MSG = "The role service_node defined in roles_config.yml," \
-    " but service_node entry missing in sofware_config.json, " \
-    "Please rerun local repo with service_node entry in software_config.json to deploy service nodes successfully"
+MAX_NUMBER_OF_ROLES_MSG = "A max of 100 roles can be supported."
+MIN_NUMBER_OF_GROUPS_MSG = "At least 1 group is required."
+MIN_NUMBER_OF_ROLES_MSG = "At least 1 role is required."
+MAX_NUMBER_OF_ROLES_PER_GROUP_MSG = "Groups can support a maximum of 5 roles."
+RESOURCE_MGR_ID_MSG = ("The resource_mgr_id is mandatory if the group is mapped to "
+                       "kube_node or slurm_node roles.")
+GRP_EXIST_MSG = "A valid group must be provided."
+INVALID_SWITCH_IP_MSG = "Please provide a valid switch IPv4 address (example: 10.5.0.1)."
+GRP_ROLE_MSG = "Please associate this group with a role."
+PARENT_SERVICE_NODE_MSG = ("Group is associated with login, compiler_node, service_node, "
+                          "kube_control_plane, slurm_control_plane role(s).")
+PARENT_SERVICE_ROLE_DNE_MSG = "A service_node role must be present when the parent is provided."
+PARENT_SERVICE_ROLE_MSG = ("A service_node role does not exist, the parent should be empty "
+                          "for any group associated with worker or default roles.")
+BMC_STATIC_RANGE_INVALID_MSG = ("Static range should be in the following format: "
+                               "IPv4Start-IPv4End (example: 10.5.0.1-10.5.0.200).")
+OVERLAPPING_STATIC_RANGE = "bmc_detail's static_range is overlapping with other static ranges."
+DUPLICATE_SWITCH_IP_PORT_MSG = "Please remove duplicate ports."
+
+SWITCH_DETAILS_INCOMPLETE_MSG = ("If providing switch details, please provide both the IP "
+                                 "and Ports fields.")
+SWITCH_DETAILS_NO_BMC_DETAILS_MSG = ("If switch details are provided then bmc_detail's "
+                                    "static_range must also be provided.")
+INVALID_GROUP_NAME_MSG = "Groups must be defined in the form of grp<n> where n is 0-99."
+INVALID_LOCATION_ID_MSG = ("location_id must follow the format SU-<n>.RACK-<n> where n is 0-99. "
+                          "This input is case-sensitive. Please use uppercase letters only.")
+INVALID_ATTRIBUTES_ROLE_MSG = ("Please provide valid attributes for the role, "
+                              "both 'name' and 'groups' are mandatory.")
+NO_GROUPS_MSG = "Outer Group object was probably not defined."
+NO_ROLES_MSG = "Outer Role object was probably not defined."
+INVALID_SWITCH_PORTS_MSG = "Please provide any port ranges as start-end (example: 0-15,4:4,51-53)."
+DUPLICATE_GROUP_NAME_MSG = "Duplicate group names are not allowed."
+EMPTY_OR_SYNTAX_ERROR_ROLES_CONFIG_MSG = ("File is either empty or contains syntax errors. "
+                                         "File must contain valid YAML with 'Roles' and 'Groups' "
+                                         "sections along with valid syntax. Check the file content "
+                                         "and ensure proper YAML formatting.")
+DUPLICATE_GROUP_NAME_IN_LAYERS_MSG = ("The following groups are mapped to both frontend and "
+                                     "compute layers, which is not allowed for group: [{0}] in "
+                                     "frontend layer: [{1}] and compute layer: [{2}]")
+SERVICE_NODE_ENTRY_MISSING_ROLES_CONFIG_MSG = ("The role service_node defined in roles_config.yml,"
+    " but service_node entry missing in sofware_config.json, "
+    "Please rerun local repo with service_node entry in software_config.json "
+    "to deploy service nodes successfully")
 
 # provision_config.yml
-default_lease_time_fail_msg = "Please provide a valid default_lease_time."
-timezone_fail_msg = "Unsupported Timezone. Please check the timezone.txt file for a list of \
-    valid timezones."
-enable_switch_based_fail_msg = "enable_switch_based must be set to either true or false."
-language_fail_msg = "Only en-US language supported"
-language_empty_msg = "Language setting cannot be empty"
-nodename_chars_fail_msg = "node_name is empty or invalid in provision_config.yml. node_name should not contain _ or . or space or node- as it might result in issues with provisioning/authentication tools like FreeIPA."
-public_nic_fail_msg = "public_nic is empty. Please provide a public_nic value."
-pxe_mapping_file_path_fail_msg = "File path is invalid. Please ensure the file path specified in pxe_mapping_file_path exists and points to a valid file, not a directory."
-pxe_mapping_file_ext_fail_msg = "File path is invalid. Please ensure that the file ends with .csv extension"
-ntp_support_empty_msg = "The ntp_support must have a boolean value set to either true or false."
-disk_partition_fail_msg = "Duplicate mount points found in disk_partition configuration"
-cluster_os_fail_msg = "Cluster OS must be 'rhel' for RHEL Omnia Infrastructure Manager"
+DEFAULT_LEASE_TIME_FAIL_MSG = "Please provide a valid default_lease_time."
+TIMEZONE_FAIL_MSG = ("Unsupported Timezone. Please check the timezone.txt file "
+                    "for a list of valid timezones.")
+ENABLE_SWITCH_BASED_FAIL_MSG = "enable_switch_based must be set to either true or false."
+LANGUAGE_FAIL_MSG = "Only en-US language supported"
+LANGUAGE_EMPTY_MSG = "Language setting cannot be empty"
+NODENAME_CHARS_FAIL_MSG = ("node_name is empty or invalid in provision_config.yml. node_name "
+                          "should not contain _ or . or space or node- as it might result in "
+                          "issues with provisioning/authentication tools like FreeIPA.")
+PUBLIC_NIC_FAIL_MSG = "public_nic is empty. Please provide a public_nic value."
+PXE_MAPPING_FILE_PATH_FAIL_MSG = ("File path is invalid. Please ensure the file path specified in "
+                                 "pxe_mapping_file_path exists and points to a valid file, "
+                                 "not a directory.")
+PXE_MAPPING_FILE_EXT_FAIL_MSG = ("File path is invalid. Please ensure that the file ends with "
+                                 ".csv extension")
+NTP_SUPPORT_EMPTY_MSG = "The ntp_support must have a boolean value set to either true or false."
+DISK_PARTITION_FAIL_MSG = "Duplicate mount points found in disk_partition configuration"
+CLUSTER_OS_FAIL_MSG = "Cluster OS must be 'rhel' for RHEL Omnia Infrastructure Manager"
 
 # local_repo.yml
-repo_store_path_msg = "Please provide a valid repo_store_path value."
-omnia_repo_url_msg = "Repo urls are empty. Please provide a url and corresponding key."
-rhel_os_url_msg = "is empty. Please provide a rhel_os_url value."
-ubuntu_os_url_msg = "ubuntu_os_url is empty. Please provide a ubuntu_os_url value."
+REPO_STORE_PATH_MSG = "Please provide a valid repo_store_path value."
+OMNIA_REPO_URL_MSG = "Repo urls are empty. Please provide a url and corresponding key."
+RHEL_OS_URL_MSG = "is empty. Please provide a rhel_os_url value."
+UBUNTU_OS_URL_MSG = "ubuntu_os_url is empty. Please provide a ubuntu_os_url value."
 
 # omnia_config.yml
-invalid_password_msg = "Provided password is invalid. Password must meet the specified requirements: \
-    should not be empty, must have a length of at least 8 characters, and should not contain the following characters: '-', '\', "'", or '"'"
-k8s_cni_fail_msg = "k8s_cni is empty or invalid. k8s_cni must be set to either calico or flannel. "
-pod_external_ip_range_fail_msg = "pod_external_ip_range value is either empty or invalid. Please \
-    provide one of the following acceptable formats: '10.11.0.100-10.11.0.150' (range between start and end IP addresses) or '10.11.0.0/16' (CIDR notation)."
-slurm_installation_type_fail_msg = "slurm_installation_type is empty or invalid. \
-    slurm_installation_type_fail_msg must either be set to nfs_share or configless."
-restart_slurm_services_fail_msg = "restart_slurm_services is empty or invalid. \
-    restart_slurm_services must be set to either true or false."
-k8s_service_addresses_fail_msg = "k8s_service_addresses are empty. Please provide k8s_service_addresses value."
-k8s_pod_network_cidr_fail_msg = "k8s_pod_network_cidr is empty. Please provide a k8s_pod_network_cidr value."
-intel_gaudi_fail_msg = "should not be false as intel_gaudi exists in software_config.json"
-csi_driver_secret_fail_msg = "CSI Powerscale driver secret file path should not be empty."
-csi_driver_values_fail_msg = "CSI Powerscale driver values file path should not be empty."
+INVALID_PASSWORD_MSG = ("Provided password is invalid. Password must meet the specified "
+                       "requirements: should not be empty, must have a length of at least "
+                       "8 characters, and should not contain the following characters: "
+                       "'-', '\\', \"'\", or '\"'")
+K8S_CNI_FAIL_MSG = "k8s_cni is empty or invalid. k8s_cni must be set to either calico or flannel. "
+POD_EXTERNAL_IP_RANGE_FAIL_MSG = ("pod_external_ip_range value is either empty or invalid. Please "
+                                 "provide one of the following acceptable formats: '10.11.0.100-"
+                                 "10.11.0.150' (range between start and end IP addresses) or "
+                                 "'10.11.0.0/16' (CIDR notation).")
+SLURM_INSTALLATION_TYPE_FAIL_MSG = ("slurm_installation_type is empty or invalid. "
+                                   "slurm_installation_type_fail_msg must either be set to "
+                                   "nfs_share or configless.")
+RESTART_SLURM_SERVICES_FAIL_MSG = ("restart_slurm_services is empty or invalid. "
+                                  "restart_slurm_services must be set to either true or false.")
+K8S_SERVICE_ADDRESSES_FAIL_MSG = ("k8s_service_addresses are empty. "
+                                  "Please provide k8s_service_addresses value.")
+K8S_POD_NETWORK_CIDR_FAIL_MSG = ("k8s_pod_network_cidr is empty. "
+                                 "Please provide a k8s_pod_network_cidr value.")
+INTEL_GAUDI_FAIL_MSG = "should not be false as intel_gaudi exists in software_config.json"
+CSI_DRIVER_SECRET_FAIL_MSG = "CSI Powerscale driver secret file path should not be empty."
+CSI_DRIVER_VALUES_FAIL_MSG = "CSI Powerscale driver values file path should not be empty."
 
 # provision_config_credentials.yml
-provision_password_fail_msg = "Incorrect provision_password format. Password must meet the specified requirements: should not be empty, must have a length of at least 8 characters, and should not contain the following characters: '-', '\', "'", or '"'"
-postgresdb_password_fail_msg = "Failed. postgresdb_password should contain only alphanumeric characters and minimum length 8"
+PROVISION_PASSWORD_FAIL_MSG = ("Incorrect provision_password format. Password must meet the  "
+                              "specified requirements: should not be empty, must have a "
+                              "length of at least 8 characters, and should not contain the "
+                              "following characters: '-', '\\', \"'\", or '\"'")
+POSTGRESDB_PASSWORD_FAIL_MSG = ("Failed. postgresdb_password should contain only alphanumeric "
+                               "characters and minimum length 8")
 def bmc_username_fail_msg(min_username_length, max_length):
-    return f"bmc_username length must be between {min_username_length} and {max_length} characters. Must not contain '-', '\', "'", or '"'"
-bmc_password_fail_msg = "Incorrect bmc_password format. Password must meet the specified requirements: should not be empty, must have a length of at least 3 characters, and should not contain the following characters: '-', '\', "'", or '"'"
-docker_password_fail_msg = "Docker password must not be empty."
-switch_snmp3_username_empty_msg = "enabled_switch_based is set to true, switch_snmp3_username must not be empty"
-switch_snmp3_password_empty_msg = "enabled_switch_based is set to true, switch_snmp3_password must not be empty"
+    """Returns a formatted message indicating bmc_username_fail_msg."""
+    return (f"bmc_username length must be between {min_username_length} and "
+            f"{max_length} characters. Must not contain '-', '\\', \"'\", or '\"'")
+
+BMC_PASSWORD_FAIL_MSG = ("Incorrect bmc_password format. Password must meet the specified "
+                        "requirements: should not be empty, must have a length of at least "
+                        "3 characters, and should not contain the following characters: "
+                        "'-', '\\', \"'\", or '\"'")
+DOCKER_PASSWORD_FAIL_MSG = "Docker password must not be empty."
+SWITCH_SNMP3_USERNAME_EMPTY_MSG = ("enabled_switch_based is set to true, "
+                                   "switch_snmp3_username must not be empty")
+SWITCH_SNMP3_PASSWORD_EMPTY_MSG = ("enabled_switch_based is set to true, "
+                                   "switch_snmp3_password must not be empty")
 def switch_snmp3_username_fail_msg(min_username_length, max_length):
-    return f"switch_snmp3_username length must be between {min_username_length} and {max_length} characters. Must not contain '-', '\\', "'", or '"'"
-switch_snmp3_password_fail_msg = "switch_snmp3_password must be at least 3 characters. Must not contain '-', '\\', "'", or '"'"
+    """Returns a formatted message indicating switch_snmp3_username_fail_msg."""
+    return (f"switch_snmp3_username length must be between {min_username_length} "
+            f"and {max_length} characters. Must not contain '-', '\\', \"'\", or '\"'")
+SWITCH_SNMP3_PASSWORD_FAIL_MSG = ("switch_snmp3_password must be at least 3 characters. "
+                                 "Must not contain '-', '\\', \"'\", or '\"'")
+
 
 # telemetry_config.yml
 UNSUPPORTED_IDRAC_TELEMETRY_COLLECTION_TYPE= ("unsupported. "
@@ -108,51 +146,86 @@ UNSUPPORTED_IDRAC_TELEMETRY_COLLECTION_TYPE= ("unsupported. "
 FEDERATED_IDRAC_TELEMETRY_COLLECTION_FAIL= ("idrac_telemetry_support must be set to true "
                                             "in order to enable federated_idrac_telemetry_collection.")
 def boolean_fail_msg(value):
+    """Returns a formatted message indicating boolean_fail_msg."""
     return f"{value} must be set to either true or false."
-appliance_k8s_pod_net_cidr_fail_msg = "appliance_k8s_pod_net_cidr value is either empty or invalid. Please provide CIDR notation such as 192.168.0.0/16"
+APPLIANCE_K8S_POD_NET_CIDR_FAIL_MSG = ("appliance_k8s_pod_net_cidr value is either empty or "
+                                      "invalid. Please provide CIDR notation such as "
+                                      "192.168.0.0/16")
+K8S_PROMETHEUS_SUPPORT_FAIL_MSG = ("k8s_prometheus_support must be True when "
+                                   "prometheus_gaudi_support is True.")
+PROMETHEUS_SCRAPE_INTERVAL_FAIL_MSG = ("prometheus_scrape_interval must be at least 15 when "
+                                      "prometheus_gaudi_support is True.")
 
 # security_config.yml
-domain_name_fail_msg = "domain_name is empty. Please provide a domain_name value."
-realm_name_fail_msg = "realm_name is empty. Please provide a realm_name value."
-ldap_connection_type_fail_msg = "ldap_connection_type is empty. Please provide a ldap_connection_type value."
-openldap_organization_fail_msg = "openldap_organization is empty. Please provide a openldap_organization value."
-openldap_organizational_unit_fail_msg = "openldap_organizational_unit is empty. Please provide a openldap_organizational_unit value."
+DOMAIN_NAME_FAIL_MSG = "domain_name is empty. Please provide a domain_name value."
+REALM_NAME_FAIL_MSG = "Failed. Incorrect realm_name formate in security_config.yml"
+LDAP_CONNECTION_TYPE_FAIL_MSG = "Failed. LDAP Connection type must be: SSL, TLS, ssl or tls"
+OPENLDAP_ORGANIZATION_FAIL_MSG = ("openldap_organization is empty. "
+                                  "Please provide a openldap_organization value.")
+OPENLDAP_ORGANIZATIONAL_UNIT_FAIL_MSG = ("openldap_organizational_unit is empty. "
+                                         "Please provide a openldap_organizational_unit value.")
+AUTHENTICATION_SYSTEM_FAIL_MSG = ("[WARNING] authentication_system variable in security_config.yml "
+                                 "should be either openldap or freeipa")
+AUTHENTICATION_SYSTEM_SUCCESS_MSG = "authentication_system variable successfully validated"
+FREEIPA_AND_OPENLDAP_TRUE_FAIL_MSG = ("Both freeipa and openldap "
+                                      "are present in software_config.json. "
+                                      "Please give only one of them in software_config.json")
+LDAP_CERT_PATH_FAIL_MSG = "Failed, LDAP certificate path doesn't exist."
+ALERT_EMAIL_WARNING_MSG = ("[WARNING] alert_email_address is empty. "
+                           "Authentication failure alerts won't be configured.")
+ALERT_EMAIL_FAIL_MSG = ("Failed. Incorrect alert_email_address value "
+                        "in login_node_security_config.yml")
+SMTP_SERVER_FAIL_MSG = ("Failed. smtp_server details are mandatory when "
+                        "alert_email_address provide in login_node_security_config.yml.")
 
 # software_config.json
-iso_file_path_fail_msg = "The provided ISO file path is invalid. Please ensure that the ISO file exists at the specified iso_file_path."
-iso_file_path_not_contain_iso_msg = "The provided ISO file path must have the .iso extension."
-MISSING_ADDITIONAL_SOFTWARE_JSON_FILE = "The software_config.json has addtional_software field but missing the additional_software.json file."
-def iso_file_path_not_contain_os_msg(iso_file_path, provision_os, provision_os_version):
-    return f'Make sure iso_file_path variable in provision_config.yml contains value mentioned in the variables cluster_type: {provision_os} and cluster_os_version: {provision_os_version} mentioned in software_config.json'
+ISO_FILE_PATH_FAIL_MSG = ("The provided ISO file path is invalid. "
+                         "Please ensure that the ISO file exists at the specified iso_file_path.")
+ISO_FILE_PATH_NOT_CONTAIN_ISO_MSG = "The provided ISO file path must have the .iso extension."
+def iso_file_path_not_contain_os_msg(provision_os, provision_os_version):
+    """Returns a formatted message indicating iso_file_path_not_contain_os_msg."""
+    return (f'Make sure iso_file_path variable in provision_config.yml contains value mentioned '
+            f'in the variables cluster_type: {provision_os} and cluster_os_version: '
+            f'{provision_os_version} mentioned in software_config.json')
 def os_version_fail_msg(cluster_os_type, min_version, max_version):
-    if (cluster_os_type == "ubuntu"):
-        return f"For OS type '{cluster_os_type}', the version must be either {min_version} or {max_version}."
+    """Returns a formatted message indicating os_version_fail_msg."""
+    if cluster_os_type == "ubuntu":
+        return (f"For OS type '{cluster_os_type}', the version must be either {min_version} or "
+                f"{max_version}.")
     return f"For OS type '{cluster_os_type}', the version must be {min_version}."
 def software_mandatory_fail_msg(software_name):
-    return f"in software_config.json. Please add the corresponding field '{software_name}' to the JSON. Look at /examples/template_ubuntu_software_config.json for an example"
-
+    """Returns a formatted message indicating software_mandatory_fail_msg."""
+    return (f"in software_config.json. Please add the corresponding field '{software_name}' "
+            "to the JSON. Look at /examples/template_ubuntu_software_config.json for an example")
 def json_file_mandatory(file_path):
-     return f"is present in software_config.json. Please make sure that the corresponding JSON file is present at location '{file_path}'"
+    """Returns a formatted message indicating json_file_mandatory."""
+    return (f"is present in software_config.json. Please make sure that the corresponding JSON file"
+            f" is present at location '{file_path}'")
 
 # network_spec.json
-range_ip_check_fail_msg = "Failed. IP range should be in valid format (Example: 192.168.1.1-192.168.1.254)"
-range_ip_check_overlap_msg = "Static range and dynamic range in admin_network must not overlap"
-network_gateway_fail_msg = "Failed. network_gateway should be a valid IP address (Example: 192.168.1.1)"
-admin_network_missing_msg = "Failed. admin_network configuration is mandatory in network_spec.yml"
-netmask_bits_fail_msg = "Netmask bit must be a valid number between 1 and 32"
-range_netmask_boundary_fail_msg = "IP range is outside the valid address range for the specified netmask."
+RANGE_IP_CHECK_FAIL_MSG = ("Failed. IP range should be in valid format "
+                           "(Example: 192.168.1.1-192.168.1.254)")
+RANGE_IP_CHECK_OVERLAP_MSG = "Static range and dynamic range in admin_network must not overlap"
+NETWORK_GATEWAY_FAIL_MSG = ("Failed. network_gateway should be a valid IP address "
+                            "(Example: 192.168.1.1)")
+ADMIN_NETWORK_MISSING_MSG = "Failed. admin_network configuration is mandatory in network_spec.yml"
+NETMASK_BITS_FAIL_MSG = "Netmask bit must be a valid number between 1 and 32"
+RANGE_NETMASK_BOUNDARY_FAIL_MSG = ("IP range is outside the valid address range for "
+                                   "the specified netmask.")
 
 # telemetry
-mandatory_field_fail_msg = "must not be empty"
-mysqldb_user_fail_msg = "username should not be kept 'root'."
-fuzzy_offset_fail_msg = "should be between 60 and omnia_telemetry_collection_interval value"
-metric_collection_timeout_fail_msg = "should be greater than 0 and less than omnia_telemetry_collection_interval value"
-mount_location_fail_msg = "should have '/' at the end of the path"
-grafana_password_fail_msg = "should not be kept 'admin'"
+MANDATORY_FIELD_FAIL_MSG = "must not be empty"
+MYSQLDB_USER_FAIL_MSG = "username should not be kept 'root'."
+FUZZY_OFFSET_FAIL_MSG = "should be between 60 and omnia_telemetry_collection_interval value"
+METRIC_COLLECTION_TIMEOUT_FAIL_MSG = ("should be greater than 0 and less than "
+                                      "omnia_telemetry_collection_interval value")
+MOUNT_LOCATION_FAIL_MSG = "should have '/' at the end of the path"
+GRAFANA_PASSWORD_FAIL_MSG = "should not be kept 'admin'"
 
 # security
-file_path_fail_msg = "path does not exist"
+FILE_PATH_FAIL_MSG = "path does not exist"
 def tls_ext_fail_msg(valid_extensions):
+    """Returns a formatted message indicating tls_ext_fail_msg."""
     extensions_list = ' or '.join(valid_extensions)
     return f"should have {extensions_list} extension"
 
@@ -168,26 +241,39 @@ MULT_SHARE_FAIL_MSG = "Exactly one entry should be present in nfs_client_params 
 BEEGFS_UMOUNT_CLIENT_FAIL_MSG = "should be set to true since beegfs_mounts value has been changed"
 
 # server_spec
-server_spec_nicnetworks_fail_msg = "in server_spec.yml must exist within network_spec.yml as a network name. Please check both files"
+SERVER_SPEC_NICNETWORKS_FAIL_MSG = ("in server_spec.yml must exist within network_spec.yml as a "
+                                    "network name. Please check both files")
 def server_spec_network_key_fail_msg(nic_device):
+    """Returns a formatted message indicating server_spec_network_key_fail_msg."""
     return f"in server_spec.yml does not start with '{nic_device}' (nicdevices)"
-ip_overlap_fail_msg = "admin network, bmc network and k8 network and IP ranges should not have any IP overlap. Check omnia_config.yml and network_spec.yml"
-telemetry_ip_overlap_fail_msg = "admin network, telemetry network and IP ranges should not have any IP overlap. Check telemetry_config.yml and network_spec.yml"
+IP_OVERLAP_FAIL_MSG = ("admin network, bmc network and k8 network and IP ranges should "
+                       "not have any IP overlap. Check omnia_config.yml and network_spec.yml")
+TELEMETRY_IP_OVERLAP_FAIL_MSG = ("admin network, telemetry network and IP ranges should "
+                                 "not have any IP overlap. "
+                                 "Check telemetry_config.yml and network_spec.yml")
 
 # high_availability
-virtual_ip_not_in_admin_subnet = "virtual ip address provided is not in admin subnet. Check high_availability_config.yml and network_spec.yml"
-virtual_ip_not_valid = "should be outside the admin static and dynamic ranges. Check high_availability_config.yml and network_spec.yml"
-bmc_virtual_ip_not_valid = "should be outside any bmc static and dynamic ranges. Check high_availability_config.yml, network_spec.yml, and roles_config.yml"
-feild_must_be_empty = "feild must be empty."
-duplicate_virtual_ip = "is already used. Please give unique virtual ip address"
-invalid_passive_node_service_tag = "active node and passive node service tag cannot be same."
-group_not_found = "is not defined in the roles_config. Please define the group in roles_config."
-role_node_found = "is not defined in roles_config. Please define the role in roles_config."
-duplicate_active_node_service_tag = "the service tag configured for a active node is already present elsewhere in the config file. "
-duplicate_passive_node_service_tag = "the service tag configured for a passive node is already present elsewhere in the config file. "
+VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in admin subnet. "
+                                 "Check high_availability_config.yml and network_spec.yml")
+VIRTUAL_IP_NOT_VALID = ("should be outside the admin static and dynamic ranges. "
+                       "Check high_availability_config.yml and network_spec.yml")
+BMC_VIRTUAL_IP_NOT_VALID = ("should be outside any bmc static and dynamic ranges. "
+                            "Check high_availability_config.yml, network_spec.yml, and "
+                            "roles_config.yml")
+FEILD_MUST_BE_EMPTY = "feild must be empty."
+DUPLICATE_VIRTUAL_IP = "is already used. Please give unique virtual ip address"
+INVALID_PASSIVE_NODE_SERVICE_TAG = "active node and passive node service tag cannot be same."
+GROUP_NOT_FOUND = "is not defined in the roles_config. Please define the group in roles_config."
+ROLE_NODE_FOUND = "is not defined in roles_config. Please define the role in roles_config."
+DUPLICATE_ACTIVE_NODE_SERVICE_TAG = ("the service tag configured for a active node is already "
+                                    "present elsewhere in the config file. ")
+DUPLICATE_PASSIVE_NODE_SERVICE_TAG = ("the service tag configured for a passive node is already "
+                                     "present elsewhere in the config file. ")
 
 def user_name_duplicate(duplicate_usernames):
-    return f'duplicate username detected {duplicate_usernames}. Check that usernames are unique in k8s_access_config.yml and passwordless_ssh_config.yml'
+    """Returns error message for duplicate usernames found in configuration files."""
+    return (f'duplicate username detected {duplicate_usernames}. Check that usernames are unique '
+            f'in k8s_access_config.yml and passwordless_ssh_config.yml')
 
 # addtional_software
 ADDITIONAL_SOFTWARE_FAIL_MSG = "The additional_software is mandatory in additional_software.json"
@@ -198,25 +284,35 @@ MISSING_IN_ADDITIONAL_SOFTWARE_MSG = ("The role or group name is present in soft
 
 # login_node_security
 def restrict_softwares_fail_msg(software):
-    return f"Invalid software '{software}'. Can only disable these services: telnet,lpd,bluetooth,rlogin,rexec."
+    """Returns error message for invalid software restriction in
+       login node security configuration."""
+    return (f'Invalid software "{software}". Can only disable these services: '
+            f'telnet,lpd,bluetooth,rlogin,rexec.')
 
 def get_header():
+    """Returns a formatted header string for execution logs."""
     return f"{'#' * 30} START EXECUTION {'#' * 30}"
 
 def get_footer():
+    """Returns a formatted footer string for execution logs."""
     return f"{'#' * 30} END EXECUTION {'#' * 30}"
 
 def get_validation_initiated(input_file_path):
+    """Returns a formatted message indicating validation has started for a file."""
     return f"{'#' * 10} Validation Initiated for {input_file_path} {'#' * 10}"
 
 def get_schema_failed(input_file_path):
+    """Returns a formatted message indicating schema validation failure for a file."""
     return f"{'#' * 10} Schema validation failed for {input_file_path} {'#' * 10}"
 
 def get_schema_success(input_file_path):
+    """Returns a formatted message indicating schema validation success for a file."""
     return f"{'#' * 10} Schema validation successful for {input_file_path} {'#' * 10}"
 
 def get_logic_failed(input_file_path):
+    """Returns a formatted message indicating logic validation failure for a file."""
     return f"{'#' * 10} Logic validation failed for {input_file_path} {'#' * 10}"
 
 def get_logic_success(input_file_path):
+    """Returns a formatted message indicating logic validation success for a file."""
     return f"{'#' * 10} Logic validation successful for {input_file_path} {'#' * 10}"

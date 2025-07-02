@@ -16,12 +16,12 @@
             "resource_mgr_id": {
               "type": "string",
               "pattern": "^[a-zA-Z0-9,]*$",
-              "description": "List of service tag of active head node(s). Set the value only for group of nodes belonging to kube_node and slurm_node roles, and empty for other roles."
+              "description": "List of service tag of active head node(s). Set the value only for group of nodes belonging to kube_node, service_kube_node, slurm_node roles, and empty for other roles."
             },
             "parent": {
               "type": "string",
               "pattern": "^[a-zA-Z0-9,]*$",
-              "description": "List of service tag of associated active service node(s). This field will be empty for group of nodes which is associated with ‘login’, ‘compiler_node’, ‘service_node’, ‘kube_control_plane’,’slurm_control_plane’. If ‘service_node’ role is not defined, then value will be empty for worker and default role."
+              "description": "List of service tag of associated active service node(s). This field will be empty for group of nodes which is associated with ‘login’, ‘compiler_node’, ‘service_node’, ‘service_kube_control_plane’, ‘service_etcd’, ‘kube_control_plane’, ‘etcd’, ’slurm_control_plane’. If ‘service_node’ role is not defined, then value will be empty for worker and default role."
             },
             "bmc_details": {
               "type": "object",
@@ -77,6 +77,9 @@
               "default",
               "oim_ha_node",
               "service_node",
+              "service_kube_control_plane",
+              "service_kube_node",
+              "service_etcd",
               "kube_control_plane",
               "kube_node",
               "etcd",

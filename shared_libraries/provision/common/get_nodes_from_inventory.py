@@ -11,9 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import sys, os
-import subprocess
+"""
+This script reads the inventory file and fetches the node names from the database
+    based on the given identifiers.
+"""
+import sys
+import os
 import re
 
 # Paths to the inventory file and database module
@@ -98,5 +101,5 @@ def get_nodes_name():
     conn.close()
     return node_names
 
-node_names = get_nodes_name()
-print(','.join(set(node_names)))
+list_of_node_names = get_nodes_name()
+print(','.join(set(list_of_node_names)))

@@ -32,7 +32,7 @@
 - name: Check if base_url is present for the given software_item
   ansible.builtin.set_fact:
     baseurl_present: >-
-      {{ (hostvars['localhost']['pulp_output_fact']
+      {{ (pulp_dist_result
            | selectattr('name', 'equalto', software_item)
            | map(attribute='base_url')
            | list

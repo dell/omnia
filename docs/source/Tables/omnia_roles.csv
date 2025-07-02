@@ -1,0 +1,119 @@
+﻿Role Name,Layer,Details
+Default - ``default``,Compute,"* Omnia assigns the default role to nodes which do not fit into any specific roles.
+* This role is useful when you only need to provision the nodes, without assigning any specific functionality to them.
+
+**Example**:
+::
+    Roles:
+  - name: ""default""
+    groups:
+      - grp0"
+Slurm worker node - ``slurm_node``,Compute,"* This role is used to configure the nodes for Slurm worker. The nodes included in this role will have the necessary tools and configurations to run Slurm worker.
+* The nodes in this role can be used to run Slurm worker.
+
+**Example**:
+::
+    Roles:
+  - name: ""slurm_node""
+    groups:
+      - grp0
+      - grp1"
+Kubernetes worker node - ``kube_node``,Compute,"* This role is used to configure the nodes for Kubernetes worker. The nodes included in this role will have the necessary tools and configurations to run Kubernetes worker.
+* The nodes in this role can be used to run Kubernetes worker.
+
+**Example**:
+::
+    Roles:
+  - name: ""kube_node""
+    groups:
+      - grp0
+      - grp1"
+Service - ``service_node``,Management,"* This role is used to configure the service nodes. The nodes included in this role will have the necessary tools and configurations to configure the service nodes. 
+* The ``service_node`` role is used to set up and manage a hierarchical cluster. When set up, the service nodes will provision and manage a set of compute nodes assigned to them. This is essential for distributed management in large clusters. To know more, `click here <xcat_hierarchical.html>`_.
+
+**Example**:
+::
+    Roles:
+  - name: ""service_node""
+    groups:
+      - grp0
+      - grp1"
+Authentication server - ``auth_server``,Management,"* This role is used to configure the nodes for authentication. The nodes included in this role will have the necessary tools and configurations to support authentication activities.
+
+**Example**:
+::
+    Roles:
+  - name: ""auth_server""
+    groups:
+      - grp0
+      - grp1"
+Compiler - ``compiler_node``,Management,"* This role is used to configure the nodes for compilation. The nodes included in this role will have the necessary tools and configurations to perform compilation.
+* The nodes in this role can be used to compile the code.
+
+**Example**:
+::
+    Roles:
+  - name: ""compiler_node""
+    groups:
+      - grp0
+      - grp1"
+Kubernetes control plane - ``kube_control_plane``,Management,"* Nodes with ``kube_control_plane`` role can be added to the Kubernetes master node groups.
+* This role is used to configure the nodes for Kubernetes master. The nodes included in this role will have the necessary tools and configurations to run Kubernetes master.
+* The nodes in this role can be used to run the Kubernetes master. 
+
+**Example**:
+::
+    Roles:
+  - name: ""kube_control_plane""
+    groups:
+      - grp0
+      - grp1"
+Kubernetes etcd - ``etcd``,Management,"* Nodes with ``etcd`` role can be added to the Kubernetes etcd node groups.
+* This role is used to configure the nodes for Kubernetes etcd. The nodes included in this role will have the necessary tools and configurations to run Kubernetes etcd.
+* The nodes in this role can be used to run Kubernetes etcd.
+
+**Example**:
+::
+    Roles:
+  - name: ""etcd""
+    groups:
+      - grp0
+      - grp1"
+Slurm control plane - ``slurm_control_node``,Management,"* Nodes with ``slurm_control_node`` role can be added to the Slurm head node groups.
+* This role is used to configure the nodes for Slurm head. The nodes included in this role will have the necessary tools and configurations to run Slurm head.
+* The nodes in this role can be used to run the Slurm head. 
+
+**Example**:
+::
+    Roles:
+  - name: ""slurm_control_node""
+    groups:
+      - grp0
+      - grp1"
+Slurm DB daemon role - ``slurm_dbd``,Management,"* This role is used to configure the nodes for Slurm DB Daemon. The nodes included in this role will have the necessary tools and configurations to run Slurm DB Daemon.
+* The nodes in this role can be used to run Slurm DB Daemon.
+
+**Example**:
+::
+    Roles:
+  - name: ""slurm_dbd""
+    groups:
+      - grp0
+      - grp1"
+Login node - ``login``,Management,"* This role is used to configure the nodes for user logins. The nodes included in this role will have the necessary tools and configurations to support user login activities.
+
+**Example**:
+::
+    Roles:
+  - name: ""login""
+    groups:
+      - grp0
+      - grp1"
+OIM High Availability - ``oim_ha_node``,Management,"* This role is used to configure the OIM HA node. The nodes included in this role will have the necessary tools and configurations to support the OIM HA functionality on the passive OIM nodes.
+
+**Example**:
+::
+   Roles:
+ - name: ""oim_ha_node""
+   groups:
+     - grp0"

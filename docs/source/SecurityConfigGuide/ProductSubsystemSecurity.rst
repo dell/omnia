@@ -331,28 +331,11 @@ Omnia configures the following ports for use by third-party tools installed by O
 Data security
 -------------
 
-Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run the following commands routinely on the OIM for the latest security updates.
+Omnia does not store data. The passwords Omnia accepts as input to configure the third party tools are validated and then encrypted using Ansible Vault. Run the following commands routinely on the OIM for the latest RHEL security updates.
 
-* For RHEL/Rocky Linux OS
+::
 
-    ::
-
-        yum update --security
-
-* For Ubuntu
-
-    i. First, install the toolkit using
-
-    ::
-
-        sudo apt install unattended-upgrades
-
-
-    ii. Then, run the following command
-
-    ::
-
-        sudo unattended-upgrade
+    yum update --security
 
 
 For more information on the passwords used by Omnia, see `Login Security Settings <#login-security-settings>`_.

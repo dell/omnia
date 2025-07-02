@@ -45,8 +45,9 @@ def validate_osimage(osimage):
 
 def nodeset_mapping_nodes():
     """
-    This function retrieves the nodes from the cluster.nodeinfo table in the omniadb based on the discovery mechanism.
-    It then executes another SQL query to select the node, role from the cluster.nodeinfo table where the node status is ''.
+    This function retrieves the nodes from the cluster.nodeinfo table in the omniadb 
+    based on the discovery mechanism. It then executes another SQL query to select the 
+    node, role from the cluster.nodeinfo table where the node status is ''.
     It executes nodeset command to sets the osimage based on role.
 
     Parameters:

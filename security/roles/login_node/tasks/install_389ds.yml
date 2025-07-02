@@ -141,12 +141,6 @@
       ansible.builtin.command: firewall-cmd --reload
       changed_when: true
 
-    - name: Stop and disable firewalld
-      ansible.builtin.service:
-        name: firewalld
-        state: stopped
-        enabled: false
-
     - name: Install kerberos packages
       community.general.zypper:
         name: "{{ kerberos_packages }}"

@@ -63,12 +63,12 @@ nfs_not_configured: "When enabling OIM HA or Service Node HA or Heirarchical clu
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 service_node_metadata_path: "/opt/omnia/.data/service_node_metadata.yml"
 metadata_perm: "0644"
-omnia_images_path: "/opt/omnia/images/omnia_images.tar"
-omnia_images_path_fail_msg: |
-  "Images tarball does not exist. To support either OIM HA or heirarchical provisioning, input must be provided in
-  the high_availability_config.yml or roles_config.yml before running the prepare_oim.yml playbook.
-  For a Hierarchical Cluster, service node role should be defined in the roles_config.yml.
-  Please run oim_cleanup.yml and then re-run prepare_oim.yml with the appropriate inputs."
+
+# Usage: validate_image_tars.yml
+omnia_images_tar_missing_msg: |
+  Following Images tarball does not exist - {{ missing_tars }}.
+  To support either OIM HA or heirarchical provisioning, these images tar file is required.
+  To ensure all omnia base image tar files are present execute `utils/save_container_images.yml` utility playbook.
 
 # invalid_share_option_msg: |
 #   [ERROR] Invalid value \"{{ omnia_share_option }}\" provided for omnia share path type.
@@ -76,11 +76,11 @@ omnia_images_path_fail_msg: |
 #   Please rerun 'omnia_startup.sh' and enter correct omnia share path type as \"NFS\"
 #   to continue with hierarchical-based discovery and provisioning.
 service_node_not_found_msg: |
-  "Service role not defiened in roles_config.yml but enable_service_ha is made as True.
-  Kindly define service_node role in roles config and rerun the playbook."
+  "The service role is not defined in the roles_config.yml, but enable_service_ha is set to True.
+  Kindly define the service_node role in roles_config and rerun the playbook."
 oim_ha_node_not_found_msg: |
-  "Service role not defiened in roles_config.yml but enable_service_ha is made as True.
-  Kindly define service_node role in roles config and rerun the playbook."
+  "The OIM HA role is not defined in the roles_config.yml, but enable_oim_ha is set to True.
+  Kindly define the oim_ha_node role in roles_config and rerun the playbook."
 nfs_internal_warning_msg: |
   "WARNING: It is recommended to use External NFS for hierarchical cluster.
   If you must use Internal NFS, ensure OIM has enough storage space and sufficient hardware resources."

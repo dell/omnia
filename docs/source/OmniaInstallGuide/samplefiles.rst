@@ -61,161 +61,66 @@ inventory file
             * The centralized authentication server inventory group, that is ``auth_server``, is common for both Slurm and Kubernetes.
             * For secure login node functionality, ensure to add the ``login`` group in the provided inventory file.
 
-software_config.json for Ubuntu
----------------------------------
+software_config.json for RHEL
+-------------------------------------------
 
 ::
 
     {
-        "cluster_os_type": "ubuntu",
-        "cluster_os_version": "22.04",
-        "repo_config": "partial",
+        "cluster_os_type": "rhel",
+        "cluster_os_version": "9.6",
+        "iso_file_path": "",
+        "repo_config": "always",
         "softwares": [
-            {"name": "amdgpu", "version": "6.2.2"},
-            {"name": "cuda", "version": "12.3.2"},
-            {"name": "bcm_roce", "version": "230.2.54.0"},
-            {"name": "ofed", "version": "24.01-0.3.3.1"},
+            {"name": "amdgpu", "version": "6.3.1"},
+            {"name": "cuda", "version": "12.8.0"},
+            {"name": "ofed", "version": "24.10-1.1.4.0"},
+            {"name": "service_node" },
             {"name": "openldap"},
-            {"name": "secure_login_node"},
             {"name": "nfs"},
-            {"name": "beegfs", "version": "7.4.2"},
-            {"name": "k8s", "version":"1.29.5"},
-            {"name": "roce_plugin"},
-            {"name": "jupyter"},
-            {"name": "kubeflow"},
-            {"name": "kserve"},
-            {"name": "pytorch"},
-            {"name": "tensorflow"},
-            {"name": "vllm"},
-            {"name": "telemetry"},
-            {"name": "ucx", "version": "1.15.0"},
-            {"name": "openmpi", "version": "4.1.6"},
-            {"name": "intelgaudi", "version": "1.18.0-524"},
-            {"name": "csi_driver_powerscale", "version":"v2.11.0"}
-        ],
-
-        "bcm_roce": [
-            {"name": "bcm_roce_libraries", "version": "230.2.54.0"}
+            {"name": "k8s", "version":"1.31.4"},
+            {"name": "slurm"}
         ],
         "amdgpu": [
-            {"name": "rocm", "version": "6.2.2" }
+            {"name": "rocm", "version": "6.3.1" }
         ],
-        "intelgaudi": [
-            {"name": "intel"}
-        ],
-        "vllm": [
-            {"name": "vllm_amd"},
-            {"name": "vllm_nvidia"}
-        ],
-        "pytorch": [
-            {"name": "pytorch_cpu"},
-            {"name": "pytorch_amd"},
-            {"name": "pytorch_nvidia"},
-            {"name": "pytorch_gaudi"}
-        ],
-        "tensorflow": [
-            {"name": "tensorflow_cpu"},
-            {"name": "tensorflow_amd"},
-            {"name": "tensorflow_nvidia"}
+        "slurm": [
+            {"name": "slurm_control_node"},
+            {"name": "slurm_node"},
+            {"name": "login"}
         ]
     }
 
-software_config.json for RHEL/Rocky Linux
--------------------------------------------
 
-.. note:: For Rocky Linux OS, the ``cluster_os_type`` in the below sample will be ``rocky``.
 
-::
+inventory file for additional NIC and Kernel parameter configuration
+-------------------------------------------------------------------------
 
-        {
-            "cluster_os_type": "rhel",
-            "cluster_os_version": "8.8",
-            "repo_config": "partial",
-            "softwares": [
-                {"name": "amdgpu", "version": "6.2.2"},
-                {"name": "cuda", "version": "12.3.2"},
-                {"name": "ofed", "version": "24.01-0.3.3.1"},
-                {"name": "freeipa"},
-                {"name": "openldap"},
-                {"name": "secure_login_node"},
-                {"name": "nfs"},
-                {"name": "beegfs", "version": "7.4.2"},
-                {"name": "slurm"},
-                {"name": "k8s", "version":"1.29.5"},
-                {"name": "jupyter"},
-                {"name": "kubeflow"},
-                {"name": "kserve"},
-                {"name": "pytorch"},
-                {"name": "tensorflow"},
-                {"name": "vllm"},
-                {"name": "telemetry"},
-                {"name": "intel_benchmarks", "version": "2024.1.0"},
-                {"name": "amd_benchmarks"},
-                {"name": "utils"},
-                {"name": "ucx", "version": "1.15.0"},
-                {"name": "openmpi", "version": "4.1.6"},
-                {"name": "csi_driver_powerscale", "version":"v2.11.0"}
-            ],
+.. note:: You can use either node IPs, service tags, or hostnames, or any combination of them in the inventory file below.
 
-            "amdgpu": [
-                {"name": "rocm", "version": "6.2.2" }
-            ],
-            "vllm": [
-                {"name": "vllm_amd"},
-                {"name": "vllm_nvidia"}
-            ],
-            "pytorch": [
-                {"name": "pytorch_cpu"},
-                {"name": "pytorch_amd"},
-                {"name": "pytorch_nvidia"}
-            ],
-            "tensorflow": [
-                {"name": "tensorflow_cpu"},
-                {"name": "tensorflow_amd"},
-                {"name": "tensorflow_nvidia"}
-            ]
-
-        }
-
-inventory file for IP rule assignment
----------------------------------------
+Choose fom any of the templates provided below:
 
 ::
 
-     all:
-       hosts:
-         node1:
-           nic_info:
-             - { nic_name: eno20195np0, gateway: 10.10.1.254, metric: 101 }
-             - { nic_name: eno20295np0, gateway: 10.10.2.254, metric: 102 }
-             - { nic_name: eno20095np0, gateway: 10.10.3.254, metric: 103 }
-             - { nic_name: eno19995np0, gateway: 10.10.4.254, metric: 104 }
-             - { nic_name: eno19595np0, gateway: 10.10.5.254, metric: 105 }
-             - { nic_name: eno19695np0, gateway: 10.10.6.254, metric: 106 }
-             - { nic_name: eno19795np0, gateway: 10.10.7.254, metric: 107 }
-             - { nic_name: eno19895np0, gateway: 10.10.8.254, metric: 108 }
-         node02:
-           nic_info:
-             - { nic_name: enp129s0f0np0, gateway: 10.11.1.254, metric: 101 }
-             - { nic_name: enp33s0f0np0, gateway: 10.11.2.254, metric: 102 }
+    #---------Template1---------
 
-inventory file for additional NIC configuration
-------------------------------------------------
+    [cluster1]
+    10.5.0.1
+    10.5.0.2
 
-::
+    [cluster1:vars]
+    Categories=category-1
 
-    [node-group1]
-    10.5.0.3
+    #---------Template2---------
 
-    [node-group1:vars]
-    Categories=group-1
+    [cluster2]
+    10.5.0.5 Categories=category-4
+    10.5.0.6 Categories=category-5
 
-    [node-group2]
-    10.5.0.4
-    10.5.0.5
+    #---------Template3---------
 
-    [node-group2:vars]
-    Categories=group-2
+    10.5.0.3 Categories=category-2
+    10.5.0.4 Categories=category-3
 
 inventory file to delete node from the cluster
 -------------------------------------------------
@@ -235,14 +140,6 @@ pxe_mapping_file.csv
     XXXXXXX,n2,aa:bb:cc:dd:ee:ff,10.5.0.102,10.3.0.102
 
 
-switch_inventory
-------------------
-::
-
-    10.3.0.101
-    10.3.0.102
-
-
 powervault_inventory
 ------------------
 ::
@@ -250,11 +147,8 @@ powervault_inventory
     10.3.0.105
 
 
-
-
 NFS Server inventory file
 -------------------------
-
 
 ::
 

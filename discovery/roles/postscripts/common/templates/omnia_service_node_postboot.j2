@@ -77,13 +77,17 @@ echo "{{ nfs_server_ip }}:{{ nfs_server_share_path }} {{ oim_shared_path }} nfs 
 # echo "{{ nfs_server_ip }}:{{ nfs_server_share_path }}/omnia/provision/tftpboot /tftpboot nfs nosuid,rw,sync,hard,intr" >> /etc/fstab
 
 {% endif %}
-# Load container images
-if [ -f "{{ container_images_path }}" ]; then
-    echo "Loading container images" >> "$LOGFILE"
-    podman load -i "{{ container_images_path }}" >> "$LOGFILE" 2>&1
-else
-    echo "Container image file not found at {{ container_images_path }}" >> "$LOGFILE"
-fi
+
+
+echo "INFO: Loading container images from {{ container_images_path }} dir " >> "$LOGFILE"
+for tar in {{ container_images_path }}*.tar; do
+  echo "INFO: Loading container image from $tar" >> "$LOGFILE"
+  if podman load -i "$tar" >> "$LOGFILE" 2>&1; then
+    echo "INFO: Successfully loaded $tar" >> "$LOGFILE"
+  else
+    echo "ERROR: Failed to load $tar" >> "$LOGFILE"
+  fi
+done
 
 # Get node serial
 log "INFO:--- Getting node serial ---"

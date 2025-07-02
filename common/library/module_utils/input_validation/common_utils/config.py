@@ -11,17 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+Configuration utilities for Omnia input validation modules.
+"""
 from datetime import datetime
 import os
 
-input_validator_log = '/opt/omnia/log/core/playbooks/input_validator/'
+INPUT_VALIDATOR_LOG = '/opt/omnia/log/core/playbooks/input_validator/'
 
 module_log_dir = {
-    "input_validator_log": input_validator_log + "/_"+ datetime.now().strftime('_%d-%m-%Y.log')
+    "input_validator_log": INPUT_VALIDATOR_LOG + "/_"+ datetime.now().strftime('_%d-%m-%Y.log')
 }
 
-input_validator_log_path = '/opt/omnia/log/core/playbooks/'
+# log path for input validator
+INPUT_VALIDATOR_LOG_PATH = '/opt/omnia/log/core/playbooks/'
 
 # dict to hold the file names. If any file's name changes just change it here.
 files = {
@@ -56,10 +59,10 @@ input_file_inventory = {
     ],
     "server_spec": [files["server_spec"]],
     "security": [
+        files["software_config"],
         files["security_config"],
         files["login_node_security_config"],
-        files["passwordless_ssh_config"],
-        files["software_config"]
+        files["passwordless_ssh_config"]
     ],
     "telemetry": [files["telemetry_config"]],
     "local_repo": [files["local_repo_config"], files["software_config"]],
@@ -71,6 +74,7 @@ input_file_inventory = {
     "storage": [files["storage_config"]],
     "proxy": [files["site_config"]],
     "prepare_oim": [
+        files["software_config"],
         files["high_availability_config"],
         files["roles_config"],
         files["network_spec"],
@@ -156,6 +160,11 @@ TYPE_REQUIREMENTS = {
 }
 
 supported_telemetry_collection_type = ["prometheus"]
+
+# used for security_config.yml login_node_security_config.yml validation
+supported_ldap_connection_type = ["TLS","SLS"]
+EMAIL_MAX_LENGTH = 320
+EMAIL_SEARCH_KEY = "@"
 
 # Dict of the file that can be encrypted and it's ansible vault key
 def get_vault_password(yaml_file):

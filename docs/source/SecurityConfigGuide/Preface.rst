@@ -13,7 +13,7 @@ THE INFORMATION IN THIS PUBLICATION IS PROVIDED "AS-IS." DELL MAKES NO REPRESENT
 Scope of the document
 ----------------------
 
-This document covers the security features supported by Omnia 1.7.
+This document covers the security features supported by Omnia 2.0.
 
 Document references
 --------------------
@@ -21,7 +21,7 @@ Document references
 In addition to this guide, more information on Omnia can be found using the below links:
 
 * `Omnia: Read Me <https://github.com/dell/omnia#readme>`_
-* `Omnia: Quick Installation Guide <https://omnia-doc.readthedocs.io/en/latest/InstallationGuides/index.html>`_
+* `Omnia: Deployment Guide <https://omnia-doc.readthedocs.io/en/latest/OmniaInstallGuide/index.html>`_
 
 Reporting security vulnerabilities
 ----------------------------------
@@ -30,7 +30,7 @@ Dell takes reports of potential security vulnerabilities in our products very se
 
 Follow Dell Security on these sites:
 
-* dell.com/security
-* dell.com/support
+* `dell.com/security <https://www.dell.com/support/security/en-us>`_
+* `dell.com/support <https://www.dell.com/support/home/en-us>`_
 
-To provide feedback on this solution, email us at support@dell.com.
+To provide feedback on this solution, email us at security@dell.com.

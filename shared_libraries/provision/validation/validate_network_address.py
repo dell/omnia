@@ -11,7 +11,9 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""
+This script validates the network address of a given network interface.
+"""
 import subprocess
 import json
 import os
@@ -34,7 +36,8 @@ def get_network_address(ip_address_netmask):
 
 def main():
     """
-	Retrieves the network data from the environment variable 'net_data' and performs network validation.
+    Retrieves the network data from the environment variable 'net_data'
+        and performs network validation.
 
 	Parameters:
 	- None
@@ -47,12 +50,19 @@ def main():
     network_data = json.loads(network_string)
     network_interface = sys.argv[1]
     network_interface_ip = []
-    result = subprocess.run(['ip', 'addr', 'show', network_data[network_interface]["oim_nic_name"]], capture_output=True, text=True, check=True)
+    result = subprocess.run(
+            ['ip', 'addr', 'show', network_data[network_interface]["oim_nic_name"]],
+            capture_output=True, text=True, check=True)
     for ip in result.stdout.split("inet ")[1:]:
         network_interface_ip.append(ip.split()[0])
 
-    input_network_static_ip_netmask = "{}/{}".format(network_data[network_interface]["dynamic_conversion_static_range"].split("-")[0], network_data[network_interface]["netmask_bits"])
-    input_network_dynamic_ip_netmask = "{}/{}".format(network_data[network_interface]["dynamic_range"].split("-")[0], network_data[network_interface]["netmask_bits"])
+    # Extract static IP and netmask
+    static_ip = network_data[network_interface]["dynamic_conversion_static_range"].split("-")[0]
+    dynamic_ip = network_data[network_interface]["dynamic_range"].split("-")[0]
+    netmask = network_data[network_interface]["netmask_bits"]
+
+    input_network_static_ip_netmask = f"{static_ip}/{netmask}"
+    input_network_dynamic_ip_netmask = f"{dynamic_ip}/{netmask}"
 
     for ip in network_interface_ip:
         if ( get_network_address(ip) == get_network_address(input_network_dynamic_ip_netmask)

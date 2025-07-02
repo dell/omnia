@@ -12,47 +12,13 @@ Local Repositories
 
 **Potential Cause**: A local repository for the software has not been configured by the ``local_repo.yml`` playbook.
 
-**Resolution**:
+**Resolution**: Follow the steps below to resolve this issue:
 
-    * Delete the tarball/image/deb of the software from ``<repo_path>/cluster/tarball``.
-    * Re-run ``local_repo.yml``.
-    * Re-run the script to install the software.
-
-
-⦾ **Why does the** ``TASK [configure_registry : Start and enable nerdctl-registry service`` **fail with** ``Job for nerdctl-registry.service failed because the control process exited with error code`` **?**
-
-.. image:: ../../../images/nerdctlError.png
-
-**Potential Causes**:
-
-    * The subnet 10.4.0.0/24 has been assigned to the admin, bmc, or additional network. nerdctl uses this subnet by default and cannot be assigned to any other interface in the system.
-    * The docker pull limit has been breached.
-
-**Resolutions**:
-
-    * Reassign the conflicting network to a different subnet.
-    * Update ``input/provision_config_credentials.yml`` with the ``docker_username`` and ``docker_password``.
+    1. Re-run the ``local_repo.yml`` playbook with proper inputs to download the software package to the Pulp repository.
+    2. Once the local repository has been configured successfully, re-run the failed installation script.
 
 
-⦾ **Why does the** ``TASK [parse_and_download : Get libssl package]`` **fail during** ``local_repo.yml`` **execution?**
-
-.. image:: ../../../images/local_repo_permissions_error.png
-
-**Potential Cause**: Executing ``local_repo.yml`` with ``repo_store_path`` set as an NFS share, but lacking the necessary permissions to access it from the OIM.
-
-**Resolution**: Provide the required (read, write, and execute) permissions for the NFS share. Verify the permissions of NFS share from the root user of the OIM.
-
-
-⦾ **Why does the** ``TASK [parse_and_download : Display Failed Packages`` **fail during** ``prepare_upgrade.yml`` **execution?**
-
-.. image:: ../../../images/upgrade_failed_packages.png
-
-**Potential Cause**: This issue may arise while setting up of local repo for Omnia v1.6 and can occur due to internet connection issues on OIM.
-
-**Resolution**: Verify that the internet connectivity on OIM is stable and re-run the ``prepare_upgrade.yml`` playbook.
-
-
-⦾ **Why does the** ``TASK [configure_repos : Generate metadata for repositories]`` **fails during the execution of** ``local_repo.yml`` **on RHEL clusters, if the Epel repository is unstable?**
+⦾ **The**  ``local_repo.yml`` **playbook execution fails if the Epel repository is unstable.**
 
 **Potential Cause**: If the external Epel repository link mentioned in ``omnia_repo_url_rhel`` is not stable, then it can cause failures in ``local_repo.yml`` playbook execution.
 
@@ -65,9 +31,3 @@ Local Repositories
     - If none of the packages are dependent on the Epel repository, users can remove the Epel repository URL from ``omnia_repo_url_rhel``.
 
     - If any package required from the Epel repository is listed in the ``software_config.json`` file, it's advisable to either wait for the Epel repository to stabilize or host those Epel repository packages locally. Afterward, remove the Epel repository link from ``omnia_repo_url_rhel`` and provide the locally hosted URL for the Epel repository packages via the ``user_repo_url`` variable.
-
-⦾ **Why does** ``omnia.yml`` **execution fail during the** ``TASK [Kubernetes_sigs.kubesprate.container-engine/runc : Download_file | Create dest directory on node]`` **?**
-
-**Potential Cause**: This issue may arise if the directory path specified as the ``repo_store_path`` in the ``input/local_repo_config.yml`` does not have 755 permissions.
-
-**Resolution**: Ensure that not only the ``omnia_repo`` folder, but also the entire ``repo_store_path``, has 755 permissions. For example, if you specify ``/root/opt/omnia_repo`` as the ``repo_store_path``, the ``/root`` directory also must have 755 permissions.

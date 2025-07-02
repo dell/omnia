@@ -11,18 +11,19 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+"""Database connection utilities for Omnia modules. """
 
 import psycopg2 as pg
 from cryptography.fernet import Fernet
 
-key_file_path = '/opt/omnia/.postgres/.postgres_pass.key'
-pass_file_path = '/opt/omnia/.postgres/.encrypted_pwd'
+KEY_FILE_PATH = '/opt/omnia/.postgres/.postgres_pass.key'
+PASS_FILE_PATH = '/opt/omnia/.postgres/.encrypted_pwd'
 
-with open(key_file_path, 'rb') as passfile:
+with open(KEY_FILE_PATH, 'rb') as passfile:
     key = passfile.read()
 fernet = Fernet(key)
 
-with open(pass_file_path, 'rb') as datafile:
+with open(PASS_FILE_PATH, 'rb') as datafile:
     encrypted_file_data = datafile.read()
 decrypted_pwd = fernet.decrypt(encrypted_file_data).decode()
 
@@ -31,7 +32,8 @@ def create_connection():
     Create a database connection to the omniadb.
 
     This function establishes a connection to the omniadb database using the provided password.
-    It reads the encrypted password from a file, decrypts it using the provided key, and connects to the database.
+    It reads the encrypted password from a file, decrypts it using the provided key, 
+    and connects to the database.
 
     Parameters:
         None
@@ -55,7 +57,8 @@ def create_connection_xcatdb():
     Create a database connection to the xcatdb.
 
     This function establishes a connection to the xcatdb database using the provided password.
-    It reads the encrypted password from a file, decrypts it using the provided key, and connects to the database.
+    It reads the encrypted password from a file, decrypts it using the provided key, and 
+    connects to the database.
 
     Parameters:
         None
@@ -75,8 +78,9 @@ def create_connection_xcatdb():
     return conn
 
 
-def insert_node_info(service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, group_name, role, parent, location_id,
-                     architecture, discovery_mechanism, bmc_mode, switch_ip, switch_name, switch_port):
+def insert_node_info(service_tag, node, hostname, admin_mac, admin_ip, bmc_ip, group_name,
+                     role, parent, location_id, architecture, discovery_mechanism, bmc_mode,
+                     switch_ip, switch_name, switch_port):
     """
     Inserts node information into the cluster.nodeinfo table.
 
@@ -136,4 +140,7 @@ def insert_switch_info(cursor, switch_name, switch_ip):
     params = (switch_name, switch_ip)
     cursor.execute(sql, params)
 
-    print(f"Inserted switch_ip: {switch_ip} with switch_name: {switch_name} into cluster.switchinfo table")
+    print(
+    f"Inserted switch_ip: {switch_ip} with switch_name: {switch_name} "
+    f"into cluster.switchinfo table"
+    )

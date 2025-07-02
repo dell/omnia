@@ -11,19 +11,24 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-import sys, os
-import yaml
+"""
+This module updates the nicinfo database with the provided data.
+"""
+import sys
+import os
 import ipaddress
+from distutils.util import strtobool
+
+import yaml
 import uncorrelated_add_ip
 import correlation_admin_add_nic
 import insert_nicinfo_db
-from distutils.util import strtobool
+
 from fetch_booted_node import get_booted_nodes  # Import fetch_booted_nodes
 
 db_path = sys.argv[7]
 sys.path.insert(0, db_path)
-inventory_status = bool(strtobool(sys.argv[8]))
+INVENTORY_STATUS = bool(strtobool(sys.argv[8]))
 
 def validate_input(value):
     """
@@ -43,10 +48,10 @@ admin_static_range = sys.argv[4]
 admin_nb = sys.argv[5]
 node_detail = validate_input(sys.argv[6])
 
-with open(server_spec_file_path, "r") as file:
+with open(server_spec_file_path, "r", encoding="utf-8") as file:
     data = yaml.safe_load(file)
 
-with open(metadata_path, "r") as file:
+with open(metadata_path, "r", encoding="utf-8") as file:
     nw_data = yaml.safe_load(file)
 
 # Fetch the list of booted nodes
@@ -83,24 +88,26 @@ def generate_ip(nw_name):
             nic_range = nw_data[col][0]
             nic_mode = nw_data[col][1]
             if nic_mode == "static":
-                nic_ip = uncorrelated_add_ip.cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range)
+                nic_ip = uncorrelated_add_ip.cal_uncorrelated_add_ip(
+                    cursor, col, nic_mode, nic_range)
                 return nic_ip
             if nic_mode == "cidr":
                 start_ip = ipaddress.IPv4Address(nic_range.split('-')[0])
                 end_ip = ipaddress.IPv4Address(nic_range.split('-')[1])
                 output = correlation_admin_add_nic.check_valid_nb(net_bits, admin_nb)
                 if output:
-                    nic_ip = correlation_admin_add_nic.correlation_admin_to_nic(node_detail, start_ip,
-                                                                                net_bits,
-                                                                                admin_nb)
+                    nic_ip = correlation_admin_add_nic.correlation_admin_to_nic(
+                            node_detail, start_ip, net_bits, admin_nb)
                     op = uncorrelated_add_ip.check_presence_ip(cursor, col, nic_ip)
                     if not op and ipaddress.IPv4Address(nic_ip) < end_ip:
                         return nic_ip
-                    elif op:
-                        nic_ip = uncorrelated_add_ip.cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range)
+                    if op:
+                        nic_ip = uncorrelated_add_ip.cal_uncorrelated_add_ip(
+                                cursor, col, nic_mode, nic_range)
                         return nic_ip
                 elif not output:
-                    nic_ip = uncorrelated_add_ip.cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range)
+                    nic_ip = uncorrelated_add_ip.cal_uncorrelated_add_ip(
+                            cursor, col, nic_mode, nic_range)
                     return nic_ip
 
 
@@ -145,34 +152,38 @@ def update_db_nicinfo():
                 db_data['category'] = cat_nm
                 for col in value:
                     for grp_key, grp_value in col.items():
-#                        for network in grp_value:
-                      if grp_key == 'Network' or grp_key == 'network':
-                         for network in grp_value:
-                            for net_key, net_value in network.items():
-                                nic_nw = net_value.get('nicnetwork')
-                                nic_nam = net_key
-                                nic_metric = net_value.get('metric')
-                                db_data[nic_nw] = nic_nam
-                                nic_type = net_value.get('nictypes')
-                                temp = nic_nw + '_type'
-                                db_data[temp] = nic_type
-                                temp = nic_nw + "_metric"
-                                db_data[temp] = nic_metric
-                                temp = nic_nw + '_device'
-                                if net_value.get('nicdevices'):
-                                    nic_device = net_value.get('nicdevices')
-                                    db_data[temp] = nic_device
+                        if grp_key == 'Network' or grp_key == 'network':
+                            for network in grp_value:
+                                for net_key, net_value in network.items():
+                                    nic_nw = net_value.get('nicnetwork')
+                                    nic_nam = net_key
+                                    nic_metric = net_value.get('metric')
+                                    db_data[nic_nw] = nic_nam
+                                    nic_type = net_value.get('nictypes')
+                                    temp = nic_nw + '_type'
+                                    db_data[temp] = nic_type
+                                    temp = nic_nw + "_metric"
+                                    db_data[temp] = nic_metric
+                                    temp = nic_nw + '_device'
+                                    if net_value.get('nicdevices'):
+                                        nic_device = net_value.get('nicdevices')
+                                        db_data[temp] = nic_device
 
-                            nic_ip = generate_ip(nic_nw)
-                            print("IP for", nic_nw, ":", nic_ip)
-                            temp = nic_nw + '_ip'
-                            db_data[temp] = str(nic_ip)
+                                nic_ip = generate_ip(nic_nw)
+                                print("IP for", nic_nw, ":", nic_ip)
+                                temp = nic_nw + '_ip'
+                                db_data[temp] = str(nic_ip)
                 insert_nicinfo_db.insert_nic_info(node_detail, db_data)
 
+
 def main():
-    if ((node_detail not in booted_nic_nodes) if inventory_status else (node_detail in booted_nic_nodes)):
+    """
+    Main function to execute the script.
+    """
+    is_not_booted = node_detail not in booted_nic_nodes
+    if is_not_booted if INVENTORY_STATUS else node_detail in booted_nic_nodes:
         update_db_nicinfo()
+
 
 if __name__ == "__main__":
     main()
-    

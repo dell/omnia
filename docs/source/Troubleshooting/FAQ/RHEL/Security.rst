@@ -1,7 +1,7 @@
 Centralized authentication
 =============================
 
-⦾ **Why don't IPA commands work after setting up FreeIPA on the cluster?**
+⦾ **Why don't the IPA commands work after setting up FreeIPA on the cluster?**
 
 **Potential Cause**: Kerberos authentication may be missing on the target node.
 

@@ -11,10 +11,11 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""This module contains functions for creating dynamic IP list."""
 import re
 import ipaddress
-import sys, os
+import sys
+import os
 from ipaddress import IPv4Address
 import subprocess
 
@@ -27,7 +28,7 @@ password = sys.argv[4]
 ip_list = []
 valid_ip_list = []
 dhcp_file_path = os.path.abspath(sys.argv[5])
-dynamic_ip_path = "/opt/omnia/provision/dynamic_ip_list"
+DYNAMIC_IP_PATH = "/opt/omnia/provision/dynamic_ip_list"
 
 
 def create_temp_ip_list():
@@ -48,7 +49,7 @@ def create_temp_ip_list():
 	"""
 
     # opening and reading the file
-    with open(dhcp_file_path) as file:
+    with open(dhcp_file_path, encoding="utf-8") as file:
         fstring = file.readlines()
 
     # declaring the regex pattern for IP addresses
@@ -94,7 +95,8 @@ def extract_possible_bmc_ip():
     for ip in temp_ip_list:
 
         # Run the ping command
-        response = subprocess.run(['ping', '-c', '1', ip], stdout=subprocess.PIPE, text=True)
+        response = subprocess.run(['ping', '-c', '1', ip], stdout=subprocess.PIPE,
+                                  text=True, check=False)
 
         # and then check the response...
         if response.returncode == 0:
@@ -103,10 +105,10 @@ def extract_possible_bmc_ip():
             valid_ip_list.append(ip)
     valid_ip_list.sort()
 
-    create_dynamic_ip_file(valid_ip_list)
+    create_dynamic_ip_file()
 
 
-def create_dynamic_ip_file(valid_ip_list):
+def create_dynamic_ip_file():
     """
 	Create a file named "dynamic_ip_list" in the "/opt/omnia/provision" directory.
 	The file contains a list of valid IP addresses, each on a new line.
@@ -118,9 +120,9 @@ def create_dynamic_ip_file(valid_ip_list):
 	- None
 	"""
 
-    with open(dynamic_ip_path, 'w') as fp:
+    with open(DYNAMIC_IP_PATH, 'w', encoding="utf-8") as fp:
         for ip in valid_ip_list:
-            fp.write("%s\n" % ip)
+            fp.write(f"{ip}\n")
     fp.close()
 
 

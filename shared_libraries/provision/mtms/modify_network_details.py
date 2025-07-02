@@ -11,11 +11,11 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""This module contains functions for modifying network details."""
 import ipaddress
 import sys
 import re
-oim = "oim"
+OIM = "oim"
 
 
 def extract_serial_bmc(stanza_path):
@@ -43,7 +43,7 @@ def extract_serial_bmc(stanza_path):
     serial = []
     bmc = []
     # Extract the bmc IP and serial of the nodes from the stanza file
-    file = open(stanza_path)
+    file = open(stanza_path, encoding="utf-8")
     for line in file:
         if 'serial=' in line:
             temp = line.split("=")[-1].strip()
@@ -66,13 +66,14 @@ def update_stanza_file(service_tag, nodename, stanza_path):
 	Returns:
 	- None
 
-	This function updates the node object name in the stanzas file by replacing the existing service tag with the new nodename.
-	It opens the stanza file in read and write mode, reads the file, replaces the existing service tag with the new nodename,
-	and writes the updated content back to the file.
+	This function updates the node object name in the stanzas file by replacing 
+    the existing service tag with the new nodename.
+	It opens the stanza file in read and write mode, reads the file, replaces 
+    the existing service tag with the new nodename, and writes the updated content back to the file.
 	"""
 
     # Update the node object name in stanzas file
-    with open(stanza_path, "r+") as file:
+    with open(stanza_path, "r+", encoding="utf-8") as file:
         data = file.read()
         rep_text = re.sub(f'node-.*-{service_tag}:', f'{nodename}' + ':', data)
         file.seek(0)
@@ -133,13 +134,14 @@ def cal_uncorrelated_admin_ip(cursor, uncorrelated_admin_start_ip, admin_static_
 	- admin_ip (ipaddress.IPv4Address): A valid uncorrelated admin_ip for the node.
 	"""
 
-    sql = f'''select admin_ip from cluster.nodeinfo where node!='oim' ORDER BY id DESC LIMIT 1'''
+    sql = "select admin_ip from cluster.nodeinfo where node!='oim' ORDER BY id DESC LIMIT 1"
     cursor.execute(sql)
     last_admin_ip = cursor.fetchone()
     uncorr_output = check_presence_admin_ip(cursor, uncorrelated_admin_start_ip)
+    admin_ip_return = None
     if last_admin_ip is None or not uncorr_output:
         admin_ip = ipaddress.IPv4Address(uncorrelated_admin_start_ip)
-        return admin_ip
+        admin_ip_return = admin_ip
     elif uncorr_output:
         while True:
             uncorrelated_admin_start_ip = ipaddress.IPv4Address(uncorrelated_admin_start_ip) + 1
@@ -149,8 +151,11 @@ def cal_uncorrelated_admin_ip(cursor, uncorrelated_admin_start_ip, admin_static_
                 break
             elif admin_ip > admin_static_end_range:
                 sys.exit(
-                    "We have reached the end of admin_static_ranges. Please do a cleanup and provide a wider range, if more nodes needs to be discovered.")
-        return admin_ip
+                    """We have reached the end of admin_static_ranges. Please do a 
+                    cleanup and provide a wider range, if more nodes needs to be discovered.""")
+        admin_ip_return = admin_ip
+
+    return admin_ip_return
 
 
 def reassign_bmc_ip(cursor, bmc_static_start_ip, bmc_static_end_ip):
@@ -177,8 +182,9 @@ def reassign_bmc_ip(cursor, bmc_static_start_ip, bmc_static_end_ip):
         output = check_presence_bmc_ip(cursor, temp_bmc_ip)
         if not output:
             return temp_bmc_ip
-        elif temp_bmc_ip >= bmc_static_end_ip:
+        if temp_bmc_ip >= bmc_static_end_ip:
             sys.exit(
-                "We have reached the end of bmc_static_ranges. Please do a cleanup and provide a wider range, if more nodes needs to be discovered.")
+                """We have reached the end of bmc_static_ranges. Please do a cleanup 
+                and provide a wider range, if more nodes needs to be discovered.""")
         else:
             temp_bmc_ip = ipaddress.IPv4Address(temp_bmc_ip) + 1

@@ -1,43 +1,37 @@
-﻿Parameter,Details
-"**cluster_os_type**
+﻿Parameter,Mandatory/Optional,Details
+**cluster_os_type**,Mandatory,"* **Type**: string
+* Specify the operating system running on the OIM and the one to be provisioned on the compute nodes.
+* **Accepted value**: ``rhel``"
+**cluster_os_version**,Mandatory,"* **Type**: string
+* The OS Version that will be provisoned on compute nodes.
+* **Accepted value**: ``9.6``."
+**iso_file_path**,Mandatory,"* **Type**: string
+* Path where the user has placed the ``<OS>.iso`` image that needs to be provisioned on target nodes. 
+* ``iso_file_path`` should contain the ``provision_os`` and ``provision_os_version`` values mentioned in the filename.
+* **Example**: ``/opt/omnia/input/project_default/RHEL-9.6.0-20240419.25-x86_64-dvd1.iso``"
+**repo_config**,Mandatory,"* **Type**: string
+* Omnia sets up a local Pulp repository on the OIM and downloads all the necessary packages or images for the cluster into this repository. The behavior of the Pulp container varies depending on the value of the ``repo_config`` parameter.
+* In case of ``always``, packages are downloaded and cached on OIM during ``local_repo.yml`` execution; compute nodes get the packages from OIM. Caching these packages allow them to be reused in future operations without needing to download them again.
+* In case of ``partial``, packages are not pre-downloaded or cached. OIM downloads from upstream URLs when needed.
+* In case of ``never``, the packages are not downloaded or cached, but streamed directly from the source URLs.
+* **Accepted value**: ``always``, ``partial``, ``never``
+* **Default value**: ``always``
 
-``string``
+.. note:: The following packages will always be downloaded from the local Pulp repository, regardless of the value of ``repo_config``:
 
-Required","* The operating system running on the cluster.
-* **Value**: ``rhel``, ``rocky``"
-"**cluster_os_version**
-
-``string``
-
-Required","* The OS Version that will be provisoned on compute nodes.
-* For RHEL and Rocky Linux, the accepted ``value`` is ``8.8``."
-"**repo_config**
-
-``string``
-
-Required","* The type of offline configuration user needs.
-* When the value is set to ``always``, Omnia creates a local repository/registry on the OIM hosting all the packages/images required for the cluster.
-* When the value is set to ``partial``, Omnia creates a local repository/registry on the OIM hosting all the packages/images except those listed in the ``user_repo_url/user_registry`` in ``input/local_repo_config.yml``.
-* When the value is set to ``never``, Omnia does not create a local repository/registry. All the packages/images are directly downloaded on the cluster.
-.. note::
-  * After ``local_repo.yml`` has run, the value of ``repo_config`` in ``input/software_config.json`` cannot be updated without running the `oim_cleanup.yml <../../Maintenance/cleanup.html>`_ script first.
-  * Irrespective of the value of ``repo_config``, all local repositories that are not available as images, debian packages, or RPMs will be downloaded and configured locally on the OIM. Additionally, AMD GPU drivers, CUDA, and OFED are also downloaded by default if they are mentioned in the ``input/software_config.json``.
-
-* **Accepted values**:
-
-  * ``always``
-  * ``partial`` <- Default
-  * ``never``
-	"
-"**softwares**
-
-``JSON list``
-
-Required","* A JSON list of required software and (optionally) the software version.
+       * ISOs
+       * pip modules
+       * manifests
+       * tarballs
+       * container images
+       * AMD GPU drivers
+       * OFED
+       * CUDA"
+**softwares**,Mandatory,"* **Type**: JSON list
+* A JSON list of required software and (optionally) the software version.
 * The following software should be listed with a version in the list: BeeGFS, AMD GPU, Kubernetes, CUDA, OFED, UCX, and ROCm.
 * A minimum of one software should be provided in the list for ``local_repo.yml`` to execute correctly.
-* The ``<os_type>_software_config.json`` will have the basic softwares present in it. To add additional software stacks, add the software under ``input/software_config.json``.
+* The ``<os_type>_software_config.json`` will have the basic softwares present in it. To add additional software stacks, add the software under ``/opt/omnia/input/project_default/software_config.json``.
 * For the list of all applicable softwares based on your ``<cluster_os_type>``, refer the templates at ``examples/template_<os>_software_config.json``. For example, ``examples/template_rhel_software_config.json``.
 
-.. note:: The accepted names for software is taken from ``input/config/<cluster_os_type>/<cluster_os_version>``.
-"
+.. note:: The accepted names for software is taken from ``/opt/omnia/input/project_default/config/<cluster_os_type>/<cluster_os_version>``."

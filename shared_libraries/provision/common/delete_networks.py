@@ -11,10 +11,14 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+"""
+This script deletes miscellaneous networks from the system.
+"""
 
-import sys, os
-import yaml
+import sys
+import os
 import subprocess
+import yaml
 
 db_path = sys.argv[1]
 sys.path.insert(0, db_path)
@@ -69,7 +73,7 @@ def omnia_networks():
     with open(network_spec_path, "r") as file:
         data = yaml.safe_load(file)
         for info in data["Networks"]:
-            for col, value in info.items():
+            for col, _ in info.items():
                 omnia_nw_names.append(col)
 
 
@@ -77,12 +81,16 @@ def delete_misc_networks():
     """
     Deletes miscellaneous networks from the system.
 
-    This function retrieves the names of all the networks in the system using the `get_networks()` function.
-    It then retrieves the names of the networks specific to Omnia using the `omnia_networks()` function.
-    The function then iterates over the names of all the networks and checks if they are not present in the
-    list of Omnia-specific network names. If a network name is not present in the list of Omnia-specific
-    network names, it constructs a command to delete the network using the `rmdef` utility. The command is
-    executed using the `subprocess.run()` function.
+    This function retrieves the names of all the networks in the system
+    using the `get_networks()` function.
+    It then retrieves the names of the networks specific to Omnia using
+    the `omnia_networks()` function.
+    The function then iterates over the names of all the networks and
+    checks if they are not present in the list of Omnia-specific network names.
+
+    If a network name is not present in the list of Omnia-specific network names,
+    it constructs a command to delete the network using the `rmdef` utility.
+    The command is executed using the `subprocess.run()` function.
 
     Parameters:
         None
@@ -96,7 +104,7 @@ def delete_misc_networks():
         if i not in omnia_nw_names:
             command = f"/opt/xcat/bin/rmdef -t network {i}"
             command_list = command.split()
-            subprocess.run(command_list, capture_output=True)
+            subprocess.run(command_list, capture_output=True, check=False)
 
 
 delete_misc_networks()

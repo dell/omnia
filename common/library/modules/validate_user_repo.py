@@ -14,9 +14,11 @@
 
 #!/usr/bin/python
 # pylint: disable=import-error,no-name-in-module,line-too-long
+
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.local_repo.validate_utils import validate_certificates
 
+"""Ansible module to validate certificates for a repository."""
 def main():
     """
     Main function for the Ansible module.
@@ -65,7 +67,6 @@ def main():
                 )
         else:
             result["msg"] = f"All certificate checks passed for '{module.params['repo_key']}'."
-
     except Exception as e:
         # Catching general exception at top level to return a clean failure via Ansible
         result["failed"] = True

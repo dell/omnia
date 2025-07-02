@@ -1,5 +1,5 @@
-FAQs related to RHEL/Rocky Linux clusters
-===========================================
+FAQs related to RHEL clusters
+================================
 
 .. toctree::
 

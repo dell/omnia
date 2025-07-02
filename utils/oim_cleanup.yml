@@ -44,6 +44,7 @@
     - name: Disable the OIM helper nodes boot option
       ansible.builtin.include_role:
         name: oim_cleanup/oim_helper_node_cleanup
+      when: credentials_file_status.stat.exists
 
 - name: Cleanup Omnia Infrastructure Manager # noqa:role-name[path]
   hosts: oim

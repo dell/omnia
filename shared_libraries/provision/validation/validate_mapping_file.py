@@ -11,7 +11,9 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""
+This file validates the mapping file provided by the user.
+"""
 import re
 import sys
 import os
@@ -88,7 +90,6 @@ def valid_ip(df):
     Returns:
         None
     """
-    nan = float('NaN')
     try:
         for ip in df['ADMIN_IP']:
             if not ipaddress.IPv4Address(ip):
@@ -168,20 +169,24 @@ def validate_col(df):
         df (pandas.DataFrame): The dataframe to validate.
 
     Raises:
-        SystemExit: If any of the necessary columns are missing or if any of the non-null columns contain null values.
+        SystemExit: If any of the necessary columns are missing or
+            if any of the non-null columns contain null values.
     """
     curr_cols = df.columns
     # Check if necessary columns are present or not.
     for i in mandatory_col:
         if i not in curr_cols:
-            sys.exit(
-                " Please provide a valid mapping file. It should contain GROUP_NAME,SERVICE_TAG,ADMIN_MAC,HOSTNAME,ADMIN_IP,BMC_IP.")
+            sys.exit((
+                "Please provide a valid mapping file. "
+                "It should contain GROUP_NAME,SERVICE_TAG,ADMIN_MAC,HOSTNAME,ADMIN_IP,BMC_IP."))
 
     # Calculate null columns
     null_col_list = df.columns[df.isna().any()].tolist()
     for i in non_null_col:
         if i in null_col_list:
-            sys.exit("GROUP_NAME,SERVICE_TAG,ADMIN_MAC,HOSTNAME and ADMIN_IP can't be null. Please provide proper values.")
+            sys.exit((
+                "GROUP_NAME,SERVICE_TAG,ADMIN_MAC,HOSTNAME and ADMIN_IP can't be null. "
+                "Please provide proper values."))
     unique_val_col(df)
 
 
@@ -189,16 +194,21 @@ def read_mapping_csv():
     """
     Read a CSV file given a CSV path.
 
-    This function reads a CSV file located at the path specified by the global variable `mapping_file_path`.
-    It first attempts to read the file using the `pd.read_csv()` function. If the file is empty (i.e.,
-    `len(csv_file) == 0`), it exits the program with an error message.
+    This function reads a CSV file located at the path specified by the global variable
+        `mapping_file_path`.
+    It first attempts to read the file using the `pd.read_csv()` function.
+    If the file is empty (i.e., `len(csv_file) == 0`), it exits the program with an
+    error message.
 
-    The function then applies the `lambda` function to each column of the DataFrame, stripping any whitespace
-    from the column values. The column names are also stripped of whitespace.
+    The function then applies the `lambda` function to each column of the DataFrame,
+        stripping any whitespace from the column values.
+        The column names are also stripped of whitespace.
 
-    Finally, the function calls the `validate_col()` function to validate the columns of the DataFrame.
+    Finally, the function calls the `validate_col()` function to validate the
+        columns of the DataFrame.
 
-    If any errors occur during the execution of the function, the program exits with an error message.
+    If any errors occur during the execution of the function,
+        the program exits with an error message.
 
     Parameters:
         None

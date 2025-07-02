@@ -117,8 +117,3 @@
 - name: Reload firewalld
   ansible.builtin.command: firewall-cmd --reload
   changed_when: false
-
-- name: Stop firewalld
-  ansible.builtin.service:
-    name: firewalld
-    state: stopped

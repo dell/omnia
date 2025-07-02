@@ -1,7 +1,7 @@
 Provision
 ==========
 
-⦾ **Why is the provisioning status of my target servers stuck at ‘powering-on’ in the cluster.info (omniadb)?**
+⦾ **Why is the provisioning status of my target servers stuck at** ``powering-on`` **in the** ``cluster.nodeinfo`` **table (omniadb)?**
 
 **Potential Cause**:
 
@@ -13,7 +13,7 @@ Provision
     * Resolve/replace the faulty hardware and PXE boot the node.
     * Target servers should be configured to boot in PXE mode with the appropriate NIC as the first boot device.
 
-⦾ **What to do if PXE boot fails while discovering target nodes via switch_based discovery with provisioning status stuck at 'powering-on' in cluster.nodeinfo (omniadb):**
+⦾ **What to do if PXE boot fails while discovering target nodes via switch_based discovery with provisioning status stuck at** ``powering-on`` **in the** ``cluster.nodeinfo`` **table (omniadb)?**
 
 .. image:: ../../../images/PXEBootFail.png
 
@@ -25,7 +25,7 @@ Provision
 
 3. Re-run the provision tool (``ansible-playbook discovery_provision.yml``).
 
-⦾ **Why are the status and admin_mac fields not populated for specific target nodes in the cluster.nodeinfo table?**
+⦾ **Why are the** ``status`` **and** ``admin_mac`` **fields not populated for specific target nodes in the** ``cluster.nodeinfo`` **table?**
 
 **Causes**:
 
@@ -49,7 +49,7 @@ Provision
    * Refresh the key using ``ssh-keygen -R <hostname/server IP>``.
    * Retry login.
 
-⦾ **Why is the node status stuck at 'powering-on' or 'powering-off' after a OIM reboot?**
+⦾ **Why is the node status stuck at** ``powering-on`` **or** ``powering-off`` **after a OIM reboot?**
 
 **Potential Cause**: The nodes were powering off or powering on during the OIM reboot/shutdown.
 

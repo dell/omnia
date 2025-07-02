@@ -13,5 +13,16 @@
 #  limitations under the License.
 ---
 
-- name: Deployment of prometheus pod
-  ansible.builtin.include_tasks: prometheus_deployment.yml
+- name: Deployment of k8s telemetry service
+  when:
+    - hostvars['localhost']['idrac_telemetry_support']
+    - hostvars['localhost']['federated_idrac_telemetry_collection']
+  block:
+    - name: Configure k8s secrets
+      ansible.builtin.include_tasks: secrets_creation.yml
+
+    - name: Deployment of mysqldb pod
+      ansible.builtin.include_tasks: mysqldb_deployment.yml
+
+    - name: Deployment of prometheus pod
+      ansible.builtin.include_tasks: prometheus_deployment.yml

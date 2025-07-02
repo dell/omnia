@@ -59,15 +59,6 @@ Choices:
 
      * ``true``
 "
-"**ansible_config_file_path**
-
-     ``string``
-
-     Required           ","* Path to directory hosting ansible config file (ansible.cfg file)
-* This directory is on the host running ansible, if ansible is installed   using dnf
-* If ansible is installed using pip, this path should be set                        
-                                                                                    
-     **Default values**: ``/etc/ansible``                                           "
 "**beegfs_secret_storage_filepath**
      ``string``
      Required

@@ -11,7 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""This module contains functions for calculating IP details."""
 import ipaddress
 
 
@@ -94,11 +94,13 @@ def calculate_binary_ip(ip):
     try:
         octets = map(int, ip.split('.'))
         if octets:
-          binary = ''.join(f'{octet:08b}' for octet in octets)
-          return binary
+            binary = ''.join(f'{octet:08b}' for octet in octets)
+            return binary
 
     except ValueError:
         return "Invalid IP address"
+
+    return "Invalid IP address"
 
 
 def cal_ip_details(temp, netmask_bits):

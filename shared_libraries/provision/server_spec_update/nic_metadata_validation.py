@@ -11,11 +11,14 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""
+This script validates the NIC metadata parameters against the server specification data.
+"""
 import sys
-import yaml
 import json
 import os
+import yaml
+
 
 def fetch_nic_metadata_params(metadata_path):
     """
@@ -28,7 +31,7 @@ def fetch_nic_metadata_params(metadata_path):
 	    dict: The loaded metadata parameters as a dictionary.
 	"""
 
-    with open(metadata_path, "r") as file:
+    with open(metadata_path, "r", encoding="utf-8") as file:
         data = yaml.safe_load(file)
     return data
 
@@ -44,21 +47,33 @@ def validate_nic_metadata_params(network_data, md_data):
 	    None
 
 	Raises:
-	    SystemExit: If the CIDR, static range, or netmask bits provided in the NIC metadata file are different from the values provided in the previous execution.
+	    SystemExit: If the CIDR, static range, or netmask bits provided in the NIC metadata file
+            are different from the values provided in the previous execution.
 	"""
 
     if network_data:
         for net_key,net_value in network_data.items():
             if net_key not in ['admin_network', 'bmc_network']:
                 if net_key in md_data.keys():
-                    if('CIDR' in net_value.keys()):
-                        if(net_value['CIDR'] != md_data['nic_metadata']['md_'+net_key+'_CIDR']):
-                            sys.exit("md_"+net_key+"_CIDR"+" provided during previous execution is different from the value provided in current execution")
-                    if('static_range' in net_value.keys()):
-                        if(net_value['static_range'] != md_data['nic_metadata']['md_'+net_key+'_static_range']):
-                            sys.exit("md_"+net_key+"_static_range"+" provided during previous execution is different from the value provided in current execution")
-                    if(net_value['netmask_bits'] != md_data['nic_metadata']['md_'+net_key+'_netmask_bits']):
-                        sys.exit("md_"+net_key+"_netmask_bits"+" provided during previous execution is different from the value provided in current execution")
+                    if 'CIDR' in net_value.keys():
+                        if net_value['CIDR'] != md_data['nic_metadata']['md_'+net_key+'_CIDR']:
+                            sys.exit(
+                                "md_" + net_key + "_CIDR provided during previous execution "
+                                "is different from the value provided in current execution"
+                            )
+                    if 'static_range' in net_value.keys():
+                        metadata_key = f"md_{net_key}_static_range"
+                        if net_value['static_range'] != md_data['nic_metadata'][metadata_key]:
+                            sys.exit(
+                                "md_" + net_key + "_static_range provided during previous execution "
+                                "is different from the value provided in current execution"
+                            )
+                    metadata_key = f"md_{net_key}_netmask_bits"
+                    if net_value['netmask_bits'] != md_data['nic_metadata'][metadata_key]:
+                        sys.exit(
+                            "md_" + net_key + "_netmask_bits provided during previous execution "
+                            "is different from the value provided in current execution"
+                        )
 
 def main():
     """

@@ -17,7 +17,7 @@ In a **Shared LOM setup**, the Administration and BMC logical networks share the
 
 **Recommended discovery mechanism**
 
-* `mapping <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/mappingfile.html>`_
-* `bmc <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/bmc.html>`_
-* `switch-based  <../../OmniaInstallGuide/Ubuntu/Provision/DiscoveryMechanisms/switch-based.html>`_
+* `mapping <../../OmniaInstallGuide/RHEL_new/Provision/DiscoveryMechanisms/mappingfile.html>`_
+* `bmc <../../OmniaInstallGuide/RHEL_new/Provision/DiscoveryMechanisms/bmc.html>`_
+* `switch-based  <../../OmniaInstallGuide/RHEL_new/Provision/DiscoveryMechanisms/switch-based.html>`_
 

@@ -15,11 +15,11 @@
 '''
 Module to generate password hashes for OpenLDAP.
 '''
-
-from passlib.hash import ldap_sha1 as lsm
 import sys
+from passlib.hash import ldap_sha1 as lsm
 
-"""
+def get_hash(passwd):
+    """
     Get the hash of a given password.
 
     Parameters:
@@ -27,9 +27,8 @@ import sys
 
     Returns:
         str: The hashed password.
-"""
-def get_hash(passwd):
-    hash = lsm.hash(passwd)
-    return hash
+    """
+    hashed = lsm.hash(passwd)
+    return hashed
 if __name__ == "__main__":
     print(get_hash(sys.argv[1]))

@@ -11,9 +11,8 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 #!/usr/bin/python
-
+"""Ansible module to fetch mapping details for nodes in a group."""
 from ansible.module_utils.basic import AnsibleModule
 
 def fetch_mapping_details(groups_roles_info, csv_data):
@@ -31,7 +30,10 @@ def fetch_mapping_details(groups_roles_info, csv_data):
     """
 
     filtered_nodes = []
-    nodes = {mac: details for mac, details in csv_data.items() if details["GROUP_NAME"] in groups_roles_info}
+    nodes = {
+        mac: details for mac, details in csv_data.items()
+        if details["GROUP_NAME"] in groups_roles_info
+    }
 
     for _, node  in nodes.items():
         group = node["GROUP_NAME"]
@@ -51,17 +53,22 @@ def fetch_mapping_details(groups_roles_info, csv_data):
             "bmc_details": groups_roles_info[group]["bmc_details"],
             "switch_details": groups_roles_info[group]["switch_details"],
             "architecture": groups_roles_info[group]["architecture"],
-            "hierarchical_provision_status": groups_roles_info[group].get("hierarchical_provision_status", False)
+            "hierarchical_provision_status": groups_roles_info[group].get(
+                "hierarchical_provision_status", False
+            )
         }
         filtered_nodes.append(node_data)
 
     return filtered_nodes, groups_roles_info
 
 def main():
-    module_args = dict(
-        groups_roles_info=dict(type="dict", required=True),
-        mapping_file_data=dict(type="dict", required=True)
-    )
+    """
+    Main function to run the Custom ansible module for fetching mapping details.
+    """
+    module_args = {
+        'groups_roles_info': {'type': 'dict', 'required': True},
+        'mapping_file_data': {'type': 'dict', 'required': True}
+    }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
@@ -71,7 +78,12 @@ def main():
 
         filtered_nodes, groups_roles_info = fetch_mapping_details(groups_roles_info, node_df)
 
-        module.exit_json(changed=False, mapping_details=filtered_nodes, mapping_required=bool(filtered_nodes), groups_roles_info=groups_roles_info)
+        module.exit_json(
+            changed=False,
+            mapping_details=filtered_nodes,
+            mapping_required=bool(filtered_nodes),
+            groups_roles_info=groups_roles_info
+        )
 
     except Exception as e:
         module.fail_json(error=str(e))

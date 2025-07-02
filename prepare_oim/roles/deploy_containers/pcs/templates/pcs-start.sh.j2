@@ -13,21 +13,8 @@
 # limitations under the License.
 
 #!/bin/sh
-systemctl start corosync
-systemctl start pacemaker
 
-# Check if corosync and pacemaker have started
-if ! systemctl status corosync > /dev/null; then
-    echo "Corosync has not started. Exiting with return code 1."
-    exit 1
-fi
-
-if ! systemctl status pacemaker > /dev/null; then
-    echo "Pacemaker has not started. Exiting with return code 1."
-    exit 1
-fi
-
-echo "Corosync and Pacemaker have started. Continuing with the script."
+sleep 10
 
 pcs property set stonith-enabled=false
 pcs property set no-quorum-policy=ignore
@@ -42,7 +29,7 @@ pcs resource create admin_VIP ocf:heartbeat:IPaddr2 \
 
 pcs resource group add {{ vip_group }} admin_VIP
 
-{% if hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.bmc_virtual_ip_address is defined %}
+{% if hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.bmc_virtual_ip_address is defined and hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.bmc_virtual_ip_address | length > 1 %}
 pcs resource create bmc_VIP ocf:heartbeat:IPaddr2 \
         ip={{ hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.bmc_virtual_ip_address }} nic={{ admin_nic }} cidr_netmask={{ hostvars['localhost']['network_data'].admin_network.netmask_bits }} \
         op monitor interval={{ monitor_interval }}

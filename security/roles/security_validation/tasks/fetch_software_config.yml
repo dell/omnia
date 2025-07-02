@@ -41,11 +41,6 @@
   ansible.builtin.set_fact:
     enable_secure_login_node: "{{ software_config.softwares | selectattr('name', 'equalto', 'secure_login_node') | list | length > 0 }}"
 
-- name: Fail if both freeipa_support and openldap_support are true
-  ansible.builtin.fail:
-    msg: "{{ freeipa_and_openldap_true_fail_msg }}"
-  when: freeipa_support and openldap_support
-
 - name: Warn if secure login is not required
   ansible.builtin.pause:
     seconds: "{{ ipa_support_wait_time }}"

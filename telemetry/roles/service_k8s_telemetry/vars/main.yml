@@ -13,6 +13,18 @@
 #  limitations under the License.
 ---
 
+# Usage: mysqldb_deployment.yml
+mysqldb_storage: 1Gi
+mysqldb_pvc_name: mysqldb-storage-claim
+mysqldb_k8s_name: mysqldb
+mysqldb_name: "idrac_telemetrydb"
+mysqldb_container_port1: 3306
+mysqldb_container_port2: 33060
+mysql_image: "docker.io/library/mysql:9.3.0"
+
+# Usage: k8s_secrets.yml
+mysqldb_secrets_name: mysqldb-credentials
+
 # Usage: idrac_telemetry_deployment.yml
 service_cluster_idrac_telemetry_dir_path: "/opt/omnia/service_cluster/telemetry/idrac_telemetry"
 dir_permissions_755: "0755"

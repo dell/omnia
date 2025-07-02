@@ -1,6 +1,6 @@
 [Omnia-RPM-Repo{{ item.final_repo_name }}]
 name=Omnia-Repo-{{ item.final_repo_name }}
-baseurl={{ (hostvars['localhost']['pulp_output_fact'] | selectattr('name', 'equalto', item.final_repo_name) | map(attribute='base_url') | list | first) }}
+baseurl={{ (pulp_dist_result | selectattr('name', 'equalto', item.final_repo_name) | map(attribute='base_url') | list | first) }}
 enabled=1
 gpgcheck=0
 skip_if_unavailable=True

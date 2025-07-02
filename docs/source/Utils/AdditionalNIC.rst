@@ -1,5 +1,6 @@
 Configuring additional NICs and Kernel Parameters on the nodes
 ----------------------------------------------------------------
+
 After the ``discovery_provision.yml`` playbook has been executed and the nodes have booted up, additional NICs or OS Kernel command-line parameters can be configured on the cluster nodes using the ``server_spec_update.yml`` playbook. For more information about the supported kernel command-line parameters, `click here <https://docs.kernel.org/admin-guide/kernel-parameters.html>`_.
 The ``server_spec_update.yml`` playbook can be used to do the following tasks:
 
@@ -9,7 +10,7 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
 
 **Prerequisites**
 
-* All target nodes are provisioned and booted. `Click here <../OmniaInstallGuide/Ubuntu/Provision/ViewingDB.html>`_ to know how to verify the status of the nodes.
+* All target nodes are provisioned and booted. `Click here <../OmniaInstallGuide/RHEL_new/Provision/ViewingDB.html>`_ to know how to verify the status of the nodes.
 
 * Ensure that ``input/network_spec.yml`` file has been updated with all network information in addition to ``admin_network`` and ``bmc_network`` information. Below are all applicable properties of an additional network:
 
@@ -24,7 +25,7 @@ The ``server_spec_update.yml`` playbook can be used to do the following tasks:
       .. note:: You can either use ``CIDR`` or ``static_range``. Simultaneous use of both parameters will result in an error message being displayed.
 
     * ``MTU``: Maximum transmission unit (MTU) is a measurement in bytes of the largest data packets that an Internet-connected device can accept. Default value of ``MTU`` is 1500. You can enter your desired value.
-    * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an ethernet frame belongs to. This property is not supported on clusters running Ubuntu.
+    * ``VLAN``: A 12-bit field that identifies a virtual LAN (VLAN) and specifies the VLAN that an ethernet frame belongs to.
 
 * Modify the ``input/server_spec.yml`` file with the additional NIC information and/or OS command-line kernel parameters that you want to add or alter for the target nodes. Ensure the following:
 
@@ -168,10 +169,6 @@ In the above sample inventory file, ``[node-group1]`` and ``[node-group2]`` are 
     cd utils/server_spec_update
     ansible-playbook server_spec_update.yml -i <inventory_file_path>
 
-.. note:: In Omnia v1.7, while executing ``server_spec_update.yml``, the user needs to ensure that only admin IP addresses are used in the inventory file, not service tags or node names.
+.. note:: While executing ``server_spec_update.yml``, ensure that only admin IP addresses are used in the inventory file, not service tags or node names.
 
 Based on the provided sample files, server 10.5.0.3 has been mapped to node-group1 which corresponds to group-1. Therefore, the NICs ensp0 and ensp0.5 will be configured in an ethernet VLAN group with ensp0 as the primary device.
-
-
-
-

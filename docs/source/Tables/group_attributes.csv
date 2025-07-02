@@ -1,0 +1,33 @@
+﻿Attribute,Mandatory/Conditional mandatory/Optional,Description
+Group Name - ``grpN``,Mandatory,"* User defined name of the group.
+* Range for ``N`` is 0-99.
+
+ **Example**: ``grp0``, ``grp1``, and ``grp2``."
+Location of the node - ``location_id``,Mandatory,"* Scalable unit and rack number range.
+* Range for ``<n>`` is 0-99.
+* **Format**: ``SU-<n>.RACK-<n>``
+
+ **Example**: ``SU-1.RACK-1``
+
+.. note:: This attribute is case-sensitive. Ensure to use uppercase characters only."
+Resource Manager - ``resource_mgr_id``,Conditional mandatory,"* This attribute contains the service tag of the active Kubernetes and slurm head node(s).
+* Provide this attribute value only for group of nodes belonging to ``kube_node`` and ``slurm_node`` roles. For all other roles, this attribute should be left empty."
+Service node details - ``parent``,Conditional mandatory,"* If you want to set up a hierarchical cluster, provide the service tag of the ``service_node`` to this attribute. This ``service_node`` will be used to provision a group of compute nodes. For more information, `click here <xcat_hierarchical.html>`_.
+* Provide the service tag of a single ``service_node`` to this attribute.
+* Provide this attribute value only for group of nodes belonging to the compute layer.
+
+ **Example**: ``parent: ""ABC123""``
+
+.. note:: If ``service_node`` role is not defined, then value for this attribute should be empty."
+BMC (iDRAC) static IP - ``static_range``,Conditional mandatory,"* This attribute contains the BMC (iDRAC) static IP range.
+* Provide this attribute value only if BMC discovery mechanism is used while provisioning the nodes.
+* BMC static range for each group should be mutually exclusive. For example, if ``grp0`` is defined with ``10.5.0.1-10.5.0.10`` of an BMC static IP range, any other group should not contain any IP from that range.
+
+ **Example**: ``10.5.0.1-10.5.0.200``"
+Switch IP - ``ip``,Conditional mandatory,"* This attribute contains the IP address of the switch connected to the rack.
+* If you want switch-based provisioning, BMC ``static range`` should also be provided and all IPs within the bmc static range should be reachable from the OIM admin NIC. This is to ensure a mandatory `LOM setup <../../Overview/NetworkTopologies/lom.html>`_.
+* If 2 groups have the same switch ip, the switch ports must be different (mutually exclusive)."
+Switch ports - ``ports``,Conditional mandatory,"* This attribute contains the port details of the switch connected to the rack.
+* This attribute is mandatory if switch IP is provided."
+Node architecture - ``architecture``,Mandatory,"* Architecture of the nodes.
+* Possible values: ``x86`` or ``ARM``"

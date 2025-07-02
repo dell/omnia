@@ -21,8 +21,6 @@ hosts_file_mode: "0644"
 security_config_syntax_fail_msg: "Failed. Syntax errors present in security_config.yml. Fix errors and re-run playbook again."
 
 # Usage: validate_input_params.yml
-authentication_system_success_msg: "authentication_system variable successfully validated"
-authentication_system_fail_msg: "Failed. authentication_system variable in security_config.yml should be either openldap or freeipa"
 min_length: 8
 max_length: 30
 domain_name_length: '63'

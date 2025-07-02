@@ -11,15 +11,18 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""
+This script updates the xCAT networks table with the specified network details.
+"""
 import subprocess
-import sys, os
+import sys
+import os
+import calculate_ip_details
 import yaml
 
 nic_info = {}
 cal_path = sys.argv[1]
 sys.path.insert(0, cal_path)
-import calculate_ip_details
 
 network_spec_path = os.path.abspath(sys.argv[2])
 metadata_nic_info_path = os.path.abspath(sys.argv[3])
@@ -51,10 +54,11 @@ def run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, network
     netmask = details[0]
     subnet = details[1]
     nic_range = start_ip + '-' + end_ip
-    command = f"/opt/xcat/bin/chdef -t network -o {col} net={subnet} mask={netmask} gateway={network_gateway} staticrange={start_ip}-{end_ip} mtu={mtu}"
+    command = (f"/opt/xcat/bin/chdef -t network -o {col} net={subnet} mask={netmask} "
+                f"gateway={network_gateway} staticrange={start_ip}-{end_ip} mtu={mtu}")
     command_list = command.split()
     try:
-        subprocess.run(command_list, capture_output=True)
+        subprocess.run(command_list, capture_output=True, check=False)
         nic_info[col] = [nic_range, nic_mode]
     except Exception as e:
         print({e})
@@ -77,8 +81,8 @@ def create_metadata_nic():
 	"""
 
     try:
-        with open(metadata_nic_info_path, 'r') as file:
-            existing_data = yaml.safe_load(file)
+        with open(metadata_nic_info_path, 'r', encoding='utf-8') as f:
+            existing_data = yaml.safe_load(f)
             if existing_data is None:
                 existing_data = {}
     except FileNotFoundError:
@@ -87,29 +91,31 @@ def create_metadata_nic():
     # Update with new data
     existing_data.update(nic_info)
 
-    with open(metadata_nic_info_path, 'w') as f:
+    with open(metadata_nic_info_path, 'w', encoding='utf-8') as f:
         yaml.dump(existing_data, f, default_flow_style=False)
 
 
 def update_networks_table():
     """
-	Updates the xCAT networks table with the specified network details.
+    Updates the xCAT networks table with the specified network details.
 
-	This function iterates over the `data["Networks"]` dictionary and updates the xCAT networks table
-	with the specified network details. It checks if the current network is not an admin network
-	or a bmc network. If it is not, it checks if the network has a CIDR or a static range. If it
-	has a CIDR, it calculates the start and end IP addresses, and the netmask. It then calls the
-	`run_command_nw_update()` function with the necessary parameters. If the network has a static
-	range, it calculates the start and end IP addresses, and the netmask. It then calls the
-	`run_command_nw_update()` function with the necessary parameters. Finally, it calls the
-	`create_metadata_nic()` function to update the NIC metadata.
+    This function iterates over the `data["Networks"]` dictionary and
+    updates the xCAT networks table with the specified network details.
 
-	Parameters:
-	- None
+    It checks if the current network is not an admin network or a bmc network.
+    If it is not, it checks if the network has a CIDR or a static range. If it
+    has a CIDR, it calculates the start and end IP addresses, and the netmask. It then calls the
+    `run_command_nw_update()` function with the necessary parameters. If the network has a static
+    range, it calculates the start and end IP addresses, and the netmask. It then calls the
+    `run_command_nw_update()` function with the necessary parameters. Finally, it calls the
+    `create_metadata_nic()` function to update the NIC metadata.
 
-	Returns:
-	- None
-	"""
+    Parameters:
+    - None
+
+    Returns:
+    - None
+    """
 
     for info in data["Networks"]:
         for col, value in info.items():
@@ -123,7 +129,8 @@ def update_networks_table():
                     start_ip = output[0]
                     end_ip = output[1]
                     nic_mode = "cidr"
-                    run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, network_gateway, mtu)
+                    run_command_nw_update(
+                        col, start_ip, end_ip, netmask_bits, nic_mode, network_gateway, mtu)
 
                 if value.get('static_range'):
                     netmask_bits = value.get('netmask_bits')
@@ -133,7 +140,8 @@ def update_networks_table():
                     start_ip = static_range.split('-')[0]
                     end_ip = static_range.split('-')[1]
                     nic_mode = "static"
-                    run_command_nw_update(col, start_ip, end_ip, netmask_bits, nic_mode, network_gateway, mtu)
+                    run_command_nw_update(
+                        col, start_ip, end_ip, netmask_bits, nic_mode, network_gateway, mtu)
 
     create_metadata_nic()
 

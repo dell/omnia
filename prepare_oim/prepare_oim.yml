@@ -218,19 +218,33 @@
         name: deploy_containers/pcs
         tasks_from: deploy_pcs_container_resources.yml
 
-- name: Save container images to NFS share
-  hosts: oim
-  connection: ssh
+- name: Fetch container images
+  hosts: localhost
+  connection: local
   gather_facts: false
   tags: oim_ha
-  roles:
-    - role: save_container_images  # noqa:role-name[path]
+  tasks:
+    - name: Fetch container image list
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/common/get_container_image_list.yml"
       when: >
-        omnia_share_option == 'NFS' and
+        hostvars['localhost']['omnia_share_option'] == 'NFS' and
         (
           (hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.enable_oim_ha | default(false)) or
           (hostvars['localhost']['has_service_role'] | default(false))
         )
+
+- name: Save Container Images
+  when: >
+    hostvars['localhost']['omnia_share_option'] == 'NFS' and
+    (
+      (hostvars['localhost']['oim_ha_data'].ansible_facts.oim_ha.enable_oim_ha | default(false)) or
+      (hostvars['localhost']['has_service_role'] | default(false))
+    )
+  ansible.builtin.import_playbook: "{{ playbook_dir }}/../utils/save_container_images.yml"
+  vars:
+    container_images: "{{ hostvars['localhost']['container_images'] | default([]) }}"
+    oim_group: false
+  tags: oim_ha
 
 - name: Prepare oim completion
   hosts: localhost

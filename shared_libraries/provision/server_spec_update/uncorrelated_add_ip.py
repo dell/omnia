@@ -11,15 +11,13 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+"""
+This module provides functionality for calculating and validating the uncorrelated admin IP for a node.
+"""
 import ipaddress
 import sys
 from psycopg2.extensions import AsIs
 
-"""
-    This module provides functionality for calculating and
-    validating the uncorrelated admin IP for a node.
-"""
 
 def cal_nic_ip(cursor, col, ip, end_ip):
     """
@@ -43,18 +41,23 @@ def cal_nic_ip(cursor, col, ip, end_ip):
     if not op:
         nic_ip = ipaddress.IPv4Address(ip)
         return str(nic_ip)
-    elif op:
-        while True:
-            ip = ipaddress.IPv4Address(ip) + 1
-            nic_ip = ip
-            output = check_presence_ip(cursor, col, nic_ip)
-            if not output and nic_ip < end_ip:
-                break
-            else:
-                sys.exit(
-                    "We have reached the end of ranges. Please do a cleanup and provide a wider nic_range, if more nodes needs to be discovered.")
 
-        return str(nic_ip)
+    while True:
+        ip = ipaddress.IPv4Address(ip) + 1
+        nic_ip = ip
+        output = check_presence_ip(cursor, col, nic_ip)
+        if not output and nic_ip < end_ip:
+            break
+
+        sys.exit(
+            "We have reached the end of ranges. " +
+            "Please do a cleanup and provide a wider nic_range, " +
+            "if more nodes needs to be discovered."
+        )
+
+    return str(nic_ip)
+
+
 def check_presence_ip(cursor, col, ip):
     """
         Check presence of bmc ip in DB.
@@ -92,24 +95,38 @@ def cal_uncorrelated_add_ip(cursor, col, nic_mode, nic_range):
     rows_exist = cursor.fetchone()[0]
     if nic_mode == "static":
         if rows_exist:
-            sql = f'''select %s from cluster.nicinfo where %s is not NULL ORDER BY %s  DESC LIMIT 1'''
-            cursor.execute(sql, (AsIs(f"{col}_ip"), AsIs(f"{col}_ip"), AsIs(f"{col}_ip")))
+            sql = (
+                '''select %s from cluster.nicinfo '''
+                '''where %s is not NULL '''
+                '''ORDER BY %s DESC LIMIT 1'''
+            )
+            cursor.execute(
+                sql,
+                (AsIs(f"{col}_ip"), AsIs(f"{col}_ip"), AsIs(f"{col}_ip"))
+            )
             last_nic_ip = cursor.fetchone()
             if last_nic_ip is None:
                 return str(start_nic_ip)
-            elif start_nic_ip <= ipaddress.IPv4Address(last_nic_ip[0]) <= end_nic_ip:
+            if start_nic_ip <= ipaddress.IPv4Address(last_nic_ip[0]) <= end_nic_ip:
                 nic_ip = cal_nic_ip(cursor, col, last_nic_ip[0], str(end_nic_ip))
                 return str(nic_ip)
         else:
             return str(start_nic_ip)
     if nic_mode == "cidr":
         if rows_exist:
-            sql = f'''select %s from cluster.nicinfo where %s is not NULL ORDER BY %s  DESC LIMIT 1'''
-            cursor.execute(sql, (AsIs(f"{col}_ip"), AsIs(f"{col}_ip"), AsIs(f"{col}_ip")))
+            sql = (
+                '''select %s from cluster.nicinfo '''
+                '''where %s is not NULL '''
+                '''ORDER BY %s DESC LIMIT 1'''
+            )
+            cursor.execute(
+                sql,
+                (AsIs(f"{col}_ip"), AsIs(f"{col}_ip"), AsIs(f"{col}_ip"))
+            )
             last_nic_ip = cursor.fetchone()
             if last_nic_ip is None:
                 return str(start_nic_ip)
-            elif start_nic_ip <= ipaddress.IPv4Address(last_nic_ip[0]) <= end_nic_ip:
+            if start_nic_ip <= ipaddress.IPv4Address(last_nic_ip[0]) <= end_nic_ip:
                 nic_ip = cal_nic_ip(cursor, col, last_nic_ip[0], str(end_nic_ip))
                 return str(nic_ip)
         else:

@@ -13,70 +13,12 @@
 #  limitations under the License.
 ---
 
-- name: Validate max_failures
-  ansible.builtin.assert:
-    that:
-      - max_failures | int == max_failures_default_value
-    success_msg: "{{ max_failures_success_msg }}"
-    fail_msg: "{{ max_failures_fail_msg }}"
-
-- name: Validate failure_reset_interval
-  ansible.builtin.assert:
-    that:
-      - failure_reset_interval | int
-      - failure_reset_interval | int <= failure_reset_interval_max_value
-      - failure_reset_interval | int >= failure_reset_interval_min_value
-    success_msg: "{{ failure_reset_interval_success_msg }}"
-    fail_msg: "{{ failure_reset_interval_fail_msg }}"
-
-- name: Validate lockout_duration
-  ansible.builtin.assert:
-    that:
-      - lockout_duration | int
-      - lockout_duration | int <= lockout_duration_max_value
-      - lockout_duration | int >= lockout_duration_min_value
-    success_msg: "{{ lockout_duration_success_msg }}"
-    fail_msg: "{{ lockout_duration_fail_msg }}"
-
-- name: Validate session_timeout
-  ansible.builtin.assert:
-    that:
-      - session_timeout | int
-      - session_timeout | int <= session_timeout_max_value
-      - session_timeout | int >= session_timeout_min_value
-    success_msg: "{{ session_timeout_success_msg }}"
-    fail_msg: "{{ session_timeout_fail_msg }}"
-
-- name: Validate email alerting inputs
+- name: Set fact for email alerting inputs
   when: alert_email_address | length > 1
   block:
     - name: Set alert_email_list
       ansible.builtin.set_fact:
         alert_email_list: "{{ alert_email_address.split(',') }}"
-
-    - name: Validate alert_email_address
-      ansible.builtin.assert:
-        that:
-          - email_search_key in item
-          - item | length < email_max_length
-        success_msg: "{{ alert_email_success_msg }}"
-        fail_msg: "{{ alert_email_fail_msg }}"
-      with_items: "{{ alert_email_list }}"
-      when: alert_email_address | length > 1
-
-    - name: Validate smtp_server details when smtp_server is provided
-      ansible.builtin.assert:
-        that:
-          - smtp_server | list | length == 1
-          - smtp_server[0]['host'] is defined
-          - smtp_server[0]['port'] is defined
-          - smtp_server[0]['sender_address'] is defined
-          - smtp_server[0]['host'] | length > 1
-          - smtp_server[0]['port'] | length > 1
-          - smtp_server[0]['sender_address'] | length > 1
-          - email_search_key in smtp_server[0]['sender_address']
-        fail_msg: "{{ smtp_server_fail_msg }}"
-      when: alert_email_address | length > 1
 
 - name: Warning - alert_email_address is empty
   ansible.builtin.debug:
@@ -88,28 +30,10 @@
     user_list: "{{ lookup('vars', 'user').split() | unique | select | list }}"
   when: user | length > 1
 
-- name: Validate user
-  ansible.builtin.assert:
-    that:
-      - item is regex("^(?!-)[a-zA-Z]+[0-9-]*[@]((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$") or
-        item is regex("(?!-)[a-zA-Z]+[0-9-]*$")
-    success_msg: "{{ user_success_msg }}"
-    fail_msg: "{{ user_fail_msg }}"
-  with_items: "{{ user_list }}"
-  when:
-    - user | length > 1
-
 - name: Set allow_deny, restrict_program_support value
   ansible.builtin.set_fact:
     allow_deny: "{{ allow_deny | lower }}"
     restrict_program_support: "{{ restrict_program_support | lower }}"
-
-- name: Validate allow_deny
-  ansible.builtin.assert:
-    that:
-      - allow_deny == 'allow' or allow_deny == 'deny'
-    success_msg: "{{ allow_deny_success_msg }}"
-    fail_msg: "{{ allow_deny_fail_msg }}"
 
 - name: Pause for 15 seconds after warning
   ansible.builtin.pause:
@@ -125,32 +49,12 @@
     restrict_program_status: false
     disable_services: []
 
-- name: Assert restrict_program_support
-  ansible.builtin.assert:
-    that:
-      - restrict_program_support == true or restrict_program_support == false
-    success_msg: "{{ restrict_program_support_success_msg }}"
-    fail_msg: "{{ restrict_program_support_failure_msg }}"
-
 - name: Validate Restrict program support variables
   when: restrict_program_support
   block:
     - name: The services needs to be disabled are appending to list
       ansible.builtin.set_fact:
         services_list: "{{ lookup('vars', 'restrict_softwares').split(',') | map('trim') | unique | select | list }}"
-
-    - name: Assert restrict_softwares variable
-      ansible.builtin.assert:
-        that:
-          - item | lower == 'telnet' or
-            item | lower == 'lpd' or
-            item | lower == 'bluetooth' or
-            item | lower == 'rlogin' or
-            item | lower == 'rexec'
-        success_msg: "{{ restrict_softwares_success_msg }}"
-        fail_msg: "{{ restrict_softwares_failure_msg }}"
-      failed_when: false
-      with_items: "{{ services_list }}"
 
     - name: Creating a list for disabling services
       ansible.builtin.set_fact:

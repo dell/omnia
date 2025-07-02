@@ -24,12 +24,6 @@
 - name: Include security config file
   ansible.builtin.include_tasks: include_security_config.yml
 
-- name: Include security variable file login_node_security_config.yml
-  ansible.builtin.include_vars: "{{ login_node_security_config_file }}"
-
-- name: Include local repo access variable file
-  ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"
-
 - name: Fetch software_config.json and check for authentication system
   ansible.builtin.include_tasks: fetch_software_config.yml
 
@@ -39,10 +33,6 @@
     - name: Fetch freeIPA inputs
       ansible.builtin.include_tasks: validate_input_params.yml
 
-    - name: Fetch freeIPA inputs
-      ansible.builtin.include_tasks: fetch_freeipa_inputs.yml
-      when: authentication_system == 'freeipa'
-
     - name: Fetch security inputs
       ansible.builtin.include_tasks: fetch_security_inputs.yml
       when: enable_secure_login_node
@@ -51,14 +41,6 @@
       ansible.builtin.include_tasks: ldap_prereq.yml
       when: authentication_system == 'openldap'
 
-    - name: Fetch LDAP server inputs
-      ansible.builtin.include_tasks: fetch_ldap_server_input.yml
-      when: authentication_system == 'openldap'
-
     - name: Generate LDAP password hashes
       ansible.builtin.include_tasks: generate_ldap_password_hashes.yml
-      when: authentication_system == 'openldap'
-
-    - name: Fetch LDAP client inputs
-      ansible.builtin.include_tasks: fetch_ldap_client_inputs.yml
       when: authentication_system == 'openldap'
