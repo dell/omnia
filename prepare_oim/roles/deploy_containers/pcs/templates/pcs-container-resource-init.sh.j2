@@ -68,16 +68,18 @@ pcs resource create {{ provision_container_name }} ocf:heartbeat:podman \
 pcs resource group add {{ pcs_group }} {{ omnia_core_name }} {{ pulp_container_name }} {{ provision_container_name }}
 
 {% if hostvars['localhost']['k8s_support'] %}
-pcs resource create {{ kubespray_name }} ocf:heartbeat:podman \
- name={{ kubespray_name }} \
- image={{ kubespray_container_image }} \
- reuse=true \
- run_opts="{{ kubespray_run_opts }}" \
- op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
- op start interval={{ start_interval }} timeout={{ start_timeout }} \
- op stop interval={{ stop_interval }}  timeout={{ stop_timeout }}
+{% for version in hostvars['localhost']['kubespray_versions'] %}
+  pcs resource create {{ kubespray_image_name }}_{{ version }} ocf:heartbeat:podman \
+  name={{ kubespray_image_name }}_{{ version }} \
+  image={{ kubespray_image_name }}:{{ version }} \
+  reuse=true \
+  run_opts="{{ kubespray_run_opts }}" \
+  op monitor interval={{ monitor_interval }} timeout={{ monitor_timeout }} on-fail=restart \
+  op start interval={{ start_interval }} timeout={{ start_timeout }} \
+  op stop interval={{ stop_interval }}  timeout={{ stop_timeout }} --group {{ pcs_group }}
 
-pcs resource group add {{ pcs_group }} {{ kubespray_name }}
+pcs resource group add {{ pcs_group }} {{ kubespray_image_name }}_{{ version }}
+{% endfor %}
 {% endif %}
 
 {% if hostvars['localhost']['enable_routed_internet'] %}

@@ -87,7 +87,6 @@ k8s_not_accessible_msg: "Kubernetes not found or not accessible: {{ k8s_status.m
 k8s_namespace_error_msg: "Namespace error: {{ k8s_status.namespace_error }}"
 k8s_node_not_ready: "Some nodes are NotReady: {{ k8s_status.not_ready_nodes }}"
 k8s_pods_failed_msg: "Some pods failed: {{ k8s_status.failed_pods }}"
-k8s_cluster_issue_msg: "Cluster issues detected."
 k8s_status_success_msg: "All Kubernetes nodes are Ready and all pods are Running or Succeeded."
 
 # Usage: set_environment.yml

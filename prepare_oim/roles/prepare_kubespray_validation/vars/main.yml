@@ -13,9 +13,7 @@
 #  limitations under the License.
 
 ---
-kube_version: "{{ hostvars['localhost']['kubespray_version'] }}"
 k8s_compatible_tag: "{{ hostvars['localhost']['k8s_to_kubespray_comp_ver']['compatible_tags'].keys() | list }}"
-k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
 # The source of the supported k8s versions is kubespray/roles/kubespray_defaults/vars/main.yml in the Kubespray repository.
 supported_k8s_version:
   "v2.26.0": [v1.30.4, v1.28.0]
@@ -24,7 +22,7 @@ supported_k8s_version:
 omnia_kubespray_latest_ver_msg: "Latest omnia_kubespray tag is: {{ kubespray_latest_tag.split(':')[1] }}"
 k8s_compatibility_message: "k8s {{ k8s_compatible_tag }} is compatible with existing {{ kube_version }}"
 kubespray_incompatible_msg: |
-  "The existing kubespray image is not compatible with Kubernetes version {{ k8s_version }}.
+  "An existing kubespray image is not compatible with provided Kubernetes version.
   1) Rebuild the kubespray image with {{ kube_version }} using build_image.sh
      Command: ./build_images.sh kubespray kubespray_version={{ kube_version }}
   2) Update software_config.json with a suggested supported version: {{ k8s_to_kubespray_latest }}

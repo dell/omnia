@@ -13,8 +13,9 @@
 # limitations under the License.
 ---
 
-- name: Run custom module to check and remove k8s line
-  remove_k8s_line:
+- name: Run custom module to update software.csv for line {{ software_name }}
+  remove_software_line:
     software_csv: "{{ software_csv_file_path }}"
     metadata_file: "{{ k8s_local_repo_metadata_file_path }}"
-    current_version: "{{ k8s_version }}"
+    current_version: "{{ current_version }}"
+    software_name: "{{ software_name }}"

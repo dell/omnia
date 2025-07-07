@@ -59,12 +59,12 @@
     - name: Cleanup Loki and Promtail containers
       ansible.builtin.import_tasks: cleanup_loki_promtail.yml
 
-- name: Remove telemetry Directory
-  when: hostvars['localhost']['visualization_support'] or hostvars['localhost']['idrac_telemetry_support']
+- name: Remove telemetry directory if exists
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
     force: true
+  failed_when: false
   with_items:
     - "{{ telemetry_cleanup_directory }}"
 

@@ -40,7 +40,7 @@
         metadata_dict |
         combine({
           'k8s_kubespray_versions': metadata_dict.k8s_kubespray_versions |
-          combine({ k8s_version: kubespray_version })
+          combine({ k8s_version: hostvars['localhost']['k8s_to_kubespray_comp_ver'].compatible_tags['v' + k8s_version] })
         }, recursive=True)
       }}
   when: not already_exists

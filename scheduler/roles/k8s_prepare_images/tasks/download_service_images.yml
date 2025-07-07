@@ -20,7 +20,7 @@
 - name: Fetch and store image versions
   ansible.builtin.set_fact:
     image_versions: "{{ image_versions + [item.package + ':' + item.tag] }}"
-  loop: "{{ hostvars['localhost']['k8s_packages_json']['k8s']['cluster'] }}"
+  loop: "{{ hostvars['localhost']['k8s_packages_json'][hostvars['localhost']['software_stack']]['cluster'] }}"
   when: item.type == 'image'
 
 # Pulling images from pulp - always,partial, never

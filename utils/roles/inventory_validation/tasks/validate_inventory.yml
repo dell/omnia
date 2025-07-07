@@ -42,8 +42,12 @@
         prompt: "{{ inventory_warn_msg }}"
 
 # Validate K8s requirements for all the nodes
+- name: Fetch omnia_config.yml
+  when: k8s_support or service_k8s_support
+  ansible.builtin.include_tasks: fetch_omnia_config.yml
+
 - name: Validate K8s nodes requirements
-  when: k8s_support
+  when: k8s_support or service_k8s_support
   ansible.builtin.include_tasks: k8s_validations.yml
 
 # Validate slurm requirements for all the nodes

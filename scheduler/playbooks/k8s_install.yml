@@ -24,22 +24,22 @@
 
     - name: Delete the old kubespray log file if it exists
       ansible.builtin.file:
-        path: "/opt/omnia/log/kubespray/{{ hostvars['127.0.0.1']['k8s_log_file'] }}"
+        path: "/opt/omnia/log/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}/{{ hostvars['127.0.0.1']['k8s_log_file'] }}" # noqa: yaml[line-length]
         state: absent
 
     - name: Create a new empty kubespray log file
       ansible.builtin.file:
-        path: "/opt/omnia/log/kubespray/{{ hostvars['127.0.0.1']['k8s_log_file'] }}"
+        path: "/opt/omnia/log/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}/{{ hostvars['127.0.0.1']['k8s_log_file'] }}" # noqa: yaml[line-length]
         state: touch
         mode: '0644'
 
 - name: "{{ hostvars['127.0.0.1']['k8s_task_name'] }}"
   hosts: omnia_kubespray
   vars:
-    kubespray_nfs_share: "/opt/omnia/kubespray"
-    kubespray_logs_path: "/opt/omnia/log/kubespray/{{ hostvars['127.0.0.1']['k8s_log_file'] }}"
+    kubespray_nfs_share: "/opt/omnia/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}"
+    kubespray_logs_path: "/opt/omnia/log/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}/{{ hostvars['127.0.0.1']['k8s_log_file'] }}" # noqa: yaml[line-length]
     k8s_inv: "{{ kubespray_nfs_share }}/{{ hostvars['127.0.0.1']['k8s_var_input'] }}"
-    dir_mode: '0755'
+    dir_mode: '0644'
   tasks:
     - name: Install Kubernetes using kubespray
       when:

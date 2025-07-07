@@ -402,7 +402,7 @@ def generate_inventory_per_cluster(cursor) -> None:
             roles_list = [r.strip() for r in roles_str.split(",") if r.strip() and r.strip() != "default"]
             cluster_map.setdefault(cluster_name, {})
             for role in roles_list:
-                if role.startswith("service_"):
+                if role.startswith("service_") and role != "service_node":
                     role = role[len("service_"):]
                 cluster_map[cluster_name].setdefault(role, []).append(hostname)
 
@@ -432,10 +432,11 @@ def generate_inventory_per_cluster(cursor) -> None:
                 config.write(configfile, space_around_delimiters=False)
                 configfile.flush()
 
-            os.chmod(inventory_file, 0o444)
-
     except (OSError, Exception) as err:
         syslog.syslog(syslog.LOG_ERR, f"parse_syslog:generate_inventory_per_cluster: {str(type(err))} {str(err)}")
+    finally:
+        # Ensure the inventory directory has the correct permissions
+        os.chmod(inventory_dir, 0o644)
 
 def update_inventory(node_info_db: tuple, updated_node_info: tuple) -> None:
     """

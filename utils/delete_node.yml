@@ -25,6 +25,8 @@
 - name: Delete node
   hosts: localhost
   connection: local
+  vars:
+    validate_k8s: false
   roles:
     - { role: node_deletion/user_confirmation } # noqa: role-name[path]
     - { role: common, tags: 'credentials_config' }

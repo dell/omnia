@@ -14,4 +14,7 @@
 ---
 
 kubernetes_cluster_fail_to_remove: "Failed to remove kubernetes cluster, try to re-run playbook"
-kubernetes_cluster_removed: "Kubernetes cluster removed successfully, run scheduler.yml to configure slurm or kubernetes cluster"
+kubernetes_cluster_removed: >
+  Kubernetes cluster removed successfully.
+  To redeploy Kubernetes on service nodes, run 'service_k8s_cluster.yml'.
+  To deploy Kubernetes or Slurm on compute nodes, run 'scheduler.yml'.

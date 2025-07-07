@@ -37,3 +37,78 @@
       ansible.builtin.set_fact:
         dynamic_k8s_generation: true
       when: k8s_version != "1.31.4"
+
+- name: Validate service k8s json
+  when: service_k8s_support is true
+  block:
+    - name: Load service_k8s.json
+      ansible.builtin.set_fact:
+        service_k8s_packages_json: "{{ lookup('file', base_service_k8s_json_file) | from_json }}"
+
+    - name: Extract and set facts for tarball URLs
+      ansible.builtin.set_fact:
+        service_k8s_kubeadm_package: "{{ service_k8s_packages_json['service_k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'kubeadm') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+
+    - name: Set default fact for serivce k8s dynamic k8s generation
+      ansible.builtin.set_fact:
+        service_k8s_dynamic_k8s_generation: false
+
+    - name: Set fact for service k8s dynamic genaration when kubeadm package is not kubeadm-1.31.4
+      ansible.builtin.set_fact:
+        service_k8s_dynamic_k8s_generation: true
+      when: service_k8s_kubeadm_package != kubeadm_package_name
+
+    - name: Set fact for service k8s dynamic genaration when service k8s version is not equal to 1.31.4
+      ansible.builtin.set_fact:
+        service_k8s_dynamic_k8s_generation: true
+      when: service_k8s_version != "1.31.4"
+
+- name: Initialize cluster_configs as empty list
+  ansible.builtin.set_fact:
+    cluster_configs: []
+
+# Append k8s cluster config if k8s_support is true
+- name: Add k8s cluster config to cluster_configs
+  ansible.builtin.set_fact:
+    cluster_configs: "{{ cluster_configs + [k8s_config] }}"
+  vars:
+    k8s_config:
+      name: "k8s"
+      version: "{{ k8s_version }}"
+      json_file: "{{ dynamic_k8s_json_folder }}/v{{ k8s_version }}/k8s_v{{ k8s_version }}.json"
+      base_json_file: "{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/k8s.json"
+      backup_json_file: "{{ dynamic_k8s_json_folder }}/k8s_bkp.json"
+      run_condition: "{{ k8s_support and dynamic_k8s_generation }}"
+  when: k8s_support | bool
+
+# Append service_k8s cluster config if service_k8s_support is true
+- name: Add service_k8s cluster config to cluster_configs
+  ansible.builtin.set_fact:
+    cluster_configs: "{{ cluster_configs + [service_k8s_config] }}"
+  vars:
+    service_k8s_config:
+      name: "service_k8s"
+      version: "{{ service_k8s_version }}"
+      json_file: "{{ dynamic_k8s_json_folder }}/v{{ service_k8s_version }}/service_k8s_v{{ service_k8s_version }}.json"
+      base_json_file: "{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/service_k8s.json"
+      backup_json_file: "{{ dynamic_k8s_json_folder }}/service_k8s_bkp.json"
+      run_condition: "{{ service_k8s_support and service_k8s_dynamic_k8s_generation }}"
+  when: service_k8s_support | bool
+
+- name: Set software_cleanup_list based on supported components
+  ansible.builtin.set_fact:
+    software_cleanup_list: >
+      {{
+        [
+          {
+            'name': 'k8s',
+            'version': k8s_version | default(''),
+            'enabled': k8s_support | default(false)
+          },
+          {
+            'name': 'service_k8s',
+            'version': service_k8s_version | default(''),
+            'enabled': service_k8s_support | default(false)
+          }
+        ]
+      }}

@@ -26,7 +26,7 @@ hosts_update_fail_msg: "Failed to update hosts file with node details.
 Remove unreachable IP addresses from kube_node or etcd group of inventory and re-run the playbook."
 
 # Usage: update_inv.yml
-k8s_nfs_share: "/opt/omnia/kubespray"
+k8s_nfs_share: "/opt/omnia/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}"
 
 # Usage: prereq.yml
 python_package_name: "{{ hostvars['localhost']['python_package'] }}"
@@ -47,11 +47,11 @@ k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
 
 # Usage: generate_k8s_vars.yml
 k8s_var_final_src: "final_template.j2"
-k8s_var_dest: "/opt/omnia/kubespray/k8s_all_vars.yml"
+k8s_var_dest: "/opt/omnia/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}/k8s_all_vars.yml"
 k8s_var_final_ha_src: "final_ha_template.j2"
-k8s_var_ha_dest: "/opt/omnia/kubespray/k8s_all_ha_vars.yml"
+k8s_var_ha_dest: "/opt/omnia/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}/k8s_all_ha_vars.yml"
 k8s_var_final_non_ha_src: "final_non_ha_template.j2"
-k8s_var_non_ha_dest: "/opt/omnia/kubespray/k8s_all_non_ha_vars.yml"
+k8s_var_non_ha_dest: "/opt/omnia/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}/k8s_all_non_ha_vars.yml"
 enable_k8s_ha: "{{ hostvars['localhost']['enable_k8s_ha'] }}"
 k8s_vip: "{{ hostvars['localhost']['k8s_vip'] }}"
 external_lb_ip: "{{ hostvars['localhost']['external_lb_ip'] }}"

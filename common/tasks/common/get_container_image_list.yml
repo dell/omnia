@@ -19,7 +19,10 @@
 - name: Add kubespray to container image list if k8s_support is true
   when: hostvars['localhost']['k8s_support'] | default(false)
   ansible.builtin.set_fact:
-    container_images: "{{ container_images + ['omnia_kubespray:' + kubespray_tag] }}"
+    container_images: "{{ container_images + ['omnia_kubespray:' + version] }}"
+  loop: "{{ hostvars['localhost']['kubespray_versions'] | default([]) }}"
+  loop_control:
+    loop_var: version
 
 - name: Add squid to container image list if enable_routed_internet is true
   when: hostvars['localhost']['enable_routed_internet'] | default(false)

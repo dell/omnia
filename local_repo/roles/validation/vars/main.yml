@@ -31,13 +31,14 @@ softwares_var_not_provided: "No softwares variable provided. Skipping."
 softwares_invalid_msg: "Invalid software_name(s) found: {{ softwares_list | difference(software_names) }}. Allowed values: {{ software_names }}"
 
 # Usage: dynamic_k8s_json.yml
-dynamic_k8s_json_file: "{{ dynamic_k8s_json_folder }}/v{{ k8s_version }}/k8s_v{{ k8s_version }}.json"
+# dynamic_k8s_json_file: "{{ dynamic_k8s_json_folder }}/v{{ k8s_version }}/k8s_v{{ k8s_version }}.json"
 base_k8s_json_file: "{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/k8s.json"
+base_service_k8s_json_file: "{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/service_k8s.json"
 dynamic_k8s_json_folder: "/opt/omnia/k8s_dynamic_json"
 kubespray_url: "https://github.com/kubernetes-sigs/kubespray.git"
 package_type_list: ["rpm", "deb", "tarball", "image", "manifest", "pip_module", "git"]
 dynamic_k8s_json_log_dir: "/opt/omnia/log/local_repo"
-base_k8s_json_bkp_file: "{{ dynamic_k8s_json_folder }}/k8s_bkp.json"
+# base_k8s_json_bkp_file: "{{ dynamic_k8s_json_folder }}/k8s_bkp.json"
 
 # Usage: validate_k8s_json.yml
 kubeadm_package_name: "kubeadm-v1.31.4"

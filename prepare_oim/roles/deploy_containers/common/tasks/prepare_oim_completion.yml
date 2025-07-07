@@ -14,6 +14,12 @@
 
 ---
 
+- name: Create directory if it doesn't exist
+  ansible.builtin.file:
+    path: "{{ telemetry_dir }}"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+
 - name: Check if bmc group data file exists
   ansible.builtin.stat:
     path: "{{ bmc_group_data_filename }}"

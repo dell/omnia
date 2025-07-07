@@ -11,6 +11,7 @@
         {"name": "openldap"},
         {"name": "nfs"},
         {"name": "k8s", "version":"1.31.4"},
+        {"name": "service_k8s","version": "1.31.4"},
         {"name": "slurm"}
     ],
     "amdgpu": [

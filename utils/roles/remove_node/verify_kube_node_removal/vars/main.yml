@@ -14,5 +14,12 @@
 ---
 
 kube_node_fail_to_remove: "Failed to remove kubernetes node, try to re-run playbook"
-kube_node_removed: "Kubernetes node removed successfully, refer 'Adding new nodes' documentation to configure scheduler on this node"
-all_kube_node_removed: "Kubernetes cluster have kube_control_plane only, refer 'Adding new nodes' documentation to configure nodes"
+kube_node_removed: >
+  Kubernetes node removed successfully.
+  To reconfigure this node, refer to the 'Adding New Nodes' documentation.
+  Use 'service_k8s_cluster.yml' if this node belongs to a service Kubernetes cluster,
+  or 'scheduler.yml' if it belongs to a compute Kubernetes cluster.
+all_kube_node_removed: >
+  Kubernetes cluster have kube_control_plane only.
+  To add new nodes, refer to the 'Adding New Nodes' documentation.
+  Use 'service_k8s_cluster.yml' to add service nodes or 'scheduler.yml' for compute nodes.

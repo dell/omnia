@@ -101,7 +101,7 @@ pulp_container_commands = {
 
     "create_container_remote_auth": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --username %s --password '%s'",
 
-    "update_container_remote_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags %s --username %s --password '%s'"
+    "update_container_remote_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '[\"%s\"]' --username %s --password '%s'"
 
 }
 OMNIA_CREDENTIALS_YAML_PATH = "/opt/omnia/input/project_default/omnia_config_credentials.yml"

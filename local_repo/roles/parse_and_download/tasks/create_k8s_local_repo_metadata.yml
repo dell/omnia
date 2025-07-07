@@ -13,13 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Read existing metadata file if present
+- name: Read existing metadata
   ansible.builtin.slurp:
     src: "{{ k8s_local_repo_metadata_file_path }}"
   register: metadata_raw
   ignore_errors: true
 
-- name: Load existing metadata or initialize new
+- name: Load or initialize metadata
   ansible.builtin.set_fact:
     metadata: >-
       {{
@@ -27,21 +27,25 @@
         if metadata_raw is defined and metadata_raw.content is defined
         else {
           "k8s_local_repo_versions": [],
-          "last_k8s_local_repo_version": ""
+          "last_k8s_local_repo_version": "",
+          "service_k8s_local_repo_versions": [],
+          "last_service_k8s_local_repo_version": ""
         }
       }}
 
-- name: Update metadata with new version
+- name: Update metadata for {{ software_entry.name }}
   ansible.builtin.set_fact:
     metadata: >-
       {{
         metadata | combine({
-          "k8s_local_repo_versions": (metadata.k8s_local_repo_versions + [k8s_version]) | unique | sort,
-          "last_k8s_local_repo_version": k8s_version
-        })
+          (software_entry.name + "_local_repo_versions"): (
+            metadata[software_entry.name + "_local_repo_versions"] + [software_entry.version]
+          ) | unique | sort,
+          ("last_" + software_entry.name + "_local_repo_version"): software_entry.version
+        }, recursive=True)
       }}
 
-- name: Save updated metadata
+- name: Save updated metadata for {{ software_entry.name }}
   ansible.builtin.copy:
     content: "{{ metadata | to_nice_yaml }}"
     dest: "{{ k8s_local_repo_metadata_file_path }}"

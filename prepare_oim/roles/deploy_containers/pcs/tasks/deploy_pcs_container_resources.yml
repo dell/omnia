@@ -88,7 +88,8 @@
 
     - name: Add kubespray_name to pcs-resources if k8s_support is defined
       ansible.builtin.set_fact:
-        pcs_resources: "{{ pcs_resources + [kubespray_name] }}"
+        pcs_resources: "{{ pcs_resources + [kubespray_image_name + '_' + item] }}"
+      loop: "{{ hostvars['localhost']['kubespray_versions'] }}"
       when: hostvars['localhost']['k8s_support']
 
     - name: Add squid_name to pcs-resources if enable_routed_internet is true

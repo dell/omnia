@@ -121,9 +121,6 @@ provision_run_opts: >-
 
 # Usage: pcs-start.sh.j2: kubespray
 kubespray_image_name: "omnia_kubespray"
-kubespray_version: "{{ hostvars['localhost']['kubespray_version'] }}"
-kubespray_name: "omnia_kubespray_{{ kubespray_version }}"
-kubespray_container_image: "{{ kubespray_image_name }}:{{ kubespray_version }}"
 kubespray_run_opts: >-
   -v {{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh{{ selinux_option }}
   -v {{ omnia_nfs_share }}:/opt/omnia{{ selinux_option }}

@@ -54,6 +54,20 @@
     msg: "{{ k8s_pods_failed_msg }}"
   when: k8s_status.failed_pods | length > 0
 
+- name: Set k8s cluster issue message if needed
+  ansible.builtin.set_fact:
+    k8s_cluster_issue_msg: >-
+      Cluster issues detected: Please login to kube control plane and check for more details.
+      {% if k8s_status.not_ready_nodes | length > 0 %}
+      - NotReady nodes: {{ k8s_status.not_ready_nodes }}
+      {% endif %}
+      {% if k8s_status.failed_pods | length > 0 %}
+      - NotRunning pods: {{ k8s_status.failed_pods }}
+      {% endif %}
+  when: >
+    (k8s_status.not_ready_nodes | length > 0) or
+    (k8s_status.failed_pods | length > 0)
+
 - name: Fail if any node or pod is not healthy
   ansible.builtin.fail:
     msg: "{{ k8s_cluster_issue_msg }}"

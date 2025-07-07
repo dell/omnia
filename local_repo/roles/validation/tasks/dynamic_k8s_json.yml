@@ -13,31 +13,39 @@
 # limitations under the License.
 ---
 
-- name: Check if file exists
+- name: Check if dynamic JSON file exists
   ansible.builtin.stat:
-    path: "{{ dynamic_k8s_json_file }}"
+    path: "{{ cluster_item.json_file }}"
   register: file_stat
 
-- name: Update k8s.json with current k8s version
+- name: Set facts for current cluster JSON paths
+  ansible.builtin.set_fact:
+    current_cluster_name: "{{ cluster_item.name }}"
+    current_cluster_version: "{{ cluster_item.version }}"
+    current_json_file: "{{ cluster_item.json_file }}"
+    current_base_json_file: "{{ cluster_item.base_json_file }}"
+    current_backup_json_file: "{{ cluster_item.backup_json_file }}"
+
+- name: Update existing JSON if present
   when: file_stat.stat.exists
   block:
     - name: Take backup of existing json
       ansible.builtin.copy:
-        src: "{{ base_k8s_json_file }}"
-        dest: "{{ base_k8s_json_bkp_file }}"
+        src: "{{ current_base_json_file }}"
+        dest: "{{ current_backup_json_file }}"
         mode: "{{ dnf_max_mode }}"
 
     - name: Copy the generated json to input folder
       ansible.builtin.copy:
-        src: "{{ dynamic_k8s_json_file }}"
-        dest: "{{ base_k8s_json_file }}"
+        src: "{{ current_json_file }}"
+        dest: "{{ current_base_json_file }}"
         mode: "{{ dnf_max_mode }}"
         force: true
 
 - name: Run dynamic k8s json module
   when: not file_stat.stat.exists
   block:
-    - name: Create a directory for base_path to store the k8s dynamic json
+    - name: Create a directory to store dynamic JSON
       ansible.builtin.file:
         path: "{{ dynamic_k8s_json_folder }}"
         state: directory
@@ -48,11 +56,12 @@
     - name: Generate Kubernetes JSON files
       dynamic_k8s_json:
         kube_versions:
-          - "v{{ k8s_version }}"
+          - "v{{ current_cluster_version }}"
         base_path: "{{ dynamic_k8s_json_folder }}"
+        software_name: "{{ current_cluster_name }}"
         repo_url: "{{ kubespray_url }}"
         package_types: "{{ package_type_list }}"
-        k8s_json_path: "{{ base_k8s_json_file }}"
+        k8s_json_path: "{{ current_base_json_file }}"
         log_dir: "{{ dynamic_k8s_json_log_dir }}"
         n_latest: 3
         arch: "amd64"
@@ -60,13 +69,13 @@
 
     - name: Take backup of existing json
       ansible.builtin.copy:
-        src: "{{ base_k8s_json_file }}"
-        dest: "{{ base_k8s_json_bkp_file }}"
+        src: "{{ current_base_json_file }}"
+        dest: "{{ current_backup_json_file }}"
         mode: "{{ dnf_max_mode }}"
 
     - name: Copy the generated json to input folder
       ansible.builtin.copy:
-        src: "{{ dynamic_k8s_json_file }}"
-        dest: "{{ base_k8s_json_file }}"
+        src: "{{ current_json_file }}"
+        dest: "{{ current_base_json_file }}"
         mode: "{{ dnf_max_mode }}"
         force: true

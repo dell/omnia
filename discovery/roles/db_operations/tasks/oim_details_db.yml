@@ -15,6 +15,6 @@
 
 - name: Create oim entry in cluster_info table
   ansible.builtin.command: |
-     {{ python_version }} {{ oim_db_utility_path }} {{ admin_nic_ip }} {{ network_interface_type }} {{ pxe_mac_address }}
+     {{ python_version }} {{ oim_db_utility_path }} {{ original_admin_nic_ip }} {{ network_interface_type }} {{ pxe_mac_address }}
      {{ oim_hostname }} {{ bmc_nic_ip }}
   changed_when: false

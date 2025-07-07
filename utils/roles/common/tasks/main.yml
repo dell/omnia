@@ -26,6 +26,7 @@
 
 - name: Validate k8s metadata file
   ansible.builtin.include_tasks: validate_k8s_metadata.yml
+  when: validate_k8s | default(true)
 
 - name: Include storage_config.yml
   tags: 'storage_config'

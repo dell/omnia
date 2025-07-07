@@ -16,6 +16,8 @@
 - name: Initialise variables
   ansible.builtin.set_fact:
     k8s_support: false
+    compute_k8s_support: false
+    service_k8s_support: false
     slurm_support: false
     set_intel_config_status: false
     set_intel_input_status: false
@@ -31,7 +33,38 @@
 # Check if k8s is mentioned in software_config.json
 - name: Check if k8s support is true
   ansible.builtin.set_fact:
-    k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+    compute_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+
+- name: Check if service k8s support is true
+  ansible.builtin.set_fact:
+    service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+
+- name: Validate service k8s playbook
+  when: service_k8s_playbook is defined
+  block:
+    - name: Set k8s_support to true when service_k8s_support is true
+      ansible.builtin.set_fact:
+        k8s_support: true
+      when: service_k8s_support
+
+    - name: Set software as service_k8s
+      ansible.builtin.set_fact:
+        software_stack: "service_k8s"
+      when: service_k8s_support
+
+
+- name: Validate compute k8s playbook
+  when: compute_k8s_playbook is defined
+  block:
+    - name: Set k8s_support to true when compute_k8s_support is true
+      ansible.builtin.set_fact:
+        k8s_support: true
+      when: compute_k8s_support
+
+    - name: Set software as compute_k8s
+      ansible.builtin.set_fact:
+        software_stack: "k8s"
+      when: compute_k8s_support
 
 - name: Check if slurm support is true
   ansible.builtin.set_fact:
@@ -133,7 +166,7 @@
   block:
     - name: Extract k8s version
       ansible.builtin.set_fact:
-        k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | map(attribute='version') | first }}"
+        k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', software_stack) | map(attribute='version') | first }}"
       # noqa: var-naming[no-jinja]
 
     - name: Load k8s.json
@@ -145,21 +178,21 @@
         kubeadm_package: "kubeadm"
         kubectl_package: "kubectl"
         kubelet_package: "kubelet"
-        crictl_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'crictl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        calicoctl_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'calicoctl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        calico_crds_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'calico.archive') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        cni_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'cni') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        nerdctl_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nerdctl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        runc_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'runc') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        etcd_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'etcd') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        containerd_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'containerd') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        helm_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'helm') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        mpi_operator: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'mpi') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        python_package: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'rpm') | selectattr('package', 'search', 'python3.11') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        xilinx_device_plugin_pkg: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'xilinx-device-plugin') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        nfs_subdir_external_provisioner_pkg: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nfs-subdir-external-provisioner') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        whereabouts_pkg: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'whereabouts') | map(attribute='package') | join }}" # noqa: yaml[line-length]
-        multus_daemonset_pkg: "{{ k8s_packages_json['k8s']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'multus-daemonset') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        crictl_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'crictl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        calicoctl_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'calicoctl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        calico_crds_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'calico.archive') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        cni_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'cni') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        nerdctl_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nerdctl') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        runc_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'runc') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        etcd_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'etcd') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        containerd_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'containerd') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        helm_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'helm') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        mpi_operator: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'mpi') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        python_package: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'rpm') | selectattr('package', 'search', 'python3.11') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        xilinx_device_plugin_pkg: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'xilinx-device-plugin') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        nfs_subdir_external_provisioner_pkg: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nfs-subdir-external-provisioner') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        whereabouts_pkg: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'whereabouts') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+        multus_daemonset_pkg: "{{ k8s_packages_json[software_stack]['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'multus-daemonset') | map(attribute='package') | join }}" # noqa: yaml[line-length]
     - name: Conditional logic for kubeadm, kubectl, and kubelet packages # noqa: no-jinja-when
       ansible.builtin.set_fact:
         kubeadm_package: "kubeadm-v{{ hostvars['localhost']['k8s_version'] }}"

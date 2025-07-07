@@ -724,7 +724,7 @@ def extract_image_name_and_tag(url):
         raise InvalidInputError(f"Error parsing image URL: {str(e)}") from e
 
 
-def get_k8s_data(k8_file_type, k8_file_path, package_types):
+def get_k8s_data(k8_file_type, k8_file_path, package_types, software_name):
     """
     Load and validate Kubernetes package data from a JSON file.
 
@@ -732,6 +732,7 @@ def get_k8s_data(k8_file_type, k8_file_path, package_types):
         k8_file_type (str): Specific package type to extract (e.g., 'image').
         k8_file_path (str): Path to the Kubernetes JSON file.
         package_types (list): Valid list of expected package types.
+        software_name (str): Name of software ('k8s' or 'service_k8s')
 
     Returns:
         list|dict|bool: Filtered list by type, full dict, or False if validation fails.
@@ -760,7 +761,7 @@ def get_k8s_data(k8_file_type, k8_file_path, package_types):
         if not k8_json_data:
             raise FileOperationError(f"Failed to load JSON data from {k8_file_path}")
 
-        for package_info in k8_json_data.get('k8s', {}).get('cluster', []):
+        for package_info in k8_json_data.get(software_name, {}).get('cluster', []):
             package_type = package_info.get("type")
             package_name = package_info.get("package")
 
@@ -868,7 +869,7 @@ def print_not_found_images(not_found_images):
         raise
 
 
-def process_file_list(files_list_path, filetype_inv, final_k8s_data):
+def process_file_list(files_list_path, filetype_inv, final_k8s_data, software_name):
     """
     Process the list of tarball file URLs and update filetype_inv and final_k8s_data accordingly.
 
@@ -876,6 +877,7 @@ def process_file_list(files_list_path, filetype_inv, final_k8s_data):
         files_list_path (str): Path to the file containing tarball URLs.
         filetype_inv (list): List of expected tarball packages to update.
         final_k8s_data (dict): Dictionary to append updated package data to.
+        software_name (str): Name of software ('k8s' or 'service_k8s')
 
     Returns:
         bool: True if processing is successful.
@@ -934,7 +936,7 @@ def process_file_list(files_list_path, filetype_inv, final_k8s_data):
 
         logger.info("Processed %d tarballs from %d expected", tarball_count, len(filetype_inv))
 
-        final_k8s_data["k8s"]["cluster"].extend(filetype_inv)
+        final_k8s_data[software_name]["cluster"].extend(filetype_inv)
 
         diff_in_list1 = [item for item in filetype_inv if item not in updated_packages]
         if diff_in_list1:
@@ -947,7 +949,7 @@ def process_file_list(files_list_path, filetype_inv, final_k8s_data):
         raise FileOperationError(f"Error processing file list: {str(e)}") from e
 
 
-def process_image_list(images_list_path, filetype_inv, final_k8s_data):
+def process_image_list(images_list_path, filetype_inv, final_k8s_data, software_name):
     """
     Process the image list and update `filetype_inv` and `final_k8s_data` with image metadata.
 
@@ -955,6 +957,7 @@ def process_image_list(images_list_path, filetype_inv, final_k8s_data):
         images_list_path (str): Path to the file containing image URLs.
         filetype_inv (list): List of expected images to be updated.
         final_k8s_data (dict): Main output structure to store results under 'k8s.cluster'.
+        software_name (str): Name of software ('k8s' or 'service_k8s')
 
     Returns:
         bool: True if image processing was successful.
@@ -993,7 +996,7 @@ def process_image_list(images_list_path, filetype_inv, final_k8s_data):
 
         logger.info("Processed %d images from %d expected", image_count, len(filetype_inv))
 
-        final_k8s_data["k8s"]["cluster"].extend(filetype_inv)
+        final_k8s_data[software_name]["cluster"].extend(filetype_inv)
 
         diff_in_list1 = [item for item in filetype_inv if item not in updated_images]
         if diff_in_list1:
@@ -1006,7 +1009,7 @@ def process_image_list(images_list_path, filetype_inv, final_k8s_data):
         raise FileOperationError(f"Error processing image list: {str(e)}") from e
 
 
-def generate_k8_jsons_for_version(kube_version, base_path, repo_url, package_types, k8s_json_path, arch, n_latest, mode="clone", check_version=False):
+def generate_k8_jsons_for_version(kube_version, base_path, repo_url, package_types, k8s_json_path, arch, n_latest, software_name, mode="clone", check_version=False):
     """
     Generates a JSON file for a specific Kubernetes version.
 
@@ -1018,6 +1021,7 @@ def generate_k8_jsons_for_version(kube_version, base_path, repo_url, package_typ
         k8s_json_path (str): Path to output JSON file
         arch (str): Target architecture
         n_latest (int): Number of latest tags to check
+        software_name (str): Name of software ('k8s' or 'service_k8s')
         mode (str): Operation mode ('clone', 'delete', 'both')
         check_version (bool): If True, only check version compatibility
 
@@ -1092,31 +1096,31 @@ def generate_k8_jsons_for_version(kube_version, base_path, repo_url, package_typ
             logger.error(error_msg)
             raise FileOperationError(error_msg)
 
-        final_k8s_data = {"k8s": {"cluster": []}}
+        final_k8s_data = {software_name: {"cluster": []}}
 
         # Process different package types
         for type_ in SKIP_TYPES:
             try:
-                packages = get_k8s_data(type_, k8s_json_path, package_types)
-                final_k8s_data["k8s"]["cluster"].extend(packages)
+                packages = get_k8s_data(type_, k8s_json_path, package_types, software_name)
+                final_k8s_data[software_name]["cluster"].extend(packages)
             except Exception as e:
                 logger.warning(f"Error processing {type_} packages: {str(e)}")
                 continue
 
         # Process tarballs if in package types
         if "tarball" in package_types:
-            filetype_inv = get_k8s_data("tarball", k8s_json_path, package_types)
-            if not process_file_list(files_list_path, filetype_inv, final_k8s_data):
+            filetype_inv = get_k8s_data("tarball", k8s_json_path, package_types, software_name)
+            if not process_file_list(files_list_path, filetype_inv, final_k8s_data, software_name):
                 raise FileOperationError("Failed to process file list")
 
         # Process images if in package types
         if "image" in package_types:
-            filetype_inv = get_k8s_data("image", k8s_json_path, package_types)
-            if not process_image_list(images_list_path, filetype_inv, final_k8s_data):
+            filetype_inv = get_k8s_data("image", k8s_json_path, package_types, software_name)
+            if not process_image_list(images_list_path, filetype_inv, final_k8s_data, software_name):
                 raise FileOperationError("Failed to process image list")
 
         # Write final JSON output
-        output_json_path = os.path.join(temp_output_path, f"k8s_v{kube_version.lstrip('v')}.json")
+        output_json_path = os.path.join(temp_output_path, f"{software_name}_v{kube_version.lstrip('v')}.json")
         write_json(output_json_path, final_k8s_data)
 
         logger.info(f"Successfully generated JSON for version {kube_version} at {output_json_path}")
@@ -1139,6 +1143,7 @@ def run_module():
         "repo_url": {"type": "str", "required": True},
         "package_types": {"type": "list", "required": True},
         "k8s_json_path": {"type": "str", "required": True},
+        "software_name": {"type": "str", "required": True},
         "log_dir": {"type": "str", "required": True},
         "arch": {"type": "str", "required": True},
         "n_latest": {"type": "int", "default": 2},
@@ -1182,6 +1187,7 @@ def run_module():
                     module.params['k8s_json_path'],
                     module.params['arch'],
                     module.params['n_latest'],
+                    module.params['software_name'],
                     module.params['mode'],
                     module.params['check_version']
                 )

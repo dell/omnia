@@ -27,6 +27,9 @@
 - name: Validate slurm inputs
   ansible.builtin.include_tasks: validate_slurm_input.yml
 
+- name: Set facts for k8s
+  ansible.builtin.include_tasks: set_facts.yml
+
 # - name: Validate k8s inputs
 #   ansible.builtin.include_tasks: validate_k8s_input.yml
 

@@ -14,7 +14,7 @@
 
 ---
 
-kubespray_version: "{{ hostvars['localhost']['kubespray_version'] }}"  # Set the desired Kubespray version
+kubespray_versions: "{{ hostvars['localhost']['kubespray_versions'] }}"
 omnia_nfs_share: "{{ oim_shared_path }}/omnia"  # Define NFS share path
 kubespray_logs_dir: "{{ omnia_nfs_share }}/log/kubespray" # For kubespray and all those logs
 kubespray_dir: "{{ omnia_nfs_share }}/kubespray"
@@ -31,12 +31,12 @@ kubespray_ssh_port:
   "v2.27.0": "2227"
   "v2.28.0": "2228"
 kubespray_port_occupied_msg: |
-  The port number {{ kubespray_ssh_port[kubespray_image_tag] }} is already in use. The provision container requires this port to be available.
+  The port number {{ kubespray_ssh_port[kubespray_image_tag] }} is already in use. The Kubespray container requires this port to be available.
   Please make sure this port is not occupied by any other process and re-run the playbook.
 kubespray_image_pull_fail_msg: |
-  The pull of the provision image {{ kubespray_image_name }}:{{ kubespray_image_tag }} has failed.
+  The pull of the kubespray image {{ kubespray_image_name }}:{{ kubespray_image_tag }} has failed.
   To resolve this issue, please address the following error message: {{ image_pull_result }}.
-  After rectifying the issues, you can re-run the playbook to successfully pull the provision image.
+  After rectifying the issues, you can re-run the playbook to successfully pull the kubespray image.
 wait_time: 10
 kubespray_volumes:
   - "{{ omnia_nfs_share }}/ssh_config/.ssh:/root/.ssh{{ selinux_option }}"
@@ -50,5 +50,4 @@ kubespray_container_failure_msg: |
 
 # Usage create_kubespray_metadata.yml
 metadata_file_path: "/opt/omnia/kubespray/k8s_metadata.yml"
-k8s_version: "{{ hostvars['localhost']['k8s_version'] }}"
 file_mode: '0644'

@@ -90,7 +90,9 @@ squid_firewall_ports:
   - "{{ squid_proxy_port }}/tcp"
 
 # Usage: prepare_oim_completion.yml
-bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
+telemetry_dir: "/opt/omnia/telemetry"
+dir_permissions_755: "0755"
+bmc_group_data_filename: "{{ telemetry_dir }}/bmc_group_data.csv"
 bmc_group_data_template: "bmc_group_data.j2"
 file_permissions: "0644"
 prepare_oim_completion_msg: |

@@ -20,7 +20,9 @@
     - "('kube_control_plane' not in groups or 'kube_node' not in groups or 'etcd' not in groups)"
 
 - name: Ensure correct Kubernetes in non-HA setup
-  when: not enable_k8s_ha
+  when:
+    - cluster_type != "unknown"
+    - not enable_k8s_ha
   block:
     - name: Kube control plane group to contain at least 1 kube control plane
       ansible.builtin.assert:
@@ -37,7 +39,9 @@
         - groups['kube_control_plane'] | length | int > 1
 
 - name: Ensure correct Kubernetes in HA setup
-  when: enable_k8s_ha
+  when:
+    - cluster_type != "unknown"
+    - enable_k8s_ha
   block:
     - name: Kube control plane group to contain more than 1 kube control plane
       ansible.builtin.assert:
@@ -76,17 +80,24 @@
     - "{{ groups['etcd'] }}"
 
 - name: Place the inventory into the kubespray nfs share
+  when: cluster_type != "unknown"
   block:
     - name: Set fact inventory file paths
       ansible.builtin.set_fact:
         user_inventory_path: "{{ ansible_inventory_sources[0] }}"
         omnia_inventory_path: "{{ cluster_layout_path }}"
 
-    - name: Inventory not provided ,copy omnia genrated inventory to kubespray nfs share
+    - name: Create a directory to store inventory
+      ansible.builtin.file:
+        path: "{{ k8s_nfs_share }}"
+        state: directory
+        mode: "{{ file_mode }}"
+
+    - name: Inventory not provided ,copy omnia generated inventory to kubespray nfs share
       ansible.builtin.copy:
         src: "{{ omnia_inventory_path }}"
         dest: "{{ k8s_nfs_share }}/inv_k8s"
-        mode: "{{ file_mode }}"
+        mode: "{{ file_perm }}"
       when:
         - user_inventory_path is defined
         - (user_inventory_path | length == 0)
@@ -96,7 +107,7 @@
       ansible.builtin.copy:
         src: "{{ user_inventory_path }}"
         dest: "{{ k8s_nfs_share }}/inv_k8s"
-        mode: "{{ file_mode }}"
+        mode: "{{ file_perm }}"
       when:
         - user_inventory_path is defined
         - (user_inventory_path | length > 0)

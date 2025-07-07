@@ -96,7 +96,7 @@ slurm_head_node_ha:
 # ***********************************************************************
 
 service_k8s_cluster_ha:
-  - cluster_name:
+  - cluster_name: service_cluster1
     enable_k8s_ha: false
     virtual_ip_address: ""
     external_loadbalancer_ip: ""
@@ -114,7 +114,7 @@ service_k8s_cluster_ha:
 # ***********************************************************************
 
 compute_k8s_cluster_ha:
-  - cluster_name:
+  - cluster_name: compute_cluster1
     enable_k8s_ha: false
     virtual_ip_address: ""
     external_loadbalancer_ip: ""

@@ -16,6 +16,7 @@
 - name: Initialise variables
   ansible.builtin.set_fact:
     k8s_support: false
+    service_k8s_support: false
     slurm_support: false
     freeipa_support: false
     openldap_support: false
@@ -33,6 +34,17 @@
       ansible.builtin.fail:
         msg: "{{ software_config_syntax_fail_msg }} Error: {{ include_software_config.message }}"
 
+- name: Include variable file omnia_config.yml
+  block:
+    - name: Include variable file omnia_config.yml
+      ansible.builtin.include_vars: "{{ input_project_dir }}/{{ config_filename }}"
+      register: include_omnia_config
+      no_log: true
+  rescue:
+    - name: Failed to include omnia_config.yml
+      ansible.builtin.fail:
+        msg: "{{ omnia_config_syntax_fail_msg }} Error: {{ include_omnia_config.message }}"
+
 - name: Include include_high_availability_config.yml vars
   block:
     - name: Include include_high_availability_config vars
@@ -44,13 +56,10 @@
       ansible.builtin.fail:
         msg: "{{ ha_config_syntax_fail_msg }} Error: {{ include_ha_config.message }}"
 
-- name: Set high_availability_status
-  ansible.builtin.set_fact:
-    enable_k8s_ha: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.enable_k8s_ha | default(false) }}"
-
 - name: Set k8s, slurm, freeipa and openldap support
   ansible.builtin.set_fact:
     k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+    service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
     slurm_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'slurm') | list | length > 0 }}"
     freeipa_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'freeipa') | list | length > 0 }}"
     openldap_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openldap') | list | length > 0 }}"

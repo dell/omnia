@@ -16,6 +16,7 @@
 - name: Initialise variables
   ansible.builtin.set_fact:
     k8s_support: false
+    service_k8s_support: false
     slurm_support: false
 
 - name: Load software_config.json
@@ -28,12 +29,24 @@
   ansible.builtin.set_fact:
     k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
 
+- name: Check if service k8s support is true
+  ansible.builtin.set_fact:
+    service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+
 - name: Prepare kubernetes installation variables
   when: k8s_support is true
   block:
     - name: Extract k8s version
       ansible.builtin.set_fact:
         k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | map(attribute='version') | first }}"
+      # noqa: var-naming[no-jinja]
+
+- name: Prepare kubernetes installation variables
+  when: service_k8s_support is true
+  block:
+    - name: Extract k8s version
+      ansible.builtin.set_fact:
+        service_k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | map(attribute='version') | first }}"
       # noqa: var-naming[no-jinja]
 
 - name: Check if slurm support is true

@@ -13,6 +13,87 @@
 #  limitations under the License.
 ---
 
+- name: Validate input passed to playbook
+  when: k8s_support or service_k8s_support
+  block:
+    - name: Fail if cluster_name is not passed as an argument to the playbook
+      ansible.builtin.fail:
+        msg: "{{ cluster_name_not_passed }}"
+      when: cluster_name is not defined
+
+    - name: Set facts for service and compute clusters
+      ansible.builtin.set_fact:
+        all_service_clusters: "{{ service_k8s_cluster | map(attribute='cluster_name') | list }}"
+        all_compute_clusters: "{{ compute_k8s_cluster | map(attribute='cluster_name') | list }}"
+
+    - name: Check if cluster is in service_k8s_cluster
+      ansible.builtin.set_fact:
+        cluster_found: true
+        cluster_var_name: "service_k8s_cluster"
+      when: cluster_name in all_service_clusters
+
+    - name: Check if cluster is in compute_k8s_cluster
+      ansible.builtin.set_fact:
+        cluster_found: true
+        cluster_var_name: "compute_k8s_cluster"
+      when: cluster_name in all_compute_clusters and cluster_found is not defined
+
+    - name: Fail if cluster name not found
+      ansible.builtin.fail:
+        msg: "{{ cluster_name_not_found }}"
+      when: cluster_found is not defined
+
+    - name: Set facts for remove node
+      ansible.builtin.set_fact:
+        warning_msg: "[WARNING] This utility will remove {{ cluster_name }} Kubernetes configuration from node hence job scheduling needs to be disabled.\nAbort play if any jobs are running on the given kube node.\nRecommended to drain the node." # noqa: yaml[line-length]
+        confirmation_msg: "Are you sure you want to remove {{ cluster_name }} configuration from kube node? Type 'yes' to proceed."
+        confirmation_fail_msg: "Remove node configuration confirmation failed"
+      when: remove_node is defined
+
+    - name: Set facts for reset cluster
+      ansible.builtin.set_fact:
+        warning_msg: "[WARNING] This utility will reset {{ cluster_name }} Kubernetes configuration."
+        confirmation_msg: "Are you sure you want to reset {{ cluster_name }} cluster configuration? Type 'yes' to proceed."
+        confirmation_fail_msg: "Cluster reset confirmation failed."
+      when: reset_cluster is defined
+
+    - name: Warning message for removing {{ cluster_name }}
+      ansible.builtin.pause:
+        prompt: "{{ warning_msg }}"
+        seconds: "{{ warning_wait_time }}"
+      run_once: true
+
+    - name: Confirmation required to proceed
+      ansible.builtin.pause:
+        prompt: "{{ confirmation_msg }}"
+      register: pause_result
+      when:
+        - not (skip_confirmation | default(false) | bool)
+
+    - name: Fail if user does not confirm deletion
+      ansible.builtin.fail:
+        msg: "{{ confirmation_fail_msg }}"
+      when: pause_result.user_input | default('yes') != 'yes'
+
+    - name: Set facts when service_k8s_cluster
+      ansible.builtin.set_fact:
+        k8s_version: "{{ service_k8s_version }}"
+        k8s_support: "{{ service_k8s_support }}"
+      when: cluster_var_name == "service_k8s_cluster"
+
+    - name: Get the cluster details of cluster_name
+      ansible.builtin.set_fact:
+        selected_cluster: >-
+          {{ vars[cluster_var_name]
+              | selectattr('cluster_name', 'equalto', cluster_name)
+              | list
+              | first }}
+
+    - name: Set cluster configuration facts
+      ansible.builtin.set_fact:
+        k8s_service_addresses: "{{ selected_cluster.k8s_service_addresses }}"
+        k8s_pod_network_cidr: "{{ selected_cluster.k8s_pod_network_cidr }}"
+
 - name: Validate k8s metadata
   when: k8s_support
   block:

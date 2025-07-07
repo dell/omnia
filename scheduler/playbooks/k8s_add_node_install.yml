@@ -16,10 +16,10 @@
 - name: Add nodes to kubernetes cluster
   hosts: omnia_kubespray
   vars:
-    kubespray_nfs_share: "/opt/omnia/kubespray"
-    kubespray_logs_path: "/opt/omnia/log/kubespray/k8s_add_node.log"
+    kubespray_nfs_share: "/opt/omnia/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}"
+    kubespray_logs_path: "/opt/omnia/log/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}/k8s_add_node.log"
     k8s_inv: "{{ kubespray_nfs_share }}/k8s_all_vars.yml"
-    dir_mode: '0755'
+    dir_mode: '0644'
   tasks:
     - name: Add nodes to kubernetes cluster using kubespray
       when:

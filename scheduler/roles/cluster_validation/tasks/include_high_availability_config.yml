@@ -29,18 +29,34 @@
     oim_ha_data: "{{ include_ha_config | default({}) | combine({item.key: item.value}) }}"
   with_dict: "{{ oim_ha }}"
 
-- name: Set high_availability_status
+- name: Set fact for enable_oim_ha
   ansible.builtin.set_fact:
     enable_oim_ha: "{{ include_ha_config.ansible_facts.oim_ha.enable_oim_ha | default(false) }}"
-    enable_k8s_ha: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.enable_k8s_ha | default(false) }}"
-    k8s_vip: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.virtual_ip_address }}"
-    external_lb_ip: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.external_loadbalancer_ip }}"
-    lb_port: "{{ include_ha_config.ansible_facts.k8s_head_node_ha.loadbalancer_port }}"
 
-- name: Validate virtual_ip_address details when enable_k8s_ha is provided
-  ansible.builtin.assert:
-    that:
-      - k8s_vip is defined
-      - k8s_vip | length > 1
-    fail_msg: "{{ ha_vip_address_fail_msg }}"
-  when: enable_k8s_ha
+- name: Set facts for inputs of high_availability_config.yml
+  when: k8s_support
+  block:
+    - name: Lookup HA config for selected cluster
+      ansible.builtin.set_fact:
+        selected_cluster_ha: >-
+          {{ vars[cluster_ha_var_name]
+              | selectattr('cluster_name', 'equalto', cluster_name)
+              | list
+              | first }}
+
+    - name: Set HA-related facts
+      when: selected_cluster_ha is defined
+      ansible.builtin.set_fact:
+        enable_k8s_ha: "{{ selected_cluster_ha.enable_k8s_ha | default(false) }}"
+        k8s_vip: "{{ selected_cluster_ha.virtual_ip_address | default('') }}"
+        external_lb_ip: "{{ selected_cluster_ha.external_loadbalancer_ip | default('') }}"
+        lb_port: "{{ selected_cluster_ha.loadbalancer_port | default('') }}"
+        active_node_service_tags: "{{ selected_cluster_ha.active_node_service_tags | default([]) }}"
+
+    - name: Validate virtual_ip_address details when enable_k8s_ha is provided
+      ansible.builtin.assert:
+        that:
+          - k8s_vip is defined
+          - k8s_vip | length > 1
+        fail_msg: "{{ ha_vip_address_fail_msg }}"
+      when: enable_k8s_ha

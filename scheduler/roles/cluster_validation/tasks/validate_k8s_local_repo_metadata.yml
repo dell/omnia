@@ -38,12 +38,12 @@
     - name: Fail if k8s_version not in k8s local repo metadata file
       ansible.builtin.fail:
         msg: "{{ msg_not_in_list }}"
-      when: k8s_version not in metadata_yaml.k8s_local_repo_versions
+      when: k8s_version not in metadata_yaml[software_stack + '_local_repo_versions']
 
     - name: Fail if last_k8s_local_repo_version does not match k8s_version
       ansible.builtin.fail:
         msg: "{{ msg_version_mismatch }}"
-      when: metadata_yaml.last_k8s_local_repo_version != k8s_version
+      when: metadata_yaml['last_' + software_stack + '_local_repo_version'] != k8s_version
 
     - name: Success message
       ansible.builtin.debug:

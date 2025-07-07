@@ -18,6 +18,11 @@
               "pattern": "^[a-zA-Z0-9,]*$",
               "description": "List of service tag of active head node(s). Set the value only for group of nodes belonging to kube_node, service_kube_node, slurm_node roles, and empty for other roles."
             },
+            "cluster_name": {
+              "type": "string",
+              "pattern": "^$|^[a-zA-Z0-9_]+$",
+              "description": "Name of the cluster. Mandatory for service and compute kubernetes roles like 'service_kube_control_plane', 'service_kube_node', 'service_etcd', 'kube_control_plane', 'etcd', 'kube_node'."
+            },
             "parent": {
               "type": "string",
               "pattern": "^[a-zA-Z0-9,]*$",

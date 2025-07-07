@@ -20,6 +20,7 @@
     bcm_roce_libraries_version: "omnia_default"
     intelgaudi_version: "omnia_default"
     k8s_support: false
+    service_k8s_support: false
 
 - name: Check that the software_config.json exists
   ansible.builtin.stat:
@@ -67,6 +68,10 @@
 - name: Check if k8s support is true
   ansible.builtin.set_fact:
     k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+
+- name: Check if service k8s support is true
+  ansible.builtin.set_fact:
+    service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
 
 - name: Check if softwares list is empty
   ansible.builtin.assert:

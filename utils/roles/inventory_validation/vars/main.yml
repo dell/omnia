@@ -15,9 +15,18 @@
 
 # Usage: fetch_software_config.yml
 software_config_file: "{{ input_project_dir }}/software_config.json"
+config_filename: "omnia_config.yml"
+omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
 software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
 ha_config_syntax_fail_msg: "Failed. Syntax errors present in high_availability_config.yml. Fix errors and re-run playbook again."
+
+# Usage: fetch_omnia_config.yml
+deployment_false_msg: >
+  None of the entries under '{{ cluster_type }}_k8s_cluster' have 'deployment' set to 'true'.
+  Please update exactly one cluster under '{{ cluster_type }}_k8s_cluster' in omnia_config.yml with 'deployment: true'.
+compute_service_k8s_true_fail_msg: "Both scheduler.yml and service_k8s_cluster.yml cannot be run together. Run only any one of playbook."
+cluster_type_unknown_msg: "Neither compute_k8s_playbook nor service_k8s_playbook is set."
 
 # Usage: validate_inventory.yml
 empty_inventory_fail_msg: |
@@ -30,8 +39,9 @@ inventory_warn_msg: |
    If roles details are provided in roles_config.yml, the generated inventory will be used and proceeding."
 
 # Usage: k8s_validations.yml
-k8s_nfs_share: "/opt/omnia/kubespray"
+k8s_nfs_share: "/opt/omnia/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}"
 file_mode: '0755'
+file_perm: '0644'
 invalid_kube_inventory_fail_msg: |
   "Failed. k8s software is present in software_config.json.
   Invalid inventory format, specify kube_control_plane, kube_node and etcd group in inventory and re-run playbook"

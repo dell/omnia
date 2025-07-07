@@ -21,6 +21,8 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  vars:
+    remove_node: true
   roles:
     - { role: remove_node/user_confirmation } # noqa: role-name[path]
     - { role: common }
@@ -99,9 +101,9 @@
   vars:
     node: "{{ hostvars['remove_nodes']['nodes_removing'] }}"
     user_inventory_path: "{{ ansible_inventory_sources[0] }}"
-    kubespray_nfs_share: "/opt/omnia/kubespray"
-    kubespray_log_path: "/opt/omnia/log/kubespray/remove_kube_node.yml"
-    dir_mode: '0755'
+    kubespray_nfs_share: "/opt/omnia/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}"
+    kubespray_log_path: "/opt/omnia/log/kubespray/{{ hostvars['127.0.0.1']['cluster_var_name'] }}/{{ hostvars['127.0.0.1']['cluster_name'] }}/remove_kube_node.yml" # noqa: yaml[line-length]
+    dir_mode: '0644'
   tasks:
     - name: Execute tasks for Remove kube nodes
       when: hostvars['remove_nodes']['nodes_removing'] is defined
