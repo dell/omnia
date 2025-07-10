@@ -265,6 +265,54 @@ def validate_cluster_name_overlap(roles, groups):
         )
     return errors
 
+# Validate that service and non-service K8s roles use consistent cluster_name values
+def validate_k8s_cluster_name_consistency(roles, groups):
+    """
+    Ensures that all service and non-service k8s roles share consistent cluster_name values.
+    Returns a list of validation errors if inconsistency is found.
+    """
+    errors = []
+    role_sets = {
+        "service": {"service_kube_control_plane", "service_kube_node", "service_etcd"},
+        "compute": {"kube_control_plane", "kube_node", "etcd"}
+    }
+
+    for role_type, role_names in role_sets.items():
+        cluster_role_map = {}
+
+        for role in roles:
+            role_name = role.get("name", "")
+            if role_name in role_names:
+                for group in role.get("groups", []):
+                    cluster_name = groups.get(group, {}).get("cluster_name", "").strip()
+                    if cluster_name:
+                        cluster_role_map.setdefault(cluster_name, set()).add(role_name)
+
+        if len(cluster_role_map) > 1:
+            cluster_names = list(cluster_role_map.keys())
+            errors.append(
+                create_error_msg(
+                    "cluster_name",
+                    ", ".join(cluster_names),
+                    en_us_validation_msg.SERVICE_CLUSTER_NAME_INCONSISTENT_MSG
+                )
+            )
+
+        for cluster_name, roles_present in cluster_role_map.items():
+            missing_roles = role_names - roles_present
+            if missing_roles:
+                errors.append(
+                    create_error_msg(
+                        "cluster_name",
+                        cluster_name,
+                        en_us_validation_msg.SERVICE_CLUSTER_ROLE_MISSING_MSG.format(
+                            cluster_name, ", ".join(sorted(missing_roles))
+                        )
+                    )
+                )
+
+    return errors
+
 def validate_roles_config(
     input_file_path, data, logger, _module, _omnia_base_dir, _module_utils_base, _project_name
 ):
@@ -329,6 +377,11 @@ def validate_roles_config(
 
     # Validate cluster name overlap
     errors.extend(validate_cluster_name_overlap(roles, groups))
+    if errors:
+        return errors
+
+    # Validate cluster name consistency
+    errors.extend(validate_k8s_cluster_name_consistency(roles, groups))
     if errors:
         return errors
 
@@ -656,20 +709,20 @@ def validate_roles_config(
                 elif group not in static_range_mapping:
                     # A valid static range was provided,
                     # now a check is performed to ensure static ranges do not overlap
-                    static_range_value = groups[group][bmc_details][static_range]
+                    static_range = groups[group][bmc_details][static_range]
                     grp_overlaps = validation_utils.check_bmc_static_range_overlap(
-                        static_range_value, static_range_mapping
+                        static_range, static_range_mapping
                     )
                     if len(grp_overlaps) > 0:
                         errors.append(
                             create_error_msg(
                                 group,
-                                f"Static range {static_range_value} "
+                                f"Static range {static_range} "
                                 f"overlaps with the following group(s): {grp_overlaps}.",
                                 en_us_validation_msg.OVERLAPPING_STATIC_RANGE
                             )
                         )
-                    static_range_mapping[group] = static_range_value
+                    static_range_mapping[group] = static_range
 
             # Validate resource_mgr_id is set for groups that belong
             #  to kube_node, service_kube_node, slurm_node roles
