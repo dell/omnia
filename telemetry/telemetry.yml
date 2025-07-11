@@ -13,10 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Update Inventory with ansible_host information
-  ansible.builtin.import_playbook: ../utils/servicetag_host_mapping.yml
-  when: not ( hostvars['127.0.0.1']['update_inventory_executed'] | default(false) | bool )
-
 - name: Check if package manager is not locked
   ansible.builtin.import_playbook: ../utils/check_package_lock.yml
   when: not ( hostvars['127.0.0.1']['apt_lock_status'] | default(false) | bool )
@@ -40,10 +36,6 @@
       ansible.builtin.include_role:
         name: telemetry_validation
         tasks_from: validate_k8s_setup.yml
-
-- name: Update Repositories/Registries on nodes
-  ansible.builtin.import_playbook: ../utils/update_user_repo.yml
-  when: not ( hostvars['127.0.0.1']['update_user_repo_executed'] | default(false) | bool )
 
 - name: Telemetry for omnia
   hosts: localhost

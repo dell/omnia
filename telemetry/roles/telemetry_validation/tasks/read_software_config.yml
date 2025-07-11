@@ -33,9 +33,6 @@
 - name: Proceed with telemetry validation if telemetry entry present in software_config.json
   when: telemetry_entry_present
   block:
-    - name: Include local_repo_access.yml
-      ansible.builtin.include_vars: "{{ local_repo_access_path }}"
-
     - name: Get cluster_os_type from software_config.json
       ansible.builtin.set_fact:
         cluster_os_type: "{{ software_config['cluster_os_type'] }}"

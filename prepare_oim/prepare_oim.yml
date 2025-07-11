@@ -25,10 +25,5 @@
   hosts: localhost
   connection: local
   roles:
-    - role: pre_requisite
-    - role: configure_proxy
-    - role: install_xcat/common      # noqa: role-name[path]
-    - role: db_creation
     - role: omnia_telemetry_oim
     - role: omnia_appliance_oim
-    - role: create_inventory

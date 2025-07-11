@@ -20,3 +20,7 @@
 - name: Install python psutil
   ansible.builtin.command: "{{ python_version }} -m pip install {{ psutil_python_package }}"
   changed_when: true
+
+- name: Install pandas
+  ansible.builtin.command: "{{ python_version }} -m pip install {{ pandas_pip_package }}"
+  changed_when: true

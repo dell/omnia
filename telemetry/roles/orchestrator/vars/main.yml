@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+offline_tarball_path: "file:///opt/omnia_repo/cluster/tarball"
+offline_git_path: "file:///opt/omnia_repo/cluster/git"
 
 min_retries: 3
 max_retries: 10
