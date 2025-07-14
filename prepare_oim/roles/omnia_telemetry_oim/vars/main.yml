@@ -26,5 +26,5 @@ build_path: /opt/omnia/telemetry/build
 spec_path: /opt/omnia/telemetry/
 binary_name: omnia_telemetry
 
-#Installing netaddr for omnia_telemetry
+#Installing pandas for omnia_telemetry
 pandas_pip_package: pandas
