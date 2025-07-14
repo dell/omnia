@@ -3,16 +3,7 @@
     "cluster_os_version": "24.04",
     "repo_config": "partial",
     "softwares": [
-        {"name": "amdgpu", "version": "6.3.1"},
-        {"name": "bcm_roce", "version": "232.1.133.2"},
-        {"name": "openldap"},
-        {"name": "nfs"},
-        {"name": "k8s", "version":"1.31.4"},
-        {"name": "roce_plugin"},
-        {"name": "jupyter"},
-        {"name": "pytorch"},
-        {"name": "tensorflow"},
-        {"name": "intelgaudi", "version": "1.19.2-32"}
+        {"name": "telemetry"}
     ],
  
     "bcm_roce": [
