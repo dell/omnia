@@ -24,3 +24,7 @@
 - name: Install pandas
   ansible.builtin.command: "{{ python_version }} -m pip install {{ pandas_pip_package }}"
   changed_when: true
+
+- name: Install psycopg2
+  ansible.builtin.command: "{{ python_version }} -m pip install psycopg2"
+  changed_when: true
