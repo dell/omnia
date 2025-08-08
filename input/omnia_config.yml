@@ -72,7 +72,6 @@ run_intel_gaudi_tests: false
 # If set to true, all packages/images will be pulled from OIM local repo.
 # If set to false, all packages/images will be pulled from source via internet.
 
-#validation wrt roles config L2
 service_k8s_cluster:
   - cluster_name: service_cluster
     deployment: true
@@ -83,6 +82,7 @@ service_k8s_cluster:
     topology_manager_policy: "none"
     topology_manager_scope: "container"
     k8s_offline_install: true
+    nfs_storage_name: ""
  
 compute_k8s_cluster:
   - cluster_name: compute_cluster
@@ -94,3 +94,4 @@ compute_k8s_cluster:
     topology_manager_policy: "none"
     topology_manager_scope: "container"
     k8s_offline_install: true
+    nfs_storage_name: ""

@@ -26,3 +26,5 @@ nfs_packages:
   Debian:
     - nfs-common
     - nfs4-acl-tools
+
+omnia_config_vars: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"

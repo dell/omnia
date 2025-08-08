@@ -1,4 +1,4 @@
-#  Copyright 2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,14 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-- name: Include storage_config.yml file
-  ansible.builtin.include_vars: "{{ storage_config_vars }}"
 
-- name: Print nfs_storage_name
-  debug:
-    msg: "{{ nfs_storage_name }}"
-
-- name: Install NFS client with bolt-on support
-  ansible.builtin.include_tasks: nfs_client.yml
-  with_items: "{{ hostvars['127.0.0.1']['nfs_client_params'] | selectattr('nfs_name', 'equalto', nfs_storage_name) | list }}"
-  when: hostvars['127.0.0.1']['nfs_client_support']
+# Usage: main.yml
+omnia_config_vars: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"

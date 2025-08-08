@@ -39,6 +39,18 @@
   ansible.builtin.set_fact:
     nfs_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'nfs') | list | length > 0 }}"
 
+- name: Check compute k8s support
+  ansible.builtin.set_fact:
+    compute_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+
+- name: Check nfs support
+  ansible.builtin.set_fact:
+    service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+
+- name: Check nfs support
+  ansible.builtin.set_fact:
+    slurm_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'slurm') | list | length > 0 }}"
+
 - name: Fetch beegfs version
   when: beegfs_support
   block:
