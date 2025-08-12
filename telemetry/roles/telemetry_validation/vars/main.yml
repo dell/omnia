@@ -143,3 +143,10 @@ fail_msg_network_spec_file: "network_spec.yml file doesn't exist."
 network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."
 service_cluster_no_internet: "Service Cluster does not have internet access to deploy idrac telemetry collection on service cluster.
       Please enable internet on service cluster and rerun telemetry.yml."
+
+# Usage: validate_telemetry_inventory.yml
+enable_federated_telemetry_fail_msg: |
+  "It is recommended to set federated_idrac_telemetry_collection to true in telemetry_config.yml, as a service k8s cluster has been provisioned."
+telemetry_empty_inventory_fail_msg: |
+  "Failed. Either inventory is not provided or inventory does not have required groups. Re-run playbook with inventory by providing -i inventory.
+  Required groups in inventory are kube_control_plane, kube_node, etcd"
