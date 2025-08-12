@@ -21,7 +21,7 @@
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.discovery.omniadb_connection import get_data_from_db # type: ignore
 
-def get_service_cluster_node_details():
+def get_service_cluster_node_details(host_inventory):
     """
     This function retrieves all service cluster node data from the database.
     Returns a dictionary of service cluster node data.
@@ -32,7 +32,8 @@ def get_service_cluster_node_details():
     )
 
     data = {}
-    not_available_nodes = []
+    not_available_nodes = {}
+    failed_nodes = []
 
     for sn in query_result:
         node = sn['node']
@@ -43,25 +44,29 @@ def get_service_cluster_node_details():
         role = sn['role']
 
         if status != 'booted':
-            not_available_nodes.append(service_tag)
+            not_available_nodes[service_tag] = admin_ip
             continue
 
-        data[service_tag] = {
-            'admin_ip': admin_ip,
-            'service_tag': service_tag,
-            'node': node,
-            'cluster_name': cluster_name,
-            'role': role
-        }
+        if admin_ip in host_inventory:
+            data[service_tag] = {
+                'admin_ip': admin_ip,
+                'service_tag': service_tag,
+                'node': node,
+                'cluster_name': cluster_name,
+                'role': role
+            }
 
-        data[service_tag]['parent_status'] = 'service_kube_control_plane' in role
+            data[service_tag]['parent_status'] = 'service_kube_control_plane' in role
 
-    if not_available_nodes:
+    for service_tag, ip in not_available_nodes.items():
+        if ip in host_inventory:
+            failed_nodes.append(service_tag)
+
+    if failed_nodes:
         raise ValueError(
-            f"The following service cluster nodes are not in 'booted' state: "
-            f"{', '.join(not_available_nodes)}."
+            f"The following service cluster nodes are not in 'booted' state: {', '.join(failed_nodes)}."
             "Please verify the node status and try again."
-            "For federated telemetry colelction of compute nodes, service cluster nodes must be available and in the 'booted' state."
+            "For federated telemetry collection of compute nodes, service cluster nodes must be available and in the 'booted' state."
             "Please wait until all service cluster nodes are booted, or remove the nodes experiencing "
             "provisioning failures using the utils/delete_node.yml playbook."
         )
@@ -125,14 +130,16 @@ def main():
         Main function to execute the check_service_cluster_node_details custom module.
     """
     module_args = {
-        'groups_info': {'type':"dict", 'required':True}
+        'groups_info': {'type':"dict", 'required':True},
+        'host_inventory': {'type':"list", 'required':True}
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     try:
         groups_info = module.params["groups_info"]
-        service_cluster_node_details = get_service_cluster_node_details()
+        host_inventory = module.params["host_inventory"]
+        service_cluster_node_details = get_service_cluster_node_details(host_inventory)
         groups_info, service_cluster_node_details, service_cluster_node_details_status  = \
             get_service_cluster_data(groups_info, service_cluster_node_details)
 

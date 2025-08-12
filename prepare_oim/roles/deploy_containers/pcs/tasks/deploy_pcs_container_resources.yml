@@ -43,7 +43,7 @@
 
 - name: Create the podman secrets directory when telemetry or visualization support is true
   when:
-    - hostvars['localhost']['idrac_telemetry_support'] or hostvars['localhost']['visualization_support']
+    - (hostvars['localhost']['idrac_telemetry_support'] and not hostvars['localhost']['federated_idrac_telemetry_collection']) or hostvars['localhost']['visualization_support'] # noqa yaml[line-length]
   block:
     - name: Create the podman secrets directory
       ansible.builtin.file:

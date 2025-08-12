@@ -27,7 +27,9 @@
 
     - name: Validate image tars exists
       ansible.builtin.include_tasks: "{{ role_path }}/../../../common/tasks/common/validate_image_tars.yml"
-      when: enable_oim_ha
+      when:
+        - enable_oim_ha
+        - not federated_idrac_telemetry_collection
 
     - name: Include network_spec variables
       ansible.builtin.include_tasks: include_network_spec.yml
@@ -35,6 +37,11 @@
     - name: Include local_repo_access variables
       ansible.builtin.include_tasks: read_software_config.yml
       when: federated_idrac_telemetry_collection or kube_prometheus_support
+
+    - name: Validate telemetry inventory file
+      ansible.builtin.include_tasks: validate_telemetry_inventory.yml
+      when:
+        - idrac_telemetry_support
 
     - name: Validate iDRAC inventory
       ansible.builtin.include_tasks: validate_idrac_inventory.yml

@@ -462,6 +462,55 @@ def validate_service_node_ha(
             oim_admin_ip
         )
 
+def validate_slurm_head_node_ha(
+    errors,
+    config_type,
+    ha_data,
+    network_spec_data,
+    _roles_config_json,
+    all_service_tags,
+    ha_node_vip_list
+):
+    """
+    Validates the high availability configuration for a service node.
+
+    Parameters:
+    errors (list): A list to store error messages.
+    config_type (str): The type of high availability configuration.
+    ha_data (dict): A dictionary containing high availability data.
+    network_spec_data (dict): A dictionary containing network specification data.
+    _roles_config_json (dict): A dictionary containing roles configuration data.
+    all_service_tags (list): A list of all service tags.
+    ha_node_vip_list (list): A list of virtual IP addresses for high availability nodes.
+
+    Returns:
+    None
+    """
+    active_node_service_tag = ha_data.get("active_node_service_tag")
+    passive_nodes = ha_data.get("passive_nodes", [])
+    vip_address = ha_data.get("virtual_ip_address")
+
+    # get network_spec data
+    admin_network = network_spec_data["admin_network"]
+    admin_netmaskbits = network_spec_data["admin_netmaskbits"]
+    oim_admin_ip = network_spec_data["oim_admin_ip"]
+
+    # validate active_node_service_tag and passive_node_service_tag
+    validate_service_tag_presence(
+        errors, config_type, all_service_tags, active_node_service_tag, passive_nodes
+    )
+
+    # validate if duplicate virtual ip address is present
+    if vip_address:
+        validate_vip_address(
+            errors,
+            config_type,
+            vip_address,
+            ha_node_vip_list,
+            admin_network,
+            admin_netmaskbits,
+            oim_admin_ip
+        )
 
 def validate_oim_ha(
     errors,
@@ -554,7 +603,7 @@ ha_validation = {
     "service_node_ha": validate_service_node_ha,
     # Add more config_type functions here as needed
     "oim_ha": validate_oim_ha,
-    # "slurm_head_node_ha":validation_slurm_head_node_ha # TODO: Add slurm head node validation
+    "slurm_head_node_ha": validate_slurm_head_node_ha,
     "service_k8s_cluster_ha": validate_k8s_head_node_ha,
     "compute_k8s_cluster_ha": validate_k8s_head_node_ha
 }

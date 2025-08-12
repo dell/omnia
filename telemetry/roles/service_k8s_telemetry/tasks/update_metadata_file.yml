@@ -54,7 +54,7 @@
 - name: Identify unassigned telemetry pods
   ansible.builtin.set_fact:
     unassigned_pods: >-
-      {{ idrac_telemetry_pods | difference(assigned_pods) }}
+      {{ idrac_telemetry_pods | reject('in', assigned_pods) | list }}
 
 - name: Build new pod assignments for unassigned nodes
   ansible.builtin.set_fact:
@@ -67,7 +67,7 @@
 
 - name: Append new pod details in service_cluster metadata
   ansible.builtin.set_fact:
-    service_cluster_metadata: "{{ service_cluster_metadata | combine(new_metadata_items | combine, recursive=True) }}"
+    service_cluster_metadata: "{{ service_cluster_metadata | combine(new_metadata_items | default([]) | combine, recursive=True) }}"
 
 - name: Update service_cluster metadata file
   ansible.builtin.copy:

@@ -42,13 +42,6 @@ def get_bmc_license_info(bmc_ip, username, password, module):
 
     licenses_url = f"https://{bmc_ip}/redfish/v1/Managers/iDRAC.Embedded.1/Oem/Dell/DellLicenses"
 
-    conditions = {
-        "iDRAC": False,
-        "Data": False,
-        "License": False,
-        "Healthy": False
-    }
-
     try:
         # Get the license details
         response = requests.get(
@@ -62,6 +55,13 @@ def get_bmc_license_info(bmc_ip, username, password, module):
         license_data = response.json()
 
         for license_info in license_data.get("Members", []):
+            # Initialize a dictionary to track conditions for this specific license
+            conditions = {
+                "iDRAC": False,
+                "Data": False,
+                "License": False,
+                "Healthy": False
+            }
             # Check LicenseDescription and LicensePrimaryStatus fields
             license_desc = license_info.get("LicenseDescription", [])
             license_primary_status = license_info.get("LicensePrimaryStatus", "")
@@ -78,9 +78,9 @@ def get_bmc_license_info(bmc_ip, username, password, module):
             if "ok" in license_primary_status.lower():
                 conditions["Healthy"] = True
 
-        # Output the results based on the conditions
-        if all(conditions.values()):
-            return True
+            # Output the results based on the conditions
+            if all(conditions.values()):
+                return True
         module.warn(f"The system {bmc_ip} does not meet all the required license conditions.")
         return False
 

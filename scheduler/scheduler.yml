@@ -43,6 +43,9 @@
       ansible.builtin.set_fact:
         compute_k8s_playbook: true
 
+- name: Invoke validate_config.yml to perform L1 and L2 validations for k8s
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+
 - name: Validate inventory
   ansible.builtin.import_playbook: ../utils/inventory_validation.yml
   when: not ( hostvars['127.0.0.1']['inventory_validation_executed'] | default(false) | bool )
@@ -60,11 +63,6 @@
       ansible.builtin.include_role:
         name: cluster_validation
         tasks_from: validation_status_check.yml
-
-- name: Invoke validate_config.yml to perform L1 and L2 validations for k8s
-  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
-  when:
-    - hostvars['127.0.0.1']['k8s_support']
 
 - name: Update Repositories/Registries on nodes
   ansible.builtin.import_playbook: ../utils/update_user_repo.yml

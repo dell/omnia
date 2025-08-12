@@ -20,7 +20,7 @@
   block:
     - name: Set service_cluster metadata
       ansible.builtin.set_fact:
-        service_cluster_metadata: "{{ hostvars['omnia_provision']['service_cluster_details'] }}"
+        service_cluster_metadata: "{{ hostvars['omnia_provision']['service_cluster_metadata'] }}"
 
     - name: Configure k8s secrets
       ansible.builtin.include_tasks: secrets_creation.yml

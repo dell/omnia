@@ -42,7 +42,8 @@ idrac_telemetry_collection_type: "prometheus"
 # Accepted values:  true or false
 visualization_support: false
 
-# This variable is used to decide iDRAC telemetry container collection required from from service node in federated way.
+# This variable is used to decide iDRAC telemetry container collection required from service cluster in federated way.
 # federated_idrac_telemetry_collection true is currently not supported.
-# Accepted values: false
+# Accepted values: true or false
+# Default value: false
 federated_idrac_telemetry_collection: false

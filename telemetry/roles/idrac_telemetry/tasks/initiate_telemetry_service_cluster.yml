@@ -1,0 +1,164 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Include and initialize variables
+
+- name: Set server host
+  ansible.builtin.set_fact:
+    node_host: >-
+      {{
+        hostvars[inventory_hostname]['inventory_hostname']
+        if inventory_hostname != 'localhost'
+        else 'oim'
+      }}
+
+- name: Initialize variables
+  ansible.builtin.set_fact:
+    telemetry_idrac: []
+    service_type: 3
+    auth_type: 1
+    idrac_ip_count: 0
+    telemetry_idrac_count: 0
+    failed_idrac_count: 0
+    failed_idrac: []
+
+- name: Include telemetry common vars
+  ansible.builtin.include_vars: "{{ playbook_dir }}/roles/telemetry_validation/vars/main.yml"
+  no_log: true
+
+- name: Include Service k8s telemetry common vars
+  ansible.builtin.include_vars: "{{ playbook_dir }}/roles/service_k8s_telemetry/vars/main.yml"
+  no_log: true
+
+- name: Fetch iDRAC BMC IPs for each pod
+  fetch_idrac_ips:
+    service_cluster_metadata: "{{ service_cluster_metadata }}"
+    parent_to_bmc_ip_details: "{{ hostvars['localhost']['bmc_ips'] }}"
+  register: idrac_podname_idracips
+
+- name: Fetch the kube control plane cluster name
+  ansible.builtin.set_fact:
+    kube_control_plane_cluster_name: "{{ item.value.cluster_name }}"
+  loop: "{{ service_cluster_metadata | dict2items }}"
+  when: "'service_kube_control_plane' in item.value.role"
+
+- name: Show iDRAC IPs for each pod
+  ansible.builtin.debug:
+    msg: >-
+      "iDRAC IPs for pod '{{ item.key }}': {{ item.value | join(', ') }}"
+    verbosity: 2
+  loop: "{{ idrac_podname_idracips.idrac_podname_ips | dict2items }}"
+  when: idrac_podname_idracips.idrac_podname_ips is defined and idrac_podname_idracips.idrac_podname_ips
+
+- name: Read the existing BMC IP's from mysqlDB of the idrac telemetry pods
+  block:
+    - name: Read the existing BMC IP's from mysqlDB
+      read_idracips_from_mysqldb:
+        telemetry_namespace: "{{ telemetry_namespace }}"
+        idrac_podnames: "{{ idrac_podname_idracips.idrac_podname_ips.keys() | list }}"
+        mysqldb_k8s_name: "{{ mysqldb_k8s_name }}"
+        mysqldb_name: "{{ mysqldb_name }}"
+        mysqldb_user: "{{ hostvars['localhost']['mysqldb_user'] }}"
+        mysqldb_password: "{{ hostvars['localhost']['mysqldb_password'] }}"
+        db_retries: "{{ db_retries }}"
+        db_delay: "{{ db_delay }}"
+      register: existing_mysqldb_idracips
+  rescue:
+    - name: Failed to connect mysqldb
+      ansible.builtin.fail:
+        msg: "{{ mysqldb_insert_fail_msg }}"
+
+- name: Set existing BMC IPs from mysqlDB
+  ansible.builtin.set_fact:
+    db_idrac_ip_list: "{{ existing_mysqldb_idracips.mysqldb_idrac_ips }}"
+    existing_pod_to_db_idrac_ips: "{{ existing_mysqldb_idracips.pod_to_db_idrac_ips }}"
+
+- name: Set fact for bmc_ips
+  ansible.builtin.set_fact:
+    bmc_ips: "{{ hostvars['localhost']['bmc_ips'].values() | flatten }}"
+
+- name: Generate filtered iDRAC IP list
+  ansible.builtin.set_fact:
+    filtered_bmc_ip_list: "{{ bmc_ips | difference(db_idrac_ip_list) }}"
+
+- name: Show filtered BMC IPs
+  ansible.builtin.debug:
+    msg: "Filtered BMC IPs: {{ filtered_bmc_ip_list }}"
+
+- name: Convert filtered_bmc_ip_list to a dictionary with bmc_ip
+  ansible.builtin.set_fact:
+    filtered_bmc_ip_dict_list: "{{ filtered_bmc_ip_list | map('community.general.dict_kv', 'bmc_ip') | list }}"
+
+- name: Validate BMC reachability
+  ansible.builtin.include_tasks: validate_bmcips_reachability.yml
+
+- name: Add iDRAC details in mysqldb
+  when: telemetry_idrac is defined and (telemetry_idrac | length > 0)
+  block:
+    - name: Insert the valid iDRAC IPs into mysqldb
+      insert_idracips_mysqldb:
+        telemetry_namespace: "{{ telemetry_namespace }}"
+        idrac_podnames_ips: "{{ idrac_podname_idracips.idrac_podname_ips }}"
+        mysqldb_k8s_name: "{{ mysqldb_k8s_name }}"
+        mysqldb_name: "{{ mysqldb_name }}"
+        mysql_user: "{{ hostvars['localhost']['mysqldb_user'] }}"
+        mysqldb_password: "{{ hostvars['localhost']['mysqldb_password'] }}"
+        bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
+        bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
+        telemetry_idrac: "{{ telemetry_idrac }}"
+        service_type: "{{ service_type }}"
+        auth_type: "{{ auth_type }}"
+        db_retries: "{{ db_retries }}"
+        db_delay: "{{ db_delay }}"
+      register: add_idrac_to_db
+  rescue:
+    - name: Failed to connect mysqldb
+      ansible.builtin.fail:
+        msg: "{{ mysqldb_insert_fail_msg }}"
+
+- name: Show iDRACs added to mysqldb
+  ansible.builtin.debug:
+    msg: >-
+      iDRACs added to mysqldb: {{ add_idrac_to_db.inserted_ips | default('No results returned') }}
+
+- name: Show iDRACs failed to add to mysqldb
+  ansible.builtin.debug:
+    msg: >-
+      "iDRACs failed to add to mysqldb: {{ add_idrac_to_db.failed_ips | default('No failed IPs') }}"
+
+- name: Trigger rolling restart of StatefulSet idrac_telemetry
+  when:
+    - telemetry_idrac is defined
+    - telemetry_idrac | length > 0
+  block:
+    - name: Restart idrac telemetry StatefulSet
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: "{{ idrac_telemetry_k8s_name }}"
+            namespace: "{{ telemetry_namespace }}"
+          spec:
+            template:
+              metadata:
+                annotations:
+                  kubectl.kubernetes.io/restartedAt: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+      register: restart_statefulset
+  rescue:
+    - name: StatefulSet restart failed
+      ansible.builtin.fail:
+        msg: "{{ idrac_telemetry_statefulset_restart_failure_msg.splitlines() | join(' ') }}"

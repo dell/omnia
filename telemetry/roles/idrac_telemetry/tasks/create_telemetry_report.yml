@@ -29,4 +29,6 @@
         block: "{{ telemetry_report_sn }}"
         insertafter: "===== Telemetry Report End ====="
         marker: ""
+        create: true
+        mode: "{{ filemode }}"
       when: node_host != 'oim'

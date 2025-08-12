@@ -22,7 +22,6 @@
       block:
         - name: Include roles_config.yml
           ansible.builtin.include_vars: "{{ roles_config_path }}"
-          register: include_roles_config
           tags: init
       rescue:
         - name: Failed to include  roles_config.yml
@@ -50,9 +49,35 @@
       no_log: true
       failed_when: false
 
+    - name: Build host_inventory list # noqa: jinja[invalid]
+      ansible.builtin.set_fact:
+        host_inventory: >-
+          {{
+            (
+              (
+                (groups['kube_control_plane'] | default([]))
+                + (groups['etcd'] | default([]))
+                + (groups['kube_node'] | default([]))
+              )
+              +
+              (
+                (
+                  (groups['kube_control_plane'] | default([]))
+                  + (groups['etcd'] | default([]))
+                  + (groups['kube_node'] | default([]))
+                )
+                | map('extract', hostvars)
+                | selectattr('ansible_host', 'defined')
+                | map(attribute='ansible_host')
+                | list
+              )
+            ) | unique
+          }}
+
     - name: Fetch service_cluster info
       get_service_cluster_info:
         groups_info: "{{ groups_info }}"
+        host_inventory: "{{ host_inventory }}"
       register: service_cluster_info_output
 
     - name: Set fact for service_cluster role required and other facts
@@ -61,15 +86,14 @@
 
     - name: Merge existing and new service node details
       ansible.builtin.set_fact:
-        service_cluster_details: >-
+        service_cluster_metadata: >-
           {{
-            exisiting_metadata.service_cluster_metadata | default({}) |
-            combine(service_cluster_node_details, recursive=False)
+            service_cluster_node_details | combine(service_cluster_metadata | default({}), recursive=True)
           }}
 
     - name: Create and update service node metadata file
       ansible.builtin.copy:
         dest: "{{ service_cluster_metadata_path }}"
-        content: "{{ {'service_cluster_metadata': service_cluster_details} | to_nice_yaml }}"
+        content: "{{ {'service_cluster_metadata': service_cluster_metadata} | to_nice_yaml }}"
         mode: "{{ metadata_perm }}"
         force: true

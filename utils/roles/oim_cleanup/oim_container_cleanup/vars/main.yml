@@ -19,6 +19,8 @@ telemetry_cleanup_directory:
   - "{{ omnia_nfs_share }}/telemetry"
   - "{{ omnia_nfs_share }}/.secrets"
   - "{{ omnia_nfs_share }}/log/telemetry"
+  - "{{ omnia_nfs_share }}/k8s_pvc_data"
+  - "{{ omnia_nfs_share }}/service_cluster"
 max_retries: 5
 
 # Usage: cleanup_pcs.yml

@@ -37,11 +37,8 @@ spec:
       hostAliases:
         - ip: "127.0.0.1"
           hostnames:
-            - "activemq"
-        - ip: "127.0.0.1"
-          hostnames:
             - "mysqldb"
-
+      terminationGracePeriodSeconds: 3
       tolerations:
       - effect: NoExecute
         key: node.kubernetes.io/not-ready
@@ -51,7 +48,6 @@ spec:
         key: node.kubernetes.io/unreachable
         operator: Exists
         tolerationSeconds: 5
-
       containers:
         - name: mysqldb
           image: {{ mysql_image }}
@@ -59,6 +55,10 @@ spec:
           volumeMounts:
             - name: mysqldb-pvc
               mountPath: /var/lib/mysql/
+          lifecycle:
+                preStop:
+                  exec:
+                    command: ["/bin/sh", "-c", "mysqladmin shutdown -uroot -p${MYSQL_ROOT_PASSWORD}"]
           env:
             - name: MYSQL_DATABASE
               value: {{ mysqldb_name }}
@@ -97,7 +97,7 @@ spec:
           workingDir: /go/src/github.com/telemetry-reference-tools
           env:
             - name: MESSAGEBUS_HOST
-              value: activemq
+              value: 127.0.0.1
             - name: MESSAGEBUS_PORT
               value: "{{ messagebus_http_port }}"
             - name: CONFIGUI_HTTP_PORT
@@ -130,7 +130,7 @@ spec:
           workingDir: /go/src/github.com/telemetry-reference-tools
           env:
             - name: MESSAGEBUS_HOST
-              value: activemq
+              value: 127.0.0.1
             - name: MESSAGEBUS_PORT
               value: "{{ messagebus_http_port }}"
             - name: PROMETHEUSDB_SERVER

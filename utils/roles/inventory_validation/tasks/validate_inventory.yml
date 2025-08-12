@@ -42,22 +42,14 @@
         prompt: "{{ inventory_warn_msg }}"
 
 # Validate K8s requirements for all the nodes
-- name: Fetch omnia_config.yml
-  when: k8s_support and compute_k8s_playbook is defined
-  ansible.builtin.include_tasks: fetch_omnia_config.yml
-
 - name: Validate K8s nodes requirements
-  when: k8s_support and compute_k8s_playbook is defined
-  ansible.builtin.include_tasks: k8s_validations.yml
+  when: (k8s_support and (compute_k8s_playbook | default(false))) or (service_k8s_support and (service_k8s_playbook | default(false)))
+  block:
+    - name: Fetch omnia_config.yml
+      ansible.builtin.include_tasks: fetch_omnia_config.yml
 
-# Validate service K8s requirements for all the nodes
-- name: Fetch omnia_config.yml
-  when: service_k8s_support and service_k8s_playbook is defined
-  ansible.builtin.include_tasks: fetch_omnia_config.yml
-
-- name: Validate service k8s nodes requirements
-  when: service_k8s_support and service_k8s_playbook is defined
-  ansible.builtin.include_tasks: k8s_validations.yml
+    - name: Validate K8s nodes requirements
+      ansible.builtin.include_tasks: k8s_validations.yml
 
 - name: Validate inventory in all playbooks except service_k8s_cluster
   when: service_k8s_playbook is not defined
