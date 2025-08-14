@@ -148,17 +148,17 @@
   roles:
     - common_plugins
 
-- name: Install nvidia-container-toolkit on nodes with Nvidia GPU
-  hosts: kube_control_plane, kube_node, etcd
-  gather_facts: false
-  roles:
-    - k8s_nvidia_container_toolkit
+# - name: Install nvidia-container-toolkit on nodes with Nvidia GPU
+#   hosts: kube_control_plane, kube_node, etcd
+#   gather_facts: false
+#   roles:
+#     - k8s_nvidia_container_toolkit
 
-- name: Install Plugin only when one of nodes with AMD GPU
-  hosts: kube_control_plane, kube_node, etcd
-  gather_facts: false
-  roles:
-    - k8s_amd
+# - name: Install Plugin only when one of nodes with AMD GPU
+#   hosts: kube_control_plane, kube_node, etcd
+#   gather_facts: false
+#   roles:
+#     - k8s_amd
 
 - name: CSI powerscale image pulling
   hosts: kube_node, kube_control_plane
