@@ -140,8 +140,8 @@
     common_plugin:
       kubernetes_dashboard: true
       habanalabs-device-plugin: false
-      mpi-operator: true
-      xilinx-device-plugin: true
+      mpi-operator: false
+      xilinx-device-plugin: false
       nfs-subdir-external-provisioner: true
       multus-device-plugin: true
       whereabouts-device-plugin: true
