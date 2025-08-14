@@ -18,33 +18,44 @@
     - name: Execute tasks and process results
       parallel_tasks:
         tasks: "{{ item.value }}"
-        log_dir: "{{ base_path }}/{{ item.key }}/logs"
-        log_file: "{{ base_path }}/{{ item.key }}_task_results.log"
+        log_dir: "{{ base_path }}/{{ item.arch }}/{{ item.key }}/logs"
+        log_file: "{{ base_path }}/{{ item.arch }}/{{ item.key }}_task_results.log"
         slog_file: "{{ base_path }}"
         software: "{{ item.key }}"
-        csv_file_path: "{{ base_path }}/{{ item.key }}"
+        csv_file_path: "{{ base_path }}/{{ item.arch }}/{{ item.key }}"
         repo_store_path: "{{ nfs_shared_path }}"
         user_json_file: "{{ user_json_file }}"
         local_repo_config_path: "{{ local_repo_config_path }}"
-        user_reg_cred_input: "{{ user_reg_cred_input }}"
-        user_reg_key_path: "{{ user_reg_key_path }}"
-        omnia_credentials_yaml_path: "{{ omnia_credentials_yaml_path }}"
-        omnia_credentials_vault_path: "{{ omnia_credentials_vault_path }}"
+        arch: "{{ item.arch }}"
+        overall_status_dict: {}
         nthreads: "{{ (local_repo_py_module_vars[item.key].nthreads | default(local_repo_py_module_vars.default_vars.nthreads)) }}"
         timeout: "{{ (local_repo_py_module_vars[item.key].timeout | default(local_repo_py_module_vars.default_vars.timeout)) }}"
       register: task_results
 
     - name: Set fact for overall status
       ansible.builtin.set_fact:
-        overall_status_dict: "{{ overall_status_dict | default({}) | combine({item.key: task_results.overall_status}) }}"
+        overall_status_dict: >-
+          {{
+            overall_status_dict | default({}) |
+            combine({
+              item.key: (overall_status_dict[item.key] | default([])) +
+                        [ {'overall_status': task_results.overall_status,
+                           'arch': task_results.arch} ]
+            }, recursive=True)
+          }}
+
   rescue:
     - name: Log the failure
       ansible.builtin.debug:
         msg:
           - "Parallel tasks encountered an error. Check the logs for details:"
-          - "Log directory: {{ base_path }}/{{ item.key }}/logs"
-          - "Log file: {{ base_path }}/{{ item.key }}_task_results.log"
+          - "Log directory: {{ base_path }}/{{ item.arch }}/{{ item.key }}/logs"
+          - "Log file: {{ base_path }}/{{ item.arch }}/{{ item.key }}_task_results.log"
   always:
+    - name: Display overall status for software
+      ansible.builtin.debug:
+        msg: "Status for {{ item.arch }} / {{ item.key }}"
+
     - name: Display the output table
       ansible.builtin.debug:
         msg: "{{ task_results.table_output.split('\n') if task_results.table_output is defined else 'No table output available.' }}"

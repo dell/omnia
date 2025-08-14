@@ -13,6 +13,15 @@
 # limitations under the License.
 ---
 
+- name: Fetch software package arch types
+  fetch_software_arch:
+    software_name: "{{ software_entry.name }}"
+  register: arc_result
+
+- name: Set fact for all arch types
+  ansible.builtin.set_fact:
+    sw_arch_types_list: "{{ arc_result.arch[software_entry.name] }}"
+
 - name: Read existing metadata
   ansible.builtin.slurp:
     src: "{{ k8s_local_repo_metadata_file_path }}"
@@ -22,28 +31,40 @@
 - name: Load or initialize metadata
   ansible.builtin.set_fact:
     metadata: >-
-      {{
-        metadata_raw.content | b64decode | from_yaml
-        if metadata_raw is defined and metadata_raw.content is defined
-        else {
-          "compute_k8s_local_repo_versions": [],
-          "last_compute_k8s_local_repo_version": "",
-          "service_k8s_local_repo_versions": [],
-          "last_service_k8s_local_repo_version": ""
-        }
-      }}
+      {% if metadata_raw is defined and metadata_raw.content is defined %}
+        {{ metadata_raw.content | b64decode | from_yaml | default({})}}
+      {% else %}
+        {%- set base = {} -%}
+        {%- for arch in sw_arch_types_list -%}
+          {%- set _ = base.update({
+              (prefix ~ '_local_repo_versions_' ~ arch): [],
+              ('last_' ~ prefix ~ '_local_repo_version_' ~ arch): ""
+          }) -%}
+        {%- endfor -%}
+        {{ base }}
+      {% endif %}
+  vars:
+    prefix: "{{ 'k8s' if software_entry.name == 'k8s' else 'service_k8s' }}"
 
-- name: Update metadata for {{ software_entry.name }}
+- name: Initialize metadata if not present
+  ansible.builtin.set_fact:
+    metadata: "{{ metadata | default({}) | from_yaml }}"
+
+- name: Update metadata for each architecture {{ software_entry.name }}
   ansible.builtin.set_fact:
     metadata: >-
       {{
-        metadata | combine({
-          (software_entry.name + "_local_repo_versions"): (
-            metadata[software_entry.name + "_local_repo_versions"] + [software_entry.version]
-          ) | unique | sort,
-          ("last_" + software_entry.name + "_local_repo_version"): software_entry.version
-        }, recursive=True)
+        metadata | default({}) | combine(
+          {
+            (software_entry.name ~ "_local_repo_versions_" ~ item): (
+              (metadata[software_entry.name ~ "_local_repo_versions_" ~ item] | default([])) + [software_entry.version]
+            ) | unique | sort,
+            ("last_" ~ software_entry.name ~ "_local_repo_version_" ~ item): software_entry.version
+          }, recursive=True)
       }}
+  loop: "{{ sw_arch_types_list }}"
+  loop_control:
+    loop_var: item
 
 - name: Save updated metadata for {{ software_entry.name }}
   ansible.builtin.copy:

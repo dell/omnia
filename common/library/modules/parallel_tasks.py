@@ -18,6 +18,7 @@ import os
 import re
 from datetime import datetime
 from prettytable import PrettyTable
+from collections import defaultdict
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.local_repo.process_parallel import execute_parallel, log_table_output
 from ansible.module_utils.local_repo.download_common import (
@@ -53,9 +54,7 @@ from ansible.module_utils.local_repo.config import (
     STATUS_CSV_HEADER,
     LOCAL_REPO_CONFIG_PATH_DEFAULT,
     USER_REG_CRED_INPUT,
-    USER_REG_KEY_PATH,
-    OMNIA_CREDENTIALS_YAML_PATH,
-    OMNIA_CREDENTIALS_VAULT_PATH
+    USER_REG_KEY_PATH
 )
 
 def update_status_csv(csv_dir, software, overall_status):
@@ -113,7 +112,7 @@ def update_status_csv(csv_dir, software, overall_status):
         f.write("\n".join(final_lines))
 
 
-def determine_function(task, repo_store_path, csv_file_path, user_data, version_variables, user_registries, docker_username, docker_password):
+def determine_function(task, repo_store_path, csv_file_path, user_data, version_variables, arc, user_registries, docker_username, docker_password):
     """
     Determines the appropriate function and its arguments to process a given task.
 
@@ -123,6 +122,7 @@ def determine_function(task, repo_store_path, csv_file_path, user_data, version_
         csv_file_path (str): The path to the CSV file.
         user_data (dict): A dictionary containing user data.
         version_variables (dict): A dictionary containing version variables.
+        arc (str): Architecture of package to be downloaded
 
     Returns:
         tuple: A tuple containing the function to process the task and its arguments.
@@ -151,21 +151,21 @@ def determine_function(task, repo_store_path, csv_file_path, user_data, version_
         if task_type == "git":
             return process_git, [task, repo_store_path, status_file]
         if task_type == "tarball":
-            return process_tarball, [task, repo_store_path, status_file, version_variables]
+            return process_tarball, [task, repo_store_path, status_file, version_variables, cluster_os_type, cluster_os_version, arc]
         if task_type == "shell":
             return process_shell, [task, repo_store_path, status_file]
         if task_type == "ansible_galaxy_collection":
             return process_ansible_galaxy_collection, [task, repo_store_path, status_file]
         if task_type == "iso":
             return process_iso, [task, repo_store_path, status_file,
-                                 cluster_os_type, cluster_os_version, version_variables]
+                                 cluster_os_type, cluster_os_version, version_variables, arc]
         if task_type == "pip_module":
             return process_pip, [task, repo_store_path, status_file]
         if task_type == "image":
             return process_image, [task, status_file, version_variables, user_registries, docker_username, docker_password]
         if task_type == "rpm":
             return process_rpm, [task, repo_store_path, status_file,
-                                 cluster_os_type, cluster_os_version, repo_config_value]
+                                 cluster_os_type, cluster_os_version, repo_config_value, arc]
 
         raise ValueError(f"Unknown task type: {task_type}")
     except Exception as e:
@@ -192,11 +192,35 @@ def generate_pretty_table(task_results, total_duration, overall_status):
     return table.get_string()
 
 def generate_software_status_table(status_dict):
-    table = PrettyTable()
-    table.field_names = ["Name", "Status"]
-    for name, status in status_dict.items():
-        table.add_row([name, str(status).lower()])
-    return table.get_string()
+    """
+    Returns status tables of software grouped by architecture.
+
+    Args:
+        status_dict (dict): Software info with 'arch' and 'overall_status' for each entry.
+
+    Returns:
+        str: Formatted tables (per arch) showing software name and status.
+    """
+    grouped = defaultdict(list)
+
+    # status_dict is expected to have software names as keys, list of dicts as values
+    for software_name, entries in status_dict.items():
+        for info in entries:
+            arch = info.get("arch", "unknown")
+            status = info.get("overall_status", "unknown")
+            grouped[arch].append((software_name, status))
+
+    # Build tables for each arch
+    tables = []
+    for arch, items in grouped.items():
+        table = PrettyTable()
+        table.title = f"{arch} Software Stack Download Overview"
+        table.field_names = ["Name", "Status"]
+        for name, status in items:
+            table.add_row([name, status.lower()])
+        tables.append(table.get_string())
+
+    return "\n\n".join(tables)
 
 def main():
     """
@@ -214,7 +238,21 @@ def main():
         software (list): A list of software names.
         user_json_file (str): The path to the JSON file containing use
         show_softwares_status (bool): Whether to display the software status; optional, defaults to False.  
-        overall_status_dict (dict): A dictionary containing overall software status information; optional, defaults to an empty dictionary.
+        overall_status_dict (dict): A list containing overall software status information; optional, defaults to an empty dict.
+          Dictionary containing software status information grouped by software names.  
+          Each key (e.g., 'service_k8s') maps to a list of dictionaries,  
+          where each dictionary contains:
+              - 'arch' (str): Architecture name, e.g., 'x86_64' or 'aarch64'.  
+              - 'overall_status' (str): Status of the software on that architecture, e.g., 'SUCCESS'.  
+          Example:
+              {
+                  "service_k8s": [
+                      {"arch": "x86_64", "overall_status": "SUCCESS"},
+                      {"arch": "aarch64", "overall_status": "SUCCESS"}
+                  ]
+              }
+          Defaults to an empty dict if not provided.
+
     Returns:
         tuple: A tuple containing:
             - overall_status (str): The overall status of task execution ("SUCCESS", "FAILED", "PARTIAL", "TIMEOUT").
@@ -234,12 +272,9 @@ def main():
         "software": {"type": "list", "elements": "str", "required": True},
         "user_json_file": {"type": "str", "required": False, "default": USER_JSON_FILE_DEFAULT},
         "show_softwares_status": {"type": "bool", "required": False, "default": False},
-        "overall_status_dict": {"type": "dict", "required": False, "default": {}},
+        "overall_status_dict": {"type": "dict","required": True},
         "local_repo_config_path": {"type": "str", "required": False, "default": LOCAL_REPO_CONFIG_PATH_DEFAULT},
-        "user_reg_cred_input": {"type": "str", "required": False, "default": USER_REG_CRED_INPUT},
-        "user_reg_key_path": {"type": "str", "required": False, "default": USER_REG_KEY_PATH},
-        "omnia_credentials_yaml_path": {"type": "str", "required": False, "default": OMNIA_CREDENTIALS_YAML_PATH},
-        "omnia_credentials_vault_path": {"type": "str", "required": False, "default": OMNIA_CREDENTIALS_VAULT_PATH}
+        "arch": {"type": "str", "required": False}
     }
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     tasks = module.params["tasks"]
@@ -253,13 +288,9 @@ def main():
     software = module.params["software"]
     user_json_file = module.params["user_json_file"]
     show_softwares_status = module.params["show_softwares_status"]
-    overall_status_dict = module.params['overall_status_dict']
+    overall_status_dict = module.params["overall_status_dict"]
     local_repo_config_path = module.params["local_repo_config_path"]
-    user_reg_cred_input = module.params["user_reg_cred_input"]
-    user_reg_key_path = module.params["user_reg_key_path"]
-    omnia_credentials_yaml_path = module.params["omnia_credentials_yaml_path"]
-    omnia_credentials_vault_path = module.params["omnia_credentials_vault_path"]
-
+    arc= module.params["arch"]
     # Initialize standard logger.
     slogger = setup_standard_logger(slog_file)
     result = {"changed": False, "task_results": []}
@@ -276,7 +307,7 @@ def main():
     # Check if the flag to show software status is enabled
     if show_softwares_status:
         # Generate a formatted status table from the overall_status_dict parameter
-        status_table = generate_software_status_table(module.params['overall_status_dict'])
+        status_table = generate_software_status_table(overall_status_dict)
         module.exit_json(changed=False, msg=status_table)
 
     try:
@@ -289,19 +320,18 @@ def main():
         slogger.info(f"Cluster OS: {cluster_os_type}")
         slogger.info(f"Version Variables: {version_variables}")
         gen_result = {}
-        if not os.path.isfile(user_reg_key_path):
-            gen_result = generate_vault_key(user_reg_key_path)
+        if not os.path.isfile(USER_REG_KEY_PATH):
+            gen_result = generate_vault_key(USER_REG_KEY_PATH)
         if gen_result is None:
-            module.fail_json(msg=f"Unable to generate local_repo key at path: {user_reg_key_path}")
+            module.fail_json(msg=f"Unable to generate local_repo key at path: {USER_REG_KEY_PATH}")
 
         overall_status, task_results = execute_parallel(
             tasks, determine_function, nthreads, repo_store_path, csv_file_path,
-            log_dir, user_data, version_variables, slogger, local_repo_config_path, user_reg_cred_input, user_reg_key_path,
-            omnia_credentials_yaml_path, omnia_credentials_vault_path, timeout
+            log_dir, user_data, version_variables, arc, slogger, local_repo_config_path, timeout
         )
 
-        if not is_encrypted(user_reg_cred_input):
-            process_file(user_reg_cred_input,user_reg_key_path,'encrypt')
+        if not is_encrypted(USER_REG_CRED_INPUT):
+            process_file(USER_REG_CRED_INPUT,USER_REG_KEY_PATH,'encrypt')
 
         end_time = datetime.now()
         formatted_end_time = end_time.strftime("%I:%M:%S %p")
@@ -318,6 +348,7 @@ def main():
         result["total_duration"] = total_duration
         result["task_results"] = task_results
         result["table_output"] = table_output
+        result["arch"] = arc
 
         update_status_csv(csv_file_path, software, overall_status)
 

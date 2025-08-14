@@ -12,51 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Set facts with omnia_default version
-  ansible.builtin.set_fact:
-    beegfs_version: "omnia_default"
-    amdgpu_version: "omnia_default"
-    rocm_version: "omnia_default"
-    bcm_roce_libraries_version: "omnia_default"
-    intelgaudi_version: "omnia_default"
-    compute_k8s_support: false
-    service_k8s_support: false
-
-- name: Check that the software_config.json exists
-  ansible.builtin.stat:
-    path: "{{ sw_config_json_path }}"
-  register: stat_result
-
-- name: Fail if software_config.json file doesn't exist
-  ansible.builtin.fail:
-    msg: "{{ fail_msg_software_config_json_file }}"
-  when: not stat_result.stat.exists
-
-- name: Check JSON syntax of software_config.json
-  ansible.builtin.command:
-    cmd: "jq . {{ sw_config_json_path }}"
-  register: json_check
-  ignore_errors: true
-  changed_when: true
-
-- name: Display JSON errors of software_config.json
-  ansible.builtin.fail:
-    msg: "{{ json_check.stderr_lines }}"
-  when: json_check.rc != 0
-
 - name: Load software_config.json
   ansible.builtin.include_vars:
     file: "{{ sw_config_json_path }}"
     name: software_config
-
-- name: Assert cluster_os_type, cluster_os_version, repo_config and softwares
-  ansible.builtin.assert:
-    that:
-      - software_config.cluster_os_type is defined
-      - software_config.cluster_os_version is defined
-      - software_config.repo_config is defined
-      - software_config.softwares is defined
-    fail_msg: "{{ software_config_parameters_fail_msg }}"
 
 - name: Set facts for cluster
   ansible.builtin.set_fact:
@@ -65,60 +24,22 @@
     repo_config: "{{ software_config.repo_config }}"
     software: "{{ software_config.softwares }}"
 
-- name: Check if compute_k8s support is true
+- name: Check if k8s support is true
   ansible.builtin.set_fact:
-    compute_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'compute_k8s') | list | length > 0 }}"
-
-- name: Check if service k8s support is true
-  ansible.builtin.set_fact:
+    k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
     service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
-
-- name: Check if softwares list is empty
-  ansible.builtin.assert:
-    that:
-      - software | default([]) | length > 0
-    fail_msg: "{{ software_config_softwares_fail_msg }}"
-
-- name: Generate software JSON file names
-  ansible.builtin.set_fact:
     software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
-
-- name: Assert valid values for cluster_os_version for cluster_os_type rocky
-  ansible.builtin.assert:
-    that:
-      - cluster_os_version in rocky_valid_os_versions
-    fail_msg: "{{ cluster_os_version_fail_msg_rocky }}"
-  when: cluster_os_type == 'rocky'
-
-- name: Assert valid values for repo_config
-  ansible.builtin.assert:
-    that:
-      - repo_config is defined
-      - repo_config in valid_repo_config
-    fail_msg: "{{ repo_config_fail_msg }}"
-
-- name: Generate software JSON file patterns
-  ansible.builtin.set_fact:
     software_json_list: "{{ software_names | map('regex_replace', '$', '.json') | list }}"
 
-- name: Find JSON files in {{ json_files_directory }}
-  ansible.builtin.find:
-    paths: "{{ json_files_directory }}"
-    patterns: "{{ software_json_list }}"
-  register: filtered_json_files_list
-
-- name: Set fact for available JSON files
+- name: Get k8s archs
   ansible.builtin.set_fact:
-    available_json_list: "{{ filtered_json_files_list.files | map(attribute='path') | map('basename') | list }}"
+    service_k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | first).get('arch', default_archs) }}"
+  when: service_k8s_support
 
-- name: Evaluate missing JSON files
+- name: Get k8s archs
   ansible.builtin.set_fact:
-    missing_json_list: "{{ software_json_list | difference(available_json_list) }}"
-
-- name: Fail if missing JSON files
-  ansible.builtin.fail:
-    msg: "{{ missing_json_fail_msg }}"
-  when: missing_json_list | length > 0
+    k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'k8s') | first).get('arch', default_archs) }}"
+  when: k8s_support
 
 - name: Validation for version property for softwares mentioned in software_config.json
   block:
@@ -161,15 +82,3 @@
   when: item.version is defined
   loop_control:
     loop_var: item
-
-- name: Generate software names having subgroup
-  ansible.builtin.set_fact:
-    subgroup_softwares: "{{ subgroup_softwares | default({}) | combine({item: software_config[item] | map(attribute='name')}) }}"
-  loop: "{{ software_names | intersect(software_config.keys() | list) }}"
-
-- name: Update software versions from software_config.json (subgroup)
-  ansible.builtin.include_tasks: validate_software_config_subgroup_json.yml
-  with_dict: "{{ subgroup_softwares }}"
-  when: subgroup_softwares is defined
-  loop_control:
-    loop_var: subgroup
