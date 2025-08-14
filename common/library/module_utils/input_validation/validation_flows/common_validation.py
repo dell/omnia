@@ -17,12 +17,10 @@ This module contains functions for validating common configuration files.
 """
 import json
 import os
-import yaml
 import ipaddress
-import subprocess
-from ast import literal_eval
-import ansible.module_utils.input_validation.common_utils.data_fetch as get
-from ansible.module_utils.input_validation.validation_flows import csi_driver_validation
+import yaml
+
+import ansible.module_utils.input_validation.common_utils.data_fetch as fetch
 import ansible.module_utils.input_validation.common_utils.data_validation as validate
 
 from ansible.module_utils.input_validation.common_utils import (
@@ -32,10 +30,9 @@ from ansible.module_utils.input_validation.common_utils import (
     data_verification
 )
 
-from ansible.module_utils.input_validation.validation_flows import scheduler_validation
 from ansible.module_utils.local_repo.software_utils import (
     load_json,
-    set_version_variables,
+    load_yaml,
     get_subgroup_dict,
     get_software_names,
     get_json_file_path
@@ -116,11 +113,11 @@ def validate_software_config(
         extensions = config.extensions
         fname = "additional_software"
         schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
-        json_files = get.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
+        json_files = fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
         json_files_dic = {}
 
         for file_path in json_files:
-            json_files_dic.update({get.file_name_from_path(file_path): file_path})
+            json_files_dic.update({fetch.file_name_from_path(file_path): file_path})
         new_file_path = json_files_dic.get("additional_software.json", None)
 
         # Validate the schema of the input file (L1)
@@ -177,51 +174,44 @@ def validate_software_config(
         errors.extend(additional_software_errors)
 
     # create the subgroups and softwares dictionary with version details
-    software_json_data = load_json(input_file_path)
-    subgroup_dict, _ = get_subgroup_dict(software_json_data)
-
-    # mismatches = validate_versions(software_json_data, config.expected_versions)
-    # if mismatches:
-    #     for msg in mismatches:
-    #         errors.append(
-    #             create_error_msg(
-    #                 "Validation Error: ","Version Mismatch found at" , msg
-    #                 )
-    #             )
-
+    subgroup_dict, _ = get_subgroup_dict(data)
     # check if the corresponding json files for softwares and subgroups exists in config folder
-    software_list = get_software_names(input_file_path)
     validation_results = []
     failures = []
     fail_data = []
-    for software in software_list:
-        json_path = get_json_file_path(
-            software, cluster_os_type, cluster_os_version, input_file_path
-        )
-        # Check if json_path is None or if the JSON syntax is invalid
-        if json_path is None:
-            errors.append(
-                create_error_msg(
-                    "Validation Error: ", software,
-                    f"is present in software_config.json. JSON file not found: {os.path.dirname(input_file_path)}/config/{cluster_os_type}/{cluster_os_version}/{software}.json"
-                )
-            )
-        else:
-            try:
-                subgroup_softwares = subgroup_dict.get(software, None)
-                # for each subgroup for a software check for corresponding entry in software.json
-                # eg: for amd the amd.json should contain both amd and rocm entries
-                with open(json_path, "r") as file:
-                    json_data = json.load(file)
-                for subgroup_software in subgroup_softwares:
-                    _, fail_data = validation_utils.validate_softwaresubgroup_entries(
-                        subgroup_software, json_path, json_data, validation_results, failures
-                    )
 
-            except (FileNotFoundError, json.JSONDecodeError) as e:
+    roles_config_file_path = create_file_path(input_file_path, file_names["roles_config"])
+    roles_config_dict = load_yaml(roles_config_file_path)
+    def_archs = list({x["architecture"] for x in roles_config_dict["Groups"].values()})
+
+    for software_pkg in data['softwares']:
+        software = software_pkg['name']
+        arch_list = software_pkg.get('arch', def_archs)
+        json_paths = get_json_file_path(
+            software, cluster_os_type, cluster_os_version, input_file_path, arch_list
+        )
+        for json_path in json_paths:
+            # Check if json_path is None or if the JSON syntax is invalid
+            if not json_path:
                 errors.append(
-                    create_error_msg("Error opening or reading JSON file:", json_path, str(e))
+                    create_error_msg(
+                        "Validation Error: ", software,
+                        f"is present in software_config.json. JSON file not found: {software}.json"
+                    )
                 )
+            else:
+                try:
+                    subgroup_softwares = subgroup_dict.get(software, None)
+                    json_data = load_json(json_path)
+                    for subgroup_software in subgroup_softwares:
+                        _, fail_data = validation_utils.validate_softwaresubgroup_entries(
+                            subgroup_software, json_path, json_data, validation_results, failures
+                        )
+
+                except (FileNotFoundError, json.JSONDecodeError) as e:
+                    errors.append(
+                        create_error_msg("Error opening or reading JSON file:", json_path, str(e))
+                    )
 
     if fail_data:
         errors.append(
@@ -238,7 +228,7 @@ def is_version_valid(actual_version, expected):
     if isinstance(expected, list):
         return actual_version in expected
     return actual_version == expected
-
+ 
 def validate_versions(data, expected):
     mismatches = []
 
@@ -958,8 +948,7 @@ def is_ip_in_range(ip_str, ip_range_str):
         return False
     
 
-def validate_k8s(data, admin_bmc_networks, softwares, ha_config, tag_names, errors, 
-                 omnia_base_dir, project_name, logger, module, input_file_path):
+def validate_k8s(data, admin_bmc_networks, softwares, ha_config, tag_names, errors):
     """
     Validates Kubernetes cluster configurations.
 
@@ -977,7 +966,7 @@ def validate_k8s(data, admin_bmc_networks, softwares, ha_config, tag_names, erro
     
     # service_k8s_cluster = data["service_k8s_cluster"]
     cluster_set = {}
-    if "compute_k8s" in softwares and "compute_k8s" in tag_names:
+    if "k8s" in softwares and "k8s" in tag_names:
         cluster_set["compute_k8s_cluster"] = data.get(
             "compute_k8s_cluster", [])
     if "service_k8s" in softwares and "service_k8s" in tag_names:
@@ -1009,7 +998,7 @@ def validate_k8s(data, admin_bmc_networks, softwares, ha_config, tag_names, erro
                             f"{cluster_name} not found in high_availability_config.yml"
                         ))
                 pod_external_ip_range = kluster.get("pod_external_ip_range")
-                if not pod_external_ip_range or str(pod_external_ip_range).strip() == "":
+                if not pod_external_ip_range:
                     errors.append(
                         create_error_msg(
                             "Pod External IP Range -",
@@ -1043,41 +1032,7 @@ def validate_k8s(data, admin_bmc_networks, softwares, ha_config, tag_names, erro
                         create_error_msg(
                             "IP overlap -",
                             None,
-                           en_us_validation_msg.IP_OVERLAP_FAIL_MSG))
-
-                #csi validation
-                if (
-                      "csi_driver_powerscale" in softwares
-                      and ("k8s" in softwares or "service_k8s" in softwares)
-                    ):
-
-                    csi_secret_file_path = kluster.get("csi_powerscale_driver_secret_file_path")
-                    csi_values_file_path = kluster.get("csi_powerscale_driver_values_file_path")
-                    
-                    # Validate secret file path
-                    if not csi_secret_file_path or \
-                    not csi_secret_file_path.strip() or \
-                    not os.path.exists(csi_secret_file_path.strip()):
-                        errors.append(
-                            create_error_msg(
-                                "csi_powerscale_driver_secret_file_path",
-                                csi_secret_file_path,
-                                en_us_validation_msg.CSI_DRIVER_SECRET_FAIL_MSG,
-                            )
-                        )
-                    else:
-                        # If secret path is valid, ensure values path is also valid
-                        if not csi_values_file_path or \
-                        not csi_values_file_path.strip() or \
-                        not os.path.exists(csi_values_file_path.strip()):
-                            errors.append(
-                                create_error_msg(
-                                    "csi_powerscale_driver_values_file_path",
-                                    csi_values_file_path,
-                                    en_us_validation_msg.CSI_DRIVER_VALUES_FAIL_MSG,
-                                )
-                            )
-                        csi_driver_validation.validate_powerscale_secret_and_values_file(csi_secret_file_path,csi_values_file_path, errors, input_file_path)
+                            en_us_validation_msg.IP_OVERLAP_FAIL_MSG))
 
 def validate_omnia_config(
         input_file_path,
@@ -1112,7 +1067,7 @@ def validate_omnia_config(
     softwares = software_config_json["softwares"]
     sw_list = [k['name'] for k in softwares]
 
-    # verify intel_gaudi with sofware config json
+    # verify intel_gaudi with sofwate config json
     run_intel_gaudi_tests = data["run_intel_gaudi_tests"]
     if "intelgaudi" in sw_list and not run_intel_gaudi_tests:
         errors.append(
@@ -1123,9 +1078,8 @@ def validate_omnia_config(
             )
         )
 
-
-    if ("compute_k8s" in sw_list or "service_k8s" in sw_list) and \
-        ("compute_k8s" in tag_names or "service_k8s" in tag_names):
+    if ("k8s" in sw_list or "service_k8s" in sw_list) and \
+        ("k8s" in tag_names or "service_k8s" in tag_names):
         admin_bmc_networks = get_admin_bmc_networks(
             input_file_path, logger, module, omnia_base_dir, module_utils_base, project_name)
         ha_config_path = create_file_path(
@@ -1134,48 +1088,17 @@ def validate_omnia_config(
             ha_config = yaml.safe_load(f)
         for k in ["service_k8s_cluster_ha", "compute_k8s_cluster_ha"]:
             ha_config[k] = [xha["cluster_name"] for xha in ha_config.get(k, [])]
-        validate_k8s(data, admin_bmc_networks, sw_list, ha_config, tag_names,
-                        errors, omnia_base_dir, project_name, logger, module, input_file_path)
+        validate_k8s(data, admin_bmc_networks, sw_list, ha_config, tag_names, errors)
     return errors
 
-def check_is_service_cluster_roles_defined(
-        errors,
-        input_file_path,
-        omnia_base_dir,
-        project_name,
-        logger,
-        module):
-    """
-    Checks if the required service cluster roles are configured in the roles_config.yml file.
-
-    Args:
-        errors (list): A list to store error messages.
-        input_file_path (str): The path to the input file.
-        omnia_base_dir (str): The base directory for Omnia.
-        project_name (str): The name of the project.
-        logger (object): A logger object for logging messages.
-        module (object): A module object for logging messages.
-
-    Returns:
-        True if service cluster roles are defined else returns False
-    """
-    roles_config_file_path = create_file_path(input_file_path, file_names["roles_config"])
-    roles_config_json = validation_utils.load_yaml_as_json(
-        roles_config_file_path, omnia_base_dir, project_name, logger, module)
-    roles_details = roles_config_json.get("Roles", [])
-    # Extract the 'name' values from List1
-    roles_configured = [item['name'] for item in roles_details]
-    service_cluster_roles = ["service_kube_control_plane","service_etcd","service_kube_node"]
-    return all(role in roles_configured for role in service_cluster_roles)
-
 def validate_telemetry_config(
-    input_file_path,
+    _input_file_path,
     data,
-    logger,
-    module,
-    omnia_base_dir,
+    _logger,
+    _module,
+    _omnia_base_dir,
     _module_utils_base,
-    project_name
+    _project_name
 ):
 
     """
@@ -1206,46 +1129,21 @@ def validate_telemetry_config(
     idrac_telemetry_support = data.get("idrac_telemetry_support")
     federated_idrac_telemetry_collection = data.get("federated_idrac_telemetry_collection")
 
-    collection_type = data.get("idrac_telemetry_collection_type")
     if idrac_telemetry_support:
-        if collection_type:
-            if collection_type not in config.supported_telemetry_collection_type:
-                errors.append(create_error_msg(
-                    "idrac_telemetry_collection_type",
-                    collection_type,
-                    en_us_validation_msg.UNSUPPORTED_IDRAC_TELEMETRY_COLLECTION_TYPE
-                    )
-                )
-                return errors
-
-            if collection_type == "kafka" and not federated_idrac_telemetry_collection:
-                errors.append(create_error_msg(
-                    "for idrac_telemetry_collection_type",
-                    collection_type,
-                    en_us_validation_msg.KAFKA_ENABLE_FEDERATED_IDRAC_TELEMETRY_COLLECTION
-                    )
-                )
-                return errors
-
-        is_service_cluster_defined = check_is_service_cluster_roles_defined(errors,
-                                    input_file_path,
-                                    omnia_base_dir,
-                                    project_name,
-                                    logger,
-                                    module)
-
-        if federated_idrac_telemetry_collection and not is_service_cluster_defined:
+        collection_type = data.get("idrac_telemetry_collection_type")
+        if collection_type and collection_type not in config.supported_telemetry_collection_type:
             errors.append(create_error_msg(
-                "federated_idrac_telemetry_collection can be",
-                federated_idrac_telemetry_collection,
-                en_us_validation_msg.TELEMETRY_SERVICE_CLUSTER_ENTRY_MISSING_ROLES_CONFIG_MSG
+                "idrac_telemetry_collection_type",
+                collection_type,
+                en_us_validation_msg.UNSUPPORTED_IDRAC_TELEMETRY_COLLECTION_TYPE
                 )
             )
-        elif not federated_idrac_telemetry_collection and is_service_cluster_defined:
-            errors.append(create_error_msg(
+
+    if federated_idrac_telemetry_collection and not idrac_telemetry_support:
+        errors.append(create_error_msg(
                 "federated_idrac_telemetry_collection",
                 federated_idrac_telemetry_collection,
-                en_us_validation_msg.ENABLE_FEDERATED_IDRAC_TELEMETRY_COLLECTION
+                en_us_validation_msg.FEDERATED_IDRAC_TELEMETRY_COLLECTION_FAIL
                 )
             )
 
