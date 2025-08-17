@@ -29,25 +29,73 @@
     key_path: "{{ project_input_path }}"
   register: vault_result
 
-- name: Execute tasks for each group
-  ansible.builtin.include_tasks: execute_parallel_tasks.yml
+- name: Execute tasks for each architecture
+  ansible.builtin.include_tasks: arch_component_loop.yml
+  no_log: true
   loop: "{{ result.software_dict | dict2items }}"
   loop_control:
-    loop_var: item
-  register: task_result
+    loop_var: arch_item
+  vars:
+    components: "{{ arch_item.value | dict2items }}"
 
-- name: Clear the rpm downloaded files
+# to be removed later
+- name: Load software_config.json
+  ansible.builtin.include_vars:
+    file: "/opt/omnia/input/project_default/software_config.json"
+    name: software_config
+
+- name: Generate software JSON file names
+  ansible.builtin.set_fact:
+    software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
+
+- name: Fetch architecture for each software
+  fetch_software_arch:
+    software_name: "{{ item }}"
+  loop: "{{ software_names }}"
+  loop_control:
+    label: "{{ item }}"
+  register: fetch_arch
+
+- name: Combine all architectures into a single list
+  ansible.builtin.set_fact:
+    all_archs: >-
+      {{
+        fetch_arch.results
+        | map(attribute='arch')
+        | map('dict2items')
+        | flatten
+        | map(attribute='value')
+        | flatten
+        | unique
+      }}
+
+- name: Set fact for all_archs_var
+  ansible.builtin.set_fact:
+    all_archs_var: "{{ hostvars['localhost']['all_archs'] }}"
+
+- name: Clear the rpm downloaded files for each arch
   ansible.builtin.file:
-    path: "{{ repo_store_path }}/cluster/{{ cluster_os_type }}/{{ cluster_os_version }}/rpm"
+    path: "{{ rpm_dir_path }}"
     state: absent
+  loop: "{{ all_archs_var }}"
   when: clean_rpms
 
 - name: Determine final repository status
   ansible.builtin.set_fact:
-    final_status: "{{ 'SUCCESS' if 'FAILURE' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and
-                      'TIMEOUT' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and
-                      'PARTIAL' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list)
-                      else 'FAILED' }}"
+    final_status: >-
+      {{
+        'FAILED' if
+        (
+          overall_status_dict | default({}) | dict2items |
+          map(attribute='value') |
+          sum(start=[]) |
+          map(attribute='overall_status') |
+          select('in', ['FAILURE', 'TIMEOUT', 'PARTIAL']) |
+          list |
+          length > 0
+        )
+        else 'SUCCESS'
+      }}
 
 - name: Check if metadata file exists
   ansible.builtin.stat:

@@ -33,7 +33,7 @@ software_config_json_file: "{{ input_project_dir }}/software_config.json"
 local_repo_config_file: "{{ input_project_dir }}/local_repo_config.yml"
 software_config_parameters_fail_msg: "Failed. Please ensure cluster_os_type, cluster_os_verion, repo_config, softwares are defined in software_config.json"
 cluster_os_type_fail_msg: "Failed.The cluster_os_type should be defined as {{ os_type_map[cluster_os] }} in software_config.json"
-usr_repo_url_fail_msg: "Failed. Please ensure user_repo_url in local_repo_config.yml is formatted properly with no jinja variables"
+usr_repo_url_fail_msg: "Failed. Please ensure user_repo_url_{{ cluster_arch }} in local_repo_config.yml is formatted properly with no jinja variables"
 
 # Usage:validate_repo.yml
 pulp_bin_path: /usr/local/bin/pulp

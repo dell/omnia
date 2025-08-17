@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 ---
-k8s_compatible_tag: "{{ hostvars['localhost']['k8s_to_kubespray_comp_ver']['compatible_tags'].keys() | list }}"
+k8s_compatible_tag: "{{ hostvars['localhost']['k8s_to_kubespray_comp_ver']['results'][0]['compatible_tags'].keys() | list }}"
 # The source of the supported k8s versions is kubespray/roles/kubespray_defaults/vars/main.yml in the Kubespray repository.
 supported_k8s_version:
   "v2.26.0": [v1.30.4, v1.28.0]

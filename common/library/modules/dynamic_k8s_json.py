@@ -34,7 +34,14 @@ from ansible.module_utils.basic import AnsibleModule
 
 SKIP_TYPES = ["rpm", "deb", "manifest", "pip_module", "git"]
 SKIP_PACKAGES = ["ghcr.io/k8snetworkplumbingwg/multus-cni"]
-
+KUBESPRAY_ARCH_MAP = {
+    "amd64": "x86_64",
+    "arm64": "aarch64"
+}
+OMNIA_ARCH_MAP = {
+    "x86_64": "amd64",
+    "aarch64": "arm64"
+}
 # ============================================================================================
 #                              Logging Configuration
 # ============================================================================================
@@ -1120,7 +1127,7 @@ def generate_k8_jsons_for_version(kube_version, base_path, repo_url, package_typ
                 raise FileOperationError("Failed to process image list")
 
         # Write final JSON output
-        output_json_path = os.path.join(temp_output_path, f"{software_name}_v{kube_version.lstrip('v')}.json")
+        output_json_path = os.path.join(temp_output_path, f"{software_name}_v{kube_version.lstrip('v')}_{KUBESPRAY_ARCH_MAP[arch]}.json")
         write_json(output_json_path, final_k8s_data)
 
         logger.info(f"Successfully generated JSON for version {kube_version} at {output_json_path}")
@@ -1145,7 +1152,7 @@ def run_module():
         "k8s_json_path": {"type": "str", "required": True},
         "software_name": {"type": "str", "required": True},
         "log_dir": {"type": "str", "required": True},
-        "arch": {"type": "str", "required": True},
+        "arch": {"type": "str", "required": True, "choices": ["x86_64", "aarch64"]},
         "n_latest": {"type": "int", "default": 2},
         "mode": {
             "type": "str", 
@@ -1185,7 +1192,7 @@ def run_module():
                     repo_url,
                     module.params['package_types'],
                     module.params['k8s_json_path'],
-                    module.params['arch'],
+                    OMNIA_ARCH_MAP[module.params['arch']],
                     module.params['n_latest'],
                     module.params['software_name'],
                     module.params['mode'],

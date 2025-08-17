@@ -72,7 +72,6 @@ run_intel_gaudi_tests: false
 # If set to true, all packages/images will be pulled from OIM local repo.
 # If set to false, all packages/images will be pulled from source via internet.
 
-#validation wrt roles config L2
 service_k8s_cluster:
   - cluster_name: service_cluster
     deployment: true

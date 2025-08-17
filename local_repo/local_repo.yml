@@ -13,15 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Provide information to user for running playbook
-  hosts: localhost
-  gather_facts: false
-  tasks:
-    - name: Provide information to user for running playbook
-      ansible.builtin.include_role:
-        name: validation
-        tasks_from: display_msg.yml
-
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
@@ -36,6 +27,7 @@
 
 - name: Invoke get_config_credentials.yml
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml

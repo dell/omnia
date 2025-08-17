@@ -39,7 +39,7 @@
 #     switch_details      - <Conditional Mandatory> Switch details of the Rack
 #        ip:              - <Mandatory> IP address of the switch
 #        ports:           - <Mandatory> ports of the switch
-#     architecture        - <Mandatory> architecture of the nodes - x86 or ARM
+#     architecture        - <Mandatory> architecture of the nodes - x86_64 or aarch64
 #
 
 Groups:
@@ -53,7 +53,7 @@ Groups:
     switch_details:
       ip: ""
       ports: ""
-    architecture: "x86"
+    architecture: "x86_64"
 
   # grp1:
   #   location_id: SU-1.RACK-2
@@ -65,7 +65,7 @@ Groups:
   #   switch_details:
   #     ip: ""
   #     ports: ""
-  #   architecture: "x86"
+  #   architecture: "x86_64"
 
 #************************************************************************************************************************
 #  Roles

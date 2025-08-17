@@ -1,0 +1,8 @@
+{
+    "intel_benchmarks": {
+        "cluster": [
+            {"package": "intel-oneapi-base-toolkit", "type": "rpm", "repo_name": "oneapi"},
+            {"package": "intel-oneapi-hpc-toolkit", "type": "rpm", "repo_name": "oneapi"}
+        ]
+    }
+}

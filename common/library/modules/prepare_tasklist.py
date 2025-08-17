@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: disable=import-error,no-name-in-module
+# pylint: disable=import-error,no-name-in-module,too-many-locals,too-many-statements
 #!/usr/bin/python
 
 import os
@@ -20,7 +20,6 @@ from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.software_utils  import (
-    validate_repo_mappings,
     get_software_names,
     check_csv_existence,
     get_failed_software,
@@ -28,21 +27,22 @@ from ansible.module_utils.local_repo.software_utils  import (
     get_csv_software,
     process_software,
     load_json,
-    load_yaml,
     get_json_file_path,
     transform_package_dict,
     parse_repo_urls,
     set_version_variables,
-    get_subgroup_dict
+    get_subgroup_dict,
+    get_new_packages_not_in_status
 )
 
 # Import configuration constants individually (excluding fresh_installation_status)
 from ansible.module_utils.local_repo.config import (
     CSV_FILE_PATH_DEFAULT,
     USER_JSON_FILE_DEFAULT,
-    LOCAL_REPO_CONFIG_PATH_DEFAULT,
     LOG_DIR_DEFAULT,
-    SOFTWARE_CSV_FILENAME
+    LOCAL_REPO_CONFIG_PATH_DEFAULT,
+    SOFTWARE_CSV_FILENAME,
+    ARCH_SUFFIXES
 )
 
 def main():
@@ -67,8 +67,8 @@ def main():
     module = AnsibleModule(argument_spec=module_args)
     log_dir = module.params["log_dir"]
     user_json_file = module.params["user_json_file"]
-    local_repo_config_path = module.params["local_repo_config_path"]
     csv_file_path = module.params["csv_file_path"]
+    local_repo_config_path = module.params["local_repo_config_path"]
     vault_key_path = module.params["key_path"]
     logger = setup_standard_logger(log_dir)
     start_time = datetime.now().strftime("%I:%M:%S %p")
@@ -76,89 +76,85 @@ def main():
 
     try:
         user_data = load_json(user_json_file)
-        repo_config_data = load_yaml(local_repo_config_path)
-
         cluster_os_type = user_data['cluster_os_type']
         cluster_os_version = user_data['cluster_os_version']
         repo_config = user_data['repo_config']
 
-        # Append the CSV filename from config (e.g. "software.csv")
-        csv_file_path = os.path.join(csv_file_path, SOFTWARE_CSV_FILENAME)
+        final_tasks_dict = {}
+        for arch in ARCH_SUFFIXES:
+            software_csv_path = {}
+            fresh_installation = {}
+            software_list = {}
+            csv_softwares = {}
+            new_softwares = {}
+            software_dict = {}
+            json_path = {}
+            status_csv_path = {}
+            failed_softwares = []
+            new_pkg_dict = {}
+            tasks_dict = {}
 
-        software_list = get_software_names(user_json_file)
-        logger.info(f"software_list from software_config: {software_list}")
+            full_path = os.path.join(csv_file_path, arch, SOFTWARE_CSV_FILENAME)
+            fresh_installation[arch] = True if not check_csv_existence(full_path) else False
+            software_csv_path[arch] = full_path
+            logger.info(f"fresh_installation dict: {fresh_installation}")
+            logger.info(f"software_csv_path: {software_csv_path}")
+            software_list[arch] = get_software_names(user_json_file,arch)
+            logger.info(f"software_list: {software_list}")
+            if not fresh_installation[arch]:
+                csv_softwares[arch] = get_csv_software(software_csv_path[arch])
+                new_softwares[arch] = [
+                   software for software in software_list[arch] if software not in csv_softwares[arch]
+                ]
+            logger.info(f"Existing softwares in {arch} software csv: {csv_softwares}")
+            logger.info(f"New software list for {arch}: {new_softwares}")
+            # Build a dictionary mapping software names to subgroup data, if available
+            subgroup_dict, software_names = get_subgroup_dict(user_data)
+            version_variables = set_version_variables(user_data, software_names, cluster_os_version)
 
-        # Compute fresh_installation as a boolean based on CSV file existence
-        fresh_installation = True if not check_csv_existence(csv_file_path) else False
-        logger.info(f"Fresh install: {fresh_installation}")
+            logger.info("Preparing package lists...")
+            for software in software_list[arch]:
+                logger.info(f"Processing software: {software}")
+                json_path[arch] = get_json_file_path(software, cluster_os_type,
+                                                    cluster_os_version, user_json_file, arch)
+                status_csv_path[arch] = get_csv_file_path(software, log_dir, arch)
+                logger.info(f"json_path: {json_path}")
+                logger.info(f"status_csv_path: {status_csv_path}")
+                if not json_path[arch]:
+                    logger.warning(f"Skipping {software}: JSON path does not exist.")
+                    continue
+                if not fresh_installation[arch]:
+                    is_fresh_software = software in new_softwares.get(arch, [])
+                else:
+                    is_fresh_software = True
+                logger.info(f"is_fresh_software: {is_fresh_software}")
+                failed_softwares = get_failed_software(software_csv_path[arch])
+                tasks, failed_packages = process_software(software, is_fresh_software, json_path[arch],
+                                                           status_csv_path[arch],
+                                                           subgroup_dict.get(software, None))
+                logger.info(f"tasks to be processed: {tasks}")
+                logger.info(f"failed_packages : {failed_packages}")
 
-        csv_softwares = []
-        if not fresh_installation:
-            csv_softwares = get_csv_software(csv_file_path)
-            logger.info(f"software from software.csv: {csv_softwares}")
+                if not is_fresh_software:
+                    pkgs = get_new_packages_not_in_status(json_path[arch],
+                                                          status_csv_path[arch],
+                                                          subgroup_dict.get(software, None))
 
-        new_software = [software for software in software_list if software not in csv_softwares]
-        logger.info(f"new software list: {new_software}")
-        logger.info(f"Final software_list: {software_list}")
+                    if pkgs:
+                        logger.info(f"Additional software packages for {software}: {pkgs}")
+                        tasks.extend(pkgs)
 
-        # Build a dictionary mapping software names to subgroup data, if available
-        subgroup_dict, software_names = get_subgroup_dict(user_data)
-        version_variables = set_version_variables(user_data, software_names, cluster_os_version)
-        software_dict = {}
-
-        logger.info("Preparing package lists...")
-        for software in software_list:
-            logger.info(f"Processing software: {software}")
-            logger.info(f"csv_file_path for software: {csv_file_path}")
-
-            json_path = get_json_file_path(software, cluster_os_type, cluster_os_version, user_json_file)
-            csv_path = get_csv_file_path(software, log_dir)
-            logger.info(f"csv_path: {csv_path}")
-
-            repo_validation_result = validate_repo_mappings(repo_config_data, json_path)
-            if repo_validation_result:  # Only fail if errors exist
-                logger.error(f"Repository validation failed: {repo_validation_result}")
-                module.fail_json(msg="\n".join(repo_validation_result))
-            else:
-                logger.info("Repository validation passed successfully.")
-
-
-            if not json_path:
-                logger.warning(f"Skipping {software}: JSON path does not exist.")
-                continue
-
-            # If the software is new, enforce fresh installation
-            if software in new_software:
-                fresh_installation = True
-            else:
-                fresh_installation = False
-
-            logger.info(f"{software}: JSON Path: {json_path}, CSV Path: {csv_path}, Fresh Install: {fresh_installation}")
-            logger.info(f"Subgroup Data: {subgroup_dict.get(software, None)}")
-            logger.info(f"Whole Subgroup Data: {subgroup_dict}")
-
-            failed_softwares = get_failed_software(csv_file_path)
-            logger.info(f"failed_softwares: {failed_softwares}")
-            if not fresh_installation and software not in failed_softwares:
-                continue
-
-            logger.info(f"json_path: {json_path}")
-            logger.info(f"csv_path: {csv_path}")
-            tasks, failed_packages = process_software(software, fresh_installation, json_path, csv_path, subgroup_dict.get(software, None))
-            logger.info(f"tasks: {tasks}")
-            logger.info(f"failed_packages for software {software} are {failed_packages}")
-            failed_packages = get_failed_software(csv_path)
-            logger.info(f"failed_packages: {failed_packages}")
-
-            software_dict[software] = tasks
-
-        software_dict=transform_package_dict(software_dict)
+                if tasks:
+                    tasks_dict[software] = tasks
+                    trans=transform_package_dict(tasks_dict, arch)
+                    logger.info(f"Final tasklist to process: {trans}")
+                    final_tasks_dict.update(trans)
         local_config, url_result = parse_repo_urls(repo_config, local_repo_config_path , version_variables, vault_key_path)
         if not url_result:
             module.fail_json(f"{local_config} is not reachable or invalid, please check and provide correct URL")
 
-        module.exit_json(changed=False, software_dict=software_dict  , local_config=local_config)
-        logger.info(f"Package processing completed: {software_dict}")
+        logger.info(f"Package processing completed: {final_tasks_dict}")
+        module.exit_json(changed=False, software_dict=final_tasks_dict, local_config=local_config)
 
     except Exception as e:
         logger.error(f"Error occurred: {str(e)}")

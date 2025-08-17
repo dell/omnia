@@ -1,0 +1,10 @@
+{
+    "utils": {
+        "cluster": [
+            {"package": "sshpass", "type": "rpm", "repo_name": "appstream"},
+            {"package": "pdsh", "type": "rpm", "repo_name": "epel"},
+            {"package": "pdsh-rcmd-ssh", "type": "rpm", "repo_name": "epel"},
+            {"package": "clustershell", "type": "rpm", "repo_name": "epel"}
+        ]
+    }
+}

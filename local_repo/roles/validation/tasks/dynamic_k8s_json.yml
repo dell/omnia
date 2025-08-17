@@ -26,22 +26,6 @@
     current_base_json_file: "{{ cluster_item.base_json_file }}"
     current_backup_json_file: "{{ cluster_item.backup_json_file }}"
 
-- name: Update existing JSON if present
-  when: file_stat.stat.exists
-  block:
-    - name: Take backup of existing json
-      ansible.builtin.copy:
-        src: "{{ current_base_json_file }}"
-        dest: "{{ current_backup_json_file }}"
-        mode: "{{ dnf_max_mode }}"
-
-    - name: Copy the generated json to input folder
-      ansible.builtin.copy:
-        src: "{{ current_json_file }}"
-        dest: "{{ current_base_json_file }}"
-        mode: "{{ dnf_max_mode }}"
-        force: true
-
 - name: Run dynamic k8s json module
   when: not file_stat.stat.exists
   block:
@@ -64,18 +48,18 @@
         k8s_json_path: "{{ current_base_json_file }}"
         log_dir: "{{ dynamic_k8s_json_log_dir }}"
         n_latest: 3
-        arch: "amd64"
+        arch: "{{ cluster_item.arch }}"
         mode: "clone"
 
-    - name: Take backup of existing json
-      ansible.builtin.copy:
-        src: "{{ current_base_json_file }}"
-        dest: "{{ current_backup_json_file }}"
-        mode: "{{ dnf_max_mode }}"
+- name: Take backup of existing json
+  ansible.builtin.copy:
+    src: "{{ current_base_json_file }}"
+    dest: "{{ current_backup_json_file }}"
+    mode: "{{ dnf_max_mode }}"
 
-    - name: Copy the generated json to input folder
-      ansible.builtin.copy:
-        src: "{{ current_json_file }}"
-        dest: "{{ current_base_json_file }}"
-        mode: "{{ dnf_max_mode }}"
-        force: true
+- name: Copy the generated json to input folder
+  ansible.builtin.copy:
+    src: "{{ current_json_file }}"
+    dest: "{{ current_base_json_file }}"
+    mode: "{{ dnf_max_mode }}"
+    force: true

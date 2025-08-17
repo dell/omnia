@@ -13,19 +13,14 @@
 # limitations under the License.
 ---
 
-- name: Fetching cluster os
-  ansible.builtin.set_fact:
-    cluster_os: "{{ ansible_distribution | lower }}"
-    cluster_arch: "{{ ansible_architecture }}"
-
-- name: Validate the input files and values
-  ansible.builtin.include_tasks: validation.yml
-
-- name: Validate repos configured during provisioning
-  ansible.builtin.include_tasks: validate_repo.yml
-
-- name: Update repos on cluster for {{ cluster_os }}
-  block:
-    - name: Update user repos for nodes on {{ cluster_os }}
-      ansible.builtin.include_role:
-        name: "{{ role_path }}/../{{ cluster_os }}"
+- name: Process each component under {{ arch_item.key }}
+  ansible.builtin.include_tasks: execute_parallel_tasks.yml
+  no_log: true
+  loop: "{{ components }}"
+  loop_control:
+    loop_var: comp_item
+  vars:
+    item:
+      arch: "{{ arch_item.key }}"
+      key: "{{ comp_item.key }}"
+      value: "{{ comp_item.value }}"

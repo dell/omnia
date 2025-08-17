@@ -153,6 +153,7 @@ def logic(config):
     project_name = config["project_name"]
     logger = config["logger"]
     module = config["module"]
+    error_bucket = []
     try:
         input_data, extension = get.input_data(
             input_file_path, omnia_base_dir, project_name, logger, module
@@ -176,7 +177,9 @@ def logic(config):
                 error_key = error.get("error_key", "")
                 error_value = error.get("error_value", "")
 
-                logger.error(f"Validation Error at {error_key}: '{error_value}' {error_msg}")
+                err_msg = f"Validation Error at {error_key}: '{error_value}' {error_msg}"
+                error_bucket.append(err_msg)
+                logger.error(err_msg)
 
                 # log the line number based off of the input config file extension
                 if "yml" in extension:
@@ -205,14 +208,16 @@ def logic(config):
                             logger.error(message)
 
             logger.error(en_us_validation_msg.get_logic_failed(input_file_path))
-            return False
-        logger.info(en_us_validation_msg.get_logic_success(input_file_path))
-        return True
+            return error_bucket
     except ValueError as valueerror:
         message = f"Value error at {input_file_path}: {valueerror}"
+        error_bucket.append(message)
         logger.error(message, exc_info=True)
-        return False
+        return error_bucket
     except Exception as exception:
         message = f"An unexpected error occurred: {exception}"
+        error_bucket.append(message)
         logger.error(message, exc_info=True)
-        return False
+        return error_bucket
+    logger.info(en_us_validation_msg.get_logic_success(input_file_path))
+    return False
