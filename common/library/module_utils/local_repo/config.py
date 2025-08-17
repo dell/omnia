@@ -26,7 +26,10 @@ DEFAULT_TIMEOUT = 60
 LOG_DIR_DEFAULT = "/tmp/thread_logs"
 DEFAULT_LOG_FILE = "/tmp/task_results_table.log"
 DEFAULT_SLOG_FILE = "/tmp/stask_results_table.log"
-CSV_FILE_PATH_DEFAULT = "/tmp/status_results_table.csv"
+CSV_FILE_PATH_DEFAULT = [
+    "/tmp/x86_64/status_results_table.csv",
+    "/tmp/aarch64/status_results_table.csv"
+]
 DEFAULT_REPO_STORE_PATH = "/tmp/offline_repo"
 USER_JSON_FILE_DEFAULT = ""
 DEFAULT_STATUS_FILENAME = "status.csv"
@@ -39,6 +42,8 @@ USER_REG_KEY_PATH = "/opt/omnia/input/project_default/.local_repo_credentials_ke
 # Used by prepare_tasklist.py
 # ----------------------------
 LOCAL_REPO_CONFIG_PATH_DEFAULT = "/opt/omnia/input/project_default/local_repo_config.yml"
+SOFTWARE_CONFIG_PATH_DEFAULT = "/opt/omnia/input/project_default/software_config.json"
+ROLES_CONFIG_PATH_DEFAULT = "/opt/omnia/input/project_default/roles_config.yml"
 SOFTWARE_CSV_FILENAME = "software.csv"
 FRESH_INSTALLATION_STATUS = True
 
@@ -51,11 +56,15 @@ PACKAGE_TYPES = ['rpm', 'deb', 'tarball', 'image', 'manifest', 'git',
 CSV_COLUMNS = {"column1": "name", "column2": "status"}
 SOFTWARE_CONFIG_SUBDIR = "config"
 RPM_LABEL_TEMPLATE = "RPMs for {key}"
-OMNIA_REPO_KEY = "omnia_repo_url_rhel"
 RHEL_OS_URL = "rhel_os_url"
 SOFTWARES_KEY = "softwares"
 USER_REPO_URL = "user_repo_url"
 REPO_CONFIG = { "always": "on_demand", "partial": "on_demand", "never": "streamed" }
+ARCH_SUFFIXES = {"x86_64", "aarch64"}
+DNF_COMMANDS = {
+    "x86_64": ["dnf", "download", "--resolve", "--alldeps", "--arch=x86_64,noarch"],
+    "aarch64": ["dnf", "download", "--arch", "aarch64", "--forcearch", "aarch64", "--best", "--resolve", "--alldeps"]
+}
 
 # ----------------------------
 # Used by download_common.py

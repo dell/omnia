@@ -36,11 +36,11 @@
     that: software_config.cluster_os_type == os_type_map[cluster_os]
     fail_msg: "{{ cluster_os_type_fail_msg }}"
 
-- name: Validate user_repo_url is defined correctly when not none
+- name: Validate user_repo_url is defined correctly based on architecture
   ansible.builtin.fail:
     msg: "{{ usr_repo_url_fail_msg }}"
   when:
-    - user_repo_url is not none
-    - user_repo_url is not defined
-    - user_repo_url | length == 0
-    - user_repo_url | type_debug != 'list'
+    - vars['user_repo_url_' + cluster_arch] is not none
+    - vars['user_repo_url_' + cluster_arch] is not defined
+    - vars['user_repo_url_' + cluster_arch] | length == 0
+    - vars['user_repo_url_' + cluster_arch] | type_debug != 'list'

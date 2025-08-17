@@ -27,26 +27,27 @@ pulp_protocol_https: true
 enable_routed_internet: false
 
 # Optional
-# This variable accepts the repository urls of the user which contains the packages required for the cluster.
-# User should make sure required disk space is available.
-# This variable accepts repo url, gpgkey and name, sslcacert, sslclientkey, and sslclientcert, policy
-# url: defines the baseurl for the repository
-# gpgkey: defines gpgkey for the repository
-# name: defines name for the repository
-# sslcacert, sslclientkey, sslclientcert : Defines respective certificate file paths.
-# policy: Add the policy(always, partial, never) depending upon desired configuration.
-# If gpgkey is empty then gpgcheck will be disabled for that repository
-# This variable should not have jinja variables in it.
-# and user leaves the gpgkey field empty (gpgkey: "" ), omnia configures the repository as a trusted source and the user is solely
-# responsible in maintaining the security.
-# If you are using SSL certificates for encryption, include the sslcacert, sslclientkey, and sslclientcert fields.
+# User-defined repository URLs for x86_64 architecture containing cluster packages.
+# Ensure sufficient disk space is available.
+# Fields:
+#   url         : Base URL of the repository
+#   gpgkey      : GPG key URL (leave empty to disable gpgcheck; Omnia will trust this repo and user is responsible for its security)
+#   name        : Name of the repository
+#   sslcacert   : Path to SSL CA certificate (if using SSL)
+#   sslclientkey: Path to SSL client key (if using SSL)
+#   sslclientcert: Path to SSL client certificate (if using SSL)
+#   policy      : Repository policy (always, partial, never)
+# Notes:
+#   - Do not use Jinja variables in this configuration.
+#   - Omit SSL fields entirely if SSL is not in use.
 # Example:
-# - { url: "", gpgkey: "", name: "", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
-# Omit these fields entirely if SSL is not in use.
-# Example:
-# user_repo_url:
-#   - {url: "",gpgkey: "",name: ""}
-user_repo_url:
+# user_repo_url_x86_64:
+#   - { url: "", gpgkey: "", name: "", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+user_repo_url_x86_64:
+
+# user_repo_url_aarch64:
+#   - { url: "", gpgkey: "", name: "", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+user_repo_url_aarch64:
 
 # Optional
 # This variable defines a list of user-provided container registries containing images required for the cluster.
@@ -66,23 +67,31 @@ user_repo_url:
 user_registry:
 
 # Mandatory when cluster_os_type is rhel in softwares_config.json
-# User has to provide the code ready builder url that should not have a RedHat subscription authentication inorder to download the packages
+# User has to provide the code ready builder url that should not have a RedHat subscription authentication in order to download the packages
 # and the rhel_os_url configured via proxy in compute nodes
+# User must configure them for the respective architecture (x86_64 or aarch64)
 # Example:
-# rhel_os_url:
+# rhel_os_url_x86_64:
 #   - {url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY", name: "codeready-builder"}
-rhel_os_url:
-  - {url: "", gpgkey: "", name: "codeready-builder"}
+rhel_os_url_x86_64:
+  - { url: "", gpgkey: "", name: "codeready-builder" }
+
+# Example:
+# rhel_os_url_aarch64:
+#   - {url: "http://crb.com/CRB/aarch64/os/", gpgkey: "http://crb.com/CRB/aarch64/os/RPM-GPG-KEY", name: "codeready-builder"}
+rhel_os_url_aarch64:
+  - { url: "", gpgkey: "", name: "codeready-builder" }
 
 ### ADVANCE CONFIGURATIONS FOR LOCAL REPO ###
 # Mandatory
-# This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rhel.
+# This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rhel and arch x86_64
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
 # 'url' defines the baseurl for the repository
 # 'gpgkey' defines gpgkey for the repository
 # If 'gpgkey' is kept empty then gpgcheck=0 for that repository
-omnia_repo_url_rhel:
-  - { url: "https://download.docker.com/linux/centos/9/x86_64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce-repo"}
+# 'name' A unique identifier for the registry.
+omnia_repo_url_rhel_x86_64:
+  - { url: "https://download.docker.com/linux/centos/9/x86_64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
   - { url: "https://repo.radeon.com/rocm/rhel9/{{ rocm_version }}/main/", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key", name: "rocm"}
   - { url: "https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9", name: "epel"}
   - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64/", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key", name: "amdgpu"}
@@ -90,6 +99,19 @@ omnia_repo_url_rhel:
   - { url: "https://yum.repos.intel.com/oneapi/", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB", name: "oneapi"}
   - { url: "https://ltb-project.org/rpm/openldap26/9/x86_64/", gpgkey: "", name: "ldap"}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/x86_64/", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey", name: "nvidia-repo"}
-  - { url: "https://a2o.github.io/snoopy-packages/repo/centos/9/stable/", gpgkey: "", name: "snoopy"}
   - { url: "https://xcat.org/files/xcat/repos/yum/2.17/xcat-core/", gpgkey: "http://xcat.org/files/xcat/repos/yum/2.17/xcat-core/repodata/repomd.xml.key", name: "xcat-core"}
   - { url: "https://xcat.org/files/xcat/repos/yum/2.17/xcat-dep/rh9/x86_64/", gpgkey: "http://xcat.org/files/xcat/repos/yum/xcat-dep/rh9/x86_64/repodata/repomd.xml.key", name: "xcat-dep"}
+
+# Mandatory
+# This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rhel and arch aarch64 
+# Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
+# 'url' defines the baseurl for the repository
+# 'gpgkey' defines gpgkey for the repository
+# If 'gpgkey' is kept empty then gpgcheck=0 for that repository
+# 'name' A unique identifier for the registry.
+omnia_repo_url_rhel_aarch64:
+  - { url: "https://download.docker.com/linux/centos/9/aarch64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
+  - { url: "https://repo.radeon.com/rocm/rhel9/{{ rocm_version }}/main/", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key", name: "rocm"}
+  - { url: "https://dl.fedoraproject.org/pub/epel/9/Everything/aarch64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9", name: "epel"}
+  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel9/", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs", name: "beegfs"}
+  - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/aarch64/", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey", name: "nvidia-repo"}

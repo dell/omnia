@@ -22,20 +22,14 @@
 - name: Validate software_config.json
   ansible.builtin.include_tasks: validate_software_config_json.yml
 
-- name: Validate local_repo_config.yml
-  ansible.builtin.include_tasks: validate_local_repo_config.yml
-
-- name: Manage software csv file
-  ansible.builtin.include_tasks: update_software_csv.yml
-
-- name: Validate software json files present in config directory
-  ansible.builtin.include_tasks: validate_json_path.yml
-
 - name: Validate metadata
   ansible.builtin.include_tasks: validate_metadata.yml
 
 - name: Validate compute k8s and service k8s json
   ansible.builtin.include_tasks: validate_k8s_json.yml
+  loop: "{{ k8s_arch + service_k8s_arch }}"
+  loop_control:
+    loop_var: arch
 
 - name: Loop through cluster configs to generate JSON files
   ansible.builtin.include_tasks: dynamic_k8s_json.yml

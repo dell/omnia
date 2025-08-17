@@ -127,7 +127,7 @@ def setup_logger(log_dir,log_file_path):
         logger.addHandler(file_handler)
     return logger
 
-def execute_task(task, determine_function, user_data, version_variables,
+def execute_task(task, determine_function, user_data, version_variables, arc,
                 repo_store_path, csv_file_path,logger, user_registries,
                 docker_username, docker_password, timeout=None):
     """
@@ -139,6 +139,7 @@ def execute_task(task, determine_function, user_data, version_variables,
         determine_function (function): A function that takes a task, repo_store_path,
                                        and csv_file_path and returns the function to
                                        call and its arguments.
+        arc (str): Architecture of package to be downloaded
         repo_store_path (str): The path to the repository where files are stored.
         csv_file_path (str): Path to a CSV file to be processed as part of the task.
         logger (logging.Logger): The logger instance for logging the task's execution.
@@ -156,7 +157,7 @@ def execute_task(task, determine_function, user_data, version_variables,
 
         # Determine the function and its arguments using the provided `determine_function`
         function, args = determine_function(task, repo_store_path, csv_file_path, user_data,
-                         version_variables, user_registries, docker_username, docker_password)
+                         version_variables, arc, user_registries, docker_username, docker_password)
 
         while True:
             elapsed_time = time.time() - start_time  # Calculate elapsed time
@@ -210,7 +211,7 @@ def execute_task(task, determine_function, user_data, version_variables,
             "error": str(e)  # Include the error message
         }
 
-def worker_process(task, determine_function, user_data,version_variables, repo_store_path,
+def worker_process(task, determine_function, user_data, version_variables, arc, repo_store_path,
                   csv_file_path, log_dir, result_queue, user_registries,
                   docker_username, docker_password, timeout):
     """
@@ -220,13 +221,18 @@ def worker_process(task, determine_function, user_data,version_variables, repo_s
         task (dict): The task to be processed, containing details like the package to be processed.
         determine_function (function): A function that determines the function to call
         and its arguments for the task.
+        user_data: content from software_config.json
+        version_variables: softwarename_version for versioned softwares
+        arc: Architecture of software
         repo_store_path (str): Path to the repository where task-related files are stored.
         csv_file_path (str): Path to a CSV file that may be needed for processing the task.
         log_dir (str): Directory where log files for the worker process should be saved.
         result_queue (multiprocessing.Queue): Queue for putting the result of the 
         task execution (used for inter-process communication).
-        timeout (float): The maximum allowed time for the task execution.
+        docker_username: Docker username provided by the user
+        docker_password: Docker password for the provided username
         user_registries (str): List of user registries
+        timeout (float): The maximum allowed time for the task execution.
     Returns:
         None: The result is placed into the `result_queue`, so no return value is needed.
     """
@@ -239,7 +245,7 @@ def worker_process(task, determine_function, user_data,version_variables, repo_s
         with log_lock:
             logger.info(f"Worker process {os.getpid()} started  execution.")
         # Execute the task by calling the `execute_task` function and passing necessary arguments
-        result = execute_task(task, determine_function, user_data, version_variables,
+        result = execute_task(task, determine_function, user_data, version_variables, arc,
                              repo_store_path, csv_file_path, logger, user_registries,
                              docker_username, docker_password, timeout)
         result["logname"] = f"package_status_{os.getpid()}.log"
@@ -267,6 +273,7 @@ def execute_parallel(
     log_dir,
     user_data,
     version_variables,
+    arc,
     standard_logger,
     local_repo_config_path,
     user_reg_cred_input,
@@ -320,6 +327,7 @@ def execute_parallel(
                     registry["username"] = creds.get("username")
                     registry["password"] = creds.get("password")
 
+
     try:
         docker_username, docker_password = load_docker_credentials(omnia_credentials_yaml_path,
                                                                   omnia_credentials_vault_path)
@@ -335,7 +343,7 @@ def execute_parallel(
             package_name = package_template.render(**version_variables)
             task['package'] = package_name
             task_results.append(pool.apply_async(worker_process, (task, determine_function, user_data,
-                               version_variables, repo_store_path, csv_file_path, log_dir, result_queue,
+                               version_variables, arc, repo_store_path, csv_file_path, log_dir, result_queue,
                                user_registries,docker_username, docker_password, timeout)))
 
         pool.close()  # Close the pool to new tasks once all have been submitted
@@ -358,12 +366,10 @@ def execute_parallel(
             time.sleep(0.1)  # Sleep to avoid tight looping
 
         pool.join()  # Ensure all worker processes have completed
-
     # Collect all the results from the result queue
     task_results_data = []
     while not result_queue.empty():
         task_results_data.append(result_queue.get())
-
     # Determine the overall status based on individual task results
     if tasks_are_not_completed:
         overall_status = "TIMEOUT"  # If timeout occurred before completion, set status as "TIMEOUT"

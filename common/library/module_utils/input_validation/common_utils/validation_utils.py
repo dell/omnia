@@ -50,7 +50,6 @@ def load_yaml_as_json(yaml_file, omnia_base_dir, project_name, logger, module):
         error_message = f"File {yaml_file} not found"
         logger.error(error_message)
         module.fail_json(msg=error_message)
-        raise FileNotFoundError(error_message)
     except yaml.YAMLError as e:
         error_parts = []
         error_parts.append(f"Syntax error when loading YAML file '{yaml_file}'")

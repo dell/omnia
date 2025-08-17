@@ -16,6 +16,7 @@
 - name: Fetching cluster os
   ansible.builtin.set_fact:
     cluster_os: "{{ ansible_distribution | lower }}"
+    cluster_arch: "{{ ansible_architecture }}"
 
 - name: Validate the input files and values
   ansible.builtin.include_tasks: validation.yml

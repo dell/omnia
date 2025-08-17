@@ -1,0 +1,15 @@
+{
+  "cuda": {
+    "cluster": [
+      { "package": "cuda",
+        "type": "iso",
+        "url": "https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-rhel9-12-8-local-12.8.0_570.86.10-1.x86_64.rpm",
+        "path": ""
+      },
+      { "package": "dkms",
+        "type": "rpm",
+        "repo_name": "epel"
+      }
+    ]
+  }
+}

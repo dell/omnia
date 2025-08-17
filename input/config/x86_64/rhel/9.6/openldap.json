@@ -1,0 +1,16 @@
+{
+  "openldap": {
+    "cluster": [
+      {"package": "openldap-ltb", "type": "rpm", "repo_name": "ldap"},
+      {"package": "openldap-ltb-contrib-overlays", "type": "rpm", "repo_name": "ldap"},
+      {"package": "openldap-ltb-mdb-utils", "type": "rpm", "repo_name": "ldap"},
+      {"package": "libsodium", "type": "rpm", "repo_name": "epel"},
+      { "package": "ansible-role-ldaptoolbox-openldap",
+        "type": "git",
+        "url": "https://github.com/ltb-project/ansible-role-ldaptoolbox-openldap.git",
+        "version": "main",
+        "commit": "a8e5b8fdbf3e5885f4c412945c8fe51d03dd01c9"
+      }
+    ]
+  }
+}

@@ -58,7 +58,16 @@
     - name: Validate Slurm nodes requirements
       when: slurm_support
       ansible.builtin.include_tasks: slurm_validations.yml
+- name: Validate inventory in all playbooks except service_k8s_cluster
+  when: service_k8s_playbook is not defined
+  block:
+    - name: Validate Slurm nodes requirements
+      when: slurm_support
+      ansible.builtin.include_tasks: slurm_validations.yml
 
+    - name: Validate auth_server nodes requirements
+      when: freeipa_support or openldap_support
+      ansible.builtin.include_tasks: auth_server_validations.yml
     - name: Validate auth_server nodes requirements
       when: freeipa_support or openldap_support
       ansible.builtin.include_tasks: auth_server_validations.yml

@@ -34,7 +34,7 @@
 
 - name: Set fact for omnia repo url
   ansible.builtin.set_fact:
-    omnia_repo_url: "{{ lookup('ansible.builtin.vars', 'omnia_repo_url_' + os_type) }}"
+    omnia_repo_url: "{{ lookup('ansible.builtin.vars', 'omnia_repo_url_' + os_type + '_' + cluster_arch) }}"
 
 - name: Initialise the variable
   ansible.builtin.set_fact:
