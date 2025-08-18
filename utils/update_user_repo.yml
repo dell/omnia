@@ -18,7 +18,7 @@
   ansible.builtin.import_playbook: include_input_dir.yml
 
 - name: Check and update Pulp crt, repo, and registry
-  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login_node, etcd
   gather_facts: true
   tasks:
     - name: Pulp crt modified flag
