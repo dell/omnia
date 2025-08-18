@@ -24,7 +24,7 @@ import re
 import yaml
 from jinja2 import Template
 import requests
-from ansible.module_utils.local_repo.common_functions import is_encrypted, process_file
+from ansible.module_utils.local_repo.common_functions import is_encrypted, process_file, get_arch_from_sw_config
 # Import default variables from config.py
 from ansible.module_utils.local_repo.config import (
     PACKAGE_TYPES,
@@ -564,15 +564,14 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
 
     return combined, failed_packages
 
-def get_software_names(json_file_path, arch="x86_64"):
-    with open(json_file_path, "r") as f:
-        data = json.load(f)
-    
-    softwares = data.get("softwares", [])
+def get_software_names(json_data, roles_config_data, arch):
+    softwares = json_data.get("softwares", [])
     result = []
+    sw_arch_dict = {}
 
     for sw in softwares:
-        sw_arch = sw.get("arch", ["x86_64"])  # default if missing
+        sw_arch_dict = get_arch_from_sw_config(sw["name"],json_data,roles_config_data)
+        sw_arch = sw_arch_dict[sw["name"]]
         if arch in sw_arch:
             result.append(sw["name"])
     
