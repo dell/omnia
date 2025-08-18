@@ -20,7 +20,7 @@ from datetime import datetime
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.software_utils  import (
-    get_software_names,
+    get_software_names_and_arch,
     check_csv_existence,
     get_failed_software,
     get_csv_file_path,
@@ -104,7 +104,7 @@ def main():
             software_csv_path[arch] = full_path
             logger.info(f"fresh_installation dict: {fresh_installation}")
             logger.info(f"software_csv_path: {software_csv_path}")
-            software_list[arch] = get_software_names(user_data,roles_config_data,arch)
+            software_list[arch] = get_software_names_and_arch(user_data,roles_config_data,arch)
             logger.info(f"software_list: {software_list}")
             if not fresh_installation[arch]:
                 csv_softwares[arch] = get_csv_software(software_csv_path[arch])

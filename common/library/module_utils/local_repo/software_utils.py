@@ -564,7 +564,14 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
 
     return combined, failed_packages
 
-def get_software_names(json_data, roles_config_data, arch):
+def get_software_names(json_file_path):
+    with open(json_file_path, "r") as f:
+        data = json.load(f)
+
+    softwares = data.get("softwares", [])
+    return softwares
+
+def get_software_names_and_arch(json_data, roles_config_data, arch):
     softwares = json_data.get("softwares", [])
     result = []
     sw_arch_dict = {}
