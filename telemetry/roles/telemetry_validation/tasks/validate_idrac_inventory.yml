@@ -28,79 +28,12 @@
     bmc_group_data: "{{ lookup('file', bmc_group_data_filename).splitlines() }}"
 
 - name: Validate BMC group data headers
-  ansible.builtin.fail:
-    msg: "{{ bmc_group_data_invalid_msg }}'"
-  when: bmc_group_data[0] != bmc_group_data_headers
+  validate_bmc_group_data:
+    bmc_group_data_headers: "{{ bmc_group_data_headers }}"
+    bmc_group_data: "{{ bmc_group_data }}"
+    federated_telemetry: "{{ federated_idrac_telemetry_collection }}"
+  register: bmc_ip_data
 
-- name: Extract headers
+- name: Set validated BMC ips
   ansible.builtin.set_fact:
-    bmc_headers: "{{ bmc_group_data[0].split(',') }}"
-
-- name: Parse BMC group data CSV into list of dicts
-  ansible.builtin.set_fact:
-    bmc_dict_list: "{{ bmc_dict_list | default([]) + [dict(bmc_headers | zip(item.split(',')) | list)] }}"
-  loop: "{{ bmc_group_data[1:] }}"
-
-- name: Fail if bmc entries missing
-  ansible.builtin.fail:
-    msg: "{{ bmc_group_data_empty_msg }}"
-  when: bmc_dict_list is not defined or bmc_dict_list | length == 0
-
-- name: Validate each BMC_IP in bmc_dict_list
-  ansible.builtin.fail:
-    msg: "{{ bmc_group_data_invalid_ip_msg }} : {{ item.BMC_IP }}"
-  when: item.BMC_IP is not match('^\\d{1,3}(\\.\\d{1,3}){3}$')
-  loop: "{{ bmc_dict_list }}"
-
-- name: Extract BMC_IP values for federated telemetry
-  when: hostvars['localhost']['federated_idrac_telemetry_collection']
-  block:
-    - name: Group compute node BMC_IPs by service node
-      ansible.builtin.set_fact:
-        sn_bmc_ips: >-
-          {{
-            dict(
-              bmc_dict_list
-              | selectattr('PARENT', 'truthy')
-              | groupby('PARENT')
-              | map('first')
-              | zip(
-                  bmc_dict_list
-                  | selectattr('PARENT', 'truthy')
-                  | groupby('PARENT')
-                  | map('last')
-                  | map('map', attribute='BMC_IP')
-                  | map('list')
-                )
-            )
-          }}
-
-    - name: Group service_nodes BMC_IPs
-      ansible.builtin.set_fact:
-        oim_bmc_ips: >-
-          {{
-            bmc_dict_list
-            | selectattr('PARENT', 'falsy')
-            | map(attribute='BMC_IP')
-            | list
-          }}
-
-    - name: Combine all BMC IP groups
-      ansible.builtin.set_fact:
-        bmc_ips: >-
-          {{
-            sn_bmc_ips | combine({ 'oim': oim_bmc_ips })
-          }}
-
-- name: Extract all unique BMC_IP values
-  ansible.builtin.set_fact:
-    bmc_ips: >-
-      {{
-        {
-          'oim': bmc_dict_list
-                 | map(attribute='BMC_IP')
-                 | unique
-                 | list
-        }
-      }}
-  when: not hostvars['localhost']['federated_idrac_telemetry_collection']
+    bmc_ips: "{{ bmc_ip_data.bmc_ips }}"
