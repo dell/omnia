@@ -153,9 +153,22 @@
   roles:
     - k8s_amd
 
+- name: Read packages for slurm installation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Read packages for slurm installation
+      ansible.builtin.include_role:
+        name: slurm
+        tasks_from: read_packages.yml
+
 - name: Install Slurm
-  hosts: slurm_control_node, slurm_node, login
+  hosts: slurm_control_node, slurm_node, login_node
   any_errors_fatal: true
+  # vars:
+  #   ctld_list:
+  #     - node1
   roles:
     - slurm
 

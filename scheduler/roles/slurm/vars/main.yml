@@ -17,6 +17,8 @@ cluster_name: cluster # TODO: direct load vars omnia_config.yml
 slurm_uid: 6001
 slurm_user: slurm
 slurm_user_group: slurm
+# shared_munge_key: "/intra_cluster_nfs/slurm/cluster/shared_munge.key"
+shared_munge_key: ""
 slurm_installation_type: "{{ hostvars['localhost']['slurm_installation_type'] }}" # TODO direct load vars omnia_config.yml
 restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] }}"
 slurm_db_username: "{{ hostvars['localhost']['slurm_db_username'] | default('dbuser') }}"
@@ -61,6 +63,12 @@ munge_dir_mode: "0700"
 common_mode: "0755"
 slurm_dbd_mode: "0600"
 slurm_db_cnf_mode: "0600"
+dnf_command:
+  - dnf
+  - install
+  - --installroot={{ installroot }}
+  - --setopt=reposdir={{ repodir }}
+  - -y
 common_packages:
   RedHat:
     - firewalld
@@ -71,12 +79,12 @@ munge_packages:
 slurm_controller_packages:
   RedHat:
     - slurm-slurmctld
-slurm_compute_packages:
-  RedHat:
-    - slurm-slurmd
-slurm_login_packages:
-  RedHat:
-    - slurm
+# slurm_compute_packages:
+#  RedHat:
+#    - slurm-slurmd
+# slurm_login_packages:
+#  RedHat:
+#    - slurm
 slurm_dbd_packages:
   RedHat:
     - slurm-slurmdbd
@@ -90,6 +98,7 @@ db_packages:
       - mariadb-server
 hosts_file_dest: "/etc/hosts"
 hosts_file_mode: "0644"
+firewall_state: "enabled"
 
 # messages
 hosts_update_fail_msg: "Failed to update hosts file with node details.

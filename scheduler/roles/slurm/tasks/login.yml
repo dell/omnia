@@ -12,68 +12,57 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Install login packages
-  ansible.builtin.package:
-    name: "{{ slurm_login_packages[ansible_os_family] }}"
-    state: present
+- name: Fetch omnia_config.yml inputs
+  ansible.builtin.include_tasks: input_vars.yml
+  run_once: true
 
-- name: Remove PATH env variable
-  community.general.ini_file:
-    path: "{{ sys_env_path }}"
-    option: PATH
+- name: Prereq vars
+  ansible.builtin.include_tasks: _prereq.yml
+
+- name: Include firewall tasks
+  ansible.builtin.include_tasks: firewall.yml
+
+- name: Include common tasks
+  ansible.builtin.include_tasks: common.yml
+
+- name: Install slurm packages
+  ansible.builtin.command:
+    argv: "{{ dnf_command + hostvars['localhost']['login_packages'][ansible_os_family] }}"
+  register: dnf_out
+  failed_when: false
+  changed_when: dnf_out.rc == 0
+
+- name: Remove local slurm.conf
+  ansible.builtin.file:
+    path: "/{{ slurm_config_dir }}/slurm.conf"
     state: absent
-    mode: "{{ conf_file_mode }}"
+    mode: "{{ slurm_mode }}"
 
-- name: Set env variable
-  community.general.ini_file:
-    path: "{{ sys_env_path }}"
-    option: SLURM_CONF
-    value: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
-    no_extra_spaces: true
-    mode: "{{ conf_file_mode }}"
+- name: Read the ctlds from the NFS conf
+  ansible.builtin.include_tasks: _nfs_conf.yml
+  when: (slurm_installation_type == nfs_share_slurm)
 
-- name: Enable srun port range
-  ansible.posix.firewalld:
-    port: "{{ item }}/tcp"
-    permanent: true
-    zone: public
-    state: enabled
-    immediate: true
-  loop:
-    - "{{ slurm_conf_dict['SrunPortRange'] }}"
+- name: Edit the conf
+  ansible.builtin.include_tasks: _compute_conf.yml
+  loop: "{{ ctld_list }}"
 
 - name: Login node configless
   when: slurm_installation_type == configless_slurm
   block:
-    - name: Get slurm conf from controller # HA
-      ansible.posix.synchronize:
-        src: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
-        dest: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/"
-        mode: push
-        checksum: true
-      delegate_to: "{{ groups['slurm_control_node'] | first }}"
+    - name: Configless service args
+      ansible.builtin.include_tasks: _cfgless_conf.yml
 
-    # Below is slurmd daemon install as per slurm guide
     - name: Install compute packages
       ansible.builtin.package:
         name: "{{ slurm_compute_packages[ansible_os_family] }}"
         state: present
-
-    - name: Enable SlurmdPort
-      ansible.posix.firewalld:
-        port: "{{ item }}/tcp"
-        permanent: true
-        zone: public
-        state: enabled
-        immediate: true
-      loop:
-        - "{{ slurm_conf_dict['SlurmdPort'] }}"
 
     - name: Enable the service
       ansible.builtin.service:
         name: slurmd
         enabled: true
       register: slurmd_service
+      no_log: true
 
     - name: Get service path
       ansible.builtin.set_fact:
@@ -88,6 +77,9 @@
         group: "{{ root_group }}"
         mode: "{{ conf_file_mode }}"
         state: absent
+      notify:
+        - Reload slurmd
+        - Restart slurmd
 
     - name: Edit the service ExecStart
       community.general.ini_file:
@@ -97,31 +89,24 @@
         owner: "{{ root_user }}"
         group: "{{ root_group }}"
         mode: "{{ conf_file_mode }}"
-        value: "/usr/sbin/slurmd -D
-         --conf-server {{ (hostvars[groups['slurm_control_node'] | first])['inventory_hostname_short']
-         + ':' + (slurm_conf_dict['SlurmctldPort'] | string) }} -s $SLURMD_OPTIONS" # HA
+        value: "/usr/sbin/slurmd -D {{ slurmd_args }} -s $SLURMD_OPTIONS" # HA
+      notify:
+        - Reload slurmd
+        - Restart slurmd
 
-    - name: Reload slurmd # No handlers as not slurmd
-      ansible.builtin.systemd_service:
-        name: slurmd
-        state: reloaded
-        daemon_reload: true
-        enabled: true
-      when: restart_slurm_services
+- name: Set ctld specific env file
+  community.general.ini_file:
+    path: "/etc/sysconfig/slurmd"
+    option: "LD_LIBRARY_PATH"
+    state: "{{ 'present' if (slurm_installation_type == nfs_share_slurm) else 'absent' }}"
+    value: "{{ installroot }}usr/lib64"
+    no_extra_spaces: true
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "{{ conf_file_mode }}"
+  notify:
+    - Reload slurmd
+    - Restart slurmd
 
-    - name: Restart slurmd
-      ansible.builtin.systemd_service:
-        name: slurmd
-        state: restarted
-      when: restart_slurm_services
-
-- name: Remove local slurm.conf for nfs
-  ansible.builtin.file:
-    path: "/{{ slurm_config_dir }}/slurm.conf"
-    state: absent
-    mode: "{{ slurm_mode }}"
-  when: slurm_installation_type == nfs_share_slurm
-
-- name: Enable etc enviroment
-  ansible.builtin.shell: source {{ sys_env_path }} # noqa: command-instead-of-shell
-  changed_when: false
+- name: Set the common env vars
+  ansible.builtin.include_tasks: _env_set.yml

@@ -1,0 +1,84 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Load software_config.json
+  ansible.builtin.slurp:
+    src: "{{ software_config_json_file }}"
+  register: sw_config_raw
+
+- name: Parse software_config.json
+  ansible.builtin.set_fact:
+    sw_config: "{{ sw_config_raw['content'] | b64decode | from_json }}"
+
+- name: Select slurm JSON filename
+  ansible.builtin.set_fact:
+    slurm_json_file: >-
+      {{ 'slurm_custom.json'
+         if (sw_config.softwares | selectattr('name','equalto','slurm_custom') | list | length) > 0
+         else 'slurm.json' }}
+
+- name: Build slurm.json path
+  ansible.builtin.set_fact:
+    slurm_json_path: >-
+      {{ input_project_dir }}/config/{{
+        (sw_config.softwares | selectattr('name','equalto','slurm') | first).arch[0]
+        if slurm_json_file == 'slurm.json'
+        else (sw_config.softwares | selectattr('name','equalto','slurm_custom') | first).arch[0]
+      }}/{{ sw_config.cluster_os_type }}/{{ sw_config.cluster_os_version }}/{{ slurm_json_file }}
+
+- name: Load selected slurm json
+  ansible.builtin.slurp:
+    src: "{{ slurm_json_path }}"
+  register: slurm_json_raw
+
+- name: Parse slurm.json
+  ansible.builtin.set_fact:
+    slurm_data: "{{ slurm_json_raw['content'] | b64decode | from_json }}"
+
+- name: Set slurm version if custom
+  ansible.builtin.set_fact:
+    slurm_version: >-
+      {{ (sw_config.softwares | selectattr('name','equalto','slurm_custom') | first).version
+         if (sw_config.softwares | selectattr('name','equalto','slurm_custom') | list | length) > 0
+         else '' }}
+
+- name: Set slurm_node packages fact
+  ansible.builtin.set_fact:
+    slurm_node_packages: >-
+      {{
+        { ansible_os_family:
+            slurm_data['slurm_node']['cluster']
+            | map(attribute='package')
+            | map('regex_replace', '^(.*)$', '\1-' ~ slurm_version if slurm_version else '\1')
+            | list
+        }
+      }}
+
+- name: Set login packages fact
+  ansible.builtin.set_fact:
+    login_packages: >-
+      {{
+        { ansible_os_family:
+            slurm_data['login']['cluster']
+            | map(attribute='package')
+            | map('regex_replace', '^(.*)$', '\1-' ~ slurm_version if slurm_version else '\1')
+            | list
+        }
+      }}
+
+- name: Debug all extracted package facts
+  ansible.builtin.debug:
+    msg:
+      slurm_node_packages: "{{ slurm_node_packages }}"
+      login_packages: "{{ login_packages }}"
