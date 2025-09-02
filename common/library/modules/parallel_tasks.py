@@ -296,6 +296,7 @@ def main():
     show_softwares_status = module.params["show_softwares_status"]
     overall_status_dict = module.params["overall_status_dict"]
     local_repo_config_path = module.params["local_repo_config_path"]
+    arc = module.params["arch"]
     user_reg_cred_input = module.params["user_reg_cred_input"]
     user_reg_key_path = module.params["user_reg_key_path"]
     omnia_credentials_yaml_path = module.params["omnia_credentials_yaml_path"]
@@ -337,7 +338,7 @@ def main():
 
         overall_status, task_results = execute_parallel(
             tasks, determine_function, nthreads, repo_store_path, csv_file_path,
-            log_dir, user_data, version_variables, slogger, local_repo_config_path, user_reg_cred_input, user_reg_key_path,
+            log_dir, user_data, version_variables, arc, slogger, local_repo_config_path, user_reg_cred_input, user_reg_key_path,
             omnia_credentials_yaml_path, omnia_credentials_vault_path, timeout
         )
 
