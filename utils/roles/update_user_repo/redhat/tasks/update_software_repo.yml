@@ -61,9 +61,23 @@
       ansible.builtin.debug:
         var: new_repos
 
-    - name: Process omnia_repo_urls in one line
-      ansible.builtin.set_fact:
-        omnia_repo_url_processed: "{{ omnia_repo_url | map('combine', {'final_repo_name': item.name ~ ('_' ~ (lookup('vars', item.name + '_version') | default('')) if (item.name + '_version') in vars else '')}) | list }}" # noqa: yaml[line-length]
+    - name: Initialize processed list
+      set_fact:
+        omnia_repo_url_processed: []
+
+    - name: Process omnia_repo_urls with dynamic final_repo_name
+      set_fact:
+        omnia_repo_url_processed: >-
+          {{
+            omnia_repo_url_processed + [
+              item | combine({
+                'final_repo_name': cluster_arch ~ '_' ~ item.name ~ (
+                  '_' ~ (lookup('vars', item.name + '_version') | default(''))
+                  if (item.name + '_version') in vars else ''
+                )
+              })
+            ]
+          }}
       loop: "{{ omnia_repo_url }}"
       loop_control:
         loop_var: item

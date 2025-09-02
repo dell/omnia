@@ -30,23 +30,27 @@
     repos_update_status: false
 
 - name: Block to check if any new user repos are added
+  vars:
+    user_repo_url: "{{ vars['user_repo_url_' + cluster_arch] }}"
   when:
-    - vars['user_repo_url_' + cluster_arch] is defined
-    - vars['user_repo_url_' + cluster_arch] | type_debug == 'list'
-    - vars['user_repo_url_' + cluster_arch] | length > 0
+    - user_repo_url is defined
+    - user_repo_url | type_debug == 'list'
+    - user_repo_url | length > 0
   block:
     - name: Check for newly added user repos
       ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/find_new_repo.yml"
-      loop: "{{ vars['user_repo_url_' + cluster_arch] | default([], true) }}"
+      loop: "{{ user_repo_url | default([], true) }}"
 
 - name: Block to execute when new user repos are added
+  vars:
+    user_repo_url: "{{ vars['user_repo_url_' + cluster_arch] }}"
   when:
-    - vars['user_repo_url_' + cluster_arch] is defined
-    - vars['user_repo_url_' + cluster_arch] | type_debug == 'list'
-    - vars['user_repo_url_' + cluster_arch] | length > 0
-    - "new_repos is defined"
-    - "new_repos | type_debug == 'list'"
-    - "new_repos | length > 0"
+    - user_repo_url is defined
+    - user_repo_url | type_debug == 'list'
+    - user_repo_url | length > 0
+    - new_repos is defined
+    - new_repos | type_debug == 'list'
+    - new_repos | length > 0
   block:
     - name: Print the user repo urls for which repo files will be created
       ansible.builtin.debug:
@@ -54,7 +58,7 @@
 
     - name: Loop through user repos and configure repofile
       ansible.builtin.include_tasks: generate_user_repofile.yml
-      loop: "{{ vars['user_repo_url_' + cluster_arch] | default([], true) }}"
+      loop: "{{ user_repo_url | default([], true) }}"
       loop_control:
         label: "{{ item.name }}"
       when: item.url in new_repos and software_version_default not in item.url
