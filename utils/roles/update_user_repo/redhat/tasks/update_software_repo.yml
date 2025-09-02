@@ -47,7 +47,7 @@
     - "omnia_repo_url | length > 0"
   block:
     - name: Find newly added omnia repos
-      ansible.builtin.include_tasks: "{{ role_path }}/../common/tasks/find_new_repo.yml"
+      ansible.builtin.include_tasks: "{{ role_path }}/common/tasks/find_new_repo.yml"
       loop: "{{ omnia_repo_url | default([], true) }}"
 
 
@@ -62,11 +62,11 @@
         var: new_repos
 
     - name: Initialize processed list
-      set_fact:
+      ansible.builtin.set_fact:
         omnia_repo_url_processed: []
 
     - name: Process omnia_repo_urls with dynamic final_repo_name
-      set_fact:
+      ansible.builtin.set_fact:
         omnia_repo_url_processed: >-
           {{
             omnia_repo_url_processed + [
