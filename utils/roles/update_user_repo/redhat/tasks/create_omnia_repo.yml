@@ -13,23 +13,24 @@
 # limitations under the License.
 ---
 
-- name: Check if base_url is present for each omnia repo
+- name: Find matching pulp distributions for {{ repo_final_name }}
   ansible.builtin.set_fact:
-    baseurl_present: >-
-      {{ (pulp_dist_result
-           | selectattr('name', 'equalto', item.final_repo_name)
+    matching_baseurls: >-
+      {{ pulp_dist_result
+           | selectattr('name', 'search', repo_final_name)
            | map(attribute='base_url')
-           | list
-           | length > 0) | bool }}
+           | list }}
 
-- name: Fail if baseurl is not present for {{ item.final_repo_name }}
+- name: Fail if no baseurl found for {{ repo_final_name }}
   ansible.builtin.fail:
     msg: "{{ omnia_repo_baseurl_fail_msg }}"
-  when: not baseurl_present
+  when: matching_baseurls | length == 0
 
-- name: Configure omnia repositories
+- name: Configure omnia repository {{ repo_final_name }}
   ansible.builtin.template:
     src: "{{ omnia_repo_config_template_src }}"
-    dest: "{{ repo_path }}/{{ item.final_repo_name }}.repo"
+    dest: "{{ repo_path }}/{{ repo_final_name }}.repo"
     mode: "{{ file_permission }}"
-  when: baseurl_present
+  vars:
+    baseurls: "{{ matching_baseurls }}"
+    repo_name: "{{ repo_final_name }}"

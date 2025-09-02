@@ -1,6 +1,7 @@
-[Omnia-RPM-Repo{{ item.final_repo_name }}]
-name=Omnia-Repo-{{ item.final_repo_name }}
-baseurl={{ (pulp_dist_result | selectattr('name', 'equalto', item.final_repo_name) | map(attribute='base_url') | list | first) }}
+{% for url in baseurls %}
+[Omnia-RPM-Repo-{{ repo_name }}-{{ loop.index }}]
+name=Omnia-Repo-{{ repo_name }}-{{ loop.index }}
+baseurl={{ url }}
 enabled=1
 gpgcheck=0
 skip_if_unavailable=True
@@ -8,3 +9,5 @@ skip_if_unavailable=True
 sslverify=1
 sslcacert={{ pulp_cert_path }}
 {% endif %}
+
+{% endfor %}

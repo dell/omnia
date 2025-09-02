@@ -53,34 +53,45 @@
 
 - name: Block to execute when new omnia repos are to be added
   when:
-    - "new_repos is defined"
-    - "new_repos | type_debug == 'list'"
-    - "new_repos | length > 0"
+    - new_repos is defined
+    - new_repos | type_debug == 'list'
+    - new_repos | length > 0
   block:
     - name: Print the repo urls for which repo files will be created
       ansible.builtin.debug:
         var: new_repos
 
-    - name: Process omnia_repo_urls in one line
+    - name: Initialize processed list
       ansible.builtin.set_fact:
-        omnia_repo_url_processed: "{{ omnia_repo_url | map('combine', {'final_repo_name': item.name ~ ('_' ~ (lookup('vars', item.name + '_version') | default('')) if (item.name + '_version') in vars else '')}) | list }}" # noqa: yaml[line-length]
+        omnia_repo_url_processed: []
+
+    - name: Process omnia_repo_urls into new list with final_repo_name
+      ansible.builtin.set_fact:
+        omnia_repo_url_processed: "{{ omnia_repo_url_processed + [ item | combine({'final_repo_name': item.name ~ (repo_version | ternary('_' ~ repo_version, '')) }) ] }}"
       loop: "{{ omnia_repo_url }}"
       loop_control:
         loop_var: item
+      vars:
+        repo_version: "{{ lookup('vars', item.name + '_version', default='') }}"
 
     - name: Configure omnia repositories with baseurl presence check
       ansible.builtin.include_tasks: create_omnia_repo.yml
       loop: "{{ omnia_repo_url_processed }}"
       loop_control:
         loop_var: item
+      vars:
+        repo_final_name: "{{ item.final_repo_name }}"
 
-    - name: Configure omnia repositories
-      ansible.builtin.template:
-        src: "{{ omnia_repo_config_template_src }}"
-        dest: "{{ repo_path }}/{{ item.final_repo_name }}.repo"
-        mode: "{{ file_permission }}"
-      loop: "{{ omnia_repo_url_processed }}"
-      when: item.url in new_repos and software_version_default not in item.url
+#    - name: Configure omnia repositories
+#      ansible.builtin.template:
+#        src: "{{ omnia_repo_config_template_src }}"
+#        dest: "{{ repo_path }}/{{ item.final_repo_name }}.repo"
+#        mode: "{{ file_permission }}"
+#      loop: "{{ omnia_repo_url_processed }}"
+#      when:
+#        - item.url is defined
+#        - item.url in new_repos
+#        - software_version_default not in item.url
 
     - name: Set repos_update_status
       ansible.builtin.set_fact:
