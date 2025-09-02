@@ -70,6 +70,11 @@
           loop_control:
             loop_var: version
 
+        - name: Set kubespray version to default
+          ansible.builtin.set_fact:
+            kubespray_versions: ["{{ default_kubespray_version }}"]
+          when: k8s_support_check
+
 - name: Validate k8s_support variable
   when:
     - k8s_support
