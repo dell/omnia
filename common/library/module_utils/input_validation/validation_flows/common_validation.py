@@ -21,7 +21,7 @@ import yaml
 import ipaddress
 import subprocess
 from ast import literal_eval
-import ansible.module_utils.input_validation.common_utils.data_fetch as get
+import ansible.module_utils.input_validation.common_utils.data_fetch as fetch
 from ansible.module_utils.input_validation.validation_flows import csi_driver_validation
 import ansible.module_utils.input_validation.common_utils.data_validation as validate
 
