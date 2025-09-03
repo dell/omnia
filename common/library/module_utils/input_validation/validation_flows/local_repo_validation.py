@@ -15,6 +15,7 @@
 """
 Validates local repository configuration files for Omnia.
 """
+import os
 from ansible.module_utils.input_validation.common_utils import validation_utils
 from ansible.module_utils.input_validation.common_utils import config
 from ansible.module_utils.local_repo.software_utils import load_yaml, load_json
@@ -70,23 +71,27 @@ def validate_local_repo_config(input_file_path, data,
             json_path = create_file_path(
             input_file_path,
             f"config/{arch}{os_ver_path}" + sw +".json")
-            curr_json = load_json(json_path)
-            pkg_list = curr_json[sw]['cluster']
-            if sw in software_config_json:
-                for sub_pkg in software_config_json[sw]:
-                    sub_sw = sub_pkg.get('name')
-                    if sub_sw not in curr_json:
-                        errors.append(
-                            create_error_msg(sw + '/' + arch,
-                                             json_path,
-                                             f"Software {sub_sw} not found in {sw}."))
-                    else:
-                        pkg_list = pkg_list + curr_json[sub_sw]['cluster']
-            for pkg in pkg_list:
-                if pkg.get("type") in ['rpm', 'rpm_list']:
-                    if pkg.get("repo_name") not in repo_names.get(arch, []):
-                        errors.append(
-                            create_error_msg(sw + '/' + arch,
-                                             json_path,
-                                             f"Repo name {pkg.get('repo_name')} not found."))
+            if not os.path.exists(json_path):
+                errors.append(
+                    create_error_msg(sw + '/' + arch, f"{sw} JSON file not found for architecture {arch}.", json_path))
+            else:
+                curr_json = load_json(json_path)
+                pkg_list = curr_json[sw]['cluster']
+                if sw in software_config_json:
+                    for sub_pkg in software_config_json[sw]:
+                        sub_sw = sub_pkg.get('name')
+                        if sub_sw not in curr_json:
+                            errors.append(
+                                create_error_msg(sw + '/' + arch,
+                                                json_path,
+                                                f"Software {sub_sw} not found in {sw}."))
+                        else:
+                            pkg_list = pkg_list + curr_json[sub_sw]['cluster']
+                for pkg in pkg_list:
+                    if pkg.get("type") in ['rpm', 'rpm_list']:
+                        if pkg.get("repo_name") not in repo_names.get(arch, []):
+                            errors.append(
+                                create_error_msg(sw + '/' + arch,
+                                                 f"Repo name {pkg.get('repo_name')} not found.",
+                                                json_path))
     return errors

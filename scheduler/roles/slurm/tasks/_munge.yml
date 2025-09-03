@@ -16,6 +16,8 @@
   ansible.builtin.package:
     name: "{{ munge_packages[ansible_os_family] }}"
     state: present
+  notify:
+    - Restart munge
 
 - name: Check munge dir
   ansible.builtin.file:
@@ -24,31 +26,45 @@
     owner: "{{ munge_user }}"
     group: "{{ munge_group }}"
     mode: "{{ munge_dir_mode }}"
+  notify:
+    - Restart munge
 
-- name: Check if munge key exists
-  ansible.builtin.stat:
-    path: "{{ munge_key_dest }}"
-  register: munge_present
-  when: "'slurm_control_node' in group_names"
+- name: Special handling for control node
+  when: not shared_munge_key and ('slurm_control_node' in group_names)
+  run_once: true
+  block:
+    - name: Check if munge key exists
+      ansible.builtin.stat:
+        path: "{{ munge_key_dest }}"
+      register: munge_present
 
-- name: Ensure munge key is generated on control node
-  ansible.builtin.command:
-    cmd: "{{ munge_cmd }}" # OS
-    creates: "{{ munge_key_dest }}"
-  when: "'slurm_control_node' in group_names" # HA
+    - name: Ensure munge key is generated on control node
+      ansible.builtin.command:
+        cmd: "{{ munge_cmd }}" # OS
+        creates: "{{ munge_key_dest }}"
+      notify:
+        - Restart munge
 
-- name: Distribute munge key to compute nodes
-  ansible.posix.synchronize:
-    src: "{{ munge_key_dest }}"
-    dest: "{{ munge_key_dest | dirname }}"
-    mode: pull
-    checksum: true
-  delegate_to: "{{ item }}"
-  with_items: "{{ ansible_play_hosts_all }}"
-  when: "'slurm_control_node' in group_names" # HA
+- name: When external munge key is present
+  when: shared_munge_key and (shared_munge_key | length) > 0
+  block:
+    - name: Check if munge key exists
+      ansible.builtin.stat:
+        path: "{{ shared_munge_key }}"
+      register: shared_munge_key_present
 
-- name: Ensure munge is enabled and running
-  ansible.builtin.service:
-    name: munge
-    enabled: true
-    state: started
+    - name: Fail if shared munge absent
+      ansible.builtin.fail:
+        msg: "Munge key not available or accessible at {{ shared_munge_key }}. Please check and retry."
+      when: not shared_munge_key_present.stat.exists
+
+    - name: Copy munge key from share path
+      ansible.builtin.copy:
+        src: "{{ shared_munge_key }}"
+        dest: "{{ munge_key_dest }}"
+        remote_src: true
+        owner: "{{ munge_user }}"
+        group: "{{ munge_group }}"
+        mode: "{{ munge_dir_mode }}"
+      notify:
+        - Restart munge

@@ -21,6 +21,7 @@
     cluster_os_type: "{{ software_config.cluster_os_type }}"
     cluster_os_version: "{{ software_config.cluster_os_version }}"
     k8s_support_check: true
+    k8s_arch: []
 
 - name: Validate dynamic_k8s_generation
   when: k8s_support
@@ -28,6 +29,8 @@
     - name: Extract k8s version
       ansible.builtin.set_fact:
         k8s_versions: "{{ software_config.softwares | selectattr('name', 'in', ['k8s', 'service_k8s']) | map(attribute='version') | list | unique }}" # noqa: yaml[line-length]
+        k8s_arch: "{{ (software_config.softwares | selectattr('name', 'in', ['k8s', 'service_k8s']) | first).get('arch', default_archs) }}"
+
     - name: Check if the k8s metadata file exists
       ansible.builtin.stat:
         path: "{{ metadata_file }}"
@@ -95,22 +98,23 @@
         log_dir: "{{ dynamic_k8s_json_log_dir }}"
         software_name: "k8s"
         n_latest: 3
-        arch: "amd64"
+        arch: "{{ arch | default('x86_64') }}"
         mode: "clone"
         check_version: true
+      loop: "{{ k8s_arch }}"
+      loop_control:
+        loop_var: arch
       register: k8s_to_kubespray_comp_ver
 
     - name: Print compatible kubespray tags
       ansible.builtin.debug:
-        msg: "{{ k8s_to_kubespray_comp_ver.compatible_tags }}"
+        var: k8s_to_kubespray_comp_ver
 
     - name: Set Kubespray version based on Kubernetes version
       ansible.builtin.set_fact:
-        kubespray_versions: "{{ kubespray_versions | default([]) + [k8s_to_kubespray_comp_ver.compatible_tags[version]] }}"
+        kubespray_versions: "{{ kubespray_versions | default([]) + [k8s_to_kubespray_comp_ver.results[0].compatible_tags[version]] }}"
       when:
-        - k8s_to_kubespray_comp_ver.compatible_tags is defined
-        - k8s_to_kubespray_comp_ver.compatible_tags is not none
-        - version in k8s_to_kubespray_comp_ver.compatible_tags
+        - (k8s_to_kubespray_comp_ver.results | length) > 0
       loop: "{{ kube_versions_list | default([]) }}"
       loop_control:
         loop_var: version

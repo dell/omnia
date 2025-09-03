@@ -16,9 +16,8 @@
           },
           "url": {
             "type": "string",
-            "format": "uri",
-            "pattern": "^(?!\\s*$).+",
-            "minLength": 1
+            "minLength": 1,
+            "pattern": "^(https?:\\/\\/).+"
           },
           "name": {
             "type": "string",
@@ -153,9 +152,8 @@
           },
           "url": {
             "type": "string",
-            "format": "uri",
-            "pattern": "^(?!\\s*$).+",
-            "minLength": 1
+            "minLength": 1,
+            "pattern": "^(https?:\\/\\/).+"
           },
           "name": {
             "type": "string",
@@ -322,9 +320,8 @@
           },
           "url": {
             "type": "string",
-            "format": "uri",
             "minLength": 1,
-            "pattern": "^(?!\\s*$).+"
+            "pattern": "^(https?:\\/\\/).+"
           },
           "name": {
             "type": "string",
@@ -358,9 +355,8 @@
           },
           "url": {
             "type": "string",
-            "format": "uri",
             "minLength": 1,
-            "pattern": "^(?!\\s*$).+"
+            "pattern": "^(https?:\\/\\/).+"
           },
           "name": {
             "type": "string",

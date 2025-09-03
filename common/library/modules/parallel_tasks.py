@@ -147,20 +147,20 @@ def determine_function(task, repo_store_path, csv_file_path, user_data, version_
 
         task_type = task.get("type")
         if task_type == "manifest":
-            return process_manifest, [task, repo_store_path, status_file]
+            return process_manifest, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
         if task_type == "git":
-            return process_git, [task, repo_store_path, status_file]
+            return process_git, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
         if task_type == "tarball":
-            return process_tarball, [task, repo_store_path, status_file, version_variables]
+            return process_tarball, [task, repo_store_path, status_file, version_variables, cluster_os_type, cluster_os_version, arc]
         if task_type == "shell":
-            return process_shell, [task, repo_store_path, status_file]
+            return process_shell, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
         if task_type == "ansible_galaxy_collection":
-            return process_ansible_galaxy_collection, [task, repo_store_path, status_file]
+            return process_ansible_galaxy_collection, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
         if task_type == "iso":
             return process_iso, [task, repo_store_path, status_file,
-                                 cluster_os_type, cluster_os_version, version_variables]
+                                 cluster_os_type, cluster_os_version, version_variables, arc]
         if task_type == "pip_module":
-            return process_pip, [task, repo_store_path, status_file]
+            return process_pip, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
         if task_type == "image":
             return process_image, [task, status_file, version_variables, user_registries, docker_username, docker_password]
         if task_type == "rpm":
@@ -201,12 +201,14 @@ def generate_software_status_table(status_dict):
     Returns:
         str: Formatted tables (per arch) showing software name and status.
     """
-    # Group entries by arch
     grouped = defaultdict(list)
-    for name, info in status_dict.items():
-        arch = info.get("arch", "unknown")
-        status = info.get("overall_status", "unknown")
-        grouped[arch].append((name, status))
+
+    # status_dict is expected to have software names as keys, list of dicts as values
+    for software_name, entries in status_dict.items():
+        for info in entries:
+            arch = info.get("arch", "unknown")
+            status = info.get("overall_status", "unknown")
+            grouped[arch].append((software_name, status))
 
     # Build tables for each arch
     tables = []
@@ -236,7 +238,21 @@ def main():
         software (list): A list of software names.
         user_json_file (str): The path to the JSON file containing use
         show_softwares_status (bool): Whether to display the software status; optional, defaults to False.  
-        overall_status_dict (dict): A dictionary containing overall software status information; optional, defaults to an empty dictionary.
+        overall_status_dict (dict): A list containing overall software status information; optional, defaults to an empty dict.
+          Dictionary containing software status information grouped by software names.  
+          Each key (e.g., 'service_k8s') maps to a list of dictionaries,  
+          where each dictionary contains:
+              - 'arch' (str): Architecture name, e.g., 'x86_64' or 'aarch64'.  
+              - 'overall_status' (str): Status of the software on that architecture, e.g., 'SUCCESS'.  
+          Example:
+              {
+                  "service_k8s": [
+                      {"arch": "x86_64", "overall_status": "SUCCESS"},
+                      {"arch": "aarch64", "overall_status": "SUCCESS"}
+                  ]
+              }
+          Defaults to an empty dict if not provided.
+
     Returns:
         tuple: A tuple containing:
             - overall_status (str): The overall status of task execution ("SUCCESS", "FAILED", "PARTIAL", "TIMEOUT").
@@ -256,7 +272,7 @@ def main():
         "software": {"type": "list", "elements": "str", "required": True},
         "user_json_file": {"type": "str", "required": False, "default": USER_JSON_FILE_DEFAULT},
         "show_softwares_status": {"type": "bool", "required": False, "default": False},
-        "overall_status_dict": {"type": "dict", "required": False, "default": {}},
+        "overall_status_dict": {"type": "dict","required": True},
         "local_repo_config_path": {"type": "str", "required": False, "default": LOCAL_REPO_CONFIG_PATH_DEFAULT},
         "arch": {"type": "str", "required": False}
     }
@@ -272,7 +288,7 @@ def main():
     software = module.params["software"]
     user_json_file = module.params["user_json_file"]
     show_softwares_status = module.params["show_softwares_status"]
-    overall_status_dict = module.params['overall_status_dict']
+    overall_status_dict = module.params["overall_status_dict"]
     local_repo_config_path = module.params["local_repo_config_path"]
     arc= module.params["arch"]
     # Initialize standard logger.
@@ -291,7 +307,7 @@ def main():
     # Check if the flag to show software status is enabled
     if show_softwares_status:
         # Generate a formatted status table from the overall_status_dict parameter
-        status_table = generate_software_status_table(module.params['overall_status_dict'])
+        status_table = generate_software_status_table(overall_status_dict)
         module.exit_json(changed=False, msg=status_table)
 
     try:

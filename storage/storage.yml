@@ -76,7 +76,7 @@
   tags: nfs_client
 
 - name: Install NFS client
-  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login, etcd
+  hosts: slurm_control_node, slurm_node, kube_control_plane, kube_node, auth_server, login_node, etcd
   gather_facts: false
   roles:
     - nfs_client

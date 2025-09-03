@@ -64,6 +64,13 @@ var_mount_overuse_msg: |
 
   For OMNIA disk spaces requirements follow : https://omnia-doc.readthedocs.io/en/latest
 user_repo_cert_dir: "{{ nfs_shared_path }}/user_repo_certs"
+software_cleanup_list:
+  - name: 'k8s'
+    version: "{{ k8s_version | default('') }}"
+    enabled: "{{ k8s_support | default(false) }}"
+  - name: 'service_k8s'
+    version: "{{ service_k8s_version | default('') }}"
+    enabled: "{{ service_k8s_support | default(false) }}"
 
 # Usage: prerequisites_redhat.yml, prerequisites_ubuntu.yml
 max_retries: 10

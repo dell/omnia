@@ -1,0 +1,121 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Distribute munge key to compute nodes
+  ansible.posix.synchronize:
+    src: "{{ munge_key_dest }}"
+    dest: "{{ munge_key_dest | dirname }}"
+    mode: push
+    checksum: true
+  delegate_to: "{{ ctld }}"
+  when: not shared_munge_key
+  notify:
+    - Restart munge
+
+- name: Ensure munge is enabled and running
+  ansible.builtin.service:
+    name: munge
+    enabled: true
+    state: started
+  no_log: true
+
+- name: Conf edit block
+  delegate_to: "{{ ctld }}"
+  block:
+    - name: Read slurm.conf file
+      ansible.builtin.slurp:
+        src: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+      register: slurm_conf
+
+    - name: Remove the localhost line
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+        line: "{{ item }}"
+        state: absent
+      loop:
+        - "NodeName=localhost"
+        - "SlurmctldHost={{ inventory_hostname_short }}" # remove the currnet node in case if in ctld host
+
+    - name: Add the compute to conf
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+        state: present
+        line: "NodeName={{ inventory_hostname_short }}
+          CPUs={{ ansible_processor_nproc }}
+          Sockets={{ ansible_processor_count }}
+          CoresPerSocket={{ ansible_processor_cores }}
+          ThreadsPerCore={{ ansible_processor_threads_per_core }}"
+        insertafter: "^NodeName="
+        owner: "{{ root_user }}"
+        group: "{{ root_group }}"
+        mode: "{{ conf_file_mode }}"
+
+    - name: Restart the ctld service
+      ansible.builtin.systemd_service:
+        name: slurmctld
+        state: restarted
+      when: restart_slurm_services
+      no_log: true
+
+# TODO: remove the login node is present in any of the partitions
+
+- name: Partition edit block
+  delegate_to: "{{ ctld }}"
+  when: '"slurm_node" in group_names'
+  block:
+    - name: Extract Nodes from {{ slurm_partition_name }}
+      ansible.builtin.set_fact:
+        specific_nodes:
+          "{{ (slurm_conf.content | b64decode | split('\n')
+           | select('match','^PartitionName='+ slurm_partition_name +'\\s+.*')
+           | map('regex_replace','^PartitionName='+
+          slurm_partition_name +'\\s+.*Nodes=(\\S+).*', '\\1')) }}"
+
+    - name: Create worker nodes list
+      ansible.builtin.set_fact:
+        worker_nodes:
+          "{{ ((specific_nodes[0].split(',') | reject('equalto', 'localhost') | list) + [inventory_hostname_short]) | list | unique | sort }}"
+      when: specific_nodes | length > 0
+
+    - name: Log worker nodes
+      ansible.builtin.debug:
+        var: worker_nodes
+      when: specific_nodes | length > 0
+
+    - name: Add the partition
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+        state: present
+        line: "PartitionName={{ slurm_partition_name }} Nodes={{ worker_nodes | join(',') }} MaxTime=INFINITE State=UP"
+        regexp: "^PartitionName={{ slurm_partition_name }} "
+      when: worker_nodes is defined
+
+    - name: Restart the ctld service
+      ansible.builtin.systemd_service:
+        name: slurmctld
+        state: restarted
+      when: restart_slurm_services
+      no_log: true
+
+    - name: Restart the other computes
+      ansible.builtin.systemd_service:
+        name: slurmd
+        state: restarted
+      delegate_to: "{{ cmpt }}"
+      loop: "{{ worker_nodes | reject('equalto', inventory_hostname_short) | list }}"
+      loop_control:
+        loop_var: cmpt
+      when: worker_nodes is defined and restart_slurm_services
+      no_log: true
+      run_once: true

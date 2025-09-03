@@ -38,7 +38,7 @@ supported_k8s_version:
 
 dynamic_k8s_json_folder: "/opt/omnia/k8s_dynamic_json"
 dynamic_k8s_json_file: "{{ dynamic_k8s_json_folder }}/v{{ k8s_version }}/k8s_v{{ k8s_version }}.json"
-base_k8s_json_file: "{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/k8s.json"
+base_k8s_json_file: "{{ project_input_path }}/config/{{ arch }}/{{ cluster_os_type }}/{{ cluster_os_version }}/k8s.json"
 kubespray_url: "https://github.com/kubernetes-sigs/kubespray.git"
 package_type_list: ["rpm", "deb", "tarball", "image", "manifest", "pip_module", "git"]
 dynamic_k8s_json_log_dir: "/opt/omnia/log/local_repo"
@@ -49,6 +49,7 @@ file_permission: "0755"
 # Usage: check_k8s_support.yml
 metadata_file: "/opt/omnia/kubespray/k8s_metadata.yml"
 fail_msg_k8s_version: "Failed. Kubernetes Version is unsupported or incorrect in software_config.json. Update software_config.json with a supported Kubernetes versions and re-run the playbook.Supported versions are - {{ supported_k8s_version }}" # noqa: yaml[line-length]
+default_archs: "{{ (lookup('file', project_input_path + '/roles_config.yml') | from_yaml).Groups.values() | map(attribute='architecture') | list | unique }}"
 
 # Usage: validate_network_spec.yml
 network_spec: "{{ input_project_dir }}/network_spec.yml"

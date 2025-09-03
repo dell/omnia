@@ -77,6 +77,9 @@
         topology_manager_policy: "{{ selected_cluster.topology_manager_policy }}"
         topology_manager_scope: "{{ selected_cluster.topology_manager_scope }}"
         k8s_offline_install: "{{ selected_cluster.k8s_offline_install }}"
+        csi_powerscale_driver_secret_file_path: "{{ selected_cluster.csi_powerscale_driver_secret_file_path }}"
+        csi_powerscale_driver_values_file_path: "{{ selected_cluster.csi_powerscale_driver_values_file_path }}"
+        nfs_storage_name: "{{ selected_cluster.nfs_storage_name }}"
 
     - name: Create a directory to store kubespray log files
       ansible.builtin.file:

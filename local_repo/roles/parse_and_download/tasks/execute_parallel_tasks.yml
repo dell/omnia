@@ -27,13 +27,23 @@
         user_json_file: "{{ user_json_file }}"
         local_repo_config_path: "{{ local_repo_config_path }}"
         arch: "{{ item.arch }}"
+        overall_status_dict: {}
         nthreads: "{{ (local_repo_py_module_vars[item.key].nthreads | default(local_repo_py_module_vars.default_vars.nthreads)) }}"
         timeout: "{{ (local_repo_py_module_vars[item.key].timeout | default(local_repo_py_module_vars.default_vars.timeout)) }}"
       register: task_results
 
     - name: Set fact for overall status
       ansible.builtin.set_fact:
-        overall_status_dict: "{{ overall_status_dict | default({}) | combine({ item.key: {'overall_status': task_results.overall_status, 'arch': task_results.arch }}) }}" # noqa: yaml[line-length]
+        overall_status_dict: >-
+          {{
+            overall_status_dict | default({}) |
+            combine({
+              item.key: (overall_status_dict[item.key] | default([])) +
+                        [ {'overall_status': task_results.overall_status,
+                           'arch': task_results.arch} ]
+            }, recursive=True)
+          }}
+
   rescue:
     - name: Log the failure
       ansible.builtin.debug:

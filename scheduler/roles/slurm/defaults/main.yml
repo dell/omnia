@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+config_filename: "omnia_config.yml"
+ctld_list: []
+compute_list: []
+login_list: []
+dbd_list: []
 slurm_db_port_default: 3306
 slurm_db_type_default: mariadb
 slurm_db_username_default: root
@@ -19,6 +24,200 @@ slurmctld_service_default_path: '/usr/lib/systemd/system/slurmctld.service'
 slurmd_service_default_path: '/usr/lib/systemd/system/slurmd.service'
 slurmdbd_service_default_path: '/usr/lib/systemd/system/slurmdbd.service'
 sys_env_path: '/etc/environment'
+repodir: "/etc/yum.repos.d"
+# This validates just the keys and not the values, as native support for this schema is not available from slurm
+__slurm_conf_keys:
+# updated from version 22.08 using cmd -> scontrol show config
+  - AccountingStorageBackupHost
+  - AccountingStorageEnforce
+  - AccountingStorageHost
+  - AccountingStorageExternalHost
+  - AccountingStorageParameters
+  - AccountingStoragePort
+  - AccountingStorageTRES
+  - AccountingStorageType
+  - AccountingStorageUser
+  - AccountingStoreFlags
+  - AcctGatherEnergyType
+  - AcctGatherFilesystemType
+  - AcctGatherInterconnectType
+  - AcctGatherNodeFreq
+  - AcctGatherProfileType
+  - AllowSpecResourcesUsage
+  - AuthAltTypes
+  - AuthAltParameters
+  - AuthInfo
+  - AuthType
+  - BatchStartTimeout
+  - BcastExclude
+  - BcastParameters
+  # - BOOT_TIME
+  - BurstBufferType
+  - CliFilterPlugins
+  # - ClusterName # This will be set from the input "omnia_config.yml"
+  - CommunicationParameters
+  - CompleteWait
+  - CoreSpecPlugin
+  - CpuFreqDef
+  - CpuFreqGovernors
+  - CredType
+  - DebugFlags
+  - DefMemPerNode
+  - DependencyParameters
+  - DisableRootJobs
+  - EioTimeout
+  - EnforcePartLimits
+  - Epilog
+  - EpilogMsgTime
+  - EpilogSlurmctld
+  - ExtSensorsType
+  - ExtSensorsFreq
+  - FederationParameters
+  - FirstJobId
+  - GetEnvTimeout
+  - GresTypes
+  - GpuFreqDef
+  - GroupUpdateForce
+  - GroupUpdateTime
+  # - HASH_VAL
+  - HealthCheckInterval
+  - HealthCheckNodeState
+  - HealthCheckProgram
+  - InactiveLimit
+  - InteractiveStepOptions
+  - JobAcctGatherFrequency
+  - JobAcctGatherType
+  - JobAcctGatherParams
+  - JobCompHost
+  - JobCompLoc
+  - JobCompPort
+  - JobCompType
+  - JobCompUser
+  - JobContainerType
+  - JobCredentialPrivateKey
+  - JobCredentialPublicCertificate
+  - JobDefaults
+  - JobFileAppend
+  - JobRequeue
+  - JobSubmitPlugins
+  - KillOnBadExit
+  - KillWait
+  - LaunchParameters
+  - LaunchType
+  - Licenses
+  - LogTimeFormat
+  - MailDomain
+  - MailProg
+  - MaxArraySize
+  - MaxDBDMsgs
+  - MaxJobCount
+  - MaxJobId
+  - MaxMemPerNode
+  - MaxNodeCount
+  - MaxStepCount
+  - MaxTasksPerNode
+  - MCSPlugin
+  - MCSParameters
+  - MessageTimeout
+  - MinJobAge
+  - MpiDefault
+  - MpiParams
+  # - NEXT_JOB_ID
+  - NodeFeaturesPlugins
+  - OverTimeLimit
+  - PluginDir
+  - PlugStackConfig
+  - PowerParameters
+  - PowerPlugin
+  - PreemptType
+  - PreemptExemptTime
+  - PrEpParameters
+  - PrEpPlugins
+  - PriorityParameters
+  - PrioritySiteFactorParameters
+  - PrioritySiteFactorPlugin
+  - PriorityType
+  - PrivateData
+  - ProctrackType
+  - Prolog
+  - PrologEpilogTimeout
+  - PrologSlurmctld
+  - PrologFlags
+  - PropagatePrioProcess
+  - PropagateResourceLimits
+  - PropagateResourceLimitsExcept
+  - RebootProgram
+  - ReconfigFlags
+  - RequeueExit
+  - RequeueExitHold
+  - ResumeFailProgram
+  - ResumeProgram
+  - ResumeRate
+  - ResumeTimeout
+  - ResvEpilog
+  - ResvOverRun
+  - ResvProlog
+  - ReturnToService
+  - RoutePlugin
+  - SchedulerParameters
+  - SchedulerTimeSlice
+  - SchedulerType
+  - ScronParameters
+  - SelectType
+  - SlurmUser
+  - SlurmctldAddr
+  - SlurmctldDebug
+  # - SlurmctldHost[0]
+  - SlurmctldLogFile
+  - SlurmctldPort
+  - SlurmctldSyslogDebug
+  - SlurmctldPrimaryOffProg
+  - SlurmctldPrimaryOnProg
+  - SlurmctldTimeout
+  - SlurmctldParameters
+  - SlurmdDebug
+  - SlurmdLogFile
+  - SlurmdParameters
+  - SlurmdPidFile
+  - SlurmdPort
+  - SlurmdSpoolDir
+  - SlurmdSyslogDebug
+  - SlurmdTimeout
+  - SlurmdUser
+  - SlurmSchedLogFile
+  - SlurmSchedLogLevel
+  - SlurmctldPidFile
+  - SlurmctldPlugstack
+  # - SLURM_CONF
+  # - SLURM_VERSION
+  - SrunEpilog
+  - SrunPortRange
+  - SrunProlog
+  - StateSaveLocation
+  - SuspendExcNodes
+  - SuspendExcParts
+  - SuspendProgram
+  - SuspendRate
+  - SuspendTime
+  - SuspendTimeout
+  - SwitchParameters
+  - SwitchType
+  - TaskEpilog
+  - TaskPlugin
+  - TaskPluginParam
+  - TaskProlog
+  - TCPTimeout
+  - TmpFS
+  - TopologyParam
+  - TopologyPlugin
+  - TrackWCKey
+  - TreeWidth
+  - UsePam
+  - UnkillableStepProgram
+  - UnkillableStepTimeout
+  - VSizeFactor
+  - WaitTime
+  - X11Parameters
 mpi: {}
 cgroup: {}
 __cgroup_default_config:
@@ -49,7 +248,7 @@ __slurm_default_config:
   SlurmctldPidFile: /var/run/slurmctld.pid
   SlurmdPidFile: /var/run/slurmd.pid
   AuthType: auth/munge
-  CryptoType: crypto/munge
+  CredType: cred/munge
   SlurmctldTimeout: 120
   SlurmdTimeout: 300
 __slurm_dbd_default_config:

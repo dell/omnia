@@ -13,8 +13,9 @@
 # limitations under the License.
 ---
 
-- name: "Process each component under {{ arch_item.key }}"
+- name: Process each component under {{ arch_item.key }}
   ansible.builtin.include_tasks: execute_parallel_tasks.yml
+  no_log: true
   loop: "{{ components }}"
   loop_control:
     loop_var: comp_item

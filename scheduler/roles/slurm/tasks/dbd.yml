@@ -27,6 +27,16 @@
     slurm_db_type: "{{ slurm_db_type_default }}"
   when: (slurm_db_type is not defined) or (not slurm_db_type)
 
+- name: Fetch omnia_config.yml inputs
+  ansible.builtin.include_tasks: input_vars.yml
+  # run_once: true
+
+- name: Prereq vars
+  ansible.builtin.include_tasks: _prereq.yml
+
+- name: Fresh cluster - Include common tasks
+  ansible.builtin.include_tasks: common.yml
+
 - name: Setup DB tasks
   ansible.builtin.include_tasks: db.yml
   vars:
@@ -36,7 +46,7 @@
       delegate_to: "{{ slurm_db_host }}"
   run_once: true
 
-- name: Create files - {{ item }} # TODO: file required?
+- name: Create files
   ansible.builtin.file:
     path: "{{ item }}"
     state: touch
@@ -56,19 +66,28 @@
     mode: "{{ slurm_dbd_mode }}"
   run_once: true
   notify:
-    - Restart slurmctld
     - Restart slurmdbd
 
-# Port Config
-- name: Enable SlurmdbdPort
-  ansible.posix.firewalld:
-    port: "{{ slurm_dbd_port }}/tcp"
-    permanent: true
-    zone: public
-    state: enabled
-    immediate: true
+- name: Read the ctlds from the NFS conf
+  ansible.builtin.include_tasks: _nfs_conf.yml
+  when: (slurm_installation_type == nfs_share_slurm)
 
-- name: Copy the slurmdbd service local for both configless and nfs
+- name: Configless slurm conf edit opts
+  ansible.builtin.include_tasks: _cfgless_conf.yml
+  when: (slurm_installation_type == configless_slurm)
+
+- name: Edit the conf
+  ansible.builtin.include_tasks: _dbd_conf.yml
+  loop: "{{ ctld_list }}"
+
+- name: Install slurmdbd packages
+  ansible.builtin.command:
+    argv: "{{ dnf_command + slurm_dbd_packages[ansible_os_family] }}"
+  register: dnf_out
+  failed_when: false
+  changed_when: dnf_out.rc == 0
+
+- name: Copy the slurmdbd service local for nfs
   ansible.builtin.copy:
     src: "{{ installroot }}{{ slurmdbd_service_default_path }}"
     dest: "{{ slurmdbd_service_default_path }}"
@@ -86,6 +105,7 @@
     name: slurmdbd
     enabled: true
   register: dbd_service
+  no_log: true
 
 - name: Edit the service
   community.general.ini_file:
@@ -114,32 +134,23 @@
     - Reload slurmdbd
     - Restart slurmdbd
 
-- name: Add environment for nfs case above Execstart
-  ansible.builtin.lineinfile:
-    path: "{{ dbd_service['status']['FragmentPath'] | default(slurmdbd_service_default_path) }}"
-    insertbefore: '^ExecStart='
-    line: 'Environment="LD_LIBRARY_PATH={{ installroot }}usr/lib64/"'
+- name: Set dbd specific env file
+  community.general.ini_file:
+    path: "/etc/sysconfig/slurmdbd"
+    option: "LD_LIBRARY_PATH"
+    state: "{{ 'present' if (slurm_installation_type == nfs_share_slurm) else 'absent' }}"
+    value: "{{ installroot }}usr/lib64"
+    no_extra_spaces: true
     owner: "{{ root_user }}"
     group: "{{ root_group }}"
     mode: "{{ conf_file_mode }}"
-  when: (slurm_installation_type == nfs_share_slurm) and _force_install_nfs
   notify:
     - Reload slurmdbd
     - Restart slurmdbd
 
-- name: Remove environment for configless case
-  community.general.ini_file:
-    path: "{{ dbd_service['status']['FragmentPath'] | default(slurmdbd_service_default_path) }}"
-    section: Service
-    option: Environment
-    state: absent
-    owner: "{{ root_user }}"
-    group: "{{ root_group }}"
-    mode: "{{ conf_file_mode }}"
-  when: (slurm_installation_type == configless_slurm) or not _force_install_nfs
-  notify:
-    - Reload slurmdbd
-    - Restart slurmdbd
+- name: Add the computes to list
+  ansible.builtin.set_fact:
+    dbd_list: "{{ (dbd_list + [inventory_hostname_short]) | unique | list }}"
 
 - name: Set dbd symbolic links
   when: slurm_installation_type == nfs_share_slurm

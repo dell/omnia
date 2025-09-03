@@ -14,11 +14,8 @@
 ---
 
 - name: Generate Base64 authentication token
-  ansible.builtin.shell: >
-    set -o pipefail && \
-    echo -n "{{ item.username }}:{{ item.password }}" | base64
-  register: auth_token
-  changed_when: false
+  ansible.builtin.set_fact:
+    auth_token: "{{ (hostvars['127.0.0.1']['csi_username'] + ':' + hostvars['127.0.0.1']['csi_password']) | b64encode }}"
   no_log: true
 
 - name: Set the URL for the API request
@@ -34,7 +31,7 @@
     url: "{{ api_url }}"
     method: GET
     headers:
-      Authorization: "Basic {{ auth_token.stdout }}"
+      Authorization: "Basic {{ auth_token }}"
     validate_certs: false
   register: response
   ignore_errors: true

@@ -36,6 +36,8 @@
 - name: Edit the conf
   ansible.builtin.include_tasks: _compute_conf.yml
   loop: "{{ ctld_list }}"
+  loop_control:
+    loop_var: ctld
 
 - name: Install slurmd packages
   ansible.builtin.command:

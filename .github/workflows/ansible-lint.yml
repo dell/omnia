@@ -10,6 +10,7 @@ on:
       - pub/multiple_login_node
       - pub/local_repo_arch
       - pub/k8s_plugins
+      - pub/slurm_multi_arch
 
 jobs:
   build:

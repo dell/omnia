@@ -1,0 +1,57 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Install common packages
+  ansible.builtin.package:
+    name: "{{ common_packages[ansible_os_family] }}"
+    state: present
+
+- name: Firewall service running
+  ansible.builtin.systemd_service:
+    name: firewalld
+    state: started
+    enabled: true
+  no_log: true
+
+- name: Enable SrunPortRange
+  ansible.posix.firewalld:
+    port: "{{ slurm_conf_dict['SrunPortRange'] }}/tcp"
+    permanent: true
+    state: "{{ firewall_state }}"
+    immediate: true
+
+- name: Enable SlurmctldPort
+  ansible.posix.firewalld:
+    port: "{{ slurm_conf_dict['SlurmctldPort'] }}/tcp"
+    permanent: true
+    state: "{{ firewall_state }}"
+    immediate: true
+  when: ("slurm_control_node" in group_names)
+
+- name: Enable SlurmdPort
+  ansible.posix.firewalld:
+    port: "{{ slurm_conf_dict['SlurmdPort'] }}/tcp"
+    permanent: true
+    state: "{{ firewall_state }}"
+    immediate: true
+  when: ("slurm_node" in group_names) or ("login_node" in group_names and slurm_installation_type == configless_slurm)
+
+- name: Enable SlurmdbdPort
+  ansible.posix.firewalld:
+    port: "{{ slurm_dbd_port }}/tcp"
+    permanent: true
+    # zone: public
+    state: enabled
+    immediate: true
+  when: ("slurm_dbd" in group_names)

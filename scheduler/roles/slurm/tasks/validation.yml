@@ -76,12 +76,3 @@
   ansible.builtin.assert:
     that:
       - slurm_db_password | length > 1
-
-- name: Refresh mounts
-  ansible.builtin.shell: |
-    umount {{ share_path }}
-    mount -a
-  register: refresh_mounts
-  ignore_errors: true
-  changed_when: refresh_mounts.rc == 0
-  when: slurm_installation_type == nfs_share_slurm

@@ -19,6 +19,11 @@
 # ***********************************************************************
 
 # -----------------------------SLURM------------------------------------------------
+slurm_cluster:
+  - cluster_name: slurm_cluster
+    installation_type: "nfs_share"
+    restart_slurm_services: true
+    nfs_storage_name: nfs1
 
 # This variable accepts whether slurm installation is supported in configless mode or slurm in nfs
 # Default value is "configless"

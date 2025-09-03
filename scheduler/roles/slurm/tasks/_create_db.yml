@@ -56,7 +56,6 @@
   when: slurm_db_type == mysql
   notify:
     - Restart mysqld
-    - Restart slurmctld
     - Restart slurmdbd
 
 - name: Set db port
@@ -68,8 +67,7 @@
   when: slurm_db_type == mariadb
   notify:
     - Restart mariadb
-    - Restart slurmctld
-    - Restart slurmdbd
+    - Restart slurmdbd # slurmdbd
 
 - name: Enable db port
   ansible.posix.firewalld:

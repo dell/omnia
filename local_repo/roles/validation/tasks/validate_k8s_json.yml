@@ -76,21 +76,3 @@
       run_condition: "{{ service_k8s_support and service_k8s_dynamic_k8s_generation }}"
       arch: "{{ arch }}"
   when: service_k8s_support | bool
-
-- name: Set software_cleanup_list based on supported components
-  ansible.builtin.set_fact:
-    software_cleanup_list: >
-      {{
-        [
-          {
-            'name': 'k8s',
-            'version': k8s_version | default(''),
-            'enabled': k8s_support | default(false)
-          },
-          {
-            'name': 'service_k8s',
-            'version': service_k8s_version | default(''),
-            'enabled': service_k8s_support | default(false)
-          }
-        ]
-      }}

@@ -30,27 +30,13 @@
   when:
     - nfs_client_params | default("", true) | length < 1
 
-- name: Check if nfs_client_params has exactly one entry with k8s_share as true
-  ansible.builtin.assert:
-    that: nfs_client_params | selectattr('k8s_share', 'defined') | selectattr('k8s_share', 'equalto', true) | list | length == 1
-    fail_msg: "{{ nfs_client_params_k8s_share_fail_msg }}"
-    success_msg: "{{ nfs_client_params_k8s_share_success_msg }}"
-  when: k8s_support
-
-- name: Check if nfs_client_params has exactly one entry with slurm_share as true
-  ansible.builtin.assert:
-    that: nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1
-    fail_msg: "{{ nfs_client_params_slurm_share_fail_msg }}"
-    success_msg: "{{ nfs_client_params_slurm_share_success_msg }}"
-  when: slurm_support
-
 # Get k8s nfs_server_ip and nfs_server_path
 - name: Get nfs_server details when k8s_support is true
-  when: k8s_support
+  when: k8s_support and compute_k8s_playbook is defined
   block:
-    - name: Set k8s_nfs_server_ip where k8s_share is true
+    - name: Set k8s_nfs_server_ip when k8s_support is true
       ansible.builtin.set_fact:
-        k8s_nfs_server_ip: "{{ nfs_client_params | selectattr('k8s_share', 'equalto', true) | map(attribute='server_ip') | first }}"
+        k8s_nfs_server_ip: "{{ nfs_client_params | map(attribute='server_ip') | first }}"
 
     - name: Change k8s_nfs_server_ip to admin_nic_ip when it is "localhost"
       ansible.builtin.set_fact:
@@ -73,52 +59,57 @@
         seconds: 30
       when: plugins_deployment is false
 
-    - name: Get server_share_path where k8s_share is true
+    - name: Get server_share_path when k8s_support is true
       ansible.builtin.set_fact:
-        k8s_server_share_path: "{{ nfs_client_params | selectattr('k8s_share', 'equalto', true) | map(attribute='server_share_path') | first }}"
+        k8s_server_share_path: "{{ nfs_client_params | map(attribute='server_share_path') | first }}"
 
     - name: Fail if server_share_path is not set in storage_config.yml
       ansible.builtin.fail:
         msg: "{{ nfs_client_params_server_share_invalid_msg }}"
       when: plugins_deployment is true and k8s_server_share_path == ''
 
-    - name: Get client_share_path where k8s_share is true
+    - name: Get client_share_path when k8s_support is true
       ansible.builtin.set_fact:
-        share_path: "{{ nfs_client_params | selectattr('k8s_share', 'equalto', true) | map(attribute='client_share_path') | first }}"
+        share_path: "{{ nfs_client_params | map(attribute='client_share_path') | first }}"
 
 # Get slurm nfs_share_path
-- name: Get server_share_path where slurm_share is true
+- name: Get server_share_path when Slurm/UCX/OpenMPI support is true
   ansible.builtin.set_fact:
-    share_path: "{{ nfs_client_params | selectattr('slurm_share', 'equalto', true) | map(attribute='client_share_path') | first }}"
+    share_path: "{{ nfs_client_params | map(attribute='client_share_path') | first }}"
   when:
-    - (slurm_support is true) or (ucx_support is true) or (openmpi_support is true)
-    - nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1
+    - slurm_support or ucx_support or openmpi_support
+    - nfs_client_params | length > 0
 
-# Check if both slurm_share and k8s_share are not defined for benchmarks
-- name: Fail if both slurm_share and k8s_share not are defined for benchmarks
+# Check if both slurm_support and k8s_support are not defined for benchmarks
+- name: Fail if both slurm_support and k8s_support are not true for benchmarks
   ansible.builtin.assert:
-    that: ( nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1)
-      or (nfs_client_params | selectattr('k8s_share', 'defined') | selectattr('k8s_share', 'equalto', true) | list | length == 1)
+    that:
+      - slurm_support or k8s_support
     fail_msg: "{{ nfs_client_params_benchmarks_fail_msg }}"
     success_msg: "{{ nfs_client_params_benchmarks_success_msg }}"
   when:
-    - (ucx_support is true) or (openmpi_support is true)
+    - ucx_support or openmpi_support
 
-# Set share_path according to slurm_share and k8s_share for benchmarks
-- name: Set share_path as slurm_client_share_path if slurm_share is defined and k8s_share is defined
+# Set share_path according to slurm_support and k8s_support for benchmarks
+- name: Set share_path from k8s_client_share_path when k8s_support is true and slurm_support is false
   ansible.builtin.set_fact:
-    share_path: "{{ nfs_client_params | selectattr('k8s_share', 'equalto', true) | map(attribute='client_share_path') | first }}"
+    share_path: "{{ nfs_client_params | map(attribute='client_share_path') | first }}"
   when:
-    - nfs_client_params | selectattr('k8s_share', 'defined') | selectattr('k8s_share', 'equalto', true) | list | length == 1
-    - (ucx_support is true) or (openmpi_support is true)
-    - not k8s_support
+    - k8s_support
+    - ucx_support or openmpi_support
     - not slurm_support
 
-- name: Set share_path as k8s_client_share_path if slurm_share is not defined and k8s_share is defined
+- name: Set share_path from slurm_client_share_path when slurm_support is true and k8s_support is false
   ansible.builtin.set_fact:
-    share_path: "{{ nfs_client_params | selectattr('slurm_share', 'equalto', true) | map(attribute='client_share_path') | first }}"
+    share_path: "{{ nfs_client_params | map(attribute='client_share_path') | first }}"
   when:
-    - nfs_client_params | selectattr('slurm_share', 'defined') | selectattr('slurm_share', 'equalto', true) | list | length == 1
-    - (ucx_support is true) or (openmpi_support is true)
+    - slurm_support
+    - ucx_support or openmpi_support
     - not k8s_support
-    - not slurm_support
+
+- name: Set share_path from slurm_client_share_path when slurm_support is true and k8s_support is false
+  ansible.builtin.set_fact:
+    share_path: "{{ nfs_client_params | map(attribute='client_share_path') | first }}"
+  when:
+    - not slurm_support and not k8s_support
+    - ucx_support or openmpi_support

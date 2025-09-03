@@ -31,6 +31,7 @@
 
 - name: Execute tasks for each architecture
   ansible.builtin.include_tasks: arch_component_loop.yml
+  no_log: true
   loop: "{{ result.software_dict | dict2items }}"
   loop_control:
     loop_var: arch_item
@@ -81,10 +82,20 @@
 
 - name: Determine final repository status
   ansible.builtin.set_fact:
-    final_status: "{{ 'SUCCESS' if 'FAILURE' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and
-                      'TIMEOUT' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list) and
-                      'PARTIAL' not in (overall_status_dict | default({}) | dict2items | map(attribute='value') | list)
-                      else 'FAILED' }}"
+    final_status: >-
+      {{
+        'FAILED' if
+        (
+          overall_status_dict | default({}) | dict2items |
+          map(attribute='value') |
+          sum(start=[]) |
+          map(attribute='overall_status') |
+          select('in', ['FAILURE', 'TIMEOUT', 'PARTIAL']) |
+          list |
+          length > 0
+        )
+        else 'SUCCESS'
+      }}
 
 - name: Check if metadata file exists
   ansible.builtin.stat:

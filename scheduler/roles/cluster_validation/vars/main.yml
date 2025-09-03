@@ -123,8 +123,8 @@ To install k8s provide scheduler_type: k8s. To install slurm and k8s provide sch
 install_scheduler_msg: "Installing job scheduler:"
 
 # # Usage: Fetch_software_config.yml
-# csi_driver_powerscale_packages_file: >-
-#   {{ role_path }}/../../../input/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/csi_driver_powerscale.json
+csi_driver_powerscale_packages_file: >-
+  {{ input_project_dir }}/config/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/csi_driver_powerscale.json
 
 # Usage: fetch_omnia_inputs.yml
 csi_driver_secret_file_path_success_msg: "Success. csi_driver_secret_file_path is valid in omnia_config.yml"
@@ -135,16 +135,6 @@ csi_driver_values_file_path_fail_msg: "Failed. csi_driver_values_file_path is no
 
 # Usage: csi_powerscale_driver_input_validation.yml
 csi_powerscale_secret_vaultname: ".csi_powerscale_secret_vault"
-fail_msg_isilon_clusters: "isilonClusters must be a valid list of powerscale details in secret.yaml file."
-fail_msg_cluster_name: "clusterName is not valid. Provide powerscale cluster name in secret.yaml file."
-fail_msg_user_name: "userName is not valid. Provide powerscale user name in secret.yaml file."
-fail_msg_password: "Password is not valid. Provide powerscale password in secret.yaml file."
-fail_msg_endpoint: "Endpoint is not valid. Provide powerscale IP or hostname in secret.yaml file."
-fail_msg_endpoint_port: "endpointPort is not valid. Provide valid port number in secret.yaml file."
-fail_msg_isdefault: "isDefault value should be true or false in secret.yaml file."
-fail_msg_skip_certificate_validation: "skipCertificateValidation must be true in secret.yaml file."
-fail_msg_isipath: "isiPath must be a valid Unix absolute path in secret.yaml file."
-fail_msg_isi_volume_path_permissions: "isiVolumePathPermissions must be a valid directory permission (example: 0777) in secret.yaml file."
 fail_msg_api_call: "Please recheck powerscale username, password, endpoint and endpointPort details provided in secret.yaml and
   values.yaml (if endpointPort is provided only in values.yaml) file. API call to powerscale was not successful"
 vault_key_permission: "0644"
@@ -169,3 +159,7 @@ msg_version_mismatch: >-
   but you requested version {{ k8s_version }} for {{ software_stack }} deployment.
   Please rerun local_repo.yml with version {{ k8s_version }}.
 k8s_version_msg_success: "{{ software_stack }} version {{ k8s_version }} is valid and matches last_{{ software_stack }}_local_repo_version"
+
+# Usage: fetch_oim_metadata.yml
+omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
+pvc_data_folder: "/opt/omnia/k8s_pvc_data"

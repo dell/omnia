@@ -15,6 +15,38 @@
       "description": "Set to true to run validation tests; default will not run the tests.",
       "type": "boolean"
     },
+    "slurm_cluster": {
+      "type": "array",
+      "description": "List of slurm cluster configurations.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cluster_name": { 
+            "type": "string", 
+            "minLength": 1,
+            "description": "Unique name for the slurm cluster." 
+          },
+          "installation_type": { 
+            "description":"slurm installation is supported in configless mode or slurm in nfs",
+            "enum":["configless", "nfs_share"]
+          },
+          "restart_slurm_services": {
+            "description": "indicates whether slurm control node services(slurmctld) should be restarted or not and if  restart_slurm_services is set to true, slurmctld services will be restarted on every execution of omnia.yml",
+            "type": "boolean"
+          },
+          "nfs_storage_name": { 
+            "type": "string", 
+            "minLength": 1,
+            "description": "Name of the nfs storage in storage_config.yml" 
+          }
+        },
+        "required": [
+          "cluster_name",
+          "installation_type",
+          "restart_slurm_services"
+        ]
+      }
+    },
     "service_k8s_cluster": {
       "type": "array",
       "description": "List of service Kubernetes cluster configurations.",
@@ -146,6 +178,7 @@
      "slurm_installation_type",
      "restart_slurm_services",
      "run_intel_gaudi_tests",
+     "slurm_cluster",
      "compute_k8s_cluster",
      "service_k8s_cluster"
     ]

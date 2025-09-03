@@ -38,6 +38,11 @@
 
 - name: Fetch storage_config.yml inputs
   ansible.builtin.include_tasks: fetch_storage_config.yml
+  when: compute_k8s_playbook is defined
+
+- name: Fetch inputs for nfs client provisioner
+  ansible.builtin.include_tasks: fetch_oim_metadata.yml
+  when: service_k8s_playbook is defined
 
 - name: Include gather_facts playbook
   ansible.builtin.include_tasks: gather_fact_resolution.yml

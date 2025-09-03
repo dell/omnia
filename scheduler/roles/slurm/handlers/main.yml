@@ -16,6 +16,7 @@
   ansible.builtin.systemd_service:
     name: munge
     state: restarted
+  no_log: true
 
 - name: Restart mysqld
   ansible.builtin.systemd_service:
@@ -24,6 +25,7 @@
   run_once: true
   when: restart_slurm_services
   delegate_to: "{{ slurm_db_host }}"
+  no_log: true
 
 - name: Restart mariadb
   ansible.builtin.systemd_service:
@@ -32,6 +34,7 @@
   run_once: true
   when: restart_slurm_services
   delegate_to: "{{ slurm_db_host }}"
+  no_log: true
 
 - name: Reload slurmdbd
   ansible.builtin.systemd_service:
@@ -40,12 +43,14 @@
     daemon_reload: true
     enabled: true
   when: restart_slurm_services and ('slurm_dbd' in group_names)
+  no_log: true
 
 - name: Restart slurmdbd
   ansible.builtin.systemd_service:
     name: slurmdbd
     state: restarted
   when: restart_slurm_services and ('slurm_dbd' in group_names)
+  no_log: true
 
 - name: Reload slurmctld
   ansible.builtin.systemd_service:
@@ -53,13 +58,23 @@
     state: reloaded
     daemon_reload: true
     enabled: true
+  # delegate_to: "{{ ctld }}"
+  # loop: "{{ ctld_list }}"
+  # loop_control:
+    # loop_var: ctld
   when: restart_slurm_services and ('slurm_control_node' in group_names)
+  no_log: true
 
 - name: Restart slurmctld
   ansible.builtin.systemd_service:
     name: slurmctld
     state: restarted
+  # delegate_to: "{{ ctld }}"
+  # loop: "{{ ctld_list }}"
+  # loop_control:
+  #   loop_var: ctld
   when: restart_slurm_services and ('slurm_control_node' in group_names)
+  no_log: true
 
 - name: Reload slurmd
   ansible.builtin.systemd_service:
@@ -68,9 +83,11 @@
     daemon_reload: true
     enabled: true
   when: restart_slurm_services and ('slurm_node' in group_names)
+  no_log: true
 
 - name: Restart slurmd
   ansible.builtin.systemd_service:
     name: slurmd
     state: restarted
   when: restart_slurm_services and ('slurm_node' in group_names)
+  no_log: true

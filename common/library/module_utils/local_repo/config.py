@@ -63,7 +63,7 @@ REPO_CONFIG = { "always": "on_demand", "partial": "on_demand", "never": "streame
 ARCH_SUFFIXES = {"x86_64", "aarch64"}
 DNF_COMMANDS = {
     "x86_64": ["dnf", "download", "--resolve", "--alldeps", "--arch=x86_64,noarch"],
-    "aarch64": ["dnf", "download", "--arch", "aarch64", "--forcearch", "aarch64", "--best", "--resolve", "--alldeps"]
+    "aarch64": ["dnf", "download", "--forcearch", "aarch64", "--resolve", "--alldeps", "--exclude=*.x86_64"]
 }
 
 # ----------------------------

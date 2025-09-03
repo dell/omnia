@@ -30,10 +30,10 @@
     file: "{{ software_config_json_file }}"
     name: software_config
 
-# Check if k8s is mentioned in software_config.json
-- name: Check if k8s support is true
+# Check if compute k8s is mentioned in software_config.json
+- name: Check if compute k8s support is true
   ansible.builtin.set_fact:
-    compute_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'k8s') | list | length > 0 }}"
+    compute_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'compute_k8s') | list | length > 0 }}"
 
 - name: Check if service k8s support is true
   ansible.builtin.set_fact:
@@ -63,7 +63,7 @@
 
     - name: Set software as compute_k8s
       ansible.builtin.set_fact:
-        software_stack: "k8s"
+        software_stack: "compute_k8s"
       when: compute_k8s_support
 
 - name: Check if slurm support is true

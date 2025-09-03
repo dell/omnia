@@ -66,5 +66,4 @@
     - "{{ hostvars[groups['slurm_dbd'][0]]['ansible_nodename'] }}"
     - "{{ hostvars[groups['slurm_dbd'][0]]['ansible_default_ipv4']['address'] }}"
   notify:
-    - Restart slurmctld
     - Restart slurmdbd

@@ -45,6 +45,8 @@
 - name: Edit the conf
   ansible.builtin.include_tasks: _compute_conf.yml
   loop: "{{ ctld_list }}"
+  loop_control:
+    loop_var: ctld
 
 - name: Login node configless
   when: slurm_installation_type == configless_slurm
@@ -93,6 +95,10 @@
       notify:
         - Reload slurmd
         - Restart slurmd
+ 
+    - name: Add the computes to list
+      ansible.builtin.set_fact:
+        login_list: "{{ (login_list + [inventory_hostname_short]) | unique | list }}"
 
 - name: Set ctld specific env file
   community.general.ini_file:

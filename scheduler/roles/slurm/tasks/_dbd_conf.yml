@@ -1,0 +1,56 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Distribute munge key to dbd node
+  ansible.posix.synchronize:
+    src: "{{ munge_key_dest }}"
+    dest: "{{ munge_key_dest | dirname }}"
+    mode: push
+    checksum: true
+  delegate_to: "{{ item }}"
+  when: not shared_munge_key
+  notify:
+    - Restart munge
+
+- name: Ensure munge is enabled and running
+  ansible.builtin.service:
+    name: munge
+    enabled: true
+    state: started
+  no_log: true
+
+- name: Conf edit block
+  delegate_to: "{{ item }}"
+  block:
+    - name: Read slurm.conf file
+      ansible.builtin.slurp:
+        src: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+      register: slurm_conf
+
+    - name: Add the Accounting to conf
+      ansible.builtin.lineinfile:
+        path: "{{ slurm_share_prefix }}{{ slurm_config_dir }}/slurm.conf"
+        state: present
+        line: "{{ dbd_item[0] }}={{ dbd_item[1] }}"
+        insertbefore: "^NodeName=DEFAULT "
+        regexp: "^{{ dbd_item[0] }}="
+        owner: "{{ root_user }}"
+        group: "{{ root_group }}"
+        mode: "{{ conf_file_mode }}"
+      loop:
+        - ["AccountingStorageType", "accounting_storage/slurmdbd"]
+        - ["AccountingStorageHost", "{{ inventory_hostname | split('.') | first }}"]
+        - ["AccountingStoragePort", "{{ slurm_dbd_port }}"]
+      loop_control:
+        loop_var: dbd_item

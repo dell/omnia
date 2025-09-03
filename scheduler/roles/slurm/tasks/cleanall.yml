@@ -1,5 +1,8 @@
 ---
 # tasks file for slurm
+- name: Read input vars
+  ansible.builtin.include_tasks: input_vars.yml
+
 - name: Append share path if NFS
   ansible.builtin.set_fact:
     slurm_share_prefix: "{{ share_path + '/' + slurm_dir_name if (slurm_installation_type == nfs_share_slurm) else '/' }}"
@@ -27,18 +30,9 @@
     - slurmd.service
     - munge.service
 
-- name: Refresh mounts
-  ansible.builtin.shell: |
-    umount {{ share_path }}
-    mount -a
-  register: refresh_mounts
-  ignore_errors: true
-  changed_when: refresh_mounts.rc == 0
-  when: slurm_installation_type == nfs_share_slurm
-
 - name: Remove share slurm path
   ansible.builtin.file:
-    path: "{{ share_path }}/{{ slurm_dir_name }}"
+    path: "{{ share_path }}/{{ slurm_dir_name }}etc/slurm/slurm.conf"
     state: absent
   run_once: true
   when: slurm_installation_type == nfs_share_slurm
@@ -49,7 +43,6 @@
     state: absent
   loop:
     - "/var/spool/state"
-    - "{{ slurm_share_prefix }}{{ slurm_config_dir }}"
     - "{{ munge_key_dest }}"
 
 - name: Remove packages
@@ -84,6 +77,10 @@
     - 'SLURM_CONF'
     - 'PATH'
     - 'LD_LIBRARY_PATH'
+
+- name: Enable etc enviroment
+  ansible.builtin.shell: source {{ sys_env_path }} # noqa: command-instead-of-shell
+  changed_when: false
 
 - name: Just force systemd to reread configs
   ansible.builtin.systemd_service:
