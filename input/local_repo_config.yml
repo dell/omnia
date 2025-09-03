@@ -44,9 +44,19 @@ enable_routed_internet: false
 # - { url: "", gpgkey: "", name: "", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
 # Omit these fields entirely if SSL is not in use.
 # Example:
-# user_repo_url:
-#   - {url: "",gpgkey: "",name: ""}
-user_repo_url:
+# user_repo_url_x86_64:
+#   - { url: "", gpgkey: "", name: "", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+#   - { url: "", gpgkey: "", name: "codeready-builder", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+#   - { url: "", gpgkey: "", name: "baseos", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+#   - { url: "", gpgkey: "", name: "appstream", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+user_repo_url_x86_64:
+
+# user_repo_url_aarch64:
+#   - { url: "", gpgkey: "", name: "", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+#   - { url: "", gpgkey: "", name: "codeready-builder", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+#   - { url: "", gpgkey: "", name: "baseos", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+#   - { url: "", gpgkey: "", name: "appstream", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
+user_repo_url_aarch64:
 
 # Optional
 # This variable defines a list of user-provided container registries containing images required for the cluster.
@@ -65,15 +75,6 @@ user_repo_url:
 #   - { host: hostname.registry.test, cert_path: "", key_path: "", name: "external", requires_auth: false }
 user_registry:
 
-# Mandatory when cluster_os_type is rhel in softwares_config.json
-# User has to provide the code ready builder url that should not have a RedHat subscription authentication inorder to download the packages
-# and the rhel_os_url configured via proxy in compute nodes
-# Example:
-# rhel_os_url:
-#   - {url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY", name: "codeready-builder"}
-rhel_os_url:
-  - {url: "", gpgkey: "", name: "codeready-builder"}
-
 ### ADVANCE CONFIGURATIONS FOR LOCAL REPO ###
 # Mandatory
 # This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rhel.
@@ -81,19 +82,12 @@ rhel_os_url:
 # 'url' defines the baseurl for the repository
 # 'gpgkey' defines gpgkey for the repository
 # If 'gpgkey' is kept empty then gpgcheck=0 for that repository
-omnia_repo_url_rhel:
+omnia_repo_url_rhel_x86_64:
   - { url: "https://download.docker.com/linux/centos/9/x86_64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce-repo"}
-  - { url: "https://repo.radeon.com/rocm/rhel9/{{ rocm_version }}/main/", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key", name: "rocm"}
   - { url: "https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9", name: "epel"}
-  - { url: "https://repo.radeon.com/amdgpu/{{ amdgpu_version }}/rhel/{{ cluster_os_version }}/main/x86_64/", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key", name: "amdgpu"}
-  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel9/", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs", name: "beegfs"}
-  - { url: "https://yum.repos.intel.com/oneapi/", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB", name: "oneapi"}
   - { url: "https://ltb-project.org/rpm/openldap26/9/x86_64/", gpgkey: "", name: "ldap"}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/x86_64/", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey", name: "nvidia-repo"}
-  - { url: "https://a2o.github.io/snoopy-packages/repo/centos/9/stable/", gpgkey: "", name: "snoopy"}
-  - { url: "https://xcat.org/files/xcat/repos/yum/2.17/xcat-core/", gpgkey: "http://xcat.org/files/xcat/repos/yum/2.17/xcat-core/repodata/repomd.xml.key", name: "xcat-core"}
-  - { url: "https://xcat.org/files/xcat/repos/yum/2.17/xcat-dep/rh9/x86_64/", gpgkey: "http://xcat.org/files/xcat/repos/yum/xcat-dep/rh9/x86_64/repodata/repomd.xml.key", name: "xcat-dep"}
-
+ 
 # Conditional Mandatory - required only when ARM nodes are part of cluster
 # This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rhel and arch aarch64 
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
@@ -103,7 +97,5 @@ omnia_repo_url_rhel:
 # 'name' A unique identifier for the registry.
 omnia_repo_url_rhel_aarch64:
   - { url: "https://download.docker.com/linux/centos/9/aarch64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
-  - { url: "https://repo.radeon.com/rocm/rhel9/{{ rocm_version }}/main/", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key", name: "rocm"}
   - { url: "https://dl.fedoraproject.org/pub/epel/9/Everything/aarch64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9", name: "epel"}
-  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel9/", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs", name: "beegfs"}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/aarch64/", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey", name: "nvidia-repo"}

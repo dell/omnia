@@ -26,7 +26,15 @@ provision_config:
   # Ensure that admin IPs given in mapping file are within the admin_static_ranges.
   # A templates for mapping file exists in omnia/examples, namely, pxe_mapping_file.csv
   # Format of csv: SERVICE_TAG,ADMIN_MAC,HOSTNAME,ADMIN_IP,BMC_IP,BMC_MAC
-  pxe_mapping_file_path: ""
+  mapping_file_path: ""
+  dhcp_range:
+  os_details:
+    x86_64:
+      flavor:
+      version:
+    aarch64: 
+      flavor:
+      version:
 
   #### Mandatory
   # Timezone that needs to be set during OS provisioning.
@@ -40,12 +48,28 @@ provision_config:
   # Default language supported is "en-US"
   language: "en-US"
 
+  dhcp_lease_time:
+ 
+
 # Omnia Infrastructure Manager node details
-oim_config: 
+oim_config:
+  enable_ha: false
   nodes:
+    - nic_name: "eno1"
+      admin_ip: 
     #### Conditional Mandatory
     # bmc_ip: The iDRAC  IP address of the OIM server,
     #    Mandatory only if idrac_telemetry is set to true and telemetry data needs to be collected from the OIM server.
     #    Optional — can be omitted if iDRAC telemetry for the OIM server is not required.
-    - bmc_ip: # "10.5.2.254"
+      bmc_ip: # "10.5.2.254"
+
+network_config:
+  description: List of all networks needs for the deployment
+  networks:
+    - cidr: 10.5.0.0/16
+      description: Admin network for manage management traffic of servers
+      name: admin_network1
+      type: admin_nw
+      dns: []
+
 

@@ -68,71 +68,102 @@ groups:
 # +-----------------------------------+-----------------+     +------------------------+----------------+
 # | Functional Group Name             | Layer           |     | Functional Group Name  | Layer          |
 # +-----------------------------------+-----------------+     +------------------------+----------------+
-# | service_kube_control_plane_x86_64 | management      |     | default_x86_64         | compute        |
-# | service_etcd_x86_64               | management      |     | kube_node_x86_64       | compute        |
-# | service_kube_node_x86_64          | management      |     | slurm_node_x86_64      | compute        |
-# | login_node_x86_64                 | management      |     | default_aarch64        | compute        |
-# | compiler_node_x86_64              | management      |     | kube_node_aarch64      | compute        |
-# | kube_control_plane_x86_64         | management      |     | slurm_node_aarch64     | compute        |
-# | etcd_x86_64                       | management      |     |                        |                |
-# | slurm_control_node_x86_64         | management      |     |                        |                |
-# | login_node_aarch64                | management      |     |                        |                |
+# | service_kube_node_x86_64          | management      |     | default_x86_64         | compute        |
+# | slurm_control_node_x86_64         | management      |     | default_aarch64        | compute        |
+# | login_node_x86_64                 | management      |     | slurm_node_x86_64      | compute        |
+# | login_node_aarch64                | management      |     | slurm_node_aarch64     | compute        |
+# | compiler_node_x86_64              | management      |     |                        |                |
 # | compiler_node_aarch64             | management      |     |                        |                |
 # +-----------------------------------+-----------------+     +------------------------+----------------+
 
-# Default Functional Group of architecture x86_64:
-# --------------------------
+# Functional group for default x86_64 architecture nodes
+# ---------------------------------------------------------
 #
-# This functional group is provided to cover the default compute nodes of the cluster.
+# This functional group is provided to cover the default x86_64 compute nodes of the cluster.
 #
 # If user wants to provision the group of nodes without installing any
-# additional package other than drivers and kernel parameters then this funcitonal group can be used.
+# additional package except drivers then this funcitonal group can be used.
 #
 # This functional group belongs to the compute layer.
 #
-Roles:
+functional_groups:
   - name: "default_x86_64"
     groups:
       - grp0
 
-
-
-# Service k8s head Role: Service Cluster Kubernetes master node for groups to add into service_kube_control_plane role can be provided in this role
-# ----------------------------------------------------------------------------------------------------
 #
-# This role is used to configure kubernetes master on service cluster.
+# Functional group for Service Kubernetes cluster's worker nodes groups
+# -------------------------------------------------------------------------
 #
-# This role should not have same group as of K8s head Role.
+# This finctional group is used to configure the Kubernetes worker nodes on service cluster.
 #
-# The nodes included in this role will have the necessary tools and
-# configurations to configure kubernetes master on service cluster.
-#
-# The nodes in this role can be used to run kubernetes master on service cluster.
-#
-# Service k8s head Role: Service Cluster Kubernetes master node for groups to add into service_kube_control_plane role can be provided in this role
-  # - name: "service_kube_control_plane"
-  #   groups:
-  #     - grp0
-  #     - grp1
-
-#
-# Service etcd Role: Service Cluster Kubernetes etcd node groups to add into service cluster k8s role can be provided in this role
-# ------------------------------------------------------------------------------------
-#
-# This role is used to configure the nodes for Kubernetes etcd on service cluster.
-#
-# This role should not have same group as of K8s etcd Role.
+# This functional group should not have same group as of K8s Worker node.
 #
 # The nodes included in this role will have the necessary tools and
-# configurations to configure Kubernetes etcd on service cluster.
+# configurations to configure Kubernetes worker on service cluster.
 #
-# The nodes in this role can be used to run Kubernetes etcd on service cluster.
+# The nodes in this role can be used to run Kubernetes worker on service cluster.
 #
-# Service etcd Role: Service Cluster Kubernetes etcd node groups to add into service cluster k8s role can be provided in this role
-  # - name: "service_etcd"
-  #   groups:
-  #     - grp0
-  #     - grp1
+# Service k8s Worker Role: Service Cluster Kubernetes worker node groups to add into service cluster k8s role can be provided in this role
+# - name: "service_kube_node_x86_64"
+#   kube_version: "1.31.4"
+#   groups:
+#     - grp0
+#     - grp1 
+
+  - name: "slurm_control_node_x86_64"
+    slurm_version: "25.2"
+    groups:
+      - grp0
+
+  - name: "slurm_node_x86_64"
+    slurm_version: "25.2"
+    groups:
+      - grp0
+  
+  - name: "login_node_x86_64"
+    slurm_version: "25.2"
+    groups:
+      - grp0
+
+  - name: "compiler_node_x86_64"
+    slurm_version: "25.2"
+    groups:
+      - grp0
+
+# Default Functional Group for aarch64 architecture nodes:
+# --------------------------
+#
+# This functional group is provided to cover the default aarch64 compute nodes of the cluster.
+#
+# If user wants to provision the group of nodes without installing any
+# additional package except drivers then this funcitonal group can be used.
+#
+# This functional group belongs to the compute layer.
+# 
+  - name: "default_aarch64"
+    groups:
+      - grp0
+
+  - name: "slurm_control_node_aarch64"
+    slurm_version: "25.2"
+    groups:
+      - grp0
+
+  - name: "slurm_node_aarch64"
+    slurm_version: "25.2"
+    groups:
+      - grp0
+  
+  - name: "login_node_aarch64"
+    slurm_version: "25.2"
+    groups:
+      - grp0
+
+  - name: "compiler_node_aarch64"
+    slurm_version: "25.2"
+    groups:
+      - grp0
 
 #
 # Service k8s Worker Role: Service Cluster Kubernetes worker node groups to add into service cluster k8s role can be provided in this role
