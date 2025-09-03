@@ -93,3 +93,17 @@ omnia_repo_url_rhel:
   - { url: "https://a2o.github.io/snoopy-packages/repo/centos/9/stable/", gpgkey: "", name: "snoopy"}
   - { url: "https://xcat.org/files/xcat/repos/yum/2.17/xcat-core/", gpgkey: "http://xcat.org/files/xcat/repos/yum/2.17/xcat-core/repodata/repomd.xml.key", name: "xcat-core"}
   - { url: "https://xcat.org/files/xcat/repos/yum/2.17/xcat-dep/rh9/x86_64/", gpgkey: "http://xcat.org/files/xcat/repos/yum/xcat-dep/rh9/x86_64/repodata/repomd.xml.key", name: "xcat-dep"}
+
+# Conditional Mandatory - required only when ARM nodes are part of cluster
+# This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rhel and arch aarch64 
+# Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
+# 'url' defines the baseurl for the repository
+# 'gpgkey' defines gpgkey for the repository
+# If 'gpgkey' is kept empty then gpgcheck=0 for that repository
+# 'name' A unique identifier for the registry.
+omnia_repo_url_rhel_aarch64:
+  - { url: "https://download.docker.com/linux/centos/9/aarch64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
+  - { url: "https://repo.radeon.com/rocm/rhel9/{{ rocm_version }}/main/", gpgkey: "https://repo.radeon.com/rocm/rocm.gpg.key", name: "rocm"}
+  - { url: "https://dl.fedoraproject.org/pub/epel/9/Everything/aarch64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9", name: "epel"}
+  - { url: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/dists/rhel9/", gpgkey: "https://www.beegfs.io/release/beegfs_{{beegfs_version}}/gpg/GPG-KEY-beegfs", name: "beegfs"}
+  - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/aarch64/", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey", name: "nvidia-repo"}

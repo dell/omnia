@@ -19,115 +19,84 @@
 # ***********************************************************************
 
 #*************************************************************************************************************************
-# Groups
+# groups
 #*************************************************************************************************************************
-# roles_config.yml file takes input parameters for the composable roles and groups.
-# This file contains Roles and Groups used by the omnia for cluster formation.
-# Groups: - Groups will contain the list of groups defined by the user. User must define atleast one group.
-#   grpN:                 - <Mandatory> "grpN" -  User defined name of the group. Range for N is 0-99
-#     cluster_name:       - <Conditional Mandatory> Name of the cluster to which the group belongs. This input is case-sensitive. This will remain empty for groups which are not associated with any kubernetes roles.
-#     location_id:        - <Mandatory> SU-<n>.RACK-<n> Scalable unit and rack number range is 0-99. This input is case-sensitive. Please use uppercase letters only.
-#     resource_mgr_id:    - <Conditional Mandatory> list of service tag of active head node(s).
-#                         - Set the value only for group of nodes belonging to kube_node and slurm_node roles,
-#                         - And empty for other roles.
-#     parent:             - <Conditional Mandatory> list of service tag of associated active service node(s).
-#                         - This field will be empty for group of nodes which is associated with ‘login_node’, ‘compiler_node’, ‘service_node’,
-#                         - ‘auth_server’, ‘service_kube_control_plane’, 'service_etcd', ‘kube_control_plane’, ‘etcd’, 'slurm_control_node’.
-#                         - If ‘service’ role is not defined, then value will be empty for worker and default role.
-#     bmc_details:        - <Conditional Mandatory> BMC IP static range in the format 10.5.0.1-10.5.0.200
-#        static_range:    - <Mandatory> This field mandatory in case of BMC discovery of subset of nodes
-#     switch_details      - <Conditional Mandatory> Switch details of the Rack
-#        ip:              - <Mandatory> IP address of the switch
-#        ports:           - <Mandatory> ports of the switch
-#     architecture        - <Mandatory> architecture of the nodes - x86 or ARM
-#
+# functional_groups_config.yml file takes input parameters for the composable functional groups.
+# This file contains functional groups details used by the omnia for cluster formation.
+# groups: - Groups will contain the list of groups defined by the user. User must define atleast one group.
+#   grpN:                   - <Mandatory> "grpN" -  User defined name of the group. Range for N is 0-99
+#     cluster_name:         - <Conditional Mandatory> Name of the cluster to which the group belongs. This input is case-sensitive. This will remain empty for groups which are not associated with any kubernetes roles.
+#     location_id:          - <Mandatory> SU-<n>.RACK-<n> Scalable unit and rack number range is 0-99. This input is case-sensitive. Please use uppercase letters only.
+#     parent_service_node:  - <Conditional Mandatory> service tag of associated service node.
+#                           - This field will be empty for group of nodes which is associated with ‘login_node’, ‘compiler_node’,
+#                               ‘service_kube_control_plane’, 'service_etcd', 'service_kube_node', ‘kube_control_plane’, ‘etcd’, 'slurm_control_node’.
+#                               If ‘service_kube_control_plane’, 'service_etcd', 'service_kube_node' roles are not defined, then value will be empty.
+#     additional_pkg_profile - <Optional> If any additional packages need to install on nodes associtted with define group
 
-Groups:
+groups:
   grp0:
     location_id: SU-1.RACK-1
     cluster_name: ""
-    resource_mgr_id: ""
-    parent: ""
-    bmc_details:
-      static_range: ""
-    switch_details:
-      ip: ""
-      ports: ""
-    architecture: "x86"
+    parent_service_node: ""
+    additional_pkg_profile:
+#      - { name: "cuda_x84_64", version: "12.9.1"}
+#      - { name: "ofed_x84_64", version: "24.10-3.2.5.0"}
+#      - { name: "openldap_x84_64"}
 
   # grp1:
   #   location_id: SU-1.RACK-2
   #   cluster_name: ""
-  #   resource_mgr_id: ""
-  #   parent: ""
-  #   bmc_details:
-  #     static_range: ""
-  #   switch_details:
-  #     ip: ""
-  #     ports: ""
-  #   architecture: "x86"
+  #   parent_service_node: ""
+  #    additional_pkg_profile:
+  #      - { name: "cuda_x84_64", version: "12.9.1"}
+  #      - { name: "ofed_x84_64", version: "24.10-3.2.5.0"}
+  #      - { name: "openldap_x84_64"}
 
 #************************************************************************************************************************
-#  Roles
+#  functional_groups
 #************************************************************************************************************************
-# Atleast one role is mandatory, and User is not allowed to change the name of the roles.
-# Maximum number of roles supported are 100.
-# Note: Nested roles and groups are not supported.
-# The roles are case sensitive
+# Atleast one functional groups is mandatory, and functional groups names are pre-defined.
+# Maximum number of functional groups supported are 100.
+# Note: Nested functional groups are not supported.
+# The functional group names are case sensitive
 #   - name:                           - <Mandatory> Name of the role, can be any of the following Omnia defined roles.
 #     groups:                         - <Mandatory> list of groups defined by the user
 #
 
-# This table lists the roles and the layers they belong to in the cluster.
+# This table lists the functional groups and the layers they belong to in the cluster.
 
-# +---------------------------+------------------+     +-------------------+----------------+
-# | Role Name                  | Layer           |     | Role Name         | Layer          |
-# +---------------------------+------------------+     +-------------------+----------------+
-# | oim_ha_node                | management      |     | default           | compute        |
-# | service_kube_control_plane | management      |     | kube_node         | compute        |
-# | service_etcd               | management      |     | slurm_node        | compute        |
-# | service_kube_node          | management      |     |                   |                |
-# | service_node (future use)  | management      |     |                   |                |
-# | login_node                 | management      |     |                   |                |
-# | auth_server                | management      |     |                   |                |
-# | compiler_node              | management      |     |                   |                |
-# | kube_control_plane         | management      |     |                   |                |
-# | etcd                       | management      |     |                   |                |
-# | slurm_control_node         | management      |     |                   |                |
-# +---------------------------+------------------+     +-------------------+----------------+
+# +-----------------------------------+-----------------+     +------------------------+----------------+
+# | Functional Group Name             | Layer           |     | Functional Group Name  | Layer          |
+# +-----------------------------------+-----------------+     +------------------------+----------------+
+# | service_kube_control_plane_x86_64 | management      |     | default_x86_64         | compute        |
+# | service_etcd_x86_64               | management      |     | kube_node_x86_64       | compute        |
+# | service_kube_node_x86_64          | management      |     | slurm_node_x86_64      | compute        |
+# | login_node_x86_64                 | management      |     | default_aarch64        | compute        |
+# | compiler_node_x86_64              | management      |     | kube_node_aarch64      | compute        |
+# | kube_control_plane_x86_64         | management      |     | slurm_node_aarch64     | compute        |
+# | etcd_x86_64                       | management      |     |                        |                |
+# | slurm_control_node_x86_64         | management      |     |                        |                |
+# | login_node_aarch64                | management      |     |                        |                |
+# | compiler_node_aarch64             | management      |     |                        |                |
+# +-----------------------------------+-----------------+     +------------------------+----------------+
 
-# Default Role:
-# -------------
+# Default Functional Group of architecture x86_64:
+# --------------------------
 #
-# This role is provided to cover the default role of the cluster.
+# This functional group is provided to cover the default compute nodes of the cluster.
 #
-# The default role is assigned to nodes which do not fit into any specific roles.
-# If user wants to just provision the group of nodes without associating with any role,
-# then the default role can be used.
+# If user wants to provision the group of nodes without installing any
+# additional package other than drivers and kernel parameters then this funcitonal group can be used.
 #
-# This role belongs to the compute layer.
+# This functional group belongs to the compute layer.
 #
 Roles:
-  - name: "default"
+  - name: "default_x86_64"
     groups:
       - grp0
 
 
-# OIM HA Node Role:
-# -------------
-#
-# This role is used to configure passive OIM nodes.
-#
-# The nodes included in this role will have the necessary tools and
-# configurations needed to be passive OIM nodes.
-#
-# The nodes in this role can be used in case of OIM failure.
-#
-  # - name: "oim_ha_node"
-  #   groups:
-  #     - grp0
 
-#
 # Service k8s head Role: Service Cluster Kubernetes master node for groups to add into service_kube_control_plane role can be provided in this role
 # ----------------------------------------------------------------------------------------------------
 #

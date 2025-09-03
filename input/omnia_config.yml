@@ -18,28 +18,6 @@
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 # ***********************************************************************
 
-# -----------------------------SLURM------------------------------------------------
-
-# This variable accepts whether slurm installation is supported in configless mode or slurm in nfs
-# Default value is "configless"
-# If the value is "nfs_share", then share_path has to be mentioned
-# Slurm should be installed in share_path when slurm_installation_type is set to nfs_share
-slurm_installation_type: "configless"
-
-# Variable indicates whether slurm control node services(slurmctld) should be restarted or not
-# If restart_slurm_services is set to true, slurmctld services will be restarted on every execution of omnia.yml.
-# It accepts true and false values
-# Default value is true
-restart_slurm_services: true
-
-# ----------------------------VERIFY INTEL GAUDI INSTALLATION------------------------------------------------------
-
-# It's recommended to do extensive tests hl_qual and hccl when installing a new Gaudi node. This takes around 20mins.
-# To do that during provisioning this variable has to be set to true.
-# By default  no tests are run
-run_intel_gaudi_tests: false
-
-
 # ----------------------------K8S------------------------------------------------------
 #For both service nodes k8s cluster and compute nodes k8s cluster below parameters are required,(List)
 # - cluster_name is required field
@@ -73,28 +51,66 @@ run_intel_gaudi_tests: false
 # If set to false, all packages/images will be pulled from source via internet.
 
 #validation wrt roles config L2
-service_k8s_cluster:
+k8s_cluster:
   - cluster_name: service_cluster
+    enable_ha: false
     deployment: true
-    k8s_cni: "calico"
+    vip:
+    cni: "calico"
     pod_external_ip_range: ""
-    k8s_service_addresses: "10.233.0.0/18"
-    k8s_pod_network_cidr: "10.233.64.0/18"
+    service_addresses: "10.233.0.0/18"
+    pod_network_cidr: "10.233.64.0/18"
     topology_manager_policy: "none"
     topology_manager_scope: "container"
-    k8s_offline_install: true
+    offline_install: true
     csi_powerscale_driver_secret_file_path: ""
     csi_powerscale_driver_values_file_path: ""
+    nfs_storage_name: "nfs_storage1"
  
-compute_k8s_cluster:
-  - cluster_name: compute_cluster
-    deployment: true
-    k8s_cni: "calico"
-    pod_external_ip_range: ""
-    k8s_service_addresses: "10.233.0.0/18"
-    k8s_pod_network_cidr: "10.233.64.0/18"
-    topology_manager_policy: "none"
-    topology_manager_scope: "container"
-    k8s_offline_install: true
-    csi_powerscale_driver_secret_file_path: ""
-    csi_powerscale_driver_values_file_path: ""
+# -----------------------------SLURM------------------------------------------------
+
+slurm_cluster:
+  - cluster_name: slurm_cluster
+    enable_ha: false 
+    mariadb_password: "password"
+    # This variable accepts whether slurm installation is supported in configless mode or slurm in nfs
+    # Default value is "configless"
+    # If the value is "nfs_share", then share_path has to be mentioned
+    # Slurm should be installed in share_path when slurm_installation_type is set to nfs_share
+    slurm_installation_type: "configless"
+    # Variable indicates whether slurm control node services(slurmctld) should be restarted or not
+    # If restart_slurm_services is set to true, slurmctld services will be restarted on every execution of omnia.yml.
+    # It accepts true and false values
+    # Default value is true
+    restart_slurm_services: true
+    nfs_storage_name: "nfs_storage1"
+
+security:
+  ldap:
+    connection_type: "tls"
+    certificate_file_path: ""
+    key_file_path: ""
+    ca_certificate_file_path: ""
+    organization: ""
+    organization_unit: "People"
+    user_names: 
+ 
+storage:
+  nfs_config:
+   - name: "nfs_storage1"
+     server_ip: "" # Provide the IP of the NFS server
+     server_share_path: "" # Provide server share path of the NFS Server
+     client_share_path: /home
+     client_mount_options: "nosuid,rw,sync,hard,intr"
+     nfs_server: false
+         
+       
+telemetry:
+  - cluster_name: service_cluster
+    kube_prometheus_support: false
+    idrac_collection_type: kafka
+    kafka_configurations:
+      persistence_size: "8Gi"
+      log_retention_hours: 168
+      log_retention_bytes: -1
+      topic_partitions: 1
