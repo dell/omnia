@@ -44,7 +44,7 @@ enable_routed_internet: false
 # user_repo_url_x86_64:
 #   - { url: "", gpgkey: "", name: "", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
 user_repo_url_x86_64:
-
+#- { url: "", gpgkey: "", name: "slurm_custom" }
 # user_repo_url_aarch64:
 #   - { url: "", gpgkey: "", name: "", sslcacert: "", sslclientkey: "", sslclientcert: "", policy: "" }
 user_repo_url_aarch64:

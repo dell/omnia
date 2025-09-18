@@ -11,9 +11,9 @@
         {"name": "slurm", "arch": ["x86_64","aarch64"]}
     ],
     "slurm": [
-        {"name": "slurm_control_node"},
-        {"name": "slurm_node"},
-        {"name": "login_node"}
+        {"name": "slurm_control_node_x86_64"},
+        {"name": "slurm_node_x86_64"},
+        {"name": "login_node_x86_64"}
     ]
 
 }
