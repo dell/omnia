@@ -1,0 +1,51 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+    - name: Set dynamic run tags including 'build_aarch_image'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['build_aarch_image']) | unique }}"
+        cacheable: true
+
+- name: Invoke get_config_credentials.yml
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+
+
+- name: Gather OIM data
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Include gather_oim_data role
+      ansible.builtin.include_role:
+        name: prepare_arm_node
+        tasks_from: gather_oim_data.yml
+        vars_from: main
+
+
+- name: Prepare AArch64 nodes
+  hosts: admin_aarch64
+  gather_facts: false
+  roles:
+    - prepare_arm_node

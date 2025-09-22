@@ -61,3 +61,6 @@ omnia_credentials:
   csi_driver_powerscale:
     mandatory:
       - { username: csi_username, password: csi_password }
+  build_aarch_image:
+    mandatory:
+      - { password: provision_password }
