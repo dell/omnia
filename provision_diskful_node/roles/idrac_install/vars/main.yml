@@ -1,0 +1,7 @@
+---
+virtual_media_type: CD
+mount_pause_seconds: 30
+reboot_pause_seconds: 30
+insert_retries: 3
+insert_delay: 5
+
