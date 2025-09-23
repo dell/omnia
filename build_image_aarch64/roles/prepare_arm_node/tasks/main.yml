@@ -145,3 +145,41 @@
 - name: Display NFS mount status
   ansible.builtin.debug:
     msg: "NFS share {{ nfs_info.server_ip }}:{{ nfs_info.server_share_path }} is mounted on {{ nfs_info.shared_path }}"
+
+# Combine NFS shared path and relative tar path
+- name: Set full ochami tar path
+  ansible.builtin.set_fact:
+    ochami_tar_path: "{{ nfs_info.shared_path }}/{{ ochami_tar_path }}"
+
+# Check if ochami image tar file exists
+- name: Check if ochami image tar file exists
+  ansible.builtin.stat:
+    path: "{{ ochami_tar_path }}"
+  register: ochami_tar_stat
+  failed_when: not ochami_tar_stat.stat.exists
+  changed_when: false
+
+# Load ochami image using Podman
+- name: Load ochami image using Podman
+  ansible.builtin.command:
+    cmd: "podman load -i {{ ochami_tar_path }}"
+  register: podman_load_result
+  failed_when: podman_load_result.rc != 0
+  changed_when: true
+
+# Extract image name from podman load output
+- name: Extract image name from podman load output
+  ansible.builtin.set_fact:
+    loaded_image_name: "{{ (podman_load_result.stdout | regex_findall('Loaded image: (.+)'))[0] | trim }}"
+
+# Debug the extracted image name
+- name: Debug loaded image name
+  ansible.builtin.debug:
+    msg: "Extracted image name: {{ loaded_image_name }}"
+
+# Validate image presence in Podman
+- name: Validate image presence in Podman
+  ansible.builtin.command:
+    cmd: "podman images --format '{{ '{{.Repository}}:{{.Tag}}' }}'"
+  register: podman_images
+  changed_when: false

@@ -18,6 +18,7 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 network_spec: "{{ input_project_dir }}/network_spec.yml"
 template_path: "/opt/omnia/aarch64_images"
 oim_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
+ochami_tar_path: "omnia/ochami_image_file/ochami-arm.tar"
 
 # Error messages
 no_inventory_error_msg: "No inventory provided. Please specify an inventory with -i option."
