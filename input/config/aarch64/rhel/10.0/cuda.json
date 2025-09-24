@@ -1,15 +1,18 @@
 {
   "cuda": {
     "cluster": [
-      { "package": "cuda",
-        "type": "iso",
-        "url": "https://developer.download.nvidia.com/compute/cuda/13.0.1/local_installers/cuda-repo-rhel10-13-0-local-13.0.1_580.82.07-1.aarch64.rpm",
-        "path": ""
-      },
-      { "package": "dkms",
-        "type": "rpm",
-        "repo_name": "epel"
-      }
+      { "package": "gcc", "type": "rpm", "repo_name": "aarch64_baseos" },
+      { "package": "make", "type": "rpm", "repo_name": "aarch64_baseos" },
+      { "package": "wget", "type": "rpm", "repo_name": "aarch64_baseos" },
+      { "package": "curl", "type": "rpm", "repo_name": "aarch64_baseos" },
+      { "package": "kernel-devel", "type": "rpm", "repo_name": "aarch64_baseos" },
+      { "package": "kernel-headers", "type": "rpm", "repo_name": "aarch64_baseos" },
+      { "package": "dkms", "type": "rpm", "repo_name": "epel" },
+      { "package": "nvidia-driver", "type": "rpm", "repo_name": "cuda_repo" },
+      { "package": "nvidia-driver-devel", "type": "rpm", "repo_name": "cuda_repo" },
+      { "package": "nvidia-persistenced", "type": "rpm", "repo_name": "cuda_repo" },
+      { "package": "cuda-toolkit-13-0", "type": "rpm", "repo_name": "cuda_repo" },
+      { "package": "cuda-runtime-13-0", "type": "rpm", "repo_name": "cuda_repo" }
     ]
   }
 }

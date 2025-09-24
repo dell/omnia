@@ -109,6 +109,8 @@ omnia_repo_url_rhel_x86_64:
   - { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", name: "epel"}
   - { url: "https://yum.repos.intel.com/oneapi/", gpgkey: "https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB", name: "oneapi"}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/x86_64/", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey", name: "nvidia"}
+  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/CDF6BA43.pub", name: "cuda_repo" }
+  - { url: "https://linux.mellanox.com/public/repo/doca/3.1.0/rhel10.0/x86_64/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.1.0/rhel10.0/x86_64/GPG-KEY-Mellanox.pub", name: "ofed_repo" }
 
 # Mandatory
 # This variable defines all the repo urls from where rpms will be downloaded for omnia features when cluster_os_type is rhel and arch aarch64 
@@ -121,3 +123,5 @@ omnia_repo_url_rhel_aarch64:
   - { url: "https://download.docker.com/linux/centos/10/aarch64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
   - { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/aarch64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", name: "epel"}
   - { url: "https://nvidia.github.io/libnvidia-container/stable/rpm/aarch64/", gpgkey: "https://nvidia.github.io/libnvidia-container/gpgkey", name: "nvidia"}
+  - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/sbsa/CDF6BA43.pub", name: "cuda_repo" }
+  - { url: "https://linux.mellanox.com/public/repo/doca/3.1.0/rhel10.0/arm64-sbsa/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.1.0/rhel10.0/arm64-sbsa/GPG-KEY-Mellanox.pub", name: "ofed_repo" }
