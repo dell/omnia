@@ -295,12 +295,13 @@
 
         - |
           tmpfile=$(mktemp)
+          grep '^search' /etc/resolv.conf > $tmpfile
           {% for ns in hostvars['localhost']['dns'] %}
           echo "nameserver {{ ns }}" >> $tmpfile
           {% endfor %}
-          cat /etc/resolv.conf >> $tmpfile
+          grep -v '^search' /etc/resolv.conf | grep -v '^$' >> $tmpfile
           mv $tmpfile /etc/resolv.conf
-  
+
         - chattr +i /etc/resolv.conf
 
         # SELinux config

@@ -74,6 +74,16 @@
     state: absent
     backup: true
 
+- name: Add nameservers after search line in /etc/resolv.conf
+  ansible.builtin.lineinfile:
+    path: /etc/resolv.conf
+    line: 'nameserver {{ item }}'
+    insertafter: '^search'
+    state: present
+    backup: true
+  loop: "{{ hostvars['localhost']['dns'] }}"
+
+
 - name: Add nameserver 10.233.0.3 at the end
   ansible.builtin.lineinfile:
     path: /etc/resolv.conf
