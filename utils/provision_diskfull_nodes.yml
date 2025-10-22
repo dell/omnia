@@ -1,0 +1,70 @@
+---
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Set dynamic run tags including 'provision'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['provision']) | unique }}"
+        cacheable: true
+
+- name: Invoke get_config_credentials.yml
+  when: not config_file_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: include_input_dir.yml
+  tags: always
+
+- name: Deploy RHEL using iDRAC OS deployment
+  hosts: bmc_x86_64, bmc_aarch64
+  gather_facts: false
+  become: false
+
+  pre_tasks:
+    - name: Include provision config
+      ansible.builtin.include_vars: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
+
+    - name: Include oim metadata vars
+      ansible.builtin.include_vars: "/opt/omnia/.data/oim_metadata.yml"
+
+    - name: Select ISO file per architecture
+      ansible.builtin.set_fact:
+        os_iso_file_name: >-
+          {% if 'bmc_x86_64' in group_names %}
+            {{ os_iso_file_name_x86_64 }}
+          {% elif 'bmc_aarch64' in group_names %}
+            {{ os_iso_file_name_aarch }}
+          {% else %}
+            ""
+          {% endif %}
+
+    - name: Fail if ISO file name is not defined or empty
+      ansible.builtin.fail:
+        msg: >-
+          The ISO file name for {{ group_names | join(', ') }} is empty!
+          Please set 'os_iso_file_name_x86_64' or 'os_iso_file_name_aarch'
+          in provision_config.yml.
+      when: os_iso_file_name is not defined or os_iso_file_name | trim == ""
+
+  tasks:
+    - name: Run OS deployment via iDRAC
+      ansible.builtin.include_role:
+        name: dellemc.openmanage.idrac_os_deployment
+      vars:
+        hostname: "{{ inventory_hostname }}"
+        username: "{{ hostvars['localhost']['bmc_username'] }}"
+        password: "{{ hostvars['localhost']['bmc_password'] }}"
+        os_name: RHEL # hardcoded as the role accepts RHEL. Since custom iso being used this var won't have any impact.
+        os_version: 9 # hardcoded as the role accepts 9. Since custom iso being used this var won't have any impact.
+        validate_certs: false
+        source:
+          protocol: nfs
+          hostname: "{{ nfs_server_ip }}"
+          iso_path: "{{ nfs_server_share_path }}"
+          iso_name: "{{ os_iso_file_name }}"
+          is_custom_iso: true
+        eject_iso: true
+        os_deployment_timeout: 30

@@ -26,6 +26,16 @@
 # Format of csv: FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP
 pxe_mapping_file_path: "/opt/omnia/input/project_default/pxe_mapping_file.csv"
 
+# x64 bit Operating System ISO file name.
+# This specifies the name of the ISO file to be used for OS provisioning.
+# The ISO should be configured for unattended or silent installation.
+os_iso_file_name_x86_64: ""
+
+# arm Operating System ISO file name.
+# This specifies the name of the ISO file to be used for OS provisioning.
+# The ISO should be configured for unattended or silent installation.
+os_iso_file_name_aarch: ""
+
 #### Mandatory
 # Timezone that needs to be set during OS provisioning.
 # Available timezones are provided in common/library/module_utils/input_validation/common_utils/timezone.txt
