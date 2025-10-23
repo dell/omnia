@@ -1,3 +1,17 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # ---- Slurm Build Configuration ----
 slurm_version: "25.05.2"
 slurm_tarball: "slurm-{{ slurm_version }}.tar.bz2"
@@ -51,17 +65,17 @@ slurm_dependencies:
 
 apache_pkg: httpd
 
-#----- paths -----
+# ----- paths -----
 base_dir: "/omnia/utils/create_slurm_repo"
 slurm_base: "{{ base_dir }}/{{ dir_name }}"
 log_dir: "{{ slurm_base }}/log"
 rpmbuild_dir: "{{ slurm_base }}/rpmbuild"
 
 
-#----- rpms copy path -----
+# ----- rpms copy path -----
 source_rpm_path: "{{ slurm_base }}/rpmbuild/RPMS/x86_64"
 html_repo_path: "/var/www/html"
 dest_repo_path: "{{ html_repo_path }}/slurm_rpms"
 
-#----- Repo url -----
+# ----- Repo url -----
 repo_url: "http://{{ inventory_hostname }}/slurm_rpms/"

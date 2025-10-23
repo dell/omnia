@@ -1,3 +1,16 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 ---
 - name: Ensure Apache (httpd) is installed
   ansible.builtin.dnf:
@@ -10,21 +23,25 @@
     state: started
     enabled: true
 
-- name: Verify Apache service status
-  ansible.builtin.command: systemctl is-active httpd
-  register: apache_status
-  failed_when: apache_status.stdout.strip() != "active"
-  changed_when: false
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Verify Apache service is active
+  ansible.builtin.assert:
+    that:
+      - "'httpd.service' in ansible_facts.services"
+      - "ansible_facts.services['httpd.service'].state == 'running'"
+    fail_msg: "Apache (httpd) service is not active!"
 
 - name: Confirm Apache is listening on port 80
-  ansible.builtin.shell: ss -tuln | grep ':80'
-  register: port_check
-  failed_when: port_check.rc != 0
-  changed_when: false
+  ansible.builtin.wait_for:
+    port: 80
+    state: started
+    timeout: 10
 
 - name: Ensure /var/www/html exists
   ansible.builtin.file:
-    path: {{ html_repo_path }}
+    path: "{{ html_repo_path }}"
     state: directory
     owner: apache
     group: apache
@@ -32,7 +49,7 @@
 
 - name: Create a simple index.html for testing
   ansible.builtin.copy:
-    dest: {{ html_repo_path }}/index.html
+    dest: "{{ html_repo_path }}/index.html"
     content: |
       <html>
       <body>
@@ -44,8 +61,10 @@
     mode: '0644'
 
 - name: Restore SELinux context on /var/www/html (if SELinux enabled)
-  ansible.builtin.command: restorecon -Rv {{ html_repo_path }}
+  ansible.builtin.command: restorecon -Rv "{{ html_repo_path }}"
   when: ansible_selinux is defined and ansible_selinux.status == "enabled"
+  register: selinux_restore
+  changed_when: "'Relabeled' in selinux_restore.stdout"
 
 - name: Verify Apache default web page via HTTP
   ansible.builtin.uri:

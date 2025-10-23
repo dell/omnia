@@ -1,10 +1,23 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 ---
 - name: Remove existing destination directory if present
   ansible.builtin.file:
     path: "{{ dest_repo_path }}"
     state: absent
 
-- name: create destination directory
+- name: Create destination directory
   ansible.builtin.file:
     path: "{{ dest_repo_path }}"
     state: directory
@@ -19,7 +32,7 @@
     owner: apache
     group: apache
     mode: '0644'
-    remote_src: no
+    remote_src: false
 
 - name: Install createrepo if not installed
   ansible.builtin.dnf:
@@ -34,7 +47,7 @@
 - name: Verify repo URL is accessible
   ansible.builtin.uri:
     url: "{{ repo_url }}"
-    return_content: no
+    return_content: false
     status_code: 200
   register: repo_check
   failed_when: repo_check.status != 200
