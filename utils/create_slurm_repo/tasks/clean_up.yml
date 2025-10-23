@@ -1,0 +1,14 @@
+---
+- name: Announce cleanup
+  ansible.builtin.debug:
+    msg: "Cleaning up Slurm build environment at {{ slurm_base }}"
+
+- name: Remove Slurm base directory
+  ansible.builtin.file:
+    path: "{{ slurm_base }}"
+    state: absent
+  ignore_errors: true
+
+- name: Confirm cleanup complete
+  ansible.builtin.debug:
+    msg: "Cleanup complete."

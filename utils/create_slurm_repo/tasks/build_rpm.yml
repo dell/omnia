@@ -1,0 +1,23 @@
+- name: Verify Slurm tarball exists
+  ansible.builtin.stat:
+    path: "{{ slurm_base }}/{{ slurm_tarball }}"
+  register: slurm_tarball_check
+
+- name: Fail if Slurm tarball is missing
+  ansible.builtin.fail:
+    msg: "Slurm source tarball not found at {{ slurm_base }}/{{ slurm_tarball }}."
+  when: not slurm_tarball_check.stat.exists
+
+- name: Run rpmbuild for Slurm (This taks may take few minutes)
+  ansible.builtin.shell: >
+    rpmbuild -ta {{ slurm_base }}/{{ slurm_tarball }}
+    --define "_topdir {{ rpmbuild_dir }}"
+    --define "_configure_args --with-ucx --with-pmix --enable-cgroupv2
+    --with-yaml --with-jwt --with-libcurl
+    --with-nvml=/usr/local/cuda --without-hdf5"
+    > "{{ log_dir }}/rpm_build.log" 2>&1
+  args:
+    chdir: "{{ slurm_base }}"
+  register: rpmbuild_result
+  changed_when: rpmbuild_result.rc == 0
+  failed_when: rpmbuild_result.rc != 0

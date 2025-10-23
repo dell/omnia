@@ -1,0 +1,10 @@
+---
+- name: Ensure base, rpmbuild, and log directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ slurm_base }}"
+    - "{{ rpmbuild_dir }}"
+    - "{{ log_dir }}"

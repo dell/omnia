@@ -1,0 +1,14 @@
+---
+- name: Install sshpass
+  ansible.builtin.dnf:
+    name: sshpass
+    state: present
+
+- name: Verify sshpass installation
+  ansible.builtin.command: sshpass -V
+  register: sshpass_version
+  changed_when: false
+
+- name: Display sshpass installation status
+  ansible.builtin.debug:
+    msg: "sshpass installed successfully"

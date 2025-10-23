@@ -1,0 +1,17 @@
+---
+- name: Update package metadata
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    update_only: true
+
+- name: Install Slurm build dependencies
+  ansible.builtin.yum:
+    name: "{{ slurm_dependencies.common_pkg + slurm_dependencies.tools_pkg + slurm_dependencies.slurm_pkg }}"
+    state: present
+  register: install_result
+
+- name: Fail play if dependency installation failed
+  ansible.builtin.fail:
+    msg: "Slurm dependency installation failed on {{ inventory_hostname }}!"
+  when: install_result is failed

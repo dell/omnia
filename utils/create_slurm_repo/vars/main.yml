@@ -1,0 +1,67 @@
+# ---- Slurm Build Configuration ----
+slurm_version: "25.05.2"
+slurm_tarball: "slurm-{{ slurm_version }}.tar.bz2"
+slurm_download_url: "https://download.schedmd.com/slurm/{{ slurm_tarball }}"
+dir_name: "slurm_{{ slurm_version }}"
+
+# ---- Package Groups ----
+slurm_dependencies:
+  common_pkg:
+    - wget
+    - git
+    - make
+    - gcc
+    - gcc-c++
+    - rpm-build
+    - autoconf
+    - automake
+    - python3
+    - python3-devel
+    - perl
+    - perl-devel
+    - readline-devel
+    - zlib-devel
+    - pam-devel
+    - dbus-devel
+    - hwloc-devel
+    - libbpf-devel
+
+  tools_pkg:
+    - ucx
+    - ucx-devel
+    - openmpi
+    - openmpi-devel
+    - pmix
+    - pmix-devel
+
+  slurm_pkg:
+    - jansson-devel
+    - libcurl
+    - libcurl-devel
+    - json-c
+    - json-c-devel
+    - libyaml
+    - libyaml-devel
+    - http-parser-devel
+    - openssl-devel
+    - mariadb-devel
+    - systemd-devel
+    - munge
+    - munge-devel
+
+apache_pkg: httpd
+
+#----- paths -----
+base_dir: "/omnia/utils/create_slurm_repo"
+slurm_base: "{{ base_dir }}/{{ dir_name }}"
+log_dir: "{{ slurm_base }}/log"
+rpmbuild_dir: "{{ slurm_base }}/rpmbuild"
+
+
+#----- rpms copy path -----
+source_rpm_path: "{{ slurm_base }}/rpmbuild/RPMS/x86_64"
+html_repo_path: "/var/www/html"
+dest_repo_path: "{{ html_repo_path }}/slurm_rpms"
+
+#----- Repo url -----
+repo_url: "http://{{ inventory_hostname }}/slurm_rpms/"

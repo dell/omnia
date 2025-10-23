@@ -1,0 +1,20 @@
+---
+- name: Ensure Slurm base directory exists
+  ansible.builtin.file:
+    path: "{{ slurm_base }}"
+    state: directory
+    mode: '0755'
+
+- name: Download Slurm source tarball
+  ansible.builtin.get_url:
+    url: "{{ slurm_download_url }}"
+    dest: "{{ slurm_base }}/{{ slurm_tarball }}"
+    mode: '0644'
+    force: yes
+  register: download_result
+
+- name: Verify download success
+  ansible.builtin.fail:
+    msg: "Failed to download {{ slurm_tarball }} from {{ slurm_download_url }}"
+  when: download_result is failed
+

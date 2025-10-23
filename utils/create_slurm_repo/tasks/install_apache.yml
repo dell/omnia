@@ -1,0 +1,60 @@
+---
+- name: Ensure Apache (httpd) is installed
+  ansible.builtin.dnf:
+    name: httpd
+    state: present
+
+- name: Enable and start Apache service
+  ansible.builtin.service:
+    name: httpd
+    state: started
+    enabled: true
+
+- name: Verify Apache service status
+  ansible.builtin.command: systemctl is-active httpd
+  register: apache_status
+  failed_when: apache_status.stdout.strip() != "active"
+  changed_when: false
+
+- name: Confirm Apache is listening on port 80
+  ansible.builtin.shell: ss -tuln | grep ':80'
+  register: port_check
+  failed_when: port_check.rc != 0
+  changed_when: false
+
+- name: Ensure /var/www/html exists
+  ansible.builtin.file:
+    path: {{ html_repo_path }}
+    state: directory
+    owner: apache
+    group: apache
+    mode: '0755'
+
+- name: Create a simple index.html for testing
+  ansible.builtin.copy:
+    dest: {{ html_repo_path }}/index.html
+    content: |
+      <html>
+      <body>
+        <h1>Apache is running on {{ ansible_hostname }}</h1>
+      </body>
+      </html>
+    owner: apache
+    group: apache
+    mode: '0644'
+
+- name: Restore SELinux context on /var/www/html (if SELinux enabled)
+  ansible.builtin.command: restorecon -Rv {{ html_repo_path }}
+  when: ansible_selinux is defined and ansible_selinux.status == "enabled"
+
+- name: Verify Apache default web page via HTTP
+  ansible.builtin.uri:
+    url: "http://localhost"
+    status_code: 200
+  register: http_check
+  failed_when: http_check.status != 200
+  changed_when: false
+
+- name: Display success message
+  ansible.builtin.debug:
+    msg: "Apache successfully installed and serving content on {{ ansible_hostname }}"
