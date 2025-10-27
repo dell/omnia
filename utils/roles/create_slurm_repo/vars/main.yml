@@ -1,0 +1,96 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ---- Slurm Build Configuration ----
+slurm_version: "25.05.2"
+slurm_tarball: "slurm-{{ slurm_version }}.tar.bz2"
+slurm_download_url: "https://download.schedmd.com/slurm/{{ slurm_tarball }}"
+dir_name: "slurm_{{ slurm_version }}"
+repo_dir_mode: "0755"
+
+
+# ---- Package Groups ----
+slurm_dependencies:
+  common_pkg:
+    - wget
+    - git
+    - make
+    - gcc
+    - gcc-c++
+    - rpm-build
+    - autoconf
+    - automake
+    - python3
+    - python3-devel
+    - perl
+    - perl-devel
+    - readline-devel
+    - zlib-devel
+    - pam-devel
+    - dbus-devel
+    - hwloc-devel
+    - libbpf-devel
+
+  tools_pkg:
+    - ucx
+    - ucx-devel
+    - openmpi
+    - openmpi-devel
+    - pmix
+    - pmix-devel
+
+  slurm_pkg:
+    - jansson-devel
+    - libcurl
+    - libcurl-devel
+    - json-c
+    - json-c-devel
+    - libyaml
+    - libyaml-devel
+    - http-parser-devel
+    - openssl-devel
+    - mariadb-devel
+    - systemd-devel
+    - munge
+    - munge-devel
+
+apache_pkg: httpd
+
+# ----- slurm configs ----- 
+slurm_configure_args:
+  - "--with-ucx"
+  - "--with-pmix"
+  - "--enable-cgroupv2"
+  - "--with-yaml"
+  - "--with-jwt"
+  - "--with-libcurl"
+  - "--without-hdf5"
+
+slurm_nvml_config:
+  path: "/usr/local/cuda"
+
+# ----- paths -----
+base_dir: "/opt/omnia/"
+slurm_base: "{{ base_dir }}/{{ dir_name }}"
+log_dir: "{{ base_dir }}/log/{{ dir_name }}"
+rpmbuild_dir: "{{ slurm_base }}/rpmbuild"
+
+
+# ----- rpms copy path -----
+source_rpm_path: "{{ slurm_base }}/rpmbuild/RPMS/x86_64"
+html_repo_path: "/var/www/html"
+dest_repo_path: "{{ html_repo_path }}/slurm_rpms"
+
+# ----- Repo url -----
+repo_url: "http://{{ inventory_hostname }}/slurm_rpms/"
