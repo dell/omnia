@@ -21,7 +21,8 @@ repo_dir_mode: "0755"
 
 # ---- Apache Configd ----
 apache_config:
-  port: 80
+  port:
+    - 80
 
 # ---- Package Groups ----
 slurm_dependencies:

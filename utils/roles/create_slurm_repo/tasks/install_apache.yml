@@ -32,7 +32,7 @@
 
 - name: Confirm Apache is listening on port 80
   ansible.builtin.wait_for:
-    port: {{ apache_config.port }}
+    port: "{{ apache_config.port | int }}"
     state: started
     timeout: 10
   changed_when: false
@@ -48,7 +48,7 @@
     state: directory
     owner: apache
     group: apache
-    mode: {{ repo_dir_mode }}
+    mode: "{{ repo_dir_mode }}"
 
 - name: Restore SELinux context on /var/www/html (if enabled)
   ansible.builtin.command: restorecon -Rv {{ html_repo_path }}
