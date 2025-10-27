@@ -19,4 +19,3 @@
   any_errors_fatal: true
   roles:
     - create_slurm_repo
-

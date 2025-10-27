@@ -28,22 +28,19 @@
     service: http
     permanent: true
     state: enabled
-
-- name: Reload firewalld rules
-  ansible.builtin.command: firewall-cmd --reload
-  changed_when: false
-
-- name: Verify Apache service status
-  ansible.builtin.command: systemctl is-active httpd
-  register: apache_status
-  failed_when: apache_status.stdout.strip() != "active"
-  changed_when: false
+    immediate: true
 
 - name: Confirm Apache is listening on port 80
-  ansible.builtin.shell: ss -tuln | grep ':80'
-  register: port_check
-  failed_when: port_check.rc != 0
+  ansible.builtin.wait_for:
+    port: {{ apache_config.port }}
+    state: started
+    timeout: 10
   changed_when: false
+
+- name: Ensure Apache is installed and running
+  ansible.builtin.dnf:
+    name: httpd
+    state: present
 
 - name: Ensure /var/www/html exists
   ansible.builtin.file:
@@ -51,40 +48,13 @@
     state: directory
     owner: apache
     group: apache
-    mode: '0755'
+    mode: {{ repo_dir_mode }}
 
-- name: Create a simple index.html for testing
-  ansible.builtin.copy:
-    dest: "{{ html_repo_path }}/index.html"
-    content: |
-      <html>
-      <body>
-        <h1>Apache is running on {{ inventory_hostname }}</h1>
-      </body>
-      </html>
-    owner: apache
-    group: apache
-    mode: '0644'
-
-- name: Restore SELinux context on /var/www/html
+- name: Restore SELinux context on /var/www/html (if enabled)
   ansible.builtin.command: restorecon -Rv {{ html_repo_path }}
   when: ansible_selinux is defined and ansible_selinux.status == "enabled"
-
-- name: Verify Apache default web page via HTTP
-  ansible.builtin.uri:
-    url: "http://localhost"
-    status_code: 200
-  register: http_check
-  failed_when: http_check.status != 200
   changed_when: false
-
-- name: Remove test index.html after validation
-  ansible.builtin.file:
-    path: "{{ html_repo_path }}/index.html"
-    state: absent
 
 - name: Display success message
   ansible.builtin.debug:
-    msg: "Apache successfully installed, configured, accessible, and tested!"
-
-
+    msg: "Apache successfully installed and serving"

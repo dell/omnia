@@ -12,33 +12,45 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-# ============================================================
 # Play 1 Tasks - Executed on localhost (Control Node)
-# ============================================================
+- name: Install sshpass
+  ansible.builtin.include_tasks: install_sshpass.yml
 
+- name: Clean up previous build
+  ansible.builtin.include_tasks: clean_up.yml
 
-# ============================================================
+- name: Create directory structure
+  ansible.builtin.include_tasks: create_dirs.yml
+
+- name: Install dependencies
+  ansible.builtin.include_tasks: install_dependencies.yml
+
+- name: Download Slurm source tarball
+  ansible.builtin.include_tasks: download_tarball.yml
+
+- name: Build Slurm RPM package
+  ansible.builtin.include_tasks: build_rpm.yml
+
 # Play 2 Tasks - Executed on Delegated Apache Host
-# ============================================================
-
-# Pre-task: check Apache install status
-- name: Check if Apache is already installed on apache_server
-  ansible.builtin.command: rpm -q {{ apache_pkg }}
-  register: apache_check
-  ignore_errors: true
-  changed_when: false
+- name: Collect installed rpm package facts
   delegate_to: "{{ groups['apache_server'][0] }}"
+  run_once: true
+  ansible.builtin.package_facts:
+
+- name: Check if Apache is already installed on apache_server
+  ansible.builtin.set_fact:
+    apache_installed: "{{ apache_pkg in ansible_facts.packages }}"
+  delegate_to: "{{ groups['apache_server'][0] }}"
+  run_once: true
 
 - name: Slurm Repo creation tasks on Apache Server
+  delegate_to: "{{ groups['apache_server'][0] }}"
+  run_once: true
   block:
 
     - name: Install and configure Apache (only if not installed)
       ansible.builtin.include_tasks: install_apache.yml
-      when: apache_check.rc != 0
+      when: not apache_installed | bool
 
     - name: Copy Slurm RPMs and create repository
       ansible.builtin.include_tasks: copy_rpms.yml
-
-  delegate_to: "{{ groups['apache_server'][0] }}"
-  run_once: true
-

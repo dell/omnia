@@ -19,6 +19,9 @@ slurm_download_url: "https://download.schedmd.com/slurm/{{ slurm_tarball }}"
 dir_name: "slurm_{{ slurm_version }}"
 repo_dir_mode: "0755"
 
+# ---- Apache Configd ----
+apache_config:
+  port: 80
 
 # ---- Package Groups ----
 slurm_dependencies:
@@ -67,7 +70,7 @@ slurm_dependencies:
 
 apache_pkg: httpd
 
-# ----- slurm configs ----- 
+# ----- slurm configs -----
 slurm_configure_args:
   - "--with-ucx"
   - "--with-pmix"
@@ -91,4 +94,3 @@ rpmbuild_dir: "{{ slurm_base }}/rpmbuild"
 source_rpm_path: "{{ slurm_base }}/rpmbuild/RPMS/x86_64"
 html_repo_path: "/var/www/html"
 dest_repo_path: "{{ html_repo_path }}/slurm_rpms"
-
