@@ -1,0 +1,78 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# Play 1: Build Slurm RPMs on the control node
+
+- name: Ensure sshpass is installed and build Slurm RPMs
+  hosts: localhost
+  become: true
+  gather_facts: false
+
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+
+    # Ensure sshpass is available for password-based SSH connections
+    - name: Install sshpass
+      ansible.builtin.include_tasks: tasks/install_sshpass.yml
+
+    # Clean up any previous build artifacts or directories
+    - name: Clean up previous build
+      ansible.builtin.include_tasks: tasks/clean_up.yml
+
+    # Create required directory structure for Slurm RPM build
+    - name: Create directory structure
+      ansible.builtin.include_tasks: tasks/create_dirs.yml
+
+    # Install required dependencies and build tools for Slurm
+    - name: Install dependencies
+      ansible.builtin.include_tasks: tasks/install_dependencies.yml
+
+    # Download the Slurm source tarball from a given URL or local source
+    - name: Download Slurm source tarball
+      ansible.builtin.include_tasks: tasks/download_tarball.yml
+
+    # Build the Slurm RPM package using rpmbuild
+    - name: Build Slurm RPM package
+      ansible.builtin.include_tasks: tasks/build_rpm.yml
+
+
+# Play 2: Configure Apache server and host Slurm RPM repository
+
+- name: Create Slurm repo and ensure Apache is configured
+  hosts: apache_server
+  become: true
+  gather_facts: true
+
+  vars_files:
+    - vars/main.yml
+
+  pre_tasks:
+    # Ensure Apache package is installed before proceeding
+    - name: Ensure Apache is installed
+      ansible.builtin.package:
+        name: "{{ apache_pkg }}"
+        state: present
+      register: apache_check
+
+  tasks:
+    # Run Apache installation/configuration tasks only if it was newly installed
+    - name: Install and configure Apache (only if not installed)
+      ansible.builtin.include_tasks: tasks/install_apache.yml
+      when: apache_check.changed
+
+    # Copy built Slurm RPMs to Apache directory and create repo metadata
+    - name: Copy Slurm RPMs and create repository
+      ansible.builtin.include_tasks: tasks/copy_rpms.yml
