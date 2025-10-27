@@ -1,0 +1,2 @@
+[apache_server]
+localhost_ip ansible_user=username ansible_password=*****

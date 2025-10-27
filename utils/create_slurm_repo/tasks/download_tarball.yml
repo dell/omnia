@@ -16,7 +16,7 @@
   ansible.builtin.file:
     path: "{{ slurm_base }}"
     state: directory
-    mode: '0755'
+    mode: "{{ repo_dir_mode }}"
 
 - name: Download Slurm source tarball
   ansible.builtin.get_url:

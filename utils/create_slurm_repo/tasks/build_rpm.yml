@@ -22,7 +22,7 @@
     msg: "Slurm source tarball not found at {{ slurm_base }}/{{ slurm_tarball }}."
   when: not slurm_tarball_check.stat.exists
 
-- name: Run rpmbuild for Slurm (This taks may take few minutes)
+- name: Run rpmbuild for Slurm (This task may take few minutes)
   ansible.builtin.shell: >
     rpmbuild -ta {{ slurm_base }}/{{ slurm_tarball }}
     --define "_topdir {{ rpmbuild_dir }}"

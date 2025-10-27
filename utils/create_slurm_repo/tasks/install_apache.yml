@@ -45,20 +45,7 @@
     state: directory
     owner: apache
     group: apache
-    mode: '0755'
-
-- name: Create a simple index.html for testing
-  ansible.builtin.copy:
-    dest: "{{ html_repo_path }}/index.html"
-    content: |
-      <html>
-      <body>
-        <h1>Apache is running on {{ ansible_hostname }}</h1>
-      </body>
-      </html>
-    owner: apache
-    group: apache
-    mode: '0644'
+    mode: "{{ repo_dir_mode }}"
 
 - name: Restore SELinux context on /var/www/html (if SELinux enabled)
   ansible.builtin.command: restorecon -Rv "{{ html_repo_path }}"

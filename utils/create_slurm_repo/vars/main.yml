@@ -17,6 +17,8 @@ slurm_version: "25.05.2"
 slurm_tarball: "slurm-{{ slurm_version }}.tar.bz2"
 slurm_download_url: "https://download.schedmd.com/slurm/{{ slurm_tarball }}"
 dir_name: "slurm_{{ slurm_version }}"
+repo_dir_mode: "0755"
+
 
 # ---- Package Groups ----
 slurm_dependencies:

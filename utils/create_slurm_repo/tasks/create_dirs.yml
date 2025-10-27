@@ -16,7 +16,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: '0755'
+    mode: "{{ repo_dir_mode }}"
   loop:
     - "{{ slurm_base }}"
     - "{{ rpmbuild_dir }}"

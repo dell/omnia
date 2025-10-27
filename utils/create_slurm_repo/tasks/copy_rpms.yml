@@ -23,7 +23,7 @@
     state: directory
     owner: apache
     group: apache
-    mode: '0755'
+    mode: "{{ repo_dir_mode }}"
 
 - name: Copy RPMs from source to destination
   ansible.builtin.copy:
