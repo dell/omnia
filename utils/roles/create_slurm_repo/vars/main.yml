@@ -81,7 +81,7 @@ slurm_nvml_config:
   path: "/usr/local/cuda"
 
 # ----- paths -----
-base_dir: "/opt/omnia/"
+base_dir: "/opt/omnia"
 slurm_base: "{{ base_dir }}/{{ dir_name }}"
 log_dir: "{{ base_dir }}/log/{{ dir_name }}"
 rpmbuild_dir: "{{ slurm_base }}/rpmbuild"
@@ -92,5 +92,3 @@ source_rpm_path: "{{ slurm_base }}/rpmbuild/RPMS/x86_64"
 html_repo_path: "/var/www/html"
 dest_repo_path: "{{ html_repo_path }}/slurm_rpms"
 
-# ----- Repo url -----
-repo_url: "http://{{ inventory_hostname }}/slurm_rpms/"

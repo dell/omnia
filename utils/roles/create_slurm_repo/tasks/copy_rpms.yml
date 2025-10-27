@@ -46,4 +46,4 @@
 
 - name: Display success message
   ansible.builtin.debug:
-    msg: "Slurm RPM repository successfully created and accessible at {{ repo_url }}"
+    msg: "Slurm RPM repository successfully created and accessible at http://{{ ansible_host | default(inventory_hostname) }}/slurm_rpms/"

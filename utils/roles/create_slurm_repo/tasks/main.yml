@@ -16,24 +16,6 @@
 # Play 1 Tasks - Executed on localhost (Control Node)
 # ============================================================
 
-- name: Install sshpass
-  ansible.builtin.include_tasks: install_sshpass.yml
-
-- name: Clean up previous build
-  ansible.builtin.include_tasks: clean_up.yml
-
-- name: Create directory structure
-  ansible.builtin.include_tasks: create_dirs.yml
-
-- name: Install dependencies
-  ansible.builtin.include_tasks: install_dependencies.yml
-
-- name: Download Slurm source tarball
-  ansible.builtin.include_tasks: download_tarball.yml
-
-- name: Build Slurm RPM package
-  ansible.builtin.include_tasks: build_rpm.yml
-
 
 # ============================================================
 # Play 2 Tasks - Executed on Delegated Apache Host
