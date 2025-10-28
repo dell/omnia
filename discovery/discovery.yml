@@ -82,4 +82,5 @@
     - nfs_client
     - slurm_config
     - openldap
+    - telemetry
     - configure_ochami

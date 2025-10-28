@@ -42,26 +42,6 @@
         name: telemetry_validation
         tasks_from: validation_status_check.yml
 
-- name: Validate service k8s cluster
-  hosts: kube_control_plane
-  gather_facts: false
-  any_errors_fatal: true
-  tasks:
-    - name: Validate service k8s cluster
-      ansible.builtin.include_role:
-        name: service_k8s_telemetry
-        tasks_from: prereq_checks.yml
-
-# service_k8s_prereq
-- name: Initiate pre-requisites for service cluster
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Initiate pre-requisites
-      ansible.builtin.include_role:
-        name: service_k8s_telemetry
-        tasks_from: generate_service_cluster_metadata.yml
 
 - name: Deployment of telemetry pods in service cluster
   hosts: kube_control_plane[0]

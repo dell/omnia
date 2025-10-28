@@ -13,9 +13,15 @@
 #  limitations under the License.
 ---
 
-- name: Deployment of k8s telemetry service
+- name: Configure of k8s telemetry service
   when:
     - hostvars['localhost']['idrac_telemetry_support']
   block:
-    - name: Update service cluster metadata
-      ansible.builtin.include_tasks: update_metadata_file.yml
+    - name: Generate telemetry deployments
+      ansible.builtin.include_tasks: generate_telemetry_deployments.yaml
+
+    - name: Validate idrac telemetry config
+      ansible.builtin.include_tasks: validate_idrac_inventory.yml
+
+    - name: Generate service clsuter metadata
+      ansible.builtin.include_tasks: generate_service_cluster_metadata.yml

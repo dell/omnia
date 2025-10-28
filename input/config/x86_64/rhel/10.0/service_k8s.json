@@ -10,6 +10,7 @@
       { "package": "cni-v1.4.1-amd64", "type": "tarball", "url": "https://github.com/containernetworking/plugins/releases/download/v1.4.1/cni-plugins-linux-amd64-v1.4.1.tgz" },
       { "package": "calicoctl-v3.29.3-amd64", "type": "tarball", "url": "https://github.com/projectcalico/calico/releases/download/v3.29.3/calicoctl-linux-amd64" },
       { "package": "calico.archive-v3.29.3", "type": "tarball", "url": "https://github.com/projectcalico/calico/archive/v3.29.3.tar.gz" },
+      { "package": "docker.io/victoriametrics/victoria-metrics", "type": "image", "tag": "v1.128.0" },
       { "package": "docker.io/library/golang", "type": "image", "tag": "1.24" },
       { "package": "docker.io/library/busybox", "type": "image", "tag": "1.36" },
       { "package": "docker.io/rmohr/activemq", "type": "image", "tag": "5.15.9" },

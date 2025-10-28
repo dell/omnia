@@ -13,27 +13,21 @@
 # limitations under the License.
 ---
 
-- name: Include variable file omnia_config.yml
-  block:
-    - name: Include variable file omnia_config.yml
-      ansible.builtin.include_vars: "{{ input_project_dir }}/{{ omnia_config_filename }}"
-      register: include_omnia_config
-      no_log: true
-  rescue:
-    - name: Failed to include omnia_config.yml
-      ansible.builtin.fail:
-        msg: "{{ omnia_config_syntax_fail_msg }} Error: {{ include_omnia_config.message }}"
+- name: Set support values
+  ansible.builtin.set_fact:
+    idrac_telemetry_support: "{{ idrac_telemetry_support | lower }}"
 
-- name: Include variable file storage_config.yml
-  block:
-    - name: Include variable file storage_config.yml
-      ansible.builtin.include_vars: "{{ input_project_dir }}/{{ storage_config_filename }}"
-      register: include_storage_config
-      no_log: true
-  rescue:
-    - name: Failed to include storage_config.yml
-      ansible.builtin.fail:
-        msg: "{{ storage_config_syntax_fail_msg }} Error: {{ include_storage_config.message }}"
+- name: Warning for idrac_telemetry_support is currently set to false
+  ansible.builtin.pause:
+    seconds: "{{ pause_time_15 }}"
+    prompt: "{{ warning_idrac_telemetry_support_false }}"
+  when: not idrac_telemetry_support
+
+- name: Warning for idrac_telemetry_support is currently set to true
+  ansible.builtin.pause:
+    seconds: "{{ pause_time_15 }}"
+    prompt: "{{ warning_idrac_telemetry_support_true }}"
+  when: idrac_telemetry_support
 
 - name: Get k8s cluster details
   ansible.builtin.set_fact:
@@ -56,3 +50,6 @@
 - name: Set share_path from service_k8s_cluster client_share_path
   ansible.builtin.set_fact:
     k8s_client_share_path: "{{ k8s_nfs_storage_details.client_share_path }}"
+    k8s_server_share_path: "{{ k8s_nfs_storage_details.server_share_path }}"
+    k8s_server_ip: "{{ k8s_nfs_storage_details.server_ip }}"
+    k8s_mount_options: "{{ k8s_nfs_storage_details.client_mount_options }}"

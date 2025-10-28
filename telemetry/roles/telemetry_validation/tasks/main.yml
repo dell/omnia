@@ -20,15 +20,6 @@
 - name: Validate telemetry_config.yml
   ansible.builtin.include_tasks: validate_telemetry_config.yml
 
-- name: Include network_spec variables
-  ansible.builtin.include_tasks: include_network_spec.yml
-
-- name: Include storage details
-  ansible.builtin.include_tasks: include_storage_details.yml
-
-- name: Include local_repo_access variables
-  ansible.builtin.include_tasks: read_software_config.yml
-
 - name: Validate iDRAC inventory
   ansible.builtin.include_tasks: validate_idrac_inventory.yml
   when: idrac_telemetry_support

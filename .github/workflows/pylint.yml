@@ -9,6 +9,7 @@ on:
       - pub/provision_arch
       - pub/ochami
       - pub/ochami_aarch64
+      - pub/k8s_telemetry 
 
 jobs:
   build:

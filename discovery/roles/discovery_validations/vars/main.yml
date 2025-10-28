@@ -20,6 +20,9 @@ discovery_inputs:
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/functional_groups_config.yml"
   - path: "/opt/omnia/.data/oim_metadata.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/security_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/telemetry_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
 
 input_syntax_fail_msg: "Failed. Syntax errors present in {{ item.path }}. Fix errors and re-run playbook again."
 
@@ -53,3 +56,18 @@ image_missing_fail_msg: |
   Error: Image not found for functional group {{ functional_group_name }}.
   Please create the image by running the corresponding build playbook (build_image_x86_64.yml for x86_64 or build_image_aarch64.yml for aarch64)
   and re-run the discovery.yml playbook.
+
+# Usage: validate_telemetry.yml
+warning_idrac_telemetry_support_false: |
+  "[WARNING] idrac_telemetry_support is set to false in telemetry_config.yml. This means iDRAC telemetry will not be activated.
+  To use telemetry, set idrac_telemetry_support to true in telemetry_config.yml.
+  Note that Omnia does not support disabling telemetry if containers are already running.
+  To remove telemetry containers, use the utils/oim_cleanup.yml playbook."
+warning_idrac_telemetry_support_true: |
+  "[WARNING] idrac_telemetry_support is set to true in telemetry_config.yml.
+  iDRAC telemetry will be activated for all BMC IPs listed in {{ bmc_group_data_filename }}.
+  Confirm that all BMC IPs are reachable from the OIM and respective service cluster nodes for telemetry to function properly.
+  Make sure that Redfish is enabled and the iDRAC has a datacenter license.
+  Also, ensure that the firmware version is greater than 4 for iDRAC9 or greater than 1 for iDRAC10."
+pause_time_15: 15
+bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"

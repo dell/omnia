@@ -36,3 +36,7 @@
 
 - name: Update hosts file
   ansible.builtin.include_tasks: update_hosts.yml
+
+- name: Validate telemetry config
+  ansible.builtin.include_tasks: validate_telemetry_config.yml
+  when: idrac_telemetry_support | lower == 'true' | default('false')

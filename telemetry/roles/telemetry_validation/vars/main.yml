@@ -35,31 +35,6 @@ warning_idrac_telemetry_support_true: |
   Make sure that Redfish is enabled and the iDRAC has a datacenter license.
   Also, ensure that the firmware version is greater than 4 for iDRAC9 or greater than 1 for iDRAC10."
 
-# Usage: include_storage_details.yml
-omnia_config_filename: "omnia_config.yml"
-omnia_config_syntax_fail_msg: "Failed. Syntax errors present in omnia_config.yml. Fix errors and re-run playbook again."
-storage_config_filename: "storage_config.yml"
-storage_config_syntax_fail_msg: "Failed. Syntax errors present in storage_config.yml. Fix errors and re-run playbook again."
-
-# Usage: validate_image_tars.yml
-# noqa: yaml[line-length]
-omnia_images_tar_missing_msg: |
-  Following images tarball(s) are missing: {{ missing_tars }}.
-  To ensure these tar files are present at {{ omnia_images_dir_path }}, execute the utility below:
-    `ansible-playbook utils/save_container_images.yml -e 'visualization_support=true idrac_telemetry_support=true k8s_support=true'`
-  After saving the images, re-run the telemetry playbook.
-
-# Usage: read_software_config.yml
-software_config_file: "{{ input_project_dir }}/software_config.json"
-local_repo_service_missing_msg: |
-  [ERROR] It seems local_repo not executed with service_k8s/service_node entry in software_config.yml.
-  Kindly execute local_repo.yml with `service_k8s` entry in softwares list in software_config.json
-  and then execute telemetry.yml.
-local_repo_access_path: "/opt/omnia/provision/local_repo_access.yml"
-k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_k8s.json"
-downloaded_sw_log_csv: "/opt/omnia/log/local_repo/x86_64/software.csv"
-software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
-
 # Usage: validate_idrac_inventory.yml
 bmc_group_data_file_not_found_msg: "Failed. The BMC data file: {{ bmc_group_data_filename }} does not exist.
  Please execute discovery_provision.yml to Generate BMC data file."
@@ -70,8 +45,3 @@ service_kube_control_plane_invalid_ip_fail_msg: "Failed. The group 'kube_control
 openchami_work_dir: "/opt/omnia/openchami/workdir"
 nodes_dir: "{{ openchami_work_dir }}/nodes"
 openchami_nodes_vars_path: "{{ nodes_dir }}/nodes.yaml"
-
-# Usage: include_network_spec.yml
-network_spec_path: "{{ input_project_dir }}/network_spec.yml"
-fail_msg_network_spec_file: "network_spec.yml file doesn't exist."
-network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml. Fix errors and re-run playbook again."

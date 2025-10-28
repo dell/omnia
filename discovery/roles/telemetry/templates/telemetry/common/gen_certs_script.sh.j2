@@ -1,0 +1,64 @@
+#!/bin/bash
+
+set -e
+
+CERT_DIR="{{ telemetry_cert_path }}"
+CA_KEY="{{ kafka_secrets.ca_key_file }}"
+CA_CERT="{{ kafka_secrets.cacert_file }}"
+CERT_KEY="{{ kafka_secrets.cert_key }}"
+CERT_FILE="{{ kafka_secrets.cert_file }}"
+COMBINED_PEM="{{ kafka_secrets.combined_pem }}"
+SAN_CONFIG="$CERT_DIR/kafka-san.cnf"
+CSR_FILE="$CERT_DIR/kafka.csr"
+
+mkdir -p "$CERT_DIR"
+chmod {{ kafka_secrets.dir_permissions }} "$CERT_DIR"
+
+# Generate SAN config from template
+cat > "$SAN_CONFIG" <<EOF
+$(< kafka-san.cnf.j2)
+EOF
+chmod {{ kafka_secrets.san_permissions }} "$SAN_CONFIG"
+
+# Generate CA key
+if [ ! -f "$CA_KEY" ]; then
+  openssl genrsa -out "$CA_KEY" 4096
+fi
+
+# Generate CA certificate
+if [ ! -f "$CA_CERT" ]; then
+  openssl req -x509 -new -nodes \
+    -key "$CA_KEY" \
+    -out "$CA_CERT" \
+    -days {{ kafka_secrets.ssl_limit }} \
+    -subj "/CN=KafkaCA"
+fi
+
+# Generate Kafka private key
+if [ ! -f "$CERT_KEY" ]; then
+  openssl genrsa -out "$CERT_KEY" 4096
+fi
+
+# Generate CSR
+if [ ! -f "$CSR_FILE" ]; then
+  openssl req -new -key "$CERT_KEY" \
+    -out "$CSR_FILE" \
+    -config "$SAN_CONFIG"
+fi
+
+# Sign certificate
+if [ ! -f "$CERT_FILE" ]; then
+  openssl x509 -req \
+    -in "$CSR_FILE" \
+    -CA "$CA_CERT" \
+    -CAkey "$CA_KEY" \
+    -CAcreateserial \
+    -out "$CERT_FILE" \
+    -days {{ kafka_secrets.ssl_limit }} \
+    -sha256 \
+    -extensions v3_req \
+    -extfile "$SAN_CONFIG"
+fi
+
+# Combine key and cert
+cat "$CERT_KEY" "$CERT_FILE" > "$COMBINED_PEM"

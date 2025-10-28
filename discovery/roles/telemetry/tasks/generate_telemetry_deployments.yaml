@@ -1,0 +1,190 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Count entries with FUNCTIONAL_GROUP_NAME containing 'service_kube_node'
+  ansible.builtin.set_fact:
+    kube_node_count: >-
+      {{
+        hostvars['localhost']['read_mapping_file']['dict']
+        | dict2items
+        | selectattr('value.FUNCTIONAL_GROUP_NAME', 'search', 'service_kube_node')
+        | list
+        | length
+      }}
+
+- name: Mount NFS share (force NFSv3)
+  ansible.posix.mount:
+    src: "{{ hostvars['localhost']['k8s_server_ip'] }}:{{ hostvars['localhost']['k8s_server_share_path'] }}"
+    path: "{{ hostvars['localhost']['k8s_client_share_path'] }}"
+    fstype: nfs
+    opts: "{{ hostvars['localhost']['k8s_mount_options'] }},vers=3"
+    state: mounted
+
+- name: Create telemetry deployment directory
+  ansible.builtin.file:
+    path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments"
+    state: directory
+    mode: '0755'
+
+- name: Configure TLS certificate and secrets for kafka
+  when: "'kafka' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')"
+  block:
+    - name: Check if telemetry secrets config file exists
+      ansible.builtin.stat:
+        path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/telemetry_secret_creation.yaml"
+      register: telemetry_config_file
+
+    - name: Read telemetry secrets config file
+      ansible.builtin.slurp:
+        src: "{{ telemetry_config_file.stat.path }}"
+      register: telemetry_config_raw
+      when: telemetry_config_file.stat.exists
+      no_log: true
+
+    - name: Check if Kafka Cluster ID is present in the file
+      ansible.builtin.set_fact:
+        cluster_id_present: >-
+          {{ 'cluster-id' in (telemetry_config_raw.content | b64decode | default('')) }}
+      when: telemetry_config_file.stat.exists
+
+    - name: Generate cluster ID
+      ansible.builtin.command: uuidgen
+      register: cluster_id
+      changed_when: false
+      no_log: true
+      when: not cluster_id_present | default(false)
+
+    - name: Create telemetry certificate directory
+      ansible.builtin.file:
+        path: "{{ telemetry_cert_path }}"
+        state: directory
+        mode: "{{ kafka_secrets.dir_permissions }}"
+      delegate_to: localhost
+      connection: local
+
+    - name: Create SAN config for Kafka cert
+      ansible.builtin.template:
+        src: telemetry/kafka/kafka-san.cnf.j2
+        dest: "{{ telemetry_cert_path }}/kafka-san.cnf"
+        mode: "{{ kafka_secrets.san_permissions }}"
+      delegate_to: localhost
+      connection: local
+
+    - name: Generate Kafka CA private key
+      ansible.builtin.command:
+        cmd: "openssl genrsa -out {{ kafka_secrets.ca_key_file }} 4096"
+      args:
+        creates: "{{ kafka_secrets.ca_key_file }}"
+      no_log: true
+      delegate_to: localhost
+      connection: local
+
+    - name: Generate Kafka CA self-signed certificate
+      ansible.builtin.command:
+        cmd: >
+          openssl req -x509 -new -nodes
+          -key {{ kafka_secrets.ca_key_file }}
+          -out {{ kafka_secrets.cacert_file }}
+          -days {{ kafka_secrets.ssl_limit }}
+          -subj "/CN=KafkaCA"
+      args:
+        creates: "{{ kafka_secrets.cacert_file }}"
+      delegate_to: localhost
+      connection: local
+      no_log: true
+
+    - name: Generate Kafka private key
+      ansible.builtin.command:
+        cmd: "openssl genrsa -out {{ kafka_secrets.cert_key }} 4096"
+      args:
+        creates: "{{ kafka_secrets.cert_key }}"
+      delegate_to: localhost
+      connection: local
+      no_log: true
+
+    - name: Generate Kafka CSR
+      ansible.builtin.command:
+        cmd: >
+          openssl req -new -key {{ kafka_secrets.cert_key }}
+          -out {{ telemetry_cert_path }}/kafka.csr
+          -config {{ telemetry_cert_path }}/kafka-san.cnf
+      args:
+        creates: "{{ telemetry_cert_path }}/kafka.csr"
+      delegate_to: localhost
+      connection: local
+      no_log: true
+
+    - name: Sign Kafka certificate with internal CA
+      ansible.builtin.command:
+        cmd: >
+          openssl x509 -req
+          -in {{ telemetry_cert_path }}/kafka.csr
+          -CA {{ kafka_secrets.cacert_file }}
+          -CAkey {{ kafka_secrets.ca_key_file }}
+          -CAcreateserial
+          -out {{ kafka_secrets.cert_file }}
+          -days {{ kafka_secrets.ssl_limit }}
+          -sha256
+          -extensions v3_req
+          -extfile {{ telemetry_cert_path }}/kafka-san.cnf
+      args:
+        creates: "{{ kafka_secrets.cert_file }}"
+      changed_when: false
+      delegate_to: localhost
+      connection: local
+      no_log: true
+
+    - name: Combine Kafka key and certificate into a single PEM file
+      ansible.builtin.shell: |
+        cat {{ kafka_secrets.cert_key }} {{ kafka_secrets.cert_file }} > {{ kafka_secrets.combined_pem }}
+      changed_when: false
+      no_log: true
+      delegate_to: localhost
+      connection: local
+
+- name: Populate telemetry deployment configs
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
+    mode: '0644'
+  loop:
+    - src: 'telemetry/common/gen_certs_script.sh.j2'
+      dest: 'gen_certs_script.sh'
+
+    - src: 'telemetry/common/telemetry_secret_creation.yaml.j2'
+      dest: 'telemetry_secret_creation.yaml'
+      skip_when: "{{ cluster_id_present | default(false) }}"
+
+    - src: 'telemetry/kustomization.yaml.j2'
+      dest: 'kustomization.yaml'
+
+    - src: 'telemetry/idrac_telemetry/idrac_telemetry_statefulset.yaml.j2'
+      dest: 'idrac_telemetry_statefulset.yaml'
+
+    - src: 'telemetry/kafka/kafka-san.cnf.j2'
+      dest: 'kafka-san.cnf'
+      type: 'kafka'
+
+    - src: 'telemetry/kafka/kafka-statefulset.yaml.j2'
+      dest: 'kafka-statefulset.yaml'
+      type: 'kafka'
+
+    - src: 'telemetry/victoria/victoria-statefulset.yaml.j2'
+      dest: 'victoria-statefulset.yaml'
+      type: 'victoria'
+  when:
+    - item.type is not defined or item.type in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')
+    - item.skip_when is not defined or not item.skip_when | bool
+  tags: telemetry_deployment

@@ -1,0 +1,212 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: "{{ idrac_telemetry_service_name }}"
+  namespace: "{{ telemetry_namespace }}"
+  labels:
+    app: "{{ idrac_telemetry_service_name }}"
+spec:
+  clusterIP: None
+  ports:
+    - name: mysql-port-1
+      port: {{ mysqldb_container_port1 }}
+    - name: mysql-port-2
+      port: {{ mysqldb_container_port2 }}
+  selector:
+    app: "{{ idrac_telemetry_k8s_name }}"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ idrac_telemetry_k8s_name }}
+  namespace: {{ telemetry_namespace }}
+spec:
+  serviceName: {{ idrac_telemetry_service_name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ idrac_telemetry_k8s_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ idrac_telemetry_k8s_name }}
+    spec:
+      volumes:
+        - name: telemetry-reference-tools
+          hostPath:
+            path: {{ idrac_telemetry_reference_git_clone_path }}
+            type: Directory
+{% set types = hostvars['localhost']['idrac_telemetry_collection_type'].split(',') %}
+{% if 'kafka' in types %}
+        - name: kafka-tls-certs
+          secret:
+            secretName: "{{ kafka_secrets.name }}"
+{% endif %}
+      hostAliases:
+        - ip: "127.0.0.1"
+          hostnames:
+            - "mysqldb"
+      terminationGracePeriodSeconds: 3
+      tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 5
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 5
+      containers:
+        - name: mysqldb
+          image: {{ mysql_image }}
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: mysqldb-pvc
+              mountPath: /var/lib/mysql/
+          lifecycle:
+                preStop:
+                  exec:
+                    command: ["/bin/sh", "-c", "mysqladmin shutdown -uroot -p${MYSQL_ROOT_PASSWORD}"]
+          env:
+            - name: MYSQL_DATABASE
+              value: {{ mysqldb_name }}
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysqldb_secrets_name }}
+                  key: mysqldb_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysqldb_secrets_name }}
+                  key: mysqldb_password
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysqldb_secrets_name }}
+                  key: mysqldb_root_password
+          ports:
+            - containerPort: {{ mysqldb_container_port1 }}
+            - containerPort: {{ mysqldb_container_port2 }}
+
+        - name: activemq
+          image: {{ activemq_image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ activemq_http_port_1 }}
+            - containerPort: {{ activemq_http_port_2 }}
+
+        - name: idrac-telemetry-receiver
+          image: {{ go_image }}
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /go/src/github.com/telemetry-reference-tools
+              name: telemetry-reference-tools
+          workingDir: /go/src/github.com/telemetry-reference-tools
+          env:
+            - name: MESSAGEBUS_HOST
+              value: 127.0.0.1
+            - name: MESSAGEBUS_PORT
+              value: "{{ messagebus_http_port }}"
+            - name: CONFIGUI_HTTP_PORT
+              value: "{{ configui_http_port }}"
+            - name: MYSQL_DATABASE
+              value: {{ mysqldb_name }}
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysqldb_secrets_name }}
+                  key: mysqldb_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ mysqldb_secrets_name }}
+                  key: mysqldb_password
+            - name: MYSQL_HOST
+              value: mysqldb
+            - name: MYSQL_HOST_PORT
+              value: "{{ mysqldb_container_port1 }}"
+          command: ["/bin/sh", "-c"]
+          args: ["./scripts/example/idrac-telemetry-receiver.sh"]
+
+{% if 'kafka' in types %}
+        - name: kafka-pump
+          image: {{ go_image }}
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /go/src/github.com/telemetry-reference-tools
+              name: telemetry-reference-tools
+            - mountPath: /extrabin/certs 
+              name: kafka-tls-certs
+              readOnly: true 
+          workingDir: /go/src/github.com/telemetry-reference-tools
+          env:
+            - name: MESSAGEBUS_HOST
+              value: 127.0.0.1
+            - name: MESSAGEBUS_PORT
+              value: "{{ messagebus_http_port }}"
+            - name: KAFKA_BROKER
+              value: "kafka-headless.telemetry.svc.cluster.local:9092"
+            - name: KAFKA_TOPIC
+              value: "{{ kafka.telemetry_topic_name }}"
+            - name: KAFKA_SKIP_VERIFY
+              value: "{{ kafka_skip_verify | default('false') | lower }}"
+            - name: KAFKA_PARTITION
+              value: "0"
+            - name: KAFKA_CACERT
+              value: "kafka.truststore.pem"
+            - name: KAFKA_CLIENT_CERT
+              value: "kafka.keystore.pem"
+            - name: KAFKA_CLIENT_KEY
+              value: "kafka.keystore.key"
+          command: ["/bin/sh", "-c"]
+          args: ["go run cmd/kafkapump/kafkapump.go"]
+{% endif %}
+
+{% if 'victoria' in types %}
+        - name: victoria-pump
+          image: {{ go_image }}
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /go/src/github.com/telemetry-reference-tools
+              name: telemetry-reference-tools
+          workingDir: /go/src/github.com/telemetry-reference-tools
+          env:
+            - name: MESSAGEBUS_HOST
+              value: 127.0.0.1
+            - name: MESSAGEBUS_PORT
+              value: "{{ messagebus_http_port }}"
+            - name: MESSAGEBUS_TYPE
+              value: stomp
+            - name: VICTORIA_METRICS_URL
+              value: "http://victoria-svc.telemetry.svc.cluster.local:8428/api/v1/import/prometheus"
+          ports:
+            - containerPort: 2112
+              name: victoriapump
+          command: ["/bin/sh", "-c"]
+          args: ["go run cmd/victoriapump/victoriapump.go"]
+{% endif %}
+
+  volumeClaimTemplates:
+    - metadata:
+        name: mysqldb-pvc
+      spec:
+        accessModes: ["ReadWriteMany"]
+        resources:
+          requests:
+            storage: {{ mysqldb_storage }}
+        storageClassName: {{ storage_class_name }}

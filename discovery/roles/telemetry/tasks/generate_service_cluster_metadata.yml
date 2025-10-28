@@ -19,15 +19,19 @@
   block:
     - name: Include service_cluster metadata if already exists
       ansible.builtin.include_vars: "{{ service_cluster_metadata_path }}"
+      delegate_to: localhost
+      connection: local
       no_log: true
       failed_when: false
 
     - name: Fetch service_cluster info
       get_service_cluster_info:
-        nodes_info: "{{ hostvars['localhost']['nodes'] }}"
+        nodes_info: "{{ node_parsed_yaml.nodes }}"
         functional_groups_file_path: "{{ functional_groups_config_path }}"
-        bmc_group_data: "{{ hostvars['localhost']['bmc_dict_list'] | default([]) }}"
+        bmc_group_data: "{{ bmc_dict_list | default([]) }}"
       register: service_cluster_info_output
+      delegate_to: localhost
+      connection: local
 
     - name: Set fact for service_cluster role required and other facts
       ansible.builtin.set_fact:
@@ -46,3 +50,6 @@
         content: "{{ {'service_cluster_metadata': service_cluster_metadata} | to_nice_yaml }}"
         mode: "{{ metadata_perm }}"
         force: true
+      delegate_to: localhost
+      connection: local
+      no_log: true

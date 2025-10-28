@@ -73,4 +73,5 @@
 
 - name: Set validated BMC ips
   ansible.builtin.set_fact:
+    bmc_dict_list: "{{ bmc_ip_data.bmc_dict_list }}"
     bmc_ips: "{{ bmc_ip_data.bmc_ips }}"

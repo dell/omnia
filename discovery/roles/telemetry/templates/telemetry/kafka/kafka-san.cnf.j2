@@ -1,0 +1,18 @@
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+CN = {{ kafka_secrets.san_cn }}
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+{% for dns in kafka_secrets.san_dns %}
+DNS.{{ loop.index }} = {{ dns }}
+{% endfor %}
+{% for ip in kafka_secrets.san_ips %}
+IP.{{ loop.index }} = {{ ip }}
+{% endfor %}

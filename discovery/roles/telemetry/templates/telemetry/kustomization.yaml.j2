@@ -1,0 +1,10 @@
+resources:
+  - telemetry_secret_creation.yaml
+  - idrac_telemetry_statefulset.yaml
+{% set types = hostvars['localhost']['idrac_telemetry_collection_type'].split(',') %}
+{% if 'victoria' in types %}
+  - victoria-statefulset.yaml
+{% endif %}
+{% if 'kafka' in types %}
+  - kafka-statefulset.yaml
+{% endif %}
