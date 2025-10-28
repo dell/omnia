@@ -902,14 +902,14 @@ show_help() {
 
 install_omnia_core() {
     # Print message for pulling the Omnia core docker image.
-    # echo -e "${BLUE} Pulling the Omnia core image.${NC}"
+    echo -e "${BLUE} Pulling the Omnia core image.${NC}"
 
     # Pull the Omnia core docker image.
-    # if podman pull omnia_core:latest; then
-    #     echo -e "${GREEN} Omnia core image has been pulled.${NC}"
-    # else
-    #     echo -e "${RED} Failed to pull Omnia core image.${NC}"
-    # fi
+    if podman pull docker.io/dellhpcomniaaisolution/omnia_core:latest; then
+        echo -e "${GREEN} Omnia core image has been pulled.${NC}"
+    else
+        echo -e "${RED} Failed to pull Omnia core image.${NC}"
+    fi
     # Fail if image is not found. podman inspect can be used to check if image exists locally.
     if podman inspect omnia_core:latest >/dev/null 2>&1; then
         echo -e "${BLUE} Omnia core image already exists locally, skipping pull.${NC}"

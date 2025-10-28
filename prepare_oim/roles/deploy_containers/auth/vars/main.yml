@@ -22,7 +22,7 @@ openldap_ports:
   - 389
   - 636
 wait_time: 10
-auth_service_image_name: omnia_auth
+auth_service_image_name: docker.io/dellhpcomniaaisolution/omnia_auth
 auth_service_container_name: omnia_auth
 auth_service_image_pull_fail_msg:
   - The pull of the auth service image {{ auth_service_image_name }} has failed.
