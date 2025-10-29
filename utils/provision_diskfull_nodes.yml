@@ -36,7 +36,7 @@
           {% if 'bmc_x86_64' in group_names %}
             {{ os_iso_file_name_x86_64 }}
           {% elif 'bmc_aarch64' in group_names %}
-            {{ os_iso_file_name_aarch }}
+            {{ os_iso_file_name_aarch64 }}
           {% else %}
             ""
           {% endif %}
@@ -45,7 +45,7 @@
       ansible.builtin.fail:
         msg: >-
           The ISO file name for {{ group_names | join(', ') }} is empty!
-          Please set 'os_iso_file_name_x86_64' or 'os_iso_file_name_aarch'
+          Please set 'os_iso_file_name_x86_64' or 'os_iso_file_name_aarch64'
           in provision_config.yml.
       when: os_iso_file_name is not defined or os_iso_file_name | trim == ""
 
