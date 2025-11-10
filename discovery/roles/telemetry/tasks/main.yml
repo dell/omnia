@@ -17,11 +17,18 @@
   when:
     - hostvars['localhost']['idrac_telemetry_support']
   block:
-    - name: Generate telemetry deployments
-      ansible.builtin.include_tasks: generate_telemetry_deployments.yaml
-
     - name: Validate idrac telemetry config
       ansible.builtin.include_tasks: validate_idrac_inventory.yml
 
+    - name: Service cluster prerequisite
+      ansible.builtin.include_tasks: telemetry_prereq.yml
+
+    - name: Generate telemetry deployments
+      ansible.builtin.include_tasks: generate_telemetry_deployments.yml
+
     - name: Generate service clsuter metadata
       ansible.builtin.include_tasks: generate_service_cluster_metadata.yml
+
+- name: Include update_ldms_sampler.yml
+  ansible.builtin.include_tasks: update_ldms_sampler.yml
+  when: hostvars['localhost']['ldms_support']

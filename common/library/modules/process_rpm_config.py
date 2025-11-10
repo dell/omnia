@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 #!/usr/bin/python
-
+# pylint: disable=import-error,no-name-in-module
 import json
 import subprocess
 import multiprocessing
@@ -48,7 +48,7 @@ def execute_command(cmd_string, log,type_json=None, seconds=None):
     try:
         log.info("Executing Command: %s", cmd_string)
         cmd = subprocess.run(cmd_string, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=seconds, shell=True)
-        log.info(f"execute command return code : {cmd}  : {cmd.returncode}")
+        log.info(f"execute command return code : {cmd}")
         if cmd.returncode != 0:
             return False
         if type_json:
@@ -101,20 +101,25 @@ def create_rpm_repository(repo,log):
     Returns:
         bool: True if the repository was created successfully or already exists, False if there was an error.
     """
+    try:
+        repo_name = repo["package"]
+        version = repo.get("version")
 
-    repo_name = repo["package"]
-    version = repo.get("version")
+        if version != "null":
+            repo_name = f"{repo_name}_{version}"
+        if not show_rpm_repository(repo_name,log):
+            command = pulp_rpm_commands["create_repository"] % repo_name
+            log.info("Repository '%s' does not exist. Executing command: %s", repo_name, command)
+            result = execute_command(command,log)
+            log.info("Repository %s created.", repo_name)
+            return result, repo_name
 
-    if version != "null":
-        repo_name = f"{repo_name}_{version}"
-    if not show_rpm_repository(repo_name,log):
-        command = pulp_rpm_commands["create_repository"] % repo_name
-        result = execute_command(command,log)
-        log.info("Repository %s created.", repo_name)
-        return result, repo_name
+        log.info("Repository %s already exists.", repo_name)
+        return True, repo_name
 
-    log.info("Repository %s already exists.", repo_name)
-    return True, repo_name
+    except Exception as e:
+        log.error("Unexpected error while creating repository '%s': %s", repo.get('package', 'unknown'), e)
+        return False, repo.get("package", "unknown")
 
 def show_rpm_repository(repo_name,log):
     """
@@ -128,8 +133,16 @@ def show_rpm_repository(repo_name,log):
         bool: True if the repository was found, False otherwise.
     """
 
-    command = pulp_rpm_commands["show_repository"] % repo_name
-    return execute_command(command,log)
+    try:
+        log.info("Checking existence of RPM repository: '%s'", repo_name)
+        command = pulp_rpm_commands["show_repository"] % repo_name
+        log.info("Executing command to show repository: %s", command)
+
+        return execute_command(command,log)
+
+    except Exception as e:
+        log.error("Unexpected error while checking repository '%s': %s", repo_name, str(e))
+        return False
 
 def create_rpm_remote(repo,log):
     """
@@ -143,39 +156,50 @@ def create_rpm_remote(repo,log):
         bool: True if the remote was created or updated successfully, False otherwise.
     """
 
-    remote_url = repo["url"]
-    policy_type = repo["policy"]
-    version = repo.get("version")
-    repo_name = repo["package"]
-    result = None
+    try:
+        log.info("Starting RPM remote creation/update process")
+        remote_url = repo["url"]
+        policy_type = repo["policy"]
+        version = repo.get("version")
+        repo_name = repo["package"]
+        result = None
 
-    if version != "null":
-        repo_name = f"{repo_name}_{version}"
+        if version != "null":
+            repo_name = f"{repo_name}_{version}"
 
-    remote_name = repo_name
-    repo_keys = repo.keys()
-    if "ca_cert" in repo_keys and repo["ca_cert"]:
-        ca_cert = f"@{repo['ca_cert']}"
-        client_cert = f"@{repo['client_cert']}"
-        client_key = f"@{repo['client_key']}"
-        if not show_rpm_remote(remote_name,log):
-            command = pulp_rpm_commands["create_remote_cert"] % (remote_name, remote_url, policy_type, ca_cert, client_cert, client_key)
-            result = execute_command(command,log)
-            log.info("Remote %s created.", remote_name)
+        remote_name = repo_name
+        repo_keys = repo.keys()
+        if "ca_cert" in repo_keys and repo["ca_cert"]:
+            ca_cert = f"@{repo['ca_cert']}"
+            client_cert = f"@{repo['client_cert']}"
+            client_key = f"@{repo['client_key']}"
+            if not show_rpm_remote(remote_name,log):
+                command = pulp_rpm_commands["create_remote_cert"] % (remote_name, remote_url, policy_type, ca_cert, client_cert, client_key)
+                log.info("Remote '%s' does not exist. Executing creation command with certs.", remote_name)
+                result = execute_command(command,log)
+                log.info("Remote %s created.", remote_name)
+            else:
+                command = pulp_rpm_commands["update_remote_cert"] % (remote_name, remote_url, policy_type, ca_cert, client_cert, client_key)
+                log.info("Remote '%s' already exists. Executing update command with certs.", remote_name)
+                result = execute_command(command,log)
         else:
-            command = pulp_rpm_commands["update_remote_cert"] % (remote_name, remote_url, policy_type, ca_cert, client_cert, client_key)
-            log.info("Remote %s already exists.", remote_name)
-            result = execute_command(command,log)
-    else:
-        if not show_rpm_remote(remote_name,log):
-            command = pulp_rpm_commands["create_remote"] % (remote_name, remote_url, policy_type)
-            result = execute_command(command,log)
-            log.info("Remote %s created.", remote_name)
-        else:
-            command = pulp_rpm_commands["update_remote"] % (remote_name, remote_url, policy_type)
-            log.info("Remote %s already exists.", remote_name)
-            result = execute_command(command,log)
-    return result, repo_name
+            log.info("Repository does not use SSL certificates for remote")
+            if not show_rpm_remote(remote_name,log):
+                command = pulp_rpm_commands["create_remote"] % (remote_name, remote_url, policy_type)
+                log.info("Remote '%s' does not exist. Executing creation command.", remote_name)
+                result = execute_command(command,log)
+                log.info("Remote %s created.", remote_name)
+            else:
+                command = pulp_rpm_commands["update_remote"] % (remote_name, remote_url, policy_type)
+                log.info("Remote '%s' already exists. Executing update command.", remote_name)
+                result = execute_command(command,log)
+        return result, repo_name
+
+    except Exception as e:
+        log.error("Unexpected error while creating/updating remote '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
+    finally:
+        log.info("Completed RPM remote creation/update process for '%s'", repo.get("package", "unknown"))
 
 def show_rpm_remote(remote_name,log):
     """
@@ -188,9 +212,19 @@ def show_rpm_remote(remote_name,log):
     Returns:
         bool: True if the remote was found, False otherwise.
     """
+    try:
+        log.info("Checking existence of RPM remote: '%s'", remote_name)
 
-    command = pulp_rpm_commands["show_remote"] % remote_name
-    return execute_command(command,log)
+        command = pulp_rpm_commands["show_remote"] % remote_name
+        log.info("Executing command to show remote: %s", command)
+
+        return execute_command(command,log)
+
+    except Exception as e:
+        log.error("Unexpected error while checking remote '%s': %s", remote_name, str(e))
+        return False
+    finally:
+        log.info("Completed check for RPM remote '%s'", remote_name)
 
 def sync_rpm_repository(repo,log):
     """
@@ -204,33 +238,43 @@ def sync_rpm_repository(repo,log):
         bool: True if the repository was synced successfully, False otherwise.
     """
 
-    repo_name = repo["package"]
-    version = repo.get("version")
+    try:
+        log.info("Starting synchronization for RPM repository")
+        repo_name = repo["package"]
+        version = repo.get("version")
 
-    if version != "null":
-        repo_name = f"{repo_name}_{version}"
+        if version != "null":
+            repo_name = f"{repo_name}_{version}"
 
-    if check_packages_and_get_url(repo_name,log):
-        return True, repo_name
-    # else:
-    #     remote_name= repo_name
-    #     command = pulp_rpm_commands["sync_repository"] % (repo_name, remote_name)
-    #     result = execute_command(command,log)
-    #     log.info("Repository synced for %s.", repo_name)
-    #     return result, repo_name
-    remote_name= repo_name
-    command = pulp_rpm_commands["sync_repository"] % (repo_name, remote_name)
-    result = execute_command(command, log)
+        log.info("Checking if repository '%s' already has packages and URL", repo_name)
+        if check_packages_and_get_url(repo_name,log):
+            return True, repo_name
+        # else:
+        #     remote_name= repo_name
+        #     command = pulp_rpm_commands["sync_repository"] % (repo_name, remote_name)
+        #     result = execute_command(command,log)
+        #     log.info("Repository synced for %s.", repo_name)
+        #     return result, repo_name
+        remote_name= repo_name
+        command = pulp_rpm_commands["sync_repository"] % (repo_name, remote_name)
+        log.info("Executing repository synchronization command: %s", command)
+        result = execute_command(command, log)
 
-    if isinstance(result, tuple):
-        success, _ = result
-    elif isinstance(result, subprocess.CompletedProcess):
-        success = result.returncode == 0
-    else:
-        success = bool(result)
+        if isinstance(result, tuple):
+            success, _ = result
+        elif isinstance(result, subprocess.CompletedProcess):
+            success = result.returncode == 0
+        else:
+            success = bool(result)
 
-    log.info("Repository synced for %s.", repo_name)
-    return success, repo_name
+        log.info("Repository synced for %s.", repo_name)
+        return success, repo_name
+    except Exception as e:
+        log.error("Unexpected error during synchronization of repository '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
+
+    finally:
+        log.info("Completed RPM repository synchronization for '%s'", repo.get("package", "unknown"))
 
 def create_publication(repo,log):
     """
@@ -244,37 +288,47 @@ def create_publication(repo,log):
         bool: True if the publication was created successfully, False otherwise.
     """
 
-    repo_name = repo["package"]
-    version = repo.get("version")
+    try:
+        log.info("Starting publication creation for RPM repository")
+        repo_name = repo["package"]
+        version = repo.get("version")
 
-    if version != "null":
-        repo_name = f"{repo_name}_{version}"
+        if version != "null":
+            repo_name = f"{repo_name}_{version}"
 
-    command = pulp_rpm_commands["publish_repository"] % repo_name
-    result = execute_command(command, log)
+        log.info("Processing repository: '%s'", repo_name)
+        command = pulp_rpm_commands["publish_repository"] % repo_name
+        log.info("Executing publication command: %s", command)
 
-    # Initialize
-    success = False
-    error_message = ""
+        result = execute_command(command, log)
 
-    # Handle result types
-    if isinstance(result, tuple):
-        success, _ = result
-    elif isinstance(result, subprocess.CompletedProcess):
-        success = result.returncode == 0 and "Error:" not in result.stderr
-        if not success:
-            error_message = result.stderr.strip()
-    else:
-        # Fallback case
-        success = bool(result)
+        # Initialize
+        success = False
+        error_message = ""
 
-    if success:
-        log.info("Publication created for %s.", repo_name)
-    else:
-        log.error("Failed to create publication for %s. Error: %s", repo_name, error_message or "Unknown error")
+        # Handle result types
+        if isinstance(result, tuple):
+            success, _ = result
+        elif isinstance(result, subprocess.CompletedProcess):
+            success = result.returncode == 0 and "Error:" not in result.stderr
+            if not success:
+                error_message = result.stderr.strip()
+        else:
+            # Fallback case
+            success = bool(result)
 
-    return success, repo_name
+        if success:
+            log.info("Publication created for %s.", repo_name)
+        else:
+            log.error("Failed to create publication for %s. Error: %s", repo_name, error_message or "Unknown error")
 
+        return success, repo_name
+    except Exception as e:
+        log.error("Unexpected error during publication creation for repository '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
+
+    finally:
+        log.info("Completed publication process for repository '%s'", repo.get("package", "unknown"))
 
 def create_distribution(repo, log):
     """
@@ -287,29 +341,40 @@ def create_distribution(repo, log):
     Returns:
         bool: True if the distribution was created or updated successfully, False otherwise.
     """
+    try:
+        log.info("Starting distribution creation/update for RPM repository")
+        package_name = repo["package"]
+        repo_name = package_name
+        version = repo.get("version")
+        sw_arch = repo.get("sw_arch")
 
-    package_name = repo["package"]
-    repo_name = package_name
-    version = repo.get("version")
-    sw_arch = repo.get("sw_arch")
+        if version != "null":
+            base_path = f" opt/omnia/offline_repo/cluster/{sw_arch}/rhel/10.0/rpms/{package_name}/{version}"
+            repo_name = f"{repo_name}_{version}"
+        else:
+            base_path = f"opt/omnia/offline_repo/cluster/{sw_arch}/rhel/10.0/rpms/{package_name}"
 
-    if version != "null":
-        base_path = f" opt/omnia/offline_repo/cluster/{sw_arch}/rhel/10.0/rpms/{package_name}/{version}"
-        repo_name = f"{repo_name}_{version}"
-    else:
-        base_path = f"opt/omnia/offline_repo/cluster/{sw_arch}/rhel/10.0/rpms/{package_name}"
+        log.info("Repository: '%s', Base path: '%s'", repo_name, base_path)
 
-    show_command = pulp_rpm_commands["check_distribution"] % repo_name
-    create_command = pulp_rpm_commands["distribute_repository"] % (repo_name, base_path, repo_name)
-    update_command = pulp_rpm_commands["update_distribution"] % (repo_name, base_path, repo_name)
+        show_command = pulp_rpm_commands["check_distribution"] % repo_name
+        create_command = pulp_rpm_commands["distribute_repository"] % (repo_name, base_path, repo_name)
+        update_command = pulp_rpm_commands["update_distribution"] % (repo_name, base_path, repo_name)
 
-    # Check if distribution already exists
-    if execute_command(show_command, log):
-        log.info(f"Distribution for {package_name} exists. Updating it.")
-        return execute_command(update_command, log), repo_name
-    else:
-        log.info(f"Distribution for {package_name} does not exist. Creating it.")
-        return execute_command(create_command, log), repo_name
+        # Check if distribution already exists
+        log.info("Checking if distribution exists for repository '%s'", repo_name)
+        if execute_command(show_command, log):
+            log.info(f"Distribution for {package_name} exists. Updating it.")
+            return execute_command(update_command, log), repo_name
+        else:
+            log.info(f"Distribution for {package_name} does not exist. Creating it.")
+            return execute_command(create_command, log), repo_name
+
+    except Exception as e:
+        log.error("Unexpected error during distribution creation/update for repository '%s': %s", repo.get("package", "unknown"), str(e))
+        return False, repo.get("package", "unknown")
+
+    finally:
+        log.info("Completed distribution creation/update for repository '%s'", repo.get("package", "unknown"))
 
 def get_base_urls(log):
     """
@@ -323,8 +388,10 @@ def get_base_urls(log):
               Returns an empty list if there is an error.
     """
 
-    result = subprocess.run(['pulp', 'rpm', 'distribution', 'list', '--field', 'base_url,name'],
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+    command = ['pulp', 'rpm', 'distribution', 'list', '--field', 'base_url,name']
+    log.info(f"Executing command: {' '.join(command)}")
+
+    result = subprocess.run(command,stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
 
     if result.returncode != 0:
         log.info(f"Error fetching distributions: {result.stderr}")
@@ -335,7 +402,13 @@ def get_base_urls(log):
         distributions = json.loads(result.stdout)
     except json.JSONDecodeError as e:
         log.error(f"Error parsing JSON output: {e}")
+        log.error(f"Raw output received:\n{result.stdout}")
         return []
+
+    if not distributions:
+        log.info("No distributions found in Pulp response.")
+    else:
+        log.info(f"Fetched {len(distributions)} distributions successfully.")
 
     return distributions
 
@@ -350,33 +423,47 @@ def create_yum_repo_file(distributions, log):
     Returns:
         None
     """
+    try:
+        repo_file_path = "/etc/yum.repos.d/pulp.repo"
+        log.info(f"Target repo file path: {repo_file_path}")
 
-    repo_file_path = "/etc/yum.repos.d/pulp.repo"
+        # Validate input
+        if not distributions or not isinstance(distributions, list):
+            log.error("Invalid or empty 'distributions' list provided. Skipping repo file creation.")
+            return
 
-    # Delete existing file first (only once)
-    if os.path.exists(repo_file_path):
-        os.remove(repo_file_path)
-        log.info(f"Deleted existing {repo_file_path}")
+        log.info(f"Received {len(distributions)} distributions to process")
 
-    repo_content = ""
+        # Delete existing file first (only once)
+        if os.path.exists(repo_file_path):
+            os.remove(repo_file_path)
+            log.info(f"Deleted existing {repo_file_path}")
 
-    for distribution in distributions:
-        repo_name = distribution["name"]
-        base_url = distribution["base_url"]
-        repo_entry = f"""
+        repo_content = ""
+
+        for distribution in distributions:
+            repo_name = distribution["name"]
+            base_url = distribution["base_url"]
+            repo_entry = f"""
 [{repo_name}]
 name={repo_name} repo
 baseurl={base_url}
 enabled=1
 gpgcheck=0
 """
-        repo_content += repo_entry.strip() + "\n\n"
+            repo_content += repo_entry.strip() + "\n\n"
 
-    # Write all repositories at once
-    with open(repo_file_path, 'w', encoding='utf-8') as repo_file:
-        repo_file.write(repo_content.strip() + "\n")
+        # Write all repositories at once
+        log.info("Writing all repository entries to pulp.repo file")
+        with open(repo_file_path, 'w', encoding='utf-8') as repo_file:
+            repo_file.write(repo_content.strip() + "\n")
 
-    log.info(f"Created {repo_file_path} with {len(distributions)} repositories")
+        log.info(f"Created {repo_file_path} with {len(distributions)} repositories")
+
+    except PermissionError:
+        slogger.error("Permission denied while writing to /etc/yum.repos.d/. Run with elevated privileges.")
+    except Exception as e:
+        slogger.error(f"Unexpected error while creating YUM repo file: {e}")
 
 def manage_rpm_repositories_multiprocess(rpm_config, log):
     """
@@ -395,6 +482,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log):
     log.info(f"Number of processes = {process}")
 
     # Step 1: Concurrent repository creation
+    log.info("Step 1: Starting concurrent RPM repository creation")
     with multiprocessing.Pool(processes=process) as pool:
         result = pool.map(partial(create_rpm_repository, log=log), rpm_config)
     failed = [name for success, name in result if not success]
@@ -403,6 +491,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log):
         return False, f"During creation of RPM repository for: {', '.join(failed)}"
 
     # Step 2: Concurrent remote creation
+    log.info("Step 2: Starting concurrent RPM remote creation")
     with multiprocessing.Pool(processes=process) as pool:
         result = pool.map(partial(create_rpm_remote, log=log), rpm_config)
     failed = [name for success, name in result if not success]
@@ -411,6 +500,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log):
         return False, f"During creation of RPM remote for: {', '.join(failed)}"
 
     # Step 3: Concurrent synchronization
+    log.info("Step 3: Starting concurrent RPM repository synchronization")
     with multiprocessing.Pool(processes=process) as pool:
         result = pool.map(partial(sync_rpm_repository, log=log), rpm_config)
     failed = [name for success, name in result if not success]
@@ -419,6 +509,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log):
         return False, f"During synchronization of RPM repository for: {', '.join(failed)}"
 
     # Step 4: Concurrent publication creation
+    log.info("Step 4: Starting concurrent RPM publication creation")
     with multiprocessing.Pool(processes=process) as pool:
         result = pool.map(partial(create_publication, log=log), rpm_config)
     failed = [name for success, name in result if not success]
@@ -427,6 +518,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log):
         return False, f"During publication of RPM repository for: {', '.join(failed)}"
 
     # Step 5: Concurrent distribution creation
+    log.info("Step 5: Starting concurrent RPM distribution creation")
     with multiprocessing.Pool(processes=process) as pool:
         result = pool.map(partial(create_distribution, log=log), rpm_config)
     failed = [name for success, name in result if not success]
@@ -434,8 +526,16 @@ def manage_rpm_repositories_multiprocess(rpm_config, log):
         log.error("Failed during distribution of RPM repository for: %s", ", ".join(failed))
         return False, f"During distribution of RPM repository for: {', '.join(failed)}"
 
+    # --- STEP 6: Fetch Base URLs and Create YUM Repo File ---
+    log.info("Step 6: Fetching base URLs and creating yum repo file")
     base_urls = get_base_urls(log)
+    if not base_urls:
+        log.error("No base URLs retrieved from Pulp. Skipping repo file creation.")
+        return False, "Base URLs fetch failed — repo file not created."
+
+    log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
     create_yum_repo_file(base_urls, log)
+    log.info("Successfully created yum repo file with fetched base URLs.")
 
     return True, "success"
 

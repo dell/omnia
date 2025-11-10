@@ -43,10 +43,20 @@ groups:
   grp3:
     location_id: SU-1.RACK-1
     parent: ""
-
-  grp6:
+  
+  grp4:
     location_id: SU-1.RACK-1
     parent: ""
+
+  grp5:
+    location_id: SU-1.RACK-1
+    parent: ""
+
+  grp8:
+    location_id: SU-1.RACK-1
+    parent: ""
+  
+
 
 # ************************************************************************************************************************
 #  functional_groups
@@ -61,29 +71,33 @@ groups:
 
 # This table lists the functional_groups and the layers they belong to in the cluster.
 
-# +----------------------------------+-------------------+     +------------------------+--------------+
-# | Functional Group Name            | Layer             |     | Functional Group Name  | Layer        |
-# +----------------------------------+-------------------+     +------------------------+--------------+
-# |  service_kube_node_x86_64        | management        |     | slurm_node_x86_64      | compute      |
-# |  login_node_x86_64               | management        |     | slurm_node_aarch64     | compute      |
-# |  login_node_aarch64              | management        |     |                        |              |
-# |  login_compiler_node_x86_64      | management        |     |                        |              |
-# |  login_compiler_node_aarch64     | management        |     |                        |              |
-# |  slurm_control_node_x86_64       | management        |     |                        |              |
-# +----------------------------------+-------------------+     +------------------------+--------------+
+# +---------------------------------------------+-------------------+     +------------------------+--------------+
+# | Functional Group Name                       | Layer             |     | Functional Group Name  | Layer        |
+# +---------------------------------------------+-------------------+     +------------------------+--------------+
+# |  service_kube_control_plane_first_x86_64    | management        |     | slurm_node_x86_64      | compute      |
+# |  service_kube_control_plane_x86_64          | management        |     | slurm_node_aarch64     | compute      |
+# |  service_kube_node_x86_64                   | management        |     |                        |              |
+# |  login_node_x86_64                          | management        |     |                        |              |
+# |  login_node_aarch64                         | management        |     |                        |              |
+# |  login_compiler_node_x86_64                 | management        |     |                        |              |
+# |  login_compiler_node_aarch64                | management        |     |                        |              |
+# |  slurm_control_node_x86_64                  | management        |     |                        |              |
+# +----------------------------------+------------------------------+     +------------------------+--------------+
 #
 #
 # Recommended software should be present in software_config.json file for each functional_group of x86_64:
 #
-# +----------------------------------+--------------------------------------------------------------------------------------+
-# | Functional Group Name            | Recommended Software                                                                 |
-# +----------------------------------+--------------------------------------------------------------------------------------+
-# | service_kube_node_x86_64         | service_k8s.json, nfs.json                                                           |
-# | slurm_control_node_x86_64        | slurm_custom.json, nfs.json, openldap.json                                           |
-# | slurm_node_x86_64                | slurm_custom.json, nfs.json, openldap.json                                           |
-# | login_node_x86_64                | slurm_custom.json, nfs.json, openldap.json                                           |
-# | login_compiler_node_x86_64       | slurm_custom.json, nfs.json, openldap.json, ucx.json, openmpi.json                   |
-# +----------------------------------+--------------------------------------------------------------------------------------+
+# +------------------------------------------+--------------------------------------------------------------------------------------+
+# | Functional Group Name                    | Recommended Software                                                                 |
+# +------------------------------------------+--------------------------------------------------------------------------------------+
+# | service_kube_control_plane_first_x86_64  | service_k8s.json, nfs.json                                                           |
+# | service_kube_control_plane_x86_64        | service_k8s.json, nfs.json                                                           |
+# | service_kube_node_x86_64                 | service_k8s.json, nfs.json                                                           |
+# | slurm_control_node_x86_64                | slurm_custom.json, nfs.json, openldap.json                                           |
+# | slurm_node_x86_64                        | slurm_custom.json, nfs.json, openldap.json                                           |
+# | login_node_x86_64                        | slurm_custom.json, nfs.json, openldap.json                                           |
+# | login_compiler_node_x86_64               | slurm_custom.json, nfs.json, openldap.json, ucx.json, openmpi.json                   |
+# +----------------------------------+----------------------------------------------------------------------------------------------+
 #
 # Slurm Head functional_groups: (x86_64)
 # -----------------------------------------------------------------------------------------------------
@@ -122,13 +136,48 @@ functional_groups:
   #   group:
   #     - grp2
 
+
+#
+# Service k8s control plane first functional_groups: (x86_64)
+# ---------------------------------------------------------------------------------------------------
+#
+# This functional_group is used to configure the first kubernetes control plane on service cluster.
+#
+# This functional_group should not have same group as of K8s Worker node.
+#
+# The nodes included in this functional_group will have the necessary tools and
+# configurations to configure Kubernetes control plane on service cluster.
+#
+# The nodes in this functional_group can be used to setup Kubernetes first control plane on service cluster.
+#
+  - name: "service_kube_control_plane_first_x86_64"
+    cluster_name: "service_cluster"
+    group:
+      - grp3
+
+#
+# Service k8s control plane functional_groups: (x86_64)
+# ---------------------------------------------------------------------------------------------------
+#
+# This functional_group is used to configure the additional kubernetes control plane nodes on service cluster.
+#
+# This functional_group should not have same group as of K8s kube node and k8s kube control plane first.
+#
+# The nodes included in this functional_group will have the necessary tools and
+# configurations to configure additional Kubernetes control plane  to provide HA on service cluster.
+#
+# The nodes in this functional_group can be used to setup additional Kubernetes control planes on service cluster.
+#
+  - name: "service_kube_control_plane_x86_64"
+    cluster_name: "service_cluster"
+    group:
+      - grp4
+
 #
 # Service k8s Worker functional_groups: (x86_64)
 # ---------------------------------------------------------------------------------------------------
 #
 # This functional_group is used to configure the nodes for Kubernetes worker on service cluster.
-#
-# This functional_group should not have same group as of K8s Worker node.
 #
 # The nodes included in this functional_group will have the necessary tools and
 # configurations to configure Kubernetes worker on service cluster.
@@ -138,7 +187,7 @@ functional_groups:
   - name: "service_kube_node_x86_64"
     cluster_name: "service_cluster"
     group:
-      - grp3
+      - grp5
 
 #
 # Login Node functional_groups: (x86_64 / aarch64)
@@ -154,12 +203,12 @@ functional_groups:
   # - name: "login_node_x86_64"
   #   cluster_name: "slurm_cluster"
   #   group:
-  #     - grp4
+  #     - grp6
 
   # - name: "login_node_aarch64"
   #   cluster_name: "slurm_cluster"
   #   group:
-  #     - grp5
+  #     - grp7
 
 #
 # Login_Compiler Node functional_groups: (x86_64 / aarch64)
@@ -175,9 +224,9 @@ functional_groups:
   - name: "login_compiler_node_x86_64"
     cluster_name: "slurm_cluster"
     group:
-      - grp6
+      - grp8
 
   # - name: "login_compiler_node_aarch64"
   #   cluster_name: "slurm_cluster"
   #   group:
-  #     - grp7
+  #     - grp9

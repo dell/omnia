@@ -28,14 +28,6 @@
           "loadbalancer_port": {
             "type": [ "integer","null"],
             "description": "Mandatory if external_loadbalancer_ip is specified. The port must not be in use and cannot be 6443."
-          },
-          "active_node_service_tags": {
-            "type": "array",
-            "description": "Mandatory if enable_k8s_ha is true. List of service tags of active K8s service nodes.",
-            "items": {
-              "type": "string",
-              "pattern": "^[a-zA-Z0-9]+$"
-            }
           }
         },
         "required": [
@@ -53,21 +45,12 @@
           },
           "then": {
             "required": [
-              "virtual_ip_address",
-              "active_node_service_tags"
+              "virtual_ip_address"
             ],
             "properties": {
               "virtual_ip_address": {
                 "type": "string",
                 "pattern": "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"
-              },
-              "active_node_service_tags": {
-                "type": ["array", "null"],
-                "minItems": 0,
-                "items": {
-                  "type": "string",
-                  "pattern": "^[a-zA-Z0-9]+$"
-                }
               }
             }
           }

@@ -128,15 +128,6 @@
   when:
     - final_status == 'SUCCESS'
 
-- name: Update metadata for each software type if final_status is SUCCESS
-  ansible.builtin.include_tasks: create_k8s_local_repo_metadata.yml
-  loop: "{{ software_cleanup_list }}"
-  loop_control:
-    loop_var: software_entry
-  when:
-    - final_status == 'SUCCESS'
-    - software_entry.enabled
-
 - name: Show updated keys
   ansible.builtin.debug:
     var: policy_result.diff

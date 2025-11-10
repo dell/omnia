@@ -25,29 +25,6 @@
 - name: Validate metadata
   ansible.builtin.include_tasks: validate_metadata.yml
 
-- name: Validate compute k8s and service k8s json
-  ansible.builtin.include_tasks: validate_k8s_json.yml
-  loop: "{{ k8s_arch + service_k8s_arch }}"
-  loop_control:
-    loop_var: arch
-
-- name: Loop through cluster configs to generate JSON files
-  ansible.builtin.include_tasks: dynamic_k8s_json.yml
-  loop: "{{ cluster_configs }}"
-  loop_control:
-    loop_var: cluster_item
-  when: cluster_item.run_condition | bool
-
-- name: Remove software lines if version is not in metadata
-  ansible.builtin.include_tasks: remove_software_line.yml
-  loop: "{{ software_cleanup_list }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when: item.enabled
-  vars:
-    current_version: "{{ item.version }}"
-    software_name: "{{ item.name }}"
-
 - name: Validate user_repo certificates
   validate_user_repo:
     certs_path: "{{ user_repo_cert_dir }}"

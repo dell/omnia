@@ -52,19 +52,6 @@
       ansible.builtin.include_role:
         name: prepare_oim_validation
 
-- name: Prepare kubespary image on OIM validation
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  tags: always
-  tasks:
-    - name: Include prepare_kubespray_validation role
-      ansible.builtin.include_role:
-        name: prepare_kubespray_validation
-      loop: "{{ hostvars['localhost']['kubespray_versions'] | default([]) }}"
-      loop_control:
-        loop_var: kube_version
-
 - name: Prepare OIM Validation and Configure Known Hosts
   hosts: localhost
   connection: local
@@ -96,8 +83,6 @@
       tags: always
     - role: deploy_containers/pulp  # noqa:role-name[path]
       tags: pulp
-    - role: deploy_containers/kubespray  # noqa:role-name[path]
-      tags: kubespray
     - role: deploy_containers/auth  # noqa:role-name[path]
       tags: auth
 
@@ -119,36 +104,6 @@
   roles:
     - role: deploy_containers/openchami  # noqa:role-name[path]
       tags: openchami
-
-- name: Update the kubespray metadata
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Update the kubespray metadata # noqa:role-name[path]
-      ansible.builtin.include_role:
-        name: deploy_containers/kubespray
-        tasks_from: create_kubespray_metadata.yml
-      loop: "{{ hostvars['localhost']['k8s_versions'] | default([]) }}"
-      loop_control:
-        loop_var: k8s_version
-      when:
-        - hostvars['localhost']['k8s_support'] | default(false)
-        - (hostvars[groups['oim'][0]]['kubespray_container_status']['containers'] | default([])) | length > 0
-        - (hostvars[groups['oim'][0]]['kubespray_container_status']['containers'][0]['State']['Status'] | default('')) == 'running'
-
-- name: Add all containers to known hosts on omnia core
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: always
-  tasks:
-
-    - name: Add kubespray container host keys to known_hosts of omnia_core  # noqa:role-name[path]
-      ansible.builtin.include_role:
-        name: deploy_containers/common
-        tasks_from: add_known_hosts.yml
-      vars:
-        target_port: "{{ kubespray_ssh_port[kubespray_image_tag] }}"
 
 - name: Configure Pulp container
   hosts: localhost

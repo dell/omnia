@@ -80,7 +80,7 @@ def validate_local_repo_config(input_file_path, data,
         arch_list = url_list + [url+'_'+arch for url in url_list]
          # define base repos dynamically for this arch if subscription registered 
         if sub_result:       
-            base_repo_names = [f"{arch}_baseos",f"{arch}_appstream",f"{arch}_codeready_builder"]
+            base_repo_names = [f"{arch}_baseos",f"{arch}_appstream",f"{arch}_codeready-builder"]
         for repurl in arch_list:
             repos = data.get(repurl)
             if repos:

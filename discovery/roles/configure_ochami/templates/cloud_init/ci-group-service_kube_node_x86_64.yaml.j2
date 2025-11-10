@@ -55,156 +55,6 @@
                 done
             fi
 
-        - path: /test/10-calico.conflist
-          permissions: '0644'
-          owner: root:root
-          content: |
-            {
-              "name": "k8s-pod-network",
-              "cniVersion": "0.3.1",
-              "plugins": [
-                {
-                  "datastore_type": "kubernetes",
-                  "nodename": "actual_kube_node_ip",
-                  "type": "calico",
-                  "log_level": "info",
-                  "log_file_path": "/var/log/calico/cni/cni.log",
-                  "ipam": {
-                    "type": "calico-ipam",
-                    "assign_ipv4": "true"
-                  },
-                  "policy": {
-                    "type": "k8s"
-                  },
-                  "kubernetes": {
-                    "kubeconfig": "/etc/cni/net.d/calico-kubeconfig"
-                  }
-                },
-                {
-                  "type": "portmap",
-                  "capabilities": {
-                    "portMappings": true
-                  }
-                },
-                {
-                  "type": "bandwidth",
-                  "capabilities": {
-                    "bandwidth": true
-                  }
-                }
-              ]
-            }
-
-        - path: /test/kubelet-config.yaml
-          permissions: '0644'
-          owner: root:root
-          content: |
-            apiVersion: kubelet.config.k8s.io/v1beta1
-            kind: KubeletConfiguration
-            nodeStatusUpdateFrequency: "10s"
-            failSwapOn: True
-            authentication:
-              anonymous:
-                enabled: false
-              webhook:
-                enabled: True
-              x509:
-                clientCAFile: /etc/kubernetes/ssl/ca.crt
-            authorization:
-              mode: Webhook
-            staticPodPath: /etc/kubernetes/manifests
-            cgroupDriver: systemd
-            containerLogMaxFiles: 5
-            containerLogMaxSize: 10Mi
-            containerRuntimeEndpoint: unix:///var/run/containerd/containerd.sock
-            maxPods: 110
-            podPidsLimit: -1
-            address: "actual_kube_node_ip"
-            readOnlyPort: 0
-            healthzPort: 10248
-            healthzBindAddress: "127.0.0.1"
-            kubeletCgroups: /system.slice/kubelet.service
-            clusterDomain: cluster.local
-            protectKernelDefaults: true
-            rotateCertificates: true
-            clusterDNS:
-            - 10.233.0.3
-            kubeReserved:
-              cpu: "100m"
-              memory: "256Mi"
-              ephemeral-storage: "500Mi"
-              pid: "1000"
-            systemReserved:
-              cpu: "500m"
-              memory: "512Mi"
-              ephemeral-storage: "500Mi"
-              pid: "1000"
-            resolvConf: "/etc/resolv.conf"
-            eventRecordQPS: 50
-            shutdownGracePeriod: 60s
-            shutdownGracePeriodCriticalPods: 20s
-            maxParallelImagePulls: 1
-
-        - path: /test/kubelet.env
-          permissions: '0644'
-          owner: root:root
-          content: |
-            KUBE_LOG_LEVEL="--v=2"
-            KUBELET_ADDRESS="--node-ip=actual_kube_node_ip"
-            KUBELET_HOSTNAME="--hostname-override=actual_kube_node_ip"
-
-            KUBELET_ARGS="--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf \
-            --config=/etc/kubernetes/kubelet-config.yaml \
-            --kubeconfig=/etc/kubernetes/kubelet.conf \
-            --runtime-cgroups=/system.slice/containerd.service \
-            "
-            KUBELET_CLOUDPROVIDER=""
-
-            PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-        - path: /test/nginx.conf
-          permissions: '0644'
-          owner: root:root
-          content: |
-            error_log stderr notice;
-
-            worker_processes 2;
-            worker_rlimit_nofile 130048;
-            worker_shutdown_timeout 10s;
-
-            events {
-              multi_accept on;
-              use epoll;
-              worker_connections 16384;
-            }
-
-            stream {
-              upstream kube_apiserver {
-                least_conn;
-                server actual_kube_control_node_ip:6443;
-                }
-
-              server {
-                listen        127.0.0.1:6443;
-                proxy_pass    kube_apiserver;
-                proxy_timeout 10m;
-                proxy_connect_timeout 1s;
-              }
-            }
-
-            http {
-              aio threads;
-              aio_write on;
-              tcp_nopush on;
-              tcp_nodelay on;
-
-              keepalive_timeout 5m;
-              keepalive_requests 100;
-              reset_timedout_connection on;
-              server_tokens off;
-              autoindex off;
-            }
-
         - path: /etc/modules-load.d/k8s.conf
           content: |
             br_netfilter
@@ -212,45 +62,6 @@
             nf_conntrack
             vxlan
           permissions: '0644'
-
-        - path: /test/nginx-proxy.yml
-          permissions: '0644'
-          owner: root:root
-          content: |
-            apiVersion: v1
-            kind: Pod
-            metadata:
-              name: nginx-proxy
-              namespace: kube-system
-              labels:
-                addonmanager.kubernetes.io/mode: Reconcile
-                k8s-app: kube-nginx
-              annotations:
-                nginx-cfg-checksum: "58073a2cfdf689b93a9c2928552efaa8672cd3b5"
-            spec:
-              hostNetwork: true
-              dnsPolicy: ClusterFirstWithHostNet
-              nodeSelector:
-                kubernetes.io/os: linux
-              priorityClassName: system-node-critical
-              containers:
-              - name: nginx-proxy
-                image: {{ oim_ip }}:2225/library/nginx:1.27.4-alpine
-                imagePullPolicy: IfNotPresent
-                resources:
-                  requests:
-                    cpu: 25m
-                    memory: 32M
-                volumeMounts:
-                - mountPath: /etc/nginx
-                  name: etc-nginx
-                  readOnly: true
-              volumes:
-              - name: etc-nginx
-                hostPath:
-                  path: /etc/nginx
-
-
         - path: /etc/sysctl.d/k8s.conf
           content: |
             net.bridge.bridge-nf-call-iptables=1
@@ -259,56 +70,68 @@
             vm.overcommit_memory=1
             kernel.panic=10
           permissions: '0644'
-
         - path: /etc/fstab
           content: |
-            {{ nfs_server }}:{{ k8s_server_share_path }}   {{ k8s_client_share_path }}        nfs    noatime,nolock     0 0
-            #{{ nfs_server }}:{{ k8s_server_share_path }}/kube_node_configs/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}   /var/lib/containerd        nfs    noatime,nolock     0 0
-            tmpfs   /var/lib/containerd-overlay   tmpfs   size=10G,noatime,nodev,nosuid   0 0
-            tmpfs   /run/containerd   tmpfs   size=2G,noatime,nodev,nosuid   0 0
+            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}   {{ k8s_client_mount_path }}        nfs    noatime,nolock     0 0
+            tmpfs   /tmp/crio-storage   tmpfs   size=8G,noatime,nodev,nosuid   0 0
           permissions: '0644'
-
-        - path: /usr/local/bin/k8s-join.sh
-          permissions: '0755'
+        - path: /etc/containers/storage.conf
           content: |
-            #!/bin/bash
-            set -e
-            kubeadm join {{ control_plane_ip }}:6443 \
-              --token {{ kube_token }} \
-              --discovery-token-ca-cert-hash {{ ca_cert_hash }} \
-              --node-name {% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %} \
-              --cri-socket /run/containerd/containerd.sock
-            
-            if [ -f /etc/kubernetes/kubelet.conf ]; then
-              cp /etc/kubernetes/kubelet.conf /etc/kubernetes/kubelet.conf.bak
-              sed -i "s#server: https://[^:]*:6443#server: https://{{ control_plane_ip }}:6443#" /etc/kubernetes/kubelet.conf
-              systemctl restart kubelet
-            else
-              echo "WARNING: /etc/kubernetes/kubelet.conf not found. Kubelet may not be initialized yet." >> /var/log/k8s-join.log
-            fi
+            [storage]
+            driver = "overlay"
+            runroot = "/var/run/containers/storage"
+            graphroot = "/tmp/crio-storage"
+            [storage.options.overlay]
+            mount_program = "/usr/bin/fuse-overlayfs"
+          permissions: '0644'
+        - path: /tmp/crio.conf
+          permissions: '0644'
+          content: |
+            unqualified-search-registries = ["{{ pulp_mirror }}"]
+            [[registry]]
+            prefix = "docker.io"
+            location = "registry-1.docker.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "ghcr.io"
+            location = "ghcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "quay.io"
+            location = "quay.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "registry.k8s.io"
+            location = "registry.k8s.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "nvcr.io"
+            location = "nvcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "public.ecr.aws"
+            location = "public.ecr.aws"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "gcr.io"
+            location = "gcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-        - mkdir -p /root/k8s-images /etc/containerd /usr/local/bin /etc/systemd/system
-        - mkdir -p /etc/kubernetes /opt/cni/bin /etc/cni/net.d /var/lib/containerd /var/lib/containerd-overlay
-        - mkdir -p /var/run/containerd /etc/nginx /opt/omnia
-
-        - |
-          tmpfile=$(mktemp)
-          {% for ns in hostvars['localhost']['dns'] %}
-          echo "nameserver {{ ns }}" >> $tmpfile
-          {% endfor %}
-          cat /etc/resolv.conf >> $tmpfile
-          mv $tmpfile /etc/resolv.conf
-  
-        - chattr +i /etc/resolv.conf
-
-        # SELinux config
-
+        - sudo swapoff -a
+        - sudo sed -i '/ swap / s/^/#/' /etc/fstab
         - sudo setenforce 0 || true
         - sudo sed -i 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
 
-        # Enable and start firewalld
+         # Enable and start firewalld
         - systemctl enable firewalld
         - systemctl start firewalld
 
@@ -343,67 +166,48 @@
         # Reload rules
         - firewall-cmd --reload
 
-        # Disable swap
-        - sudo swapoff -a
-        - sudo sed -i '/ swap / s/^/#/' /etc/fstab
-
-        # Load kernel modules immediately
         - sudo modprobe br_netfilter || true
         - sudo modprobe overlay || true
         - sudo modprobe nf_conntrack || true
         - sudo modprobe vxlan || true
-
-        # Apply sysctl settings
         - sysctl --system
-
-        # Mount containerd storage
-        - mkdir -p /var/lib/containerd
-        - mkdir -p /var/lib/containerd-overlay
-        - mkdir -p /run/containerd
-        - mkdir -p {{ k8s_client_share_path }}
+        - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }}
         - mount -a
-        - mkdir -p {{ k8s_client_share_path }}/kube_node_configs/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}
-
-
-        - sed -i 's|^#{{ nfs_server }}:{{ k8s_server_share_path }}/kube_node_configs/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}|{{ nfs_server }}:{{ k8s_server_share_path }}/kube_node_configs/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}|' /etc/fstab
-        
-        - mount -a
-        - rm -rf /var/lib/containerd/*
-
-        # Copy binaries and configs locally
-        - cp -r {{ k8s_client_share_path }}/kube_node_configs/containerd/* /etc/containerd/
-        - cp -r {{ k8s_client_share_path }}/kube_node_configs/kubernetes/* /etc/kubernetes/
-        - cp -r {{ k8s_client_share_path }}/kube_node_configs/cni/* /opt/cni/bin/
-        - cp {{ k8s_client_share_path }}/kube_node_configs/containerd.service /etc/systemd/system/containerd.service
-        - cp {{ k8s_client_share_path }}/kube_node_configs/kubelet.service /etc/systemd/system/kubelet.service
-        - cp -r {{ k8s_client_share_path }}/kube_node_configs/usr/local/bin/* /usr/local/bin/
-        - cp -r {{ k8s_client_share_path }}/kube_node_configs/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
+        - systemctl start crio.service
+        - systemctl enable crio.service
+        - sudo systemctl enable --now kubelet
+        - mv /tmp/crio.conf /etc/containers/registries.conf.d/crio.conf
+        - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
-
-        # Now do sed replacement on local copies
-        - sed -i "s/actual_kube_node_ip/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/g" /test/kubelet-config.yaml
-        - sed -i "s/actual_kube_node_ip/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/g" /test/kubelet.env
-        - sed -i "s/actual_kube_node_ip/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/g" /test/10-calico.conflist
-        - sed -i "s/actual_kube_control_node_ip/{{ control_plane_ip }}/g" /test/nginx.conf
-
-        - cp /test/10-calico.conflist /etc/cni/net.d/10-calico.conflist
-        - cp /test/kubelet-config.yaml /etc/kubernetes/kubelet-config.yaml
-        - cp /test/kubelet.env /etc/kubernetes/kubelet.env
-        - mkdir -p /etc/kubernetes/manifests
-        - cp /test/nginx-proxy.yml /etc/kubernetes/manifests/nginx-proxy.yml
-        - cp /test/nginx.conf /etc/nginx/nginx.conf
-
-        # Start services
         - systemctl daemon-reload
-        - systemctl start containerd
-        - systemctl enable containerd
-        - systemctl enable kubelet
-
-        # Load all k8s images into k8s.io namespace
+        - systemctl restart crio
+        - kubeadm config images pull
         - |
-          for f in /{{ k8s_client_share_path }}/kube_node_configs/k8s-images/*.tar; do
-            nerdctl -n k8s.io load -i "$f"
-          done
+            K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
+            NODE_NAME="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            KUBE_VIP="{{ kube_vip }}"
+            JOIN_CMD_FILE="${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
+            echo "Waiting for join command file: $JOIN_CMD_FILE"
+            while [ ! -f "$JOIN_CMD_FILE" ]; do
+              echo "File not found: $JOIN_CMD_FILE. Retrying in 10 seconds..."
+              sleep 10
+            done
+            echo "File exists: $JOIN_CMD_FILE"
+            # Keep pinging kube-vip until it is reachable
+            while ! ping -c 1 -W 2 "$KUBE_VIP" >/dev/null 2>&1; do
+              echo "kube-vip (${KUBE_VIP}) not reachable. Retrying in 10 seconds..."
+              sleep 10
+            done
+            echo "kube-vip (${KUBE_VIP}) is pingable (ICMP), proceeding with join."
+            JOIN_CMD="$(cat "$JOIN_CMD_FILE") --node-name ${NODE_NAME}"
+            echo "Executing: $JOIN_CMD"
+            eval $JOIN_CMD
 
-        # Join Kubernetes cluster
-        - /usr/local/bin/k8s-join.sh || true
+        - |
+            if [ -f /etc/kubernetes/kubelet.conf ]; then
+              cp /etc/kubernetes/kubelet.conf /etc/kubernetes/kubelet.conf.bak
+              sed -i "s#server: https://[^:]*:6443#server: https://{{ kube_vip }}:6443#" /etc/kubernetes/kubelet.conf
+              systemctl restart kubelet
+            else
+              echo "WARNING: /etc/kubernetes/kubelet.conf not found. Kubelet may not be initialized yet."
+            fi

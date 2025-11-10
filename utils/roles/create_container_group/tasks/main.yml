@@ -20,14 +20,4 @@
     ansible_port: "{{ oim_host_port }}"
     groups: "{{ oim_host_group }}"
   when:
-    - oim_group | default(false) | bool or
-      omnia_kubespray_validation | default(false) | bool
-
-- name: Create {{ kubespray_container_hostname }} group # noqa: name[template]
-  ansible.builtin.add_host:
-    hostname: "{{ kubespray_container_hostname }}"
-    ansible_host: "localhost"
-    ansible_port: "{{ kubespray_ssh_port[hostvars['localhost']['matched_kubespray_version']] }}"
-    groups: "{{ kubespray_container_hostname }}"
-    ansible_python_interpreter: "{{ python_version }}"
-  when: omnia_kubespray_group | default(false) | bool
+    - oim_group | default(false) | bool

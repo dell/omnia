@@ -13,15 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Set kubespray service
-  ansible.builtin.set_fact:
-    kubespray_service_list: ""
-
-- name: Set Kubespray service if not empty
-  ansible.builtin.set_fact:
-    kubespray_service_list: "{{ kubespray_versions | map('regex_replace', '^(.*)$', 'omnia_kubespray_\\1.service') | join(' ') }}"
-  when: kubespray_versions is defined
-
 - name: Initialize auth service variable
   ansible.builtin.set_fact:
     auth_service: ""

@@ -41,17 +41,6 @@ usage_message: |
 softwares_var_not_provided: "No softwares variable provided. Skipping."
 softwares_invalid_msg: "Invalid software_name(s) found: {{ softwares_list | difference(software_names) }}. Allowed values: {{ software_names }}"
 
-# Usage: dynamic_k8s_json.yml
-base_compute_k8s_json_file: "{{ project_input_path }}/config/{{ arch }}/{{ cluster_os_type }}/{{ cluster_os_version }}/compute_k8s.json"
-base_service_k8s_json_file: "{{ project_input_path }}/config/{{ arch }}/{{ cluster_os_type }}/{{ cluster_os_version }}/service_k8s.json"
-dynamic_k8s_json_folder: "/opt/omnia/k8s_dynamic_json"
-kubespray_url: "https://github.com/kubernetes-sigs/kubespray.git"
-package_type_list: ["rpm", "deb", "tarball", "image", "manifest", "pip_module", "git"]
-dynamic_k8s_json_log_dir: "/opt/omnia/log/local_repo"
-
-# Usage: validate_k8s_json.yml
-kubeadm_package_name: "kubeadm-v1.31.4-amd64"
-
 # Usage: main.yml
 nfs_shared_path: "/opt/omnia"
 local_repo_config_file: "{{ project_input_path }}/local_repo_config.yml"
@@ -117,11 +106,16 @@ specific_softwares:
   - 'intelgaudi'
   - 'openmpi'
   - 'bcm_roce_libraries'
+default_k8s_version: "1.34.1"
+fail_msg: >-
+    service_k8s is not supported for version: {{ service_k8s_version }}.
+    Please update the service_k8s version in software_config.json to {{ default_k8s_version }}
+    and rerun the playbook.
 metadata_file: "/opt/omnia/kubespray/k8s_metadata.yml"
 k8s_metadata_file_not_exist_msg: "The metadata file {{ metadata_file }} is missing. The omnia_kubespray_v2.28.0 container has not been deployed. Please run prepare_oim.yml and then rerun the playbook." # noqa: yaml[line-length]
 
 versions_fail_msg: "Versions were not defined for the following softwares: {{ failed_softwares | join(', ') }} in software_config.json.
-Refer examples/template_{{ cluster_os_type }}_software_config.json and define version details accordingly in {{ project_input_path }}/software_config.json"
+    Refer examples/template_{{ cluster_os_type }}_software_config.json and define version details accordingly in {{ project_input_path }}/software_config.json"
 cluster_os_type_fail_msg: "Failed. The supported values of cluster_os_type is Fedora"
 cluster_os_version_fail_msg_fedora: "Failed. The supported values of cluster_os_version is 38 when cluster_os_type is Fedora"
 # cross_os_support_fail_msg: "Cross-OS is not supported: control_plane_os '{{ control_plane_os }}' does not match cluster_os_type '{{ cluster_os_type }}'"
@@ -149,7 +143,7 @@ omnia_registry_string_fail_msg: "Each item in omnia_registry should be a string.
 
 # Usage: validate_user_registry.yml
 user_registry_fail_msg: "Failed. Please ensure user_registry is non empty list and
-check if there is any indentation error in {{ project_input_path }}/local_repo_config.yml"
+    check if there is any indentation error in {{ project_input_path }}/local_repo_config.yml"
 user_registry_fail_host_cert_path_msg: "Failed. Each item in user_registry should have 'host' and 'cert_path' keys defined"
 time_out: 30
 user_registry_msg: "Above host registries are not reachable. If the user registry is not accessible from the Omnia Infrastructure Manager, Omnia will download all the images for the software listed in software_config.json."   # noqa: yaml[line-length]
@@ -157,7 +151,7 @@ cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not
 
 # Usage: validate_user_repo_url.yml
 user_repo_url_fail_msg: "Failed. Please ensure user_repo_url is proper and should not have jinja variables.
-Also ensure that there is no indentation error in {{ project_input_path }}/local_repo_config.yml"
+    Also ensure that there is no indentation error in {{ project_input_path }}/local_repo_config.yml"
 user_repo_url_fail_url_gpg_key_msg: "Failed. Each item in user_repo_url should have 'url', 'gpgkey' and 'name' keys defined"
 
 # Usage: validate_json_path.yml
@@ -168,10 +162,10 @@ subgroup_software_name_fail_msg: "Please ensure valid software names are defined
 
 # Usage: validate_ubuntu_os_url.yml
 url_format_fail_msg: "Failed. Invalid format for ubuntu_os_url.
-Also ensure that there is no indentation error in {{ project_input_path }}/local_repo_config.yml"
+    Also ensure that there is no indentation error in {{ project_input_path }}/local_repo_config.yml"
 url_unreachable_fail_msg: "Failed. Unreachable url {{ ubuntu_os_url }} input provided in ubuntu_os_url.
-This can be due to intermittent internet connectivity issues as well.
-Please ensure that the url mentioned in ubuntu_os_url is reachable and re-run local_repo.yml."
+    This can be due to intermittent internet connectivity issues as well.
+    Please ensure that the url mentioned in ubuntu_os_url is reachable and re-run local_repo.yml."
 http_key: http
 
 # Usage: validate_metadata.yml
@@ -184,14 +178,14 @@ k8s_local_repo_metadata_file_path: "/opt/omnia/log/local_repo/k8s_local_repo_met
 
 # Usage: validate_rhel_os_url.yml
 rhel_os_url_fail_msg: "Failed. Please ensure rhel_os_url is non empty list and
-check if there is any indentation error for variable names in {{ project_input_path }}/local_repo_config.yml"
+    check if there is any indentation error for variable names in {{ project_input_path }}/local_repo_config.yml"
 rhel_os_url_fail_url_gpg_key_msg: "Failed. Each item in rhel_os_url should have 'url', 'gpgkey' and 'name' keys defined"
 
 # Usage: validate_bcm_roce.yml
 bcm_roce_json_file: "{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/bcm_roce.json"
 fail_msg_bcm_roce_json_file: "bcm_roce.json file is absent. Broadcom RoCE driver packages will not be downloaded."
 bcm_roce_fail_msg: "bcm_roce is provided in software_config.json but neither url nor path is provided in bcm_roce.json file in
-{{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/"
+    {{ project_input_path }}/config/{{ cluster_os_type }}/{{ cluster_os_version }}/"
 bcm_roce_file_path_missing_msg: "Incorrect bcm_roce_file_path provided. Make sure bcm_roce file is present in the provided
  bcm_roce path."
 bcm_roce_file_path_success_msg: "bcm_roce_file_path validated"

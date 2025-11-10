@@ -69,6 +69,14 @@
             {{ lookup('template', 'templates/openldap/update_ldap_conf.sh.j2') | indent(12) }}
 {% endif %}
 
+{% if hostvars['localhost']['ldms_support'] %}
+        - path: /root/ldms_conf.sh
+          owner: root:root
+          permissions: '0755'
+          content: |
+            {{ lookup('template', 'templates/ldms/ldms_conf.sh.j2') | indent(12) }}
+{% endif %}
+
         - path: /etc/hosts
           append: true
           content: |
@@ -157,3 +165,18 @@
         - echo "{{ nfs_src }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
         - mount -a
 {% endif %}
+
+{% if hostvars['localhost']['ldms_support'] %}
+        - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
+
+        # Add NFS entry and mount
+        - mkdir -p {{ client_mount_path }}
+        - echo "{{ nfs_src }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
+        - mount -a
+
+        - cp -rf {{ client_mount_path }}/ldms/samplers/sampler.conf /opt/ovis-ldms/etc/ldms/
+
+        - /root/ldms_conf.sh
+{% endif %}
+
+

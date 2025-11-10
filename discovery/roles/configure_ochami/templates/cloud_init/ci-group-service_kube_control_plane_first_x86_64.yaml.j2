@@ -1,0 +1,500 @@
+- name: {{ functional_group_name }}
+  description: "{{ functional_group_name }}"
+  file:
+    encoding: plain
+    content: |
+      ## template: jinja
+      #cloud-config
+
+      merge_how:
+      - name: list
+        settings: [append]
+      - name: dict
+        settings: [no_replace, recurse_list]
+
+      users:
+        - name: root
+          ssh_authorized_keys: "{{ read_ssh_key.stdout }}"
+          lock_passwd: false
+          hashed_passwd: "{{ hashed_password_output.stdout }}"
+      disable_root: false
+
+      write_files:
+        - path: /usr/local/bin/set-ssh.sh
+          permissions: '0755'
+          content: |
+            #!/bin/bash
+            timedatectl set-timezone {{ hostvars['localhost']['timezone'] }}
+            sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+            sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+            sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/50-cloud-init.conf
+            systemctl restart sshd
+            default_count=$(ip route | grep -c "^default")
+            if [ "$default_count" -le 1 ]; then
+                echo "Only one or no default route found. No action needed."
+            else
+                private_nic=$(ip route | grep "^default via {{ hostvars['localhost']['admin_nic_ip'] }}" | awk '{print $5}')
+                # Get all default routes
+                ip route | grep '^default' | while read -r line; do
+                    nmcli con del "Wired Connection"
+                    # Extract NIC name
+                    nic=$(echo "$line" | awk '{print $5}')
+
+                    # Add the default route to the connection
+                    if [ -n "$nic" ]; then
+                        echo "Adding nmcli device $nic"
+                        nmcli con add type ethernet ifname "$nic" con-name "$nic" ipv4.method auto
+                        if [ "$nic" = "$private_nic" ]; then
+                          nmcli con modify "$nic" ipv4.never-default yes
+                          nmcli con delete "cloud-init $nic"
+                        fi
+                        nmcli con up "$nic"
+                    else
+                        echo "No connection found for device $nic"
+                    fi
+                done
+            fi
+
+        - path: /etc/modules-load.d/k8s.conf
+          content: |
+            br_netfilter
+            overlay
+            nf_conntrack
+            vxlan
+          permissions: '0644'
+
+        - path: /etc/sysctl.d/k8s.conf
+          content: |
+            net.bridge.bridge-nf-call-iptables=1
+            net.bridge.bridge-nf-call-ip6tables=1
+            net.ipv4.ip_forward=1
+            vm.overcommit_memory=1
+            kernel.panic=10
+          permissions: '0644'
+
+        - path: /etc/fstab
+          content: |
+            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}   {{ k8s_client_mount_path }}        nfs    noatime,nolock     0 0
+            tmpfs   /tmp/crio-storage   tmpfs   size=8G,noatime,nodev,nosuid   0 0
+          permissions: '0644'
+
+        - path: /etc/containers/storage.conf
+          content: |
+            [storage]
+            driver = "overlay"
+            runroot = "/var/run/containers/storage"
+            graphroot = "/tmp/crio-storage"
+            [storage.options.overlay]
+            mount_program = "/usr/bin/fuse-overlayfs"
+          permissions: '0644'
+
+        - path: /tmp/crio.conf
+          permissions: '0644'
+          content: |
+            unqualified-search-registries = ["{{ pulp_mirror }}"]
+
+            [[registry]]
+            prefix = "docker.io"
+            location = "registry-1.docker.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+            [[registry]]
+            prefix = "ghcr.io"
+            location = "ghcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+            [[registry]]
+            prefix = "quay.io"
+            location = "quay.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+            [[registry]]
+            prefix = "registry.k8s.io"
+            location = "registry.k8s.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+            [[registry]]
+            prefix = "nvcr.io"
+            location = "nvcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+            [[registry]]
+            prefix = "public.ecr.aws"
+            location = "public.ecr.aws"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+            [[registry]]
+            prefix = "gcr.io"
+            location = "gcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+
+        - path: /tmp/kube-vip.yaml
+          owner: root:root
+          permissions: '0644'
+          content: |
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              creationTimestamp: null
+              name: kube-vip
+              namespace: kube-system
+              uid: kube-vip-pod
+            spec:
+              containers:
+              - args:
+                - manager
+                env:
+                - name: vip_arp
+                  value: "true"
+                - name: port
+                  value: "6443"
+                - name: vip_nodename
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: spec.nodeName
+                - name: vip_interface
+                  value: vip_interface
+                - name: vip_cidr
+                  value: "32"
+                - name: dns_mode
+                  value: first
+                - name: cp_enable
+                  value: "true"
+                - name: cp_namespace
+                  value: kube-system
+                - name: svc_enable
+                  value: "true"
+                - name: svc_leasename
+                  value: plndr-svcs-lock
+                - name: vip_leaderelection
+                  value: "true"
+                - name: vip_leasename
+                  value: plndr-cp-lock
+                - name: vip_leaseduration
+                  value: "5"
+                - name: vip_renewdeadline
+                  value: "3"
+                - name: vip_retryperiod
+                  value: "1"
+                - name: vip_address
+                  value: {{ kube_vip }}
+                - name: prometheus_server
+                  value: :2112
+                image: ghcr.io/kube-vip/kube-vip:v0.8.9
+                imagePullPolicy: IfNotPresent
+                name: kube-vip
+                resources: {}
+                securityContext:
+                  capabilities:
+                    add:
+                    - NET_ADMIN
+                    - NET_RAW
+                volumeMounts:
+                - mountPath: /etc/kubernetes/admin.conf
+                  name: kubeconfig
+              hostAliases:
+              - hostnames:
+                - kubernetes
+                ip: 127.0.0.1
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+              - hostPath:
+                  path: /etc/kubernetes/admin.conf
+                name: kubeconfig
+            status: {}
+
+        - path: /usr/local/bin/k8s-cluster-setup.sh
+          permissions: '0755'
+          content: |
+            #!/bin/bash
+            set -e
+            kubeadm init --kubernetes-version=1.34.1 \
+              --pod-network-cidr={{ k8s_pod_network_cidr }} \
+              --service-cidr={{ k8s_service_addresses }} \
+              --apiserver-advertise-address={% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %} \
+              --node-name {% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %} \
+              --cri-socket=unix:///var/run/crio/crio.sock \
+              --apiserver-cert-extra-sans {{ kube_vip }}
+        
+        - path: /usr/local/bin/install-helm.sh
+          permissions: '0755'
+          content: |
+            #!/bin/bash
+            set -e
+            HELM_VERSION="v3.19.0"
+            ARCH="amd64"
+            cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}/helm /usr/local/bin/helm
+            chmod +x /usr/local/bin/helm
+
+            # Optional: Set up bash completion
+            /usr/local/bin/helm completion bash > /etc/bash_completion.d/helm.sh
+            chmod 0755 /etc/bash_completion.d/helm.sh
+
+        - path: /tmp/ipaddress_pool.yaml
+          owner: root:root
+          permissions: '0644'
+          content: |
+            apiVersion: metallb.io/v1beta1
+            kind: IPAddressPool
+            metadata:
+              name: first-pool
+              namespace: metallb-system
+            spec:
+              addresses:
+              - {{ pod_external_ip_range }}
+
+        - path: /tmp/l2advertisement.yaml
+          owner: root:root
+          permissions: '0644'
+          content: |
+            apiVersion: metallb.io/v1beta1
+            kind: L2Advertisement
+            metadata:
+              name: default
+              namespace: metallb-system
+            spec:
+              ipAddressPools:
+              - first-pool
+
+      runcmd:
+        - /usr/local/bin/set-ssh.sh
+        - sudo swapoff -a
+        - sudo sed -i '/ swap / s/^/#/' /etc/fstab
+        - sudo setenforce 0 || true
+        - sudo sed -i 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+        
+        # Enable and start firewalld
+        - systemctl enable firewalld
+        - systemctl start firewalld
+
+        # Open essential ports
+        - firewall-cmd --permanent --add-port=22/tcp
+        - firewall-cmd --permanent --add-port=6443/tcp
+        - firewall-cmd --permanent --add-port=2379-2380/tcp
+        - firewall-cmd --permanent --add-port=10250/tcp
+        - firewall-cmd --permanent --add-port=10251/tcp
+        - firewall-cmd --permanent --add-port=10252/tcp
+        - firewall-cmd --permanent --add-port=10257/tcp
+        - firewall-cmd --permanent --add-port=10259/tcp
+
+        # CNI-related ports if running workloads on control plane (NodePort, CNI, etc.)
+        - firewall-cmd --permanent --add-port=30000-32767/tcp
+        - firewall-cmd --permanent --add-port=179/tcp
+        - firewall-cmd --permanent --add-port=4789/udp
+        - firewall-cmd --permanent --add-port=5473/tcp
+        - firewall-cmd --permanent --add-port=51820/udp
+        - firewall-cmd --permanent --add-port=51821/udp
+        - firewall-cmd --permanent --add-port=9100/tcp
+        - firewall-cmd --permanent --add-port=7472/tcp
+        - firewall-cmd --permanent --add-port=7472/udp
+        - firewall-cmd --permanent --add-port=7946/tcp
+        - firewall-cmd --permanent --add-port=7946/udp
+        - firewall-cmd --permanent --add-port=9090/tcp
+        - firewall-cmd --permanent --add-port=8080/tcp
+        
+        # Enable services
+        - firewall-cmd --permanent --add-service=http
+        - firewall-cmd --permanent --add-service=https
+
+        # Add pod/service networks
+        - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_service_addresses }}
+        - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_pod_network_cidr }}
+        
+        # Set default zone to trusted
+        - firewall-cmd --set-default-zone=trusted
+        
+        # Reload the firewall rules
+        - firewall-cmd --reload
+
+        - sudo modprobe br_netfilter || true
+        - sudo modprobe overlay || true
+        - sudo modprobe nf_conntrack || true
+        - sudo modprobe vxlan || true
+        - sysctl --system
+        - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }}
+        - mount -a
+        - systemctl start crio.service
+        - systemctl enable crio.service
+        - sudo systemctl enable --now kubelet
+        - mv /tmp/crio.conf /etc/containers/registries.conf.d/crio.conf
+        - mv /tmp/ipaddress_pool.yaml {{ k8s_client_mount_path }}/metallb/ipaddress_pool.yaml
+        - mv /tmp/l2advertisement.yaml {{ k8s_client_mount_path }}/metallb/l2advertisement.yaml
+        - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
+        - update-ca-trust extract
+        - systemctl daemon-reload
+        - systemctl restart crio
+        - kubeadm config images pull
+        # Setup Kubernetes cluster
+        - /usr/local/bin/k8s-cluster-setup.sh || true
+        - mkdir -p $HOME/.kube
+        - cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
+        - chown $(id -u):$(id -g) $HOME/.kube/config
+        - kubectl create -f {{ k8s_client_mount_path }}/calico//{{ calico_package }}.yml
+
+        - |
+          export KUBECONFIG=/etc/kubernetes/admin.conf
+          echo "Waiting for one Ready control plane node ..."
+          # Loop until we have at least one control plane node with status Ready
+          while true; do
+            control_plane_ready=$(kubectl get nodes -l node-role.kubernetes.io/control-plane="" --no-headers 2>/dev/null | awk '$2=="Ready"' | wc -l)
+            if [ "$control_plane_ready" -ge 1 ]; then
+              echo "Found $control_plane_ready Ready control plane node(s)!"
+              break
+            else
+              echo "No Ready control plane node yet, waiting 5s ..."
+              sleep 5
+            fi
+          done
+
+          # Wait for all pods in all namespaces to be ready (status=Running or Completed)
+          echo "Waiting for all pods to be Ready (Running/Completed)..."
+          while true; do
+            not_ready=$(kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '{ print $4 }' | grep -vE '^(Running|Completed)$' | wc -l)
+            if [ "${not_ready}" -eq 0 ]; then
+              echo "All pods are Running or Completed."
+              break
+            else
+              echo "$not_ready pods not yet ready, waiting 5s ..."
+              sleep 5
+            fi
+          done
+
+          echo "Listing all Kubernetes nodes:"
+          kubectl get nodes -o wide
+          echo "Listing all Kubernetes pods in all namespaces:"
+          kubectl get pods --all-namespaces -o wide
+
+        - |
+          kube_vip="{{ kube_vip }}"
+          kubectl get configmap kubeadm-config -n kube-system -o yaml > /tmp/kubeadm-config.yaml
+          if grep -q 'controlPlaneEndpoint:' /tmp/kubeadm-config.yaml; then
+            sed -i "s|controlPlaneEndpoint:.*|controlPlaneEndpoint: ${kube_vip}:6443|" /tmp/kubeadm-config.yaml
+          else
+            # Use correct YAML key capitalization!
+            sed -i "/ClusterConfiguration:/a\    controlPlaneEndpoint: ${kube_vip}:6443" /tmp/kubeadm-config.yaml
+          fi
+          kubectl apply -f /tmp/kubeadm-config.yaml
+        - |
+          VIP="{{ kube_vip }}"
+          KUBE_PORT="6443"
+          sed -i "s|server: https://[^:]*:${KUBE_PORT}|server: https://${VIP}:${KUBE_PORT}|" /etc/kubernetes/admin.conf
+          KUBECONFIG="${HOME}/.kube/config"
+          if [ -f "$KUBECONFIG" ]; then
+            sed -i "s|server: https://[^:]*:${KUBE_PORT}|server: https://${VIP}:${KUBE_PORT}|" "$KUBECONFIG"
+          fi
+          cp /etc/kubernetes/admin.conf $HOME/.kube/config
+          mkdir -p /root/.kube
+          cp /etc/kubernetes/admin.conf /root/.kube/config
+
+        - |
+          #!/bin/bash
+          NODE_IP="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+          # Find the interface with this IP
+          VIP_IFACE=$(ip -o addr show | awk -v ip="$NODE_IP" '$4 ~ ip {print $2}')
+          # Replace the vip_interface placeholder in the yaml
+          sed -i "s/value: vip_interface/value: ${VIP_IFACE}/" /tmp/kube-vip.yaml
+          cp /tmp/kube-vip.yaml /etc/kubernetes/manifests/kube-vip.yaml
+        - systemctl restart kubelet
+
+        - |
+          KUBE_VIP="{{ kube_vip }}"
+          if kubectl config view --minify | grep -q "server: https://${KUBE_VIP}:6443"; then
+            echo "SUCCESS: kube_vip (${KUBE_VIP}) is set in kubeconfig."
+            echo "Running: kubeadm init phase certs apiserver --control-plane-endpoint ${KUBE_VIP}:6443"
+            kubeadm init phase certs apiserver --control-plane-endpoint ${KUBE_VIP}:6443
+
+          else
+            echo "FAIL: kube_vip (${KUBE_VIP}) is NOT set in kubeconfig."
+          fi
+
+        - |
+          K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
+
+          # Get the certificate key
+          CERT_KEY=$(kubeadm init phase upload-certs --upload-certs | tail -1 | tr -d '\r\n ')
+          if [ -n "$CERT_KEY" ]; then
+            CONTROL_PLANE_JOIN_CMD=$(kubeadm token create --ttl 0 --print-join-command --certificate-key "$CERT_KEY")
+            echo "$CONTROL_PLANE_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
+            echo "Saved control-plane join command to: ${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
+          else
+            echo "ERROR: Certificate key is empty! Cannot generate control-plane join command."
+            exit 1
+          fi
+
+          # For joining worker nodes (regular join command)
+          WORKER_JOIN_CMD=$(kubeadm token create --ttl 0 --print-join-command)
+          echo "$WORKER_JOIN_CMD" > "${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
+          echo "Saved worker join command to:       ${K8S_CLIENT_MOUNT_PATH}/worker-join-command.sh"
+
+        - echo "Installing helm"
+        - /usr/local/bin/install-helm.sh
+
+        - |
+          set -e
+          cd {{ k8s_client_mount_path }}
+          export KUBECONFIG=/etc/kubernetes/admin.conf
+
+          echo "Waiting for at least one READY Kubernetes worker node ..."
+          while true; do
+            # List nodes, exclude master/control-plane, look for Ready
+            if kubectl get nodes --no-headers | grep -Ev 'control-plane|master' | grep ' Ready '; then
+              echo "Worker node(s) present and Ready."
+              break
+            else
+              echo "No Ready worker node detected yet. Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+
+          echo "Installing plugins"
+          echo "Installing nfs-client-provisioner"
+          /usr/local/bin/helm install nfs-client {{ k8s_client_mount_path }}/nfs-client-provisioner/{{ nfs_subdir_external_provisioner_pkg }}.tar.gz \
+            --namespace default --create-namespace \
+            --set nfs.server={{ k8s_nfs_server_ip }} \
+            --set nfs.path={{ k8s_server_share_path }} \
+            --set storageClass.defaultClass=true
+          echo "Waiting for nfs-subdir-external-provisioner pods to be ready..."
+          kubectl wait --for=condition=Ready pod -l app=nfs-subdir-external-provisioner -n default --timeout=300s
+
+          echo "Installing Metallb"
+          kubectl create -f metallb/{{ metallb_package }}.yml
+          echo "Waiting for MetalLB pods to be ready..."
+          kubectl wait --namespace metallb-system --for=condition=Ready pods --all --timeout=300s
+          echo "Deploy ipaddress pool"
+          kubectl create -f metallb/ipaddress_pool.yaml
+          echo "Deploy Layer2 Configuration"
+          kubectl create -f metallb/l2advertisement.yaml
+
+          # echo "Deploy Multus"
+          # kubectl apply -f multus/{{ multus_package }}.yml
+          # echo "Waiting for multus pods to be ready..."
+          # kubectl wait --for=condition=Ready pod -l app=multus -n kube-system --timeout=300s
+
+          # echo "Deploy Wherabouts"
+          # kubectl apply -f whereabouts/whereabouts/doc/crds/daemonset-install.yaml
+          # kubectl apply -f whereabouts/whereabouts/doc/crds/whereabouts.cni.cncf.io_ippools.yaml
+          # kubectl apply -f whereabouts/whereabouts/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+          # echo "Waiting for whereabouts pods to be ready..."
+          # kubectl wait --for=condition=Ready pod -l app=whereabouts -n kube-system --timeout=300s
+
+        - |
+          export KUBECONFIG=/etc/kubernetes/admin.conf
+          echo "Display nodes and pods status after deploying plugins"
+          echo "Listing all Kubernetes nodes:"
+          kubectl get nodes -o wide
+
+          echo "Listing all Kubernetes pods in all namespaces:"
+          kubectl get pods --all-namespaces -o wide
+        
+        - |
+          echo "Applying Telemetry Kubernetes deployments"
+          kubectl apply -k {{ k8s_client_mount_path }}/telemetry/deployments/.
+

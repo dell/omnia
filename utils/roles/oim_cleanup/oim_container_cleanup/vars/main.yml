@@ -39,11 +39,6 @@ pulp_cleanup_directory:
   - "{{ omnia_nfs_share }}/rhel_repo_certs"
 track_file_path: "{{ omnia_nfs_share }}/pulp/pulp_crt_track.txt"
 
-# Usage: cleanup_kubespray.yml
-kubespray_cleanup_directory:
-  - "{{ omnia_nfs_share }}/kubespray"
-  - "{{ omnia_nfs_share }}/log/kubespray"
-
 # Usage: cleanup_openchami.yml
 openchami_packages:
   - ochami

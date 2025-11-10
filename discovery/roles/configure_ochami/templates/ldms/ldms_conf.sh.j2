@@ -1,0 +1,42 @@
+#!/bin/bash
+# ============================================================
+# LDMS Setup Script
+# ============================================================
+
+LOG_FILE="/var/log/ldms-cloudinit.log"
+echo "===== Starting LDMS setup =====" | tee -a "$LOG_FILE"
+
+# --- Export LDMS environment variables ---
+echo "Sourcing LDMS environment variables..." | tee -a "$LOG_FILE"
+if [ -f /opt/ovis-ldms/etc/profile.d/set-ovis-variables.sh ]; then
+    source /opt/ovis-ldms/etc/profile.d/set-ovis-variables.sh
+else
+    echo "Environment file /opt/ovis-ldms/etc/profile.d/set-ovis-variables.sh not found. Continuing..." | tee -a "$LOG_FILE"
+fi
+
+# --- Verify environment file existence ---
+echo "Checking for LDMS sampler environment file..." | tee -a "$LOG_FILE"
+if [ -f /opt/ovis-ldms/etc/ldms/ldmsd.sampler.env ]; then
+    echo "Found ldmsd.sampler.env" | tee -a "$LOG_FILE"
+else
+    echo "Warning: ldmsd.sampler.env not found" | tee -a "$LOG_FILE"
+fi
+
+# --- Configure and enable LDMS service ---
+echo "Configuring and enabling LDMS service..." | tee -a "$LOG_FILE"
+if [ -f /opt/ovis-ldms/etc/systemd/system/ldmsd.sampler.service ]; then
+    sudo cp /opt/ovis-ldms/etc/systemd/system/ldmsd.sampler.service /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable ldmsd.sampler.service
+    sudo systemctl start ldmsd.sampler.service
+    sudo systemctl status ldmsd.sampler.service --no-pager | tee -a "$LOG_FILE"
+else
+    echo "Service file not found: /opt/ovis-ldms/etc/systemd/system/ldmsd.sampler.service" | tee -a "$LOG_FILE"
+fi
+
+# --- Verify LDMS connection and metrics ---
+echo "Verifying LDMS connection and metrics..." | tee -a "$LOG_FILE"
+/opt/ovis-ldms/sbin/ldms_ls -a ovis -A conf=/opt/ovis-ldms/etc/ldms/ldmsauth.conf -p 10001 -h localhost | tee -a "$LOG_FILE"
+/opt/ovis-ldms/sbin/ldms_ls -l -a ovis -A conf=/opt/ovis-ldms/etc/ldms/ldmsauth.conf -p 10001 -h localhost > /tmp/metrics
+
+echo "===== LDMS setup completed =====" | tee -a "$LOG_FILE"

@@ -13,18 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Configure the ochami
-  environment: "{{ hostvars['oim']['ochami_env'] }}"
+- name: Creating the configuration files required for service_k8s in nfs share
+  ansible.builtin.include_tasks: create_k8s_config_nfs.yml
   when: hostvars['localhost']['service_k8s_support']
-  block:
-
-    - name: Check required vars files exist
-      ansible.builtin.include_vars:
-        file: "/opt/omnia/kubespray/{{ item }}"
-      loop:
-        - kubeadm_join_vars.yaml
-        - cloud-init-vars.yaml
-  rescue:
-    - name: Warn missing vars files
-      ansible.builtin.fail:
-        msg: "{{ service_k8s_fail_msg }}"

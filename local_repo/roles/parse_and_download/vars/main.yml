@@ -35,15 +35,7 @@ clean_rpms: true
 rpm_dir_path: "{{ repo_store_path }}/offline_repo/cluster/{{ item }}/rhel/10.0/rpm"
 localrepo_completion_msg1: |
   The playbook local_repo.yml has completed successfully.
-  Next step, run the playbook `utils/connect_external_server.yml -i <inv>` to prepare for the Kubernetes deployment.
-  Execute omnia.yml -i <inv> playbook.
-  Replace `<inv>` with your inventory file as specified in documentation.
   To build the node images, execute the appropriate playbook based on the target architecture:
-  - For **x86_64** nodes, run:  `build_image_x86_64/build_image_x86_64.yml`
-
-localrepo_completion_msg2: |
-  The playbook local_repo.yml has completed successfully.
-  To build the node images, execute the appropriate playbook based on the target architecture as next step:
   - For **x86_64** nodes, run:  `build_image_x86_64/build_image_x86_64.yml`
 
 local_repo_py_module_vars:

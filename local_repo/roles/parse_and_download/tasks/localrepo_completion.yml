@@ -15,5 +15,5 @@
 
 - name: Localrepo completion message
   ansible.builtin.debug:
-    msg: "{{ (service_k8s_support | bool) | ternary(localrepo_completion_msg1, localrepo_completion_msg2) | split('\n') | join(' ') }}"
+    msg: "{{ localrepo_completion_msg1 | split('\n') | join(' ') }}"
   when: final_status == 'SUCCESS'

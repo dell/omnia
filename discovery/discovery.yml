@@ -20,7 +20,7 @@
     - name: Set dynamic run tags including 'provision'
       when: not config_file_status | default(false) | bool
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['provision']) + ['slurm'] + ['slurm_custom'] + ['security'] | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['provision']) + ['slurm'] + ['slurm_custom'] + ['security'] + ['service_k8s'] | unique }}"
         cacheable: true
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations
@@ -78,8 +78,8 @@
         name: configure_ochami
         tasks_from: discover_mapping_nodes.yml
   roles:
-    - k8s_prereq
     - nfs_client
+    - k8s_config
     - slurm_config
     - openldap
     - telemetry

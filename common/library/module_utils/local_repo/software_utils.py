@@ -154,7 +154,7 @@ def is_remote_url_reachable(remote_url, timeout=10,
     except Exception:
         return False
 
-def transform_package_dict(data, arch_val):
+def transform_package_dict(data, arch_val,logger):
     """
     Transforms a dictionary of packages and organizes them by architecture.
 
@@ -162,6 +162,7 @@ def transform_package_dict(data, arch_val):
         data (dict): Dictionary of packages where each key is a software name,
                      and each value is a list of package dicts.
         arch_val: Current architecture being parsed for the software
+        logger (logging.Logger): Logger instance used for structured logging of process steps.
 
     Returns:
         dict: A dictionary where each key is an architecture (e.g., 'x86_64', 'aarch64'),
@@ -189,12 +190,15 @@ def transform_package_dict(data, arch_val):
             })
 
         result[arch_val][sw_name] = transformed_items
+        logger.info(f"Finished processing %s. Result: %s", sw_name, transformed_items)
 
-    return dict(result)
+    final_result = dict(result)
+    logger.info("Transformation complete for arch '%s'. Final result keys: %s", arch_val, list(final_result.keys()))
+    return final_result
 
 
 def parse_repo_urls(repo_config, local_repo_config_path,
-                    version_variables, vault_key_path, sub_urls):
+                    version_variables, vault_key_path, sub_urls,logger):
     """
     Parses the repository URLs from the given local repository configuration file.
     Args:
@@ -202,7 +206,9 @@ def parse_repo_urls(repo_config, local_repo_config_path,
         local_repo_config_path (str): The path to the local repository configuration file.
         version_variables (dict): A dictionary of version variables.
         vault_key_path: Ansible vault key path
-        sw_arch_dict: dictionary mapping between software and architectures
+        sub_urls (dict): Mapping of architectures to subscription URLs that override 
+                         default RHEL URLs when provided.
+        logger (logging.Logger): Logger instance used for structured logging of process steps.
     Returns:
         tuple: A tuple where the first element is either the parsed repository URLs as a JSON string
                (on success) or the rendered URL (if unreachable),
@@ -214,8 +220,6 @@ def parse_repo_urls(repo_config, local_repo_config_path,
     repo_entries = {}
     user_repo_entry = {}
     rhel_repo_entry = {}
-    log_dir = "/opt/omnia/log/local_repo"
-    logger = setup_standard_logger(log_dir)
 
     for arch in ARCH_SUFFIXES:
         
@@ -225,16 +229,20 @@ def parse_repo_urls(repo_config, local_repo_config_path,
         user_repo_entry[arch] = list(local_yaml.get(f"user_repo_url_{arch}") or [])
         # In case of Subscription, Subscription URLs take precedence if present and non-empty
         if sub_urls and arch in sub_urls and sub_urls[arch]:
+            logger.info(f"Subscription URLs detected for arch {arch}. Overriding RHEL URLs.")
             if not isinstance(rhel_repo_entry.get(arch), list):
                 rhel_repo_entry[arch] = []
             rhel_repo_entry[arch] = list(sub_urls[arch])
-            logger.info(f"subscription urls: {rhel_repo_entry}")
+            logger.info(f" Updated RHEL URLs: {rhel_repo_entry[arch]}")
 
     parsed_repos = []
     vault_key_path = os.path.join(
         vault_key_path, ".local_repo_credentials_key")
+
+    # Handle user repositories
     for arch, repo_list in user_repo_entry.items():
         if not repo_list:
+            logger.info(f"No user repository entries found for {arch}")
             continue
         for url_ in repo_list:
             name = url_.get("name", "unknown")
@@ -246,15 +254,19 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             policy_given = url_.get("policy", repo_config)
             policy = REPO_CONFIG.get(policy_given)
 
+            logger.info(f"Processing user repo '{name}' for arch '{arch}' - URL: {url}")
+
             for path in [ca_cert, client_key, client_cert]:
                 mode = "decrypt"
                 if path and is_encrypted(path):
                     result, message = process_file(path, vault_key_path, mode)
                     if result is False:
+                        logger.error(f"Decryption failed for user repo path: {path} | Error: {message}")
                         return f"Error during decrypt for user repository path:{path}", False
 
             if not is_remote_url_reachable(url, client_cert=client_cert,
                                            client_key=client_key, ca_cert=ca_cert):
+                logger.error(f"User repo URL unreachable: {url}")
                 return url, False
 
             parsed_repos.append({
@@ -269,6 +281,9 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "sw_arch": arch
             })
 
+            logger.info(f"Added user repo entry: {name}")
+
+    # Handle RHEL repositories
     for arch, repo_list in rhel_repo_entry.items():
         for url_ in repo_list:
             name = url_.get("name", "unknown")
@@ -280,15 +295,19 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             policy_given = url_.get("policy", repo_config)
             policy = REPO_CONFIG.get(policy_given)
 
+            logger.info(f"Processing RHEL repo '{name}' for arch '{arch}' - URL: {url}")
+
             for path in [ca_cert, client_key, client_cert]:
                 mode = "decrypt"
                 if path and is_encrypted(path):
                     result, message = process_file(path, vault_key_path, mode)
                     if result is False:
+                        logger.error(f"Decryption failed for RHEL repo path: {path} | Error: {message}")
                         return f"Error during decrypt for rhel repository path:{path}", False
 
             if not is_remote_url_reachable(url, client_cert=client_cert,
                                            client_key=client_key, ca_cert=ca_cert):
+                logger.error(f"RHEL repo URL unreachable: {url}")
                 return url, False
 
             # if not is_remote_url_reachable(url):
@@ -305,10 +324,13 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "policy": policy,
                 "sw_arch": arch
             })
+            logger.info(f"Added RHEL repo entry: {name}")
 
+    # Handle OMNIA repositories
     seen_urls = set()
     for arch, entries in repo_entries.items():
         if not entries:
+           logger.info(f"No OMNIA repository entries found for {arch}")
            continue
 
         for repo in entries:
@@ -317,26 +339,31 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             gpgkey = repo.get("gpgkey", "")
             policy_given = repo.get("policy", repo_config)
             policy = REPO_CONFIG.get(policy_given)
+            logger.info(f"Processing OMNIA repo '{name}' for arch '{arch}' - Template URL: {url}")
 
             # Find unresolved template vars in URL
             template_vars_url = re.findall(r"{{\s*(\w+)\s*}}", url)
             unresolved_url = [var for var in template_vars_url if var not in version_variables]
             if unresolved_url:
-               continue
+                logger.info(f"Unresolved template vars in URL '{url}': {unresolved_url}")
+                continue
 
             try:
-               rendered_url = Template(url).render(version_variables)
+                rendered_url = Template(url).render(version_variables)
             except Exception:
-               rendered_url = url  # fallback
+                logger.error(f"Failed to render URL template '{url}' | Error: {e}")
+                rendered_url = url  # fallback
 
             if rendered_url in seen_urls:
+                logger.info(f"Skipping duplicate URL: {rendered_url}")
                 continue
             seen_urls.add(rendered_url)
 
-            # Skip unreachable URLs unless they're oneapi/snoopy/nvidia
-            if not any(skip_str in rendered_url for skip_str in ["oneapi", "snoopy", "nvidia"]):
+            # # Skip reachability check for URLs containing k8s, cri-o, oneapi, snoopy, nvidia
+            if not any(skip_str in rendered_url for skip_str in ["k8s", "cri-o", "oneapi", "snoopy", "nvidia"]):
                 if not is_remote_url_reachable(rendered_url):
-                   return rendered_url, False
+                    logger.error(f"OMNIA repo URL unreachable: {rendered_url}")
+                    return rendered_url, False
 
             # Handle gpgkey rendering (if present)
             rendered_gpgkey = "null"
@@ -366,16 +393,19 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "policy": policy,
                 "sw_arch": arch
             })
+            logger.info(f"Added OMNIA repo entry: {arch}_{name}")
 
+    logger.info(f"Successfully parsed {len(parsed_repos)} repository entries.")
     return parsed_repos, True
 
-def set_version_variables(user_data, software_names, cluster_os_version):
+def set_version_variables(user_data, software_names, cluster_os_version,logger):
     """
     Generates a dictionary of version variables from the user data.
     Args:
         user_data (dict): The user data containing the software information.
         software_names (list): The list of software names to extract versions for.
         cluster_os_version (str): The version of the cluster operating system.
+        logger (logging.Logger): Logger instance used for structured logging of process steps.
     Returns:
         dict: A dictionary of version variables, where the keys are the software names
               and the values are the corresponding versions.
@@ -386,6 +416,7 @@ def set_version_variables(user_data, software_names, cluster_os_version):
         name = software.get('name')
         if name in software_names and 'version' in software:
             version_variables[f"{name}_version"] = software['version']
+            logger.info("Added version variable from SOFTWARES_KEY: %s = %s", f"{name}_version", software['version'])
 
     for key in software_names:
         for item in user_data.get(key, []):
@@ -394,14 +425,18 @@ def set_version_variables(user_data, software_names, cluster_os_version):
                 version_variables[f"{name}_version"] = item['version']
 
     version_variables["cluster_os_version"] = cluster_os_version
+    logger.info("Added cluster_os_version: %s", cluster_os_version)
+
+    logger.info("Version variables generated: %s", version_variables)
     return version_variables
 
 
-def get_subgroup_dict(user_data):
+def get_subgroup_dict(user_data,logger):
     """
     Returns a tuple containing a dictionary mapping software names to subgroup lists,
     and a list of software names.
     """
+    logger.info("Starting get_subgroup_dict()")
     subgroup_dict = {}
     software_names = []
 
@@ -412,6 +447,10 @@ def get_subgroup_dict(user_data):
                                     for item in user_data.get(software_name, [])]
         subgroup_dict[software_name] = subgroups if isinstance(
             user_data.get(software_name), list) else [sw['name']]
+    
+    logger.info("Completed get_subgroup_dict(). Found %d software entries.", len(software_names))
+    logger.info("Final subgroup_dict: %s", subgroup_dict)
+
     return subgroup_dict, software_names
 
 
@@ -469,20 +508,28 @@ def get_failed_software(file_path):
     return failed_software
 
 
-def parse_json_data(file_path, package_types, failed_list=None, subgroup_list=None):
+def parse_json_data(file_path, package_types,logger, failed_list=None, subgroup_list=None):
     """
     Retrieves a filtered list of items from a JSON file.
 
     Parameters:
         file_path (str): The path to the JSON file.
         package_types (list): A list of package types to filter.
+        logger (logging.Logger): Logger instance used for structured logging of process steps.
         failed_list (list, optional): A list of failed packages. Defaults to None.
         subgroup_list (list, optional): A list of subgroups to filter. Defaults to None.
 
     Returns:
         list: The filtered list of items.
     """
-    data = load_json(file_path)
+    logger.info("Starting parse_json_data() for file: %s", file_path)
+    try:
+        data = load_json(file_path)
+        logger.info("Successfully loaded JSON file: %s", file_path)
+    except Exception as e:
+        logger.error("Failed to load JSON file '%s': %s", file_path, e)
+        raise
+
     filtered_list = []
 
     for key, package in data.items():
@@ -507,6 +554,7 @@ def parse_json_data(file_path, package_types, failed_list=None, subgroup_list=No
                     if item.get("type") in package_types and (failed_list is None or any(match in failed_list for match in match_keys)):
                         filtered_list.append(item)
 
+    logger.info("Final filtered list: %s", filtered_list)
     return filtered_list
 
 
@@ -529,7 +577,7 @@ def read_status_csv(csv_path):
         reader = csv.DictReader(file)
         return [row for row in reader]
 
-def get_new_packages_not_in_status(json_path, csv_path, subgroup_list):
+def get_new_packages_not_in_status(json_path, csv_path, subgroup_list,logger):
     """
     Reads packages from a JSON file and status rows from a CSV file,
     then returns packages from JSON that are not present in the CSV.
@@ -538,6 +586,8 @@ def get_new_packages_not_in_status(json_path, csv_path, subgroup_list):
     Parameters:
         json_path (str): Path to JSON file containing 'all_input_packages'.
         csv_path (str): Path to CSV file containing status rows.
+        subgroup_list (list, optional): A list of subgroups to filter. Defaults to None.
+        logger (logging.Logger): Logger instance used for structured logging of process steps.
     
     Returns:
         list: List of new packages not in the status CSV.
@@ -546,11 +596,22 @@ def get_new_packages_not_in_status(json_path, csv_path, subgroup_list):
     all_packages = []
     new_packages = []
 
-    status_csv_content = read_status_csv(csv_path)
+    try:
+        status_csv_content = read_status_csv(csv_path)
+        logger.info("Successfully read status CSV: %s", csv_path)
+    except Exception as e:
+        logger.error("Failed to read CSV file '%s': %s", csv_path, e)
+        raise
+
     names = [row['name'] for row in status_csv_content]
     
-    all_packages = parse_json_data(
-        json_path, PACKAGE_TYPES, None, subgroup_list)
+    # Read all packages from JSON
+    try:
+        all_packages = parse_json_data(json_path, PACKAGE_TYPES, logger,None, subgroup_list)
+        logger.info("Total packages loaded from JSON: %d", len(all_packages))
+    except Exception as e:
+        logger.error("Failed to parse JSON file '%s': %s", json_path, e)
+        raise
    
     for pkg in all_packages:
 
@@ -563,9 +624,13 @@ def get_new_packages_not_in_status(json_path, csv_path, subgroup_list):
             if pkg.get("package") not in names:
                 new_packages.append(pkg)
 
+    logger.info("New packages list: %s", new_packages)
+
+    logger.info("Finished get_new_packages_not_in_status()")
+
     return new_packages
 
-def process_software(software, fresh_installation, json_path, csv_path, subgroup_list):
+def process_software(software, fresh_installation, json_path, csv_path, subgroup_list,logger):
     """
     Processes the given software by parsing JSON data and returning a filtered list of items.
  
@@ -575,20 +640,46 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
         json_path (str): The path to the JSON file.
         csv_path (str): The path to the CSV file.
         subgroup_list (list, optional): A list of subgroups to filter. Defaults to None.
+        logger (logging.Logger): Logger instance used for structured logging of process steps.
  
     Returns:
         list: The filtered list of items.
     """
-    failed_packages = None if fresh_installation else get_failed_software(
-        csv_path)
+    # Determine failed packages
+    if fresh_installation:
+        failed_packages = None
+        logger.info("Fresh installation detected — skipping failed package check.")
+    else:
+        try:    
+            failed_packages = None if fresh_installation else get_failed_software(csv_path)
+            logger.info("Failed packages: %s", failed_packages)
+        except Exception as e:
+            logger.error("Failed to retrieve failed packages from '%s': %s", csv_path, e)
+            raise
     rpm_package_type = ['rpm']
     rpm_tasks = []
     if failed_packages is not None and any("RPMs" in software for software in failed_packages):
-        rpm_tasks = parse_json_data(
-            json_path, rpm_package_type, None, subgroup_list)
+        logger.info("Detected failed RPM packages for software: %s", software)
+        try:
+            rpm_tasks = parse_json_data(
+                json_path, rpm_package_type, logger, None, subgroup_list)
+        except Exception as e:
+            logger.error("Error parsing RPM JSON data from '%s': %s", json_path, e)
+            raise
+    else:
+        logger.info("No failed RPM packages found for: %s", software)
  
-    combined = parse_json_data(
-        json_path, PACKAGE_TYPES, failed_packages, subgroup_list) + rpm_tasks
+    # Parse main JSON data
+    try:
+        combined = parse_json_data(
+            json_path, PACKAGE_TYPES,logger,failed_packages, subgroup_list) + rpm_tasks
+        logger.info("Successfully parsed JSON data for %s. Total combined tasks: %d",software, len(combined))
+    except Exception as e:
+        logger.error("Error parsing main JSON data for '%s': %s", software, e)
+        raise
+
+    logger.info("Completed process_software() for %s", software)
+    logger.info("Final combined tasks: %s", combined)
 
     return combined, failed_packages
 

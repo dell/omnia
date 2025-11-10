@@ -38,6 +38,43 @@
     state: directory
     mode: '0755'
 
+- name: Git checkout for iDRAC Telemetry Reference Tools
+  block:
+    - name: Checkout iDRAC Telemetry GitHub repo
+      ansible.builtin.git:
+        repo: "{{ idrac_telemetry_github_repo }}"
+        dest: "{{ idrac_telemetry_reference_git_clone_path }}"
+        version: "{{ reference_tools_stable_commit }}"
+        update: false
+      register: clone_idrac_telemetry
+      until: clone_idrac_telemetry is succeeded
+      retries: "{{ max_retries }}"
+      delay: "{{ delay_count }}"
+
+  rescue:
+    - name: Fail if iDRAC telemetry Git clone fails
+      ansible.builtin.fail:
+        msg: "{{ idrac_git_clone_error_msg.splitlines() | join(' ') }}"
+      when: clone_idrac_telemetry is failed
+
+- name: Git clone for iDRAC Telemetry script
+  block:
+    - name: Checkout iDRAC Telemetry GitHub repo
+      ansible.builtin.git:
+        repo: "{{ idrac_telemetry_scripting_repo }}"
+        dest: "{{ idrac_telemetry_scripting_git_clone_path }}"
+        version: "{{ idrac_telemetry_scripting_stable_commit }}"
+        update: false
+      register: clone_idrac_script
+      until: clone_idrac_script is succeeded
+      retries: "{{ max_retries }}"
+      delay: "{{ delay_count }}"
+  rescue:
+    - name: Fail if iDRAC telemetry Git clone fails
+      ansible.builtin.fail:
+        msg: "{{ idrac_script_git_clone_error_msg.splitlines() | join(' ') }}"
+      when: clone_idrac_script is failed
+
 - name: Configure TLS certificate and secrets for kafka
   when: "'kafka' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')"
   block:
@@ -153,38 +190,3 @@
       no_log: true
       delegate_to: localhost
       connection: local
-
-- name: Populate telemetry deployment configs
-  ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
-    mode: '0644'
-  loop:
-    - src: 'telemetry/common/gen_certs_script.sh.j2'
-      dest: 'gen_certs_script.sh'
-
-    - src: 'telemetry/common/telemetry_secret_creation.yaml.j2'
-      dest: 'telemetry_secret_creation.yaml'
-      skip_when: "{{ cluster_id_present | default(false) }}"
-
-    - src: 'telemetry/kustomization.yaml.j2'
-      dest: 'kustomization.yaml'
-
-    - src: 'telemetry/idrac_telemetry/idrac_telemetry_statefulset.yaml.j2'
-      dest: 'idrac_telemetry_statefulset.yaml'
-
-    - src: 'telemetry/kafka/kafka-san.cnf.j2'
-      dest: 'kafka-san.cnf'
-      type: 'kafka'
-
-    - src: 'telemetry/kafka/kafka-statefulset.yaml.j2'
-      dest: 'kafka-statefulset.yaml'
-      type: 'kafka'
-
-    - src: 'telemetry/victoria/victoria-statefulset.yaml.j2'
-      dest: 'victoria-statefulset.yaml'
-      type: 'victoria'
-  when:
-    - item.type is not defined or item.type in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')
-    - item.skip_when is not defined or not item.skip_when | bool
-  tags: telemetry_deployment

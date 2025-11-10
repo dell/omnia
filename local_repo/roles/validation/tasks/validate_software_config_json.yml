@@ -39,19 +39,6 @@
     service_k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | first).get('arch', default_archs) }}"
   when: service_k8s_support
 
-- name: Validate k8s metadata
-  when: service_k8s_support
-  block:
-    - name: Check if the service k8s metadata file exists
-      ansible.builtin.stat:
-        path: "{{ metadata_file }}"
-      register: metadata_stat
-
-    - name: Fail if service k8s metadata file does not exist
-      ansible.builtin.fail:
-        msg: "{{ k8s_metadata_file_not_exist_msg }}"
-      when: not metadata_stat.stat.exists
-
 - name: Get k8s archs
   ansible.builtin.set_fact:
     k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'k8s') | first).get('arch', default_archs) }}"
@@ -98,3 +85,10 @@
   when: item.version is defined
   loop_control:
     loop_var: item
+
+- name: Fail if service_k8s_version is not supported
+  ansible.builtin.fail:
+    msg: "{{ fail_msg }}"
+  when:
+    - service_k8s_support
+    - service_k8s_version != default_k8s_version

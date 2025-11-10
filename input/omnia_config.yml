@@ -44,11 +44,11 @@ slurm_cluster:
     restart_slurm_services: true
     nfs_storage_name: nfs_slurm
   
-# ----------------------------K8S------------------------------------------------------
-#For both service nodes k8s cluster and compute nodes k8s cluster below parameters are required,(List)
+# ----------------------------SERVICE K8S------------------------------------------------------
+# For service k8s cluster below parameters are required,(List)
 # - cluster_name is required field
 
-# - deployment: Exactly one entry in both the service_k8s_cluster and compute_k8s_cluster lists must have deployment set to true to indicate where Kubernetes should be deployed.
+# - deployment: Exactly one entry in both the service_k8s_cluster lists must have deployment set to true to indicate where Kubernetes should be deployed.
 # Please ensure corresponding cluster entry is added to high_availability_config.yml if deployment is set to true. 
 
 # - Kubernetes SDN network.K8s_cni (Mandatory) - It can either be "calico" or "flannel".Default value assigned is "calico".
@@ -65,18 +65,7 @@ slurm_cluster:
 # This network must be unused in your network infrastructure.
 # Default value is "10.233.64.0/18"
 
-# - topology_manager_policy: Kubernetes Topology manager policies. Default value assigned is "none".
-# It can either be "none" or "best-effort" or "restricted" or "single-numa-node".
-
-# - topology_manager_scope: Kubernetes Topology manager scope. Default value assigned is "container".
-# It can either be "container" or "pod".
-
-# - k8s_offline_install: Kubernetes Offline Install. # It can either be true or false
-# Default value is true, means packages/images will be pulled from OIM local repo
-# If set to true, all packages/images will be pulled from OIM local repo.
-# If set to false, all packages/images will be pulled from source via internet.
-
-#nfs_storage_name : The nfs name should be same as one of the nfs name defined in storage_config.yml to configure the server.
+# nfs_storage_name : The nfs name should be same as one of the nfs name defined in storage_config.yml to configure the server.
 # ----------------------------CSI Driver------------------------------------------------------
 # Following csi powerscale driver input variables are mandatory only if csi_driver_powerscale entry is present in software_config.json
 # csi_powerscale_driver_secret_file_path: Absolute file path for the secret.yaml file.
@@ -92,9 +81,6 @@ service_k8s_cluster:
     pod_external_ip_range: "172.16.107.170-172.16.107.200"
     k8s_service_addresses: "10.233.0.0/18"
     k8s_pod_network_cidr: "10.233.64.0/18"
-    topology_manager_policy: "none"
-    topology_manager_scope: "container"
-    k8s_offline_install: true
     nfs_storage_name: "nfs_k8s"
     csi_powerscale_driver_secret_file_path: ""
     csi_powerscale_driver_values_file_path: ""

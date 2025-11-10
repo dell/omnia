@@ -31,6 +31,13 @@ password_fail_msg: "Failed. Please provide valid password."
 mandatory_credentials_msg: "Failed. Please provide valid username for mandatory credential."
 username_fail_msg: "Failed. Please provide valid username."
 
+docker_hub_warning: |
+  Docker Hub Usage Warning:
+  Unauthenticated access may result in rate limiting or throttling.
+  Login for higher pull limits and reliable access.
+  Proceed to enter your Docker credentials if you want to avoid pull rate limits.
+  Press Enter.
+
 omnia_credentials:
   provision:
     mandatory:

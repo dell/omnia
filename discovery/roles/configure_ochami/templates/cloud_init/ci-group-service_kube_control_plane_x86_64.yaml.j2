@@ -1,0 +1,321 @@
+- name: {{ functional_group_name }}
+  description: "{{ functional_group_name }}"
+  file:
+    encoding: plain
+    content: |
+      ## template: jinja
+      #cloud-config
+
+      merge_how:
+      - name: list
+        settings: [append]
+      - name: dict
+        settings: [no_replace, recurse_list]
+
+      users:
+        - name: root
+          ssh_authorized_keys: "{{ read_ssh_key.stdout }}"
+          lock_passwd: false
+          hashed_passwd: "{{ hashed_password_output.stdout }}"
+      disable_root: false
+
+      write_files:
+        - path: /usr/local/bin/set-ssh.sh
+          permissions: '0755'
+          content: |
+            #!/bin/bash
+            timedatectl set-timezone {{ hostvars['localhost']['timezone'] }}
+            sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+            sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+            sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/50-cloud-init.conf
+            systemctl restart sshd
+            default_count=$(ip route | grep -c "^default")
+            if [ "$default_count" -le 1 ]; then
+                echo "Only one or no default route found. No action needed."
+            else
+                private_nic=$(ip route | grep "^default via {{ hostvars['localhost']['admin_nic_ip'] }}" | awk '{print $5}')
+                # Get all default routes
+                ip route | grep '^default' | while read -r line; do
+                    nmcli con del "Wired Connection"
+                    # Extract NIC name
+                    nic=$(echo "$line" | awk '{print $5}')
+
+                    # Add the default route to the connection
+                    if [ -n "$nic" ]; then
+                        echo "Adding nmcli device $nic"
+                        nmcli con add type ethernet ifname "$nic" con-name "$nic" ipv4.method auto
+                        if [ "$nic" = "$private_nic" ]; then
+                          nmcli con modify "$nic" ipv4.never-default yes
+                          nmcli con delete "cloud-init $nic"
+                        fi
+                        nmcli con up "$nic"
+                    else
+                        echo "No connection found for device $nic"
+                    fi
+                done
+            fi
+
+        - path: /etc/modules-load.d/k8s.conf
+          content: |
+            br_netfilter
+            overlay
+            nf_conntrack
+            vxlan
+          permissions: '0644'
+        - path: /etc/sysctl.d/k8s.conf
+          content: |
+            net.bridge.bridge-nf-call-iptables=1
+            net.bridge.bridge-nf-call-ip6tables=1
+            net.ipv4.ip_forward=1
+            vm.overcommit_memory=1
+            kernel.panic=10
+          permissions: '0644'
+        - path: /etc/fstab
+          content: |
+            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}   {{ k8s_client_mount_path }}        nfs    noatime,nolock     0 0
+            tmpfs   /tmp/crio-storage   tmpfs   size=8G,noatime,nodev,nosuid   0 0
+          permissions: '0644'
+        - path: /etc/containers/storage.conf
+          content: |
+            [storage]
+            driver = "overlay"
+            runroot = "/var/run/containers/storage"
+            graphroot = "/tmp/crio-storage"
+            [storage.options.overlay]
+            mount_program = "/usr/bin/fuse-overlayfs"
+          permissions: '0644'
+        - path: /tmp/crio.conf
+          permissions: '0644'
+          content: |
+            unqualified-search-registries = ["{{ pulp_mirror }}"]
+            [[registry]]
+            prefix = "docker.io"
+            location = "registry-1.docker.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "ghcr.io"
+            location = "ghcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "quay.io"
+            location = "quay.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "registry.k8s.io"
+            location = "registry.k8s.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "nvcr.io"
+            location = "nvcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "public.ecr.aws"
+            location = "public.ecr.aws"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+            [[registry]]
+            prefix = "gcr.io"
+            location = "gcr.io"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+        - path: /tmp/kube-vip.yaml
+          owner: root:root
+          permissions: '0644'
+          content: |
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              creationTimestamp: null
+              name: kube-vip
+              namespace: kube-system
+              uid: kube-vip-pod
+            spec:
+              containers:
+                - args:
+                    - manager
+                  env:
+                    - name: vip_arp
+                      value: "true"
+                    - name: port
+                      value: "6443"
+                    - name: vip_nodename
+                      valueFrom:
+                        fieldRef:
+                          fieldPath: spec.nodeName
+                    - name: vip_interface
+                      value: vip_interface
+                    - name: vip_cidr
+                      value: "32"
+                    - name: dns_mode
+                      value: first
+                    - name: cp_enable
+                      value: "true"
+                    - name: cp_namespace
+                      value: kube-system
+                    - name: svc_enable
+                      value: "true"
+                    - name: svc_leasename
+                      value: plndr-svcs-lock
+                    - name: vip_leaderelection
+                      value: "true"
+                    - name: vip_leasename
+                      value: plndr-cp-lock
+                    - name: vip_leaseduration
+                      value: "5"
+                    - name: vip_renewdeadline
+                      value: "3"
+                    - name: vip_retryperiod
+                      value: "1"
+                    - name: vip_address
+                      value: {{ kube_vip }}
+                    - name: prometheus_server
+                      value: :2112
+                  image: ghcr.io/kube-vip/kube-vip:v0.8.9
+                  imagePullPolicy: IfNotPresent
+                  name: kube-vip
+                  resources: {}
+                  securityContext:
+                    capabilities:
+                      add:
+                        - NET_ADMIN
+                        - NET_RAW
+                  volumeMounts:
+                    - mountPath: /etc/kubernetes/admin.conf
+                      name: kubeconfig
+              hostAliases:
+                - hostnames:
+                    - kubernetes
+                  ip: 127.0.0.1
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+                - hostPath:
+                    path: /etc/kubernetes/admin.conf
+                  name: kubeconfig
+            status: {}
+
+        - path: /usr/local/bin/install-helm.sh
+          permissions: '0755'
+          content: |
+            #!/bin/bash
+            set -e
+            HELM_VERSION="v3.19.0"
+            ARCH="amd64"
+            cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}/helm /usr/local/bin/helm
+            chmod +x /usr/local/bin/helm
+
+            # Optional: Set up bash completion
+            /usr/local/bin/helm completion bash > /etc/bash_completion.d/helm.sh
+            chmod 0755 /etc/bash_completion.d/helm.sh
+
+      runcmd:
+        - /usr/local/bin/set-ssh.sh
+        - sudo swapoff -a
+        - sudo sed -i '/ swap / s/^/#/' /etc/fstab
+        - sudo setenforce 0 || true
+        - sudo sed -i 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+
+        # Enable and start firewalld
+        - systemctl enable firewalld
+        - systemctl start firewalld
+
+        # Open essential ports
+        - firewall-cmd --permanent --add-port=22/tcp
+        - firewall-cmd --permanent --add-port=6443/tcp
+        - firewall-cmd --permanent --add-port=2379-2380/tcp
+        - firewall-cmd --permanent --add-port=10250/tcp
+        - firewall-cmd --permanent --add-port=10251/tcp
+        - firewall-cmd --permanent --add-port=10252/tcp
+        - firewall-cmd --permanent --add-port=10257/tcp
+        - firewall-cmd --permanent --add-port=10259/tcp
+
+        # CNI-related ports if running workloads on control plane (NodePort, CNI, etc.)
+        - firewall-cmd --permanent --add-port=30000-32767/tcp
+        - firewall-cmd --permanent --add-port=179/tcp
+        - firewall-cmd --permanent --add-port=4789/udp
+        - firewall-cmd --permanent --add-port=5473/tcp
+        - firewall-cmd --permanent --add-port=51820/udp
+        - firewall-cmd --permanent --add-port=51821/udp
+        - firewall-cmd --permanent --add-port=9100/tcp
+        - firewall-cmd --permanent --add-port=7472/tcp
+        - firewall-cmd --permanent --add-port=7472/udp
+        - firewall-cmd --permanent --add-port=7946/tcp
+        - firewall-cmd --permanent --add-port=7946/udp
+        - firewall-cmd --permanent --add-port=9090/tcp
+        - firewall-cmd --permanent --add-port=8080/tcp
+        
+        # Enable services
+        - firewall-cmd --permanent --add-service=http
+        - firewall-cmd --permanent --add-service=https
+
+        # Add pod/service networks
+        - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_service_addresses }}
+        - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_pod_network_cidr }}
+        
+        # Set default zone to trusted
+        - firewall-cmd --set-default-zone=trusted
+        
+        # Reload the firewall rules
+        - firewall-cmd --reload
+
+        - sudo modprobe br_netfilter || true
+        - sudo modprobe overlay || true
+        - sudo modprobe nf_conntrack || true
+        - sudo modprobe vxlan || true
+        - sysctl --system
+        - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }}
+        - mount -a
+        - systemctl start crio.service
+        - systemctl enable crio.service
+        - sudo systemctl enable --now kubelet
+        - mv /tmp/crio.conf /etc/containers/registries.conf.d/crio.conf
+        - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
+        - update-ca-trust extract
+        - systemctl daemon-reload
+        - systemctl restart crio
+        - kubeadm config images pull
+        # Join Kubernetes cluster
+        - |
+            K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
+            NODE_NAME="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            KUBE_VIP="{{ kube_vip }}"
+            JOIN_CMD_FILE="${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
+            echo "Waiting for join command file: $JOIN_CMD_FILE"
+            while [ ! -f "$JOIN_CMD_FILE" ]; do
+              echo "File not found: $JOIN_CMD_FILE. Retrying in 10 seconds..."
+              sleep 10
+            done
+            echo "File exists: $JOIN_CMD_FILE"
+            # Keep pinging kube-vip until it is reachable
+            while ! ping -c 1 -W 2 "$KUBE_VIP" >/dev/null 2>&1; do
+              echo "kube-vip (${KUBE_VIP}) not reachable. Retrying in 10 seconds..."
+              sleep 10
+            done
+            echo "kube-vip (${KUBE_VIP}) is pingable (ICMP), proceeding with join."
+            JOIN_CMD="$(cat "$JOIN_CMD_FILE") --node-name ${NODE_NAME}"
+            echo "Executing: $JOIN_CMD"
+            eval $JOIN_CMD
+            mkdir -p /root/.kube
+            cp -f /etc/kubernetes/admin.conf /root/.kube/config
+            chown root:root /root/.kube/config
+        - |
+            NODE_IP="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            VIP_IFACE=$(ip -o addr show | awk -v ip="$NODE_IP" '$4 ~ ip {print $2}')
+            sed -i "s/value: vip_interface/value: ${VIP_IFACE}/" /tmp/kube-vip.yaml
+            cp /tmp/kube-vip.yaml /etc/kubernetes/manifests/kube-vip.yaml
+        
+        - /usr/local/bin/install-helm.sh
+
+        - |
+            if [ -f /etc/kubernetes/kubelet.conf ]; then
+              cp /etc/kubernetes/kubelet.conf /etc/kubernetes/kubelet.conf.bak
+              sed -i "s#server: https://[^:]*:6443#server: https://{{ kube_vip }}:6443#" /etc/kubernetes/kubelet.conf
+              systemctl restart kubelet
+            else
+              echo "WARNING: /etc/kubernetes/kubelet.conf not found. Kubelet may not be initialized yet."
+            fi

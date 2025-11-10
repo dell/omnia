@@ -169,7 +169,7 @@ def validate_software_config(
         errors.extend(additional_software_errors)
 
     # create the subgroups and softwares dictionary with version details
-    subgroup_dict, _ = get_subgroup_dict(data)
+    subgroup_dict, _ = get_subgroup_dict(data,logger)
     # check if the corresponding json files for softwares and subgroups exists in config folder
     validation_results = []
     failures = []

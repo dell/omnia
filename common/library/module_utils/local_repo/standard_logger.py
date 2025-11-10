@@ -51,7 +51,8 @@ def setup_standard_logger(log_dir, log_filename="standard.log"):
     console_handler.setLevel(logging.ERROR)
 
     # Create formatter and add it to handlers
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(funcName)s() - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S")
     file_handler.setFormatter(formatter)
     console_handler.setFormatter(formatter)
 

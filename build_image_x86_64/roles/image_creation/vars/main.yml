@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
+openchami_image_sha: "ghcr.io/openchami/image-build@sha256:52dd9d546951ce4f2f6f9febd08a228cfcb5b9e8e204ca4f5ee232f6be65d3a4"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 dir_permissions_644: "0644"
@@ -33,7 +33,7 @@ ochami_compute_mounts:
 
 ochami_x86_64_image:
   - --entrypoint /bin/bash
-  - ghcr.io/openchami/image-build:latest
+  - ghcr.io/openchami/image-build:stable
 ochami_base_command:
   - -c 'update-ca-trust extract && image-build --config /home/builder/config.yaml --log-level DEBUG'
 
@@ -48,3 +48,7 @@ compute_image_failure_msg: "Compute aarch64 image build job did not completed su
 # build_compute_image.yml
 openchami_compute_image_vars_template: "{{ role_path }}/templates/compute_images_templates.j2"
 openchami_compute_image_vars_path: "/opt/omnia/openchami/compute_images_template.yaml"
+
+# build_image_tag.yml
+ochami_stable_image_tag: "podman tag {{ openchami_image_sha }} ghcr.io/openchami/image-build:stable"
+ochami_stable_image_path: "/var/lib/containers/storage/overlay-images/{{ openchami_image_sha }}"

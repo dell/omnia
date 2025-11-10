@@ -13,5 +13,21 @@
 #  limitations under the License.
 ---
 
-service_k8s_fail_msg: "Both kubeadm_join_vars.yaml and cloud-init-vars.yaml must exist in /opt/omnia/kubespray/.
-  One or more files are missing. Please run the service_k8s_cluster.yml"
+- name: Pull specific OpenCHAMI image by version tag
+  ansible.builtin.command:
+    cmd: "podman pull {{ openchami_image_sha }}"
+  register: pull_result
+  changed_when: "'Image is up to date' not in pull_result.stdout"
+
+- name: Fail if image not pulled successfully
+  ansible.builtin.fail:
+    msg: "{{ pull_result.stdout }}"
+  when: pull_result.rc != 0
+
+- name: Tagging OpenCHAMI image with stable name
+  ansible.builtin.command:
+    cmd: "{{ ochami_stable_image_tag }}"
+  args:
+    creates: "{{ ochami_stable_image_path }}"
+  register: tag_result
+  changed_when: "'Tagged' in tag_result.stdout"

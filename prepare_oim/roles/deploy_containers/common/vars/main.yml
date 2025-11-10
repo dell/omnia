@@ -47,7 +47,6 @@ podman_login_fail_msg: "Podman login failed. Please ensure the podman login cred
 
 # Usage: add_known_hosts.yml
 ssh_config: "/root/.ssh/config"
-kubespray_versions: "{{ hostvars['localhost']['kubespray_versions'] | default([]) }}"
 
 # Usage: omnia_service.yml
 omnia_service_path:

@@ -59,13 +59,21 @@ from ansible.module_utils.local_repo.config import (
     OMNIA_CREDENTIALS_VAULT_PATH
 )
 
-def update_status_csv(csv_dir, software, overall_status):
+def update_status_csv(csv_dir, software, overall_status,slogger):
     """
     Update the status CSV file with the status for given software.
 
     If the software already exists, update its status.
     If 'software' is a list, update each software with the same overall_status.
+
+    Args:
+        csv_dir (str): Directory path where the CSV file resides.
+        software (str or list): Software name(s) to update.
+        overall_status (str): The overall status to record.
+        slogger (logging.Logger): Logger instance for structured logging.
     """
+
+    slogger.info("Starting CSV status update process")
     parent_dir = os.path.dirname(csv_dir)
     status_file = os.path.join(parent_dir, SOFTWARE_CSV_FILENAME)
     #header = "name,status"
@@ -73,10 +81,12 @@ def update_status_csv(csv_dir, software, overall_status):
 
     # Create the file with header if it does not exist.
     if not os.path.exists(status_file):
+        slogger.info("Status file not found. Creating new file with header.")
         with open(status_file, "w", encoding="utf-8") as f:
             f.write(header + "\n")
 
     # Read the existing file content.
+    slogger.info("Reading existing CSV content")
     with open(status_file, "r", encoding="utf-8") as f:
         lines = f.read().splitlines()
 
@@ -112,6 +122,8 @@ def update_status_csv(csv_dir, software, overall_status):
     # Write the updated content back to the file.
     with open(status_file, "w", encoding="utf-8") as f:
         f.write("\n".join(final_lines))
+
+    slogger.info(f"Successfully updated status CSV at {status_file}")
 
 
 def determine_function(task, repo_store_path, csv_file_path, user_data, version_variables, arc, user_registries, docker_username, docker_password):
@@ -174,7 +186,7 @@ def determine_function(task, repo_store_path, csv_file_path, user_data, version_
         raise RuntimeError(f"Failed to determine function for task: {str(e)}")
 
 
-def generate_pretty_table(task_results, total_duration, overall_status):
+def generate_pretty_table(task_results, total_duration, overall_status,slogger):
     """
     Generates a pretty table with the task results, total duration, and overall status.
 
@@ -182,47 +194,75 @@ def generate_pretty_table(task_results, total_duration, overall_status):
         task_results (list): A list of dictionaries containing the task results.
         total_duration (str): The total duration of the tasks.
         overall_status (str): The overall status of the tasks.
+        slogger (logging.Logger): Logger instance for structured logging.
 
     Returns:
         str: The pretty table as a string.
     """
-    table = PrettyTable(["Task", "Status", "LogFile"])
-    for result in task_results:
-        table.add_row([result["package"], result["status"], result["logname"]])
-    table.add_row(["Total Duration", total_duration, ""])
-    table.add_row(["Overall Status", overall_status, ""])
-    return table.get_string()
+    try:
+        slogger.info("Starting generation of task results pretty table")
 
-def generate_software_status_table(status_dict):
+        if not task_results or not isinstance(task_results, list):
+            slogger.error("Invalid or empty task_results provided")
+            return "No task results available."
+
+        slogger.info(f"Received {len(task_results)} task results for table generation")
+
+        table = PrettyTable(["Task", "Status", "LogFile"])
+        for result in task_results:
+            table.add_row([result["package"], result["status"], result["logname"]])
+        table.add_row(["Total Duration", total_duration, ""])
+        table.add_row(["Overall Status", overall_status, ""])
+        return table.get_string()
+
+        slogger.info("Task results table generated successfully")
+
+    except Exception as e:
+        slogger.error(f"Error occurred while generating pretty table: {e}")
+        return f"Error: {e}"
+
+def generate_software_status_table(status_dict,slogger):
     """
     Returns status tables of software grouped by architecture.
 
     Args:
         status_dict (dict): Software info with 'arch' and 'overall_status' for each entry.
+        slogger (logging.Logger): Logger instance for structured logging.
 
     Returns:
         str: Formatted tables (per arch) showing software name and status.
     """
-    grouped = defaultdict(list)
+    try:
+        slogger.info("Starting generation of software status table")
+        grouped = defaultdict(list)
 
-    # status_dict is expected to have software names as keys, list of dicts as values
-    for software_name, entries in status_dict.items():
-        for info in entries:
-            arch = info.get("arch", "unknown")
-            status = info.get("overall_status", "unknown")
-            grouped[arch].append((software_name, status))
+        # status_dict is expected to have software names as keys, list of dicts as values
+        slogger.info("Grouping software entries by architecture")
+        for software_name, entries in status_dict.items():
+            for info in entries:
+                arch = info.get("arch", "unknown")
+                status = info.get("overall_status", "unknown")
+                grouped[arch].append((software_name, status))
 
-    # Build tables for each arch
-    tables = []
-    for arch, items in grouped.items():
-        table = PrettyTable()
-        table.title = f"{arch} Software Stack Download Overview"
-        table.field_names = ["Name", "Status"]
-        for name, status in items:
-            table.add_row([name, status.lower()])
-        tables.append(table.get_string())
-
-    return "\n\n".join(tables)
+        # Build tables for each arch
+        tables = []
+        for arch, items in grouped.items():
+            slogger.info(f"Creating table for architecture: {arch}")
+            table = PrettyTable()
+            table.title = f"{arch} Software Stack Download Overview"
+            table.field_names = ["Name", "Status"]
+            for name, status in items:
+                table.add_row([name, status.lower()])
+            
+            tables.append(table.get_string())
+            slogger.info(f"Completed table for {arch}")
+            
+        slogger.info("Software status table generation completed successfully")
+        return "\n\n".join(tables)
+    
+    except Exception as e:
+        slogger.error(f"Error occurred while generating software status table: {e}")
+        return f"Error: {e}"
 
 def main():
     """
@@ -318,7 +358,7 @@ def main():
     # Check if the flag to show software status is enabled
     if show_softwares_status:
         # Generate a formatted status table from the overall_status_dict parameter
-        status_table = generate_software_status_table(overall_status_dict)
+        status_table = generate_software_status_table(overall_status_dict,slogger)
         module.exit_json(changed=False, msg=status_table)
 
     try:
@@ -326,8 +366,8 @@ def main():
         cluster_os_type = user_data['cluster_os_type']
         cluster_os_version = user_data['cluster_os_version']
 
-        subgroup_dict, software_names = get_subgroup_dict(user_data)
-        version_variables = set_version_variables(user_data, software_names, cluster_os_version)
+        subgroup_dict, software_names = get_subgroup_dict(user_data,slogger)
+        version_variables = set_version_variables(user_data, software_names, cluster_os_version,slogger)
         slogger.info(f"Cluster OS: {cluster_os_type}")
         slogger.info(f"Version Variables: {version_variables}")
         gen_result = {}
@@ -355,14 +395,14 @@ def main():
         slogger.info(f"Total execution time: {total_duration}")
         slogger.info(f"Task results: {task_results}")
 
-        table_output = generate_pretty_table(task_results, total_duration, overall_status)
+        table_output = generate_pretty_table(task_results, total_duration, overall_status,slogger)
         log_table_output(table_output, log_file)
         result["total_duration"] = total_duration
         result["task_results"] = task_results
         result["table_output"] = table_output
         result["arch"] = arc
 
-        update_status_csv(csv_file_path, software, overall_status)
+        update_status_csv(csv_file_path, software, overall_status, slogger)
 
         if overall_status == "SUCCESS":
             result["overall_status"] = "SUCCESS"

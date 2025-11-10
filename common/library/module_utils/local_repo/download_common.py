@@ -212,6 +212,7 @@ def handle_file_upload(repository_name, relative_path, file_url, poll_interval, 
     passcode = base64.b64decode(config["password"].encode()).decode()
 
     # Initialize RestClient
+    logger.info("Initializing RestClient for POST request...")
     client = RestClient(base_url, config["username"], passcode)
 
     data = {
@@ -219,7 +220,7 @@ def handle_file_upload(repository_name, relative_path, file_url, poll_interval, 
         "relative_path": relative_path,
         "repository": pulp_href
     }
-
+    logger.info(f"Sending POST request to upload file from '{file_url}' to repository '{repository_name}'...")
     response = client.post(FILE_URI, data)
 
     if not response:
@@ -232,12 +233,15 @@ def handle_file_upload(repository_name, relative_path, file_url, poll_interval, 
         return "Failed"
 
     # Wait for task completion
+    logger.info(f"Waiting for task {task_href} to complete...")
     task_result = wait_for_task(task_href, base_url, config["username"], passcode,
                                logger, timeout=POST_TIMEOUT, interval=poll_interval)
     if task_result:
+        logger.info(f"File successfully uploaded to repository '{repository_name}'.")
         return "Success"
-
-    return "Failed"
+    else:
+        logger.error(f"Task {task_href} failed or timed out. File upload to repository '{repository_name}' failed.")
+        return "Failed"
 
 def handle_post_request(repository_name, relative_path, base_path, file_url, poll_interval,logger):
     """

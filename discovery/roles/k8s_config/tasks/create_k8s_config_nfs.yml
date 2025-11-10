@@ -1,0 +1,162 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Include variable file omnia_config.yml
+  ansible.builtin.include_vars: "{{ input_project_dir }}/omnia_config.yml"
+
+- name: Include storage vars
+  ansible.builtin.include_vars: "{{ input_project_dir }}/storage_config.yml"
+
+- name: Include include_high_availability_config vars
+  ansible.builtin.include_vars: "{{ ha_config_file }}"
+
+- name: Set facts for service_k8s
+  ansible.builtin.set_fact:
+    cluster_name: "{{ service_k8s_cluster[0].cluster_name }}"
+    k8s_cni: "{{ service_k8s_cluster[0].k8s_cni }}"
+    pod_external_ip_range: "{{ service_k8s_cluster[0].pod_external_ip_range }}"
+    k8s_service_addresses: "{{ service_k8s_cluster[0].k8s_service_addresses }}"
+    k8s_pod_network_cidr: "{{ service_k8s_cluster[0].k8s_pod_network_cidr }}"
+    csi_powerscale_driver_secret_file_path: "{{ service_k8s_cluster[0].csi_powerscale_driver_secret_file_path }}"
+    csi_powerscale_driver_values_file_path: "{{ service_k8s_cluster[0].csi_powerscale_driver_values_file_path }}"
+    nfs_storage_name: "{{ service_k8s_cluster[0].nfs_storage_name }}"
+
+- name: Read the service_k8s mount point
+  ansible.builtin.set_fact:
+    k8s_client_mount_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).client_share_path }}"
+    k8s_nfs_server_ip: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_ip }}"
+    k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
+
+- name: Fetch server_ip and server_share_path from list when nfs sever is localhost
+  ansible.builtin.set_fact:
+    nfs_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
+  when: k8s_nfs_server_ip == "localhost"
+
+- name: Set HA-related facts
+  ansible.builtin.set_fact:
+    enable_k8s_ha: "{{ service_k8s_cluster_ha[0].enable_k8s_ha | default(false) }}"
+    kube_vip: "{{ service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+
+- name: Set fact for pulp mirror
+  ansible.builtin.set_fact:
+    pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+
+- name: Set fact for dns
+  ansible.builtin.set_fact:
+    dns: "{{ hostvars['localhost']['dns'] }}"
+
+- name: Create required share directories
+  ansible.builtin.file:
+    path: "{{ k8s_client_mount_path }}/{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  loop:
+    - calico
+    - metallb
+    - multus
+    - nfs-client-provisioner
+    - helm
+    - whereabouts
+
+- name: Include local repo access variable file
+  ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"
+
+- name: Load service_k8s.json
+  ansible.builtin.set_fact:
+    k8s_packages_json: "{{ lookup('file', k8s_packages_file) | from_json }}"
+
+- name: Extract and set facts for tarball URLs
+  ansible.builtin.set_fact:
+    calico_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'calico') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+    metallb_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'metallb-native') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+    multus_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'manifest') | selectattr('package', 'search', 'multus-daemonset-thick') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+    helm_package: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'helm') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+    nfs_subdir_external_provisioner_pkg: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'nfs-subdir-external-provisioner') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+    whereabouts_pkg: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'whereabouts') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+
+- name: Copy pulp webserver certificate to target host
+  ansible.builtin.copy:
+    src: "{{ pulp_webserver_cert_path }}"
+    dest: "{{ anchors_path }}"
+    mode: "{{ file_mode }}"
+  become: true
+
+- name: Update CA trust on target host
+  ansible.builtin.command: update-ca-trust
+  register: update_ca
+  changed_when: false
+
+# Calico
+- name: Download Calico manifest
+  ansible.builtin.get_url:
+    url: "{{ calico_manifest_yaml_url }}"
+    dest: "{{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml"
+    mode: "{{ file_mode }}"
+
+# metallb
+- name: Download metallb-native manifest
+  ansible.builtin.get_url:
+    url: "{{ metallb_manifest_yaml_url }}"
+    dest: "{{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml"
+    mode: "{{ file_mode }}"
+
+# multus
+- name: Download multus manifest
+  ansible.builtin.get_url:
+    url: "{{ multus_manifest_yaml_url }}"
+    dest: "{{ k8s_client_mount_path }}/multus/{{ multus_package }}.yml"
+    mode: "{{ file_mode }}"
+
+# helm
+- name: Download helm tarball
+  ansible.builtin.get_url:
+    url: "{{ helm_tarball_url }}"
+    dest: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
+    mode: "{{ file_mode }}"
+
+- name: Untar helm tarball repo
+  ansible.builtin.unarchive:
+    src: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
+    dest: "{{ k8s_client_mount_path }}/helm/"
+    remote_src: true
+
+# nfs client provisioner
+- name: Download nfs-client-provisioner tarball
+  ansible.builtin.get_url:
+    url: "{{ nfs_client_provisioner_tarball_url }}"
+    dest: "{{ k8s_client_mount_path }}/nfs-client-provisioner/{{ nfs_subdir_external_provisioner_pkg }}.tar.gz"
+    mode: "{{ file_mode }}"
+
+# whereabouts
+- name: Get whereabouts plugin git folder
+  ansible.builtin.get_url:
+    url: "{{ whereabouts_git_url }}"
+    dest: "{{ k8s_client_mount_path }}/whereabouts/{{ whereabouts_pkg }}.tar.gz"
+    mode: "{{ file_mode }}"
+
+- name: Unarchive whereabouts git folder
+  ansible.builtin.unarchive:
+    src: "{{ k8s_client_mount_path }}/whereabouts/{{ whereabouts_pkg }}.tar.gz"
+    dest: "{{ k8s_client_mount_path }}/whereabouts"
+    mode: "{{ file_mode }}"
+    remote_src: true
+
+- name: Copy pulp webserver certificate to client_share_path
+  ansible.builtin.copy:
+    src: "{{ pulp_webserver_cert_path }}"
+    dest: "{{ k8s_client_mount_path }}"
+    mode: "{{ file_mode }}"
+  become: true

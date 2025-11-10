@@ -1,0 +1,52 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Populate telemetry deployment configs
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
+    mode: '0644'
+  loop:
+    - src: 'telemetry/common/telemetry_namespace_creation.yaml.j2'
+      dest: 'telemetry_namespace_creation.yaml'
+
+    - src: 'telemetry/common/gen_certs_script.sh.j2'
+      dest: 'gen_certs_script.sh'
+
+    - src: 'telemetry/common/telemetry_secret_creation.yaml.j2'
+      dest: 'telemetry_secret_creation.yaml'
+      skip_when: "{{ cluster_id_present | default(false) }}"
+
+    - src: 'telemetry/kustomization.yaml.j2'
+      dest: 'kustomization.yaml'
+
+    - src: 'telemetry/idrac_telemetry/idrac_telemetry_statefulset.yaml.j2'
+      dest: 'idrac_telemetry_statefulset.yaml'
+
+    - src: 'telemetry/kafka/kafka-san.cnf.j2'
+      dest: 'kafka-san.cnf'
+      type: 'kafka'
+
+    - src: 'telemetry/kafka/kafka-statefulset.yaml.j2'
+      dest: 'kafka-statefulset.yaml'
+      type: 'kafka'
+
+    - src: 'telemetry/victoria/victoria-statefulset.yaml.j2'
+      dest: 'victoria-statefulset.yaml'
+      type: 'victoria'
+  when:
+    - item.type is not defined or item.type in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')
+    - item.skip_when is not defined or not item.skip_when | bool
+  tags: telemetry_deployment

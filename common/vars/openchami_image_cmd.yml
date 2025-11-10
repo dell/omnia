@@ -40,6 +40,12 @@ login_compiler_node_x86_64_compute_commands:
 service_kube_node_x86_64_compute_commands:
   - "echo 'Service kube node x86_64 compute'"
 
+service_kube_control_plane_first_x86_64_compute_commands:
+  - "echo 'Service kube control plane first x86_64 compute'"
+
+service_kube_control_plane_x86_64_compute_commands:
+  - "echo 'Service kube control plane x86_64 compute'"
+
 slurm_control_node_x86_64_compute_commands:
   - "echo 'Slurm Control node x86_64 compute'"
 

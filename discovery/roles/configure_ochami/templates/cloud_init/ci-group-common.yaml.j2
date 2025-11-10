@@ -12,7 +12,7 @@
           settings: [no_replace, recurse_list]
  
       write_files:
-        - path: /usr/local/bin/set-ssh.sh
+        - path: /usr/local/bin/set-ssh-config.sh
           permissions: '0755'
           content: |
             #!/bin/bash
@@ -22,33 +22,8 @@
             sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
             sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/50-cloud-init.conf
             systemctl restart sshd
-            default_count=$(ip route | grep -c "^default")
-            if [ "$default_count" -le 1 ]; then
-                echo "Only one or no default route found. No action needed."
-            else
-                private_nic=$(ip route | grep "^default via {{ hostvars['localhost']['admin_nic_ip'] }}" | awk '{print $5}')
-                # Get all default routes
-                ip route | grep '^default' | while read -r line; do
-                    nmcli con del "Wired Connection"
-                    # Extract NIC name
-                    nic=$(echo "$line" | awk '{print $5}')
-
-                    # Add the default route to the connection
-                    if [ -n "$nic" ]; then
-                        echo "Adding nmcli device $nic"
-                        nmcli con add type ethernet ifname "$nic" con-name "$nic" ipv4.method auto
-                        if [ "$nic" = "$private_nic" ]; then
-                          nmcli con modify "$nic" ipv4.never-default yes
-                          nmcli con delete "cloud-init $nic"
-                        fi
-                        nmcli con up "$nic"
-                    else
-                        echo "No connection found for device $nic"
-                    fi
-                done
-            fi
       runcmd:
-        - /usr/local/bin/set-ssh.sh
+        - /usr/local/bin/set-ssh-config.sh
 
 - name: chrony
   description: "chrony config"

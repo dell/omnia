@@ -13,130 +13,30 @@
 # limitations under the License.
 ---
 
-# Check if k8s is mentioned in software_config.json
-- name: Check if k8s support is true
+# Check if service_k8s is mentioned in software_config.json
+- name: Set facts
   ansible.builtin.set_fact:
-    k8s_support: "{{ software_config.softwares | selectattr('name', 'in', ['compute_k8s', 'service_k8s']) | list | length > 0 }}"
+    k8s_support: "{{ software_config.softwares | selectattr('name', 'in', ['service_k8s']) | list | length > 0 }}"
     project_input_path: "{{ hostvars['localhost']['input_project_dir'] }}"
     cluster_os_type: "{{ software_config.cluster_os_type }}"
     cluster_os_version: "{{ software_config.cluster_os_version }}"
     k8s_support_check: true
     k8s_arch: []
 
-- name: Validate dynamic_k8s_generation
+- name: Validate service k8s
   when: k8s_support
   block:
-    - name: Extract k8s version
+    - name: Extract service k8s version
       ansible.builtin.set_fact:
         k8s_versions: "{{ software_config.softwares | selectattr('name', 'in', ['compute_k8s', 'service_k8s']) | map(attribute='version') | list | unique }}" # noqa: yaml[line-length]
         k8s_arch: "{{ (software_config.softwares | selectattr('name', 'in', ['compute_k8s', 'service_k8s']) | first).get('arch', default_archs) }}"
-
-    - name: Check if the k8s metadata file exists
-      ansible.builtin.stat:
-        path: "{{ metadata_file }}"
-      register: metadata_stat
 
     - name: Set k8s_support_check to false if any k8s version is not default_k8s_version
       ansible.builtin.set_fact:
         k8s_support_check: false
       when: (k8s_versions | select('ne', default_k8s_version) | list | length) > 0
 
-    - name: Fail if unsupported k8s version is detected
+    - name: Fail if unsupported service_k8s version is detected
       ansible.builtin.fail:
         msg: "{{ fail_msg }}"
       when: not k8s_support_check
-
-    - name: Validate k8s metadata
-      when: metadata_stat.stat.exists
-      block:
-        - name: Read k8s metadata file
-          ansible.builtin.slurp:
-            src: "{{ metadata_file }}"
-          register: metadata_content
-          when: metadata_stat.stat.exists
-
-        - name: Parse YAML
-          ansible.builtin.set_fact:
-            metadata_dict: "{{ metadata_content.content | b64decode | from_yaml }}"
-
-        - name: Check if the given k8s version(s) exists in metadata
-          ansible.builtin.set_fact:
-            kubespray_versions: "{{ kubespray_versions | default([]) + [metadata_dict.k8s_kubespray_versions[version]] }}"
-          when: version in metadata_dict.k8s_kubespray_versions
-          loop: "{{ k8s_versions | default([]) }}"
-          loop_control:
-            loop_var: version
-
-        - name: Check if the given k8s version(s) not exists in metadata
-          ansible.builtin.set_fact:
-            k8s_support_check: false
-          when: version not in metadata_dict.k8s_kubespray_versions
-          loop: "{{ k8s_versions | default([]) }}"
-          loop_control:
-            loop_var: version
-
-    - name: Set kubespray version to default
-      ansible.builtin.set_fact:
-        kubespray_versions: ["{{ default_kubespray_version }}"]
-      when: k8s_support_check
-
-- name: Validate k8s_support variable
-  when:
-    - k8s_support
-    - not k8s_support_check
-  block:
-    - name: Create a directory for base_path to store the k8s dynamic json
-      ansible.builtin.file:
-        path: "{{ dynamic_k8s_json_folder }}"
-        state: directory
-        mode: "{{ file_permission }}"
-        owner: root
-        group: root
-
-    - name: Append prefix to k8s version(s)
-      ansible.builtin.set_fact:
-        kube_versions_list: "{{ kube_versions_list | default([]) + ['v' + item] }}"
-      loop: "{{ k8s_versions }}"
-
-    - name: Generate Kubernetes JSON files
-      dynamic_k8s_json:
-        kube_versions: "{{ kube_versions_list }}"
-        base_path: "{{ dynamic_k8s_json_folder }}"
-        repo_url: "{{ kubespray_url }}"
-        package_types: "{{ package_type_list }}"
-        k8s_json_path: "{{ base_k8s_json_file }}"
-        log_dir: "{{ dynamic_k8s_json_log_dir }}"
-        software_name: "k8s"
-        n_latest: 3
-        arch: "{{ arch | default('x86_64') }}"
-        mode: "clone"
-        check_version: true
-      loop: "{{ k8s_arch }}"
-      loop_control:
-        loop_var: arch
-      register: k8s_to_kubespray_comp_ver
-
-    - name: Print compatible kubespray tags
-      ansible.builtin.debug:
-        var: k8s_to_kubespray_comp_ver
-
-    - name: Set Kubespray version based on Kubernetes version
-      ansible.builtin.set_fact:
-        kubespray_versions: "{{ kubespray_versions | default([]) + [k8s_to_kubespray_comp_ver.results[0].compatible_tags[version]] }}"
-      when:
-        - (k8s_to_kubespray_comp_ver.results | length) > 0
-      loop: "{{ kube_versions_list | default([]) }}"
-      loop_control:
-        loop_var: version
-
-    - name: Fail if the latest 3 release tags of kubespray do not support the Kubernetes version
-      ansible.builtin.fail:
-        msg: "{{ fail_msg_k8s_version }}"
-      when: version in [None, '']
-      loop: "{{ kubespray_versions | default([]) }}"
-      loop_control:
-        loop_var: version
-
-    - name: Prepare kubespray_versions unique
-      ansible.builtin.set_fact:
-        kubespray_versions: "{{ kubespray_versions | unique }}"

@@ -1,4 +1,5 @@
 resources:
+  - telemetry_namespace_creation.yml
   - telemetry_secret_creation.yaml
   - idrac_telemetry_statefulset.yaml
 {% set types = hostvars['localhost']['idrac_telemetry_collection_type'].split(',') %}

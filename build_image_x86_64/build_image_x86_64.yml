@@ -44,11 +44,11 @@
     oim_group: true
   tags: always
 
-- name: Configure auth for openchami
+- name: Configure auth for OpenCHAMI
   hosts: oim
   connection: ssh
   tasks:
-    - name: Openchami cluster authentication
+    - name: OpenCHAMI cluster authentication
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/common/openchami_auth.yml"
       vars:
         oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
@@ -69,7 +69,16 @@
   roles:
     - fetch_packages
 
-- name: Openchmi build image for x86_64
+- name: Tagging OpenCHAMI image
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Tag OpenCHAMI image
+      ansible.builtin.include_role:
+        name: image_creation
+        tasks_from: build_image_tag.yml
+
+- name: OpenCHAMI build image for x86_64
   hosts: localhost
   connection: local
   gather_facts: false

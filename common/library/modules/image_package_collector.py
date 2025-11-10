@@ -46,7 +46,7 @@ def load_json_file(path, module):
         return None
 
 
-def collect_packages_from_json(sw_data, fg_name=None, slurm_defined=False):
+def collect_packages_from_json(sw_data, fg_name=None, slurm_defined=False, service_k8s_defined=False):
     """
     Collect RPM package names from a JSON-like dictionary of software data.
 
@@ -85,6 +85,21 @@ def collect_packages_from_json(sw_data, fg_name=None, slurm_defined=False):
                     packages.append(entry["package"])
 
         # Collect from matching functional group inside slurm_custom.json
+        if fg_name in sw_data and "cluster" in sw_data[fg_name]:
+            for entry in sw_data[fg_name]["cluster"]:
+                if entry.get("type") == "rpm" and "package" in entry:
+                    packages.append(entry["package"])
+    
+    elif service_k8s_defined:
+        fg_name = fg_name.replace("_aarch64", "").replace("_x86_64", "")
+
+        # Always collect from top-level "service_k8s" section
+        if "service_k8s" in sw_data and "cluster" in sw_data["service_k8s"]:
+            for entry in sw_data["service_k8s"]["cluster"]:
+                if entry.get("type") == "rpm" and "package" in entry:
+                    packages.append(entry["package"])
+
+        # Collect from matching functional group inside service_k8s
         if fg_name in sw_data and "cluster" in sw_data[fg_name]:
             for entry in sw_data[fg_name]["cluster"]:
                 if entry.get("type") == "rpm" and "package" in entry:
@@ -157,6 +172,8 @@ def process_functional_group(fg_name, base_name, arch, os_version, input_project
         # Special handling for slurm_custom.json
         if json_file == "slurm_custom.json":
             packages.extend(collect_packages_from_json(sw_data, fg_name=fg_name, slurm_defined=True))
+        elif json_file == "service_k8s.json":
+            packages.extend(collect_packages_from_json(sw_data, fg_name=fg_name, service_k8s_defined=True))
         else:
             packages.extend(collect_packages_from_json(sw_data))
 
@@ -212,13 +229,15 @@ def run_module():
     software_map = {
         "default_x86_64": ["nfs.json", "openldap.json"],
         "service_kube_node_x86_64": ["service_k8s.json", "nfs.json"],
-        "slurm_control_node_x86_64": ["slurm_custom.json", "nfs.json", "openldap.json"],
-        "slurm_node_x86_64": ["slurm_custom.json", "nfs.json", "openldap.json"],
-        "login_node_x86_64": ["slurm_custom.json", "nfs.json", "openldap.json"],
-        "login_compiler_node_x86_64": ["slurm_custom.json", "nfs.json", "openldap.json", "ucx.json", "openmpi.json"],
-        "slurm_node_aarch64": ["slurm_custom.json", "nfs.json", "openldap.json"],
-        "login_node_aarch64": ["slurm_custom.json", "nfs.json", "openldap.json"],
-        "login_compiler_node_aarch64": ["slurm_custom.json", "nfs.json", "openldap.json"]
+        "service_kube_control_plane_first_x86_64": ["service_k8s.json", "nfs.json"],
+        "service_kube_control_plane_x86_64": ["service_k8s.json", "nfs.json"],
+        "slurm_control_node_x86_64": ["slurm_custom.json", "nfs.json", "openldap.json","ldms.json"],
+        "slurm_node_x86_64": ["slurm_custom.json", "nfs.json", "openldap.json","ldms.json"],
+        "login_node_x86_64": ["slurm_custom.json", "nfs.json", "openldap.json","ldms.json"],
+        "login_compiler_node_x86_64": ["slurm_custom.json", "nfs.json", "openldap.json", "ucx.json", "openmpi.json","ldms.json"],
+        "slurm_node_aarch64": ["slurm_custom.json", "nfs.json", "openldap.json","ldms.json"],
+        "login_node_aarch64": ["slurm_custom.json", "nfs.json", "openldap.json","ldms.json"],
+        "login_compiler_node_aarch64": ["slurm_custom.json", "nfs.json", "openldap.json","ldms.json"]
     }
 
     compute_images_dict = {}

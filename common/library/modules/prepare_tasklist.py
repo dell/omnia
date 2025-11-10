@@ -118,8 +118,8 @@ def main():
             logger.info(f"Existing softwares in {arch} software csv: {csv_softwares}")
             logger.info(f"New software list for {arch}: {new_softwares}")
             # Build a dictionary mapping software names to subgroup data, if available
-            subgroup_dict, software_names = get_subgroup_dict(user_data)
-            version_variables = set_version_variables(user_data, software_names, cluster_os_version)
+            subgroup_dict, software_names = get_subgroup_dict(user_data,logger)
+            version_variables = set_version_variables(user_data, software_names, cluster_os_version,logger)
 
             logger.info("Preparing package lists...")
             for software in software_list[arch]:
@@ -141,14 +141,14 @@ def main():
                 logger.info(f"failed softwares: {failed_softwares}")
                 tasks, failed_packages = process_software(software, is_fresh_software, json_path[arch],
                                                            status_csv_path[arch],
-                                                           subgroup_dict.get(software, None))
+                                                           subgroup_dict.get(software, None),logger)
                 logger.info(f"tasks to be processed: {tasks}")
                 logger.info(f"failed_packages : {failed_packages}")
 
                 if not is_fresh_software:
                     pkgs = get_new_packages_not_in_status(json_path[arch],
                                                           status_csv_path[arch],
-                                                          subgroup_dict.get(software, None))
+                                                          subgroup_dict.get(software, None),logger)
 
                     if pkgs:
                         logger.info(f"Additional software packages for {software}: {pkgs}")
@@ -156,10 +156,10 @@ def main():
 
                 if tasks:
                     tasks_dict[software] = tasks
-                    trans=transform_package_dict(tasks_dict, arch)
+                    trans=transform_package_dict(tasks_dict, arch,logger)
                     logger.info(f"Final tasklist to process: {trans}")
                     final_tasks_dict.update(trans)
-        local_config, url_result = parse_repo_urls(repo_config, local_repo_config_path , version_variables, vault_key_path,sub_urls)
+        local_config, url_result = parse_repo_urls(repo_config, local_repo_config_path , version_variables, vault_key_path,sub_urls,logger)
         if not url_result:
             module.fail_json(f"{local_config} is either unreachable, invalid or has incorrect SSL certificates, please verify and provide correct details")
 

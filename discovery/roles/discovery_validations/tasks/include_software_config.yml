@@ -51,6 +51,10 @@
   ansible.builtin.set_fact:
     service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
 
+- name: Check if csi support is true
+  ansible.builtin.set_fact:
+    csi_driver_powerscale_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'csi_driver_powerscale') | list | length > 0 }}"
+
 - name: Initialise openldap support variables
   ansible.builtin.set_fact:
     openldap_support: false
@@ -74,3 +78,11 @@
 - name: Check if openmpi support is true
   ansible.builtin.set_fact:
     openmpi_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openmpi') | list | length > 0 }}"
+
+- name: Initialise ldms support variables
+  ansible.builtin.set_fact:
+    ldms_support: false
+
+- name: Check if ldms support is true
+  ansible.builtin.set_fact:
+    ldms_support: "{{ software_config.softwares | selectattr('name', 'in', 'ldms') | list | length > 0 }}"
