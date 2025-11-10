@@ -23,7 +23,7 @@ kubespray_directories:
   - { path: "{{ kubespray_logs_dir }}", mode: "0644" }
   - { path: "{{ kubespray_dir }}", mode: "0744" }
 
-kubespray_image_name: "docker.io/dellhpcomniaaisolution/omnia_kubespray"
+kubespray_image_name: "omnia_kubespray"
 kubespray_image_tag: "{{ kubespray_version }}"
 kubespray_container_name: "omnia_kubespray_{{ kubespray_version }}"
 kubespray_quadlet_mode: "0644"

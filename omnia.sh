@@ -911,20 +911,14 @@ install_omnia_core() {
         echo -e "${RED} Failed to pull Omnia core image.${NC}"
     fi
     # Fail if image is not found. podman inspect can be used to check if image exists locally.
-    if podman inspect omnia_core:latest >/dev/null 2>&1; then
+    if podman inspect docker.io/dellhpcomniaaisolution/omnia_core:latest >/dev/null 2>&1; then
         echo -e "${BLUE} Omnia core image already exists locally, skipping pull.${NC}"
     else
         echo -e "${RED}ERROR: Omnia core image not found locally.${NC}"
         echo ""
-        echo -e "${YELLOW}To resolve this, please follow these steps:${NC}"
-        echo -e "1. Clone the Omnia Artifactory repository:"
-        echo -e "   git clone https://github.com/dell/omnia-artifactory -b omnia-container"
-        echo -e "2. Navigate to the repository directory:"
-        echo -e "   cd omnia-artifactory"
-        echo -e "3. Build the core image locally:"
-        echo -e "   ./build_images.sh core omnia_branch=<version/branch_name>"
-        echo -e "4. After building the image, re-run this script:"
-        echo -e "   ./omnia.sh --install"
+        echo -e "${YELLOW}Suggested next steps to resolve this:${NC}"
+        echo -e "1. Verify internet access"
+        echo -e "2. Retry after some time in case of rate limits"
         exit 1
     fi
 
