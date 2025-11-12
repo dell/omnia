@@ -27,11 +27,9 @@ auth_service_container_name: omnia_auth
 auth_service_image_pull_fail_msg:
   - The pull of the auth service image {{ auth_service_image_name }} has failed.
   - "ERROR: {{ auth_service_image_name }} not found locally."
-  - To resolve this, please follow these steps
-  - Clone the Omnia Artifactory repository
-  - git clone https://github.com/dell/omnia-artifactory -b omnia-container
-  - Navigate to the repository directory and Build the core image locally
-  - ./build_images.sh auth
+  - To resolve this, please check below
+  - Verify internet access
+  - Retry after some time in case of rate limits or pull limits
 auth_service_quadlet_mode: "0644"
 
 auth_service_container_success_msg: "The {{ auth_service_container_name }} container has been successfully deployed."
