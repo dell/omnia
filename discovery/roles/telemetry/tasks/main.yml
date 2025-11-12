@@ -15,20 +15,31 @@
 
 - name: Configure of k8s telemetry service
   when:
+    - hostvars['localhost']['idrac_telemetry_support'] or hostvars['localhost']['ldms_support']
+  block:
+    - name: Service cluster prerequisite
+      ansible.builtin.include_tasks: telemetry_prereq.yml
+
+    - name: Read telemetry packages from software config
+      ansible.builtin.include_tasks: read_software_config.yml
+
+    - name: Generate telemetry deployments
+      ansible.builtin.include_tasks: generate_telemetry_deployments.yml
+
+- name: Configure of k8s telemetry service
+  when:
     - hostvars['localhost']['idrac_telemetry_support']
   block:
     - name: Validate idrac telemetry config
       ansible.builtin.include_tasks: validate_idrac_inventory.yml
 
-    - name: Service cluster prerequisite
-      ansible.builtin.include_tasks: telemetry_prereq.yml
-
-    - name: Generate telemetry deployments
-      ansible.builtin.include_tasks: generate_telemetry_deployments.yml
-
-    - name: Generate service clsuter metadata
+    - name: Generate service cluster metadata
       ansible.builtin.include_tasks: generate_service_cluster_metadata.yml
 
 - name: Include update_ldms_sampler.yml
   ansible.builtin.include_tasks: update_ldms_sampler.yml
+  when: hostvars['localhost']['ldms_support']
+
+- name: Update ldms agg configuration
+  ansible.builtin.include_tasks: update_ldms_agg_config.yml
   when: hostvars['localhost']['ldms_support']

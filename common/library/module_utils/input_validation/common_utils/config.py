@@ -56,7 +56,8 @@ input_file_inventory = {
         files["provision_config"],
         files["network_spec"],
         files["software_config"],
-        files["functional_groups_config"]
+        files["functional_groups_config"],
+        files["telemetry_config"]
         # files["high_availability_config"]
     ],
     "security": [
@@ -154,7 +155,7 @@ TYPE_REQUIREMENTS = {
     "pip_module":["package"]
 }
 
-supported_telemetry_collection_type = ["prometheus","kafka"]
+supported_telemetry_collection_type = ["victoria","kafka"]
 
 # used for security_config.yml validation
 supported_ldap_connection_type = ["TLS","SLS"]

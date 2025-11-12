@@ -18,16 +18,20 @@
       {"package": "container-selinux", "type": "rpm", "repo_name": "x86_64_appstream"},
       {"package": "cri-o", "type": "rpm", "repo_name": "cri-o"},
       { "package": "docker.io/victoriametrics/victoria-metrics", "type": "image", "tag": "v1.128.0" },
+	  { "package": "docker.io/victoriametrics/vmagent", "type": "image", "tag": "v1.128.0" },
       { "package": "docker.io/library/golang", "type": "image", "tag": "1.24" },
       { "package": "docker.io/library/busybox", "type": "image", "tag": "1.36" },
       { "package": "docker.io/rmohr/activemq", "type": "image", "tag": "5.15.9" },
       { "package": "docker.io/library/mysql", "type": "image", "tag": "9.3.0" },
-      { "package": "docker.io/apache/kafka", "type": "image", "tag": "4.1.0" },
       { "package": "cryptography==45.0.7", "type": "pip_module" },
       { "package": "omsdk==1.2.518", "type": "pip_module" },
       { "package": "cffi==1.17.1", "type": "pip_module" },
       { "package": "firewalld", "type": "rpm", "repo_name": "x86_64_baseos" },
-      { "package": "python3-firewall", "type": "rpm", "repo_name": "x86_64_baseos" }
+      { "package": "python3-firewall", "type": "rpm", "repo_name": "x86_64_baseos" },
+      { "package": "quay.io/strimzi/operator", "tag": "0.48.0", "type": "image" },
+      { "package": "quay.io/strimzi/kafka", "tag": "0.48.0-kafka-4.1.0", "type": "image" },
+      { "package": "docker.io/dellhpcomniaaisolution/ubuntu-ldms", "tag": "latest", "type": "image" }, 
+      { "package": "strimzi-kafka-operator-helm-3-chart-0.48.0", "type": "tarball", "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.48.0/strimzi-kafka-operator-helm-3-chart-0.48.0.tgz" }
     ]
   },
   "service_kube_control_plane": {
@@ -103,3 +107,4 @@
     ]
   }
 }
+

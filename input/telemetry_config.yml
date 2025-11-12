@@ -38,12 +38,17 @@ victoria_configurations:
   # Default: 8Gi
   persistence_size: "8Gi"
 
+  # Duration (in hours) to retain victoria logs before they are deleted.
+  # Default: 168 (7 days)
+  retention_period: 168
+
 # These variables are used to configure Kafka for telemetry
 kafka_configurations:
   # The amount of storage allocated for Kafka's persistent volume.
+  # This storage will be divided among 6 pods, comprising 3 Kafka brokers and 3 Kafka controllers.
   # Accepted values: in the form of "X[Ki|Mi|Gi|Ti|Pi|Ei]"
-  # Default: 8Gi
-  persistence_size: "8Gi"
+  # Default: 48Gi
+  persistence_size: "48Gi"
 
   # The number of hours to retain Kafka logs before they are deleted.
   # Default: 168 (7 days)

@@ -17,7 +17,7 @@
   ansible.builtin.template:
     src: "{{ item.src }}"
     dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
-    mode: '0644'
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   loop:
     - src: 'telemetry/common/telemetry_namespace_creation.yaml.j2'
       dest: 'telemetry_namespace_creation.yaml'
@@ -35,18 +35,54 @@
     - src: 'telemetry/idrac_telemetry/idrac_telemetry_statefulset.yaml.j2'
       dest: 'idrac_telemetry_statefulset.yaml'
 
-    - src: 'telemetry/kafka/kafka-san.cnf.j2'
-      dest: 'kafka-san.cnf'
-      type: 'kafka'
-
-    - src: 'telemetry/kafka/kafka-statefulset.yaml.j2'
-      dest: 'kafka-statefulset.yaml'
-      type: 'kafka'
-
     - src: 'telemetry/victoria/victoria-statefulset.yaml.j2'
       dest: 'victoria-statefulset.yaml'
       type: 'victoria'
+
+    - src: 'telemetry/victoria/victoria-vmagent-rbac.yaml.j2'
+      dest: 'victoria-vmagent-rbac.yaml'
+      type: 'victoria'
+
+    - src: 'telemetry/victoria/vmagent-scrape-config.yaml.j2'
+      dest: 'vmagent-scrape-config.yaml'
+      type: 'victoria'
+
+    - src: 'telemetry/victoria/victoria-agent-deployment.yaml.j2'
+      dest: 'victoria-agent-deployment.yaml'
+      type: 'victoria'
+
   when:
     - item.type is not defined or item.type in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')
     - item.skip_when is not defined or not item.skip_when | bool
   tags: telemetry_deployment
+
+- name: Kafka configurations
+  when: kafka_support
+  block:
+    - name: Populate telemetry deployment configs for kafka
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+      loop:
+        - src: 'telemetry/kafka/kafka-san.cnf.j2'
+          dest: 'kafka-san.cnf'
+          type: 'kafka'
+
+        - src: 'telemetry/kafka/kafka.kafka.yaml.j2'
+          dest: 'kafka.kafka.yaml'
+          type: 'kafka'
+
+        - src: 'telemetry/kafka/kafka.kafka_bridge.yaml.j2'
+          dest: 'kafka.kafka_bridge.yaml'
+          type: 'kafka'
+
+    - name: Extract and set facts for tarball URLs for strmzi kafka
+      ansible.builtin.set_fact:
+        strimzi_kafka_pkg: "{{ k8s_packages_json['service_k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'strimzi-kafka-operator') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+
+    - name: Download strmzi kafka tarball
+      ansible.builtin.get_url:
+        url: "{{ strmzi_kafka_tarball_url }}"
+        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/{{ strimzi_kafka_pkg }}.tar.gz"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"

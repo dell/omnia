@@ -1,11 +1,17 @@
 resources:
-  - telemetry_namespace_creation.yml
   - telemetry_secret_creation.yaml
   - idrac_telemetry_statefulset.yaml
 {% set types = hostvars['localhost']['idrac_telemetry_collection_type'].split(',') %}
 {% if 'victoria' in types %}
+  - victoria-vmagent-rbac.yaml
+  - vmagent-scrape-config.yaml
+  - victoria-agent-deployment.yaml
   - victoria-statefulset.yaml
 {% endif %}
-{% if 'kafka' in types %}
-  - kafka-statefulset.yaml
+{% if kafka_support %}
+  - kafka.kafka.yaml
+  - kafka.kafka_bridge.yaml
+{% endif %}
+{% if hostvars['localhost']['ldms_support'] %}
+  - kafka.topic_ldms.yaml
 {% endif %}

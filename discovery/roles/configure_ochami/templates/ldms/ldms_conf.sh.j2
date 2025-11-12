@@ -34,6 +34,12 @@ else
     echo "Service file not found: /opt/ovis-ldms/etc/systemd/system/ldmsd.sampler.service" | tee -a "$LOG_FILE"
 fi
 
+# Configure firewall safely
+
+echo "Configuring firewall for LDMS port 10001..." | tee -a "$LOG_FILE"
+sudo firewall-cmd --permanent --add-port=10001/tcp
+sudo firewall-cmd --reload
+
 # --- Verify LDMS connection and metrics ---
 echo "Verifying LDMS connection and metrics..." | tee -a "$LOG_FILE"
 /opt/ovis-ldms/sbin/ldms_ls -a ovis -A conf=/opt/ovis-ldms/etc/ldms/ldmsauth.conf -p 10001 -h localhost | tee -a "$LOG_FILE"

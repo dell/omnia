@@ -53,3 +53,12 @@
     k8s_server_share_path: "{{ k8s_nfs_storage_details.server_share_path }}"
     k8s_server_ip: "{{ k8s_nfs_storage_details.server_ip }}"
     k8s_mount_options: "{{ k8s_nfs_storage_details.client_mount_options }}"
+
+- name: Extract numeric and unit from kafka persistence size
+  ansible.builtin.set_fact:
+    kafka_size_number: "{{ hostvars['localhost']['kafka_configurations']['persistence_size'] | regex_replace('[^0-9.]', '') }}"
+    kafka_size_unit: "{{ hostvars['localhost']['kafka_configurations']['persistence_size'] | regex_search('[a-zA-Z]+') | default('') }}"
+
+- name: Set final kafka persistence size per pod
+  ansible.builtin.set_fact:
+    kafka_persistence_size: "{{ (kafka_size_number | float // 6) | int ~ kafka_size_unit }}"

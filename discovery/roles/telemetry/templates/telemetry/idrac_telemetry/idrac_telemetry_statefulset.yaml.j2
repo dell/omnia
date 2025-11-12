@@ -160,19 +160,13 @@ spec:
             - name: MESSAGEBUS_PORT
               value: "{{ messagebus_http_port }}"
             - name: KAFKA_BROKER
-              value: "kafka-headless.telemetry.svc.cluster.local:9092"
+              value: "kafka-kafka-bootstrap.telemetry.svc.cluster.local:9092"
             - name: KAFKA_TOPIC
               value: "{{ kafka.telemetry_topic_name }}"
             - name: KAFKA_SKIP_VERIFY
               value: "{{ kafka_skip_verify | default('false') | lower }}"
             - name: KAFKA_PARTITION
               value: "0"
-            - name: KAFKA_CACERT
-              value: "kafka.truststore.pem"
-            - name: KAFKA_CLIENT_CERT
-              value: "kafka.keystore.pem"
-            - name: KAFKA_CLIENT_KEY
-              value: "kafka.keystore.key"
           command: ["/bin/sh", "-c"]
           args: ["go run cmd/kafkapump/kafkapump.go"]
 {% endif %}
@@ -192,8 +186,6 @@ spec:
               value: "{{ messagebus_http_port }}"
             - name: MESSAGEBUS_TYPE
               value: stomp
-            - name: VICTORIA_METRICS_URL
-              value: "http://victoria-svc.telemetry.svc.cluster.local:8428/api/v1/import/prometheus"
           ports:
             - containerPort: 2112
               name: victoriapump

@@ -215,6 +215,10 @@
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
+        - "systemctl enable chronyd"
+        - "systemctl restart chronyd"
+        - "chronyc sources"
+        - "chronyc -a makestep"
         - sudo swapoff -a
         - sudo sed -i '/ swap / s/^/#/' /etc/fstab
         - sudo setenforce 0 || true
@@ -285,18 +289,23 @@
             NODE_NAME="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
             KUBE_VIP="{{ kube_vip }}"
             JOIN_CMD_FILE="${K8S_CLIENT_MOUNT_PATH}/control-plane-join-command.sh"
-            echo "Waiting for join command file: $JOIN_CMD_FILE"
+            echo "----------------------------------------------------------------------"
+            echo "Waiting for the service_kube_control_plane_first_x86_64 to be initialized."
+            echo "This node will automatically join the cluster once it is ready."
+            echo "Looking for cluster join command at: $JOIN_CMD_FILE"
+            echo "----------------------------------------------------------------------"
             while [ ! -f "$JOIN_CMD_FILE" ]; do
-              echo "File not found: $JOIN_CMD_FILE. Retrying in 10 seconds..."
+              echo "service_kube_control_plane_first_x86_64 is not ready yet. Waiting for $JOIN_CMD_FILE to be created. Retrying in 10 seconds..."
               sleep 10
             done
-            echo "File exists: $JOIN_CMD_FILE"
+            echo "Join command file detected: $JOIN_CMD_FILE"
+            echo "Checking if kube-vip (${KUBE_VIP}) is reachable..."
             # Keep pinging kube-vip until it is reachable
             while ! ping -c 1 -W 2 "$KUBE_VIP" >/dev/null 2>&1; do
               echo "kube-vip (${KUBE_VIP}) not reachable. Retrying in 10 seconds..."
               sleep 10
             done
-            echo "kube-vip (${KUBE_VIP}) is pingable (ICMP), proceeding with join."
+            echo "kube-vip (${KUBE_VIP}) is reachable. Joining this service_kube_control_plane_x86_64 to the cluster now."
             JOIN_CMD="$(cat "$JOIN_CMD_FILE") --node-name ${NODE_NAME}"
             echo "Executing: $JOIN_CMD"
             eval $JOIN_CMD
@@ -319,3 +328,17 @@
             else
               echo "WARNING: /etc/kubernetes/kubelet.conf not found. Kubelet may not be initialized yet."
             fi
+
+        - |
+          echo "Installing Necessary Python pip packages"
+          python3 -m ensurepip
+
+          PACKAGES=({% for pkg in k8s_pip_packages %}"{{ pkg }}"{% if not loop.last %} {% endif %}{% endfor %})
+
+          for pkg in "${PACKAGES[@]}"; do
+              echo "Installing $pkg from offline repo..."
+              pip3 install "$pkg" \
+                  --find-links="{{ offline_pip_module_path }}/${pkg}/" \
+                  --trusted-host "{{ pulp_server_ip }}" \
+                  --no-index
+          done

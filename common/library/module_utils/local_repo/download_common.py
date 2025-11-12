@@ -16,18 +16,20 @@
 """
 Handle pulp file downloads for local repository
 """
-import os
-import subprocess
-import shlex
-import tarfile
-import shutil
-import time
-import json
-import requests
 import base64
-from urllib.parse import urlparse
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import tarfile
+import time
 from multiprocessing import Lock
+from urllib.parse import urlparse
+import requests
 from jinja2 import Template
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from ansible.module_utils.local_repo.parse_and_download import write_status_to_file,execute_command
 from ansible.module_utils.local_repo.rest_client import RestClient
 from ansible.module_utils.local_repo.common_functions import load_pulp_config
@@ -43,90 +45,116 @@ from ansible.module_utils.local_repo.config import (
 )
 
 file_lock = Lock()
+CHUNK_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_RETRY = 5  # retry resume up to 5 times
 
 def download_file_distribution(distribution_name, dl_directory, relative_path, logger):
     """
-    Download a file from a Pulp file distribution securely.
- 
-    Runs `pulp file distribution show` to get the base_url, constructs the full URL
-    with the given relative_path, creates the local directory if needed, and downloads
-    the file using the requests library (ignores HTTPS cert errors if needed).
-    Skips download if file exists.
- 
+    Download a file from a given distribution and save it locally.
+
     Args:
-        distribution_name (str): Name of the Pulp distribution.
-        dl_directory (str): Local directory to save the file.
-        relative_path (str): Filename to append to base_url.
-        logger (logging.Logger): Logger for logging info and errors.
- 
+        distribution_name (str): Name of the distribution from which the file will be downloaded.
+        dl_directory (str): Local directory path where the downloaded file should be stored.
+        relative_path (str): Relative path of the file in the distribution.
+        logger (logging.Logger): Logger instance for logging download progress, success, or errors.
+
     Returns:
-        str: "Success" if download succeeded or file exists, else "Failed".
+        str: "Success" if the download is completed successfully.
+
+    Raises:
+        subprocess.CalledProcessError: If the file download command fails.
+        Exception: For any other unexpected errors encountered during execution.
     """
- 
+
     def is_safe_url(url: str) -> bool:
-        """Validate that the URL is HTTP(S) and well-formed."""
         parsed = urlparse(url)
         return parsed.scheme in ("http", "https") and bool(parsed.netloc)
- 
+
     def sanitize_path(path: str) -> str:
-        """Prevent path traversal attacks."""
         safe_path = os.path.normpath(path)
         if ".." in safe_path:
             raise ValueError("Invalid path traversal detected")
         return safe_path
- 
+
     try:
-        # Run the pulp command and capture output safely
         cmd = ["pulp", "file", "distribution", "show", "--name", distribution_name]
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
- 
-        # Parse JSON output
         data = json.loads(result.stdout)
-        base_url = data.get("base_url") 
+
+        base_url = data.get("base_url")
         if not base_url:
-            logger.error(f"base_url not found in pulp distribution info for {distribution_name}")
+            logger.error(f"base_url not found for {distribution_name}")
             return "Failed"
- 
-        # Construct and validate full URL
-        full_url = base_url.rstrip('/') + '/' + relative_path
+
+        full_url = base_url.rstrip("/") + "/" + relative_path
         if not is_safe_url(full_url):
-            logger.error(f"Unsafe or invalid URL: {full_url}")
+            logger.error(f"Unsafe URL: {full_url}")
             return "Failed"
- 
-        # Construct local file path and sanitize it
+
         local_path = sanitize_path(os.path.join(dl_directory, relative_path))
- 
-        # Create directory if not present
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
- 
-        # Skip download if file already exists
-        if os.path.exists(local_path):
-            logger.info(f"{distribution_name}: File already exists at {local_path}")
-            return "Success"
- 
-        # Download securely using requests (instead of wget)
-        try:
-            response = requests.get(full_url, verify=PULP_SSL_CA_CERT, timeout=60)
-            response.raise_for_status()
-            with open(local_path, "wb") as f:
-                f.write(response.content)
-            logger.info(f"Download completed for {local_path}")
-            return "Success"
-        except requests.RequestException as e:
-            logger.error(f"Download failed for {full_url}: {e}")
-            return "Failed"
- 
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Command execution failed: {e}")
+
+        retry = 0
+        while retry <= MAX_RETRY:
+
+            downloaded_bytes = os.path.getsize(local_path) if os.path.exists(local_path) else 0
+            headers = {"Range": f"bytes={downloaded_bytes}-"} if downloaded_bytes > 0 else {}
+
+            session = requests.Session()
+            session.mount("https://", HTTPAdapter(max_retries=3))
+
+            try:
+                logger.info(f"Attempt {retry+1}: Downloading from byte {downloaded_bytes}")
+
+                with session.get(
+                    full_url,
+                    stream=True,
+                    headers=headers,
+                    verify=PULP_SSL_CA_CERT,
+                    timeout=(30, 600)
+                ) as r:
+
+                    if r.status_code == 416:
+                        logger.info("File already complete. No download needed.")
+                        return "Success"
+
+                    if r.status_code not in (200, 206):
+                        logger.error(f"HTTP error: {r.status_code}")
+                        raise Exception("Bad status code")
+
+                    total = int(r.headers.get("Content-Length", 0))
+                    total_size = downloaded_bytes + total
+
+                    mode = "ab" if downloaded_bytes else "wb"
+
+                    with open(local_path, mode) as f:
+                        current = downloaded_bytes
+                        for chunk in r.iter_content(chunk_size=CHUNK_SIZE):
+                            if not chunk:
+                                continue
+                            f.write(chunk)
+                            current += len(chunk)
+                            logger.info(f"Progress: {round((current/total_size)*100, 2)}% ({current}/{total_size} bytes)")
+
+                # Final size check
+                if os.path.getsize(local_path) == total_size:
+                    logger.info(f"Download completed successfully: {local_path}")
+                    return "Success"
+                else:
+                    raise Exception("File size mismatch after download")
+
+            except Exception as e:
+                logger.error(f"Download interrupted: {e}")
+                retry += 1
+                wait = 5 * retry
+                logger.info(f"Retrying in {wait} seconds...")
+                time.sleep(wait)
+
+        logger.error("Max retries exceeded, download failed.")
         return "Failed"
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON parsing failed: {e}")
-        return "Failed"
-    except ValueError as e:
-        logger.error(f"Validation error: {e}")
-        return "Failed"
+
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.error(f"Unexpected failure: {e}")
         return "Failed"
 
 def wait_for_task(task_href, base_url, username, password, logger, timeout=3600, interval=3):

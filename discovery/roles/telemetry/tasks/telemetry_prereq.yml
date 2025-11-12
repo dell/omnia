@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Initialize kafka_support
+  ansible.builtin.set_fact:
+    kafka_support: false
+
 - name: Count entries with FUNCTIONAL_GROUP_NAME containing 'service_kube_node'
   ansible.builtin.set_fact:
     kube_node_count: >-
@@ -75,8 +79,13 @@
         msg: "{{ idrac_script_git_clone_error_msg.splitlines() | join(' ') }}"
       when: clone_idrac_script is failed
 
+- name: Set kafka_support to true
+  ansible.builtin.set_fact:
+    kafka_support: true
+  when: "'kafka' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',') or hostvars['localhost']['ldms_support']"
+
 - name: Configure TLS certificate and secrets for kafka
-  when: "'kafka' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')"
+  when: kafka_support
   block:
     - name: Check if telemetry secrets config file exists
       ansible.builtin.stat:

@@ -1,0 +1,10 @@
+kubectl apply -f {{ k8s_client_mount_path }}/telemetry/deployments/telemetry_namespace_creation.yaml
+{% if kafka_support %}
+helm -n telemetry install strimzi-cluster-operator {{ k8s_client_mount_path }}/telemetry/{{ strimzi_kafka_pkg }}.tar.gz
+{% endif %}
+kubectl apply -k {{ k8s_client_mount_path }}/telemetry/deployments/.
+{% if hostvars['localhost']['ldms_support'] %}
+kubectl create secret generic nersc-ldms-ovis-auth   --from-file=ldmsauth.conf={{ k8s_client_mount_path }}/telemetry/ldms/ldmsauth.conf   --dry-run=client -o yaml | kubectl apply -f  - -n telemetry
+kubectl create secret generic nersc-munge-key   --from-file=munge.key={{ k8s_client_mount_path }}/telemetry/ldms/munge.key   --dry-run=client -o yaml | kubectl apply -f - -n telemetry
+cd {{ k8s_client_mount_path }}/telemetry/ldms/nersc-ldms-aggr && helm install -n telemetry nersc-ldms-aggr nersc-ldms-aggr --values values.yaml
+{% endif %}

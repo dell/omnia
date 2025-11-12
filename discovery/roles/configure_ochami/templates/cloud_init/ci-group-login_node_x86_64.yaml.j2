@@ -157,7 +157,7 @@
 
         # Add NFS entry and mount
         - mkdir -p {{ client_mount_path }}
-        - echo "{{ nfs_src }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
         - mount -a
 
         - cp -rf {{ client_mount_path }}/ldms/samplers/sampler.conf /opt/ovis-ldms/etc/ldms/

@@ -147,6 +147,15 @@
   ansible.builtin.debug:
     msg: "{{ status_results.msg.split('\n') if status_results.msg is defined else sw_download_msg }}"
 
+- name: Display total playbook execution time in minutes and seconds
+  ansible.builtin.debug:
+    msg: >
+      Total playbook execution time: {{
+        ((lookup('pipe', 'date +%s') | int - playbook_start_time | int) // 60)
+      }} min and {{
+        ((lookup('pipe', 'date +%s') | int - playbook_start_time | int) % 60)
+      }} sec
+
 - name: Local repository status
   ansible.builtin.debug:
     msg: "{{ 'localrepository SUCCESS' if final_status == 'SUCCESS' else 'localrepository failed. because some of the packages status are FAILED' }}"

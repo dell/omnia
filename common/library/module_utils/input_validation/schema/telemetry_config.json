@@ -6,6 +6,81 @@
     "idrac_telemetry_support": {
       "type": "boolean"
     },
+    "idrac_telemetry_collection_type": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": ["kafka", "victoria"]
+        },
+        {
+          "type": "string",
+          "pattern": "(?i)^(kafka|victoria)(,(kafka|victoria))*$"
+        }
+      ]
+    }
+  },
+  "ldms_sampler_configurations": {
+    "type": "array",
+    "description": "LDMS-specific sampler configurations (string-based)",
+    "items": {
+      "type": "object",
+      "properties": {
+        "plugin_name": {
+          "type": "string",
+          "description": "Name of the LDMS sampler plugin"
+        },
+        "config_parameters": {
+          "type": "string",
+          "description": "Plugin-specific configuration parameters represented as a single string (e.g., 'component_id=2 stream=slurm job_count=8 task_count=8')"
+        },
+        "activation_parameters": {
+          "type": "string",
+          "description": "Activation parameters as a string (e.g., 'interval=1000000 offset=0')",
+          "pattern": "^(?=.*\\binterval=[1-9][0-9]*\\b)(?:.*\\boffset=[0-9]+\\b)?$"
+        }
+      },
+      "required": ["plugin_name", "activation_parameters"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "plugin_name": { "const": "slurm_sampler" }
+            }
+          },
+          "then": {
+            "required": ["config_parameters"],
+            "properties": {
+              "config_parameters": {
+                "type": "string",
+                "pattern": "^(?=.*\\bcomponent_id=\\b)(?=.*\\bstream=\\b)(?=.*\\bjob_count=\\b)(?=.*\\btask_count=\\b).*$",
+                "description": "Must include component_id, stream, job_count, and task_count in the string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "plugin_name": {
+                "pattern": "^procnetdev[0-9]*$"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config_parameters": {
+                "type": "string",
+                "pattern": "^(|.*\\bifaces=[a-zA-Z0-9_,]+\\b.*)$",
+                "description": "Optional comma-separated list of network interfaces (e.g., 'ifaces=eth0,eth1')"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "required": ["idrac_telemetry_support"],
+  "$defs": {
     "kafka_configurations": {
       "type": "object",
       "properties": {
@@ -37,116 +112,70 @@
       ],
       "additionalProperties": false
     },
-
-    "ldms_sampler_configurations": {
-      "type": "array",
-      "description": "LDMS-specific sampler configurations (string-based)",
-      "items": {
-        "type": "object",
-        "properties": {
-          "plugin_name": {
-            "type": "string",
-            "description": "Name of the LDMS sampler plugin"
-          },
-          "config_parameters": {
-            "type": "string",
-            "description": "Plugin-specific configuration parameters represented as a single string (e.g., 'component_id=2 stream=slurm job_count=8 task_count=8')"
-          },
-          "activation_parameters": {
-            "type": "string",
-            "description": "Activation parameters as a string (e.g., 'interval=1000000 offset=0')",
-            "pattern": "^(?=.*\\binterval=[1-9][0-9]*\\b)(?:.*\\boffset=[0-9]+\\b)?$"
-          }
+    "victoria_configurations": {
+      "type": "object",
+      "properties": {
+        "persistence_size": {
+          "type": "string",
+          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
         },
-        "required": ["plugin_name", "activation_parameters"],
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "plugin_name": { "const": "slurm_sampler" }
-              }
-            },
-            "then": {
-              "required": ["config_parameters"],
-              "properties": {
-                "config_parameters": {
-                  "type": "string",
-                  "pattern": "^(?=.*\\bcomponent_id=\\b)(?=.*\\bstream=\\b)(?=.*\\bjob_count=\\b)(?=.*\\btask_count=\\b).*$",
-                  "description": "Must include component_id, stream, job_count, and task_count in the string"
-                }
-              }
-            }
-          },
-          {
-            "if": {
-              "properties": {
-                "plugin_name": {
-                  "pattern": "^procnetdev[0-9]*$"
-                }
-              }
-            },
-            "then": {
-              "properties": {
-                "config_parameters": {
-                  "type": "string",
-                  "pattern": "^(|.*\\bifaces=[a-zA-Z0-9_,]+\\b.*)$",
-                  "description": "Optional comma-separated list of network interfaces (e.g., 'ifaces=eth0,eth1')"
-                }
-              }
-            }
-          }
-        ]
-      }
+        "retention_period": {
+          "type": "integer",
+          "minimum": 24
+        }
+      },
+      "required": [
+        "persistence_size",
+        "retention_period"
+      ],
+      "additionalProperties": false
     }
   },
-
-  "required": ["idrac_telemetry_support"],
-
   "allOf": [
     {
       "if": {
         "properties": {
-          "idrac_telemetry_support": { "const": true }
+            "idrac_telemetry_support": { "const": true },
+            "idrac_telemetry_collection_type": { "pattern": "(?i)^kafka$" }
         }
       },
       "then": {
         "required": ["kafka_configurations"],
         "properties": {
-          "kafka_configurations": {
-            "type": "object",
-            "properties": {
-              "persistence_size": {
-                "type": "string",
-                "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
-              },
-              "log_retention_hours": {
-                "type": "integer",
-                "minimum": 1
-              },
-              "log_retention_bytes": {
-                "type": "integer"
-              },
-              "log_segment_bytes": {
-                "type": "integer"
-              },
-              "topic_partitions": {
-                "type": "integer",
-                "minimum": 1
-              }
-            },
-            "required": [
-              "persistence_size",
-              "log_retention_hours",
-              "log_retention_bytes",
-              "log_segment_bytes",
-              "topic_partitions"
-            ],
-            "additionalProperties": false
+            "kafka_configurations": { "$ref": "#/$defs/kafka_configurations" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "idrac_telemetry_support": { "const": true },
+          "idrac_telemetry_collection_type": { "pattern": "(?i)^victoria$" }
+        }
+      },
+      "then": {
+        "required": ["victoria_configurations"],
+        "properties": {
+          "victoria_configurations": { "$ref": "#/$defs/victoria_configurations" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "idrac_telemetry_support": { "const": true },
+          "idrac_telemetry_collection_type": {
+            "pattern": "(?i)^(victoria,kafka|kafka,victoria)$"
           }
+        }
+      },
+      "then": {
+        "required": ["kafka_configurations", "victoria_configurations"],
+        "properties": {
+          "kafka_configurations": { "$ref": "#/$defs/kafka_configurations" },
+          "victoria_configurations": { "$ref": "#/$defs/victoria_configurations" }
         }
       }
     }
-  ],
-
-  "additionalProperties": false
+  ]
 }

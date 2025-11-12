@@ -1,0 +1,12 @@
+[
+{% set filtered_nodes = nodes | rejectattr('value.FUNCTIONAL_GROUP_NAME', 'search', '^service_kube') | list %}
+{% for item in filtered_nodes %}
+    {
+        "hostname": "{{ item.value.HOSTNAME }}.{{ hostvars['localhost']['domain_name'] }}",
+        "hostaddr": "{{ item.value.ADMIN_IP }}",
+        "ip_address": "{{ item.value.ADMIN_IP }}",
+        "subrole": "Compute"
+    }{% if not loop.last %},{% endif %}
+{% endfor %}
+
+]

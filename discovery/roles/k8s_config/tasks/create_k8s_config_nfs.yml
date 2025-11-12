@@ -38,6 +38,15 @@
     k8s_nfs_server_ip: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_ip }}"
     k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
 
+- name: Set admin network nic and ip
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+    admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
+
+- name: Set admin network CIDR
+  ansible.builtin.set_fact:
+    admin_nic_cidr: "{{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}"
+
 - name: Fetch server_ip and server_share_path from list when nfs sever is localhost
   ansible.builtin.set_fact:
     nfs_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
@@ -52,24 +61,32 @@
   ansible.builtin.set_fact:
     pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
 
-- name: Set fact for dns
+- name: Set fact for dns and csi driver support
   ansible.builtin.set_fact:
     dns: "{{ hostvars['localhost']['dns'] }}"
+    csi_driver_powerscale_support: "{{ hostvars['localhost']['csi_driver_powerscale_support'] | string | lower }}"
 
-- name: Create required share directories
-  ansible.builtin.file:
-    path: "{{ k8s_client_mount_path }}/{{ item }}"
-    state: directory
-    mode: '0755'
-    owner: root
-    group: root
-  loop:
-    - calico
-    - metallb
-    - multus
-    - nfs-client-provisioner
-    - helm
-    - whereabouts
+- name: Create required share directories on NFS
+  block:
+    - name: Create subdirectories on NFS share
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      loop:
+        - calico
+        - metallb
+        - multus
+        - nfs-client-provisioner
+        - helm
+        - whereabouts
+        - "{{ 'csi-driver-powerscale' if hostvars['localhost']['csi_driver_powerscale_support'] | bool else omit }}"
+  rescue:
+    - name: Fail with NFS export advice
+      ansible.builtin.fail:
+        msg: "{{ nfs_export_help_msg }}"
 
 - name: Include local repo access variable file
   ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"
@@ -160,3 +177,7 @@
     dest: "{{ k8s_client_mount_path }}"
     mode: "{{ file_mode }}"
   become: true
+
+- name: Include PowerScale CSI dependency tasks
+  ansible.builtin.include_tasks: get_powerscale_dependencies.yml
+  when: hostvars['localhost']['csi_driver_powerscale_support'] | bool

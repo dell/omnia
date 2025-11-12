@@ -1,0 +1,8 @@
+[
+    {
+        "hostname": "ate-nid001",
+        "hostaddr": "192.168.188.21",
+        "ip_address": "192.168.188.21",
+        "subrole": "Compute"
+    }
+]

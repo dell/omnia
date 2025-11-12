@@ -17,8 +17,8 @@
 """Standard functions for discovery and other modules."""
 
 import os
-import yaml
 import json
+import yaml
 from jinja2 import Template
 
 
@@ -70,7 +70,16 @@ def render_template_multi_pass(src: str, dest: str, context: dict, passes: int =
         raise RuntimeError(f"Template render error ({src} → {dest}): {e}") from e
 
 def update_json(new_data, filepath):
-    """Save new data to a JSON file. Create if not exists; update if exists."""
+    """
+    Update a JSON file with new data.
+
+    Args:
+        new_data (dict): The new data to be added to the JSON file.
+        filepath (str): The path to the JSON file.
+
+    Returns:
+        None
+    """
     if os.path.exists(filepath):
         # Load existing data
         with open(filepath, 'r') as f:

@@ -208,3 +208,8 @@
   ansible.builtin.set_fact:
     cloud_init_nfs_path_openldap: "{{ nfs_server_ip }}:{{ nfs_server_path }}/openldap"
   when: hostvars['localhost']['openldap_support']
+
+# This will be mounted for ucx, openmpi and ldms configurations on slurm nodes
+- name: NFS path for ucx, openmpi and ldms cloud init
+  ansible.builtin.set_fact:
+    cloud_init_slurm_nfs_path: "{{ nfs_server_ip }}:{{ nfs_server_path }}"

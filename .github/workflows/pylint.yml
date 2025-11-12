@@ -9,7 +9,7 @@ on:
       - pub/provision_arch
       - pub/ochami
       - pub/ochami_aarch64
-      - pub/k8s_telemetry 
+      - pub/k8s_telemetry
 
 jobs:
   build:
@@ -21,10 +21,12 @@ jobs:
       PYLINT_THRESHOLD: 8
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -52,4 +54,12 @@ jobs:
         if: steps.changed-files.outputs.files != ''
         run: |
           echo "Running pylint on: ${{ steps.changed-files.outputs.files }}"
-          pylint ${{ steps.changed-files.outputs.files }} --fail-under=${PYLINT_THRESHOLD}
+          
+          # Filter out files from the excluded directory
+          FILES=$(echo "${{ steps.changed-files.outputs.files }}" | tr ' ' '\n' | grep -v '^discovery/roles/telemetry/files/nersc-ldms-aggr/' | xargs)
+
+          if [ -n "$FILES" ]; then
+            pylint $FILES --fail-under=${PYLINT_THRESHOLD}
+          else
+            echo "No files to lint after filtering."
+          fi

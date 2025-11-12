@@ -1,0 +1,178 @@
+# Copyright 2025 Dell Inc. or its subsidiaries.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Get CSI dependencies from local repo
+  when: hostvars['localhost']['csi_driver_powerscale_support']
+  block:
+    - name: Base64 encode username and password
+      ansible.builtin.set_fact:
+        csi_username_b64: "{{ hostvars['localhost']['csi_username'] | b64encode }}"
+        csi_password_b64: "{{ hostvars['localhost']['csi_password'] | b64encode }}"
+      no_log: true
+
+    - name: Check if csi_powerscale_secret_vault exists
+      ansible.builtin.stat:
+        path: "{{ input_project_dir }}/{{ csi_powerscale_secret_vaultname }}"
+      register: vault_key_result
+      delegate_to: localhost
+
+    - name: Create ansible vault key if it does not exist
+      ansible.builtin.set_fact:
+        vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
+      when: not vault_key_result.stat.exists
+      delegate_to: localhost
+
+    - name: Save vault key
+      ansible.builtin.lineinfile:
+        path: "{{ input_project_dir }}/{{ csi_powerscale_secret_vaultname }}"
+        line: "{{ vault_key }}"
+        mode: "{{ vault_key_permission }}"
+        owner: root
+        create: true
+      when: not vault_key_result.stat.exists
+      delegate_to: localhost
+
+    - name: Check if secret file is encrypted
+      ansible.builtin.command: cat "{{ csi_powerscale_driver_secret_file_path }}"
+      changed_when: false
+      register: config_content
+      delegate_to: localhost
+
+    - name: Encrypt secret file
+      ansible.builtin.command: >-
+        ansible-vault encrypt {{ csi_powerscale_driver_secret_file_path }}
+        --vault-password-file {{ input_project_dir }}/{{ csi_powerscale_secret_vaultname }}
+      when: "'$ANSIBLE_VAULT;' not in config_content.stdout"
+      changed_when: false
+      delegate_to: localhost
+
+    - name: Check if secret file is encrypted
+      ansible.builtin.command: cat "{{ csi_powerscale_driver_secret_file_path }}"
+      changed_when: false
+      register: config_content
+      delegate_to: localhost
+
+    - name: Decrpyt secret file
+      ansible.builtin.command: >-
+        ansible-vault decrypt {{ csi_powerscale_driver_secret_file_path }}
+        --vault-password-file {{ input_project_dir }}/{{ csi_powerscale_secret_vaultname }}
+      when: "'$ANSIBLE_VAULT;' in config_content.stdout"
+      delegate_to: localhost
+      changed_when: false
+
+    - name: Update username in secret.yaml with encoded value
+      ansible.builtin.replace:
+        path: "{{ csi_powerscale_driver_secret_file_path }}"
+        regexp: '^(\s*)username:\s*(?!#).*'
+        replace: '\1username: {{ csi_username_b64 }}'
+      no_log: true
+      delegate_to: localhost
+
+    - name: Update password in secret.yaml with encoded value
+      ansible.builtin.replace:
+        path: "{{ csi_powerscale_driver_secret_file_path }}"
+        regexp: '^(\s*)password:\s*(?!#).*'
+        replace: '\1password: {{ csi_password_b64 }}'
+      no_log: true
+      delegate_to: localhost
+
+    - name: Load PowerScale CSI secret file
+      ansible.builtin.include_vars:
+        file: "{{ csi_powerscale_driver_secret_file_path }}"
+        name: clusters
+      no_log: true
+      when:
+        - csi_powerscale_driver_secret_file_path is defined
+      delegate_to: localhost
+
+    - name: Load values.yaml file
+      ansible.builtin.include_vars:
+        file: "{{ csi_powerscale_driver_values_file_path }}"
+        name: csi_powerscale_values_file
+      delegate_to: localhost
+
+    - name: Get csi-powerscale git tar
+      ansible.builtin.get_url:
+        url: "{{ offline_git_path }}/csi-powerscale/{{ csi_powerscale_git }}"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/{{ csi_powerscale_git }}"
+        mode: "{{ permission_644 }}"
+
+    - name: Extract csi-powerscale tar file
+      ansible.builtin.unarchive:
+        src: "{{ k8s_client_mount_path }}/csi-driver-powerscale/{{ csi_powerscale_git }}"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/"
+        remote_src: true
+
+    - name: Get dell/helm-charts git tar
+      ansible.builtin.get_url:
+        url: "{{ offline_git_path }}/helm-charts/{{ helm_charts_git }}"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale/{{ helm_charts_git }}"
+        mode: "{{ permission_644 }}"
+
+    - name: Get external-snapshotter git tar
+      ansible.builtin.get_url:
+        url: "{{ offline_git_path }}/external-snapshotter/{{ external_snapshotter_git }}"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale/{{ external_snapshotter_git }}"
+        mode: "{{ permission_644 }}"
+
+    - name: Transfer storage class template to nfs share
+      ansible.builtin.template:
+        src: ps_storage_class.j2
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/ps_storage_class.yml"
+        owner: "{{ owner_value }}"
+        group: "{{ group_value }}"
+        mode: "{{ permission_644 }}"
+
+    - name: Copy PowerScale CSI secret file to target path
+      ansible.builtin.copy:
+        src: "{{ csi_powerscale_driver_secret_file_path }}"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/secret.yaml"
+        mode: "0600"
+      when:
+        - csi_powerscale_driver_secret_file_path is defined
+      no_log: true
+
+    - name: Copy PowerScale CSI values file to target path
+      ansible.builtin.copy:
+        src: "{{ csi_powerscale_driver_values_file_path }}"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/values.yaml"
+        mode: "0644"
+      when:
+        - csi_powerscale_driver_values_file_path is defined
+
+    - name: Copy empty certificate yaml file
+      ansible.builtin.copy:
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/empty_isilon-certs.yaml"
+        src: "{{ empty_certificate_template_path }}"
+        mode: "{{ permission_644 }}"
+
+    - name: Extract dell/helm-charts tar file under csi-powerscale directory
+      ansible.builtin.unarchive:
+        src: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale/{{ helm_charts_git }}"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale"
+        remote_src: true
+
+    - name: Extract external snapshotter tar file under csi-powerscale directory
+      ansible.builtin.unarchive:
+        src: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale/{{ external_snapshotter_git }}"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale"
+        remote_src: true
+
+  rescue:
+    - name: Handle dependency failure
+      ansible.builtin.fail:
+        msg: "{{ fail_msg_download }}"

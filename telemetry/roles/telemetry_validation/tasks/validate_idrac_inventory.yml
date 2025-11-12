@@ -13,29 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Validate service cluster kube_control_plane group exists
-  ansible.builtin.assert:
-    that:
-      - "'kube_control_plane' in groups"
-    fail_msg: "{{ service_kube_control_plane_group_fail_msg }}"
-
-- name: Validate BMC IP is defined for kube_control_plane nodes
-  ansible.builtin.assert:
-    that:
-      - "hostvars[item]['bmc_ip'] is defined"
-      - "hostvars[item]['bmc_ip'] != ''"
-    fail_msg: "{{ service_kube_control_plane_details_fail_msg }}"
-  loop: "{{ groups['kube_control_plane'] }}"
-
-- name: Validate kube_control_plane BMC IP with a strict regex
-  ansible.builtin.assert:
-    that:
-      - hostvars[item].bmc_ip is match('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$')
-    fail_msg: >-
-      {{ service_kube_control_plane_invalid_ip_fail_msg }}
-      {{ item }}:{{ hostvars[item].bmc_ip }}
-  loop: "{{ groups['kube_control_plane'] }}"
-
 - name: Validate BMC group data file exists
   ansible.builtin.stat:
     path: "{{ bmc_group_data_filename }}"
@@ -52,16 +29,6 @@
 
 - name: Include OCHAMI node list
   ansible.builtin.include_vars: "{{ openchami_nodes_vars_path }}"
-
-- name: Update BMC group data file with kube_control_plane BMC IPs
-  ansible.builtin.lineinfile:
-    path: "{{ bmc_group_data_filename }}"
-    line: "{{ hostvars[item]['bmc_ip'] }},,"
-    create: false
-    insertafter: EOF
-    state: present
-  loop: "{{ groups['kube_control_plane'] }}"
-  when: "hostvars[item]['bmc_ip'] not in bmc_group_data"
 
 - name: Validate BMC group data file
   validate_bmc_group_data:

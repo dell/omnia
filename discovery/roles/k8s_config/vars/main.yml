@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 local_repo_access_config_file: "/opt/omnia/provision/local_repo_access.yml"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_k8s.json" # noqa: yaml[line-length]
@@ -25,3 +26,33 @@ file_mode: "0644"
 ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
 pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
+
+
+# csi variables
+csi_powerscale_git: "csi-powerscale.tar.gz"
+fail_msg_download: "Failed to get required dependencies. Make sure to verify entries in csi_driver_powerscale.json and run local_repo.yml first."
+helm_charts_git: "helm-charts.tar.gz"
+external_snapshotter_git: "external-snapshotter.tar.gz"
+empty_certificate_template_path: "{{ role_path }}/files/empty_certificate_template.yml"
+permission_644: "0644"
+owner_value: "root"
+group_value: "root"
+csi_powerscale_secret_vaultname: ".csi_powerscale_secret_vault"
+vault_key_permission: "0644"
+
+# Usage ps_storage_class.j2
+ps_isipath: "{{ csi_powerscale_values_file['isiPath'] }}"
+ps_access_zone: "{{ csi_powerscale_values_file['isiAccessZone'] }}"
+ps_azserviceip: "{{ clusters.isilonClusters[0].endpoint | regex_replace('https?://', '') | regex_replace('/.*', '') }}"
+
+nfs_export_help_msg: |
+  Failed to create required subdirectories at '{{ k8s_client_mount_path }}'.
+  Please check that the NFS server ({{ k8s_nfs_server_ip }}) is exporting the directory with correct permissions.
+  Example /etc/exports line on your NFS server:
+
+    {{ k8s_server_share_path }} *(rw,sync,no_root_squash,no_subtree_check)
+
+  After updating /etc/exports
+  1) Run 'exportfs -ra' on the NFS server and verify permissions/mounts
+  2) Execute 'systemctl restart nfs-server'
+  3) Rerun the playbook.

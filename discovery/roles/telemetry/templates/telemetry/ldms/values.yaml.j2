@@ -1,0 +1,46 @@
+agg:
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+aggs:
+- conf: /ldms_conf/ldmsd.nersc-ldms-aggr.r7525-0.conf
+  env: /ldms_conf/ldms-env.nersc-ldms-aggr.r7525-0.sh
+  name: r7525-0
+  port: 10001
+authVolMountOption:
+- mountPath: /nersc-munge-key
+  name: nersc-munge-key
+- mountPath: /nersc-ldms-ovis-auth
+  name: nersc-ldms-ovis-auth
+authVolOption:
+- name: nersc-munge-key
+  secret:
+    defaultMode: 0o400
+    secretName: nersc-munge-key
+- name: nersc-ldms-ovis-auth
+  secret:
+    defaultMode: 0o400
+    secretName: nersc-ldms-ovis-auth
+exportLabel:
+  export: ldms-metrics
+exporterPort: 9101
+image:
+  registry: docker.io/dellhpcomniaaisolution
+  repository: /ubuntu-ldms
+  tag: latest
+imagePullSecretsOption:
+  imagePullSecrets: []
+namespace: telemetry
+net_atat_def: null
+pollingInterval: 60s
+scrapeTimeout: 45s
+statefulSet:
+  store:
+  - name: r7525
+    replicas: 1
+store:
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi

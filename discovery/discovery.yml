@@ -20,7 +20,7 @@
     - name: Set dynamic run tags including 'provision'
       when: not config_file_status | default(false) | bool
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['provision']) + ['slurm'] + ['slurm_custom'] + ['security'] + ['service_k8s'] | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['provision']) + ['slurm'] + ['slurm_custom'] + ['security'] + ['service_k8s'] + ['csi_driver_powerscale'] | unique }}" # noqa: yaml[line-length]
         cacheable: true
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations

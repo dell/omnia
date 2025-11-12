@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nersc-ldms-store
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: nersc-ldms-store
+  clusterIP: None
+  ports:
+    - protocol: TCP
+      port: 10001
+      targetPort: 10001
+

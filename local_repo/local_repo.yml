@@ -17,6 +17,10 @@
   hosts: localhost
   connection: local
   tasks:
+    - name: Set start time
+      ansible.builtin.set_fact:
+        playbook_start_time: "{{ lookup('pipe', 'date +%s') }}"
+
     - name: Set dynamic run tags including 'local_repo'
       ansible.builtin.set_fact:
         omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['local_repo']) | unique }}"
