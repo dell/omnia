@@ -21,10 +21,6 @@
         "cluster": [
             {"package": "slurm-slurmd", "type": "rpm", "repo_name": "x86_64_slurm_custom"},
             {"package": "slurm-pam_slurm", "type": "rpm", "repo_name": "x86_64_slurm_custom"},
-            {"package": "cuda-repo-rhel10",
-             "type": "iso",
-             "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda-repo-rhel10-13-0-local-13.0.2_580.95.05-1.x86_64.rpm"
-            },
             {"package": "cuda-run",
              "type": "iso",
              "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda_13.0.2_580.95.05_linux.run"

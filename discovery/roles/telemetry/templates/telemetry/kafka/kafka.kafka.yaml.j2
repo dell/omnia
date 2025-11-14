@@ -15,7 +15,6 @@ spec:
       - id: 0
         type: persistent-claim
         size: "{{ hostvars['localhost']['kafka_persistence_size'] }}"
-        class: {{ storage_class_name }}
         kraftMetadata: shared
         deleteClaim: false
 ---
@@ -37,7 +36,6 @@ spec:
       - id: 0
         type: persistent-claim
         size: "{{ hostvars['localhost']['kafka_persistence_size'] }}"
-        class: {{ storage_class_name }}
         kraftMetadata: shared
         deleteClaim: false
 ---

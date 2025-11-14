@@ -122,7 +122,6 @@ vmagent:
   remote_write_url: "http://victoria-loadbalancer.telemetry.svc.cluster.local:8428/api/v1/write"
 
 # Usage: generate_telemetry_deployments.yaml
-storage_class_name: "nfs-client"
 telemetry_templates:
   - telemetry/common/gen_certs_script.sh.j2
   - telemetry/common/telemetry_secret_creation.yaml.j2

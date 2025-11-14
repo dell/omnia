@@ -702,3 +702,56 @@ def get_software_names_and_arch(json_data, functional_groups_config_data, arch):
             result.append(sw["name"])
     
     return result
+
+def remove_duplicates_from_trans(trans):
+    """
+    Remove duplicate software entries from the transform output.
+    The function modifies the input `trans` dictionary in-place and also returns it.
+    Args:
+        trans (dict): Dictionary returned from `transform_package_dict()` containing
+                      architecture → software groups → package lists.
+    Returns:
+        dict: Deduplicated `trans` dictionary with unique package entries preserved.
+    """
+
+    for arch, groups in trans.items():
+        for group, items in groups.items():
+
+            if group == "default_packages":  # Handle nested rpm_list case
+                for pkg in items:
+                    if pkg.get("type") == "rpm" and "rpm_list" in pkg:
+                        pkg["rpm_list"] = list(dict.fromkeys(pkg["rpm_list"]))
+                continue
+
+            unique = {}
+            cleaned = []
+
+            for item in items:
+                type_ = item.get("type")
+
+                if type_ == "image":
+                    key = (item.get("package"), item.get("tag"))
+
+                elif type_ == "pip_module":
+                    key = item.get("package")
+
+                elif type_ in ["tarball", "manifest"]:
+                    key = item.get("url") or item.get("package")
+
+                elif type_ == "git":
+                    key = (item.get("url"), item.get("version"))
+
+                elif type_ == "rpm" and "rpm_list" in item:
+                    item["rpm_list"] = list(dict.fromkeys(item["rpm_list"]))
+                    key = item.get("package")
+
+                else:
+                    key = str(item)
+
+                if key not in unique:
+                    unique[key] = True
+                    cleaned.append(item)
+
+            groups[group] = cleaned
+
+    return trans

@@ -33,7 +33,8 @@ from ansible.module_utils.local_repo.software_utils  import (
     parse_repo_urls,
     set_version_variables,
     get_subgroup_dict,
-    get_new_packages_not_in_status
+    get_new_packages_not_in_status,
+    remove_duplicates_from_trans
 )
 
 # Import configuration constants individually (excluding fresh_installation_status)
@@ -157,6 +158,7 @@ def main():
                 if tasks:
                     tasks_dict[software] = tasks
                     trans=transform_package_dict(tasks_dict, arch,logger)
+                    trans = remove_duplicates_from_trans(trans)
                     logger.info(f"Final tasklist to process: {trans}")
                     final_tasks_dict.update(trans)
         local_config, url_result = parse_repo_urls(repo_config, local_repo_config_path , version_variables, vault_key_path,sub_urls,logger)

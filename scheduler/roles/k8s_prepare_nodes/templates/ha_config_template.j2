@@ -1,9 +1,0 @@
-kube_vip_enabled: true
-kube_vip_controlplane_enabled: true
-kube_vip_arp_enabled: true
-kube_vip_address: {{ k8s_vip }}
-loadbalancer_apiserver:
-  address: {{ external_lb_ip if external_lb_ip | length > 0 else k8s_vip }}
-  port: {{ lb_port if lb_port is defined and lb_port | string | length > 0 else 6443 }}
-kube_vip_enableServicesElection: true 
-kube_vip_lb_enable: {{ true | lower if external_lb_ip | length > 0 else false | lower }}

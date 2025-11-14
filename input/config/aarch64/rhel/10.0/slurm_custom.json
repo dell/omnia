@@ -20,8 +20,11 @@
     "slurm_node": {
         "cluster": [
             {"package": "slurm-slurmd", "type": "rpm", "repo_name": "aarch64_slurm_custom"},
-            {"package": "slurm-pam_slurm", "type": "rpm", "repo_name": "aarch64_slurm_custom"}
-
+            {"package": "slurm-pam_slurm", "type": "rpm", "repo_name": "aarch64_slurm_custom"},
+            {"package": "cuda-run",
+             "type": "iso",
+             "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda_13.0.2_580.95.05_linux_sbsa.run"
+            }
         ]
     },
     "login_node":{
