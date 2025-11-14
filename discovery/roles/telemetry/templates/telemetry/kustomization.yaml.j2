@@ -11,6 +11,7 @@ resources:
 {% if kafka_support %}
   - kafka.kafka.yaml
   - kafka.kafka_bridge.yaml
+  - kafka-pump-user.yaml
 {% endif %}
 {% if hostvars['localhost']['ldms_support'] %}
   - kafka.topic_ldms.yaml

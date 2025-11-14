@@ -50,6 +50,14 @@ spec:
           hostPath:
             path: {{ idrac_telemetry_reference_git_clone_path }}
             type: Directory
+        - name: kafka-tls-certs
+          projected:
+            sources:
+              - secret:
+                  name: kafkapump-user
+              - secret:
+                  name: kafka-cluster-ca-cert
+            
 {% set types = hostvars['localhost']['idrac_telemetry_collection_type'].split(',') %}
 {% if 'kafka' in types %}
         - name: kafka-tls-certs

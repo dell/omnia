@@ -36,6 +36,9 @@
     - name: Generate service cluster metadata
       ansible.builtin.include_tasks: generate_service_cluster_metadata.yml
 
+    - name: Configure strmizi kafka deployment for telemetry
+      ansible.builtin.include_tasks: configure_strmizi_kafka.yml
+
 - name: Include update_ldms_sampler.yml
   ansible.builtin.include_tasks: update_ldms_sampler.yml
   when: hostvars['localhost']['ldms_support']

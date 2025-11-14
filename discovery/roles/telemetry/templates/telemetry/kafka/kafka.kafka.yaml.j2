@@ -63,6 +63,8 @@ spec:
         port: 9093
         type: internal
         tls: true
+        authentication:
+          type: tls
     config:
       offsets.topic.replication.factor: 3
       transaction.state.log.replication.factor: 3
@@ -73,6 +75,17 @@ spec:
       log.segment.bytes: {{ hostvars['localhost']['kafka_configurations']['log_segment_bytes'] }}
       log.retention.bytes: {{ hostvars['localhost']['kafka_configurations']['log_retention_bytes'] }}
       log.retention.check.interval.ms: 300000
+    template:
+      pod:
+        volumes:
+          - name: kafkapump-tls
+            secret:
+              secretName: kafkapump-user
+        kafkaContainer:
+          volumeMounts:
+            - name: kafkapump-tls
+              mountPath: /opt/kafka/tls
+              readOnly: true
   entityOperator:
     topicOperator: {}
     userOperator: {}

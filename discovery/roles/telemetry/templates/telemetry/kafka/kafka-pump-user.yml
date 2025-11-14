@@ -1,0 +1,11 @@
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: kafkapump-user
+  namespace: telemetry
+  labels:
+    strimzi.io/cluster: cluster
+spec:
+  authentication:
+    type: tls

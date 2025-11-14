@@ -77,6 +77,10 @@
           dest: 'kafka.kafka_bridge.yaml'
           type: 'kafka'
 
+        - name: 'telemetry/kafka/kafka-pump-user.yaml.j2'
+          dest: 'kafka-pump-user.yaml'
+          type: 'kafka'
+       
     - name: Extract and set facts for tarball URLs for strmzi kafka
       ansible.builtin.set_fact:
         strimzi_kafka_pkg: "{{ k8s_packages_json['service_k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'strimzi-kafka-operator') | map(attribute='package') | join }}" # noqa: yaml[line-length]
