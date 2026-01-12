@@ -78,25 +78,37 @@
                 exit 1
             fi
 
-            echo "[INFO] Installing CUDA toolkit..."
+            echo "[INFO] Setting up shared CUDA directory..."
+            # Create and mount shared directory for compute nodes
+            mkdir -p /shared-cuda-toolkit
+            mount -t nfs {{ cloud_init_nfs_path }}/cuda/ /shared-cuda-toolkit
+
+            if [ $? -ne 0 ]; then
+                echo "[ERROR] Failed to mount NFS cuda share. Exiting."
+                umount /cuda-runfile 2>/dev/null
+                exit 1
+            fi
+
+            echo "[INFO] Installing CUDA toolkit directly to shared NFS location..."
             if [ -f "/cuda-runfile/cuda_13.0.2_580.95.05_linux_sbsa.run" ]; then
-                # Install only the toolkit component
-                bash /cuda-runfile/cuda_13.0.2_580.95.05_linux_sbsa.run --silent --toolkit --toolkitpath=/usr/local/cuda --override
+                mkdir -p /shared-cuda-toolkit/tmp
+                # Install toolkit directly to the NFS-mounted shared location
+                bash /cuda-runfile/cuda_13.0.2_580.95.05_linux_sbsa.run --silent --toolkit --tmpdir=/shared-cuda-toolkit/tmp --toolkitpath=/shared-cuda-toolkit --override
 
                 if [ $? -eq 0 ]; then
-                    echo "[SUCCESS] CUDA toolkit installed successfully."
+                    echo "[SUCCESS] CUDA toolkit installed successfully to shared location."
 
-                    # Set up environment variables
+                    # Set up environment variables pointing to shared location
                     cat > /etc/profile.d/cuda.sh << 'ENDOFFILE'
-            export PATH=/usr/local/cuda/bin:$PATH
-            export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-            export CUDA_HOME=/usr/local/cuda
+            export PATH=/shared-cuda-toolkit/bin:$PATH
+            export LD_LIBRARY_PATH=/shared-cuda-toolkit/lib64:$LD_LIBRARY_PATH
+            export CUDA_HOME=/shared-cuda-toolkit
             ENDOFFILE
 
                     # Apply environment variables for current session
-                    export PATH=/usr/local/cuda/bin:$PATH
-                    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-                    export CUDA_HOME=/usr/local/cuda
+                    export PATH=/shared-cuda-toolkit/bin:$PATH
+                    export LD_LIBRARY_PATH=/shared-cuda-toolkit/lib64:$LD_LIBRARY_PATH
+                    export CUDA_HOME=/shared-cuda-toolkit
 
                     echo "[INFO] CUDA environment configured"
                 else
@@ -114,17 +126,6 @@
             else
                 echo "[ERROR] CUDA toolkit (nvcc) not found after installation."
             fi
-
-            echo "[INFO] Setting up shared CUDA directory for compute nodes..."
-            # Create shared directory for compute nodes to mount
-            mkdir -p /shared-cuda-toolkit
-            # Mount the shared NFS location where compute nodes will access the toolkit
-            mount -t nfs {{ cloud_init_nfs_path }}/cuda/ /shared-cuda-toolkit
-
-            echo "[INFO] Copying CUDA toolkit to shared location..."
-            # Copy the installed CUDA toolkit to the shared location for compute nodes
-            #rsync -av /usr/local/cuda/ /shared-cuda-toolkit/ --exclude='*.a' --exclude='doc/'
-            cp -r /usr/local/cuda/* /shared-cuda-toolkit/ 2>/dev/null || true
 
             echo "[INFO] Cleaning up temporary mounts..."
             umount /cuda-runfile 2>/dev/null
@@ -315,3 +316,4 @@
         - /root/ldms_sampler.sh
 {% endif %}
         - echo "Cloud-Init has completed successfully."
+
