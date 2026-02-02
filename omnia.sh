@@ -704,12 +704,6 @@ setup_container() {
         selinux_option=""
     fi
 
-    # Check if RHEL subscription is enabled
-    subscription_enabled=false
-    if [ -d "/etc/pki/entitlement" ] && [ "$(ls -A /etc/pki/entitlement/*.pem 2>/dev/null)" ]; then
-        subscription_enabled=true
-    fi
-
     # --- Generate Quadlet container file ---
     cat > /etc/containers/systemd/${container_name}.container <<EOF
 # ===============================================================
@@ -734,17 +728,6 @@ Volume=${omnia_path}/omnia/ssh_config/.ssh:/root/.ssh${selinux_option}
 Volume=${omnia_path}/omnia/log/core/container:/var/log${selinux_option}
 Volume=${omnia_path}/omnia/hosts:/etc/hosts${selinux_option}
 Volume=${omnia_path}/omnia/pulp/pulp_ha:/root/.config/pulp${selinux_option}
-EOF
-
-    # Add subscription volume mounts only if subscription is enabled
-    if [ "$subscription_enabled" = true ]; then
-        cat >> /etc/containers/systemd/${container_name}.container <<EOF
-Volume=/etc/pki/entitlement:/etc/pki/entitlement:ro,z
-Volume=/etc/yum.repos.d/redhat.repo:/etc/yum.repos.d/redhat.repo:ro,z
-EOF
-    fi
-
-    cat >> /etc/containers/systemd/${container_name}.container <<EOF
 
 [Service]
 Restart=always

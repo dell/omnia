@@ -27,13 +27,11 @@ create_error_msg = validation_utils.create_error_msg
 create_file_path = validation_utils.create_file_path
 
 
-def check_subscription_status(logger=None):
+def check_subscription_status():
     """
     Check if the system has an active Red Hat subscription.
     Subscription status is considered True if either entitlement
     certificates exist or the required Red Hat repository URLs are present.
-    
-    Checks mounted host paths (/etc/pki/entitlement, /etc/yum.repos.d/redhat.repo).
 
     Returns:
         bool: True if the system is subscribed (either entitlement certs
@@ -42,8 +40,6 @@ def check_subscription_status(logger=None):
     # 1. Check entitlement certs
     entitlement_certs = glob.glob(config.ENTITLEMENT_PEM)
     has_entitlement = len(entitlement_certs) > 0
-    if logger:
-        logger.info(f"Entitlement certs in {config.ENTITLEMENT_PEM}: {len(entitlement_certs)} found")
 
     # 2. Check redhat repos in redhat.repo
     repo_urls = []
@@ -57,13 +53,9 @@ def check_subscription_status(logger=None):
                         repo_urls.append(url)
 
     has_repos = len(repo_urls) > 0
-    if logger:
-        logger.info(f"Repo URLs in {redhat_repo}: {len(repo_urls)} found")
 
     # 3. Subscription status logic
     subscription_status = has_entitlement or has_repos
-    if logger:
-        logger.info(f"Subscription status: {subscription_status} (entitlement={has_entitlement}, repos={has_repos})")
 
     return subscription_status
 
@@ -79,8 +71,8 @@ def validate_local_repo_config(input_file_path, data,
     base_repo_names = []
     local_repo_yml = create_file_path(input_file_path, file_names["local_repo_config"])
     repo_names = {}
-    sub_result = check_subscription_status(logger)
-    logger.info(f"validate_local_repo_config: Subscription status: {sub_result}")
+    base_repo_names = []
+    sub_result = check_subscription_status()
     all_archs = ['x86_64', 'aarch64']
     url_list = ["omnia_repo_url_rhel", "rhel_os_url", "user_repo_url"]
     for arch in all_archs:
@@ -89,18 +81,11 @@ def validate_local_repo_config(input_file_path, data,
          # define base repos dynamically for this arch if subscription registered 
         if sub_result:       
             base_repo_names = [f"{arch}_baseos",f"{arch}_appstream",f"{arch}_codeready-builder"]
-            logger.info(f"Adding base repos for {arch}: {base_repo_names}")
         for repurl in arch_list:
             repos = data.get(repurl)
             if repos:
                 arch_repo_names = arch_repo_names + [x.get('name') for x in repos]
-        # Add additional_repos names for this arch
-        additional_repos_key = f"additional_repos_{arch}"
-        additional_repos = data.get(additional_repos_key)
-        if additional_repos:
-            arch_repo_names = arch_repo_names + [x.get('name') for x in additional_repos]
         repo_names[arch] = repo_names.get(arch, []) + arch_repo_names + base_repo_names
-        logger.info(f"Total repos for {arch}: {repo_names[arch]}")
 
     for k,v in repo_names.items():
         if len(v) != len(set(v)):
@@ -161,16 +146,12 @@ def validate_local_repo_config(input_file_path, data,
                             pkg_list = pkg_list + curr_json[sub_sw]['cluster']
                 for pkg in pkg_list:
                     if pkg.get("type") in ['rpm', 'rpm_list']:
-                        repo_name = pkg.get("repo_name")
                         # Skip slurm_custom repo check (already validated above)
-                        if sw == "slurm_custom" and repo_name.endswith("_slurm_custom"):
+                        if sw == "slurm_custom" and pkg.get("repo_name").endswith("_slurm_custom"):
                             continue
-                        # Skip base RHEL repo validation if subscription is enabled
-                        if sub_result and repo_name in [f"{arch}_baseos", f"{arch}_appstream", f"{arch}_codeready-builder"]:
-                            continue
-                        if repo_name not in repo_names.get(arch, []):
+                        if pkg.get("repo_name") not in repo_names.get(arch, []):
                             errors.append(
                                 create_error_msg(sw + '/' + arch,
-                                                 f"Repo name {repo_name} not found.",
+                                                 f"Repo name {pkg.get('repo_name')} not found.",
                                                 json_path))
     return errors
