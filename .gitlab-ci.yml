@@ -1,0 +1,14 @@
+stages:
+  - process
+
+process_catalog:
+  stage: process
+  script:
+    - echo "Pipeline triggered for JOBID: $JOBID"
+    - echo "Processing catalog.yml..."
+    - cat catalog.yml
+    - echo "Catalog modification detected and processed"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - changes:
+        - catalog.yml

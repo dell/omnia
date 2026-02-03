@@ -1,0 +1,18 @@
+name: Trigger GitLab Pipeline
+
+on:
+  push:
+    paths:
+      - 'catalog.yml'
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger GitLab Pipeline
+        run: |
+          curl -X POST \\
+            -F "token=\${{ secrets.GITLAB_TRIGGER_TOKEN }}" \\
+            -F "ref=main" \\
+            -F "variables[JOBID]=\${{ github.run_id }}" \\
+            "$GITLAB_URL/api/v4/projects/$PROJECT_ID/trigger/pipeline"
