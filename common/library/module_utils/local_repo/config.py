@@ -81,7 +81,7 @@ pulp_file_commands = {
 }
 CLI_FILE_PATH = "/root/.config/pulp/cli.toml"
 POST_TIMEOUT = 3600
-TAR_POLL_VAL = 3
+TAR_POLL_VAL = 25
 FILE_POLL_VAL = 1
 ISO_POLL_VAL = 15
 FILE_URI = "/pulp/api/v3/content/file/files/"

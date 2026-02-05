@@ -1,0 +1,71 @@
+#!/bin/bash
+set -e
+
+LOGFILE="/var/log/nvhpc_env_config.log"
+exec >> "$LOGFILE" 2>&1
+
+echo "===== Configuring NVIDIA HPC SDK environment ====="
+
+# Cloud-init safe defaults
+export HOME=/root
+
+NVCOMPILERS="{{ nvhpc_local_mount | default('/opt/nvidia/nvhpc') }}"
+NVARCH="$(uname -s)_$(uname -m)"
+NVHPC_VERSION="{{ nvhpc_version | default('25.11') }}"
+
+NVHPC_BASE="$NVCOMPILERS/$NVARCH/$NVHPC_VERSION"
+PROFILE_FILE="/etc/profile.d/nvhpc.sh"
+
+if [ ! -d "$NVHPC_BASE/compilers/bin" ]; then
+    echo "[ERROR] NVHPC compilers not found at $NVHPC_BASE"
+    exit 1
+fi
+
+echo "[INFO] NVHPC detected at $NVHPC_BASE"
+echo "[INFO] Writing persistent environment to $PROFILE_FILE"
+
+cat << EOF > "$PROFILE_FILE"
+# NVIDIA HPC SDK environment
+export NVCOMPILERS=$NVCOMPILERS
+export NVARCH=$NVARCH
+export NVHPC_VERSION=$NVHPC_VERSION
+
+export PATH=\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/compilers/bin:\$PATH
+export MANPATH=\${MANPATH:-}:\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/compilers/man
+
+# MPI (optional but recommended)
+export PATH=\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/comm_libs/mpi/bin:\$PATH
+export MANPATH=\${MANPATH:-}:\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/comm_libs/mpi/man
+
+# Modules support (optional)
+export MODULEPATH=\$NVCOMPILERS/modulefiles:\${MODULEPATH:-}
+EOF
+
+chmod 644 "$PROFILE_FILE"
+
+# Source profile for current shell and all future non-login shells
+if [ -f "$PROFILE_FILE" ]; then
+    echo "[INFO] Sourcing NVHPC profile for current shell"
+    source "$PROFILE_FILE"
+    grep -q "nvhpc.sh" /etc/bashrc || echo "source $PROFILE_FILE" >> /etc/bashrc
+fi
+
+# NVHPC marker file path
+MARKER_TARGET="{{ nvhpc_local_mount | default('/shared-nvhpc-sdk/nvhpc') }}/.nvhpc_env_ready"
+
+if ! grep -q "{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk/nvhpc" /etc/fstab; then
+    echo "[ERROR] NVHPC NFS path not found in /etc/fstab"
+    exit 1
+fi
+
+echo "[INFO] NVHPC NFS entry found in /etc/fstab"
+
+if [ ! -d "{{ nvhpc_local_mount | default('/shared-nvhpc-sdk/nvhpc') }}" ]; then
+    echo "[ERROR] Marker directory missing: {{ nvhpc_local_mount | default('/shared-nvhpc-sdk/nvhpc') }}"
+    exit 1
+fi
+
+touch "$MARKER_TARGET"
+echo "[SUCCESS] NVHPC marker created: $MARKER_TARGET"
+
+echo "===== NVHPC environment configuration completed successfully ====="

@@ -127,7 +127,7 @@
             # Create mount point
             mkdir -p /usr/local/cuda
 
-            cuda_nfs_share="{{ cloud_init_nfs_path }}/cuda"
+            cuda_nfs_share="{{ cloud_init_nfs_path }}/hpc_tools/cuda"
 
             echo "[INFO] Mounting CUDA toolkit from NFS: $cuda_nfs_share"
             mount -t nfs "$cuda_nfs_share" /usr/local/cuda

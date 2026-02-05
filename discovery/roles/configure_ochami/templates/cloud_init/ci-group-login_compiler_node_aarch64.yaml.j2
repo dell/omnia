@@ -98,7 +98,7 @@
             echo "[INFO] Setting up shared CUDA directory..."
             # Create and mount shared directory for compute nodes
             mkdir -p /shared-cuda-toolkit
-            mount -t nfs {{ cloud_init_nfs_path }}/cuda/ /shared-cuda-toolkit
+            mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/cuda/ /shared-cuda-toolkit
 
             if [ $? -ne 0 ]; then
                 echo "[ERROR] Failed to mount NFS cuda share. Exiting."

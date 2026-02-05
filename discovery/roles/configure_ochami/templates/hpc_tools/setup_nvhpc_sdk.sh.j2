@@ -1,0 +1,68 @@
+#!/bin/bash
+LOGFILE="/var/log/setup_nvhpc_sdk.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+echo "===== NVHPC SDK setup (mount + wait) ====="
+
+PARENT_NFS="{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk"
+PARENT_MOUNT="/shared-nvhpc-sdk"
+
+NVHPC_NFS_SHARE="{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk/nvhpc"
+NVHPC_LOCAL_MOUNT="/opt/nvidia/nvhpc"
+
+NVHPC_MARKER="$PARENT_MOUNT/nvhpc/.nvhpc_env_ready"
+
+WAIT_TIMEOUT=3600
+SLEEP_INTERVAL=20
+ELAPSED=0
+
+# 1. Mount parent export
+mkdir -p "$PARENT_MOUNT"
+
+if ! mountpoint -q "$PARENT_MOUNT"; then
+    mount -t nfs "$PARENT_NFS" "$PARENT_MOUNT"
+fi
+
+if ! mountpoint -q "$PARENT_MOUNT"; then
+    echo "[ERROR] Failed to mount NVHPC parent export"
+    exit 1
+fi
+
+echo "[INFO] Parent NVHPC export mounted"
+
+# 2. Wait for readiness marker
+echo "[INFO] Waiting for NVHPC readiness marker..."
+
+while [ ! -f "$NVHPC_MARKER" ]; do
+    if [ "$ELAPSED" -ge "$WAIT_TIMEOUT" ]; then
+        echo "[ERROR] Timeout waiting for NVHPC readiness marker"
+        exit 1
+    fi
+    sleep "$SLEEP_INTERVAL"
+    ELAPSED=$((ELAPSED + SLEEP_INTERVAL))
+done
+
+echo "[SUCCESS] NVHPC readiness marker detected"
+
+# 3. Ensure fstab entry exists
+if ! grep -qF "$NVHPC_NFS_SHARE $NVHPC_LOCAL_MOUNT" /etc/fstab; then
+    echo "$NVHPC_NFS_SHARE $NVHPC_LOCAL_MOUNT nfs defaults,_netdev 0 0" >> /etc/fstab
+    echo "[INFO] NVHPC fstab entry added"
+else
+    echo "[INFO] NVHPC fstab entry already present"
+fi
+
+# 4. Mount NVHPC SDK
+mkdir -p "$NVHPC_LOCAL_MOUNT"
+
+if ! mountpoint -q "$NVHPC_LOCAL_MOUNT"; then
+    mount "$NVHPC_LOCAL_MOUNT"
+fi
+
+if ! mountpoint -q "$NVHPC_LOCAL_MOUNT"; then
+    echo "[ERROR] Failed to mount NVHPC SDK"
+    exit 1
+fi
+
+echo "[SUCCESS] NVHPC SDK mounted at $NVHPC_LOCAL_MOUNT"
+echo "===== NVHPC setup completed ====="

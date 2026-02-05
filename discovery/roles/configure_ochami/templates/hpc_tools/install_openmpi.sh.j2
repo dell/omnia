@@ -1,0 +1,73 @@
+#!/bin/bash
+set -e
+
+CLIENT_MOUNT="{{ client_mount_path }}"
+OPENMPI_PREFIX="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi"
+OPENMPI_BUILD="{{ client_mount_path }}/slurm/hpc_tools/compile/openmpi"
+
+# Check that NFS is mounted
+if ! mountpoint -q "$CLIENT_MOUNT"; then
+    echo "[ERROR] $CLIENT_MOUNT is not mounted."
+    echo "        Please mount the NFS path before running install_openmpi.sh"
+    exit 1
+fi
+
+echo "===== OpenMPI build started ====="
+
+mkdir -p "$OPENMPI_BUILD" "$OPENMPI_PREFIX"
+cd "$OPENMPI_BUILD"
+
+if [ ! -f openmpi.tar.gz ]; then
+    wget --no-check-certificate \
+      https://{{ hostvars['localhost']['admin_nic_ip'] }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/openmpi/openmpi.tar.gz \
+      -O openmpi.tar.gz \
+      >> "$OPENMPI_PREFIX/openmpi_tar_output.log" 2>&1
+else
+    echo "openmpi.tar.gz already exists, skipping download." \
+      >> "$OPENMPI_PREFIX/openmpi_tar_output.log"
+fi
+
+tar xzf openmpi.tar.gz
+cd openmpi-*
+mkdir -p build
+
+# Slurm detection
+if sinfo >/dev/null 2>&1; then
+  SLURM_FLAG="--with-slurm=yes --with-munge=/usr"
+else
+  SLURM_FLAG="--with-slurm=no"
+fi
+
+# UCX detection
+if [ -x "{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx/bin/ucx_info" ]; then
+  UCX_FLAG="--with-ucx={{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
+else
+  UCX_FLAG=""
+fi
+
+cd build
+../configure --prefix="$OPENMPI_PREFIX" \
+  --enable-mpi1-compatibility \
+  --enable-prte-prefix-by-default \
+  $SLURM_FLAG $UCX_FLAG
+
+make -j {{ openmpi_build_threads | default(8) }}
+make install
+
+# Configure OpenMPI environment variables system-wide
+OPENMPI_ENV_FILE="/etc/profile.d/openmpi.sh"
+
+cat > "$OPENMPI_ENV_FILE" <<EOF
+# OpenMPI environment
+export OPENMPI_HOME="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi"
+export PATH="\$OPENMPI_HOME/bin:\$PATH"
+export LD_LIBRARY_PATH="\$OPENMPI_HOME/lib:\$LD_LIBRARY_PATH"
+export MANPATH="\$OPENMPI_HOME/share/man:\$MANPATH"
+EOF
+
+chmod 644 "$OPENMPI_ENV_FILE"
+
+echo "[INFO] OpenMPI installed under {{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi"
+echo "[INFO] OpenMPI environment configured in $OPENMPI_ENV_FILE"
+
+echo "===== OpenMPI build completed ====="

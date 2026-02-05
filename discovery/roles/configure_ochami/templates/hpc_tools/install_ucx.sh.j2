@@ -1,0 +1,55 @@
+#!/bin/bash
+set -e
+
+CLIENT_MOUNT="{{ client_mount_path }}"
+UCX_PREFIX="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
+UCX_BUILD="{{ client_mount_path }}/slurm/hpc_tools/compile/ucx"
+
+# Check that NFS is mounted
+if ! mountpoint -q "$CLIENT_MOUNT"; then
+    echo "[ERROR] $CLIENT_MOUNT is not mounted."
+    echo "        Please mount the NFS path before running install_ucx.sh"
+    exit 1
+fi
+
+echo "===== UCX build started ====="
+
+mkdir -p "$UCX_BUILD" "$UCX_PREFIX"
+cd "$UCX_BUILD"
+
+if [ ! -f ucx.tar.gz ]; then
+    wget --no-check-certificate \
+      https://{{ hostvars['localhost']['admin_nic_ip'] }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/ucx/ucx.tar.gz \
+      -O ucx.tar.gz \
+      >> "$UCX_PREFIX/ucx_tar_output.log" 2>&1
+else
+    echo "ucx.tar.gz already exists, skipping download." \
+      >> "$UCX_PREFIX/ucx_tar_output.log"
+fi
+
+tar xzf ucx.tar.gz
+cd ucx-*
+mkdir -p build
+cd build
+
+../contrib/configure-release --prefix="$UCX_PREFIX"
+make -j {{ ucx_build_threads | default(8) }}
+make install
+
+# Configure UCX environment variables system-wide
+UCX_ENV_FILE="/etc/profile.d/ucx.sh"
+
+cat > "$UCX_ENV_FILE" <<EOF
+# UCX environment
+export UCX_HOME="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
+export PATH="\$UCX_HOME/bin:\$PATH"
+export LD_LIBRARY_PATH="\$UCX_HOME/lib:\$LD_LIBRARY_PATH"
+EOF
+
+chmod 644 "$UCX_ENV_FILE"
+
+echo "[INFO] UCX installed under {{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
+echo "[INFO] UCX environment configured in $UCX_ENV_FILE"
+echo "[INFO] Run 'source $UCX_ENV_FILE' or re-login to use ucx_info"
+
+echo "===== UCX build completed ====="
