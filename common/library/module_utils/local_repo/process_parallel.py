@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ from ansible.module_utils.local_repo.common_functions import (
 from ansible.module_utils.local_repo.config import (
     OMNIA_CREDENTIALS_YAML_PATH,
     OMNIA_CREDENTIALS_VAULT_PATH,
-    USER_REG_CRED_INPUT,
-    USER_REG_KEY_PATH
+    # USER_REG_CRED_INPUT,
+    # USER_REG_KEY_PATH
 )
 # Global lock for logging synchronization
 log_lock = multiprocessing.Lock()
@@ -321,8 +321,8 @@ def execute_parallel(
     arc,
     standard_logger,
     local_repo_config_path,
-    user_reg_cred_input,
-    user_reg_key_path,
+    # user_reg_cred_input,
+    # user_reg_key_path,
     omnia_credentials_yaml_path,
     omnia_credentials_vault_path,
     timeout
@@ -355,22 +355,22 @@ def execute_parallel(
 
     config = load_yaml_file(local_repo_config_path)
     user_registries = config.get("user_registry", [])
-    if user_registries:
-        if is_encrypted(user_reg_cred_input):
-            process_file(user_reg_cred_input, user_reg_key_path, 'decrypt')
+    # if user_registries:
+    #     if is_encrypted(user_reg_cred_input):
+    #         process_file(user_reg_cred_input, user_reg_key_path, 'decrypt')
 
-        file2_data = load_yaml_file(user_reg_cred_input)
-        cred_lookup = {
-            entry['name']: entry
-            for entry in file2_data.get('user_registry_credential', [])
-        }
-        # Update user_registry entries with credentials if required
-        for registry in user_registries:
-            if registry.get("requires_auth"):
-                creds = cred_lookup.get(registry.get("name"))
-                if creds:
-                    registry["username"] = creds.get("username")
-                    registry["password"] = creds.get("password")
+    #     file2_data = load_yaml_file(user_reg_cred_input)
+    #     cred_lookup = {
+    #         entry['name']: entry
+    #         for entry in file2_data.get('user_registry_credential', [])
+    #     }
+    #     # Update user_registry entries with credentials if required
+    #     for registry in user_registries:
+    #         if registry.get("requires_auth"):
+    #             creds = cred_lookup.get(registry.get("name"))
+    #             if creds:
+    #                 registry["username"] = creds.get("username")
+    #                 registry["password"] = creds.get("password")
 
 
     try:

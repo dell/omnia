@@ -114,7 +114,7 @@
     - "{{ (ctld_list + cmpt_list + login_list + compiler_login_list) | product(common_dir) }}"
     - "{{ ctld_list | product(ctld_dir) }}"
     - "{{ dbd_list | product(db_dir) }}"
-    - "{{ cmpt_list | product(cmpt_dir) }}"
+    - "{{ (cmpt_list + login_list + compiler_login_list) | product(cmpt_dir) }}"
   loop_control:
     loop_var: product
 

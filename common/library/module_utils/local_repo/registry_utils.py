@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,28 @@
 # limitations under the License.
 # pylint: disable=import-error,no-name-in-module
 import requests
+import socket
+import ssl
 from requests.auth import HTTPBasicAuth
 from ansible.module_utils.local_repo.common_functions import is_file_exists
+
+def is_https(host, timeout=1):
+    ip, port = host.rsplit(":", 1)
+    port = int(port)
+
+    # Don't verify server cert; just see if TLS works
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+
+    try:
+        with socket.create_connection((ip, port), timeout=timeout) as sock:
+            with context.wrap_socket(sock, server_hostname=ip):
+                return True
+    except ssl.SSLError:
+        return False
+    except Exception:
+        return False
 
 def validate_user_registry(user_registry):
     """
@@ -34,64 +54,92 @@ def validate_user_registry(user_registry):
         host = item.get('host')
         if not host:
             return False, f"Missing or empty 'host' in entry at index {idx}: {item}"
+        https = is_https(host)
 
-        requires_auth = item.get('requires_auth', False)
+        cert_path = (item.get("cert_path") or "").strip()
+        key_path  = (item.get("key_path")  or "").strip()
 
-        # Check basic username/password presence
-        if requires_auth:
-            if not item.get('username') or not item.get('password'):
-                return False, (
-                    f"'requires_auth' is true but 'username' or 'password' is missing or empty "
-                    f"in entry for (host: {host})"
-                )
-
-            cert_path = item.get('cert_path')
-            key_path = item.get('key_path')
-
-            if bool(cert_path) != bool(key_path):
-                return False, (
-                    f"If authentication is enabled, both 'cert_path' and 'key_path' must be present "
-                    f"or both omitted in entry for (host: {host})"
-                )
-            try:
-                url = f"https://{host}/api/v2.0/users/current"
-                response = requests.get(
-                    url,
-                    auth=HTTPBasicAuth(item['username'], item['password']),
-                    verify=True  # Set to True if using valid SSL certs
-                )
-
-                if response.status_code == 401:
-                    return False, f"Invalid credentials for host: {host}"
-                elif response.status_code != 200:
-                    return False, f"Unexpected status {response.status_code} while validating host: {host}"
-
-            except requests.exceptions.RequestException as e:
-                return False, f"Failed to connect to {host}: {str(e)}"
+        if https and (not cert_path or not key_path):
+            return False, f"{host} is an HTTPS registry and requires cert_path and key_path. Please provide cert_path and key_path in local_repo_config.yml under user_registry section"
 
     return True, ""
 
-def check_reachability(user_registry, timeout):
+        # requires_auth = item.get('requires_auth', False)
+
+        # # Check basic username/password presence
+        # if requires_auth:
+        #     if not item.get('username') or not item.get('password'):
+        #         return False, (
+        #             f"'requires_auth' is true but 'username' or 'password' is missing or empty "
+        #             f"in entry for (host: {host})"
+        #         )
+
+        #     cert_path = item.get('cert_path')
+        #     key_path = item.get('key_path')
+
+    #         if bool(cert_path) != bool(key_path):
+    #             return False, (
+    #                 f"If authentication is enabled, both 'cert_path' and 'key_path' must be present "
+    #                 f"or both omitted in entry for (host: {host})"
+    #             )
+    #         try:
+    #             url = f"https://{host}/api/v2.0/users/current"
+    #             response = requests.get(
+    #                 url,
+    #                 auth=HTTPBasicAuth(item['username'], item['password']),
+    #                 verify=True  # Set to True if using valid SSL certs
+    #             )
+
+    #             if response.status_code == 401:
+    #                 return False, f"Invalid credentials for host: {host}"
+    #             elif response.status_code != 200:
+    #                 return False, f"Unexpected status {response.status_code} while validating host: {host}"
+
+    #         except requests.exceptions.RequestException as e:
+    #             return False, f"Failed to connect to {host}: {str(e)}"
+
+    # return True, ""
+
+def tcp_ping(host, timeout=1):
     """
-    Checks the reachability of hosts in the user registry.
-
+    Check if a host:port is reachable via TCP.
+    
     Args:
-        user_registry (list): A list of dictionaries representing user registry entries.
-        timeout (int): The maximum number of seconds to wait for a response.
-
+        host (str): User registry host with port
+        timeout (int): Timeout in seconds
     Returns:
-        tuple: A tuple containing two lists: reachable hosts and unreachable hosts.
+        bool: True if reachable, False otherwise
+    """
+    try:
+        if ":" in host:
+            hostname, port = host.split(":")
+            port = int(port)
+        else:
+            hostname = host
+            port = 443
+
+        with socket.create_connection((hostname, port), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+def check_reachability(user_registry, timeout=1):
+    """
+    Check reachability of hosts in a user registry.
+    
+    Args:
+        user_registry (list): List of dicts, each with a 'host' key
+        timeout (int): TCP connection timeout in seconds
+    Returns:
+        tuple: (reachable_hosts, unreachable_hosts)
     """
     reachable, unreachable = [], []
     for item in user_registry:
-        try:
-            resp = requests.get(f"https://{item['host']}", timeout=timeout, verify=True)
-            if resp.status_code == 200:
-                reachable.append(item['host'])
-            else:
-                unreachable.append(item['host'])
-        except Exception:
-            unreachable.append(item['host'])
+        host = item['host']
+        if tcp_ping(host, timeout):
+            reachable.append(host)
+        else:
+            unreachable.append(host)
     return reachable, unreachable
 
 def find_invalid_cert_paths(user_registry):

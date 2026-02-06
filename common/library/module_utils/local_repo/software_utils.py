@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ from jinja2 import Template
 import requests
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.common_functions import is_encrypted, process_file, get_arch_from_sw_config
+from ansible.module_utils.local_repo.parse_and_download import execute_command
 # Import default variables from config.py
 from ansible.module_utils.local_repo.config import (
     PACKAGE_TYPES,
@@ -37,7 +38,8 @@ from ansible.module_utils.local_repo.config import (
     SOFTWARES_KEY,
     REPO_CONFIG,
     ARCH_SUFFIXES,
-    ADDITIONAL_REPOS_KEY
+    ADDITIONAL_REPOS_KEY,
+    pulp_container_commands
 )
 
 
@@ -513,6 +515,81 @@ def get_failed_software(file_path):
     ]
     return failed_software
 
+def check_additional_image_in_pulp(image_entry, logger):
+    """
+    Checks if image present in additional_packages.json is configured in Pulp.
+    """
+    image_name = image_entry.get("package")
+    image_tag = image_entry.get("tag", None)
+    image_digest = image_entry.get("digest", None)
+
+    logger.info("Checking if %s is present in Pulp", image_name)
+
+    dist_name_prefix = "container_repo_"
+    transformed_dist_name = (f"{dist_name_prefix}{image_name.replace('/', '_').replace(':', '_')}")
+
+    repo_href_result = None
+    latest_version_href_result = None
+    tags_output_result = None
+
+    show_dist_cmd = (pulp_container_commands["container_distribution_show"] % transformed_dist_name)
+    repo_href_result = execute_command(show_dist_cmd, logger)
+    logger.info("repo_href_result: %s", repo_href_result)
+
+    if repo_href_result.get("stderr") and "Error:" in repo_href_result.get("stderr", ""):
+        logger.info("Distribution %s not found in Pulp", transformed_dist_name)
+        return {
+            "type": "image",
+            "package": image_name,
+            "tag": image_tag,
+        }
+    else:
+        logger.info("Distribution %s found in Pulp", transformed_dist_name)
+        repo_href = repo_href_result["stdout"]
+        show_repo_cmd = (pulp_container_commands["show_repository_version"] % repo_href)
+        latest_version_href_result = execute_command(show_repo_cmd, logger)
+        logger.info("latest_version_href_result: %s", latest_version_href_result)
+        if latest_version_href_result.get("stderr") and "Error:" in latest_version_href_result.get("stderr", ""):
+            logger.info("No repository version found. Empty repository")
+            return {
+                "type": "image",
+                "package": image_name,
+                "tag": image_tag,
+            }
+        else:
+            logger.info("Repository version found in Pulp")
+            latest_version_href = latest_version_href_result["stdout"]
+            show_tags_cmd = (pulp_container_commands["list_image_tags"] % latest_version_href)
+            tags_output_result = execute_command(show_tags_cmd, logger, type_json=True)
+            logger.info("tags_output_result: %s", tags_output_result)
+            if tags_output_result.get("stderr") and "Error:" in tags_output_result.get("stderr", ""):
+                logger.info("No tags found for %s", image_name)
+                return {
+                    "type": "image",
+                    "package": image_name,
+                    "tag": image_tag,
+                }
+            else:
+                logger.info("Tags found for %s", image_name)
+                tag_names = [tag["name"] for tag in tags_output_result.get("stdout", {}).get("results", [])]
+                logger.info("tag_names: %s", tag_names)
+                if image_tag and image_tag not in tag_names:
+                    logger.info("Tag %s not found for image %s in Pulp", image_tag, image_name)
+                    return {
+                        "type": "image",
+                        "package": image_name,
+                        "tag": image_tag,
+                    }
+                elif image_digest and image_digest not in tag_names:
+                    logger.info("Digest %s not found for image %s in Pulp", image_digest, image_name)
+                    return {
+                        "type": "image",
+                        "package": image_name,
+                        "tag": image_digest,
+                    }
+                else:
+                    logger.info("No download required as image is already present in Pulp")
+                    return {}
 
 def parse_json_data(file_path, package_types,logger, failed_list=None, subgroup_list=None):
     """
@@ -538,10 +615,25 @@ def parse_json_data(file_path, package_types,logger, failed_list=None, subgroup_
 
     filtered_list = []
 
+    # Check if file name is additional_packages.json
+    is_additional_packages = file_path.endswith("additional_packages.json")
+    logger.info("additional_packages present: %s", is_additional_packages)
+
     for key, package in data.items():
         if subgroup_list is None or key in subgroup_list:
             for value in package.values():
                 for item in value:
+                    # For every image, check if it is present in Pulp
+                    if is_additional_packages and item.get("type") == "image":
+                            logger.info("Calling function to check %s existence in Pulp", item)
+                            tag_missing_entry = check_additional_image_in_pulp(item, logger)
+                            logger.info("tag_missing_entry: %s", tag_missing_entry)
+                            if tag_missing_entry == {}:
+                                continue
+                            if tag_missing_entry:
+                                filtered_list.append(tag_missing_entry)
+                            continue
+
                     # Get package name
                     pkg_name = item.get("package")
 

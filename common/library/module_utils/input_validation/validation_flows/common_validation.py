@@ -36,10 +36,13 @@ from ansible.module_utils.input_validation.common_utils import (
 
 from ansible.module_utils.local_repo.software_utils import (
     load_json,
-    load_yaml,
     get_subgroup_dict,
     get_software_names,
     get_json_file_path
+)
+from ansible.module_utils.input_validation.common_utils.slurm_conf_utils import (
+    parse_slurm_conf,
+    get_invalid_keys
 )
 
 file_names = config.files
@@ -1058,16 +1061,29 @@ def validate_omnia_config(
                     "slurm NFS not provided",
                     f"NFS name {', '.join(diff_set)} required for slurm is not defined in {storage_config}"
                     ))
-        # config_paths_list = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
-        # for cfg_path_dict in config_paths_list:
-        #     for k,v in cfg_path_dict.items():
-        #         if isinstance(v, str) and not os.path.exists(v):
-        #             errors.append(
-        #                 create_error_msg(
-        #                     input_file_path,
-        #                     "slurm config_paths",
-        #                     f"config_path for {k} - {v} does not exist"
-        #                     ))
+        cnfg_src = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
+        for cfg_path_dict in cnfg_src:
+            for k,v in cfg_path_dict.items():
+                if isinstance(v, str):
+                    if not os.path.exists(v):
+                        errors.append(
+                            create_error_msg(input_file_path, "slurm_cluster config_sources",
+                                f"provided conf path for {k} - {v} does not exist"))
+                    else: # path and also exists
+                        conf_dict = parse_slurm_conf(v, k, False)
+                        # module.exit_json(failed=True, result=conf_dict)
+                        invalid_keys = get_invalid_keys(conf_dict, k)
+                        if invalid_keys:
+                            errors.append(
+                                create_error_msg(input_file_path, "slurm_cluster config_sources",
+                                    f"invalid keys found in {k} - {invalid_keys}"))
+                else:
+                    invalid_keys = get_invalid_keys(v, k)
+                    if invalid_keys:
+                        errors.append(
+                            create_error_msg(input_file_path, "slurm_cluster config_sources",
+                                f"invalid keys found in {k} - {invalid_keys}"))
+
 
     return errors
 

@@ -18,7 +18,20 @@
 # ================================
 # VARIABLE DETAILS
 # ================================
-# 1. user_repo_url_x86_64
+# 1. user_registry
+#--------------------------
+# Configuration for user registry to configure additional images in Pulp
+# Fields:
+#   host       : Registry IP and port in format "IP:port"
+#   cert_path  : Path to SSL certificate file (.crt) - Required only if host is using HTTPS
+#   key_path   : Path to SSL private key file (.key) - Required only if host is using HTTPS
+# Notes:
+#   - If host is HTTPS, cert_path and key_path are required
+#   - If host is HTTP, cert_path and key_path can be left empty
+#   - cert_path should point to .crt files only
+#   - key_path should point to .key files only
+#   - cert and key paths are accessed from within the omnia_core container
+# 2. user_repo_url_x86_64
 #--------------------------
 #    Optional list of user-defined repository URLs for x86_64 architecture.
 #    Each entry can include: url, gpgkey, sslcacert, sslclientkey, sslclientcert, name, policy.
@@ -36,7 +49,7 @@
 #   - Omit SSL fields entirely if SSL is not in use.
 #   - Its a madatory field in case of slurm_custom with name as '<arch>_slurm_custom'
 #
-# 2. user_repo_url_aarch64
+# 3. user_repo_url_aarch64
 #---------------------------
 #    Same as above but for aarch64 architecture.
 #
@@ -106,7 +119,9 @@
 # ================================
 # VARIABLES
 # ================================
-# Example    
+# user_registry:
+#    - { host: "172.16.107.254:4000", cert_path: "/opt/omnia/domain.crt", key_path: "/opt/omnia/domain.key" }
+user_registry:
 # user_repo_url_x86_64:
 #  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "x86_64_slurm_custom" }
 user_repo_url_x86_64:

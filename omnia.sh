@@ -52,6 +52,36 @@ is_local_ip() {
     fi
 }
 
+OMNIA_BASE_DIR="/opt/omnia"
+OMNIA_INPUT_DIR="/opt/omnia/input"
+OMNIA_BACKUPS_DIR="/opt/omnia/backups"
+OMNIA_METADATA_DIR="/opt/omnia/.data"
+OMNIA_METADATA_FILE="/opt/omnia/.data/oim_metadata.yml"
+
+update_metadata_upgrade_backup_dir() {
+    local backup_dir="$1"
+
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] omnia_core container is not running"
+        return 1
+    fi
+
+    podman exec -u root omnia_core bash -c "
+        set -e
+        if [ ! -f '$OMNIA_METADATA_FILE' ]; then
+            echo '[ERROR] Metadata file not found inside container: $OMNIA_METADATA_FILE' >&2
+            exit 1
+        fi
+        if grep -q '^upgrade_backup_dir:' '$OMNIA_METADATA_FILE'; then
+            sed -i 's|^upgrade_backup_dir:.*|upgrade_backup_dir: ${backup_dir}|' '$OMNIA_METADATA_FILE'
+        else
+            echo 'upgrade_backup_dir: ${backup_dir}' >> '$OMNIA_METADATA_FILE'
+        fi
+    "
+}
+
+
+
 check_internal_nfs_export() {
     nfs_server_ip=$1
     nfs_server_share_path=$2
@@ -757,9 +787,9 @@ EOF
     # Create the .data directory if it does not exist.
     # This is where the oim_metadata.yml file is stored.
     echo -e "${GREEN} Creating the .data directory if it does not exist.${NC}"
-    mkdir -p "$omnia_path/omnia/.data"
+    mkdir -p "$OMNIA_METADATA_DIR"
 
-    oim_metadata_file="$omnia_path/omnia/.data/oim_metadata.yml"
+    oim_metadata_file="$OMNIA_METADATA_FILE"
 
     if [ ! -f "$oim_metadata_file" ]; then
         echo -e "${GREEN} Creating oim_metadata file${NC}"
@@ -811,7 +841,7 @@ EOF
 
     if ! podman ps --format '{{.Names}}' | grep -qw "$container_name"; then
         echo -e "${RED}Error: $container_name container failed to start.${NC}"
-        rm -rf "$omnia_path/omnia/.data/oim_metadata.yml"
+        rm -rf "$OMNIA_METADATA_FILE"
         exit 1
     fi
 
@@ -832,17 +862,17 @@ post_setup_config() {
     chmod 757 "$omnia_path/omnia/tmp/.ansible/tmp"
     # Create the input directory if it does not exist.
     echo -e "${GREEN} Creating the input directory if it does not exist.${NC}"
-    mkdir -p "$omnia_path/omnia/input/"
+    mkdir -p "$OMNIA_INPUT_DIR/"
 
     # Create the default.yml file if it does not exist.
     # This file contains the name of the project.
-    if [ ! -f "$omnia_path/omnia/input/default.yml" ]; then
+    if [ ! -f "$OMNIA_INPUT_DIR/default.yml" ]; then
         echo -e "${BLUE} Creating default.yml file.${NC}"
         {
             echo "# This file defines the project name."
             echo "# The name of the project should be set in a directory under input."
             echo "project_name: project_default"
-        } >> "$omnia_path/omnia/input/default.yml"
+        } >> "$OMNIA_INPUT_DIR/default.yml"
     fi
 
     # Copy input files from /omnia to /opt/omnia/project_default/ inside omnia_core container
@@ -925,16 +955,17 @@ start_container_session() {
 }
 
 show_help() {
-    echo "Usage: $0 [--install | --uninstall | --version | --help]"
+    echo "Usage: $0 [--install | --uninstall | --upgrade | --version | --help]"
     echo "  -i, --install     Install and start the Omnia core container"
     echo "  -u, --uninstall   Uninstall the Omnia core container and clean up configuration"
+    echo "      --upgrade     Upgrade the Omnia core container from image tag 1.0 to 1.1"
     echo "  -v, --version     Display Omnia version information"
     echo "  -h, --help        More information about usage"
 }
 
 install_omnia_core() {
     local omnia_core_tag="1.1"
-    local omnia_core_registry="docker.io/dellhpcomniaaisolution"
+    local omnia_core_registry=""
     
     # Check if local omnia_core:1.1 exists
     if podman inspect omnia_core:${omnia_core_tag} >/dev/null 2>&1; then
@@ -945,44 +976,20 @@ install_omnia_core() {
         # Tag it as 1.1 for consistency
         podman tag omnia_core:latest omnia_core:${omnia_core_tag}
     else
-        # Try pulling from Docker Hub with retry logic
-        echo -e "${BLUE}Omnia core image not found locally. Attempting to pull from Docker Hub...${NC}"
-        pull_success=false
-        max_retries=3
-        retry_count=0
-        
-        while [ $retry_count -lt $max_retries ]; do
-            retry_count=$((retry_count + 1))
-            echo -e "${BLUE}Attempt $retry_count of $max_retries...${NC}"
-            
-            if podman pull ${omnia_core_registry}/omnia_core:${omnia_core_tag} 2>/dev/null; then
-                echo -e "${GREEN}✓ Successfully pulled omnia_core:${omnia_core_tag} from Docker Hub.${NC}"
-                # Tag it without registry prefix for local use
-                podman tag ${omnia_core_registry}/omnia_core:${omnia_core_tag} omnia_core:${omnia_core_tag}
-                pull_success=true
-                break
-            else
-                if [ $retry_count -lt $max_retries ]; then
-                    echo -e "${YELLOW}Pull failed. Retrying in 5 seconds...${NC}"
-                    sleep 5
-                fi
-            fi
-        done
-        
-        if [ "$pull_success" = false ]; then
-            echo -e "${RED}ERROR: Failed to pull omnia_core image after $max_retries attempts.${NC}"
-            echo ""
-            echo -e "${YELLOW}To resolve this, please follow these steps:${NC}"
-            echo -e "1. Clone the Omnia Artifactory repository:"
-            echo -e "   git clone https://github.com/dell/omnia-artifactory -b omnia-container"
-            echo -e "2. Navigate to the repository directory:"
-            echo -e "   cd omnia-artifactory"
-            echo -e "3. Build the core image locally:"
-            echo -e "   ./build_images.sh core omnia_branch=<version/branch_name>"
-            echo -e "4. After building the image, re-run this script:"
-            echo -e "   ./omnia.sh --install"
-            exit 1
-        fi
+        echo -e "${RED}ERROR: Omnia core image (omnia_core:${omnia_core_tag}) not found locally.${NC}"
+        echo -e "${YELLOW}Omnia no longer pulls images from Docker Hub. Build/load the image locally and retry.${NC}"
+        echo ""
+        echo -e "${YELLOW}One way to build the image locally:${NC}"
+        echo -e "1. Clone the Omnia Artifactory repository:"
+        echo -e "   git clone https://github.com/dell/omnia-artifactory -b omnia-container"
+        echo -e "2. Navigate to the repository directory:"
+        echo -e "   cd omnia-artifactory"
+        echo -e "3. Build the core image locally (loads into local Podman by default):"
+        echo -e "   ./build_images.sh core omnia_branch=<version/branch_name>"
+        echo ""
+        echo -e "${YELLOW}Then re-run:${NC}"
+        echo -e "   ./omnia.sh --install"
+        exit 1
     fi
 
     # Check if any other containers with 'omnia' in their name are running
@@ -1139,6 +1146,152 @@ display_version() {
     exit 0
 }
 
+phase1_validate() {
+    local current_image
+    local core_config
+    local previous_omnia_version
+    local shared_path
+
+    echo "[INFO] [ORCHESTRATOR] Phase 1: Pre-Upgrade Validation"
+
+    if [ "$(id -u)" -ne 0 ]; then
+        if ! sudo -n true >/dev/null 2>&1; then
+            echo "[ERROR] [ORCHESTRATOR] Prerequisite failed: run as root or configure passwordless sudo"
+            return 1
+        fi
+    fi
+
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Prerequisite failed: omnia_core container is not running"
+        return 1
+    fi
+
+    core_config=$(podman exec omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml' 2>/dev/null)
+    if [ -z "$core_config" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Unable to read oim_metadata.yml from omnia_core container"
+        return 1
+    fi
+
+    previous_omnia_version=$(echo "$core_config" | grep "^omnia_version:" | cut -d':' -f2 | tr -d ' \t\n\r')
+    if [ -z "$previous_omnia_version" ]; then
+        echo "[ERROR] [ORCHESTRATOR] omnia_version not found in oim_metadata.yml"
+        return 1
+    fi
+
+    if [ "$previous_omnia_version" != "2.0.0.0" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Previous Omnia version mismatch: expected 2.0.0.0, got: $previous_omnia_version"
+        return 1
+    fi
+
+    shared_path=$(echo "$core_config" | grep "^oim_shared_path:" | cut -d':' -f2- | tr -d ' \t\n\r')
+    if [ -z "$shared_path" ]; then
+        echo "[ERROR] [ORCHESTRATOR] oim_shared_path not found in oim_metadata.yml"
+        return 1
+    fi
+
+    omnia_path="$shared_path"
+
+    if [ ! -d "$omnia_path" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Shared path from metadata does not exist on host: $omnia_path"
+        return 1
+    fi
+
+    if [ ! -w "$omnia_path" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Permission denied: no write permission on shared path: $omnia_path"
+        return 1
+    fi
+
+    current_image=$(podman inspect omnia_core --format '{{.ImageName}}' 2>/dev/null)
+    if [ -z "$current_image" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Unable to inspect omnia_core container image"
+        return 1
+    fi
+
+    if ! echo "$current_image" | grep -qE '(:|@)1\.0(\b|$)'; then
+        echo "[ERROR] [ORCHESTRATOR] Container version mismatch: expected 1.0, got: $current_image"
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Container version validated: 1.0 (Omnia 2.0.0.0)"
+
+
+    if ! podman inspect "omnia_core:1.1" >/dev/null 2>&1; then
+        echo "[ERROR] [ORCHESTRATOR] Target image missing locally: omnia_core:1.1"
+        echo "[ERROR] [ORCHESTRATOR] Omnia does not pull from Docker Hub. Build/load the image locally and retry."
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Phase 1: Validation passed"
+    return 0
+}
+
+phase2_approval() {
+    local backup_base default_backup_dir
+
+    echo "[INFO] [ORCHESTRATOR] Phase 2: Approval Gate"
+    echo "============================================"
+    echo "OMNIA UPGRADE SUMMARY"
+    echo "============================================"
+    echo "Current Container Tag: 1.0"
+    echo "Target Container Tag:  1.1"
+    echo "Current Omnia Release: 2.0.0.0"
+    echo "Target Omnia Release:  2.1.0.0"
+    echo "New Features:"
+    echo "  - Add and remove node for slurm cluster"
+    echo "  - Additional Package Installation"
+    echo "============================================"
+
+    default_backup_dir="$OMNIA_BACKUPS_DIR/upgrade"
+    backup_base="$default_backup_dir"
+
+    echo "[INFO] [ORCHESTRATOR] Backup destination: $backup_base"
+
+    if ! update_metadata_upgrade_backup_dir "$backup_base"; then
+        echo "[ERROR] [ORCHESTRATOR] Failed to update upgrade backup directory in metadata"
+        return 1
+    fi
+
+    read -p "Proceed with upgrade? (y/N): " confirm
+    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+        echo "[INFO] [ORCHESTRATOR] Upgrade cancelled by user"
+        return 1
+    fi
+
+    OMNIA_UPGRADE_BACKUP_PATH="$backup_base"
+    export OMNIA_UPGRADE_BACKUP_PATH
+
+    echo "[INFO] [ORCHESTRATOR] Phase 2: Approval granted"
+    return 0
+}
+
+upgrade_omnia_core() {
+    local lock_file="/var/lock/omnia_core_upgrade.lock"
+
+    if [ -e "$lock_file" ]; then
+        echo -e "${RED}ERROR: Upgrade lock exists at $lock_file. Another upgrade may be running.${NC}"
+        exit 1
+    fi
+
+    mkdir -p "$(dirname "$lock_file")" 2>/dev/null || true
+    echo "$$" > "$lock_file" || {
+        echo -e "${RED}ERROR: Failed to create lock file: $lock_file${NC}"
+        exit 1
+    }
+    trap 'rm -f "$lock_file"' EXIT
+
+    if ! phase1_validate; then
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed in Phase 1"
+        exit 1
+    fi
+
+    if ! phase2_approval; then
+        exit 0
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Upgrade tasks for backup and container swap are deferred to a follow-up PR"
+    exit 0
+}
+
 # Main function to check if omnia_core container is already running.
 # If yes, ask the user if they want to enter the container or reinstall.
 # If no, set it up.
@@ -1149,6 +1302,9 @@ main() {
             ;;
         --uninstall|-u)
             cleanup_omnia_core
+            ;;
+        --upgrade)
+            upgrade_omnia_core
             ;;
         --version|-v)
             display_version

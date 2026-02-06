@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@
         local_repo_config_path: "{{ local_repo_config_path }}"
         arch: "{{ item.arch }}"
         overall_status_dict: {}
-        user_reg_cred_input: "{{ user_reg_cred_input }}"
-        user_reg_key_path: "{{ user_reg_key_path }}"
+        # user_reg_cred_input: "{{ user_reg_cred_input }}"
+        # user_reg_key_path: "{{ user_reg_key_path }}"
         omnia_credentials_yaml_path: "{{ omnia_credentials_yaml_path }}"
         omnia_credentials_vault_path: "{{ omnia_credentials_vault_path }}"
         nthreads: "{{ (local_repo_py_module_vars[item.key].nthreads | default(local_repo_py_module_vars.default_vars.nthreads)) }}"

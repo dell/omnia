@@ -90,7 +90,6 @@ common_mode: "0755"
 slurm_dbd_mode: "0600"
 slurm_db_cnf_mode: "0600"
 dbd_slurm_conf:
-  AccountingStorageHost: "{{ dbd_list[0] }}"
   AccountingStoragePort: "{{ slurm_dbd_port }}"
   AccountingStorageType: accounting_storage/slurmdbd
 partition_params:

@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -206,22 +206,61 @@ def get_repo_url_and_content(package):
         ValueError: If the package prefix is not supported.
     """
     patterns = {
-         r"^(ghcr\.io)(/.+)": "https://ghcr.io",
-         r"^(docker\.io)(/.+)": "https://registry-1.docker.io",
-         r"^(quay\.io)(/.+)": "https://quay.io",
-         r"^(registry\.k8s\.io)(/.+)": "https://registry.k8s.io",
-         r"^(nvcr\.io)(/.+)": "https://nvcr.io",
-         r"^(public\.ecr\.aws)(/.+)": "https://public.ecr.aws",
-         r"^(gcr\.io)(/.+)": "https://gcr.io"
+        r"^(ghcr\.io)(:\d+)?(/.+)": "https://ghcr.io",
+        r"^(docker\.io)(:\d+)?(/.+)": "https://registry-1.docker.io",
+        r"^(quay\.io)(:\d+)?(/.+)": "https://quay.io",
+        r"^(registry\.k8s\.io)(:\d+)?(/.+)": "https://registry.k8s.io",
+        r"^(nvcr\.io)(:\d+)?(/.+)": "https://nvcr.io",
+        r"^(public\.ecr\.aws)(:\d+)?(/.+)": "https://public.ecr.aws",
+        r"^(gcr\.io)(:\d+)?(/.+)": "https://gcr.io",
     }
     for pattern, repo_url in patterns.items():
         match = re.match(pattern, package)
         if match:
             base_url = repo_url
-            package_content = match.group(2).lstrip("/")  # Remove leading slash
+
+            # If user provided a port, preserve it
+            if match.group(2):
+                base_url = f"{repo_url}{match.group(2)}"
+
+            package_content = match.group(3).lstrip("/")
             return base_url, package_content
 
-    raise ValueError(f"Unsupported package prefix for package: {package}")
+    # fallback for private / IP-based registries
+    match = re.match(r"^(?P<registry>[^/]+)(?P<path>/.*)$", package)
+    if match:
+        return f"https://{match.group('registry')}", match.group("path").lstrip("/")
+
+    raise ValueError(f"Invalid package format: {package}")
+
+
+# def get_repo_url_and_content(package):
+#     """
+#     Get the repository URL and content from a given package.
+#     Parameters:
+#         package (str): The package to extract the URL and content from.
+#     Returns:
+#         tuple: A tuple containing the repository URL and content.
+#     Raises:
+#         ValueError: If the package prefix is not supported.
+#     """
+#     patterns = {
+#          r"^(ghcr\.io)(/.+)": "https://ghcr.io",
+#          r"^(docker\.io)(/.+)": "https://registry-1.docker.io",
+#          r"^(quay\.io)(/.+)": "https://quay.io",
+#          r"^(registry\.k8s\.io)(/.+)": "https://registry.k8s.io",
+#          r"^(nvcr\.io)(/.+)": "https://nvcr.io",
+#          r"^(public\.ecr\.aws)(/.+)": "https://public.ecr.aws",
+#          r"^(gcr\.io)(/.+)": "https://gcr.io"
+#     }
+#     for pattern, repo_url in patterns.items():
+#         match = re.match(pattern, package)
+#         if match:
+#             base_url = repo_url
+#             package_content = match.group(2).lstrip("/")  # Remove leading slash
+#             return base_url, package_content
+
+#     raise ValueError(f"Unsupported package prefix for package: {package}")
 
 def process_image(package, status_file_path, version_variables,
                  user_registries,docker_username, docker_password, logger):
@@ -245,66 +284,79 @@ def process_image(package, status_file_path, version_variables,
     base_url, package_content = get_repo_url_and_content(package['package'])
     package_identifier = None
 
+    # Only check user registries for additional_packages
+    if user_registries and "additional_packages" in status_file_path:
+        result, package_identifier = handle_user_image_registry(
+            package,
+            package_content,
+            version_variables,
+            user_registries,
+            logger
+        )
 
-    if user_registries:
-        result, package_identifier = handle_user_image_registry(package, package_content,
-                                     version_variables, user_registries, logger)
-    # If user registry not found or no user registry given, proceed with public registry
-    if not result:
-        try:
-            repo_name_prefix = "container_repo_"
-            repository_name = f"{repo_name_prefix}{package['package'].replace('/', '_').replace(':', '_')}"
-            remote_name = f"remote_{package['package'].replace('/', '_')}"
-            package_identifier = package['package']
-            # Create container repository
-            with repository_creation_lock:
-                result = create_container_repository(repository_name, logger)
-            if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-                raise Exception(f"Failed to create repository: {repository_name}")
-            # Process digest or tag
-            if "digest" in package:
-                package_identifier += f":{package['digest']}"
-                result = create_container_remote_digest(remote_name, base_url,
-                         package_content, policy_type, logger)
-                if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-                    raise Exception(f"Failed to create remote digest: {remote_name}")
-
-            elif "tag" in package:
-                tag_template = Template(package['tag'])
-                tag_val = tag_template.render(**version_variables)
-                package_identifier += f":{package['tag']}"
-
-                # Only use auth for docker.io images
-                if package['package'].startswith('docker.io/'):
-
-                    with remote_creation_lock:
-                        if docker_username and docker_password:
-                            result = create_container_remote_with_auth(
-                                remote_name, base_url, package_content, policy_type,
-                                tag_val, logger, docker_username, docker_password
-                            )
-                        else:
-                            result = create_container_remote(
-                                remote_name, base_url, package_content, policy_type, tag_val, logger
-                            )
-                else:
-                    # For non-docker.io registries, use unauthenticated access
-                    with remote_creation_lock:
-                        result = create_container_remote(
-                            remote_name, base_url, package_content, policy_type, tag_val, logger
-                        )
-
-                if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-                    raise Exception(f"Failed to create remote: {remote_name}")
-            # Sync and distribute container repository
-            result = sync_container_repository(repository_name, remote_name, package_content,logger)
-            if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
-                raise Exception(f"Failed to sync repository: {repository_name}")
-
-        except Exception as e:
+        if not result:
+            logger.info(f"Image {package['package']} will not be synced to Pulp.")
             status = "Failed"
-            logger.error(f"Failed to process image: {package_identifier}. Error: {e}")
+            return status
+        
+        else:
+            logger.info(f"Image {package['package']} synced to Pulp.")
+            status = "Success"
+            return status
 
-    write_status_to_file(status_file_path, package_identifier, package['type'], status, logger, file_lock)
+    try:
+        repo_name_prefix = "container_repo_"
+        repository_name = f"{repo_name_prefix}{package['package'].replace('/', '_').replace(':', '_')}"
+        remote_name = f"remote_{package['package'].replace('/', '_').replace(':', '_')}"
+        package_identifier = package['package']
+
+        # Create container repository
+        with repository_creation_lock:
+            result = create_container_repository(repository_name, logger)
+        if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+            raise Exception(f"Failed to create repository: {repository_name}")
+
+        # Process digest or tag
+        if "digest" in package:
+            package_identifier += f":{package['digest']}"
+            result = create_container_remote_digest(
+                remote_name, base_url, package_content, policy_type, logger
+            )
+            if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+                raise Exception(f"Failed to create remote digest: {remote_name}")
+
+        elif "tag" in package:
+            tag_template = Template(package['tag'])
+            tag_val = tag_template.render(**version_variables)
+            package_identifier += f":{package['tag']}"
+
+            with remote_creation_lock:
+                if package['package'].startswith('docker.io/') and docker_username and docker_password:
+                    result = create_container_remote_with_auth(
+                        remote_name, base_url, package_content, policy_type,
+                        tag_val, logger, docker_username, docker_password
+                    )
+                else:
+                    result = create_container_remote(
+                        remote_name, base_url, package_content, policy_type, tag_val, logger
+                    )
+
+            if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+                raise Exception(f"Failed to create remote: {remote_name}")
+
+        # Sync and distribute
+        result = sync_container_repository(
+            repository_name, remote_name, package_content, logger
+        )
+        if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
+            raise Exception(f"Failed to sync repository: {repository_name}")
+
+    except Exception as e:
+        status = "Failed"
+        logger.error(f"Failed to process image: {package_identifier}. Error: {e}")
+
+    write_status_to_file(
+        status_file_path, package_identifier, package['type'], status, logger, file_lock
+    )
     logger.info("#" * 30 + f" {process_image.__name__} end " + "#" * 30)
     return status

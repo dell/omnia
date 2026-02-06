@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,8 +36,8 @@
 - name: Check user registry reachability
   check_user_registry:
     config_file: "{{ local_repo_config_file }}"
-    user_reg_cred_input: "{{ user_reg_cred_input }}"
-    user_reg_key_path: "{{ user_reg_key_path }}"
+    # user_reg_cred_input: "{{ user_reg_cred_input }}"
+    # user_reg_key_path: "{{ user_reg_key_path }}"
     timeout: "{{ time_out }}"
   register: registry_check_result
 

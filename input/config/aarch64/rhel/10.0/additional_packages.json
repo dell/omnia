@@ -4,6 +4,21 @@
 
         ]
     },
+    "service_kube_control_plane_first": {
+        "cluster": [
+
+        ]
+    },
+    "service_kube_control_plane": {
+        "cluster": [
+
+        ]
+    },
+    "service_kube_node": {
+        "cluster": [
+
+        ]
+    },
     "slurm_control_node": {
         "cluster": [
 
