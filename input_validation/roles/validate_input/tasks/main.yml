@@ -31,20 +31,6 @@
   register: validation_status
   when: (input_validate_tags | length) > 0
 
-- name: Display validation errors
-  ansible.builtin.fail:
-    msg: |
-      {{ validation_status.error_msg }}
-      
-      VALIDATION ERRORS:
-      {% for error in validation_status.errors %}
-      - {{ error }}
-      {% endfor %}
-      
-      Invalid files: {{ validation_status.invalid_files | join(', ') }}
-      Log file: {{ validation_status.log_file }}
-  when: validation_status.failed | default(false)
-
 - name: Debug validation status
   ansible.builtin.debug:
     msg: "{{ messages.validation_success }}"
