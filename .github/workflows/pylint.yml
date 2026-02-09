@@ -6,7 +6,6 @@ on:
       - main
       - staging
       - release_1.7.1
-      - pub/build_stream
       - pub/v2.1_rc1
       - pub/q1_dev
 
@@ -29,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ansible pylint kubernetes prettytable requests passlib fastapi uvicorn sqlalchemy pytest httpx argon2
+          pip install ansible pylint kubernetes prettytable requests passlib
 
       - name: Get changed Python files (excluding deleted)
         id: changed-files
