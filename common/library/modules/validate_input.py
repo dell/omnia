@@ -202,33 +202,24 @@ def main():
               f"Tag(s) run: {tag_names}.\n" \
               f"Look at the logs for more details: filename={log_file_name}"
 
-    # Format error messages with proper line breaks for readability
-    formatted_errors = []
-    if error_bucket:
-        formatted_errors = [str(error) for error in error_bucket]
-
-    # Create comprehensive error message with all details
     if status_bool:
-        # Success case
-        final_message = message
+        # Success case - exit with success
+        module.exit_json(changed=False,
+            error_msg=message,
+            log_file=log_file_name,
+            errors=[],
+            valid_files=list(set(validation_status['Passed'])),
+            invalid_files=[],
+            tags=tag_names
+        )
     else:
-        # Failure case - include all errors in the main message
-        error_details = "\n\nVALIDATION ERRORS:\n"
-        for i, error in enumerate(formatted_errors, 1):
-            error_details += f"{i}. {error}\n"
-        
-        error_details += f"\nInvalid files: {', '.join(set(validation_status['Failed']))}"
-        error_details += f"\nLog file: {log_file_name}"
-        
-        final_message = message + error_details
-
-    module.exit_json(failed=not status_bool,
-        error_msg=final_message,
-        log_file=log_file_name,
-        errors=formatted_errors,
-        valid_files=list(set(validation_status['Passed'])),
-        invalid_files=list(set(validation_status['Failed'])),
-        tags=tag_names
+        # Failure case - fail with all error details for display task
+        module.fail_json(msg=message,
+            log_file=log_file_name,
+            errors=error_bucket,
+            valid_files=list(set(validation_status['Passed'])),
+            invalid_files=list(set(validation_status['Failed'])),
+            tags=tag_names
         )
 
 
