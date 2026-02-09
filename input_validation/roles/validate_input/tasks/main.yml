@@ -39,5 +39,12 @@
   rescue:
     - name: Display validation errors
       ansible.builtin.fail:
-        msg: "{{ messages.validation_error }}"
+        msg: |
+          Input validation failed. Please check the log file for detailed error messages:
+          
+          Log file: {{ ansible_failed_result.log_file }}
+          
+          Invalid files: {{ ansible_failed_result.invalid_files | join(', ') }}
+          
+          For detailed validation errors, see: {{ ansible_failed_result.log_file }}
       when: (input_validate_tags | length) > 0
