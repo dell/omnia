@@ -477,7 +477,7 @@ def process_manifest(file,repo_store_path, status_file_path, cluster_os_type, cl
         manifest_directory = os.path.join(repo_store_path, "offline_repo", "cluster",arc.lower(), cluster_os_type, cluster_os_version, "manifest", package_name)
         # # Determine the manifest file path
         file_path = os.path.join(manifest_directory, f"{package_name}.yaml")
-        repository_name = "manifest" + package_name
+        repository_name = arc.lower() + "_manifest" + package_name
         output_file =  package_name + ".yml"
         relative_path = output_file
         base_path = manifest_directory.strip("/")
@@ -531,7 +531,7 @@ def process_git(file,repo_store_path, status_file_path, cluster_os_type, cluster
         clone_directory = os.path.join(git_modules_directory, package_name)
         clone_directory = shlex.quote(clone_directory).strip("'\"")
         tarball_path = os.path.join(git_modules_directory, f'{package_name}.tar.gz')
-        repository_name = "git" + package_name
+        repository_name = arc.lower() + "_git" + package_name
         output_file = package_name + ".tar.gz"
         relative_path = output_file
         base_path = git_modules_directory.strip("/")
@@ -600,7 +600,7 @@ def process_shell(file,repo_store_path, status_file_path,  cluster_os_type, clus
         os.makedirs(sh_directory, exist_ok=True)  # Ensure the directory exists
 
         sh_path = os.path.join(sh_directory, f"{package_name}.sh")
-        repository_name = "shell" + package_name
+        repository_name = arc.lower() + "_shell" + package_name
         output_file = package_name + ".sh"
         relative_path = output_file
         base_path = sh_directory.strip("/")
@@ -651,7 +651,7 @@ def process_ansible_galaxy_collection(file, repo_store_path, status_file_path, c
         galaxy_collections_directory = shlex.quote(galaxy_collections_directory).strip("'\"")
         os.makedirs(galaxy_collections_directory, exist_ok=True)  # Ensure the directory exists
         collections_tarball_path = os.path.join(galaxy_collections_directory, f'{package_name.replace(".", "-")}-{version}.tar.gz')
-        repository_name = "ansible_galaxy_collection" + package_name
+        repository_name = arc.lower() + "_ansible_galaxy_collection" + package_name
         output_file = f"{file['package'].replace('.', '-')}-{file['version']}.tar.gz"
         relative_path = output_file
         base_path = galaxy_collections_directory.strip("/")
@@ -758,7 +758,7 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
     tarball_path = os.path.join(tarball_directory, f"{package_name}.tar.gz")
     tarball_path = shlex.quote(tarball_path).strip("'\"")
 
-    repository_name = "tarball" + package_name
+    repository_name = arc.lower() + "_tarball" + package_name
     output_file = package_name + ".tar.gz"
     relative_path = output_file
     base_path = tarball_directory.strip("/")
@@ -844,7 +844,7 @@ def process_iso(package, repo_store_path, status_file_path,
     url_support = True
     package_name = package['package']
     package_type = package['type']
-    repository_name = "iso" + package_name + arc
+    repository_name = arc.lower() + "_iso" + package_name
 
     distribution_name = repository_name
     if 'url' in package:
@@ -941,7 +941,7 @@ def process_pip(package, repo_store_path, status_file_path,  cluster_os_type, cl
         package_name = shlex.quote(package['package']).strip("'\"")
         package_type = package['type']
         version = package.get('version', None)
-        pip_repo = "pip_module" + package_name
+        pip_repo = arc.lower() + "_pip_module" + package_name
         distribution_name = pip_repo
 
         logger.info(f"Processing Pip Package: {package_name}, Version: {version}")

@@ -1,4 +1,4 @@
-#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@
 
 - name: Read Memory NodeParams
   ansible.builtin.uri:
-    url: "https://{{ bmc_ip_map[item] }}/redfish/v1/Systems/System.Embedded.1"
+    url: "https://{{ bmc_ip_map[item] }}/redfish/v1/Systems/System.Embedded.1/Memory?$expand=*($levels=1)"
     user: "{{ bmc_username }}"
     password: "{{ bmc_password }}"
     method: GET
@@ -62,13 +62,15 @@
   register: mem_info
   failed_when: false
 
-- name: Calculate total memory in MB (GiB → MB)
+- name: Calculate total memory sum of slots
   ansible.builtin.set_fact:
-    total_memory_mb: "{{ (mem_info.json.MemorySummary.TotalSystemMemoryGiB | default(default_real_memory)) * 1024 | int }}"
+    total_memory_mb: "{{ mem_info.json.Members | default([{'CapacityMiB': default_real_memory}])
+     | map(attribute='CapacityMiB', default=default_real_memory)
+     | map('int', default=default_real_memory) | sum | int }}"
 
-- name: Calculate 90% of real memory
+- name: Calculate percentage of real memory
   ansible.builtin.set_fact:
-    real_memory: "{{ ((total_memory_mb | float) * 0.90) | int }}"
+    real_memory: "{{ ((total_memory_mb | int) * (memory_percentage / 100)) | int | round }}"
 
 - name: Calculate proc facts
   ansible.builtin.set_fact:
