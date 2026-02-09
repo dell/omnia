@@ -49,6 +49,9 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
     logger.info("#" * 30 + f" {process_rpm.__name__} start " + "#" * 30)
 
     try:
+        # Get repo_mapping for individual RPM repo names
+        repo_mapping = package.get("repo_mapping", {})
+
         if repo_config_value == "always":
             rpm_list = list(set(package["rpm_list"]))
             logger.info(f"{package['package']} - List of rpms is {rpm_list}")
@@ -90,9 +93,11 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
 
             # Detect successes/failures from combined run
             for pkg in rpm_list:
+                # Get repo_name for this specific RPM from mapping
+                pkg_repo_name = repo_mapping.get(pkg, "")
                 if any(pkg in line and ".rpm" in line for line in stdout_lines + stderr_lines):
                     downloaded.append(pkg)
-                    write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock)
+                    write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
                 else:
                     failed.append(pkg)
 
@@ -102,14 +107,16 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                 for pkg in failed[:]:
                     cmd = DNF_COMMANDS[arch_key] + [f'--destdir={rpm_directory}', pkg]
                     retry_res = subprocess.run(cmd, check=False, capture_output=True, text=True)
+                    # Get repo_name for this specific RPM from mapping
+                    pkg_repo_name = repo_mapping.get(pkg, "")
 
                     if retry_res.returncode == 0 and ".rpm" in retry_res.stdout + retry_res.stderr:
                         downloaded.append(pkg)
                         failed.remove(pkg)
-                        write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock)
+                        write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
                         logger.info(f"Package '{pkg}' downloaded successfully on retry.")
                     else:
-                        write_status_to_file(status_file_path, pkg, "rpm", "Failed", logger, file_lock)
+                        write_status_to_file(status_file_path, pkg, "rpm", "Failed", logger, file_lock, pkg_repo_name)
                         logger.error(f"Package '{pkg}' still failed after retry.")
 
             # Determine final status
@@ -124,13 +131,17 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             status = "Success"
             logger.info("RPM won't be downloaded when repo_config is partial or never")
             for pkg in package["rpm_list"]:
-                write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock)
+                # Get repo_name for this specific RPM from mapping
+                pkg_repo_name = repo_mapping.get(pkg, "")
+                write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
 
     except Exception as e:
         logger.error(f"Exception occurred: {e}")
         status = "Failed"
         for pkg in package.get("rpm_list", []):
-            write_status_to_file(status_file_path, pkg, "rpm", "Failed", logger, file_lock)
+            # Get repo_name for this specific RPM from mapping
+            pkg_repo_name = repo_mapping.get(pkg, "")
+            write_status_to_file(status_file_path, pkg, "rpm", "Failed", logger, file_lock, pkg_repo_name)
 
     finally:
         logger.info(f"Overall status for {package['package']}: {status}")

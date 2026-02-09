@@ -33,7 +33,7 @@ CSV_FILE_PATH_DEFAULT = [
 DEFAULT_REPO_STORE_PATH = "/tmp/offline_repo"
 USER_JSON_FILE_DEFAULT = ""
 DEFAULT_STATUS_FILENAME = "status.csv"
-STATUS_CSV_HEADER = 'name,type,status\n'
+STATUS_CSV_HEADER = 'name,type,repo_name,status\n'
 SOFTWARE_CSV_HEADER = "name,status"
 # USER_REG_CRED_INPUT = "/opt/omnia/input/project_default/user_registry_credential.yml"
 # USER_REG_KEY_PATH = "/opt/omnia/input/project_default/.local_repo_credentials_key"
@@ -78,7 +78,29 @@ pulp_file_commands = {
     "show_distribution": "pulp file distribution show --name %s",
     "distribution_create": "pulp file distribution create --name %s --base-path %s --repository %s",
     "distribution_update": "pulp file distribution update --name %s --base-path %s --repository %s",
+
+    # Cleanup commands
+    "delete_repository": "pulp file repository destroy --name %s",
+    "delete_distribution": "pulp file distribution destroy --name %s",
+    "delete_publication": "pulp file publication destroy --href %s",
+    "list_publications": "pulp file publication list --repository %s",
+    "list_repositories": "pulp file repository list",
+    "list_distributions": "pulp file distribution list",
+    "list_content": "pulp file content list --repository-version %s",
+    "show_repository_version": "pulp file repository version show --repository %s",
+    "orphan_cleanup": "pulp orphan cleanup --protection-time 0"
 }
+
+# Pulp Python repository commands (for pip modules)
+pulp_python_commands = {
+    "list_repositories": "pulp python repository list",
+    "show_repository": "pulp python repository show --name %s",
+    "delete_repository": "pulp python repository destroy --name %s",
+    "list_distributions": "pulp python distribution list",
+    "delete_distribution": "pulp python distribution destroy --name %s",
+    "orphan_cleanup": "pulp orphan cleanup --protection-time 0"
+}
+
 CLI_FILE_PATH = "/root/.config/pulp/cli.toml"
 POST_TIMEOUT = 3600
 TAR_POLL_VAL = 3
@@ -107,10 +129,20 @@ pulp_container_commands = {
     "distribute_container_repository": "pulp container distribution create --name %s --repository %s --base-path %s",
     "update_container_distribution": "pulp container distribution update --name %s --repository %s --base-path %s",
     "list_container_remote_tags": "pulp container remote list --name %s --field include_tags",
-
     "create_container_remote_auth": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --username %s --password '%s'",
-
     "update_container_remote_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --username %s --password '%s'",
+    # Cleanup commands
+    "delete_repository": "pulp container repository destroy --name %s",
+    "delete_remote": "pulp container remote destroy --name %s",
+    "delete_distribution": "pulp container distribution destroy --name %s",
+    "list_repositories": "pulp container repository list",
+    "list_remotes": "pulp container remote list",
+    "list_distributions": "pulp container distribution list",
+    # Tag-specific cleanup commands
+    "get_repo_version": "pulp container repository show --href %s",
+    "list_tags_by_version": "pulp show --href /pulp/api/v3/content/container/tags/?repository_version=%s",
+    "rename_repository": "pulp container repository update --name %s --new-name %s",
+    "orphan_cleanup": "pulp orphan cleanup",
     "container_distribution_show": "pulp container distribution show --name %s | jq .repository",
     "show_repository_version": "pulp container repository show --href %s | jq .latest_version_href",
     "list_image_tags": "pulp show --href /pulp/api/v3/content/container/tags/?repository_version=%s"
@@ -147,8 +179,39 @@ pulp_rpm_commands = {
     "check_distribution": "pulp rpm distribution show --name %s",
     "check_publication": "pulp rpm publication list --repository %s",
     "delete_publication": "pulp rpm publication destroy --href %s",
-    "get_repo_version": "pulp rpm repository show --name %s"
+    "get_repo_version": "pulp rpm repository show --name %s",
+    "list_repositories": "pulp rpm repository list",
+    "list_remotes": "pulp rpm remote list",
+    "list_distributions": "pulp rpm distribution list",
+    "orphan_cleanup": "pulp orphan cleanup --protection-time 0"
 }
+
+# ----------------------------
+# Pulp Cleanup Configuration
+# Used by pulp_cleanup.py and Ansible modules
+# ----------------------------
+
+# Default paths
+CLEANUP_BASE_PATH_DEFAULT = "/opt/omnia/log/local_repo"
+CLEANUP_STATUS_FILE_PATH_DEFAULT = "/opt/omnia/log/local_repo/cleanup_status.csv"
+CLEANUP_LOG_PATH_DEFAULT = "/opt/omnia/log/local_repo/cleanup.log"
+
+# Default cleanup behavior
+CLEANUP_DELETE_REMOTE_DEFAULT = True
+CLEANUP_DELETE_DISTRIBUTION_DEFAULT = True
+CLEANUP_CLEANUP_ORPHANS_AFTER_DEFAULT = True
+CLEANUP_LIST_ONLY_DEFAULT = False
+CLEANUP_FORCE_DEFAULT = False
+
+# Cleanup status values
+CLEANUP_STATUS_SUCCESS = "Success"
+CLEANUP_STATUS_FAILED = "Failed"
+CLEANUP_STATUS_IN_PROGRESS = "In Progress"
+
+# Cleanup status file settings
+CLEANUP_STATUS_FILENAME = "cleanup_status.csv"
+CLEANUP_STATUS_CSV_HEADER = "artifact_name,artifact_type,status,message,timestamp\n"
+CLEANUP_LOG_FILE_PATH = "/opt/omnia/log/local_repo/cleanup.log"
 
 # ----------------------------
 # Additional Repos Aggregation Settings

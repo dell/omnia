@@ -176,21 +176,32 @@ def transform_package_dict(data, arch_val,logger):
     for sw_name, items in data.items():
         transformed_items = []
         rpm_packages = []
+        repo_mapping = {}
 
         for item in items:
             if item.get("type") == "rpm":
                 rpm_packages.append(item["package"])
+                # Preserve repo_name if available
+                if "repo_name" in item:
+                    repo_mapping[item["package"]] = item["repo_name"]
             elif item.get("type") == "rpm_list":
                 rpm_packages.extend(item["package_list"])
+                # Preserve repo_mapping if available
+                if "repo_mapping" in item:
+                    repo_mapping.update(item["repo_mapping"])
             else:
                 transformed_items.append(item)
 
         if rpm_packages:
-            transformed_items.append({
+            rpm_task = {
                 "package": RPM_LABEL_TEMPLATE.format(key=sw_name),
                 "rpm_list": rpm_packages,
                 "type": "rpm"
-            })
+            }
+            # Add repo_mapping if we have any
+            if repo_mapping:
+                rpm_task["repo_mapping"] = repo_mapping
+            transformed_items.append(rpm_task)
 
         result[arch_val][sw_name] = transformed_items
         logger.info(f"Finished processing %s. Result: %s", sw_name, transformed_items)
