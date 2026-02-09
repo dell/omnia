@@ -14,8 +14,9 @@
 
 # These are the slurm options for version - 25.11
 import re
+import os
 from enum import Enum
-
+from collections import OrderedDict
 
 class SlurmParserEnum(str, Enum):
     """Enumeration of Slurm configuration parameter types for parsing and validation."""
@@ -545,6 +546,50 @@ all_confs = {
 _HOSTLIST_RE = re.compile(
     r'^(?P<prefix>[^\[\]]*)\[(?P<inner>[^\[\]]+)\](?P<suffix>.*)$')
 
+def get_invalid_keys(conf_dict, conf_name):
+    """Get invalid configuration keys by comparing against expected keys."""
+    current_conf = all_confs.get(conf_name, {})
+    # get difference between conf_dict keys and current_conf keys
+    diff = set(conf_dict.keys()).difference(set(current_conf.keys()))
+    return list(diff)
+
+def parse_slurm_conf(file_path, conf_name, validate):
+    """Parses the slurm.conf file and returns it as a dictionary."""
+    current_conf = all_confs.get(conf_name, {})
+    slurm_dict = OrderedDict()
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} not found.")
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            # handles any comment after the data
+            line = line.split('#')[0].strip()
+            if not line:
+                continue
+            # Split the line by one or more spaces
+            items = line.split()
+            tmp_dict = OrderedDict()
+            for item in items:
+                # Split only on the first '=' to allow '=' inside the value
+                key, value = item.split('=', 1)
+                tmp_dict[key.strip()] = value.strip()
+            skey = list(tmp_dict.keys())[0]
+            if validate and skey not in current_conf:
+                raise ValueError(f"Invalid key while parsing {file_path}: {skey}")
+            if current_conf.get(skey) == SlurmParserEnum.S_P_ARRAY:
+                slurm_dict[list(tmp_dict.keys())[0]] = list(
+                    slurm_dict.get(list(tmp_dict.keys())[0], [])) + [tmp_dict]
+            elif current_conf.get(skey) == SlurmParserEnum.S_P_CSV:
+                existing_values = [v.strip() for v in slurm_dict.get(skey, "").split(',') if v.strip()]
+                new_values = [v.strip() for v in tmp_dict[skey].split(',') if v.strip()]
+                slurm_dict[skey] = ",".join(list(dict.fromkeys(existing_values + new_values)))
+            elif current_conf.get(skey) == SlurmParserEnum.S_P_LIST:
+                slurm_dict[skey] = list(slurm_dict.get(skey, [])) + list(tmp_dict.values())
+            else:
+                slurm_dict.update(tmp_dict)
+
+    return slurm_dict
 
 def expand_hostlist(expr):
     """

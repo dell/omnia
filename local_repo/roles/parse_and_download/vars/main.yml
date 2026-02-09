@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ local_repo_config_path: "{{ project_input_path }}/local_repo_config.yml"
 sw_config_json_path: "{{ project_input_path }}/software_config.json"
 functional_groups_config_path: "{{ nfs_shared_path }}/.data/functional_groups_config.yml"
 user_json_file: "{{ project_input_path }}/software_config.json"
-user_reg_cred_input: "{{ project_input_path }}/user_registry_credential.yml"
-user_reg_key_path: "{{ project_input_path }}/.local_repo_credentials_key"
+# user_reg_cred_input: "{{ project_input_path }}/user_registry_credential.yml"
+# user_reg_key_path: "{{ project_input_path }}/.local_repo_credentials_key"
 omnia_credentials_yaml_path: "{{ project_input_path }}/omnia_config_credentials.yml"
 omnia_credentials_vault_path: "{{ project_input_path }}/.omnia_config_credentials_key"
 clean_rpms: true

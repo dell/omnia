@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -112,6 +112,22 @@ def validate_local_repo_config(input_file_path, data,
     errors = []
     base_repo_names = []
     local_repo_yml = create_file_path(input_file_path, file_names["local_repo_config"])
+    
+    user_registry = data.get("user_registry") 
+    if user_registry:
+        for registry in user_registry:
+            host = registry.get("host")
+            cert_path = registry.get("cert_path")
+            key_path = registry.get("key_path")
+            
+            # Validate user_registry certificate and key paths
+            if cert_path and not os.path.exists(cert_path):
+                errors.append(create_error_msg(local_repo_yml, "user_registry", 
+                                             f"Certificate file not found: {cert_path}"))
+            
+            if key_path and not os.path.exists(key_path):
+                errors.append(create_error_msg(local_repo_yml, "user_registry", 
+                                             f"Key file not found: {key_path}"))
     repo_names = {}
     sub_result = check_subscription_status(logger)
     logger.info(f"validate_local_repo_config: Subscription status: {sub_result}")

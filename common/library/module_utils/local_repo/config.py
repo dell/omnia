@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,8 +35,8 @@ USER_JSON_FILE_DEFAULT = ""
 DEFAULT_STATUS_FILENAME = "status.csv"
 STATUS_CSV_HEADER = 'name,type,status\n'
 SOFTWARE_CSV_HEADER = "name,status"
-USER_REG_CRED_INPUT = "/opt/omnia/input/project_default/user_registry_credential.yml"
-USER_REG_KEY_PATH = "/opt/omnia/input/project_default/.local_repo_credentials_key"
+# USER_REG_CRED_INPUT = "/opt/omnia/input/project_default/user_registry_credential.yml"
+# USER_REG_KEY_PATH = "/opt/omnia/input/project_default/.local_repo_credentials_key"
 # ----------------------------
 # Software tasklist Defaults
 # Used by prepare_tasklist.py
@@ -110,8 +110,10 @@ pulp_container_commands = {
 
     "create_container_remote_auth": "pulp container remote create --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --username %s --password '%s'",
 
-    "update_container_remote_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --username %s --password '%s'"
-
+    "update_container_remote_auth": "pulp container remote update --name %s --url %s --upstream-name %s --policy %s --include-tags '%s' --username %s --password '%s'",
+    "container_distribution_show": "pulp container distribution show --name %s | jq .repository",
+    "show_repository_version": "pulp container repository show --href %s | jq .latest_version_href",
+    "list_image_tags": "pulp show --href /pulp/api/v3/content/container/tags/?repository_version=%s"
 }
 OMNIA_CREDENTIALS_YAML_PATH = "/opt/omnia/input/project_default/omnia_config_credentials.yml"
 OMNIA_CREDENTIALS_VAULT_PATH = "/opt/omnia/input/project_default/.omnia_config_credentials_key"

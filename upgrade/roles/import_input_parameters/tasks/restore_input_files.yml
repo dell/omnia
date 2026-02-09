@@ -13,14 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Validate backup location for upgrade input processing
-  ansible.builtin.include_tasks: precheck_backup_location.yml
+- name: Validate restore_input_files is defined
+  ansible.builtin.set_fact:
+    restore_input_files_effective: "{{ restore_input_files | default([]) }}"
 
-- name: Transform network_spec.yml from Omnia 2.0 to 2.1
-  ansible.builtin.include_tasks: transform_network_spec.yml
-
-- name: Transform high_availability_config.yml from Omnia 2.0 to 2.1
-  ansible.builtin.include_tasks: transform_high_availability_config.yml
-
-- name: Restore input files from backup
-  ansible.builtin.include_tasks: restore_input_files.yml
+- name: Restore input files from backup (overwrite target)
+  ansible.builtin.include_tasks: restore_single_input_file.yml
+  loop: "{{ restore_input_files_effective }}"
+  loop_control:
+    loop_var: restore_item
+  when: (restore_input_files_effective | length) > 0

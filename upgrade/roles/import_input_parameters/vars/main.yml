@@ -12,3 +12,77 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+backup_location: /opt/omnia/backups/upgrade/input/project_default
+
+backup_dir_mode: '0755'
+default_file_mode: '0644'
+
+# Precheck backup location messages
+msg_backup_location_missing: "backup_location must be provided"
+
+# Restore input files messages
+msg_restore_item_name_missing: "restore_item must define 'name'"
+msg_validation_failed: "Validation failed for {{ restore_item.name }}"
+msg_backup_file_missing: "Backup file missing: {{ restore_item.name }}"
+
+# Network spec transformation messages
+msg_backup_network_spec_missing: "Backup network_spec.yml missing"
+msg_network_spec_missing: "network_spec.yml missing"
+msg_network_spec_already_21: "network_spec.yml already in 2.1 format - overwriting"
+msg_yaml_validation_failed: "YAML validation failed"
+msg_ib_netmask_mismatch: "ib_network.netmask_bits must match admin_network.netmask_bits"
+msg_ib_network_missing: "ib_network is mandatory"
+msg_ib_subnet_missing: "ib_network.subnet is mandatory"
+msg_using_backup_network_spec: "Using backup network_spec.yml (backup not modified)"
+
+# High availability config transformation messages
+msg_backup_ha_config_missing: "Backup high_availability_config.yml missing"
+msg_ha_config_missing: "high_availability_config.yml missing"
+msg_ha_config_already_21: "high_availability_config.yml already in 2.1 format - overwriting"
+msg_ha_virtual_ip_missing: "service_k8s_cluster_ha.virtual_ip_address is mandatory"
+msg_using_backup_ha_config: "Using backup high_availability_config.yml (backup not modified)"
+
+### Restore summary messages
+msg_restore_summary: |
+  {{ restore_item.name }} restored from backup.
+  Backup: {{ backup_location }}/{{ restore_item.name }}
+  Target: {{ input_project_dir }}/{{ restore_item.name }}
+
+# Restore summary message for network spec transformation
+msg_network_spec_transform_summary: |
+  network_spec.yml upgraded to 2.1 format.
+  Backup preserved at: {{ backup_location }}/network_spec.yml
+  Changes:
+  - Added mandatory ib_network
+  - Made primary_oim_bmc_ip optional
+  - Aligned ib_network.netmask_bits with admin_network.netmask_bits
+
+# Restore summary message for high availability config transformation
+msg_ha_config_transform_summary: |
+  high_availability_config.yml upgraded to 2.1 format.
+  Backup preserved at: {{ backup_location }}/high_availability_config.yml
+  Changes:
+  - Ensured service_k8s_cluster_ha is a list
+  - Ensured virtual_ip_address is present
+
+# === Input files to restore from backup ===
+# Add input files here that should be copied from backup_location to input_project_dir
+# Each entry should have:
+# - name: filename (required)
+# - mode: file permissions (optional, defaults to default_file_mode)
+# - validate_cmd: validation command (optional, runs after restore)
+#
+# Examples of files to add:
+# - Static configuration files that don't need transformation
+# - Files that are the same format in 2.0 and 2.1
+# - Files where you want to preserve the backup values exactly
+#
+# DO NOT add files that require transformation (network_spec.yml, high_availability_config.yml)
+restore_input_files:
+  - name: software_config.json
+    mode: '0644'
+    validate_cmd: "python3 -m json.tool '{{ input_project_dir }}/software_config.json'"
+  - name: pxe_mapping_file.csv
+    mode: '0644'
+    validate_cmd: ""

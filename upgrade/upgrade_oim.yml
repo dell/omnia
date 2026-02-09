@@ -17,4 +17,5 @@
   hosts: localhost
   connection: local
   roles:
+    - role: ../utils/roles/include_input_dir
     - role: upgrade_oim

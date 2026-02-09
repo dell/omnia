@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Initialize ctld_state dict
-  ansible.builtin.set_fact:
-    ctld_state: "{{ ctld_state | default({}) | combine({item: false}) }}"
-
 - name: Check if remote host is reachable via SSH
   ansible.builtin.wait_for:
     host: "{{ item }}"
@@ -24,38 +20,44 @@
     state: started
   delegate_to: localhost
   register: ssh_check
+  ignore_errors: true
 
-- name: Check if slurmctld is running on remote host
-  ansible.builtin.service_facts:
-  delegate_to: "{{ item }}"
-  register: service_facts
+- name: Block when ssh_check is success
   when: ssh_check is success
+  block:
+    - name: Initialize ctld_state dict
+      ansible.builtin.set_fact:
+        ctld_state: "{{ ctld_state | default({}) | combine({item: false}) }}"
 
-- name: Update ctld_state if slurmctld is running
-  ansible.builtin.set_fact:
-    ctld_state: "{{ ctld_state | combine({item: true}) }}"
-  when:
-    - ssh_check is success
-    - service_facts is success
-    - ansible_facts.services['slurmctld.service'] is defined
-    - ansible_facts.services['slurmctld.service'].state == 'running'
+    - name: Check if slurmctld is running on remote host
+      ansible.builtin.service_facts:
+      delegate_to: "{{ item }}"
+      register: service_facts
 
-- name: Update /etc/hosts with controller hostname and IP
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    regexp: '^{{ ip.value }}\s+{{ ip.key }}'
-    line: "{{ ip.value }} {{ ip.key }}"
-    state: present
-  loop: "{{ ip_name_map | dict2items }}"
-  loop_control:
-    loop_var: ip
-  delegate_to: "{{ item }}"
-  when: ssh_check is success
+    - name: Update ctld_state if slurmctld is running
+      ansible.builtin.set_fact:
+        ctld_state: "{{ ctld_state | combine({item: true}) }}"
+      when:
+        - service_facts is success
+        - ansible_facts.services['slurmctld.service'] is defined
+        - ansible_facts.services['slurmctld.service'].state == 'running'
 
-- name: Trigger the scontrol reconfigure
-  ansible.builtin.command: scontrol reconfigure
-  changed_when: scontrol_reconfig.rc == 0
-  failed_when: false
-  register: scontrol_reconfig
-  delegate_to: "{{ item }}"
-  when: ctld_state[item] is true
+    - name: Update /etc/hosts with controller hostname and IP
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^{{ ip.value }}\s+{{ ip.key }}'
+        line: "{{ ip.value }} {{ ip.key }}"
+        state: present
+      loop: "{{ ip_name_map | dict2items }}"
+      loop_control:
+        loop_var: ip
+      delegate_to: "{{ item }}"
+
+    - name: Trigger the scontrol reconfigure
+      ansible.builtin.command: scontrol reconfigure
+      changed_when: scontrol_reconfig.rc == 0
+      failed_when: false
+      register: scontrol_reconfig
+      delegate_to: "{{ item }}"
+      when:
+        - ctld_state[item] is true

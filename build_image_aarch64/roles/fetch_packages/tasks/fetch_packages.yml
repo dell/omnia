@@ -24,9 +24,9 @@
         software_config_path: "{{ software_config_file_path }}"
       register: base_image_output
 
-    - name: Set x86_64_base_image_packages
+    - name: Set aarch_64_base_image_packages
       ansible.builtin.set_fact:
-        x86_64_base_image_packages: "{{ base_image_output.base_image_packages }}"
+        aarch64_base_image_packages: "{{ base_image_output.base_image_packages }}"
 
     - name: Debug package aarch64_base_image_packages
       ansible.builtin.debug:

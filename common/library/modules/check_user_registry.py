@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,60 +27,60 @@ from ansible.module_utils.local_repo.registry_utils import (
     check_reachability,
     find_invalid_cert_paths
 )
-from ansible.module_utils.local_repo.config import (
-    USER_REG_CRED_INPUT,
-    USER_REG_KEY_PATH
-)
+# from ansible.module_utils.local_repo.config import (
+#     USER_REG_CRED_INPUT,
+#     USER_REG_KEY_PATH
+# )
 
 def main():
     """
     Ansible module to validate user registry entries.
-
-    This module loads a YAML configuration file, validates the user registry entries,
-    checks their reachability, and verifies the cert paths.
-
-    :return: A dictionary with the results of the validation and reachability checks.
     """
     module = AnsibleModule(
+        # argument_spec=dict(
+        #     timeout=dict(type='int', default=5),
+        #     config_file=dict(type='str', required=True),
+        #     user_reg_cred_input=dict(type='str', required=False, default=USER_REG_CRED_INPUT),
+        #     user_reg_key_path=dict(type='str', required=False, default=USER_REG_KEY_PATH)
+        # ),
         argument_spec=dict(
             timeout=dict(type='int', default=5),
-            config_file=dict(type='str', required=True),
-            user_reg_cred_input=dict(type='str', required=False, default=USER_REG_CRED_INPUT),
-            user_reg_key_path=dict(type='str', required=False, default=USER_REG_KEY_PATH)
+            config_file=dict(type='str', required=True)
         ),
         supports_check_mode=True
     )
 
+    # config_path = module.params['config_file']
+    # timeout = module.params['timeout']
+    # user_reg_cred_input = module.params["user_reg_cred_input"]
+    # user_reg_key_path = module.params["user_reg_key_path"]
+
     config_path = module.params['config_file']
     timeout = module.params['timeout']
-    user_reg_cred_input = module.params["user_reg_cred_input"]
-    user_reg_key_path = module.params["user_reg_key_path"]
-
     try:
         config_data = load_yaml_file(config_path)
     except FileNotFoundError as e:
         module.fail_json(msg=str(e))
 
     user_registry = get_repo_list(config_data, "user_registry")
+    # if user_registry:
+    #     # Load credentials
+    #     if is_encrypted(user_reg_cred_input):
+    #         process_file(user_reg_cred_input, user_reg_key_path, 'decrypt')
 
-    if user_registry:
-        # Load credentials
-        if is_encrypted(user_reg_cred_input):
-            process_file(user_reg_cred_input, user_reg_key_path, 'decrypt')
+    #     file2_data = load_yaml_file(user_reg_cred_input)
+    #     cred_lookup = {
+    #         entry['name']: entry
+    #         for entry in file2_data.get('user_registry_credential', [])
+    #     }
 
-        file2_data = load_yaml_file(user_reg_cred_input)
-        cred_lookup = {
-            entry['name']: entry
-            for entry in file2_data.get('user_registry_credential', [])
-        }
-
-        # Update user_registry entries with credentials if required
-        for registry in user_registry:
-            if registry.get("requires_auth"):
-                creds = cred_lookup.get(registry.get("name"))
-                if creds:
-                    registry["username"] = creds.get("username")
-                    registry["password"] = creds.get("password")
+    #     # Update user_registry entries with credentials if required
+    #     for registry in user_registry:
+    #         if registry.get("requires_auth"):
+    #             creds = cred_lookup.get(registry.get("name"))
+    #             if creds:
+    #                 registry["username"] = creds.get("username")
+    #                 registry["password"] = creds.get("password")
 
     # Exit early if user_registry is empty
     if not user_registry:

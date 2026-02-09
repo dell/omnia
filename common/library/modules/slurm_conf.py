@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+from collections import OrderedDict
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.input_validation.common_utils.slurm_conf_utils import (
+    SlurmParserEnum,
+    all_confs,
+    parse_slurm_conf
+)
+
 DOCUMENTATION = r'''
 ---
 module: slurm_conf
@@ -134,12 +143,6 @@ ini_lines:
 #   - Hostlist expressions, split and merge computations
 
 
-from collections import OrderedDict
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.input_validation.common_utils.slurm_conf_utils import SlurmParserEnum, all_confs
-import os
-
-
 def read_dict2ini(conf_dict):
     """Convert a configuration dictionary to INI-style lines for slurm.conf."""
     data = []
@@ -147,7 +150,6 @@ def read_dict2ini(conf_dict):
         if isinstance(v, list):
             for dct_item in v:
                 if isinstance(dct_item, dict):
-                    # TODO: Ordered dict, move the key to the top
                     od = OrderedDict(dct_item)
                     od.move_to_end(k, last=False)  # Move k to the beginning
                     data.append(
@@ -157,45 +159,6 @@ def read_dict2ini(conf_dict):
         else:
             data.append(f"{k}={v}")
     return data
-
-
-def parse_slurm_conf(file_path, conf_name, validate):
-    """Parses the slurm.conf file and returns it as a dictionary."""
-    current_conf = all_confs.get(conf_name, {})
-    slurm_dict = OrderedDict()
-
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"{file_path} not found.")
-
-    with open(file_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            # handles any comment after the data
-            line = line.split('#')[0].strip()
-            if not line:
-                continue
-            # Split the line by one or more spaces
-            items = line.split()
-            tmp_dict = OrderedDict()
-            for item in items:
-                # Split only on the first '=' to allow '=' inside the value
-                key, value = item.split('=', 1)
-                tmp_dict[key.strip()] = value.strip()
-            skey = list(tmp_dict.keys())[0]
-            if validate and skey not in current_conf:
-                raise ValueError(f"Invalid key while parsing {file_path}: {skey}")
-            if current_conf.get(skey) == SlurmParserEnum.S_P_ARRAY:
-                slurm_dict[list(tmp_dict.keys())[0]] = list(
-                    slurm_dict.get(list(tmp_dict.keys())[0], [])) + [tmp_dict]
-            elif current_conf.get(skey) == SlurmParserEnum.S_P_CSV:
-                existing_values = [v.strip() for v in slurm_dict.get(skey, "").split(',') if v.strip()]
-                new_values = [v.strip() for v in tmp_dict[skey].split(',') if v.strip()]
-                slurm_dict[skey] = ",".join(list(dict.fromkeys(existing_values + new_values)))
-            elif current_conf.get(skey) == SlurmParserEnum.S_P_LIST:
-                slurm_dict[skey] = list(slurm_dict.get(skey, [])) + list(tmp_dict.values())
-            else:
-                slurm_dict.update(tmp_dict)
-
-    return slurm_dict
 
 
 def slurm_conf_dict_merge(conf_dict_list, conf_name):
