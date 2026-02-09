@@ -198,14 +198,19 @@ def main():
     status_bool = all(vstatus)
     status_str = "completed" if status_bool else "failed"
 
-    message = [f"Input validation {status_str} for: {project_name} input configuration(s).",
-               f"Tag(s) run: {tag_names}. ",
-               f"Look at the logs for more details: filename={log_file_name}"]
+    message = f"Input validation {status_str} for: {project_name} input configuration(s).\n" \
+              f"Tag(s) run: {tag_names}.\n" \
+              f"Look at the logs for more details: filename={log_file_name}"
+
+    # Format error messages with proper line breaks for readability
+    formatted_errors = []
+    if error_bucket:
+        formatted_errors = [str(error) for error in error_bucket]
 
     module.exit_json(failed=not status_bool,
         error_msg=message,
         log_file=log_file_name,
-        errors=error_bucket,
+        errors=formatted_errors,
         valid_files=list(set(validation_status['Passed'])),
         invalid_files=list(set(validation_status['Failed'])),
         tags=tag_names
