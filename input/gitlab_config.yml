@@ -1,0 +1,96 @@
+# ============================================================================
+# GitLab Configuration for Omnia CI/CD Integration
+# ============================================================================
+# This file contains all user inputs required for GitLab deployment and
+# integration with Omnia Infrastructure Manager (OIM).
+#
+# Two deployment modes are supported:
+#   1. hosted      - Deploy GitLab CE container via Podman (fresh install)
+#   2. existing    - Integrate with an already configured GitLab instance
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# DEPLOYMENT MODE
+# ----------------------------------------------------------------------------
+# Options: "hosted" or "existing"
+#   - hosted:   Omnia deploys GitLab CE container on specified host
+#   - existing: Use an already configured GitLab instance
+gitlab_deployment_mode: "hosted"
+
+# ----------------------------------------------------------------------------
+# COMMON SETTINGS (used by both modes)
+# ----------------------------------------------------------------------------
+gitlab_project_name: "omnia-software-catalog"
+gitlab_project_visibility: "private"
+gitlab_default_branch: "main"
+
+# OIM API Server Configuration
+oim_api_url: "https://oim.example.com/api/v1"
+oim_api_verify_ssl: true
+
+# ----------------------------------------------------------------------------
+# HOSTED MODE SETTINGS (GitLab CE Container Deployment)
+# ----------------------------------------------------------------------------
+gitlab_host: "100.10.0.83"
+gitlab_hostname: "gitlab.omnia.dev"
+
+# Network
+gitlab_http_port: 80
+gitlab_https_port: 443
+gitlab_ssh_port: 2424
+gitlab_use_https: false
+
+# Container
+gitlab_container_image: "docker.io/gitlab/gitlab-ce:latest"
+gitlab_shm_size: "512m"
+gitlab_ulimit_nofile: "65535:65535"
+gitlab_ulimit_nproc: "65535:65535"
+
+# Storage paths
+gitlab_config_path: "/srv/gitlab/config"
+gitlab_logs_path: "/srv/gitlab/logs"
+gitlab_data_path: "/srv/gitlab/data"
+
+# Minimum requirements
+gitlab_min_storage_gb: 20
+gitlab_min_memory_gb: 4
+gitlab_min_cpu_cores: 2
+
+# Performance tuning
+gitlab_disable_prometheus: true
+gitlab_disable_grafana: true
+gitlab_puma_workers: 2
+gitlab_sidekiq_concurrency: 10
+
+# ----------------------------------------------------------------------------
+# EXISTING MODE SETTINGS (Client-Hosted GitLab Integration)
+# ----------------------------------------------------------------------------
+gitlab_external_url: "http://gitlab.example.com"
+gitlab_api_token: ""
+gitlab_namespace: "root"
+
+# ----------------------------------------------------------------------------
+# PIPELINE TRIGGER CONFIGURATION
+# ----------------------------------------------------------------------------
+gitlab_trigger_description: "Omnia Software Catalog Webhook"
+software_catalog_file: "software_catalog.json"
+
+# ----------------------------------------------------------------------------
+# OIM API ENDPOINTS
+# ----------------------------------------------------------------------------
+oim_api_endpoints:
+  register: "/auth/register"
+  token: "/auth/token"
+  parse_catalog: "/catalog/parse"
+  generate_inputs: "/catalog/generate-inputs"
+  create_repo: "/repo/create"
+  update_repo: "/repo/update"
+  build_images: "/images/build"
+  validate_images: "/images/validate"
+  deploy_images: "/deployments/deploy"
+  run_discovery: "/deployments/run-discovery"
+  run_tests: "/tests/run"
+
+# Retry configuration
+api_retry_attempts: 3
+api_retry_delay_sec: 30

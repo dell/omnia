@@ -1,0 +1,32 @@
+# Canonical catalog file used for pipeline change detection
+metadata:
+  version: "1.0.0"
+  last_updated: "2026-02-05T10:00:00Z"
+  source: "https://api.example.com/catalog"
+  description: "Sample catalog used to demonstrate the GitLab CI/CD flow"
+
+items:
+  - name: nginx
+    version: "1.24.0"
+    action: install
+    parameters:
+      config_profile: hardened
+
+  - name: postgresql
+    version: "16.0"
+    action: install
+    parameters:
+      storage_class: fast-ssd
+      replicas: 2
+
+  - name: redis
+    version: "7.2"
+    action: configure
+    parameters:
+      ha_mode: true
+      eviction_policy: volatile-lru
+
+settings:
+  environment: production
+  region: us-east-1
+  approvals_required: true

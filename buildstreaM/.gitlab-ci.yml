@@ -1,0 +1,14 @@
+stages:
+  - process
+
+process_catalog:
+  stage: process
+  script:
+    - echo "Pipeline running"
+    - echo "Commit $CI_COMMIT_SHA"
+    - cat catalog.yml
+  rules:
+    - changes:
+        - catalog.yml
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+

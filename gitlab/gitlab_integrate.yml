@@ -1,0 +1,368 @@
+---
+# ============================================================================
+# GitLab Integration Playbook (Existing GitLab)
+# ============================================================================
+# Integrates with an already configured GitLab instance.
+# Creates project, pipeline trigger, and pushes CI/CD files.
+# Reads configuration from: omnia/input/gitlab_config.yml
+# ============================================================================
+
+- name: Integrate with Existing GitLab Instance
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - ../input/gitlab_config.yml
+
+  pre_tasks:
+    - name: Validate deployment mode
+      ansible.builtin.assert:
+        that:
+          - gitlab_deployment_mode == "existing"
+        fail_msg: "This playbook is for existing mode. Set gitlab_deployment_mode: existing"
+
+    - name: Validate required inputs
+      ansible.builtin.assert:
+        that:
+          - gitlab_external_url is defined and gitlab_external_url != ""
+          - gitlab_api_token is defined and gitlab_api_token != ""
+        fail_msg: "gitlab_external_url and gitlab_api_token are required for existing mode"
+
+  tasks:
+    # ========================================================================
+    # STAGE 1: Validate GitLab Connectivity
+    # ========================================================================
+    - name: "[Connectivity] Test GitLab API"
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url }}/api/v4/version"
+        method: GET
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_api_token }}"
+        status_code: 200
+        validate_certs: "{{ oim_api_verify_ssl | default(false) }}"
+      register: gitlab_version
+
+    - name: "[Connectivity] Display GitLab version"
+      ansible.builtin.debug:
+        msg: "Connected to GitLab version: {{ gitlab_version.json.version }}"
+
+    # ========================================================================
+    # STAGE 2: Check/Create Project
+    # ========================================================================
+    - name: "[Project] Search for existing project"
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url }}/api/v4/projects?search={{ gitlab_project_name }}"
+        method: GET
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_api_token }}"
+        status_code: 200
+        validate_certs: false
+      register: project_search
+
+    - name: "[Project] Set project exists flag"
+      ansible.builtin.set_fact:
+        project_exists: "{{ project_search.json | selectattr('name', 'equalto', gitlab_project_name) | list | length > 0 }}"
+        existing_project: "{{ project_search.json | selectattr('name', 'equalto', gitlab_project_name) | list | first | default({}) }}"
+
+    - name: "[Project] Create new project"
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url }}/api/v4/projects"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_api_token }}"
+        body_format: json
+        body:
+          name: "{{ gitlab_project_name }}"
+          visibility: "{{ gitlab_project_visibility }}"
+          initialize_with_readme: true
+        status_code: [200, 201]
+        validate_certs: false
+      register: new_project
+      when: not project_exists
+
+    - name: "[Project] Set project ID"
+      ansible.builtin.set_fact:
+        gitlab_project_id: "{{ new_project.json.id if not project_exists else existing_project.id }}"
+
+    - name: "[Project] Display project info"
+      ansible.builtin.debug:
+        msg: "Project '{{ gitlab_project_name }}' ID: {{ gitlab_project_id }}"
+
+    # ========================================================================
+    # STAGE 3: Create Pipeline Trigger
+    # ========================================================================
+    - name: "[Trigger] Get existing triggers"
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url }}/api/v4/projects/{{ gitlab_project_id }}/triggers"
+        method: GET
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_api_token }}"
+        status_code: 200
+        validate_certs: false
+      register: existing_triggers
+
+    - name: "[Trigger] Check if trigger exists"
+      ansible.builtin.set_fact:
+        trigger_exists: "{{ existing_triggers.json | selectattr('description', 'equalto', gitlab_trigger_description) | list | length > 0 }}"
+        existing_trigger: "{{ existing_triggers.json | selectattr('description', 'equalto', gitlab_trigger_description) | list | first | default({}) }}"
+
+    - name: "[Trigger] Create pipeline trigger"
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url }}/api/v4/projects/{{ gitlab_project_id }}/triggers"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_api_token }}"
+        body_format: json
+        body:
+          description: "{{ gitlab_trigger_description }}"
+        status_code: [200, 201]
+        validate_certs: false
+      register: new_trigger
+      when: not trigger_exists
+
+    - name: "[Trigger] Set trigger token"
+      ansible.builtin.set_fact:
+        gitlab_trigger_token: "{{ new_trigger.json.token if not trigger_exists else existing_trigger.token }}"
+
+    # ========================================================================
+    # STAGE 4: Push CI/CD Files to Repository
+    # ========================================================================
+    - name: "[Files] Create .gitlab-ci.yml content"
+      ansible.builtin.set_fact:
+        gitlab_ci_content: |
+          # ============================================================================
+          # Omnia Software Catalog CI/CD Pipeline
+          # ============================================================================
+          # Triggered when software_catalog.json changes
+          # Calls OIM APIs to build, validate, and deploy images
+          # ============================================================================
+
+          stages:
+            - prerequisites
+            - parse
+            - generate
+            - repository
+            - build
+            - validate
+            - deploy
+            - test
+
+          variables:
+            OIM_API_URL: "{{ oim_api_url }}"
+
+          # ----------------------------------------------------------------------------
+          # Stage 1: Prerequisites - Validate connectivity
+          # ----------------------------------------------------------------------------
+          prerequisites:
+            stage: prerequisites
+            script:
+              - echo "Validating OIM API connectivity..."
+              - |
+                curl -sf "${OIM_API_URL}/health" || {
+                  echo "ERROR: Cannot reach OIM API at ${OIM_API_URL}"
+                  exit 1
+                }
+              - echo "OIM API is reachable"
+            rules:
+              - if: $CI_PIPELINE_SOURCE == "trigger"
+              - changes:
+                  - {{ software_catalog_file }}
+
+          # ----------------------------------------------------------------------------
+          # Stage 2: Parse Catalog
+          # ----------------------------------------------------------------------------
+          parse_catalog:
+            stage: parse
+            script:
+              - echo "Parsing software catalog for JOBID: $JOBID"
+              - |
+                RESPONSE=$(curl -sf -X POST \
+                  -H "Authorization: Bearer $OIM_TOKEN" \
+                  -H "Content-Type: application/json" \
+                  -d @{{ software_catalog_file }} \
+                  "${OIM_API_URL}{{ oim_api_endpoints.parse_catalog }}")
+              - echo "$RESPONSE" > parse_result.json
+              - export JOB_ID=$(echo "$RESPONSE" | jq -r '.jobId')
+              - echo "JOB_ID=$JOB_ID" >> job.env
+            artifacts:
+              paths:
+                - parse_result.json
+              reports:
+                dotenv: job.env
+            rules:
+              - if: $CI_PIPELINE_SOURCE == "trigger"
+              - changes:
+                  - {{ software_catalog_file }}
+
+          # ----------------------------------------------------------------------------
+          # Stage 3: Generate Input Files
+          # ----------------------------------------------------------------------------
+          generate_inputs:
+            stage: generate
+            script:
+              - echo "Generating Omnia input files for JOB_ID: $JOB_ID"
+              - |
+                curl -sf -X POST \
+                  -H "Authorization: Bearer $OIM_TOKEN" \
+                  "${OIM_API_URL}{{ oim_api_endpoints.generate_inputs }}?jobId=$JOB_ID"
+            needs:
+              - parse_catalog
+            rules:
+              - if: $CI_PIPELINE_SOURCE == "trigger"
+              - changes:
+                  - {{ software_catalog_file }}
+
+          # ----------------------------------------------------------------------------
+          # Stage 4: Update Local Repository
+          # ----------------------------------------------------------------------------
+          update_repository:
+            stage: repository
+            script:
+              - echo "Creating/updating local package repository..."
+              - |
+                curl -sf -X POST \
+                  -H "Authorization: Bearer $OIM_TOKEN" \
+                  "${OIM_API_URL}{{ oim_api_endpoints.create_repo }}?jobId=$JOB_ID"
+              - |
+                curl -sf -X POST \
+                  -H "Authorization: Bearer $OIM_TOKEN" \
+                  "${OIM_API_URL}{{ oim_api_endpoints.update_repo }}?jobId=$JOB_ID"
+            needs:
+              - generate_inputs
+            rules:
+              - if: $CI_PIPELINE_SOURCE == "trigger"
+              - changes:
+                  - {{ software_catalog_file }}
+
+          # ----------------------------------------------------------------------------
+          # Stage 5: Build Images
+          # ----------------------------------------------------------------------------
+          build_images:
+            stage: build
+            script:
+              - echo "Building stateless images..."
+              - |
+                curl -sf -X POST \
+                  -H "Authorization: Bearer $OIM_TOKEN" \
+                  "${OIM_API_URL}{{ oim_api_endpoints.build_images }}?jobId=$JOB_ID"
+            needs:
+              - update_repository
+            rules:
+              - if: $CI_PIPELINE_SOURCE == "trigger"
+              - changes:
+                  - {{ software_catalog_file }}
+
+          # ----------------------------------------------------------------------------
+          # Stage 6: Validate Images
+          # ----------------------------------------------------------------------------
+          validate_images:
+            stage: validate
+            script:
+              - echo "Validating built images..."
+              - |
+                curl -sf -X POST \
+                  -H "Authorization: Bearer $OIM_TOKEN" \
+                  "${OIM_API_URL}{{ oim_api_endpoints.validate_images }}?jobId=$JOB_ID"
+            needs:
+              - build_images
+            rules:
+              - if: $CI_PIPELINE_SOURCE == "trigger"
+              - changes:
+                  - {{ software_catalog_file }}
+
+          # ----------------------------------------------------------------------------
+          # Stage 7: Deploy to TestBed
+          # ----------------------------------------------------------------------------
+          deploy_testbed:
+            stage: deploy
+            script:
+              - echo "Deploying images to testbed..."
+              - |
+                curl -sf -X POST \
+                  -H "Authorization: Bearer $OIM_TOKEN" \
+                  "${OIM_API_URL}{{ oim_api_endpoints.deploy_images }}?jobId=$JOB_ID"
+              - |
+                curl -sf -X POST \
+                  -H "Authorization: Bearer $OIM_TOKEN" \
+                  "${OIM_API_URL}{{ oim_api_endpoints.run_discovery }}?jobId=$JOB_ID"
+            needs:
+              - validate_images
+            rules:
+              - if: $CI_PIPELINE_SOURCE == "trigger"
+              - changes:
+                  - {{ software_catalog_file }}
+
+          # ----------------------------------------------------------------------------
+          # Stage 8: Run Tests
+          # ----------------------------------------------------------------------------
+          run_tests:
+            stage: test
+            script:
+              - echo "Running test suites..."
+              - |
+                curl -sf -X POST \
+                  -H "Authorization: Bearer $OIM_TOKEN" \
+                  "${OIM_API_URL}{{ oim_api_endpoints.run_tests }}?jobId=$JOB_ID"
+            needs:
+              - deploy_testbed
+            rules:
+              - if: $CI_PIPELINE_SOURCE == "trigger"
+              - changes:
+                  - {{ software_catalog_file }}
+
+    - name: "[Files] Push .gitlab-ci.yml to repository"
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_api_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          content: "{{ gitlab_ci_content }}"
+          commit_message: "Add Omnia CI/CD pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      register: push_ci_file
+      ignore_errors: true
+
+    - name: "[Files] Update .gitlab-ci.yml if exists"
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_api_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          content: "{{ gitlab_ci_content }}"
+          commit_message: "Update Omnia CI/CD pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      when: push_ci_file is failed
+
+    # ========================================================================
+    # STAGE 5: Display Summary
+    # ========================================================================
+    - name: "[Summary] Display integration information"
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "   GitLab Integration Complete!            "
+          - "============================================"
+          - ""
+          - "GitLab URL:     {{ gitlab_external_url }}"
+          - "Project Name:   {{ gitlab_project_name }}"
+          - "Project ID:     {{ gitlab_project_id }}"
+          - "Trigger Token:  {{ gitlab_trigger_token }}"
+          - ""
+          - "Webhook URL:"
+          - "{{ gitlab_external_url }}/api/v4/projects/{{ gitlab_project_id }}/trigger/pipeline"
+          - ""
+          - "Test Command:"
+          - "curl -X POST -F 'token={{ gitlab_trigger_token }}' -F 'ref={{ gitlab_default_branch }}' -F 'variables[JOBID]=test123' '{{ gitlab_external_url }}/api/v4/projects/{{ gitlab_project_id }}/trigger/pipeline'"
+          - ""
+          - "Next Steps:"
+          - "1. Add software_catalog.json to the repository"
+          - "2. Configure OIM_TOKEN as CI/CD variable in GitLab"
+          - "3. Commit changes to software_catalog.json to trigger pipeline"
+          - "============================================"
