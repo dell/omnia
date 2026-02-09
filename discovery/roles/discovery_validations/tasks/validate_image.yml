@@ -17,10 +17,16 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ item }}"
 
+- name: Normalize build stream inputs
+  ansible.builtin.set_fact:
+    enable_build_stream: "{{ enable_build_stream | default(hostvars['localhost']['enable_build_stream'] | default(false)) }}"
+    build_stream_job_id: "{{ build_stream_job_id | default(hostvars['localhost']['build_stream_job_id'] | default('')) }}"
+
 - name: Verify image, kernel and initramfs in S3
   ansible.builtin.shell: |
     set -o pipefail && \
-    s3cmd ls -Hr s3://boot-images | grep {{ functional_group_name }} | \
+    s3cmd ls -Hr s3://boot-images | \
+    grep {{ functional_group_name }}{% if enable_build_stream and (build_stream_job_id | default('') != '') %}-{{ build_stream_job_id }}{% endif %} | \
     grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false

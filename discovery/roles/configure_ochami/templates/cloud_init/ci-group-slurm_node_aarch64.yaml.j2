@@ -96,7 +96,7 @@
             else
                 echo "[INFO] Mounting NFS runfile directory for driver installation..."
                 mkdir -p /gpu-runfile
-                mount -t nfs {{ cloud_init_nfs_path }}/runfile /gpu-runfile
+                mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/runfile /gpu-runfile
 
                 if [ $? -ne 0 ]; then
                     echo "[ERROR] Failed to mount NFS runfile share. Exiting."
@@ -237,16 +237,17 @@
             echo "[INFO] ===== Starting directory creation and NFS mounts for Pulp cert, Slurm and Munge (aarch64) ====="
 
             echo "[INFO] Creating base directories for Slurm and Munge"
-            mkdir -pv /var/log/slurm /var/run/slurm /var/spool /var/lib/slurm /etc/slurm/epilog.d /etc/munge /cert /var/log/track /var/lib/packages
+            mkdir -pv /var/log/slurm /var/run/slurm /var/spool /var/lib/slurm /etc/slurm/epilog.d /etc/munge /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
 
             echo "[INFO] Updating /etc/fstab with NFS entries for Pulp cert, Slurm and Munge paths"
-            echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  /var/log/slurm   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool      /var/spool       nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool      /var/spool       nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ cloud_init_nfs_path}}/hpc_tools/container_images  /hpc_tools/container_images   nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ cloud_init_nfs_path}}/hpc_tools/scripts  /hpc_tools/scripts   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
 
@@ -254,6 +255,8 @@
 
             echo "[INFO] Mounting all NFS entries from /etc/fstab"
             mount -av
+            mkdir -p /etc/containers/registries.conf.d
+            mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
 
             echo "[INFO] ===== Completed directory creation and NFS mounts for Slurm and Munge (aarch64) ====="
 
@@ -388,6 +391,11 @@
           permissions: '{{ file_mode_755 }}'
           content: |
             {{ lookup('template', 'templates/slurm/check_slurm_controller_status.sh.j2') | indent(12) }}
+
+        - path: /tmp/apptainer_mirror.conf
+          permissions: '0644'
+          content: |
+            {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
 
       runcmd:
         - /usr/local/bin/set-ssh.sh

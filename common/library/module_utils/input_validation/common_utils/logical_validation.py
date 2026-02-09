@@ -23,6 +23,7 @@ from ansible.module_utils.input_validation.validation_flows import provision_val
 from ansible.module_utils.input_validation.validation_flows import common_validation
 from ansible.module_utils.input_validation.validation_flows import high_availability_validation
 from ansible.module_utils.input_validation.validation_flows import local_repo_validation
+from ansible.module_utils.input_validation.validation_flows import build_stream_validation
 
 
 # L2 Validation Code - validate anything that could not have been validated with JSON schema
@@ -65,6 +66,7 @@ def validate_input_logic(
         "high_availability_config.yml":
             high_availability_validation.validate_high_availability_config,
         "additional_software.json": common_validation.validate_additional_software,
+        "build_stream_config.yml": build_stream_validation.validate_build_stream_config,
     }
 
     path_parts = input_file_path.split("/")

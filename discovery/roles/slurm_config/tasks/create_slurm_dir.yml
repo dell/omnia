@@ -67,6 +67,18 @@
   ansible.builtin.include_tasks: openldap_config.yml
   when: hostvars['localhost']['openldap_support']
 
+- name: Create slurm group
+  ansible.builtin.group:
+    name: "{{ slurm_user_group }}"
+    gid: "{{ slurm_uid }}"
+
+- name: Create slurm User
+  ansible.builtin.user:
+    name: "{{ slurm_user }}"
+    uid: "{{ slurm_uid }}"
+    group: "{{ slurm_user_group }}"
+    create_home: false
+
 - name: Set facts for slurm
   ansible.builtin.set_fact:
     share_prefix: "{{ slurm_config_path }}"
@@ -96,25 +108,15 @@
     group: root
     mode: "{{ common_mode }}"
 
-- name: Create the slurm ctld directory on share
-  ansible.builtin.file:
-    path: "{{ slurm_config_path }}/{{ item[0] }}{{ item[1] }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "{{ common_mode }}"
-  when: ctld_list
-  loop: "{{ ctld_list | product(ctld_dir) }}"
-
-- name: Create the slurm cmpt directory on share
-  ansible.builtin.file:
-    path: "{{ slurm_config_path }}/{{ item[0] }}{{ item[1] }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "{{ common_mode }}"
-  when: cmpt_list or login_list or compiler_login_list
-  loop: "{{ (cmpt_list + login_list + compiler_login_list) | product(cmpt_dir) }}"
+- name: Create all common directories
+  ansible.builtin.include_tasks: exist_dir.yml
+  loop:
+    - "{{ (ctld_list + cmpt_list + login_list + compiler_login_list) | product(common_dir) }}"
+    - "{{ ctld_list | product(ctld_dir) }}"
+    - "{{ dbd_list | product(db_dir) }}"
+    - "{{ cmpt_list | product(cmpt_dir) }}"
+  loop_control:
+    loop_var: product
 
 - name: Create the cert directory on share
   ansible.builtin.file:
@@ -131,8 +133,8 @@
     mode: "{{ file_mode }}"
   become: true
 
-- name: Create cuda dirs
-  ansible.builtin.include_tasks: cuda.yml
+- name: Create hpc tools dirs
+  ansible.builtin.include_tasks: hpc_tools.yml
 
 - name: Check if munge key exists top level
   ansible.builtin.stat:
@@ -179,11 +181,11 @@
     dest: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/epilog.d/{{ item.1 }}"
     owner: "{{ root_user }}"
     group: "{{ root_group }}"
-    mode: "{{ conf_file_mode }}"
+    mode: "{{ common_mode }}"
   when: cmpt_list
   loop: "{{ cmpt_list | product(['logout_user.sh', 'slurmd.service']) }}"
 
-- name: Create slurmd.service in login and login_compiler
+- name: Create logout_user.sh and slurmd.service in login and login_compiler
   ansible.builtin.template:
     src: "{{ item.1 }}.j2"
     dest: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/epilog.d/{{ item.1 }}"

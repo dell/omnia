@@ -95,7 +95,7 @@
 
             echo "[INFO] Mounting NFS runfile directory for CUDA toolkit..."
             mkdir -p /cuda-runfile
-            mount -t nfs {{ cloud_init_nfs_path }}/runfile /cuda-runfile
+            mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/runfile /cuda-runfile
 
             if [ $? -ne 0 ]; then
                 echo "[ERROR] Failed to mount NFS runfile share. Exiting."
@@ -151,13 +151,22 @@
                 echo "[ERROR] CUDA toolkit (nvcc) not found after installation."
             fi
 
+            echo "[INFO] Setting up shared CUDA directory for compute nodes..."
+            # Create shared directory for compute nodes to mount
+            mkdir -p /shared-cuda-toolkit
+            # Mount the shared NFS location where compute nodes will access the toolkit
+            mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/cuda/ /shared-cuda-toolkit
+
+            echo "[INFO] Copying CUDA toolkit to shared location..."
+            # Copy the installed CUDA toolkit to the shared location for compute nodes
+            #rsync -av /usr/local/cuda/ /shared-cuda-toolkit/ --exclude='*.a' --exclude='doc/'
+            cp -r /usr/local/cuda/* /shared-cuda-toolkit/ 2>/dev/null || true
+
             echo "[INFO] Cleaning up temporary mounts..."
             umount /cuda-runfile 2>/dev/null
             rmdir /cuda-runfile 2>/dev/null
 
             echo "===== CUDA Toolkit installation completed ====="
-
-
 
 {% if hostvars['localhost']['openldap_support'] %}
         - path: /etc/sssd/sssd.conf
@@ -194,21 +203,25 @@
           content: |
             {{ lookup('template', 'templates/slurm/check_slurm_controller_status.sh.j2') | indent(12) }}
 
+        - path: /tmp/apptainer_mirror.conf
+          permissions: '0644'
+          content: |
+            {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
+
       runcmd:
         - /usr/local/bin/set-ssh.sh
         - /usr/local/bin/install_cuda_toolkit.sh
 
         # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
         - mkdir -p {{ client_mount_path }}/slurm/ssh 
-        - mkdir -p /var/log/slurm /var/run/slurm /var/spool /var/lib/slurm /etc/slurm/epilog.d /etc/munge /cert /var/log/track /var/lib/packages
-
-        - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - mkdir -p /var/log/slurm /var/run/slurm /var/spool /var/lib/slurm /etc/slurm/epilog.d /etc/munge /cert /var/log/track /var/lib/packages /hpc_tools
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  /var/log/slurm   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool      /var/spool       nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool      /var/spool       nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path}}/hpc_tools  /hpc_tools   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -250,6 +263,8 @@
         - systemctl restart sshd
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
+        - mkdir -p /etc/containers/registries.conf.d
+        - mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
 
 {% if hostvars['localhost']['openldap_support'] %}
         - /usr/local/bin/update_ldap_conf.sh

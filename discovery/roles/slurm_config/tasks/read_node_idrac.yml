@@ -72,7 +72,7 @@
 
 - name: Calculate proc facts
   ansible.builtin.set_fact:
-    proc_params: "{{ {} | combine({'Sockets': (1 if (cpus | length == 0) else (cpus | length))})
+    proc_params: "{{ {'NodeName': item} | combine({'Sockets': (1 if (cpus | length == 0) else (cpus | length))})
      | combine({'CoresPerSocket': (cpus[0].TotalEnabledCores | default(default_corespersocket))})
      | combine({'ThreadsPerCore': ((cpus[0].TotalThreads | default(default_threadspercore)) // (cpus[0].TotalCores | default(1)))})
      | combine({'RealMemory': real_memory | default(default_real_memory) })
@@ -84,5 +84,5 @@
 
 - name: Add to Nodeparam dict
   ansible.builtin.set_fact:
-    node_params: "{{ node_params | default({}) | combine({item: proc_params}) }}"
+    node_params: "{{ (node_params | default([])) + [proc_params] }}"
     gpu_params: "{{ gpu_params | default({}) | combine({item: gpus} if gpus else {}) }}"

@@ -1,7 +1,22 @@
 ---
-kernel: 'http://{{ cluster_boot_ip }}:9000/{{ kernel }}'
-initrd: 'http://{{ cluster_boot_ip }}:9000/{{ initrd }}'
-params: 'nomodeset ro root=live:http://{{ cluster_boot_ip }}:9000/boot-images/{{ functional_group_name }}/rhel-{{ functional_group_name }}/rhel{{ hostvars['localhost']['cluster_os_version'] }}-rhel-{{ functional_group_name }}-{{ hostvars['localhost']['cluster_os_version'] }} {{ bss_params_opts }} {{ bss_params_cloud_init }}'
+kernel: "http://{{ cluster_boot_ip }}:9000/{{ kernel }}"
+initrd: "http://{{ cluster_boot_ip }}:9000/{{ initrd }}"
+{% set bs_suffix = "-" + build_stream_job_id
+   if enable_build_stream | default(false)
+   and (build_stream_job_id | default('')) != ''
+   else "" %}
+{% set root_image_path =
+  "boot-images/%s/rhel-%s%s/rhel%s-rhel-%s%s-%s" % (
+    functional_group_name,
+    functional_group_name,
+    bs_suffix,
+    hostvars['localhost']['cluster_os_version'],
+    functional_group_name,
+    bs_suffix,
+    hostvars['localhost']['cluster_os_version']
+  )
+%}
+params: "nomodeset ro root=live:http://{{ cluster_boot_ip }}:9000/{{ root_image_path }} ip=dhcp rd.live.image rd.live.ram rd.neednet=1 rd.driver.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas modprobe.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas libata.force=1:disable,2:disable,3:disable,4:disable rd.luks=0 rd.md=0 rd.dm=0 console=tty0 console=ttyS0,115200 selinux=0 apparmor=0 ip6=off {{ bss_params_cloud_init }}"
 macs:
 {% for item in nodes %}
 {% if item.group == functional_group_name %}

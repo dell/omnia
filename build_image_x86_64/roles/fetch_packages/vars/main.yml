@@ -19,7 +19,7 @@ local_repo_check_msg: |
   Failure: metadata file path {{ metadata_file_path }} is not present.
   Please make sure that local_repo.yml playbook is executed successfully.
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
-functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] | default('/opt/omnia/.data/functional_groups_config.yml') }}"
 software_config_file_path: "{{ input_project_dir }}/software_config.json"
 x86_64_build_image_completion_msg: |
   The playbook build_image_x86_64.yml has been completed successfully.

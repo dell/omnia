@@ -307,10 +307,10 @@
           content: |
             SELECT VERSION();
             SHOW DATABASES;
-
-            CREATE DATABASE slurm_acct_db;
-            CREATE USER 'slurm'@'%' IDENTIFIED BY '{{ hostvars['localhost']['slurm_db_password'] }}';
-            GRANT ALL PRIVILEGES ON slurm_acct_db.* TO 'slurm'@'%';
+            CREATE DATABASE IF NOT EXISTS {{ apply_config['slurmdbd']['StorageLoc'] }};
+            CREATE USER IF NOT EXISTS '{{ apply_config['slurmdbd']['SlurmUser'] }}'@'%' IDENTIFIED BY '{{ hostvars['localhost']['slurm_db_password'] }}';
+            ALTER USER '{{ apply_config['slurmdbd']['SlurmUser'] }}'@'%' IDENTIFIED BY '{{ hostvars['localhost']['slurm_db_password'] }}';
+            GRANT ALL PRIVILEGES ON {{ apply_config['slurmdbd']['StorageLoc'] }}.* TO '{{ apply_config['slurmdbd']['SlurmUser'] }}'@'%';
             FLUSH PRIVILEGES;
 
         - path: /root/omnia_slurm_scripts/00_munge_setup.sh
@@ -405,7 +405,7 @@
                 echo "${value:-$default}"
             }
             #dir StateSaveLocation
-            StateSaveLocation=$(get_value_slurm_conf "StateSaveLocation" "/var/spool")
+            StateSaveLocation=$(get_value_slurm_conf "StateSaveLocation" "/var/spool/slurmctld")
             mkdir -pv $StateSaveLocation
             chown -v "$SLURM_USER:$SLURM_GROUP" $StateSaveLocation
             chmod -v 0744 $StateSaveLocation
@@ -455,6 +455,11 @@
               sleep 5
             done
 
+        - path: /tmp/apptainer_mirror.conf
+          permissions: '0644'
+          content: |
+            {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
+
       runcmd:
          - /usr/local/bin/set-ssh.sh
 
@@ -464,7 +469,7 @@
 
         # slurm user and group created in the users module
         # Create directories for nfs and mount all
-         - mkdir -p /var/log/slurm /etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages
+         - mkdir -p /var/log/slurm /etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
          - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm      /etc/slurm       nfs defaults,_netdev 0 0" >> /etc/fstab
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/my.cnf.d   /etc/my.cnf.d    nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -472,10 +477,12 @@
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  /var/log/slurm   nfs defaults,_netdev 0 0" >> /etc/fstab
 {% if powervault_config is not defined %}
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/lib/mysql  /var/lib/mysql   nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool      /var/spool       nfs defaults,_netdev 0 0" >> /etc/fstab
+         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmctld     /var/spool/slurmctld      nfs defaults,_netdev 0 0" >> /etc/fstab
 {% endif %}
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
          - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
+         - echo "{{ cloud_init_nfs_path}}/hpc_tools/container_images  /hpc_tools/container_images   nfs defaults,_netdev 0 0" >> /etc/fstab
+         - echo "{{ cloud_init_nfs_path}}/hpc_tools/scripts  /hpc_tools/scripts   nfs defaults,_netdev 0 0" >> /etc/fstab
          - echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
          - echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
          - chmod {{ file_mode }} /etc/fstab
@@ -507,6 +514,11 @@
          - firewall-cmd --reload
          - systemctl enable sshd
          - systemctl start sshd
+
+         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
+         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
+         - mkdir -p /etc/containers/registries.conf.d
+         - mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
 
 {% if hostvars['localhost']['openldap_support'] %}
          - /usr/local/bin/update_ldap_conf.sh

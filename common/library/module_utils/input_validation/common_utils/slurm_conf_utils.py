@@ -27,7 +27,7 @@ class SlurmParserEnum(str, Enum):
     S_P_UINT32 = "int"          # unsigned int mapped to int
     S_P_UINT64 = "int"          # unsigned int mapped to int
     S_P_POINTER = "object"      # generic object / pointer
-    S_P_ARRAY = "list"          # array-like -> list
+    S_P_ARRAY = "array"         # list of dict
     S_P_BOOLEAN = "bool"        # boolean
     S_P_LINE = "str"            # line of text
     S_P_EXPLINE = "str"         # expanded line of text
@@ -35,6 +35,8 @@ class SlurmParserEnum(str, Enum):
     S_P_FLOAT = "float"         # floating point
     S_P_DOUBLE = "float"        # Python float is double precision
     S_P_LONG_DOUBLE = "float"   # approximate with float
+    S_P_CSV = "csv"             # comma separated values
+    S_P_LIST = "list"           # list of strings
 
 
 # Convenience aliases (if other modules refer to S_P_* directly)
@@ -53,6 +55,8 @@ S_P_PLAIN_STRING = SlurmParserEnum.S_P_PLAIN_STRING
 S_P_FLOAT = SlurmParserEnum.S_P_FLOAT
 S_P_DOUBLE = SlurmParserEnum.S_P_DOUBLE
 S_P_LONG_DOUBLE = SlurmParserEnum.S_P_LONG_DOUBLE
+S_P_CSV = SlurmParserEnum.S_P_CSV
+S_P_LIST = SlurmParserEnum.S_P_LIST
 
 
 downnodes_options = {
@@ -67,11 +71,11 @@ nodename_options = {
     "CoreSpecCount": S_P_UINT16,
     "CoresPerSocket": S_P_UINT16,
     "CPUs": S_P_UINT16,
-    "CPUSpecList": S_P_STRING,
+    "CPUSpecList": S_P_CSV,
     "CpuBind": S_P_STRING,
     "Feature": S_P_STRING,
-    "Features": S_P_STRING,
-    "Gres": S_P_STRING,
+    "Features": S_P_CSV,
+    "Gres": S_P_CSV,
     "GresConf": S_P_STRING,
     "MemSpecLimit": S_P_UINT64,
     "NodeAddr": S_P_STRING,
@@ -87,7 +91,7 @@ nodename_options = {
     "State": S_P_STRING,
     "ThreadsPerCore": S_P_UINT16,
     "TmpDisk": S_P_UINT32,
-    "Topology": S_P_STRING,
+    "Topology": S_P_CSV,
     "TRESWeights": S_P_STRING,
     "Weight": S_P_UINT32,
 }
@@ -95,15 +99,15 @@ nodename_options = {
 
 nodeset_options = {
     "Feature": S_P_STRING,
-    "Nodes": S_P_STRING,
+    "Nodes": S_P_STRING
 }
 
 
 partition_options = {
-    "AllocNodes": S_P_STRING,
-    "AllowAccounts": S_P_STRING,
-    "AllowGroups": S_P_STRING,
-    "AllowQos": S_P_STRING,
+    "AllocNodes": S_P_CSV,
+    "AllowAccounts": S_P_CSV,
+    "AllowGroups": S_P_CSV,
+    "AllowQos": S_P_CSV,
     "Alternate": S_P_STRING,
     "CpuBind": S_P_STRING,
     "DefCPUPerGPU": S_P_UINT64,
@@ -112,8 +116,8 @@ partition_options = {
     "DefMemPerNode": S_P_UINT64,
     "Default": S_P_BOOLEAN,
     "DefaultTime": S_P_STRING,
-    "DenyAccounts": S_P_STRING,
-    "DenyQos": S_P_STRING,
+    "DenyAccounts": S_P_CSV,
+    "DenyQos": S_P_CSV,
     "DisableRootJobs": S_P_BOOLEAN,
     "ExclusiveUser": S_P_BOOLEAN,
     "ExclusiveTopo": S_P_BOOLEAN,
@@ -127,7 +131,7 @@ partition_options = {
     "MaxTime": S_P_STRING,
     "MaxNodes": S_P_UINT32,
     "MinNodes": S_P_UINT32,
-    "Nodes": S_P_STRING,
+    "Nodes": S_P_CSV,
     "OverSubscribe": S_P_STRING,
     "OverTimeLimit": S_P_STRING,
     "PowerDownOnIdle": S_P_BOOLEAN,
@@ -145,22 +149,22 @@ partition_options = {
     "SuspendTime": S_P_STRING,
     "SuspendTimeout": S_P_UINT16,
     "Topology": S_P_STRING,
-    "TRESBillingWeights": S_P_STRING,
+    "TRESBillingWeights": S_P_CSV
 }
 
 # From https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/common/read_config.c
 slurm_options = {
     "AccountingStorageBackupHost": S_P_STRING,
-    "AccountingStorageEnforce": S_P_STRING,
-    "AccountingStorageExternalHost": S_P_STRING,
+    "AccountingStorageEnforce": S_P_CSV,
+    "AccountingStorageExternalHost": S_P_CSV,
     "AccountingStorageHost": S_P_STRING,
-    "AccountingStorageParameters": S_P_STRING,
+    "AccountingStorageParameters": S_P_CSV,
     "AccountingStoragePass": S_P_STRING,
     "AccountingStoragePort": S_P_UINT16,
-    "AccountingStorageTRES": S_P_STRING,
+    "AccountingStorageTRES": S_P_CSV,
     "AccountingStorageType": S_P_STRING,
     # {"AccountingStorageUser": S_P_STRING, _defunct_option,
-    "AccountingStoreFlags": S_P_STRING,
+    "AccountingStoreFlags": S_P_CSV,
     "AccountingStoreJobComment": S_P_BOOLEAN,
     "AcctGatherEnergyType": S_P_STRING,
     "AcctGatherFilesystemType": S_P_STRING,
@@ -169,25 +173,25 @@ slurm_options = {
     "AcctGatherNodeFreq": S_P_UINT16,
     "AcctGatherProfileType": S_P_STRING,
     "AllowSpecResourcesUsage": S_P_BOOLEAN,
-    "AuthAltParameters": S_P_STRING,
-    "AuthAltTypes": S_P_STRING,
-    "AuthInfo": S_P_STRING,
+    "AuthAltParameters": S_P_CSV,
+    "AuthAltTypes": S_P_CSV,
+    "AuthInfo": S_P_CSV,
     "AuthType": S_P_STRING,
     "BackupAddr": S_P_STRING,
     "BackupController": S_P_STRING,
     "BatchStartTimeout": S_P_UINT16,
-    "BcastExclude": S_P_STRING,
-    "BcastParameters": S_P_STRING,
+    "BcastExclude": S_P_CSV,
+    "BcastParameters": S_P_CSV,
     "BurstBufferParameters": S_P_STRING,
     "BurstBufferType": S_P_STRING,
     "CertgenType": S_P_STRING,
-    "CertgenParameters": S_P_STRING,
+    "CertgenParameters": S_P_CSV,
     "CertmgrType": S_P_STRING,
     "CertmgrParameters": S_P_STRING,
-    "CliFilterParameters": S_P_STRING,
-    "CliFilterPlugins": S_P_STRING,
+    "CliFilterParameters": S_P_CSV,
+    "CliFilterPlugins": S_P_CSV,
     "ClusterName": S_P_STRING,
-    "CommunicationParameters": S_P_STRING,
+    "CommunicationParameters": S_P_CSV,
     "CompleteWait": S_P_UINT16,
     "ControlAddr": S_P_STRING,
     "ControlMachine": S_P_STRING,
@@ -197,33 +201,33 @@ slurm_options = {
     "CredType": S_P_STRING,
     "CryptoType": S_P_STRING,
     "DataParserParameters": S_P_STRING,
-    "DebugFlags": S_P_STRING,
+    "DebugFlags": S_P_CSV,
     "DefCPUPerGPU": S_P_UINT64,
     "DefMemPerCPU": S_P_UINT64,
     "DefMemPerGPU": S_P_UINT64,
     "DefMemPerNode": S_P_UINT64,
-    "DependencyParameters": S_P_STRING,
+    "DependencyParameters": S_P_CSV,
     "DisableRootJobs": S_P_BOOLEAN,
     "EioTimeout": S_P_UINT16,
     "EnforcePartLimits": S_P_STRING,
-    "Epilog": S_P_ARRAY,
+    "Epilog": S_P_LIST,
     "EpilogMsgTime": S_P_UINT32,
-    "EpilogSlurmctld": S_P_ARRAY,
+    "EpilogSlurmctld": S_P_LIST,
     "EpilogTimeout": S_P_UINT16,
     # {"ExtSensorsFreq": S_P_UINT16, _defunct_option,
     # {"ExtSensorsType": S_P_STRING, _defunct_option,
     "FairShareDampeningFactor": S_P_UINT16,
     "FastSchedule": S_P_UINT16,
-    "FederationParameters": S_P_STRING,
+    "FederationParameters": S_P_CSV,
     "FirstJobId": S_P_UINT32,
     # {"GetEnvTimeout": S_P_UINT16, _defunct_option,
     "GpuFreqDef": S_P_STRING,
-    "GresTypes": S_P_STRING,
+    "GresTypes": S_P_CSV,
     "GroupUpdateForce": S_P_UINT16,
     "GroupUpdateTime": S_P_UINT16,
     "HashPlugin": S_P_STRING,
     "HealthCheckInterval": S_P_UINT16,
-    "HealthCheckNodeState": S_P_STRING,
+    "HealthCheckNodeState": S_P_CSV,
     "HealthCheckProgram": S_P_STRING,
     "HttpParserType": S_P_STRING,
     "InactiveLimit": S_P_UINT16,
@@ -233,7 +237,7 @@ slurm_options = {
     "JobAcctGatherType": S_P_STRING,
     "JobCompHost": S_P_STRING,
     "JobCompLoc": S_P_STRING,
-    "JobCompParams": S_P_STRING,
+    "JobCompParams": S_P_CSV,
     "JobCompPass": S_P_STRING,
     "JobCompPassScript": S_P_STRING,
     "JobCompPort": S_P_UINT32,
@@ -244,13 +248,13 @@ slurm_options = {
     # {"JobCredentialPublicCertificate": S_P_STRING, _defunct_option,
     "JobFileAppend": S_P_UINT16,
     "JobRequeue": S_P_UINT16,
-    "JobSubmitPlugins": S_P_STRING,
+    "JobSubmitPlugins": S_P_CSV,
     "KeepAliveTime": S_P_UINT32,
     "KillOnBadExit": S_P_UINT16,
     "KillWait": S_P_UINT16,
     "LaunchParameters": S_P_STRING,
     "LaunchType": S_P_STRING,
-    "Licenses": S_P_STRING,
+    "Licenses": S_P_CSV,
     "LogTimeFormat": S_P_STRING,
     "MailDomain": S_P_STRING,
     "MailProg": S_P_STRING,
@@ -270,7 +274,7 @@ slurm_options = {
     "MetricsType": S_P_STRING,
     "MinJobAge": S_P_UINT32,
     "MpiDefault": S_P_STRING,
-    "MpiParams": S_P_STRING,
+    "MpiParams": S_P_CSV,
     "NamespaceType": S_P_STRING,
     "NodeFeaturesPlugins": S_P_STRING,
     "OverTimeLimit": S_P_UINT16,
@@ -279,11 +283,11 @@ slurm_options = {
     # {"PowerParameters": S_P_STRING, _defunct_option,
     # {"PowerPlugin": S_P_STRING, _defunct_option,
     "PreemptExemptTime": S_P_STRING,
-    "PreemptMode": S_P_STRING,
-    "PreemptParameters": S_P_STRING,
+    "PreemptMode": S_P_CSV,
+    "PreemptParameters": S_P_CSV,
     "PreemptType": S_P_STRING,
     "PrEpParameters": S_P_STRING,
-    "PrEpPlugins": S_P_STRING,
+    "PrEpPlugins": S_P_CSV,
     "PriorityCalcPeriod": S_P_STRING,
     "PriorityDecayHalfLife": S_P_STRING,
     "PriorityFavorSmall": S_P_BOOLEAN,
@@ -300,21 +304,21 @@ slurm_options = {
     "PriorityWeightJobSize": S_P_UINT32,
     "PriorityWeightPartition": S_P_UINT32,
     "PriorityWeightQOS": S_P_UINT32,
-    "PriorityWeightTRES": S_P_STRING,
-    "PrivateData": S_P_STRING,
+    "PriorityWeightTRES": S_P_CSV,
+    "PrivateData": S_P_CSV,
     "ProctrackType": S_P_STRING,
-    "Prolog": S_P_ARRAY,
+    "Prolog": S_P_LIST,
     "PrologEpilogTimeout": S_P_UINT16,
-    "PrologFlags": S_P_STRING,
-    "PrologSlurmctld": S_P_ARRAY,
+    "PrologFlags": S_P_CSV,
+    "PrologSlurmctld": S_P_LIST,
     "PrologTimeout": S_P_UINT16,
     "PropagatePrioProcess": S_P_UINT16,
-    "PropagateResourceLimits": S_P_STRING,
-    "PropagateResourceLimitsExcept": S_P_STRING,
+    "PropagateResourceLimits": S_P_CSV,
+    "PropagateResourceLimitsExcept": S_P_CSV,
     "RebootProgram": S_P_STRING,
     "ReconfigFlags": S_P_STRING,
-    "RequeueExit": S_P_STRING,
-    "RequeueExitHold": S_P_STRING,
+    "RequeueExit": S_P_CSV,
+    "RequeueExitHold": S_P_CSV,
     "ResumeFailProgram": S_P_STRING,
     "ResumeProgram": S_P_STRING,
     "ResumeRate": S_P_UINT16,
@@ -326,16 +330,16 @@ slurm_options = {
     "RoutePlugin": S_P_STRING,
     "SallocDefaultCommand": S_P_STRING,
     "SbcastParameters": S_P_STRING,
-    "SchedulerParameters": S_P_STRING,
+    "SchedulerParameters": S_P_CSV,
     "SchedulerTimeSlice": S_P_UINT16,
     "SchedulerType": S_P_STRING,
-    "ScronParameters": S_P_STRING,
+    "ScronParameters": S_P_CSV,
     "SelectType": S_P_STRING,
     "SelectTypeParameters": S_P_STRING,
     "SlurmctldAddr": S_P_STRING,
     "SlurmctldDebug": S_P_STRING,
     "SlurmctldLogFile": S_P_STRING,
-    "SlurmctldParameters": S_P_STRING,
+    "SlurmctldParameters": S_P_CSV,
     "SlurmctldPidFile": S_P_STRING,
     "SlurmctldPort": S_P_STRING,
     "SlurmctldPrimaryOffProg": S_P_STRING,
@@ -344,7 +348,7 @@ slurm_options = {
     "SlurmctldTimeout": S_P_UINT16,
     "SlurmdDebug": S_P_STRING,
     "SlurmdLogFile": S_P_STRING,
-    "SlurmdParameters": S_P_STRING,
+    "SlurmdParameters": S_P_CSV,
     "SlurmdPidFile": S_P_STRING,
     "SlurmdPort": S_P_UINT32,
     "SlurmdSpoolDir": S_P_STRING,
@@ -358,24 +362,24 @@ slurm_options = {
     "SrunPortRange": S_P_STRING,
     "SrunProlog": S_P_STRING,
     "StateSaveLocation": S_P_STRING,
-    "SuspendExcNodes": S_P_STRING,
-    "SuspendExcParts": S_P_STRING,
+    "SuspendExcNodes": S_P_CSV,
+    "SuspendExcParts": S_P_CSV,
     "SuspendExcStates": S_P_STRING,
     "SuspendProgram": S_P_STRING,
     "SuspendRate": S_P_UINT16,
     "SuspendTime": S_P_STRING,
     "SuspendTimeout": S_P_UINT16,
-    "SwitchParameters": S_P_STRING,
+    "SwitchParameters": S_P_CSV,
     "SwitchType": S_P_STRING,
     "TaskEpilog": S_P_STRING,
-    "TaskPlugin": S_P_STRING,
-    "TaskPluginParam": S_P_STRING,
+    "TaskPlugin": S_P_CSV,
+    "TaskPluginParam": S_P_CSV,
     "TaskProlog": S_P_STRING,
     "TCPTimeout": S_P_UINT16,
-    "TLSParameters": S_P_STRING,
+    "TLSParameters": S_P_CSV,
     "TLSType": S_P_STRING,
     "TmpFS": S_P_STRING,
-    "TopologyParam": S_P_STRING,
+    "TopologyParam": S_P_CSV,
     "TopologyPlugin": S_P_STRING,
     "TrackWCKey": S_P_BOOLEAN,
     "TreeWidth": S_P_UINT16,
@@ -390,7 +394,7 @@ slurm_options = {
     "NodeName": S_P_ARRAY,
     "NodeSet": S_P_ARRAY,
     "PartitionName": S_P_ARRAY,
-    "SlurmctldHost": S_P_ARRAY,
+    "SlurmctldHost": S_P_LIST
 }
 
 # From https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/slurmdbd/read_config.c
@@ -406,12 +410,12 @@ slurmdbd_options = {
     "ArchiveSuspend": S_P_BOOLEAN,
     "ArchiveTXN": S_P_BOOLEAN,
     "ArchiveUsage": S_P_BOOLEAN,
-    "AuthAltTypes": S_P_STRING,
-    "AuthAltParameters": S_P_STRING,
-    "AuthInfo": S_P_STRING,
+    "AuthAltTypes": S_P_CSV,
+    "AuthAltParameters": S_P_CSV,
+    "AuthInfo": S_P_CSV,
     "AuthType": S_P_STRING,
     "CommitDelay": S_P_UINT16,
-    "CommunicationParameters": S_P_STRING,
+    "CommunicationParameters": S_P_CSV,
     "DbdAddr": S_P_STRING,
     "DbdBackupHost": S_P_STRING,
     "DbdHost": S_P_STRING,
@@ -429,10 +433,10 @@ slurmdbd_options = {
     "MaxPurgeLimit": S_P_UINT32,
     "MaxQueryTimeRange": S_P_STRING,
     "MessageTimeout": S_P_UINT16,
-    "Parameters": S_P_STRING,
+    "Parameters": S_P_CSV,
     "PidFile": S_P_STRING,
     "PluginDir": S_P_STRING,
-    "PrivateData": S_P_STRING,
+    "PrivateData": S_P_CSV,
     "PurgeEventAfter": S_P_STRING,
     "PurgeJobAfter": S_P_STRING,
     "PurgeResvAfter": S_P_STRING,
@@ -451,14 +455,14 @@ slurmdbd_options = {
     "StorageBackupHost": S_P_STRING,
     "StorageHost": S_P_STRING,
     "StorageLoc": S_P_STRING,
-    "StorageParameters": S_P_STRING,
+    "StorageParameters": S_P_CSV,
     "StoragePass": S_P_STRING,
     "StoragePassScript": S_P_STRING,
     "StoragePort": S_P_UINT16,
     "StorageType": S_P_STRING,
     "StorageUser": S_P_STRING,
     "TCPTimeout": S_P_UINT16,
-    "TLSParameters": S_P_STRING,
+    "TLSParameters": S_P_CSV,
     "TLSType": S_P_STRING,
     "TrackWCKey": S_P_BOOLEAN,
     "TrackSlurmctldDown": S_P_BOOLEAN
@@ -505,23 +509,23 @@ mpi_options = {
     "PMIxNetDevicesUCX": S_P_STRING,
     "PMIxShareServerTopology": S_P_BOOLEAN,
     "PMIxTimeout": S_P_UINT32,
-    "PMIxTlsUCX": S_P_STRING
+    "PMIxTlsUCX": S_P_CSV
 }
 
 # From https://github.com/SchedMD/slurm/blob/slurm-<VERSION>s/src/interfaces/gres.c#L101C40-L116C2
 gres_options = {
     "AutoDetect": S_P_STRING,
-    "Count": S_P_STRING,  # Number of Gres available */
+    "Count": S_P_STRING,  # Number of Gres available
     "CPUs": S_P_STRING,  # CPUs to bind to Gres resource
-    "Cores": S_P_STRING,  # Cores to bind to Gres resource */
-    "File": S_P_STRING,  # Path to Gres device */
-    "Files": S_P_STRING,  # Path to Gres device */
-    "Flags": S_P_STRING,  # GRES Flags */
-    "Link": S_P_STRING,  # Communication link IDs */
-    "Links": S_P_STRING,  # Communication link IDs */
-    "MultipleFiles": S_P_STRING,  # list of GRES device files */
-    "Name": S_P_STRING,  # Gres name */
-    "Type": S_P_STRING  # Gres type (e.g. model name) */
+    "Cores": S_P_CSV,  # Cores to bind to Gres resource
+    "File": S_P_STRING,  # Path to Gres device
+    "Files": S_P_STRING,  # Path to Gres device
+    "Flags": S_P_STRING,  # GRES Flags
+    "Link": S_P_STRING,  # Communication link IDs
+    "Links": S_P_CSV,  # Communication link IDs
+    "MultipleFiles": S_P_CSV,  # list of GRES device files
+    "Name": S_P_STRING,  # Gres name
+    "Type": S_P_STRING  # Gres type (e.g. model name)
 }
 
 all_confs = {
@@ -529,8 +533,8 @@ all_confs = {
     "slurmdbd": slurmdbd_options,
     "cgroup": cgroup_options,
     "mpi": mpi_options,
-    # "gres": gres_options,
-    # GRES can have different combinations, hence excluded
+    "gres": gres_options,
+    # TOD: GRES can have different combinations, NodeName and Name
     # https://slurm.schedmd.com/gres.conf.html#SECTION_EXAMPLES
     "PartitionName": partition_options,
     "NodeName": nodename_options,

@@ -17,19 +17,45 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ item }}"
 
-- name: Verify image, kernel and initramfs in S3
+- name: Verify image, kernel and initramfs in S3 (build stream)
   ansible.builtin.shell: |
     set -o pipefail && \
-    s3cmd ls -Hr s3://boot-images | grep {{ functional_group_name }} | \
+    s3cmd ls -Hr s3://boot-images | \
+    grep {{ functional_group_name }}-{{ build_stream_job_id }} | \
+    grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
+  changed_when: false
+  failed_when: false
+  register: verify_s3_image_build_stream
+  when:
+    - enable_build_stream | default(false)
+    - (build_stream_job_id | default('')) != ''
+
+- name: Verify image, kernel and initramfs in S3 (default)
+  ansible.builtin.shell: |
+    set -o pipefail && \
+    s3cmd ls -Hr s3://boot-images | \
+    grep {{ functional_group_name }} | \
     grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false
   register: verify_s3_image
+  when:
+    - not enable_build_stream
 
-- name: Set kernel and initrd variables
+- name: Set kernel and initrd variables (build stream)
+  ansible.builtin.set_fact:
+    kernel: "{{ verify_s3_image_build_stream.stdout_lines | select('search', 'vmlinuz') | list | first }}"
+    initrd: "{{ verify_s3_image_build_stream.stdout_lines | select('search', 'initramfs') | list | first }}"
+  when:
+    - enable_build_stream
+    - (build_stream_job_id | default('')) != ''
+
+- name: Set kernel and initrd variables (default)
   ansible.builtin.set_fact:
     kernel: "{{ verify_s3_image.stdout_lines | select('search', 'vmlinuz') | list | first }}"
     initrd: "{{ verify_s3_image.stdout_lines | select('search', 'initramfs') | list | first }}"
+  when:
+    - not enable_build_stream
 
 - name: Load bss template - {{ functional_group_name }}
   ansible.builtin.template:

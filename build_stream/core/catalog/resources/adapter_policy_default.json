@@ -1,0 +1,171 @@
+{
+  "version": "2.0.0",
+  "description": "Target-centric mapping spec: pull roles into each target file, then derive common roles and remove duplicates.",
+  "architectures": ["aarch64", "x86_64"],
+  "targets": {
+    "default_packages.json": {
+      "transform": {
+        "exclude_fields": ["architecture"]
+      },
+      "sources": [
+        {
+          "source_file": "base_os.json",
+          "pulls": [
+            {"source_key": "Base OS", "target_key": "default_packages"}
+          ]
+        }
+      ]
+    },
+    "nfs.json": {
+      "transform": {
+        "exclude_fields": ["architecture"]
+      },
+      "sources": [
+        {
+          "source_file": "base_os.json",
+          "pulls": [
+            {
+              "source_key": "Base OS",
+              "target_key": "nfs",
+              "filter": {"type": "substring", "field": "package", "values": ["nfs"], "case_sensitive": false}
+            }
+          ]
+        }
+      ]
+    },
+    "openldap.json": {
+      "transform": {
+        "exclude_fields": ["architecture"]
+      },
+      "sources": [
+        {
+          "source_file": "base_os.json",
+          "pulls": [
+            {
+              "source_key": "Base OS",
+              "target_key": "openldap",
+              "filter": {
+                "type": "any_of",
+                "filters": [
+                  {
+                    "type": "allowlist",
+                    "field": "package",
+                    "values": ["openldap", "openldap-clients", "openldap-servers"],
+                    "case_sensitive": false
+                  },
+                  {
+                    "type": "field_in",
+                    "field": "feature",
+                    "values": ["openldap"],
+                    "case_sensitive": false
+                  },
+                  {
+                    "type": "substring",
+                    "field": "package",
+                    "values": ["ldap", "openldap", "slapd"],
+                    "case_sensitive": false
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "openmpi.json": {
+      "transform": {
+        "exclude_fields": ["architecture"]
+      },
+      "sources": [
+        {
+          "source_file": "base_os.json",
+          "pulls": [
+            {
+              "source_key": "Base OS",
+              "target_key": "openmpi",
+              "filter": {"type": "substring", "field": "package", "values": ["openmpi"], "case_sensitive": false}
+            }
+          ]
+        }
+      ]
+    },
+    "service_k8s.json": {
+      "transform": {
+        "exclude_fields": ["architecture"]
+      },
+      "sources": [
+        {
+          "source_file": "functional_layer.json",
+          "pulls": [
+            {"source_key": "K8S Controller", "target_key": "service_kube_control_plane"},
+            {"source_key": "K8S Worker", "target_key": "service_kube_node"}
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "target_key": "service_k8s",
+          "operation": {
+            "type": "extract_common",
+            "from_keys": ["service_kube_control_plane", "service_kube_node"],
+            "min_occurrences": 2,
+            "remove_from_sources": true
+          }
+        }
+      ]
+    },
+    "slurm_custom.json": {
+      "transform": {
+        "exclude_fields": ["architecture"]
+      },
+      "sources": [
+        {
+          "source_file": "functional_layer.json",
+          "pulls": [
+            {"source_key": "Login Node", "target_key": "login_node"},
+            {"source_key": "Compiler", "target_key": "login_compiler_node"},
+            {"source_key": "Slurm Controller", "target_key": "slurm_control_node"},
+            {"source_key": "Slurm Worker", "target_key": "slurm_node"}
+          ]
+        }
+      ],
+      "derived": [
+        {
+          "target_key": "slurms_custom",
+          "operation": {
+            "type": "extract_common",
+            "from_keys": ["login_node", "login_compiler_node", "slurm_control_node", "slurm_node"],
+            "min_occurrences": 2,
+            "remove_from_sources": true
+          }
+        }
+      ]
+    },
+    "csi_driver_powerscale.json": {
+      "transform": {
+        "exclude_fields": ["architecture"]
+      },
+      "sources": [
+        {
+          "source_file": "infrastructure.json",
+          "pulls": [
+            {"source_key": "csi", "target_key": "csi_driver_powerscale"}
+          ]
+        }
+      ]
+    },
+    "miscellaneous.json": {
+      "transform": {
+        "exclude_fields": ["architecture"]
+      },
+      "sources": [
+        {
+          "source_file": "miscellaneous.json",
+          "pulls": [
+            {"source_key": "Miscellaneous", "target_key": "miscellaneous"}
+          ]
+        }
+      ]
+    }
+  }
+}

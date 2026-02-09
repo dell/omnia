@@ -19,6 +19,16 @@
     openchami_vars_suppport: true
     omnia_metadata_support: true
 
+- name: Set build_stream_job_id from environment variable
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+
+    - name: Set build_stream_job_id from environment
+      ansible.builtin.set_fact:
+        build_stream_job_id: "{{ job_id | default(lookup('env', 'job_id') | default('')) }}"
+
 - name: Create oim group and provision group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
   vars:

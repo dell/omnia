@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ ochami_mounts:
 ochami_compute_mounts:
   - --user 0 --privileged
   - -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z
-  - -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
+  - -v {{ openchami_work_dir }}/images/{{ rhel_base_compute_image_name }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
 ochami_aarch64_image:
   - --entrypoint /bin/bash
   - localhost/arm-image/ochami

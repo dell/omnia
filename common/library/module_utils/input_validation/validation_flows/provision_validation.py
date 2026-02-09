@@ -674,8 +674,24 @@ def validate_provision_config(
             create_error_msg("language", input_file_path, en_us_validation_msg.LANGUAGE_FAIL_MSG)
         )
 
+    enable_build_stream = data.get("enable_build_stream", False)
+
+    # Override from build_stream_config.yml if present
+    try:
+        build_stream_config_path = create_file_path(input_file_path, file_names["build_stream_config"])
+        if os.path.isfile(build_stream_config_path):
+            with open(build_stream_config_path, "r", encoding="utf-8") as bfh:
+                bs_cfg = yaml.safe_load(bfh) or {}
+                enable_build_stream = bs_cfg.get("enable_build_stream", enable_build_stream)
+    except Exception:
+        # If file missing or malformed, fall back to provided data value
+        pass
+
     pxe_mapping_file_path = data.get("pxe_mapping_file_path", "")
-    if pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
+    if enable_build_stream:
+        # Build Stream flow: skip mapping file validation entirely
+        pass
+    elif pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
         try:
             validate_mapping_file_entries(pxe_mapping_file_path)
             validate_functional_groups_in_mapping_file(pxe_mapping_file_path)

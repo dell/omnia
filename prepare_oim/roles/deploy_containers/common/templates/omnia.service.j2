@@ -1,6 +1,6 @@
 [Unit]
 Description=Top-level target for Omnia Core and OpenCHAMI
-Requires=omnia_core.service openchami.target pulp.service registry.service minio.service {{ auth_service }}
+Requires=omnia_core.service openchami.target pulp.service registry.service minio.service {{ auth_service }} {{ build_stream_service }} {{ omnia_postgres_service }}
 After=network.target
 Wants=network-online.target
 

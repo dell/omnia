@@ -1,0 +1,137 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+# Check and remove existing postgres container if running
+- name: Check if omnia_postgres service exists
+  ansible.builtin.systemd:
+    name: "{{ postgres_container_name }}.service"
+  register: postgres_service_status
+  failed_when: false
+
+- name: Stop omnia_postgres service if running
+  ansible.builtin.systemd:
+    name: "{{ postgres_container_name }}.service"
+    state: stopped
+    enabled: false
+  when: postgres_service_status.status is defined
+  failed_when: false
+
+- name: Check if omnia_postgres container exists
+  containers.podman.podman_container_info:
+    name: "{{ postgres_container_name }}"
+  register: existing_container_info
+  failed_when: false
+
+- name: Remove existing omnia_postgres container
+  containers.podman.podman_container:
+    name: "{{ postgres_container_name }}"
+    state: absent
+  when: existing_container_info.containers | length > 0
+
+# Get metadata and configuration
+- name: Get metadata from omnia_core
+  containers.podman.podman_container_exec:
+    name: omnia_core
+    command: cat {{ oim_metadata_file }}
+  register: metadata_content
+  changed_when: false
+
+- name: Extract configuration from metadata
+  ansible.builtin.set_fact:
+    omnia_path: "{{ metadata_content.stdout | regex_search('oim_shared_path:\\s*(\\S+)', '\\1') | first }}"
+    share_option: "{{ metadata_content.stdout | regex_search('omnia_share_option:\\s*(\\S+)', '\\1') | first | default('') }}"
+    nfs_type: "{{ metadata_content.stdout | regex_search('nfs_type:\\s*(\\S+)', '\\1') | first | default('') }}"
+
+- name: Set SELinux option for volume mounts
+  ansible.builtin.set_fact:
+    selinux_option: "{{ ':z' if (share_option != 'NFS' or nfs_type | default('') != 'external') else '' }}"
+
+# Create required directories
+- name: Create data directory for omnia_postgres
+  ansible.builtin.file:
+    path: "{{ postgres_data_dir }}"
+    state: directory
+    mode: "{{ postgres_dir_mode }}"
+
+- name: Create log directory for omnia_postgres
+  ansible.builtin.file:
+    path: "{{ postgres_log_dir }}"
+    state: directory
+    mode: "{{ postgres_dir_mode }}"
+
+# Pull container image
+- name: Pull omnia_postgres image from Docker Hub
+  containers.podman.podman_image:
+    name: "{{ postgres_image }}"
+    tag: "{{ postgres_image_tag }}"
+    state: present
+  register: image_pull_result
+
+- name: Display image pull result
+  ansible.builtin.debug:
+    msg: "{{ postgres_image_pull_success_msg }}"
+    verbosity: 2
+  when: image_pull_result is succeeded
+
+# Deploy container using Quadlet and check deployment status
+- name: Deploy postgres container and check deployment status
+  block:
+    - name: Create Quadlet service file
+      ansible.builtin.template:
+        src: postgres.j2
+        dest: "{{ postgres_quadlet_path }}"
+        mode: "{{ postgres_quadlet_file_mode }}"
+      register: quadlet_out
+
+    - name: Reload systemd if Quadlet changed
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: quadlet_out.changed # noqa: no-handler
+
+    - name: Enable and start postgres service
+      ansible.builtin.systemd_service:
+        name: "{{ postgres_container_name }}.service"
+        enabled: true
+        state: started
+      no_log: true
+
+    - name: Restart postgres container if Quadlet changed
+      ansible.builtin.systemd_service:
+        state: restarted
+        name: "{{ postgres_container_name }}.service"
+      when: quadlet_out.changed # noqa: no-handler
+      no_log: true
+
+    - name: Wait for PostgreSQL to be ready
+      ansible.builtin.pause:
+        seconds: "{{ postgres_ready_wait_seconds }}"
+
+    - name: Check if postgres container is running after deployment
+      containers.podman.podman_container_info:
+        name: "{{ postgres_container_name }}"
+      register: postgres_container_status
+
+    - name: Notify user of postgres container deployment status
+      ansible.builtin.debug:
+        msg: "{{ postgres_container_success_msg }}"
+      when:
+        - postgres_container_status.containers | length > 0
+        - postgres_container_status.containers[0].State.Status == 'running'
+
+  rescue:
+    - name: Postgres container deployment failed
+      ansible.builtin.fail:
+        msg: "{{ postgres_container_failure_msg }}"

@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Build Stream Configuration",
+  "type": "object",
+  "properties": {
+    "enable_build_stream": {
+      "type": "boolean",
+      "description": "Enable or disable build stream pipeline. Accepted values: true or false. Default: false"
+    }
+  },
+  "required": ["enable_build_stream"],
+  "additionalProperties": false
+}

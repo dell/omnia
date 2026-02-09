@@ -5,6 +5,7 @@
             {"package": "firewalld", "type": "rpm", "repo_name": "x86_64_baseos"},
             {"package": "python3-firewall", "type": "rpm", "repo_name": "x86_64_baseos"},
             {"package": "pmix", "type": "rpm", "repo_name": "x86_64_appstream"},
+            {"package": "nvcr.io/nvidia/hpc-benchmarks", "tag": "25.09", "type": "image"},
             {"package": "apptainer", "type": "rpm", "repo_name": "epel" },
             {"package": "doca-ofed",
              "type": "iso",

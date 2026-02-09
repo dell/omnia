@@ -1,0 +1,155 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create HPC tools directories on share
+  ansible.builtin.file:
+    path: "{{ slurm_config_path }}/hpc_tools/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ common_mode }}"
+  loop:
+    - cuda
+    - runfile
+    - scripts
+    - container_images
+
+- name: Deploy download_container_image.sh to NFS share
+  ansible.builtin.template:
+    src: "download_container_image.sh.j2"
+    dest: "{{ download_container_image_path }}"
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "0755"
+
+- name: Deploy container_image.list to NFS share
+  ansible.builtin.template:
+    src: "container_image.list.j2"
+    dest: "{{ container_image_list_path }}"
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "0644"
+
+- name: Set fact for pulp mirror
+  ansible.builtin.set_fact:
+    pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+
+- name: Create x86_64 package base directory
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_x86_64 }}"
+    state: directory
+    mode: '{{ common_mode }}'
+
+- name: Create aarch64 package base directory
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_aarch64 }}"
+    state: directory
+    mode: '{{ common_mode }}'
+
+- name: Create x86_64 package layout directories
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_x86_64 }}/{{ item }}"
+    state: directory
+    mode: '{{ common_mode }}'
+  loop: "{{ packages_layout_x86_64 }}"
+
+- name: Create aarch64 package layout directories
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_aarch64 }}/{{ item }}"
+    state: directory
+    mode: '{{ common_mode }}'
+  loop: "{{ packages_layout_aarch64 }}"
+
+- name: Print copy paths for x86_64
+  ansible.builtin.debug:
+    msg: "{{ print_copy_msg }}"
+  loop: "{{ offline_path_x86_64 | default([]) }}"
+
+- name: Print copy paths for aarch64
+  ansible.builtin.debug:
+    msg: "{{ print_copy_msg }}"
+  loop: "{{ offline_path_aarch64 | default([]) }}"
+
+- name: Check x86_64 offline package sources
+  ansible.builtin.stat:
+    path: "{{ item.source_path }}"
+  loop: "{{ offline_path_x86_64 | default([]) }}"
+  register: x86_64_offline_pkg_sources
+
+- name: Check aarch64 offline package sources
+  ansible.builtin.stat:
+    path: "{{ item.source_path }}"
+  loop: "{{ offline_path_aarch64 | default([]) }}"
+  register: aarch64_offline_pkg_sources
+
+- name: Copy x86_64 offline packages
+  ansible.builtin.copy:
+    src: "{{ item.item.source_path }}/"
+    dest: "{{ item.item.dest_path }}/"
+    remote_src: true
+    mode: preserve
+  loop: "{{ x86_64_offline_pkg_sources.results | default([]) }}"
+  when:
+    - item.stat.exists
+    - item.item.source_path | length > 0
+    - item.item.dest_path | length > 0
+
+- name: Copy aarch64 offline packages
+  ansible.builtin.copy:
+    src: "{{ item.item.source_path }}/"
+    dest: "{{ item.item.dest_path }}/"
+    remote_src: true
+    mode: preserve
+  loop: "{{ aarch64_offline_pkg_sources.results | default([]) }}"
+  when:
+    - item.stat.exists
+    - item.item.source_path | length > 0
+    - item.item.dest_path | length > 0
+
+- name: Set NFS info fact
+  ansible.builtin.set_fact:
+    oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
+
+- name: Check if source directory exists
+  ansible.builtin.stat:
+    path: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso/cuda-run/"
+  register: src_dir_check_x86_64
+
+- name: Check if source directory exists
+  ansible.builtin.stat:
+    path: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso/cuda-run/"
+  register: src_dir_check_aarch64
+
+- name: Copy cuda run file using copy module for aarch64
+  ansible.builtin.copy:
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso/cuda-run/"
+    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
+    mode: '0755'
+    owner: root
+    group: root
+    directory_mode: '0755'
+    remote_src: true
+  when: src_dir_check_aarch64.stat.exists and src_dir_check_aarch64.stat.isdir
+
+- name: Copy cuda run file using copy module for x86_64
+  ansible.builtin.copy:
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso/cuda-run/"
+    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
+    mode: '0755'
+    owner: root
+    group: root
+    directory_mode: '0755'
+    remote_src: true
+  when: src_dir_check_x86_64.stat.exists and src_dir_check_x86_64.stat.isdir

@@ -1,6 +1,0 @@
-{% for key in apply_config['gres'] | sort %}
-{% set val = apply_config['gres'][key] %}
-{% if val is not none and val != omit %}
-{{ key }}={{ 'yes' if val is sameas true else ('no' if val is sameas false else val) }}
-{% endif %}
-{% endfor %}

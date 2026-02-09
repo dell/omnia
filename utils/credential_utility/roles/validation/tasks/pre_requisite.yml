@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,50 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Include omnia_credentials if it exists
-  when: cred_file_status
-  block:
-    - name: Check omnia_credentials.yml file is encrypted
-      ansible.builtin.command: cat {{ omnia_credential_file }}
-      changed_when: false
-      register: omnia_credentials_content
-      no_log: true
-
-    - name: Decrpyt omnia_credentials.yml
-      ansible.builtin.command: >-
-        ansible-vault decrypt {{ omnia_credential_file }}
-        --vault-password-file {{ omnia_credential_vault_path }}
-      changed_when: false
-      when: ansible_vault_search_key in omnia_credentials_content.stdout
-
-    - name: Include omnia_credentials.yml
-      ansible.builtin.include_vars: "{{ omnia_credential_file }}"
-      register: include_omnia_credentials
-      no_log: true
-  rescue:
-    - name: Encrypt omnia_config_credentials.yml
-      ansible.builtin.include_tasks: "{{ role_path }}/../update_config/tasks/encrypt_credentials_file.yml"
-      when: ansible_vault_search_key in omnia_credentials_content.stdout
-
-    - name: Fail to include omnia_config_credentials.yml
-      ansible.builtin.fail:
-        msg: "{{ password_fail_msg }}: {{ include_omnia_credentials.message }}"
-
-- name: Create vault key for omnia_credential_file
-  when: not cred_file_status
-  block:
-    - name: Create ansible vault key
-      ansible.builtin.set_fact:
-        omnia_credentials_vault_key: "{{ lookup('password', '/dev/null chars=ascii_letters') }}"
-
-    - name: Save vault key to omnia_credential_vault_path
-      ansible.builtin.lineinfile:
-        path: "{{ omnia_credential_vault_path }}"
-        line: "{{ omnia_credentials_vault_key }}"
-        mode: "{{ conf_file_mode }}"
-        owner: root
-        create: true
 
 - name: Load software_config.json as software_config
   block:

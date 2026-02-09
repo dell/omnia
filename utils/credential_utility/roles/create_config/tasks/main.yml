@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,22 +13,28 @@
 # limitations under the License.
 ---
 
-- name: Create Omnia Credentials file
-  ansible.builtin.template:
-    src: "{{ omnia_credential_template }}"
-    dest: "{{ omnia_credential_file }}"
-    mode: "{{ omnia_credential_file_mode }}"
+- name: Include vars for encrypted credentials
+  ansible.builtin.include_tasks: "{{ role_path }}/../../../../common/tasks/common/decrypt_include_encrypt.yml"
+  loop: "{{ credential_files }}"
+  loop_control:
+    loop_var: cred_config
+  when:
+    - cred_config.file_path is file
+  vars:
+    credential_file_path: "{{ cred_config.file_path }}"
+    vault_password_file: "{{ cred_config.vault_path }}"
 
-- name: Include vars for omnia_config_credentials.yml
-  block:
-    - name: Include omnia_credentials.yml
-      ansible.builtin.include_vars: "{{ omnia_credential_file }}"
-      register: include_omnia_credentials
-      no_log: true
-  rescue:
-    - name: Encrypt omnia_config_credentials.yml
-      ansible.builtin.include_tasks: "{{ role_path }}/../update_config/tasks/encrypt_credentials_file.yml"
-
-    - name: Fail to include omnia_config_credentials.yml
-      ansible.builtin.fail:
-        msg: "{{ password_fail_msg }}: {{ include_omnia_credentials.message }}"
+- name: Create credential files
+  ansible.builtin.include_tasks: create_credential_file.yml
+  vars:
+    credential_type: "{{ cred_config.credential_type }}"
+    credential_template: "{{ cred_config.template }}"
+    credential_file_path: "{{ cred_config.file_path }}"
+    credential_file_mode: "{{ cred_config.file_mode }}"
+    vault_password_file: "{{ cred_config.vault_path }}"
+    credential_condition: "{{ cred_config.condition | default(false) }}"
+  loop: "{{ credential_files }}"
+  loop_control:
+    loop_var: cred_config
+  when:
+    - cred_config.file_path is not file

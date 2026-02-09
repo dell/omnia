@@ -23,3 +23,10 @@
     - name: Failed to include {{ item.path }}
       ansible.builtin.fail:
         msg: "{{ input_syntax_fail_msg }} Error: {{ include_input.message }}"
+
+- name: Validate build stream inputs
+  ansible.builtin.fail:
+    msg: "{{ build_stream_job_id_absent }}"
+  when:
+    - enable_build_stream | default(false) | bool
+    - (build_stream_job_id | default('')) | length == 0

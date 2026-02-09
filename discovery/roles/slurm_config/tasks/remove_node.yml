@@ -1,0 +1,67 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Remove nodes from NodeName list that are not in cmpt_list
+  ansible.builtin.set_fact:
+    filtered_nodenames: "{{ slurm_conf_dict.NodeName | rejectattr('NodeName', 'in', nodes_in_normal_not_in_cmpt) | list }}"
+  when:
+    - "'slurm' in conf_merge_dict"
+    - nodes_in_normal_not_in_cmpt is defined
+    - nodes_in_normal_not_in_cmpt | length > 0
+
+- name: Update slurm_conf_dict with filtered NodeName list
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ slurm_conf_dict | combine({'NodeName': filtered_nodenames}) }}"
+  when:
+    - "'slurm' in conf_merge_dict"
+    - filtered_nodenames is defined
+
+- name: Update normal partition Nodes to match cmpt_list
+  ansible.builtin.set_fact:
+    updated_partitions: "{{ updated_partitions | default([])
+     + [item | combine({'Nodes': cmpt_list | join(',')}) if item.PartitionName == slurm_partition_name else item] }}"
+  loop: "{{ slurm_conf_dict.PartitionName | default([]) }}"
+  when:
+    - "'slurm' in conf_merge_dict"
+    - nodes_in_normal_not_in_cmpt is defined
+    - nodes_in_normal_not_in_cmpt | length > 0
+
+- name: Update slurm_conf_dict with updated partitions
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ slurm_conf_dict | combine({'PartitionName': updated_partitions}) }}"
+  when:
+    - "'slurm' in conf_merge_dict"
+    - updated_partitions is defined
+
+- name: Convert slurm conf to ini
+  slurm_conf:
+    op: render
+    conf_name: slurm
+    conf_map: "{{ slurm_conf_dict }}"
+  register: slurm_conf_ini
+
+- name: Update merged_conf results with new ini_lines for slurm
+  ansible.builtin.set_fact:
+    updated_merged_results: "{{ updated_merged_results | default([])
+     + [item | combine({'ini_lines': slurm_conf_ini.ini_lines}) if item.item.key == 'slurm' else item] }}"
+  loop: "{{ merged_conf.results }}"
+  when:
+    - slurm_conf_ini is defined
+    - slurm_conf_ini.ini_lines is defined
+
+- name: Replace merged_conf with updated results
+  ansible.builtin.set_fact:
+    merged_conf: "{{ merged_conf | combine({'results': updated_merged_results}) }}"
+  when:
+    - updated_merged_results is defined

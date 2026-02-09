@@ -21,28 +21,130 @@
   when: cmpt_list
   loop: "{{ cmpt_list }}"
 
-- name: Add gpu parameters to slurm conf
-  ansible.builtin.set_fact:
-    apply_config: "{{ apply_config | default({}) | combine({'slurm': (apply_config['slurm'] | combine(gpu_slurm_conf))}) }}"
-  when: gpu_params is defined and gpu_params
+- name: Build slurm.conf
+  ansible.builtin.include_tasks: build_slurm_conf.yml
 
-# TODO: Move to input validation with all confs
-- name: Slurm dict ops
+- name: Slurm dbd opts
   ansible.builtin.set_fact:
-    slurm_conf_dict: "{{ apply_config['slurm'] }}"
+    apply_config: "{{ apply_config | default({})
+     | combine({'slurmdbd': (apply_config['slurmdbd'] | combine({'DbdHost': ctld_list[0], 'StorageHost': ctld_list[0]}))}) }}"
+  when: ctld_list
 
-- name: Create all .conf for ctld only Write all files default config
-  ansible.builtin.template:
-    src: "{{ item.1 }}.conf.j2"
-    dest: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/{{ item.1 }}.conf"
-    owner: "{{ root_user }}"
-    group: "{{ root_group }}"
-    mode: "{{ conf_file_mode }}"
+- name: Check .conf files existence
+  ansible.builtin.stat:
+    path: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/{{ item.1 }}.conf"
   when: ctld_list
   loop: "{{ ctld_list | product(conf_files | default([])) }}"
+  register: ctld_conf_files
 
-- name: Conf merge and write using slurm_conf module
-  ansible.builtin.include_tasks: conf_merge.yml
+- name: Create lists for conf_merge
+  ansible.builtin.set_fact:
+    conf_merge_dict: "{{
+        conf_merge_dict | default({})
+        | combine({
+            conf_set.item.1: (
+              [apply_config[conf_set.item.1]]
+              + ([conf_set.stat.path] if conf_set.stat.exists else [])
+              + ([configs_input.get(conf_set.item.1)] if configs_input.get(conf_set.item.1) else [])
+            )
+          })
+      }}"
+  loop: "{{ ctld_conf_files.results }}"
+  loop_control:
+    loop_var: conf_set
+  register: prepared_conf_lists
+
+- name: Prepend ClusterName and SlurmctldHost to slurm conf sources
+  ansible.builtin.set_fact: # TODO: Change order if needed
+    conf_merge_dict: "{{ conf_merge_dict
+     | combine({'slurm': [{'ClusterName': cluster_name, 'SlurmctldHost': ctld_list}] + conf_merge_dict['slurm']}) }}"
+  when: "'slurm' in conf_merge_dict"
+
+- name: Merge the confs
+  slurm_conf:
+    op: merge
+    conf_sources: "{{ item.value }}"
+    conf_name: "{{ item.key }}"
+  loop: "{{ conf_merge_dict | dict2items }}"
+  register: merged_conf
+
+- name: Update slurm_conf_dict with merged configuration for cloud_init read. # TODO: Remove cloud init dependency
+  ansible.builtin.set_fact:
+    slurm_conf_dict: "{{ (merged_conf.results | selectattr('item.key', 'equalto', 'slurm') | first).conf_dict }}"
+  when: "'slurm' in conf_merge_dict"
+
+- name: Get nodes from normal partition and compare with cmpt_list
+  ansible.builtin.set_fact:
+    normal_partition: "{{ slurm_conf_dict.PartitionName | default([]) | selectattr('PartitionName', 'equalto', slurm_partition_name) | first | default({}) }}"
+  when: "'slurm' in conf_merge_dict"
+
+- name: Parse normal partition nodes and compare
+  ansible.builtin.set_fact:
+    normal_partition_nodes: "{{ (normal_partition.Nodes | default('ALL')).split(',') | map('trim') | reject('equalto', 'ALL') | list }}"
+    nodes_in_normal_not_in_cmpt: "{{ (normal_partition.Nodes | default('ALL')).split(',')
+     | map('trim') | reject('equalto', 'ALL') | list | difference(cmpt_list) }}"
+  when:
+    - "'slurm' in conf_merge_dict"
+    - normal_partition is defined
+    - normal_partition | length > 0
+
+- name: Remove nodes
+  ansible.builtin.include_tasks: remove_node.yml
+  when:
+    - "'slurm' in conf_merge_dict"
+    - nodes_in_normal_not_in_cmpt is defined
+    - nodes_in_normal_not_in_cmpt | length > 0
+
+- name: Create directories from conf values
+  ansible.builtin.include_tasks: exist_dir.yml
+  loop:
+    - "{{ ctld_list
+     | product([slurm_conf_dict.get('StateSaveLocation', '/var/spool/slurmctld'),
+      (slurm_conf_dict.get('SlurmctldLogFile', '/var/log/slurmctld.log') | dirname),
+      (slurm_conf_dict.get('SlurmctldPidFile', '/var/run/slurmctld.pid') | dirname)]) }}"
+    - "{{ (cmpt_list + login_list + compiler_login_list)
+     | product([slurm_conf_dict.get('SlurmdSpoolDir', '/var/spool/slurmd'),
+      (slurm_conf_dict.get('SlurmdLogFile', '/var/log/slurmd.log') | dirname),
+      (slurm_conf_dict.get('SlurmdPidFile', '/var/run/slurmd.pid') | dirname)]) }}"
+  loop_control:
+    loop_var: product
+
+- name: Create backup directory with timestamp
+  ansible.builtin.file:
+    path: "{{ backup_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user_group }}"
   when: ctld_list
-  loop: "{{ ctld_list | product(configs_input.keys() | default([])) }}"
-# TODO: To apply the cluster_name after merge
+
+- name: Backup existing SLURM configuration files with timestamp
+  ansible.builtin.copy:
+    src: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/{{ item.item.key }}.conf"
+    dest: "{{ backup_dir }}/{{ item.item.key }}.conf"
+    remote_src: true
+    mode: preserve
+  loop: "{{ merged_conf.results }}"
+  when:
+    - ctld_list
+    - item.item.key in conf_files
+  register: backup_results
+  failed_when: false
+
+- name: Write merged .conf
+  ansible.builtin.copy:
+    content: "{{ item.ini_lines | join('\n') }}\n"
+    dest: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/{{ item.item.key }}.conf"
+    mode: "{{ conf_file_mode }}"
+    owner: "{{ slurm_user }}"
+    group: "{{ slurm_user_group }}"
+    remote_src: "{{ copy_from_oim }}"
+  loop: "{{ merged_conf.results }}"
+  register: ctld_conf_files
+
+- name: Check if cluster running
+  ansible.builtin.include_tasks: check_ctld_running.yml
+  when:
+    - ctld_list
+    - ctld_conf_files is changed
+  loop: "{{ ctld_list }}"

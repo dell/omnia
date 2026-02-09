@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "schemaVersion": "1.0",
+  "title": "Catalog",
+  "type": "object",
+  "properties": {
+    "Catalog": {
+      "type": "object",
+      "properties": {
+        "Name": {"type": "string"},
+        "Version": {"type": "string"},
+        "FunctionalLayer": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "Name": {"type": "string"},
+              "FunctionalPackages": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            },
+            "required": ["Name", "FunctionalPackages"]
+          }
+        },
+        "BaseOS": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "Name": {"type": "string"},
+              "Version": {"type": "string"},
+              "osPackages": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            },
+            "required": ["osPackages"]
+          }
+        },
+        "Infrastructure": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "Name": {"type": "string"},
+              "InfrastructurePackages": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            },
+            "required": ["Name", "InfrastructurePackages"]
+          }
+        },
+        "Miscellaneous": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "Drivers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "Name": {"type": "string"},
+              "DriverPackages": {
+                "type": "array",
+                "items": {"type": "string"}
+              }
+            },
+            "required": ["Name", "DriverPackages"]
+          }
+        },
+        "DriverPackages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "Name": {"type": "string"},
+              "Version": {"type": "string"},
+              "Uri": {"type": "string"},
+              "Architecture": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "Type": {"type": "string"},
+              "Config": {
+                "type": "object",
+                "properties": {
+                  "DriverBrand": {"type": "string"},
+                  "DriverType": {"type": "string"}
+                },
+                "required": ["DriverBrand", "DriverType"]
+              }
+            },
+            "required": ["Name", "Version", "Uri", "Architecture", "Type", "Config"]
+          }
+        },
+        "FunctionalPackages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "Name": {"type": "string"},
+              "Version": {"type": "string"},
+              "Tag": {"type": "string"},
+              "SupportedOS": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "Name": {"type": "string"},
+                    "Version": {"type": "string"}
+                  },
+                  "required": ["Name", "Version"]
+                }
+              },
+              "Sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "Architecture": {"type": "string"},
+                    "RepoName": {"type": "string"},
+                    "Uri": {"type": "string"}
+                  },
+                  "required": ["Architecture"],
+                  "anyOf": [
+                    {"required": ["RepoName"]},
+                    {"required": ["Uri"]}
+                  ]
+                }
+              },
+              "Architecture": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "Type": {"type": "string"}
+            },
+            "required": ["Name", "SupportedOS", "Architecture", "Type"]
+          }
+        },
+        "OSPackages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "Name": {"type": "string"},
+              "Version": {"type": "string"},
+              "Tag": {"type": "string"},
+              "SupportedOS": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "Name": {"type": "string"},
+                    "Version": {"type": "string"}
+                  },
+                  "required": ["Name", "Version"]
+                }
+              },
+              "Sources": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "Architecture": {"type": "string"},
+                    "RepoName": {"type": "string"},
+                    "Uri": {"type": "string"}
+                  },
+                  "required": ["Architecture"],
+                  "anyOf": [
+                    {"required": ["RepoName"]},
+                    {"required": ["Uri"]}
+                  ]
+                }
+              },
+              "Architecture": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "Type": {"type": "string"}
+            },
+            "required": ["Name", "SupportedOS", "Architecture", "Type"]
+          }
+        },
+        "InfrastructurePackages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "Name": {"type": "string"},
+              "Version": {"type": "string"},
+              "Tag": {"type": "string"},
+              "Type": {"type": "string"},
+              "SupportedFunctions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "Name": {"type": "string"}
+                  },
+                  "required": ["Name"]
+                }
+              }
+            },
+            "required": ["Name", "Version", "Type", "SupportedFunctions"]
+          }
+        }
+      },
+      "required": [
+        "Name",
+        "Version",
+        "FunctionalLayer",
+        "BaseOS",
+        "Infrastructure",
+        "Drivers",
+        "DriverPackages",
+        "FunctionalPackages",
+        "OSPackages",
+        "InfrastructurePackages"
+      ]
+    }
+  },
+  "required": ["Catalog"]
+}

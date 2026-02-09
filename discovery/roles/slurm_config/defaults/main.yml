@@ -263,8 +263,9 @@ __default_config:
     SlurmctldPort: 6817
     SlurmdPort: 6818
     SrunPortRange: "60001-63000"
-    StateSaveLocation: "/var/spool/state"
+    StateSaveLocation: "/var/spool/slurmctld"
     SlurmdSpoolDir: "/var/spool/slurmd"
+    SlurmctldParameters: "{{ slurm_ctld_parameters | join(',') }}"
     ReturnToService: 2
     SchedulerType: sched/backfill
     MpiDefault: none
@@ -283,6 +284,16 @@ __default_config:
     SlurmctldTimeout: 120
     SlurmdTimeout: 300
     Epilog: "/etc/slurm/epilog.d/logout_user.sh"
+    PluginDir: "{{ plugin_slurm_dir }}"
+    NodeName:
+      - NodeName: DEFAULT
+        State: UNKNOWN
+    PartitionName:
+      - PartitionName: DEFAULT
+        Nodes: ALL
+        Default: true
+        MaxTime: INFINITE
+        State: UP
     # S_P_ARRAY type paramater to be provided this way
     # Epilog:
     #   - Epilog: "/etc/slurm/epilog.d/logout_user.sh"
@@ -293,5 +304,10 @@ __default_config:
     SlurmUser: "{{ slurm_user }}"
     StorageType: accounting_storage/mysql
     StorageLoc: slurm_acct_db
+    StoragePort: "{{ slurm_db_port }}"
+    StorageUser: "{{ slurm_dbd_db_username }}"
+    StoragePass: "{{ slurm_db_password }}"
+    PluginDir: "{{ plugin_slurm_dir }}"
+    DbdPort: "{{ slurm_dbd_port }}"
   gres:
     AutoDetect: nvml

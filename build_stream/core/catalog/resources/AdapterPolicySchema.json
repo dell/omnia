@@ -1,0 +1,241 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "AdapterPolicySchema.json",
+  "title": "Target-Centric Mapping Schema",
+  "description": "Schema defining how to build target config JSON files from one or more source JSON files, including derived roles.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version for future compatibility"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this mapping configuration"
+    },
+    "architectures": {
+      "type": "array",
+      "description": "List of supported architectures",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "targets": {
+      "type": "object",
+      "description": "Target files to generate (filename -> target spec)",
+      "additionalProperties": {
+        "$ref": "#/definitions/targetSpec"
+      }
+    }
+  },
+  "required": ["version", "targets"],
+  "definitions": {
+    "targetSpec": {
+      "type": "object",
+      "description": "Specification for building a single target file",
+      "properties": {
+        "sources": {
+          "type": "array",
+          "description": "Source files and roles to pull into this target",
+          "items": {
+            "$ref": "#/definitions/sourceSpec"
+          }
+        },
+        "derived": {
+          "type": "array",
+          "description": "Derived roles computed from pulled roles",
+          "items": {
+            "$ref": "#/definitions/derivedSpec"
+          }
+        },
+        "transform": {
+          "$ref": "#/definitions/transform",
+          "description": "Transform applied to all packages in this target (unless overridden per pull)"
+        },
+        "conditions": {
+          "$ref": "#/definitions/conditions",
+          "description": "Optional conditions for when this target applies"
+        }
+      },
+      "required": ["sources"]
+    },
+    "sourceSpec": {
+      "type": "object",
+      "description": "Defines which roles (keys) to pull from a given source file",
+      "properties": {
+        "source_file": {
+          "type": "string",
+          "description": "Input file name (without path, e.g., 'functional_layer.json')"
+        },
+        "pulls": {
+          "type": "array",
+          "description": "Roles to pull from the source file",
+          "items": {
+            "$ref": "#/definitions/pullSpec"
+          },
+          "minItems": 1
+        }
+      },
+      "required": ["source_file", "pulls"]
+    },
+    "pullSpec": {
+      "type": "object",
+      "description": "Pull a role from a source file into the target file, optionally renaming and filtering",
+      "properties": {
+        "source_key": {
+          "type": "string",
+          "description": "Role/key in the source file"
+        },
+        "target_key": {
+          "type": "string",
+          "description": "Role/key to write into the target file; defaults to source_key if omitted"
+        },
+        "filter": {
+          "$ref": "#/definitions/filter",
+          "description": "Optional filter for this role"
+        },
+        "transform": {
+          "$ref": "#/definitions/transform",
+          "description": "Optional per-role transform override"
+        }
+      },
+      "required": ["source_key"]
+    },
+    "derivedSpec": {
+      "type": "object",
+      "description": "A derived role definition",
+      "properties": {
+        "target_key": {
+          "type": "string",
+          "description": "Role/key to create in the target file"
+        },
+        "operation": {
+          "$ref": "#/definitions/operation"
+        }
+      },
+      "required": ["target_key", "operation"]
+    },
+    "operation": {
+      "type": "object",
+      "description": "Operation to derive a role and remove common packages from source roles",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["extract_common"],
+          "description": "Currently supported derived operation types"
+        },
+        "from_keys": {
+          "type": "array",
+          "description": "Target roles to compare",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 2
+        },
+        "min_occurrences": {
+          "type": "integer",
+          "description": "Minimum occurrences across from_keys to be considered common",
+          "default": 2
+        },
+        "remove_from_sources": {
+          "type": "boolean",
+          "description": "If true, common packages are removed from each role in from_keys",
+          "default": true
+        }
+      },
+      "required": ["type", "from_keys"]
+    },
+    "conditions": {
+      "type": "object",
+      "description": "Conditions that determine when a mapping rule applies",
+      "properties": {
+        "architectures": {
+          "type": "array",
+          "description": "Limit this mapping to specific architectures. If omitted, applies to all.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "os_versions": {
+          "type": "array",
+          "description": "Limit this mapping to specific OS versions (e.g., ['10.0', '9.0'])",
+          "items": {
+            "type": "string"
+          }
+        },
+        "os_families": {
+          "type": "array",
+          "description": "Limit this mapping to specific OS families (e.g., ['rhel', 'ubuntu'])",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "description": "Transformation rules to apply when writing package objects",
+      "properties": {
+        "exclude_fields": {
+          "type": "array",
+          "description": "Fields to exclude from package objects",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rename_fields": {
+          "type": "object",
+          "description": "Field renaming map (old_name -> new_name)",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "filter": {
+      "type": "object",
+      "description": "Filter rules to select specific packages from source",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type of filter to apply",
+          "enum": ["substring", "allowlist", "field_in", "any_of"]
+        },
+        "field": {
+          "type": "string",
+          "description": "Field to apply filter on (for substring filter)",
+          "default": "package"
+        },
+        "values": {
+          "type": "array",
+          "description": "Values to match against (for substring filter)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "case_sensitive": {
+          "type": "boolean",
+          "description": "Whether substring matching is case-sensitive",
+          "default": false
+        },
+        "filters": {
+          "type": "array",
+          "description": "Sub-filters for composite any_of filter",
+          "items": {
+            "$ref": "#/definitions/filter"
+          },
+          "minItems": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "any_of"}}},
+          "then": {"required": ["filters"]}
+        }
+      ],
+      "required": ["type"]
+    }
+  }
+}

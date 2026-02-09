@@ -1,16 +1,30 @@
 openchami_work_dir: "{{ openchami_work_dir }}"
 rhel_tag: "{{ rhel_tag }}"
 rhel_base_image: "{{ oim_node_name }}/{{ rhel_aarch64_base_image_name }}"
-rhel_base_compute_image_name: "rhel-{{ item.key }}"
-rhel_base_compute_image: "{{ oim_node_name }}/rhel-{{ item.key }}"
+{% set job_id_suffix = build_stream_job_id | default('') %}
+{% set build_stream_flag = (enable_build_stream | default(false) | string | lower == 'true') or (enable_build_stream is sameas true) %}
+{% if build_stream_flag and job_id_suffix != '' %}
+{% set image_name_suffix = '-' + job_id_suffix %}
+{% else %}
+{% set image_name_suffix = '' %}
+{% endif %}
+base_compute_image_name: "{{ item.key }}{{ image_name_suffix }}"
+rhel_base_compute_image_name: "rhel-{{ item.key }}{{ image_name_suffix }}"
+rhel_base_compute_image: "{{ oim_node_name }}/rhel-{{ item.key }}{{ image_name_suffix }}"
+# S3 directory should stay stable (no job-id) while the filename will carry job-id via image name
+s3_dir_name: "rhel-{{ item.key }}"
 cluster_name: "{{ oim_node_name }}"
 cluster_domain: "{{ domain_name }}"
 group_name: "{{ item.key }}"
-rhel_base_compute_mounts: {{ ochami_compute_mounts | join(' ') }}
+rhel_base_compute_mounts: --user 0 --privileged -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z -v {{ openchami_work_dir }}/images/{{ rhel_base_compute_image_name }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
 image_build_name: {{ ochami_aarch64_image  | join (' ') }}
 rhel_base_compute_command_options: {{ ochami_base_command | join (' ') }}
 minio_s3_username: "{{ minio_s3_username }}"
 minio_s3_password: "{{ minio_s3_password }}"
+{% set s3_prefix_suffix = '' %}
+s3_prefix_suffix: "{{ s3_prefix_suffix }}"
+# Override OpenCHAMI defaults to ensure correct mount path
+rhel_tag: "{{ rhel_tag }}"
 
 rhel_repos:
 {% set rhel_repo = rhel_aarch64_repos %}

@@ -48,6 +48,17 @@ slurm_cluster:
     #   slurm:
     #     SlurmctldTimeout: 60
     #     SlurmdTimeout: 150
+    #   cgroup:
+    #     CgroupPlugin: autodetect
+    #     ConstrainCores: True
+    #     ConstrainDevices: True
+    #     ConstrainRAMSpace: True
+    #     ConstrainSwapSpace: True
+
+    #   OR
+  
+    # config_sources:
+    #   slurm: /path/to/custom_slurm.conf
     #   cgroup: /path/to/custom_cgroup.conf
     #   slurmdbd: /path/to/custom_slurmdbd.conf
     #   gres: /path/to/custom_gres.conf

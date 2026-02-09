@@ -1,0 +1,53 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Append node_params list into NodeName list
+  ansible.builtin.set_fact:
+    apply_config: "{{ apply_config | default({})
+     | combine({'slurm': (apply_config['slurm']
+     | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + (node_params | default([]))}))}) }}"
+  when: node_params is defined and node_params
+
+- name: Append login nodes to NodeName list
+  ansible.builtin.set_fact:
+    apply_config: "{{ apply_config | default({})
+     | combine({'slurm': (apply_config['slurm']
+     | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + [{'NodeName': item}]}))}) }}"
+  loop: "{{ login_list }}"
+  when: login_list is defined and login_list
+
+- name: Append compiler login nodes to NodeName list
+  ansible.builtin.set_fact:
+    apply_config: "{{ apply_config | default({})
+     | combine({'slurm': (apply_config['slurm']
+     | combine({'NodeName': (apply_config['slurm'].NodeName | default([])) + [{'NodeName': item}]}))}) }}"
+  loop: "{{ compiler_login_list }}"
+  when: compiler_login_list is defined and compiler_login_list
+
+- name: Append Partition
+  ansible.builtin.set_fact:
+    apply_config: "{{ apply_config | default({})
+     | combine({'slurm': (apply_config['slurm']
+     | combine({'PartitionName': (apply_config['slurm'].PartitionName | default([])) + [partition_params]}))}) }}"
+  when: node_params is defined and node_params
+
+- name: Add gpu parameters to slurm conf
+  ansible.builtin.set_fact:
+    apply_config: "{{ apply_config | default({}) | combine({'slurm': (apply_config['slurm'] | combine(gpu_slurm_conf))}) }}"
+  when: gpu_params is defined and gpu_params
+
+- name: Add dbd parameters to slurm conf
+  ansible.builtin.set_fact:
+    apply_config: "{{ apply_config | default({}) | combine({'slurm': (apply_config['slurm'] | combine(dbd_slurm_conf))}) }}"
+  when: dbd_list is defined and dbd_list
