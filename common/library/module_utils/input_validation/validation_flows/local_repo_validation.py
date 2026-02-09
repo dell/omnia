@@ -29,43 +29,77 @@ create_file_path = validation_utils.create_file_path
 
 def check_subscription_status(logger=None):
     """
-    Check if the system has an active Red Hat subscription.
-    Subscription status is considered True if either entitlement
-    certificates exist or the required Red Hat repository URLs are present.
-    
-    Checks mounted host paths (/etc/pki/entitlement, /etc/yum.repos.d/redhat.repo).
+    Check if the system has an active Red Hat subscription enabled.
+    If system entitlement certificates are found in /etc/pki/entitlement,
+    only system paths are checked. Otherwise, Omnia paths are checked.
+    Subscription is enabled only if entitlement certificates and required
+    Red Hat repository URLs are found in the same source (system or Omnia).
 
     Returns:
-        bool: True if the system is subscribed (either entitlement certs
-              exist or required repos are present), False otherwise.
-    """    
-    # 1. Check entitlement certs
-    entitlement_certs = glob.glob(config.ENTITLEMENT_PEM)
-    has_entitlement = len(entitlement_certs) > 0
-    if logger:
-        logger.info(f"Entitlement certs in {config.ENTITLEMENT_PEM}: {len(entitlement_certs)} found")
+        bool: True if subscription is enabled (both entitlement certs
+              and repos are found in the same source), False otherwise.
+    """
+    # 1. Check system entitlement certs first
+    system_entitlement_certs = glob.glob(config.SYSTEM_ENTITLEMENT_PATH)
+    has_system_entitlement = len(system_entitlement_certs) > 0
+    
+    if has_system_entitlement:
+        # System entitlement found - use system paths only
+        entitlement_certs = system_entitlement_certs
+        has_entitlement = True
+        repo_file_to_check = config.SYSTEM_REDHAT_REPO
+        
+        if logger:
+            logger.info(f"Found {len(system_entitlement_certs)} system entitlement certs - using system paths only")
+    else:
+        # No system entitlement - check Omnia paths
+        omnia_entitlement_certs = glob.glob(config.OMNIA_ENTITLEMENT_PATH)
+        entitlement_certs = omnia_entitlement_certs
+        has_entitlement = len(omnia_entitlement_certs) > 0
+        repo_file_to_check = config.OMNIA_REDHAT_REPO
+        
+        if logger:
+            logger.info(f"No system entitlement found - checking Omnia paths: {len(omnia_entitlement_certs)} certs found")
 
-    # 2. Check redhat repos in redhat.repo
+    # 2. Check repos based on which entitlement path was used
+    has_repos = False
     repo_urls = []
-    redhat_repo = config.REDHAT_REPO_FILE
-    if os.path.exists(redhat_repo):
-        with open(redhat_repo, "r") as f:
-            for line in f:
-                if line.startswith("baseurl ="):
-                    url = line.split("=", 1)[1].strip()
-                    if re.search(r"(codeready-builder|baseos|appstream)", url, re.IGNORECASE):
-                        repo_urls.append(url)
+    redhat_repo_used = None
+    
+    if os.path.exists(repo_file_to_check):
+        try:
+            with open(repo_file_to_check, "r") as f:
+                for line in f:
+                    if line.startswith("baseurl ="):
+                        url = line.split("=", 1)[1].strip()
+                        if re.search(r"(codeready-builder|baseos|appstream)", url, re.IGNORECASE):
+                            repo_urls.append(url)
+            
+            if repo_urls:
+                has_repos = True
+                redhat_repo_used = repo_file_to_check
+                if logger:
+                    logger.info(f"Found {len(repo_urls)} repo URLs in {repo_file_to_check}")
+            elif logger:
+                logger.info(f"No required repo URLs found in {repo_file_to_check}")
+        except (IOError, OSError) as e:
+            if logger:
+                logger.warning(f"Error reading {repo_file_to_check}: {e}")
+    elif logger:
+        logger.info(f"Repo file {repo_file_to_check} does not exist")
 
-    has_repos = len(repo_urls) > 0
+    # 3. Subscription enabled if entitlement and repos are found in the same source
+    subscription_enabled = has_entitlement and has_repos
+    
     if logger:
-        logger.info(f"Repo URLs in {redhat_repo}: {len(repo_urls)} found")
+        logger.info(
+            f"Subscription enabled: {subscription_enabled} "
+            f"(entitlement={has_entitlement}, repos={has_repos}, "
+            f"entitlement_source={entitlement_certs[0] if entitlement_certs else 'None'}, "
+            f"repo_source={redhat_repo_used})"
+        )
 
-    # 3. Subscription status logic
-    subscription_status = has_entitlement or has_repos
-    if logger:
-        logger.info(f"Subscription status: {subscription_status} (entitlement={has_entitlement}, repos={has_repos})")
-
-    return subscription_status
+    return subscription_enabled
 
 # Below is a validation function for each file in the input folder
 def validate_local_repo_config(input_file_path, data,
