@@ -18,13 +18,13 @@
   when: omnia_run_tags is not defined
 
 - name: Validate omnia input config
+  vars:
+    # Note: When running a specific playbook without tags ansible run tags will default to ["all"], thus if two or more tags are present
+    # then the "all" tag should be removed so that only the config files related to that playbook are validated.
+    input_validate_tags: "{{ omnia_run_tags | default([]) | difference(['all']) if (omnia_run_tags | length) >= 2
+      else omnia_run_tags | default([]) }}"
   block:
     - name: Run validation
-      vars:
-        # Note: When running a specific playbook without tags ansible run tags will default to ["all"], thus if two or more tags are present
-        # then the "all" tag should be removed so that only the config files related to that playbook are validated.
-        input_validate_tags: "{{ omnia_run_tags | default([]) | difference(['all']) if (omnia_run_tags | length) >= 2
-          else omnia_run_tags | default([]) }}"
       validate_input:
         omnia_base_dir: "{{ (input_dir + '/../') | ansible.builtin.realpath }}"
         project_name: "{{ project_name }}"
