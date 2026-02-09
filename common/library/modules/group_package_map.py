@@ -145,6 +145,10 @@ def get_type_dict(clust_list):
                 # Add package to rpm key
             type_dict[pkgtype] = type_dict.get(
                 pkgtype, []) + [pkg_dict.get('package')]
+            # Also track repo_name mapping for RPMs
+            if 'repo_mapping' not in type_dict:
+                type_dict['repo_mapping'] = {}
+            type_dict['repo_mapping'][pkg_dict.get('package')] = pkg_dict.get('repo_name', '')
 
         # Update reboot required values
         reboot_val = pkg_dict.get(REBOOT_KEY, False)

@@ -146,6 +146,9 @@ user_registry_fail_host_cert_path_msg: "Failed. Each item in user_registry shoul
 time_out: 30
 user_registry_msg: "Above user registries is/are not reachable. Please make sure the user registry is accessible from the Omnia Infrastructure Manager."   # noqa: yaml[line-length]
 cert_path_failure_msg: "Certificate file path {{ item.item.cert_path }} does not exist on the Omnia Infrastructure Manager for host {{ item.item.host }}. Please verify that correct cert_path is given in {{ project_input_path }}/local_repo_config.yml"  # noqa: yaml[line-length]
+additional_packages_image_warning_msg: |
+  WARNING: additional_packages.json contains packages of type 'image', but 'user_registry' is not defined in local_repo_config.yml.
+  Please specify 'user_registry' in local_repo_config.yml if these images are coming from a user registry.
 
 # Usage: validate_user_repo_url.yml
 user_repo_url_fail_msg: "Failed. Please ensure user_repo_url is proper and should not have jinja variables.

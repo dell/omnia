@@ -13,14 +13,18 @@
 # limitations under the License.
 ---
 
-- name: Validate backup location for upgrade input processing
-  ansible.builtin.include_tasks: precheck_backup_location.yml
+- name: Pull OpenCHAMI images using Podman
+  ansible.builtin.command:
+    cmd: "podman pull {{ item }}"
+  loop: "{{ openchami_images }}"
+  register: pull_result
+  retries: "{{ pull_image_retries }}"
+  delay: "{{ pull_image_delay }}"
+  until: pull_result.rc == 0
+  changed_when: false
 
-- name: Transform network_spec.yml from Omnia 2.0 to 2.1
-  ansible.builtin.include_tasks: transform_network_spec.yml
-
-- name: Transform high_availability_config.yml from Omnia 2.0 to 2.1
-  ansible.builtin.include_tasks: transform_high_availability_config.yml
-
-- name: Restore input files from backup
-  ansible.builtin.include_tasks: restore_input_files.yml
+- name: Fail if any OpenCHAMI image pull failed
+  ansible.builtin.fail:
+    msg: "Failed to pull OpenCHAMI image: {{ item.item }}. Error: {{ item.stderr }}"
+  loop: "{{ pull_result.results }}"
+  when: item.rc != 0

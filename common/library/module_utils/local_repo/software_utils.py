@@ -176,21 +176,32 @@ def transform_package_dict(data, arch_val,logger):
     for sw_name, items in data.items():
         transformed_items = []
         rpm_packages = []
+        repo_mapping = {}
 
         for item in items:
             if item.get("type") == "rpm":
                 rpm_packages.append(item["package"])
+                # Preserve repo_name if available
+                if "repo_name" in item:
+                    repo_mapping[item["package"]] = item["repo_name"]
             elif item.get("type") == "rpm_list":
                 rpm_packages.extend(item["package_list"])
+                # Preserve repo_mapping if available
+                if "repo_mapping" in item:
+                    repo_mapping.update(item["repo_mapping"])
             else:
                 transformed_items.append(item)
 
         if rpm_packages:
-            transformed_items.append({
+            rpm_task = {
                 "package": RPM_LABEL_TEMPLATE.format(key=sw_name),
                 "rpm_list": rpm_packages,
                 "type": "rpm"
-            })
+            }
+            # Add repo_mapping if we have any
+            if repo_mapping:
+                rpm_task["repo_mapping"] = repo_mapping
+            transformed_items.append(rpm_task)
 
         result[arch_val][sw_name] = transformed_items
         logger.info(f"Finished processing %s. Result: %s", sw_name, transformed_items)
@@ -230,7 +241,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
     logger.info(f"Processing repository URLs for architectures: {archs_to_process}")
 
     for arch in archs_to_process:
-        
+
         # Always ensure these are lists
         rhel_repo_entry[arch] = list(local_yaml.get(f"rhel_os_url_{arch}") or [])
         repo_entries[arch] = list(local_yaml.get(f"omnia_repo_url_rhel_{arch}") or [])
@@ -338,8 +349,8 @@ def parse_repo_urls(repo_config, local_repo_config_path,
     seen_urls = set()
     for arch, entries in repo_entries.items():
         if not entries:
-           logger.info(f"No OMNIA repository entries found for {arch}")
-           continue
+            logger.info(f"No OMNIA repository entries found for {arch}")
+            continue
 
         for repo in entries:
             name = repo.get("name", "unknown")
@@ -455,7 +466,7 @@ def get_subgroup_dict(user_data,logger):
                                     for item in user_data.get(software_name, [])]
         subgroup_dict[software_name] = subgroups if isinstance(
             user_data.get(software_name), list) else [sw['name']]
-    
+
     logger.info("Completed get_subgroup_dict(). Found %d software entries.", len(software_names))
     logger.info("Final subgroup_dict: %s", subgroup_dict)
 
@@ -479,17 +490,17 @@ def get_csv_software(file_name):
     """
 
     csv_software = []
- 
+
     if not os.path.isfile(file_name):
         return csv_software
- 
+
     with open(file_name, mode='r') as csv_file:
         reader = csv.DictReader(csv_file)
         csv_software = [row.get(CSV_COLUMNS["column1"], "").strip()
                         for row in reader]
 
     return csv_software
- 
+
 
 def get_failed_software(file_path):
     """
@@ -625,14 +636,14 @@ def parse_json_data(file_path, package_types,logger, failed_list=None, subgroup_
                 for item in value:
                     # For every image, check if it is present in Pulp
                     if is_additional_packages and item.get("type") == "image":
-                            logger.info("Calling function to check %s existence in Pulp", item)
-                            tag_missing_entry = check_additional_image_in_pulp(item, logger)
-                            logger.info("tag_missing_entry: %s", tag_missing_entry)
-                            if tag_missing_entry == {}:
-                                continue
-                            if tag_missing_entry:
-                                filtered_list.append(tag_missing_entry)
+                        logger.info("Calling function to check %s existence in Pulp", item)
+                        tag_missing_entry = check_additional_image_in_pulp(item, logger)
+                        logger.info("tag_missing_entry: %s", tag_missing_entry)
+                        if tag_missing_entry == {}:
                             continue
+                        if tag_missing_entry:
+                            filtered_list.append(tag_missing_entry)
+                        continue
 
                     # Get package name
                     pkg_name = item.get("package")
@@ -702,7 +713,6 @@ def get_new_packages_not_in_status(json_path, csv_path, subgroup_list,logger):
         raise
 
     names = [row['name'] for row in status_csv_content]
-    
     # Read all packages from JSON
     try:
         all_packages = parse_json_data(json_path, PACKAGE_TYPES, logger,None, subgroup_list)
@@ -710,18 +720,23 @@ def get_new_packages_not_in_status(json_path, csv_path, subgroup_list,logger):
     except Exception as e:
         logger.error("Failed to parse JSON file '%s': %s", json_path, e)
         raise
-   
-    for pkg in all_packages:
 
+    for pkg in all_packages:
         if pkg["type"] == "image":
-           pkg_prefix = pkg.get("package", "").strip()
-           prefix_found = any(name.startswith(f"{pkg_prefix}:") for name in names)
-           if not prefix_found:
-               new_packages.append(pkg)
+            # Check exact package:tag or package:digest combination
+            pkg_base = pkg.get("package", "").strip()
+            pkg_identifier = pkg_base
+
+            if "tag" in pkg:
+                pkg_identifier += f":{pkg['tag']}"
+            elif "digest" in pkg:
+                pkg_identifier += f":{pkg['digest']}"
+
+            if pkg_identifier not in names:
+                new_packages.append(pkg)
         else:
             if pkg.get("package") not in names:
                 new_packages.append(pkg)
-
     logger.info("New packages list: %s", new_packages)
 
     logger.info("Finished get_new_packages_not_in_status()")
@@ -748,7 +763,7 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
         failed_packages = None
         logger.info("Fresh installation detected — skipping failed package check.")
     else:
-        try:    
+        try:
             failed_packages = None if fresh_installation else get_failed_software(csv_path)
             logger.info("Failed packages: %s", failed_packages)
         except Exception as e:
@@ -766,7 +781,7 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
             raise
     else:
         logger.info("No failed RPM packages found for: %s", software)
- 
+
     # Parse main JSON data
     try:
         combined = parse_json_data(
@@ -798,7 +813,7 @@ def get_software_names_and_arch(json_data, arch):
         sw_arch = sw_arch_dict[sw["name"]]
         if arch in sw_arch:
             result.append(sw["name"])
-    
+
     return result
 
 def remove_duplicates_from_trans(trans):
@@ -828,7 +843,9 @@ def remove_duplicates_from_trans(trans):
                 type_ = item.get("type")
 
                 if type_ == "image":
-                    key = (item.get("package"), item.get("tag"))
+                    # Use digest if present, otherwise use tag
+                    identifier = item.get("digest") or item.get("tag")
+                    key = (item.get("package"), identifier)
 
                 elif type_ == "pip_module":
                     key = item.get("package")

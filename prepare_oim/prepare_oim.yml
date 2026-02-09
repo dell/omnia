@@ -97,6 +97,17 @@
         name: deploy_containers/openchami  # noqa:role-name[path]
         tasks_from: verify_openchami.yml
 
+- name: OpenCHAMI deployment prereq
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags: openchami
+  tasks:
+    - name: Pull OpenCHAMI images
+      ansible.builtin.include_role:
+        name: deploy_containers/openchami  # noqa:role-name[path]
+        tasks_from: deployment_prereq.yml
+
 - name: Deploy the openchami container
   hosts: localhost
   connection: local

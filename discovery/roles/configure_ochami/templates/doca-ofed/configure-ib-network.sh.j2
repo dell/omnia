@@ -1,6 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
+# Check if Mellanox hardware is present
+if ! lspci | grep -i 'mellanox'; then
+    echo "No Mellanox RDMA hardware detected. Skipping IB network configuration."
+    exit 0
+fi
+
 ADMIN_NIC_IP="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
 NETMASK_BITS="{{ hostvars['localhost']['admin_netmask_bits'] }}"
 IB_NETWORK_SUBNET="{{ hostvars['localhost']['ib_network_subnet'] }}"

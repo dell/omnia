@@ -52,11 +52,15 @@ is_local_ip() {
     fi
 }
 
-OMNIA_BASE_DIR="/opt/omnia"
-OMNIA_INPUT_DIR="/opt/omnia/input"
-OMNIA_BACKUPS_DIR="/opt/omnia/backups"
-OMNIA_METADATA_DIR="/opt/omnia/.data"
-OMNIA_METADATA_FILE="/opt/omnia/.data/oim_metadata.yml"
+# Container-side paths (used inside podman exec commands)
+CONTAINER_INPUT_DIR="/opt/omnia/input"
+CONTAINER_BACKUPS_DIR="/opt/omnia/backups"
+CONTAINER_METADATA_FILE="/opt/omnia/.data/oim_metadata.yml"
+
+# Host-side paths (initialized dynamically after omnia_path is set)
+OMNIA_INPUT_DIR=""
+OMNIA_METADATA_DIR=""
+OMNIA_METADATA_FILE=""
 
 update_metadata_upgrade_backup_dir() {
     local backup_dir="$1"
@@ -68,14 +72,14 @@ update_metadata_upgrade_backup_dir() {
 
     podman exec -u root omnia_core bash -c "
         set -e
-        if [ ! -f '$OMNIA_METADATA_FILE' ]; then
-            echo '[ERROR] Metadata file not found inside container: $OMNIA_METADATA_FILE' >&2
+        if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
+            echo '[ERROR] Metadata file not found inside container: $CONTAINER_METADATA_FILE' >&2
             exit 1
         fi
-        if grep -q '^upgrade_backup_dir:' '$OMNIA_METADATA_FILE'; then
-            sed -i 's|^upgrade_backup_dir:.*|upgrade_backup_dir: ${backup_dir}|' '$OMNIA_METADATA_FILE'
+        if grep -q '^upgrade_backup_dir:' '$CONTAINER_METADATA_FILE'; then
+            sed -i 's|^upgrade_backup_dir:.*|upgrade_backup_dir: ${backup_dir}|' '$CONTAINER_METADATA_FILE'
         else
-            echo 'upgrade_backup_dir: ${backup_dir}' >> '$OMNIA_METADATA_FILE'
+            echo 'upgrade_backup_dir: ${backup_dir}' >> '$CONTAINER_METADATA_FILE'
         fi
     "
 }
@@ -560,6 +564,11 @@ init_container_config() {
     # Create the pulp_ha directory if it does not exist.
     echo -e "${GREEN} Creating the pulp HA directory if it does not exist.${NC}"
     mkdir -p "$omnia_path/omnia/pulp/pulp_ha"
+
+    # Initialize host-side path variables based on user-provided omnia_path
+    OMNIA_INPUT_DIR="$omnia_path/omnia/input"
+    OMNIA_METADATA_DIR="$omnia_path/omnia/.data"
+    OMNIA_METADATA_FILE="$omnia_path/omnia/.data/oim_metadata.yml"
 }
 
 
@@ -617,6 +626,11 @@ fetch_config() {
     else
         echo -e "${GREEN} Successfully fetched data from metadata file.${NC}"
     fi
+
+    # Initialize host-side path variables based on fetched omnia_path
+    OMNIA_INPUT_DIR="$omnia_path/omnia/input"
+    OMNIA_METADATA_DIR="$omnia_path/omnia/.data"
+    OMNIA_METADATA_FILE="$omnia_path/omnia/.data/oim_metadata.yml"
 }
 
 # Validates the OIM (Omnia Infrastructure Manager) by checking if the hostname is
@@ -1214,6 +1228,7 @@ phase1_validate() {
 
     echo "[INFO] [ORCHESTRATOR] Container version validated: 1.0 (Omnia 2.0.0.0)"
 
+   
 
     if ! podman inspect "omnia_core:1.1" >/dev/null 2>&1; then
         echo "[ERROR] [ORCHESTRATOR] Target image missing locally: omnia_core:1.1"
@@ -1241,7 +1256,7 @@ phase2_approval() {
     echo "  - Additional Package Installation"
     echo "============================================"
 
-    default_backup_dir="$OMNIA_BACKUPS_DIR/upgrade"
+    default_backup_dir="$CONTAINER_BACKUPS_DIR/upgrade"
     backup_base="$default_backup_dir"
 
     echo "[INFO] [ORCHESTRATOR] Backup destination: $backup_base"
@@ -1264,8 +1279,61 @@ phase2_approval() {
     return 0
 }
 
+phase3_backup_creation() {
+    local backup_base="$1"
+
+    echo "[INFO] [ORCHESTRATOR] Phase 3: Backup Creation"
+
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Cannot create backup because omnia_core is not running"
+        return 1
+    fi
+
+    if [ -z "$backup_base" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Backup destination is empty"
+        return 1
+    fi
+
+    if ! podman exec -u root omnia_core bash -c "
+        set -e
+        rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
+        mkdir -p '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
+
+        if [ -f '$CONTAINER_INPUT_DIR/default.yml' ]; then
+            cp -a '$CONTAINER_INPUT_DIR/default.yml' '${backup_base%/}/input/'
+        fi
+
+        if [ -d '$CONTAINER_INPUT_DIR/project_default' ]; then
+            cp -a '$CONTAINER_INPUT_DIR/project_default' '${backup_base%/}/input/'
+        fi
+
+        if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
+            echo '[ERROR] Metadata file not found inside container: $CONTAINER_METADATA_FILE' >&2
+            exit 1
+        fi
+        cp -a '$CONTAINER_METADATA_FILE' '${backup_base%/}/metadata/oim_metadata.yml'
+    "; then
+        echo "[ERROR] [ORCHESTRATOR] Backup failed; cleaning up partial backup"
+        podman exec -u root omnia_core bash -c "rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'" >/dev/null 2>&1 || true
+        return 1
+    fi
+
+    if [ -f "/etc/containers/systemd/omnia_core.container" ]; then
+        if ! podman cp "/etc/containers/systemd/omnia_core.container" "omnia_core:${backup_base%/}/configs/omnia_core.container" >/dev/null 2>&1; then
+            echo "[ERROR] [ORCHESTRATOR] Failed to backup quadlet container file"
+            podman exec -u root omnia_core bash -c "rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'" >/dev/null 2>&1 || true
+            return 1
+        fi
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Backup created at: $backup_base"
+    echo "[INFO] [ORCHESTRATOR] Phase 3: Backup completed"
+    return 0
+}
+
 upgrade_omnia_core() {
     local lock_file="/var/lock/omnia_core_upgrade.lock"
+    local backup_base
 
     if [ -e "$lock_file" ]; then
         echo -e "${RED}ERROR: Upgrade lock exists at $lock_file. Another upgrade may be running.${NC}"
@@ -1288,7 +1356,18 @@ upgrade_omnia_core() {
         exit 0
     fi
 
-    echo "[INFO] [ORCHESTRATOR] Upgrade tasks for backup and container swap are deferred to a follow-up PR"
+    backup_base="$OMNIA_UPGRADE_BACKUP_PATH"
+    if [ -z "$backup_base" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Backup path is empty"
+        exit 1
+    fi
+
+    if ! phase3_backup_creation "$backup_base"; then
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed in Phase 3"
+        exit 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Upgrade tasks for container swap are deferred to a follow-up PR"
     exit 0
 }
 

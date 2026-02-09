@@ -114,7 +114,7 @@
   connection: ssh
   gather_facts: false
   tasks:
-    - name: Read network_spec vars
+    - name: Validate Pulp Container and Endpoint
       ansible.builtin.include_role:
         name: pulp_validation
 

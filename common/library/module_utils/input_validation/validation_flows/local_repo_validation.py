@@ -129,50 +129,6 @@ def validate_local_repo_config(input_file_path, data,
     software_config_file_path = create_file_path(input_file_path, file_names["software_config"])
     software_config_json = load_json(software_config_file_path)
 
-    # Check if additional_packages is enabled and contains image packages
-    additional_packages_enabled = any(sw.get("name") == "additional_packages" for sw in software_config_json.get("softwares", []))
-    if additional_packages_enabled:
-        # Get arch values from additional_packages entry in software_config.json
-        additional_packages_archs = []
-        for software in software_config_json.get("softwares", []):
-            if software.get("name") == "additional_packages":
-                arch_list = software.get("arch", [])
-                additional_packages_archs = arch_list  # Get all archs
-                break
-
-        # Check each arch specific additional_packages.json
-        has_image_packages = False
-        for additional_packages_arch in additional_packages_archs:
-            additional_packages_path = create_file_path(
-                input_file_path,
-                f"config/{additional_packages_arch}/{software_config_json['cluster_os_type']}/{software_config_json['cluster_os_version']}/additional_packages.json"
-            )
-            
-            if os.path.exists(additional_packages_path):
-                additional_packages_data = load_json(additional_packages_path)
-                has_image_packages = False
-                
-                # Check all sections for image packages
-                for section_name, section_data in additional_packages_data.items():
-                    if isinstance(section_data, dict) and "cluster" in section_data:
-                        cluster_packages = section_data.get("cluster", [])
-                        
-                        for package in cluster_packages:
-                            if package.get("type") == "image":
-                                has_image_packages = True
-                                break
-
-                    if has_image_packages:
-                        break
-
-        # If any architecture has image packages, user_registry must be defined and not empty
-        if has_image_packages and user_registry is None:
-            errors.append(create_error_msg(
-                local_repo_yml,
-                "user_registry", 
-                "user_registry must be defined when additional_packages.json contains packages of type 'image'"
-            ))
-
     # Extra validation: custom_slurm must have <arch>_slurm_custom in user_repo_url_<arch>
     for sw in software_config_json["softwares"]:
         if sw["name"] == "slurm_custom":

@@ -22,6 +22,9 @@
 - name: Validate software_config.json
   ansible.builtin.include_tasks: validate_software_config_json.yml
 
+- name: Check for images in additional_packages
+  ansible.builtin.include_tasks: check_additional_packages_images.yml
+
 - name: Validate metadata
   ansible.builtin.include_tasks: validate_metadata.yml
 

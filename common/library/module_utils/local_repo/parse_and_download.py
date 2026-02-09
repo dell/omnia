@@ -83,9 +83,17 @@ def execute_command(cmd_string, logger, type_json=False):
     finally:
         logger.info("#" * 30 + f" {execute_command.__name__} end " + "#" * 30)
 
-def write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock: Lock):
+def write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock: Lock, repo_name=None):
     """
     Writes or updates the status of a package in the status file, using a lock to ensure safe access across processes.
+    Args:
+        status_file_path: Path to the status file
+        package_name: Name of the package
+        package_type: Type of the package (rpm, image, etc.)
+        status: Status (Success, Failed, etc.)
+        logger: Logger instance
+        file_lock: Lock for thread safety
+        repo_name: Optional repository name (for RPMs)
     """
     logger.info("#" * 30 + f" {write_status_to_file.__name__} start " + "#" * 30)
 
@@ -97,19 +105,32 @@ def write_status_to_file(status_file_path, package_name, package_type, status, l
 
                 updated = False
                 with open(status_file_path, "w") as f:
-                    for line in lines:
+                      # Write header (new files always have repo_name column)
+                    if lines:
+                        f.write(lines[0])  # Keep existing header
+
+                    # Write data lines
+                    for line in lines[1:]:  # Skip header
                         if line.startswith(f"{package_name},"):
-                            f.write(f"{package_name},{package_type},{status}\n")
+                           # f.write(f"{package_name},{package_type},{status}\n")
+                            # Update existing line with repo_name (order: name,type,repo_name,status)
+                            parts = line.strip().split(',')
+                            if len(parts) >= 4:
+                                parts[2] = repo_name if repo_name else ''
+                                parts[3] = status
+                                f.write(','.join(parts) + '\n')
+                            else:
+                                f.write(f"{package_name},{package_type},{repo_name if repo_name else ''},{status}\n")
                             updated = True
                         else:
                             f.write(line)
 
                     if not updated:
-                        f.write(f"{package_name},{package_type},{status}\n")
+                        f.write(f"{package_name},{package_type},{repo_name if repo_name else ''},{status}\n")
             else:
                 with open(status_file_path, "w") as f:
-                    f.write("name,type,status\n")
-                    f.write(f"{package_name},{package_type},{status}\n")
+                    f.write(STATUS_CSV_HEADER)
+                    f.write(f"{package_name},{package_type},{repo_name if repo_name else ''},{status}\n")
 
             logger.info(f"Status written to {status_file_path} for {package_name}.")
     except Exception as e:

@@ -1,0 +1,94 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Pulp Cleanup Playbook - Clean Architecture
+#
+# Usage:
+#   ansible-playbook pulp_cleanup_v2.yml -e '{"cleanup_repos": ["epel", "baseos"]}'
+#   ansible-playbook pulp_cleanup_v2.yml -e '{"cleanup_containers": ["nginx", "redis"]}'
+#   ansible-playbook pulp_cleanup_v2.yml -e '{"cleanup_files": ["git", "chart-0.48.0"]}'
+#   ansible-playbook pulp_cleanup_v2.yml -e '{"cleanup_repos": ["epel"], "cleanup_containers": ["nginx"]}' -e force=true
+
+- name: Pulp Cleanup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  pre_tasks:
+    # Step 1: Input Validation
+    - name: Validate input - at least one cleanup type must be specified
+      ansible.builtin.assert:
+        that:
+          - (cleanup_repos | default([]) | length > 0) or (cleanup_containers | default([]) | length > 0) or (cleanup_files | default([]) | length > 0)
+        fail_msg: |
+          No cleanup items specified. Please provide at least one of:
+            cleanup_repos: ['repo1', 'repo2']
+            cleanup_containers: ['container1', 'container2']
+            cleanup_files: ['file1', 'file2']
+
+    # Step 2: User Confirmation
+    - name: Parse cleanup lists
+      ansible.builtin.set_fact:
+        repo_list: "{{ (cleanup_repos.split(',') if cleanup_repos != 'all' else []) if cleanup_repos is defined else [] }}"
+        container_list: "{{ (cleanup_containers.split(',') if cleanup_containers is string else cleanup_containers) | default([]) }}"
+        file_list: "{{ (cleanup_files.split(',') if cleanup_files is string else cleanup_files) | default([]) }}"
+
+    - name: Display cleanup summary
+      ansible.builtin.debug:
+        msg:
+          - "========== CLEANUP SUMMARY =========="
+          - "Repositories : {{ (repo_list | default([]) | join(', ')) if repo_list | default([]) | length > 0 else 'None' }}"
+          - "Containers   : {{ (container_list | default([]) | join(', ')) if cleanup_containers | default([]) | length > 0 else 'None' }}"
+          - "Files        : {{ (file_list | default([]) | join(', ')) if cleanup_files | default([]) | length > 0 else 'None' }}"
+          - "====================================="
+    - name: Get user confirmation
+      ansible.builtin.pause:
+        prompt: |
+
+          ⚠️  WARNING: This will permanently delete the specified artifacts.
+          This action cannot be undone.
+
+          Type 'yes' to continue or press Ctrl+C to abort
+      register: user_input
+      when: not (force | default(false)) | bool
+
+    - name: Abort if not confirmed
+      ansible.builtin.fail:
+        msg: "Cleanup cancelled by user"
+      when:
+        - not (force | default(false)) | bool
+        - user_input.user_input | default('') | lower != 'yes'
+
+  tasks:
+    # Step 3: Call Python Module
+    - name: Execute cleanup
+      pulp_cleanup:
+        cleanup_repos: "{{ repo_list | default([]) }}"
+        cleanup_containers: "{{ container_list | default([]) }}"
+        cleanup_files: "{{ file_list | default([]) }}"
+      register: cleanup_result
+
+  post_tasks:
+    # Step 4: Display Results
+    - name: Display cleanup results
+      ansible.builtin.debug:
+        msg: "{{ cleanup_result.pretty_table_lines }}"
+
+    - name: Display summary
+      ansible.builtin.debug:
+        msg:
+          - "========== CLEANUP COMPLETED =========="
+          - "Total: {{ cleanup_result.total }}, Success: {{ cleanup_result.success_count }}, Failed: {{ cleanup_result.failed_count }}"
+          - "Status file: {{ cleanup_result.status_file }}"
+          - "========================================"

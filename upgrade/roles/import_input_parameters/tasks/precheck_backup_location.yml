@@ -13,14 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Validate backup location for upgrade input processing
-  ansible.builtin.include_tasks: precheck_backup_location.yml
+- name: Validate backup_location is provided
+  ansible.builtin.fail:
+    msg: "{{ msg_backup_location_missing }}"
+  when: backup_location is not defined or (backup_location | string | trim) == ""
 
-- name: Transform network_spec.yml from Omnia 2.0 to 2.1
-  ansible.builtin.include_tasks: transform_network_spec.yml
-
-- name: Transform high_availability_config.yml from Omnia 2.0 to 2.1
-  ansible.builtin.include_tasks: transform_high_availability_config.yml
-
-- name: Restore input files from backup
-  ansible.builtin.include_tasks: restore_input_files.yml
+- name: Ensure backup directory exists
+  ansible.builtin.file:
+    path: "{{ backup_location }}"
+    state: directory
+    mode: "{{ backup_dir_mode }}"

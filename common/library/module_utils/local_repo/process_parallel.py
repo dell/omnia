@@ -96,7 +96,7 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
 
             if response.status_code == 200:
                 return docker_username, docker_password
-            
+
             if response.status_code == 429:
                 raise RuntimeError("Docker Hub rate limit exceeded. Please try again later.")
 
@@ -201,6 +201,13 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
         with log_lock:
             logger.info(f"### {execute_task.__name__} start ###")  # Log task start
 
+        # Build package display name with tag for images
+        package_display = task.get("package", "")
+        if task.get("type") == "image" and "tag" in task:
+            package_display = f"{package_display}:{task['tag']}"
+        elif task.get("type") == "image" and "digest" in task:
+            package_display = f"{package_display}:{task['digest']}"
+
         # Determine the function and its arguments using the provided `determine_function`
         function, args = determine_function(task, repo_store_path, csv_file_path, user_data,
                          version_variables, arc, user_registries, docker_username, docker_password)
@@ -217,7 +224,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
                     )
                 return {
                     "task": task,
-                    "package": task.get("package", ""),  # Extract package name if available
+                    "package": package_display,
                     "status": "TIMEOUT",
                     "output": "",
                     "error": f"Timeout reached after {elapsed_time:.2f}s"
@@ -240,7 +247,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
 
         return {
             "task": task,
-            "package": task.get("package", ""),  
+            "package": package_display,
             "status": result.upper(),  
             "output": result,
             "error": ""
@@ -251,12 +258,11 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
             logger.error(f"Task failed: {str(e)}")
         return {
             "task": task,
-            "package": task.get("package", ""),  
+            "package": package_display,
             "status": "FAILED",  
             "output": "",
             "error": str(e)  # Include the error message
         }
-
 def worker_process(task, determine_function, user_data, version_variables, arc, repo_store_path,
                   csv_file_path, log_dir, result_queue, user_registries,
                   docker_username, docker_password, timeout):

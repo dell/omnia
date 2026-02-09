@@ -345,8 +345,10 @@ def process_image(package, status_file_path, version_variables,
                 raise Exception(f"Failed to create remote: {remote_name}")
 
         # Sync and distribute
+        # Pass tag_val if it exists (for tag-based images), otherwise None (for digest-based images)
+        tag_to_pass = tag_val if "tag" in package else None
         result = sync_container_repository(
-            repository_name, remote_name, package_content, logger
+            repository_name, remote_name, package_content, logger, tag=tag_to_pass
         )
         if result is False or (isinstance(result, dict) and result.get("returncode", 1) != 0):
             raise Exception(f"Failed to sync repository: {repository_name}")
