@@ -39,14 +39,5 @@
   rescue:
     - name: Display validation errors
       ansible.builtin.fail:
-        msg: |
-          {{ ansible_failed_result.msg }}
-          
-          VALIDATION ERRORS:
-          {% for error in ansible_failed_result.errors %}
-          - {{ error }}
-          {% endfor %}
-          
-          Invalid files: {{ ansible_failed_result.invalid_files | join(', ') }}
-          Log file: {{ ansible_failed_result.log_file }}
+        msg: "{{ messages.validation_error }}"
       when: (input_validate_tags | length) > 0
