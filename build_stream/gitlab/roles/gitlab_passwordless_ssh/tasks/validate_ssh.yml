@@ -2,7 +2,9 @@
 # tasks/validate_ssh.yml
 
 - name: Check ssh connection
-  ansible.builtin.command: ssh -o StrictHostKeyChecking=no -o BatchMode=yes {{ gitlab_host }} echo ok
+  ansible.builtin.command: >-
+    ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i {{ ssh_key_path }}
+    root@{{ gitlab_host }} echo ok
   delegate_to: localhost
   run_once: true
   changed_when: false
