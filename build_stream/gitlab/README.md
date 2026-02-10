@@ -63,6 +63,9 @@ cd build_stream/gitlab
 ansible-playbook gitlab.yml
 ```
 
+> The directory ships with its own `ansible.cfg`, so running from `build_stream/gitlab`
+> automatically exposes Omnia's custom modules (e.g., `fetch_telemetry_status`).
+
 ### Case 1 – Hosted GitLab (fresh install on a server)
 
 1. Edit `gitlab_config.yaml`:
@@ -77,9 +80,10 @@ ansible-playbook gitlab.yml
    ```
 3. Run the unified playbook (see above). The `gitlab_passwordless_ssh` role runs first
    to generate `/root/.ssh/omnia_gitlab` and push the public key to the target host.
-   > **Important:** Set `ansible_password` (or `ansible_ssh_private_key_file`) in `inventory/hosts.ini`
-   > so Ansible can log in once. The password must match the provision/root password on the
-   > GitLab host; after the first run the role switches to passwordless SSH automatically.
+   > **Credential source:** The playbook automatically imports Omnia's credential utility
+   > and uses `provision_password` from your input project (same secret used during discovery).
+   > Ensure you've populated the provision credential files before running so the first SSH
+   > login succeeds; subsequent runs switch to the Omnia key automatically.
 
 ### Case 2 – Existing GitLab (already running)
 
