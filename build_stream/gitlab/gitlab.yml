@@ -10,35 +10,42 @@
 - name: Deploy GitLab CE on target host (hosted mode)
   hosts: "{{ gitlab_host | default('gitlab_server') }}"
   become: true
+  gather_facts: true
   vars_files:
     - gitlab_config.yaml
-  when: gitlab_deployment_mode == 'hosted'
-
-  pre_tasks:
+  tasks:
     - name: Validate hosted-mode requirements
       ansible.builtin.assert:
         that:
           - gitlab_host is defined and gitlab_host != ''
         fail_msg: "Set gitlab_host in gitlab_config.yaml for hosted mode"
+      when: gitlab_deployment_mode == 'hosted'
 
-  roles:
-    - gitlab_passwordless_ssh
-    - hosted_gitlab
+    - name: Bootstrap passwordless SSH
+      ansible.builtin.include_role:
+        name: gitlab_passwordless_ssh
+      when: gitlab_deployment_mode == 'hosted'
+
+    - name: Run hosted GitLab deployment
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+      when: gitlab_deployment_mode == 'hosted'
 
 - name: Integrate with existing GitLab instance
   hosts: localhost
   gather_facts: false
   vars_files:
     - gitlab_config.yaml
-  when: gitlab_deployment_mode == 'existing'
-
-  pre_tasks:
+  tasks:
     - name: Validate existing-mode requirements
       ansible.builtin.assert:
         that:
           - gitlab_external_url is defined and gitlab_external_url != ''
           - gitlab_api_token is defined and gitlab_api_token != ''
         fail_msg: "Set gitlab_external_url and gitlab_api_token for existing mode"
+      when: gitlab_deployment_mode == 'existing'
 
-  roles:
-    - external_gitlab
+    - name: Run external GitLab integration
+      ansible.builtin.include_role:
+        name: external_gitlab
+      when: gitlab_deployment_mode == 'existing'
