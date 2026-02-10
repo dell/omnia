@@ -1,0 +1,12 @@
+[req]
+default_bits = {{ gitlab_server_key_bits }}
+prompt = no
+default_md = sha256
+req_extensions = req_ext
+distinguished_name = dn
+
+[dn]
+CN = {{ gitlab_host }}
+
+[req_ext]
+subjectAltName = DNS:{{ gitlab_host }}

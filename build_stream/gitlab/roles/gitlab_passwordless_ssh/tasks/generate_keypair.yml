@@ -1,0 +1,18 @@
+---
+# tasks/generate_keypair.yml
+
+- name: Ensure .ssh directory exists on control node
+  ansible.builtin.file:
+    path: "{{ ssh_key_path | dirname }}"
+    state: directory
+    mode: '0700'
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate SSH keypair if missing
+  ansible.builtin.command: >-
+    ssh-keygen -t rsa -b 4096 -C "{{ ssh_key_comment }}" -q -N '' -f {{ ssh_key_path }}
+  args:
+    creates: "{{ ssh_key_path }}"
+  delegate_to: localhost
+  run_once: true

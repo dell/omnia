@@ -1,0 +1,44 @@
+---
+# ============================================================================
+# GitLab Automation Entry Point
+# ============================================================================
+# Uses gitlab_config.yaml to decide between hosted deployment or existing
+# integration. Run:
+#   ansible-playbook gitlab/gitlab.yml
+# ============================================================================
+
+- name: Deploy GitLab CE on target host (hosted mode)
+  hosts: "{{ gitlab_host | default('gitlab_server') }}"
+  become: true
+  vars_files:
+    - gitlab_config.yaml
+  when: gitlab_deployment_mode == 'hosted'
+
+  pre_tasks:
+    - name: Validate hosted-mode requirements
+      ansible.builtin.assert:
+        that:
+          - gitlab_host is defined and gitlab_host != ''
+        fail_msg: "Set gitlab_host in gitlab_config.yaml for hosted mode"
+
+  roles:
+    - gitlab_passwordless_ssh
+    - hosted_gitlab
+
+- name: Integrate with existing GitLab instance
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - gitlab_config.yaml
+  when: gitlab_deployment_mode == 'existing'
+
+  pre_tasks:
+    - name: Validate existing-mode requirements
+      ansible.builtin.assert:
+        that:
+          - gitlab_external_url is defined and gitlab_external_url != ''
+          - gitlab_api_token is defined and gitlab_api_token != ''
+        fail_msg: "Set gitlab_external_url and gitlab_api_token for existing mode"
+
+  roles:
+    - external_gitlab

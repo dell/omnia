@@ -1,0 +1,16 @@
+---
+# tasks/authorize_key.yml
+
+- name: Read public key
+  ansible.builtin.slurp:
+    src: "{{ ssh_key_path }}.pub"
+  register: gitlab_ssh_pubkey
+  delegate_to: localhost
+  run_once: true
+
+- name: Authorize key on GitLab server
+  ansible.posix.authorized_key:
+    user: root
+    key: "{{ gitlab_ssh_pubkey.content | b64decode }}"
+    manage_dir: true
+  become: true

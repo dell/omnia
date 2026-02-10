@@ -1,0 +1,24 @@
+---
+# tasks/validate_prerequisites.yml
+
+- name: Check minimum memory
+  ansible.builtin.shell: free -g | awk '/^Mem:/{print $2}'
+  register: total_memory
+  changed_when: false
+
+- name: Validate memory requirements
+  ansible.builtin.assert:
+    that:
+      - total_memory.stdout | int >= gitlab_min_memory_gb
+    fail_msg: "Insufficient memory. Required: {{ gitlab_min_memory_gb }}GB, Available: {{ total_memory.stdout }}GB"
+
+- name: Check CPU cores
+  ansible.builtin.command: nproc
+  register: cpu_cores
+  changed_when: false
+
+- name: Validate CPU requirements
+  ansible.builtin.assert:
+    that:
+      - cpu_cores.stdout | int >= gitlab_min_cpu_cores
+    fail_msg: "Insufficient CPU cores. Required: {{ gitlab_min_cpu_cores }}, Available: {{ cpu_cores.stdout }}"

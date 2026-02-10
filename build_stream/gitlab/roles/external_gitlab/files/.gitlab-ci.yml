@@ -1,0 +1,20 @@
+# ============================================================================
+# Omnia Catalog CI/CD Pipeline
+# ============================================================================
+# Triggered on catalog.yml changes or via API trigger.
+# ============================================================================
+
+stages:
+  - process
+
+process_catalog:
+  stage: process
+  script:
+    - echo "Pipeline running"
+    - echo "Commit $CI_COMMIT_SHA"
+    - cat catalog.yml
+  rules:
+    - changes:
+        - catalog.yml
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: $CI_PIPELINE_SOURCE == "push"

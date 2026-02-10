@@ -1,0 +1,15 @@
+---
+# tasks/validate_ssh.yml
+
+- name: Check ssh connection
+  ansible.builtin.command: ssh -o StrictHostKeyChecking=no -o BatchMode=yes {{ gitlab_host }} echo ok
+  delegate_to: localhost
+  run_once: true
+  changed_when: false
+  ignore_errors: true
+  register: ssh_connection
+
+- name: SSH connection failed
+  ansible.builtin.fail:
+    msg: "Passwordless SSH to {{ gitlab_host }} failed. Verify connectivity manually."
+  when: ssh_connection is failed

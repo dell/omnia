@@ -1,0 +1,27 @@
+---
+# tasks/deploy_runner.yml
+
+- name: Stop existing runner container
+  ansible.builtin.command: podman stop {{ gitlab_runner_container_name }}
+  ignore_errors: true
+
+- name: Remove existing runner container
+  ansible.builtin.command: podman rm {{ gitlab_runner_container_name }}
+  ignore_errors: true
+
+- name: Pull runner image
+  ansible.builtin.command: podman pull {{ gitlab_runner_image }}
+  changed_when: false
+
+- name: Determine SELinux volume suffix
+  ansible.builtin.set_fact:
+    gitlab_runner_volume_suffix: "{{ ':Z' if ansible_selinux is defined and ansible_selinux.status == 'enabled' else '' }}"
+
+- name: Start runner container
+  ansible.builtin.command: >
+    podman run -d
+    --name {{ gitlab_runner_container_name }}
+    --restart={{ gitlab_restart_policy }}
+    -v {{ gitlab_runner_config_path }}:/etc/gitlab-runner{{ gitlab_runner_volume_suffix | default('') }}
+    -v {{ podman_socket_path }}:{{ docker_socket_path }}:Z
+    {{ gitlab_runner_image }}

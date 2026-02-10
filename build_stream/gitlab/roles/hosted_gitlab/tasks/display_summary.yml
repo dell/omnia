@@ -1,0 +1,24 @@
+---
+# tasks/display_summary.yml
+
+- name: Display deployment information
+  ansible.builtin.debug:
+    msg:
+      - "============================================"
+      - "   GitLab Hosted Mode Deployment Complete   "
+      - "============================================"
+      - ""
+      - "Access URL: {{ gitlab_external_url_computed }}"
+      - "SSH Port:   {{ gitlab_ssh_port }}"
+      - "Username:   root"
+      - "Password:   {{ root_password.stdout | default('Check /etc/gitlab/initial_root_password') }}"
+      - ""
+      - "Service:    {{ gitlab_ctl_command }} (start|stop|status|reconfigure)"
+      - "Runner:     {{ gitlab_runner_container_name }} (Podman container)"
+      - ""
+      - "Next Steps:"
+      - "1. Login to GitLab UI"
+      - "2. Create Personal Access Token (User Settings > Access Tokens > api scope)"
+      - "3. Update gitlab_config.yaml with gitlab_api_token and gitlab_external_url"
+      - "4. Run gitlab.yml with gitlab_deployment_mode: existing to set up project and pipeline"
+      - "============================================"

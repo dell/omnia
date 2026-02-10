@@ -1,0 +1,5 @@
+---
+# vars/main.yml - gitlab_passwordless_ssh role defaults
+
+ssh_key_path: "/root/.ssh/omnia_gitlab"
+ssh_key_comment: "omnia_gitlab"

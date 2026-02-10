@@ -1,0 +1,35 @@
+---
+# tasks/configure_gitlab.yml
+
+- name: Set external URL
+  ansible.builtin.set_fact:
+    gitlab_external_url_computed: "{{ 'https' if gitlab_use_https else 'http' }}://{{ gitlab_host }}"
+
+- name: Configure gitlab.rb from template
+  ansible.builtin.template:
+    src: gitlab.rb.j2
+    dest: "{{ gitlab_rb_path }}"
+    backup: true
+    mode: '0600'
+
+- name: Reconfigure GitLab
+  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+
+- name: Wait for GitLab to initialize
+  ansible.builtin.pause:
+    minutes: "{{ gitlab_startup_wait_minutes }}"
+    prompt: "Waiting for GitLab services to start..."
+
+- name: Health check
+  ansible.builtin.command: "{{ gitlab_ctl_command }} status"
+  register: gitlab_status
+  retries: "{{ gitlab_health_check_retries }}"
+  delay: "{{ gitlab_health_check_delay }}"
+  until: gitlab_status.rc == 0
+  ignore_errors: true
+
+- name: Get initial root password
+  ansible.builtin.command: grep 'Password:' /etc/gitlab/initial_root_password
+  register: root_password
+  changed_when: false
+  ignore_errors: true

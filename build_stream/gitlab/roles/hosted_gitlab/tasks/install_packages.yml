@@ -1,0 +1,20 @@
+---
+# tasks/install_packages.yml
+
+- name: Install prerequisites
+  ansible.builtin.package:
+    name:
+      - curl
+      - policycoreutils
+      - policycoreutils-python-utils
+      - openssl
+      - firewalld
+      - podman
+      - podman-docker
+    state: present
+
+- name: Enable Podman socket (for runner)
+  ansible.builtin.systemd:
+    name: podman.socket
+    enabled: true
+    state: started

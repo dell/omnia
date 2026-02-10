@@ -1,0 +1,17 @@
+---
+# tasks/configure_firewall.yml
+
+- name: Open required ports
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    state: enabled
+  loop:
+    - "{{ gitlab_http_port }}"
+    - "{{ gitlab_https_port }}"
+    - "{{ gitlab_ssh_port }}"
+  ignore_errors: true
+
+- name: Reload firewall
+  ansible.builtin.command: firewall-cmd --reload
+  ignore_errors: true

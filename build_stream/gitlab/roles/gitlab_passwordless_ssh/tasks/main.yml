@@ -1,0 +1,11 @@
+---
+# tasks/main.yml
+
+- name: Generate SSH keypair on control node
+  ansible.builtin.include_tasks: generate_keypair.yml
+
+- name: Authorize key on remote host
+  ansible.builtin.include_tasks: authorize_key.yml
+
+- name: Validate SSH connectivity
+  ansible.builtin.include_tasks: validate_ssh.yml

@@ -1,0 +1,5 @@
+---
+# vars/main.yml - external_gitlab role defaults
+
+# API settings
+gitlab_api_version: "v4"

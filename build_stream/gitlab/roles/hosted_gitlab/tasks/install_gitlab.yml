@@ -1,0 +1,23 @@
+---
+# tasks/install_gitlab.yml
+
+- name: Check if GitLab repo already configured
+  ansible.builtin.stat:
+    path: "{{ gitlab_repo_file_path }}"
+  register: gitlab_repo_file
+
+- name: Download repository script
+  ansible.builtin.get_url:
+    url: "{{ gitlab_repo_script_url }}"
+    dest: "/tmp/gitlab_repo_install.sh"
+    mode: '0755'
+  when: not gitlab_repo_file.stat.exists
+
+- name: Install GitLab repository
+  ansible.builtin.command: /bin/bash /tmp/gitlab_repo_install.sh
+  when: not gitlab_repo_file.stat.exists
+
+- name: Install GitLab CE package
+  ansible.builtin.package:
+    name: "{{ gitlab_package_name }}"
+    state: "{{ gitlab_package_state }}"
