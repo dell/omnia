@@ -5,7 +5,31 @@
 # Uses gitlab_config.yaml to decide between hosted deployment or existing
 # integration. Run:
 #   ansible-playbook gitlab/gitlab.yml
-# ============================================================================
+
+- name: Load Omnia credential utility
+  ansible.builtin.import_playbook: ../../utils/credential_utility/get_config_credentials.yml
+
+- name: Prepare GitLab host credentials from provision secrets
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - gitlab_config.yaml
+  tasks:
+    - name: Ensure provision password is available
+      ansible.builtin.assert:
+        that:
+          - hostvars['localhost']['provision_password'] | default('') | length > 0
+        fail_msg: "Provision password not found. Run credential utility to populate provision_password."
+      when: gitlab_deployment_mode == 'hosted'
+
+    - name: Register GitLab SSH credentials
+      ansible.builtin.add_host:
+        name: "{{ gitlab_host | default('gitlab_server') }}"
+        ansible_host: "{{ gitlab_host | default('gitlab_server') }}"
+        ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      when: gitlab_deployment_mode == 'hosted'
+      no_log: true
 
 - name: Deploy GitLab CE on target host (hosted mode)
   hosts: "{{ gitlab_host | default('gitlab_server') }}"

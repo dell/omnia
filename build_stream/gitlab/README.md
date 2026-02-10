@@ -77,6 +77,9 @@ ansible-playbook gitlab.yml
    ```
 3. Run the unified playbook (see above). The `gitlab_passwordless_ssh` role runs first
    to generate `/root/.ssh/omnia_gitlab` and push the public key to the target host.
+   > **Important:** Set `ansible_password` (or `ansible_ssh_private_key_file`) in `inventory/hosts.ini`
+   > so Ansible can log in once. The password must match the provision/root password on the
+   > GitLab host; after the first run the role switches to passwordless SSH automatically.
 
 ### Case 2 – Existing GitLab (already running)
 
