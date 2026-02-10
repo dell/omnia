@@ -13,18 +13,46 @@
 #  limitations under the License.
 ---
 
-- name: Resolve OIM PXE IP
-  ansible.builtin.set_fact:
-    oim_pxe_ip_resolved: "{{ hostvars['localhost'].get('oim_pxe_ip') | default(hostvars.get('oim', {}).get('oim_pxe_ip', ''), true) }}"
+# Load network specification
+- name: Load network spec file
+  ansible.builtin.include_vars:
+    file: "{{ network_spec }}"
+  register: include_network_spec
+  no_log: true
 
-- name: Fail if OIM PXE IP is undefined
+- name: Fail if network spec cannot be loaded
   ansible.builtin.fail:
-    msg: "oim_pxe_ip is not set on localhost or oim host; ensure input config sets it before image pull."
-  when: oim_pxe_ip_resolved | length == 0
+    msg: "{{ network_spec_syntax_fail_msg }} Error: {{ include_network_spec.message }}"
+  when: include_network_spec is failed
+
+# Parse network spec data
+- name: Parse network spec
+  ansible.builtin.set_fact:
+    network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+  with_dict: "{{ Networks }}"
+
+# Set PXE IP fact
+- name: Set PXE IP fact
+  ansible.builtin.set_fact:
+    oim_pxe_ip: "{{ network_data.admin_network.primary_oim_admin_ip }}"
+    cacheable: true
+
+# Copy pulp certificate and update CA trust
+- name: Copy pulp webserver certificate to anchors
+  ansible.builtin.copy:
+    src: "{{ pulp_webserver_cert_path }}"
+    dest: "{{ anchors_path }}"
+    mode: "{{ dir_permissions_644 }}"
+  become: true
+
+- name: Update CA trust
+  ansible.builtin.command: update-ca-trust
+  register: update_ca
+  changed_when: false
 
 - name: Build full Podman image path for x86_64
   ansible.builtin.set_fact:
-    pulp_x86_image: "{{ oim_pxe_ip_resolved }}:2225/{{ pulp_x86_64_image_name }}"
+    pulp_x86_image: "{{ oim_pxe_ip }}:2225/{{ pulp_x86_64_image_name }}"
 
 - name: Pull x86_64 image using Podman
   ansible.builtin.command:

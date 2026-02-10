@@ -187,12 +187,16 @@
   when: podman_pull_result.rc == 0
   changed_when: false
 
-- name: Download regctl binary to NFS shared path
-  ansible.builtin.get_url:
-    url: "{{ aarch64_regctl_url }}"
-    dest: "{{ ochami_aarch_64_dir }}/regctl"
-    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+- name: Check if regctl binary exists
+  ansible.builtin.stat:
+    path: "{{ ochami_aarch_64_dir }}/regctl"
+  register: regctl_stat
   delegate_to: localhost
+
+- name: Fail if regctl binary not found
+  ansible.builtin.fail:
+    msg: "{{ regctl_not_found_msg }}"
+  when: not regctl_stat.stat.exists
 
 - name: Copy regctl binary to /usr/local/bin on target host
   ansible.builtin.copy:

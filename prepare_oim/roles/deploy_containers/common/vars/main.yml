@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -58,3 +58,7 @@ network_services:
 # Usage: configure_chrony.yml
 chrony_conf_path: "/etc/chrony.conf"
 chrony_no_sources_msg: "No chrony sources are reachable. Please give a valid NTP server configuration in network_spec.yml and re-run prepare_oim playbook."
+
+# Usage: aarch64_prereq.yml
+ochami_aarch64_dir: "/opt/omnia/openchami/aarch64"
+regctl_aarch64_url: "https://github.com/regclient/regclient/releases/latest/download/regctl-linux-arm64"

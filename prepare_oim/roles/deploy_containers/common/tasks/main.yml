@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -54,3 +54,6 @@
 
 - name: Configure chrony
   ansible.builtin.include_tasks: configure_chrony.yml
+
+- name: Download aarch64 prerequisites
+  ansible.builtin.include_tasks: aarch64_prereq.yml
