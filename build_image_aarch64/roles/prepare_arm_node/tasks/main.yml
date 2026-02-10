@@ -167,7 +167,7 @@
 
 - name: Build full Podman image path
   ansible.builtin.set_fact:
-    pulp_aarch_image: "{{ hostvars['localhost']['oim_pxe_ip'] }}:2225/dellhpcomniaaisolution/image-build-aarch64:1.1"
+    pulp_aarch_image: "{{ hostvars['localhost']['oim_pxe_ip'] }}:2225/{{ pulp_aarch64_image_name }}"
 
 - name: Pull aarch64 image using Podman
   ansible.builtin.command:
@@ -183,7 +183,7 @@
 
 - name: Tag pulled image
   ansible.builtin.command:
-    cmd: "podman tag {{ pulp_aarch_image }} arm-image/ochami"
+    cmd: "podman tag {{ pulp_aarch_image }} {{ aarch64_local_tag }}"
   when: podman_pull_result.rc == 0
   changed_when: false
 

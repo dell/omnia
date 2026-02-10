@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,16 +13,35 @@
 #  limitations under the License.
 ---
 
-- name: Pull image-build image
+- name: Resolve OIM PXE IP
+  ansible.builtin.set_fact:
+    oim_pxe_ip_resolved: "{{ hostvars['localhost'].get('oim_pxe_ip') | default(hostvars.get('oim', {}).get('oim_pxe_ip', ''), true) }}"
+
+- name: Fail if OIM PXE IP is undefined
+  ansible.builtin.fail:
+    msg: "oim_pxe_ip is not set on localhost or oim host; ensure input config sets it before image pull."
+  when: oim_pxe_ip_resolved | length == 0
+
+- name: Build full Podman image path for x86_64
+  ansible.builtin.set_fact:
+    pulp_x86_image: "{{ oim_pxe_ip_resolved }}:2225/{{ pulp_x86_64_image_name }}"
+
+- name: Pull x86_64 image using Podman
   ansible.builtin.command:
-    cmd: "podman pull {{ image_build_el10 }}"
+    cmd: "podman pull {{ pulp_x86_image }}"
   register: pull_result
   retries: "{{ pull_image_retries }}"
   delay: "{{ pull_image_delay }}"
   until: pull_result.rc == 0
-  changed_when: "'Image is up to date' not in pull_result.stdout"
+  changed_when: false
 
-- name: Fail if image not pulled successfully
+- name: Fail if Podman pull failed
   ansible.builtin.fail:
     msg: "{{ pull_result.stdout }}"
   when: pull_result.rc != 0
+
+- name: Tag pulled image for x86_64 build
+  ansible.builtin.command:
+    cmd: "podman tag {{ pulp_x86_image }} {{ x86_64_local_tag }}"
+  when: pull_result.rc == 0
+  changed_when: false
