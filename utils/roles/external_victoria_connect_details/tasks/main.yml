@@ -13,6 +13,16 @@
 #  limitations under the License.
 ---
 
+- name: Validate service k8s controller connectivity
+  block:
+    - name: Wait for service k8s controller connection
+      ansible.builtin.wait_for_connection:
+        timeout: 30
+  rescue:
+    - name: Fail when service k8s controller is not reachable
+      ansible.builtin.fail:
+        msg: "{{ victoria_preflight_err_service_k8s_controller_unreachable }}"
+
 - name: Check kubectl presence
   ansible.builtin.command: kubectl version --client=true
   register: kubectl_check
@@ -164,7 +174,6 @@
     vminsert_port: "{{ (vminsert_lb_port.stdout | trim) | default('') }}"
     vmselect_port: "{{ (vmselect_lb_port.stdout | trim) | default('') }}"
     victoria_tls_ca: "{{ victoria_tls_cert_dir }}/ca.crt"
-    
 
 - name: Fail when LoadBalancer IPs are not available
   ansible.builtin.fail:

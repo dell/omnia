@@ -92,7 +92,7 @@
 
             PORTALS=({% for ip in powervault_config.ip %}"{{ ip }}" {% endfor %})
             PORT="{{ powervault_config.port | default(3260) }}"
-            INITIATOR_IQN="{{ powervault_config.isci_initiators | default('') }}"
+            INITIATOR_IQN="{{ powervault_config.iscsi_initiator | default('') }}"
             VOLUME_ID="{{ powervault_config.volume_id | default('') }}"
             FS_TYPE="{{ powervault_config.fs_type | default('xfs') }}"
             MOUNT_OPTS="{{ powervault_config.mount_options | default('defaults,_netdev,noatime') }}"

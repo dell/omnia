@@ -988,6 +988,18 @@ show_help() {
 }
 
 install_omnia_core() {
+    # Detect existing Omnia 2.0 installation
+    if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        # Read version from metadata inside container
+        current_version=$(podman exec -u root omnia_core grep '^omnia_version:' /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d':' -f2 | tr -d ' \t\n\r')
+        if [ "$current_version" = "2.0.0.0" ]; then
+            echo -e "${RED}ERROR: Existing Omnia 2.0 installation detected.${NC}"
+            echo -e "${YELLOW}To upgrade, run: $0 --upgrade${NC}"
+            echo -e "${YELLOW}For a fresh install, first run: $0 --uninstall${NC}"
+            exit 1
+        fi
+    fi
+
     local omnia_core_tag="1.1"
     local omnia_core_registry=""
     

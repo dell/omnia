@@ -29,6 +29,18 @@ kafka_err_external_ip_missing: >-
   Failed to fetch Kafka LoadBalancer external IP. Ensure service '{{ kafka_lb_service_name }}'
   exists in namespace '{{ kafka_namespace }}' and has an external IP assigned.
 
+kafka_preflight_err_ha_config_missing: >-
+  Failed to load High Availability config file: {{ k8s_ha_config_path }}.
+  Provide a valid HA config so the service Kubernetes VIP can be used.
+
+kafka_preflight_err_ha_vip_missing: >-
+  Failed to determine the service Kubernetes control plane VIP from High Availability config.
+  Ensure service_k8s_cluster_ha[0].virtual_ip_address is set in: {{ k8s_ha_config_path }}.
+
+kafka_preflight_err_service_k8s_controller_unreachable: >-
+  Service Kubernetes controller is not reachable over SSH: {{ ansible_host | default(inventory_hostname) }}.
+  Ensure the service Kubernetes VIP is reachable and resolvable from the OIM host.
+
 kafka_ome_ui_navigation_line1: "Configuration -> Remote Connectivity"
 kafka_ome_ui_enable_label: "Enable Kafka Connectivity"
 kafka_ome_auth_mode_value: "SSL"

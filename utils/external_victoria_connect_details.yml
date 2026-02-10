@@ -18,14 +18,43 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Fail if service_kube_control_plane group is missing or empty
+    - name: Load Victoria utility role variables
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/roles/external_victoria_connect_details/vars/main.yml"
+
+    - name: Include input directory
+      ansible.builtin.include_role:
+        name: include_input_dir
+
+    - name: Set HA config path
+      ansible.builtin.set_fact:
+        k8s_ha_config_path: "{{ input_project_dir }}/high_availability_config.yml"
+
+    - name: Load High Availability config
+      ansible.builtin.include_vars:
+        file: "{{ k8s_ha_config_path }}"
+        name: ha_config
+      failed_when: false
+      register: ha_config_load
+
+    - name: Fail when High Availability config cannot be loaded
       ansible.builtin.fail:
-        msg: >-
-          Inventory must define a 'service_kube_control_plane' group with exactly one host.
-          Provide either the service kube control plane VIP or one of the service kube control plane node IPs.
-          Run with '-i <inventory>' and ensure exactly one host is in that group.
-      when:
-        - groups['service_kube_control_plane'] is not defined or (groups['service_kube_control_plane'] | length) != 1
+        msg: "{{ victoria_preflight_err_ha_config_missing }}"
+      when: ha_config_load.failed
+
+    - name: Set service kube control plane VIP from HA config
+      ansible.builtin.set_fact:
+        kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+
+    - name: Fail when service kube control plane VIP is not available
+      ansible.builtin.fail:
+        msg: "{{ victoria_preflight_err_ha_vip_missing }}"
+      when: (kube_vip | trim | length) == 0
+
+    - name: Create service_kube_control_plane group from VIP
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: service_kube_control_plane
 
 - name: Fetch external Victoria connection details
   hosts: service_kube_control_plane
