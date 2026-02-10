@@ -28,6 +28,8 @@ Image={{ build_stream_image_name }}:{{ build_stream_image_tag }}
 Network=host
 
 # Environment variables
+Environment=HOST={{ admin_ip }}
+Environment=PORT={{ build_stream_port }}
 Environment=PULP_BASE_URL={{ pulp_base_url }}
 Environment=PULP_USERNAME=admin
 Environment=PULP_PASSWORD={{ pulp_password }}

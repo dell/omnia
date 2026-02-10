@@ -6,8 +6,21 @@
     "enable_build_stream": {
       "type": "boolean",
       "description": "Enable or disable build stream pipeline. Accepted values: true or false. Default: false"
+    },
+    "build_stream_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Build Stream API server port. Accepted values: valid port number (1-65535). Default: 443"
+    },
+    "postgres_db_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 63,
+      "pattern": "^[a-zA-Z0-9_]+$",
+      "description": "PostgreSQL database name for build stream. Default: build_stream_db"
     }
   },
-  "required": ["enable_build_stream"],
+  "required": ["enable_build_stream", "build_stream_port", "postgres_db_name"],
   "additionalProperties": false
 }

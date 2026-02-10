@@ -152,7 +152,7 @@
     -keyout {{ build_stream_ssl_key }}
     -out {{ build_stream_ssl_cert }}
     -subj "/C=US/ST=State/L=City/O=Omnia/CN={{ ansible_hostname }}"
-    -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:localhost,IP:{{ ansible_default_ipv4.address }}"
+    -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:localhost,IP:{{ ansible_default_ipv4.address }},IP:{{ admin_ip }}"
   when: not ssl_cert_stat.stat.exists
   changed_when: true
 
@@ -206,15 +206,6 @@
         state: directory
         mode: "{{ build_stream_dir_mode }}"
 
-    - name: Create Quadlet service file
-      ansible.builtin.template:
-        src: build_stream.j2
-        dest: "{{ build_stream_quadlet_path }}"
-        mode: "{{ build_stream_quadlet_file_mode }}"
-      register: quadlet_out
-      notify:
-        - Reload systemd
-
     - name: Deploy build_stream quadlet file from template
       ansible.builtin.template:
         src: "build_stream.j2"
@@ -222,17 +213,16 @@
         mode: "{{ build_stream_quadlet_file_mode }}"
       notify:
         - Reload systemd
-        - Restart build_stream
+
+    # Ensure systemd reload happens before starting service
+    - name: Apply systemd reload now
+      ansible.builtin.meta: flush_handlers
 
     - name: Enable and start build_stream service
       ansible.builtin.systemd_service:
         name: "{{ build_stream_service }}"
         enabled: true
         state: started
-
-    # Ensure restart happens before validation
-    - name: Apply systemd reload/restart now
-      ansible.builtin.meta: flush_handlers
 
     - name: Wait until omnia_build_stream container exists and is running
       containers.podman.podman_container_info:
@@ -246,9 +236,24 @@
         - bs_info.containers[0].State is defined
         - bs_info.containers[0].State.Running | bool
 
-    # -------------------------------------------------------------------
-    # 5) Validate pulp HTTPS connectivity from inside build_stream
-    # -------------------------------------------------------------------
+    - name: Configure firewall for omnia_build_stream
+      block:
+        - name: Start firewalld service
+          ansible.builtin.systemd:
+            name: firewalld
+            state: started
+            enabled: true
+
+        - name: Open build_stream port in firewall
+          ansible.posix.firewalld:
+            port: "{{ build_stream_firewall_port }}"
+            permanent: true
+            state: enabled
+            immediate: true
+
+# -------------------------------------------------------------------
+# 5) Validate pulp HTTPS connectivity from inside build_stream
+# -------------------------------------------------------------------
     - name: Build curl command
       ansible.builtin.set_fact:
         curl_cmd:

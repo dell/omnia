@@ -26,5 +26,10 @@
 # Default: false
 enable_build_stream: false
 
+# Build Stream API server port
+# Accepted values: valid port number (1-65535) which is free
+# Default: 443
+build_stream_port: 443
+
 # PostgreSQL configuration for build stream
 postgres_db_name: "build_stream_db"
