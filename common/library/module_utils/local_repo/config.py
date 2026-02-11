@@ -51,7 +51,7 @@ FRESH_INSTALLATION_STATUS = True
 # Used by software_utils.py
 # ----------------------------
 PACKAGE_TYPES = ['rpm', 'deb', 'tarball', 'image', 'manifest', 'git',
-                 'pip_module', 'deb', 'shell', 'ansible_galaxy_collection', 'iso', 'rpm_list']
+                 'pip_module', 'deb', 'shell', 'ansible_galaxy_collection', 'iso', 'rpm_list', 'rpm_file']
 CSV_COLUMNS = {"column1": "name", "column2": "status"}
 SOFTWARE_CONFIG_SUBDIR = "config"
 RPM_LABEL_TEMPLATE = "RPMs for {key}"
@@ -183,7 +183,10 @@ pulp_rpm_commands = {
     "list_repositories": "pulp rpm repository list",
     "list_remotes": "pulp rpm remote list",
     "list_distributions": "pulp rpm distribution list",
-    "orphan_cleanup": "pulp orphan cleanup --protection-time 0"
+    "orphan_cleanup": "pulp orphan cleanup --protection-time 0",
+    "list_all_publications": "pulp rpm publication list",
+    "upload_content": "pulp rpm content upload --repository %s --file %s",
+    "update_distribution_repo_config": "pulp rpm distribution update --name %s --generate-repo-config"
 }
 
 # ----------------------------

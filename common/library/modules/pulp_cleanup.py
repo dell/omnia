@@ -630,7 +630,7 @@ def remove_rpms_from_repository(repo_name: str, base_path: str, logger) -> List[
 
                         logger.info(f"Processing row: {row}")
                         # For RPMs, check if they belong to the deleted repository
-                        if row_type == 'rpm':
+                        if row_type == 'rpm' or row_type == 'rpm_file':
                             if has_repo_column and rpm_repo == repo_name:
                                 removed = True
                                 logger.info(f"Removing RPM '{name}' from {status_file} (repo {repo_name} deleted)")

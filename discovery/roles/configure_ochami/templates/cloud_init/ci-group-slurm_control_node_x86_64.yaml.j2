@@ -469,15 +469,18 @@
 
         # slurm user and group created in the users module
         # Create directories for nfs and mount all
-         - mkdir -p /var/log/slurm /etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
+         - mkdir -p {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }} {{ slurm_ctld_pid_dir_effective }} {{ slurmdbd_pid_dir_effective }} {{ slurm_state_save_location_effective }} {% if slurm_sched_log_dir_effective %}{{ slurm_sched_log_dir_effective }} {% endif %}/etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
          - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm      /etc/slurm       nfs defaults,_netdev 0 0" >> /etc/fstab
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/my.cnf.d   /etc/my.cnf.d    nfs defaults,_netdev 0 0" >> /etc/fstab
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/mariadb /var/log/mariadb nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  /var/log/slurm   nfs defaults,_netdev 0 0" >> /etc/fstab
+         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_ctld_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
+{% if slurmdbd_log_dir_effective != slurm_ctld_log_dir_effective %}
+         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurmdbd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
+{% endif %}
 {% if powervault_config is not defined %}
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/lib/mysql  /var/lib/mysql   nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmctld     /var/spool/slurmctld      nfs defaults,_netdev 0 0" >> /etc/fstab
+         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmctld     {{ slurm_state_save_location_effective }}      nfs defaults,_netdev 0 0" >> /etc/fstab
 {% endif %}
          - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
          - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab

@@ -42,7 +42,7 @@ from ansible.module_utils.local_repo.software_utils import (
 )
 from ansible.module_utils.input_validation.common_utils.slurm_conf_utils import (
     parse_slurm_conf,
-    get_invalid_keys
+    validate_config_types
 )
 
 file_names = config.files
@@ -1062,29 +1062,33 @@ def validate_omnia_config(
                     f"NFS name {', '.join(diff_set)} required for slurm is not defined in {storage_config}"
                     ))
         cnfg_src = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
+        skip_conf_validation = os.path.exists("/opt/omnia/input/.skip_slurm_conf_validation")
         for cfg_path_dict in cnfg_src:
             for k,v in cfg_path_dict.items():
+                conf_dict = None
                 if isinstance(v, str):
                     if not os.path.exists(v):
                         errors.append(
-                            create_error_msg(input_file_path, "slurm_cluster config_sources",
+                            create_error_msg('omnia_config.yml', "slurm_cluster config_sources",
                                 f"provided conf path for {k} - {v} does not exist"))
-                    else: # path and also exists
-                        conf_dict = parse_slurm_conf(v, k, False)
-                        # module.exit_json(failed=True, result=conf_dict)
-                        invalid_keys = get_invalid_keys(conf_dict, k)
-                        if invalid_keys:
-                            errors.append(
-                                create_error_msg(input_file_path, "slurm_cluster config_sources",
-                                    f"invalid keys found in {k} - {invalid_keys}"))
+                        continue
+                    else: # path exists
+                        if not skip_conf_validation:
+                            conf_dict, duplicate_keys = parse_slurm_conf(v, k, False)
+                            if duplicate_keys:
+                                errors.append(
+                                    create_error_msg('omnia_config.yml', "slurm_cluster->config_sources",
+                                        f"duplicate keys found in {k}.conf - {','.join(duplicate_keys)}"))
                 else:
-                    invalid_keys = get_invalid_keys(v, k)
-                    if invalid_keys:
+                    conf_dict = v
+                if conf_dict and not skip_conf_validation:
+                    validation_result = validate_config_types(conf_dict, k, module)
+                    if validation_result.get('type_errors'):
+                        errors.extend(validation_result['type_errors'])
+                    if validation_result.get('invalid_keys'):
                         errors.append(
-                            create_error_msg(input_file_path, "slurm_cluster config_sources",
-                                f"invalid keys found in {k} - {invalid_keys}"))
-
-
+                            create_error_msg('omnia_config.yml', "slurm_cluster->config_sources",
+                                f"{k}.conf invalid keys found - {','.join(validation_result['invalid_keys'])}"))
     return errors
 
 def check_is_service_cluster_functional_groups_defined(

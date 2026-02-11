@@ -146,6 +146,7 @@ os_version_ranges = {
 TYPE_REQUIREMENTS = {
     "rpm": ["package", "repo_name"],
     "rpm_list": ["package_list", "repo_name"],
+    "rpm_file": ["package", "url"],
     "ansible_galaxy_collection": ["package", "version"],
     "git": ["package", "version", "url"],
     "image": ["package", ["tag", "digest"]],  # Special: one of tag or digest

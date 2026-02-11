@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,29 +38,56 @@
 # cgroup
 # slurmdbd
 # gres
-# acct_gather
-# helpers
-# job_container
-# mpi
-# oci
-# topology
-# burst_buffer
 # Thes files will be written into the slurm_config directory with .conf suffix
 
 slurm_cluster:
-  - cluster_name: slurm_cluster
-    nfs_storage_name: nfs_slurm
+{% set _slurm_cluster = omnia_slurm_cluster | default([]) %}
+{% if (_slurm_cluster | length) > 0 %}
+{% for _cluster in _slurm_cluster %}
+  - cluster_name: {{ _cluster.cluster_name | default('') }}
+    nfs_storage_name: {{ _cluster.nfs_storage_name | default('') }}
+{% if _cluster.config_sources is defined and (_cluster.config_sources | length > 0) %}
+    config_sources:
+{% set _supported = ['slurm', 'cgroup', 'slurmdbd', 'gres'] %}
+{% for _conf_name, _conf_val in _cluster.config_sources.items() %}
+{% if _conf_name in _supported %}
+{% if _conf_name == 'cgroup' and (_conf_val is mapping) %}
+      cgroup:
+        CgroupPlugin: {{ _conf_val.CgroupPlugin | default('autodetect') }}
+{% for _k, _v in _conf_val.items() %}
+{% if _k not in ['AllowedRAMSpace', 'CgroupPlugin', 'ConstrainCores', 'ConstrainDevices', 'ConstrainRAMSpace', 'ConstrainSwapSpace'] %}
+        {{ _k }}: {{ _v }}
+{% endif %}
+{% endfor %}
+        ConstrainCores: {{ _conf_val.ConstrainCores | default(true) }}
+        ConstrainDevices: {{ _conf_val.ConstrainDevices | default(true) }}
+        ConstrainRAMSpace: {{ _conf_val.ConstrainRAMSpace | default(true) }}
+        ConstrainSwapSpace: {{ _conf_val.ConstrainSwapSpace | default(true) }}
+{% if _conf_val.AllowedRAMSpace is defined %}
+        ### AllowedRAMSpace: {{ _conf_val.AllowedRAMSpace }}       This is not supported in 2.1, just attached for reference
+{% endif %}
+{% elif _conf_val is mapping %}
+      {{ _conf_name }}:
+{% for _k, _v in _conf_val.items() %}
+        {{ _k }}: {{ _v }}
+{% endfor %}
+{% else %}
+      {{ _conf_name }}: {{ _conf_val }}
+{% endif %}
+{% endif %}
+{% endfor %}
+    #   OR
+
+    # config_sources:
+    #   slurm: /path/to/custom_slurm.conf
+    #   cgroup: /path/to/custom_cgroup.conf
+    #   slurmdbd: /path/to/custom_slurmdbd.conf
+    #   gres: /path/to/custom_gres.conf
+{% else %}
     # config_sources:
     #   slurm:
     #     SlurmctldTimeout: 60
     #     SlurmdTimeout: 150
-    #     NodeName:
-    #       - NodeName: newnode1
-    #         CPUs: 16
-    #         RealMemory: 64000
-    #       - NodeName: newnode2
-    #         CPUs: 16
-    #         RealMemory: 64000
     #   cgroup:
     #     CgroupPlugin: autodetect
     #     ConstrainCores: True
@@ -69,13 +96,16 @@ slurm_cluster:
     #     ConstrainSwapSpace: True
 
     #   OR
-  
+
     # config_sources:
     #   slurm: /path/to/custom_slurm.conf
     #   cgroup: /path/to/custom_cgroup.conf
     #   slurmdbd: /path/to/custom_slurmdbd.conf
     #   gres: /path/to/custom_gres.conf
-  
+{% endif %}
+{% endfor %}
+{% endif %}
+
 # ----------------------------SERVICE K8S------------------------------------------------------
 # For service k8s cluster below parameters are required,(List)
 # - cluster_name is required field
@@ -103,8 +133,8 @@ slurm_cluster:
 # csi_powerscale_driver_secret_file_path: Absolute file path for the secret.yaml file.
 # User need to download secret.yaml file and fill required data in secret file. Provided the path of the secret file here.
 # File path for the values.yml file which will contain the Powerscale driver configuration parameters.
-# csi_powerscale_driver_values_file_path: User need to download values.yaml file and fill required data in values.yaml file. Provided the path of the values.yaml file here.
-# mention configurable values
+# csi_powerscale_driver_values_file_path: User need to download values.yaml file and fill required data in values.yaml file. 
+# Provided the path of the values.yaml file here. mention configurable values
 
 # - k8s_crio_storage_size: Specifies the disk size allocated for CRI-O container storage.
 # This storage is used to store container images, writable layers, and runtime data.
@@ -113,13 +143,18 @@ slurm_cluster:
 
 
 service_k8s_cluster:
-  - cluster_name: service_cluster
-    deployment: true
-    k8s_cni: "calico"
-    pod_external_ip_range: "172.16.107.170-172.16.107.200"
-    k8s_service_addresses: "10.233.0.0/18"
-    k8s_pod_network_cidr: "10.233.64.0/18"
-    nfs_storage_name: "nfs_k8s"
-    csi_powerscale_driver_secret_file_path: ""
-    csi_powerscale_driver_values_file_path: ""
-    k8s_crio_storage_size: "20G"
+{% set _service_k8s_cluster = omnia_service_k8s_cluster | default([]) %}
+{% if (_service_k8s_cluster | length) > 0 %}
+{% for _cluster in _service_k8s_cluster %}
+  - cluster_name: {{ _cluster.cluster_name | default('') }}
+    deployment: {{ _cluster.deployment | default(false) }}
+    k8s_cni: {{ _cluster.k8s_cni | default('calico') }}
+    pod_external_ip_range: "{{ _cluster.pod_external_ip_range | default('') }}"
+    k8s_service_addresses: "{{ _cluster.k8s_service_addresses | default('') }}"
+    k8s_pod_network_cidr: "{{ _cluster.k8s_pod_network_cidr | default('') }}"
+    nfs_storage_name: "{{ _cluster.nfs_storage_name | default('') }}"
+    csi_powerscale_driver_secret_file_path: "{{ _cluster.csi_powerscale_driver_secret_file_path | default('') }}"
+    csi_powerscale_driver_values_file_path: "{{ _cluster.csi_powerscale_driver_values_file_path | default('') }}"
+    k8s_crio_storage_size: {{ _cluster.k8s_crio_storage_size | default('20G') }}
+{% endfor %}
+{% endif %}

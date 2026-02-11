@@ -22,5 +22,20 @@
 - name: Transform high_availability_config.yml from Omnia 2.0 to 2.1
   ansible.builtin.include_tasks: transform_high_availability_config.yml
 
+- name: Transform local_repo_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_local_repo_config.yml
+
+- name: Transform provision_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_provision_config.yml
+
+- name: Transform storage_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_storage_config.yml
+
+- name: Transform omnia_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_omnia_config.yml
+
+- name: Transform telemetry_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_telemetry_config.yml
+
 - name: Restore input files from backup
   ansible.builtin.include_tasks: restore_input_files.yml
