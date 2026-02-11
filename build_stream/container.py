@@ -46,6 +46,8 @@ from core.localrepo.services import (
     PlaybookQueueRequestService,
     PlaybookQueueResultService,
 )
+from core.catalog.adapter_policy import _DEFAULT_POLICY_PATH, _DEFAULT_SCHEMA_PATH
+from core.artifacts.value_objects import SafePath
 from common.config import load_config
 
 
@@ -109,6 +111,17 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     job_id_generator = providers.Singleton(JobUUIDGenerator)
     uuid_generator = providers.Singleton(UUIDv4Generator)
 
+
+    default_policy_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_POLICY_PATH,
+    )
+
+    policy_schema_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_SCHEMA_PATH,
+    )
+
     # --- Jobs repositories ---
     job_repository = providers.Singleton(InMemoryJobRepository)
     stage_repository = providers.Singleton(InMemoryStageRepository)
@@ -199,6 +212,8 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         artifact_store=artifact_store,
         artifact_metadata_repo=artifact_metadata_repository,
         uuid_generator=uuid_generator,
+        default_policy_path=default_policy_path,
+        policy_schema_path=policy_schema_path,
     )
 
 
@@ -223,6 +238,17 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     job_id_generator = providers.Singleton(JobUUIDGenerator)
     uuid_generator = providers.Singleton(UUIDv4Generator)
 
+
+    default_policy_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_POLICY_PATH,
+    )
+
+    policy_schema_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_SCHEMA_PATH,
+    )
+
     # --- Jobs repositories ---
     job_repository = providers.Singleton(InMemoryJobRepository)
     stage_repository = providers.Singleton(InMemoryStageRepository)
@@ -313,6 +339,8 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         artifact_store=artifact_store,
         artifact_metadata_repo=artifact_metadata_repository,
         uuid_generator=uuid_generator,
+        default_policy_path=default_policy_path,
+        policy_schema_path=policy_schema_path,
     )
 
 
