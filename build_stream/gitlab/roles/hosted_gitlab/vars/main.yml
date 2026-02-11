@@ -14,6 +14,10 @@ gitlab_health_check_delay: 60
 # Runner container
 gitlab_runner_container_name: "gitlab-runner"
 gitlab_restart_policy: "always"
+gitlab_runner_description: "Omnia Hosted Runner"
+gitlab_runner_tags: "omnia"
+gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
+gitlab_runner_config_file: "{{ gitlab_runner_config_path }}/config.toml"
 
 # Podman socket (Docker-compatible, used by runner)
 podman_socket_path: "/run/podman/podman.sock"

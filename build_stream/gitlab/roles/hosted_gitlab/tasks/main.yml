@@ -23,6 +23,12 @@
 - name: Configure gitlab.rb
   ansible.builtin.include_tasks: configure_gitlab.yml
 
+- name: Create GitLab project via API
+  ansible.builtin.include_tasks: create_project.yml
+
+- name: Create pipeline trigger
+  ansible.builtin.include_tasks: create_trigger.yml
+
 - name: Deploy GitLab Runner container
   ansible.builtin.include_tasks: deploy_runner.yml
 
