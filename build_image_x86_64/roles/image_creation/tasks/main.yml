@@ -16,7 +16,7 @@
 - name: Include metadata vars
   ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
   register: include_metadata
-  no_log: true
+#  no_log: true
 
 - name: Include global variables from common folder
   ansible.builtin.include_vars: "{{ role_path }}/../../../common/vars/openchami_image_cmd.yml"

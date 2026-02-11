@@ -54,6 +54,3 @@
 
 - name: Configure chrony
   ansible.builtin.include_tasks: configure_chrony.yml
-
-- name: Download aarch64 prerequisites
-  ansible.builtin.include_tasks: aarch64_prereq.yml

@@ -28,6 +28,10 @@
   when:
     - hostvars['localhost']['idrac_telemetry_support'] or hostvars['localhost']['ldms_support']
   block:
+    - name: Set NFS info fact
+      ansible.builtin.set_fact:
+        oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
+
     - name: Service cluster prerequisite
       ansible.builtin.include_tasks: telemetry_prereq.yml
 
