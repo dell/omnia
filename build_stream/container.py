@@ -35,6 +35,7 @@ from infra.repositories import (
     NfsPlaybookQueueRequestRepository,
     NfsPlaybookQueueResultRepository,
 )
+from orchestrator.catalog.use_cases.generate_input_files import GenerateInputFilesUseCase
 from orchestrator.catalog.use_cases.parse_catalog import ParseCatalogUseCase
 from orchestrator.jobs.use_cases import CreateJobUseCase
 from orchestrator.local_repo.use_cases import CreateLocalRepoUseCase
@@ -190,6 +191,16 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
+    generate_input_files_use_case = providers.Factory(
+        GenerateInputFilesUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        artifact_store=artifact_store,
+        artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
+    )
+
 
 class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     """Production profile container.
@@ -286,6 +297,16 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
 
     parse_catalog_use_case = providers.Factory(
         ParseCatalogUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        artifact_store=artifact_store,
+        artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
+    )
+
+    generate_input_files_use_case = providers.Factory(
+        GenerateInputFilesUseCase,
         job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
