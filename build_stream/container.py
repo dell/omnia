@@ -86,7 +86,7 @@ def _create_artifact_store():
         )
 
 _RESOURCES_DIR = Path(__file__).resolve().parent / "core" / "catalog" / "resources"
-_DEFAULT_POLICY_PATH = _RESOURCES_DIR / "adapter_policy.json"
+_DEFAULT_POLICY_PATH = _RESOURCES_DIR / "adapter_policy_default.json"
 _DEFAULT_SCHEMA_PATH = _RESOURCES_DIR / "AdapterPolicySchema.json"
 
 

@@ -73,10 +73,11 @@ def _build_use_case(
     if default_policy_path is None:
         # Use the real default adapter policy from the codebase
         base = Path(__file__).resolve().parent.parent.parent.parent.parent / "core" / "catalog" / "resources"
-        policy = base / "adapter_policy.json"
+        policy = base / "adapter_policy_default.json"
         schema = base / "AdapterPolicySchema.json"
+        # Fallback checks for different file naming conventions (historical/compatibility)
         if not policy.is_file():
-            policy = base / "default_adapter_policy.json"
+            policy = base / "adapter_policy.json"
         if not schema.is_file():
             schema = base / "adapter_policy_schema.json"
         default_policy_path = SafePath(value=policy)

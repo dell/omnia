@@ -400,14 +400,14 @@ class GenerateInputFilesUseCase:
         configs_record: ArtifactRecord,
         config_output_dir: Path,
     ) -> GenerateInputFilesResult:
-        """Build the success result DTO."""
+        """Build minimal success result with only essential fields."""
         return GenerateInputFilesResult(
             job_id=str(command.job_id),
             stage_state="COMPLETED",
             message="Input files generated successfully",
             configs_ref=configs_ref,
-            config_file_count=0,  # No longer tracking file count
-            config_files=[],  # No longer tracking file list
-            arch_os_combinations=[],  # No longer tracking combinations
-            completed_at=datetime.now(timezone.utc).isoformat(),
+            config_file_count=0,  # Not included in minimal response
+            config_files=[],      # Not included in minimal response
+            arch_os_combinations=[],  # Not included in minimal response
+            completed_at="",     # Not included in minimal response
         )

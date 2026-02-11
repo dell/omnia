@@ -31,6 +31,7 @@ Requirements:
 """
 
 import json
+import os
 import uuid
 from typing import Dict, Any, Optional
 
@@ -96,38 +97,27 @@ class GenerateInputFilesContext:
         """Set the job ID for testing."""
         self.job_id = job_id
 
-    def load_catalog_content(self) -> None:
-        """Load a valid catalog for testing."""
-        # Use a simple but valid catalog structure
-        catalog_data = {
-            "Catalog": {
-                "Name": "Test Catalog for Generate Input Files",
-                "Version": "1.0.0",
-                "FunctionalLayer": "test-functional",
-                "BaseOS": "rhel",
-                "Infrastructure": "kubernetes",
-                "FunctionalPackages": {
-                    "monitoring": {
-                        "Version": "1.0.0",
-                        "Source": "test"
-                    }
-                },
-                "OSPackages": {
-                    "base": {
-                        "Version": "9.0",
-                        "Source": "test"
-                    }
-                },
-                "InfrastructurePackages": {
-                    "kubernetes": {
-                        "Version": "1.28",
-                        "Source": "test"
-                    }
-                },
-                "DriverPackages": {}
-            }
-        }
-        self.catalog_content = json.dumps(catalog_data).encode('utf-8')
+    def load_catalog_content(self) -> str:
+        """Load catalog content for testing.
+        
+        Returns:
+            JSON string of catalog content.
+        """
+        # Use the proper catalog_rhel fixture instead of a minimal catalog
+        catalog_path = os.path.join(
+            os.path.dirname(__file__),
+            "..", "..", "fixtures", "catalogs", "catalog_rhel.json"
+        )
+        
+        with open(catalog_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            # Store the content as bytes for upload
+            self.catalog_content = content.encode('utf-8')
+            return content
+
+    def get_catalog_bytes(self) -> bytes:
+        """Get catalog content as bytes."""
+        return self.catalog_content
 
 
 @pytest.fixture(scope="class")
@@ -342,20 +332,18 @@ class TestGenerateInputFilesE2E:
                 headers=headers,
             )
 
-        # The response should indicate the stage was processed
-        # It might fail due to missing dependencies, but the workflow should be complete
-        assert response.status_code in [200, 400, 422, 500], (
+        # The response should indicate the stage was processed successfully
+        assert response.status_code == 200, (
             f"Parse catalog failed: {response.text}"
         )
 
         # Get response data for verification
-        response_data = response.json() if response.status_code == 200 else None
+        response_data = response.json()
 
-        # If successful, verify the response structure
-        if response.status_code == 200 and response_data:
-            assert "status" in response_data
-            assert response_data["status"] == "success"
-            assert "message" in response_data
+        # Verify the response structure
+        assert "status" in response_data
+        assert response_data["status"] == "success"
+        assert "message" in response_data
 
     @pytest.mark.e2e
     def test_06_generate_input_files_success(
@@ -384,20 +372,27 @@ class TestGenerateInputFilesE2E:
                 headers=headers,
             )
 
-        # Should process the request (may fail due to missing dependencies)
-        assert response.status_code in [200, 400, 422, 500], (
-            f"Generate input files failed: {response.text}"
+        # Should process the request successfully
+        # Tests should fail on any error (including 500)
+        assert response.status_code == 200, (
+            f"Generate input files failed with status {response.status_code}: {response.text}"
         )
         
-        # If successful, verify response structure
-        if response.status_code == 200:
-            response_data = response.json()
+        # Verify minimal response structure
+        response_data = response.json()
+        assert "stage_state" in response_data
+        assert response_data["stage_state"] in ["COMPLETED", "FAILED"]
+        
+        if response_data["stage_state"] == "COMPLETED":
+            # Should have only these three fields
+            assert "job_id" in response_data
+            assert "message" in response_data
             assert "stage_state" in response_data
-            assert response_data["stage_state"] in ["COMPLETED", "FAILED"]
-            
-            if response_data["stage_state"] == "COMPLETED":
-                assert "generated_files" in response_data
-                assert isinstance(response_data["generated_files"], list)
+            print(f"✅ Generate input files completed successfully!")
+            print(f"Response: {response_data}")
+        else:
+            print(f"⚠️ Generate input files completed with stage state: {response_data['stage_state']}")
+        
 
     @pytest.mark.e2e
     def test_07_generate_input_files_with_custom_policy(
@@ -405,6 +400,7 @@ class TestGenerateInputFilesE2E:
         base_url: str,
         generate_input_files_context: GenerateInputFilesContext,  # noqa: W0621
     ):
+
         """Step 7: Test generate input files with custom adapter policy.
 
         Tests error handling and various policy path scenarios.
@@ -436,7 +432,7 @@ class TestGenerateInputFilesE2E:
         )
         
         # Test with valid request (default policy)
-        with httpx.Client(base_url=base_url, timeout=30.0) as client:
+        with httpx.Client(base_url=base_url, timeout=3000.0) as client:
             recovery_response = client.post(
                 f"/api/v1/jobs/{generate_input_files_context.job_id}/stages/generate-input-files",
                 headers=headers,

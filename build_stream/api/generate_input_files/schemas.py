@@ -44,12 +44,6 @@ class GenerateInputFilesResponse(BaseModel):
     job_id: str = Field(..., description="Job identifier")
     stage_state: str = Field(..., description="Stage state after execution")
     message: str = Field(..., description="Human-readable result message")
-    configs_ref: ArtifactRefResponse = Field(
-        ..., description="Reference to stored config archive"
-    )
-    config_file_count: int = Field(..., description="Number of config files generated")
-    config_files: List[str] = Field(..., description="List of generated config file paths")
-    completed_at: str = Field(..., description="Completion timestamp (ISO 8601)")
 
 
 class ErrorResponse(BaseModel):
