@@ -170,8 +170,9 @@
     pulp_aarch_image: "{{ hostvars['localhost']['oim_pxe_ip'] }}:2225/{{ pulp_aarch64_image_name }}"
 
 - name: Pull aarch64 image using Podman
-  ansible.builtin.command:
-    cmd: "podman pull {{ pulp_aarch_image }}"
+  ansible.builtin.podman_image:
+    name: "{{ pulp_aarch_image }}"
+    state: present
   register: podman_pull_result
   ignore_errors: true
   changed_when: false
@@ -182,8 +183,10 @@
   when: podman_pull_result.rc != 0
 
 - name: Tag pulled image
-  ansible.builtin.command:
-    cmd: "podman tag {{ pulp_aarch_image }} {{ aarch64_local_tag }}"
+  ansible.builtin.podman_image:
+    name: "{{ pulp_aarch_image }}"
+    tag: "{{ aarch64_local_tag }}"
+    state: present
   when: podman_pull_result.rc == 0
   changed_when: false
 
