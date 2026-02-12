@@ -169,26 +169,29 @@
   ansible.builtin.set_fact:
     pulp_aarch_image: "{{ hostvars['localhost']['oim_pxe_ip'] }}:2225/{{ pulp_aarch64_image_name }}"
 
-- name: Pull aarch64 image using Podman
-  ansible.builtin.podman_image:
-    name: "{{ pulp_aarch_image }}"
-    state: present
-  register: podman_pull_result
-  ignore_errors: true
-  changed_when: false
+- name: Pull and tag aarch64 image
+  block:
+    - name: Pull aarch64 image using Podman
+      containers.podman.podman_image:
+        name: "{{ pulp_aarch_image }}"
+        state: present
+      register: podman_pull_result
+      retries: "{{ pull_image_retries }}"
+      delay: "{{ pull_image_delay }}"
+      until: podman_pull_result is not failed
+      changed_when: false
 
-- name: Fail if Podman pull failed
-  ansible.builtin.fail:
-    msg: "{{ aarch64_image_fail_msg }}"
-  when: podman_pull_result.rc != 0
+    - name: Tag pulled image
+      containers.podman.podman_image:
+        name: "{{ pulp_aarch_image }}"
+        tag: "{{ aarch64_local_tag }}"
+        state: present
+      changed_when: false
 
-- name: Tag pulled image
-  ansible.builtin.podman_image:
-    name: "{{ pulp_aarch_image }}"
-    tag: "{{ aarch64_local_tag }}"
-    state: present
-  when: podman_pull_result.rc == 0
-  changed_when: false
+  rescue:
+    - name: Fail if Podman pull failed
+      ansible.builtin.fail:
+        msg: "Failed to pull image {{ pulp_aarch_image }}"
 
 - name: Check if regctl binary exists
   ansible.builtin.stat:

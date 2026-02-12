@@ -54,25 +54,26 @@
   ansible.builtin.set_fact:
     pulp_x86_image: "{{ oim_pxe_ip }}:2225/{{ pulp_x86_64_image_name }}"
 
-- name: Pull x86_64 image using Podman
-  ansible.builtin.podman_image:
-    name: "{{ pulp_x86_image }}"
-    state: present
-  register: pull_result
-  retries: "{{ pull_image_retries }}"
-  delay: "{{ pull_image_delay }}"
-  until: pull_result.rc == 0
-  changed_when: false
+- name: Pull and tag x86_64 image
+  block:
+    - name: Pull x86_64 image using Podman
+      containers.podman.podman_image:
+        name: "{{ pulp_x86_image }}"
+        state: present
+      register: pull_result
+      retries: "{{ pull_image_retries }}"
+      delay: "{{ pull_image_delay }}"
+      until: pull_result is not failed
+      changed_when: false
 
-- name: Fail if Podman pull failed
-  ansible.builtin.fail:
-    msg: "{{ pull_result.stdout }}"
-  when: pull_result.rc != 0
+    - name: Tag pulled image for x86_64 build
+      containers.podman.podman_image:
+        name: "{{ pulp_x86_image }}"
+        tag: "{{ x86_64_local_tag }}"
+        state: present
+      changed_when: false
 
-- name: Tag pulled image for x86_64 build
-  ansible.builtin.podman_image:
-    name: "{{ pulp_x86_image }}"
-    tag: "{{ x86_64_local_tag }}"
-    state: present
-  when: pull_result.rc == 0
-  changed_when: false
+  rescue:
+    - name: Fail if Podman pull failed
+      ansible.builtin.fail:
+        msg: "Failed to pull image {{ pulp_x86_image }}."
