@@ -63,18 +63,26 @@
     gitlab_project_url: "{{ new_project.json.web_url if not project_exists else project_search.json[0].web_url }}"
     gitlab_project_http_url: "{{ new_project.json.http_url_to_repo if not project_exists else project_search.json[0].http_url_to_repo }}"
 
-- name: Get project runner token
+- name: Create runner authentication token via API
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}"
-    method: GET
+    url: "{{ gitlab_external_url_computed }}/api/v4/user/runners"
+    method: POST
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      runner_type: project_type
+      project_id: "{{ gitlab_project_id }}"
+      description: "{{ gitlab_runner_description }}"
+      tag_list:
+        - "{{ gitlab_runner_tags }}"
+      run_untagged: true
     validate_certs: false
-    status_code: 200
-  register: project_details
+    status_code: [200, 201]
+  register: runner_creation
   no_log: true
 
-- name: Set runner token fact
+- name: Set runner authentication token fact
   ansible.builtin.set_fact:
-    gitlab_project_runner_token: "{{ project_details.json.runners_token }}"
+    gitlab_runner_auth_token: "{{ runner_creation.json.token }}"
   no_log: true

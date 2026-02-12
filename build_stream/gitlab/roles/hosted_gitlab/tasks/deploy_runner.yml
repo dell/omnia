@@ -23,16 +23,15 @@
     state: directory
     mode: '0755'
 
-- name: Register GitLab runner with project token
+- name: Register GitLab runner with authentication token
   ansible.builtin.command: >-
     podman run --rm
     -v {{ gitlab_runner_config_path }}:/etc/gitlab-runner{{ gitlab_runner_volume_suffix | default('') }}
-    -e CI_SERVER_URL={{ gitlab_external_url_computed }}/
-    -e REGISTRATION_TOKEN={{ gitlab_project_runner_token }}
-    -e RUNNER_NAME={{ gitlab_runner_description | quote }}
-    -e RUNNER_TAG_LIST={{ gitlab_runner_tags | quote }}
-    -e REGISTER_NON_INTERACTIVE=true
-    -e RUNNER_EXECUTOR={{ gitlab_runner_executor }}
+    --url {{ gitlab_external_url_computed }}/
+    --token {{ gitlab_runner_auth_token }}
+    --executor {{ gitlab_runner_executor }}
+    --docker-image {{ gitlab_runner_default_image }}
+    --description {{ gitlab_runner_description | quote }}
     {{ gitlab_runner_image }} register
   args:
     creates: "{{ gitlab_runner_config_file }}"

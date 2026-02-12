@@ -17,7 +17,7 @@
       - "Project ID: {{ gitlab_project_id }}"
       - "Project URL: {{ gitlab_project_url }}"
       - ""
-      - "Runner Token: {{ gitlab_project_runner_token }}"
+      - "Runner Auth Token: {{ gitlab_runner_auth_token }}"
       - "Trigger Token saved to: /root/.gitlab_trigger_token"
       - ""
       - "Service:    {{ gitlab_ctl_command }} (start|stop|status|reconfigure)"
