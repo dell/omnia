@@ -29,3 +29,4 @@ functional_group_absent_msg: |
   Failure: No x86_64 functional groups found in functional_group_config.yml input file.
   Please make sure x86_64 functional_group should be present in input file functional_group_config.yml
   to execute build_image_x86_64.yml successfully.
+build_stream_prerequisite_fail_msg: "Failed: enable_build_stream is set to true, make sure job_id, image_key and functional_groups were provided."

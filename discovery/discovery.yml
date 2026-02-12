@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,10 +24,20 @@
   connection: local
   tags: always
   tasks:
+    - name: Include build_stream config file
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+      failed_when: false
 
-    - name: Set build_stream_job_id from environment
+    - name: Set default for compute_image_suffix
       ansible.builtin.set_fact:
-        build_stream_job_id: "{{ job_id | default(lookup('env', 'job_id') | default('')) }}"
+        compute_image_suffix: ""
+
+    - name: Include build_stream_prerequisite.yml
+      ansible.builtin.include_role:
+        name: discovery_validations
+        tasks_from: build_stream_prerequisite.yml
+      when: enable_build_stream | default(false) | bool
 
 - name: Create oim group and provision group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml

@@ -1,13 +1,7 @@
 openchami_work_dir: "{{ openchami_work_dir }}"
 rhel_tag: "{{ rhel_tag }}"
 rhel_base_image: "{{ oim_node_name }}/{{ rhel_aarch64_base_image_name }}"
-{% set job_id_suffix = build_stream_job_id | default('') %}
-{% set build_stream_flag = (enable_build_stream | default(false) | string | lower == 'true') or (enable_build_stream is sameas true) %}
-{% if build_stream_flag and job_id_suffix != '' %}
-{% set image_name_suffix = '-' + job_id_suffix %}
-{% else %}
-{% set image_name_suffix = '' %}
-{% endif %}
+{% set image_name_suffix = compute_image_suffix | default('') %}
 base_compute_image_name: "{{ item.key }}{{ image_name_suffix }}"
 rhel_base_compute_image_name: "rhel-{{ item.key }}{{ image_name_suffix }}"
 rhel_base_compute_image: "{{ oim_node_name }}/rhel-{{ item.key }}{{ image_name_suffix }}"

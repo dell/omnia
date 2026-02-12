@@ -21,7 +21,7 @@
   ansible.builtin.set_fact:
     enable_build_stream: "{{ enable_build_stream | default(hostvars['localhost']['enable_build_stream'] | default(false)) }}"
     build_stream_job_id: "{{ build_stream_job_id | default(hostvars['localhost']['build_stream_job_id'] | default('')) }}"
-
+    compute_image_suffix: "{{ compute_image_suffix | default(hostvars['localhost']['compute_image_suffix'] | default('')) }}"
 - name: Verify image, kernel and initramfs in S3
   ansible.builtin.shell: |
     set -o pipefail && \

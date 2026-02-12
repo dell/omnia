@@ -18,31 +18,36 @@ from typing import Optional
 
 from fastapi import Header, HTTPException, status
 
-from container import container
 from core.jobs.value_objects import ClientId, CorrelationId
 from infra.id_generator import JobUUIDGenerator
 from infra.repositories import InMemoryJobRepository, InMemoryStageRepository
 from orchestrator.jobs.use_cases import CreateJobUseCase
 
 
+def _get_container():
+    """Lazy import of container to avoid circular imports."""
+    from container import container  # pylint: disable=import-outside-toplevel
+    return container
+
+
 def get_id_generator() -> JobUUIDGenerator:
     """Provide job ID generator."""
-    return container.job_id_generator()
+    return _get_container().job_id_generator()
 
 
 def get_create_job_use_case() -> CreateJobUseCase:
     """Provide create job use case."""
-    return container.create_job_use_case()
+    return _get_container().create_job_use_case()
 
 
 def get_job_repo() -> InMemoryJobRepository:
     """Provide job repository."""
-    return container.job_repository()
+    return _get_container().job_repository()
 
 
 def get_stage_repo() -> InMemoryStageRepository:
     """Provide stage repository."""
-    return container.stage_repository()
+    return _get_container().stage_repository()
 
 
 def get_client_id(
@@ -83,7 +88,7 @@ def get_correlation_id(
     ),
 ) -> CorrelationId:
     """Return provided correlation ID or generate one."""
-    generator = container.uuid_generator()
+    generator = _get_container().uuid_generator()
     if x_correlation_id:
         try:
             correlation_id = CorrelationId(x_correlation_id)

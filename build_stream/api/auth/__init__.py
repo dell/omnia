@@ -14,6 +14,6 @@
 
 """OAuth2 Authentication API module."""
 
-from .routes import router
+from api.auth.routes import router
 
 __all__ = ["router"]

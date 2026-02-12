@@ -21,7 +21,18 @@
   ansible.builtin.set_fact:
     build_stream_job_id: "{{ job_id | default(lookup('env', 'job_id') | default('')) }}"
 
+- name: Set image_key from environment
+  ansible.builtin.set_fact:
+    image_key: "{{ image_key | default(lookup('env', 'image_key') | default('')) }}"
+
 - name: Normalize functional_groups input into list
   ansible.builtin.set_fact:
     functional_group_list: "{{ functional_groups if functional_groups is iterable and functional_groups is not string else (functional_groups | from_yaml) }}"
   when: functional_groups is defined and enable_build_stream
+
+- name: Fail when build stream enabled without job id or functional groups
+  ansible.builtin.fail:
+    msg: "{{ build_stream_prerequisite_fail_msg }}"
+  when:
+    - enable_build_stream | bool
+    - (build_stream_job_id | default('') | string) | length == 0 or (functional_group_list | default([]) | length == 0) or (image_key | default('') | string) | length == 0   # noqa: yaml[line-length]

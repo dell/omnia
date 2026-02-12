@@ -21,14 +21,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from api.vault_client import VaultError
-from .schemas import (
+from api.auth.schemas import (
     AuthErrorResponse,
     ClientRegistrationRequest,
     ClientRegistrationResponse,
     TokenRequest,
     TokenResponse,
 )
-from .service import (
+from api.auth.service import (
     AuthService,
     AuthenticationError,
     ClientDisabledError,

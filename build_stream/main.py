@@ -23,6 +23,7 @@ Usage:
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,8 +39,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-container.wire(modules=["api.jobs.routes", "api.jobs.dependencies"])
+container.wire(modules=[
+    "api.jobs.routes",
+    "api.jobs.dependencies",
+    "api.local_repo.routes",
+    "api.local_repo.dependencies",
+])
 logger.info("Using container: %s", container.__class__.__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle events.
+    
+    Starts the result poller on startup and stops it on shutdown.
+    """
+    # Startup: Start the result poller
+    result_poller = container.result_poller()
+    await result_poller.start()
+    logger.info("Application startup complete")
+    
+    yield
+    
+    # Shutdown: Stop the result poller
+    await result_poller.stop()
+    logger.info("Application shutdown complete")
+
 
 app = FastAPI(
     title="Build Stream API",
@@ -48,6 +73,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
 
 # Attach container to app so dependency_injector Provide dependencies resolve

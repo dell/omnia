@@ -18,10 +18,16 @@ from .in_memory import (
     InMemoryIdempotencyRepository,
     InMemoryAuditEventRepository,
 )
+from .nfs_playbook_queue_request_repository import NfsPlaybookQueueRequestRepository
+from .nfs_playbook_queue_result_repository import NfsPlaybookQueueResultRepository
+from .nfs_input_directory_repository import NfsInputDirectoryRepository
 
 __all__ = [
     "InMemoryJobRepository",
     "InMemoryStageRepository",
     "InMemoryIdempotencyRepository",
     "InMemoryAuditEventRepository",
+    "NfsPlaybookQueueRequestRepository",
+    "NfsPlaybookQueueResultRepository",
+    "NfsInputDirectoryRepository",
 ]
