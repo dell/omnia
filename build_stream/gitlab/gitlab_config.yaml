@@ -78,21 +78,3 @@ gitlab_namespace: "root"
 # ----------------------------------------------------------------------------
 gitlab_trigger_description: "Omnia Software Catalog Webhook"
 software_catalog_file: "catalog.yml"
-
-# ----------------------------------------------------------------------------
-# OIM API ENDPOINTS
-# ----------------------------------------------------------------------------
-oim_api_endpoints:
-  parse_catalog: "/catalog/parse"
-  generate_inputs: "/catalog/generate-inputs"
-  create_repo: "/repo/create"
-  update_repo: "/repo/update"
-  build_images: "/images/build"
-  validate_images: "/images/validate"
-  deploy_images: "/deployments/deploy"
-  run_discovery: "/deployments/run-discovery"
-  run_tests: "/tests/run"
-
-# Retry configuration
-api_retry_attempts: 3
-api_retry_delay_sec: 30
