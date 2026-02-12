@@ -55,8 +55,9 @@
     pulp_x86_image: "{{ oim_pxe_ip }}:2225/{{ pulp_x86_64_image_name }}"
 
 - name: Pull x86_64 image using Podman
-  ansible.builtin.command:
-    cmd: "podman pull {{ pulp_x86_image }}"
+  ansible.builtin.podman_image:
+    name: "{{ pulp_x86_image }}"
+    state: present
   register: pull_result
   retries: "{{ pull_image_retries }}"
   delay: "{{ pull_image_delay }}"
@@ -69,7 +70,9 @@
   when: pull_result.rc != 0
 
 - name: Tag pulled image for x86_64 build
-  ansible.builtin.command:
-    cmd: "podman tag {{ pulp_x86_image }} {{ x86_64_local_tag }}"
+  ansible.builtin.podman_image:
+    name: "{{ pulp_x86_image }}"
+    tag: "{{ x86_64_local_tag }}"
+    state: present
   when: pull_result.rc == 0
   changed_when: false
