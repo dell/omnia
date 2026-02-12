@@ -1,0 +1,80 @@
+---
+# tasks/push_ci_files.yml
+
+- name: Read .gitlab-ci.yml from role files
+  ansible.builtin.slurp:
+    src: "{{ role_path }}/files/.gitlab-ci.yml"
+  register: hosted_ci_file_content
+
+- name: Push .gitlab-ci.yml to repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch }}"
+      content: "{{ hosted_ci_file_content.content | b64decode }}"
+      commit_message: "Add Omnia CI/CD pipeline configuration"
+    status_code: [200, 201]
+    validate_certs: false
+  register: hosted_push_ci_file
+  no_log: true
+  ignore_errors: true
+
+- name: Update .gitlab-ci.yml if it already exists
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"
+    method: PUT
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch }}"
+      content: "{{ hosted_ci_file_content.content | b64decode }}"
+      commit_message: "Update Omnia CI/CD pipeline configuration"
+    status_code: [200, 201]
+    validate_certs: false
+  no_log: true
+  when: hosted_push_ci_file is failed
+
+- name: Determine catalog JSON source defaults
+  ansible.builtin.set_fact:
+    gitlab_catalog_json_source_internal: "{{ gitlab_catalog_json_source | default(role_path + '/../../../tests/fixtures/catalogs/catalog_rhel.json') }}"
+    gitlab_catalog_repo_path_internal: "{{ gitlab_catalog_repo_path | default('catalog_rhel.json') }}"
+
+- name: Load catalog JSON content
+  ansible.builtin.set_fact:
+    hosted_catalog_json_content: "{{ lookup('file', gitlab_catalog_json_source_internal) }}"
+
+- name: Push catalog JSON to repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch }}"
+      content: "{{ hosted_catalog_json_content }}"
+      commit_message: "Add catalog_rhel.json"
+    status_code: [200, 201]
+    validate_certs: false
+  register: hosted_push_catalog
+  ignore_errors: true
+
+- name: Update catalog JSON if it already exists
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}"
+    method: PUT
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch }}"
+      content: "{{ hosted_catalog_json_content }}"
+      commit_message: "Update catalog_rhel.json"
+    status_code: [200, 201]
+    validate_certs: false
+  when: hosted_push_catalog is failed

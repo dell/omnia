@@ -29,6 +29,9 @@
 - name: Create pipeline trigger
   ansible.builtin.include_tasks: create_trigger.yml
 
+- name: Push CI/CD files to repository
+  ansible.builtin.include_tasks: push_ci_files.yml
+
 - name: Deploy GitLab Runner container
   ansible.builtin.include_tasks: deploy_runner.yml
 
