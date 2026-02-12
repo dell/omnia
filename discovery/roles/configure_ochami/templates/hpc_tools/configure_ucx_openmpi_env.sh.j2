@@ -17,8 +17,6 @@ if ! mountpoint -q "$CLIENT_MOUNT"; then
 fi
 
 # ---------------- UCX ----------------
-if [ -d "$UCX_PREFIX/bin" ]; then
-    echo "[INFO] UCX detected at $UCX_PREFIX"
 
     cat > "$PROFILE_DIR/ucx.sh" <<EOF
 # UCX environment
@@ -29,15 +27,8 @@ EOF
 
     chmod 644 "$PROFILE_DIR/ucx.sh"
     echo "[SUCCESS] UCX environment enabled"
-else
-    echo "[INFO] UCX not found at $UCX_PREFIX — skipping"
-    rm -f "$PROFILE_DIR/ucx.sh"
-fi
 
 # ---------------- OpenMPI ----------------
-if [ -d "$OPENMPI_PREFIX/bin" ]; then
-    echo "[INFO] OpenMPI detected at $OPENMPI_PREFIX"
-
     cat > "$PROFILE_DIR/openmpi.sh" <<EOF
 # OpenMPI environment
 export OPENMPI_HOME="$OPENMPI_PREFIX"
@@ -48,9 +39,5 @@ EOF
 
     chmod 644 "$PROFILE_DIR/openmpi.sh"
     echo "[SUCCESS] OpenMPI environment enabled"
-else
-    echo "[INFO] OpenMPI not found at $OPENMPI_PREFIX — skipping"
-    rm -f "$PROFILE_DIR/openmpi.sh"
-fi
 
 echo "===== UCX / OpenMPI environment configuration complete ====="

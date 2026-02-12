@@ -5,7 +5,20 @@ CLIENT_MOUNT="{{ client_mount_path }}"
 
 NVHPC_LOCAL_MOUNT="/opt/nvidia/nvhpc"
 NVARCH="$(uname -s)_$(uname -m)"
-NVHPC_VERSION="25.11"
+sys_arch="$(uname -m)"
+case "${sys_arch}" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+esac
+
+# Select package name based on detected architecture (rendered from slurm_config vars)
+case "${arch}" in
+    x86_64)  NVHPC_PKG_NAME="{{ nvhpc_pkg_name_x86_64 }}" ;;
+    aarch64) NVHPC_PKG_NAME="{{ nvhpc_pkg_name_aarch64 }}" ;;
+esac
+
+# Derive version from package name
+NVHPC_VERSION=$(echo "$NVHPC_PKG_NAME" | sed 's/nvhpc_\([0-9]*_[0-9]*\)_Linux_.*/\1/' | cut -d'_' -f2 | sed 's/\(..\)\(..\)/\1.\2/')
 
 NVHPC_BASE="$NVHPC_LOCAL_MOUNT/$NVARCH/$NVHPC_VERSION"
 PROFILE_FILE="/etc/profile.d/nvhpc.sh"
@@ -23,12 +36,6 @@ fi
 
 echo "===== NVHPC environment export started ====="
 
-# Validate compilers directory exists
-if [ ! -d "$NVHPC_BASE/compilers/bin" ]; then
-    echo "[ERROR] NVHPC compilers not found at:"
-    echo "        $NVHPC_BASE/compilers/bin"
-    exit 1
-fi
 
 echo "[INFO] Writing persistent NVHPC profile at $PROFILE_FILE"
 
@@ -54,19 +61,6 @@ EOF
 
 chmod 644 "$PROFILE_FILE"
 
-echo "[INFO] Verifying NVHPC compilers using login shell"
-
-# Verify nvc
-if ! bash -lc "command -v nvc && nvc --version >/dev/null"; then
-    echo "[ERROR] nvc verification failed"
-    exit 1
-fi
-
-# Verify nvfortran
-if ! bash -lc "command -v nvfortran && nvfortran --version >/dev/null"; then
-    echo "[ERROR] nvfortran verification failed"
-    exit 1
-fi
 
 echo "[SUCCESS] NVHPC environment exported successfully"
 echo "[INFO] Environment file configured in $PROFILE_FILE"

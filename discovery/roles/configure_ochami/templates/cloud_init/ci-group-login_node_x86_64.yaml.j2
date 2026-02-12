@@ -123,10 +123,10 @@
         - /usr/local/bin/set-ssh.sh
         # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
         - mkdir -p {{ client_mount_path }}/slurm/ssh
-        - mkdir -p /var/log/slurm /var/run/slurm /var/spool /var/lib/slurm /etc/slurm/epilog.d /etc/munge /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
+        - mkdir -p {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} {% for d in slurm_prolog_dirs_all %}{{ d }} {% endfor %}/etc/munge /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
         - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  /var/log/slurm   nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmd      /var/spool/slurmd       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -144,18 +144,23 @@
         - bash /usr/local/bin/doca-install.sh && bash /usr/local/bin/configure-ib-network.sh
         - yes | cp /etc/slurm/epilog.d/slurmd.service /usr/lib/systemd/system/
         - /usr/local/bin/check_slurm_controller_status.sh
-        - chown -R {{ slurm_user }}:{{ slurm_user }} /var/log/slurm
-        - chown -R {{ slurm_user }}:{{ slurm_user }} /var/run/slurm
-        - chown -R {{ slurm_user }}:{{ slurm_user }} /var/spool
-        - chown -R {{ slurm_user }}:{{ slurm_user }} /var/lib/slurm
+        - chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_log_dir_effective }}
+        - chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_pid_dir_effective }}
+        - chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_spool_dir_effective }}
         - chown -R {{ munge_user }}:{{ munge_group }} /etc/munge/munge.key
-        - chmod {{ file_mode_755 }} /var/log/slurm /var/run/slurm /var/spool /var/lib/slurm
+        - chmod {{ file_mode_755 }} {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }}
         - chmod {{ file_mode_400 }} /etc/munge/munge.key
         - chmod {{ file_mode_755 }} /etc/slurm/epilog.d/
         - chmod {{ file_mode_755 }} /etc/slurm/epilog.d/logout_user.sh
-        - mkdir -p /var/spool/slurmd
-        - chmod {{ file_mode_755 }} /var/spool/slurmd
-        - chown -R {{ slurm_user }}:{{ slurm_user }} /var/spool/slurmd
+{% for epath in slurm_epilog_custom_paths %}
+        - bash -c 'if [ ! -f "{{ epath }}" ]; then mkdir -p "$(dirname "{{ epath }}")"; printf "#!/bin/bash\n# Custom epilog script placeholder\n# Add your epilog commands here\n" > "{{ epath }}"; chown {{ slurm_user }}:{{ slurm_user }} "{{ epath }}"; chmod {{ file_mode_755 }} "{{ epath }}"; fi'
+{% endfor %}
+{% for ppath in slurm_prolog_custom_paths %}
+        - bash -c 'if [ ! -f "{{ ppath }}" ]; then mkdir -p "$(dirname "{{ ppath }}")"; printf "#!/bin/bash\n# Custom prolog script placeholder\n# Add your prolog commands here\n" > "{{ ppath }}"; chown {{ slurm_user }}:{{ slurm_user }} "{{ ppath }}"; chmod {{ file_mode_755 }} "{{ ppath }}"; fi'
+{% endfor %}
+        - mkdir -p {{ slurm_slurmd_spool_dir_effective }}
+        - chmod {{ file_mode_755 }} {{ slurm_slurmd_spool_dir_effective }}
+        - chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_spool_dir_effective }}
         - setenforce 0
         - systemctl enable firewalld
         - systemctl start firewalld

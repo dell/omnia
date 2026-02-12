@@ -21,6 +21,7 @@
   delegate_to: localhost
   register: ssh_check
   ignore_errors: true
+  ignore_unreachable: true
 
 - name: Block when ssh_check is success
   when: ssh_check is success
@@ -42,16 +43,40 @@
         - ansible_facts.services['slurmctld.service'] is defined
         - ansible_facts.services['slurmctld.service'].state == 'running'
 
+    - name: Check reachability of hosts in ip_name_map
+      ansible.builtin.wait_for:
+        host: "{{ host }}"
+        port: 22
+        timeout: 10
+        state: started
+      delegate_to: localhost
+      loop: "{{ ip_name_map.values() | list }}"
+      loop_control:
+        loop_var: host
+      register: ip_map_ssh_check
+      ignore_errors: true
+      ignore_unreachable: true
+
+    - name: Build list of reachable hosts from ip_name_map
+      ansible.builtin.set_fact:
+        reachable_hosts: "{{ ip_map_ssh_check.results | rejectattr('failed', 'true') | map(attribute='host') | list }}"
+
     - name: Update /etc/hosts with controller hostname and IP
       ansible.builtin.lineinfile:
         path: /etc/hosts
-        regexp: '^{{ ip.value }}\s+{{ ip.key }}'
-        line: "{{ ip.value }} {{ ip.key }}"
+        regexp: '^{{ host_entry.value }}\s+{{ host_entry.key }}'
+        line: "{{ host_entry.value }} {{ host_entry.key }}"
         state: present
-      loop: "{{ ip_name_map | dict2items }}"
+      loop: "{{ reachable_hosts | product(ip_name_map | dict2items) | list }}"
       loop_control:
-        loop_var: ip
-      delegate_to: "{{ item }}"
+        loop_var: host_combo
+      vars:
+        target_host: "{{ host_combo[0] }}"
+        host_entry: "{{ host_combo[1] }}"
+      delegate_to: "{{ target_host }}"
+      when: reachable_hosts | length > 0
+      ignore_unreachable: true
+      failed_when: false
 
     - name: Trigger the scontrol reconfigure
       ansible.builtin.command: scontrol reconfigure

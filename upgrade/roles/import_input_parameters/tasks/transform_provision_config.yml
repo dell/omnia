@@ -1,0 +1,85 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if backup provision_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ backup_location }}/provision_config.yml"
+  register: backup_provision_config_stat
+
+- name: Fail if backup provision_config.yml is not present
+  ansible.builtin.fail:
+    msg: "{{ msg_backup_provision_config_missing }}"
+  when: not backup_provision_config_stat.stat.exists
+
+- name: Check if provision_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/provision_config.yml"
+  register: provision_config_stat
+
+- name: Fail if provision_config.yml is not present
+  ansible.builtin.fail:
+    msg: "{{ msg_provision_config_missing }}"
+  when: not provision_config_stat.stat.exists
+
+- name: Read backup provision_config.yml (source of truth)
+  ansible.builtin.slurp:
+    src: "{{ backup_location }}/provision_config.yml"
+  register: backup_provision_config_slurp
+
+- name: Parse backup provision_config.yml
+  ansible.builtin.set_fact:
+    backup_provision_config: "{{ backup_provision_config_slurp.content | b64decode | from_yaml }}"
+
+- name: Normalize provision_config.yml values
+  ansible.builtin.set_fact:
+    provision_pxe_mapping_file_path: "{{ backup_provision_config.pxe_mapping_file_path | default('pxe_mapping_file.csv') }}"
+    provision_language: "{{ backup_provision_config.language | default('en_US.UTF-8') }}"
+    provision_default_lease_time: "{{ backup_provision_config.default_lease_time | default('86400') }}"
+
+- name: Fail if pxe_mapping_file_path is missing
+  ansible.builtin.fail:
+    msg: "{{ msg_pxe_mapping_file_path_missing }}"
+  when: (provision_pxe_mapping_file_path | string | trim) == ''
+
+- name: Write provision_config.yml in Omnia 2.1 format
+  ansible.builtin.template:
+    src: provision_config.j2
+    dest: "{{ input_project_dir }}/provision_config.yml"
+    mode: "{{ default_file_mode }}"
+  vars:
+    provision_pxe_mapping_file_path: "{{ provision_pxe_mapping_file_path }}"
+    provision_language: "{{ provision_language }}"
+    provision_default_lease_time: "{{ provision_default_lease_time }}"
+
+- name: Validate YAML syntax of transformed provision_config.yml
+  ansible.builtin.command:
+    cmd: python3 -c "import yaml; yaml.safe_load(open('{{ input_project_dir }}/provision_config.yml','r'))"
+  register: provision_yaml_validation
+  changed_when: false
+
+- name: Fail if YAML validation fails
+  ansible.builtin.fail:
+    msg: "{{ msg_yaml_validation_failed }}"
+  when:
+    - provision_yaml_validation.rc != 0
+
+- name: Display backup path (no-op when skipped)
+  ansible.builtin.debug:
+    msg: "{{ msg_using_backup_provision_config }}"
+  when: true
+
+- name: Display transformation summary
+  ansible.builtin.debug:
+    msg: "{{ msg_provision_config_transform_summary }}"

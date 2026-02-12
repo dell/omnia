@@ -7,17 +7,11 @@ echo "===== NVHPC SDK setup (mount + wait) ====="
 PARENT_NFS="{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk"
 PARENT_MOUNT="/shared-nvhpc-sdk"
 
-NVHPC_NFS_SHARE="{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk/nvhpc"
+NVHPC_NFS_SHARE="$PARENT_MOUNT/nvhpc"
 NVHPC_LOCAL_MOUNT="/opt/nvidia/nvhpc"
 
-NVHPC_MARKER="$PARENT_MOUNT/nvhpc/.nvhpc_env_ready"
-
-WAIT_TIMEOUT=3600
-SLEEP_INTERVAL=20
-ELAPSED=0
-
-# 1. Mount parent export
 mkdir -p "$PARENT_MOUNT"
+
 
 if ! mountpoint -q "$PARENT_MOUNT"; then
     mount -t nfs "$PARENT_NFS" "$PARENT_MOUNT"
@@ -30,24 +24,11 @@ fi
 
 echo "[INFO] Parent NVHPC export mounted"
 
-# 2. Wait for readiness marker
-echo "[INFO] Waiting for NVHPC readiness marker..."
-
-while [ ! -f "$NVHPC_MARKER" ]; do
-    if [ "$ELAPSED" -ge "$WAIT_TIMEOUT" ]; then
-        echo "[ERROR] Timeout waiting for NVHPC readiness marker"
-        exit 1
-    fi
-    sleep "$SLEEP_INTERVAL"
-    ELAPSED=$((ELAPSED + SLEEP_INTERVAL))
-done
-
-echo "[SUCCESS] NVHPC readiness marker detected"
-
-# 3. Ensure fstab entry exists
+mkdir -p "$NVHPC_NFS_SHARE"
+# 3. Ensure fstab entry exists (bind mount, NOT NFS)
 if ! grep -qF "$NVHPC_NFS_SHARE $NVHPC_LOCAL_MOUNT" /etc/fstab; then
-    echo "$NVHPC_NFS_SHARE $NVHPC_LOCAL_MOUNT nfs defaults,_netdev 0 0" >> /etc/fstab
-    echo "[INFO] NVHPC fstab entry added"
+    echo "$NVHPC_NFS_SHARE $NVHPC_LOCAL_MOUNT none bind,_netdev 0 0" >> /etc/fstab
+    echo "[INFO] NVHPC bind-mount fstab entry added"
 else
     echo "[INFO] NVHPC fstab entry already present"
 fi
@@ -56,7 +37,7 @@ fi
 mkdir -p "$NVHPC_LOCAL_MOUNT"
 
 if ! mountpoint -q "$NVHPC_LOCAL_MOUNT"; then
-    mount "$NVHPC_LOCAL_MOUNT"
+    mount --bind "$NVHPC_NFS_SHARE" "$NVHPC_LOCAL_MOUNT"
 fi
 
 if ! mountpoint -q "$NVHPC_LOCAL_MOUNT"; then

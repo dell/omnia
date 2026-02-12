@@ -18,6 +18,7 @@ import os
 from enum import Enum
 from collections import OrderedDict
 
+
 class SlurmParserEnum(str, Enum):
     """Enumeration of Slurm configuration parameter types for parsing and validation."""
 
@@ -60,13 +61,15 @@ S_P_CSV = SlurmParserEnum.S_P_CSV
 S_P_LIST = SlurmParserEnum.S_P_LIST
 
 
-downnodes_options = {
+slurm_downnodes_options = {
+    "DownNodes": S_P_STRING,
     "Reason": S_P_STRING,
     "State": S_P_STRING,
 }
 
 
-nodename_options = {
+slurm_nodename_options = {
+    "NodeName": S_P_STRING,
     "BcastAddr": S_P_STRING,
     "Boards": S_P_UINT16,
     "CoreSpecCount": S_P_UINT16,
@@ -98,13 +101,15 @@ nodename_options = {
 }
 
 
-nodeset_options = {
+slurm_nodeset_options = {
+    "NodeSet": S_P_STRING,
     "Feature": S_P_STRING,
     "Nodes": S_P_STRING
 }
 
 
-partition_options = {
+slurm_partitionname_options = {
+    "PartitionName": S_P_STRING,
     "AllocNodes": S_P_CSV,
     "AllowAccounts": S_P_CSV,
     "AllowGroups": S_P_CSV,
@@ -153,7 +158,8 @@ partition_options = {
     "TRESBillingWeights": S_P_CSV
 }
 
-# From https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/common/read_config.c
+# From
+# https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/common/read_config.c
 slurm_options = {
     "AccountingStorageBackupHost": S_P_STRING,
     "AccountingStorageEnforce": S_P_CSV,
@@ -398,7 +404,8 @@ slurm_options = {
     "SlurmctldHost": S_P_LIST
 }
 
-# From https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/slurmdbd/read_config.c
+# From
+# https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/slurmdbd/read_config.c
 slurmdbd_options = {
     "AllowNoDefAcct": S_P_BOOLEAN,
     "AllResourcesAbsolute": S_P_BOOLEAN,
@@ -469,7 +476,8 @@ slurmdbd_options = {
     "TrackSlurmctldDown": S_P_BOOLEAN
 }
 
-# From https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/interfaces/cgroup.c#L332
+# From
+# https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/interfaces/cgroup.c#L332
 cgroup_options = {
     "CgroupAutomount": S_P_BOOLEAN,
     "CgroupMountpoint": S_P_STRING,
@@ -496,7 +504,41 @@ cgroup_options = {
     "SystemdTimeout": S_P_UINT64
 }
 
-# From https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/plugins/mpi/pmix/mpi_pmix.c#L83
+# From
+# https://github.com/SchedMD/slurm/blob/slurm-<VERSION>s/src/interfaces/gres.c#L101C40-L116C2
+_gres_options = {
+    "AutoDetect": S_P_STRING,
+    "Count": S_P_STRING,  # Number of Gres available
+    "CPUs": S_P_STRING,  # CPUs to bind to Gres resource
+    "Cores": S_P_CSV,  # Cores to bind to Gres resource
+    "File": S_P_STRING,  # Path to Gres device
+    "Files": S_P_STRING,  # Path to Gres device
+    "Flags": S_P_STRING,  # GRES Flags
+    "Link": S_P_STRING,  # Communication link IDs
+    "Links": S_P_CSV,  # Communication link IDs
+    "MultipleFiles": S_P_CSV,  # list of GRES device files
+    "Type": S_P_STRING
+}
+
+gres_options = _gres_options.copy()
+gres_options.update({
+    "Name": S_P_ARRAY,
+    "NodeName": S_P_ARRAY
+})
+
+gres_nodename_options = _gres_options.copy()
+gres_nodename_options.update({
+    "NodeName": S_P_STRING,
+    "Name": S_P_STRING
+})
+
+gres_name_options = _gres_options.copy()
+gres_name_options.update({
+    "Name": S_P_STRING
+})
+
+# From
+# https://github.com/SchedMD/slurm/blob/slurm-<VERSION>/src/plugins/mpi/pmix/mpi_pmix.c#L83
 mpi_options = {
     "PMIxCliTmpDirBase": S_P_STRING,
     "PMIxCollFence": S_P_STRING,
@@ -513,20 +555,177 @@ mpi_options = {
     "PMIxTlsUCX": S_P_CSV
 }
 
-# From https://github.com/SchedMD/slurm/blob/slurm-<VERSION>s/src/interfaces/gres.c#L101C40-L116C2
-gres_options = {
-    "AutoDetect": S_P_STRING,
-    "Count": S_P_STRING,  # Number of Gres available
-    "CPUs": S_P_STRING,  # CPUs to bind to Gres resource
-    "Cores": S_P_CSV,  # Cores to bind to Gres resource
-    "File": S_P_STRING,  # Path to Gres device
-    "Files": S_P_STRING,  # Path to Gres device
-    "Flags": S_P_STRING,  # GRES Flags
-    "Link": S_P_STRING,  # Communication link IDs
-    "Links": S_P_CSV,  # Communication link IDs
-    "MultipleFiles": S_P_CSV,  # list of GRES device files
-    "Name": S_P_STRING,  # Gres name
-    "Type": S_P_STRING  # Gres type (e.g. model name)
+# src/common/oci_config.c
+oci_options = {
+    "ContainerPath": S_P_STRING,
+    "CreateEnvFile": S_P_STRING,
+    "DisableHooks": S_P_STRING,
+    "EnvExclude": S_P_STRING,
+    "MountSpoolDir": S_P_STRING,
+    "RunTimeCreate": S_P_STRING,
+    "RunTimeDelete": S_P_STRING,
+    "RunTimeKill": S_P_STRING,
+    "RunTimeEnvExclude": S_P_STRING,
+    "RunTimeQuery": S_P_STRING,
+    "RunTimeRun": S_P_STRING,
+    "RunTimeStart": S_P_STRING,
+    "SrunPath": S_P_STRING,
+    "SrunArgs": S_P_LIST,
+    "DisableCleanup": S_P_BOOLEAN,
+    "StdIODebug": S_P_STRING,
+    "SyslogDebug": S_P_STRING,
+    "FileDebug": S_P_STRING,
+    "DebugFlags": S_P_STRING,
+    "IgnoreFileConfigJson": S_P_BOOLEAN
+}
+
+# From
+# src/plugins/acct_gather_*/*
+acct_gather_options = {
+    "EnergyIPMIDriverType": S_P_UINT32,
+    "EnergyIPMIDisableAutoProbe": S_P_UINT32,
+    "EnergyIPMIDriverAddress": S_P_UINT32,
+    "EnergyIPMIRegisterSpacing": S_P_UINT32,
+    "EnergyIPMIDriverDevice": S_P_STRING,
+    "EnergyIPMIProtocolVersion": S_P_UINT32,
+    "EnergyIPMIUsername": S_P_STRING,
+    "EnergyIPMIPassword": S_P_STRING,
+    "EnergyIPMIPrivilegeLevel": S_P_UINT32,
+    "EnergyIPMIAuthenticationType": S_P_UINT32,
+    "EnergyIPMICipherSuiteId": S_P_UINT32,
+    "EnergyIPMISessionTimeout": S_P_UINT32,
+    "EnergyIPMIRetransmissionTimeout": S_P_UINT32,
+    "EnergyIPMIWorkaroundFlags": S_P_UINT32,
+    "EnergyIPMIRereadSdrCache": S_P_BOOLEAN,
+    "EnergyIPMIIgnoreNonInterpretableSensors": S_P_BOOLEAN,
+    "EnergyIPMIBridgeSensors": S_P_BOOLEAN,
+    "EnergyIPMIInterpretOemData": S_P_BOOLEAN,
+    "EnergyIPMISharedSensors": S_P_BOOLEAN,
+    "EnergyIPMIDiscreteReading": S_P_BOOLEAN,
+    "EnergyIPMIIgnoreScanningDisabled": S_P_BOOLEAN,
+    "EnergyIPMIAssumeBmcOwner": S_P_BOOLEAN,
+    "EnergyIPMIEntitySensorNames": S_P_BOOLEAN,
+    "EnergyIPMIFrequency": S_P_UINT32,
+    "EnergyIPMICalcAdjustment": S_P_BOOLEAN,
+    "EnergyIPMIPowerSensors": S_P_STRING,
+    "EnergyIPMITimeout": S_P_UINT32,
+    "EnergyIPMIVariable": S_P_STRING,
+    "ProfileHDF5Dir": S_P_STRING,
+    "ProfileHDF5Default": S_P_STRING,
+    "ProfileInfluxDBDatabase": S_P_STRING,
+    "ProfileInfluxDBDefault": S_P_STRING,
+    "ProfileInfluxDBFrequency": S_P_UINT32,
+    "ProfileInfluxDBHost": S_P_STRING,
+    "ProfileInfluxDBPass": S_P_STRING,
+    "ProfileInfluxDBRTPolicy": S_P_STRING,
+    "ProfileInfluxDBTimeout": S_P_UINT32,
+    "ProfileInfluxDBUser": S_P_STRING,
+    "InterconnectOFEDPort": S_P_UINT32,
+    "InfinibandOFEDPort": S_P_UINT32,
+    "SysfsInterfaces": S_P_STRING
+}
+
+# src/plugins/burst_buffer/common/burst_buffer_common.c
+burst_buffer_options = {
+    "AllowUsers": S_P_STRING,
+    "CreateBuffer": S_P_STRING,
+    "DefaultPool": S_P_STRING,
+    "DenyUsers": S_P_STRING,
+    "DestroyBuffer": S_P_STRING,
+    "Directive": S_P_STRING,
+    "Flags": S_P_STRING,
+    "GetSysState": S_P_STRING,
+    "GetSysStatus": S_P_STRING,
+    "Granularity": S_P_STRING,
+    "OtherTimeout": S_P_UINT32,
+    "PollInterval": S_P_UINT32,
+    "Pools": S_P_STRING,
+    "StageInTimeout": S_P_UINT32,
+    "StageOutTimeout": S_P_UINT32,
+    "StartStageIn": S_P_STRING,
+    "StartStageOut": S_P_STRING,
+    "StopStageIn": S_P_STRING,
+    "StopStageOut": S_P_STRING,
+    "ValidateTimeout": S_P_UINT32
+}
+
+# src/plugins/node_features/helpers/node_features_helpers.c
+helpers_options = {
+    "AllowUserBoot": S_P_STRING,
+    "BootTime": S_P_UINT32,
+    "ExecTime": S_P_UINT32,
+    "Feature": S_P_ARRAY,
+    "MutuallyExclusive": S_P_LIST,
+    "NodeName": S_P_ARRAY
+}
+
+helpers_nodename_options = {
+    "AllowUserBoot": S_P_STRING,
+    "BootTime": S_P_UINT32,
+    "ExecTime": S_P_UINT32,
+    "Feature": S_P_CSV,
+    "MutuallyExclusive": S_P_LIST
+}
+
+helpers_feature_options = {
+    "Feature": S_P_CSV,
+    "Helper": S_P_STRING,
+    "Flags": S_P_STRING
+}
+
+# src/plugins/namespace/tmpfs/read_jcconf.c
+job_container_options = {
+    "AutoBasePath": S_P_BOOLEAN,
+    "InitScript": S_P_STRING,
+    "BasePath": S_P_ARRAY,
+    "EntireStepInNS": S_P_BOOLEAN,
+    "NodeName": S_P_ARRAY,
+    "Shared": S_P_BOOLEAN,
+    "CloneNSScript": S_P_STRING,
+    "CloneNSEpilog": S_P_STRING,
+    "CloneNSScript_Wait": S_P_UINT32,
+    "CloneNSEpilog_Wait": S_P_UINT32
+}
+
+job_container_nodename_options = {
+    "AutoBasePath": S_P_BOOLEAN,
+    "BasePath": S_P_STRING,
+    "Dirs": S_P_STRING,
+    "EntireStepInNS": S_P_BOOLEAN,
+    "NodeName": S_P_STRING,
+    "Shared": S_P_BOOLEAN,
+    "CloneNSScript": S_P_STRING,
+    "CloneNSEpilog": S_P_STRING,
+    "CloneNSScript_Wait": S_P_UINT32,
+    "CloneNSEpilog_Wait": S_P_UINT32
+}
+
+job_container_basename_options = {
+    "BasePath": S_P_STRING,
+    "Dirs": S_P_STRING
+}
+
+# src/plugins/topology/tree/switch_record.c
+topology_options = {
+    "SwitchName": S_P_ARRAY,
+    "LinkSpeed": S_P_UINT32,
+    "Nodes": S_P_STRING,
+    "Switches": S_P_STRING,
+    "BlockName": S_P_ARRAY,
+    "BlockSizes": S_P_STRING
+}
+
+topology_switchname_options = {
+    "SwitchName": S_P_STRING,
+    "LinkSpeed": S_P_UINT32,
+    "Nodes": S_P_STRING,
+    "Switches": S_P_STRING
+}
+
+topology_blockname_options = {
+    "BlockName": S_P_STRING,
+    "BlockSizes": S_P_STRING,
+    "Nodes": S_P_STRING
 }
 
 all_confs = {
@@ -534,29 +733,114 @@ all_confs = {
     "slurmdbd": slurmdbd_options,
     "cgroup": cgroup_options,
     "mpi": mpi_options,
+    "oci": oci_options,
+    "acct_gather": acct_gather_options,
+    "burst_buffer": burst_buffer_options,
+    "helpers": helpers_options,
+    "job_container": job_container_options,
+    "topology": topology_options,
     "gres": gres_options,
     # TOD: GRES can have different combinations, NodeName and Name
     # https://slurm.schedmd.com/gres.conf.html#SECTION_EXAMPLES
-    "PartitionName": partition_options,
-    "NodeName": nodename_options,
-    "DownNodes": downnodes_options,
-    "NodeSet": nodeset_options
+    "slurm->PartitionName": slurm_partitionname_options,
+    "slurm->NodeName": slurm_nodename_options,
+    "slurm->DownNodes": slurm_downnodes_options,
+    "slurm->NodeSet": slurm_nodeset_options,
+    "gres->Name": gres_name_options,
+    "gres->NodeName": gres_nodename_options,
+    "job_container->NodeName": job_container_nodename_options,
+    "job_container->BaseName": job_container_basename_options,
+    "topology->SwitchName": topology_switchname_options,
+    "topology->BlockName": topology_blockname_options,
+    "helpers->NodeName": helpers_nodename_options,
+    "helpers->Feature": helpers_feature_options
 }
 
 _HOSTLIST_RE = re.compile(
     r'^(?P<prefix>[^\[\]]*)\[(?P<inner>[^\[\]]+)\](?P<suffix>.*)$')
 
-def get_invalid_keys(conf_dict, conf_name):
-    """Get invalid configuration keys by comparing against expected keys."""
+
+def validate_config_types(conf_dict, conf_name, module):
+    """Validate configuration keys and value types based on SlurmParserEnum."""
     current_conf = all_confs.get(conf_name, {})
-    # get difference between conf_dict keys and current_conf keys
-    diff = set(conf_dict.keys()).difference(set(current_conf.keys()))
-    return list(diff)
+    if not current_conf:
+        return {'invalid_keys': [], 'type_errors': []}
+    invalid_keys = list(
+        set(conf_dict.keys()).difference(set(current_conf.keys())))
+    type_errors = []
+
+    for key, value in conf_dict.items():
+        if key in current_conf:
+            expected_type_enum = current_conf[key]
+            expected_type = expected_type_enum.value
+            error = None
+
+            if expected_type == "int":
+                if not isinstance(value, int):
+                    try:
+                        int(str(value))
+                    except (ValueError, TypeError):
+                        error = f"Expected integer, got {type(value).__name__}"
+
+            elif expected_type == "float":
+                if not isinstance(value, (int, float)):
+                    try:
+                        float(str(value))
+                    except (ValueError, TypeError):
+                        error = f"Expected float, got {type(value).__name__}"
+
+            elif expected_type == "bool":
+                if not isinstance(value, bool):
+                    if str(value).lower() not in [
+                            'yes', 'no', 'true', 'false', '0', '1']:
+                        error = f"Expected boolean, got {type(value).__name__}"
+
+            elif expected_type == "str":
+                if not isinstance(value, str):
+                    error = f"Expected string, got {type(value).__name__}"
+
+            elif expected_type == "csv":
+                if not isinstance(value, str):
+                    error = f"Expected CSV string, got {type(value).__name__}"
+
+            elif expected_type == "list":
+                if not isinstance(value, list):
+                    error = f"Expected list, got {type(value).__name__}"
+
+            elif expected_type == "array":
+                if not isinstance(value, list):
+                    error = f"Expected array (list), got {type(value).__name__}"
+                elif value:
+                    if not all(isinstance(item, dict) for item in value):
+                        error = "Expected array of dicts, got mixed types"
+                    else:
+                        # Recursively validate each dict item in the array
+                        for item in value:
+                            item_result = validate_config_types(
+                                item, f"{conf_name}->{key}", module)
+                            type_errors.extend(item_result['type_errors'])
+                            invalid_keys.extend(item_result['invalid_keys'])
+            elif expected_type == "object":
+                if not isinstance(value, (dict, object)):
+                    error = f"Expected object, got {type(value).__name__}"
+
+            if error:
+                type_errors.append({  # format for error message in input validator
+                    "error_key": "omnia_config.yml",
+                    "error_msg": f"{conf_name}.conf: '{key}': {error} -> '{value}'",
+                    "error_value": "slurm_cluster->config_sources"
+                })
+    return {
+        'invalid_keys': list(invalid_keys),
+        'type_errors': type_errors
+    }
+
 
 def parse_slurm_conf(file_path, conf_name, validate):
     """Parses the slurm.conf file and returns it as a dictionary."""
     current_conf = all_confs.get(conf_name, {})
     slurm_dict = OrderedDict()
+    dup_keys = []
 
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"{file_path} not found.")
@@ -576,20 +860,32 @@ def parse_slurm_conf(file_path, conf_name, validate):
                 tmp_dict[key.strip()] = value.strip()
             skey = list(tmp_dict.keys())[0]
             if validate and skey not in current_conf:
-                raise ValueError(f"Invalid key while parsing {file_path}: {skey}")
-            if current_conf.get(skey) == SlurmParserEnum.S_P_ARRAY:
+                raise ValueError(
+                    f"Invalid key while parsing {file_path}: {skey}")
+            if current_conf.get(skey) == SlurmParserEnum.S_P_ARRAY or len(tmp_dict) > 1:
                 slurm_dict[list(tmp_dict.keys())[0]] = list(
                     slurm_dict.get(list(tmp_dict.keys())[0], [])) + [tmp_dict]
             elif current_conf.get(skey) == SlurmParserEnum.S_P_CSV:
-                existing_values = [v.strip() for v in slurm_dict.get(skey, "").split(',') if v.strip()]
-                new_values = [v.strip() for v in tmp_dict[skey].split(',') if v.strip()]
-                slurm_dict[skey] = ",".join(list(dict.fromkeys(existing_values + new_values)))
+                existing_values = [
+                    v.strip() for v in slurm_dict.get(
+                        skey, "").split(',') if v.strip()]
+                new_values = [v.strip()
+                              for v in tmp_dict[skey].split(',') if v.strip()]
+                slurm_dict[skey] = ",".join(
+                    list(
+                        dict.fromkeys(
+                            existing_values +
+                            new_values)))
             elif current_conf.get(skey) == SlurmParserEnum.S_P_LIST:
-                slurm_dict[skey] = list(slurm_dict.get(skey, [])) + list(tmp_dict.values())
+                slurm_dict[skey] = list(slurm_dict.get(
+                    skey, [])) + list(tmp_dict.values())
             else:
-                slurm_dict.update(tmp_dict)
+                if skey in slurm_dict:
+                    dup_keys.append(skey)
+                else:
+                    slurm_dict.update(tmp_dict)
+    return slurm_dict, dup_keys
 
-    return slurm_dict
 
 def expand_hostlist(expr):
     """

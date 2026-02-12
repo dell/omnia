@@ -1,0 +1,90 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if backup storage_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ backup_location }}/storage_config.yml"
+  register: backup_storage_config_stat
+
+- name: Fail if backup storage_config.yml is not present
+  ansible.builtin.fail:
+    msg: "{{ msg_backup_storage_config_missing }}"
+  when: not backup_storage_config_stat.stat.exists
+
+- name: Check if storage_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/storage_config.yml"
+  register: storage_config_stat
+
+- name: Fail if storage_config.yml is not present
+  ansible.builtin.fail:
+    msg: "{{ msg_storage_config_missing }}"
+  when: not storage_config_stat.stat.exists
+
+- name: Read backup storage_config.yml (source of truth)
+  ansible.builtin.slurp:
+    src: "{{ backup_location }}/storage_config.yml"
+  register: backup_storage_config_slurp
+
+- name: Parse backup storage_config.yml
+  ansible.builtin.set_fact:
+    backup_storage_config: "{{ backup_storage_config_slurp.content | b64decode | from_yaml }}"
+
+- name: Normalize storage_config.yml values
+  ansible.builtin.set_fact:
+    storage_nfs_client_params: "{{ backup_storage_config.nfs_client_params | default([]) }}"
+
+- name: Fail if nfs_client_params is missing
+  ansible.builtin.fail:
+    msg: "{{ msg_nfs_client_params_missing }}"
+  when: (storage_nfs_client_params | default([]) | length) == 0
+
+- name: Fail if any NFS client entry is missing required keys
+  ansible.builtin.fail:
+    msg: "{{ msg_nfs_client_param_entry_missing_keys }}"
+  when: >-
+    (storage_nfs_client_params | selectattr('server_ip', 'undefined') | list | length) > 0 or
+    (storage_nfs_client_params | selectattr('server_share_path', 'undefined') | list | length) > 0 or
+    (storage_nfs_client_params | selectattr('client_share_path', 'undefined') | list | length) > 0 or
+    (storage_nfs_client_params | selectattr('client_mount_options', 'undefined') | list | length) > 0
+
+- name: Write storage_config.yml in Omnia 2.1 format
+  ansible.builtin.template:
+    src: storage_config.j2
+    dest: "{{ input_project_dir }}/storage_config.yml"
+    mode: "{{ default_file_mode }}"
+  vars:
+    storage_nfs_client_params: "{{ storage_nfs_client_params }}"
+
+- name: Validate YAML syntax of transformed storage_config.yml
+  ansible.builtin.command:
+    cmd: python3 -c "import yaml; yaml.safe_load(open('{{ input_project_dir }}/storage_config.yml','r'))"
+  register: storage_yaml_validation
+  changed_when: false
+
+- name: Fail if YAML validation fails
+  ansible.builtin.fail:
+    msg: "{{ msg_yaml_validation_failed }}"
+  when:
+    - storage_yaml_validation.rc != 0
+
+- name: Display backup path (no-op when skipped)
+  ansible.builtin.debug:
+    msg: "{{ msg_using_backup_storage_config }}"
+  when: true
+
+- name: Display transformation summary
+  ansible.builtin.debug:
+    msg: "{{ msg_storage_config_transform_summary }}"

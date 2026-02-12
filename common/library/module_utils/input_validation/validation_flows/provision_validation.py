@@ -91,6 +91,65 @@ def validate_functional_groups_separation(pxe_mapping_file_path):
     if errors:
         raise ValueError("PXE mapping file group separation validation errors: " + "; ".join([str(e) for e in errors]))
 
+def validate_slurm_login_compiler_prefix(pxe_mapping_file_path):
+    """Validate that slurm_node and login_compiler entries align on architecture suffix when both are present.
+
+    - Functional group suffix must be either _x86_64 or _aarch64 (case-sensitive).
+    - When both slurm_node* and login_compiler_node* are present, their suffixes must match.
+
+    Raises ValueError with details if suffixes differ. Prefix differences are allowed.
+    """
+
+    if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
+        raise ValueError(f"PXE mapping file not found: {pxe_mapping_file_path}")
+
+    with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.readlines()
+
+    non_comment_lines = [ln for ln in raw_lines if ln.strip()]
+    reader = csv.DictReader(non_comment_lines)
+
+    fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+    fg_col = fieldname_map.get("FUNCTIONAL_GROUP_NAME")
+    hostname_col = fieldname_map.get("HOSTNAME")
+
+    if not fg_col or not hostname_col:
+        raise ValueError("FUNCTIONAL_GROUP_NAME or HOSTNAME column not found in PXE mapping file")
+
+    arch_map = {"slurm_node": [], "login_compiler_node": []}
+
+    for row_idx, row in enumerate(reader, start=2):
+        fg_name = row.get(fg_col, "").strip() if row.get(fg_col) else ""
+        hostname = row.get(hostname_col, "").strip() if row.get(hostname_col) else ""
+        if not fg_name or not hostname:
+            continue
+
+        fg_arch = None
+        fg_base = fg_name
+        for suffix in ("_x86_64", "_aarch64"):
+            if fg_name.endswith(suffix):
+                fg_arch = suffix.lstrip("_")
+                fg_base = fg_name[: -len(suffix)]
+                break
+
+        if fg_base in arch_map and fg_arch:
+            arch_map[fg_base].append((fg_arch, row_idx))
+
+    if not arch_map["slurm_node"] or not arch_map["login_compiler_node"]:
+        return
+
+    slurm_arch, _ = arch_map["slurm_node"][0]
+    login_arch, _ = arch_map["login_compiler_node"][0]
+    if slurm_arch != login_arch:
+        slurm_rows = [str(r[1]) for r in arch_map["slurm_node"]]
+        login_rows = [str(r[1]) for r in arch_map["login_compiler_node"]]
+        raise ValueError(
+            "Architecture suffix mismatch between slurm_node and login_compiler_node. "
+            f"slurm_node suffix '{slurm_arch}' vs "
+            f"login_compiler_node suffix '{login_arch}' "
+            "Ensure both use the same suffix (_x86_64 or _aarch64)."
+        )
+
 def validate_duplicate_hostnames_in_mapping_file(pxe_mapping_file_path):
     """
     Validates that HOSTNAME values in the mapping file are unique.
@@ -684,6 +743,7 @@ def validate_provision_config(
             validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path)
             validate_functional_groups_separation(pxe_mapping_file_path)
             validate_parent_service_tag_hierarchy(pxe_mapping_file_path)
+            validate_slurm_login_compiler_prefix(pxe_mapping_file_path)
 
             # Validate ADMIN_IPs against network_spec.yml ranges
             network_spec_path = create_file_path(input_file_path, file_names["network_spec"])

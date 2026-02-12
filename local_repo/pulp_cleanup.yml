@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,9 +40,9 @@
     # Step 2: User Confirmation
     - name: Parse cleanup lists
       ansible.builtin.set_fact:
-        repo_list: "{{ (cleanup_repos.split(',') if cleanup_repos != 'all' else []) if cleanup_repos is defined else [] }}"
-        container_list: "{{ (cleanup_containers.split(',') if cleanup_containers is string else cleanup_containers) | default([]) }}"
-        file_list: "{{ (cleanup_files.split(',') if cleanup_files is string else cleanup_files) | default([]) }}"
+        repo_list: "{{ cleanup_repos.split(',') | map('trim') | list if cleanup_repos is string else (cleanup_repos | default([])) }}"
+        container_list: "{{ cleanup_containers.split(',') | map('trim') | list if cleanup_containers is string else (cleanup_containers | default([])) }}"
+        file_list: "{{ cleanup_files.split(',') | map('trim') | list if cleanup_files is string else (cleanup_files | default([])) }}"
 
     - name: Display cleanup summary
       ansible.builtin.debug:

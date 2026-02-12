@@ -9,9 +9,23 @@ echo "===== Configuring NVIDIA HPC SDK environment ====="
 # Cloud-init safe defaults
 export HOME=/root
 
-NVCOMPILERS="{{ nvhpc_local_mount | default('/opt/nvidia/nvhpc') }}"
+NVCOMPILERS="/opt/nvidia/nvhpc"
 NVARCH="$(uname -s)_$(uname -m)"
-NVHPC_VERSION="{{ nvhpc_version | default('25.11') }}"
+sys_arch="$(uname -m)"
+case "${sys_arch}" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+esac
+
+# Select package name based on detected architecture (rendered from slurm_config vars)
+case "${arch}" in
+    x86_64)  NVHPC_PKG_NAME="{{ nvhpc_pkg_name_x86_64 }}" ;;
+    aarch64) NVHPC_PKG_NAME="{{ nvhpc_pkg_name_aarch64 }}" ;;
+esac
+
+# Derive version from package name
+NVHPC_VERSION=$(echo "$NVHPC_PKG_NAME" | sed 's/nvhpc_\([0-9]*_[0-9]*\)_Linux_.*/\1/' | cut -d'_' -f2 | sed 's/\(..\)\(..\)/\1.\2/')
+
 
 NVHPC_BASE="$NVCOMPILERS/$NVARCH/$NVHPC_VERSION"
 PROFILE_FILE="/etc/profile.d/nvhpc.sh"
@@ -50,8 +64,6 @@ if [ -f "$PROFILE_FILE" ]; then
     grep -q "nvhpc.sh" /etc/bashrc || echo "source $PROFILE_FILE" >> /etc/bashrc
 fi
 
-# NVHPC marker file path
-MARKER_TARGET="{{ nvhpc_local_mount | default('/shared-nvhpc-sdk/nvhpc') }}/.nvhpc_env_ready"
 
 if ! grep -q "{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk/nvhpc" /etc/fstab; then
     echo "[ERROR] NVHPC NFS path not found in /etc/fstab"
@@ -59,13 +71,5 @@ if ! grep -q "{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk/nvhpc" /etc/fstab; 
 fi
 
 echo "[INFO] NVHPC NFS entry found in /etc/fstab"
-
-if [ ! -d "{{ nvhpc_local_mount | default('/shared-nvhpc-sdk/nvhpc') }}" ]; then
-    echo "[ERROR] Marker directory missing: {{ nvhpc_local_mount | default('/shared-nvhpc-sdk/nvhpc') }}"
-    exit 1
-fi
-
-touch "$MARKER_TARGET"
-echo "[SUCCESS] NVHPC marker created: $MARKER_TARGET"
 
 echo "===== NVHPC environment configuration completed successfully ====="

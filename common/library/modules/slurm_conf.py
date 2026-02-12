@@ -161,7 +161,7 @@ def read_dict2ini(conf_dict):
     return data
 
 
-def slurm_conf_dict_merge(conf_dict_list, conf_name):
+def slurm_conf_dict_merge(conf_dict_list, conf_name, replace):
     """Merge multiple Slurm configuration dictionaries into a single dictionary."""
     merged_dict = OrderedDict()
     current_conf = all_confs.get(conf_name, {})
@@ -173,10 +173,10 @@ def slurm_conf_dict_merge(conf_dict_list, conf_name):
                         existing_dict = merged_dict.get(ky, {})
                         inner_dict = existing_dict.get(item.get(ky), {})
                         # Get the sub-options for this array type (e.g., nodename_options, partition_options)
-                        sub_options = all_confs.get(ky, {})
+                        sub_options = all_confs.get(f"{conf_name}->{ky}", {})
                         # Merge item into inner_dict, handling CSV fields specially
                         for k, v in item.items():
-                            if sub_options.get(k) == SlurmParserEnum.S_P_CSV and k in inner_dict:
+                            if sub_options.get(k) == SlurmParserEnum.S_P_CSV and k in inner_dict and not replace:
                                 # Merge CSV values
                                 existing_values = [val.strip() for val in inner_dict[k].split(',') if val.strip()]
                                 new_values = [val.strip() for val in v.split(',') if val.strip()]
@@ -193,7 +193,7 @@ def slurm_conf_dict_merge(conf_dict_list, conf_name):
                 else:
                     new_items = [vl]
                 merged_dict[ky] = list(dict.fromkeys(existing_list + new_items))
-            elif current_conf.get(ky) == SlurmParserEnum.S_P_CSV:
+            elif current_conf.get(ky) == SlurmParserEnum.S_P_CSV and not replace:
                 existing_values = [v.strip() for v in merged_dict.get(ky, "").split(',') if v.strip()]
                 new_values = [v.strip() for v in vl.split(',') if v.strip()]
                 merged_dict[ky] = ",".join(list(dict.fromkeys(existing_values + new_values)))
@@ -215,7 +215,8 @@ def run_module():
         "conf_map": {'type': 'dict', 'default': {}},
         "conf_sources": {'type': 'list', 'elements': 'raw', 'default': []},
         "conf_name": {'type': 'str', 'default': 'slurm'},
-        "validate": {'type': 'bool', 'default': False}
+        "validate": {'type': 'bool', 'default': False},
+        "replace": {'type': 'bool', 'default': False}
     }
 
     result = {"changed": False, "failed": False}
@@ -230,9 +231,12 @@ def run_module():
     try:
         conf_name = module.params['conf_name']
         validate = module.params['validate']
+        replace = module.params['replace']
         # Parse the slurm.conf file
         if module.params['op'] == 'parse':
-            s_dict = parse_slurm_conf(module.params['path'], conf_name, validate)
+            s_dict, dup_keys = parse_slurm_conf(module.params['path'], conf_name, validate)
+            if dup_keys:
+                module.fail_json(msg=f"Duplicate keys found in {module.params['path']}: {dup_keys}")
             result['conf_dict'] = s_dict
         elif module.params['op'] == 'render':
             s_list = read_dict2ini(module.params['conf_map'])
@@ -245,11 +249,13 @@ def run_module():
                 elif isinstance(conf_source, str):
                     if not os.path.exists(conf_source):
                         raise FileNotFoundError(f"File {conf_source} does not exist")
-                    s_dict = parse_slurm_conf(conf_source, conf_name, validate)
+                    s_dict, dup_keys = parse_slurm_conf(conf_source, conf_name, validate)
+                    if dup_keys:
+                        module.fail_json(msg=f"Duplicate keys found in {conf_source}: {dup_keys}")
                     conf_dict_list.append(OrderedDict(s_dict))
                 else:
                     raise TypeError(f"Invalid type for conf_source: {type(conf_source)}")
-            merged_dict = slurm_conf_dict_merge(conf_dict_list, conf_name)
+            merged_dict = slurm_conf_dict_merge(conf_dict_list, conf_name, replace)
             result['conf_dict'] = merged_dict
             result['ini_lines'] = read_dict2ini(merged_dict)
     except (FileNotFoundError, ValueError, TypeError, AttributeError) as e:

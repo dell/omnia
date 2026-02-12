@@ -38,6 +38,13 @@
 # cgroup
 # slurmdbd
 # gres
+# acct_gather
+# helpers
+# job_container
+# mpi
+# oci
+# topology
+# burst_buffer
 # Thes files will be written into the slurm_config directory with .conf suffix
 
 slurm_cluster:
@@ -47,6 +54,13 @@ slurm_cluster:
     #   slurm:
     #     SlurmctldTimeout: 60
     #     SlurmdTimeout: 150
+    #     NodeName:
+    #       - NodeName: newnode1
+    #         CPUs: 16
+    #         RealMemory: 64000
+    #       - NodeName: newnode2
+    #         CPUs: 16
+    #         RealMemory: 64000
     #   cgroup:
     #     CgroupPlugin: autodetect
     #     ConstrainCores: True

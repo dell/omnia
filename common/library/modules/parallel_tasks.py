@@ -28,7 +28,8 @@ from ansible.module_utils.local_repo.download_common import (
     process_shell,
     process_ansible_galaxy_collection,
     process_iso,
-    process_pip
+    process_pip,
+    process_rpm_file
 )
 from ansible.module_utils.local_repo.download_image import process_image
 from ansible.module_utils.local_repo.download_rpm import process_rpm
@@ -175,6 +176,8 @@ def determine_function(task, repo_store_path, csv_file_path, user_data, version_
             return process_pip, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
         if task_type == "image":
             return process_image, [task, status_file, version_variables, user_registries, docker_username, docker_password]
+        if task_type == "rpm_file":
+            return process_rpm_file, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
         if task_type == "rpm":
             return process_rpm, [task, repo_store_path, status_file,
                                  cluster_os_type, cluster_os_version, repo_config_value, arc]
@@ -251,13 +254,13 @@ def generate_software_status_table(status_dict,slogger):
             table.field_names = ["Name", "Status"]
             for name, status in items:
                 table.add_row([name, status.lower()])
-            
+
             tables.append(table.get_string())
             slogger.info(f"Completed table for {arch}")
-            
+
         slogger.info("Software status table generation completed successfully")
         return "\n\n".join(tables)
-    
+
     except Exception as e:
         slogger.error(f"Error occurred while generating software status table: {e}")
         return f"Error: {e}"

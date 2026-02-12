@@ -44,10 +44,9 @@
     timeout: "{{ time_out }}"
   register: registry_check_result
 
-- name: Warning - Display unreachable registries
-  ansible.builtin.pause:
-    prompt: "{{ registry_check_result.unreachable_registries | join(', ') }}\n{{ user_registry_msg }}"
-    seconds: "{{ warning_wait_time_warning }}"
+- name: Fail - Unreachable registries detected
+  ansible.builtin.fail:
+    msg: "{{ unreachable_registries_fail_msg }}"
   when:
     - registry_check_result.unreachable_registries is defined
     - registry_check_result.unreachable_registries | length > 0

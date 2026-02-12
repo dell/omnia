@@ -825,6 +825,13 @@ EOF
             echo "nfs_type: $nfs_type"
         } >> "$oim_metadata_file"
         fi
+    else
+        sed -i '/^upgrade_backup_dir:/d' "$oim_metadata_file" >/dev/null 2>&1 || true
+        if grep -q '^omnia_version:' "$oim_metadata_file"; then
+            sed -i "s/^omnia_version:.*/omnia_version: $omnia_release/" "$oim_metadata_file" >/dev/null 2>&1 || true
+        else
+            echo "omnia_version: $omnia_release" >> "$oim_metadata_file"
+        fi
     fi
 
     # --- Remove old service if exists ---
@@ -924,6 +931,7 @@ validate_nfs_server() {
 }
 
 init_ssh_config() {
+    mkdir -p "$HOME/.ssh"
     touch $HOME/.ssh/known_hosts
     # Add entry to /root/.ssh/known_hosts file to prevent errors caused by Known host
     ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1  # Remove existing entry if it exists
@@ -964,6 +972,8 @@ start_container_session() {
     --------------------------------------------------------------------------------------------------------------------------------------------------
     ${NC}"
 
+    init_ssh_config
+
     # Entering Omnia-core container
     ssh omnia_core
 }
@@ -978,6 +988,18 @@ show_help() {
 }
 
 install_omnia_core() {
+    # Detect existing Omnia 2.0 installation
+    if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        # Read version from metadata inside container
+        current_version=$(podman exec -u root omnia_core grep '^omnia_version:' /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d':' -f2 | tr -d ' \t\n\r')
+        if [ "$current_version" = "2.0.0.0" ]; then
+            echo -e "${RED}ERROR: Existing Omnia 2.0 installation detected.${NC}"
+            echo -e "${YELLOW}To upgrade, run: $0 --upgrade${NC}"
+            echo -e "${YELLOW}For a fresh install, first run: $0 --uninstall${NC}"
+            exit 1
+        fi
+    fi
+
     local omnia_core_tag="1.1"
     local omnia_core_registry=""
     
@@ -1192,6 +1214,11 @@ phase1_validate() {
         return 1
     fi
 
+    if [ "$previous_omnia_version" = "2.1.0.0" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Upgrade already performed. Current Omnia version is 2.1.0.0. No further upgrade required."
+        return 1
+    fi
+
     if [ "$previous_omnia_version" != "2.0.0.0" ]; then
         echo "[ERROR] [ORCHESTRATOR] Previous Omnia version mismatch: expected 2.0.0.0, got: $previous_omnia_version"
         return 1
@@ -1241,7 +1268,7 @@ phase1_validate() {
 }
 
 phase2_approval() {
-    local backup_base default_backup_dir
+    local backup_base default_backup_dir current_omnia_version
 
     echo "[INFO] [ORCHESTRATOR] Phase 2: Approval Gate"
     echo "============================================"
@@ -1256,10 +1283,16 @@ phase2_approval() {
     echo "  - Additional Package Installation"
     echo "============================================"
 
-    default_backup_dir="$CONTAINER_BACKUPS_DIR/upgrade"
+    current_omnia_version=$(podman exec -u root omnia_core /bin/bash -c "grep '^omnia_version:' '$CONTAINER_METADATA_FILE' | cut -d':' -f2 | tr -d ' \t\n\r'" 2>/dev/null)
+    if [ -z "$current_omnia_version" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Failed to read omnia_version from metadata inside container"
+        return 1
+    fi
+
+    default_backup_dir="$CONTAINER_BACKUPS_DIR/upgrade/version_${current_omnia_version}"
     backup_base="$default_backup_dir"
 
-    echo "[INFO] [ORCHESTRATOR] Backup destination: $backup_base"
+    echo "[INFO] [ORCHESTRATOR] Backup destination (inside omnia_core container): $backup_base"
 
     if ! update_metadata_upgrade_backup_dir "$backup_base"; then
         echo "[ERROR] [ORCHESTRATOR] Failed to update upgrade backup directory in metadata"
@@ -1331,6 +1364,85 @@ phase3_backup_creation() {
     return 0
 }
 
+phase4_container_swap() {
+    local quadlet_file="/etc/containers/systemd/omnia_core.container"
+    local i
+
+    echo "[INFO] [ORCHESTRATOR] Phase 4: Container Swap"
+
+    if [ ! -f "$quadlet_file" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.3 failed: Quadlet file not found: $quadlet_file"
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Stopping omnia_core 1.0 container"
+    systemctl stop omnia_core.service >/dev/null 2>&1 || true
+
+    if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[WARN] [ORCHESTRATOR] omnia_core still running; forcing stop"
+        podman stop -t 30 omnia_core >/dev/null 2>&1 || true
+    fi
+
+    if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Failed to stop omnia_core container"
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Starting omnia_core 1.1 Quadlet unit"
+    if ! podman inspect "omnia_core:1.1" >/dev/null 2>&1; then
+        echo "[ERROR] [ORCHESTRATOR] Target image missing locally: omnia_core:1.1"
+        return 1
+    fi
+
+    if ! sed -i 's/^Image=omnia_core:.*/Image=omnia_core:1.1/' "$quadlet_file"; then
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.3 failed: Failed to update Image to 1.1 in quadlet file"
+        return 1
+    fi
+
+    systemctl daemon-reload || {
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.3 failed: systemctl daemon-reload failed"
+        return 1
+    }
+
+    systemctl start omnia_core.service || {
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.3 failed: Failed to start omnia_core.service"
+        return 1
+    }
+
+    echo "[INFO] [ORCHESTRATOR] Waiting for omnia_core 1.1 health check (60s)"
+    for i in $(seq 1 60); do
+        if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+            break
+        fi
+        sleep 1
+    done
+
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.4 failed: Container failed health check after swap"
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Updating metadata omnia_version to 2.1.0.0"
+    if ! podman exec -u root omnia_core bash -c "
+        set -e
+        if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
+            echo '[ERROR] Metadata file not found inside container: $CONTAINER_METADATA_FILE' >&2
+            exit 1
+        fi
+        if grep -q '^omnia_version:' '$CONTAINER_METADATA_FILE'; then
+            sed -i 's/^omnia_version:.*/omnia_version: 2.1.0.0/' '$CONTAINER_METADATA_FILE'
+        else
+            echo 'omnia_version: 2.1.0.0' >> '$CONTAINER_METADATA_FILE'
+        fi
+    "; then
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.5 failed: Failed to update metadata version"
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Phase 4: Container swap completed"
+    return 0
+}
+
 upgrade_omnia_core() {
     local lock_file="/var/lock/omnia_core_upgrade.lock"
     local backup_base
@@ -1367,7 +1479,14 @@ upgrade_omnia_core() {
         exit 1
     fi
 
-    echo "[INFO] [ORCHESTRATOR] Upgrade tasks for container swap are deferred to a follow-up PR"
+    if ! phase4_container_swap; then
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed in Phase 4"
+        exit 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Upgrade completed successfully"
+    echo "[INFO] [ORCHESTRATOR] Backup location (inside omnia_core container): $backup_base"
+    start_container_session
     exit 0
 }
 

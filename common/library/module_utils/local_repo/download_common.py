@@ -35,6 +35,7 @@ from ansible.module_utils.local_repo.rest_client import RestClient
 from ansible.module_utils.local_repo.common_functions import load_pulp_config
 from ansible.module_utils.local_repo.config import (
     pulp_file_commands,
+    pulp_rpm_commands,
     CLI_FILE_PATH,
     POST_TIMEOUT,
     ISO_POLL_VAL,
@@ -1022,4 +1023,157 @@ def process_pip(package, repo_store_path, status_file_path,  cluster_os_type, cl
         write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock)
 
         logger.info("#" * 30 + f" {process_pip.__name__} end " + "#" * 30)
+        return status
+
+def process_rpm_file(package, repo_store_path, status_file_path, cluster_os_type, cluster_os_version, arc, logger):
+    """
+    Process an RPM file package by downloading it and setting up a Pulp RPM repository.
+
+    Args:
+        package (dict): A dictionary containing the package information.
+        repo_store_path (str): The path to the repository store.
+        status_file_path (str): The path to the status file.
+        cluster_os_type (str): The type of the cluster operating system.
+        cluster_os_version (str): The version of the cluster operating system.
+        arc (str): The architecture (x86_64 or aarch64).
+        logger (logging.Logger): The logger instance.
+
+    Returns:
+        str: The status of the RPM file package processing.
+    """
+    logger.info("#" * 30 + f" {process_rpm_file.__name__} start " + "#" * 30)
+
+    try:
+        package_name = package['package']
+        url = package.get('url', None)
+        package_type = package['type']
+        repo_name = arc.lower() + "_" + package_name
+
+        if not url:
+            logger.error(f"No URL provided for RPM file package: {package_name}")
+            status = "Failed"
+            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+            return status
+
+        url = shlex.quote(url).strip("'\"")
+        logger.info(f"Processing RPM File Package: {package_name}, URL: {url}")
+
+        # Create rpm_file directory structure
+        rpm_file_directory = os.path.join(
+            repo_store_path, "offline_repo", "cluster", arc.lower(),
+                        cluster_os_type, cluster_os_version, "rpm_file", package_name
+        )
+        os.makedirs(rpm_file_directory, exist_ok=True)
+
+        # Extract filename from URL
+        download_file_name = url.split('/')[-1]
+        rpm_file_path = os.path.join(rpm_file_directory, download_file_name)
+
+        # Step 1: Download the RPM file
+        logger.info("Step 1: Downloading RPM file...")
+        if os.path.exists(rpm_file_path):
+            logger.info(f"RPM file already exists: {rpm_file_path}")
+        else:
+            # Verify URL exists
+            subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
+
+            # Download the file
+            download_command = f"wget -O {shlex.quote(rpm_file_path)} {url}"
+            if not execute_command(download_command, logger):
+                logger.error(f"Failed to download RPM file from: {url}")
+                status = "Failed"
+                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+                return status
+
+        # Step 2: CREATE A NEW RPM REPOSITORY IN PULP (if it doesn't exist)
+        logger.info("Step 2: Creating RPM repository in Pulp...")
+        # Check if repository already exists
+        if execute_command(pulp_rpm_commands["show_repository"] % repo_name, logger):
+            logger.info(f"RPM repository {repo_name} already exists. Skipping creation.")
+        else:
+            logger.info(f"Creating RPM repository: {repo_name}")
+            if not execute_command(pulp_rpm_commands["create_repository"] % repo_name, logger):
+                logger.error(f"Failed to create RPM repository: {repo_name}")
+                status = "Failed"
+                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+                return status
+
+        # Step 3: UPLOAD THE RPM INTO THE REPO
+        logger.info("Step 3: Uploading RPM to repository...")
+        upload_command = pulp_rpm_commands["upload_content"] % (repo_name, shlex.quote(rpm_file_path))
+        if not execute_command(upload_command, logger):
+            logger.error(f"Failed to upload RPM to repository: {repo_name}")
+            status = "Failed"
+            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+            return status
+
+        # Step 4: PUBLISH THE REPOSITORY
+        logger.info("Step 4: Publishing repository...")
+        if not execute_command(pulp_rpm_commands["publish_repository"] % repo_name, logger):
+            logger.error(f"Failed to publish repository: {repo_name}")
+            status = "Failed"
+            write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+            return status
+
+        # Step 5: CREATE A DISTRIBUTION FOR THE REPO (if it doesn't exist)
+        logger.info("Step 5: Creating distribution...")
+   
+        # Check if distribution already exists
+        if execute_command(pulp_rpm_commands["check_distribution"] % repo_name, logger):
+            logger.info(f"Distribution {repo_name} already exists. Skipping creation.")
+        else:
+            logger.info(f"Creating distribution: {repo_name}")
+            # Get the publication href
+            pub_result = execute_command(pulp_rpm_commands["list_all_publications"], logger, type_json=True)
+            if not pub_result or not pub_result.get("stdout"):
+                logger.error("Failed to get publication list")
+                status = "Failed"
+                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+                return status
+
+            publications = pub_result["stdout"]
+            if not publications:
+                logger.error("No publications found")
+                status = "Failed"
+                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+                return status
+
+            latest_publication = publications[0]
+            publication_href = latest_publication.get("pulp_href")
+            
+            if not publication_href:
+                logger.error("No publication href found")
+                status = "Failed"
+                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+                return status
+
+            base_path = f" opt/omnia/offline_repo/cluster/{arc}/rhel/10.0/rpms/{repo_name}"
+            dist_create_command = pulp_rpm_commands["distribute_repository"] % (repo_name, base_path, repo_name)
+            if not execute_command(dist_create_command, logger):
+                logger.error(f"Failed to create distribution: {repo_name}")
+                status = "Failed"
+                write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+                return status
+
+        # Step 6: ENABLE AUTO-GENERATION OF .repo FILES
+        logger.info("Step 6: Enabling auto-generation of .repo files...")
+        update_command = pulp_rpm_commands["update_distribution_repo_config"] % repo_name
+        if not execute_command(update_command, logger):
+            logger.warning(f"Failed to enable repo config generation for: {repo_name}")
+            # Not a critical failure, continue
+
+        logger.info(f"RPM file package {package_name} processed successfully!")
+        status = "Success"
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error executing RPM file commands: {e}")
+        status = "Failed"
+    except Exception as e:
+        logger.error(f"Error processing RPM file package: {e}")
+        status = "Failed"
+
+    finally:
+        # Write the status to the file
+        write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
+        logger.info("#" * 30 + f" {process_rpm_file.__name__} end " + "#" * 30)
         return status
