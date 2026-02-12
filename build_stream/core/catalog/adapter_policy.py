@@ -585,7 +585,7 @@ def generate_configs_from_policy(
             logger.info("Processing: arch=%s, os=%s, version=%s", arch, os_family, version)
 
             source_dir = os.path.join(input_dir, arch, os_family, version)
-            target_dir = os.path.join(output_dir, arch, os_family, version)
+            target_dir = os.path.join(output_dir, "input", "config", arch, os_family, version)
 
             if not os.path.isdir(source_dir):
                 logger.warning("Source directory not found, skipping: %s", source_dir)
