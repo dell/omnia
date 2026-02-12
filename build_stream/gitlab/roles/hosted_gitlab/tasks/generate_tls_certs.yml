@@ -35,8 +35,6 @@
     -key {{ gitlab_cert_dir }}/{{ gitlab_host }}.key
     -out {{ gitlab_cert_dir }}/{{ gitlab_host }}.csr
     -config {{ gitlab_cert_dir }}/san.cnf
-  args:
-    creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.csr"
 
 - name: Sign server certificate
   ansible.builtin.command: >
@@ -50,8 +48,6 @@
     -sha256
     -extensions req_ext
     -extfile {{ gitlab_cert_dir }}/san.cnf
-  args:
-    creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.crt"
 
 - name: Install certs to GitLab SSL dir
   ansible.builtin.copy:
@@ -80,4 +76,9 @@
 
 - name: Update CA trust
   ansible.builtin.command: update-ca-trust
+  ignore_errors: true
+
+- name: Reconfigure GitLab to pick up new certificates
+  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+  when: gitlab_host is defined
   ignore_errors: true
