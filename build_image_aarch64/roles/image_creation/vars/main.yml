@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 dir_permissions_644: "0644"
 dir_permissions_755: "0755"
+aarch64_local_tag: "aarch64-image-builder/ochami"
 openchami_dir: "/opt/omnia/openchami"
 openchami_clone_path: /opt/omnia/openchami/deployment-recipes
 job_retry: "120"
@@ -32,7 +33,7 @@ ochami_compute_mounts:
   - -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
 ochami_aarch64_image:
   - --entrypoint /bin/bash
-  - localhost/arm-image/ochami
+  - "localhost/{{ aarch64_local_tag }}"
 ochami_base_command:
   - -c 'update-ca-trust extract && image-build --config /home/builder/config.yaml --log-level DEBUG'
 

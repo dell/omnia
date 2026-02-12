@@ -63,6 +63,11 @@
         name: deploy_containers/common
         tasks_from: add_known_hosts.yml
 
+    - name: Download aarch64 prerequisites  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/common
+        tasks_from: aarch64_prereq.yml
+
 - name: OpenLDAP Pre_req generate ssha password
   hosts: localhost
   connection: local
@@ -155,6 +160,11 @@
       ansible.builtin.include_role:
         name: deploy_containers/common
         tasks_from: omnia_service.yml
+
+    - name: Install required packages  # noqa:role-name[path]
+      ansible.builtin.include_role:
+        name: deploy_containers/common
+        tasks_from: package_installation.yml
 
 - name: Prepare oim completion
   hosts: localhost

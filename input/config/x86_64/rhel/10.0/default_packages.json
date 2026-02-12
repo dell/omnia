@@ -34,7 +34,8 @@
       {"package": "wget", "type": "rpm", "repo_name": "x86_64_appstream"},
       {"package": "cloud-init", "type": "rpm", "repo_name": "x86_64_appstream"},
       {"package": "glibc-langpack-en", "type": "rpm", "repo_name": "x86_64_baseos"},
-      {"package": "gedit", "type": "rpm", "repo_name": "epel"}
+      {"package": "gedit", "type": "rpm", "repo_name": "epel"},
+      {"package": "docker.io/dellhpcomniaaisolution/image-build-el10", "tag": "1.0", "type": "image" }
     ]
   }
 }

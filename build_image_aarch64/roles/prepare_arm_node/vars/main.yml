@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,10 +15,13 @@
 
 # input files
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
+pulp_aarch64_image_name: "dellhpcomniaaisolution/image-build-aarch64:1.1"
+aarch64_local_tag: "aarch64-image-builder/ochami"
+pull_image_retries: "3"
+pull_image_delay: "10"
 network_spec: "{{ input_project_dir }}/network_spec.yml"
 ochami_aarch_64_dir: "/opt/omnia/openchami/aarch64"
 pulp_repo_store_path: "{{ ochami_aarch_64_dir }}/pulp.repo"
-aarch64_regctl_url: "https://github.com/regclient/regclient/releases/latest/download/regctl-linux-arm64"
 pulp_repo_file_path: "/etc/yum.repos.d/pulp.repo"
 pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
@@ -39,3 +42,6 @@ aarch64_image_fail_msg: >
   Unable to pull the Ochami aarch64 image builder image.
   Make sure you have added the default package for aarch64 in the software_config.json file and ran local_repo.yml.
   If not, add that package and rerun local_repo.yml.
+regctl_not_found_msg: >
+  regctl binary not found at {{ ochami_aarch_64_dir }}/regctl.
+  Please run prepare_oim.yml playbook to download the regctl binary.

@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,12 +28,34 @@ internal_nfs_services:
 
 ntp_firewall_service: ntp
 
+# Packages required on OIM
+oim_packages:
+  - nfs-utils
+  - nfs4-acl-tools
+  - git
+  - make
+prepare_oim_pkg_fail_msg: |
+  Failed to install required packages. Please ensure the repository is
+  configured on OIM and rerun the playbook.
+
 # Usage: prepare_oim_completion.yml
 telemetry_dir: "/opt/omnia/telemetry"
 dir_permissions_755: "0755"
 bmc_group_data_filename: "{{ telemetry_dir }}/bmc_group_data.csv"
 bmc_group_data_template: "bmc_group_data.j2"
 file_permissions: "0644"
+idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
+idrac_telemetry_scripting_stable_commit: "f6999f5"
+idrac_telemetry_scripting_clone_dest: "{{ telemetry_dir }}/iDRAC-Telemetry-Scripting"
+max_retries: 10
+delay_count: 5
+git_install_timeout: 300
+git_install_fail_msg: |
+  Failed to install git. Please ensure the OS repository is configured on OIM.
+  Configure the repository and rerun the playbook.
+idrac_script_git_clone_fail_msg: |
+  Failed to clone iDRAC Telemetry GitHub repository from {{ idrac_telemetry_scripting_repo }}
+  to {{ idrac_telemetry_scripting_clone_dest }}. Please check network connectivity and rerun the playbook.
 prepare_oim_completion_msg: |
   The playbook prepare_oim.yml has completed successfully. To create the offline repositories and
   registry for the cluster nodes, please execute the playbook local_repo/local_repo.yml as the next step.
@@ -58,3 +80,7 @@ network_services:
 # Usage: configure_chrony.yml
 chrony_conf_path: "/etc/chrony.conf"
 chrony_no_sources_msg: "No chrony sources are reachable. Please give a valid NTP server configuration in network_spec.yml and re-run prepare_oim playbook."
+
+# Usage: aarch64_prereq.yml
+ochami_aarch64_dir: "/opt/omnia/openchami/aarch64"
+regctl_aarch64_url: "https://github.com/regclient/regclient/releases/latest/download/regctl-linux-arm64"

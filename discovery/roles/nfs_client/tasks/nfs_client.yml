@@ -32,11 +32,6 @@
     nfs_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
   when: item.server_ip == "localhost"
 
-- name: Package installation for NFS
-  ansible.builtin.package:
-    name: "{{ nfs_packages[ansible_os_family] }}"
-    state: present
-
 - name: Mount facts items to dict
   ansible.builtin.set_fact:
     nfs_src: "{{ nfs_server_ip }}:{{ item.server_share_path }}"
