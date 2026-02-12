@@ -32,7 +32,13 @@
             {"package": "cuda-run",
              "type": "iso",
              "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda_13.0.2_580.95.05_linux_sbsa.run"
+            },
+            {
+            "package": "nvhpc_2025_2511_Linux_aarch64_cuda_13.0",
+            "type": "tarball",
+            "url": "https://developer.download.nvidia.com/hpc-sdk/25.11/nvhpc_2025_2511_Linux_aarch64_cuda_13.0.tar.gz"
             }
+             
         ]
     },
     "login_node":{

@@ -340,7 +340,9 @@
             chown -R {{ mysql_user }}:{{ mysql_group }} /var/lib/mysql
             chown -R {{ slurm_user }}:{{ slurm_user }} /var/log/mariadb
             chown -R {{ slurm_user }}:{{ slurm_user }} /etc/my.cnf.d # Required? why slurm user for my.cnf?? 
-            chmod {{ file_mode_755 }} /etc/my.cnf.d /var/lib/mysql /var/log/mariadb
+            chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }}
+            chmod {{ file_mode_755 }} /etc/my.cnf.d /var/lib/mysql /var/log/mariadb {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }}
+
             #firewall
             systemctl enable firewalld
             systemctl start firewalld
@@ -556,4 +558,6 @@
 
          - /root/ldms_sampler.sh
 {% endif %}
+         - systemctl restart slurmdbd
+         - systemctl restart slurmctld
          - echo "Cloud-Init has completed successfully."

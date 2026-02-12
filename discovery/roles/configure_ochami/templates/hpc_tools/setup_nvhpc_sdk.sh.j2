@@ -1,0 +1,49 @@
+#!/bin/bash
+LOGFILE="/var/log/setup_nvhpc_sdk.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+echo "===== NVHPC SDK setup (mount + wait) ====="
+
+PARENT_NFS="{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk"
+PARENT_MOUNT="/shared-nvhpc-sdk"
+
+NVHPC_NFS_SHARE="$PARENT_MOUNT/nvhpc"
+NVHPC_LOCAL_MOUNT="/opt/nvidia/nvhpc"
+
+mkdir -p "$PARENT_MOUNT"
+
+
+if ! mountpoint -q "$PARENT_MOUNT"; then
+    mount -t nfs "$PARENT_NFS" "$PARENT_MOUNT"
+fi
+
+if ! mountpoint -q "$PARENT_MOUNT"; then
+    echo "[ERROR] Failed to mount NVHPC parent export"
+    exit 1
+fi
+
+echo "[INFO] Parent NVHPC export mounted"
+
+mkdir -p "$NVHPC_NFS_SHARE"
+# 3. Ensure fstab entry exists (bind mount, NOT NFS)
+if ! grep -qF "$NVHPC_NFS_SHARE $NVHPC_LOCAL_MOUNT" /etc/fstab; then
+    echo "$NVHPC_NFS_SHARE $NVHPC_LOCAL_MOUNT none bind,_netdev 0 0" >> /etc/fstab
+    echo "[INFO] NVHPC bind-mount fstab entry added"
+else
+    echo "[INFO] NVHPC fstab entry already present"
+fi
+
+# 4. Mount NVHPC SDK
+mkdir -p "$NVHPC_LOCAL_MOUNT"
+
+if ! mountpoint -q "$NVHPC_LOCAL_MOUNT"; then
+    mount --bind "$NVHPC_NFS_SHARE" "$NVHPC_LOCAL_MOUNT"
+fi
+
+if ! mountpoint -q "$NVHPC_LOCAL_MOUNT"; then
+    echo "[ERROR] Failed to mount NVHPC SDK"
+    exit 1
+fi
+
+echo "[SUCCESS] NVHPC SDK mounted at $NVHPC_LOCAL_MOUNT"
+echo "===== NVHPC setup completed ====="

@@ -70,6 +70,13 @@
                 done
             fi
 
+        - path: /root/.ssh/config
+          permissions: '0600'
+          content: |
+            Host {{ slurm_control_ssh_patterns }}
+                IdentityFile {{ client_mount_path }}/slurm/ssh/oim_rsa
+                IdentitiesOnly yes
+
         - path: /usr/local/bin/install_cuda_toolkit.sh
           permissions: '0755'
           content: |
@@ -98,7 +105,7 @@
             echo "[INFO] Setting up shared CUDA directory..."
             # Create and mount shared directory for compute nodes
             mkdir -p /shared-cuda-toolkit
-            mount -t nfs {{ cloud_init_nfs_path }}/cuda/ /shared-cuda-toolkit
+            mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/cuda/ /shared-cuda-toolkit
 
             if [ $? -ne 0 ]; then
                 echo "[ERROR] Failed to mount NFS cuda share. Exiting."
@@ -183,6 +190,18 @@
             {{ lookup('template', 'templates/ldms/ldms_sampler.sh.j2') | indent(12) }}
 {% endif %}
 
+        - path: /usr/local/bin/install_openmpi.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/install_openmpi.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/install_ucx.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/install_ucx.sh.j2') | indent(12) }}
+
         - path: /etc/hosts
           append: true
           content: |
@@ -200,6 +219,18 @@
           permissions: '0644'
           content: |
             {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
+        
+        - path: /usr/local/bin/install_nvhpc_sdk.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/install_nvhpc_sdk.sh.j2') | indent(12) }}
+        
+        - path: /usr/local/bin/configure_nvhpc_env.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/configure_nvhpc_env.sh.j2') | indent(12) }}
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
@@ -211,12 +242,46 @@
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path}}/hpc_tools  /hpc_tools   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
         - mount -a
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
+
+{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] or hostvars['localhost']['ldms_support'] %}
+        # Add NFS entry and mount
+        - mkdir -p {{ client_mount_path }}
+        - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
+        - mount -a
+{% endif %}
+
+{% if hostvars['localhost']['ucx_support'] %}
+        - echo "===== UCX Setup ====="
+        - echo "UCX support is enabled."
+        - /usr/local/bin/install_ucx.sh
+        # - echo "Build script available at"
+        # - echo "  /usr/local/bin/install_ucx.sh"
+        # - echo "NFS must be mounted at {{ client_mount_path }} before running."
+{% endif %}
+
+{% if hostvars['localhost']['openmpi_support'] %}
+        - echo "===== OpenMPI Setup ====="
+        - echo "OpenMPI support is enabled."
+        - /usr/local/bin/install_openmpi.sh
+        # - echo "Build script available at"
+        # - echo "  /usr/local/bin/install_openmpi.sh"
+        # - echo "Run UCX installation first if UCX support is enabled."
+        # - echo "NFS must be mounted at {{ client_mount_path }} before running."
+{% endif %}
+
+{% if hostvars['localhost']['ldms_support'] %}
+        - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
+
+        - /root/ldms_sampler.sh
+{% endif %}
+
         - bash /usr/local/bin/doca-install.sh && bash /usr/local/bin/configure-ib-network.sh
         - yes | cp /etc/slurm/epilog.d/slurmd.service /usr/lib/systemd/system/
         - /usr/local/bin/check_slurm_controller_status.sh
@@ -283,79 +348,7 @@
 
 {% endif %}
 
-{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] or hostvars['localhost']['ldms_support'] %}
-        # Add NFS entry and mount
-        - mkdir -p {{ client_mount_path }}
-        - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
-        - mount -a
-{% endif %}
-
-{% if hostvars['localhost']['ucx_support'] %}
-        # UCX build and install
-        - |
-          UCX_BIN={{ client_mount_path }}/benchmarks/ucx
-          mkdir -p {{ client_mount_path }}/compile/ucx
-          mkdir -p {{ client_mount_path }}/benchmarks/ucx
-          cd {{ client_mount_path }}/compile/ucx
-          wget --no-check-certificate https://{{ hostvars['localhost']['admin_nic_ip'] }}:2225/pulp/content/opt/omnia/offline_repo/cluster/aarch64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/ucx/ucx.tar.gz -O ucx.tar.gz
-          tar xzf ucx.tar.gz
-          cd ucx-*
-          mkdir -p build
-          cd build
-          ../contrib/configure-release --prefix={{ client_mount_path }}/benchmarks/ucx
-          make -j 8
-          make install
-{% endif %}
-
-{% if hostvars['localhost']['openmpi_support'] %}
-        # OpenMPI build and install with UCX + Slurm detection
-        - |
-          OPENMPI_INSTALL_PREFIX="{{ client_mount_path }}/benchmarks/openmpi"
-          OPENMPI_SRC="{{ client_mount_path }}/compile/openmpi"
-          mkdir -p $OPENMPI_SRC
-          mkdir -p $OPENMPI_INSTALL_PREFIX
-
-          cd $OPENMPI_SRC
-          wget --no-check-certificate https://{{ hostvars['localhost']['admin_nic_ip'] }}:2225/pulp/content/opt/omnia/offline_repo/cluster/aarch64/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/openmpi/openmpi.tar.gz -O openmpi.tar.gz
-
-          tar xzf openmpi.tar.gz
-          cd openmpi-*
-          mkdir -p build
-
-          # Check Slurm
-          if sinfo >/dev/null 2>&1; then
-            SLURM_FLAG="--with-slurm=yes --with-munge=/usr"
-          else
-            SLURM_FLAG="--with-slurm=no"
-          fi
-
-          # Check UCX
-          if [ -x "{{ client_mount_path }}/benchmarks/ucx/bin/ucx_info" ]; then
-            {{ client_mount_path }}/benchmarks/ucx/bin/ucx_info -v
-            if [ $? -eq 0 ]; then
-              UCX_FLAG="--with-ucx={{ client_mount_path }}/benchmarks/ucx"
-            else
-              echo "ucx_info failed, disabling UCX"
-              UCX_FLAG=""
-            fi
-          else
-            echo "ucx_info not found, disabling UCX"
-            UCX_FLAG=""
-          fi
-
-          cd build
-          ../configure --prefix=$OPENMPI_INSTALL_PREFIX \
-            --enable-mpi1-compatibility \
-            --enable-prte-prefix-by-default \
-            $SLURM_FLAG $UCX_FLAG 2>&1 | tee config.out
-
-          make -j 8
-          make install
-{% endif %}
-
-{% if hostvars['localhost']['ldms_support'] %}
-        - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
-
-        - /root/ldms_sampler.sh
-{% endif %}
+        # nvidia sdk install
+        - /usr/local/bin/install_nvhpc_sdk.sh
+        - /usr/local/bin/configure_nvhpc_env.sh
         - echo "Cloud-Init has completed successfully."

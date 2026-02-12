@@ -102,10 +102,10 @@ pulp_python_commands = {
 }
 
 CLI_FILE_PATH = "/root/.config/pulp/cli.toml"
-POST_TIMEOUT = 3600
-TAR_POLL_VAL = 3
-FILE_POLL_VAL = 1
-ISO_POLL_VAL = 15
+POST_TIMEOUT = 3600  # seconds
+TAR_POLL_VAL = 25    # minutes
+FILE_POLL_VAL = 1    # minutes
+ISO_POLL_VAL = 15    # minutes
 FILE_URI = "/pulp/api/v3/content/file/files/"
 PULP_SSL_CA_CERT = "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 # ----------------------------

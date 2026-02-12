@@ -116,6 +116,7 @@
                     bash /gpu-runfile/{{ cuda_runfile_x86_64 }} --silent --driver --no-opengl-libs --kernel-source-path=/lib/modules/$(uname -r)/build
                     if [ $? -eq 0 ] && command -v nvidia-smi &>/dev/null; then
                         echo "[SUCCESS] NVIDIA driver installed successfully."
+                        nvidia-smi -pm 1
                     else
                         echo "[ERROR] NVIDIA driver installation failed."
                     fi
@@ -135,7 +136,7 @@
             # Create mount point
             mkdir -p /usr/local/cuda
 
-            cuda_nfs_share="{{ cloud_init_nfs_path }}/cuda"
+            cuda_nfs_share="{{ cloud_init_nfs_path }}/hpc_tools/cuda"
 
             echo "[INFO] Mounting CUDA toolkit from NFS: $cuda_nfs_share"
             mount -t nfs "$cuda_nfs_share" /usr/local/cuda
@@ -429,6 +430,24 @@
           permissions: '0644'
           content: |
             {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
+        
+        - path: /usr/local/bin/configure_ucx_openmpi_env.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/configure_ucx_openmpi_env.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/setup_nvhpc_sdk.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/setup_nvhpc_sdk.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/export_nvhpc_env.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/export_nvhpc_env.sh.j2') | indent(12) }}
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
@@ -476,6 +495,15 @@
         - mkdir -p {{ client_mount_path }}
         - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
         - mount -a
+        # - echo "One or more shared components (UCX / OpenMPI / LDMS) are enabled."
+        # - /usr/local/bin/configure_ucx_openmpi_env.sh
+
+{% endif %}
+
+{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] %}
+        - echo "One or more shared components (UCX / OpenMPI / LDMS) are enabled."
+        - /usr/local/bin/configure_ucx_openmpi_env.sh
+
 {% endif %}
 
 {% if hostvars['localhost']['ldms_support'] %}
@@ -483,6 +511,8 @@
 
         - /root/ldms_sampler.sh
 {% endif %}
+        - /usr/local/bin/setup_nvhpc_sdk.sh
+        - /usr/local/bin/export_nvhpc_env.sh
         - systemctl restart slurmd
 
         - echo "Cloud-Init has completed successfully."

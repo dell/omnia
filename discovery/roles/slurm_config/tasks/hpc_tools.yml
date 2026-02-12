@@ -25,6 +25,7 @@
     - runfile
     - scripts
     - container_images
+    - nvidia_sdk
 
 - name: Deploy download_container_image.sh to NFS share
   ansible.builtin.template:
@@ -122,34 +123,27 @@
   ansible.builtin.set_fact:
     oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
 
-- name: Check if source directory exists
+- name: Build parallel copy list for HPC tools
+  ansible.builtin.set_fact:
+    parallel_copy_pairs: []
+
+- name: Check which parallel copy source directories exist
   ansible.builtin.stat:
-    path: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso/cuda-run/"
-  register: src_dir_check_x86_64
+    path: "{{ item.src }}"
+  loop: "{{ parallel_copy_candidates }}"
+  register: copy_source_checks
+  failed_when: false
 
-- name: Check if source directory exists
-  ansible.builtin.stat:
-    path: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso/cuda-run/"
-  register: src_dir_check_aarch64
+- name: Add only valid copy pairs (source exists)
+  ansible.builtin.set_fact:
+    parallel_copy_pairs: >-
+      {{ parallel_copy_pairs +
+         [[ item.item.src, item.item.dest ]] }}
+  loop: "{{ copy_source_checks.results }}"
+  when: item.stat.exists
 
-- name: Copy cuda run file using copy module for aarch64
-  ansible.builtin.copy:
-    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso/cuda-run/"
-    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
-    mode: '0755'
-    owner: root
-    group: root
-    directory_mode: '0755'
-    remote_src: true
-  when: src_dir_check_aarch64.stat.exists and src_dir_check_aarch64.stat.isdir
-
-- name: Copy cuda run file using copy module for x86_64
-  ansible.builtin.copy:
-    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso/cuda-run/"
-    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
-    mode: '0755'
-    owner: root
-    group: root
-    directory_mode: '0755'
-    remote_src: true
-  when: src_dir_check_x86_64.stat.exists and src_dir_check_x86_64.stat.isdir
+- name: Parallel copy HPC tool files
+  parallel_file_copy:
+    copy_pairs: "{{ parallel_copy_pairs }}"
+    max_workers: "{{ parallel_copy_max_workers }}"
+  when: parallel_copy_pairs | length > 0

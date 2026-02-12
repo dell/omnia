@@ -72,6 +72,13 @@
                 done
             fi
 
+        - path: /root/.ssh/config
+          permissions: '0600'
+          content: |
+            Host {{ slurm_control_ssh_patterns }}
+                IdentityFile {{ client_mount_path }}/slurm/ssh/oim_rsa
+                IdentitiesOnly yes
+
         - path: /usr/local/bin/install_nvidia_driver.sh
           permissions: '0755'
           content: |
@@ -108,6 +115,7 @@
                     bash /gpu-runfile/{{ cuda_runfile_aarch64 }} --silent --driver --no-opengl-libs --kernel-source-path=/lib/modules/$(uname -r)/build
                     if [ $? -eq 0 ] && command -v nvidia-smi &>/dev/null; then
                         echo "[SUCCESS] NVIDIA driver installed successfully."
+                        nvidia-smi -pm 1
                     else
                         echo "[ERROR] NVIDIA driver installation failed."
                     fi
@@ -127,7 +135,7 @@
             # Create mount point
             mkdir -p /usr/local/cuda
 
-            cuda_nfs_share="{{ cloud_init_nfs_path }}/cuda"
+            cuda_nfs_share="{{ cloud_init_nfs_path }}/hpc_tools/cuda"
 
             echo "[INFO] Mounting CUDA toolkit from NFS: $cuda_nfs_share"
             mount -t nfs "$cuda_nfs_share" /usr/local/cuda
@@ -246,6 +254,7 @@
             echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path}}/hpc_tools/container_images  /hpc_tools/container_images   nfs defaults,_netdev 0 0" >> /etc/fstab
+            echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path}}/hpc_tools/scripts  /hpc_tools/scripts   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -416,6 +425,24 @@
           permissions: '0644'
           content: |
             {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
+        
+        - path: /usr/local/bin/configure_ucx_openmpi_env.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/configure_ucx_openmpi_env.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/setup_nvhpc_sdk.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/setup_nvhpc_sdk.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/export_nvhpc_env.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/export_nvhpc_env.sh.j2') | indent(12) }}
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
@@ -463,11 +490,20 @@
         - mount -a
 {% endif %}
 
+{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] %}
+        - echo "One or more shared components (UCX / OpenMPI / LDMS) are enabled."
+        - /usr/local/bin/configure_ucx_openmpi_env.sh
+
+{% endif %}
+
 {% if hostvars['localhost']['ldms_support'] %}
         - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
 
         - /root/ldms_sampler.sh
 {% endif %}
+
+        - /usr/local/bin/setup_nvhpc_sdk.sh
+        - /usr/local/bin/export_nvhpc_env.sh
         - systemctl restart slurmd
 
         - echo "Cloud-Init has completed successfully."

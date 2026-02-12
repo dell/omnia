@@ -66,8 +66,8 @@ gpu_slurm_conf:
   SelectType: select/cons_tres
   SelectTypeParameters: CR_Core_Memory
   SlurmdParameters: l3cache_as_socket
-innodb_buffer_pool_size: 1G
-innodb_lock_wait_timeout: 120
+innodb_buffer_pool_size: 4G
+innodb_lock_wait_timeout: 900
 # TODO tmp
 nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
 bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
@@ -157,3 +157,44 @@ offline_path_aarch64:
     dest_path: "{{ packages_base_dir_aarch64 }}/doca-ofed"
 
 ssh_private_key_path: /root/.ssh/oim_rsa
+
+# nvidia sdk vars
+# Fully resolved tarball relative paths (no nested Jinja2)
+# nvidia sdk vars
+nvhpc_pkg_name_x86_64: "nvhpc_2025_2511_Linux_x86_64_cuda_13.0"
+nvhpc_pkg_name_aarch64: "nvhpc_2025_2511_Linux_aarch64_cuda_13.0"
+
+nvhpc_tarball_x86_64_relpath: "offline_repo/cluster/x86_64/rhel/10.0/tarball/{{ nvhpc_pkg_name_x86_64 }}/{{ nvhpc_pkg_name_x86_64 }}.tar.gz"
+nvhpc_tarball_aarch64_relpath: "offline_repo/cluster/aarch64/rhel/10.0/tarball/{{ nvhpc_pkg_name_aarch64 }}/{{ nvhpc_pkg_name_aarch64 }}.tar.gz"
+
+nvhpc_nfs_rel_dir: "hpc_tools/nvidia_sdk"
+
+# parallel file copy
+parallel_copy_max_workers: 4
+
+# ------------------------------------------------------------
+# Parallel Copy Candidates (Only path existence matters)
+# ------------------------------------------------------------
+
+parallel_copy_candidates:
+
+  # CUDA Runfile (aarch64 repo path)
+  - name: cuda_runfile_aarch64
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso/cuda-run/"
+    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
+
+  # CUDA Runfile (x86_64 repo path)
+  - name: cuda_runfile_x86_64
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso/cuda-run/"
+    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
+
+  # NVIDIA HPC SDK (x86_64 tarball extracted dir)
+  - name: nvhpc_sdk_x86_64
+    src: "{{ oim_shared_path }}/omnia/{{ nvhpc_tarball_x86_64_relpath | dirname }}/"
+    dest: "{{ slurm_config_path }}/hpc_tools/nvidia_sdk/"
+
+  - name: nvhpc_sdk_aarch64
+    src: "{{ oim_shared_path }}/omnia/{{ nvhpc_tarball_aarch64_relpath | dirname }}/"
+    dest: "{{ slurm_config_path }}/hpc_tools/nvidia_sdk/"
+
+backup_dir: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"
