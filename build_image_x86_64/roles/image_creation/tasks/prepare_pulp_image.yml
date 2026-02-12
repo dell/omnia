@@ -67,10 +67,10 @@
       changed_when: false
 
     - name: Tag pulled image for x86_64 build
-      containers.podman.podman_image:
-        name: "{{ pulp_x86_image }}"
-        tag: "{{ x86_64_local_tag }}"
-        state: present
+      containers.podman.podman_tag:
+        image: "{{ pulp_x86_image }}"
+        target_names:
+          - "{{ x86_64_local_tag }}"
       changed_when: false
 
   rescue:

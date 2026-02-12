@@ -182,10 +182,10 @@
       changed_when: false
 
     - name: Tag pulled image
-      containers.podman.podman_image:
-        name: "{{ pulp_aarch_image }}"
-        tag: "{{ aarch64_local_tag }}"
-        state: present
+      containers.podman.podman_tag:
+        image: "{{ pulp_aarch_image }}"
+        target_names:
+          - "{{ aarch64_local_tag }}"
       changed_when: false
 
   rescue:
