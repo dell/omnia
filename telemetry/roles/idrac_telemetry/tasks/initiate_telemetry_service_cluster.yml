@@ -87,6 +87,9 @@
   ansible.builtin.debug:
     msg: "Filtered BMC IPs: {{ filtered_bmc_ip_list }}"
 
+- name: Remove deleted nodes from telemetry (nodes not in bmc_data.csv)
+  ansible.builtin.include_tasks: remove_deleted_nodes.yml
+
 - name: Convert filtered_bmc_ip_list to a dictionary with bmc_ip
   ansible.builtin.set_fact:
     filtered_bmc_ip_dict_list: "{{ filtered_bmc_ip_list | map('community.general.dict_kv', 'bmc_ip') | list }}"
