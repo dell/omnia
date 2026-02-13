@@ -74,7 +74,22 @@
   changed_when: false
 
 # -------------------------------------------------------------------
-# 2) FAIL if Pulp container missing / not running
+# 2) Copy build_stream source code to deployment location
+# -------------------------------------------------------------------
+- name: Ensure build_stream deployment directory exists
+  ansible.builtin.file:
+    path: "{{ omnia_path }}/build_stream"
+    state: directory
+    mode: "{{ build_stream_dir_mode }}"
+
+- name: Copy build_stream source code from codebase to deployment location (it will be take 5 mins)
+  ansible.builtin.copy:
+    src: "{{ build_stream_source_path }}/"
+    dest: "{{ omnia_path }}/build_stream/"
+    mode: preserve
+
+# -------------------------------------------------------------------
+# 3) FAIL if Pulp container missing / not running
 # -------------------------------------------------------------------
 - name: Precheck - fail if Pulp container is missing or not running
   block:
@@ -91,7 +106,7 @@
         (pulp_container_info.containers[0].State.Status != "running")
 
 # -------------------------------------------------------------------
-# 3) Copy Pulp certificate from pulp container -> host
+# 4) Copy Pulp certificate from pulp container -> host
 # -------------------------------------------------------------------
 - name: Ensure host pulp cert directory exists
   ansible.builtin.file:
@@ -104,8 +119,8 @@
 - name: Copy entire pulp cert directory from Pulp container to host
   containers.podman.podman_container_copy:
     container: "{{ pulp_container_name }}"
-    src: "{{ build_stream_pulp_cert_host_dir }}"
-    dest: "{{ build_stream_pulp_cert_dest }}"
+    src: "{{ build_stream_pulp_cert_host_dir }}/"
+    dest: "{{ build_stream_pulp_cert_host_dir }}"
     from_container: true
     overwrite: true
   register: pulp_copy_dir
@@ -118,7 +133,7 @@
     mode: "{{ build_stream_dir_mode }}"
 
 # -------------------------------------------------------------------
-# 4) Pull container image
+# 5) Pull container image
 # -------------------------------------------------------------------
 - name: Pull omnia_build_stream image from Docker Hub
   containers.podman.podman_image:
@@ -152,7 +167,7 @@
     -keyout {{ build_stream_ssl_key }}
     -out {{ build_stream_ssl_cert }}
     -subj "/C=US/ST=State/L=City/O=Omnia/CN={{ ansible_hostname }}"
-    -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:localhost,IP:{{ ansible_default_ipv4.address }},IP:{{ admin_ip }}"
+    -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:localhost,IP:{{ ansible_default_ipv4.address }},IP:127.0.0.1,IP:{{ admin_ip }}"
   when: not ssl_cert_stat.stat.exists
   changed_when: true
 
@@ -182,11 +197,17 @@
   register: jwt_public_key
   delegate_to: localhost
 
+- name: Remove existing JWT keys directory if it exists
+  ansible.builtin.file:
+    path: "{{ build_stream_jwt_keys_dir }}"
+    state: absent
+  delegate_to: localhost
+  when: jwt_private_key.stat.exists or jwt_public_key.stat.exists
+
 - name: Generate JWT keys
   ansible.builtin.command: "{{ build_stream_jwt_keys_script }}"
   delegate_to: localhost
   changed_when: false
-  when: not jwt_private_key.stat.exists or not jwt_public_key.stat.exists
 
 # - name: Update project name in default.yml
 #  ansible.builtin.replace:
@@ -196,7 +217,7 @@
 #  delegate_to: localhost
 
 # -------------------------------------------------------------------
-# 4) Deploy quadlet using template + restart via handlers
+# 6) Deploy quadlet using template + restart via handlers
 # -------------------------------------------------------------------
 - name: Deploy build_stream container and check deployment status
   block:
@@ -252,7 +273,7 @@
             immediate: true
 
 # -------------------------------------------------------------------
-# 5) Validate pulp HTTPS connectivity from inside build_stream
+# 7) Validate pulp HTTPS connectivity from inside build_stream
 # -------------------------------------------------------------------
     - name: Build curl command
       ansible.builtin.set_fact:
@@ -281,7 +302,7 @@
         msg: "{{ build_stream_https_failure_msg }}"
       when: (curl_status.stdout | trim) != "200"
 # --------------------------------------------------------------------
-# 6) Validate health API endpoint https://{{ admin_ip }}:{{ build_stream_port }}/health"
+# 8) Validate health API endpoint https://{{ admin_ip }}:{{ build_stream_port }}/health"
 # -------------------------------------------------------------------
     - name: Verify API endpoint health
       ansible.builtin.uri:

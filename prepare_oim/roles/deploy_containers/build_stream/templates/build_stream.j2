@@ -40,6 +40,13 @@ Environment=SSL_CERT_FILE=/etc/pulp/certs/pulp_webserver.crt
 # Database configuration
 Environment=DATABASE_URL=postgresql://{{ postgres_user }}:{{ postgres_password }}@localhost:5432/{{ postgres_db_name }}
 
+# Authentication and OAuth configuration
+Environment=ANSIBLE_VAULT_PASSWORD_FILE="/opt/omnia/input/project_default/.build_stream_oauth_credentials_key"
+Environment=OAUTH_CLIENTS_VAULT_PATH="/opt/omnia/input/project_default/build_stream_oauth_credentials.yml"
+Environment=AUTH_CONFIG_VAULT_PATH="/opt/omnia/input/project_default/build_stream_oauth_credentials.yml"
+Environment=JWT_PRIVATE_KEY_PATH="/opt/omnia/build_stream/api/.auth/keys/jwt_private.pem"
+Environment=JWT_PUBLIC_KEY_PATH="/opt/omnia/build_stream/api/.auth/keys/jwt_public.pem"
+
 # Volume mounts (shared from omnia_core)
 Volume={{ omnia_path }}/omnia:/opt/omnia{{ selinux_option }}
 Volume={{ build_stream_log_dir }}:/var/log/omnia_build_stream{{ selinux_option }}

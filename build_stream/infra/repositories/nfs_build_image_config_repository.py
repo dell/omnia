@@ -1,0 +1,95 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""NFS-based implementation of BuildImageConfigRepository."""
+
+import logging
+import os
+from pathlib import Path
+from typing import Optional
+
+import yaml
+
+from core.build_image.repositories import BuildImageConfigRepository
+
+logger = logging.getLogger(__name__)
+
+
+class NfsBuildImageConfigRepository(BuildImageConfigRepository):
+    """NFS-based repository for build_stream_config.yml access."""
+
+    def __init__(self, base_path: str = "/opt/omnia/build_stream/jobs"):
+        """Initialize repository with base path.
+
+        Args:
+            base_path: Base directory for job data on NFS.
+        """
+        self._base_path = Path(base_path)
+
+    def get_inventory_host(self, job_id: str) -> Optional[str]:
+        """Retrieve inventory host IP from build_stream_config.yml.
+
+        Args:
+            job_id: Job identifier.
+
+        Returns:
+            Inventory host IP address or None if not configured.
+
+        Raises:
+            ConfigurationError: If config file is invalid or inaccessible.
+        """
+        config_path = self._base_path / job_id / "input" / "build_stream_config.yml"
+        
+        if not config_path.exists():
+            logger.warning(
+                "build_stream_config.yml not found for job %s at %s",
+                job_id,
+                config_path,
+            )
+            return None
+
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+                
+            if not config:
+                logger.warning("Empty build_stream_config.yml for job %s", job_id)
+                return None
+                
+            inventory_host = config.get("aarch64_inventory_host")
+            if inventory_host:
+                logger.info(
+                    "Retrieved inventory_host for job %s: %s",
+                    job_id,
+                    inventory_host,
+                )
+                return str(inventory_host)
+            
+            logger.info("No aarch64_inventory_host configured for job %s", job_id)
+            return None
+            
+        except yaml.YAMLError as exc:
+            logger.error(
+                "Failed to parse build_stream_config.yml for job %s: %s",
+                job_id,
+                exc,
+            )
+            return None
+        except Exception as exc:
+            logger.error(
+                "Unexpected error reading build_stream_config.yml for job %s: %s",
+                job_id,
+                exc,
+            )
+            return None

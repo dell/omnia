@@ -34,16 +34,21 @@ from infra.repositories import (
     NfsInputDirectoryRepository,
     NfsPlaybookQueueRequestRepository,
     NfsPlaybookQueueResultRepository,
+    NfsBuildImageConfigRepository,
 )
 from orchestrator.catalog.use_cases.parse_catalog import ParseCatalogUseCase
 from orchestrator.jobs.use_cases import CreateJobUseCase
 from orchestrator.local_repo.use_cases import CreateLocalRepoUseCase
 from orchestrator.local_repo.result_poller import LocalRepoResultPoller
+from orchestrator.build_image.use_cases import CreateBuildImageUseCase
 
 from core.localrepo.services import (
     InputFileService,
     PlaybookQueueRequestService,
     PlaybookQueueResultService,
+)
+from core.build_image.services import (
+    BuildImageConfigService,
 )
 from common.config import load_config
 
@@ -102,6 +107,8 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
             "api.jobs.dependencies",
             "api.local_repo.routes",
             "api.local_repo.dependencies",
+            "api.build_image.routes",
+            "api.build_image.dependencies",
         ]
     )
 
@@ -126,11 +133,21 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     playbook_queue_result_repository = providers.Singleton(
         NfsPlaybookQueueResultRepository,
     )
+    # --- Build image repositories ---
+    build_image_config_repository = providers.Singleton(
+        NfsBuildImageConfigRepository,
+    )
 
     # --- Local repo services ---
     input_file_service = providers.Factory(
         InputFileService,
         input_repo=input_directory_repository,
+    )
+
+    # --- Build image services ---
+    build_image_config_service = providers.Factory(
+        BuildImageConfigService,
+        config_repo=build_image_config_repository,
     )
 
     playbook_queue_request_service = providers.Factory(
@@ -187,6 +204,16 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         audit_repo=audit_repository,
         artifact_store=artifact_store,
         artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
+    )
+
+    create_build_image_use_case = providers.Factory(
+        CreateBuildImageUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        config_service=build_image_config_service,
+        queue_service=build_image_queue_service,
         uuid_generator=uuid_generator,
     )
 
@@ -230,6 +257,12 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     playbook_queue_result_repository = providers.Singleton(
         NfsPlaybookQueueResultRepository,
     )
+    # --- Build image repositories ---
+    build_image_config_repository = providers.Singleton(
+        NfsBuildImageConfigRepository,
+    )
+
+
 
     # --- Local repo services ---
     input_file_service = providers.Factory(
@@ -246,6 +279,12 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         PlaybookQueueResultService,
         result_repo=playbook_queue_result_repository,
     )
+    # --- Build image services ---
+    build_image_config_service = providers.Factory(
+        BuildImageConfigService,
+        config_repo=build_image_config_repository,
+    )
+
 
     # --- Result poller ---
     result_poller = providers.Singleton(
@@ -293,6 +332,16 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         artifact_metadata_repo=artifact_metadata_repository,
         uuid_generator=uuid_generator,
     )
+    create_build_image_use_case = providers.Factory(
+        CreateBuildImageUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        config_service=build_image_config_service,
+        queue_service=build_image_queue_service,
+        uuid_generator=uuid_generator,
+    )
+
 
 
 def get_container_class():
