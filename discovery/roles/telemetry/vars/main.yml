@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -32,14 +32,12 @@ telemetry_namespace: "telemetry"
 idrac_telemetry_k8s_name: idrac-telemetry
 
 # iDRAC Telemetry scripting repository
-idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
-idrac_telemetry_scripting_stable_commit: "f6999f5"
+idrac_telemetry_scripting_src_path: "{{ oim_shared_path }}/omnia/telemetry/iDRAC-Telemetry-Scripting"
 idrac_telemetry_scripting_git_clone_path: "{{ service_cluster_idrac_telemetry_dir_path }}/iDRAC-Telemetry-Scripting"
-idrac_script_git_clone_error_msg: |
-  Failed to clone iDRAC Telemetry GitHub repository from {{ idrac_telemetry_scripting_repo }}
-  to {{ idrac_telemetry_scripting_git_clone_path }} directory in NFS share.
-max_retries: 10
-delay_count: 5
+idrac_telemetry_scripting_copy_fail_msg: |
+  Failed to copy iDRAC Telemetry Scripting from {{ idrac_telemetry_scripting_src_path }}
+  to {{ idrac_telemetry_scripting_git_clone_path }}. Please ensure prepare_oim.yml has been
+  executed successfully before running discovery.
 
 # Pre-built container images for iDRAC telemetry components
 # These default to your published images but can be overridden via telemetry_images

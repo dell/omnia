@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@
     - name: Tag OpenCHAMI image
       ansible.builtin.include_role:
         name: image_creation
-        tasks_from: build_image_tag.yml
+        tasks_from: prepare_pulp_image.yml
 
 - name: OpenCHAMI build image for x86_64
   hosts: localhost
