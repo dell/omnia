@@ -147,6 +147,7 @@ TYPE_REQUIREMENTS = {
     "rpm": ["package", "repo_name"],
     "rpm_list": ["package_list", "repo_name"],
     "rpm_file": ["package", "url"],
+    "rpm_repo": ["package", "repo_name"],
     "ansible_galaxy_collection": ["package", "version"],
     "git": ["package", "version", "url"],
     "image": ["package", ["tag", "digest"]],  # Special: one of tag or digest

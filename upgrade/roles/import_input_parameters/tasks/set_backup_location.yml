@@ -1,0 +1,33 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Read oim_metadata.yml to get upgrade_backup_dir
+  ansible.builtin.slurp:
+    src: "{{ oim_metadata_path }}"
+  register: oim_metadata_slurp
+
+- name: Parse oim_metadata.yml
+  ansible.builtin.set_fact:
+    oim_metadata: "{{ oim_metadata_slurp.content | b64decode | from_yaml }}"
+
+- name: Set backup_location from metadata
+  ansible.builtin.set_fact:
+    backup_location: "{{ oim_metadata.upgrade_backup_dir }}/input/project_default"
+  when: oim_metadata.upgrade_backup_dir is defined
+
+- name: Fail if upgrade_backup_dir is not defined in metadata
+  ansible.builtin.fail:
+    msg: "{{ msg_upgrade_backup_dir_missing }}"
+  when: oim_metadata.upgrade_backup_dir is not defined

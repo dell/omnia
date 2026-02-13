@@ -141,20 +141,12 @@ packages_base_dir_aarch64: "{{ slurm_config_path }}/packages/aarch64"
 offline_repo_basepath_x86_64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso"
 offline_repo_basepath_aarch64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso"
 packages_layout_x86_64:
-  - doca-ofed
   - cuda
 packages_layout_aarch64:
-  - doca-ofed
   - cuda
 print_copy_msg: "Copying {{ item.name }} from {{ item.source_path }} to {{ item.dest_path }}"
-offline_path_x86_64:
-  - name: doca-ofed
-    source_path: "{{ offline_repo_basepath_x86_64 }}/doca-ofed"
-    dest_path: "{{ packages_base_dir_x86_64 }}/doca-ofed"
-offline_path_aarch64:
-  - name: doca-ofed
-    source_path: "{{ offline_repo_basepath_aarch64 }}/doca-ofed"
-    dest_path: "{{ packages_base_dir_aarch64 }}/doca-ofed"
+offline_path_x86_64: []
+offline_path_aarch64: []
 
 ssh_private_key_path: /root/.ssh/oim_rsa
 
