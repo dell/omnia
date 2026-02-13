@@ -7,10 +7,7 @@
             {"package": "pmix", "type": "rpm", "repo_name": "x86_64_appstream"},
             {"package": "nvcr.io/nvidia/hpc-benchmarks", "tag": "25.09", "type": "image"},
             {"package": "apptainer", "type": "rpm", "repo_name": "epel" },
-            {"package": "doca-ofed",
-             "type": "iso",
-             "url": "https://www.mellanox.com/downloads/DOCA/DOCA_v3.2.1/host/doca-host-3.2.1-044000_25.10_rhel10.x86_64.rpm"
-            }
+	    {"package": "doca-ofed", "type": "rpm_repo", "repo_name": "doca" }
         ]
     },
     "slurm_control_node": {

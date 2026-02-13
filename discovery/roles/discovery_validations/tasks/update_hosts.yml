@@ -13,16 +13,25 @@
 #  limitations under the License.
 ---
 
-- name: Add hosts file entry for cluster
-  ansible.builtin.shell: |
-    set -o pipefail
-    grep -qxF '{{ item.value.ADMIN_IP }} {{ item.value.HOSTNAME }}' {{ hosts_file_path }} || \
-    echo '{{ item.value.ADMIN_IP }} {{ item.value.HOSTNAME }}' >> {{ hosts_file_path }}
-  changed_when: true
-  loop: "{{ read_mapping_file.dict | dict2items }}"
-
-- name: Ensure 127.0.0.1 localhost entry exists uniquely using echo
+- name: Ensure 127.0.0.1 localhost entry exists
   ansible.builtin.shell: |
     set -o pipefail
     grep -qxF '127.0.0.1 localhost.localdomain localhost' {{ hosts_file_path }} || echo '127.0.0.1 localhost.localdomain localhost' >> {{ hosts_file_path }}
   changed_when: true
+
+- name: Remove stale entries for IPs and hostnames that are being updated
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -v '^{{ item.value.ADMIN_IP }}\s' {{ hosts_file_path }} | \
+    grep -v '\s{{ item.value.HOSTNAME }}$' > {{ hosts_file_path }}.tmp
+    cat {{ hosts_file_path }}.tmp > {{ hosts_file_path }}
+    rm -f {{ hosts_file_path }}.tmp
+  changed_when: true
+  loop: "{{ read_mapping_file.dict | dict2items }}"
+
+- name: Add hosts file entry for cluster
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo '{{ item.value.ADMIN_IP }} {{ item.value.HOSTNAME }}' >> {{ hosts_file_path }}
+  changed_when: true
+  loop: "{{ read_mapping_file.dict | dict2items }}"

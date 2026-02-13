@@ -179,7 +179,7 @@ def transform_package_dict(data, arch_val,logger):
         repo_mapping = {}
 
         for item in items:
-            if item.get("type") == "rpm":
+            if item.get("type") in ("rpm", "rpm_repo"):
                 rpm_packages.append(item["package"])
                 # Preserve repo_name if available
                 if "repo_name" in item:
@@ -832,7 +832,7 @@ def remove_duplicates_from_trans(trans):
 
             if group == "default_packages":  # Handle nested rpm_list case
                 for pkg in items:
-                    if pkg.get("type") == "rpm" and "rpm_list" in pkg:
+                    if pkg.get("type") in ("rpm", "rpm_repo") and "rpm_list" in pkg:
                         pkg["rpm_list"] = list(dict.fromkeys(pkg["rpm_list"]))
                 continue
 
@@ -856,7 +856,7 @@ def remove_duplicates_from_trans(trans):
                 elif type_ == "git":
                     key = (item.get("url"), item.get("version"))
 
-                elif type_ == "rpm" and "rpm_list" in item:
+                elif type_ in ("rpm", "rpm_repo") and "rpm_list" in item:
                     item["rpm_list"] = list(dict.fromkeys(item["rpm_list"]))
                     key = item.get("package")
 
