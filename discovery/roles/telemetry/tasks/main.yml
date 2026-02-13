@@ -28,10 +28,6 @@
   when:
     - hostvars['localhost']['idrac_telemetry_support'] or hostvars['localhost']['ldms_support']
   block:
-    - name: Set NFS info fact
-      ansible.builtin.set_fact:
-        oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
-
     - name: Service cluster prerequisite
       ansible.builtin.include_tasks: telemetry_prereq.yml
 
@@ -54,4 +50,8 @@
 
 - name: Update ldms agg configuration
   ansible.builtin.include_tasks: update_ldms_agg_config.yml
+  when: hostvars['localhost']['ldms_support']
+
+- name: Restart LDMS configs for node addition and deletion
+  ansible.builtin.include_tasks: restart_ldms_configs.yml
   when: hostvars['localhost']['ldms_support']

@@ -252,3 +252,8 @@ common_templates:
     skip_when: "{{ cluster_id_present | default(false) }}"
   - src: 'telemetry/kustomization.yaml.j2'
     dest: 'kustomization.yaml'
+
+# Usage: restart_ldms_configs.yml
+ldms_pod_ready_msg: "LDMS aggregator pod is ready."
+ldms_pod_not_ready_msg: "WARNING: LDMS aggregator pod did not become ready within 120s."
+kube_vip_unreachable_msg: "kube VIP ({{ kube_vip }}) is not reachable via SSH. This may be the first run of discovery or there are issues with the k8s cluster. Skipping LDMS restart tasks."  # noqa: yaml[line-length]
