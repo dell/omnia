@@ -167,3 +167,4 @@ def require_scope(required_scope: str):
 # Common scope dependencies
 require_catalog_read = require_scope("catalog:read")
 require_catalog_write = require_scope("catalog:write")
+require_job_write = require_scope("job:write")

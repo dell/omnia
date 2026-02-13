@@ -21,7 +21,7 @@ Using Protocol instead of ABC allows for structural subtyping (duck typing).
 from pathlib import Path
 from typing import List, Protocol
 
-from .entities import PlaybookRequest, PlaybookResult
+from core.localrepo.entities import PlaybookRequest, PlaybookResult
 
 
 class PlaybookQueueRequestRepository(Protocol):

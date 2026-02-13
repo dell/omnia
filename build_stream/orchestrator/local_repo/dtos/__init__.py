@@ -14,6 +14,6 @@
 
 """Application response DTOs for local repository."""
 
-from .local_repo_response import LocalRepoResponse
+from orchestrator.local_repo.dtos.local_repo_response import LocalRepoResponse
 
 __all__ = ["LocalRepoResponse"]

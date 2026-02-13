@@ -1,9 +1,9 @@
 ---
 kernel: "http://{{ cluster_boot_ip }}:9000/{{ kernel }}"
 initrd: "http://{{ cluster_boot_ip }}:9000/{{ initrd }}"
-{% set bs_suffix = "-" + build_stream_job_id
+{% set bs_suffix = "-" + compute_image_suffix
    if enable_build_stream | default(false)
-   and (build_stream_job_id | default('')) != ''
+   and (compute_image_suffix | default('')) != ''
    else "" %}
 {% set root_image_path =
   "boot-images/%s/rhel-%s%s/rhel%s-rhel-%s%s-%s" % (

@@ -11,11 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-
-- name: Normalize enable_build_stream flag
-  ansible.builtin.set_fact:
-    enable_build_stream: "{{ enable_build_stream | default(false) | bool }}"
 
 - name: Set build_stream_job_id from environment
   ansible.builtin.set_fact:
@@ -25,14 +20,18 @@
   ansible.builtin.set_fact:
     image_key: "{{ image_key | default(lookup('env', 'image_key') | default('')) }}"
 
-- name: Normalize functional_groups input into list
-  ansible.builtin.set_fact:
-    functional_group_list: "{{ functional_groups if functional_groups is iterable and functional_groups is not string else (functional_groups | from_yaml) }}"
-  when: functional_groups is defined and enable_build_stream
-
-- name: Fail when build stream enabled without job id or functional groups
+- name: Validate build stream inputs
   ansible.builtin.fail:
-    msg: "{{ build_stream_prerequisite_fail_msg }}"
+    msg: "{{ build_stream_job_id_absent }}"
   when:
-    - enable_build_stream | bool
-    - (build_stream_job_id | default('') | string) | length == 0 or (functional_group_list | default([]) | length == 0) or (image_key | default('') | string) | length == 0   # noqa: yaml[line-length]
+    - enable_build_stream | default(false) | bool
+    - ((build_stream_job_id | default('') | length) == 0) and ((image_key | default('') | length) == 0)
+
+- name: Set compute_image_suffix
+  ansible.builtin.set_fact:
+    compute_image_suffix: "{{ (build_stream_job_id ~ '-' ~ (image_key | default(''))) | regex_replace('^-+', '') }}"
+
+- name: Debug compute_image_suffix
+  ansible.builtin.debug:
+    msg: "{{ compute_image_suffix }}"
+    verbosity: 2
