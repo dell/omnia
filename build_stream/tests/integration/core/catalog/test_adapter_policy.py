@@ -683,7 +683,7 @@ class TestGenerateConfigsFromPolicy(unittest.TestCase):
                 schema_path=_DEFAULT_SCHEMA_PATH
             )
 
-            output_file = os.path.join(output_dir, "x86_64", "rhel", "9.0", "output.json")
+            output_file = os.path.join(output_dir, "input", "config", "x86_64", "rhel", "9.0", "output.json")
             self.assertTrue(os.path.exists(output_file))
 
     def test_generates_openldap_with_any_of_filter(self):
@@ -743,7 +743,7 @@ class TestGenerateConfigsFromPolicy(unittest.TestCase):
                 schema_path=_DEFAULT_SCHEMA_PATH,
             )
 
-            output_file = os.path.join(output_dir, "x86_64", "rhel", "9.0", "openldap.json")
+            output_file = os.path.join(output_dir, "input", "config", "x86_64", "rhel", "9.0", "openldap.json")
             self.assertTrue(os.path.exists(output_file))
 
             with open(output_file, "r", encoding="utf-8") as f:

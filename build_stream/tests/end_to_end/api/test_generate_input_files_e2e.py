@@ -430,11 +430,49 @@ class TestGenerateInputFilesE2E:
         assert error_response.status_code in [400, 422], (
             f"Expected rejection of invalid policy path: {error_response.text}"
         )
-        
-        # Test with valid request (default policy)
+        # Create a fresh job to avoid STAGE_ALREADY_COMPLETED
+        job_data = {
+            "client_id": generate_input_files_context.client_id,
+            "client_name": "Generate Input Files Test Client (recovery)"
+        }
+
+        new_idempotency_key = str(uuid.uuid4())
+        new_headers = headers.copy()
+        new_headers["Idempotency-Key"] = new_idempotency_key
+
+        with httpx.Client(base_url=base_url, timeout=30.0) as client:
+            job_response = client.post(
+                "/api/v1/jobs",
+                json=job_data,
+                headers=new_headers,
+            )
+
+        assert job_response.status_code == 201, f"Job creation failed: {job_response.text}"
+        new_job_id = job_response.json()["job_id"]
+
+        # Parse catalog for the new job (prerequisite)
+        generate_input_files_context.load_catalog_content()
+        with httpx.Client(base_url=base_url, timeout=30.0) as client:
+            parse_response = client.post(
+                f"/api/v1/jobs/{new_job_id}/stages/parse-catalog",
+                files={
+                    "file": (
+                        "catalog.json",
+                        generate_input_files_context.catalog_content,
+                        "application/json",
+                    )
+                },
+                headers=headers,
+            )
+
+        assert parse_response.status_code == 200, (
+            f"Parse catalog failed for recovery job: {parse_response.text}"
+        )
+
+        # Test with valid request (default policy) on the fresh job
         with httpx.Client(base_url=base_url, timeout=3000.0) as client:
             recovery_response = client.post(
-                f"/api/v1/jobs/{generate_input_files_context.job_id}/stages/generate-input-files",
+                f"/api/v1/jobs/{new_job_id}/stages/generate-input-files",
                 headers=headers,
             )
 
