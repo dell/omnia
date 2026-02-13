@@ -572,11 +572,12 @@ def generate_configs_from_policy(
 
     logger.info("Loaded %d target(s) from %s", len(targets), policy_path)
 
+    # Discover architectures
     architectures = discover_architectures(input_dir)
+    
     if not architectures:
         logger.warning("No architectures discovered under input directory: %s", input_dir)
-    else:
-        logger.info("Discovered architectures: %s", architectures)
+        return
 
     for arch in architectures:
         os_versions = discover_os_versions(input_dir, arch)
@@ -616,6 +617,19 @@ def generate_configs_from_policy(
                     file_path = os.path.join(target_dir, target_file)
                     write_config_file(file_path, data)
                     logger.info("Written: %s", file_path)
+
+    # Copy existing software_config.json to input/ directory after all configs are generated
+    source_config_path = "/opt/omnia/input/software_config.json"
+    input_dir = os.path.join(output_dir, "input")
+    os.makedirs(input_dir, exist_ok=True)
+    
+    software_config_path = os.path.join(input_dir, "software_config.json")
+    if os.path.exists(source_config_path):
+        import shutil
+        shutil.copy2(source_config_path, software_config_path)
+        logger.info("Copied: %s", software_config_path)
+    else:
+        logger.warning("Source software_config.json not found: %s", source_config_path)
 
 
 def main():
