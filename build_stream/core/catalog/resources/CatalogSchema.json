@@ -9,6 +9,7 @@
       "properties": {
         "Name": {"type": "string"},
         "Version": {"type": "string"},
+        "Identifier": {"type": "string"},
         "FunctionalLayer": {
           "type": "array",
           "items": {
@@ -189,9 +190,13 @@
             "type": "object",
             "properties": {
               "Name": {"type": "string"},
-              "Version": {"type": "string"},
+              "Version": {"type": ["string", "null"]},
               "Tag": {"type": "string"},
               "Type": {"type": "string"},
+              "Architecture": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
               "SupportedFunctions": {
                 "type": "array",
                 "items": {
@@ -203,13 +208,14 @@
                 }
               }
             },
-            "required": ["Name", "Version", "Type", "SupportedFunctions"]
+            "required": ["Name", "Type", "SupportedFunctions"]
           }
         }
       },
       "required": [
         "Name",
         "Version",
+        "Identifier",
         "FunctionalLayer",
         "BaseOS",
         "Infrastructure",
