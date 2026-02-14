@@ -213,7 +213,6 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         stage_repo=stage_repository,
         audit_repo=audit_repository,
         config_service=build_image_config_service,
-        queue_service=build_image_queue_service,
         uuid_generator=uuid_generator,
     )
 
@@ -338,7 +337,6 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         stage_repo=stage_repository,
         audit_repo=audit_repository,
         config_service=build_image_config_service,
-        queue_service=build_image_queue_service,
         uuid_generator=uuid_generator,
     )
 

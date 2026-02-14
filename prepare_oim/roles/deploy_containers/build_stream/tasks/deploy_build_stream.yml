@@ -78,15 +78,13 @@
 # -------------------------------------------------------------------
 - name: Ensure build_stream deployment directory exists
   ansible.builtin.file:
-    path: "{{ omnia_path }}/build_stream"
+    path: "{{ omnia_path }}/omnia/build_stream"
     state: directory
     mode: "{{ build_stream_dir_mode }}"
 
-- name: Copy build_stream source code from codebase to deployment location (it will be take 5 mins)
-  ansible.builtin.copy:
-    src: "{{ build_stream_source_path }}/"
-    dest: "{{ omnia_path }}/build_stream/"
-    mode: preserve
+- name: Sync build_stream source code from codebase to deployment location
+  ansible.builtin.command: rsync {{ bs_rsync_options }} {{ bs_rsync_source }} {{ bs_rsync_destination }}
+  delegate_to: localhost
 
 # -------------------------------------------------------------------
 # 3) FAIL if Pulp container missing / not running
@@ -106,33 +104,6 @@
         (pulp_container_info.containers[0].State.Status != "running")
 
 # -------------------------------------------------------------------
-# 4) Copy Pulp certificate from pulp container -> host
-# -------------------------------------------------------------------
-- name: Ensure host pulp cert directory exists
-  ansible.builtin.file:
-    path: "{{ build_stream_pulp_cert_host_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "{{ build_stream_dir_mode }}"
-
-- name: Copy entire pulp cert directory from Pulp container to host
-  containers.podman.podman_container_copy:
-    container: "{{ pulp_container_name }}"
-    src: "{{ build_stream_pulp_cert_host_dir }}/"
-    dest: "{{ build_stream_pulp_cert_host_dir }}"
-    from_container: true
-    overwrite: true
-  register: pulp_copy_dir
-
-- name: Ensure host cert directory permissions
-  ansible.builtin.file:
-    path: "{{ build_stream_pulp_cert_host_dir }}"
-    owner: root
-    group: root
-    mode: "{{ build_stream_dir_mode }}"
-
-# -------------------------------------------------------------------
 # 5) Pull container image
 # -------------------------------------------------------------------
 - name: Pull omnia_build_stream image from Docker Hub
@@ -148,18 +119,17 @@
     verbosity: 2
   when: image_pull_result is succeeded
 
-  # Generate SSL certificates
-- name: Check if SSL certificates already exist
-  ansible.builtin.stat:
-    path: "{{ build_stream_ssl_cert }}"
-  register: ssl_cert_stat
+# Generate SSL certificates
+- name: Remove existing SSL certificate directory if it exists
+  ansible.builtin.file:
+    path: "{{ build_stream_ssl_dir }}"
+    state: absent
 
 - name: Create SSL certificate directory
   ansible.builtin.file:
     path: "{{ build_stream_ssl_dir }}"
     state: directory
     mode: "{{ build_stream_dir_mode }}"
-  when: not ssl_cert_stat.stat.exists
 
 - name: Generate self-signed SSL certificate
   ansible.builtin.command: |
@@ -168,7 +138,6 @@
     -out {{ build_stream_ssl_cert }}
     -subj "/C=US/ST=State/L=City/O=Omnia/CN={{ ansible_hostname }}"
     -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:localhost,IP:{{ ansible_default_ipv4.address }},IP:127.0.0.1,IP:{{ admin_ip }}"
-  when: not ssl_cert_stat.stat.exists
   changed_when: true
 
 - name: Set permissions on SSL certificates
@@ -279,13 +248,13 @@
       ansible.builtin.set_fact:
         curl_cmd:
           - curl
+          - --cacert
+          - "{{ build_stream_pulp_cert_container_path }}/pulp_webserver.crt"   # resolves to /etc/pulp/certs/pulp_webserver.crt inside the container
           - -sS
           - -o
           - /dev/null
           - -w
           - "%{http_code}\n"
-          - --cacert
-          - "{{ build_stream_pulp_cert_container_path }}"
           - "{{ pulp_base_url }}/pulp/api/v3/status/"
       changed_when: false
 
@@ -301,6 +270,7 @@
       ansible.builtin.fail:
         msg: "{{ build_stream_https_failure_msg }}"
       when: (curl_status.stdout | trim) != "200"
+
 # --------------------------------------------------------------------
 # 8) Validate health API endpoint https://{{ admin_ip }}:{{ build_stream_port }}/health"
 # -------------------------------------------------------------------
@@ -310,11 +280,12 @@
         method: GET
         return_content: true
         status_code: "{{ health_check_status_code }}"
-        validate_certs: false
+        validate_certs: true
+        ca_path: "{{ build_stream_ssl_cert }}"
       register: health_check
       retries: "{{ health_check_retries }}"
       delay: "{{ health_check_delay }}"
-      until: health_check.status == health_check_status_code
+      until: (health_check is defined) and ('status' in health_check) and (health_check.status == health_check_status_code)
 
   rescue:
     - name: Build_stream container deployment failed

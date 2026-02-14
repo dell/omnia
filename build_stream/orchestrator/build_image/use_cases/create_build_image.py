@@ -16,6 +16,7 @@
 
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 
 from api.logging_utils import log_secure_info
 

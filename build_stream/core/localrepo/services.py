@@ -194,7 +194,7 @@ class PlaybookQueueResultService:
             Number of results processed.
         """
         if not self._result_repo.is_available():
-            logger.warning("Result queue directory is not accessible")
+            #logger.warning("Result queue directory is not accessible")
             return 0
 
         result_files = self._result_repo.get_unprocessed_results()
