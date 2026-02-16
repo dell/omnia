@@ -1219,29 +1219,9 @@ install_omnia_core() {
     local omnia_core_tag="2.1"
     local omnia_core_registry=""
     
-    # Check if local omnia_core:2.1 exists
-    if podman inspect omnia_core:${omnia_core_tag} >/dev/null 2>&1; then
+    # Check if local omnia_core image exists using validate function
+    if validate_container_image "" "$omnia_core_tag" "install"; then
         echo -e "${GREEN}✓ Omnia core image (omnia_core:${omnia_core_tag}) found locally.${NC}"
-    # Check if latest exists for backward compatibility
-    elif podman inspect omnia_core:latest >/dev/null 2>&1; then
-        echo -e "${GREEN}✓ Omnia core image (omnia_core:latest) found locally.${NC}"
-        # Tag it as 2.1 for consistency
-        podman tag omnia_core:latest omnia_core:${omnia_core_tag}
-    else
-        echo -e "${RED}ERROR: Omnia core image (omnia_core:${omnia_core_tag}) not found locally.${NC}"
-        echo -e "${YELLOW}Omnia no longer pulls images from Docker Hub. Build/load the image locally and retry.${NC}"
-        echo ""
-        echo -e "${YELLOW}One way to build the image locally:${NC}"
-        echo -e "1. Clone the Omnia Artifactory repository:"
-        echo -e "   git clone https://github.com/dell/omnia-artifactory -b omnia-container-<omnia version>"
-        echo -e "2. Navigate to the repository directory:"
-        echo -e "   cd omnia-artifactory"
-        echo -e "3. Build the core image locally (loads into local Podman by default):"
-        echo -e "   ./build_images.sh core core_tag=2.1 omnia_branch=<omnia version/branch_name>"
-        echo ""
-        echo -e "${YELLOW}Then re-run:${NC}"
-        echo -e "   ./omnia.sh --install"
-        exit 1
     fi
 
     # Check if any other containers with 'omnia' in their name are running
@@ -1844,23 +1824,10 @@ upgrade_omnia_core() {
         SAME_TAG_UPGRADE=false
     fi
     
-    # Validate target container image exists
-    echo -e "${BLUE}Checking for target container image: omnia_core:$TARGET_CONTAINER_TAG${NC}"
-    if ! podman inspect "omnia_core:$TARGET_CONTAINER_TAG" >/dev/null 2>&1; then
-        echo -e "${RED}ERROR: Target image missing locally: omnia_core:$TARGET_CONTAINER_TAG${NC}"
-        echo -e "${YELLOW}Omnia does not pull images from Docker Hub. Build/load the image locally and retry.${NC}"
-        echo -e "1. Clone the Omnia Artifactory repository:"
-        echo -e "   git clone https://github.com/dell/omnia-artifactory -b omnia-container-$TARGET_OMNIA_VERSION"
-        echo -e "2. Navigate to the repository directory:"
-        echo -e "   cd omnia-artifactory"
-        echo -e "3. Build the core image locally (loads into local Podman by default):"
-        echo -e "   ./build_images.sh core core_tag=$TARGET_CONTAINER_TAG omnia_branch=$TARGET_OMNIA_VERSION"
-        echo -e "Then re-run:"
-        echo -e "   ./omnia.sh --upgrade"
+    # Pre-validation: Check if target container image exists locally
+    if ! validate_container_image "$TARGET_OMNIA_VERSION" "$TARGET_CONTAINER_TAG" "upgrade"; then
         exit 1
     fi
-    
-    # Create lock file to prevent concurrent upgrades
     local lock_file="/tmp/omnia_upgrade.lock"
     if [ -f "$lock_file" ]; then
         echo -e "${RED}ERROR: Another upgrade process is already running${NC}"
