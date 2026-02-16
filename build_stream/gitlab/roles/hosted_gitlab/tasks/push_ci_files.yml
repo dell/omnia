@@ -1,63 +1,12 @@
 ---
 # tasks/push_ci_files.yml
+# Pushes .gitlab-ci.yml and catalog_rhel.json to the GitLab project repo.
+# Checks existence first, then copies/slurps/pushes only when needed.
 
 - name: Set hosted GitLab payload defaults
   ansible.builtin.set_fact:
     gitlab_hosted_payload_dir: "{{ gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads') }}"
     gitlab_hosted_ci_pipeline_path: "{{ gitlab_hosted_ci_pipeline_path | default((gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads')) + '/.gitlab-ci.yml') }}"
-
-- name: Ensure payload directory exists on GitLab host
-  ansible.builtin.file:
-    path: "{{ gitlab_hosted_payload_dir }}"
-    state: directory
-    mode: '0755'
-
-- name: Copy .gitlab-ci.yml to GitLab host
-  ansible.builtin.copy:
-    src: "{{ role_path }}/files/.gitlab-ci.yml"
-    dest: "{{ gitlab_hosted_ci_pipeline_path }}"
-    mode: '0644'
-
-- name: Read .gitlab-ci.yml from GitLab host
-  ansible.builtin.slurp:
-    src: "{{ gitlab_hosted_ci_pipeline_path }}"
-  register: hosted_ci_file_content
-
-- name: Push .gitlab-ci.yml to repository
-  ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"
-    method: POST
-    headers:
-      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-    body_format: json
-    body:
-      branch: "{{ gitlab_default_branch }}"
-      content: "{{ hosted_ci_file_content.content | b64decode }}"
-      commit_message: "Add Omnia CI/CD pipeline configuration"
-    status_code: [200, 201]
-    validate_certs: false
-  register: hosted_push_ci_file
-  no_log: true
-  ignore_errors: true
-
-- name: Update .gitlab-ci.yml if it already exists
-  ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"
-    method: PUT
-    headers:
-      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-    body_format: json
-    body:
-      branch: "{{ gitlab_default_branch }}"
-      content: "{{ hosted_ci_file_content }}"
-      commit_message: "Update Omnia CI/CD pipeline configuration"
-    status_code: [200, 201]
-    validate_certs: false
-  no_log: true
-  when: hosted_push_ci_file is failed
-
-- name: Determine catalog JSON source defaults
-  ansible.builtin.set_fact:
     gitlab_catalog_json_source_internal: "{{ gitlab_catalog_json_source | default(role_path + '/../../../tests/fixtures/catalogs/catalog_rhel.json') }}"
     gitlab_catalog_repo_path_internal: "{{ gitlab_catalog_repo_path | default('catalog_rhel.json') }}"
 
@@ -65,51 +14,152 @@
   ansible.builtin.set_fact:
     gitlab_hosted_catalog_path: "{{ gitlab_hosted_catalog_path | default(gitlab_hosted_payload_dir + '/' + gitlab_catalog_repo_path_internal) }}"
 
-- name: Ensure catalog payload directory exists on GitLab host
+# ── Pre-flight: check which files already exist in the repo ─────────────────
+
+- name: Check if .gitlab-ci.yml exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml?ref={{ gitlab_default_branch }}"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: ci_file_check
+  no_log: true
+
+- name: Check if catalog JSON exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}?ref={{ gitlab_default_branch }}"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: catalog_file_check
+  no_log: true
+
+# ── Stage files on GitLab host ──────────────────────────────────────────────
+
+- name: Ensure payload directory exists on GitLab host
   ansible.builtin.file:
-    path: "{{ gitlab_hosted_catalog_path | dirname }}"
+    path: "{{ gitlab_hosted_payload_dir }}"
     state: directory
     mode: '0755'
-    recurse: true
 
-- name: Copy catalog JSON to GitLab host
-  ansible.builtin.copy:
-    src: "{{ gitlab_catalog_json_source_internal }}"
-    dest: "{{ gitlab_hosted_catalog_path }}"
-    mode: '0644'
+# ── .gitlab-ci.yml ──────────────────────────────────────────────────────────
 
-- name: Read catalog JSON from GitLab host
-  ansible.builtin.slurp:
-    src: "{{ gitlab_hosted_catalog_path }}"
-  register: hosted_catalog_json_content
+- name: Create .gitlab-ci.yml when missing
+  block:
+    - name: Copy .gitlab-ci.yml to GitLab host
+      ansible.builtin.copy:
+        src: "{{ role_path }}/files/.gitlab-ci.yml"
+        dest: "{{ gitlab_hosted_ci_pipeline_path }}"
+        mode: '0644'
 
-- name: Push catalog JSON to repository
-  ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}"
-    method: POST
-    headers:
-      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-    body_format: json
-    body:
-      branch: "{{ gitlab_default_branch }}"
-      content: "{{ hosted_catalog_json_content.content | b64decode }}"
-      commit_message: "Add catalog_rhel.json"
-    status_code: [200, 201]
-    validate_certs: false
-  register: hosted_push_catalog
-  ignore_errors: true
+    - name: Read .gitlab-ci.yml from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_ci_pipeline_path }}"
+      register: hosted_ci_file_content
 
-- name: Update catalog JSON if it already exists
-  ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}"
-    method: PUT
-    headers:
-      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-    body_format: json
-    body:
-      branch: "{{ gitlab_default_branch }}"
-      content: "{{ hosted_catalog_json_content }}"
-      commit_message: "Update catalog_rhel.json"
-    status_code: [200, 201]
-    validate_certs: false
-  when: hosted_push_catalog is failed
+    - name: Create .gitlab-ci.yml in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          content: "{{ hosted_ci_file_content.content | b64decode }}"
+          commit_message: "Add Omnia CI/CD pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+  when: ci_file_check.status == 404
+
+- name: Update .gitlab-ci.yml when it already exists
+  block:
+    - name: Copy .gitlab-ci.yml to GitLab host (update)
+      ansible.builtin.copy:
+        src: "{{ role_path }}/files/.gitlab-ci.yml"
+        dest: "{{ gitlab_hosted_ci_pipeline_path }}"
+        mode: '0644'
+
+    - name: Read .gitlab-ci.yml from GitLab host (update)
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_ci_pipeline_path }}"
+      register: hosted_ci_file_content_update
+
+    - name: Update .gitlab-ci.yml in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          content: "{{ hosted_ci_file_content_update.content | b64decode }}"
+          commit_message: "Update Omnia CI/CD pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+  when: ci_file_check.status == 200
+
+# ── catalog_rhel.json ───────────────────────────────────────────────────────
+
+- name: Create catalog JSON when missing
+  block:
+    - name: Copy catalog JSON to GitLab host
+      ansible.builtin.copy:
+        src: "{{ gitlab_catalog_json_source_internal }}"
+        dest: "{{ gitlab_hosted_catalog_path }}"
+        mode: '0644'
+
+    - name: Read catalog JSON from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_catalog_path }}"
+      register: hosted_catalog_json_content
+
+    - name: Create catalog JSON in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          content: "{{ hosted_catalog_json_content.content | b64decode }}"
+          commit_message: "Add catalog_rhel.json"
+        status_code: [200, 201]
+        validate_certs: false
+  when: catalog_file_check.status == 404
+
+- name: Update catalog JSON when it already exists
+  block:
+    - name: Copy catalog JSON to GitLab host (update)
+      ansible.builtin.copy:
+        src: "{{ gitlab_catalog_json_source_internal }}"
+        dest: "{{ gitlab_hosted_catalog_path }}"
+        mode: '0644'
+
+    - name: Read catalog JSON from GitLab host (update)
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_catalog_path }}"
+      register: hosted_catalog_json_content_update
+
+    - name: Update catalog JSON in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}"
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          content: "{{ hosted_catalog_json_content_update.content | b64decode }}"
+          commit_message: "Update catalog_rhel.json"
+        status_code: [200, 201]
+        validate_certs: false
+  when: catalog_file_check.status == 200
