@@ -29,8 +29,27 @@ build_stream_image_tag: "1.0"
 # Ports & Logs
 build_stream_port: "{{ hostvars['localhost']['build_stream_port'] | default('443') }}"
 build_stream_log_dir: "{{ omnia_path }}/log/build_stream"
+build_stream_nfs_path_error_msg: "Directory {{ oim_shared_path }}/omnia/build_stream is missing; ensure oim_shared_path is mounted and populated correctly."
+omnia_default_dir: "/omnia"
+# Build Stream watcher service
+watcher_service_name: "playbook_watcher.service"
+watcher_service_src_path: "templates/playbook_watcher.service.j2"
+watcher_systemd_path: "/etc/systemd/system"
+build_stream_watcher_exec: "/usr/bin/python3 {{ oim_shared_path }}/omnia/build_stream/playbook-watcher/playbook_watcher_service.py"
+watcher_restart_sec: 5
+watcher_no_new_privileges: true
+watcher_private_tmp: true
+watcher_limit_nofile: 4096
+watcher_memory_max: "512M"
+watcher_cpu_quota: "50%"
+build_stream_watcher_playbook_queue_base: "{{ oim_shared_path }}/omnia/playbook_queue"
+watcher_poll_interval_seconds: 2
+watcher_max_concurrent_jobs: 5
+watcher_default_timeout_minutes: 30
+watcher_log_level: "INFO"
 
 # Directory & File Modes
+build_stream_file_mode: "0644"
 build_stream_dir_mode: "0755"
 build_stream_jwt_script_mode: "0755"
 

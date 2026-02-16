@@ -27,7 +27,7 @@ from core.localrepo.entities import PlaybookResult
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_QUEUE_BASE = "/opt/omnia/build_stream/playbook_queue"
+DEFAULT_QUEUE_BASE = "/opt/omnia/playbook_queue"
 RESULTS_DIR_NAME = "results"
 ARCHIVE_DIR_NAME = "archive/results"
 
