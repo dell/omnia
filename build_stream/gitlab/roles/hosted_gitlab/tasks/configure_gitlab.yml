@@ -48,7 +48,7 @@
         url: "{{ gitlab_external_url_computed }}/api/v4/version"
         method: GET
         validate_certs: false
-        status_code: {{ gitlab_default_status_codes.api_version }}
+        status_code: "{{ gitlab_default_status_codes.api_version }}"
       register: gitlab_api_check
       retries: "{{ gitlab_api_check_retries }}"
       delay: "{{ gitlab_api_check_delay }}"

@@ -19,7 +19,7 @@
         url: "{{ gitlab_external_url_computed }}/api/v4/version"
         method: GET
         validate_certs: false
-        status_code: {{ gitlab_default_status_codes.api_version }}
+        status_code: "{{ gitlab_default_status_codes.api_version }}"
       register: api_check
       retries: "{{ gitlab_api_check_retries }}"
       delay: "{{ gitlab_api_check_delay }}"
@@ -64,7 +64,7 @@
         headers:
           PRIVATE-TOKEN: "{{ gitlab_root_token }}"
         validate_certs: false
-        status_code: {{ gitlab_default_status_codes.project_search }}
+        status_code: "{{ gitlab_default_status_codes.project_search }}"
       register: project_search
       no_log: true
   rescue:
@@ -89,7 +89,7 @@
           visibility: "{{ gitlab_project_visibility }}"
           initialize_with_readme: true
           default_branch: "{{ gitlab_default_branch }}"
-        status_code: {{ gitlab_default_status_codes.project_create }}
+        status_code: "{{ gitlab_default_status_codes.project_create }}"
         validate_certs: false
       register: new_project
       no_log: true
@@ -119,7 +119,7 @@
             - "{{ gitlab_runner_tags }}"
           run_untagged: true
         validate_certs: false
-        status_code: {{ gitlab_default_status_codes.runner_create }}
+        status_code: "{{ gitlab_default_status_codes.runner_create }}"
       register: runner_creation
       no_log: true
   rescue:
