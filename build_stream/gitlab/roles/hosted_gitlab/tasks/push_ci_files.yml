@@ -1,9 +1,26 @@
 ---
 # tasks/push_ci_files.yml
 
-- name: Read .gitlab-ci.yml from role files
-  ansible.builtin.slurp:
+- name: Set hosted GitLab payload defaults
+  ansible.builtin.set_fact:
+    gitlab_hosted_payload_dir: "{{ gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads') }}"
+    gitlab_hosted_ci_pipeline_path: "{{ gitlab_hosted_ci_pipeline_path | default((gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads')) + '/.gitlab-ci.yml') }}"
+
+- name: Ensure payload directory exists on GitLab host
+  ansible.builtin.file:
+    path: "{{ gitlab_hosted_payload_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Copy .gitlab-ci.yml to GitLab host
+  ansible.builtin.copy:
     src: "{{ role_path }}/files/.gitlab-ci.yml"
+    dest: "{{ gitlab_hosted_ci_pipeline_path }}"
+    mode: '0644'
+
+- name: Read .gitlab-ci.yml from GitLab host
+  ansible.builtin.slurp:
+    src: "{{ gitlab_hosted_ci_pipeline_path }}"
   register: hosted_ci_file_content
 
 - name: Push .gitlab-ci.yml to repository
@@ -32,7 +49,7 @@
     body_format: json
     body:
       branch: "{{ gitlab_default_branch }}"
-      content: "{{ hosted_ci_file_content.content | b64decode }}"
+      content: "{{ hosted_ci_file_content }}"
       commit_message: "Update Omnia CI/CD pipeline configuration"
     status_code: [200, 201]
     validate_certs: false
@@ -44,9 +61,27 @@
     gitlab_catalog_json_source_internal: "{{ gitlab_catalog_json_source | default(role_path + '/../../../tests/fixtures/catalogs/catalog_rhel.json') }}"
     gitlab_catalog_repo_path_internal: "{{ gitlab_catalog_repo_path | default('catalog_rhel.json') }}"
 
-- name: Load catalog JSON content
+- name: Set catalog payload path
   ansible.builtin.set_fact:
-    hosted_catalog_json_content: "{{ lookup('file', gitlab_catalog_json_source_internal) }}"
+    gitlab_hosted_catalog_path: "{{ gitlab_hosted_catalog_path | default(gitlab_hosted_payload_dir + '/' + gitlab_catalog_repo_path_internal) }}"
+
+- name: Ensure catalog payload directory exists on GitLab host
+  ansible.builtin.file:
+    path: "{{ gitlab_hosted_catalog_path | dirname }}"
+    state: directory
+    mode: '0755'
+    recurse: true
+
+- name: Copy catalog JSON to GitLab host
+  ansible.builtin.copy:
+    src: "{{ gitlab_catalog_json_source_internal }}"
+    dest: "{{ gitlab_hosted_catalog_path }}"
+    mode: '0644'
+
+- name: Read catalog JSON from GitLab host
+  ansible.builtin.slurp:
+    src: "{{ gitlab_hosted_catalog_path }}"
+  register: hosted_catalog_json_content
 
 - name: Push catalog JSON to repository
   ansible.builtin.uri:
@@ -57,7 +92,7 @@
     body_format: json
     body:
       branch: "{{ gitlab_default_branch }}"
-      content: "{{ hosted_catalog_json_content }}"
+      content: "{{ hosted_catalog_json_content.content | b64decode }}"
       commit_message: "Add catalog_rhel.json"
     status_code: [200, 201]
     validate_certs: false
