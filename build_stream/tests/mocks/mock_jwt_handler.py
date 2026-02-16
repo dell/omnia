@@ -18,7 +18,7 @@ import base64
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional  # noqa: W0611 pylint: disable=unused-import
+from typing import List
 
 from api.auth.jwt_handler import TokenData
 

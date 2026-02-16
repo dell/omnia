@@ -149,7 +149,7 @@ class CreateBuildImageUseCase:
             functional_groups,
             inventory_host,
         )
-        self._submit_to_queue(command, request, stage)
+        self._submit_to_queue(command, request, stage, architecture)
 
         self._emit_stage_started_event(command, architecture, image_key)
 
@@ -252,6 +252,23 @@ class CreateBuildImageUseCase:
             )
             raise
 
+    def _build_playbook_request(
+        self,
+        command: CreateBuildImageCommand,
+        architecture: Architecture,
+        image_key: ImageKey,
+        functional_groups: FunctionalGroups,
+        inventory_host: Optional[InventoryHost],
+    ) -> BuildImageRequest:
+        """Compatibility shim matching historical naming used by execute()."""
+        return self._create_request(
+            command,
+            architecture,
+            image_key,
+            functional_groups,
+            inventory_host,
+        )
+
     def _create_request(
         self,
         command: CreateBuildImageCommand,
@@ -297,6 +314,7 @@ class CreateBuildImageUseCase:
         command: CreateBuildImageCommand,
         request: BuildImageRequest,
         stage: Stage,
+        architecture: Architecture,
     ) -> None:
         """Submit playbook request to NFS queue for watcher service."""
         stage.start()
@@ -312,7 +330,7 @@ class CreateBuildImageUseCase:
             "arch=%s, correlation_id=%s",
             command.job_id,
             StageType.BUILD_IMAGE.value,
-            request.architecture,
+            str(architecture),
             command.correlation_id,
         )
 

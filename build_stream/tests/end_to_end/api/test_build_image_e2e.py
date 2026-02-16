@@ -30,6 +30,7 @@ class TestBuildImageE2E:
     BASE_URL = "http://localhost:8000"
     API_PREFIX = "/api/v1"
     AUTH_TOKEN = "test-e2e-token"
+    REQUEST_TIMEOUT = 30
 
     @classmethod
     def setup_class(cls):
@@ -46,7 +47,10 @@ class TestBuildImageE2E:
 
         # Verify server is running
         try:
-            response = requests.get(f"{cls.BASE_URL}/health")
+            response = requests.get(
+                f"{cls.BASE_URL}/health",
+                timeout=cls.REQUEST_TIMEOUT,
+            )
             assert response.status_code == 200
         except requests.exceptions.ConnectionError:
             pytest.skip("API server not available")
@@ -88,7 +92,8 @@ class TestBuildImageE2E:
                     ]
                 }
             },
-            headers=headers
+            headers=headers,
+            timeout=self.REQUEST_TIMEOUT,
         )
         assert create_job_response.status_code == 201
         job_data = create_job_response.json()
@@ -98,7 +103,8 @@ class TestBuildImageE2E:
         # Step 2: Verify job was created with build-image stage
         get_job_response = requests.get(
             f"{self.BASE_URL}{self.API_PREFIX}/jobs/{job_id}",
-            headers=headers
+            headers=headers,
+            timeout=self.REQUEST_TIMEOUT,
         )
         assert get_job_response.status_code == 200
         job_detail = get_job_response.json()
@@ -132,7 +138,8 @@ class TestBuildImageE2E:
         # Step 4: Verify stage is now STARTED
         get_job_response2 = requests.get(
             f"{self.BASE_URL}{self.API_PREFIX}/jobs/{job_id}",
-            headers=headers
+            headers=headers,
+            timeout=self.REQUEST_TIMEOUT,
         )
         assert get_job_response2.status_code == 200
         job_detail2 = get_job_response2.json()
@@ -158,7 +165,7 @@ class TestBuildImageE2E:
         assert request_data["correlation_id"] == correlation_id
 
         # Step 6: Verify playbook command generation
-        with open(request_files[0], "r") as f:
+        with open(request_files[0], "r", encoding="utf-8") as f:
             request_content = json.load(f)
         
         # The request should contain all necessary fields for playbook execution
@@ -197,7 +204,7 @@ class TestBuildImageE2E:
         job_input_dir.mkdir(parents=True, exist_ok=True)
         
         config_file = job_input_dir / "build_stream_config.yml"
-        config_file.write_text("inventory_host: 192.168.1.150\n")
+        config_file.write_text("inventory_host: 10.3.0.170\n", encoding="utf-8")
 
         # Step 3: Trigger build image stage
         build_image_response = requests.post(
@@ -221,8 +228,8 @@ class TestBuildImageE2E:
         request_files = list(queue_dir.glob(f"{job_id}_build-image_*.json"))
         assert len(request_files) == 1
 
-        request_data = json.loads(request_files[0].read_text())
-        assert request_data["inventory_host"] == "192.168.1.150"
+        request_data = json.loads(request_files[0].read_text(encoding="utf-8"))
+        assert request_data["inventory_host"] == "10.3.0.170"
         assert request_data["playbook_path"] == "/omnia/build_image_aarch64/build_image_aarch64.yml"
 
     def test_build_image_error_cases(self):
@@ -303,7 +310,8 @@ class TestBuildImageE2E:
                         "functional_groups": [f"group{i}"]
                     }
                 },
-                headers=headers
+                headers=headers,
+                timeout=self.REQUEST_TIMEOUT,
             )
             job_ids.append(response.json()["job_id"])
 
@@ -368,7 +376,8 @@ class TestBuildImageE2E:
         # Check audit events
         audit_response = requests.get(
             f"{self.BASE_URL}{self.API_PREFIX}/jobs/{job_id}/audit",
-            headers=headers
+            headers=headers,
+            timeout=self.REQUEST_TIMEOUT,
         )
         assert audit_response.status_code == 200
         audit_events = audit_response.json()

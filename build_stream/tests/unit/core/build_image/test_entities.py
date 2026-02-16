@@ -14,17 +14,14 @@
 
 """Unit tests for Build Image entities."""
 
+import json
 from datetime import datetime, timezone
 
 import pytest
 
 from core.build_image.entities import BuildImageRequest
-from core.build_image.value_objects import (
-    Architecture,
-    ImageKey,
-    FunctionalGroups,
-    InventoryHost,
-)
+from core.build_image.value_objects import FunctionalGroups, ImageKey
+from core.localrepo.value_objects import ExecutionTimeout, ExtraVars, PlaybookPath
 
 
 class TestBuildImageRequest:
@@ -36,25 +33,56 @@ class TestBuildImageRequest:
         return BuildImageRequest(
             job_id="job-123",
             stage_name="build-image",
-            architecture=Architecture("x86_64"),
-            image_key=ImageKey("test-image"),
-            functional_groups=FunctionalGroups(["group1", "group2"]),
-            playbook_path="/omnia/build_image_x86_64/build_image_x86_64.yml",
+            playbook_path=PlaybookPath("/omnia/build_image_x86_64/build_image_x86_64.yml"),
+            extra_vars=ExtraVars(
+                {
+                    "job_id": "job-123",
+                    "image_key": ImageKey("test-image").value,
+                    "functional_groups": FunctionalGroups(["service_kube_control_plane_x86_64_first", "service_kube_control_plane_x86_64", "service_kube_node_x86_64"]).values,
+                }
+            ),
             correlation_id="corr-456",
-            timeout_minutes=60,
+            timeout=ExecutionTimeout(60),
             submitted_at="2026-02-12T18:30:00.000Z",
             request_id="req-789",
         )
 
-    def test_to_dict(self, sample_request):
+    @pytest.mark.parametrize(
+        "functional_groups",
+        [
+            (
+                "service_kube_control_plane_x86_64_first",
+                "service_kube_control_plane_x86_64",
+                "service_kube_node_x86_64",
+            )
+        ],
+    )
+    def test_to_dict(self, functional_groups):
         """Test serialization to dictionary."""
-        result = sample_request.to_dict()
+        request = BuildImageRequest(
+            job_id="job-123",
+            stage_name="build-image",
+            playbook_path=PlaybookPath("/omnia/build_image_x86_64/build_image_x86_64.yml"),
+            extra_vars=ExtraVars(
+                {
+                    "job_id": "job-123",
+                    "image_key": ImageKey("test-image").value,
+                    "functional_groups": list(functional_groups),
+                }
+            ),
+            correlation_id="corr-456",
+            timeout=ExecutionTimeout(60),
+            submitted_at="2026-02-12T18:30:00.000Z",
+            request_id="req-789",
+        )
+
+        result = request.to_dict()
         
         assert result["job_id"] == "job-123"
         assert result["stage_name"] == "build-image"
-        assert result["architecture"] == "x86_64"
-        assert result["image_key"] == "test-image"
-        assert result["functional_groups"] == ["group1", "group2"]
+        assert result["extra_vars"]["job_id"] == "job-123"
+        assert result["extra_vars"]["image_key"] == "test-image"
+        assert result["extra_vars"]["functional_groups"] == list(functional_groups)
         assert result["playbook_path"] == "/omnia/build_image_x86_64/build_image_x86_64.yml"
         assert result["correlation_id"] == "corr-456"
         assert result["timeout_minutes"] == 60
@@ -62,24 +90,32 @@ class TestBuildImageRequest:
         assert result["request_id"] == "req-789"
         assert "inventory_host" not in result
 
-    def test_to_dict_with_inventory_host(self):
+    @pytest.mark.parametrize(
+        ("image_key_value", "inventory_host_value"),
+        [("test-image", "192.168.1.100")],
+    )
+    def test_to_dict_with_inventory_host(self, image_key_value, inventory_host_value):
         """Test serialization to dictionary with inventory host."""
         request = BuildImageRequest(
             job_id="job-123",
             stage_name="build-image",
-            architecture=Architecture("aarch64"),
-            image_key=ImageKey("test-image"),
-            functional_groups=FunctionalGroups(["group1"]),
-            playbook_path="/omnia/build_image_aarch64/build_image_aarch64.yml",
+            playbook_path=PlaybookPath("/omnia/build_image_aarch64/build_image_aarch64.yml"),
+            extra_vars=ExtraVars(
+                {
+                    "job_id": "job-123",
+                    "image_key": ImageKey(image_key_value).value,
+                    "functional_groups": FunctionalGroups(["group1"]).values,
+                    "inventory_host": inventory_host_value,
+                }
+            ),
             correlation_id="corr-456",
-            timeout_minutes=60,
+            timeout=ExecutionTimeout(60),
             submitted_at="2026-02-12T18:30:00.000Z",
             request_id="req-789",
-            inventory_host=InventoryHost("192.168.1.100"),
         )
         
         result = request.to_dict()
-        assert result["inventory_host"] == "192.168.1.100"
+        assert result["extra_vars"]["inventory_host"] == inventory_host_value
 
     def test_generate_filename(self, sample_request):
         """Test filename generation."""
@@ -100,18 +136,35 @@ class TestBuildImageRequest:
         assert '-e functional_groups=\'["group1", "group2"]\'' in command
         assert "-i " not in command  # No inventory for x86_64
 
-    def test_get_playbook_command_aarch64(self):
+    @pytest.mark.parametrize(
+        (
+            "job_id_value",
+            "image_key_value",
+            "functional_groups_value",
+            "inventory_host_value",
+        ),
+        [("job-123", "test-image", ["group1"], "192.168.1.100")],
+    )
+    def test_get_playbook_command_aarch64(
+        self,
+        job_id_value,
+        image_key_value,
+        functional_groups_value,
+        inventory_host_value,
+    ):
         """Test playbook command generation for aarch64."""
         request = BuildImageRequest(
-            job_id="job-123",
+            job_id=job_id_value,
             stage_name="build-image",
             playbook_path=PlaybookPath("/omnia/build_image_aarch64/build_image_aarch64.yml"),
-            extra_vars=ExtraVars({
-                "job_id": "job-123",
-                "image_key": "test-image",
-                "functional_groups": ["group1"],
-                "inventory_host": "192.168.1.100",
-            }),
+            extra_vars=ExtraVars(
+                {
+                    "job_id": job_id_value,
+                    "image_key": ImageKey(image_key_value).value,
+                    "functional_groups": list(functional_groups_value),
+                    "inventory_host": inventory_host_value,
+                }
+            ),
             correlation_id="corr-456",
             timeout=ExecutionTimeout(60),
             submitted_at="2026-02-12T18:30:00.000Z",
@@ -122,10 +175,11 @@ class TestBuildImageRequest:
         
         assert "ansible-playbook" in command
         assert "/omnia/build_image_aarch64/build_image_aarch64.yml" in command
-        assert "-i 192.168.1.100" in command
-        assert '-e job_id="job-123"' in command
-        assert '-e image_key="test-image"' in command
-        assert '-e functional_groups=\'["group1"]\'' in command
+        assert f"-i {inventory_host_value}" in command
+        assert f'-e job_id="{job_id_value}"' in command
+        assert f'-e image_key="{image_key_value}"' in command
+        expected_groups = json.dumps(list(functional_groups_value))
+        assert f"-e functional_groups='{expected_groups}'" in command
 
     def test_immutable(self, sample_request):
         """Test that BuildImageRequest is immutable."""

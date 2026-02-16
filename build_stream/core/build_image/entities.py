@@ -16,13 +16,13 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
-from core.build_image.value_objects import Architecture, FunctionalGroups, ImageKey, InventoryHost
 from core.localrepo.value_objects import ExecutionTimeout, ExtraVars, PlaybookPath
 
 
 @dataclass(frozen=True)
+# pylint: disable=too-many-instance-attributes
 class BuildImageRequest:
     """Immutable entity representing a build image request.
 

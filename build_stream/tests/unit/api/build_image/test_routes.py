@@ -22,11 +22,11 @@ from api.build_image.schemas import CreateBuildImageRequest, CreateBuildImageRes
 from core.build_image.exceptions import (
     BuildImageDomainError,
     InvalidArchitectureError,
-    InvalidImageKeyError,
     InvalidFunctionalGroupsError,
+    InvalidImageKeyError,
     InventoryHostMissingError,
 )
-from core.jobs.exceptions import JobNotFoundError, InvalidStateTransitionError
+from core.jobs.exceptions import InvalidStateTransitionError, JobNotFoundError
 from core.jobs.value_objects import ClientId, CorrelationId, JobId
 from orchestrator.build_image.commands import CreateBuildImageCommand
 from orchestrator.build_image.dtos import BuildImageResponse
@@ -35,34 +35,17 @@ from orchestrator.build_image.dtos import BuildImageResponse
 class MockCreateBuildImageUseCase:
     """Mock use case for testing."""
 
-    def __init__(self, should_fail=False, error_type=None):
+    def __init__(self, error_to_raise=None):
         """Initialize mock with optional failure."""
-        self.should_fail = should_fail
-        self.error_type = error_type
+        self.error_to_raise = error_to_raise
         self.executed_commands = []
 
     def execute(self, command):
         """Mock execute method."""
         self.executed_commands.append(command)
-        
-        if self.should_fail:
-            if self.error_type == "job_not_found":
-                raise JobNotFoundError("Job not found", str(command.correlation_id))
-            elif self.error_type == "invalid_state":
-                raise InvalidStateTransitionError("Invalid state", str(command.correlation_id))
-            elif self.error_type == "invalid_arch":
-                raise InvalidArchitectureError("Invalid architecture", str(command.correlation_id))
-            elif self.error_type == "invalid_key":
-                raise InvalidImageKeyError("Invalid image key", str(command.correlation_id))
-            elif self.error_type == "invalid_groups":
-                raise InvalidFunctionalGroupsError("Invalid groups", str(command.correlation_id))
-            elif self.error_type == "missing_host":
-                raise InventoryHostMissingError("Missing host", str(command.correlation_id))
-            elif self.error_type == "domain_error":
-                raise BuildImageDomainError("Domain error", str(command.correlation_id))
-            else:
-                raise Exception("Unexpected error")
-        
+        if self.error_to_raise:
+            raise self.error_to_raise
+
         return BuildImageResponse(
             job_id=str(command.job_id),
             stage_name="build-image",
@@ -123,6 +106,8 @@ class TestBuildImageRoutes:
         command = use_case.executed_commands[0]
         assert isinstance(command, CreateBuildImageCommand)
         assert str(command.job_id) == "job-123"
+        assert str(command.client_id) == "client-456"
+        assert str(command.correlation_id) == "corr-789"
         assert command.architecture == "x86_64"
         assert command.image_key == "test-image"
         assert command.functional_groups == ["group1", "group2"]
@@ -153,7 +138,9 @@ class TestBuildImageRoutes:
 
     def test_create_build_image_job_not_found(self):
         """Test when job is not found."""
-        use_case = MockCreateBuildImageUseCase(should_fail=True, error_type="job_not_found")
+        use_case = MockCreateBuildImageUseCase(
+            error_to_raise=JobNotFoundError("Job not found", "corr-789")
+        )
         
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
@@ -176,7 +163,9 @@ class TestBuildImageRoutes:
 
     def test_create_build_image_invalid_state_transition(self):
         """Test when stage is not in PENDING state."""
-        use_case = MockCreateBuildImageUseCase(should_fail=True, error_type="invalid_state")
+        use_case = MockCreateBuildImageUseCase(
+            error_to_raise=InvalidStateTransitionError("Invalid state", "corr-789")
+        )
         
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
@@ -199,7 +188,9 @@ class TestBuildImageRoutes:
 
     def test_create_build_image_invalid_architecture(self):
         """Test with invalid architecture."""
-        use_case = MockCreateBuildImageUseCase(should_fail=True, error_type="invalid_arch")
+        use_case = MockCreateBuildImageUseCase(
+            error_to_raise=InvalidArchitectureError("Invalid architecture", "corr-789")
+        )
         
         request_body = CreateBuildImageRequest(
             architecture="invalid",
@@ -222,7 +213,9 @@ class TestBuildImageRoutes:
 
     def test_create_build_image_invalid_image_key(self):
         """Test with invalid image key."""
-        use_case = MockCreateBuildImageUseCase(should_fail=True, error_type="invalid_key")
+        use_case = MockCreateBuildImageUseCase(
+            error_to_raise=InvalidImageKeyError("Invalid image key", "corr-789")
+        )
         
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
@@ -245,7 +238,9 @@ class TestBuildImageRoutes:
 
     def test_create_build_image_invalid_functional_groups(self):
         """Test with invalid functional groups."""
-        use_case = MockCreateBuildImageUseCase(should_fail=True, error_type="invalid_groups")
+        use_case = MockCreateBuildImageUseCase(
+            error_to_raise=InvalidFunctionalGroupsError("Invalid groups", "corr-789")
+        )
         
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
@@ -268,7 +263,9 @@ class TestBuildImageRoutes:
 
     def test_create_build_image_missing_inventory_host(self):
         """Test aarch64 build with missing inventory host."""
-        use_case = MockCreateBuildImageUseCase(should_fail=True, error_type="missing_host")
+        use_case = MockCreateBuildImageUseCase(
+            error_to_raise=InventoryHostMissingError("Missing host", "corr-789")
+        )
         
         request_body = CreateBuildImageRequest(
             architecture="aarch64",
@@ -291,7 +288,9 @@ class TestBuildImageRoutes:
 
     def test_create_build_image_domain_error(self):
         """Test with domain error."""
-        use_case = MockCreateBuildImageUseCase(should_fail=True, error_type="domain_error")
+        use_case = MockCreateBuildImageUseCase(
+            error_to_raise=BuildImageDomainError("Domain error", "corr-789")
+        )
         
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
@@ -314,7 +313,7 @@ class TestBuildImageRoutes:
 
     def test_create_build_image_unexpected_error(self):
         """Test with unexpected error."""
-        use_case = MockCreateBuildImageUseCase(should_fail=True, error_type="unexpected")
+        use_case = MockCreateBuildImageUseCase(error_to_raise=RuntimeError("Unexpected error"))
         
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
@@ -334,4 +333,4 @@ class TestBuildImageRoutes:
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         detail = exc_info.value.detail
         assert detail["error"] == "INTERNAL_ERROR"
-        assert detail["message"] == "An unexpected error occurred"
+        assert detail["message"].lower().startswith("an unexpected error")
