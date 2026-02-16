@@ -229,15 +229,11 @@ validate_container_image() {
 get_container_tag_from_version() {
     local version="$1"
     case "$version" in
-        2.0.0.0)
+        2.0.*)
             echo "1.0"
             ;;
-        2.1.*)
-            echo "2.1"
-            ;;
         *)
-            # Default to first two digits for future versions
-            echo "${version%.*.*}"
+            echo "$(echo "$version" | awk -F. '{print $1"."$2}')"
             ;;
     esac
 }
@@ -249,6 +245,31 @@ get_current_omnia_version() {
     else
         echo ""
     fi
+}
+
+show_post_upgrade_instructions() {
+    local upgraded_version="$1"
+
+    echo ""
+    echo -e "${YELLOW}================================================================================${NC}"
+    echo -e "${YELLOW}                    IMPORTANT POST-UPGRADE STEP${NC}"
+    echo -e "${YELLOW}================================================================================${NC}"
+    echo ""
+    echo -e "${GREEN}✓ Omnia core container has been successfully upgraded${NC}"
+    echo -e "${GREEN}✓ Version updated to: $upgraded_version${NC}"
+    echo ""
+    echo -e "${BLUE}NEXT REQUIRED ACTION:${NC}"
+    echo -e "${YELLOW}You must now run the upgrade playbook inside the omnia_core container:${NC}"
+    echo ""
+    echo -e "${GREEN}podman exec -it omnia_core ansible-playbook /omnia/upgrade/upgrade_omnia.yml${NC}"
+    echo ""
+    echo -e "${BLUE}This playbook will:${NC}"
+    echo -e "• Update input files"
+    echo -e "• Update internal configurations"
+    echo ""
+    echo -e "${YELLOW}Note: Run this command after the container is fully healthy and stable${NC}"
+    echo -e "${YELLOW}================================================================================${NC}"
+    echo ""
 }
 
 # Host-side paths (initialized dynamically after omnia_path is set)
@@ -1604,27 +1625,8 @@ phase4_same_tag_upgrade() {
     
     echo "[INFO] [ORCHESTRATOR] Same-tag upgrade completed successfully"
     echo "[INFO] [ORCHESTRATOR] Version updated to: $target_version"
-    
-    echo ""
-    echo -e "${YELLOW}================================================================================${NC}"
-    echo -e "${YELLOW}                    IMPORTANT POST-UPGRADE STEP${NC}"
-    echo -e "${YELLOW}================================================================================${NC}"
-    echo ""
-    echo -e "${GREEN}✓ Omnia core container has been successfully upgraded${NC}"
-    echo -e "${GREEN}✓ Version updated to: $target_version${NC}"
-    echo ""
-    echo -e "${BLUE}NEXT REQUIRED ACTION:${NC}"
-    echo -e "${YELLOW}You must now run the upgrade playbook inside the omnia_core container:${NC}"
-    echo ""
-    echo -e "${GREEN}podman exec -it omnia_core ansible-playbook /omnia/upgrade/upgrade_omnia.yml${NC}"
-    echo ""
-    echo -e "${BLUE}This playbook will:${NC}"
-    echo -e "• Update input files"
-    echo -e "• Update internal configurations"
-    echo ""
-    echo -e "${YELLOW}Note: Run this command after the container is fully healthy and stable${NC}"
-    echo -e "${YELLOW}================================================================================${NC}"
-    echo ""
+
+    show_post_upgrade_instructions "$target_version"
     
     return 0
 }
@@ -1904,27 +1906,8 @@ upgrade_omnia_core() {
 
     echo "[INFO] [ORCHESTRATOR] Upgrade completed successfully"
     echo "[INFO] [ORCHESTRATOR] Backup location (inside omnia_core container): $backup_base"
-    
-    echo ""
-    echo -e "${YELLOW}================================================================================${NC}"
-    echo -e "${YELLOW}                    IMPORTANT POST-UPGRADE STEP${NC}"
-    echo -e "${YELLOW}================================================================================${NC}"
-    echo ""
-    echo -e "${GREEN}✓ Omnia core container has been successfully upgraded${NC}"
-    echo -e "${GREEN}✓ Version updated to: $TARGET_OMNIA_VERSION${NC}"
-    echo ""
-    echo -e "${BLUE}NEXT REQUIRED ACTION:${NC}"
-    echo -e "${YELLOW}You must now run the upgrade playbook inside the omnia_core container:${NC}"
-    echo ""
-    echo -e "${GREEN}podman exec -it omnia_core ansible-playbook /omnia/upgrade/upgrade_omnia.yml${NC}"
-    echo ""
-    echo -e "${BLUE}This playbook will:${NC}"
-    echo -e "• Update input files"
-    echo -e "• Update internal configurations"
-    echo ""
-    echo -e "${YELLOW}Note: Run this command after the container is fully healthy and stable${NC}"
-    echo -e "${YELLOW}================================================================================${NC}"
-    echo ""
+
+    show_post_upgrade_instructions "$TARGET_OMNIA_VERSION"
     
     # Initialize SSH config and start container session
     init_ssh_config
@@ -2085,12 +2068,23 @@ rollback_omnia_core() {
     # Create lock file to prevent concurrent rollbacks
     local lock_file="/tmp/omnia_rollback.lock"
     if [ -f "$lock_file" ]; then
-        echo -e "${RED}ERROR: Another rollback process is already running${NC}"
-        echo -e "${YELLOW}If this is incorrect, remove the lock file: rm -f $lock_file${NC}"
-        exit 1
+        local existing_pid
+        existing_pid=$(cat "$lock_file" 2>/dev/null | tr -d ' \t\n\r')
+
+        if [ -n "$existing_pid" ] && kill -0 "$existing_pid" >/dev/null 2>&1; then
+            echo -e "${RED}ERROR: Another rollback process is already running (PID: $existing_pid)${NC}"
+            echo -e "${YELLOW}If this is incorrect, remove the lock file: rm -f $lock_file${NC}"
+            exit 1
+        fi
+
+        if [ -n "$existing_pid" ]; then
+            echo -e "${YELLOW}[WARN] Stale rollback lock file found (PID: $existing_pid); removing: $lock_file${NC}"
+        fi
+        rm -f "$lock_file" >/dev/null 2>&1 || true
     fi
-    touch "$lock_file"
-    trap 'rm -f "$lock_file"' EXIT
+
+    echo "$$" > "$lock_file"
+    trap 'rm -f "$lock_file"' EXIT INT TERM
     
     # Get current version
     if ! podman exec -u root omnia_core test -f "/opt/omnia/.data/oim_metadata.yml"; then
@@ -2322,6 +2316,10 @@ rollback_omnia_core() {
     echo -e "${GREEN}✓ Container is running and healthy${NC}"
     echo -e "${GREEN}✓ Configuration restored from backup${NC}"
     echo ""
+    
+    # Clean up lock file before starting long-running ssh session
+    rm -f "$lock_file" >/dev/null 2>&1 || true
+    echo "[INFO] Rollback lock file removed before starting container session"
     
     # Initialize SSH config and start container session
     init_ssh_config
