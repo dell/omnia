@@ -44,7 +44,8 @@
 
 - name: Wait for GitLab API to be ready
   block:
-    - ansible.builtin.uri:
+    - name: Probe GitLab API version endpoint
+      ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/version"
         method: GET
         validate_certs: false
@@ -55,7 +56,8 @@
       until: gitlab_api_check.status in gitlab_default_status_codes.api_version
       changed_when: false
   rescue:
-    - ansible.builtin.fail:
+    - name: Fail when GitLab API is unreachable
+      ansible.builtin.fail:
         msg: "{{ gitlab_api_ready_failure_msg }}"
 
 - name: Get initial root password

@@ -15,7 +15,8 @@
 ---
 - name: Wait for GitLab API to be ready
   block:
-    - ansible.builtin.uri:
+    - name: Probe GitLab API version endpoint
+      ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/version"
         method: GET
         validate_certs: false
@@ -25,7 +26,8 @@
       delay: "{{ gitlab_api_check_delay }}"
       until: api_check.status in gitlab_default_status_codes.api_version
   rescue:
-    - ansible.builtin.fail:
+    - name: Fail when GitLab API remains unreachable
+      ansible.builtin.fail:
         msg: "{{ gitlab_api_ready_failure_msg }}"
 
 - name: Get root user API token
@@ -58,7 +60,8 @@
 
 - name: Check if project exists
   block:
-    - ansible.builtin.uri:
+    - name: Query GitLab for existing project
+      ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/projects?search={{ gitlab_project_name }}"
         method: GET
         headers:
@@ -68,7 +71,8 @@
       register: project_search
       no_log: true
   rescue:
-    - ansible.builtin.fail:
+    - name: Fail when project search API call fails
+      ansible.builtin.fail:
         msg: "{{ gitlab_project_search_failure_msg }}"
 
 - name: Set project exists flag
@@ -78,7 +82,8 @@
 - name: Create GitLab project when missing
   when: not project_exists
   block:
-    - ansible.builtin.uri:
+    - name: Create project via GitLab API
+      ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/projects"
         method: POST
         headers:
@@ -94,7 +99,8 @@
       register: new_project
       no_log: true
   rescue:
-    - ansible.builtin.fail:
+    - name: Fail when project creation API call fails
+      ansible.builtin.fail:
         msg: "{{ gitlab_project_create_failure_msg }}"
 
 - name: Set project ID and URL
@@ -105,7 +111,8 @@
 
 - name: Create runner authentication token via API
   block:
-    - ansible.builtin.uri:
+    - name: Request runner authentication token
+      ansible.builtin.uri:
         url: "{{ gitlab_external_url_computed }}/api/v4/user/runners"
         method: POST
         headers:
@@ -123,7 +130,8 @@
       register: runner_creation
       no_log: true
   rescue:
-    - ansible.builtin.fail:
+    - name: Fail when runner token API call fails
+      ansible.builtin.fail:
         msg: "{{ gitlab_runner_token_failure_msg }}"
 
 - name: Set runner authentication token fact
