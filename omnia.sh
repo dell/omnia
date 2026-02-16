@@ -59,7 +59,7 @@ TARGET_OMNIA_VERSION=""  # Target version for upgrade
 TARGET_CONTAINER_TAG=""  # Target container tag for upgrade
 
 # Centralized version list (in chronological order)
-ALL_OMNIA_VERSIONS=("2.0.0.0" "2.1.0.0" "2.1.0.1")
+ALL_OMNIA_VERSIONS=("2.0.0.0" "2.1.0.0")
 
 # Container-side paths (used inside podman exec commands)
 CONTAINER_INPUT_DIR="/opt/omnia/input"
