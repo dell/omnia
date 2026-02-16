@@ -33,7 +33,19 @@ def load_kube_context():
 
 
 def run_mysql_query_in_pod(namespace, pod, container, mysql_user, mysql_password, query):
-    """Run a MySQL query in the specified pod."""
+    """Run a MySQL query in the specified pod.
+
+    Args:
+        namespace: Kubernetes namespace
+        pod: Pod name
+        container: Container name
+        mysql_user: MySQL username
+        mysql_password: MySQL password
+        query: MySQL query to execute
+
+    Returns:
+        dict: Result containing return code and output
+    """
     core_v1 = client.CoreV1Api()
     mysql_command = [
         "mysql",
@@ -86,7 +98,7 @@ def run_mysql_query_in_pod(namespace, pod, container, mysql_user, mysql_password
             "result": query_result
         }
 
-    except Exception as e:
+    except (ConfigException, OSError) as e:
         return {
             "rc": 1,
             "result": str(e)
@@ -104,9 +116,27 @@ def delete_idrac_from_mysql(
     retries=3,
     delay=3
 ):
-    """Delete a single iDRAC IP from MySQL database."""
-    query = f"DELETE FROM {mysqldb_name}.services WHERE ip = '{ip_to_delete}';"
-    
+    """Delete a single iDRAC IP from MySQL database.
+
+    Args:
+        namespace: Kubernetes namespace
+        pod: Pod name
+        container: Container name
+        mysqldb_name: MySQL database name
+        mysql_user: MySQL username
+        mysql_password: MySQL password
+        ip_to_delete: IP address to delete
+        retries: Number of retry attempts
+        delay: Delay between retries in seconds
+
+    Returns:
+        dict: Result containing success status and message
+    """
+    query = (
+        f"DELETE FROM {mysqldb_name}.services "
+        f"WHERE ip = '{ip_to_delete}';"
+    )
+
     for attempt in range(retries):
         result = run_mysql_query_in_pod(
             namespace=namespace,
@@ -116,17 +146,17 @@ def delete_idrac_from_mysql(
             mysql_password=mysql_password,
             query=query
         )
-        
+
         if result.get("rc") == 0:
             return {
                 "success": True,
                 "ip": ip_to_delete,
                 "msg": f"Successfully deleted iDRAC IP {ip_to_delete} from MySQL."
             }
-        
+
         if attempt < retries - 1:
             time.sleep(delay)
-    
+
     return {
         "success": False,
         "ip": ip_to_delete,
@@ -172,13 +202,13 @@ def main():
         for pod in idrac_podnames:
             pod_ips = pod_to_db_idrac_ips.get(pod, [])
             ips_to_delete_from_pod = list(set(pod_ips) & set(ips_to_delete))
-            
+
             if not ips_to_delete_from_pod:
                 module.warn(f"No IPs to delete from pod {pod}. Skipping.")
                 continue
-            
+
             module.warn(f"Deleting IPs from pod {pod}: {ips_to_delete_from_pod}")
-            
+
             for ip in ips_to_delete_from_pod:
                 result = delete_idrac_from_mysql(
                     namespace=telemetry_namespace,
@@ -191,7 +221,7 @@ def main():
                     retries=db_retries,
                     delay=db_delay
                 )
-                
+
                 if result.get("success"):
                     deleted_ips.append(ip)
                     changed = True
@@ -209,7 +239,7 @@ def main():
             msg=f"Deleted {len(deleted_ips)} iDRAC IPs from MySQL database."
         )
 
-    except Exception as e:
+    except (OSError, ValueError) as e:
         module.fail_json(
             msg=f"An error occurred while deleting iDRAC IPs from MySQL: {str(e)}",
             deleted_ips=deleted_ips,

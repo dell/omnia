@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -100,28 +100,28 @@
     disabled_telemetry_ips: "{{ disable_telemetry_result.disabled_ips | default([]) }}"
   when: ips_to_remove | length > 0
 
-- name: Trigger rolling restart of StatefulSet after node removal
-  when:
-    - ips_to_remove | length > 0
-    - delete_idrac_result.deleted_ips is defined
-    - delete_idrac_result.deleted_ips | length > 0
-  block:
-    - name: Restart idrac telemetry StatefulSet
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: apps/v1
-          kind: StatefulSet
-          metadata:
-            name: "{{ idrac_telemetry_k8s_name }}"
-            namespace: "{{ telemetry_namespace }}"
-          spec:
-            template:
-              metadata:
-                annotations:
-                  kubectl.kubernetes.io/restartedAt: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
-      register: restart_statefulset_after_deletion
-  rescue:
-    - name: StatefulSet restart failed after deletion
-      ansible.builtin.fail:
-        msg: "{{ idrac_telemetry_statefulset_restart_failure_msg.splitlines() | join(' ') }}"
+# - name: Trigger rolling restart of StatefulSet after node removal
+#   when:
+#     - ips_to_remove | length > 0
+#     - delete_idrac_result.deleted_ips is defined
+#     - delete_idrac_result.deleted_ips | length > 0
+#   block:
+#     - name: Restart idrac telemetry StatefulSet
+#       kubernetes.core.k8s:
+#         state: present
+#         definition:
+#           apiVersion: apps/v1
+#           kind: StatefulSet
+#           metadata:
+#             name: "{{ idrac_telemetry_k8s_name }}"
+#             namespace: "{{ telemetry_namespace }}"
+#           spec:
+#             template:
+#               metadata:
+#                 annotations:
+#                   kubectl.kubernetes.io/restartedAt: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+#       register: restart_statefulset_after_deletion
+#   rescue:
+#     - name: StatefulSet restart failed after deletion
+#       ansible.builtin.fail:
+#         msg: "{{ idrac_telemetry_statefulset_restart_failure_msg.splitlines() | join(' ') }}"

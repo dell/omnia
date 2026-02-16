@@ -27,73 +27,101 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 def disable_telemetry_on_idrac(idrac_ip, username, password, timeout=30):
     """
     Disable telemetry on a single iDRAC node using Redfish API.
-    
+
     Args:
         idrac_ip: IP address of the iDRAC
         username: iDRAC username
         password: iDRAC password
         timeout: Request timeout in seconds
-    
+
     Returns:
         dict: Result containing success status and message
     """
-    url = f"https://{idrac_ip}/redfish/v1/Managers/iDRAC.Embedded.1/Attributes"
-    
-    payload = {
-        "Attributes": {
-            "TelemetryService.1.EnableTelemetry": "Disabled"
-        }
-    }
-    
+    url = (
+        f"https://{idrac_ip}/redfish/v1/Managers/"
+        f"iDRAC.Embedded.1/Attributes"
+    )
+
+    # Try different telemetry property names in order of preference
+    telemetry_properties = [
+        "Telemetry.1.EnableTelemetry",
+        "TelemetryService.1.EnableTelemetry", 
+        "Telemetry.2.EnableTelemetry",
+        "Redfish.1.TelemetryServiceEnabled"
+    ]
+
     headers = {
         "Content-Type": "application/json"
     }
-    
-    try:
-        response = requests.patch(
-            url,
-            json=payload,
-            headers=headers,
-            auth=(username, password),
-            verify=False,
-            timeout=timeout
-        )
-        
-        if response.status_code in [200, 202, 204]:
-            return {
-                "success": True,
-                "ip": idrac_ip,
-                "status_code": response.status_code,
-                "msg": f"Successfully disabled telemetry on iDRAC {idrac_ip}"
+
+    for property_name in telemetry_properties:
+        payload = {
+            "Attributes": {
+                property_name: "Disabled"
             }
-        else:
+        }
+
+        try:
+            response = requests.patch(
+                url,
+                json=payload,
+                headers=headers,
+                auth=(username, password),
+                verify=False,
+                timeout=timeout
+            )
+            
+            if response.status_code in [200, 202, 204]:
+                return {
+                    "success": True,
+                    "ip": idrac_ip,
+                    "status_code": response.status_code,
+                    "msg": f"Successfully disabled telemetry on iDRAC {idrac_ip} using {property_name}"
+                }
+            elif response.status_code == 400:
+                # Property not supported, try next one
+                continue
+            else:
+                return {
+                    "success": False,
+                    "ip": idrac_ip,
+                    "status_code": response.status_code,
+                    "msg": (
+                        f"Failed to disable telemetry on iDRAC {idrac_ip}. "
+                        f"Status: {response.status_code}, Response: {response.text}"
+                    )
+                }
+        
+        except requests.exceptions.Timeout:
             return {
                 "success": False,
                 "ip": idrac_ip,
-                "status_code": response.status_code,
-                "msg": f"Failed to disable telemetry on iDRAC {idrac_ip}. Status: {response.status_code}, Response: {response.text}"
+                "msg": f"Timeout while connecting to iDRAC {idrac_ip}"
             }
-    
-    except requests.exceptions.Timeout:
-        return {
-            "success": False,
-            "ip": idrac_ip,
-            "msg": f"Timeout while connecting to iDRAC {idrac_ip}"
-        }
-    
-    except requests.exceptions.ConnectionError:
-        return {
-            "success": False,
-            "ip": idrac_ip,
-            "msg": f"Connection error while connecting to iDRAC {idrac_ip}"
-        }
-    
-    except Exception as e:
-        return {
-            "success": False,
-            "ip": idrac_ip,
-            "msg": f"Error disabling telemetry on iDRAC {idrac_ip}: {str(e)}"
-        }
+        
+        except requests.exceptions.ConnectionError:
+            return {
+                "success": False,
+                "ip": idrac_ip,
+                "msg": f"Connection error while connecting to iDRAC {idrac_ip}"
+            }
+        
+        except (requests.exceptions.RequestException, OSError) as e:
+            return {
+                "success": False,
+                "ip": idrac_ip,
+                "msg": f"Error disabling telemetry on iDRAC {idrac_ip}: {str(e)}"
+            }
+
+    # All properties failed
+    return {
+        "success": False,
+        "ip": idrac_ip,
+        "msg": (
+            f"Failed to disable telemetry on iDRAC {idrac_ip}. "
+            f"None of the supported telemetry properties were found: {', '.join(telemetry_properties)}"
+        )
+    }
 
 
 def main():
@@ -127,7 +155,7 @@ def main():
                 password=password,
                 timeout=timeout
             )
-            
+
             if result.get("success"):
                 disabled_ips.append(idrac_ip)
                 changed = True
@@ -144,7 +172,7 @@ def main():
             msg=f"Disabled telemetry on {len(disabled_ips)} iDRAC nodes."
         )
 
-    except Exception as e:
+    except (requests.exceptions.RequestException, OSError) as e:
         module.fail_json(
             msg=f"An error occurred while disabling telemetry: {str(e)}",
             disabled_ips=disabled_ips,
