@@ -68,6 +68,7 @@ async def generate_input_files(
     job_id: str,
     request_body: Optional[GenerateInputFilesRequest] = Body(default=None),
     token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
+    scope_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
 ) -> GenerateInputFilesResponse:
     """Generate Omnia input files from a parsed catalog.
 
@@ -75,6 +76,7 @@ async def generate_input_files(
         job_id: The job identifier.
         request_body: Optional request with custom adapter policy path.
         token_data: Validated token data from JWT (injected by dependency).
+        scope_data: Token data with validated scope (injected by dependency).
 
     Returns:
         GenerateInputFilesResponse with generated config details.
