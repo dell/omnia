@@ -53,6 +53,7 @@
     mode: '0755'
 
 - name: Create .gitlab-ci.yml when missing
+  when: ci_file_check.status == 404
   block:
     - name: Copy .gitlab-ci.yml to GitLab host
       ansible.builtin.copy:
@@ -79,7 +80,6 @@
         status_code: [200, 201]
         validate_certs: false
       no_log: true
-  when: ci_file_check.status == 404
 
 # - name: Update .gitlab-ci.yml when it already exists
 #   block:
@@ -111,6 +111,7 @@
 #   when: ci_file_check.status == 200
 
 - name: Create catalog JSON when missing
+  when: catalog_file_check.status == 404
   block:
     - name: Copy catalog JSON to GitLab host
       ansible.builtin.copy:
@@ -136,7 +137,6 @@
           commit_message: "Add catalog_rhel.json"
         status_code: [200, 201]
         validate_certs: false
-  when: catalog_file_check.status == 404
 
 # - name: Update catalog JSON when it already exists
 #   block:
