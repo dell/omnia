@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from api.dependencies import verify_token, require_job_write
 from api.local_repo.dependencies import (
     get_create_local_repo_use_case,
     get_local_repo_client_id,
@@ -67,6 +68,7 @@ def _build_error_response(
         202: {"description": "Stage accepted", "model": CreateLocalRepoResponse},
         400: {"description": "Invalid request", "model": LocalRepoErrorResponse},
         401: {"description": "Unauthorized", "model": LocalRepoErrorResponse},
+        403: {"description": "Forbidden - insufficient scope", "model": LocalRepoErrorResponse},
         404: {"description": "Job not found", "model": LocalRepoErrorResponse},
         409: {"description": "Stage conflict", "model": LocalRepoErrorResponse},
         500: {"description": "Internal error", "model": LocalRepoErrorResponse},
@@ -74,9 +76,11 @@ def _build_error_response(
 )
 def create_local_repository(
     job_id: str,
+    token_data: dict = Depends(verify_token),
     use_case: CreateLocalRepoUseCase = Depends(get_create_local_repo_use_case),
     client_id: ClientId = Depends(get_local_repo_client_id),
     correlation_id: CorrelationId = Depends(get_local_repo_correlation_id),
+    _: None = Depends(require_job_write),
 ) -> CreateLocalRepoResponse:
     """Trigger the create-local-repository stage for a job.
 
