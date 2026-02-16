@@ -14,6 +14,6 @@
 
 """GenerateInputFiles API module."""
 
-from .routes import router
+from api.generate_input_files.routes import router
 
 __all__ = ["router"]

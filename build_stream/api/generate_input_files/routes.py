@@ -39,7 +39,7 @@ from orchestrator.catalog.commands.generate_input_files import (
     GenerateInputFilesCommand,
 )
 
-from .schemas import (
+from api.generate_input_files.schemas import (
     ArtifactRefResponse,
     ErrorResponse,
     GenerateInputFilesRequest,
