@@ -25,9 +25,17 @@
   changed_when: remove_runner.rc == 0
   failed_when: remove_runner.rc not in [0, 125]
 
+- name: Check if runner image already exists
+  ansible.builtin.command: podman image exists {{ gitlab_runner_image }}
+  register: runner_image_present
+  changed_when: false
+  failed_when: false
+
 - name: Pull runner image
   ansible.builtin.command: podman pull {{ gitlab_runner_image }}
-  changed_when: false
+  register: pull_runner_image
+  changed_when: runner_image_present.rc != 0
+  when: runner_image_present.rc != 0
 
 - name: Determine SELinux volume suffix
   ansible.builtin.set_fact:
@@ -49,6 +57,7 @@
     --token {{ gitlab_runner_auth_token }}
     --executor {{ gitlab_runner_executor }}
     --docker-image {{ gitlab_runner_default_image }}
+    --docker-pull-policy {{ gitlab_runner_pull_policy }}
     --description {{ gitlab_runner_description | quote }}
   args:
     creates: "{{ gitlab_runner_config_file }}"

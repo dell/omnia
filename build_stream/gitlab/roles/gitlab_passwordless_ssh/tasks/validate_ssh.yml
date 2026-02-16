@@ -13,7 +13,6 @@
 # limitations under the License.
 
 ---
-
 - name: Check ssh connection
   ansible.builtin.command: >-
     ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i {{ ssh_key_path }}
@@ -26,5 +25,5 @@
 
 - name: SSH connection failed
   ansible.builtin.fail:
-    msg: "Passwordless SSH to {{ gitlab_host }} failed. Verify connectivity manually."
+    msg: "{{ ssh_connection_failure_msg }}"
   when: ssh_connection is failed
