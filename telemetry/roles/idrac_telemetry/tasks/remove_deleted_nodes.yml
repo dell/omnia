@@ -42,7 +42,7 @@
     - name: Show successfully disabled telemetry IPs
       ansible.builtin.debug:
         msg: "Successfully disabled telemetry on: {{ disable_telemetry_result.disabled_ips | default([]) }}"
-      when: 
+      when:
         - disable_telemetry_result.disabled_ips is defined
         - disable_telemetry_result.disabled_ips | length > 0
 
