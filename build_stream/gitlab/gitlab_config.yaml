@@ -66,9 +66,6 @@ gitlab_runner_executor: "docker"
 gitlab_runner_default_image: "alpine:latest"
 gitlab_runner_pull_policy: "if-not-present"
 
-# ----------------------------------------------------------------------------
-# EXISTING MODE SETTINGS (Client-Hosted GitLab Integration)
-# ----------------------------------------------------------------------------
 gitlab_external_url: ""
 gitlab_api_token: ""
 gitlab_namespace: "root"
