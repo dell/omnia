@@ -630,6 +630,8 @@ def generate_configs_from_policy(
     if not architectures:
         logger.warning("No architectures discovered under input directory: %s", input_dir)
         return
+        
+    logger.info("Discovered architectures: %s", architectures)
 
     for arch in architectures:
         os_versions = discover_os_versions(input_dir, arch)

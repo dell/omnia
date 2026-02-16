@@ -54,8 +54,8 @@ from core.jobs.repositories import (
 )
 from core.jobs.value_objects import JobId, StageName, StageType, StageState, JobState
 
-from ..commands.generate_input_files import GenerateInputFilesCommand
-from ..dtos import GenerateInputFilesResult
+from orchestrator.catalog.commands.generate_input_files import GenerateInputFilesCommand
+from orchestrator.catalog.dtos import GenerateInputFilesResult
 
 logger = logging.getLogger(__name__)
 
