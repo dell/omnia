@@ -19,7 +19,7 @@ from typing import Optional
 
 from core.build_image.entities import BuildImageRequest
 from core.build_image.exceptions import InventoryHostMissingError
-from core.build_image.repositories import BuildImageConfigRepository
+from core.build_image.repositories import BuildStreamConfigRepository
 from core.build_image.value_objects import Architecture, InventoryHost
 from core.jobs.value_objects import CorrelationId
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 class BuildImageConfigService:
     """Service for build image configuration operations."""
 
-    def __init__(self, config_repo: BuildImageConfigRepository):
+    def __init__(self, config_repo: BuildStreamConfigRepository):
         """Initialize service with repository."""
         self._config_repo = config_repo
 

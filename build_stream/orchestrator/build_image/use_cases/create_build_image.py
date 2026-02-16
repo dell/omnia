@@ -27,7 +27,10 @@ from core.build_image.exceptions import (
     InvalidFunctionalGroupsError,
     InventoryHostMissingError,
 )
-from core.build_image.repositories import BuildImageConfigRepository
+from core.build_image.repositories import (
+    BuildStreamConfigRepository,
+    BuildImageInventoryRepository,
+)
 from core.build_image.services import (
     BuildImageConfigService,
     BuildImageQueueService,
@@ -77,6 +80,7 @@ class CreateBuildImageUseCase:
     - Job ownership verification: Client must own the job
     - Architecture validation: Only x86_64 and aarch64 supported
     - Inventory host validation: Required for aarch64 builds
+    - Inventory file creation: Creates inventory file for aarch64 builds
     - Audit trail: Emits STAGE_STARTED event
     - NFS queue submission: Submits playbook request to NFS queue for watcher service
 
@@ -86,6 +90,7 @@ class CreateBuildImageUseCase:
         audit_repo: Audit event repository port.
         config_service: Build image configuration service.
         queue_service: Build image queue service.
+        inventory_repo: Build image inventory repository.
         uuid_generator: UUID generator for events and request IDs.
     """
 
@@ -96,6 +101,7 @@ class CreateBuildImageUseCase:
         audit_repo: AuditEventRepository,
         config_service: BuildImageConfigService,
         queue_service: BuildImageQueueService,
+        inventory_repo: BuildImageInventoryRepository,
         uuid_generator: UUIDGenerator,
     ) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments
         """Initialize use case with repository and service dependencies.
@@ -106,6 +112,7 @@ class CreateBuildImageUseCase:
             audit_repo: Audit event repository implementation.
             config_service: Build image configuration service.
             queue_service: Build image queue service.
+            inventory_repo: Build image inventory repository.
             uuid_generator: UUID generator for identifiers.
         """
         self._job_repo = job_repo
@@ -113,6 +120,7 @@ class CreateBuildImageUseCase:
         self._audit_repo = audit_repo
         self._config_service = config_service
         self._queue_service = queue_service
+        self._inventory_repo = inventory_repo
         self._uuid_generator = uuid_generator
 
     def execute(self, command: CreateBuildImageCommand) -> BuildImageResponse:
@@ -141,13 +149,20 @@ class CreateBuildImageUseCase:
         functional_groups = self._validate_functional_groups(command)
 
         inventory_host = self._get_inventory_host(command, architecture, stage)
+        
+        # Create inventory file for aarch64 builds
+        inventory_file_path = None
+        if inventory_host:
+            inventory_file_path = self._create_inventory_file(
+                command, inventory_host, stage
+            )
 
         request = self._build_playbook_request(
             command,
             architecture,
             image_key,
             functional_groups,
-            inventory_host,
+            inventory_file_path,
         )
         self._submit_to_queue(command, request, stage, architecture)
 
@@ -229,9 +244,35 @@ class CreateBuildImageUseCase:
     ):
         """Get inventory host for aarch64 builds.
 
+        Priority:
+        1. Use inventory_host from command if provided (from API request)
+        2. Fall back to config service (from build_stream_config.yml)
+
         If inventory host retrieval fails, the stage is transitioned to FAILED
         and the error is re-raised to prevent playbook invocation.
         """
+        # If inventory_host is provided in the command, use it directly
+        if command.inventory_host:
+            try:
+                return InventoryHost(command.inventory_host)
+            except ValueError as exc:
+                stage.start()
+                stage.fail(
+                    error_code="INVALID_INVENTORY_HOST",
+                    error_summary=f"Invalid inventory host format: {str(exc)}",
+                )
+                self._stage_repo.save(stage)
+                log_secure_info(
+                    "error",
+                    f"Invalid inventory host for job {command.job_id}",
+                    str(command.correlation_id),
+                )
+                raise InventoryHostMissingError(
+                    message=f"Invalid inventory host format: {str(exc)}",
+                    correlation_id=str(command.correlation_id),
+                ) from exc
+        
+        # Fall back to config service for backward compatibility
         try:
             return self._config_service.get_inventory_host(
                 job_id=str(command.job_id),
@@ -252,13 +293,57 @@ class CreateBuildImageUseCase:
             )
             raise
 
+    def _create_inventory_file(
+        self,
+        command: CreateBuildImageCommand,
+        inventory_host: InventoryHost,
+        stage: Stage,
+    ) -> Optional[Path]:
+        """Create inventory file for aarch64 builds.
+
+        Args:
+            command: CreateBuildImage command.
+            inventory_host: Inventory host IP.
+            stage: Current stage entity.
+
+        Returns:
+            Path to created inventory file.
+
+        Raises:
+            IOError: If inventory file creation fails.
+        """
+        try:
+            inventory_file_path = self._inventory_repo.create_inventory_file(
+                inventory_host=inventory_host,
+                job_id=str(command.job_id),
+            )
+            logger.info(
+                "Created inventory file for job %s at %s",
+                command.job_id,
+                inventory_file_path,
+            )
+            return inventory_file_path
+        except IOError as exc:
+            stage.start()
+            stage.fail(
+                error_code="INVENTORY_FILE_CREATION_FAILED",
+                error_summary=f"Failed to create inventory file: {str(exc)}",
+            )
+            self._stage_repo.save(stage)
+            log_secure_info(
+                "error",
+                f"Failed to create inventory file for job {command.job_id}",
+                str(command.correlation_id),
+            )
+            raise
+
     def _build_playbook_request(
         self,
         command: CreateBuildImageCommand,
         architecture: Architecture,
         image_key: ImageKey,
         functional_groups: FunctionalGroups,
-        inventory_host: Optional[InventoryHost],
+        inventory_file_path: Optional[Path],
     ) -> BuildImageRequest:
         """Compatibility shim matching historical naming used by execute()."""
         return self._create_request(
@@ -266,7 +351,7 @@ class CreateBuildImageUseCase:
             architecture,
             image_key,
             functional_groups,
-            inventory_host,
+            inventory_file_path,
         )
 
     def _create_request(
@@ -275,7 +360,7 @@ class CreateBuildImageUseCase:
         architecture: Architecture,
         image_key: ImageKey,
         functional_groups: FunctionalGroups,
-        inventory_host: Optional[InventoryHost],
+        inventory_file_path: Optional[Path],
     ) -> BuildImageRequest:
         """Create BuildImageRequest entity."""
         # Determine playbook path based on architecture
@@ -291,10 +376,6 @@ class CreateBuildImageUseCase:
             "image_key": str(image_key),
             "functional_groups": functional_groups.to_list(),
         }
-        
-        # Add inventory host for aarch64
-        if inventory_host:
-            extra_vars_dict["inventory_host"] = str(inventory_host)
 
         extra_vars = ExtraVars(extra_vars_dict)
 
@@ -303,6 +384,7 @@ class CreateBuildImageUseCase:
             stage_name="build-image",
             playbook_path=playbook_path,
             extra_vars=extra_vars,
+            inventory_file_path=str(inventory_file_path) if inventory_file_path else None,
             correlation_id=str(command.correlation_id),
             timeout=ExecutionTimeout(60),  # TODO: Make configurable
             submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),

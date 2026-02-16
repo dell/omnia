@@ -14,8 +14,8 @@
 
 """Pydantic schemas for Build Image API requests and responses."""
 
-from typing import List
-from pydantic import BaseModel, Field
+from typing import List, Optional
+from pydantic import BaseModel, Field, field_validator
 
 
 class CreateBuildImageRequest(BaseModel):
@@ -38,6 +38,25 @@ class CreateBuildImageRequest(BaseModel):
         min_items=1,
         max_items=50,
     )
+    inventory_host: Optional[str] = Field(
+        None,
+        description="Inventory host IP for aarch64 builds (required for aarch64, must be None for x86_64)",
+        pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+    )
+
+    @field_validator("inventory_host")
+    @classmethod
+    def validate_inventory_host(cls, v: Optional[str], info) -> Optional[str]:
+        """Validate inventory_host based on architecture."""
+        architecture = info.data.get("architecture")
+        
+        if architecture == "aarch64" and not v:
+            raise ValueError("inventory_host is required for aarch64 architecture")
+        
+        if architecture == "x86_64" and v:
+            raise ValueError("inventory_host must be None for x86_64 architecture")
+        
+        return v
 
 
 class CreateBuildImageResponse(BaseModel):

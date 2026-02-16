@@ -17,7 +17,7 @@
 import pytest
 
 from core.build_image.exceptions import InventoryHostMissingError
-from core.build_image.repositories import BuildImageConfigRepository
+from core.build_image.repositories import BuildStreamConfigRepository
 from core.build_image.services import (
     BuildImageConfigService,
     BuildImageQueueService,
@@ -31,8 +31,8 @@ from core.localrepo.value_objects import (
 )
 
 
-class MockBuildImageConfigRepository(BuildImageConfigRepository):
-    """Mock implementation of BuildImageConfigRepository."""
+class MockBuildImageConfigRepository(BuildStreamConfigRepository):
+    """Mock implementation of BuildStreamConfigRepository."""
 
     def __init__(self, inventory_host=None, should_fail=False):
         """Initialize mock with optional inventory host."""

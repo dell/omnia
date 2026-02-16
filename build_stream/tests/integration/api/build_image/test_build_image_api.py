@@ -110,7 +110,7 @@ class TestBuildImageAPI:
             config_file.write_text("inventory_host: 192.168.1.100\n")
 
             # Mock the config repository path
-            with patch("infra.repositories.nfs_build_image_config_repository.NfsBuildImageConfigRepository._base_path", temp_dir + "/jobs"):
+            with patch("infra.repositories.nfs_build_stream_config_repository.NfsBuildStreamConfigRepository._base_path", temp_dir + "/jobs"):
                 # Trigger build image stage
                 response = client.post(
                     f"/api/v1/jobs/{job_id}/stages/build-image",
@@ -214,7 +214,7 @@ class TestBuildImageAPI:
             job_dir.mkdir(parents=True)
 
             # Mock the config repository path
-            with patch("infra.repositories.nfs_build_image_config_repository.NfsBuildImageConfigRepository._base_path", temp_dir + "/jobs"):
+            with patch("infra.repositories.nfs_build_stream_config_repository.NfsBuildStreamConfigRepository._base_path", temp_dir + "/jobs"):
                 # Try aarch64 without inventory host
                 response = client.post(
                     f"/api/v1/jobs/{job_id}/stages/build-image",

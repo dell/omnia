@@ -82,6 +82,12 @@
     state: directory
     mode: "{{ build_stream_dir_mode }}"
 
+- name: Ensure build_stream log directory exists
+  ansible.builtin.file:
+    path: "{{ build_stream_log_dir }}"
+    state: directory
+    mode: "{{ build_stream_dir_mode }}"
+
 - name: Sync build_stream source code from codebase to deployment location
   ansible.posix.synchronize:
     src: "{{ bs_rsync_source }}"
@@ -209,7 +215,12 @@
       notify:
         - Reload systemd
 
-    # Ensure systemd reload happens before starting service
+    # Ensure systemd reload happens even if Quadlet content was already up-to-date
+    - name: Force systemd to re-read Quadlet units
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    # Execute any pending handler-triggered reload before starting the service
     - name: Apply systemd reload now
       ansible.builtin.meta: flush_handlers
 

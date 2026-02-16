@@ -120,6 +120,7 @@ def create_build_image(
             architecture=request_body.architecture,
             image_key=request_body.image_key,
             functional_groups=request_body.functional_groups,
+            inventory_host=request_body.inventory_host,
         )
         result = use_case.execute(command)
 

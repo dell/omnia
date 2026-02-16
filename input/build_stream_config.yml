@@ -21,15 +21,25 @@
 # BuildStreaM (BSM)) Configuration for configuring CI/CD pipeline to automate image building and deploy
 # ***********************************************************************
 
-# Enable or disable build stream pipeline
+# Mandatory: Enable or disable build stream pipeline
 # Accepted values: boolean values - (true or false) or(yes or no)
 # Default: false
 enable_build_stream: false
 
-# Build Stream API server port
+# Madatory: Build Stream API server port
+# Accepted values: public IP address of OIM or admin IP of OIM
+# Default is admin IP of OIM
+build_stream_host_ip: "{{ admin_nic_ip }}"
+
+# Madatory: Build Stream API server port
 # Accepted values: valid port number (1-65535) which is free
 # Default: 443
 build_stream_port: 443
+
+# Conditional Mandatory: AArch64 inventory host IP for aarch64 builds
+# Accepted values: admin IP of aarch64 host where OS is installed
+# Default none - by deafult aarch64 builds will not be generated
+aarch64_inventory_host_ip:
 
 # PostgreSQL configuration for build stream
 postgres_db_name: "build_stream_db"

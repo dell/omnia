@@ -33,7 +33,8 @@ class BuildImageRequest:
         job_id: Parent job identifier.
         stage_name: Stage identifier (build-image).
         playbook_path: Validated path to the playbook.
-        extra_vars: Ansible extra variables (includes architecture, image_key, functional_groups, inventory_host).
+        extra_vars: Ansible extra variables (includes architecture, image_key, functional_groups).
+        inventory_file_path: Optional path to inventory file for aarch64 builds.
         correlation_id: Request tracing identifier.
         timeout: Execution timeout configuration.
         submitted_at: Request submission timestamp.
@@ -44,6 +45,7 @@ class BuildImageRequest:
     stage_name: str
     playbook_path: PlaybookPath
     extra_vars: ExtraVars
+    inventory_file_path: Optional[str] = None
     correlation_id: str
     timeout: ExecutionTimeout
     submitted_at: str
@@ -51,7 +53,7 @@ class BuildImageRequest:
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize request to dictionary for JSON file writing."""
-        return {
+        request_dict = {
             "job_id": self.job_id,
             "stage_name": self.stage_name,
             "playbook_path": str(self.playbook_path),
@@ -61,6 +63,12 @@ class BuildImageRequest:
             "submitted_at": self.submitted_at,
             "request_id": self.request_id,
         }
+        
+        # Add inventory file path if present
+        if self.inventory_file_path:
+            request_dict["inventory_file_path"] = self.inventory_file_path
+            
+        return request_dict
 
     def generate_filename(self) -> str:
         """Generate request file name following naming convention.
@@ -72,7 +80,7 @@ class BuildImageRequest:
         return f"{self.job_id}_{self.stage_name}_{timestamp}.json"
 
     def get_playbook_command(self) -> str:
-        """Generate the ansible-playbook command based on extra_vars.
+        """Generate the ansible-playbook command based on request parameters.
 
         Returns:
             Complete ansible-playbook command string.
@@ -80,12 +88,12 @@ class BuildImageRequest:
         # Base command
         cmd = f'ansible-playbook {self.playbook_path}'
         
-        # Add inventory for aarch64
-        extra_vars = self.extra_vars.to_dict()
-        if extra_vars.get("inventory_host"):
-            cmd += f' -i {extra_vars["inventory_host"]}'
+        # Add inventory file for aarch64
+        if self.inventory_file_path:
+            cmd += f' -i {self.inventory_file_path}'
         
         # Add extra vars
+        extra_vars = self.extra_vars.to_dict()
         cmd += f' -e job_id="{extra_vars["job_id"]}"'
         cmd += f' -e image_key="{extra_vars["image_key"]}"'
         cmd += f' -e functional_groups=\'{extra_vars["functional_groups"]}\''

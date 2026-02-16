@@ -26,16 +26,50 @@ from core.build_image.repositories import BuildImageConfigRepository
 logger = logging.getLogger(__name__)
 
 
-class NfsBuildImageConfigRepository(BuildImageConfigRepository):
-    """NFS-based repository for build_stream_config.yml access."""
+def _read_project_name(default_file_path: str = "/opt/omnia/input/default.yml") -> str:
+    """Read project_name from default.yml.
 
-    def __init__(self, base_path: str = "/opt/omnia/build_stream/jobs"):
-        """Initialize repository with base path.
+    Args:
+        default_file_path: Path to default.yml file.
+
+    Returns:
+        Project name (e.g., "project_default"). Returns 'project_default' fallback on any error.
+    """
+    default_path = Path(default_file_path)
+    if not default_path.exists():
+        return "project_default"
+
+    try:
+        with open(default_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        if not config or "project_name" not in config:
+            return "project_default"
+        return str(config["project_name"])
+    except yaml.YAMLError:
+        return "project_default"
+    except Exception:
+        return "project_default"
+
+
+class NfsBuildStreamConfigRepository(BuildImageConfigRepository):
+    """Repository for build_stream_config.yml access."""
+
+    def __init__(
+        self,
+        config_file_path: Optional[str] = None,
+        default_file_path: str = "/opt/omnia/input/default.yml",
+    ):
+        """Initialize repository with shared config path.
 
         Args:
-            base_path: Base directory for job data on NFS.
+            config_file_path: Full path to build_stream_config.yml. If None, constructed
+                             using project_name from default.yml.
+            default_file_path: Path to default.yml to read project_name.
         """
-        self._base_path = Path(base_path)
+        if config_file_path is None:
+            project_name = _read_project_name(default_file_path)
+            config_file_path = f"/opt/omnia/input/{project_name}/build_stream_config.yml"
+        self._config_file_path = Path(config_file_path)
 
     def get_inventory_host(self, job_id: str) -> Optional[str]:
         """Retrieve inventory host IP from build_stream_config.yml.
@@ -49,11 +83,11 @@ class NfsBuildImageConfigRepository(BuildImageConfigRepository):
         Raises:
             ConfigurationError: If config file is invalid or inaccessible.
         """
-        config_path = self._base_path / job_id / "input" / "build_stream_config.yml"
-        
+        config_path = self._config_file_path
+
         if not config_path.exists():
             logger.warning(
-                "build_stream_config.yml not found for job %s at %s",
+                "build_stream_config.yml not found at %s (job %s)",
                 job_id,
                 config_path,
             )

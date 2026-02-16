@@ -21,7 +21,8 @@ from infra.repositories.in_memory import (
 from infra.repositories.nfs_playbook_queue_request_repository import NfsPlaybookQueueRequestRepository
 from infra.repositories.nfs_playbook_queue_result_repository import NfsPlaybookQueueResultRepository
 from infra.repositories.nfs_input_directory_repository import NfsInputDirectoryRepository
-from infra.repositories.nfs_build_image_config_repository import NfsBuildImageConfigRepository
+from infra.repositories.nfs_build_stream_config_repository import NfsBuildStreamConfigRepository
+from infra.repositories.nfs_build_image_inventory_repository import NfsBuildImageInventoryRepository
 
 __all__ = [
     "InMemoryJobRepository",
@@ -31,5 +32,6 @@ __all__ = [
     "NfsPlaybookQueueRequestRepository",
     "NfsPlaybookQueueResultRepository",
     "NfsInputDirectoryRepository",
-	"NfsBuildImageConfigRepository"
+    "NfsBuildStreamConfigRepository",
+    "NfsBuildImageInventoryRepository",
 ]

@@ -15,7 +15,7 @@
 """CreateBuildImage command DTO."""
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 from core.jobs.value_objects import ClientId, CorrelationId, JobId
 
@@ -34,6 +34,7 @@ class CreateBuildImageCommand:
         architecture: Target architecture (x86_64 or aarch64).
         image_key: Image identifier key.
         functional_groups: List of functional groups to build.
+        inventory_host: Optional inventory host IP for aarch64 builds.
     """
 
     job_id: JobId
@@ -42,3 +43,4 @@ class CreateBuildImageCommand:
     architecture: str
     image_key: str
     functional_groups: List[str]
+    inventory_host: Optional[str] = None
