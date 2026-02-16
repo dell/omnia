@@ -24,6 +24,13 @@
     gitlab_root_token: "{{ root_token_output.stdout | trim }}"
   no_log: true
 
+- name: Save root API token to disk
+  ansible.builtin.copy:
+    content: "{{ gitlab_root_token }}"
+    dest: "/root/.gitlab_root_token"
+    mode: '0600'
+  no_log: true
+
 - name: Check if project exists
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects?search={{ gitlab_project_name }}"
