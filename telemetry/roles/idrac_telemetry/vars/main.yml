@@ -72,6 +72,7 @@ redfish_timeout: 30
 mysqldb_delete_fail_msg: |
   Failed to delete iDRAC IPs from the mysql database.
   This could be due to the tables in the mysqldb not being accessible at the moment. Please try running the playbook again after some time.
+no_idracips_to_remove_msg: "No iDRAC IPs to remove. All DB entries are present in bmc_data.csv."
 
 # Usage: create_telemetry_report.yml
 telemetry_report_path: "/opt/omnia/telemetry/idrac_telemetry_report.yml"
