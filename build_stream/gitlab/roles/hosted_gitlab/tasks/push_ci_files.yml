@@ -68,7 +68,7 @@
 
     - name: Create .gitlab-ci.yml in repository
       ansible.builtin.uri:
-        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"  # noqa: yaml[line-length]
         method: POST
         headers:
           PRIVATE-TOKEN: "{{ gitlab_root_token }}"
@@ -126,7 +126,7 @@
 
     - name: Create catalog JSON in repository
       ansible.builtin.uri:
-        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}"
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}"  # noqa: yaml[line-length]
         method: POST
         headers:
           PRIVATE-TOKEN: "{{ gitlab_root_token }}"

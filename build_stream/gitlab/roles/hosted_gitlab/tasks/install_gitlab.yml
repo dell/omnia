@@ -28,6 +28,7 @@
 
 - name: Install GitLab repository
   ansible.builtin.command: /bin/bash /tmp/gitlab_repo_install.sh
+  changed_when: true
   when: not gitlab_repo_file.stat.exists
 
 - name: Install GitLab CE package
