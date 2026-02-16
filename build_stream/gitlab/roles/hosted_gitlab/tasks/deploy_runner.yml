@@ -15,11 +15,15 @@
 ---
 - name: Stop existing runner container
   ansible.builtin.command: podman stop {{ gitlab_runner_container_name }}
-  ignore_errors: true
+  register: stop_runner
+  changed_when: stop_runner.rc == 0
+  failed_when: stop_runner.rc not in [0, 125]
 
 - name: Remove existing runner container
   ansible.builtin.command: podman rm {{ gitlab_runner_container_name }}
-  ignore_errors: true
+  register: remove_runner
+  changed_when: remove_runner.rc == 0
+  failed_when: remove_runner.rc not in [0, 125]
 
 - name: Pull runner image
   ansible.builtin.command: podman pull {{ gitlab_runner_image }}

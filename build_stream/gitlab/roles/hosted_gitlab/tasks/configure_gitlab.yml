@@ -27,6 +27,7 @@
 
 - name: Reconfigure GitLab
   ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+  changed_when: false
 
 - name: Wait for GitLab to initialize
   ansible.builtin.pause:
@@ -39,7 +40,7 @@
   retries: "{{ gitlab_health_check_retries }}"
   delay: "{{ gitlab_health_check_delay }}"
   until: gitlab_status.rc == 0
-  ignore_errors: true
+  changed_when: false
 
 - name: Get initial root password
   ansible.builtin.command: grep 'Password:' /etc/gitlab/initial_root_password

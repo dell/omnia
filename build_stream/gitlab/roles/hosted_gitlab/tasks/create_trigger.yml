@@ -46,7 +46,16 @@
 
 - name: Set trigger token fact
   ansible.builtin.set_fact:
-    gitlab_trigger_token: "{{ new_trigger.json.token if not trigger_exists else (existing_triggers.json | selectattr('description', 'equalto', gitlab_trigger_description) | first).token }}"
+    gitlab_trigger_token: >-
+      {{
+        new_trigger.json.token
+        if not trigger_exists
+        else (
+          existing_triggers.json
+          | selectattr('description', 'equalto', gitlab_trigger_description)
+          | first
+        ).token
+      }}
   no_log: true
 
 - name: Save trigger token to file

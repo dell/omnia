@@ -26,7 +26,16 @@
 
 - name: Get root user API token
   ansible.builtin.shell: |
-    gitlab-rails runner "token = User.find_by_username('root').personal_access_tokens.create(scopes: [:api, :write_repository], name: 'omnia-automation', expires_at: 365.days.from_now); token.set_token('omnia-' + SecureRandom.hex(20)); token.save!; puts token.token"
+    gitlab-rails runner "
+      token = User.find_by_username('root').personal_access_tokens.create(
+        scopes: [:api, :write_repository],
+        name: 'omnia-automation',
+        expires_at: 365.days.from_now
+      )
+      token.set_token('omnia-' + SecureRandom.hex(20))
+      token.save!
+      puts token.token
+    "
   register: root_token_output
   changed_when: false
   no_log: true
