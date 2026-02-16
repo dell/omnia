@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-[Unit]
-Description=Top-level target for Omnia Core and OpenCHAMI
-Requires=omnia_core.service openchami.target pulp.service registry.service minio.service {{ auth_service }} {{ build_stream_service }} {{ playbook_watcher_service }} {{ omnia_postgres_service }}
-After=network.target
-Wants=network-online.target
+"""GenerateInputFiles API module."""
 
-[Install]
-WantedBy=multi-user.target default.target
+from api.generate_input_files.routes import router
+
+__all__ = ["router"]

@@ -284,7 +284,7 @@ async def delete_job(
             ).model_dump(),
         ) from e
 
-    from .dependencies import (  # pylint: disable=import-outside-toplevel
+    from api.jobs.dependencies import (  # pylint: disable=import-outside-toplevel
         get_job_repo as _get_job_repo,
         get_stage_repo as _get_stage_repo,
     )

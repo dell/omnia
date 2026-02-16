@@ -36,6 +36,7 @@ from infra.repositories import (
     NfsPlaybookQueueResultRepository,
     NfsBuildImageConfigRepository,
 )
+from orchestrator.catalog.use_cases.generate_input_files import GenerateInputFilesUseCase
 from orchestrator.catalog.use_cases.parse_catalog import ParseCatalogUseCase
 from orchestrator.jobs.use_cases import CreateJobUseCase
 from orchestrator.local_repo.use_cases import CreateLocalRepoUseCase
@@ -50,6 +51,8 @@ from core.localrepo.services import (
 from core.build_image.services import (
     BuildImageConfigService,
 )
+from core.catalog.adapter_policy import _DEFAULT_POLICY_PATH, _DEFAULT_SCHEMA_PATH
+from core.artifacts.value_objects import SafePath
 from common.config import load_config
 
 
@@ -88,7 +91,7 @@ def _create_artifact_store():
         )
 
 _RESOURCES_DIR = Path(__file__).resolve().parent / "core" / "catalog" / "resources"
-_DEFAULT_POLICY_PATH = _RESOURCES_DIR / "adapter_policy.json"
+_DEFAULT_POLICY_PATH = _RESOURCES_DIR / "adapter_policy_default.json"
 _DEFAULT_SCHEMA_PATH = _RESOURCES_DIR / "AdapterPolicySchema.json"
 
 
@@ -114,6 +117,17 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
 
     job_id_generator = providers.Singleton(JobUUIDGenerator)
     uuid_generator = providers.Singleton(UUIDv4Generator)
+
+
+    default_policy_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_POLICY_PATH,
+    )
+
+    policy_schema_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_SCHEMA_PATH,
+    )
 
     # --- Jobs repositories ---
     job_repository = providers.Singleton(InMemoryJobRepository)
@@ -207,6 +221,18 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
+    generate_input_files_use_case = providers.Factory(
+        GenerateInputFilesUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        artifact_store=artifact_store,
+        artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
+        default_policy_path=default_policy_path,
+        policy_schema_path=policy_schema_path,
+    )
+    
     create_build_image_use_case = providers.Factory(
         CreateBuildImageUseCase,
         job_repo=job_repository,
@@ -238,6 +264,17 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     job_id_generator = providers.Singleton(JobUUIDGenerator)
     uuid_generator = providers.Singleton(UUIDv4Generator)
 
+
+    default_policy_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_POLICY_PATH,
+    )
+
+    policy_schema_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_SCHEMA_PATH,
+    )
+
     # --- Jobs repositories ---
     job_repository = providers.Singleton(InMemoryJobRepository)
     stage_repository = providers.Singleton(InMemoryStageRepository)
@@ -340,6 +377,18 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
+
+    generate_input_files_use_case = providers.Factory(
+        GenerateInputFilesUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        artifact_store=artifact_store,
+        artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
+        default_policy_path=default_policy_path,
+        policy_schema_path=policy_schema_path,
+    )
 
 
 def get_container_class():

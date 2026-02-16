@@ -19,7 +19,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from api.dependencies import require_catalog_read
+from api.dependencies import require_catalog_read, verify_token
 from api.parse_catalog.schemas import ErrorResponse, ParseCatalogResponse, ParseCatalogStatus
 from api.parse_catalog.service import (
     InvalidFileFormatError,
@@ -79,18 +79,20 @@ _service = ParseCatalogService()
 async def parse_catalog(
     job_id: str,
     file: UploadFile = File(..., description="The catalog JSON file to parse"),
-    token_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
+    token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
+    scope_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
 ) -> ParseCatalogResponse:
     """Parse a catalog from an uploaded JSON file.
 
     This endpoint accepts a catalog JSON file, validates its format and content,
     then processes it to generate the required output files. Requires a valid
-    JWT token with 'catalog:read' scope.
+    JWT token and 'catalog:read' scope.
 
     Args:
         job_id: The job identifier for the parsing operation.
         file: The uploaded JSON file containing catalog data.
         token_data: Validated token data from JWT (injected by dependency).
+        scope_data: Token data with validated scope (injected by dependency).
 
     Returns:
         ParseCatalogResponse with status and message.
