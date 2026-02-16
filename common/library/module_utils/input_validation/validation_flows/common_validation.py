@@ -233,6 +233,19 @@ def validate_software_config(
             )
         )
 
+    # Check for required subgroups when specific software names are present
+    software_requiring_subgroups = ["additional_packages", "slurm_custom", "service_k8s"]
+    for software_name in software_requiring_subgroups:
+        if software_name in software_names:
+            if software_name not in data or not data[software_name]:
+                errors.append(
+                    create_error_msg(
+                        "Validation Error: ",
+                        software_name,
+                        f"is present in softwares but corresponding subgroup '{software_name}' is missing or empty in software_config.json. Please refer examples directory for the correct format."
+                    )
+                )
+
     for software_pkg in data['softwares']:
         software = software_pkg['name']
         arch_list = software_pkg.get('arch')

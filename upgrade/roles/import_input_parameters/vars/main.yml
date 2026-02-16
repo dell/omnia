@@ -13,18 +13,91 @@
 # limitations under the License.
 ---
 
-backup_location: /opt/omnia/backups/upgrade/input/project_default
+# backup_location will be set from oim_metadata.yml upgrade_backup_dir
+# Format: /opt/omnia/backups/upgrade/version_2.0.0.0/input/project_default
+# Set dynamically from metadata, no static variable needed
+
+# Path to oim_metadata.yml
+oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
 
 backup_dir_mode: '0755'
 default_file_mode: '0644'
 
+# List to collect warnings during execution
+upgrade_warnings: []
+
 # Precheck backup location messages
 msg_backup_location_missing: "backup_location must be provided"
+msg_upgrade_backup_dir_missing: "upgrade_backup_dir not found in /opt/omnia/.data/oim_metadata.yml"
 
 # Restore input files messages
 msg_restore_item_name_missing: "restore_item must define 'name'"
 msg_validation_failed: "Validation failed for {{ restore_item.name }}"
 msg_backup_file_missing: "Backup file missing: {{ restore_item.name }}"
+msg_user_registry_credential_missing: |-
+  WARNING: user_registry_credential.yml not found in backup at
+  {{ backup_location }}/user_registry_credential.yml
+  This might be due to complete Omnia execution not being completed.
+  Skipping restoration of this file.
+
+# Omnia config credentials messages
+msg_omnia_config_credentials_missing: |-
+  WARNING: omnia_config_credentials.yml not found in backup at
+  {{ backup_location }}/omnia_config_credentials.yml.
+  This might be due to complete Omnia execution not being completed.
+  Skipping restoration of this file.
+
+msg_omnia_config_credentials_info_missing: |-
+  INFO: Both omnia_config_credentials.yml and .omnia_config_credentials_key
+  are not present in backup. This is expected if credentials
+  were not configured in the source installation.
+
+msg_omnia_config_credentials_success: |-
+  omnia_config_credentials.yml restored and updated from backup.
+  Backup: {{ backup_location }}/omnia_config_credentials.yml
+  Target: {{ input_project_dir }}/omnia_config_credentials.yml
+  Status: Updated with postgres credentials and re-encrypted (key file also restored)
+
+msg_omnia_config_credentials_error: |-
+  ERROR: Inconsistent state detected for omnia_config_credentials.yml:
+  {% if not backup_omnia_config_credentials_key_stat.stat.exists and
+     backup_omnia_config_credentials_content.stdout is defined and
+     '$ANSIBLE_VAULT;' in backup_omnia_config_credentials_content.stdout %}
+  - File is encrypted but key file (.omnia_config_credentials_key) is missing
+  {% elif backup_omnia_config_credentials_key_stat.stat.exists and
+     backup_omnia_config_credentials_content.stdout is defined and
+     '$ANSIBLE_VAULT;' not in backup_omnia_config_credentials_content.stdout %}
+  - Key file exists but file is not encrypted
+  {% endif %}
+  Please check the backup integrity and ensure both files are present
+  in consistent states.
+
+# Rescue warning messages
+msg_user_registry_decrypt_error: |-
+  ERROR: Failed to decrypt user_registry_credential.yml.
+  The backup key file may be corrupted or incompatible.
+  Please check the backup integrity and ensure the key file
+  matches the encrypted file.
+
+msg_omnia_config_decrypt_error: |-
+  ERROR: Failed to decrypt omnia_config_credentials.yml.
+  The backup key file may be corrupted or incompatible.
+  Please check the backup integrity and ensure the key file
+  matches the encrypted file.
+
+msg_omnia_config_template_error: |-
+  ERROR: Failed to generate updated omnia_config_credentials.yml.
+  Template processing may have failed due to invalid data format.
+  Please check the backup file format and ensure it contains valid YAML.
+
+msg_omnia_config_encrypt_error: |-
+  ERROR: Failed to encrypt updated omnia_config_credentials.yml.
+  The key file may be corrupted or there may be permission issues.
+  Please check the key file integrity and file permissions.
+
+msg_decryption_failed: "Decryption failed. Check warnings for details."
+msg_template_failed: "Template processing failed. Check warnings for details."
+msg_encryption_failed: "Encryption failed. Check warnings for details."
 
 # Network spec transformation messages
 msg_backup_network_spec_missing: "Backup network_spec.yml missing"

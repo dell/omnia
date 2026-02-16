@@ -44,9 +44,6 @@ else
     dnf install -y kernel-headers-$(uname -r)
 fi
 
-echo "Bootstrap doca-ofed package..."
-rpm -i "/var/lib/packages/${arch}/doca-ofed/doca-host-3.2.1-044000_25.10_rhel10.${arch}.rpm"
-
 echo "Installing doca-ofed..."
 if rpm -q doca-ofed >/dev/null 2>&1; then
     echo "doca-ofed package is already installed."

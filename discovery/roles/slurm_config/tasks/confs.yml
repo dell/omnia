@@ -172,7 +172,7 @@
   ansible.builtin.copy:
     content: "{{ item.ini_lines | join('\n') }}\n"
     dest: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/{{ item.item.key }}.conf"
-    mode: "{{ conf_file_mode }}"
+    mode: "0640"
     owner: "{{ slurm_user }}"
     group: "{{ slurm_user_group }}"
     remote_src: "{{ copy_from_oim }}"
@@ -197,3 +197,5 @@
     - ctld_list
     - ctld_conf_files is changed
   loop: "{{ ctld_list }}"
+  loop_control:
+    loop_var: ctld

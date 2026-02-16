@@ -14,30 +14,37 @@
 ---
 - name: Check if remote host is reachable via SSH
   ansible.builtin.wait_for:
-    host: "{{ item }}"
+    host: "{{ ctld }}"
     port: 22 # TODO: make it configurable
     timeout: 10
     state: started
   delegate_to: localhost
   register: ssh_check
   ignore_errors: true
-  ignore_unreachable: true
 
-- name: Block when ssh_check is success
-  when: ssh_check is success
+- name: Enter slurm controller when pingable
+  when:
+    - ssh_check is success
+  ignore_unreachable: true
   block:
     - name: Initialize ctld_state dict
       ansible.builtin.set_fact:
-        ctld_state: "{{ ctld_state | default({}) | combine({item: false}) }}"
+        ctld_state: "{{ ctld_state | default({}) | combine({ctld: false}) }}"
 
     - name: Check if slurmctld is running on remote host
       ansible.builtin.service_facts:
-      delegate_to: "{{ item }}"
+      delegate_to: "{{ ctld }}"
       register: service_facts
+      ignore_unreachable: true
+
+    - name: Fail if slurmctld is unreachable
+      ansible.builtin.fail:
+        msg: "Failed to connect to {{ ctld }}."
+      when: service_facts is unreachable
 
     - name: Update ctld_state if slurmctld is running
       ansible.builtin.set_fact:
-        ctld_state: "{{ ctld_state | combine({item: true}) }}"
+        ctld_state: "{{ ctld_state | combine({ctld: true}) }}"
       when:
         - service_facts is success
         - ansible_facts.services['slurmctld.service'] is defined
@@ -61,28 +68,24 @@
       ansible.builtin.set_fact:
         reachable_hosts: "{{ ip_map_ssh_check.results | rejectattr('failed', 'true') | map(attribute='host') | list }}"
 
-    - name: Update /etc/hosts with controller hostname and IP
-      ansible.builtin.lineinfile:
-        path: /etc/hosts
-        regexp: '^{{ host_entry.value }}\s+{{ host_entry.key }}'
-        line: "{{ host_entry.value }} {{ host_entry.key }}"
-        state: present
-      loop: "{{ reachable_hosts | product(ip_name_map | dict2items) | list }}"
+    - name: Update basics on reachable_hosts
+      ansible.builtin.include_tasks: update_hosts_munge.yml
+      loop: "{{ reachable_hosts }}"
       loop_control:
-        loop_var: host_combo
-      vars:
-        target_host: "{{ host_combo[0] }}"
-        host_entry: "{{ host_combo[1] }}"
-      delegate_to: "{{ target_host }}"
-      when: reachable_hosts | length > 0
-      ignore_unreachable: true
-      failed_when: false
+        loop_var: slurmhost_ip
 
     - name: Trigger the scontrol reconfigure
       ansible.builtin.command: scontrol reconfigure
       changed_when: scontrol_reconfig.rc == 0
       failed_when: false
       register: scontrol_reconfig
-      delegate_to: "{{ item }}"
+      delegate_to: "{{ ctld }}"
       when:
-        - ctld_state[item] is true
+        - ctld_state[ctld] is true
+
+  rescue:
+    - name: Fail if slurmctld is not running on any host
+      ansible.builtin.debug:
+        msg: "Failed to 'scontrol reconfigure' on {{ ctld }}.
+         As task '{{ ansible_failed_task.name }}' failed.
+         results: {{ ansible_failed_result }}"

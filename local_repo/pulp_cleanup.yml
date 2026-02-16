@@ -15,10 +15,15 @@
 # Pulp Cleanup Playbook - Clean Architecture
 #
 # Usage:
-#   ansible-playbook pulp_cleanup_v2.yml -e '{"cleanup_repos": ["epel", "baseos"]}'
-#   ansible-playbook pulp_cleanup_v2.yml -e '{"cleanup_containers": ["nginx", "redis"]}'
-#   ansible-playbook pulp_cleanup_v2.yml -e '{"cleanup_files": ["git", "chart-0.48.0"]}'
-#   ansible-playbook pulp_cleanup_v2.yml -e '{"cleanup_repos": ["epel"], "cleanup_containers": ["nginx"]}' -e force=true
+#   # Repository cleanup (include architecture prefix)
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_epel,aarch64_epel"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_appstream"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_containers=nginx,redis"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_files=git,chart-0.48.0"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_epel -e cleanup_containers=nginx -e force=true"
+#
+#   # Examples: x86_64_epel, aarch64_epel, x86_64_appstream, aarch64_baseos
+#   # Note: Use architecture prefix (x86_64_ or aarch64_) for repository names
 
 - name: Pulp Cleanup
   hosts: localhost
@@ -77,6 +82,8 @@
         cleanup_repos: "{{ repo_list | default([]) }}"
         cleanup_containers: "{{ container_list | default([]) }}"
         cleanup_files: "{{ file_list | default([]) }}"
+        base_path: "{{ base_path | default('/opt/omnia/log/local_repo') }}"
+        repo_store_path: "{{ repo_store_path | default('/opt/omnia') }}"
       register: cleanup_result
 
   post_tasks:
