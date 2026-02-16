@@ -37,6 +37,7 @@ from core.catalog.exceptions import (
     AdapterPolicyValidationError,
     ConfigGenerationError,
 )
+from common.config import load_config
 from core.jobs.entities import AuditEvent, Job, Stage
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
@@ -116,6 +117,8 @@ class GenerateInputFilesUseCase:
                 configs_ref, configs_record = self._store_output_artifacts(
                     command, config_output_dir
                 )
+                self._copy_configs_to_artifacts_input_dir(command, config_output_dir)
+
                 self._mark_stage_completed(stage, command)
                 return self._build_success_result(
                     command, configs_ref, configs_record, config_output_dir
@@ -317,6 +320,42 @@ class GenerateInputFilesUseCase:
         self._artifact_metadata_repo.save(record)
 
         return configs_ref, record
+
+    def _copy_configs_to_artifacts_input_dir(
+        self,
+        command: GenerateInputFilesCommand,
+        config_output_dir: Path,
+    ) -> None:
+        """Copy generated config files to artifacts/{job_id}/ directory.
+        
+        This creates a copy of the generated input files in the expected location
+        for the NfsInputDirectoryRepository to consume.
+        
+        Args:
+            command: Generate input files command.
+            config_output_dir: Directory containing generated config files.
+        """
+        import shutil
+        
+        # Load config and get artifacts base path from configuration
+        config = load_config()
+        artifacts_base = Path(config.file_store.base_path)
+        target_dir = artifacts_base / str(command.job_id)
+        
+        # Create target directory if it doesn't exist
+        target_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Copy all contents from config_output_dir to target_dir
+        for item in config_output_dir.iterdir():
+            if item.is_file():
+                shutil.copy2(item, target_dir / item.name)
+            elif item.is_dir():
+                shutil.copytree(item, target_dir / item.name, dirs_exist_ok=True)
+        
+        logger.info(
+            "Copied generated configs to artifacts input directory: %s",
+            target_dir
+        )
 
     # ------------------------------------------------------------------
     # State transitions
