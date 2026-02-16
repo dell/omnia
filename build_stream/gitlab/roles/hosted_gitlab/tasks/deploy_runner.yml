@@ -68,4 +68,5 @@
     -v {{ gitlab_runner_config_path }}:/etc/gitlab-runner{{ gitlab_runner_volume_suffix | default('') }}
     -v {{ podman_socket_path }}:{{ docker_socket_path }}:Z
     {{ gitlab_runner_image }}
+  changed_when: true
   when: runner_container_exists.rc != 0
