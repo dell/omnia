@@ -38,5 +38,5 @@
       - ""
       - "Next Steps:"
       - "1. Push your catalog files to {{ gitlab_project_http_url }}"
-      - "2. Trigger pipeline: curl -X POST -F token=$(cat /root/.gitlab_trigger_token) -F ref={{ gitlab_default_branch }} {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/trigger/pipeline"
+      - "2. Trigger pipeline: curl -X POST -F token=$(cat /root/.gitlab_trigger_token) -F ref={{ gitlab_default_branch }} {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/trigger/pipeline" # noqa: yaml[line-length]
       - "============================================"

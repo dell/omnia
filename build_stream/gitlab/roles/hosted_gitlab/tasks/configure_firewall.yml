@@ -14,24 +14,28 @@
 
 ---
 
-- name: Configure firewall rules
-  block:
-    - name: Open required ports
-      ansible.posix.firewalld:
-        port: "{{ item }}/tcp"
-        permanent: true
-        state: enabled
-      loop:
-        - "{{ gitlab_http_port }}"
-        - "{{ gitlab_https_port }}"
-        - "{{ gitlab_ssh_port }}"
-      register: firewall_ports
+- name: Install firewalld
+  ansible.builtin.package:
+    name: firewalld
+    state: present
 
-    - name: Reload firewall
-      ansible.builtin.command: firewall-cmd --reload
-      changed_when: false
-      when: firewall_ports is changed
-  rescue:
-    - name: Warn when firewalld is unavailable
-      ansible.builtin.debug:
-        msg: "firewalld not installed or inactive; skipping firewall configuration."
+- name: Ensure firewalld is running
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Open required ports
+  ansible.posix.firewalld:
+    port: "{{ item }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - "{{ gitlab_http_port }}"
+    - "{{ gitlab_https_port }}"
+    - "{{ gitlab_ssh_port }}"
+
+- name: Reload firewalld to apply rules
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: false

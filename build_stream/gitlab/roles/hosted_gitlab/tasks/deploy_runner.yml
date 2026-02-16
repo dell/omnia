@@ -54,6 +54,12 @@
     creates: "{{ gitlab_runner_config_file }}"
   no_log: true
 
+- name: Check if runner container already exists
+  ansible.builtin.command: podman container exists {{ gitlab_runner_container_name }}
+  register: runner_container_exists
+  changed_when: false
+  failed_when: false
+
 - name: Start runner container
   ansible.builtin.command: >
     podman run -d
@@ -62,3 +68,4 @@
     -v {{ gitlab_runner_config_path }}:/etc/gitlab-runner{{ gitlab_runner_volume_suffix | default('') }}
     -v {{ podman_socket_path }}:{{ docker_socket_path }}:Z
     {{ gitlab_runner_image }}
+  when: runner_container_exists.rc != 0

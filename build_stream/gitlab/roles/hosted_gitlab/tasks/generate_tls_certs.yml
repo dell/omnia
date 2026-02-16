@@ -48,6 +48,8 @@
     -key {{ gitlab_cert_dir }}/{{ gitlab_host }}.key
     -out {{ gitlab_cert_dir }}/{{ gitlab_host }}.csr
     -config {{ gitlab_cert_dir }}/san.cnf
+  args:
+    creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.csr"
 
 - name: Sign server certificate
   ansible.builtin.command: >
@@ -61,6 +63,8 @@
     -sha256
     -extensions req_ext
     -extfile {{ gitlab_cert_dir }}/san.cnf
+  args:
+    creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.crt"
 
 - name: Install certs to GitLab SSL dir
   ansible.builtin.copy:
