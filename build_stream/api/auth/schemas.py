@@ -57,7 +57,7 @@ class ClientRegistrationRequest(BaseModel):  # pylint: disable=too-few-public-me
     @classmethod
     def validate_scopes(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         """Validate that requested scopes are valid."""
-        valid_scopes = {"catalog:read", "catalog:write", "admin:read", "admin:write"}
+        valid_scopes = {"catalog:read", "catalog:write", "admin:read", "admin:write", "job:read", "job:write"}
         if v is not None:
             for scope in v:
                 if scope not in valid_scopes:

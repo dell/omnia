@@ -1,0 +1,49 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+[Unit]
+Description=Omnia Playbook Watcher Service for Build Stream
+Documentation=https://github.com/dell/omnia
+After=network.target
+
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/omnia/build_stream
+ExecStart=/usr/bin/python3 /opt/omnia/build_stream/playbook-watcher/playbook_watcher_service.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables
+Environment="PLAYBOOK_QUEUE_BASE=/opt/omnia/build_stream/playbook_queue"
+Environment="NFS_SHARE_PATH=/abc"
+Environment="POLL_INTERVAL_SECONDS=2"
+Environment="MAX_CONCURRENT_JOBS=5"
+Environment="DEFAULT_TIMEOUT_MINUTES=30"
+Environment="LOG_LEVEL=INFO"
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=4096
+MemoryMax=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

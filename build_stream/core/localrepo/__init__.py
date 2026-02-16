@@ -14,19 +14,19 @@
 
 """Local repository domain module for Build Stream."""
 
-from .entities import PlaybookRequest, PlaybookResult
-from .exceptions import (
+from core.localrepo.entities import PlaybookRequest, PlaybookResult
+from core.localrepo.exceptions import (
     InputDirectoryInvalidError,
     InputFilesMissingError,
     LocalRepoDomainError,
     QueueUnavailableError,
 )
-from .repositories import (
+from core.localrepo.repositories import (
     InputDirectoryRepository,
     PlaybookQueueRequestRepository,
     PlaybookQueueResultRepository,
 )
-from .services import (
+from core.localrepo.services import (
     InputFileService,
     PlaybookQueueRequestService,
     PlaybookQueueResultService,

@@ -14,6 +14,6 @@
 
 """Application use cases for local repository."""
 
-from .create_local_repo import CreateLocalRepoUseCase
+from orchestrator.local_repo.use_cases.create_local_repo import CreateLocalRepoUseCase
 
 __all__ = ["CreateLocalRepoUseCase"]

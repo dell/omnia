@@ -14,6 +14,6 @@
 
 """Application command DTOs for local repository."""
 
-from .create_local_repo import CreateLocalRepoCommand
+from orchestrator.local_repo.commands.create_local_repo import CreateLocalRepoCommand
 
 __all__ = ["CreateLocalRepoCommand"]

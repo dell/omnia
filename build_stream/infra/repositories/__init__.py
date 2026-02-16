@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .in_memory import (
+from infra.repositories.in_memory import (
     InMemoryJobRepository,
     InMemoryStageRepository,
     InMemoryIdempotencyRepository,
     InMemoryAuditEventRepository,
 )
-from .nfs_playbook_queue_request_repository import NfsPlaybookQueueRequestRepository
-from .nfs_playbook_queue_result_repository import NfsPlaybookQueueResultRepository
-from .nfs_input_directory_repository import NfsInputDirectoryRepository
+from infra.repositories.nfs_playbook_queue_request_repository import NfsPlaybookQueueRequestRepository
+from infra.repositories.nfs_playbook_queue_result_repository import NfsPlaybookQueueResultRepository
+from infra.repositories.nfs_input_directory_repository import NfsInputDirectoryRepository
 
 __all__ = [
     "InMemoryJobRepository",
