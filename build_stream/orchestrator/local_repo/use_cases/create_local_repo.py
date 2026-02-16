@@ -51,7 +51,7 @@ from orchestrator.local_repo.dtos import LocalRepoResponse
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PLAYBOOK_PATH = "/omnia/utils/include_input_dir.yml"
+DEFAULT_PLAYBOOK_NAME = "include_input_dir.yml"
 
 
 class CreateLocalRepoUseCase:
@@ -194,7 +194,7 @@ class CreateLocalRepoUseCase:
         return PlaybookRequest(
             job_id=str(command.job_id),
             stage_name=StageType.CREATE_LOCAL_REPOSITORY.value,
-            playbook_path=PlaybookPath(DEFAULT_PLAYBOOK_PATH),
+            playbook_path=PlaybookPath(DEFAULT_PLAYBOOK_NAME),
             extra_vars=ExtraVars(values={}),
             correlation_id=str(command.correlation_id),
             timeout=ExecutionTimeout.default(),

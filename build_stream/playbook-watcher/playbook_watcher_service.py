@@ -82,6 +82,15 @@ POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))
 MAX_CONCURRENT_JOBS = int(os.getenv("MAX_CONCURRENT_JOBS", "5"))
 DEFAULT_TIMEOUT_MINUTES = int(os.getenv("DEFAULT_TIMEOUT_MINUTES", "30"))
 
+# Playbook name to full path mapping - prevents injection from user input
+PLAYBOOK_NAME_TO_PATH = {
+    "include_input_dir.yml": "/omnia/utils/include_input_dir.yml",
+    "build_image_aarch64.yml": "/omnia/build_image_aarch64/build_image_aarch64.yml",
+    "build_image_x86_64.yml": "/omnia/build_image_x86_64/build_image_x86_64.yml",
+    "discovery.yml": "/omnia/discovery/discovery.yml",
+    "local_repo.yml": "/omnia/local_repo/local_repo.yml",
+}
+
 # Logging configuration
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 logging.basicConfig(
@@ -136,55 +145,55 @@ def ensure_directories():
             raise
 
 
-def validate_playbook_path(playbook_path: str) -> bool:
-    """Validate playbook path against a specific whitelist of absolute paths.
+def validate_playbook_name(playbook_name: str) -> bool:
+    """Validate playbook name against the allowed whitelist.
     
     Args:
-        playbook_path: Path to the playbook file
+        playbook_name: Name of the playbook file (without path)
         
     Returns:
-        True if path is in the whitelist, False otherwise
+        True if name is in the whitelist, False otherwise
     """
-    # Specific whitelist of allowed playbook paths - these paths are inside the container
-    ALLOWED_PLAYBOOKS = [
-        '/omnia/utils/include_input_dir.yml',
-        '/omnia/build_image_aarch64/build_image_aarch64.yml',
-        '/omnia/build_image_x86_64/build_image_x86_64.yml',
-        '/omnia/discovery/discovery.yml',
-        '/omnia/local_repo/local_repo.yml',
-    ]
-    
-    # Simple exact match against the whitelist
-    if playbook_path in ALLOWED_PLAYBOOKS:
+    # Ensure it's a playbook name (no slash)
+    if '/' in playbook_name:
+        log_secure_info(
+            "error",
+            "Playbook name cannot contain path separators",
+            playbook_name[:8] if playbook_name else None
+        )
+        return False
+        
+    # Check if it's in our mapping
+    if playbook_name in PLAYBOOK_NAME_TO_PATH:
         return True
     
     # Log the rejection
     log_secure_info(
         "error",
-        "Playbook path not in allowed whitelist",
-        playbook_path[:8] if playbook_path else None
+        "Playbook name not in allowed whitelist",
+        playbook_name[:8] if playbook_name else None
     )
     return False
 
 
-def sanitize_playbook_path(playbook_path: str) -> Optional[str]:
-    """Validate playbook path against the whitelist and return a clean copy.
-    
-    Since we're using a strict whitelist of exact paths, this function simply
-    validates the path and returns a new string instance if valid.
+def map_playbook_name_to_path(playbook_name: str) -> Optional[str]:
+    """Validate playbook name and map it to the full path.
     
     Args:
-        playbook_path: Path to the playbook file (untrusted input)
+        playbook_name: Name of the playbook file (untrusted input)
         
     Returns:
-        A new string instance of the path if valid, None if invalid
+        The full path if valid, None if invalid
     """
-    # Validate against the whitelist
-    if not validate_playbook_path(playbook_path):
+    # Validate the playbook name
+    if not validate_playbook_name(playbook_name):
         return None
         
+    # Map the name to full path
+    full_path = PLAYBOOK_NAME_TO_PATH[playbook_name]
+    
     # Return a new string instance to break the taint chain
-    return str(playbook_path)
+    return str(full_path)
 
 
 def validate_job_id(job_id: str) -> bool:
@@ -412,7 +421,7 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         # Validate inputs to prevent injection
         job_id = str(request_data["job_id"])
         stage_name = str(request_data["stage_name"])
-        playbook_path = str(request_data["playbook_path"])
+        playbook_name = str(request_data["playbook_path"])  # This is actually the playbook name
         
         if not validate_job_id(job_id):
             log_secure_info("error", "Invalid job_id format in request", job_id[:8])
@@ -422,19 +431,20 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             log_secure_info("error", "Invalid stage_name format in request", stage_name[:8])
             return None
             
-        # Use sanitize_playbook_path instead of validate_playbook_path
-        # This returns a sanitized path or None if validation fails
-        safe_playbook_path = sanitize_playbook_path(playbook_path)
-        if safe_playbook_path is None:
-            log_secure_info("error", "Invalid or potentially malicious playbook path in request", playbook_path[:8])
+        # Map the playbook name to its full path
+        # This returns the full path or None if validation fails
+        full_playbook_path = map_playbook_name_to_path(playbook_name)
+        if full_playbook_path is None:
+            log_secure_info("error", "Invalid or unknown playbook name in request", playbook_name[:8])
             return None
 
         # Set defaults
-        request_data.setdefault("timeout_minutes", DEFAULT_TIMEOUT_MINUTES)
         request_data.setdefault("correlation_id", job_id)
         
-        # Use the sanitized playbook path instead of the original
-        request_data["playbook_path"] = safe_playbook_path
+        # Store both the original playbook name and the mapped full path
+        # The full path will be used for command execution
+        request_data["playbook_name"] = playbook_name
+        request_data["full_playbook_path"] = full_playbook_path
 
         log_secure_info(
             "info",
@@ -463,31 +473,85 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _build_log_paths(job_id: str, stage_name: str, started_at: datetime) -> tuple:
-    """Build host and container log file paths.
+def extract_playbook_name(full_playbook_path: str) -> str:
+    """Extract the playbook name from the full path.
+    
+    Args:
+        full_playbook_path: Full path to the playbook file
+        
+    Returns:
+        The playbook name (filename without path)
+    """
+    # Get the basename (filename with extension)
+    return os.path.basename(full_playbook_path)
+
+
+def _build_log_paths(playbook_path: str, started_at: datetime) -> tuple:
+    """Build host and container log file paths without job_id.
 
     Args:
-        job_id: Job identifier
-        stage_name: Stage name
+        playbook_path: Full path to the playbook file
         started_at: Start time for timestamp
 
     Returns:
         Tuple of (host_log_file_path, container_log_file_path, host_log_dir)
     """
-    # Create job-specific log directory on NFS share
-    host_log_dir = HOST_LOG_BASE_DIR / job_id / stage_name
+    # Extract playbook name from the full path
+    playbook_name = extract_playbook_name(playbook_path)
+    
+    # Create base log directory on NFS share (no job-specific subdirectory)
+    host_log_dir = HOST_LOG_BASE_DIR
     host_log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create log file path with timestamp
+    # Create log file path with playbook name and timestamp only (no job_id)
     timestamp = started_at.strftime("%Y%m%d_%H%M%S")
-    host_log_file_path = host_log_dir / f"ansible_playbook_{timestamp}.log"
+    host_log_file_path = host_log_dir / f"{playbook_name}_{timestamp}.log"
 
     # Container log path (equivalent path in container)
     container_log_file_path = (
-        CONTAINER_LOG_BASE_DIR / job_id / stage_name / f"ansible_playbook_{timestamp}.log"
+        CONTAINER_LOG_BASE_DIR / f"{playbook_name}_{timestamp}.log"
     )
 
     return host_log_file_path, container_log_file_path, host_log_dir
+
+
+def move_log_to_job_directory(host_log_file_path: Path, job_id: str) -> Path:
+    """Move log file to a job-specific directory after completion.
+    
+    Args:
+        host_log_file_path: Current path of the log file
+        job_id: Job identifier for creating the job directory
+        
+    Returns:
+        New path of the log file in the job directory
+    """
+    # Create job-specific directory
+    job_dir = HOST_LOG_BASE_DIR / job_id
+    job_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Get the log filename
+    log_filename = host_log_file_path.name
+    
+    # New path in job directory
+    new_log_path = job_dir / log_filename
+    
+    # Move the log file
+    try:
+        shutil.move(str(host_log_file_path), str(new_log_path))
+        log_secure_info(
+            "info",
+            "Log file moved to job directory",
+            job_id[:12] if job_id else ""
+        )
+    except (OSError, IOError) as e:
+        log_secure_info(
+            "error",
+            "Failed to move log file to job directory"
+        )
+        # Return original path if move fails
+        return host_log_file_path
+    
+    return new_log_path
 
 
 def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -501,8 +565,11 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     job_id = request_data["job_id"]
     stage_name = request_data["stage_name"]
-    playbook_path = request_data["playbook_path"]
-    timeout_minutes = request_data.get("timeout_minutes", DEFAULT_TIMEOUT_MINUTES)
+    # Use the full_playbook_path which is the mapped full path from playbook name
+    playbook_path = request_data["full_playbook_path"]
+    playbook_name = request_data["playbook_name"]  # Original playbook name for logging
+    # Use default timeout to prevent potential injection from user input
+    timeout_minutes = DEFAULT_TIMEOUT_MINUTES
     correlation_id = request_data.get("correlation_id", job_id)
 
     log_secure_info(
@@ -515,10 +582,15 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         "Stage name",
         stage_name
     )
+    log_secure_info(
+        "debug",
+        "Playbook name",
+        playbook_name
+    )
 
     started_at = datetime.now(timezone.utc)
     host_log_file_path, container_log_file_path, _ = _build_log_paths(
-        job_id, stage_name, started_at
+        playbook_path, started_at
     )
 
     # Build podman command to execute playbook in omnia_core container
@@ -588,15 +660,9 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         # Execute playbook with timeout and custom log path
         timeout_seconds = timeout_minutes * 60
-        # Create a sanitized environment with only necessary variables
-        safe_env = {
-            # Include only essential environment variables
-            'PATH': os.environ.get('PATH', ''),
-            'HOME': os.environ.get('HOME', ''),
-            'USER': os.environ.get('USER', ''),
-            'LANG': os.environ.get('LANG', 'en_US.UTF-8'),
-            'ANSIBLE_LOG_PATH': log_path_str
-        }
+        # Only set ANSIBLE_LOG_PATH in the environment
+        # This is already passed as -e parameter to podman exec
+        # No need for a full sanitized environment
         
         # Log the command being executed (without sensitive details)
         log_secure_info(
@@ -611,7 +677,6 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             capture_output=False,  # Don't capture to avoid duplication with ANSIBLE_LOG_PATH
             timeout=timeout_seconds,
             check=False,
-            env=safe_env,  # Pass minimal sanitized environment
             shell=False,  # Explicitly set shell=False to prevent injection
             text=False,   # Don't interpret output as text to prevent encoding issues
             start_new_session=True  # Isolate the process from the parent session
@@ -628,6 +693,8 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
                 "Log file confirmed for job",
                 job_id
             )
+            # Move log file to job-specific directory after completion
+            host_log_file_path = move_log_to_job_directory(host_log_file_path, job_id)
         else:
             log_secure_info(
                 "warning",

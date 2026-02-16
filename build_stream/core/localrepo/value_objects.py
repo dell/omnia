@@ -24,37 +24,47 @@ from typing import ClassVar, Dict, Any
 
 @dataclass(frozen=True)
 class PlaybookPath:
-    """Validated path to an Ansible playbook file.
+    """Validated playbook name for Ansible execution.
 
     Attributes:
-        value: Absolute file path to the playbook YAML file.
+        value: Playbook name (e.g., 'include_input_dir.yml') without path.
+              The watcher service will map this to the full path internally.
 
     Raises:
-        ValueError: If path is empty, not absolute, or contains traversal.
+        ValueError: If name is empty, invalid format, or contains traversal.
     """
 
     value: str
 
-    MAX_LENGTH: ClassVar[int] = 512
-    ALLOWED_PATTERN: ClassVar[str] = r'^/[a-zA-Z0-9/_\-\.]+\.ya?ml$'
+    MAX_LENGTH: ClassVar[int] = 128  # Reasonable limit for a filename
+    ALLOWED_NAME_PATTERN: ClassVar[str] = r'^[a-zA-Z0-9_\-\.]+\.ya?ml$'
 
     def __post_init__(self) -> None:
-        """Validate playbook path format and security."""
+        """Validate playbook name format and security."""
         if not self.value or not self.value.strip():
-            raise ValueError("Playbook path cannot be empty")
+            raise ValueError("Playbook name cannot be empty")
+            
         if len(self.value) > self.MAX_LENGTH:
             raise ValueError(
-                f"Playbook path length cannot exceed {self.MAX_LENGTH} "
+                f"Playbook name length cannot exceed {self.MAX_LENGTH} "
                 f"characters, got {len(self.value)}"
             )
+            
         if ".." in self.value:
             raise ValueError(
-                f"Path traversal not allowed in playbook path: {self.value}"
+                f"Path traversal not allowed in playbook name: {self.value}"
             )
-        if not re.match(self.ALLOWED_PATTERN, self.value):
+            
+        if '/' in self.value:
             raise ValueError(
-                f"Invalid playbook path format: {self.value}. "
-                f"Must be an absolute path to a .yml or .yaml file."
+                f"Playbook name cannot contain path separators: {self.value}"
+            )
+            
+        # Validate playbook name format
+        if not re.match(self.ALLOWED_NAME_PATTERN, self.value):
+            raise ValueError(
+                f"Invalid playbook name format: {self.value}. "
+                f"Must be a valid filename with .yml or .yaml extension."
             )
 
     def __str__(self) -> str:

@@ -11,12 +11,21 @@
         {
           "source_file": "base_os.json",
           "pulls": [
-            {"source_key": "Base OS", "target_key": "default_packages"}
+            {
+              "source_key": "Base OS",
+              "target_key": "default_packages",
+              "filter": {
+                "type": "allowlist",
+                "field": "package",
+                "values": ["systemd", "systemd-udev", "kernel", "dracut", "dracut-live", "dracut-network", "squashfs-tools", "nfs-utils", "nfs4-acl-tools", "NetworkManager", "nm-connection-editor", "iproute", "iputils", "curl", "bash", "coreutils", "grep", "sed", "gawk", "findutils", "util-linux", "kbd", "lsof", "cryptsetup", "lvm2", "device-mapper", "rsyslog", "chrony", "sudo", "gzip", "wget", "cloud-init", "glibc-langpack-en", "gedit"],
+                "case_sensitive": false
+              }
+            }
           ]
         }
       ]
     },
-    "nfs.json": {
+    "admin_debug_packages.json": {
       "transform": {
         "exclude_fields": ["architecture"]
       },
@@ -26,8 +35,13 @@
           "pulls": [
             {
               "source_key": "Base OS",
-              "target_key": "nfs",
-              "filter": {"type": "substring", "field": "package", "values": ["nfs"], "case_sensitive": false}
+              "target_key": "admin_debug_packages",
+              "filter": {
+                "type": "allowlist",
+                "field": "package",
+                "values": ["which", "tcpdump", "traceroute", "iperf3", "fping", "dmidecode", "hwloc", "hwloc-libs", "lshw", "pciutils", "vim-enhanced", "emacs", "zsh", "openssh", "openssh-server", "openssh-clients", "rsync", "file", "libcurl", "tar", "bzip2", "man-db", "man-pages", "strace", "kexec-tools", "openssl-devel", "ipmitool", "gdb", "gdb-gdbserver", "lldb", "lldb-devel", "valgrind", "valgrind-devel", "ltrace", "kernel-tools", "perf", "papi", "papi-devel", "papi-libs", "cmake", "make", "autoconf", "automake", "libtool", "gcc", "gcc-c++", "gcc-gfortran", "binutils", "binutils-devel", "clustershell", "bash-completion"],
+                "case_sensitive": false
+              }
             }
           ]
         }
@@ -45,34 +59,17 @@
               "source_key": "Base OS",
               "target_key": "openldap",
               "filter": {
-                "type": "any_of",
-                "filters": [
-                  {
-                    "type": "allowlist",
-                    "field": "package",
-                    "values": ["openldap", "openldap-clients", "openldap-servers"],
-                    "case_sensitive": false
-                  },
-                  {
-                    "type": "field_in",
-                    "field": "feature",
-                    "values": ["openldap"],
-                    "case_sensitive": false
-                  },
-                  {
-                    "type": "substring",
-                    "field": "package",
-                    "values": ["ldap", "openldap", "slapd"],
-                    "case_sensitive": false
-                  }
-                ]
+                "type": "allowlist",
+                "field": "package",
+                "values": ["openldap-clients", "nss-pam-ldapd", "sssd", "oddjob-mkhomedir", "authselect"],
+                "case_sensitive": false
               }
             }
           ]
         }
       ]
     },
-    "openmpi.json": {
+    "ldms.json": {
       "transform": {
         "exclude_fields": ["architecture"]
       },
@@ -82,8 +79,13 @@
           "pulls": [
             {
               "source_key": "Base OS",
-              "target_key": "openmpi",
-              "filter": {"type": "substring", "field": "package", "values": ["openmpi"], "case_sensitive": false}
+              "target_key": "ldms",
+              "filter": {
+                "type": "allowlist",
+                "field": "package",
+                "values": ["python3-devel", "python3-cython", "openssl-libs", "ovis-ldms"],
+                "case_sensitive": false
+              }
             }
           ]
         }
@@ -97,8 +99,9 @@
         {
           "source_file": "functional_layer.json",
           "pulls": [
-            {"source_key": "K8S Controller", "target_key": "service_kube_control_plane"},
-            {"source_key": "K8S Worker", "target_key": "service_kube_node"}
+            {"source_key": "service_kube_control_plane_x86_64", "target_key": "service_kube_control_plane_first"},
+            {"source_key": "service_kube_control_plane_x86_64", "target_key": "service_kube_control_plane"},
+            {"source_key": "service_kube_node_x86_64", "target_key": "service_kube_node"}
           ]
         }
       ],
@@ -107,7 +110,7 @@
           "target_key": "service_k8s",
           "operation": {
             "type": "extract_common",
-            "from_keys": ["service_kube_control_plane", "service_kube_node"],
+            "from_keys": ["service_kube_control_plane_first", "service_kube_control_plane", "service_kube_node"],
             "min_occurrences": 2,
             "remove_from_sources": true
           }
@@ -122,10 +125,13 @@
         {
           "source_file": "functional_layer.json",
           "pulls": [
-            {"source_key": "Login Node", "target_key": "login_node"},
-            {"source_key": "Compiler", "target_key": "login_compiler_node"},
-            {"source_key": "Slurm Controller", "target_key": "slurm_control_node"},
-            {"source_key": "Slurm Worker", "target_key": "slurm_node"}
+            {"source_key": "login_node_x86_64", "target_key": "login_node"},
+            {"source_key": "login_node_aarch64", "target_key": "login_node"},
+            {"source_key": "login_compiler_node_x86_64", "target_key": "login_compiler_node"},
+            {"source_key": "login_compiler_node_aarch64", "target_key": "login_compiler_node"},
+            {"source_key": "slurm_control_node_x86_64", "target_key": "slurm_control_node"},
+            {"source_key": "slurm_node_x86_64", "target_key": "slurm_node"},
+            {"source_key": "slurm_node_aarch64", "target_key": "slurm_node"}
           ]
         }
       ],
@@ -141,28 +147,46 @@
         }
       ]
     },
+    "additional_packages.json": {
+      "transform": {
+        "exclude_fields": ["architecture"]
+      },
+      "sources": [
+        {
+          "source_file": "functional_layer.json",
+          "pulls": [
+            {"source_key": "login_node_x86_64", "target_key": "login_node"},
+            {"source_key": "login_node_aarch64", "target_key": "login_node"},
+            {"source_key": "login_compiler_node_x86_64", "target_key": "login_compiler_node"},
+            {"source_key": "login_compiler_node_aarch64", "target_key": "login_compiler_node"},
+            {"source_key": "slurm_control_node_x86_64", "target_key": "slurm_control_node"},
+            {"source_key": "slurm_node_x86_64", "target_key": "slurm_node"},
+            {"source_key": "slurm_node_aarch64", "target_key": "slurm_node"},
+            {"source_key": "service_kube_control_plane_x86_64", "target_key": "service_kube_control_plane_first"},
+            {"source_key": "service_kube_control_plane_x86_64", "target_key": "service_kube_control_plane"},
+            {"source_key": "service_kube_node_x86_64", "target_key": "service_kube_node"}
+          ]
+        }
+      ]
+    },
     "csi_driver_powerscale.json": {
       "transform": {
         "exclude_fields": ["architecture"]
       },
       "sources": [
         {
-          "source_file": "infrastructure.json",
+          "source_file": "base_os.json",
           "pulls": [
-            {"source_key": "csi", "target_key": "csi_driver_powerscale"}
-          ]
-        }
-      ]
-    },
-    "miscellaneous.json": {
-      "transform": {
-        "exclude_fields": ["architecture"]
-      },
-      "sources": [
-        {
-          "source_file": "miscellaneous.json",
-          "pulls": [
-            {"source_key": "Miscellaneous", "target_key": "miscellaneous"}
+            {
+              "source_key": "Base OS",
+              "target_key": "csi_driver_powerscale",
+              "filter": {
+                "type": "allowlist",
+                "field": "package",
+                "values": ["csi-powerscale", "external-snapshotter", "helm-charts", "quay.io/dell/container-storage-modules/csi-isilon", "registry.k8s.io/sig-storage/csi-attacher", "registry.k8s.io/sig-storage/csi-provisioner", "registry.k8s.io/sig-storage/csi-snapshotter", "registry.k8s.io/sig-storage/csi-resizer", "registry.k8s.io/sig-storage/csi-node-driver-registrar", "registry.k8s.io/sig-storage/csi-external-health-monitor-controller", "quay.io/dell/container-storage-modules/dell-csi-replicator", "quay.io/dell/container-storage-modules/podmon", "quay.io/dell/container-storage-modules/csm-authorization-sidecar", "quay.io/dell/container-storage-modules/csi-metadata-retriever", "registry.k8s.io/sig-storage/snapshot-controller", "docker.io/dellemc/csm-encryption"],
+                "case_sensitive": false
+              }
+            }
           ]
         }
       ]
