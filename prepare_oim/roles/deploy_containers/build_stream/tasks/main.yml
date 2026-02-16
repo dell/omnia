@@ -13,6 +13,8 @@
 #  limitations under the License.
 
 ---
+- name: Enable playbook watcher service
+  ansible.builtin.include_tasks: enable_watcher_service.yml
 
 - name: Deploy omnia_build_stream container
   ansible.builtin.include_tasks: deploy_build_stream.yml

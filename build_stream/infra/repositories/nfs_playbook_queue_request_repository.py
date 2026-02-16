@@ -30,7 +30,7 @@ from core.localrepo.exceptions import QueueUnavailableError
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_QUEUE_BASE = "/opt/omnia/build_stream/playbook_queue"
+DEFAULT_QUEUE_BASE = "/opt/omnia/playbook_queue"
 REQUEST_DIR_NAME = "requests"
 FILE_PERMISSIONS = stat.S_IRUSR | stat.S_IWUSR  # 600
 
