@@ -20,7 +20,7 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from api.dependencies import require_catalog_read
+from api.dependencies import require_catalog_read, verify_token
 from container import container
 from core.artifacts.exceptions import ArtifactNotFoundError
 from core.artifacts.value_objects import SafePath
@@ -67,7 +67,7 @@ router = APIRouter(prefix="/jobs", tags=["Input File Generation"])
 async def generate_input_files(
     job_id: str,
     request_body: Optional[GenerateInputFilesRequest] = Body(default=None),
-    token_data: Annotated[dict, Depends(require_catalog_read)] = None,
+    token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
 ) -> GenerateInputFilesResponse:
     """Generate Omnia input files from a parsed catalog.
 
