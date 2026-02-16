@@ -61,7 +61,7 @@ build_stream_project_build_stream: "project_build_stream"
 # Pulp certificate configuration
 # Cert that build_stream will verify against
 build_stream_pulp_cert_host_dir: "{{ omnia_path }}/omnia/pulp/settings/certs"
-build_stream_pulp_cert_container_path: "/etc/pulp/certs
+build_stream_pulp_cert_container_path: "/etc/pulp/certs"
 
 # Cert inside pulp container (source)
 pulp_container_name: "pulp"
