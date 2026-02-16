@@ -20,6 +20,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
+from api.logging_utils import log_secure_info
 from api.vault_client import VaultError
 from api.auth.schemas import (
     AuthErrorResponse,

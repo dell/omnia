@@ -17,10 +17,19 @@
 import logging
 from pathlib import Path
 
+from common.config import load_config
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_BUILD_STREAM_BASE = "/opt/omnia/build_stream"
-DEFAULT_PLAYBOOK_INPUT_DIR = "/opt/omnia/input/project_build_stream"
+# Load configuration to get base path
+try:
+    local_config = load_config()
+    DEFAULT_BUILD_STREAM_BASE = Path(local_config.file_store.base_path)
+except (FileNotFoundError, AttributeError):
+    # Fallback to default path if config is not available
+    DEFAULT_BUILD_STREAM_BASE = Path("/opt/omnia/build_stream")
+
+DEFAULT_PLAYBOOK_INPUT_DIR = "/opt/omnia/input/project_default/"
 
 
 class NfsInputDirectoryRepository:
@@ -38,7 +47,7 @@ class NfsInputDirectoryRepository:
         """Initialize repository with base paths.
 
         Args:
-            build_stream_base: Base path for build stream job data.
+            build_stream_base: Base path for build stream job data. Defaults to DEFAULT_BUILD_STREAM_BASE.
             playbook_input_dir: Destination path expected by the playbook.
         """
         self._build_stream_base = Path(build_stream_base)
@@ -59,7 +68,7 @@ class NfsInputDirectoryRepository:
         """Get destination input directory path expected by playbook.
 
         Returns:
-            Path like /opt/omnia/input/project_build_stream/
+            Path like /opt/omnia/input/project_default/
         """
         return self._playbook_input_dir
 

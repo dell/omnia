@@ -90,12 +90,20 @@ class InputFileService:
 
         try:
             destination_path.mkdir(parents=True, exist_ok=True)
-            for item in source_path.iterdir():
-                dest_item = destination_path / item.name
-                if item.is_dir():
-                    shutil.copytree(str(item), str(dest_item), dirs_exist_ok=True)
-                else:
-                    shutil.copy2(str(item), str(dest_item))
+            
+            # Copy software_config.json file if it exists
+            software_config_file = source_path / "software_config.json"
+            if software_config_file.is_file():
+                dest_file = destination_path / "software_config.json"
+                shutil.copy2(str(software_config_file), str(dest_file))
+                logger.info("Copied software_config.json for job %s", job_id)
+            
+            # Copy config directory completely if it exists
+            config_dir = source_path / "config"
+            if config_dir.is_dir():
+                dest_config_dir = destination_path / "config"
+                shutil.copytree(str(config_dir), str(dest_config_dir), dirs_exist_ok=True)
+                logger.info("Copied config directory for job %s", job_id)
 
             log_secure_info(
                 "info",
