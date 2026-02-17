@@ -25,6 +25,11 @@
   hosts: localhost
   gather_facts: false
   tasks:
+    - name: Install sshpass on localhost
+      ansible.builtin.package:
+        name: sshpass
+        state: present
+
     - name: Load GitLab configuration inputs
       ansible.builtin.include_vars:
         file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
@@ -52,6 +57,11 @@
   become: true
   gather_facts: true
   tasks:
+    - name: Install sshpass on localhost
+      ansible.builtin.package:
+        name: sshpass
+        state: present
+
     - name: Load GitLab configuration inputs
       ansible.builtin.include_vars:
         file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
