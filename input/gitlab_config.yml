@@ -53,7 +53,8 @@ oim_api_verify_ssl: true
 # HOSTED MODE SETTINGS (GitLab CE Omnibus RPM Deployment)
 # ----------------------------------------------------------------------------
 # IP/FQDN that Ansible can SSH into for GitLab installation
-gitlab_host: "100.10.0.83"
+# gitlab_host: "172.168.0.5"
+gitlab_host: ""
 
 # Network
 # GitLab external HTTP port (required even when HTTPS enabled)
