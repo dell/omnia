@@ -24,6 +24,7 @@ from api.build_image.dependencies import (
     get_build_image_client_id,
     get_build_image_correlation_id,
 )
+from api.dependencies import verify_token, require_job_write
 from api.build_image.schemas import (
     CreateBuildImageRequest,
     CreateBuildImageResponse,
@@ -81,9 +82,11 @@ def _build_error_response(
 def create_build_image(
     job_id: str,
     request_body: CreateBuildImageRequest,
+    token_data: dict = Depends(verify_token),
     use_case: CreateBuildImageUseCase = Depends(get_create_build_image_use_case),
     client_id: ClientId = Depends(get_build_image_client_id),
     correlation_id: CorrelationId = Depends(get_build_image_correlation_id),
+    _: None = Depends(require_job_write),
 ) -> CreateBuildImageResponse:
     """Trigger the build-image stage for a job.
 

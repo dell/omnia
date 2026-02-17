@@ -39,7 +39,7 @@ class MockBuildImageConfigRepository(BuildStreamConfigRepository):
         self.inventory_host = inventory_host
         self.should_fail = should_fail
 
-    def get_inventory_host(self, job_id):
+    def get_aarch64_inv_host(self, job_id):
         """Return configured inventory host or None."""
         if self.should_fail:
             raise Exception("Config file error")

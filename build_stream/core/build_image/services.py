@@ -53,7 +53,7 @@ class BuildImageConfigService:
             return None
 
         # For aarch64, inventory host is required
-        inventory_host = self._config_repo.get_inventory_host(job_id)
+        inventory_host = self._config_repo.get_aarch64_inv_host(job_id)
         if not inventory_host:
             raise InventoryHostMissingError(
                 "Inventory host is required for aarch64 builds", correlation_id

@@ -172,7 +172,10 @@ class TestBuildImageE2E:
         assert "request_id" in request_content
         assert "timeout_minutes" in request_content
         assert "submitted_at" in request_content
-        assert "inventory_host" not in request_content  # Not needed for x86_64
+        assert "inventory_file_path" not in request_content  # Not needed for x86_64
+        
+        # Step 7: Verify stage naming (should be build-image-x86_64)
+        assert request_content["stage_name"] == "build-image-x86_64"
 
     def test_full_build_image_workflow_aarch64(self):
         """Test complete build image workflow for aarch64."""
@@ -200,11 +203,16 @@ class TestBuildImageE2E:
         job_id = job_data["job_id"]
 
         # Step 2: Create build_stream_config.yml with inventory host
-        job_input_dir = Path(f"/opt/omnia/build_stream/jobs/{job_id}/input")
-        job_input_dir.mkdir(parents=True, exist_ok=True)
+        # Use the consolidated repository path structure
+        input_dir = Path("/opt/omnia/input/project_default")
+        input_dir.mkdir(parents=True, exist_ok=True)
         
-        config_file = job_input_dir / "build_stream_config.yml"
-        config_file.write_text("inventory_host: 10.3.0.170\n", encoding="utf-8")
+        # Create default.yml for project name resolution
+        default_file = Path("/opt/omnia/input/default.yml")
+        default_file.write_text("project_name: project_default\n", encoding="utf-8")
+        
+        config_file = input_dir / "build_stream_config.yml"
+        config_file.write_text("aarch64_inventory_host: 10.3.0.170\n", encoding="utf-8")
 
         # Step 3: Trigger build image stage
         build_image_response = requests.post(
@@ -223,14 +231,112 @@ class TestBuildImageE2E:
         build_data = build_image_response.json()
         assert build_data["architecture"] == "aarch64"
 
-        # Step 4: Verify request file includes inventory host
+        # Step 4: Verify request file and inventory file creation
         queue_dir = Path("/opt/omnia/build_stream/queue/requests")
         request_files = list(queue_dir.glob(f"{job_id}_build-image_*.json"))
         assert len(request_files) == 1
 
         request_data = json.loads(request_files[0].read_text(encoding="utf-8"))
-        assert request_data["inventory_host"] == "10.3.0.170"
-        assert request_data["playbook_path"] == "/omnia/build_image_aarch64/build_image_aarch64.yml"
+        assert request_data["playbook_path"] == "build_image_aarch64.yml"  # Only filename, not full path
+        
+        # Step 5: Verify inventory file was created by consolidated repository
+        inventory_dir = Path("/opt/omnia/build_stream_inv")
+        inventory_file = inventory_dir / job_id / "inv"
+        assert inventory_file.exists(), "Inventory file should be created"
+        
+        # Verify inventory file content
+        with open(inventory_file, 'r') as f:
+            inventory_content = f.read()
+        assert "10.3.0.170" in inventory_content, f"Inventory file should contain host IP: {inventory_content}"
+        assert "[build_hosts]" in inventory_content, f"Inventory file should have proper format: {inventory_content}"
+        
+        # Step 6: Verify stage naming (should be build-image-aarch64)
+        with open(request_files[0], "r", encoding="utf-8") as f:
+            request_content = json.load(f)
+        assert request_content["stage_name"] == "build-image-aarch64"
+        
+        # Step 7: Verify inventory_file_path is included in request
+        assert "inventory_file_path" in request_content
+        assert request_content["inventory_file_path"] == str(inventory_file)
+
+    def test_consolidated_repository_functionality(self):
+        """Test consolidated NfsInputRepository functionality."""
+        correlation_id = "e2e-test-consolidated-repo"
+        headers = self.get_headers(correlation_id)
+
+        # Step 1: Create a job
+        create_job_response = requests.post(
+            f"{self.BASE_URL}{self.API_PREFIX}/jobs",
+            json={
+                "stage": "build-image",
+                "input_parameters": {
+                    "architecture": "aarch64",
+                    "image_key": "e2e-consolidated-test",
+                    "functional_groups": ["slurm_control_node_aarch64"]
+                }
+            },
+            headers=headers
+        )
+        assert create_job_response.status_code == 201
+        job_data = create_job_response.json()
+        job_id = job_data["job_id"]
+
+        # Step 2: Setup consolidated repository paths
+        input_dir = Path("/opt/omnia/input")
+        input_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create default.yml for project name resolution
+        default_file = input_dir / "default.yml"
+        default_file.write_text("project_name: project_default\n", encoding="utf-8")
+        
+        # Create config with correct key name
+        config_file = input_dir / "project_default" / "build_stream_config.yml"
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text("aarch64_inventory_host: 192.168.1.200\n", encoding="utf-8")
+
+        # Step 3: Trigger build image stage
+        build_image_response = requests.post(
+            f"{self.BASE_URL}{self.API_PREFIX}/jobs/{job_id}/stages/build-image",
+            json={
+                "architecture": "aarch64",
+                "image_key": "e2e-consolidated-test",
+                "functional_groups": ["slurm_control_node_aarch64"]
+            },
+            headers=headers
+        )
+        assert build_image_response.status_code == 202
+
+        # Step 4: Verify consolidated repository functionality
+        # 4a: Verify config reading works
+        queue_dir = Path("/opt/omnia/build_stream/queue/requests")
+        request_files = list(queue_dir.glob(f"{job_id}_build-image_*.json"))
+        assert len(request_files) == 1
+        
+        # 4b: Verify inventory file creation
+        inventory_dir = Path("/opt/omnia/build_stream_inv")
+        inventory_file = inventory_dir / job_id / "inv"
+        assert inventory_file.exists(), "Consolidated repository should create inventory file"
+        
+        # 4c: Verify inventory file content
+        with open(inventory_file, 'r') as f:
+            content = f.read()
+        assert "192.168.1.200" in content
+        assert "[build_hosts]" in content
+        
+        # 4d: Verify input directory paths work
+        build_stream_dir = Path("/opt/omnia/build_stream")
+        source_path = build_stream_dir / job_id / "input"
+        dest_path = input_dir / "project_default"
+        
+        # These paths should be accessible through the consolidated repository
+        assert dest_path.exists(), "Destination input directory should exist"
+        
+        # 4e: Verify request contains correct playbook filename (not full path)
+        with open(request_files[0], "r", encoding="utf-8") as f:
+            request_content = json.load(f)
+        assert request_content["playbook_path"] == "build_image_aarch64.yml"
+        assert request_content["stage_name"] == "build-image-aarch64"
+        assert "inventory_file_path" in request_content
 
     def test_build_image_error_cases(self):
         """Test various error scenarios."""

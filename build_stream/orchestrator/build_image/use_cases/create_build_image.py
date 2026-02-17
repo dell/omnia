@@ -32,6 +32,7 @@ from core.build_image.repositories import (
     BuildStreamConfigRepository,
     BuildImageInventoryRepository,
 )
+from infra.repositories import NfsInputRepository
 from core.build_image.services import (
     BuildImageConfigService,
     BuildImageQueueService,
@@ -102,7 +103,7 @@ class CreateBuildImageUseCase:
         audit_repo: AuditEventRepository,
         config_service: BuildImageConfigService,
         queue_service: BuildImageQueueService,
-        inventory_repo: BuildImageInventoryRepository,
+        inventory_repo: NfsInputRepository,
         uuid_generator: UUIDGenerator,
     ) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments
         """Initialize use case with repository and service dependencies.

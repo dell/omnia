@@ -107,10 +107,10 @@ class TestBuildImageAPI:
             job_dir.mkdir(parents=True)
             
             config_file = job_dir / "build_stream_config.yml"
-            config_file.write_text("inventory_host: 192.168.1.100\n")
+            config_file.write_text("aarch64_inventory_host: 172.16.0.100\n")
 
             # Mock the config repository path
-            with patch("infra.repositories.nfs_build_stream_config_repository.NfsBuildStreamConfigRepository._base_path", temp_dir + "/jobs"):
+            with patch("infra.repositories.nfs_input_repository.NfsInputRepository._config_file_path", temp_dir + "/jobs/build_stream_config.yml"):
                 # Trigger build image stage
                 response = client.post(
                     f"/api/v1/jobs/{job_id}/stages/build-image",

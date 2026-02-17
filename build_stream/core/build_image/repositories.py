@@ -25,8 +25,8 @@ class BuildStreamConfigRepository(ABC):
     """Repository for reading build stream configuration."""
 
     @abstractmethod
-    def get_inventory_host(self, job_id: str) -> Optional[InventoryHost]:
-        """Get inventory host for aarch64 builds.
+    def get_aarch64_inv_host(self, job_id: str) -> Optional[InventoryHost]:
+        """Get aarch64 inventory host for builds.
 
         Args:
             job_id: Job identifier.
@@ -37,6 +37,7 @@ class BuildStreamConfigRepository(ABC):
         Raises:
             ConfigFileError: If config file cannot be read.
         """
+        ...
 
 
 class BuildImageInventoryRepository(ABC):
@@ -56,3 +57,4 @@ class BuildImageInventoryRepository(ABC):
         Raises:
             IOError: If inventory file cannot be created.
         """
+        ...
