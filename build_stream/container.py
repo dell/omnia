@@ -281,11 +281,12 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     idempotency_repository = providers.Singleton(InMemoryIdempotencyRepository)
     audit_repository = providers.Singleton(InMemoryAuditEventRepository)
 
-    # --- Local repo repositories ---
-    input_directory_repository = providers.Singleton(
-        NfsInputDirectoryRepository,
+    # --- Consolidated input repository ---
+    input_repository = providers.Singleton(
+        NfsInputRepository,
     )
 
+    # --- Queue repositories ---
     playbook_queue_request_repository = providers.Singleton(
         NfsPlaybookQueueRequestRepository,
     )
@@ -293,21 +294,13 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     playbook_queue_result_repository = providers.Singleton(
         NfsPlaybookQueueResultRepository,
     )
-    # --- Build image repositories ---
-    build_image_config_repository = providers.Singleton(
-        NfsBuildStreamConfigRepository,
-    )
-    
-    build_image_inventory_repository = providers.Singleton(
-        NfsBuildImageInventoryRepository,
-    )
 
 
 
     # --- Local repo services ---
     input_file_service = providers.Factory(
         InputFileService,
-        input_repo=input_directory_repository,
+        input_repo=input_repository,
     )
 
     playbook_queue_request_service = providers.Factory(
@@ -322,7 +315,7 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     # --- Build image services ---
     build_image_config_service = providers.Factory(
         BuildImageConfigService,
-        config_repo=build_image_config_repository,
+        config_repo=input_repository,
     )
 
 
@@ -379,7 +372,7 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         audit_repo=audit_repository,
         config_service=build_image_config_service,
         queue_service=playbook_queue_request_service,
-        inventory_repo=build_image_inventory_repository,
+        inventory_repo=input_repository,
         uuid_generator=uuid_generator,
     )
 
