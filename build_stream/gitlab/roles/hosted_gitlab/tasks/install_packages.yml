@@ -15,14 +15,7 @@
 ---
 - name: Install prerequisites
   ansible.builtin.package:
-    name:
-      - curl
-      - policycoreutils
-      - policycoreutils-python-utils
-      - openssl
-      - firewalld
-      - podman
-      - podman-docker
+    name: "{{ gitlab_hosted_prereq_packages }}"
     state: present
 
 - name: Enable Podman socket (for runner)

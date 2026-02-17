@@ -34,6 +34,18 @@ gitlab_api_ready_failure_msg: 'Failed to contact {{ gitlab_external_url_computed
 gitlab_project_search_failure_msg: 'Failed to search for project {{ gitlab_project_name }} via GitLab API.'
 gitlab_project_create_failure_msg: 'Failed to create GitLab project {{ gitlab_project_name }} via API.'
 gitlab_runner_token_failure_msg: 'Failed to create GitLab runner authentication token for project {{ gitlab_project_name }}.'
+gitlab_root_token_name: "omnia-automation"
+gitlab_root_token_expiry_days: 365
+
+# Host prerequisites
+gitlab_hosted_prereq_packages:
+  - curl
+  - policycoreutils
+  - policycoreutils-python-utils
+  - openssl
+  - firewalld
+  - podman
+  - podman-docker
 
 # Runner container
 gitlab_runner_container_name: "gitlab-runner"
