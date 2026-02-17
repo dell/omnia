@@ -18,19 +18,14 @@
 # ============================================================================
 # This file contains all user inputs required for GitLab deployment and
 # integration with Omnia Infrastructure Manager (OIM).
-#
-# Two deployment modes are supported:
-#   1. hosted   - Install GitLab CE via Omnibus RPM on a target server
-#   2. existing - Integrate with an already configured GitLab instance
 # ============================================================================
 
 # ----------------------------------------------------------------------------
 # DEPLOYMENT MODE
 # ----------------------------------------------------------------------------
 # Options: "hosted" or "existing"
-#   - hosted:   Omnia installs GitLab CE Omnibus RPM on specified host
-#   - existing: Use an already configured GitLab instance
-# Set this first: all other sections derive from the chosen mode.
+#   1. hosted   - Install GitLab CE via Omnibus RPM on a target server reachable by OIM
+#   2. existing - Integrate with an already configured GitLab instance reachable by OIM
 gitlab_deployment_mode: "hosted"
 
 # ----------------------------------------------------------------------------
