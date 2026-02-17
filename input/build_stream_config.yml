@@ -26,12 +26,12 @@
 # Default: false
 enable_build_stream: false
 
-# Madatory: Build Stream API server port
+# Optional: Build Stream API server port
 # Accepted values: public IP address of OIM or admin IP of OIM
 # Default is admin IP of OIM
-build_stream_host_ip: "{{ admin_nic_ip }}"
+build_stream_host_ip:
 
-# Madatory: Build Stream API server port
+# Mandatory: Build Stream API server port
 # Accepted values: valid port number (1-65535) which is free
 # Default: 443
 build_stream_port: 443

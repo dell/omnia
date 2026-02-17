@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""NFS-based implementation of BuildImageConfigRepository."""
+"""NFS-based implementation of BuildStreamConfigRepository."""
 
 import logging
 import os
@@ -21,7 +21,7 @@ from typing import Optional
 
 import yaml
 
-from core.build_image.repositories import BuildImageConfigRepository
+from core.build_image.repositories import BuildStreamConfigRepository
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ def _read_project_name(default_file_path: str = "/opt/omnia/input/default.yml") 
         return "project_default"
 
 
-class NfsBuildStreamConfigRepository(BuildImageConfigRepository):
+class NfsBuildStreamConfigRepository(BuildStreamConfigRepository):
     """Repository for build_stream_config.yml access."""
 
     def __init__(

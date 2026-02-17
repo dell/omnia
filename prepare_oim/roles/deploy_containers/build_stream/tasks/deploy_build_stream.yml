@@ -120,7 +120,7 @@
   delegate_to: localhost
 
 # -------------------------------------------------------------------
-# 3) FAIL if Pulp container missing / not running
+# 4) FAIL if Pulp container missing / not running
 # -------------------------------------------------------------------
 - name: Precheck - fail if Pulp container is missing or not running
   block:

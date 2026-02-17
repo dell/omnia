@@ -143,7 +143,7 @@ class TestBuildImageRequest:
             "functional_groups_value",
             "inventory_host_value",
         ),
-        [("job-123", "test-image", ["group1"], "192.168.1.100")],
+        [("job-123", "test-image", ["group1"], "10.3.1.100")],
     )
     def test_get_playbook_command_aarch64(
         self,

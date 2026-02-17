@@ -108,7 +108,7 @@ postgres_db_name: "{{ hostvars['localhost']['postgres_db_name'] | default('build
 build_stream_service: "{{ build_stream_container_name }}.service"
 
 # Health check
-build_stream_health_endpoint: "https://{{ admin_ip }}:{{ build_stream_port }}/health"
+build_stream_health_endpoint: "https://{{ build_stream_host_ip | default(admin_ip) }}:{{ build_stream_port }}/health"
 container_ready_wait_seconds: 5
 bs_container_wait_retries: 30
 bs_container_wait_delay: 2
