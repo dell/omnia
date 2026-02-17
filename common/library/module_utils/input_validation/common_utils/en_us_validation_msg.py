@@ -397,7 +397,6 @@ ENABLE_BUILD_STREAM_REQUIRED_MSG = "Field 'enable_build_stream' is required in b
 ENABLE_BUILD_STREAM_BOOLEAN_MSG = "Field 'enable_build_stream' must be a boolean (true or false)."
 BUILD_STREAM_CONFIG_EMPTY_MSG = ("build_stream_config.yml file is empty or has syntax errors. "
                                  "It must contain valid YAML with 'enable_build_stream' field.")
-BUILD_STREAM_HOST_IP_REQUIRED_MSG = "Field 'build_stream_host_ip' is required in build_stream_config.yml."
 BUILD_STREAM_HOST_IP_INVALID_MSG = ("Field 'build_stream_host_ip' must be either the admin IP or public IP of OIM. "
                                     "Provided IP does not match admin IP from network_spec.yml.")
 AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = ("Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "

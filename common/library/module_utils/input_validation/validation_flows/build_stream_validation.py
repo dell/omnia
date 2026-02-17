@@ -81,16 +81,17 @@ def validate_build_stream_config(input_file_path, data,
         # Cannot validate without admin network info
         return errors
     
-    # Validate build_stream_host_ip
+    # Validate build_stream_host_ip (optional field)
     build_stream_host_ip = data.get("build_stream_host_ip")
     
-    if build_stream_host_ip:
+    if build_stream_host_ip and build_stream_host_ip not in ["", None]:
         # Check if it's a valid IP format (already validated by schema, but double-check)
         try:
             ipaddress.IPv4Address(build_stream_host_ip)
         except ValueError:
             errors.append(create_error_msg(build_stream_yml, "build_stream_host_ip",
                                           "Invalid IPv4 address format"))
+            return errors
         
         # For now, we accept admin IP or any valid public IP
         # Note: "public IP" validation would require additional context (e.g., list of OIM public IPs)
@@ -102,6 +103,12 @@ def validate_build_stream_config(input_file_path, data,
                 "Ensure this is a valid public IP of OIM if different.",
                 build_stream_host_ip, admin_ip
             )
+    else:
+        # If not provided, admin IP will be used as default (no validation needed)
+        logger.info(
+            "build_stream_host_ip not provided, admin IP (%s) will be used as default",
+            admin_ip
+        )
     
     # Validate aarch64_inventory_host_ip
     aarch64_inventory_host_ip = data.get("aarch64_inventory_host_ip")
