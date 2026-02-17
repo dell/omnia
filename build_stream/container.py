@@ -294,6 +294,16 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     playbook_queue_result_repository = providers.Singleton(
         NfsPlaybookQueueResultRepository,
     )
+    # --- Build image repositories ---
+    build_image_config_repository = providers.Singleton(
+        NfsBuildStreamConfigRepository,
+    )
+    
+    build_image_inventory_repository = providers.Singleton(
+        NfsBuildImageInventoryRepository,
+    )
+
+
 
 
 

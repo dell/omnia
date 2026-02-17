@@ -1,0 +1,102 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Generate CA private key
+  ansible.builtin.command: >
+    openssl genrsa -out {{ gitlab_cert_dir }}/ca.key {{ gitlab_ca_key_bits }}
+  args:
+    creates: "{{ gitlab_cert_dir }}/ca.key"
+
+- name: Generate CA certificate
+  ansible.builtin.command: >
+    openssl req -x509 -new -nodes
+    -key {{ gitlab_cert_dir }}/ca.key
+    -sha256 -days {{ gitlab_ca_validity_days }}
+    -subj "{{ gitlab_ca_subject }}"
+    -out {{ gitlab_cert_dir }}/ca.crt
+  args:
+    creates: "{{ gitlab_cert_dir }}/ca.crt"
+
+- name: Write SAN config from template
+  ansible.builtin.template:
+    src: san.cnf.j2
+    dest: "{{ gitlab_cert_dir }}/san.cnf"
+    mode: '0644'
+
+- name: Generate server key
+  ansible.builtin.command: >
+    openssl genrsa -out {{ gitlab_cert_dir }}/{{ gitlab_host }}.key {{ gitlab_server_key_bits }}
+  args:
+    creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.key"
+
+- name: Generate CSR
+  ansible.builtin.command: >
+    openssl req -new
+    -key {{ gitlab_cert_dir }}/{{ gitlab_host }}.key
+    -out {{ gitlab_cert_dir }}/{{ gitlab_host }}.csr
+    -config {{ gitlab_cert_dir }}/san.cnf
+  args:
+    creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.csr"
+
+- name: Sign server certificate
+  ansible.builtin.command: >
+    openssl x509 -req
+    -in {{ gitlab_cert_dir }}/{{ gitlab_host }}.csr
+    -CA {{ gitlab_cert_dir }}/ca.crt
+    -CAkey {{ gitlab_cert_dir }}/ca.key
+    -CAcreateserial
+    -out {{ gitlab_cert_dir }}/{{ gitlab_host }}.crt
+    -days {{ gitlab_cert_validity_days }}
+    -sha256
+    -extensions req_ext
+    -extfile {{ gitlab_cert_dir }}/san.cnf
+  args:
+    creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.crt"
+
+- name: Install certs to GitLab SSL dir
+  ansible.builtin.copy:
+    src: "{{ gitlab_cert_dir }}/{{ item.src }}"
+    dest: "{{ gitlab_ssl_dir }}/{{ item.dest }}"
+    remote_src: true
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: "{{ gitlab_host }}.crt", dest: "{{ gitlab_host }}.crt", mode: "0644" }
+    - { src: "{{ gitlab_host }}.key", dest: "{{ gitlab_host }}.key", mode: "0600" }
+
+- name: Copy CA to runner certs dir
+  ansible.builtin.copy:
+    src: "{{ gitlab_cert_dir }}/ca.crt"
+    dest: "{{ gitlab_runner_config_path }}/certs/{{ gitlab_host }}.crt"
+    remote_src: true
+    mode: '0644'
+
+- name: Trust CA system-wide (RHEL/CentOS)
+  ansible.builtin.copy:
+    src: "{{ gitlab_cert_dir }}/ca.crt"
+    dest: "/etc/pki/ca-trust/source/anchors/gitlab-ca.crt"
+    remote_src: true
+    mode: '0644'
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Update CA trust
+  ansible.builtin.command: update-ca-trust
+  changed_when: false
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Reconfigure GitLab to pick up new certificates
+  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+  when: gitlab_host is defined
+  changed_when: false
