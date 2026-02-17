@@ -411,11 +411,13 @@ class CreateBuildImageUseCase:
             correlation_id=str(command.correlation_id),
         )
 
+        # Use architecture-specific stage type for logging
+        stage_type = StageType.BUILD_IMAGE_X86_64 if architecture.is_x86_64 else StageType.BUILD_IMAGE_AARCH64
         logger.info(
             "Build image request submitted to queue for job %s, stage=%s, "
             "arch=%s, correlation_id=%s",
             command.job_id,
-            StageType.BUILD_IMAGE.value,
+            stage_type.value,
             str(architecture),
             command.correlation_id,
         )
@@ -427,6 +429,8 @@ class CreateBuildImageUseCase:
         image_key: ImageKey,
     ) -> None:
         """Emit an audit event for stage start."""
+        # Use architecture-specific stage type for audit event
+        stage_type = StageType.BUILD_IMAGE_X86_64 if architecture.is_x86_64 else StageType.BUILD_IMAGE_AARCH64
         event = AuditEvent(
             event_id=str(self._uuid_generator.generate()),
             job_id=command.job_id,
@@ -435,7 +439,7 @@ class CreateBuildImageUseCase:
             client_id=command.client_id,
             timestamp=datetime.now(timezone.utc),
             details={
-                "stage_name": StageType.BUILD_IMAGE.value,
+                "stage_name": stage_type.value,
                 "architecture": str(architecture),
                 "image_key": str(image_key),
             },
@@ -450,9 +454,11 @@ class CreateBuildImageUseCase:
         image_key: ImageKey,
     ) -> BuildImageResponse:
         """Map to response DTO."""
+        # Use architecture-specific stage type for response
+        stage_type = StageType.BUILD_IMAGE_X86_64 if architecture.is_x86_64 else StageType.BUILD_IMAGE_AARCH64
         return BuildImageResponse(
             job_id=str(command.job_id),
-            stage_name=StageType.BUILD_IMAGE.value,
+            stage_name=stage_type.value,
             status="accepted",
             submitted_at=request.submitted_at,
             correlation_id=str(command.correlation_id),
