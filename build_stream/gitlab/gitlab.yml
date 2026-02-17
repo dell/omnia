@@ -24,9 +24,11 @@
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost
   gather_facts: false
-  vars_files:
-    - "{{ input_project_dir }}/gitlab_config.yml"
   tasks:
+    - name: Load GitLab configuration inputs
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/gitlab_config.yml"
+
     - name: Ensure provision password is available
       ansible.builtin.assert:
         that:
@@ -47,14 +49,16 @@
   hosts: "{{ gitlab_host | default('gitlab_server') }}"
   become: true
   gather_facts: true
-  vars_files:
-    - "{{ input_project_dir }}/gitlab_config.yml"
   tasks:
+    - name: Load GitLab configuration inputs
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/gitlab_config.yml"
+
     - name: Validate hosted-mode requirements
       ansible.builtin.assert:
         that:
           - gitlab_host is defined and gitlab_host != ''
-        fail_msg: "Set gitlab_host in gitlab_config.yaml for hosted mode"
+        fail_msg: "Set gitlab_host in gitlab_config.yml for hosted mode"
       when: gitlab_deployment_mode == 'hosted'
 
     - name: Bootstrap passwordless SSH
@@ -70,9 +74,11 @@
 - name: Integrate with existing GitLab instance
   hosts: localhost
   gather_facts: false
-  vars_files:
-    - "{{ input_project_dir }}/gitlab_config.yml"
   tasks:
+    - name: Load GitLab configuration inputs
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/gitlab_config.yml"
+
     - name: Validate existing-mode requirements
       ansible.builtin.assert:
         that:
