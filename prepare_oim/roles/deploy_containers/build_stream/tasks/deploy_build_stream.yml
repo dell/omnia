@@ -78,20 +78,20 @@
 # -------------------------------------------------------------------
 - name: Set build_stream_host_ip from config or fallback to admin_ip
   ansible.builtin.set_fact:
-    build_stream_host_ip: "{{ 
-      build_stream_host_ip 
-      if (build_stream_host_ip is defined and 
-          build_stream_host_ip != None and 
-          build_stream_host_ip != '') 
+    build_stream_host_ip: "{{
+      build_stream_host_ip
+      if (build_stream_host_ip is defined and
+          build_stream_host_ip != None and
+          build_stream_host_ip != '')
       else admin_ip }}"
   changed_when: false
 
 - name: Display which host IP will be used
   ansible.builtin.debug:
-    msg: "Using host IP: {{ build_stream_host_ip }} (from config: {{ 
-      'Yes' if (build_stream_host_ip is defined and 
-               build_stream_host_ip != None and 
-               build_stream_host_ip != '') 
+    msg: "Using host IP: {{ build_stream_host_ip }} (from config: {{
+      'Yes' if (build_stream_host_ip is defined and
+               build_stream_host_ip != None and
+               build_stream_host_ip != '')
       else 'No (using admin_ip fallback)' }})"
   verbosity: 1
 
