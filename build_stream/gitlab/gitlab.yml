@@ -27,7 +27,9 @@
   tasks:
     - name: Load GitLab configuration inputs
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/gitlab_config.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+      delegate_to: localhost
+      run_once: true
 
     - name: Ensure provision password is available
       ansible.builtin.assert:
@@ -52,7 +54,9 @@
   tasks:
     - name: Load GitLab configuration inputs
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/gitlab_config.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+      delegate_to: localhost
+      run_once: true
 
     - name: Validate hosted-mode requirements
       ansible.builtin.assert:
@@ -77,7 +81,8 @@
   tasks:
     - name: Load GitLab configuration inputs
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/gitlab_config.yml"
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+      delegate_to: localhost
 
     - name: Validate existing-mode requirements
       ansible.builtin.assert:
