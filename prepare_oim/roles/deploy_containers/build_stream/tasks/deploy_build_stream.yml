@@ -86,13 +86,9 @@
       else admin_ip }}"
   changed_when: false
 
-- name: Display which host IP will be used
+- name: Display host IP being used
   ansible.builtin.debug:
-    msg: "Using host IP: {{ build_stream_host_ip }} (from config: {{
-      'Yes' if (build_stream_host_ip is defined and
-               build_stream_host_ip != None and
-               build_stream_host_ip != '')
-      else 'No (using admin_ip fallback)' }})"
+    msg: "Using host IP: {{ build_stream_host_ip }}"
   verbosity: 1
 
 # -------------------------------------------------------------------
