@@ -16,6 +16,7 @@
 
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from api.logging_utils import log_secure_info
@@ -142,9 +143,8 @@ class CreateBuildImageUseCase:
             QueueUnavailableError: If NFS queue is not accessible.
         """
         self._validate_job(command)
-        stage = self._validate_stage(command)
-
         architecture = self._validate_architecture(command)
+        stage = self._validate_stage(command, architecture)
         image_key = self._validate_image_key(command)
         functional_groups = self._validate_functional_groups(command)
 
@@ -187,9 +187,15 @@ class CreateBuildImageUseCase:
 
         return job
 
-    def _validate_stage(self, command: CreateBuildImageCommand) -> Stage:
+    def _validate_stage(self, command: CreateBuildImageCommand, architecture: Architecture) -> Stage:
         """Validate stage exists and is in PENDING state."""
-        stage_name = StageName(StageType.BUILD_IMAGE.value)
+        # Use architecture-specific stage type
+        if architecture.is_x86_64:
+            stage_type = StageType.BUILD_IMAGE_X86_64
+        else:
+            stage_type = StageType.BUILD_IMAGE_AARCH64
+            
+        stage_name = StageName(stage_type.value)
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
 
         if stage is None:
@@ -364,11 +370,9 @@ class CreateBuildImageUseCase:
     ) -> BuildImageRequest:
         """Create BuildImageRequest entity."""
         # Determine playbook path based on architecture
-        playbook_path = PlaybookPath(
-            "/omnia/build_image_x86_64/build_image_x86_64.yml"
-            if architecture.is_x86_64
-            else "/omnia/build_image_aarch64/build_image_aarch64.yml"
-        )
+        full_path = PLAYBOOK_PATHS[architecture.value]
+        playbook_name = full_path.split("/")[-1]  # Extract filename from full path
+        playbook_path = PlaybookPath(playbook_name)
 
         # Build extra vars dictionary
         extra_vars_dict = {

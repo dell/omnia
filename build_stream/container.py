@@ -265,6 +265,8 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
             "api.jobs.dependencies",
             "api.local_repo.routes",
             "api.local_repo.dependencies",
+            "api.build_image.routes",
+            "api.build_image.dependencies",
         ]
     )
 

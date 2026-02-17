@@ -16,7 +16,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from core.localrepo.value_objects import ExecutionTimeout, ExtraVars, PlaybookPath
 
@@ -45,11 +45,11 @@ class BuildImageRequest:
     stage_name: str
     playbook_path: PlaybookPath
     extra_vars: ExtraVars
-    inventory_file_path: Optional[str] = None
     correlation_id: str
     timeout: ExecutionTimeout
     submitted_at: str
     request_id: str
+    inventory_file_path: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize request to dictionary for JSON file writing."""
