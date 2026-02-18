@@ -1,0 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Ensure runner container is absent before redeploy
+  containers.podman.podman_container:
+    name: "{{ gitlab_runner_container_name }}"
+    state: absent
+
+- name: Ensure runner image is present
+  containers.podman.podman_image:
+    name: "{{ gitlab_runner_image }}"
+    state: present
+
+- name: Determine SELinux volume suffix
+  ansible.builtin.set_fact:
+    gitlab_runner_volume_suffix: "{{ ':Z' if ansible_selinux is defined and ansible_selinux.status == 'enabled' else '' }}"
+
+- name: Ensure runner config directory exists
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_config_path }}"
+    state: directory
+    mode: '0755'
+
+- name: Check if runner already registered
+  ansible.builtin.stat:
+    path: "{{ gitlab_runner_config_file }}"
+  register: gitlab_runner_config_stat
+
+- name: Register GitLab runner with authentication token
+  containers.podman.podman_container:
+    name: gitlab-runner-register
+    image: "{{ gitlab_runner_image }}"
+    state: started
+    detach: false
+    rm: true
+    command:
+      - register
+      - --non-interactive
+      - --url
+      - "{{ gitlab_external_url_computed }}/"
+      - --token
+      - "{{ gitlab_runner_auth_token }}"
+      - --executor
+      - "{{ gitlab_runner_executor }}"
+      - --docker-image
+      - "{{ gitlab_runner_default_image }}"
+      - --docker-pull-policy
+      - "{{ gitlab_runner_pull_policy }}"
+      - --description
+      - "{{ gitlab_runner_description }}"
+    volume:
+      - "{{ gitlab_runner_config_path }}:/etc/gitlab-runner{{ gitlab_runner_volume_suffix | default('') }}"
+  no_log: true
+  when: not gitlab_runner_config_stat.stat.exists
+
+- name: Ensure runner container is started
+  containers.podman.podman_container:
+    name: "{{ gitlab_runner_container_name }}"
+    image: "{{ gitlab_runner_image }}"
+    state: started
+    restart_policy: "{{ gitlab_restart_policy }}"
+    volumes:
+      - "{{ gitlab_runner_config_path }}:/etc/gitlab-runner{{ gitlab_runner_volume_suffix | default('') }}"
+      - "{{ podman_socket_path }}:{{ docker_socket_path }}:Z"

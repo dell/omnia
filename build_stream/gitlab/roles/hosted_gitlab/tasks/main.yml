@@ -1,0 +1,52 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Validate prerequisites
+  ansible.builtin.include_tasks: validate_prerequisites.yml
+
+- name: Install system packages
+  ansible.builtin.include_tasks: install_packages.yml
+
+- name: Configure firewall
+  ansible.builtin.include_tasks: configure_firewall.yml
+
+- name: Create required directories
+  ansible.builtin.include_tasks: create_directories.yml
+
+- name: Generate TLS certificates
+  ansible.builtin.include_tasks: generate_tls_certs.yml
+  when: gitlab_use_https
+
+- name: Install GitLab Omnibus RPM
+  ansible.builtin.include_tasks: install_gitlab.yml
+
+- name: Configure gitlab.rb
+  ansible.builtin.include_tasks: configure_gitlab.yml
+
+- name: Create GitLab project via API
+  ansible.builtin.include_tasks: create_project.yml
+
+- name: Create pipeline trigger
+  ansible.builtin.include_tasks: create_trigger.yml
+
+- name: Push CI/CD files to repository
+  ansible.builtin.include_tasks: push_ci_files.yml
+
+- name: Deploy GitLab Runner container
+  ansible.builtin.include_tasks: deploy_runner.yml
+
+- name: Display deployment summary
+  ansible.builtin.include_tasks: display_summary.yml

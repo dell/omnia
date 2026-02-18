@@ -1,0 +1,119 @@
+
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ============================================================================
+# GitLab Configuration for Omnia Build Stream
+# ============================================================================
+# This file contains all user inputs required for GitLab deployment and
+# integration with Omnia Infrastructure Manager (OIM).
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# DEPLOYMENT MODE
+# ----------------------------------------------------------------------------
+# Options: "hosted" or "existing"
+#   1. hosted   - Install GitLab CE via Omnibus RPM on a target server reachable by OIM
+#   2. existing - Integrate with an already configured GitLab instance reachable by OIM
+gitlab_deployment_mode: "hosted"
+
+# ----------------------------------------------------------------------------
+# COMMON SETTINGS (used by both modes)
+# ----------------------------------------------------------------------------
+# Name for the GitLab project Omnia will manage/create
+gitlab_project_name: "omnia-catalog"
+# Visibility options: private | internal | public
+gitlab_project_visibility: "private"
+# Default branch used for pipeline pushes and API calls
+gitlab_default_branch: "main"
+
+# OIM API Server Configuration
+# Uncomment and set to integrate with Omnia Infrastructure Manager APIs.
+# If OIM uses an untrusted/self-signed cert, set oim_api_verify_ssl to false.
+# oim_api_url: "https://oim.example.com/api/v1"
+oim_api_verify_ssl: true
+
+# ----------------------------------------------------------------------------
+# HOSTED MODE SETTINGS (GitLab CE Omnibus RPM Deployment)
+# ----------------------------------------------------------------------------
+# IP/FQDN that Ansible can SSH into for GitLab installation
+# gitlab_host: "172.168.0.5"
+gitlab_host: ""
+
+# Network
+# GitLab external HTTP port (required even when HTTPS enabled)
+gitlab_http_port: 80
+# HTTPS port exposed via GitLab NGINX
+gitlab_https_port: 443
+# SSH port for git+ssh operations
+gitlab_ssh_port: 22
+# true enables TLS termination and cert management tasks
+gitlab_use_https: true
+
+# TLS / Certificates
+# Workspace for generated cert artifacts on target host
+gitlab_cert_dir: "/root/gitlab-certs"
+# Final location consumed by GitLab Omnibus
+gitlab_ssl_dir: "/etc/gitlab/ssl"
+# Provide existing cert/key pairs in gitlab_cert_dir to skip regeneration, or
+# allow the role to generate CA + leaf certs automatically when use_https=true.
+
+# Omnibus package
+# Override when pinning to gitlab-ee or a specific release
+gitlab_package_name: "gitlab-ce"
+# Version control: latest | present | a specific version string
+gitlab_package_state: "latest"
+gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh"
+
+# Minimum requirements
+# Free disk space validated before install
+gitlab_min_storage_gb: 20
+# Adjust upward for production workloads
+gitlab_min_memory_gb: 4
+gitlab_min_cpu_cores: 2
+
+# Performance tuning
+# Disable bundled monitoring to save resources
+gitlab_disable_prometheus: true
+# Disable Grafana if not needed
+gitlab_disable_grafana: true
+# Web worker count; scale with CPU
+gitlab_puma_workers: 2
+# Background job concurrency
+gitlab_sidekiq_concurrency: 10
+
+# Runner (containerized via Podman)
+gitlab_runner_image: "docker.io/gitlab/gitlab-runner:latest"
+gitlab_runner_config_path: "/srv/gitlab-runner/config"
+# Runner executor options: shell | docker | kubernetes etc.
+gitlab_runner_executor: "docker"
+# Default container image for CI jobs when executor=docker
+gitlab_runner_default_image: "alpine:latest"
+# Image pull policy: if-not-present | always | never
+gitlab_runner_pull_policy: "if-not-present"
+
+# Existing GitLab integration settings (used when gitlab_deployment_mode == "existing")
+# e.g., https://gitlab.example.com
+gitlab_external_url: ""
+# Personal Access Token (api scope) with project admin rights
+gitlab_api_token: ""
+# Group or namespace where the project resides/should be created
+gitlab_namespace: "root"
+
+# ----------------------------------------------------------------------------
+# PIPELINE TRIGGER CONFIGURATION
+# ----------------------------------------------------------------------------
+gitlab_trigger_description: "Omnia Software Catalog Webhook"
+# Catalog file Omnia uploads to the GitLab project
+software_catalog_file: "catalog_rhel.json"

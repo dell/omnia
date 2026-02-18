@@ -1,0 +1,108 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../../utils/include_input_dir.yml
+
+- name: Load Omnia credential utility
+  ansible.builtin.import_playbook: ../../utils/credential_utility/get_config_credentials.yml
+
+- name: Prepare GitLab host credentials from provision secrets
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Install sshpass on localhost
+      ansible.builtin.package:
+        name: sshpass
+        state: present
+
+    - name: Load GitLab configuration inputs
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Ensure provision password is available
+      ansible.builtin.assert:
+        that:
+          - hostvars['localhost']['provision_password'] | default('') | length > 0
+        fail_msg: "Provision password not found. Run credential utility to populate provision_password."
+      when: gitlab_deployment_mode == 'hosted'
+
+    - name: Register GitLab SSH credentials
+      ansible.builtin.add_host:
+        name: "{{ gitlab_host | default('gitlab_server') }}"
+        ansible_host: "{{ gitlab_host | default('gitlab_server') }}"
+        ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+      when: gitlab_deployment_mode == 'hosted'
+      no_log: true
+
+- name: Deploy GitLab CE on target host (hosted mode)
+  hosts: "{{ gitlab_host | default('gitlab_server') }}"
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Install sshpass on localhost
+      ansible.builtin.package:
+        name: sshpass
+        state: present
+
+    - name: Load GitLab configuration inputs
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Validate hosted-mode requirements
+      ansible.builtin.assert:
+        that:
+          - gitlab_host is defined and gitlab_host != ''
+        fail_msg: "Set gitlab_host in gitlab_config.yml for hosted mode"
+      when: gitlab_deployment_mode == 'hosted'
+
+    - name: Bootstrap passwordless SSH
+      ansible.builtin.include_role:
+        name: gitlab_passwordless_ssh
+      when: gitlab_deployment_mode == 'hosted'
+
+    - name: Run hosted GitLab deployment
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+      when: gitlab_deployment_mode == 'hosted'
+
+- name: Integrate with existing GitLab instance
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load GitLab configuration inputs
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+      delegate_to: localhost
+
+    - name: Validate existing-mode requirements
+      ansible.builtin.assert:
+        that:
+          - gitlab_external_url is defined and gitlab_external_url != ''
+          - gitlab_api_token is defined and gitlab_api_token != ''
+        fail_msg: "Set gitlab_external_url and gitlab_api_token for existing mode"
+      when: gitlab_deployment_mode == 'existing'
+
+    - name: Run external GitLab integration
+      ansible.builtin.include_role:
+        name: external_gitlab
+      when: gitlab_deployment_mode == 'existing'
