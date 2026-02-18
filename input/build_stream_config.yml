@@ -26,15 +26,15 @@
 # Default: false
 enable_build_stream: false
 
-# Optional: Build Stream API server port
+# Optional: Build Stream API server host IP
 # Accepted values: public IP address of OIM or admin IP of OIM
 # Default is admin IP of OIM
 build_stream_host_ip:
 
 # Mandatory: Build Stream API server port
 # Accepted values: valid port number (1-65535) which is free
-# Default: 443
-build_stream_port: 443
+# Default: 8010
+build_stream_port: 8010
 
 # Conditional Mandatory: AArch64 inventory host IP for aarch64 builds
 # Accepted values: admin IP of aarch64 host where OS is installed
