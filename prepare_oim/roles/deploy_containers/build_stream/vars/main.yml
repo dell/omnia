@@ -72,7 +72,7 @@ build_stream_ssl_file_mode: "0600"
 build_stream_ca_trust_anchor: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 
 # JWT key configuration
-build_stream_jwt_keys_script: "/omnia/build_stream/scripts/generate_jwt_keys.sh"
+build_stream_jwt_keys_script: "/opt/omnia/build_stream/scripts/generate_jwt_keys.sh"
 build_stream_jwt_keys_dir: "/opt/omnia/build_stream/api/.auth/keys"
 
 # Project configuration

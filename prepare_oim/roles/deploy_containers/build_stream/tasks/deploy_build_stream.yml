@@ -92,28 +92,25 @@
     verbosity: 1
 
 # -------------------------------------------------------------------
-# 3) Copy build_stream source code to deployment location
+# 3) Ensure log directory exists
 # -------------------------------------------------------------------
-- name: Ensure build_stream deployment directory exists
-  ansible.builtin.file:
-    path: "{{ omnia_path }}/omnia/build_stream"
-    state: directory
-    mode: "{{ build_stream_dir_mode }}"
-
 - name: Ensure build_stream log directory exists
   ansible.builtin.file:
     path: "{{ build_stream_log_dir }}"
     state: directory
     mode: "{{ build_stream_dir_mode }}"
 
-- name: Sync build_stream source code from codebase to deployment location
-  ansible.posix.synchronize:
-    src: "{{ bs_rsync_source }}"
-    dest: "{{ bs_rsync_destination }}"
-    mode: push
-    archive: true
-    checksum: true
-  delegate_to: localhost
+- name: Ensure build_stream ssl parent directory exists
+  ansible.builtin.file:
+    path: "{{ omnia_path }}/omnia/build_stream_ssl"
+    state: directory
+    mode: "{{ build_stream_dir_mode }}"
+
+- name: Ensure build_stream ssl subdirectory exists
+  ansible.builtin.file:
+    path: "{{ build_stream_ssl_dir }}"
+    state: directory
+    mode: "{{ build_stream_ssl_file_mode }}"
 
 # -------------------------------------------------------------------
 # 4) FAIL if Pulp container missing / not running

@@ -13,6 +13,22 @@
 #  limitations under the License.
 
 ---
+
+- name: Ensure build_stream deployment directory exists
+  ansible.builtin.file:
+    path: "{{ omnia_path }}/omnia/build_stream"
+    state: directory
+    mode: "{{ build_stream_dir_mode }}"
+
+- name: Sync build_stream source code from codebase to deployment location
+  ansible.posix.synchronize:
+    src: "{{ bs_rsync_source }}"
+    dest: "{{ bs_rsync_destination }}"
+    mode: push
+    archive: true
+    checksum: true
+  delegate_to: localhost
+
 - name: Enable playbook watcher service
   ansible.builtin.include_tasks: enable_watcher_service.yml
 
