@@ -2,9 +2,9 @@
 
 ----- Telemetry Report for Cluster -----
 
-Total IP count with Telemetry activated: {{ (db_idrac_ip_list | length) + (telemetry_idrac | length) }}
+Total IP count with Telemetry activated: {{ ((db_idrac_ip_list + telemetry_idrac) | difference(deleted_idrac_ips | default([]))) | length }}
 Telemetry activated IPs List:
-{% for item in db_idrac_ip_list + telemetry_idrac %}
+{% for item in (db_idrac_ip_list + telemetry_idrac) | difference(deleted_idrac_ips | default([])) %}
   - {{ item }}
 {% endfor %}
 
