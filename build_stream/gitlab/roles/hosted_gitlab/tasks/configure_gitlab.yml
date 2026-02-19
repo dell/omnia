@@ -16,7 +16,7 @@
 
 - name: Set external URL
   ansible.builtin.set_fact:
-    gitlab_external_url_computed: "{{ 'https' if gitlab_use_https else 'http' }}://{{ gitlab_host }}"
+    gitlab_external_url_computed: "https://{{ gitlab_host }}"
 
 - name: Configure gitlab.rb from template
   ansible.builtin.template:

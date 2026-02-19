@@ -32,7 +32,6 @@
     immediate: true
     state: enabled
   loop:
-    - "{{ gitlab_http_port }}"
     - "{{ gitlab_https_port }}"
     - "{{ gitlab_ssh_port }}"
 

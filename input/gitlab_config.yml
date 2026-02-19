@@ -21,15 +21,7 @@
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# DEPLOYMENT MODE
-# ----------------------------------------------------------------------------
-# Options: "hosted" or "existing"
-#   1. hosted   - Install GitLab CE via Omnibus RPM on a target server reachable by OIM
-#   2. existing - Integrate with an already configured GitLab instance reachable by OIM
-gitlab_deployment_mode: "hosted"
-
-# ----------------------------------------------------------------------------
-# COMMON SETTINGS (used by both modes)
+# COMMON SETTINGS
 # ----------------------------------------------------------------------------
 # Name for the GitLab project Omnia will manage/create
 gitlab_project_name: "omnia-catalog"
@@ -52,14 +44,10 @@ oim_api_verify_ssl: true
 gitlab_host: ""
 
 # Network
-# GitLab external HTTP port (required even when HTTPS enabled)
-gitlab_http_port: 80
 # HTTPS port exposed via GitLab NGINX
 gitlab_https_port: 443
 # SSH port for git+ssh operations
 gitlab_ssh_port: 22
-# true enables TLS termination and cert management tasks
-gitlab_use_https: true
 
 # TLS / Certificates
 # Workspace for generated cert artifacts on target host
@@ -67,7 +55,7 @@ gitlab_cert_dir: "/root/gitlab-certs"
 # Final location consumed by GitLab Omnibus
 gitlab_ssl_dir: "/etc/gitlab/ssl"
 # Provide existing cert/key pairs in gitlab_cert_dir to skip regeneration, or
-# allow the role to generate CA + leaf certs automatically when use_https=true.
+# allow the role to generate CA + leaf certs automatically.
 
 # Omnibus package
 # Override when pinning to gitlab-ee or a specific release
@@ -103,13 +91,6 @@ gitlab_runner_default_image: "alpine:latest"
 # Image pull policy: if-not-present | always | never
 gitlab_runner_pull_policy: "if-not-present"
 
-# Existing GitLab integration settings (used when gitlab_deployment_mode == "existing")
-# e.g., https://gitlab.example.com
-gitlab_external_url: ""
-# Personal Access Token (api scope) with project admin rights
-gitlab_api_token: ""
-# Group or namespace where the project resides/should be created
-gitlab_namespace: "root"
 
 # ----------------------------------------------------------------------------
 # PIPELINE TRIGGER CONFIGURATION
