@@ -39,10 +39,22 @@
       {"package": "slurm", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]}
     ]
   },
+  "login_node_aarch64": {
+    "packages": [
+      {"package": "slurm-slurmd", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]},
+      {"package": "slurm", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]}
+    ]
+  },
   "login_compiler_node_x86_64": {
     "packages": [
       {"package": "slurm", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]},
       {"package": "slurm-slurmd", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]}
+    ]
+  },
+  "login_compiler_node_aarch64": {
+    "packages": [
+      {"package": "slurm", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]},
+      {"package": "slurm-slurmd", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]}
     ]
   },
   "slurm_control_node_x86_64": {
@@ -64,6 +76,15 @@
       {"package": "kernel-devel", "type": "rpm", "repo_name": "x86_64_appstream", "architecture": ["x86_64"]},
       {"package": "kernel-headers", "type": "rpm", "repo_name": "x86_64_appstream", "architecture": ["x86_64"]},
       {"package": "cuda-run", "type": "iso", "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda_13.0.2_580.95.05_linux.run", "architecture": ["x86_64"]}
+    ]
+  },
+  "slurm_node_aarch64": {
+    "packages": [
+      {"package": "slurm-slurmd", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]},
+      {"package": "slurm-pam_slurm", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]},
+      {"package": "kernel-devel", "type": "rpm", "repo_name": "aarch64_appstream", "architecture": ["aarch64"]},
+      {"package": "kernel-headers", "type": "rpm", "repo_name": "aarch64_appstream", "architecture": ["aarch64"]},
+      {"package": "cuda-run", "type": "iso", "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda_13.0.2_580.95.05_linux_sbsa.run", "architecture": ["aarch64"]}
     ]
   }
 }
