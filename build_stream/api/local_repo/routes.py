@@ -36,6 +36,7 @@ from core.localrepo.exceptions import (
     InputDirectoryInvalidError,
     InputFilesMissingError,
     LocalRepoDomainError,
+    QueueUnavailableError,
 )
 from orchestrator.local_repo.commands import CreateLocalRepoCommand
 from orchestrator.local_repo.use_cases import CreateLocalRepoUseCase
@@ -173,6 +174,21 @@ def create_local_repository(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=_build_error_response(
                 "INPUT_DIRECTORY_INVALID",
+                exc.message,
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
+    except QueueUnavailableError as exc:
+        log_secure_info(
+            "error",
+            f"Queue unavailable for job {job_id}",
+            str(correlation_id.value),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=_build_error_response(
+                "QUEUE_UNAVAILABLE",
                 exc.message,
                 correlation_id.value,
             ).model_dump(),

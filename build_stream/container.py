@@ -31,20 +31,27 @@ from infra.repositories import (
     InMemoryStageRepository,
     InMemoryIdempotencyRepository,
     InMemoryAuditEventRepository,
-    NfsInputDirectoryRepository,
+    NfsInputRepository,
     NfsPlaybookQueueRequestRepository,
     NfsPlaybookQueueResultRepository,
 )
+from orchestrator.catalog.use_cases.generate_input_files import GenerateInputFilesUseCase
 from orchestrator.catalog.use_cases.parse_catalog import ParseCatalogUseCase
 from orchestrator.jobs.use_cases import CreateJobUseCase
 from orchestrator.local_repo.use_cases import CreateLocalRepoUseCase
 from orchestrator.local_repo.result_poller import LocalRepoResultPoller
+from orchestrator.build_image.use_cases import CreateBuildImageUseCase
 
 from core.localrepo.services import (
     InputFileService,
     PlaybookQueueRequestService,
     PlaybookQueueResultService,
 )
+from core.build_image.services import (
+    BuildImageConfigService,
+)
+from core.catalog.adapter_policy import _DEFAULT_POLICY_PATH, _DEFAULT_SCHEMA_PATH
+from core.artifacts.value_objects import SafePath
 from common.config import load_config
 
 
@@ -83,7 +90,7 @@ def _create_artifact_store():
         )
 
 _RESOURCES_DIR = Path(__file__).resolve().parent / "core" / "catalog" / "resources"
-_DEFAULT_POLICY_PATH = _RESOURCES_DIR / "adapter_policy.json"
+_DEFAULT_POLICY_PATH = _RESOURCES_DIR / "adapter_policy_default.json"
 _DEFAULT_SCHEMA_PATH = _RESOURCES_DIR / "AdapterPolicySchema.json"
 
 
@@ -102,11 +109,24 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
             "api.jobs.dependencies",
             "api.local_repo.routes",
             "api.local_repo.dependencies",
+            "api.build_image.routes",
+            "api.build_image.dependencies",
         ]
     )
 
     job_id_generator = providers.Singleton(JobUUIDGenerator)
     uuid_generator = providers.Singleton(UUIDv4Generator)
+
+
+    default_policy_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_POLICY_PATH,
+    )
+
+    policy_schema_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_SCHEMA_PATH,
+    )
 
     # --- Jobs repositories ---
     job_repository = providers.Singleton(InMemoryJobRepository)
@@ -114,11 +134,12 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     idempotency_repository = providers.Singleton(InMemoryIdempotencyRepository)
     audit_repository = providers.Singleton(InMemoryAuditEventRepository)
 
-    # --- Local repo repositories ---
-    input_directory_repository = providers.Singleton(
-        NfsInputDirectoryRepository,
+    # --- input repository ---
+    input_repository = providers.Singleton(
+        NfsInputRepository,
     )
 
+    # --- Queue repositories ---
     playbook_queue_request_repository = providers.Singleton(
         NfsPlaybookQueueRequestRepository,
     )
@@ -130,7 +151,13 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     # --- Local repo services ---
     input_file_service = providers.Factory(
         InputFileService,
-        input_repo=input_directory_repository,
+        input_repo=input_repository,
+    )
+
+    # --- Build image services ---
+    build_image_config_service = providers.Factory(
+        BuildImageConfigService,
+        config_repo=input_repository,
     )
 
     playbook_queue_request_service = providers.Factory(
@@ -187,6 +214,29 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         audit_repo=audit_repository,
         artifact_store=artifact_store,
         artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
+    )
+
+    generate_input_files_use_case = providers.Factory(
+        GenerateInputFilesUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        artifact_store=artifact_store,
+        artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
+        default_policy_path=default_policy_path,
+        policy_schema_path=policy_schema_path,
+    )
+    
+    create_build_image_use_case = providers.Factory(
+        CreateBuildImageUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        config_service=build_image_config_service,
+        queue_service=playbook_queue_request_service,
+        inventory_repo=input_repository,
         uuid_generator=uuid_generator,
     )
 
@@ -206,11 +256,24 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
             "api.jobs.dependencies",
             "api.local_repo.routes",
             "api.local_repo.dependencies",
+            "api.build_image.routes",
+            "api.build_image.dependencies",
         ]
     )
 
     job_id_generator = providers.Singleton(JobUUIDGenerator)
     uuid_generator = providers.Singleton(UUIDv4Generator)
+
+
+    default_policy_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_POLICY_PATH,
+    )
+
+    policy_schema_path = providers.Singleton(
+        SafePath,
+        value=_DEFAULT_SCHEMA_PATH,
+    )
 
     # --- Jobs repositories ---
     job_repository = providers.Singleton(InMemoryJobRepository)
@@ -218,11 +281,12 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     idempotency_repository = providers.Singleton(InMemoryIdempotencyRepository)
     audit_repository = providers.Singleton(InMemoryAuditEventRepository)
 
-    # --- Local repo repositories ---
-    input_directory_repository = providers.Singleton(
-        NfsInputDirectoryRepository,
+    # --- Consolidated input repository ---
+    input_repository = providers.Singleton(
+        NfsInputRepository,
     )
 
+    # --- Queue repositories ---
     playbook_queue_request_repository = providers.Singleton(
         NfsPlaybookQueueRequestRepository,
     )
@@ -231,10 +295,16 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         NfsPlaybookQueueResultRepository,
     )
 
+
+
+
+
+
+
     # --- Local repo services ---
     input_file_service = providers.Factory(
         InputFileService,
-        input_repo=input_directory_repository,
+        input_repo=input_repository,
     )
 
     playbook_queue_request_service = providers.Factory(
@@ -246,6 +316,12 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         PlaybookQueueResultService,
         result_repo=playbook_queue_result_repository,
     )
+    # --- Build image services ---
+    build_image_config_service = providers.Factory(
+        BuildImageConfigService,
+        config_repo=input_repository,
+    )
+
 
     # --- Result poller ---
     result_poller = providers.Singleton(
@@ -292,6 +368,29 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         artifact_store=artifact_store,
         artifact_metadata_repo=artifact_metadata_repository,
         uuid_generator=uuid_generator,
+    )
+    create_build_image_use_case = providers.Factory(
+        CreateBuildImageUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        config_service=build_image_config_service,
+        queue_service=playbook_queue_request_service,
+        inventory_repo=input_repository,
+        uuid_generator=uuid_generator,
+    )
+
+
+    generate_input_files_use_case = providers.Factory(
+        GenerateInputFilesUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        artifact_store=artifact_store,
+        artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
+        default_policy_path=default_policy_path,
+        policy_schema_path=policy_schema_path,
     )
 
 

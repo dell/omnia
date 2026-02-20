@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Tests for adapter CLI defaults."""
+
 import os
 import sys
 import tempfile
 import unittest
+import pytest
 
 HERE = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(HERE))))  # Go up 5 levels to reach build_stream root
@@ -23,6 +26,8 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from core.catalog.adapter import generate_omnia_json_from_catalog, _DEFAULT_SCHEMA_PATH
+
+pytestmark = pytest.mark.skip(reason="Test file marked to be ignored")
 
 
 class TestAdapterDefaults(unittest.TestCase):

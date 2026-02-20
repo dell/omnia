@@ -854,18 +854,6 @@ post_setup_config() {
     rm -rf /omnia/input
     rm -rf /omnia/omnia.sh"
 
-    # Copy build_stream folder to NFS share
-    echo -e "${BLUE} Copying build_stream folder to NFS share at /opt/omnia/build_stream.${NC}"
-    podman exec -u root omnia_core bash -c "
-    if [ -d /omnia/build_stream ]; then
-        mkdir -p /opt/omnia/build_stream
-        cp -r /omnia/build_stream/. /opt/omnia/build_stream/
-        echo 'Build stream folder copied successfully to /opt/omnia/build_stream'
-    else
-        echo 'Warning: /omnia/build_stream directory not found in container'
-    fi"
-
-    init_ssh_config
 }
 
 validate_nfs_server() {

@@ -28,23 +28,38 @@ Image={{ build_stream_image_name }}:{{ build_stream_image_tag }}
 Network=host
 
 # Environment variables
-Environment=HOST={{ admin_ip }}
+Environment=HOST={{ build_stream_host_ip }}
 Environment=PORT={{ build_stream_port }}
 Environment=PULP_BASE_URL={{ pulp_base_url }}
 Environment=PULP_USERNAME=admin
 Environment=PULP_PASSWORD={{ pulp_password }}
 Environment=PULP_VERIFY_SSL=true
+
+# Pulp SSL verification (for connecting to Pulp API)
+Environment=PULP_CA_BUNDLE=/etc/pulp/certs/pulp_webserver.crt
 Environment=REQUESTS_CA_BUNDLE=/etc/pulp/certs/pulp_webserver.crt
-Environment=SSL_CERT_FILE=/etc/pulp/certs/pulp_webserver.crt
+
+# Build Stream SSL certificates (for HTTPS server)
+Environment=SSL_KEYFILE=/etc/ssl/omnia/bs_key.pem
+Environment=SSL_CERTFILE=/etc/ssl/omnia/bs_cert.pem
+Environment=SYSTEM_ANCHOR={{ build_stream_ca_trust_anchor }}
 
 # Database configuration
 Environment=DATABASE_URL=postgresql://{{ postgres_user }}:{{ postgres_password }}@localhost:5432/{{ postgres_db_name }}
+
+# Authentication and OAuth configuration
+Environment=ANSIBLE_VAULT_PASSWORD_FILE="/opt/omnia/input/project_default/.build_stream_oauth_credentials_key"
+Environment=OAUTH_CLIENTS_VAULT_PATH="/opt/omnia/input/project_default/build_stream_oauth_credentials.yml"
+Environment=AUTH_CONFIG_VAULT_PATH="/opt/omnia/input/project_default/build_stream_oauth_credentials.yml"
+Environment=JWT_PRIVATE_KEY_PATH="/opt/omnia/build_stream/api/.auth/keys/jwt_private.pem"
+Environment=JWT_PUBLIC_KEY_PATH="/opt/omnia/build_stream/api/.auth/keys/jwt_public.pem"
+Environment=BUILD_STREAM_CONFIG_PATH="/opt/omnia/build_stream/build_stream.ini
 
 # Volume mounts (shared from omnia_core)
 Volume={{ omnia_path }}/omnia:/opt/omnia{{ selinux_option }}
 Volume={{ build_stream_log_dir }}:/var/log/omnia_build_stream{{ selinux_option }}
 Volume={{ build_stream_ssl_dir }}:/etc/ssl/omnia:ro{{ selinux_option }}
-Volume={{ build_stream_pulp_cert_host_dir }}:{{ build_stream_pulp_cert_host_dir }}:ro{{ selinux_option }}
+Volume={{ build_stream_pulp_cert_host_dir }}:{{ build_stream_pulp_cert_container_path }}:ro{{ selinux_option }}
 
 [Service]
 Restart=always

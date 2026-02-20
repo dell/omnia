@@ -67,16 +67,16 @@ def log_secure_info(level: str, message: str, identifier: Optional[str] = None) 
     log_func(log_message)
 
 # Configuration
-QUEUE_BASE = Path(os.getenv("PLAYBOOK_QUEUE_BASE", "/opt/omnia/build_stream/playbook_queue"))
+QUEUE_BASE = Path(os.getenv("PLAYBOOK_QUEUE_BASE", ""))
 REQUESTS_DIR = QUEUE_BASE / "requests"
 RESULTS_DIR = QUEUE_BASE / "results"
 PROCESSING_DIR = QUEUE_BASE / "processing"
 ARCHIVE_DIR = QUEUE_BASE / "archive"
 
 # NFS shared path configuration
-NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", "/abc"))
-HOST_LOG_BASE_DIR = NFS_SHARE_PATH / "omnia" / "build_stream_logs"
-CONTAINER_LOG_BASE_DIR = Path("/opt/omnia/build_stream_logs")
+NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", ""))
+HOST_LOG_BASE_DIR = NFS_SHARE_PATH / "omnia" / "log" / "build_stream"
+CONTAINER_LOG_BASE_DIR = Path("/opt/omnia/log/build_stream")
 
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))
 MAX_CONCURRENT_JOBS = int(os.getenv("MAX_CONCURRENT_JOBS", "5"))

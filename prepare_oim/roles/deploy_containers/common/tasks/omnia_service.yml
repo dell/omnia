@@ -22,21 +22,16 @@
     auth_service: "omnia_auth.service"
   when: hostvars['localhost']['openldap_support']
 
-- name: Initialize build_stream service variable
+- name: Initialize build_stream services variable
   ansible.builtin.set_fact:
     build_stream_service: ""
-
-- name: Set build_stream service if enabled
-  ansible.builtin.set_fact:
-    build_stream_service: "omnia_build_stream.service"
-  when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
-
-- name: Initialize build_stream service variable
-  ansible.builtin.set_fact:
+    playbook_watcher_service: ""
     omnia_postgres_service: ""
 
-- name: Set build_stream service if enabled
+- name: Set build_stream services if enabled
   ansible.builtin.set_fact:
+    build_stream_service: "omnia_build_stream.service"
+    playbook_watcher_service: "playbook_watcher.service"
     omnia_postgres_service: "omnia_postgres.service"
   when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
 

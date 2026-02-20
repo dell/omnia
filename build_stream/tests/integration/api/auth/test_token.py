@@ -16,7 +16,7 @@
 
 # pylint: disable=redefined-outer-name
 
-from typing import Dict, Generator  # noqa: W0611 pylint: disable=unused-import
+from typing import Dict
 
 import pytest
 from fastapi import status

@@ -7,11 +7,21 @@
       "type": "boolean",
       "description": "Enable or disable build stream pipeline. Accepted values: true or false. Default: false"
     },
+    "build_stream_host_ip": {
+      "type": ["string", "null"],
+      "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+      "description": "Build Stream API server host IP. Must be either admin IP or public IP of OIM. If not provided, admin IP of OIM will be used. Accepted values: valid IPv4 address or null"
+    },
     "build_stream_port": {
       "type": "integer",
       "minimum": 1,
       "maximum": 65535,
       "description": "Build Stream API server port. Accepted values: valid port number (1-65535). Default: 443"
+    },
+    "aarch64_inventory_host_ip": {
+      "type": ["string", "null"],
+      "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+      "description": "AArch64 inventory host IP for aarch64 builds. Must be in same subnet as OIM admin IP. Accepted values: valid IPv4 address or null"
     },
     "postgres_db_name": {
       "type": "string",

@@ -51,7 +51,7 @@ from orchestrator.local_repo.dtos import LocalRepoResponse
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PLAYBOOK_NAME = "include_input_dir.yml"
+DEFAULT_PLAYBOOK_NAME = "local_repo.yml"
 
 
 class CreateLocalRepoUseCase:

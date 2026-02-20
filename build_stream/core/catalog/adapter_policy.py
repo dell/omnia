@@ -22,8 +22,11 @@ import json
 import os
 import argparse
 import logging
+import shutil
 from typing import Dict, List, Any, Optional, Tuple
 from collections import Counter
+
+import yaml
 
 from jsonschema import ValidationError, validate
 
@@ -79,7 +82,7 @@ def discover_architectures(input_dir: str) -> List[str]:
     return archs
 
 
-def discover_os_versions(input_dir: str, arch: str) -> List[tuple]:
+def discover_os_versions(input_dir: str, arch: str) -> List[Tuple[str, str]]:
     """Discover OS families and versions for a given architecture.
 
     Returns list of (os_family, version) tuples.
@@ -97,6 +100,50 @@ def discover_os_versions(input_dir: str, arch: str) -> List[tuple]:
                 if os.path.isdir(version_path):
                     results.append((os_family, version))
     return results
+
+
+def copy_software_config(output_dir: str) -> None:
+    """Copy software_config.json into the output input/ directory.
+
+    Resolution order:
+    - Derive project_name from /opt/omnia/input/default.yml
+    - Use /opt/omnia/input/{project_name}/software_config.json
+
+    Raises:
+        FileNotFoundError: when default.yml or resolved software_config.json is missing.
+        ValueError: when project_name is invalid.
+    """
+
+    input_dir = os.path.join(output_dir, "input")
+    os.makedirs(input_dir, exist_ok=True)
+
+    output_software_config_path = os.path.join(input_dir, "software_config.json")
+
+    default_yml_path = "/opt/omnia/input/default.yml"
+    if not os.path.isfile(default_yml_path):
+        raise FileNotFoundError(default_yml_path)
+
+    with open(default_yml_path, "r", encoding="utf-8") as f:
+        default_config = yaml.safe_load(f) or {}
+
+    project_name = default_config.get("project_name")
+    if not isinstance(project_name, str) or not project_name.strip():
+        raise ValueError("default.yml missing valid 'project_name'")
+    project_name = project_name.strip()
+    if len(project_name) > 128:
+        raise ValueError("default.yml 'project_name' exceeds 128 characters")
+
+    resolved_software_config_path = os.path.join(
+        "/opt/omnia/input", project_name, "software_config.json"
+    )
+
+    if not os.path.isfile(resolved_software_config_path):
+        raise FileNotFoundError(resolved_software_config_path)
+
+    shutil.copy2(resolved_software_config_path, output_software_config_path)
+    logger.info("Copied software_config.json from: %s", resolved_software_config_path)
+
+    return None
 
 
 def _package_key(pkg: Dict) -> Tuple[str, str, str]:
@@ -559,6 +606,11 @@ def generate_configs_from_policy(
         input_dir: Path to input directory (e.g., poc/milestone-1/out1/main)
         output_dir: Path to output directory (e.g., poc/milestone-1/out1/adapter/input/config)
         policy_path: Path to adapter policy JSON file
+        schema_path: Path to adapter policy schema JSON file
+        software_config_path: Optional path to software_config.json to copy to output
+        log_file: Optional path to log file
+        configure_logging: Whether to configure logging
+        log_level: Logging level
     """
     if configure_logging:
         _configure_logging(log_file=log_file, log_level=log_level)
@@ -572,11 +624,14 @@ def generate_configs_from_policy(
 
     logger.info("Loaded %d target(s) from %s", len(targets), policy_path)
 
+    # Discover architectures
     architectures = discover_architectures(input_dir)
+    
     if not architectures:
         logger.warning("No architectures discovered under input directory: %s", input_dir)
-    else:
-        logger.info("Discovered architectures: %s", architectures)
+        return
+        
+    logger.info("Discovered architectures: %s", architectures)
 
     for arch in architectures:
         os_versions = discover_os_versions(input_dir, arch)
@@ -585,7 +640,7 @@ def generate_configs_from_policy(
             logger.info("Processing: arch=%s, os=%s, version=%s", arch, os_family, version)
 
             source_dir = os.path.join(input_dir, arch, os_family, version)
-            target_dir = os.path.join(output_dir, arch, os_family, version)
+            target_dir = os.path.join(output_dir, "input", "config", arch, os_family, version)
 
             if not os.path.isdir(source_dir):
                 logger.warning("Source directory not found, skipping: %s", source_dir)
@@ -616,6 +671,8 @@ def generate_configs_from_policy(
                     file_path = os.path.join(target_dir, target_file)
                     write_config_file(file_path, data)
                     logger.info("Written: %s", file_path)
+
+    copy_software_config(output_dir=output_dir)
 
 
 def main():

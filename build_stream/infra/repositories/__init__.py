@@ -20,7 +20,7 @@ from infra.repositories.in_memory import (
 )
 from infra.repositories.nfs_playbook_queue_request_repository import NfsPlaybookQueueRequestRepository
 from infra.repositories.nfs_playbook_queue_result_repository import NfsPlaybookQueueResultRepository
-from infra.repositories.nfs_input_directory_repository import NfsInputDirectoryRepository
+from infra.repositories.nfs_input_repository import NfsInputRepository
 
 __all__ = [
     "InMemoryJobRepository",
@@ -29,5 +29,5 @@ __all__ = [
     "InMemoryAuditEventRepository",
     "NfsPlaybookQueueRequestRepository",
     "NfsPlaybookQueueResultRepository",
-    "NfsInputDirectoryRepository",
+    "NfsInputRepository",
 ]

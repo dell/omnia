@@ -41,8 +41,8 @@ class GenerateInputFilesResult:
     job_id: str
     stage_state: str
     message: str
-    configs_ref: ArtifactRef
-    config_file_count: int
-    config_files: List[str]
-    arch_os_combinations: List[Tuple[str, str, str]]
-    completed_at: str  # ISO 8601
+    configs_ref: ArtifactRef = field(metadata={"exclude": True})  # Exclude from JSON response
+    config_file_count: int = field(metadata={"exclude": True})  # Exclude from JSON response
+    config_files: List[str] = field(metadata={"exclude": True})  # Exclude from JSON response
+    arch_os_combinations: List[Tuple[str, str, str]] = field(metadata={"exclude": True})  # Exclude from JSON response
+    completed_at: str = field(metadata={"exclude": True})  # Exclude from JSON response
