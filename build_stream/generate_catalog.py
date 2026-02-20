@@ -1,3 +1,18 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 #!/usr/bin/env python3
 """Generate updated catalog_rhel.json from input/config directory."""
 
@@ -5,6 +20,7 @@ import json
 import os
 from pathlib import Path
 from collections import defaultdict
+import re
 
 def load_json(filepath):
     with open(filepath, 'r') as f:
@@ -202,6 +218,21 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
     
     os_pkg_id_counter = 1
     infra_pkg_id_counter = 1
+
+    def _is_infra_package(pkg_name: str) -> bool:
+        name = (pkg_name or "").lower()
+        # Match 'csi' as a standalone token (avoid matching 'iscsi').
+        # Also match common CSI naming patterns in container/image names.
+        has_csi_token = re.search(r'(^|[^a-z0-9])csi([^a-z0-9]|$)', name) is not None
+        has_csi_prefix = name.startswith('csi-') or '/csi-' in name or name.endswith('/csi')
+
+        return (
+            has_csi_token
+            or has_csi_prefix
+            or 'powerscale' in name
+            or 'snapshotter' in name
+            or 'helm-charts' in name
+        )
     
     for key, pkg_data in packages.items():
         pkg_name = pkg_data['name']
@@ -223,8 +254,7 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
         ]) and pkg_type == 'rpm'
         
         # Determine if it's infrastructure (CSI-related)
-        is_infra = 'csi' in pkg_name.lower() or 'powerscale' in pkg_name.lower() or \
-                   'snapshotter' in pkg_name.lower() or 'helm-charts' in pkg_name.lower()
+        is_infra = _is_infra_package(pkg_name)
         
         if is_base_os:
             pkg_id = f"os_package_id_{os_pkg_id_counter}"
