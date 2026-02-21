@@ -925,7 +925,7 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/39791839?v=4",
       "profile": "https://github.com/jagadeeshnv",
       "contributions": [
-         "code"
+        "code"
       ]
     },
     {
@@ -1038,11 +1038,21 @@
         "code",
         "test"
       ]
+    },
+    {
+      "login": "Tanmay-Raj1004",
+      "name": "Tanmay-Raj1004",
+      "avatar_url": "https://avatars.githubusercontent.com/u/227950687?v=4",
+      "profile": "https://github.com/Tanmay-Raj1004",
+      "contributions": [
+        "code",
+        "test"
+      ]
     }
   ],
   "contributorsPerLine": 7,
   "projectName": "omnia",
-  "projectOwner": "dellhpc",
+  "projectOwner": "dell",
   "repoType": "github",
   "repoHost": "https://github.com",
   "skipCi": true,
