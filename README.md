@@ -184,6 +184,9 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Tanmay-Raj1004"><img src="https://avatars.githubusercontent.com/u/227950687?v=4?s=100" width="100px;" alt="Tanmay-Raj1004"/><br /><sub><b>Tanmay-Raj1004</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Tanmay-Raj1004" title="Code">💻</a> <a href="https://github.com/dell/omnia/commits?author=Tanmay-Raj1004" title="Tests">⚠️</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Anurag-Bijalwan"><img src="https://avatars.githubusercontent.com/u/218922922?v=4?s=100" width="100px;" alt="Anurag-Bijalwan"/><br /><sub><b>Anurag-Bijalwan</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=Anurag-Bijalwan" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/SOWJANYAJAGADISH123"><img src="https://avatars.githubusercontent.com/u/257989626?v=4?s=100" width="100px;" alt="SOWJANYAJAGADISH123"/><br /><sub><b>SOWJANYAJAGADISH123</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=SOWJANYAJAGADISH123" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
