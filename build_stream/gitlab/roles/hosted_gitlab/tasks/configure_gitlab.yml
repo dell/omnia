@@ -1,0 +1,67 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Set external URL
+  ansible.builtin.set_fact:
+    gitlab_external_url_computed: "{{ 'https' if gitlab_use_https else 'http' }}://{{ gitlab_host }}"
+
+- name: Configure gitlab.rb from template
+  ansible.builtin.template:
+    src: gitlab.rb.j2
+    dest: "{{ gitlab_rb_path }}"
+    backup: true
+    mode: '0600'
+
+- name: Reconfigure GitLab
+  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+  changed_when: false
+
+- name: Wait for GitLab to initialize
+  ansible.builtin.pause:
+    minutes: "{{ gitlab_startup_wait_minutes }}"
+    prompt: "Waiting for GitLab services to start..."
+
+- name: Health check
+  ansible.builtin.command: "{{ gitlab_ctl_command }} status"
+  register: gitlab_status
+  retries: "{{ gitlab_health_check_retries }}"
+  delay: "{{ gitlab_health_check_delay }}"
+  until: gitlab_status.rc == 0
+  changed_when: false
+
+- name: Wait for GitLab API to be ready
+  block:
+    - name: Probe GitLab API version endpoint
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/version"
+        method: GET
+        validate_certs: false
+        status_code: "{{ gitlab_default_status_codes.api_version }}"
+      register: gitlab_api_check
+      retries: "{{ gitlab_api_check_retries }}"
+      delay: "{{ gitlab_api_check_delay }}"
+      until: gitlab_api_check.status in gitlab_default_status_codes.api_version
+      changed_when: false
+  rescue:
+    - name: Fail when GitLab API is unreachable
+      ansible.builtin.fail:
+        msg: "{{ gitlab_api_ready_failure_msg }}"
+
+- name: Get initial root password
+  ansible.builtin.command: grep 'Password:' /etc/gitlab/initial_root_password
+  register: root_password
+  changed_when: false
+  ignore_errors: true

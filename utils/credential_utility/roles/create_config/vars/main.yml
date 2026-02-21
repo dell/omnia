@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-omnia_credential_template: "{{ role_path }}/templates/omnia_credential.j2"
-omnia_credential_file: "{{ input_project_dir }}/omnia_config_credentials.yml"
-omnia_credential_file_mode: 600
-password_fail_msg: "Failed. Syntax errors present in omnia_config_credentails.yml. Fix errors and re-run playbook again."
+# Credential file configurations - centralized structure
+credential_files:
+  - credential_type: "Omnia"
+    template: "{{ role_path }}/templates/omnia_credential.j2"
+    file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
+    file_mode: 600
+    vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
+    condition: true
+  - credential_type: "Build Stream"
+    template: "{{ role_path }}/templates/build_stream_credential.j2"
+    file_path: "{{ input_project_dir }}/build_stream_oauth_credentials.yml"
+    file_mode: 600
+    vault_path: "{{ input_project_dir }}/.build_stream_oauth_credentials_key"
+    condition: "{{ enable_build_stream | default(false) | bool }}"

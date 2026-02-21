@@ -1,0 +1,58 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+# PostgreSQL Container Configuration
+postgres_container_name: "omnia_postgres"
+
+# OIM metadata file path
+oim_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
+
+# Docker Hub configuration
+postgres_dockerhub_registry: "docker.io/library"
+postgres_image: "{{ postgres_dockerhub_registry }}/postgres"
+postgres_image_tag: "16"
+postgres_port: 5432
+
+# Database configuration
+postgres_user: "{{ hostvars['localhost']['postgres_user'] }}"
+postgres_password: "{{ hostvars['localhost']['postgres_password'] }}"
+postgres_db_name: "{{ hostvars['localhost']['postgres_db_name'] | default('build_stream_db') }}"
+
+# Storage configuration
+postgres_data_dir: "{{ omnia_path }}/postgres/data"
+postgres_log_dir: "{{ omnia_path }}/log/postgres"
+
+# Directory permissions
+postgres_dir_mode: "0750"
+
+# Quadlet service file path
+postgres_quadlet_path: "/etc/containers/systemd/{{ postgres_container_name }}.container"
+postgres_quadlet_file_mode: "0644"
+
+# Wait for PostgreSQL to be ready
+postgres_ready_wait_seconds: 10
+postgres_ready_retries: 12
+postgres_ready_delay: 5
+
+# Messages
+postgres_image_pull_success_msg:
+  - "Successfully pulled PostgreSQL image from Docker Hub"
+  - "Image: {{ postgres_image }}:{{ postgres_image_tag }}"
+postgres_container_success_msg: "The {{ postgres_container_name }} container has been successfully deployed."
+postgres_container_failure_msg: |
+  The deployment of the {{ postgres_container_name }} container has failed. To resolve this issue,
+  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
+  After the cleanup, you can re-run the original playbook to deploy the {{ postgres_container_name }} container successfully.

@@ -1,0 +1,90 @@
+{
+  "service_kube_control_plane_x86_64": {
+    "packages": [
+      {"package": "ghcr.io/kube-vip/kube-vip", "type": "image", "tag": "v0.8.9", "architecture": ["x86_64"]},
+      {"package": "docker.io/alpine/kubectl", "type": "image", "tag": "1.34.1", "architecture": ["x86_64"]},
+      {"package": "registry.k8s.io/kube-apiserver", "type": "image", "tag": "v1.34.1", "architecture": ["x86_64"]},
+      {"package": "registry.k8s.io/kube-controller-manager", "type": "image", "tag": "v1.34.1", "architecture": ["x86_64"]},
+      {"package": "registry.k8s.io/kube-scheduler", "type": "image", "tag": "v1.34.1", "architecture": ["x86_64"]},
+      {"package": "registry.k8s.io/kube-proxy", "type": "image", "tag": "v1.34.1", "architecture": ["x86_64"]},
+      {"package": "registry.k8s.io/coredns/coredns", "type": "image", "tag": "v1.12.1", "architecture": ["x86_64"]},
+      {"package": "registry.k8s.io/pause", "type": "image", "tag": "3.10.1", "architecture": ["x86_64"]},
+      {"package": "registry.k8s.io/etcd", "type": "image", "tag": "3.6.4-0", "architecture": ["x86_64"]},
+      {"package": "docker.io/calico/cni", "type": "image", "tag": "v3.30.3", "architecture": ["x86_64"]},
+      {"package": "docker.io/calico/kube-controllers", "type": "image", "tag": "v3.30.3", "architecture": ["x86_64"]},
+      {"package": "docker.io/calico/node", "type": "image", "tag": "v3.30.3", "architecture": ["x86_64"]},
+      {"package": "quay.io/metallb/speaker", "type": "image", "tag": "v0.15.2", "architecture": ["x86_64"]},
+      {"package": "kubectl-1.34.1", "type": "rpm", "repo_name": "kubernetes", "architecture": ["x86_64"]},
+      {"package": "prettytable==3.14.0", "type": "pip_module", "architecture": ["x86_64"]},
+      {"package": "python3.12", "type": "rpm", "repo_name": "x86_64_appstream", "architecture": ["x86_64"]},
+      {"package": "git", "type": "rpm", "repo_name": "x86_64_appstream", "architecture": ["x86_64"]},
+      {"package": "kubernetes==33.1.0", "type": "pip_module", "architecture": ["x86_64"]},
+      {"package": "PyMySQL==1.1.2", "type": "pip_module", "architecture": ["x86_64"]},
+      {"package": "calico-v3.30.3", "type": "manifest", "url": "https://raw.githubusercontent.com/projectcalico/calico/v3.30.3/manifests/calico.yaml", "architecture": ["x86_64"]},
+      {"package": "metallb-native-v0.15.2", "type": "manifest", "url": "https://raw.githubusercontent.com/metallb/metallb/v0.15.2/config/manifests/metallb-native.yaml", "architecture": ["x86_64"]},
+      {"package": "helm-v3.19.0-amd64", "type": "tarball", "url": "https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz", "architecture": ["x86_64"]},
+      {"package": "nfs-subdir-external-provisioner-4.0.18", "type": "tarball", "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz", "architecture": ["x86_64"]}
+    ]
+  },
+  "service_kube_node_x86_64": {
+    "packages": [
+      {"package": "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner", "type": "image", "tag": "v4.0.2", "architecture": ["x86_64"]},
+      {"package": "quay.io/metallb/speaker", "type": "image", "tag": "v0.15.2", "architecture": ["x86_64"]},
+      {"package": "quay.io/metallb/controller", "type": "image", "tag": "v0.15.2", "architecture": ["x86_64"]}
+    ]
+  },
+  "login_node_x86_64": {
+    "packages": [
+      {"package": "slurm-slurmd", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]},
+      {"package": "slurm", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]}
+    ]
+  },
+  "login_node_aarch64": {
+    "packages": [
+      {"package": "slurm-slurmd", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]},
+      {"package": "slurm", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]}
+    ]
+  },
+  "login_compiler_node_x86_64": {
+    "packages": [
+      {"package": "slurm", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]},
+      {"package": "slurm-slurmd", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]}
+    ]
+  },
+  "login_compiler_node_aarch64": {
+    "packages": [
+      {"package": "slurm", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]},
+      {"package": "slurm-slurmd", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]}
+    ]
+  },
+  "slurm_control_node_x86_64": {
+    "packages": [
+      {"package": "slurm-slurmctld", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]},
+      {"package": "slurm-slurmdbd", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]},
+      {"package": "python3-PyMySQL", "type": "rpm", "repo_name": "x86_64_appstream", "architecture": ["x86_64"]},
+      {"package": "mariadb-server", "type": "rpm", "repo_name": "x86_64_appstream", "architecture": ["x86_64"]},
+      {"package": "iscsi-initiator-utils", "type": "rpm", "repo_name": "x86_64_baseos", "architecture": ["x86_64"]},
+      {"package": "device-mapper-multipath", "type": "rpm", "repo_name": "x86_64_baseos", "architecture": ["x86_64"]},
+      {"package": "sg3_utils", "type": "rpm", "repo_name": "x86_64_baseos", "architecture": ["x86_64"]},
+      {"package": "lsscsi", "type": "rpm", "repo_name": "x86_64_baseos", "architecture": ["x86_64"]}
+    ]
+  },
+  "slurm_node_x86_64": {
+    "packages": [
+      {"package": "slurm-slurmd", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]},
+      {"package": "slurm-pam_slurm", "type": "rpm", "repo_name": "x86_64_slurm_custom", "architecture": ["x86_64"]},
+      {"package": "kernel-devel", "type": "rpm", "repo_name": "x86_64_appstream", "architecture": ["x86_64"]},
+      {"package": "kernel-headers", "type": "rpm", "repo_name": "x86_64_appstream", "architecture": ["x86_64"]},
+      {"package": "cuda-run", "type": "iso", "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda_13.0.2_580.95.05_linux.run", "architecture": ["x86_64"]}
+    ]
+  },
+  "slurm_node_aarch64": {
+    "packages": [
+      {"package": "slurm-slurmd", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]},
+      {"package": "slurm-pam_slurm", "type": "rpm", "repo_name": "aarch64_slurm_custom", "architecture": ["aarch64"]},
+      {"package": "kernel-devel", "type": "rpm", "repo_name": "aarch64_appstream", "architecture": ["aarch64"]},
+      {"package": "kernel-headers", "type": "rpm", "repo_name": "aarch64_appstream", "architecture": ["aarch64"]},
+      {"package": "cuda-run", "type": "iso", "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda_13.0.2_580.95.05_linux_sbsa.run", "architecture": ["aarch64"]}
+    ]
+  }
+}

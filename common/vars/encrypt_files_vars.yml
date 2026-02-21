@@ -1,0 +1,23 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Error messages for encrypt/decrypt operations
+credential_file_path_error: "credential_file_path must be provided"
+vault_password_file_error: "vault_password_file must be provided"
+vault_decrypt_error: "Failed to decrypt/encrypt credential file {{ credential_file_path }}. The file may be corrupted or the vault password may be incorrect."
+parameter_validation_error: "Both credential_file_path and vault_password_file must be provided"
+vault_key_missing_error: "Encrypted file found but vault key {{ vault_password_file }} is missing"
+file_processing_error: "Failed to process credential file: {{ credential_file_path }}"
+file_not_found_msg: "Credential file {{ credential_file_path }} does not exist, skipping"

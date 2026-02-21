@@ -6,6 +6,7 @@ on:
       - main
       - staging
       - release_1.7.1
+      - pub/build_stream
       - pub/v2.1_rc1
       - pub/q1_dev
 
@@ -28,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ansible pylint kubernetes prettytable requests passlib
+          pip install ansible pylint kubernetes prettytable requests passlib fastapi uvicorn sqlalchemy pytest httpx argon2-cffi pyyaml dependency-injector
 
       - name: Get changed Python files (excluding deleted)
         id: changed-files
@@ -57,7 +58,9 @@ jobs:
           FILES=$(echo "${{ steps.changed-files.outputs.files }}" | tr ' ' '\n' | grep -v '^discovery/roles/telemetry/files/nersc-ldms-aggr/' | xargs)
 
           if [ -n "$FILES" ]; then
-            pylint $FILES --fail-under=${PYLINT_THRESHOLD}
+            # Set PYTHONPATH to include build_stream directory for proper import resolution
+            # This allows pylint to resolve both relative imports in build_stream and regular imports elsewhere
+            PYTHONPATH=.:./build_stream pylint $FILES --fail-under=${PYLINT_THRESHOLD}
           else
             echo "No files to lint after filtering."
           fi

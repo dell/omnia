@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
+- name: Install prerequisites
+  ansible.builtin.package:
+    name: "{{ gitlab_hosted_prereq_packages }}"
+    state: present
 
-- name: Initialize Omnia Credential file status
-  ansible.builtin.set_fact:
-    cred_file_status: false
-
-- name: Check if omnia_credential_file exists
-  ansible.builtin.stat:
-    path: "{{ omnia_credential_file }}"
-  register: file_status
-
-- name: Set status based on file existence
-  ansible.builtin.set_fact:
-    cred_file_status: "{{ file_status.stat.exists }}"
+- name: Enable Podman socket (for runner)
+  ansible.builtin.systemd:
+    name: podman.socket
+    enabled: true
+    state: started

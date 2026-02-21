@@ -1,0 +1,140 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Wait for GitLab API to be ready
+  block:
+    - name: Probe GitLab API version endpoint
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/version"
+        method: GET
+        validate_certs: false
+        status_code: "{{ gitlab_default_status_codes.api_version }}"
+      register: api_check
+      retries: "{{ gitlab_api_check_retries }}"
+      delay: "{{ gitlab_api_check_delay }}"
+      until: api_check.status in gitlab_default_status_codes.api_version
+  rescue:
+    - name: Fail when GitLab API remains unreachable
+      ansible.builtin.fail:
+        msg: "{{ gitlab_api_ready_failure_msg }}"
+
+- name: Get root user API token
+  ansible.builtin.shell: |
+    gitlab-rails runner "
+      token = User.find_by_username('root').personal_access_tokens.create(
+        scopes: [:api, :write_repository],
+        name: 'omnia-automation',
+        expires_at: {{ gitlab_root_token_expiry_days }}.days.from_now
+      )
+      token.set_token('omnia-' + SecureRandom.hex(20))
+      token.save!
+      puts token.token
+    "
+  register: root_token_output
+  changed_when: false
+  no_log: true
+
+- name: Set root API token fact
+  ansible.builtin.set_fact:
+    gitlab_root_token: "{{ root_token_output.stdout | trim }}"
+  no_log: true
+
+- name: Save root API token to disk
+  ansible.builtin.copy:
+    content: "{{ gitlab_root_token }}"
+    dest: "/root/.gitlab_root_token"
+    mode: '0600'
+  no_log: true
+
+- name: Check if project exists
+  block:
+    - name: Query GitLab for existing project
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects?search={{ gitlab_project_name }}"
+        method: GET
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        validate_certs: false
+        status_code: "{{ gitlab_default_status_codes.project_search }}"
+      register: project_search
+      no_log: true
+  rescue:
+    - name: Fail when project search API call fails
+      ansible.builtin.fail:
+        msg: "{{ gitlab_project_search_failure_msg }}"
+
+- name: Set project exists flag
+  ansible.builtin.set_fact:
+    project_exists: "{{ (project_search.json | length > 0) and (project_search.json[0].name == gitlab_project_name) }}"
+
+- name: Create GitLab project when missing
+  when: not project_exists
+  block:
+    - name: Create project via GitLab API
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          name: "{{ gitlab_project_name }}"
+          visibility: "{{ gitlab_project_visibility }}"
+          initialize_with_readme: true
+          default_branch: "{{ gitlab_default_branch }}"
+        status_code: "{{ gitlab_default_status_codes.project_create }}"
+        validate_certs: false
+      register: new_project
+      no_log: true
+  rescue:
+    - name: Fail when project creation API call fails
+      ansible.builtin.fail:
+        msg: "{{ gitlab_project_create_failure_msg }}"
+
+- name: Set project ID and URL
+  ansible.builtin.set_fact:
+    gitlab_project_id: "{{ (new_project.json.id if not project_exists else project_search.json[0].id) | string }}"
+    gitlab_project_url: "{{ new_project.json.web_url if not project_exists else project_search.json[0].web_url }}"
+    gitlab_project_http_url: "{{ new_project.json.http_url_to_repo if not project_exists else project_search.json[0].http_url_to_repo }}"
+
+- name: Create runner authentication token via API
+  block:
+    - name: Request runner authentication token
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/user/runners"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          runner_type: project_type
+          project_id: "{{ gitlab_project_id }}"
+          description: "{{ gitlab_runner_description }}"
+          tag_list:
+            - "{{ gitlab_runner_tags }}"
+          run_untagged: true
+        validate_certs: false
+        status_code: "{{ gitlab_default_status_codes.runner_create }}"
+      register: runner_creation
+      no_log: true
+  rescue:
+    - name: Fail when runner token API call fails
+      ansible.builtin.fail:
+        msg: "{{ gitlab_runner_token_failure_msg }}"
+
+- name: Set runner authentication token fact
+  ansible.builtin.set_fact:
+    gitlab_runner_auth_token: "{{ runner_creation.json.token }}"
+  no_log: true
