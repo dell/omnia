@@ -186,6 +186,7 @@ Our thanks go to everyone who makes Omnia possible ([emoji key](https://allcontr
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/SOWJANYAJAGADISH123"><img src="https://avatars.githubusercontent.com/u/257989626?v=4?s=100" width="100px;" alt="SOWJANYAJAGADISH123"/><br /><sub><b>SOWJANYAJAGADISH123</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=SOWJANYAJAGADISH123" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/mithileshreddy04"><img src="https://avatars.githubusercontent.com/u/258000200?v=4?s=100" width="100px;" alt="mithileshreddy04"/><br /><sub><b>mithileshreddy04</b></sub></a><br /><a href="https://github.com/dell/omnia/commits?author=mithileshreddy04" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
