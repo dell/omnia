@@ -18,7 +18,7 @@ Main entry point for the Build Stream API application.
 This module initializes the FastAPI application and is invoked from the Dockerfile.
 
 Usage:
-    uvicorn main:app --host 0.0.0.0 --port 443
+    uvicorn main:app --host 0.0.0.0 --port $PORT
 """
 
 import logging
@@ -129,7 +129,10 @@ if __name__ == "__main__":
     import uvicorn
 
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "443"))
+    port_env = os.getenv("PORT")
+    if not port_env:
+        raise ValueError("PORT environment variable is required")
+    port = int(port_env)
     reload = os.getenv("RELOAD", "false").lower() == "true"
 
     logger.info("Starting Build Stream API server on %s:%d", host, port)
