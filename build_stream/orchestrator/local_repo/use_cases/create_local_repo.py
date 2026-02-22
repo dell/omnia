@@ -145,7 +145,10 @@ class CreateLocalRepoUseCase:
         return job
 
     def _validate_stage(self, command: CreateLocalRepoCommand) -> Stage:
-        """Validate stage exists and is in PENDING state."""
+        """Validate stage exists and is not already COMPLETED or IN_PROGRESS or in PENDING state."""
+        from core.jobs.value_objects import StageState
+        from core.jobs.exceptions import StageAlreadyCompletedError, InvalidStateTransitionError
+        
         stage_name = StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
 
@@ -154,7 +157,26 @@ class CreateLocalRepoUseCase:
                 job_id=str(command.job_id),
                 correlation_id=str(command.correlation_id),
             )
-
+        
+        # Reject COMPLETED stages (already done)
+        if stage.stage_state == StageState.COMPLETED:
+            raise StageAlreadyCompletedError(
+                job_id=str(command.job_id),
+                stage_name="create-local-repository",
+                correlation_id=str(command.correlation_id),
+            )
+        
+        # Reject PENDING and IN_PROGRESS stages
+        if stage.stage_state in (StageState.PENDING, StageState.IN_PROGRESS):
+            raise InvalidStateTransitionError(
+                entity_type="Stage",
+                entity_id=f"{command.job_id}/create-local-repository",
+                from_state=stage.stage_state.value,
+                to_state="IN_PROGRESS",
+                correlation_id=str(command.correlation_id),
+            )
+        
+        # Allow only FAILED stages (retry allowed)
         return stage
 
     def _prepare_input_files(

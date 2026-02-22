@@ -24,16 +24,20 @@ from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,
 )
+from core.jobs.repositories import AuditEventRepository
 from core.jobs.value_objects import (
     ClientId,
     CorrelationId,
     IdempotencyKey,
     JobId,
+    JobState,
 )
 from orchestrator.jobs.commands import CreateJobCommand
 from orchestrator.jobs.use_cases import CreateJobUseCase
 
+from api.dependencies import verify_token
 from api.jobs.dependencies import (
+    get_audit_repo,
     get_client_id,
     get_correlation_id,
     get_create_job_use_case,
@@ -52,6 +56,18 @@ from api.jobs.schemas import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+
+def _map_job_state_to_api_state(internal_state: JobState) -> str:
+    """Map internal job state to API response state."""
+    state_mapping = {
+        JobState.CREATED: "PENDING",
+        JobState.IN_PROGRESS: "RUNNING",
+        JobState.COMPLETED: "SUCCEEDED",
+        JobState.FAILED: "FAILED",
+        JobState.CANCELLED: "CLEANED",
+    }
+    return state_mapping.get(internal_state, "UNKNOWN")
 
 
 def _build_error_response(
@@ -169,10 +185,16 @@ async def create_job(
 )
 async def get_job(
     job_id: str,
+    token_data: dict = Depends(verify_token),
     client_id: ClientId = Depends(get_client_id),
     correlation_id: CorrelationId = Depends(get_correlation_id),
 ) -> GetJobResponse:
-    """Return a job if it exists for the requesting client."""
+    """Return job status with state, timestamps, and step breakdown.
+    
+    Requires valid OAuth 2.0 token for authentication. Returns job state 
+    (PENDING, RUNNING, SUCCEEDED, FAILED, CLEANED), timestamps for each 
+    state change, and step breakdown with stage details.
+    """
     logger.info(
         "Get job request: job_id=%s, client_id=%s, correlation_id=%s",
         job_id,
@@ -194,6 +216,7 @@ async def get_job(
 
     job_repo = get_job_repo()
     stage_repo = get_stage_repo()
+    audit_repo = get_audit_repo()
 
     try:
         job = job_repo.find_by_id(validated_job_id)  # pylint: disable=no-member
@@ -203,6 +226,7 @@ async def get_job(
         if job.client_id != client_id:
             raise JobNotFoundError(job_id, correlation_id.value)
 
+        # Get stage breakdown
         stages_entities = stage_repo.find_all_by_job(validated_job_id)  # pylint: disable=no-member
         stages = [
             StageResponse(
@@ -215,14 +239,29 @@ async def get_job(
             )
             for s in stages_entities
         ]
+        
+        # Get audit events for state change timestamps
+        audit_events = audit_repo.find_by_job(validated_job_id)  # pylint: disable=no-member
+        state_timestamps = {}
+        for event in audit_events:
+            if event.event_type.startswith("JOB_"):
+                state_name = event.event_type.replace("JOB_", "")
+                if state_name in ["CREATED", "IN_PROGRESS", "COMPLETED", "FAILED", "CANCELLED"]:
+                    state_timestamps[state_name] = event.timestamp.isoformat() + "Z"
+        
+        # Always include creation timestamp
+        if "CREATED" not in state_timestamps and job.created_at:
+            state_timestamps["CREATED"] = job.created_at.isoformat() + "Z"
+        
         return GetJobResponse(
             job_id=str(job.job_id),
             correlation_id=correlation_id.value,
-            job_state=job.job_state.value,
+            job_state=_map_job_state_to_api_state(job.job_state),
             created_at=job.created_at.isoformat() + "Z",
-            updated_at=job.updated_at.isoformat() + "Z",
+            updated_at=job.updated_at.isoformat() + "Z" if job.updated_at else None,
             tombstone=job.tombstoned,
             stages=stages,
+            state_timestamps=state_timestamps if state_timestamps else None,
         )
 
     except JobNotFoundError as e:

@@ -189,7 +189,30 @@ class CreateBuildImageUseCase:
         return job
 
     def _validate_stage(self, command: CreateBuildImageCommand, architecture: Architecture) -> Stage:
-        """Validate stage exists and is in PENDING state."""
+        """Validate stage exists and is in PENDING state, with prerequisite completed."""
+        from core.jobs.value_objects import StageState
+        
+        # Check prerequisite stage is completed
+        prerequisite_stage = self._stage_repo.find_by_job_and_name(
+            command.job_id, 
+            StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
+        )
+        if prerequisite_stage is None:
+            raise JobNotFoundError(
+                job_id=str(command.job_id),
+                correlation_id=str(command.correlation_id),
+            )
+        
+        if prerequisite_stage.stage_state != StageState.COMPLETED:
+            from core.jobs.exceptions import InvalidStateTransitionError
+            raise InvalidStateTransitionError(
+                entity_type="Stage",
+                entity_id=f"{command.job_id}/create-local-repository",
+                from_state=prerequisite_stage.stage_state.value,
+                to_state="COMPLETED",
+                correlation_id=str(command.correlation_id),
+            )
+        
         # Use architecture-specific stage type
         if architecture.is_x86_64:
             stage_type = StageType.BUILD_IMAGE_X86_64
@@ -202,6 +225,25 @@ class CreateBuildImageUseCase:
         if stage is None:
             raise JobNotFoundError(
                 job_id=str(command.job_id),
+                correlation_id=str(command.correlation_id),
+            )
+        
+        # Ensure stage is not already COMPLETED, PENDING, or IN_PROGRESS (allow only FAILED retries)
+        if stage.stage_state == StageState.COMPLETED:
+            from core.jobs.exceptions import StageAlreadyCompletedError
+            raise StageAlreadyCompletedError(
+                job_id=str(command.job_id),
+                stage_name=stage_type.value,
+                correlation_id=str(command.correlation_id),
+            )
+        
+        if stage.stage_state in (StageState.PENDING, StageState.IN_PROGRESS):
+            from core.jobs.exceptions import InvalidStateTransitionError
+            raise InvalidStateTransitionError(
+                entity_type="Stage",
+                entity_id=f"{command.job_id}/{stage_type.value}",
+                from_state=stage.stage_state.value,
+                to_state="IN_PROGRESS",
                 correlation_id=str(command.correlation_id),
             )
 

@@ -50,6 +50,11 @@ def get_stage_repo() -> InMemoryStageRepository:
     return _get_container().stage_repository()
 
 
+def get_audit_repo():
+    """Provide audit event repository."""
+    return _get_container().audit_event_repository()
+
+
 def get_client_id(
     authorization: str = Header(..., description="Bearer token for authentication"),
 ) -> ClientId:

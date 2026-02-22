@@ -149,6 +149,7 @@ build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/build_stream_ssl"
   - "{{ omnia_nfs_share }}/build_stream_logs"
   - "{{ omnia_nfs_share }}/build_stream_inv"
+  - "{{ omnia_nfs_share }}/build_stream"
 
 build_stream_container_name: omnia_build_stream
 

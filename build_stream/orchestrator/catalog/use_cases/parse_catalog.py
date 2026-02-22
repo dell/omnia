@@ -174,7 +174,7 @@ class ParseCatalogUseCase:  # pylint: disable=too-few-public-methods
                 correlation_id=str(command.correlation_id),
             )
 
-        if stage.stage_state != StageState.PENDING:
+        if stage.stage_state in (StageState.PENDING, StageState.IN_PROGRESS):
             raise InvalidStateTransitionError(
                 entity_type="Stage",
                 entity_id=f"{command.job_id}/parse-catalog",
