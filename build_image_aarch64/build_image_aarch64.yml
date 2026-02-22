@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+- name: Check if upgrade is in progress
+  ansible.builtin.import_playbook: ../utils/upgrade_checkup.yml
+
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local

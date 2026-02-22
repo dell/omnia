@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ from ansible.module_utils.local_repo.common_functions import (
 from ansible.module_utils.local_repo.config import (
     OMNIA_CREDENTIALS_YAML_PATH,
     OMNIA_CREDENTIALS_VAULT_PATH,
-    USER_REG_CRED_INPUT,
-    USER_REG_KEY_PATH
+    # USER_REG_CRED_INPUT,
+    # USER_REG_KEY_PATH
 )
 # Global lock for logging synchronization
 log_lock = multiprocessing.Lock()
@@ -96,7 +96,7 @@ def load_docker_credentials(vault_yml_path, vault_password_file):
 
             if response.status_code == 200:
                 return docker_username, docker_password
-            
+
             if response.status_code == 429:
                 raise RuntimeError("Docker Hub rate limit exceeded. Please try again later.")
 
@@ -201,6 +201,13 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
         with log_lock:
             logger.info(f"### {execute_task.__name__} start ###")  # Log task start
 
+        # Build package display name with tag for images
+        package_display = task.get("package", "")
+        if task.get("type") == "image" and "tag" in task:
+            package_display = f"{package_display}:{task['tag']}"
+        elif task.get("type") == "image" and "digest" in task:
+            package_display = f"{package_display}:{task['digest']}"
+
         # Determine the function and its arguments using the provided `determine_function`
         function, args = determine_function(task, repo_store_path, csv_file_path, user_data,
                          version_variables, arc, user_registries, docker_username, docker_password)
@@ -217,7 +224,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
                     )
                 return {
                     "task": task,
-                    "package": task.get("package", ""),  # Extract package name if available
+                    "package": package_display,
                     "status": "TIMEOUT",
                     "output": "",
                     "error": f"Timeout reached after {elapsed_time:.2f}s"
@@ -240,7 +247,7 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
 
         return {
             "task": task,
-            "package": task.get("package", ""),  
+            "package": package_display,
             "status": result.upper(),  
             "output": result,
             "error": ""
@@ -251,12 +258,11 @@ def execute_task(task, determine_function, user_data, version_variables, arc,
             logger.error(f"Task failed: {str(e)}")
         return {
             "task": task,
-            "package": task.get("package", ""),  
+            "package": package_display,
             "status": "FAILED",  
             "output": "",
             "error": str(e)  # Include the error message
         }
-
 def worker_process(task, determine_function, user_data, version_variables, arc, repo_store_path,
                   csv_file_path, log_dir, result_queue, user_registries,
                   docker_username, docker_password, timeout):
@@ -321,8 +327,8 @@ def execute_parallel(
     arc,
     standard_logger,
     local_repo_config_path,
-    user_reg_cred_input,
-    user_reg_key_path,
+    # user_reg_cred_input,
+    # user_reg_key_path,
     omnia_credentials_yaml_path,
     omnia_credentials_vault_path,
     timeout
@@ -355,22 +361,22 @@ def execute_parallel(
 
     config = load_yaml_file(local_repo_config_path)
     user_registries = config.get("user_registry", [])
-    if user_registries:
-        if is_encrypted(user_reg_cred_input):
-            process_file(user_reg_cred_input, user_reg_key_path, 'decrypt')
+    # if user_registries:
+    #     if is_encrypted(user_reg_cred_input):
+    #         process_file(user_reg_cred_input, user_reg_key_path, 'decrypt')
 
-        file2_data = load_yaml_file(user_reg_cred_input)
-        cred_lookup = {
-            entry['name']: entry
-            for entry in file2_data.get('user_registry_credential', [])
-        }
-        # Update user_registry entries with credentials if required
-        for registry in user_registries:
-            if registry.get("requires_auth"):
-                creds = cred_lookup.get(registry.get("name"))
-                if creds:
-                    registry["username"] = creds.get("username")
-                    registry["password"] = creds.get("password")
+    #     file2_data = load_yaml_file(user_reg_cred_input)
+    #     cred_lookup = {
+    #         entry['name']: entry
+    #         for entry in file2_data.get('user_registry_credential', [])
+    #     }
+    #     # Update user_registry entries with credentials if required
+    #     for registry in user_registries:
+    #         if registry.get("requires_auth"):
+    #             creds = cred_lookup.get(registry.get("name"))
+    #             if creds:
+    #                 registry["username"] = creds.get("username")
+    #                 registry["password"] = creds.get("password")
 
 
     try:

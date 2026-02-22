@@ -12,50 +12,90 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Initialize ctld_state dict
-  ansible.builtin.set_fact:
-    ctld_state: "{{ ctld_state | default({}) | combine({item: false}) }}"
-
 - name: Check if remote host is reachable via SSH
   ansible.builtin.wait_for:
-    host: "{{ item }}"
+    host: "{{ ctld }}"
     port: 22 # TODO: make it configurable
     timeout: 10
     state: started
   delegate_to: localhost
   register: ssh_check
+  ignore_errors: true
 
-- name: Check if slurmctld is running on remote host
-  ansible.builtin.service_facts:
-  delegate_to: "{{ item }}"
-  register: service_facts
-  when: ssh_check is success
-
-- name: Update ctld_state if slurmctld is running
-  ansible.builtin.set_fact:
-    ctld_state: "{{ ctld_state | combine({item: true}) }}"
+- name: Drain and remove nodes if any
+  ansible.builtin.include_tasks: drain_and_remove_node.yml
+  loop: "{{ nodes_in_normal_not_in_cmpt }}"
+  loop_control:
+    loop_var: node_to_remove
   when:
     - ssh_check is success
-    - service_facts is success
-    - ansible_facts.services['slurmctld.service'] is defined
-    - ansible_facts.services['slurmctld.service'].state == 'running'
+    - nodes_in_normal_not_in_cmpt is defined
+    - nodes_in_normal_not_in_cmpt | length > 0
 
-- name: Update /etc/hosts with controller hostname and IP
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    regexp: '^{{ ip.value }}\s+{{ ip.key }}'
-    line: "{{ ip.value }} {{ ip.key }}"
-    state: present
-  loop: "{{ ip_name_map | dict2items }}"
-  loop_control:
-    loop_var: ip
-  delegate_to: "{{ item }}"
-  when: ssh_check is success
+- name: Enter slurm controller when pingable
+  when:
+    - ssh_check is success
+  ignore_unreachable: true
+  block:
+    - name: Initialize ctld_state dict
+      ansible.builtin.set_fact:
+        ctld_state: "{{ ctld_state | default({}) | combine({ctld: false}) }}"
 
-- name: Trigger the scontrol reconfigure
-  ansible.builtin.command: scontrol reconfigure
-  changed_when: scontrol_reconfig.rc == 0
-  failed_when: false
-  register: scontrol_reconfig
-  delegate_to: "{{ item }}"
-  when: ctld_state[item] is true
+    - name: Check if slurmctld is running on remote host
+      ansible.builtin.service_facts:
+      delegate_to: "{{ ctld }}"
+      register: service_facts
+      ignore_unreachable: true
+
+    - name: Check slurmctld is reachable
+      ansible.builtin.fail:
+        msg: "Failed to connect to {{ ctld }}."
+      when: service_facts is unreachable
+
+    - name: Update ctld_state if slurmctld is running
+      ansible.builtin.set_fact:
+        ctld_state: "{{ ctld_state | combine({ctld: true}) }}"
+      when:
+        - service_facts is success
+        - ansible_facts.services['slurmctld.service'] is defined
+        - ansible_facts.services['slurmctld.service'].state == 'running'
+
+    - name: Check reachability of hosts in ip_name_map
+      ansible.builtin.wait_for:
+        host: "{{ host }}"
+        port: 22
+        timeout: 10
+        state: started
+      delegate_to: localhost
+      loop: "{{ ip_name_map.values() | list }}"
+      loop_control:
+        loop_var: host
+      register: ip_map_ssh_check
+      ignore_errors: true
+      ignore_unreachable: true
+
+    - name: Build list of reachable hosts from ip_name_map
+      ansible.builtin.set_fact:
+        reachable_hosts: "{{ ip_map_ssh_check.results | rejectattr('failed', 'true') | map(attribute='host') | list }}"
+
+    - name: Update basics on reachable_hosts
+      ansible.builtin.include_tasks: update_hosts_munge.yml
+      loop: "{{ reachable_hosts }}"
+      loop_control:
+        loop_var: slurmhost_ip
+
+    - name: Trigger the scontrol reconfigure
+      ansible.builtin.command: scontrol reconfigure
+      changed_when: scontrol_reconfig.rc == 0
+      failed_when: false
+      register: scontrol_reconfig
+      delegate_to: "{{ ctld }}"
+      when:
+        - ctld_state[ctld] is true
+
+  rescue:
+    - name: Fail if slurmctld is not running on any host
+      ansible.builtin.debug:
+        msg: "Failed to 'scontrol reconfigure' on {{ ctld }}.
+         As task '{{ ansible_failed_task.name }}' failed.
+         results: {{ ansible_failed_result }}"

@@ -2,6 +2,67 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
+    "user_registry": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9.-]+:[0-9]+$"
+          },
+          "cert_path": {
+            "type": "string",
+            "pattern": "^$|^[a-zA-Z0-9/\\._-]*\\.crt$"
+          },
+          "key_path": {
+            "type": "string",
+            "pattern": "^$|^[a-zA-Z0-9/\\._-]*\\.key$"
+          }
+        },
+        "required": [
+          "host"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "cert_path": {
+                  "minLength": 1
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "cert_path": {
+                  "pattern": "^[a-zA-Z0-9/\\._-]*\\.crt$"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "key_path": {
+                  "minLength": 1
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "key_path": {
+                  "pattern": "^[a-zA-Z0-9/\\._-]*\\.key$"
+                }
+              }
+            }
+          }
+        ]
+      }   
+    },
     "user_repo_url_x86_64": {
       "type": [
         "array",

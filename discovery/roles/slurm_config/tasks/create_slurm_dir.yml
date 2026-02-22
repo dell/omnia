@@ -60,6 +60,7 @@
   ansible.builtin.set_fact:
     cluster_name: "{{ slurm_cluster[0].cluster_name }}"
     configs_input: "{{ slurm_cluster[0].config_sources | default({}) | dict2items | rejectattr('value', 'falsy') | list | items2dict }}"
+    skip_merge: "{{ slurm_cluster[0].skip_merge | default(false) }}"
     slurm_config_path: "{{ share_path }}/{{ slurm_dir_name }}"
     controller_trackfile_path: "{{ share_path }}/ctld_track"
 
@@ -84,11 +85,21 @@
     share_prefix: "{{ slurm_config_path }}"
   when: conf_in_nfs
 
-- name: Clear the share directory
+- name: Clear Slurm-related files and directories
   ansible.builtin.file:
-    path: "{{ slurm_config_path }}"
+    path: "{{ slurm_config_path }}/{{ slurm_item }}"
     state: absent
-  when: clear_slurm_files
+  loop: "{{ (ctld_list | default([])
+   + cmpt_list | default([])
+   + login_list | default([])
+   + compiler_login_list | default([])
+   + dbd_list | default([])
+   + ['munge.key']) | flatten }}"
+  loop_control:
+    loop_var: slurm_item
+  failed_when: false
+  when:
+    - clear_slurm_files
 
 - name: Create the slurm directory in share
   ansible.builtin.file:
@@ -114,7 +125,7 @@
     - "{{ (ctld_list + cmpt_list + login_list + compiler_login_list) | product(common_dir) }}"
     - "{{ ctld_list | product(ctld_dir) }}"
     - "{{ dbd_list | product(db_dir) }}"
-    - "{{ cmpt_list | product(cmpt_dir) }}"
+    - "{{ (cmpt_list + login_list + compiler_login_list) | product(cmpt_dir) }}"
   loop_control:
     loop_var: product
 
@@ -151,8 +162,9 @@
   ansible.builtin.copy:
     src: "{{ slurm_config_path }}/munge.key"
     dest: "{{ slurm_config_path }}/{{ item }}/etc/munge/munge.key"
-    mode: "{{ common_mode }}"
+    mode: "0600"
     remote_src: true
+  register: munge_key_copy
   loop: "{{ (ctld_list | default([])) +
             (cmpt_list | default([])) +
             (compiler_login_list | default([])) +
@@ -183,17 +195,7 @@
     group: "{{ root_group }}"
     mode: "{{ common_mode }}"
   when: cmpt_list
-  loop: "{{ cmpt_list | product(['logout_user.sh', 'slurmd.service']) }}"
-
-- name: Create logout_user.sh and slurmd.service in login and login_compiler
-  ansible.builtin.template:
-    src: "{{ item.1 }}.j2"
-    dest: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/epilog.d/{{ item.1 }}"
-    owner: "{{ root_user }}"
-    group: "{{ root_group }}"
-    mode: "{{ conf_file_mode }}"
-  when: login_list or compiler_login_list
-  loop: "{{ (login_list + compiler_login_list) | product(['slurmd.service']) }}"
+  loop: "{{ cmpt_list | product(['logout_user.sh']) }}"
 
 - name: Get the slurm NFS path
   ansible.builtin.debug:

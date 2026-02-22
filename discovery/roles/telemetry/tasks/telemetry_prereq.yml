@@ -47,23 +47,24 @@
     state: directory
     mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
-- name: Git clone for iDRAC Telemetry script
+- name: Ensure iDRAC Telemetry scripting destination exists
+  ansible.builtin.file:
+    path: "{{ idrac_telemetry_scripting_git_clone_path }}"
+    state: directory
+    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+
+- name: Copy iDRAC Telemetry Scripting to NFS share
   block:
-    - name: Checkout iDRAC Telemetry GitHub repo
-      ansible.builtin.git:
-        repo: "{{ idrac_telemetry_scripting_repo }}"
+    - name: Copy pre-cloned iDRAC Telemetry Scripting directory
+      ansible.builtin.copy:
+        src: "{{ idrac_telemetry_scripting_src_path }}/"
         dest: "{{ idrac_telemetry_scripting_git_clone_path }}"
-        version: "{{ idrac_telemetry_scripting_stable_commit }}"
-        update: false
-      register: clone_idrac_script
-      until: clone_idrac_script is succeeded
-      retries: "{{ max_retries }}"
-      delay: "{{ delay_count }}"
+        remote_src: true
+        mode: preserve
   rescue:
-    - name: Fail if iDRAC telemetry Git clone fails
+    - name: Fail if iDRAC telemetry copy fails
       ansible.builtin.fail:
-        msg: "{{ idrac_script_git_clone_error_msg.splitlines() | join(' ') }}"
-      when: clone_idrac_script is failed
+        msg: "{{ idrac_telemetry_scripting_copy_fail_msg.splitlines() | join(' ') }}"
 
 - name: Set kafka_support to true
   ansible.builtin.set_fact:

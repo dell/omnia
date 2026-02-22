@@ -1,0 +1,133 @@
+#!/bin/bash
+set -e
+
+CLIENT_MOUNT="{{ client_mount_path }}"
+OPENMPI_PREFIX="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi"
+OPENMPI_BUILD="{{ client_mount_path }}/slurm/hpc_tools/compile/openmpi"
+
+# Comprehensive logging
+LOGFILE="/var/log/openmpi_installation.log"
+
+# Redirect all output to log file
+exec > >(tee -a "$LOGFILE") 2>&1
+
+echo "===== OpenMPI Installation Started ====="
+echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "Installation Prefix: $OPENMPI_PREFIX"
+echo "Build Directory: $OPENMPI_BUILD"
+echo "Log File: $LOGFILE" | tee -a "$LOGFILE"
+
+# Check that NFS is mounted
+if ! mountpoint -q "$CLIENT_MOUNT"; then
+    echo "[ERROR] $CLIENT_MOUNT is not mounted."
+    echo "        Please mount the NFS path before running install_openmpi.sh"
+    exit 1
+fi
+
+echo "===== OpenMPI build started ====="
+
+mkdir -p "$OPENMPI_BUILD"
+cd "$OPENMPI_BUILD"
+
+sys_arch="$(uname -m)"
+case "${sys_arch}" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+    *)
+        echo "Unsupported architecture: ${sys_arch}"
+        exit 1
+        ;;
+esac
+
+if [ ! -f openmpi.tar.gz ]; then
+    echo "[INFO] Downloading OpenMPI source code..."
+    wget --no-check-certificate \
+      https://{{ hostvars['localhost']['admin_nic_ip'] }}:2225/pulp/content/opt/omnia/offline_repo/cluster/${arch}/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/openmpi/openmpi.tar.gz \
+      -O openmpi.tar.gz >> "$LOGFILE" 2>&1
+    echo "[INFO] OpenMPI download completed"
+else
+    echo "[INFO] openmpi.tar.gz already exists, skipping download."
+fi
+
+echo "[INFO] Extracting OpenMPI source code..."
+tar xzf openmpi.tar.gz >> "$LOGFILE" 2>&1
+cd openmpi-*
+echo "[INFO] OpenMPI source extracted to $(pwd)"
+
+echo "[INFO] Creating build directory..."
+mkdir -p build
+
+# Slurm detection
+echo "[INFO] Detecting Slurm integration..."
+if sinfo >/dev/null 2>&1; then
+  SLURM_FLAG="--with-slurm=yes --with-munge=/usr"
+  echo "[INFO] Slurm detected - enabling Slurm integration"
+else
+  SLURM_FLAG="--with-slurm=no"
+  echo "[INFO] Slurm not detected - disabling Slurm integration"
+fi
+
+# UCX detection
+echo "[INFO] Detecting UCX integration..."
+if [ -x "{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx/bin/ucx_info" ]; then
+  UCX_FLAG="--with-ucx={{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
+  echo "[INFO] UCX detected - enabling UCX integration"
+else
+  UCX_FLAG=""
+  echo "[INFO] UCX not detected - proceeding without UCX"
+fi
+
+cd build
+echo "[INFO] Configuring OpenMPI build..."
+echo "[INFO] Configure flags: --prefix=$OPENMPI_PREFIX --enable-mpi1-compatibility --enable-prte-prefix-by-default $SLURM_FLAG $UCX_FLAG"
+../configure --prefix="$OPENMPI_PREFIX" \
+  --enable-mpi1-compatibility \
+  --enable-prte-prefix-by-default \
+  $SLURM_FLAG $UCX_FLAG >> "$LOGFILE" 2>&1
+
+echo "[INFO] Building OpenMPI with {{ openmpi_build_threads | default(8) }} threads..."
+make -j {{ openmpi_build_threads | default(8) }} >> "$LOGFILE" 2>&1
+
+echo "[INFO] Installing OpenMPI..."
+make install >> "$LOGFILE" 2>&1
+
+# Configure OpenMPI environment variables system-wide
+OPENMPI_ENV_FILE="/etc/profile.d/openmpi.sh"
+
+echo "[INFO] Setting up OpenMPI environment variables in $OPENMPI_ENV_FILE..."
+cat > "$OPENMPI_ENV_FILE" <<EOF
+# OpenMPI environment
+export OPENMPI_HOME="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi"
+export PATH="\$OPENMPI_HOME/bin:\$PATH"
+export LD_LIBRARY_PATH="\$OPENMPI_HOME/lib:\$LD_LIBRARY_PATH"
+export MANPATH="\$OPENMPI_HOME/share/man:\$MANPATH"
+EOF
+
+chmod 644 "$OPENMPI_ENV_FILE"
+
+
+# Create installation summary
+echo ""
+echo "===== OpenMPI Installation Summary ====="
+echo "Installation Status: SUCCESS"
+echo "Integration Status:"
+if [ "$SLURM_FLAG" = "--with-slurm=yes --with-munge=/usr" ]; then
+    echo "  - Slurm Integration: ENABLED"
+else
+    echo "  - Slurm Integration: DISABLED"
+fi
+if [ -n "$UCX_FLAG" ]; then
+    echo "  - UCX Integration: ENABLED"
+else
+    echo "  - UCX Integration: DISABLED"
+fi
+echo ""
+echo "Log File Created:"
+echo "  - Installation Log: $LOGFILE" | tee -a "$LOGFILE"
+
+echo "[INFO] OpenMPI installed under {{ client_mount_path }}/slurm/hpc_tools/benchmarks/openmpi" | tee -a "$LOGFILE"
+echo "[INFO] OpenMPI environment configured in $OPENMPI_ENV_FILE" | tee -a "$LOGFILE"
+
+echo "===== OpenMPI Installation Completed =====" | tee -a "$LOGFILE"
+echo "Completion Timestamp: $(date '+%Y-%m-%d %H:%M:%S')" | tee -a "$LOGFILE"
+echo "CLOUD-INIT: OpenMPI installation completed successfully" | tee -a "$LOGFILE"

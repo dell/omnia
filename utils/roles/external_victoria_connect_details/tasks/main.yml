@@ -1,0 +1,325 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Validate service k8s controller connectivity
+  block:
+    - name: Wait for service k8s controller connection
+      ansible.builtin.wait_for_connection:
+        timeout: 30
+  rescue:
+    - name: Fail when service k8s controller is not reachable
+      ansible.builtin.fail:
+        msg: "{{ victoria_preflight_err_service_k8s_controller_unreachable }}"
+
+- name: Check kubectl presence
+  ansible.builtin.command: kubectl version --client=true
+  register: kubectl_check
+  changed_when: false
+  failed_when: kubectl_check.rc != 0
+
+- name: Check for Victoria cluster services
+  ansible.builtin.command: >-
+    kubectl get svc {{ item }} -n {{ victoria_namespace }} -o name
+  loop:
+    - vminsert
+    - vmselect
+  register: victoria_cluster_svcs
+  changed_when: false
+  failed_when: false
+
+- name: Check for Victoria single-node service
+  ansible.builtin.command: >-
+    kubectl get svc victoria-loadbalancer -n {{ victoria_namespace }} -o name
+  register: victoria_single_svc
+  changed_when: false
+  failed_when: false
+
+- name: Set Victoria deployment mode
+  ansible.builtin.set_fact:
+    victoria_deployment_mode: >-
+      {{
+        'cluster'
+        if (victoria_cluster_svcs.results | selectattr('rc', 'equalto', 0) | list | length) == 2
+        else ('single-node' if victoria_single_svc.rc == 0 else 'unknown')
+      }}
+
+- name: Fail if Victoria cluster mode is not deployed
+  ansible.builtin.fail:
+    msg: "{{ victoria_err_mode_not_supported }}"
+  when: victoria_deployment_mode != 'cluster'
+
+- name: Get Victoria pods status
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ victoria_namespace }}
+    -l "app in (vminsert,vmselect,vmstorage,victoriametrics)"
+    -o wide
+  register: victoria_pods_wide
+  changed_when: false
+  failed_when: victoria_pods_wide.rc != 0
+
+- name: Get Victoria pods status (json)
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ victoria_namespace }}
+    -l "app in (vminsert,vmselect,vmstorage,victoriametrics)"
+    -o json
+  register: victoria_pods_json
+  changed_when: false
+  failed_when: victoria_pods_json.rc != 0
+
+- name: Parse Victoria pods
+  ansible.builtin.set_fact:
+    victoria_pods_parsed: "{{ victoria_pods_json.stdout | from_json }}"
+
+- name: Fail if no Victoria pods found
+  ansible.builtin.fail:
+    msg: "{{ victoria_err_no_pods_found }}"
+  when: (victoria_pods_parsed.get('items', []) | length) == 0
+
+- name: Fail if Victoria pods are not Running
+  ansible.builtin.fail:
+    msg: "{{ victoria_err_pods_not_running }}"
+  when:
+    - (victoria_pods_parsed.get('items', [])
+      | selectattr('status.phase', 'ne', 'Running')
+      | list
+      | length) > 0
+
+- name: Fail if Victoria pods are not Ready
+  ansible.builtin.fail:
+    msg: "{{ victoria_err_pods_not_ready }}"
+  when:
+    - (victoria_pods_parsed.get('items', [])
+      | selectattr('status.containerStatuses', 'defined')
+      | map(attribute='status.containerStatuses')
+      | list
+      | flatten
+      | selectattr('ready', 'equalto', false)
+      | list
+      | length) > 0
+
+- name: Get vminsert service LoadBalancer IP
+  ansible.builtin.command: >-
+    kubectl get svc vminsert -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: vminsert_lb_ip
+  changed_when: false
+  failed_when: vminsert_lb_ip.rc != 0
+
+- name: Get vminsert service LoadBalancer hostname
+  ansible.builtin.command: >-
+    kubectl get svc vminsert -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+  register: vminsert_lb_hostname
+  changed_when: false
+  failed_when: vminsert_lb_hostname.rc != 0
+
+- name: Get vminsert service external port
+  ansible.builtin.command: >-
+    kubectl get svc vminsert -n {{ victoria_namespace }}
+    -o jsonpath='{.spec.ports[0].port}'
+  register: vminsert_lb_port
+  changed_when: false
+  failed_when: vminsert_lb_port.rc != 0
+
+- name: Get vmselect service LoadBalancer IP
+  ansible.builtin.command: >-
+    kubectl get svc vmselect -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: vmselect_lb_ip
+  changed_when: false
+  failed_when: vmselect_lb_ip.rc != 0
+
+- name: Get vmselect service LoadBalancer hostname
+  ansible.builtin.command: >-
+    kubectl get svc vmselect -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+  register: vmselect_lb_hostname
+  changed_when: false
+  failed_when: vmselect_lb_hostname.rc != 0
+
+- name: Get vmselect service external port
+  ansible.builtin.command: >-
+    kubectl get svc vmselect -n {{ victoria_namespace }}
+    -o jsonpath='{.spec.ports[0].port}'
+  register: vmselect_lb_port
+  changed_when: false
+  failed_when: vmselect_lb_port.rc != 0
+
+- name: Set endpoint facts
+  ansible.builtin.set_fact:
+    vminsert_host: >-
+      {{
+        (vminsert_lb_ip.stdout | trim)
+        if (vminsert_lb_ip.stdout | trim | length) > 0
+        else (vminsert_lb_hostname.stdout | trim)
+      }}
+    vmselect_host: >-
+      {{
+        (vmselect_lb_ip.stdout | trim)
+        if (vmselect_lb_ip.stdout | trim | length) > 0
+        else (vmselect_lb_hostname.stdout | trim)
+      }}
+    vminsert_port: "{{ (vminsert_lb_port.stdout | trim) | default('') }}"
+    vmselect_port: "{{ (vmselect_lb_port.stdout | trim) | default('') }}"
+    victoria_tls_ca: "{{ victoria_tls_cert_dir }}/ca.crt"
+
+- name: Fail when LoadBalancer IPs are not available
+  ansible.builtin.fail:
+    msg: "{{ victoria_err_lb_missing }}"
+  when:
+    - vminsert_host | trim | length == 0 or vmselect_host | trim | length == 0
+
+- name: Build SFM hosts entry
+  ansible.builtin.set_fact:
+    victoria_sfm_hosts_entry: >-
+      {{
+        'echo ' ~ (vminsert_lb_ip.stdout | trim) ~ ' vminsert.' ~ victoria_namespace ~ '.svc.cluster.local >> /etc/hosts'
+        if (vminsert_lb_ip.stdout | trim | length) > 0
+        else ''
+      }}
+
+- name: Build SFM hosts entry for vmselect
+  ansible.builtin.set_fact:
+    victoria_sfm_hosts_entry_vmselect: >-
+      {{
+        'echo ' ~ (vmselect_lb_ip.stdout | trim) ~ ' vmselect.' ~ victoria_namespace ~ '.svc.cluster.local >> /etc/hosts'
+        if (vmselect_lb_ip.stdout | trim | length) > 0
+        else ''
+      }}
+
+- name: Set endpoint urls and SFM note strings
+  ansible.builtin.set_fact:
+    victoria_vminsert_write_url: >-
+      https://vminsert.{{ victoria_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
+    victoria_vmselect_query_url: >-
+      https://vmselect.{{ victoria_namespace }}.svc.cluster.local:8481/select/0/prometheus/api/v1/query
+    victoria_vmselect_ui_url: >-
+      https://vmselect.{{ victoria_namespace }}.svc.cluster.local:8481/select/0/vmui
+    victoria_sfm_hosts_entry_vminsert_display: >-
+      {{
+        victoria_sfm_hosts_entry
+        if (victoria_sfm_hosts_entry | length) > 0
+        else 'vminsert LoadBalancer IP not available; cannot generate /etc/hosts entry.'
+      }}
+    victoria_sfm_hosts_entry_vmselect_display: >-
+      {{
+        victoria_sfm_hosts_entry_vmselect
+        if (victoria_sfm_hosts_entry_vmselect | length) > 0
+        else 'vmselect LoadBalancer IP not available; cannot generate /etc/hosts entry.'
+      }}
+
+- name: Set Victoria external port fallbacks
+  ansible.builtin.set_fact:
+    vminsert_port: "8480"
+    vmselect_port: "8481"
+  when:
+    - vminsert_port | trim | length == 0 or vmselect_port | trim | length == 0
+
+- name: Build connection details
+  ansible.builtin.set_fact:
+    victoria_connect_details:
+      victoria:
+        namespace: "{{ victoria_namespace }}"
+        deployment_mode: "{{ victoria_deployment_mode }}"
+        pod_status: "{{ victoria_pods_wide.stdout }}"
+        base_url: "https://{{ vminsert_host }}:{{ vminsert_port }}"
+        endpoints:
+          vminsert:
+            host: "{{ vminsert_host }}"
+            port: "{{ vminsert_port | int }}"
+            write_endpoint: "https://{{ vminsert_host }}:{{ vminsert_port }}/insert/0/prometheus/api/v1/write"
+          vmselect:
+            host: "{{ vmselect_host }}"
+            port: "{{ vmselect_port | int }}"
+            query_endpoint: "https://{{ vmselect_host }}:{{ vmselect_port }}/select/0/prometheus/api/v1/query"
+            ui_url: "https://{{ vmselect_host }}:{{ vmselect_port }}/select/0/vmui"
+        tls:
+          ca_crt: "{{ victoria_tls_ca }}"
+        notes:
+          sfm:
+            vminsert_write_url: "{{ victoria_vminsert_write_url }}"
+            hosts_entry: "{{ victoria_sfm_hosts_entry }}"
+            hosts_entry_vmselect: "{{ victoria_sfm_hosts_entry_vmselect }}"
+            ui_navigation: "{{ victoria_sfm_ui_navigation }}"
+            remote_write_target_name: "{{ victoria_sfm_remote_write_target_name }}"
+            remote_write_message_version: "{{ victoria_sfm_remote_write_message_version }}"
+            remote_write_enable_value: "{{ victoria_sfm_remote_write_enable_value }}"
+            tls_server_cert_file_name: "{{ victoria_sfm_tls_server_cert_file_name }}"
+            tls_server_cert_file_path: "{{ victoria_tls_ca }}"
+            ssh_note: "{{ victoria_sfm_ssh_note }}"
+            hosts_scope_note: "{{ victoria_sfm_hosts_scope_note }}"
+            pod_shell_command_example: "{{ victoria_sfm_pod_shell_command_example }}"
+            hosts_restart_note: "{{ victoria_sfm_hosts_restart_note }}"
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ victoria_output_file | dirname }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Write connection details to file
+  ansible.builtin.copy:
+    content: "{{ victoria_connect_details | to_nice_yaml }}"
+    dest: "{{ victoria_output_file }}"
+    mode: "0644"
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Display Victoria connection details
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        [
+          'Victoria connection details written to: ' ~ victoria_output_file,
+          '',
+          'Mode: ' ~ victoria_deployment_mode,
+          '',
+          'Endpoints:',
+          '  [IMPORTANT] vminsert write: ' ~ victoria_vminsert_write_url,
+          '  vmselect query: ' ~ victoria_vmselect_query_url,
+          '  vmselect UI:    ' ~ victoria_vmselect_ui_url,
+          '',
+          'TLS:',
+          '  ca.crt:     ' ~ victoria_tls_ca,
+          '',
+          'SFM steps (TLS):',
+          '  [STEP 1] ' ~ victoria_sfm_cross_machine_tls_note_line1,
+          '           ' ~ victoria_sfm_cross_machine_tls_note_line2,
+          '  [STEP 2] In the SFM UI, update the vminsert URL:',
+          '           ' ~ victoria_sfm_ui_navigation,
+          '           Edit target: ' ~ victoria_sfm_remote_write_target_name,
+          '           Set Enable to: ' ~ victoria_sfm_remote_write_enable_value,
+          '           Set URL to: ' ~ victoria_vminsert_write_url,
+          '           Set Message Version to: ' ~ victoria_sfm_remote_write_message_version,
+          '           TLS Config: Upload ' ~ victoria_sfm_tls_server_cert_file_name,
+          '                      as ' ~ victoria_sfm_tls_server_cert_file_label ~ ': ' ~ victoria_tls_ca,
+          '  [STEP 3] ' ~ victoria_sfm_ssh_note,
+          '  [STEP 4] Update /etc/hosts only inside the SFM Prometheus pod:',
+          '           ' ~ victoria_sfm_hosts_scope_note,
+          '           ' ~ victoria_sfm_pod_shell_command_example,
+          '           Add these entries inside the pod:',
+          '             ' ~ victoria_sfm_hosts_entry_vminsert_display,
+          '             ' ~ victoria_sfm_hosts_entry_vmselect_display,
+          '  [NOTE] ' ~ victoria_sfm_hosts_restart_note,
+          ''
+        ]
+      }}
+  delegate_to: localhost
+  connection: local
+  run_once: true

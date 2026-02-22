@@ -51,7 +51,8 @@
         "minItems": 1
       },
       "powervault_config": {
-        "required": ["ip", "isci_initiators", "volume_id"],
+        "type": "object",
+        "required": ["ip", "iscsi_initiator", "volume_id"],
         "properties": {
           "ip": {
             "description": "List of target controller IP addresses",
@@ -69,14 +70,16 @@
             "type": "integer"
           },
 
-          "isci_initiators": {
+          "iscsi_initiator": {
             "description": "iSCSI initiator IQN",
-            "type": "string"
+            "type": "string",
+            "pattern": "^iqn\\.[a-zA-Z0-9.-]+(?::[a-zA-Z0-9._:-]+)?$"
           },
 
           "volume_id": {
             "description": "Volume identifier (hex string)",
-            "type": "string"
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]+$"
           }
         }
       }

@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,6 +67,13 @@ idrac_telemetry_statefulset_restart_failure_msg: |
   Failed to restart the  {{ idrac_telemetry_k8s_name }} StatefulSet.
   Please check the logs using the command kubectl logs -n {{ telemetry_namespace }} {{ idrac_telemetry_k8s_name }}-<pod-index> and try again.
 
+# Usage: remove_deleted_nodes.yml
+redfish_timeout: 30
+mysqldb_delete_fail_msg: |
+  Failed to delete iDRAC IPs from the mysql database.
+  This could be due to the tables in the mysqldb not being accessible at the moment. Please try running the playbook again after some time.
+no_idracips_to_remove_msg: "No iDRAC IPs to remove. All DB entries are present in bmc_data.csv."
+
 # Usage: create_telemetry_report.yml
 telemetry_report_path: "/opt/omnia/telemetry/idrac_telemetry_report.yml"
 telemetry_report_template: "telemetry_report.j2"
@@ -75,6 +82,9 @@ telemetry_report: |
 
       IP count with Telemetry not supported: {{ failed_idrac_count | int + invalid_idrac_count | int }}
       IP count with Telemetry activated in current execution: {{ telemetry_idrac_count | int }}
+      {% if deleted_idrac_count is defined %}
+      IP count removed from telemetry (not in bmc_data.csv): {{ deleted_idrac_count | int }}
+      {% endif %}
 
       {% if (failed_idrac_count | int + invalid_idrac_count | int) > 0 %}
       Potential reasons for telemetry not being initiated include Redfish connectivity problems, timeout issues,
@@ -102,6 +112,18 @@ telemetry_report: |
       Telemetry not supported because of iDRAC Datacenter license constraints or firmware issues.
       IPs List:
       {% for item in failed_idrac %}
+        - {{ item }}
+      {% endfor %}
+      {% endif %}
+      {% if deleted_idrac_ips is defined and deleted_idrac_ips | length > 0 %}
+      IPs removed from telemetry database (not present in bmc_data.csv):
+      {% for item in deleted_idrac_ips %}
+        - {{ item }}
+      {% endfor %}
+      {% endif %}
+      {% if disabled_telemetry_ips is defined and disabled_telemetry_ips | length > 0 %}
+      IPs with telemetry disabled via Redfish:
+      {% for item in disabled_telemetry_ips %}
         - {{ item }}
       {% endfor %}
       {% endif %}

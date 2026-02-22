@@ -167,32 +167,42 @@
 
 - name: Build full Podman image path
   ansible.builtin.set_fact:
-    pulp_aarch_image: "{{ hostvars['localhost']['oim_pxe_ip'] }}:2225/dellhpcomniaaisolution/image-build-aarch64:1.1"
+    pulp_aarch_image: "{{ hostvars['localhost']['oim_pxe_ip'] }}:2225/{{ pulp_aarch64_image_name }}"
 
-- name: Pull aarch64 image using Podman
-  ansible.builtin.command:
-    cmd: "podman pull {{ pulp_aarch_image }}"
-  register: podman_pull_result
-  ignore_errors: true
-  changed_when: false
+- name: Pull and tag aarch64 image
+  block:
+    - name: Pull aarch64 image using Podman
+      containers.podman.podman_image:
+        name: "{{ pulp_aarch_image }}"
+        state: present
+      register: podman_pull_result
+      retries: "{{ pull_image_retries }}"
+      delay: "{{ pull_image_delay }}"
+      until: podman_pull_result is not failed
+      changed_when: false
 
-- name: Fail if Podman pull failed
-  ansible.builtin.fail:
-    msg: "{{ aarch64_image_fail_msg }}"
-  when: podman_pull_result.rc != 0
+    - name: Tag pulled image
+      containers.podman.podman_tag:
+        image: "{{ pulp_aarch_image }}"
+        target_names:
+          - "{{ aarch64_local_tag }}"
+      changed_when: false
 
-- name: Tag pulled image
-  ansible.builtin.command:
-    cmd: "podman tag {{ pulp_aarch_image }} arm-image/ochami"
-  when: podman_pull_result.rc == 0
-  changed_when: false
+  rescue:
+    - name: Fail if Podman pull failed
+      ansible.builtin.fail:
+        msg: "Failed to pull image {{ pulp_aarch_image }}"
 
-- name: Download regctl binary to NFS shared path
-  ansible.builtin.get_url:
-    url: "{{ aarch64_regctl_url }}"
-    dest: "{{ ochami_aarch_64_dir }}/regctl"
-    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+- name: Check if regctl binary exists
+  ansible.builtin.stat:
+    path: "{{ ochami_aarch_64_dir }}/regctl"
+  register: regctl_stat
   delegate_to: localhost
+
+- name: Fail if regctl binary not found
+  ansible.builtin.fail:
+    msg: "{{ regctl_not_found_msg }}"
+  when: not regctl_stat.stat.exists
 
 - name: Copy regctl binary to /usr/local/bin on target host
   ansible.builtin.copy:

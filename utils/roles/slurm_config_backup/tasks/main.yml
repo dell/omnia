@@ -1,0 +1,69 @@
+---
+
+- name: Set slurm_config_path
+  ansible.builtin.set_fact:
+    slurm_config_path: "{{ share_path }}/{{ slurm_share_dir_name }}"
+
+- name: Display resolved slurm config path
+  ansible.builtin.debug:
+    msg: "Resolved slurm_config_path={{ slurm_config_path }}"
+
+- name: Prompt for backup base name
+  ansible.builtin.pause:
+    prompt: "Enter backup base name (leave empty for timestamp-only)"
+  register: backup_base_name_input
+
+- name: Set backup id
+  ansible.builtin.set_fact:
+    backup_timestamp: "{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"
+    backup_base_name: "{{ backup_base_name_input.user_input | default('') }}"
+
+- name: Set backup name suffix
+  ansible.builtin.set_fact:
+    backup_name_suffix: "{{ (backup_base_name | length > 0) | ternary(backup_base_name ~ '_' ~ backup_timestamp, backup_timestamp) }}"
+
+- name: Set backup directory
+  ansible.builtin.set_fact:
+    slurm_backups_root: "{{ share_path }}/{{ slurm_backups_dir_name }}"
+    backup_id: "{{ backup_name_suffix }}"
+    backup_dir: "{{ share_path }}/{{ slurm_backups_dir_name }}/{{ backup_name_suffix }}"
+
+- name: Ensure slurm backups root exists
+  ansible.builtin.file:
+    path: "{{ slurm_backups_root }}"
+    state: directory
+    mode: '0755'
+
+- name: Display slurm backups root
+  ansible.builtin.debug:
+    msg: "Resolved slurm_backups_root={{ slurm_backups_root }}"
+
+- name: Create backup directory
+  ansible.builtin.file:
+    path: "{{ backup_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create backup config directories
+  ansible.builtin.file:
+    path: "{{ backup_dir }}/{{ ctld_list[0] }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - etc/slurm
+    - etc/munge
+    - etc/my.cnf.d
+
+- name: Backup controller config directories
+  ansible.builtin.command: >-
+    cp -a "{{ slurm_config_path }}/{{ ctld_list[0] }}/{{ item }}/." "{{ backup_dir }}/{{ ctld_list[0] }}/{{ item }}/"
+  loop:
+    - etc/slurm
+    - etc/munge
+    - etc/my.cnf.d
+  changed_when: true
+  failed_when: false
+
+- name: Display backup location
+  ansible.builtin.debug:
+    msg: "Slurm config backup created at: {{ backup_dir }}/{{ ctld_list[0] }}"

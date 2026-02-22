@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Validate restore item fields
+  ansible.builtin.fail:
+    msg: "{{ msg_restore_item_name_missing }}"
+  when: restore_item.name is not defined or (restore_item.name | string | trim) == ""
+
+- name: Check if backup file exists
+  ansible.builtin.stat:
+    path: "{{ backup_location }}/{{ restore_item.name }}"
+  register: restore_backup_stat
+
+- name: Fail if backup file is not present
+  ansible.builtin.fail:
+    msg: "{{ msg_backup_file_missing }}"
+  when: not restore_backup_stat.stat.exists
+
+- name: Overwrite input file from backup
+  ansible.builtin.copy:
+    src: "{{ backup_location }}/{{ restore_item.name }}"
+    dest: "{{ input_project_dir }}/{{ restore_item.name }}"
+    mode: "{{ restore_item.mode | default(default_file_mode) }}"
+    remote_src: true
+
+- name: Validate restored file (optional)
+  ansible.builtin.command:
+    cmd: "{{ restore_item.validate_cmd }}"
+  register: restore_validate
+  changed_when: false
+  when: restore_item.validate_cmd is defined and (restore_item.validate_cmd | string | trim) != ""
+
+- name: Fail if restored file validation fails
+  ansible.builtin.fail:
+    msg: "{{ msg_validation_failed }}"
+  when:
+    - restore_item.validate_cmd is defined and (restore_item.validate_cmd | string | trim) != ""
+    - restore_validate.rc != 0
+
+- name: Display restore summary
+  ansible.builtin.debug:
+    msg: "{{ msg_restore_summary }}"

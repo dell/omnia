@@ -21,6 +21,34 @@ conf_files: # Must match this MASTER list
   - slurmdbd
   - cgroup
   - gres
+  - acct_gather
+  - helpers
+  - job_container
+  - mpi
+  - oci
+  - topology
+  - burst_buffer
+
+# Supported configuration files are:
+  # slurm.conf
+  # slurmdbd.conf
+  # cgroup.conf
+  # gres.conf
+  # acct_gather.conf
+  # helpers.conf
+  # job_container.conf
+  # mpi.conf
+  # oci.conf
+  # topology.conf
+  # burst_buffer.conf
+
+# Non Conf files
+  # topology.yaml
+  # namespace.yaml
+  # plugstack.conf
+  # scrun.lua
+  # cli_filter.lua
+
 copy_from_oim: false
 common_dir:
   - /etc/munge
@@ -38,8 +66,9 @@ gpu_slurm_conf:
   SelectType: select/cons_tres
   SelectTypeParameters: CR_Core_Memory
   SlurmdParameters: l3cache_as_socket
-innodb_buffer_pool_size: 1G
-innodb_lock_wait_timeout: 120
+innodb_buffer_pool_size: 4G
+innodb_lock_wait_timeout: 900
+conf_server: "--conf-server {{ ctld_list | join(',') }}"
 # TODO tmp
 nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
 bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
@@ -51,7 +80,7 @@ cluster_name: cluster # TODO: direct load vars omnia_config.yml
 slurm_uid: 6001
 slurm_user: slurm
 slurm_user_group: slurm
-restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] }}"
+restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] | default(true) }}"
 slurm_db_username: "{{ hostvars['localhost']['slurm_db_username'] | default('dbuser') }}"
 slurm_db_password: "{{ hostvars['localhost']['slurm_db_password'] }}"
 slurm_db_host: "{{ hostvars['localhost']['slurm_db_host'] | default(false) }}"
@@ -89,15 +118,18 @@ munge_dir_mode: "0700"
 common_mode: "0755"
 slurm_dbd_mode: "0600"
 slurm_db_cnf_mode: "0600"
+node_drain_timeout: 900
+node_drain_delay: 30
+force_scancel_node: false
 dbd_slurm_conf:
-  AccountingStorageHost: "{{ dbd_list[0] }}"
   AccountingStoragePort: "{{ slurm_dbd_port }}"
   AccountingStorageType: accounting_storage/slurmdbd
 partition_params:
   PartitionName: "{{ slurm_partition_name }}"
-  Nodes: "{{ cmpt_list | join(',') }}"
+  Nodes: "{{ cmpt_list | join(',') if cmpt_list else 'ALL' }}"
   MaxTime: "INFINITE"
   State: "UP"
+  Default: "YES"
 openldap_dir_name: "openldap/"
 software_config_file: "{{ input_project_dir }}/software_config.json"
 omnia_run_tags: "{{ hostvars['localhost']['omnia_run_tags'] }}"
@@ -113,21 +145,52 @@ packages_base_dir_aarch64: "{{ slurm_config_path }}/packages/aarch64"
 offline_repo_basepath_x86_64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso"
 offline_repo_basepath_aarch64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso"
 packages_layout_x86_64:
-  - doca-ofed
   - cuda
 packages_layout_aarch64:
-  - doca-ofed
   - cuda
 print_copy_msg: "Copying {{ item.name }} from {{ item.source_path }} to {{ item.dest_path }}"
-offline_path_x86_64:
-  - name: doca-ofed
-    source_path: "{{ offline_repo_basepath_x86_64 }}/doca-ofed"
-    dest_path: "{{ packages_base_dir_x86_64 }}/doca-ofed"
-offline_path_aarch64:
-  - name: doca-ofed
-    source_path: "{{ offline_repo_basepath_aarch64 }}/doca-ofed"
-    dest_path: "{{ packages_base_dir_aarch64 }}/doca-ofed"
+offline_path_x86_64: []
+offline_path_aarch64: []
 
 ssh_private_key_path: /root/.ssh/oim_rsa
+
+# nvidia sdk vars
+# Fully resolved tarball relative paths (no nested Jinja2)
+# nvidia sdk vars
+nvhpc_pkg_name_x86_64: "nvhpc_2025_2511_Linux_x86_64_cuda_13.0"
+nvhpc_pkg_name_aarch64: "nvhpc_2025_2511_Linux_aarch64_cuda_13.0"
+
+nvhpc_tarball_x86_64_relpath: "offline_repo/cluster/x86_64/rhel/10.0/tarball/{{ nvhpc_pkg_name_x86_64 }}/{{ nvhpc_pkg_name_x86_64 }}.tar.gz"
+nvhpc_tarball_aarch64_relpath: "offline_repo/cluster/aarch64/rhel/10.0/tarball/{{ nvhpc_pkg_name_aarch64 }}/{{ nvhpc_pkg_name_aarch64 }}.tar.gz"
+
+nvhpc_nfs_rel_dir: "hpc_tools/nvidia_sdk"
+
+# parallel file copy
+parallel_copy_max_workers: 4
+
+# ------------------------------------------------------------
+# Parallel Copy Candidates (Only path existence matters)
+# ------------------------------------------------------------
+
+parallel_copy_candidates:
+
+  # CUDA Runfile (aarch64 repo path)
+  - name: cuda_runfile_aarch64
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso/cuda-run/"
+    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
+
+  # CUDA Runfile (x86_64 repo path)
+  - name: cuda_runfile_x86_64
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso/cuda-run/"
+    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
+
+  # NVIDIA HPC SDK (x86_64 tarball extracted dir)
+  - name: nvhpc_sdk_x86_64
+    src: "{{ oim_shared_path }}/omnia/{{ nvhpc_tarball_x86_64_relpath | dirname }}/"
+    dest: "{{ slurm_config_path }}/hpc_tools/nvidia_sdk/"
+
+  - name: nvhpc_sdk_aarch64
+    src: "{{ oim_shared_path }}/omnia/{{ nvhpc_tarball_aarch64_relpath | dirname }}/"
+    dest: "{{ slurm_config_path }}/hpc_tools/nvidia_sdk/"
 
 backup_dir: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"

@@ -16,5 +16,11 @@
 input_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 project_name: "{{ hostvars['localhost']['project_name'] }}"
 
+# Note: When running a specific playbook without tags ansible run tags will default to ["all"], thus if two or more tags are present
+# then the "all" tag should be removed so that only the config files related to that playbook are validated.
+input_validate_tags: "{{ omnia_run_tags | default([]) | difference(['all']) if (omnia_run_tags | length) >= 2
+  else omnia_run_tags | default([]) }}"
+
 messages:
   validation_success: "Successfully validated Omnia input config file(s)"
+  validation_error: "Input validation failed. Please check the validation output above for detailed error information."

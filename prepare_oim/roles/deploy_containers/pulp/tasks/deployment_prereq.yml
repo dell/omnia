@@ -38,6 +38,31 @@
   when: hostname_enabled
   no_log: true
 
+- name: Check if Pulp image already exists
+  ansible.builtin.command:
+    cmd: "podman image exists {{ pulp_image }}"
+  register: pulp_image_exists
+  changed_when: false
+  failed_when: false
+
+- name: Pull Pulp image using Podman when missing
+  ansible.builtin.command:
+    cmd: "podman pull {{ pulp_image }}"
+  register: pulp_pull_result
+  retries: "{{ pull_image_retries }}"
+  delay: "{{ pull_image_delay }}"
+  until: pulp_pull_result is not failed
+  changed_when: false
+  when: pulp_image_exists.rc != 0
+
+- name: Fail if Pulp image pull failed
+  ansible.builtin.fail:
+    msg: "Failed to pull Pulp image: {{ pulp_image }}. Error: {{ pulp_pull_result.stderr }}"
+  when:
+    - pulp_image_exists.rc != 0
+    - pulp_pull_result.rc is defined
+    - pulp_pull_result.rc != 0
+
 - name: Invoke Pulp Container Deployment Tasks for HTTP
   ansible.builtin.include_tasks: deploy_pulp_container_http.yml
   when: not pulp_protocol_https
