@@ -14,6 +14,7 @@
 
 """Unit tests for Build Image API routes."""
 
+import uuid
 import pytest
 from fastapi import HTTPException, status
 
@@ -28,6 +29,10 @@ from core.build_image.exceptions import (
 )
 from core.jobs.exceptions import InvalidStateTransitionError, JobNotFoundError
 from core.jobs.value_objects import ClientId, CorrelationId, JobId
+
+# Helper function to create valid UUIDs for testing
+def create_test_uuid():
+    return str(uuid.uuid4())
 from orchestrator.build_image.commands import CreateBuildImageCommand
 from orchestrator.build_image.dtos import BuildImageResponse
 
@@ -68,7 +73,7 @@ class TestBuildImageRoutes:
             "Test error message",
             "corr-123"
         )
-        
+
         assert response.error == "TEST_ERROR"
         assert response.message == "Test error message"
         assert response.correlation_id == "corr-123"
@@ -76,38 +81,40 @@ class TestBuildImageRoutes:
 
     def test_create_build_image_success(self):
         """Test successful build image creation."""
+        test_correlation_id = create_test_uuid()
+        test_job_id = create_test_uuid()
         use_case = MockCreateBuildImageUseCase()
-        
+
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
             image_key="test-image",
             functional_groups=["group1", "group2"]
         )
-        
+
         response = create_build_image(
-            job_id="job-123",
+            job_id=test_job_id,
             request_body=request_body,
             use_case=use_case,
             client_id=ClientId("client-456"),
-            correlation_id=CorrelationId("corr-789")
+            correlation_id=CorrelationId(test_correlation_id)
         )
-        
+
         assert isinstance(response, CreateBuildImageResponse)
-        assert response.job_id == "job-123"
+        assert response.job_id == test_job_id
         assert response.stage == "build-image"
         assert response.status == "accepted"
         assert response.architecture == "x86_64"
         assert response.image_key == "test-image"
         assert response.functional_groups == ["group1", "group2"]
-        assert response.correlation_id == "corr-789"
-        
+        assert response.correlation_id == test_correlation_id
+
         # Verify use case was called with correct command
         assert len(use_case.executed_commands) == 1
         command = use_case.executed_commands[0]
         assert isinstance(command, CreateBuildImageCommand)
-        assert str(command.job_id) == "job-123"
+        assert str(command.job_id) == test_job_id
         assert str(command.client_id) == "client-456"
-        assert str(command.correlation_id) == "corr-789"
+        assert str(command.correlation_id) == test_correlation_id
         assert command.architecture == "x86_64"
         assert command.image_key == "test-image"
         assert command.functional_groups == ["group1", "group2"]
@@ -115,22 +122,22 @@ class TestBuildImageRoutes:
     def test_create_build_image_invalid_job_id(self):
         """Test with invalid job ID."""
         use_case = MockCreateBuildImageUseCase()
-        
+
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
             image_key="test-image",
             functional_groups=["group1"]
         )
-        
+
         with pytest.raises(HTTPException) as exc_info:
             create_build_image(
                 job_id="",  # Invalid empty job ID
                 request_body=request_body,
                 use_case=use_case,
                 client_id=ClientId("client-456"),
-                correlation_id=CorrelationId("corr-789")
+                correlation_id=CorrelationId(create_test_uuid())
             )
-        
+
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         detail = exc_info.value.detail
         assert detail["error"] == "INVALID_JOB_ID"
@@ -139,24 +146,24 @@ class TestBuildImageRoutes:
     def test_create_build_image_job_not_found(self):
         """Test when job is not found."""
         use_case = MockCreateBuildImageUseCase(
-            error_to_raise=JobNotFoundError("Job not found", "corr-789")
+            error_to_raise=JobNotFoundError("Job not found", create_test_uuid())
         )
-        
+
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
             image_key="test-image",
             functional_groups=["group1"]
         )
-        
+
         with pytest.raises(HTTPException) as exc_info:
             create_build_image(
-                job_id="job-123",
+                job_id=create_test_uuid(),
                 request_body=request_body,
                 use_case=use_case,
                 client_id=ClientId("client-456"),
-                correlation_id=CorrelationId("corr-789")
+                correlation_id=CorrelationId(create_test_uuid())
             )
-        
+
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
         detail = exc_info.value.detail
         assert detail["error"] == "JOB_NOT_FOUND"
@@ -164,49 +171,49 @@ class TestBuildImageRoutes:
     def test_create_build_image_invalid_state_transition(self):
         """Test when stage is not in PENDING state."""
         use_case = MockCreateBuildImageUseCase(
-            error_to_raise=InvalidStateTransitionError("Invalid state", "corr-789")
+            error_to_raise=InvalidStateTransitionError("Job", create_test_uuid(), "PENDING", "RUNNING", create_test_uuid())
         )
-        
+
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
             image_key="test-image",
             functional_groups=["group1"]
         )
-        
+
         with pytest.raises(HTTPException) as exc_info:
             create_build_image(
-                job_id="job-123",
+                job_id=create_test_uuid(),
                 request_body=request_body,
                 use_case=use_case,
                 client_id=ClientId("client-456"),
-                correlation_id=CorrelationId("corr-789")
+                correlation_id=CorrelationId(create_test_uuid())
             )
-        
+
         assert exc_info.value.status_code == status.HTTP_409_CONFLICT
         detail = exc_info.value.detail
         assert detail["error"] == "INVALID_STATE_TRANSITION"
 
     def test_create_build_image_invalid_architecture(self):
-        """Test with invalid architecture."""
+        """Test with invalid architecture (domain-level validation)."""
         use_case = MockCreateBuildImageUseCase(
-            error_to_raise=InvalidArchitectureError("Invalid architecture", "corr-789")
+            error_to_raise=InvalidArchitectureError("Invalid architecture", create_test_uuid())
         )
-        
+
         request_body = CreateBuildImageRequest(
-            architecture="invalid",
+            architecture="x86_64",  # Valid for schema but will trigger domain error
             image_key="test-image",
             functional_groups=["group1"]
         )
-        
+
         with pytest.raises(HTTPException) as exc_info:
             create_build_image(
-                job_id="job-123",
+                job_id=create_test_uuid(),
                 request_body=request_body,
                 use_case=use_case,
                 client_id=ClientId("client-456"),
-                correlation_id=CorrelationId("corr-789")
+                correlation_id=CorrelationId(create_test_uuid())
             )
-        
+
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         detail = exc_info.value.detail
         assert detail["error"] == "INVALID_ARCHITECTURE"
@@ -214,24 +221,24 @@ class TestBuildImageRoutes:
     def test_create_build_image_invalid_image_key(self):
         """Test with invalid image key."""
         use_case = MockCreateBuildImageUseCase(
-            error_to_raise=InvalidImageKeyError("Invalid image key", "corr-789")
+            error_to_raise=InvalidImageKeyError("Invalid image key", create_test_uuid())
         )
-        
+
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
             image_key="invalid@key",
             functional_groups=["group1"]
         )
-        
+
         with pytest.raises(HTTPException) as exc_info:
             create_build_image(
-                job_id="job-123",
+                job_id=create_test_uuid(),
                 request_body=request_body,
                 use_case=use_case,
                 client_id=ClientId("client-456"),
-                correlation_id=CorrelationId("corr-789")
+                correlation_id=CorrelationId(create_test_uuid())
             )
-        
+
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         detail = exc_info.value.detail
         assert detail["error"] == "INVALID_IMAGE_KEY"
@@ -239,24 +246,24 @@ class TestBuildImageRoutes:
     def test_create_build_image_invalid_functional_groups(self):
         """Test with invalid functional groups."""
         use_case = MockCreateBuildImageUseCase(
-            error_to_raise=InvalidFunctionalGroupsError("Invalid groups", "corr-789")
+            error_to_raise=InvalidFunctionalGroupsError("Invalid groups", create_test_uuid())
         )
-        
+
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
             image_key="test-image",
             functional_groups=["invalid@group"]
         )
-        
+
         with pytest.raises(HTTPException) as exc_info:
             create_build_image(
-                job_id="job-123",
+                job_id=create_test_uuid(),
                 request_body=request_body,
                 use_case=use_case,
                 client_id=ClientId("client-456"),
-                correlation_id=CorrelationId("corr-789")
+                correlation_id=CorrelationId(create_test_uuid())
             )
-        
+
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         detail = exc_info.value.detail
         assert detail["error"] == "INVALID_FUNCTIONAL_GROUPS"
@@ -264,24 +271,24 @@ class TestBuildImageRoutes:
     def test_create_build_image_missing_inventory_host(self):
         """Test aarch64 build with missing inventory host."""
         use_case = MockCreateBuildImageUseCase(
-            error_to_raise=InventoryHostMissingError("Missing host", "corr-789")
+            error_to_raise=InventoryHostMissingError("Missing host", create_test_uuid())
         )
-        
+
         request_body = CreateBuildImageRequest(
             architecture="aarch64",
             image_key="test-image",
             functional_groups=["group1"]
         )
-        
+
         with pytest.raises(HTTPException) as exc_info:
             create_build_image(
-                job_id="job-123",
+                job_id=create_test_uuid(),
                 request_body=request_body,
                 use_case=use_case,
                 client_id=ClientId("client-456"),
-                correlation_id=CorrelationId("corr-789")
+                correlation_id=CorrelationId(create_test_uuid())
             )
-        
+
         assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
         detail = exc_info.value.detail
         assert detail["error"] == "INVENTORY_HOST_MISSING"
@@ -289,24 +296,24 @@ class TestBuildImageRoutes:
     def test_create_build_image_domain_error(self):
         """Test with domain error."""
         use_case = MockCreateBuildImageUseCase(
-            error_to_raise=BuildImageDomainError("Domain error", "corr-789")
+            error_to_raise=BuildImageDomainError("Domain error", create_test_uuid())
         )
-        
+
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
             image_key="test-image",
             functional_groups=["group1"]
         )
-        
+
         with pytest.raises(HTTPException) as exc_info:
             create_build_image(
-                job_id="job-123",
+                job_id=create_test_uuid(),
                 request_body=request_body,
                 use_case=use_case,
                 client_id=ClientId("client-456"),
-                correlation_id=CorrelationId("corr-789")
+                correlation_id=CorrelationId(create_test_uuid())
             )
-        
+
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         detail = exc_info.value.detail
         assert detail["error"] == "BUILD_IMAGE_ERROR"
@@ -314,22 +321,22 @@ class TestBuildImageRoutes:
     def test_create_build_image_unexpected_error(self):
         """Test with unexpected error."""
         use_case = MockCreateBuildImageUseCase(error_to_raise=RuntimeError("Unexpected error"))
-        
+
         request_body = CreateBuildImageRequest(
             architecture="x86_64",
             image_key="test-image",
             functional_groups=["group1"]
         )
-        
+
         with pytest.raises(HTTPException) as exc_info:
             create_build_image(
-                job_id="job-123",
+                job_id=create_test_uuid(),
                 request_body=request_body,
                 use_case=use_case,
                 client_id=ClientId("client-456"),
-                correlation_id=CorrelationId("corr-789")
+                correlation_id=CorrelationId(create_test_uuid())
             )
-        
+
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         detail = exc_info.value.detail
         assert detail["error"] == "INTERNAL_ERROR"

@@ -1,0 +1,5 @@
+---
+
+slurm_share_dir_name: slurm
+slurm_cleanup_pre_backup_default: 'y'
+slurm_cleanup_confirm_token: 'YES'

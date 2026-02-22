@@ -42,3 +42,12 @@
   ansible.builtin.debug:
     var: additional_images_dict
     verbosity: 2
+
+- name: Read local_repo_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ local_repo_config_path }}"
+    name: local_repo_config
+
+- name: Set fact for user_registry
+  ansible.builtin.set_fact:
+    user_registry: "{{ local_repo_config.user_registry | default([]) }}"

@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-image_build_el10: "docker.io/dellhpcomniaaisolution/image-build-el10:1.0"
+pulp_x86_64_image_name: "dellhpcomniaaisolution/image-build-el10:1.0"
+x86_64_local_tag: "x86_64-image-builder/ochami"
 pull_image_retries: "3"
 pull_image_delay: "10"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
@@ -23,6 +24,9 @@ openchami_dir: "/opt/omnia/openchami"
 openchami_clone_path: /opt/omnia/openchami/deployment-recipes
 job_retry: "120"
 job_delay: "30"
+network_spec: "{{ input_project_dir }}/network_spec.yml"
+pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
+anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 openchami_work_dir: "{{ oim_shared_path }}/omnia/openchami/workdir"
 ochami_mounts:
   - --user 0 --privileged
@@ -35,7 +39,7 @@ ochami_compute_mounts:
 
 ochami_x86_64_image:
   - --entrypoint /bin/bash
-  - docker.io/dellhpcomniaaisolution/image-build-el10:1.0
+  - "localhost/{{ x86_64_local_tag }}"
 ochami_base_command:
   - -c 'update-ca-trust extract && image-build --config /home/builder/config.yaml --log-level DEBUG'
 
@@ -54,3 +58,5 @@ compute_image_failure_msg: |
 # build_compute_image.yml
 openchami_compute_image_vars_template: "{{ role_path }}/templates/compute_images_templates.j2"
 openchami_compute_image_vars_path: "/opt/omnia/openchami/compute_images_template.yaml"
+
+network_spec_syntax_fail_msg: "Failed to load network_spec.yml due to syntax error"

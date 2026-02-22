@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,29 +44,38 @@ def check_image_in_registry(
     Check if a container image exists in a user registry using Docker Registry HTTP API v2.
 
     Args:
-        host (str): Registry hostname.
-        image (str): Image name (e.g., library/nginx).
-        tag (str): Image tag (e.g., 1.25.2-alpine).
-        cacert (str, optional): Path to the CA certificate file.
-        key (str, optional): Path to the client key file.
-        username (str, optional): Registry username.
-        password (str, optional): Registry password.
-        logger (logging.Logger): Logger instance.
+        host (str): Registry hostname (without protocol)
+        image (str): Image name
+        tag (str): Image tag
+        cacert (str, optional): Path to the CA certificate file for TLS authentication
+        key (str, optional): Path to the client key file for TLS authentication
+        username (str, optional): Registry username for basic authentication
+        password (str, optional): Registry password for basic authentication
+        logger (logging.Logger, optional): Logger instance for logging messages
 
     Returns:
-        bool: True if image exists, False otherwise.
+        bool: True if image exists, False otherwise
     """
-    image_url = f"https://{host}/v2/{image}/manifests/{tag}"
+
+    if not host.startswith(("http://", "https://")):
+        protocol = "https" if (cacert and key) else "http"
+        host = f"{protocol}://{host}"
+    image_url = f"{host}/v2/{image}/manifests/{tag}"
     logger.info(f"Checking image existence at: {image_url}")
 
     try:
         request_args = {
-            "verify": False,  # Consider using 'verify=cacert' if using trusted certs
             "timeout": 10,
+            "verify": False,
+            "headers": {
+                "Accept": (
+                    "application/vnd.oci.image.manifest.v1+json,"
+                    "application/vnd.oci.image.index.v1+json,"
+                    "application/vnd.docker.distribution.manifest.v2+json,"
+                    "application/vnd.docker.distribution.manifest.list.v2+json"
+                )
+            },
         }
-
-        if username and password:
-            request_args["auth"] = HTTPBasicAuth(username, password)
 
         if cacert and key:
             request_args["cert"] = (cacert, key)
@@ -77,10 +86,21 @@ def check_image_in_registry(
             logger.info(f"Image '{image}:{tag}' exists in registry '{host}'")
             return True
 
-        logger.warning(
-            f"Image not found (HTTP {response.status_code}) in registry '{host}'"
+        if response.status_code == 404:
+            logger.info(
+                f"Image '{image}:{tag}' does not exist in registry '{host}'"
+            )
+            return False
+
+        logger.error(
+            f"Unexpected HTTP {response.status_code} while checking image "
+            f"'{image}:{tag}' in registry '{host}'"
         )
 
+    except requests.exceptions.SSLError as e:
+        logger.error(
+            f"TLS error while connecting to registry '{host}': {e}"
+        )
     except requests.RequestException as e:
         logger.exception(f"Network error while checking image: {e}")
     except Exception as e:
@@ -115,15 +135,38 @@ def create_user_remote_container(
         bool or dict: True on success, False on failure, or a dict with command result.
     """
     try:
-        ca_cert = f"@{cacert}"
-        client_key = f"@{key}"
-
         if tag_val is None:
             remote_exists = execute_command(
                 pulp_container_commands["show_container_remote"] % remote_name, logger
             )
             if not remote_exists:
-                command = pulp_container_commands["create_user_remote_digest"] % (
+                if cacert and key:
+                    ca_cert = f"@{cacert}"
+                    client_key = f"@{key}"
+                    command = pulp_container_commands["create_user_remote_digest"] % (
+                        remote_name,
+                        base_url,
+                        package_content,
+                        policy_type,
+                        ca_cert,
+                        client_key,
+                    )
+                else:
+                    command = pulp_container_commands["create_container_remote_for_digest"] % (
+                        remote_name,
+                        base_url,
+                        package_content,
+                        policy_type,
+                    )
+                result = execute_command(command, logger)
+                logger.info(f"Remote created successfully: {remote_name}")
+                return result
+
+            logger.info(f"Remote {remote_name} already exists.")
+            if cacert and key:
+                ca_cert = f"@{cacert}"
+                client_key = f"@{key}"
+                command = pulp_container_commands["update_user_remote_digest"] % (
                     remote_name,
                     base_url,
                     package_content,
@@ -131,19 +174,13 @@ def create_user_remote_container(
                     ca_cert,
                     client_key,
                 )
-                result = execute_command(command, logger)
-                logger.info(f"Remote created successfully: {remote_name}")
-                return result
-
-            logger.info(f"Remote {remote_name} already exists.")
-            command = pulp_container_commands["update_user_remote_digest"] % (
-                remote_name,
-                base_url,
-                package_content,
-                policy_type,
-                ca_cert,
-                client_key,
-            )
+            else:
+                command = pulp_container_commands["update_remote_for_digest"] % (
+                    remote_name,
+                    base_url,
+                    package_content,
+                    policy_type,
+                )
             result = execute_command(command, logger)
             logger.info(f"Remote updated successfully: {remote_name}")
             return result
@@ -154,15 +191,26 @@ def create_user_remote_container(
         )
 
         if not remote_exists:
-            command = pulp_container_commands["create_user_remote_tag"] % (
-                remote_name,
-                base_url,
-                package_content,
-                policy_type,
-                tag_val,
-                ca_cert,
-                client_key,
-            )
+            if cacert and key:
+                ca_cert = f"@{cacert}"
+                client_key = f"@{key}"
+                command = pulp_container_commands["create_user_remote_tag"] % (
+                    remote_name,
+                    base_url,
+                    package_content,
+                    policy_type,
+                    tag_val,
+                    ca_cert,
+                    client_key,
+                )
+            else:
+                command = pulp_container_commands["create_container_remote"] % (
+                    remote_name,
+                    base_url,
+                    package_content,
+                    policy_type,
+                    tag_val,
+                )
             result = execute_command(command, logger)
             if result:
                 logger.info(f"Remote '{remote_name}' created successfully.")
@@ -183,15 +231,26 @@ def create_user_remote_container(
         new_tags = existing_tags + [tag_val]
         tags_json = json.dumps(new_tags)
 
-        update_command = pulp_container_commands["update_user_remote_tag"] % (
-            remote_name,
-            base_url,
-            package_content,
-            policy_type,
-            tags_json,
-            ca_cert,
-            client_key,
-        )
+        if cacert and key:
+            ca_cert = f"@{cacert}"
+            client_key = f"@{key}"
+            update_command = pulp_container_commands["update_user_remote_tag"] % (
+                remote_name,
+                base_url,
+                package_content,
+                policy_type,
+                tags_json,
+                ca_cert,
+                client_key,
+            )
+        else:
+            update_command = pulp_container_commands["update_container_remote"] % (
+                remote_name,
+                base_url,
+                package_content,
+                policy_type,
+                tags_json,
+            )
         result = execute_command(update_command, logger)
 
         if result:
@@ -234,10 +293,13 @@ def process_user_registry(
     repository_name = (
         f"{user_reg_prefix}{package['package'].replace('/', '_').replace(':', '_')}"
     )
-    remote_name = f"user_remote_{package['package'].replace('/', '_')}"
+    remote_name = f"user_remote_{package['package'].replace('/', '_').replace(':', '_')}"
     package_identifier = package["package"]
     policy_type = "immediate"
-    base_url = f"https://{host}/"
+    if not host.startswith(("http://", "https://")):
+        protocol = "https" if (cacert and key) else "http"
+        host = f"{protocol}://{host}"
+    base_url = f"{host}/"
 
     logger.info("Creating user container repository")
     with repository_creation_lock:
@@ -314,8 +376,8 @@ def handle_user_image_registry(package, package_content, version_variables, user
             host = registry.get("host")
             cacert = registry.get("cert_path")
             key = registry.get("key_path")
-            username = registry.get("username")
-            password = registry.get("password")
+            # username = registry.get("username")
+            # password = registry.get("password")
 
             logger.info(f"Checking image {image_name}:{tag_val} in registry {host}")
             image_found = check_image_in_registry(
@@ -324,8 +386,8 @@ def handle_user_image_registry(package, package_content, version_variables, user
                 tag=tag_val,
                 cacert=cacert,
                 key=key,
-                username=username,
-                password=password,
+                username=None,
+                password=None,
                 logger=logger
             )
 
@@ -333,6 +395,11 @@ def handle_user_image_registry(package, package_content, version_variables, user
                 logger.info(f"Image '{image_name}:{tag_val}' found in registry '{host}'")
                 result, package_info = process_user_registry(package, host, package_content, version_variables, cacert, key, logger)
                 break
+            else:
+                logger.info(f"Image '{image_name}:{tag_val}' not found in registry '{host}', checking next registry...")
+        else:
+            logger.info(f"Image '{image_name}:{tag_val}' not found in any user registry")
+            result = False
 
     except Exception as e:
         logger.error(f"Exception in {handle_user_image_registry.__name__}: {e}")
@@ -340,3 +407,4 @@ def handle_user_image_registry(package, package_content, version_variables, user
 
     logger.info("#" * 30 + f" {handle_user_image_registry.__name__} end " + "#" * 30)
     return result, package_info
+

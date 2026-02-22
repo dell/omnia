@@ -36,10 +36,13 @@ from ansible.module_utils.input_validation.common_utils import (
 
 from ansible.module_utils.local_repo.software_utils import (
     load_json,
-    load_yaml,
     get_subgroup_dict,
     get_software_names,
     get_json_file_path
+)
+from ansible.module_utils.input_validation.common_utils.slurm_conf_utils import (
+    parse_slurm_conf,
+    validate_config_types
 )
 
 file_names = config.files
@@ -229,6 +232,19 @@ def validate_software_config(
                 en_us_validation_msg.LDMS_REQUIRES_SLURM_MSG
             )
         )
+
+    # Check for required subgroups when specific software names are present
+    software_requiring_subgroups = ["additional_packages", "slurm_custom", "service_k8s"]
+    for software_name in software_requiring_subgroups:
+        if software_name in software_names:
+            if software_name not in data or not data[software_name]:
+                errors.append(
+                    create_error_msg(
+                        "Validation Error: ",
+                        software_name,
+                        f"is present in softwares but corresponding subgroup '{software_name}' is missing or empty in software_config.json. Please refer examples directory for the correct format."
+                    )
+                )
 
     for software_pkg in data['softwares']:
         software = software_pkg['name']
@@ -1058,17 +1074,37 @@ def validate_omnia_config(
                     "slurm NFS not provided",
                     f"NFS name {', '.join(diff_set)} required for slurm is not defined in {storage_config}"
                     ))
-        # config_paths_list = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
-        # for cfg_path_dict in config_paths_list:
-        #     for k,v in cfg_path_dict.items():
-        #         if isinstance(v, str) and not os.path.exists(v):
-        #             errors.append(
-        #                 create_error_msg(
-        #                     input_file_path,
-        #                     "slurm config_paths",
-        #                     f"config_path for {k} - {v} does not exist"
-        #                     ))
 
+        skip_conf_validation = os.path.exists("/opt/omnia/input/.skip_slurm_conf_validation")
+        cnfg_src = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
+        skip_merge_list = [clst.get('skip_merge', False) for clst in data.get('slurm_cluster')]
+        for idx, cfg_path_dict in enumerate(cnfg_src):
+            skip_merge = skip_merge_list[idx]
+            for k,v in cfg_path_dict.items():
+                conf_dict = None
+                if isinstance(v, str):
+                    if not os.path.exists(v):
+                        errors.append(
+                            create_error_msg('omnia_config.yml', "slurm_cluster config_sources",
+                                f"provided conf path for {k} - {v} does not exist"))
+                        continue
+                    else: # path exists
+                        if not skip_merge and not skip_conf_validation:
+                            conf_dict, duplicate_keys = parse_slurm_conf(v, k, False)
+                            if duplicate_keys:
+                                errors.append(
+                                    create_error_msg('omnia_config.yml', "slurm_cluster->config_sources",
+                                        f"duplicate keys found in {k}.conf - {','.join(duplicate_keys)}"))
+                else:
+                    conf_dict = v
+                if conf_dict and not skip_conf_validation:
+                    validation_result = validate_config_types(conf_dict, k, module)
+                    if validation_result.get('type_errors'):
+                        errors.extend(validation_result['type_errors'])
+                    if validation_result.get('invalid_keys'):
+                        errors.append(
+                            create_error_msg('omnia_config.yml', "slurm_cluster->config_sources",
+                                f"{k}.conf invalid keys found - {','.join(validation_result['invalid_keys'])}"))
     return errors
 
 def check_is_service_cluster_functional_groups_defined(

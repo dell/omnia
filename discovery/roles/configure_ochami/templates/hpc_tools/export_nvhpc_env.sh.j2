@@ -1,0 +1,67 @@
+#!/bin/bash
+set -e
+
+CLIENT_MOUNT="{{ client_mount_path }}"
+
+NVHPC_LOCAL_MOUNT="/opt/nvidia/nvhpc"
+NVARCH="$(uname -s)_$(uname -m)"
+sys_arch="$(uname -m)"
+case "${sys_arch}" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+esac
+
+# Select package name based on detected architecture (rendered from slurm_config vars)
+case "${arch}" in
+    x86_64)  NVHPC_PKG_NAME="{{ nvhpc_pkg_name_x86_64 }}" ;;
+    aarch64) NVHPC_PKG_NAME="{{ nvhpc_pkg_name_aarch64 }}" ;;
+esac
+
+# Derive version from package name
+NVHPC_VERSION=$(echo "$NVHPC_PKG_NAME" | sed 's/nvhpc_\([0-9]*_[0-9]*\)_Linux_.*/\1/' | cut -d'_' -f2 | sed 's/\(..\)\(..\)/\1.\2/')
+
+NVHPC_BASE="$NVHPC_LOCAL_MOUNT/$NVARCH/$NVHPC_VERSION"
+PROFILE_FILE="/etc/profile.d/nvhpc.sh"
+LOGFILE="/var/log/export_nvhpc_env.log"
+
+# Log everything
+exec > >(tee -a "$LOGFILE") 2>&1
+
+# Check that NFS is mounted
+if ! mountpoint -q "$CLIENT_MOUNT"; then
+    echo "[ERROR] $CLIENT_MOUNT is not mounted."
+    echo "        Please mount the NFS path before running export_nvhpc_env.sh"
+    exit 1
+fi
+
+echo "===== NVHPC environment export started ====="
+
+
+echo "[INFO] Writing persistent NVHPC profile at $PROFILE_FILE"
+
+# Write environment file system-wide
+cat > "$PROFILE_FILE" <<EOF
+# NVIDIA HPC SDK environment
+
+export NVCOMPILERS=$NVHPC_LOCAL_MOUNT
+export NVARCH=$NVARCH
+export NVHPC_VERSION=$NVHPC_VERSION
+
+# Compilers
+export PATH=\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/compilers/bin:\$PATH
+export MANPATH=\${MANPATH:-}:\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/compilers/man
+
+# MPI support
+export PATH=\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/comm_libs/mpi/bin:\$PATH
+export MANPATH=\${MANPATH:-}:\$NVCOMPILERS/\$NVARCH/\$NVHPC_VERSION/comm_libs/mpi/man
+
+# Modules
+export MODULEPATH=\$NVCOMPILERS/modulefiles:\${MODULEPATH:-}
+EOF
+
+chmod 644 "$PROFILE_FILE"
+
+
+echo "[SUCCESS] NVHPC environment exported successfully"
+echo "[INFO] Environment file configured in $PROFILE_FILE"
+echo "===== NVHPC export completed ====="

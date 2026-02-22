@@ -1,0 +1,109 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Check if node exists in Slurm cluster
+  ansible.builtin.command: scontrol show node {{ node_to_remove }}
+  register: node_exists_check
+  failed_when: false
+  ignore_unreachable: true
+  changed_when: false
+  delegate_to: "{{ ctld }}"
+
+- name: Skip if node does not exist
+  ansible.builtin.debug:
+    msg: "Node {{ node_to_remove }} not found in cluster, skipping removal"
+  when:
+    - node_exists_check is reachable
+    - node_exists_check.rc != 0
+
+- name: Process node removal
+  when:
+    - node_exists_check is reachable
+    - node_exists_check.rc == 0
+  ignore_unreachable: true
+  block:
+    - name: Get current job count on node
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          squeue -w {{ node_to_remove }} -h | wc -l
+      register: current_jobs
+      changed_when: false
+      delegate_to: "{{ ctld }}"
+
+    - name: Display job information
+      ansible.builtin.debug:
+        msg: "Node {{ node_to_remove }} currently has {{ current_jobs.stdout }} running job(s)"
+
+    - name: Drain the node to prevent new job assignments
+      ansible.builtin.command: >
+        scontrol update NodeName={{ node_to_remove }}
+        State=DRAIN
+        Reason="Scheduled removal - waiting for jobs to complete"
+      changed_when: true
+      delegate_to: "{{ ctld }}"
+
+    - name: Wait for all jobs to complete on the node
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          squeue -w {{ node_to_remove }} -h | wc -l
+      register: job_count_check
+      until: job_count_check.stdout | int == 0
+      retries: "{{ (node_drain_timeout / node_drain_delay) | int }}"
+      delay: "{{ node_drain_delay }}"
+      changed_when: false
+      delegate_to: "{{ ctld }}"
+      when: current_jobs.stdout | int > 0
+
+    - name: Confirm jobs completed
+      ansible.builtin.debug:
+        msg: "All jobs on {{ node_to_remove }} have completed"
+      when: current_jobs.stdout | int > 0
+
+    - name: Log node removal
+      ansible.builtin.debug:
+        msg: "Node {{ node_to_remove }} has been drained, jobs completed, and set to DOWN state"
+
+  rescue:
+    - name: Log node removal failure
+      ansible.builtin.debug:
+        msg: "Failed to drain node {{ node_to_remove }}"
+
+    - name: Remove slurm node with running job after timeout
+      ansible.builtin.pause:
+        prompt: |
+          Node {{ node_to_remove }} has been DRAINED to prevent new job assignments.
+          Jobs are still running on {{ node_to_remove }} after wait of {{ node_drain_timeout }} seconds.
+          Options:
+            1. Press Ctrl+C then 'A' to abort
+            2. Press Enter to force removal (jobs will be killed)
+      when: not force_scancel_node
+
+    - name: Force cancel jobs if timeout reached
+      ansible.builtin.command: scancel -f -w {{ node_to_remove }}
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ ctld }}"
+
+  always:
+    - name: Set node to DOWN state
+      ansible.builtin.command: >
+        scontrol update NodeName={{ node_to_remove }}
+        State=DOWN
+        Reason="Node removed from cluster"
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ ctld }}"
+      when: node_exists_check.rc == 0

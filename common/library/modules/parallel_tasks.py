@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,12 +28,15 @@ from ansible.module_utils.local_repo.download_common import (
     process_shell,
     process_ansible_galaxy_collection,
     process_iso,
-    process_pip
+    process_pip,
+    process_rpm_file
 )
 from ansible.module_utils.local_repo.download_image import process_image
 from ansible.module_utils.local_repo.download_rpm import process_rpm
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
-from ansible.module_utils.local_repo.common_functions import generate_vault_key, process_file, is_encrypted
+from ansible.module_utils.local_repo.common_functions import (
+    generate_vault_key, process_file, is_encrypted
+)
 from ansible.module_utils.local_repo.software_utils import (
     load_json,
     set_version_variables,
@@ -53,8 +56,6 @@ from ansible.module_utils.local_repo.config import (
     SOFTWARE_CSV_HEADER,
     STATUS_CSV_HEADER,
     LOCAL_REPO_CONFIG_PATH_DEFAULT,
-    USER_REG_CRED_INPUT,
-    USER_REG_KEY_PATH,
     OMNIA_CREDENTIALS_YAML_PATH,
     OMNIA_CREDENTIALS_VAULT_PATH
 )
@@ -126,7 +127,10 @@ def update_status_csv(csv_dir, software, overall_status,slogger):
     slogger.info(f"Successfully updated status CSV at {status_file}")
 
 
-def determine_function(task, repo_store_path, csv_file_path, user_data, version_variables, arc, user_registries, docker_username, docker_password):
+def determine_function(
+    task, repo_store_path, csv_file_path, user_data, version_variables, arc,
+    user_registries, docker_username, docker_password
+):
     """
     Determines the appropriate function and its arguments to process a given task.
 
@@ -161,25 +165,55 @@ def determine_function(task, repo_store_path, csv_file_path, user_data, version_
 
         task_type = task.get("type")
         if task_type == "manifest":
-            return process_manifest, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
+            return process_manifest, [
+                task, repo_store_path, status_file, cluster_os_type,
+                cluster_os_version, arc
+            ]
         if task_type == "git":
-            return process_git, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
+            return process_git, [
+                task, repo_store_path, status_file, cluster_os_type,
+                cluster_os_version, arc
+            ]
         if task_type == "tarball":
-            return process_tarball, [task, repo_store_path, status_file, version_variables, cluster_os_type, cluster_os_version, arc]
+            return process_tarball, [
+                task, repo_store_path, status_file, version_variables,
+                cluster_os_type, cluster_os_version, arc
+            ]
         if task_type == "shell":
-            return process_shell, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
+            return process_shell, [
+                task, repo_store_path, status_file, cluster_os_type,
+                cluster_os_version, arc
+            ]
         if task_type == "ansible_galaxy_collection":
-            return process_ansible_galaxy_collection, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
+            return process_ansible_galaxy_collection, [
+                task, repo_store_path, status_file, cluster_os_type,
+                cluster_os_version, arc
+            ]
         if task_type == "iso":
-            return process_iso, [task, repo_store_path, status_file,
-                                 cluster_os_type, cluster_os_version, version_variables, arc]
+            return process_iso, [
+                task, repo_store_path, status_file, cluster_os_type,
+                cluster_os_version, version_variables, arc
+            ]
         if task_type == "pip_module":
-            return process_pip, [task, repo_store_path, status_file, cluster_os_type, cluster_os_version, arc]
+            return process_pip, [
+                task, repo_store_path, status_file, cluster_os_type,
+                cluster_os_version, arc
+            ]
         if task_type == "image":
-            return process_image, [task, status_file, version_variables, user_registries, docker_username, docker_password]
-        if task_type == "rpm":
-            return process_rpm, [task, repo_store_path, status_file,
-                                 cluster_os_type, cluster_os_version, repo_config_value, arc]
+            return process_image, [
+                task, status_file, version_variables, user_registries,
+                docker_username, docker_password
+            ]
+        if task_type == "rpm_file":
+            return process_rpm_file, [
+                task, repo_store_path, status_file, cluster_os_type,
+                cluster_os_version, arc
+            ]
+        if task_type in ("rpm", "rpm_repo"):
+            return process_rpm, [
+                task, repo_store_path, status_file, cluster_os_type,
+                cluster_os_version, repo_config_value, arc
+            ]
 
         raise ValueError(f"Unknown task type: {task_type}")
     except Exception as e:
@@ -253,13 +287,13 @@ def generate_software_status_table(status_dict,slogger):
             table.field_names = ["Name", "Status"]
             for name, status in items:
                 table.add_row([name, status.lower()])
-            
+
             tables.append(table.get_string())
             slogger.info(f"Completed table for {arch}")
-            
+
         slogger.info("Software status table generation completed successfully")
         return "\n\n".join(tables)
-    
+
     except Exception as e:
         slogger.error(f"Error occurred while generating software status table: {e}")
         return f"Error: {e}"
@@ -271,37 +305,44 @@ def main():
     Args:
         tasks (list): A list of tasks (dictionaries) that need to be processed in parallel.
         nthreads (int): The number of worker processes to run in parallel.
-        timeout (int): The maximum time allowed for all tasks to execute. If `None`, no timeout is enforced.
+        timeout (int): The maximum time allowed for all tasks to execute.
+                    If `None`, no timeout is enforced.
         log_dir (str): The directory where log files for the worker processes will be saved.
         log_file (str): The path to the log file for the overall task execution.
         slog_file (str): The path to the log file for the standard logger.
         csv_file_path (str): The path to a CSV file that may be needed for processing some tasks.
         repo_store_path (str): The path to the repository where task-related files are stored.
         software (list): A list of software names.
-        user_json_file (str): The path to the JSON file containing use
-        show_softwares_status (bool): Whether to display the software status; optional, defaults to False.  
-        overall_status_dict (dict): A list containing overall software status information; optional, defaults to an empty dict.
-          Dictionary containing software status information grouped by software names.  
-          Each key (e.g., 'service_k8s') maps to a list of dictionaries,  
-          where each dictionary contains:
-              - 'arch' (str): Architecture name, e.g., 'x86_64' or 'aarch64'.  
-              - 'overall_status' (str): Status of the software on that architecture, e.g., 'SUCCESS'.  
-          Example:
-              {
-                  "service_k8s": [
-                      {"arch": "x86_64", "overall_status": "SUCCESS"},
-                      {"arch": "aarch64", "overall_status": "SUCCESS"}
-                  ]
-              }
-          Defaults to an empty dict if not provided.
+        user_json_file (str): The path to the JSON file containing user data.
+        show_softwares_status (bool): Whether to display the software status;
+                                optional, defaults to False.
+        overall_status_dict (dict): A dictionary containing overall software status
+                                information; optional, defaults to an empty dict.
+            Dictionary containing software status information grouped by software names.
+            Each key (e.g., 'service_k8s') maps to a list of dictionaries,
+            where each dictionary contains:
+                - 'arch' (str): Architecture name, e.g., 'x86_64' or 'aarch64'.
+                - 'overall_status' (str): Status of the software on that architecture,
+                                        e.g., 'SUCCESS'.
+            Example:
+                {
+                    "service_k8s": [
+                        {"arch": "x86_64", "overall_status": "SUCCESS"},
+                        {"arch": "aarch64", "overall_status": "SUCCESS"}
+                    ]
+                }
+            Defaults to an empty dict if not provided.
 
     Returns:
         tuple: A tuple containing:
-            - overall_status (str): The overall status of task execution ("SUCCESS", "FAILED", "PARTIAL", "TIMEOUT").
-            - task_results_data (list): A list of dictionaries, each containing the result of an individual task.
+            - overall_status (str): The overall status of task execution
+                                 ("SUCCESS", "FAILED", "PARTIAL", "TIMEOUT").
+            - task_results_data (list): A list of dictionaries, each containing
+                                    the result of an individual task.
     Raises:
         Exception: If an error occurs during execution.
     """
+
     module_args = {
         "tasks": {"type": "list", "required": True},
         "nthreads": {"type": "int", "required": False, "default": DEFAULT_NTHREADS},
@@ -315,12 +356,19 @@ def main():
         "user_json_file": {"type": "str", "required": False, "default": USER_JSON_FILE_DEFAULT},
         "show_softwares_status": {"type": "bool", "required": False, "default": False},
         "overall_status_dict": {"type": "dict","required": True},
-        "local_repo_config_path": {"type": "str", "required": False, "default": LOCAL_REPO_CONFIG_PATH_DEFAULT},
+        "local_repo_config_path": {
+            "type": "str", "required": False,
+            "default": LOCAL_REPO_CONFIG_PATH_DEFAULT
+        },
         "arch": {"type": "str", "required": False},
-        "user_reg_cred_input": {"type": "str", "required": False, "default": USER_REG_CRED_INPUT},
-        "user_reg_key_path": {"type": "str", "required": False, "default": USER_REG_KEY_PATH},
-        "omnia_credentials_yaml_path": {"type": "str", "required": False, "default": OMNIA_CREDENTIALS_YAML_PATH},
-        "omnia_credentials_vault_path": {"type": "str", "required": False, "default": OMNIA_CREDENTIALS_VAULT_PATH}
+        "omnia_credentials_yaml_path": {
+            "type": "str", "required": False,
+            "default": OMNIA_CREDENTIALS_YAML_PATH
+        },
+        "omnia_credentials_vault_path": {
+            "type": "str", "required": False,
+            "default": OMNIA_CREDENTIALS_VAULT_PATH
+        }
     }
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
     tasks = module.params["tasks"]
@@ -337,8 +385,8 @@ def main():
     overall_status_dict = module.params["overall_status_dict"]
     local_repo_config_path = module.params["local_repo_config_path"]
     arc = module.params["arch"]
-    user_reg_cred_input = module.params["user_reg_cred_input"]
-    user_reg_key_path = module.params["user_reg_key_path"]
+    # user_reg_cred_input = module.params["user_reg_cred_input"]
+    # user_reg_key_path = module.params["user_reg_key_path"]
     omnia_credentials_yaml_path = module.params["omnia_credentials_yaml_path"]
     omnia_credentials_vault_path = module.params["omnia_credentials_vault_path"]
 
@@ -366,24 +414,29 @@ def main():
         cluster_os_type = user_data['cluster_os_type']
         cluster_os_version = user_data['cluster_os_version']
 
-        subgroup_dict, software_names = get_subgroup_dict(user_data,slogger)
-        version_variables = set_version_variables(user_data, software_names, cluster_os_version,slogger)
+        subgroup_dict, software_names = get_subgroup_dict(user_data, slogger)
+        version_variables = set_version_variables(
+            user_data, software_names, cluster_os_version, slogger
+        )
         slogger.info(f"Cluster OS: {cluster_os_type}")
         slogger.info(f"Version Variables: {version_variables}")
-        gen_result = {}
-        if not os.path.isfile(user_reg_key_path):
-            gen_result = generate_vault_key(user_reg_key_path)
-        if gen_result is None:
-            module.fail_json(msg=f"Unable to generate local_repo key at path: {user_reg_key_path}")
+        # gen_result = {}
+        # if not os.path.isfile(user_reg_key_path):
+        #     gen_result = generate_vault_key(user_reg_key_path)
+        # if gen_result is None:
+        #     module.fail_json(
+        #         msg=f"Unable to generate local_repo key at path: {user_reg_key_path}"
+        #     )
 
         overall_status, task_results = execute_parallel(
             tasks, determine_function, nthreads, repo_store_path, csv_file_path,
-            log_dir, user_data, version_variables, arc, slogger, local_repo_config_path, user_reg_cred_input, user_reg_key_path,
-            omnia_credentials_yaml_path, omnia_credentials_vault_path, timeout
+            log_dir, user_data, version_variables, arc, slogger,
+            local_repo_config_path, omnia_credentials_yaml_path,
+            omnia_credentials_vault_path, timeout
         )
 
-        if not is_encrypted(user_reg_cred_input):
-            process_file(user_reg_cred_input,user_reg_key_path,'encrypt')
+        # if not is_encrypted(user_reg_cred_input):
+        #     process_file(user_reg_cred_input, user_reg_key_path, 'encrypt')
 
         end_time = datetime.now()
         formatted_end_time = end_time.strftime("%I:%M:%S %p")
@@ -422,7 +475,9 @@ def main():
 
 
     except Exception as e:
-        result["table_output"] = table_output if "table_output" in locals() else "No table generated."
+        result["table_output"] = (
+            table_output if "table_output" in locals() else "No table generated."
+        )
         slogger.error(f"Execution failed: {str(e)}")
         module.fail_json(msg=f"Error during execution: {str(e)}", **result)
 

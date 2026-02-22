@@ -19,6 +19,10 @@
             "minLength": 1,
             "description": "Name of the nfs storage in storage_config.yml" 
           },
+          "skip_merge": { 
+            "type": "boolean", 
+            "description": "Variable indicates whether a specific configuration file path under config_sources should be used as-is without merging" 
+          },
           "config_sources": {
             "type": "object",
             "description": "Config can be a file path or inline mapping",

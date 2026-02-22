@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright © 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,6 +50,266 @@ is_local_ip() {
     else
         return 1  # IP is not local
     fi
+}
+
+# Version configuration variables
+OMNIA_CORE_CONTAINER_TAG="2.1"  # Default container tag
+OMNIA_VERSION=""  # Will be read from metadata
+TARGET_OMNIA_VERSION=""  # Target version for upgrade
+TARGET_CONTAINER_TAG=""  # Target container tag for upgrade
+
+# Centralized version list (in chronological order)
+ALL_OMNIA_VERSIONS=("2.0.0.0" "2.1.0.0")
+
+# Container-side paths (used inside podman exec commands)
+CONTAINER_INPUT_DIR="/opt/omnia/input"
+CONTAINER_BACKUPS_DIR="/opt/omnia/backups"
+CONTAINER_METADATA_FILE="/opt/omnia/.data/oim_metadata.yml"
+
+# Function to get available upgrade versions (higher than current)
+get_available_upgrade_versions() {
+    local current_version="$1"
+    local available_versions=()
+    local version_descriptions=()
+    
+    # Find versions higher than current
+    local found_current=false
+    for version in "${ALL_OMNIA_VERSIONS[@]}"; do
+        if [ "$version" = "$current_version" ]; then
+            found_current=true
+            continue
+        fi
+        
+        if [ "$found_current" = true ]; then
+            available_versions+=("$version")
+            
+            # Generate description based on upgrade type
+            local current_tag=$(get_container_tag_from_version "$current_version")
+            local target_tag=$(get_container_tag_from_version "$version")
+            
+            if [ "$current_tag" = "$target_tag" ]; then
+                version_descriptions+=("Patch upgrade to $version (container restart only)")
+            else
+                version_descriptions+=("Major upgrade to $version (container swap required)")
+            fi
+        fi
+    done
+    
+    # Return arrays
+    printf '%s\n' "${available_versions[@]}"
+    printf '%s\n' "${version_descriptions[@]}"
+}
+
+# Function to get available rollback versions (lower than current)
+get_available_rollback_versions() {
+    local current_version="$1"
+    local available_versions=()
+    
+    # Find versions lower than current
+    for version in "${ALL_OMNIA_VERSIONS[@]}"; do
+        if [ "$version" = "$current_version" ]; then
+            break
+        fi
+        available_versions+=("$version")
+    done
+    
+    # Return array (reverse order for rollback - newest first)
+    local reversed_versions=()
+    for ((i=${#available_versions[@]}-1; i>=0; i--)); do
+        reversed_versions+=("${available_versions[$i]}")
+    done
+    
+    printf '%s\n' "${reversed_versions[@]}"
+}
+
+# Function to perform same-tag rollback (container restart only)
+rollback_same_tag() {
+    local target_version="$1"
+    local current_version="$2"
+    
+    echo "[INFO] [ROLLBACK] Phase: Same-Tag Rollback"
+    echo "[INFO] [ROLLBACK] Rolling back to $target_version within same container tag"
+    
+    # Verify container is running
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ROLLBACK] Container is not running for same-tag rollback"
+        return 1
+    fi
+    
+    echo "[INFO] [ROLLBACK] Updating metadata to version $target_version"
+    
+    # Update version metadata
+    if ! podman exec -u root omnia_core bash -c "
+        set -e
+        if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
+            echo '[ERROR] Metadata file not found inside container: $CONTAINER_METADATA_FILE' >&2
+            exit 1
+        fi
+        if grep -q '^omnia_version:' '$CONTAINER_METADATA_FILE'; then
+            sed -i 's/^omnia_version:.*/omnia_version: $target_version/' '$CONTAINER_METADATA_FILE'
+        else
+            echo 'omnia_version: $target_version' >> '$CONTAINER_METADATA_FILE'
+        fi
+    "; then
+        echo "[ERROR] [ROLLBACK] Failed to update metadata version"
+        echo "[ERROR] [ROLLBACK] Rollback failed: Could not update version metadata"
+        return 1
+    fi
+    
+    echo "[INFO] [ROLLBACK] Restarting container to apply changes..."
+    
+    # Restart container to apply changes
+    if ! systemctl restart omnia_core.service; then
+        echo "[ERROR] [ROLLBACK] Failed to restart container service"
+        echo "[ERROR] [ROLLBACK] Rollback failed: Container restart failed"
+        return 1
+    fi
+    
+    # Wait for container to be healthy after restart
+    echo "[INFO] [ROLLBACK] Waiting for container health check after restart (30s)"
+    local health_timeout=30
+    local health_count=0
+    
+    while [ $health_count -lt $health_timeout ]; do
+        if podman ps --format '{{.Names}} {{.Status}}' | grep -E "omnia_core.*Up" | grep -q "healthy\|Up"; then
+            echo "[INFO] [ROLLBACK] Container is healthy after restart"
+            break
+        fi
+        sleep 1
+        health_count=$((health_count + 1))
+        echo -n "."
+    done
+    
+    if [ $health_count -ge $health_timeout ]; then
+        echo ""
+        echo "[ERROR] [ROLLBACK] Container failed to become healthy within 30 seconds after restart"
+        echo "[ERROR] [ROLLBACK] Rollback failed: Container health check failed"
+        return 1
+    fi
+    
+    # Verify version update
+    local updated_version=$(get_current_omnia_version)
+    if [ "$updated_version" != "$target_version" ]; then
+        echo "[ERROR] [ROLLBACK] Version update verification failed"
+        echo "[ERROR] [ROLLBACK] Expected: $target_version, Found: $updated_version"
+        return 1
+    fi
+    
+    echo "[INFO] [ROLLBACK] Same-tag rollback completed successfully"
+    echo "[INFO] [ROLLBACK] Version rolled back to: $target_version"
+    return 0
+}
+
+# Function to validate container image availability and show build instructions
+validate_container_image() {
+    local target_version="$1"
+    local target_container_tag="$2"
+    local operation="${3:-upgrade}"
+    
+    echo -e "${BLUE}Validating target container image: omnia_core:$target_container_tag${NC}"
+    if ! podman inspect "omnia_core:$target_container_tag" >/dev/null 2>&1; then
+        echo -e "${RED}ERROR: Target image missing locally: omnia_core:$target_container_tag${NC}"
+        echo -e "${YELLOW}Omnia does not pull images from Docker Hub. Build/load the image locally and retry.${NC}"
+        echo -e "1. Clone the Omnia Artifactory repository:"
+        echo -e "   git clone https://github.com/dell/omnia-artifactory -b omnia-container-$target_version"
+        echo -e "2. Navigate to the repository directory:"
+        echo -e "   cd omnia-artifactory"
+        echo -e "3. Build the core image locally (loads into local Podman by default):"
+        echo -e "   ./build_images.sh core core_tag=$target_container_tag omnia_branch=$target_version"
+        echo -e "Then re-run:"
+        echo -e "   ./omnia.sh --$operation"
+        return 1
+    fi
+    
+    echo -e "${GREEN}✓ Target image available locally: omnia_core:$target_container_tag${NC}"
+    return 0
+}
+
+# Function to get container tag from omnia version
+get_container_tag_from_version() {
+    local version="$1"
+    case "$version" in
+        2.0.*)
+            echo "1.0"
+            ;;
+        *)
+            echo "$(echo "$version" | awk -F. '{print $1"."$2}')"
+            ;;
+    esac
+}
+
+# Function to read current omnia version from metadata
+get_current_omnia_version() {
+    if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        podman exec omnia_core cat /opt/omnia/.data/oim_metadata.yml 2>/dev/null | grep "omnia_version:" | awk '{print $2}' | tr -d '"'
+    else
+        echo ""
+    fi
+}
+
+show_post_upgrade_instructions() {
+    local upgraded_version="$1"
+
+    echo ""
+    echo -e "${YELLOW}================================================================================${NC}"
+    echo -e "${YELLOW}                    IMPORTANT POST-UPGRADE STEP${NC}"
+    echo -e "${YELLOW}================================================================================${NC}"
+    echo ""
+    echo -e "${GREEN}✓ Omnia core container has been successfully upgraded${NC}"
+    echo -e "${GREEN}✓ Version updated to: $upgraded_version${NC}"
+    echo ""
+    echo -e "${BLUE}NEXT REQUIRED ACTION:${NC}"
+    echo -e "${YELLOW}You must now run the upgrade playbook inside the omnia_core container:${NC}"
+    echo ""
+    echo -e "${GREEN}podman exec -it omnia_core ansible-playbook /omnia/upgrade/upgrade_omnia.yml${NC}"
+    echo ""
+    echo -e "${BLUE}This playbook will:${NC}"
+    echo -e "• Update input files"
+    echo -e "• Update internal configurations"
+    echo ""
+    echo -e "${YELLOW}Note: Run this command after the container is fully healthy and stable${NC}"
+    echo -e "${YELLOW}================================================================================${NC}"
+    echo ""
+}
+
+# Host-side paths (initialized dynamically after omnia_path is set)
+OMNIA_INPUT_DIR=""
+OMNIA_METADATA_DIR=""
+OMNIA_METADATA_FILE=""
+
+update_metadata_upgrade_backup_dir() {
+    local backup_dir="$1"
+
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] omnia_core container is not running"
+        return 1
+    fi
+
+    podman exec -u root omnia_core bash -c "
+        set -e
+        if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
+            echo '[ERROR] Metadata file not found inside container: $CONTAINER_METADATA_FILE' >&2
+            exit 1
+        fi
+        if grep -q '^upgrade_backup_dir:' '$CONTAINER_METADATA_FILE'; then
+            sed -i 's|^upgrade_backup_dir:.*|upgrade_backup_dir: ${backup_dir}|' '$CONTAINER_METADATA_FILE'
+        else
+            echo 'upgrade_backup_dir: ${backup_dir}' >> '$CONTAINER_METADATA_FILE'
+        fi
+    "
+}
+
+# Resolve the upgrade guard lock path (container or host shared path)
+get_upgrade_guard_lock_path() {
+    local upgrade_guard_lock_container="/opt/omnia/.data/upgrade_in_progress.lock"
+    local upgrade_guard_lock_host
+    upgrade_guard_lock_host=$(podman exec -u root omnia_core grep '^oim_shared_path:' /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d':' -f2- | tr -d ' \t\n\r')
+    if [ -n "$upgrade_guard_lock_host" ]; then
+        upgrade_guard_lock_host="$upgrade_guard_lock_host/omnia/.data/upgrade_in_progress.lock"
+    else
+        upgrade_guard_lock_host="$upgrade_guard_lock_container"
+    fi
+    echo "$upgrade_guard_lock_host"
 }
 
 check_internal_nfs_export() {
@@ -130,7 +390,7 @@ setup_omnia_core() {
 # It removes the container and performs the necessary cleanup steps.
 cleanup_omnia_core() {
     # Block if critical service containers exist
-    critical_running=$(podman ps --format '{{.Names}}' | grep -E 'pulp|registry|minio-server|postgres|step-ca|hydra|smd|opaal-idp|bss|opaal|cloud-init-server|haproxy|coresmd')
+    critical_running=$(podman ps --format '{{.Names}}' | grep -E '^pulp$|^omnia_auth$|^minio-server$|^registry$|^step-ca$|^postgres$|^hydra$|^opaal-idp$|^smd$|^opaal$|^bss$|^cloud-init-server$|^haproxy$|^coresmd$|^omnia_build_stream$|^omnia_postgres$')
     if [ -n "$critical_running" ]; then
         echo -e "${RED}Failed to intiatiate omnia_core container cleanup. There are other critical service containers still running:${NC}"
         echo "$critical_running"
@@ -148,6 +408,11 @@ cleanup_omnia_core() {
 
         # Fetch the configuration from the Omnia core container.
         fetch_config
+
+        # Clear upgrade guard lock if present (shared path visible to container and host)
+        local upgrade_guard_lock_path=$(get_upgrade_guard_lock_path)
+        rm -f "$upgrade_guard_lock_path" >/dev/null 2>&1 || true
+        echo "[INFO] [CLEANUP] Cleared upgrade guard lock (if present): $upgrade_guard_lock_path"
 
         # Remove the container
         remove_container
@@ -238,7 +503,7 @@ cleanup_config(){
 # Otherwise, it prints an error message.
 remove_container() {
     # Block if critical service containers exist
-    critical_running=$(podman ps --format '{{.Names}}' | grep -E 'pulp|registry|minio-server|postgres|step-ca|hydra|smd|opaal-idp|bss|opaal|cloud-init-server|haproxy|coresmd')
+    critical_running=$(podman ps --format '{{.Names}}' | grep -E '^pulp$|^omnia_auth$|^minio-server$|^registry$|^step-ca$|^postgres$|^hydra$|^opaal-idp$|^smd$|^opaal$|^bss$|^cloud-init-server$|^haproxy$|^coresmd$|^omnia_build_stream$|^omnia_postgres$')
     if [ -n "$critical_running" ]; then
         echo -e "${RED}Failed to intiatiate omnia_core container cleanup. There are other critical service containers still running:${NC}"
         echo "$critical_running"
@@ -530,6 +795,11 @@ init_container_config() {
     # Create the pulp_ha directory if it does not exist.
     echo -e "${GREEN} Creating the pulp HA directory if it does not exist.${NC}"
     mkdir -p "$omnia_path/omnia/pulp/pulp_ha"
+
+    # Initialize host-side path variables based on user-provided omnia_path
+    OMNIA_INPUT_DIR="$omnia_path/omnia/input"
+    OMNIA_METADATA_DIR="$omnia_path/omnia/.data"
+    OMNIA_METADATA_FILE="$omnia_path/omnia/.data/oim_metadata.yml"
 }
 
 
@@ -587,6 +857,11 @@ fetch_config() {
     else
         echo -e "${GREEN} Successfully fetched data from metadata file.${NC}"
     fi
+
+    # Initialize host-side path variables based on fetched omnia_path
+    OMNIA_INPUT_DIR="$omnia_path/omnia/input"
+    OMNIA_METADATA_DIR="$omnia_path/omnia/.data"
+    OMNIA_METADATA_FILE="$omnia_path/omnia/.data/oim_metadata.yml"
 }
 
 # Validates the OIM (Omnia Infrastructure Manager) by checking if the hostname is
@@ -722,7 +997,7 @@ Description=${container_name^} Container
 [Container]
 ContainerName=${container_name}
 HostName=${container_name}
-Image=${container_name}:1.1
+Image=${container_name}:2.1
 Network=host
 
 # Capabilities
@@ -757,9 +1032,9 @@ EOF
     # Create the .data directory if it does not exist.
     # This is where the oim_metadata.yml file is stored.
     echo -e "${GREEN} Creating the .data directory if it does not exist.${NC}"
-    mkdir -p "$omnia_path/omnia/.data"
+    mkdir -p "$OMNIA_METADATA_DIR"
 
-    oim_metadata_file="$omnia_path/omnia/.data/oim_metadata.yml"
+    oim_metadata_file="$OMNIA_METADATA_FILE"
 
     if [ ! -f "$oim_metadata_file" ]; then
         echo -e "${GREEN} Creating oim_metadata file${NC}"
@@ -780,6 +1055,13 @@ EOF
             echo "nfs_server_share_path: $nfs_server_share_path"
             echo "nfs_type: $nfs_type"
         } >> "$oim_metadata_file"
+        fi
+    else
+        sed -i '/^upgrade_backup_dir:/d' "$oim_metadata_file" >/dev/null 2>&1 || true
+        if grep -q '^omnia_version:' "$oim_metadata_file"; then
+            sed -i "s/^omnia_version:.*/omnia_version: $omnia_release/" "$oim_metadata_file" >/dev/null 2>&1 || true
+        else
+            echo "omnia_version: $omnia_release" >> "$oim_metadata_file"
         fi
     fi
 
@@ -811,7 +1093,7 @@ EOF
 
     if ! podman ps --format '{{.Names}}' | grep -qw "$container_name"; then
         echo -e "${RED}Error: $container_name container failed to start.${NC}"
-        rm -rf "$omnia_path/omnia/.data/oim_metadata.yml"
+        rm -rf "$OMNIA_METADATA_FILE"
         exit 1
     fi
 
@@ -832,17 +1114,17 @@ post_setup_config() {
     chmod 757 "$omnia_path/omnia/tmp/.ansible/tmp"
     # Create the input directory if it does not exist.
     echo -e "${GREEN} Creating the input directory if it does not exist.${NC}"
-    mkdir -p "$omnia_path/omnia/input/"
+    mkdir -p "$OMNIA_INPUT_DIR/"
 
     # Create the default.yml file if it does not exist.
     # This file contains the name of the project.
-    if [ ! -f "$omnia_path/omnia/input/default.yml" ]; then
+    if [ ! -f "$OMNIA_INPUT_DIR/default.yml" ]; then
         echo -e "${BLUE} Creating default.yml file.${NC}"
         {
             echo "# This file defines the project name."
             echo "# The name of the project should be set in a directory under input."
             echo "project_name: project_default"
-        } >> "$omnia_path/omnia/input/default.yml"
+        } >> "$OMNIA_INPUT_DIR/default.yml"
     fi
 
     # Copy input files from /omnia to /opt/omnia/project_default/ inside omnia_core container
@@ -879,6 +1161,7 @@ validate_nfs_server() {
 }
 
 init_ssh_config() {
+    mkdir -p "$HOME/.ssh"
     touch $HOME/.ssh/known_hosts
     # Add entry to /root/.ssh/known_hosts file to prevent errors caused by Known host
     ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1  # Remove existing entry if it exists
@@ -919,69 +1202,41 @@ start_container_session() {
     --------------------------------------------------------------------------------------------------------------------------------------------------
     ${NC}"
 
+    init_ssh_config
+
     # Entering Omnia-core container
     ssh omnia_core
 }
 
 show_help() {
-    echo "Usage: $0 [--install | --uninstall | --version | --help]"
+    echo "Usage: $0 [--install | --uninstall | --upgrade | --rollback | --version | --help]"
     echo "  -i, --install     Install and start the Omnia core container"
     echo "  -u, --uninstall   Uninstall the Omnia core container and clean up configuration"
+    echo "      --upgrade     Upgrade the Omnia core container to newer version
+    echo "      --rollback    Rollback the Omnia core container to previous version
     echo "  -v, --version     Display Omnia version information"
     echo "  -h, --help        More information about usage"
 }
 
 install_omnia_core() {
-    local omnia_core_tag="1.1"
-    local omnia_core_registry="docker.io/dellhpcomniaaisolution"
-    
-    # Check if local omnia_core:1.1 exists
-    if podman inspect omnia_core:${omnia_core_tag} >/dev/null 2>&1; then
-        echo -e "${GREEN}✓ Omnia core image (omnia_core:${omnia_core_tag}) found locally.${NC}"
-    # Check if latest exists for backward compatibility
-    elif podman inspect omnia_core:latest >/dev/null 2>&1; then
-        echo -e "${GREEN}✓ Omnia core image (omnia_core:latest) found locally.${NC}"
-        # Tag it as 1.1 for consistency
-        podman tag omnia_core:latest omnia_core:${omnia_core_tag}
-    else
-        # Try pulling from Docker Hub with retry logic
-        echo -e "${BLUE}Omnia core image not found locally. Attempting to pull from Docker Hub...${NC}"
-        pull_success=false
-        max_retries=3
-        retry_count=0
-        
-        while [ $retry_count -lt $max_retries ]; do
-            retry_count=$((retry_count + 1))
-            echo -e "${BLUE}Attempt $retry_count of $max_retries...${NC}"
-            
-            if podman pull ${omnia_core_registry}/omnia_core:${omnia_core_tag} 2>/dev/null; then
-                echo -e "${GREEN}✓ Successfully pulled omnia_core:${omnia_core_tag} from Docker Hub.${NC}"
-                # Tag it without registry prefix for local use
-                podman tag ${omnia_core_registry}/omnia_core:${omnia_core_tag} omnia_core:${omnia_core_tag}
-                pull_success=true
-                break
-            else
-                if [ $retry_count -lt $max_retries ]; then
-                    echo -e "${YELLOW}Pull failed. Retrying in 5 seconds...${NC}"
-                    sleep 5
-                fi
-            fi
-        done
-        
-        if [ "$pull_success" = false ]; then
-            echo -e "${RED}ERROR: Failed to pull omnia_core image after $max_retries attempts.${NC}"
-            echo ""
-            echo -e "${YELLOW}To resolve this, please follow these steps:${NC}"
-            echo -e "1. Clone the Omnia Artifactory repository:"
-            echo -e "   git clone https://github.com/dell/omnia-artifactory -b omnia-container"
-            echo -e "2. Navigate to the repository directory:"
-            echo -e "   cd omnia-artifactory"
-            echo -e "3. Build the core image locally:"
-            echo -e "   ./build_images.sh core omnia_branch=<version/branch_name>"
-            echo -e "4. After building the image, re-run this script:"
-            echo -e "   ./omnia.sh --install"
+    # Detect existing Omnia 2.0 installation
+    if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        # Read version from metadata inside container
+        current_version=$(podman exec -u root omnia_core grep '^omnia_version:' /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d':' -f2 | tr -d ' \t\n\r')
+        if [ "$current_version" = "2.0.0.0" ]; then
+            echo -e "${RED}ERROR: Existing Omnia 2.0 installation detected.${NC}"
+            echo -e "${YELLOW}To upgrade, run: $0 --upgrade${NC}"
+            echo -e "${YELLOW}For a fresh install, first run: $0 --uninstall${NC}"
             exit 1
         fi
+    fi
+
+    local omnia_core_tag="2.1"
+    local omnia_core_registry=""
+    
+    # Check if local omnia_core image exists using validate function
+    if validate_container_image "" "$omnia_core_tag" "install"; then
+        echo -e "${GREEN}✓ Omnia core image (omnia_core:${omnia_core_tag}) found locally.${NC}"
     fi
 
     # Check if any other containers with 'omnia' in their name are running
@@ -1038,7 +1293,7 @@ install_omnia_core() {
             # If the user wants to reinstall, call the remove_container function, and then call the setup_omnia_core function
             if [ "$choice" = "2" ]; then
                 # Block if critical service containers exist
-                critical_running=$(podman ps --format '{{.Names}}' | grep -E 'pulp|registry|minio-server|postgres|step-ca|hydra|smd|opaal-idp|bss|opaal|cloud-init-server|haproxy|coresmd')
+                critical_running=$(podman ps --format '{{.Names}}' | grep -E '^pulp$|^omnia_auth$|^minio-server$|^registry$|^step-ca$|^postgres$|^hydra$|^opaal-idp$|^smd$|^opaal$|^bss$|^cloud-init-server$|^haproxy$|^coresmd$|^omnia_build_stream$|^omnia_postgres$')
                 if [ -n "$critical_running" ]; then
                     echo -e "${RED}Failed to intiatiate omnia_core container cleanup. There are other critical service containers still running:${NC}"
                     echo "$critical_running"
@@ -1103,9 +1358,6 @@ install_omnia_core() {
 
     # If core container is not present
     else
-
-        # Start the container setup
-        echo -e "${GREEN}Starting Omnia core container setup.${NC}"
         setup_omnia_core
     fi
 }
@@ -1138,6 +1390,942 @@ display_version() {
     exit 0
 }
 
+phase1_validate() {
+    local current_image
+    local core_config
+    local previous_omnia_version
+    local shared_path
+
+    echo "[INFO] [ORCHESTRATOR] Phase 1: Pre-Upgrade Validation"
+
+    if [ "$(id -u)" -ne 0 ]; then
+        if ! sudo -n true >/dev/null 2>&1; then
+            echo "[ERROR] [ORCHESTRATOR] Prerequisite failed: run as root or configure passwordless sudo"
+            return 1
+        fi
+    fi
+
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Prerequisite failed: omnia_core container is not running"
+        display_cleanup_instructions
+        return 1
+    fi
+
+    core_config=$(podman exec omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml' 2>/dev/null)
+    if [ -z "$core_config" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Unable to read oim_metadata.yml from omnia_core container"
+        return 1
+    fi
+
+    previous_omnia_version=$(echo "$core_config" | grep "^omnia_version:" | cut -d':' -f2 | tr -d ' \t\n\r')
+    if [ -z "$previous_omnia_version" ]; then
+        echo "[ERROR] [ORCHESTRATOR] omnia_version not found in oim_metadata.yml"
+        return 1
+    fi
+
+    shared_path=$(echo "$core_config" | grep "^oim_shared_path:" | cut -d':' -f2- | tr -d ' \t\n\r')
+    if [ -z "$shared_path" ]; then
+        echo "[ERROR] [ORCHESTRATOR] oim_shared_path not found in oim_metadata.yml"
+        return 1
+    fi
+
+    omnia_path="$shared_path"
+
+    if [ ! -d "$omnia_path" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Shared path from metadata does not exist on host: $omnia_path"
+        return 1
+    fi
+
+    if [ ! -w "$omnia_path" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Permission denied: no write permission on shared path: $omnia_path"
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Phase 1: Validation passed"
+    return 0
+}
+
+phase2_approval() {
+    local backup_base default_backup_dir current_omnia_version
+
+    echo "[INFO] [ORCHESTRATOR] Phase 2: Approval Gate"
+    echo "============================================"
+    echo "OMNIA UPGRADE SUMMARY"
+    echo "============================================"
+    echo "Current Container Tag: $OMNIA_CORE_CONTAINER_TAG"
+    echo "Target Container Tag:  $TARGET_CONTAINER_TAG"
+    echo "Current Omnia Release: $OMNIA_VERSION"
+    echo "Target Omnia Release:  $TARGET_OMNIA_VERSION"
+    
+    # Show upgrade type
+    if [ "$OMNIA_CORE_CONTAINER_TAG" = "$TARGET_CONTAINER_TAG" ]; then
+        echo "Upgrade Type: Same-tag upgrade (container restart)"
+    else
+        echo "Upgrade Type: Cross-tag upgrade (container swap)"
+    fi
+    
+    echo "============================================"
+
+    current_omnia_version=$(podman exec -u root omnia_core /bin/bash -c "grep '^omnia_version:' '$CONTAINER_METADATA_FILE' | cut -d':' -f2 | tr -d ' \t\n\r'" 2>/dev/null)
+    if [ -z "$current_omnia_version" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Failed to read omnia_version from metadata inside container"
+        return 1
+    fi
+
+    default_backup_dir="$CONTAINER_BACKUPS_DIR/upgrade/version_${current_omnia_version}"
+    backup_base="$default_backup_dir"
+
+    echo "[INFO] [ORCHESTRATOR] Backup destination (inside omnia_core container): $backup_base"
+
+    if ! update_metadata_upgrade_backup_dir "$backup_base"; then
+        echo "[ERROR] [ORCHESTRATOR] Failed to update upgrade backup directory in metadata"
+        return 1
+    fi
+
+    read -p "Proceed with upgrade? (y/N): " confirm
+    if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+        echo "[INFO] [ORCHESTRATOR] Upgrade cancelled by user"
+        return 1
+    fi
+
+    OMNIA_UPGRADE_BACKUP_PATH="$backup_base"
+    export OMNIA_UPGRADE_BACKUP_PATH
+
+    echo "[INFO] [ORCHESTRATOR] Phase 2: Approval granted"
+    return 0
+}
+
+phase3_backup_creation() {
+    local backup_base="$1"
+
+    echo "[INFO] [ORCHESTRATOR] Phase 3: Backup Creation"
+
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Cannot create backup because omnia_core is not running"
+        return 1
+    fi
+
+    if [ -z "$backup_base" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Backup destination is empty"
+        return 1
+    fi
+
+    if ! podman exec -u root omnia_core bash -c "
+        set -e
+        rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
+        mkdir -p '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'
+
+        if [ -f '$CONTAINER_INPUT_DIR/default.yml' ]; then
+            cp -a '$CONTAINER_INPUT_DIR/default.yml' '${backup_base%/}/input/'
+        fi
+
+        if [ -d '$CONTAINER_INPUT_DIR/project_default' ]; then
+            cp -a '$CONTAINER_INPUT_DIR/project_default' '${backup_base%/}/input/'
+        fi
+
+        if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
+            echo '[ERROR] Metadata file not found inside container: $CONTAINER_METADATA_FILE' >&2
+            exit 1
+        fi
+        cp -a '$CONTAINER_METADATA_FILE' '${backup_base%/}/metadata/oim_metadata.yml'
+    "; then
+        echo "[ERROR] [ORCHESTRATOR] Backup failed; cleaning up partial backup"
+        podman exec -u root omnia_core bash -c "rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'" >/dev/null 2>&1 || true
+        return 1
+    fi
+
+    if [ -f "/etc/containers/systemd/omnia_core.container" ]; then
+        if ! podman cp "/etc/containers/systemd/omnia_core.container" "omnia_core:${backup_base%/}/configs/omnia_core.container" >/dev/null 2>&1; then
+            echo "[ERROR] [ORCHESTRATOR] Failed to backup quadlet container file"
+            podman exec -u root omnia_core bash -c "rm -rf '${backup_base%/}/input' '${backup_base%/}/metadata' '${backup_base%/}/configs'" >/dev/null 2>&1 || true
+            return 1
+        fi
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Backup created at: $backup_base"
+    echo "[INFO] [ORCHESTRATOR] Phase 3: Backup completed"
+    return 0
+}
+
+phase4_same_tag_upgrade() {
+    local target_version="$1"
+    
+    echo "[INFO] [ORCHESTRATOR] Phase 4: Same-Tag Upgrade"
+    echo "[INFO] [ORCHESTRATOR] Upgrading to $target_version within same container tag"
+    
+    # Verify container is running
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Container is not running for same-tag upgrade"
+        return 1
+    fi
+    
+    echo "[INFO] [ORCHESTRATOR] Updating metadata to version $target_version"
+    
+    # Update version metadata
+    if ! podman exec -u root omnia_core bash -c "
+        set -e
+        if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
+            echo '[ERROR] Metadata file not found inside container: $CONTAINER_METADATA_FILE' >&2
+            exit 1
+        fi
+        if grep -q '^omnia_version:' '$CONTAINER_METADATA_FILE'; then
+            sed -i 's/^omnia_version:.*/omnia_version: $target_version/' '$CONTAINER_METADATA_FILE'
+        else
+            echo 'omnia_version: $target_version' >> '$CONTAINER_METADATA_FILE'
+        fi
+    "; then
+        echo "[ERROR] [ORCHESTRATOR] Failed to update metadata version"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: Could not update version metadata"
+        return 1
+    fi
+    
+    echo "[INFO] [ORCHESTRATOR] Restarting container to apply changes..."
+    
+    # Restart container to apply changes
+    if ! systemctl restart omnia_core.service; then
+        echo "[ERROR] [ORCHESTRATOR] Failed to restart container service"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: Container restart failed"
+        return 1
+    fi
+    
+    # Wait for container to be healthy after restart
+    echo "[INFO] [ORCHESTRATOR] Waiting for container health check after restart (30s)"
+    local health_timeout=30
+    local health_count=0
+    
+    while [ $health_count -lt $health_timeout ]; do
+        if podman ps --format '{{.Names}} {{.Status}}' | grep -E "omnia_core.*Up" | grep -q "healthy\|Up"; then
+            echo "[INFO] [ORCHESTRATOR] Container is healthy after restart"
+            break
+        fi
+        sleep 1
+        health_count=$((health_count + 1))
+        echo -n "."
+    done
+    
+    if [ $health_count -ge $health_timeout ]; then
+        echo ""
+        echo "[ERROR] [ORCHESTRATOR] Container failed to become healthy within 30 seconds after restart"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: Container health check failed"
+        return 1
+    fi
+    
+    # Verify version update
+    local updated_version=$(get_current_omnia_version)
+    if [ "$updated_version" != "$target_version" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Version update verification failed"
+        echo "[ERROR] [ORCHESTRATOR] Expected: $target_version, Found: $updated_version"
+        return 1
+    fi
+    
+    echo "[INFO] [ORCHESTRATOR] Same-tag upgrade completed successfully"
+    echo "[INFO] [ORCHESTRATOR] Version updated to: $target_version"
+
+    show_post_upgrade_instructions "$target_version"
+    
+    return 0
+}
+
+phase4_container_swap() {
+    local quadlet_file="/etc/containers/systemd/omnia_core.container"
+    local i
+
+    echo "[INFO] [ORCHESTRATOR] Phase 4: Container Swap"
+
+    if [ ! -f "$quadlet_file" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.3 failed: Quadlet file not found: $quadlet_file"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: Quadlet configuration file missing"
+        echo "[ERROR] [ORCHESTRATOR] Initiating rollback to restore container..."
+        rollback_omnia_core
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Stopping omnia_core $OMNIA_CORE_CONTAINER_TAG container"
+    systemctl stop omnia_core.service >/dev/null 2>&1 || true
+
+    if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[WARN] [ORCHESTRATOR] omnia_core still running; forcing stop"
+        podman stop -t 30 omnia_core >/dev/null 2>&1 || true
+    fi
+
+    if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Failed to stop omnia_core container"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: Could not stop $OMNIA_CORE_CONTAINER_TAG container"
+        echo "[ERROR] [ORCHESTRATOR] Initiating rollback to restore container..."
+        rollback_omnia_core
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Starting omnia_core $TARGET_CONTAINER_TAG Quadlet unit"
+    if ! podman inspect "omnia_core:$TARGET_CONTAINER_TAG" >/dev/null 2>&1; then
+        echo "[ERROR] [ORCHESTRATOR] Target image missing locally: omnia_core:$TARGET_CONTAINER_TAG"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: $TARGET_CONTAINER_TAG image not available"
+        echo "[ERROR] [ORCHESTRATOR] Initiating rollback to restore container..."
+        rollback_omnia_core
+        return 1
+    fi
+
+    if ! sed -i "s/^Image=omnia_core:.*/Image=omnia_core:$TARGET_CONTAINER_TAG/" "$quadlet_file"; then
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.3 failed: Failed to update Image to $TARGET_CONTAINER_TAG in quadlet file"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: Could not update container image tag"
+        echo "[ERROR] [ORCHESTRATOR] Initiating rollback to restore container..."
+        rollback_omnia_core
+        return 1
+    fi
+
+    systemctl daemon-reload || {
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.3 failed: systemctl daemon-reload failed"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: System daemon reload failed"
+        echo "[ERROR] [ORCHESTRATOR] Initiating rollback to restore container..."
+        rollback_omnia_core
+        return 1
+    }
+
+    systemctl start omnia_core.service || {
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.3 failed: Failed to start omnia_core.service"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: Could not start $TARGET_CONTAINER_TAG container"
+        echo "[ERROR] [ORCHESTRATOR] Initiating rollback to restore container..."
+        rollback_omnia_core
+        return 1
+    }
+
+    echo "[INFO] [ORCHESTRATOR] Waiting for omnia_core $TARGET_CONTAINER_TAG health check (60s)"
+    for i in $(seq 1 60); do
+        if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+            break
+        fi
+        sleep 1
+    done
+
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.4 failed: Container failed health check after swap"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: $TARGET_CONTAINER_TAG container failed health check"
+        echo "[ERROR] [ORCHESTRATOR] Initiating rollback to restore container..."
+        rollback_omnia_core
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Updating metadata omnia_version to $TARGET_OMNIA_VERSION"
+    if ! podman exec -u root omnia_core bash -c "
+        set -e
+        if [ ! -f '$CONTAINER_METADATA_FILE' ]; then
+            echo '[ERROR] Metadata file not found inside container: $CONTAINER_METADATA_FILE' >&2
+            exit 1
+        fi
+        if grep -q '^omnia_version:' '$CONTAINER_METADATA_FILE'; then
+            sed -i 's/^omnia_version:.*/omnia_version: $TARGET_OMNIA_VERSION/' '$CONTAINER_METADATA_FILE'
+        else
+            echo 'omnia_version: $TARGET_OMNIA_VERSION' >> '$CONTAINER_METADATA_FILE'
+        fi
+    "; then
+        echo "[ERROR] [ORCHESTRATOR] Phase 4.5 failed: Failed to update metadata version"
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed: Could not update version metadata"
+        echo "[ERROR] [ORCHESTRATOR] Initiating rollback to restore container..."
+        rollback_omnia_core
+        return 1
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Phase 4: Container swap completed"
+    return 0
+}
+
+upgrade_omnia_core() {
+    echo -e "${BLUE}=================== Omnia Core Upgrade ====================${NC}"
+    echo -e "${BLUE}This script will upgrade Omnia core container.${NC}"
+    echo -e "${BLUE}Current version will be backed up and upgraded to target version.${NC}"
+    echo -e "${BLUE}=============================================================${NC}"
+    
+    # Read current version
+    OMNIA_VERSION=$(get_current_omnia_version)
+    if [ -z "$OMNIA_VERSION" ]; then
+        echo -e "${RED}ERROR: Could not determine current Omnia version${NC}"
+        echo -e "${YELLOW}Please ensure omnia_core container is running and metadata is accessible${NC}"
+        exit 1
+    fi
+    
+    # Get current container tag
+    OMNIA_CORE_CONTAINER_TAG=$(get_container_tag_from_version "$OMNIA_VERSION")
+    
+    echo -e "${GREEN}Current Omnia version: $OMNIA_VERSION${NC}"
+    echo -e "${GREEN}Current container tag: $OMNIA_CORE_CONTAINER_TAG${NC}"
+    
+    # Show available upgrade options
+    echo ""
+    echo "Available upgrade options:"
+    echo "========================="
+    
+    # Get available upgrade versions dynamically
+    local upgrade_output
+    upgrade_output=$(get_available_upgrade_versions "$OMNIA_VERSION")
+    
+    # Parse output into versions and descriptions
+    local available_versions=()
+    local version_descriptions=()
+    local line_count=0
+    local total_lines
+    
+    # Count total lines
+    total_lines=$(echo "$upgrade_output" | wc -l)
+    
+    # Split into versions and descriptions (first half = versions, second half = descriptions)
+    local mid_line=$((total_lines / 2))
+    local line_num=0
+    
+    while IFS= read -r line; do
+        line_num=$((line_num + 1))
+        if [ $line_num -le $mid_line ]; then
+            available_versions+=("$line")
+        else
+            version_descriptions+=("$line")
+        fi
+    done <<< "$upgrade_output"
+    
+    # Check if any upgrade options are available
+    if [ ${#available_versions[@]} -eq 0 ]; then
+        echo -e "${GREEN}Already at latest version $OMNIA_VERSION${NC}"
+        echo "No upgrade options available."
+        exit 0
+    fi
+    
+    # Display upgrade options
+    for i in "${!available_versions[@]}"; do
+        local target_version="${available_versions[$i]}"
+        local target_container_tag=$(get_container_tag_from_version "$target_version")
+        
+        # Check if target image exists locally
+        local image_status="✓ Available"
+        if ! podman inspect "omnia_core:$target_container_tag" >/dev/null 2>&1; then
+            image_status="✗ Missing (build required)"
+        fi
+        
+        echo "$((i+1)). Upgrade to $target_version (container tag: $target_container_tag) [$image_status]"
+    done
+    
+    # Prompt user to select upgrade version
+    echo -n "Select upgrade option (1-${#available_versions[@]}) or press Enter to cancel: "
+    read -r selection
+    
+    # Validate selection
+    if [ -z "$selection" ]; then
+        echo "Upgrade cancelled by user."
+        exit 0
+    fi
+    
+    if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt ${#available_versions[@]} ]; then
+        echo -e "${RED}ERROR: Invalid selection.${NC}"
+        exit 1
+    fi
+    
+    # Set target version based on user selection
+    TARGET_OMNIA_VERSION="${available_versions[$((selection-1))]}"
+    TARGET_CONTAINER_TAG=$(get_container_tag_from_version "$TARGET_OMNIA_VERSION")
+    
+    # Pre-validation: Check if target container image exists locally
+    if ! validate_container_image "$TARGET_OMNIA_VERSION" "$TARGET_CONTAINER_TAG" "upgrade"; then
+        exit 1
+    fi
+    
+    echo -e "${GREEN}Target Omnia version: $TARGET_OMNIA_VERSION${NC}"
+    echo -e "${GREEN}Target container tag: $TARGET_CONTAINER_TAG${NC}"
+    
+    # Check if container tag change is needed
+    if [ "$OMNIA_CORE_CONTAINER_TAG" = "$TARGET_CONTAINER_TAG" ]; then
+        echo -e "${BLUE}Upgrade within same container tag ($TARGET_CONTAINER_TAG)${NC}"
+        echo -e "${BLUE}Will restart container instead of swapping${NC}"
+        SAME_TAG_UPGRADE=true
+    else
+        echo -e "${BLUE}Container tag change required ($OMNIA_CORE_CONTAINER_TAG -> $TARGET_CONTAINER_TAG)${NC}"
+        echo -e "${BLUE}Will perform full container swap${NC}"
+        SAME_TAG_UPGRADE=false
+    fi
+    
+    # Pre-validation: Check if target container image exists locally
+    if ! validate_container_image "$TARGET_OMNIA_VERSION" "$TARGET_CONTAINER_TAG" "upgrade"; then
+        exit 1
+    fi
+    local lock_file="/tmp/omnia_upgrade.lock"
+    if [ -f "$lock_file" ]; then
+        echo -e "${RED}ERROR: Another upgrade process is already running${NC}"
+        echo -e "${YELLOW}If this is incorrect, remove the lock file: rm -f $lock_file${NC}"
+        exit 1
+    fi
+    touch "$lock_file"
+    trap 'rm -f "$lock_file"' EXIT
+
+    # Create upgrade guard lock in shared path so other playbooks can block during upgrade
+    local upgrade_guard_lock_path
+    upgrade_guard_lock_path=$(get_upgrade_guard_lock_path)
+
+    mkdir -p "$(dirname "$upgrade_guard_lock_path")" 2>/dev/null || true
+    echo "Upgrade in progress. Complete upgrade_omnia.yml or rollback to clear." > "$upgrade_guard_lock_path" || {
+        echo -e "${RED}ERROR: Failed to create upgrade guard lock: $upgrade_guard_lock_path${NC}"
+        exit 1
+    }
+
+    # Run upgrade phases
+    if ! phase1_validate; then
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed in Phase 1"
+        exit 1
+    fi
+
+    if ! phase2_approval; then
+        exit 0
+    fi
+
+    local backup_base="$OMNIA_UPGRADE_BACKUP_PATH"
+    if [ -z "$backup_base" ]; then
+        echo "[ERROR] [ORCHESTRATOR] Backup path is empty"
+        exit 1
+    fi
+
+    if ! phase3_backup_creation "$backup_base"; then
+        echo "[ERROR] [ORCHESTRATOR] Upgrade failed in Phase 3"
+        exit 1
+    fi
+
+    # Choose upgrade path based on container tag
+    if [ "$SAME_TAG_UPGRADE" = "true" ]; then
+        if ! phase4_same_tag_upgrade "$TARGET_OMNIA_VERSION"; then
+            echo "[ERROR] [ORCHESTRATOR] Upgrade failed in same-tag upgrade"
+            exit 1
+        fi
+    else
+        if ! phase4_container_swap; then
+            echo "[ERROR] [ORCHESTRATOR] Upgrade failed in Phase 4"
+            exit 1
+        fi
+    fi
+
+    echo "[INFO] [ORCHESTRATOR] Upgrade completed successfully"
+    echo "[INFO] [ORCHESTRATOR] Backup location (inside omnia_core container): $backup_base"
+
+    # Seed inputs and defaults after upgrade
+    post_setup_config
+
+    show_post_upgrade_instructions "$TARGET_OMNIA_VERSION"
+    # Initialize SSH config and start container session
+    init_ssh_config
+    start_container_session
+    exit 0
+}
+
+# Validate backup directory structure and files
+validate_backup_directory() {
+    local backup_path="$1"
+
+    echo "[INFO] [ROLLBACK] Validating backup directory: $backup_path"
+
+    # Check if backup directory exists
+    if ! podman exec -u root omnia_core test -d "$backup_path"; then
+        echo "[ERROR] [ROLLBACK] Backup directory does not exist: $backup_path"
+        return 1
+    fi
+
+    # Check for required subdirectories
+    for subdir in input metadata configs; do
+        if ! podman exec -u root omnia_core test -d "$backup_path/$subdir"; then
+            echo "[ERROR] [ROLLBACK] Missing required subdirectory: $backup_path/$subdir"
+            return 1
+        fi
+    done
+
+    # Check for required files
+    if ! podman exec -u root omnia_core test -f "$backup_path/metadata/oim_metadata.yml"; then
+        echo "[ERROR] [ROLLBACK] Missing metadata file: $backup_path/metadata/oim_metadata.yml"
+        return 1
+    fi
+
+    if ! podman exec -u root omnia_core test -f "$backup_path/configs/omnia_core.container"; then
+        echo "[ERROR] [ROLLBACK] Missing container config: $backup_path/configs/omnia_core.container"
+        return 1
+    fi
+
+    # Verify metadata contains version information
+    if ! podman exec -u root omnia_core grep -q "^omnia_version:" "$backup_path/metadata/oim_metadata.yml"; then
+        echo "[ERROR] [ROLLBACK] Metadata file does not contain version information"
+        return 1
+    fi
+
+    echo "[INFO] [ROLLBACK] Backup validation successful"
+    return 0
+}
+
+# Stop container gracefully with timeout
+stop_container_gracefully() {
+    local container_name="$1"
+    local timeout="${2:-30}"
+
+    echo "[INFO] [ROLLBACK] Stopping $container_name container gracefully..."
+
+    # Try graceful stop first
+    if podman stop -t "$timeout" "$container_name" >/dev/null 2>&1; then
+        echo "[INFO] [ROLLBACK] Container stopped gracefully"
+        return 0
+    fi
+
+    # Check if container is still running
+    if podman ps --format '{{.Names}}' | grep -qw "$container_name"; then
+        echo "[WARN] [ROLLBACK] Graceful stop failed, force stopping container..."
+        if podman stop "$container_name" >/dev/null 2>&1; then
+            echo "[INFO] [ROLLBACK] Container force stopped"
+            return 0
+        else
+            echo "[ERROR] [ROLLBACK] Failed to stop container"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
+# Restore files from backup
+restore_from_backup() {
+    local backup_path="$1"
+
+    echo "[INFO] [ROLLBACK] Restoring from backup: $backup_path"
+
+    # Restore input files
+    if ! podman exec -u root omnia_core bash -c "
+        set -e
+        rm -rf /opt/omnia/input
+        cp -a '$backup_path/input' /opt/omnia/
+    "; then
+        echo "[ERROR] [ROLLBACK] Failed to restore input files"
+        return 1
+    fi
+
+    # Restore metadata
+    if ! podman exec -u root omnia_core cp -a "$backup_path/metadata/oim_metadata.yml" /opt/omnia/.data/; then
+        echo "[ERROR] [ROLLBACK] Failed to restore metadata"
+        return 1
+    fi
+
+    # Restore container config on host
+    if ! podman cp "omnia_core:$backup_path/configs/omnia_core.container" /etc/containers/systemd/; then
+        echo "[ERROR] [ROLLBACK] Failed to restore container config"
+        return 1
+    fi
+
+    echo "[INFO] [ROLLBACK] Files restored successfully"
+    return 0
+}
+
+# Display cleanup instructions for failed upgrade/rollback
+display_cleanup_instructions() {
+    echo ""
+    echo -e "${RED}================================================================================${NC}"
+    echo -e "${RED}                    UPGRADE/ROLLBACK FAILED${NC}"
+    echo -e "${RED}================================================================================${NC}"
+    echo ""
+    echo -e "${YELLOW}Operation failed. Manual cleanup is required to restore a clean state before retrying.${NC}"
+    echo ""
+    echo -e "${BLUE}Choose the appropriate cleanup scenario:${NC}"
+    echo ""
+    echo -e "${GREEN}CASE 1: If you can log into omnia_core container:${NC}"
+    echo -e "${YELLOW}1. Enter omnia_core container: podman exec -it omnia_core bash${NC}"
+    echo -e "${YELLOW}2. Run oim cleanup: ansible-playbook /omnia/oim_cleanup.yml${NC}"
+    echo -e "${YELLOW}3. Run uninstall inside container: ./omnia.sh --uninstall${NC}"
+    echo -e "${YELLOW}4. Exit container: exit${NC}"
+    echo -e "${YELLOW}5. Clean shared path: rm -rf <omnia_shared_path>${NC}"
+    echo -e "${YELLOW}6. Install required version: ./omnia.sh --install${NC}"
+    echo ""
+    echo -e "${GREEN}CASE 2: If you cannot log into omnia_core container (but other containers are running):${NC}"
+    echo -e "${YELLOW}1. Remove all container definitions: cd /etc/containers/systemd${NC}"
+    echo -e "${YELLOW}2. Delete all container files: rm -rf *${NC}"
+    echo -e "${YELLOW}3. Reload systemd daemon: systemctl daemon-reload${NC}"
+    echo -e "${YELLOW}4. Stop all containers: podman stop $(podman ps -aq)${NC}"
+    echo -e "${YELLOW}5. Remove all containers: podman rm -f $(podman ps -aq)${NC}"
+    echo -e "${YELLOW}6. Clean shared path: rm -rf <omnia_shared_path>${NC}"
+    echo -e "${YELLOW}7. Install required version: ./omnia.sh --install${NC}"
+    echo ""
+    echo -e "${BLUE}Note: Replace <omnia_shared_path> with your actual Omnia shared path.${NC}"
+    echo ""
+}
+
+rollback_omnia_core() {
+    echo -e "${GREEN}================================================================================${NC}"
+    echo -e "${GREEN}                         OMNIA CORE ROLLBACK${NC}"
+    echo -e "${GREEN}================================================================================${NC}"
+    echo ""
+    
+    # Audit log start
+    local rollback_start=$(date -Iseconds)
+    echo "[AUDIT] Rollback operation started at: $rollback_start"
+    
+    # Check if omnia_core container is running
+    if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
+        echo -e "${RED}ERROR: Omnia core container is not running.${NC}"
+        exit 1
+    fi
+    
+    # Create lock file to prevent concurrent rollbacks
+    local lock_file="/tmp/omnia_rollback.lock"
+    if [ -f "$lock_file" ]; then
+        local existing_pid
+        existing_pid=$(cat "$lock_file" 2>/dev/null | tr -d ' \t\n\r')
+
+        if [ -n "$existing_pid" ] && kill -0 "$existing_pid" >/dev/null 2>&1; then
+            echo -e "${RED}ERROR: Another rollback process is already running (PID: $existing_pid)${NC}"
+            echo -e "${YELLOW}If this is incorrect, remove the lock file: rm -f $lock_file${NC}"
+            exit 1
+        fi
+
+        if [ -n "$existing_pid" ]; then
+            echo -e "${YELLOW}[WARN] Stale rollback lock file found (PID: $existing_pid); removing: $lock_file${NC}"
+        fi
+        rm -f "$lock_file" >/dev/null 2>&1 || true
+    fi
+
+    echo "$$" > "$lock_file"
+    trap 'rm -f "$lock_file"' EXIT INT TERM
+    
+    # Get current version
+    if ! podman exec -u root omnia_core test -f "/opt/omnia/.data/oim_metadata.yml"; then
+        echo -e "${RED}ERROR: Metadata file not found: /opt/omnia/.data/oim_metadata.yml${NC}"
+        exit 1
+    fi
+    
+    local current_version=$(podman exec -u root omnia_core grep '^omnia_version:' /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d':' -f2 | tr -d ' \t\n\r')
+    
+    # Get available rollback versions dynamically
+    local rollback_versions
+    rollback_versions=$(get_available_rollback_versions "$current_version")
+    
+    # Convert to array
+    local available_versions=()
+    while IFS= read -r line; do
+        available_versions+=("$line")
+    done <<< "$rollback_versions"
+    
+    # Check if any rollback options are available
+    if [ ${#available_versions[@]} -eq 0 ]; then
+        echo -e "${RED}ERROR: No rollback versions available from $current_version.${NC}"
+        exit 1
+    fi
+    
+    echo ""
+    echo "Available rollback versions:"
+    echo "==========================="
+    for i in "${!available_versions[@]}"; do
+        local version="${available_versions[$i]}"
+        local container_tag=$(get_container_tag_from_version "$version")
+        
+        # Check if target image exists locally
+        local image_status="✓ Available"
+        if ! podman inspect "omnia_core:$container_tag" >/dev/null 2>&1; then
+            image_status="✗ Missing (build required)"
+        fi
+        
+        echo "  $((i+1)). Rollback to version $version (container tag: $container_tag) [$image_status]"
+    done
+    
+    # Prompt for rollback selection
+    echo ""
+    echo -n "Select rollback version (1-${#available_versions[@]}): "
+    read -r selection
+    
+    # Validate selection
+    if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 1 ] || [ "$selection" -gt ${#available_versions[@]} ]; then
+        echo -e "${RED}ERROR: Invalid selection.${NC}"
+        exit 1
+    fi
+    
+    local selected_version="${available_versions[$((selection-1))]}"
+    local selected_container_tag=$(get_container_tag_from_version "$selected_version")
+    
+    echo ""
+    echo "Selected rollback: Version $selected_version"
+    echo -n "Are you sure you want to rollback to version $selected_version? [y/N]: "
+    read -r confirm
+    
+    if [[ ! "$confirm" =~ ^[yY] ]]; then
+        echo "Rollback cancelled by user."
+        exit 0
+    fi
+    
+    # Pre-validation: Check if target container image exists locally
+    if ! validate_container_image "$selected_version" "$selected_container_tag" "rollback"; then
+        exit 1
+    fi
+    
+    # Check if container tag change is needed
+    local current_container_tag=$(get_container_tag_from_version "$current_version")
+    if [ "$current_container_tag" = "$selected_container_tag" ]; then
+        echo -e "${BLUE}Rollback within same container tag ($selected_container_tag)${NC}"
+        echo -e "${BLUE}Will restart container instead of swapping${NC}"
+        
+        # Perform same-tag rollback (container restart only)
+        if ! rollback_same_tag "$selected_version" "$current_version"; then
+            echo "[ERROR] [ROLLBACK] Rollback failed in same-tag rollback"
+            exit 1
+        fi
+        
+        echo "[INFO] [ROLLBACK] Rollback completed successfully"
+        echo "[INFO] [ROLLBACK] Version rolled back to: $selected_version"
+        exit 0
+    else
+        echo -e "${BLUE}Container tag change required ($current_container_tag -> $selected_container_tag)${NC}"
+        echo -e "${BLUE}Will perform full container swap${NC}"
+        # Continue with existing container swap logic
+    fi
+    
+    # List available backups for selected version
+    echo "[INFO] [ROLLBACK] Scanning for available backups for version $selected_version..."
+    local backup_dirs=()
+    while IFS= read -r line; do
+        backup_dirs+=("$line")
+    done < <(podman exec -u root omnia_core find /opt/omnia/backups/upgrade -maxdepth 1 -type d -name "version_${selected_version}*" 2>/dev/null | sort -r)
+    
+    if [ ${#backup_dirs[@]} -eq 0 ]; then
+        echo -e "${RED}ERROR: No backup directories found for version $selected_version.${NC}"
+        exit 1
+    fi
+    
+    echo ""
+    echo "Available backups for version $selected_version:"
+    for i in "${!backup_dirs[@]}"; do
+        local backup_path="${backup_dirs[$i]}"
+        local backup_date=$(podman exec -u root omnia_core stat -c '%y' "$backup_path" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
+        echo "  $((i+1)). Backup created: $backup_date"
+    done
+    
+    # Prompt for backup selection
+    echo ""
+    echo -n "Select backup to restore from (1-${#backup_dirs[@]}): "
+    read -r backup_selection
+    
+    # Validate backup selection
+    if ! [[ "$backup_selection" =~ ^[0-9]+$ ]] || [ "$backup_selection" -lt 1 ] || [ "$backup_selection" -gt ${#backup_dirs[@]} ]; then
+        echo -e "${RED}ERROR: Invalid backup selection.${NC}"
+        exit 1
+    fi
+    
+    local selected_backup="${backup_dirs[$((backup_selection-1))]}"
+    
+    # Validate selected backup exists
+    if ! podman exec -u root omnia_core test -d "$selected_backup" 2>/dev/null; then
+        echo -e "${RED}ERROR: Backup directory does not exist: $selected_backup${NC}"
+        exit 1
+    fi
+    
+    echo ""
+    echo "[INFO] [ROLLBACK] Starting rollback process..."
+    
+    # Step 1: Stop current container gracefully
+    echo ""
+    echo "[INFO] [ROLLBACK] Step 1: Stopping Omnia core $current_container_tag container..."
+    if ! stop_container_gracefully "omnia_core" 30; then
+        echo -e "${RED}ERROR: Failed to stop container.${NC}"
+        display_cleanup_instructions
+        exit 1
+    fi
+    
+    # Step 2: Update Quadlet file to use target container tag
+    echo ""
+    echo "[INFO] [ROLLBACK] Step 2: Updating Quadlet file to use container tag $selected_container_tag..."
+    local quadlet_file="/etc/containers/systemd/omnia_core.container"
+    
+    if ! sed -i "s/^Image=omnia_core:.*/Image=omnia_core:$selected_container_tag/" "$quadlet_file"; then
+        echo -e "${RED}ERROR: Failed to update Image to $selected_container_tag in quadlet file${NC}"
+        display_cleanup_instructions
+        exit 1
+    fi
+    
+    echo "[INFO] [ROLLBACK] Quadlet file updated to use omnia_core:$selected_container_tag"
+    
+    # Step 3: Start target container
+    echo ""
+    echo "[INFO] [ROLLBACK] Step 3: Starting Omnia core $selected_container_tag container..."
+    systemctl daemon-reload
+    if ! systemctl start omnia_core.service; then
+        echo -e "${RED}ERROR: Failed to start container service.${NC}"
+        display_cleanup_instructions
+        exit 1
+    fi
+    
+    # Step 4: Wait for container to be healthy
+    echo ""
+    echo "[INFO] [ROLLBACK] Step 4: Waiting for container to be healthy..."
+    local health_timeout=60
+    local health_count=0
+    
+    while [ $health_count -lt $health_timeout ]; do
+        if podman ps --format '{{.Names}} {{.Status}}' | grep -E "omnia_core.*Up" | grep -q "healthy\|Up"; then
+            echo "[INFO] [ROLLBACK] Container is healthy"
+            break
+        fi
+        sleep 1
+        health_count=$((health_count + 1))
+        echo -n "."
+    done
+    
+    if [ $health_count -ge $health_timeout ]; then
+        echo ""
+        echo -e "${RED}ERROR: Container failed to become healthy within 60 seconds.${NC}"
+        display_cleanup_instructions
+        exit 1
+    fi
+    
+    # Step 5: Validate backup directory structure
+    echo ""
+    echo "[INFO] [ROLLBACK] Step 5: Validating backup directory structure..."
+    if ! validate_backup_directory "$selected_backup"; then
+        echo -e "${RED}ERROR: Backup validation failed.${NC}"
+        display_cleanup_instructions
+        exit 1
+    fi
+    
+    # Step 6: Restore files from backup
+    echo ""
+    echo "[INFO] [ROLLBACK] Step 6: Restoring files from backup..."
+    if ! restore_from_backup "$selected_backup"; then
+        echo -e "${RED}ERROR: Failed to restore from backup.${NC}"
+        display_cleanup_instructions
+        exit 1
+    fi
+    
+    # Step 7: Verify container version
+    echo ""
+    echo "[INFO] [ROLLBACK] Step 7: Verifying container version..."
+    local verify_version=$(podman exec -u root omnia_core grep '^omnia_version:' /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d':' -f2 | tr -d ' \t\n\r')
+    
+    if [ "$verify_version" != "$selected_version" ]; then
+        echo -e "${RED}ERROR: Version verification failed. Expected: $selected_version, Found: $verify_version${NC}"
+        display_cleanup_instructions
+        exit 1
+    fi
+    
+    # Audit log end
+    local rollback_end=$(date -Iseconds)
+    echo "[AUDIT] Rollback operation completed at: $rollback_end"
+    echo "[AUDIT] Rolled back from version $current_version to $selected_version"
+    
+    echo ""
+    echo -e "${GREEN}================================================================================${NC}"
+    echo -e "${GREEN}                    ROLLBACK COMPLETED SUCCESSFULLY${NC}"
+    echo -e "${GREEN}================================================================================${NC}"
+    echo ""
+    echo -e "${GREEN}✓ Omnia core has been rolled back to version $selected_version${NC}"
+    echo -e "${GREEN}✓ Container is running and healthy${NC}"
+    echo -e "${GREEN}✓ Configuration restored from backup${NC}"
+    echo ""
+    
+    # Clean up lock file before starting long-running ssh session
+    rm -f "$lock_file" >/dev/null 2>&1 || true
+    echo "[INFO] Rollback lock file removed before starting container session"
+
+    # Clear upgrade guard lock if it exists (shared path visible to container and host)
+    local upgrade_guard_lock_path
+    upgrade_guard_lock_path=$(get_upgrade_guard_lock_path)
+
+    rm -f "$upgrade_guard_lock_path" >/dev/null 2>&1 || true
+    echo "[INFO] [ROLLBACK] Cleared upgrade guard lock: $upgrade_guard_lock_path"
+
+    # Initialize SSH config and start container session
+    init_ssh_config
+    start_container_session
+}
+
 # Main function to check if omnia_core container is already running.
 # If yes, ask the user if they want to enter the container or reinstall.
 # If no, set it up.
@@ -1148,6 +2336,12 @@ main() {
             ;;
         --uninstall|-u)
             cleanup_omnia_core
+            ;;
+        --upgrade)
+            upgrade_omnia_core
+            ;;
+        --rollback)
+            rollback_omnia_core
             ;;
         --version|-v)
             display_version
@@ -1165,4 +2359,3 @@ main() {
 
 # Call the main function
 main "$1"
-

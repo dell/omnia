@@ -1,0 +1,94 @@
+#!/bin/bash
+set -e
+
+LOGFILE="/var/log/nvhpc_sdk_install.log"
+
+echo "===== Starting NVIDIA HPC SDK installation =====" | tee -a "$LOGFILE"
+
+sys_arch="$(uname -m)"
+case "${sys_arch}" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+    *)
+        echo "Unsupported architecture: ${sys_arch}"
+        exit 1
+        ;;
+esac
+
+# Select package name based on detected architecture (rendered from slurm_config vars)
+case "${arch}" in
+    x86_64)  NVHPC_PKG_NAME="{{ nvhpc_pkg_name_x86_64 }}" ;;
+    aarch64) NVHPC_PKG_NAME="{{ nvhpc_pkg_name_aarch64 }}" ;;
+esac
+
+# Derive version from package name: nvhpc_YYYY_YYMM_Linux_<arch>_cuda_X.Y
+NVHPC_VERSION=$(echo "$NVHPC_PKG_NAME" | sed 's/nvhpc_\([0-9]*_[0-9]*\)_Linux_.*/\1/')
+NVHPC_SHORT_VERSION=$(echo "$NVHPC_VERSION" | cut -d'_' -f2 | sed 's/\(..\)\(..\)/\1.\2/')
+
+NVHPC_EXPORT="{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk"
+NVHPC_MOUNT="/shared-nvhpc-sdk"
+NVHPC_TARBALL="$NVHPC_MOUNT/${NVHPC_PKG_NAME}.tar.gz"
+NVHPC_INSTALL_DIR_NFS="$NVHPC_MOUNT/nvhpc"
+NVHPC_LOCAL_MOUNT="/opt/nvidia/nvhpc"
+NVHPC_EXTRACT_DIR="$NVHPC_MOUNT/${NVHPC_PKG_NAME}"
+
+# Skip if already mounted
+if mountpoint -q "$NVHPC_LOCAL_MOUNT"; then
+    echo "[INFO] $NVHPC_LOCAL_MOUNT already mounted. Skipping installation." | tee -a "$LOGFILE"
+    exit 0
+fi
+
+# Skip if local directory exists
+if [ -d "$NVHPC_LOCAL_MOUNT" ]; then
+    echo "[INFO] $NVHPC_LOCAL_MOUNT exists. Assuming installed. Skipping." | tee -a "$LOGFILE"
+    exit 0
+fi
+
+mkdir -p "$NVHPC_MOUNT"
+mount -t nfs "$NVHPC_EXPORT" "$NVHPC_MOUNT" >> "$LOGFILE" 2>&1
+
+# Check tarball
+echo "[INFO] Checking NVIDIA HPC SDK tarball at $NVHPC_TARBALL..." | tee -a "$LOGFILE"
+if [ ! -f "$NVHPC_TARBALL" ]; then
+    echo "[ERROR] NVIDIA HPC SDK tarball not found. Skipping installation." | tee -a "$LOGFILE"
+    exit 0
+fi
+
+# Extract if needed
+EXTRACT_SIZE_GB=$(du -sBG "$NVHPC_EXTRACT_DIR" 2>/dev/null | cut -f1 | tr -d 'G')
+if [ -d "$NVHPC_EXTRACT_DIR" ] && [ "$EXTRACT_SIZE_GB" -ge 13 ] && [ -f "$NVHPC_EXTRACT_DIR/install" ]; then
+    echo "[INFO] NVHPC already extracted. Skipping." | tee -a "$LOGFILE"
+else
+    echo "[INFO] Extracting NVIDIA HPC SDK tarball..." | tee -a "$LOGFILE"
+    tar -xzf "$NVHPC_TARBALL" -C "$NVHPC_MOUNT" \
+        --checkpoint=2000 \
+        --checkpoint-action=echo="[INFO] Extracting NVHPC... please wait" >> "$LOGFILE" 2>&1
+fi
+
+mkdir -p "$NVHPC_INSTALL_DIR_NFS"
+INSTALL_BIN_DIR="$NVHPC_INSTALL_DIR_NFS/Linux_${arch}/${NVHPC_SHORT_VERSION}/compilers/bin"
+
+if [ -x "$INSTALL_BIN_DIR/nvc" ]; then
+    echo "[INFO] NVHPC already installed. Skipping installer." | tee -a "$LOGFILE"
+else
+    echo "[INFO] Running NVIDIA HPC SDK installer..." | tee -a "$LOGFILE"
+    cd "$NVHPC_EXTRACT_DIR"
+    NVHPC_SILENT=true NVHPC_INSTALL_DIR="$NVHPC_INSTALL_DIR_NFS" NVHPC_INSTALL_TYPE=auto ./install >> "$LOGFILE" 2>&1
+fi
+
+echo "[SUCCESS] NVIDIA HPC SDK installation completed." | tee -a "$LOGFILE"
+
+# Mount NVHPC locally
+mkdir -p "$NVHPC_LOCAL_MOUNT"
+NVHPC_INSTALL_EXPORT="{{ cloud_init_nfs_path }}/hpc_tools/nvidia_sdk/nvhpc"
+FSTAB_ENTRY="$NVHPC_INSTALL_EXPORT $NVHPC_LOCAL_MOUNT nfs defaults,_netdev 0 0"
+
+if ! grep -qE "^[^#].*$NVHPC_INSTALL_EXPORT[[:space:]]+$NVHPC_LOCAL_MOUNT[[:space:]]+nfs" /etc/fstab; then
+    echo "[INFO] Adding NVHPC mount to /etc/fstab" | tee -a "$LOGFILE"
+    echo "$FSTAB_ENTRY" >> /etc/fstab
+fi
+
+echo "[INFO] Mounting $NVHPC_LOCAL_MOUNT..." | tee -a "$LOGFILE"
+mount "$NVHPC_LOCAL_MOUNT" >> "$LOGFILE" 2>&1
+echo "[INFO] NVHPC successfully mounted at $NVHPC_LOCAL_MOUNT" | tee -a "$LOGFILE"
+echo "CLOUD-INIT: NVIDIA HPC SDK installation completed successfully" | tee -a "$LOGFILE"

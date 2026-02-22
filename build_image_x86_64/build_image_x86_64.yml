@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+- name: Check if upgrade is in progress
+  ansible.builtin.import_playbook: ../utils/upgrade_checkup.yml
+
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
@@ -99,7 +102,7 @@
     - name: Tag OpenCHAMI image
       ansible.builtin.include_role:
         name: image_creation
-        tasks_from: build_image_tag.yml
+        tasks_from: prepare_pulp_image.yml
 
 - name: OpenCHAMI build image for x86_64
   hosts: localhost

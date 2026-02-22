@@ -18,3 +18,13 @@
 
 - name: Upgrade cluster tasks
   ansible.builtin.import_playbook: upgrade_cluster.yml
+
+- name: Clear upgrade guard lock
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove upgrade guard lock
+      ansible.builtin.file:
+        path: /opt/omnia/.data/upgrade_in_progress.lock
+        state: absent

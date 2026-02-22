@@ -1,0 +1,62 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+victoria_namespace: "telemetry"
+victoria_output_file: "/opt/omnia/telemetry/external_victoria_connect_details.yml"
+victoria_tls_cert_dir: "/opt/omnia/telemetry/victoria-certs"
+
+victoria_err_mode_not_supported: >-
+  Victoria deployment mode detected: {{ victoria_deployment_mode }}.
+  External integration is supported only for Victoria cluster mode (vminsert/vmselect/vmstorage).
+  Single-node Victoria (victoria-loadbalancer) is not supported for external integration.
+
+victoria_err_no_pods_found: "No Victoria pods found in namespace '{{ victoria_namespace }}'."
+victoria_err_pods_not_running: "One or more Victoria pods are not in Running state."
+victoria_err_pods_not_ready: "One or more Victoria pods are not Ready."
+
+victoria_err_lb_missing: >-
+  Failed to fetch Victoria LoadBalancer IP(s). Ensure services 'vminsert' and 'vmselect'
+  exist in namespace '{{ victoria_namespace }}' and have external IPs assigned.
+
+victoria_preflight_err_ha_config_missing: >-
+  Failed to load High Availability config file: {{ k8s_ha_config_path }}.
+  Provide a valid HA config so the service Kubernetes VIP can be used.
+
+victoria_preflight_err_ha_vip_missing: >-
+  Failed to determine the service Kubernetes control plane VIP from High Availability config.
+  Ensure service_k8s_cluster_ha[0].virtual_ip_address is set in: {{ k8s_ha_config_path }}.
+
+victoria_preflight_err_service_k8s_controller_unreachable: >-
+  Service Kubernetes controller is not reachable over SSH: {{ ansible_host | default(inventory_hostname) }}.
+  Ensure the service Kubernetes VIP is reachable and resolvable from the OIM host.
+
+victoria_sfm_ui_navigation: "Observability -> Settings -> Prometheus Remote Write"
+victoria_sfm_remote_write_target_name: "victoria"
+victoria_sfm_remote_write_message_version: "v1"
+victoria_sfm_remote_write_enable_value: "ON"
+
+victoria_sfm_ssh_note: "SSH to the SFM IP with admin credentials."
+victoria_sfm_hosts_scope_note: >-
+  /etc/hosts update is required only inside the SFM Prometheus pod (not on the SFM server host).
+victoria_sfm_pod_shell_command_example: >-
+  kubectl exec -it sfm-prometheus-deployment-xxxxx-xx -n sfm-1 -- /bin/sh
+victoria_sfm_hosts_restart_note: "Repeat /etc/hosts update if the SFM pod restarts."
+victoria_sfm_cross_machine_tls_note_line1: >-
+  If using the SFM UI from a different system than the OIM host,
+victoria_sfm_cross_machine_tls_note_line2: >-
+  copy ca.crt to that system before uploading it in the UI.
+
+victoria_sfm_tls_server_cert_file_label: "Server Certificate File"
+victoria_sfm_tls_server_cert_file_name: "ca.crt"

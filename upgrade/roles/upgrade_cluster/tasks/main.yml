@@ -13,6 +13,55 @@
 # limitations under the License.
 ---
 
-- name: Include import input parameters
-  ansible.builtin.include_role:
-    name: import_input_parameters
+
+- name: Display cluster reprovision guidance
+  ansible.builtin.pause:
+    prompt: "{{ '\x1b[32m' }}===================================================
+          CLUSTER REPROVISION REQUIRED
+      ===========================================================
+
+      Cluster reprovisioning is required after upgrade to enable new features.
+
+      Review and update new 2.1 input fields present at /opt/omnia/input/project_default/ directory before reprovisioning:
+
+        1. local_repo_config.yml
+
+            - Set additional_repos_x86_64 (list of extra repo URLs or file paths for x86_64)
+
+            - Set additional_repos_aarch64 (list of extra repo URLs or file paths for aarch64)
+
+        2. network_spec.yml (ib_network section)
+
+            - Define InfiniBand fabric settings (subnet manager/BMC, IP ranges, VLAN if applicable)
+
+            - Ensure host IB interfaces map to the IB network entries
+
+        3. omnia_config.yml (slurm_cluster.config_source)
+
+            - Use the new structure: config_source: { type: <local|url>, location: <path_or_url> }
+
+            - Populate location to point to your Slurm config bundle (local path or remote URL)
+
+      Do NFS cleanup (if NFS share is used for k8s/slurm)
+
+         - Clean stale mounts and ensure the NFS share is accessible before reprovision
+
+         - Remove any leftover cluster state on the NFS share that could conflict with fresh deployment
+
+
+      Run the following playbooks in sequence from the Omnia root directory to reprovision the cluster:
+
+        1. ansible-playbook local_repo/local_repo.yml
+
+        2. ansible-playbook build_image_x86_64/build_image_x86_64.yml
+
+        3. Only if the user is using aarch64 nodes, run the below playbook after build_image_x86_64:
+
+        ansible-playbook build_image_aarch64/build_image_aarch64.yml
+
+        4. ansible-playbook discovery/discovery.yml
+
+      Please follow the omnia documentation for steps in more detail.
+
+    {{ '\x1b[0m' }}"
+    seconds: 1

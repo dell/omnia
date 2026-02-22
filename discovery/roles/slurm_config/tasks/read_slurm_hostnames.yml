@@ -46,6 +46,7 @@
 - name: Get bmc_ip
   ansible.builtin.set_fact:
     bmc_ip_map: "{{ node_yaml.nodes | items2dict(key_name='name', value_name='bmc_ip') }}"
+    name_ip_map: "{{ dict(ip_name_map.values() | zip(ip_name_map.keys())) }}"
 
 - name: Assign slurm lists
   ansible.builtin.set_fact:

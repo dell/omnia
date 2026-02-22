@@ -1,0 +1,107 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ── slurm.conf path validation ───────────────────────────────────────
+
+- name: Validate slurm.conf path parameters are absolute
+  ansible.builtin.fail:
+    msg: "slurm.conf {{ item }} must be an absolute path (start with /). Current value: {{ slurm_merged_dict.get(item) }}"
+  when:
+    - slurm_merged_dict is defined
+    - slurm_merged_dict.get(item) is defined
+    - slurm_merged_dict.get(item) is not none
+    - >-
+      (slurm_merged_dict.get(item) is string
+       and slurm_merged_dict.get(item) | length > 0)
+      or (slurm_merged_dict.get(item) is iterable
+          and slurm_merged_dict.get(item) | list | length > 0)
+    - >-
+      not ((slurm_merged_dict.get(item) is string
+            and slurm_merged_dict.get(item) | regex_search('^/'))
+           or (slurm_merged_dict.get(item) is iterable
+               and (slurm_merged_dict.get(item) | first) | regex_search('^/')))
+  loop:
+    - SlurmctldLogFile
+    - SlurmdLogFile
+    - StateSaveLocation
+    - SlurmdSpoolDir
+    - SlurmctldPidFile
+    - SlurmdPidFile
+    - Epilog
+    - Prolog
+    - EpilogSlurmctld
+    - PrologSlurmctld
+    - SlurmSchedLogFile
+    - PluginDir
+    - PlugStackConfig
+    - SrunEpilog
+    - SrunProlog
+    - TaskEpilog
+    - TaskProlog
+    - HealthCheckProgram
+    - RebootProgram
+    - UnkillableStepProgram
+    - ResvEpilog
+    - ResvProlog
+    - TmpFS
+    - JobCompLoc
+    - JobCredentialPrivateKey
+    - JobCredentialPublicCertificate
+
+# ── slurmdbd.conf path validation ────────────────────────────────────
+
+- name: Validate slurmdbd.conf path parameters are absolute
+  ansible.builtin.fail:
+    msg: "slurmdbd.conf {{ item }} must be an absolute path (start with /). Current value: {{ slurmdbd_merged_dict.get(item) }}"
+  when:
+    - slurmdbd_merged_dict is defined
+    - slurmdbd_merged_dict.get(item) is defined
+    - slurmdbd_merged_dict.get(item) is not none
+    - >-
+      (slurmdbd_merged_dict.get(item) is string
+       and slurmdbd_merged_dict.get(item) | length > 0)
+      or (slurmdbd_merged_dict.get(item) is iterable
+          and slurmdbd_merged_dict.get(item) | list | length > 0)
+    - >-
+      not ((slurmdbd_merged_dict.get(item) is string
+            and slurmdbd_merged_dict.get(item) | regex_search('^/'))
+           or (slurmdbd_merged_dict.get(item) is iterable
+               and (slurmdbd_merged_dict.get(item) | first) | regex_search('^/')))
+  loop:
+    - LogFile
+    - PidFile
+    - PluginDir
+
+# ── cgroup.conf path validation ──────────────────────────────────────
+
+- name: Validate cgroup.conf path parameters are absolute
+  ansible.builtin.fail:
+    msg: "cgroup.conf {{ item }} must be an absolute path (start with /). Current value: {{ cgroup_merged_dict.get(item) }}"
+  when:
+    - cgroup_merged_dict is defined
+    - cgroup_merged_dict.get(item) is defined
+    - cgroup_merged_dict.get(item) is not none
+    - >-
+      (cgroup_merged_dict.get(item) is string
+       and cgroup_merged_dict.get(item) | length > 0)
+      or (cgroup_merged_dict.get(item) is iterable
+          and cgroup_merged_dict.get(item) | list | length > 0)
+    - >-
+      not ((cgroup_merged_dict.get(item) is string
+            and cgroup_merged_dict.get(item) | regex_search('^/'))
+           or (cgroup_merged_dict.get(item) is iterable
+               and (cgroup_merged_dict.get(item) | first) | regex_search('^/')))
+  loop:
+    - CgroupMountpoint

@@ -12,3 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+- name: Set backup location based on oim_metadata.yml
+  ansible.builtin.include_tasks: set_backup_location.yml
+
+- name: Validate backup location for upgrade input processing
+  ansible.builtin.include_tasks: precheck_backup_location.yml
+
+- name: Transform network_spec.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_network_spec.yml
+
+- name: Transform high_availability_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_high_availability_config.yml
+
+- name: Transform local_repo_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_local_repo_config.yml
+
+- name: Transform provision_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_provision_config.yml
+
+- name: Transform storage_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_storage_config.yml
+
+- name: Transform omnia_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_omnia_config.yml
+
+- name: Transform telemetry_config.yml from Omnia 2.0 to 2.1
+  ansible.builtin.include_tasks: transform_telemetry_config.yml
+
+- name: Restore input files from backup
+  ansible.builtin.include_tasks: restore_input_files.yml
+
+- name: Restore user_registry_credential.yml from backup
+  ansible.builtin.include_tasks: restore_user_registry_credential.yml
+
+- name: Restore omnia_config_credentials.yml from backup
+  ansible.builtin.include_tasks: restore_omnia_config_credentials.yml
+
+- name: Display upgrade warnings summary
+  ansible.builtin.include_tasks: display_warnings.yml

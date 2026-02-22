@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -32,14 +32,12 @@ telemetry_namespace: "telemetry"
 idrac_telemetry_k8s_name: idrac-telemetry
 
 # iDRAC Telemetry scripting repository
-idrac_telemetry_scripting_repo: "https://github.com/dell/iDRAC-Telemetry-Scripting.git"
-idrac_telemetry_scripting_stable_commit: "f6999f5"
+idrac_telemetry_scripting_src_path: "{{ oim_shared_path }}/omnia/telemetry/iDRAC-Telemetry-Scripting"
 idrac_telemetry_scripting_git_clone_path: "{{ service_cluster_idrac_telemetry_dir_path }}/iDRAC-Telemetry-Scripting"
-idrac_script_git_clone_error_msg: |
-  Failed to clone iDRAC Telemetry GitHub repository from {{ idrac_telemetry_scripting_repo }}
-  to {{ idrac_telemetry_scripting_git_clone_path }} directory in NFS share.
-max_retries: 10
-delay_count: 5
+idrac_telemetry_scripting_copy_fail_msg: |
+  Failed to copy iDRAC Telemetry Scripting from {{ idrac_telemetry_scripting_src_path }}
+  to {{ idrac_telemetry_scripting_git_clone_path }}. Please ensure prepare_oim.yml has been
+  executed successfully before running discovery.
 
 # Pre-built container images for iDRAC telemetry components
 # These default to your published images but can be overridden via telemetry_images
@@ -254,3 +252,24 @@ common_templates:
     skip_when: "{{ cluster_id_present | default(false) }}"
   - src: 'telemetry/kustomization.yaml.j2'
     dest: 'kustomization.yaml'
+
+# Usage: check_pxe_changes.yml
+backup_pxe_mapping_ldms_path: "/opt/omnia/telemetry/backup_pxe_mapping_ldms.csv"
+pxe_first_run_msg: "First discovery run detected. Saving PXE mapping backup. LDMS restart not required."
+pxe_no_change_msg: "PXE mapping file has not changed since last run. Skipping LDMS restart."
+pxe_changed_msg: "PXE mapping file has changed. LDMS restart will be triggered."
+
+# Usage: restart_ldms_configs.yml
+kube_vip_unreachable_msg: >-
+  Kube VIP ({{ kube_vip }}) is not reachable via SSH.
+  There might be issues with the k8s cluster.
+  LDMS aggregator restart will be skipped.
+
+  After discovery completes, manually restart the LDMS aggregator pod with:
+
+  ssh {{ kube_vip }}
+  kubectl rollout restart statefulset nersc-ldms-aggr -n {{ telemetry_namespace }}
+  kubectl get pods -n {{ telemetry_namespace }} -l app=nersc-ldms-aggr -w
+
+ldms_pod_ready_msg: "LDMS aggregator pod is ready."
+ldms_pod_not_ready_msg: "WARNING: LDMS aggregator pod did not become ready within 120s."

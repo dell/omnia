@@ -36,5 +36,41 @@ data_oci_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/oci"
 data_s3_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/s3"
 s3_work_dir: "{{ oim_shared_path }}/omnia/openchami/s3"
 
+# Usage: deploy_openchami.yml - pull openchami images
+pull_image_retries: 5
+pull_image_delay: 10
+
+# OpenCHAMI image tags
+openchami_local_ca_tag: "v0.2.2"
+openchami_opaal_tag: "v0.3.10"
+openchami_smd_tag: "v2.18.0"
+openchami_bss_tag: "v1.32.0"
+openchami_cloud_init_tag: "v1.2.3"
+openchami_coredhcp_tag: "v0.3.0"
+# Third-party image tags for OpenCHAMI
+minio_tag: "latest"
+postgres_tag: "11.5-alpine"
+hydra_tag: "v2.3"
+haproxy_tag: "latest"
+registry_tag: "latest"
+curl_tag: "latest"
+acme_tag: "3.1.1"
+
+# OpenCHAMI images list for podman pull on OIM
+openchami_images:
+  - "ghcr.io/openchami/local-ca:{{ openchami_local_ca_tag }}"
+  - "ghcr.io/openchami/opaal:{{ openchami_opaal_tag }}"
+  - "ghcr.io/openchami/smd:{{ openchami_smd_tag }}"
+  - "ghcr.io/openchami/bss:{{ openchami_bss_tag }}"
+  - "ghcr.io/openchami/cloud-init:{{ openchami_cloud_init_tag }}"
+  - "ghcr.io/openchami/coredhcp:{{ openchami_coredhcp_tag }}"
+  - "docker.io/minio/minio:{{ minio_tag }}"
+  - "docker.io/library/postgres:{{ postgres_tag }}"
+  - "docker.io/oryd/hydra:{{ hydra_tag }}"
+  - "cgr.dev/chainguard/haproxy:{{ haproxy_tag }}"
+  - "docker.io/library/registry:{{ registry_tag }}"
+  - "cgr.dev/chainguard/curl:{{ curl_tag }}"
+  - "docker.io/neilpang/acme.sh:{{ acme_tag }}"
+
 # Usage: verify_openchami.yml
 cluster_env_key: "{{ oim_node_name | upper }}_ACCESS_TOKEN"

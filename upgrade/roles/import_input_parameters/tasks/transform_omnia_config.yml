@@ -1,0 +1,103 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if backup omnia_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ backup_location }}/omnia_config.yml"
+  register: backup_omnia_config_stat
+
+- name: Fail if backup omnia_config.yml is not present
+  ansible.builtin.fail:
+    msg: "{{ msg_backup_omnia_config_missing }}"
+  when: not backup_omnia_config_stat.stat.exists
+
+- name: Check if omnia_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/omnia_config.yml"
+  register: omnia_config_stat
+
+- name: Fail if omnia_config.yml is not present
+  ansible.builtin.fail:
+    msg: "{{ msg_omnia_config_missing }}"
+  when: not omnia_config_stat.stat.exists
+
+- name: Read backup omnia_config.yml (source of truth)
+  ansible.builtin.slurp:
+    src: "{{ backup_location }}/omnia_config.yml"
+  register: backup_omnia_config_slurp
+
+- name: Parse backup omnia_config.yml
+  ansible.builtin.set_fact:
+    backup_omnia_config: "{{ backup_omnia_config_slurp.content | b64decode | from_yaml }}"
+
+- name: Normalize omnia_config.yml values
+  ansible.builtin.set_fact:
+    omnia_slurm_cluster_raw: "{{ backup_omnia_config.slurm_cluster | default([]) }}"
+    omnia_service_k8s_cluster_raw: "{{ backup_omnia_config.service_k8s_cluster | default([]) }}"
+
+- name: Ensure slurm_cluster and service_k8s_cluster are lists
+  ansible.builtin.set_fact:
+    omnia_slurm_cluster: >-
+      {{
+        [omnia_slurm_cluster_raw]
+        if (omnia_slurm_cluster_raw is mapping)
+        else omnia_slurm_cluster_raw
+      }}
+    omnia_service_k8s_cluster: >-
+      {{
+        [omnia_service_k8s_cluster_raw]
+        if (omnia_service_k8s_cluster_raw is mapping)
+        else omnia_service_k8s_cluster_raw
+      }}
+
+- name: Fail if slurm_cluster is missing
+  ansible.builtin.fail:
+    msg: "{{ msg_slurm_cluster_missing }}"
+  when: (omnia_slurm_cluster | default([]) | length) == 0
+
+- name: Fail if service_k8s_cluster is missing
+  ansible.builtin.fail:
+    msg: "{{ msg_service_k8s_cluster_missing }}"
+  when: (omnia_service_k8s_cluster | default([]) | length) == 0
+
+- name: Write omnia_config.yml in Omnia 2.1 format
+  ansible.builtin.template:
+    src: omnia_config.j2
+    dest: "{{ input_project_dir }}/omnia_config.yml"
+    mode: "{{ default_file_mode }}"
+  vars:
+    omnia_slurm_cluster: "{{ omnia_slurm_cluster }}"
+    omnia_service_k8s_cluster: "{{ omnia_service_k8s_cluster }}"
+
+- name: Validate YAML syntax of transformed omnia_config.yml
+  ansible.builtin.command:
+    cmd: python3 -c "import yaml; yaml.safe_load(open('{{ input_project_dir }}/omnia_config.yml','r'))"
+  register: omnia_yaml_validation
+  changed_when: false
+
+- name: Fail if YAML validation fails
+  ansible.builtin.fail:
+    msg: "{{ msg_yaml_validation_failed }}"
+  when:
+    - omnia_yaml_validation.rc != 0
+
+- name: Display backup path (no-op when skipped)
+  ansible.builtin.debug:
+    msg: "{{ msg_using_backup_omnia_config }}"
+  when: true
+
+- name: Display transformation summary
+  ansible.builtin.debug:
+    msg: "{{ msg_omnia_config_transform_summary }}"

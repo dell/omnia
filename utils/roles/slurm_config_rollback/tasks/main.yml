@@ -1,0 +1,355 @@
+---
+
+- name: Set slurm paths
+  ansible.builtin.set_fact:
+    slurm_config_path: "{{ share_path }}/{{ slurm_share_dir_name }}"
+    slurm_backups_root: "{{ share_path }}/{{ slurm_backups_dir_name }}"
+  tags: config_rollback
+
+- name: Find available backups
+  ansible.builtin.find:
+    paths: "{{ slurm_backups_root }}"
+    file_type: directory
+    depth: 1
+  register: backup_dirs
+  tags: config_rollback
+
+- name: Fail if no backups found
+  ansible.builtin.fail:
+    msg: "No backups found in {{ slurm_backups_root }}"
+  when: backup_dirs.files | length == 0
+  tags: config_rollback
+
+- name: Set rollback backup list limit
+  ansible.builtin.set_fact:
+    rollback_backup_list_limit_effective: "{{ lookup('vars', 'rollback_backup_list_limit', default=slurm_rollback_backup_list_limit_default) | int }}"
+  tags: config_rollback
+
+- name: Build backup choices
+  ansible.builtin.set_fact:
+    backup_choices: >-
+      {{
+        (
+          backup_dirs.files
+          | sort(attribute='mtime', reverse=true)
+          | map(attribute='path')
+          | list
+        )[:(rollback_backup_list_limit_effective | int)]
+      }}
+    total_backup_count: "{{ backup_dirs.files | length }}"
+  tags: config_rollback
+
+- name: Notify if backup list is truncated
+  ansible.builtin.debug:
+    msg: "Showing latest {{ rollback_backup_list_limit_effective }} backups out of {{ total_backup_count }}. Increase rollback_backup_list_limit to show more."
+  when: (total_backup_count | int) > (rollback_backup_list_limit_effective | int)
+  tags: config_rollback
+
+- name: Display backup list order
+  ansible.builtin.debug:
+    msg: "Backup list is sorted latest first."
+  tags: config_rollback
+
+- name: Show backup choices
+  ansible.builtin.debug:
+    msg: "{{ backup_choice_index + 1 }}: {{ item | basename }}"
+  loop: "{{ backup_choices }}"
+  loop_control:
+    index_var: backup_choice_index
+  tags: config_rollback
+
+- name: Prompt user to select backup number
+  ansible.builtin.pause:
+    prompt: "Enter the backup number to rollback to"
+  register: backup_choice_input
+  tags: config_rollback
+
+- name: Set backup choice index
+  ansible.builtin.set_fact:
+    backup_choice_index: "{{ backup_choice_input.user_input | default('') | trim }}"
+  tags: config_rollback
+
+- name: Fail if backup selection is empty
+  ansible.builtin.fail:
+    msg: "No backup number selected. Rollback aborted."
+  when: backup_choice_index | length == 0
+  tags: config_rollback
+
+- name: Validate backup choice input is within range
+  ansible.builtin.fail:
+    msg: "Invalid selection '{{ backup_choice_input.user_input | default('') }}'. Enter a number between 1 and {{ backup_choices | length }}."
+  when:
+    - (backup_choice_index | int) < 1 or (backup_choice_index | int) > (backup_choices | length)
+  tags: config_rollback
+
+- name: Set selected backup
+  ansible.builtin.set_fact:
+    selected_backup_dir: "{{ backup_choices[(backup_choice_index | int) - 1] }}"
+  tags: config_rollback
+
+- name: Set selected backup controller root
+  ansible.builtin.set_fact:
+    selected_backup_ctld_root: "{{ selected_backup_dir }}/{{ ctld_list[0] }}"
+  tags: config_rollback
+
+- name: Check slurm.conf exists in selected backup
+  ansible.builtin.stat:
+    path: "{{ selected_backup_ctld_root }}/etc/slurm/slurm.conf"
+  register: slurm_conf_stat
+  tags: config_rollback
+
+- name: Fail if slurm.conf missing in backup
+  ansible.builtin.fail:
+    msg: "Selected backup is missing {{ ctld_list[0] }}/etc/slurm/slurm.conf"
+  when: not slurm_conf_stat.stat.exists
+  tags: config_rollback
+
+- name: Check key slurm conf files existence in selected backup
+  ansible.builtin.stat:
+    path: "{{ selected_backup_ctld_root }}/etc/slurm/{{ item }}"
+  loop:
+    - slurmdbd.conf
+    - cgroup.conf
+    - gres.conf
+  register: slurm_conf_files_stats
+  tags: config_rollback
+
+- name: Compute missing slurm conf files in selected backup
+  ansible.builtin.set_fact:
+    missing_slurm_conf_files: "{{ slurm_conf_files_stats.results | rejectattr('stat.exists') | map(attribute='item') | list }}"
+  tags: config_rollback
+
+- name: Warn if slurm conf files are missing in selected backup
+  ansible.builtin.debug:
+    msg: "WARNING: Missing files in selected backup under etc/slurm: {{ missing_slurm_conf_files }}"
+  when: missing_slurm_conf_files | length > 0
+  tags: config_rollback
+
+- name: Prompt to continue if slurm conf files are missing
+  ansible.builtin.pause:
+    prompt: "Some slurm config files are missing in the selected backup. Continue anyway? (y/N)"
+  register: continue_missing_confs
+  when: missing_slurm_conf_files | length > 0
+  tags: config_rollback
+
+- name: Fail if user does not want to continue with missing slurm conf files
+  ansible.builtin.fail:
+    msg: "Rollback aborted"
+  when:
+    - missing_slurm_conf_files | length > 0
+    - continue_missing_confs.user_input | default('N') | lower != 'y'
+  tags: config_rollback
+
+- name: Check munge.key exists in selected backup
+  ansible.builtin.stat:
+    path: "{{ selected_backup_ctld_root }}/etc/munge/munge.key"
+  register: munge_key_stat
+  tags: config_rollback
+
+- name: Warn if munge.key is missing in selected backup
+  ansible.builtin.debug:
+    msg: "WARNING: munge.key is missing in selected backup under etc/munge."
+  when: not munge_key_stat.stat.exists
+  tags: config_rollback
+
+- name: Prompt to continue if munge.key is missing
+  ansible.builtin.pause:
+    prompt: "munge.key is missing in the selected backup. Continue anyway? (y/N)"
+  register: continue_missing_munge_key
+  when: not munge_key_stat.stat.exists
+  tags: config_rollback
+
+- name: Fail if user does not want to continue without munge.key
+  ansible.builtin.fail:
+    msg: "Rollback aborted"
+  when:
+    - not munge_key_stat.stat.exists
+    - continue_missing_munge_key.user_input | default('N') | lower != 'y'
+  tags: config_rollback
+
+- name: Check backup directories
+  ansible.builtin.stat:
+    path: "{{ selected_backup_ctld_root }}/{{ item }}"
+  loop:
+    - etc/slurm
+    - etc/munge
+    - etc/my.cnf.d
+  register: backup_dir_stats
+  tags: config_rollback
+
+- name: Compute missing backup directories
+  ansible.builtin.set_fact:
+    missing_backup_dirs: "{{ backup_dir_stats.results | rejectattr('stat.exists') | map(attribute='item') | list }}"
+  tags: config_rollback
+
+- name: Warn if backup directories missing
+  ansible.builtin.debug:
+    msg: "WARNING: Missing directories in backup: {{ missing_backup_dirs }}"
+  when: missing_backup_dirs | length > 0
+  tags: config_rollback
+
+- name: Prompt to continue if backup directories missing
+  ansible.builtin.pause:
+    prompt: "Some directories are missing in the backup. Continue anyway? (y/N)"
+  register: continue_missing
+  when: missing_backup_dirs | length > 0
+  tags: config_rollback
+
+- name: Fail if user does not want to continue
+  ansible.builtin.fail:
+    msg: "Rollback aborted"
+  when:
+    - missing_backup_dirs | length > 0
+    - continue_missing.user_input | default('N') | lower != 'y'
+  tags: config_rollback
+
+- name: Prompt for safety backup before rollback
+  ansible.builtin.pause:
+    prompt: "Create a safety backup of current state before rollback? (y/n)"
+  register: pre_rollback_backup
+  tags: config_rollback
+
+- name: Set pre-rollback backup choice
+  ansible.builtin.set_fact:
+    pre_rollback_backup_choice: "{{ pre_rollback_backup.user_input | default('') | trim | lower }}"
+  tags: config_rollback
+
+- name: Fail if pre-rollback backup choice is empty
+  ansible.builtin.fail:
+    msg: "No input provided for safety backup prompt. Rollback aborted."
+  when: pre_rollback_backup_choice | length == 0
+  tags: config_rollback
+
+- name: Validate pre-rollback backup choice
+  ansible.builtin.fail:
+    msg: "Invalid input '{{ pre_rollback_backup.user_input | default('') }}'. Enter 'y' or 'n'."
+  when: pre_rollback_backup_choice not in ['y', 'yes', 'n', 'no']
+  tags: config_rollback
+
+- name: Run safety backup before rollback
+  ansible.builtin.include_role:
+    name: slurm_config_backup
+    apply:
+      tags: config_rollback
+  when: pre_rollback_backup_choice in ['y', 'yes']
+  tags: config_rollback
+
+- name: Stat slurmdbd.conf before restore
+  ansible.builtin.stat:
+    path: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/slurmdbd.conf"
+    checksum_algorithm: sha1
+  register: slurmdbd_before
+  tags: config_rollback
+
+- name: Restore config directories
+  ansible.builtin.copy:
+    src: "{{ selected_backup_ctld_root }}/{{ item }}/"
+    dest: "{{ slurm_config_path }}/{{ ctld_list[0] }}/{{ item }}/"
+    remote_src: true
+    mode: preserve
+  loop:
+    - etc/slurm
+    - etc/munge
+    - etc/my.cnf.d
+  changed_when: true
+  failed_when: false
+  tags: config_rollback
+
+- name: Check slurmdbd.conf permissions after restore
+  ansible.builtin.stat:
+    path: /etc/slurm/slurmdbd.conf
+  delegate_to: slurm_controller
+  register: slurmdbd_conf_perm_stat
+  tags: config_rollback
+
+- name: Fix slurmdbd.conf permissions after restore
+  ansible.builtin.file:
+    path: /etc/slurm/slurmdbd.conf
+    mode: '0600'
+  delegate_to: slurm_controller
+  when: slurmdbd_conf_perm_stat.stat.exists
+  tags: config_rollback
+
+- name: Check munge.key permissions after restore
+  ansible.builtin.stat:
+    path: /etc/munge/munge.key
+  delegate_to: slurm_controller
+  register: munge_key_perm_stat
+  tags: config_rollback
+
+- name: Fix munge.key permissions after restore
+  ansible.builtin.file:
+    path: /etc/munge/munge.key
+    mode: '0400'
+  delegate_to: slurm_controller
+  when: munge_key_perm_stat.stat.exists
+  tags: config_rollback
+
+- name: Stat slurmdbd.conf after restore
+  ansible.builtin.stat:
+    path: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/slurmdbd.conf"
+    checksum_algorithm: sha1
+  register: slurmdbd_after
+  tags: config_rollback
+
+- name: Notify slurmdbd.conf changed
+  ansible.builtin.debug:
+    msg: "Detected slurmdbd.conf change after rollback; restarting slurmdbd."
+  when:
+    - slurmdbd_before.stat.exists
+    - slurmdbd_after.stat.exists
+    - slurmdbd_before.stat.checksum != slurmdbd_after.stat.checksum
+  tags: config_rollback
+
+- name: Restart slurmdbd
+  ansible.builtin.systemd:
+    name: slurmdbd
+    state: restarted
+  delegate_to: slurm_controller
+  when:
+    - slurmdbd_before.stat.exists
+    - slurmdbd_after.stat.exists
+    - slurmdbd_before.stat.checksum != slurmdbd_after.stat.checksum
+  changed_when: true
+  tags: config_rollback
+
+- name: Gather service facts on controller
+  ansible.builtin.service_facts:
+  delegate_to: slurm_controller
+  tags: config_rollback
+
+- name: Set slurmctld state
+  ansible.builtin.set_fact:
+    slurmctld_state: "{{ ansible_facts.services['slurmctld.service'].state | default('unknown') }}"
+  tags: config_rollback
+
+- name: Fail if slurmctld is not active
+  ansible.builtin.fail:
+    msg: >-
+      slurmctld is not active on the controller. Rollback applied on disk, but cannot
+      reconfigure until slurmctld is running. Verify munge and slurmctld services and
+      restart slurmctld, then re-run rollback or run 'scontrol reconfigure' on the
+      controller.
+  when: slurmctld_state != 'running'
+  tags: config_rollback
+
+- name: Run scontrol reconfigure
+  tags: config_rollback
+  block:
+    - name: Execute scontrol reconfigure
+      ansible.builtin.command: scontrol reconfigure
+      delegate_to: slurm_controller
+      register: reconfigure_out
+      changed_when: true
+      failed_when: reconfigure_out.rc != 0
+  rescue:
+    - name: Display scontrol reconfigure error
+      ansible.builtin.debug:
+        msg: "scontrol reconfigure failed. stdout={{ reconfigure_out.stdout | default('') }} stderr={{ reconfigure_out.stderr | default('') }}"
+
+    - name: Fail with rollback guidance
+      ansible.builtin.fail:
+        msg: >-
+          Rollback applied on disk, but scontrol reconfigure failed. Recommended action:
+          rollback to the safety backup created before this rollback (if you chose to
+          create it).
