@@ -125,15 +125,43 @@ async def global_exception_handler(request, exc):  # pylint: disable=unused-argu
     )
 
 
-if __name__ == "__main__":
-    import uvicorn
-
+def get_server_config():
+    """Get server host and port configuration with proper validation."""
     host = os.getenv("HOST", "0.0.0.0")
+    
+    # Validate host is not empty or just whitespace
+    if not host or host.strip() == "":
+        raise ValueError("HOST environment variable cannot be empty")
+    
+    # Port validation
     port_env = os.getenv("PORT")
     if not port_env:
         raise ValueError("PORT environment variable is required")
-    port = int(port_env)
-    reload = os.getenv("RELOAD", "false").lower() == "true"
+    
+    try:
+        port = int(port_env)
+        if not (1 <= port <= 65535):
+            raise ValueError(f"Port {port} is not in valid range 1-65535")
+    except ValueError as e:
+        if "invalid literal" in str(e):
+            raise ValueError(f"PORT environment variable must be a valid integer, got: {port_env}")
+        raise
+    
+    return host.strip(), port
 
-    logger.info("Starting Build Stream API server on %s:%d", host, port)
-    uvicorn.run("main:app", host=host, port=port, reload=reload)
+
+if __name__ == "__main__":
+    import uvicorn
+
+    try:
+        host, port = get_server_config()
+
+        logger.info("Starting Build Stream API server on %s:%d", host, port)
+        
+        uvicorn.run("main:app", host=host, port=port)
+    except ValueError as e:
+        logger.error("Configuration error: %s", e)
+        raise
+    except Exception as e:
+        logger.error("Failed to start server: %s", e)
+        raise
