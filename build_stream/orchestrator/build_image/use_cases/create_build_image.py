@@ -228,7 +228,7 @@ class CreateBuildImageUseCase:
                 correlation_id=str(command.correlation_id),
             )
         
-        # Ensure stage is not already COMPLETED, PENDING, or IN_PROGRESS (allow only FAILED retries)
+        # Only allow PENDING or FAILED stages to transition to IN_PROGRESS
         if stage.stage_state == StageState.COMPLETED:
             from core.jobs.exceptions import StageAlreadyCompletedError
             raise StageAlreadyCompletedError(
@@ -237,7 +237,7 @@ class CreateBuildImageUseCase:
                 correlation_id=str(command.correlation_id),
             )
         
-        if stage.stage_state in (StageState.PENDING, StageState.IN_PROGRESS):
+        if stage.stage_state not in (StageState.PENDING, StageState.FAILED):
             from core.jobs.exceptions import InvalidStateTransitionError
             raise InvalidStateTransitionError(
                 entity_type="Stage",
