@@ -15,7 +15,7 @@
 
 - name: Debug - Show explicitly passed variables
   ansible.builtin.debug:
-    msg: 
+    msg:
       - "job_id: {{ job_id | default('NOT_SET') }}"
       - "image_key: {{ image_key | default('NOT_SET') }}"
       - "functional_groups: {{ functional_groups | default('NOT_SET') }}"

@@ -61,11 +61,12 @@
 
     - name: Debug - Show build_stream variables
       ansible.builtin.debug:
-        msg: 
+        msg:
           - "build_stream_job_id: {{ build_stream_job_id }}"
           - "build_stream_image_key: {{ build_stream_image_key }}"
           - "build_stream_functional_groups: {{ build_stream_functional_groups }}"
           - "enable_build_stream_flag: {{ enable_build_stream_flag }}"
+        verbosity: 2
 
     - name: Fetch build_stream prerequisites
       ansible.builtin.include_role:

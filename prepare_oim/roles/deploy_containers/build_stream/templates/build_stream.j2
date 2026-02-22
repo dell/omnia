@@ -60,7 +60,6 @@ Volume={{ omnia_path }}/omnia:/opt/omnia{{ selinux_option }}
 Volume={{ build_stream_log_dir }}:/var/log/omnia_build_stream{{ selinux_option }}
 Volume={{ build_stream_ssl_dir }}:/etc/ssl/omnia:ro{{ selinux_option }}
 Volume={{ build_stream_pulp_cert_host_dir }}:{{ build_stream_pulp_cert_container_path }}:ro{{ selinux_option }}
-Volume={{ omnia_path }}/omnia/ssh_config/.ssh/known_hosts:/root/.ssh/known_hosts:ro{{ selinux_option }}
 
 [Service]
 Restart=always
