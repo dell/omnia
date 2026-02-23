@@ -24,6 +24,17 @@ import argparse
 from collections import defaultdict
 from pathlib import Path
 
+
+_FUNCTIONAL_BUNDLES = {
+    "service_k8s",
+    "slurm_custom",
+}
+
+
+_INFRA_BUNDLES = {
+    "csi_driver_powerscale",
+}
+
 def load_json(filepath):
     """Load and return JSON from the given file path."""
     with open(filepath, 'r', encoding='utf-8') as json_file:
@@ -115,7 +126,8 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch):
         'sources': [],
         'tag': None,
         'url': None,
-        'version': None
+        'version': None,
+        'bundles': set(),
     })
 
     for root, _dirs, files in os.walk(config_dir):
@@ -160,6 +172,7 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch):
                     packages[key]['name'] = pkg_name
                     packages[key]['type'] = pkg_type
                     packages[key]['architectures'].add(arch)
+                    packages[key]['bundles'].add(bundle_name)
 
                     # Handle different package types
                     if pkg_type == 'rpm':
@@ -239,39 +252,31 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
 
     for key, pkg_data in packages.items():
         pkg_name = pkg_data['name']
-        pkg_type = pkg_data['type']
+        bundles = set(pkg_data.get('bundles') or [])
 
-        # Determine if it's a base OS package (from default_packages or admin_debug_packages)
-        is_base_os = any(base_pkg in pkg_name.lower() for base_pkg in [
-            'systemd', 'kernel', 'dracut', 'nfs', 'networkmanager', 'iproute',
-            'curl', 'bash', 'coreutils', 'grep', 'sed', 'gawk', 'findutils',
-            'util-linux', 'kbd', 'lsof', 'cryptsetup', 'lvm2', 'device-mapper',
-            'rsyslog', 'chrony', 'sudo', 'gzip', 'wget', 'cloud-init', 'glibc',
-            'gedit', 'which', 'tcpdump', 'traceroute', 'iperf3', 'fping',
-            'dmidecode', 'hwloc', 'lshw', 'pciutils', 'vim-enhanced', 'emacs',
-            'zsh', 'openssh', 'rsync', 'file', 'libcurl', 'tar', 'bzip2',
-            'man-db', 'man-pages', 'strace', 'kexec-tools', 'openssl-devel',
-            'ipmitool', 'gdb', 'lldb', 'valgrind', 'ltrace', 'kernel-tools',
-            'perf', 'papi', 'cmake', 'make', 'autoconf', 'automake', 'libtool',
-            'gcc', 'binutils', 'clustershell', 'bash-completion', 'squashfs'
-        ]) and pkg_type == 'rpm'
+        # Determine classification using bundle membership.
+        # - Functional: only service_k8s and slurm_custom
+        # - Infrastructure: csi_driver_powerscale (plus name-based fallback)
+        # - BaseOS: everything else
+        is_functional = bool(bundles & _FUNCTIONAL_BUNDLES)
+        is_infra = bool(bundles & _INFRA_BUNDLES) or _is_infra_package_name(pkg_name)
 
-        # Determine if it's infrastructure (CSI-related)
-        is_infra = _is_infra_package_name(pkg_name)
-
-        if is_base_os:
-            pkg_id = f"os_package_id_{os_pkg_id_counter}"
-            os_pkg_id_counter += 1
-            os_packages[pkg_id] = create_package_entry(pkg_data)
-        elif is_infra:
+        if is_infra:
             pkg_id = f"infrastructure_package_id_{infra_pkg_id_counter}"
             infra_pkg_id_counter += 1
             infra_packages[pkg_id] = create_infra_package_entry(pkg_data)
-        else:
+            continue
+
+        if is_functional:
             # Use the package_id from package_id_map
             if key in package_id_map:
                 pkg_id = package_id_map[key]
                 functional_packages[pkg_id] = create_package_entry(pkg_data)
+            continue
+
+        pkg_id = f"os_package_id_{os_pkg_id_counter}"
+        os_pkg_id_counter += 1
+        os_packages[pkg_id] = create_package_entry(pkg_data)
 
     catalog["Catalog"]["FunctionalPackages"] = functional_packages
     catalog["Catalog"]["OSPackages"] = os_packages
@@ -339,29 +344,14 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
 
     pkg_id_counter = 1
 
-    # First pass: assign package IDs
+    # First pass: assign package IDs (only for functional bundles)
     for key, pkg_data in packages.items():
         pkg_name = pkg_data['name']
-        pkg_type = pkg_data['type']
+        bundles = set(pkg_data.get('bundles') or [])
+        is_functional = bool(bundles & _FUNCTIONAL_BUNDLES)
+        is_infra = bool(bundles & _INFRA_BUNDLES) or _is_infra_package_name(pkg_name)
 
-        # Skip OS packages
-        is_base_os = any(base_pkg in pkg_name.lower() for base_pkg in [
-            'systemd', 'kernel', 'dracut', 'nfs', 'networkmanager', 'iproute',
-            'curl', 'bash', 'coreutils', 'grep', 'sed', 'gawk', 'findutils',
-            'util-linux', 'kbd', 'lsof', 'cryptsetup', 'lvm2', 'device-mapper',
-            'rsyslog', 'chrony', 'sudo', 'gzip', 'wget', 'cloud-init', 'glibc',
-            'gedit', 'which', 'tcpdump', 'traceroute', 'iperf3', 'fping',
-            'dmidecode', 'hwloc', 'lshw', 'pciutils', 'vim-enhanced', 'emacs',
-            'zsh', 'openssh', 'rsync', 'file', 'libcurl', 'tar', 'bzip2',
-            'man-db', 'man-pages', 'strace', 'kexec-tools', 'openssl-devel',
-            'ipmitool', 'gdb', 'lldb', 'valgrind', 'ltrace', 'kernel-tools',
-            'perf', 'papi', 'cmake', 'make', 'autoconf', 'automake', 'libtool',
-            'gcc', 'binutils', 'clustershell', 'bash-completion', 'squashfs'
-        ]) and pkg_type == 'rpm'
-
-        is_infra = _is_infra_package_name(pkg_name)
-
-        if not is_base_os and not is_infra:
+        if is_functional and not is_infra:
             pkg_id = f"package_id_{pkg_id_counter}"
             pkg_id_counter += 1
             package_id_map[key] = pkg_id
@@ -374,6 +364,10 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
 
             bundle_name = file.replace('.json', '')
             if bundle_name not in allowed_bundles:
+                continue
+
+            # Only functional bundles should contribute to role-package mappings.
+            if bundle_name not in _FUNCTIONAL_BUNDLES:
                 continue
 
             filepath = os.path.join(root, file)
@@ -457,11 +451,23 @@ if __name__ == '__main__':
         repo_root = Path(__file__).resolve().parents[1]
         base_dir = str(repo_root)
 
-    input_config_dir = os.path.join(base_dir, 'input', 'config')
-    software_config_file = os.path.join(base_dir, 'input', 'software_config.json')
-    pxe_mapping_csv = os.path.join(base_dir, 'input', 'pxe_mapping_file.csv')
+    # Support base_dir as either repo root (contains input/ and build_stream/)
+    # or the input directory itself.
+    base_dir_path = Path(base_dir).resolve()
+    is_input_dir = (base_dir_path / 'software_config.json').exists() and (base_dir_path / 'config').exists()
+
+    if is_input_dir:
+        input_dir = str(base_dir_path)
+        repo_root = Path(__file__).resolve().parents[1]
+    else:
+        input_dir = str(base_dir_path / 'input')
+        repo_root = base_dir_path
+
+    input_config_dir = os.path.join(input_dir, 'config')
+    software_config_file = os.path.join(input_dir, 'software_config.json')
+    pxe_mapping_csv = os.path.join(input_dir, 'pxe_mapping_file.csv')
     output_file = os.path.join(
-        base_dir,
+        str(repo_root),
         'build_stream',
         'core',
         'catalog',
