@@ -21,6 +21,7 @@ import os
 import json
 import csv
 import re
+import shlex
 import yaml
 from jinja2 import Template
 import requests
@@ -526,6 +527,37 @@ def get_failed_software(file_path):
     ]
     return failed_software
 
+def _sanitize_shell_arg(value, logger, field_name="value"):
+    """
+    Sanitize a value before using it in a shell command to prevent argument injection.
+
+    Validates the value against a strict allowlist of characters that are safe
+    for shell interpolation, then applies shlex.quote for safe shell escaping.
+
+    Args:
+        value (str): The value to sanitize.
+        logger (logging.Logger): Logger instance.
+        field_name (str): Name of the field being sanitized (for logging).
+
+    Returns:
+        str: The sanitized, shell-quoted value.
+
+    Raises:
+        ValueError: If the value contains disallowed characters.
+    """
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"Invalid {field_name}: must be a non-empty string")
+    value = value.strip().strip('"')
+    safe_pattern = re.compile(r'^[a-zA-Z0-9._\-/:@=?&\[\]]+$')
+    if not safe_pattern.match(value):
+        logger.error("Potentially unsafe characters detected in %s: %s", field_name, value)
+        raise ValueError(
+            f"Invalid {field_name}{value}: contains disallowed characters. "
+            f"Only alphanumeric characters and ._-/:@=?&[] are allowed."
+        )
+    return shlex.quote(value)
+
+
 def check_additional_image_in_pulp(image_entry, logger):
     """
     Checks if image present in additional_packages.json is configured in Pulp.
@@ -536,6 +568,8 @@ def check_additional_image_in_pulp(image_entry, logger):
 
     logger.info("Checking if %s is present in Pulp", image_name)
 
+    _sanitize_shell_arg(image_name, logger, "image_name")
+
     dist_name_prefix = "container_repo_"
     transformed_dist_name = (f"{dist_name_prefix}{image_name.replace('/', '_').replace(':', '_')}")
 
@@ -543,7 +577,7 @@ def check_additional_image_in_pulp(image_entry, logger):
     latest_version_href_result = None
     tags_output_result = None
 
-    show_dist_cmd = (pulp_container_commands["container_distribution_show"] % transformed_dist_name)
+    show_dist_cmd = (pulp_container_commands["container_distribution_show"] % shlex.quote(transformed_dist_name))
     repo_href_result = execute_command(show_dist_cmd, logger)
     logger.info("repo_href_result: %s", repo_href_result)
 
@@ -557,6 +591,7 @@ def check_additional_image_in_pulp(image_entry, logger):
     else:
         logger.info("Distribution %s found in Pulp", transformed_dist_name)
         repo_href = repo_href_result["stdout"]
+        repo_href = _sanitize_shell_arg(repo_href, logger, "repo_href")
         show_repo_cmd = (pulp_container_commands["show_repository_version"] % repo_href)
         latest_version_href_result = execute_command(show_repo_cmd, logger)
         logger.info("latest_version_href_result: %s", latest_version_href_result)
@@ -570,6 +605,7 @@ def check_additional_image_in_pulp(image_entry, logger):
         else:
             logger.info("Repository version found in Pulp")
             latest_version_href = latest_version_href_result["stdout"]
+            latest_version_href = _sanitize_shell_arg(latest_version_href, logger, "latest_version_href")
             show_tags_cmd = (pulp_container_commands["list_image_tags"] % latest_version_href)
             tags_output_result = execute_command(show_tags_cmd, logger, type_json=True)
             logger.info("tags_output_result: %s", tags_output_result)

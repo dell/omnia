@@ -19,22 +19,57 @@ from requests.auth import HTTPBasicAuth
 from ansible.module_utils.local_repo.common_functions import is_file_exists
 
 def is_https(host, timeout=1):
+    """
+    Check whether the given host is serving HTTPS (TLS).
+ 
+    Attempts a TLS handshake without verifying the server certificate.
+ 
+    Args:
+        host (str): The host address in "ip:port" format.
+        timeout (int, optional): Connection timeout in seconds. Defaults to 1.
+ 
+    Returns:
+        bool: True if the host supports HTTPS/TLS, False otherwise.
+    """
     ip, port = host.rsplit(":", 1)
     port = int(port)
 
-    # Don't verify server cert; just see if TLS works
     context = ssl.create_default_context()
     context.check_hostname = False
     context.verify_mode = ssl.CERT_NONE
 
+    result = False
+    sock = None
+    wrapped_sock = None
+
     try:
-        with socket.create_connection((ip, port), timeout=timeout) as sock:
-            with context.wrap_socket(sock, server_hostname=ip):
-                return True
-    except ssl.SSLError:
-        return False
-    except Exception:
-        return False
+        sock = socket.create_connection((ip, port), timeout=timeout)
+        wrapped_sock = context.wrap_socket(sock, server_hostname=ip)
+        result = True
+
+    except (ssl.SSLError, OSError):
+        result = False
+
+    finally:
+        # Close wrapped socket first
+        if wrapped_sock is not None:
+            try:
+                wrapped_sock.shutdown(socket.SHUT_RDWR)
+            except Exception:
+                pass
+            try:
+                wrapped_sock.close()
+            except Exception:
+                pass
+
+        # Then explicitly close original socket
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+    return result
 
 def validate_user_registry(user_registry):
     """
