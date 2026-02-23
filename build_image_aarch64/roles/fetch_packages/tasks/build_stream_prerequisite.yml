@@ -13,17 +13,20 @@
 # limitations under the License.
 ---
 
-- name: Normalize enable_build_stream flag
-  ansible.builtin.set_fact:
-    enable_build_stream: "{{ enable_build_stream | default(false) | bool }}"
+- name: Debug - Show explicitly passed variables
+  ansible.builtin.debug:
+    msg:
+      - "job_id: {{ job_id | default('NOT_SET') }}"
+      - "image_key: {{ image_key | default('NOT_SET') }}"
+      - "functional_groups: {{ functional_groups | default('NOT_SET') }}"
+      - "enable_build_stream: {{ enable_build_stream | default('NOT_SET') }}"
+    verbosity: 2
 
-- name: Set build_stream_job_id from environment
+- name: Set build_stream variables from explicitly passed values
   ansible.builtin.set_fact:
-    build_stream_job_id: "{{ job_id | default(lookup('env', 'job_id') | default('')) }}"
-
-- name: Set image_key from environment
-  ansible.builtin.set_fact:
-    image_key: "{{ image_key | default(lookup('env', 'image_key') | default('')) }}"
+    build_stream_job_id: "{{ job_id }}"
+    image_key: "{{ image_key }}"
+    cacheable: true
 
 - name: Normalize functional_groups input into list
   ansible.builtin.set_fact:

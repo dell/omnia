@@ -16,9 +16,20 @@
 
 from typing import Optional
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
+from sqlalchemy.orm import Session
 
+from api.dependencies import (
+    get_db_session,
+    _create_sql_job_repo,
+    _create_sql_stage_repo,
+    _create_sql_audit_repo,
+    _get_container,
+    _ENV,
+    verify_token,
+)
 from core.jobs.value_objects import ClientId, CorrelationId
+from orchestrator.local_repo.use_cases import CreateLocalRepoUseCase
 
 
 def _get_container():
@@ -27,35 +38,21 @@ def _get_container():
     return container
 
 
-def get_create_local_repo_use_case():
-    """Provide create local repo use case."""
+def get_create_local_repo_use_case(
+    db_session: Session = Depends(get_db_session),
+) -> CreateLocalRepoUseCase:
+    """Provide create local repo use case with shared session in prod."""
+    if _ENV == "prod":
+        container = _get_container()
+        return CreateLocalRepoUseCase(
+            job_repo=_create_sql_job_repo(db_session),
+            stage_repo=_create_sql_stage_repo(db_session),
+            audit_repo=_create_sql_audit_repo(db_session),
+            input_file_service=container.input_file_service(),
+            playbook_queue_service=container.playbook_queue_request_service(),
+            uuid_generator=container.uuid_generator(),
+        )
     return _get_container().create_local_repo_use_case()
-
-
-def get_local_repo_client_id(
-    authorization: str = Header(..., description="Bearer token for authentication"),
-) -> ClientId:
-    """Extract ClientId from Bearer token header."""
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization header format",
-        )
-
-    token = authorization[7:].lstrip()
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
-        )
-
-    try:
-        return ClientId(token[:128] if len(token) > 128 else token)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid client credentials",
-        ) from exc
 
 
 def get_local_repo_correlation_id(

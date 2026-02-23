@@ -68,3 +68,7 @@ gitlab_server_key_bits: 2048
 gitlab_ca_subject: "/C=IN/ST=Karnataka/L=Bengaluru/O=Omnia/OU=IT/CN=Omnia Internal CA"
 gitlab_additional_dns_sans: []
 gitlab_additional_ip_sans: []
+
+# GitLab password change messages
+gitlab_password_change_fail_msg: "Failed to change GitLab root password. Please check GitLab logs and try again."
+gitlab_password_change_success_msg: "GitLab root password changed successfully!"

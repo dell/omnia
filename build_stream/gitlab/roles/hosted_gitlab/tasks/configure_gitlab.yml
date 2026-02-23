@@ -60,8 +60,11 @@
       ansible.builtin.fail:
         msg: "{{ gitlab_api_ready_failure_msg }}"
 
-- name: Get initial root password
-  ansible.builtin.command: grep 'Password:' /etc/gitlab/initial_root_password
-  register: root_password
-  changed_when: false
-  ignore_errors: true
+- name: Clean up initial root password file
+  ansible.builtin.file:
+    path: "/etc/gitlab/initial_root_password"
+    state: absent
+  when:
+    - gitlab_root_password is defined
+    - gitlab_root_password | length > 0
+  no_log: true

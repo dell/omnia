@@ -11,3 +11,41 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""Database infrastructure package.
+
+Provides ORM models, mappers, SQL repository implementations,
+and session management for PostgreSQL persistence.
+"""
+
+from .models import Base, JobModel, StageModel, IdempotencyKeyModel, AuditEventModel, ArtifactMetadata
+from .mappers import JobMapper, StageMapper, IdempotencyRecordMapper, AuditEventMapper
+from .repositories import (
+    SqlJobRepository,
+    SqlStageRepository,
+    SqlIdempotencyRepository,
+    SqlAuditEventRepository,
+    SqlArtifactMetadataRepository,
+)
+from .session import get_db_session, get_db, SessionLocal
+
+__all__ = [
+    "Base",
+    "JobModel",
+    "StageModel",
+    "IdempotencyKeyModel",
+    "AuditEventModel",
+    "ArtifactMetadata",
+    "JobMapper",
+    "StageMapper",
+    "IdempotencyRecordMapper",
+    "AuditEventMapper",
+    "SqlJobRepository",
+    "SqlStageRepository",
+    "SqlIdempotencyRepository",
+    "SqlAuditEventRepository",
+    "SqlArtifactMetadataRepository",
+    "get_db_session",
+    "get_db",
+    "SessionLocal",
+]

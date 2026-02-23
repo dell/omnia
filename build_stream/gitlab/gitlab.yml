@@ -14,6 +14,17 @@
 
 ---
 
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+    - name: Set dynamic run tags including 'gitlab'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['gitlab'] + ['provision']) | unique }}"
+        cacheable: true
+
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../../utils/include_input_dir.yml
@@ -43,17 +54,26 @@
         fail_msg: "Provision password not found. Run credential utility to populate provision_password."
       when: gitlab_deployment_mode == 'hosted'
 
+    - name: Ensure gitlab root password is available
+      ansible.builtin.assert:
+        that:
+          - hostvars['localhost']['gitlab_root_password'] is defined
+          - hostvars['localhost']['gitlab_root_password'] != ""
+          - hostvars['localhost']['gitlab_root_password'] | length > 0
+        fail_msg: "GitLab root password not found. Run credential utility to populate gitlab_root_password."
+      when: gitlab_deployment_mode == 'hosted'
+
     - name: Register GitLab SSH credentials
       ansible.builtin.add_host:
-        name: "{{ gitlab_host | default('gitlab_server') }}"
-        ansible_host: "{{ gitlab_host | default('gitlab_server') }}"
+        name: "gitlab_server"
+        ansible_host: "{{ gitlab_host }}"
         ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
       when: gitlab_deployment_mode == 'hosted'
       no_log: true
 
 - name: Deploy GitLab CE on target host (hosted mode)
-  hosts: "{{ gitlab_host | default('gitlab_server') }}"
+  hosts: gitlab_server
   become: true
   gather_facts: true
   tasks:

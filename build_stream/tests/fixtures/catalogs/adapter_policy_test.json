@@ -58,7 +58,7 @@
       ],
       "derived": [
         {
-          "target_key": "slurms_custom",
+          "target_key": "slurm_custom",
           "operation": {
             "type": "extract_common",
             "from_keys": ["login_node", "login_compiler_node", "slurm_control_node", "slurm_node"],

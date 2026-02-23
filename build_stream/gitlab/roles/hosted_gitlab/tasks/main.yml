@@ -36,6 +36,9 @@
 - name: Configure gitlab.rb
   ansible.builtin.include_tasks: configure_gitlab.yml
 
+- name: Change GitLab root password
+  ansible.builtin.include_tasks: root_password_change.yml
+
 - name: Create GitLab project via API
   ansible.builtin.include_tasks: create_project.yml
 

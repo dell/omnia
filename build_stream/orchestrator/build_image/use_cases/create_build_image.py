@@ -49,7 +49,11 @@ from core.localrepo.value_objects import (
     PlaybookPath,
 )
 from core.jobs.entities import AuditEvent, Stage
-from core.jobs.exceptions import JobNotFoundError
+from core.jobs.exceptions import (
+    JobNotFoundError,
+    StageAlreadyCompletedError,
+    InvalidStateTransitionError,
+)
 from core.jobs.repositories import (
     AuditEventRepository,
     JobRepository,
@@ -189,7 +193,29 @@ class CreateBuildImageUseCase:
         return job
 
     def _validate_stage(self, command: CreateBuildImageCommand, architecture: Architecture) -> Stage:
-        """Validate stage exists and is in PENDING state."""
+        """Validate stage exists and is in PENDING state, with prerequisite completed."""
+        from core.jobs.value_objects import StageState
+        
+        # Check prerequisite stage is completed
+        prerequisite_stage = self._stage_repo.find_by_job_and_name(
+            command.job_id, 
+            StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
+        )
+        if prerequisite_stage is None:
+            raise JobNotFoundError(
+                job_id=str(command.job_id),
+                correlation_id=str(command.correlation_id),
+            )
+        
+        if prerequisite_stage.stage_state != StageState.COMPLETED:
+            raise InvalidStateTransitionError(
+                entity_type="Stage",
+                entity_id=f"{command.job_id}/create-local-repository",
+                from_state=prerequisite_stage.stage_state.value,
+                to_state="COMPLETED",
+                correlation_id=str(command.correlation_id),
+            )
+        
         # Use architecture-specific stage type
         if architecture.is_x86_64:
             stage_type = StageType.BUILD_IMAGE_X86_64
@@ -202,6 +228,23 @@ class CreateBuildImageUseCase:
         if stage is None:
             raise JobNotFoundError(
                 job_id=str(command.job_id),
+                correlation_id=str(command.correlation_id),
+            )
+        
+        # Only allow PENDING stages to transition to IN_PROGRESS
+        if stage.stage_state == StageState.COMPLETED:
+            raise StageAlreadyCompletedError(
+                job_id=str(command.job_id),
+                stage_name=stage_type.value,
+                correlation_id=str(command.correlation_id),
+            )
+        
+        if stage.stage_state != StageState.PENDING:
+            raise InvalidStateTransitionError(
+                entity_type="Stage",
+                entity_id=f"{command.job_id}/{stage_type.value}",
+                from_state=stage.stage_state.value,
+                to_state="IN_PROGRESS",
                 correlation_id=str(command.correlation_id),
             )
 
@@ -386,7 +429,7 @@ class CreateBuildImageUseCase:
 
         return BuildImageRequest(
             job_id=str(command.job_id),
-            stage_name="build-image",
+            stage_name="build-image-x86_64" if architecture.is_x86_64 else "build-image-aarch64",
             playbook_path=playbook_path,
             extra_vars=extra_vars,
             inventory_file_path=str(inventory_file_path) if inventory_file_path else None,

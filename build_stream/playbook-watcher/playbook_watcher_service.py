@@ -44,11 +44,11 @@ from typing import Dict, Optional, Any, List
 # Implicit logging utilities for secure logging
 def log_secure_info(level: str, message: str, identifier: Optional[str] = None) -> None:
     """Log information securely with optional identifier truncation.
-    
+
     This function provides consistent secure logging across all modules.
     When an identifier is provided, only the first 8 characters are logged
     to prevent exposure of sensitive data while maintaining debugging capability.
-    
+
     Args:
         level: Log level ('info', 'warning', 'error', 'debug', 'critical')
         message: Log message template
@@ -147,10 +147,10 @@ def ensure_directories():
 
 def validate_playbook_name(playbook_name: str) -> bool:
     """Validate playbook name against the allowed whitelist.
-    
+
     Args:
         playbook_name: Name of the playbook file (without path)
-        
+
     Returns:
         True if name is in the whitelist, False otherwise
     """
@@ -162,11 +162,11 @@ def validate_playbook_name(playbook_name: str) -> bool:
             playbook_name[:8] if playbook_name else None
         )
         return False
-        
+
     # Check if it's in our mapping
     if playbook_name in PLAYBOOK_NAME_TO_PATH:
         return True
-    
+
     # Log the rejection
     log_secure_info(
         "error",
@@ -178,46 +178,46 @@ def validate_playbook_name(playbook_name: str) -> bool:
 
 def map_playbook_name_to_path(playbook_name: str) -> Optional[str]:
     """Validate playbook name and map it to the full path.
-    
+
     Args:
         playbook_name: Name of the playbook file (untrusted input)
-        
+
     Returns:
         The full path if valid, None if invalid
     """
     # Validate the playbook name
     if not validate_playbook_name(playbook_name):
         return None
-        
+
     # Map the name to full path
     full_path = PLAYBOOK_NAME_TO_PATH[playbook_name]
-    
+
     # Return a new string instance to break the taint chain
     return str(full_path)
 
 
 def validate_job_id(job_id: str) -> bool:
     """Validate job ID format.
-    
+
     Args:
         job_id: Job identifier
-        
+
     Returns:
         True if valid, False otherwise
     """
     # Allow UUID format or alphanumeric with hyphens/underscores
     uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     alnum_pattern = r'^[a-zA-Z0-9_-]+$'
-    
+
     return bool(re.match(uuid_pattern, job_id) or re.match(alnum_pattern, job_id))
 
 
 def validate_stage_name(stage_name: str) -> bool:
     """Validate stage name to prevent injection.
-    
+
     Args:
         stage_name: Name of the stage
-        
+
     Returns:
         True if valid, False otherwise
     """
@@ -226,23 +226,22 @@ def validate_stage_name(stage_name: str) -> bool:
     return bool(re.match(pattern, stage_name))
 
 
-def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None) -> bool:
+def validate_command(cmd: list, playbook_path: str) -> bool:
     """Validate command structure and arguments to prevent injection.
-    
+
     This function implements strict command allowlisting with rigorous validation
     of each command argument to prevent any possibility of command injection.
-    
+
     Args:
         cmd: Command list to validate
         playbook_path: Expected playbook path (already validated)
-        extra_vars_json: Not used, kept for backward compatibility
-        
+
     Returns:
         True if valid, raises ValueError with detailed message if invalid
     """
-    # Define the allowlisted command structure
+    # Define the minimum required command structure
     # This defines the exact structure and position of each argument
-    ALLOWED_CMD_STRUCTURE = [
+    MIN_REQUIRED_STRUCTURE = [
         {"value": "podman", "fixed": True},
         {"value": "exec", "fixed": True},
         {"value": "-e", "fixed": True},
@@ -250,20 +249,27 @@ def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None)
         {"value": "omnia_core", "fixed": True},
         {"value": "ansible-playbook", "fixed": True},
         {"value": None, "fixed": False},  # playbook_path (validated separately)
-        {"value": "-v", "fixed": True}
     ]
-    
-    # 1. Length check - command must have exactly the expected number of arguments
-    if len(cmd) != len(ALLOWED_CMD_STRUCTURE):
+
+    # Define allowed additional arguments
+    ALLOWED_EXTRA_ARGS = [
+        "-v",
+        "--extra-vars",
+        "--inventory"
+    ]
+
+    # 1. Check minimum command length
+    min_required_length = len(MIN_REQUIRED_STRUCTURE)
+    if len(cmd) < min_required_length:
         log_secure_info(
             "error",
-            "Command structure length mismatch",
-            f"Expected {len(ALLOWED_CMD_STRUCTURE)}, got {len(cmd)}"
+            "Command structure too short",
+            f"Expected at least {min_required_length}, got {len(cmd)}"
         )
         raise ValueError("Invalid command structure")
-    
+
     # 2. Structure validation - each argument must match the allowlisted structure
-    for i, (arg, allowed) in enumerate(zip(cmd, ALLOWED_CMD_STRUCTURE)):
+    for i, (arg, allowed) in enumerate(zip(cmd[:min_required_length], MIN_REQUIRED_STRUCTURE)):
         # Type check - must be string
         if not isinstance(arg, str):
             log_secure_info(
@@ -272,7 +278,7 @@ def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None)
                 f"Position: {i}"
             )
             raise ValueError("Invalid command argument type")
-        
+
         # Length check - prevent excessively long arguments
         if len(arg) > 4096:  # Reasonable maximum length
             log_secure_info(
@@ -281,7 +287,7 @@ def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None)
                 f"Position: {i}, Length: {len(arg)}"
             )
             raise ValueError("Command argument too long")
-            
+
         # Fixed arguments must match exactly
         if allowed.get("fixed", False) and arg != allowed.get("value", ""):
             log_secure_info(
@@ -290,7 +296,7 @@ def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None)
                 f"Expected '{allowed.get('value', '')}', got '{arg}'"
             )
             raise ValueError(f"Invalid command argument at position {i}")
-        
+
         # Arguments with prefix must start with the specified prefix
         if allowed.get("prefix") and not arg.startswith(allowed.get("value", "")):
             log_secure_info(
@@ -299,7 +305,7 @@ def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None)
                 f"Expected prefix '{allowed.get('value', '')}', got '{arg}'"
             )
             raise ValueError(f"Invalid command argument prefix at position {i}")
-            
+
         # Special validation for playbook path
         if not allowed.get("fixed", True) and i == 6:  # playbook_path position
             if arg != playbook_path:
@@ -308,18 +314,53 @@ def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None)
                     "Playbook path in command does not match validated path"
                 )
                 raise ValueError("Playbook path mismatch")
-    
-    # 3. Character validation - check for dangerous characters in all arguments
+
+    # 3. Validate additional arguments (after the minimum required structure)
+    if len(cmd) > min_required_length:
+        # Check for allowed additional arguments
+        i = min_required_length
+        while i < len(cmd):
+            arg = cmd[i]
+
+            # Check if this is a parameter that takes a value
+            if arg in ["--inventory", "--extra-vars"] and i + 1 < len(cmd):
+                # Skip the value (next argument)
+                i += 2
+            elif arg == "-v" or arg.startswith("-v"):
+                # Verbosity flag
+                i += 1
+            else:
+                # Unknown argument
+                log_secure_info(
+                    "error",
+                    "Unknown additional argument",
+                    f"Position: {i}, Value: {arg}"
+                )
+                raise ValueError(f"Unknown additional argument: {arg}")
+
+    # 4. Character validation - check for dangerous characters in all arguments
     DANGEROUS_CHARS = ['\n', '\r', '\0', '\t', '\v', '\f', '\a', '\b', '\\', '`', '$', '&', '|', ';', '<', '>', '(', ')', '*', '?', '~', '#']
-    
-    # Skip validation for playbook path position
+
+    # Skip validation for playbook path position and --extra-vars value
     SKIP_POSITIONS = [6]  # Position of playbook_path
-    
+
+    # Find positions of --extra-vars and --inventory values to skip validation
+    i = min_required_length
+    while i < len(cmd):
+        if cmd[i] == "--extra-vars" and i + 1 < len(cmd):
+            SKIP_POSITIONS.append(i + 1)  # Skip validating the JSON value
+            i += 2
+        elif cmd[i] == "--inventory" and i + 1 < len(cmd):
+            SKIP_POSITIONS.append(i + 1)  # Skip validating the inventory file path
+            i += 2
+        else:
+            i += 1
+
     for i, arg in enumerate(cmd):
-        # Skip validation for playbook path
+        # Skip validation for playbook path and --extra-vars value
         if i in SKIP_POSITIONS:
             continue
-            
+
         for char in DANGEROUS_CHARS:
             if char in arg:
                 log_secure_info(
@@ -328,7 +369,7 @@ def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None)
                     f"Position: {i}, Character: {repr(char)}"
                 )
                 raise ValueError("Invalid command argument content")
-    
+
     # 4. Shell binary check - prevent shell execution
     SHELL_BINARIES = ["sh", "bash", "dash", "zsh", "ksh", "csh", "tcsh", "fish"]
     for i, arg in enumerate(cmd):
@@ -339,7 +380,7 @@ def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None)
                 f"Position: {i}, Value: {arg}"
             )
             raise ValueError("Shell binary not allowed in command")
-    
+
     # 5. URL check - prevent remote resource fetching
     for i, arg in enumerate(cmd):
         if re.search(r'(https?|ftp|file)://', arg):
@@ -349,7 +390,7 @@ def validate_command(cmd: list, playbook_path: str, extra_vars_json: str = None)
                 f"Position: {i}, Value: {arg[:8]}"
             )
             raise ValueError("URLs not allowed in command arguments")
-    
+
     return True
 
 
@@ -377,7 +418,7 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                 request_path_str[:8]
             )
             return None
-            
+
         # Ensure file exists and is a regular file
         if not os.path.isfile(request_path):
             log_secure_info(
@@ -386,7 +427,7 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                 request_path_str[:8]
             )
             return None
-            
+
         with open(request_path, 'r', encoding='utf-8') as f:
             try:
                 request_data = json.load(f)
@@ -397,7 +438,7 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
                     request_path_str[:8]
                 )
                 return None
-                
+
         # Validate data type
         if not isinstance(request_data, dict):
             log_secure_info(
@@ -422,15 +463,15 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         job_id = str(request_data["job_id"])
         stage_name = str(request_data["stage_name"])
         playbook_name = str(request_data["playbook_path"])  # This is actually the playbook name
-        
+
         if not validate_job_id(job_id):
             log_secure_info("error", "Invalid job_id format in request", job_id[:8])
             return None
-            
+
         if not validate_stage_name(stage_name):
             log_secure_info("error", "Invalid stage_name format in request", stage_name[:8])
             return None
-            
+
         # Map the playbook name to its full path
         # This returns the full path or None if validation fails
         full_playbook_path = map_playbook_name_to_path(playbook_name)
@@ -440,7 +481,47 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
 
         # Set defaults
         request_data.setdefault("correlation_id", job_id)
-        
+
+        # Check for inventory_file_path
+        if "inventory_file_path" in request_data:
+            inventory_file_path = str(request_data["inventory_file_path"])
+            # Validate inventory file path
+            if not inventory_file_path.startswith("/") or ".." in inventory_file_path:
+                log_secure_info(
+                   "error",
+                    "Invalid inventory file path: possible directory traversal",
+                    job_id[:8]
+                )
+                return None
+
+            log_secure_info(
+                "info",
+                "Found inventory file path in request",
+                job_id[:8]
+            )
+
+        # Check for extra_vars field
+        if "extra_vars" in request_data:
+            if not isinstance(request_data["extra_vars"], dict):
+                log_secure_info("error", "extra_vars must be a dictionary", job_id[:8])
+                return None
+
+            log_secure_info(
+                "info",
+                "Found extra_vars in request",
+                job_id[:8]
+            )
+
+        # We're no longer using extra_args, so remove it if present
+        if "extra_args" in request_data:
+            log_secure_info(
+                "info",
+                "Found extra_args in request but ignoring it",
+                job_id[:8]
+            )
+            # Remove extra_args from request_data
+            del request_data["extra_args"]
+
         # Store both the original playbook name and the mapped full path
         # The full path will be used for command execution
         request_data["playbook_name"] = playbook_name
@@ -475,10 +556,10 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
 
 def extract_playbook_name(full_playbook_path: str) -> str:
     """Extract the playbook name from the full path.
-    
+
     Args:
         full_playbook_path: Full path to the playbook file
-        
+
     Returns:
         The playbook name (filename without path)
     """
@@ -498,7 +579,7 @@ def _build_log_paths(playbook_path: str, started_at: datetime) -> tuple:
     """
     # Extract playbook name from the full path
     playbook_name = extract_playbook_name(playbook_path)
-    
+
     # Create base log directory on NFS share (no job-specific subdirectory)
     host_log_dir = HOST_LOG_BASE_DIR
     host_log_dir.mkdir(parents=True, exist_ok=True)
@@ -517,24 +598,24 @@ def _build_log_paths(playbook_path: str, started_at: datetime) -> tuple:
 
 def move_log_to_job_directory(host_log_file_path: Path, job_id: str) -> Path:
     """Move log file to a job-specific directory after completion.
-    
+
     Args:
         host_log_file_path: Current path of the log file
         job_id: Job identifier for creating the job directory
-        
+
     Returns:
         New path of the log file in the job directory
     """
     # Create job-specific directory
     job_dir = HOST_LOG_BASE_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Get the log filename
     log_filename = host_log_file_path.name
-    
+
     # New path in job directory
     new_log_path = job_dir / log_filename
-    
+
     # Move the log file
     try:
         shutil.move(str(host_log_file_path), str(new_log_path))
@@ -550,7 +631,7 @@ def move_log_to_job_directory(host_log_file_path: Path, job_id: str) -> Path:
         )
         # Return original path if move fails
         return host_log_file_path
-    
+
     return new_log_path
 
 
@@ -597,7 +678,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
     # Build command as a list to prevent shell injection
     # Ensure environment variable value is properly sanitized
     log_path_str = str(container_log_file_path)
-    
+
     # Strict validation for log path
     if not log_path_str.startswith('/') or '..' in log_path_str:
         log_secure_info(
@@ -606,7 +687,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             log_path_str[:8]
         )
         raise ValueError("Invalid container log path")
-        
+
     # Validate log path format using regex (alphanumeric, underscore, hyphen, forward slash, and dots)
     if not re.match(r'^[a-zA-Z0-9_\-/.]+$', log_path_str):
         log_secure_info(
@@ -615,13 +696,16 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             log_path_str[:8]
         )
         raise ValueError("Invalid container log path format")
-    
+
     # Build command as a list to prevent shell injection
     # We no longer use extra_vars to prevent potential command injection
     # This simplifies the code and removes a potential security vulnerability
-    
+
     # Command structure will be validated by the validate_command function
-    
+
+    # Check if this is a build_image playbook
+    # is_build_image = "build_image" in playbook_name
+
     # Build command as a list with all validated components
     # Each element is a separate argument - no shell interpretation possible
     cmd = [
@@ -629,10 +713,39 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         "-e", f"ANSIBLE_LOG_PATH={log_path_str}",
         "omnia_core",
         "ansible-playbook",
-        playbook_path,  # Validated against strict whitelist
-        "-v"
+        playbook_path  # Validated against strict whitelist
     ]
-    
+
+    # Add inventory file path if present for build_image playbooks
+    if "inventory_file_path" in request_data:
+        inventory_file_path = str(request_data["inventory_file_path"])
+        cmd.extend(["--inventory", inventory_file_path])
+        log_secure_info(
+            "info",
+            "Using inventory file for build_image playbook",
+            inventory_file_path[:8]
+        )
+
+    # Add extra_vars if present for build_image playbooks
+    if "extra_vars" in request_data:
+        import json
+        extra_vars = request_data["extra_vars"]
+
+        # Convert extra_vars to a JSON string
+        extra_vars_json = json.dumps(extra_vars)
+
+        # Add as a single --extra-vars parameter
+        cmd.extend(["--extra-vars", extra_vars_json])
+
+        log_secure_info(
+            "info",
+            "Added extra_vars as JSON for build_image playbook",
+            job_id
+        )
+
+    # Add verbosity flag
+    cmd.append("-v")
+
     # Use the dedicated command validation function to perform comprehensive validation
     # This includes structure validation, argument validation, and security checks
     try:
@@ -663,14 +776,14 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # Only set ANSIBLE_LOG_PATH in the environment
         # This is already passed as -e parameter to podman exec
         # No need for a full sanitized environment
-        
+
         # Log the command being executed (without sensitive details)
         log_secure_info(
             "debug",
             "Executing command",
             f"podman exec omnia_core ansible-playbook [playbook]"
         )
-        
+
         # Execute with explicit shell=False and validated arguments
         result = subprocess.run(
             cmd,
@@ -998,6 +1111,10 @@ def run_watcher_loop():
     log_secure_info(
         "info",
         f"Poll interval: {POLL_INTERVAL_SECONDS}s"
+    )
+    log_secure_info(
+        "info",
+        f"Max concurrent jobs: {MAX_CONCURRENT_JOBS}"
     )
     log_secure_info(
         "info",

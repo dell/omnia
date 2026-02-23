@@ -24,7 +24,6 @@ from typing import Optional
 
 from core.catalog.generator import generate_root_json_from_catalog
 from common.config import load_config
-from container import container
 from core.jobs.value_objects import CorrelationId, JobId
 from infra.id_generator import UUIDv4Generator
 from orchestrator.catalog.commands.parse_catalog import ParseCatalogCommand
@@ -55,13 +54,15 @@ class ParseResult:
 class ParseCatalogService:  # pylint: disable=too-few-public-methods
     """Service for parsing catalog files."""
 
-    def __init__(self, output_root: Optional[str] = None):
+    def __init__(self, parse_catalog_use_case=None, output_root: Optional[str] = None):
         """Initialize the ParseCatalog service.
 
         Args:
+            parse_catalog_use_case: The use case for parsing catalogs (injected).
             output_root: Root directory for generated output files.
                         If None, uses working_dir from config.
         """
+        self.parse_catalog_use_case = parse_catalog_use_case
         if output_root is None:
             try:
                 config = load_config()
@@ -120,8 +121,14 @@ class ParseCatalogService:  # pylint: disable=too-few-public-methods
             content=json_bytes,
         )
 
-        # Execute via orchestrator use case
-        use_case = container.parse_catalog_use_case()
+        # Execute via orchestrator use case (injected, not from container)
+        if self.parse_catalog_use_case is None:
+            # Fallback to container if not injected (for backward compatibility)
+            from container import container  # pylint: disable=import-outside-toplevel
+            use_case = container.parse_catalog_use_case()
+        else:
+            use_case = self.parse_catalog_use_case
+            
         result = use_case.execute(command)
 
         # Convert orchestrator result to API result

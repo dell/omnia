@@ -95,8 +95,3 @@
   ansible.builtin.command: update-ca-trust
   changed_when: false
   when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Reconfigure GitLab to pick up new certificates
-  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
-  when: gitlab_host is defined
-  changed_when: false

@@ -35,6 +35,14 @@ from infra.repositories import (
     NfsPlaybookQueueRequestRepository,
     NfsPlaybookQueueResultRepository,
 )
+from infra.db.repositories import (
+    SqlJobRepository,
+    SqlStageRepository,
+    SqlIdempotencyRepository,
+    SqlAuditEventRepository,
+    SqlArtifactMetadataRepository,
+)
+from infra.db.session import SessionLocal
 from orchestrator.catalog.use_cases.generate_input_files import GenerateInputFilesUseCase
 from orchestrator.catalog.use_cases.parse_catalog import ParseCatalogUseCase
 from orchestrator.jobs.use_cases import CreateJobUseCase
@@ -100,17 +108,20 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     Uses in-memory mock repositories for fast development and testing.
     No external dependencies (database, S3, etc.) required.
 
-    Activated when ENV=dev (default).
+    Activated when ENV=dev.
     """
 
     wiring_config = containers.WiringConfiguration(
         modules=[
+            "api.dependencies",
             "api.jobs.routes",
             "api.jobs.dependencies",
             "api.local_repo.routes",
             "api.local_repo.dependencies",
             "api.build_image.routes",
             "api.build_image.dependencies",
+            "api.parse_catalog.routes",
+            "api.parse_catalog.dependencies",
         ]
     )
 
@@ -244,20 +255,22 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
 class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     """Production profile container.
 
-    Currently uses mock repositories (same as dev).
-    TODO: Replace with PostgreSQL repositories when SQL implementation is ready.
+    Uses PostgreSQL-backed SQL repositories for persistent storage.
 
-    Activated when ENV=prod.
+    Activated when ENV=prod (default).
     """
 
     wiring_config = containers.WiringConfiguration(
         modules=[
+            "api.dependencies",
             "api.jobs.routes",
             "api.jobs.dependencies",
             "api.local_repo.routes",
             "api.local_repo.dependencies",
             "api.build_image.routes",
             "api.build_image.dependencies",
+            "api.parse_catalog.routes",
+            "api.parse_catalog.dependencies",
         ]
     )
 
@@ -275,11 +288,17 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         value=_DEFAULT_SCHEMA_PATH,
     )
 
-    # --- Jobs repositories ---
-    job_repository = providers.Singleton(InMemoryJobRepository)
-    stage_repository = providers.Singleton(InMemoryStageRepository)
-    idempotency_repository = providers.Singleton(InMemoryIdempotencyRepository)
-    audit_repository = providers.Singleton(InMemoryAuditEventRepository)
+    # --- Database session factory ---
+    # Note: In prod, each repository gets its own session from this factory.
+    # For shared sessions within a request, use FastAPI dependencies to inject
+    # a single session and build repositories manually (see api/jobs/dependencies.py).
+    db_session = providers.Factory(SessionLocal)
+
+    # --- Jobs repositories (PostgreSQL-backed) ---
+    job_repository = providers.Factory(SqlJobRepository, session=db_session)
+    stage_repository = providers.Factory(SqlStageRepository, session=db_session)
+    idempotency_repository = providers.Factory(SqlIdempotencyRepository, session=db_session)
+    audit_repository = providers.Factory(SqlAuditEventRepository, session=db_session)
 
     # --- Consolidated input repository ---
     input_repository = providers.Singleton(
@@ -330,8 +349,9 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     # --- Use cases ---
     artifact_store = providers.Singleton(_create_artifact_store)
 
-    artifact_metadata_repository = providers.Singleton(
-        InMemoryArtifactMetadataRepository,
+    artifact_metadata_repository = providers.Factory(
+        SqlArtifactMetadataRepository,
+        session=db_session,
     )
 
     create_job_use_case = providers.Factory(
@@ -392,29 +412,29 @@ def get_container_class():
     """Select container class based on ENV environment variable.
 
     Returns:
-        DevContainer if ENV=dev (default)
-        ProdContainer if ENV=prod
+        ProdContainer if ENV=prod (default)
+        DevContainer if ENV=dev
 
     Usage:
         # Set environment variable before running
-        ENV=prod python main.py
+        ENV=dev python main.py
 
         # Or set in code before importing
-        os.environ['ENV'] = 'prod'
+        os.environ['ENV'] = 'dev'
 
         # Or set in shell
-        export ENV=prod
+        export ENV=dev
         python main.py
 
         # Windows PowerShell
-        $env:ENV = "prod"
+        $env:ENV = "dev"
         python main.py
 
         # Windows Command Prompt
-        set ENV=prod
+        set ENV=dev
         python main.py
     """
-    env = os.getenv("ENV", "dev").lower()
+    env = os.getenv("ENV", "prod").lower()
 
     if env == "prod":
         return ProdContainer

@@ -257,6 +257,22 @@
         - bs_info.containers[0].State is defined
         - bs_info.containers[0].State.Running | bool
 
+    - name: Run Alembic database migrations inside build_stream container
+      containers.podman.podman_container_exec:
+        name: "{{ build_stream_container_name }}"
+        command: >
+          python -m alembic -c {{ bs_rsync_destination }}infra/db/alembic.ini upgrade head
+        env:
+          DATABASE_URL: "postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ admin_ip }}:5432/{{ postgres_db_name }}"
+          PYTHONPATH: "{{ bs_rsync_destination }}"
+      register: alembic_result
+      changed_when: "'Running upgrade' in alembic_result.stdout"
+
+    - name: Display migration result
+      ansible.builtin.debug:
+        msg: "Database migrations completed: {{ alembic_result.stdout }}"
+        verbosity: 2
+
     - name: Configure firewall for omnia_build_stream
       block:
         - name: Start firewalld service

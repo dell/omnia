@@ -195,7 +195,7 @@ def build_slurm_custom_config(functional: FeatureList) -> Dict:
       - "Slurm Worker"
 
     Common packages are those that appear in any 2 or more of these nodes. They
-    are removed from the individual node clusters and placed into slurms_custom.
+    are removed from the individual node clusters and placed into slurm_custom.
     """
     login = functional.features.get("Login Node")
     compiler = functional.features.get("Compiler")
@@ -237,13 +237,13 @@ def build_slurm_custom_config(functional: FeatureList) -> Dict:
         ]
         output[node_name] = {"cluster": filtered_pkgs}
 
-    # Build slurms_custom cluster from common packages (dedup, keep deterministic order)
+    # Build slurm_custom cluster from common packages (dedup, keep deterministic order)
     common_pkg_dicts: List[Dict[str, str]] = []
     for k, pkg in key_to_pkg.items():
         if k in common_keys:
             common_pkg_dicts.append(_package_to_dict(pkg))
 
-    output["slurms_custom"] = {"cluster": common_pkg_dicts}
+    output["slurm_custom"] = {"cluster": common_pkg_dicts}
 
     logger.info(
         "Built slurm_custom config with %d node cluster(s) and %d common package(s)",

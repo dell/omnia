@@ -151,3 +151,81 @@ class TestGetJobClientIsolation:
         get_response = client.get(f"/api/v1/jobs/{job_id}", headers=get_headers)
 
         assert get_response.status_code in [403, 404]
+
+
+class TestGetJobStateMapping:
+    """Tests for state mapping and timestamps in job retrieval."""
+
+    def test_get_job_returns_mapped_state_names(self, client, auth_headers):
+        """Get job should return API state names (PENDING, RUNNING, SUCCEEDED, FAILED, CLEANED)."""
+        create_payload = {"client_id": "client-123", "client_name": "test-client"}
+        create_response = client.post("/api/v1/jobs", json=create_payload, headers=auth_headers)
+        assert create_response.status_code == 201
+        job_id = create_response.json()["job_id"]
+
+        get_headers = {
+            "Authorization": auth_headers["Authorization"],
+            "X-Correlation-Id": auth_headers["X-Correlation-Id"],
+        }
+        get_response = client.get(f"/api/v1/jobs/{job_id}", headers=get_headers)
+
+        assert get_response.status_code == 200
+        data = get_response.json()
+        
+        # Verify state is one of the expected API states
+        valid_states = ["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "CLEANED"]
+        assert data["job_state"] in valid_states
+
+    def test_get_job_returns_state_timestamps(self, client, auth_headers):
+        """Get job should return timestamps for state changes."""
+        create_payload = {"client_id": "client-123", "client_name": "test-client"}
+        create_response = client.post("/api/v1/jobs", json=create_payload, headers=auth_headers)
+        assert create_response.status_code == 201
+        job_id = create_response.json()["job_id"]
+
+        get_headers = {
+            "Authorization": auth_headers["Authorization"],
+            "X-Correlation-Id": auth_headers["X-Correlation-Id"],
+        }
+        get_response = client.get(f"/api/v1/jobs/{job_id}", headers=get_headers)
+
+        assert get_response.status_code == 200
+        data = get_response.json()
+        
+        # Should include state_timestamps field
+        assert "state_timestamps" in data
+        
+        if data["state_timestamps"]:
+            # Should include CREATED timestamp at minimum
+            assert "CREATED" in data["state_timestamps"]
+            # Verify timestamp format (ISO 8601 with Z suffix)
+            assert data["state_timestamps"]["CREATED"].endswith("Z")
+
+    def test_get_job_returns_step_breakdown(self, client, auth_headers):
+        """Get job should return detailed step breakdown."""
+        create_payload = {"client_id": "client-123", "client_name": "test-client"}
+        create_response = client.post("/api/v1/jobs", json=create_payload, headers=auth_headers)
+        assert create_response.status_code == 201
+        job_id = create_response.json()["job_id"]
+
+        get_headers = {
+            "Authorization": auth_headers["Authorization"],
+            "X-Correlation-Id": auth_headers["X-Correlation-Id"],
+        }
+        get_response = client.get(f"/api/v1/jobs/{job_id}", headers=get_headers)
+
+        assert get_response.status_code == 200
+        data = get_response.json()
+        
+        # Verify stages structure
+        assert "stages" in data
+        assert isinstance(data["stages"], list)
+        
+        # Check stage structure
+        for stage in data["stages"]:
+            assert "stage_name" in stage
+            assert "stage_state" in stage
+            assert "started_at" in stage
+            assert "ended_at" in stage
+            assert "error_code" in stage
+            assert "error_summary" in stage

@@ -16,9 +16,19 @@
 
 from typing import Optional
 
-from fastapi import Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
+from sqlalchemy.orm import Session
 
+from api.dependencies import (
+    get_db_session,
+    _create_sql_job_repo,
+    _create_sql_stage_repo,
+    _create_sql_audit_repo,
+    _get_container,
+    _ENV,
+)
 from core.jobs.value_objects import ClientId, CorrelationId
+from orchestrator.build_image.use_cases import CreateBuildImageUseCase
 
 
 def _get_container():
@@ -27,35 +37,22 @@ def _get_container():
     return container
 
 
-def get_create_build_image_use_case():
-    """Provide create build image use case."""
+def get_create_build_image_use_case(
+    db_session: Session = Depends(get_db_session),
+) -> CreateBuildImageUseCase:
+    """Provide create build image use case with shared session in prod."""
+    if _ENV == "prod":
+        container = _get_container()
+        return CreateBuildImageUseCase(
+            job_repo=_create_sql_job_repo(db_session),
+            stage_repo=_create_sql_stage_repo(db_session),
+            audit_repo=_create_sql_audit_repo(db_session),
+            config_service=container.build_image_config_service(),
+            queue_service=container.playbook_queue_request_service(),
+            inventory_repo=container.input_repository(),
+            uuid_generator=container.uuid_generator(),
+        )
     return _get_container().create_build_image_use_case()
-
-
-def get_build_image_client_id(
-    authorization: str = Header(..., description="Bearer token for authentication"),
-) -> ClientId:
-    """Extract ClientId from Bearer token header."""
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization header format",
-        )
-
-    token = authorization[7:].lstrip()
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
-        )
-
-    try:
-        return ClientId(token[:128] if len(token) > 128 else token)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid client credentials",
-        ) from exc
 
 
 def get_build_image_correlation_id(
