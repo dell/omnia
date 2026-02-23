@@ -300,20 +300,52 @@ class CatalogRolesService:
 
         # Extract architectures from functional packages
         architectures = set()
-        for pkg in catalog_obj.get("FunctionalPackages", []):
-            arch_list = pkg.get("Architecture", [])
-            if isinstance(arch_list, list):
-                architectures.update(arch_list)
-            elif isinstance(arch_list, str):
-                architectures.add(arch_list)
+        functional_packages = catalog_obj.get("FunctionalPackages", {})
+        
+        # Handle both dictionary and array formats
+        if isinstance(functional_packages, dict):
+            # Dictionary format: {"package_id": {"Architecture": [...]}}
+            for pkg_id, pkg_data in functional_packages.items():
+                if isinstance(pkg_data, dict):
+                    arch_list = pkg_data.get("Architecture", [])
+                    if isinstance(arch_list, list):
+                        architectures.update(arch_list)
+                    elif isinstance(arch_list, str):
+                        architectures.add(arch_list)
+        elif isinstance(functional_packages, list):
+            # Array format: [{"Architecture": [...]}, ...]
+            for pkg in functional_packages:
+                if not isinstance(pkg, dict):
+                    continue
+                arch_list = pkg.get("Architecture", [])
+                if isinstance(arch_list, list):
+                    architectures.update(arch_list)
+                elif isinstance(arch_list, str):
+                    architectures.add(arch_list)
 
         # Also check OS packages for architectures
-        for pkg in catalog_obj.get("OSPackages", []):
-            arch_list = pkg.get("Architecture", [])
-            if isinstance(arch_list, list):
-                architectures.update(arch_list)
-            elif isinstance(arch_list, str):
-                architectures.add(arch_list)
+        os_packages = catalog_obj.get("OSPackages", {})
+        
+        # Handle both dictionary and array formats
+        if isinstance(os_packages, dict):
+            # Dictionary format: {"os_package_id": {"Architecture": [...]}}
+            for pkg_id, pkg_data in os_packages.items():
+                if isinstance(pkg_data, dict):
+                    arch_list = pkg_data.get("Architecture", [])
+                    if isinstance(arch_list, list):
+                        architectures.update(arch_list)
+                    elif isinstance(arch_list, str):
+                        architectures.add(arch_list)
+        elif isinstance(os_packages, list):
+            # Array format: [{"Architecture": [...]}, ...]
+            for pkg in os_packages:
+                if not isinstance(pkg, dict):
+                    continue
+                arch_list = pkg.get("Architecture", [])
+                if isinstance(arch_list, list):
+                    architectures.update(arch_list)
+                elif isinstance(arch_list, str):
+                    architectures.add(arch_list)
 
         return {
             "image_key": image_key,
