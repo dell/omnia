@@ -1095,6 +1095,16 @@
         "code",
         "test"
       ]
+    },
+    {
+      "login": "Venu-p1",
+      "name": "Venu-p1",
+      "avatar_url": "https://avatars.githubusercontent.com/u/236371043?v=4",
+      "profile": "https://github.com/Venu-p1",
+      "contributions": [
+        "code",
+        "test"
+      ]
     }
   ],
   "contributorsPerLine": 7,
