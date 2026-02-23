@@ -52,7 +52,7 @@ def get_stage_repo() -> InMemoryStageRepository:
 
 def get_audit_repo():
     """Provide audit event repository."""
-    return _get_container().audit_event_repository()
+    return _get_container().audit_repository()
 
 
 def get_client_id(
