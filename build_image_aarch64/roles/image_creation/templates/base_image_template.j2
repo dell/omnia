@@ -1,6 +1,10 @@
 openchami_work_dir: "{{ openchami_work_dir }}"
 rhel_tag: "{{ rhel_tag }}"
+{% if enable_build_stream %}
+rhel_base_image_name: "{{ rhel_aarch64_base_image_name }}-{{ build_stream_image_key }}-{{ build_stream_job_id }}"
+{% else %}
 rhel_base_image_name: "{{ rhel_aarch64_base_image_name }}"
+{% endif %}
 rhel_base_image: "{{ oim_node_name }}/{{ rhel_aarch64_base_image_name }}"
 cluster_name: "{{ oim_node_name }}"
 cluster_domain: "{{ domain_name }}"
