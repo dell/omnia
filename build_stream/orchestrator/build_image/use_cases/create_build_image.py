@@ -49,7 +49,11 @@ from core.localrepo.value_objects import (
     PlaybookPath,
 )
 from core.jobs.entities import AuditEvent, Stage
-from core.jobs.exceptions import JobNotFoundError
+from core.jobs.exceptions import (
+    JobNotFoundError,
+    StageAlreadyCompletedError,
+    InvalidStateTransitionError,
+)
 from core.jobs.repositories import (
     AuditEventRepository,
     JobRepository,
@@ -204,7 +208,6 @@ class CreateBuildImageUseCase:
             )
         
         if prerequisite_stage.stage_state != StageState.COMPLETED:
-            from core.jobs.exceptions import InvalidStateTransitionError
             raise InvalidStateTransitionError(
                 entity_type="Stage",
                 entity_id=f"{command.job_id}/create-local-repository",
@@ -228,17 +231,15 @@ class CreateBuildImageUseCase:
                 correlation_id=str(command.correlation_id),
             )
         
-        # Only allow PENDING or FAILED stages to transition to IN_PROGRESS
+        # Only allow PENDING stages to transition to IN_PROGRESS
         if stage.stage_state == StageState.COMPLETED:
-            from core.jobs.exceptions import StageAlreadyCompletedError
             raise StageAlreadyCompletedError(
                 job_id=str(command.job_id),
                 stage_name=stage_type.value,
                 correlation_id=str(command.correlation_id),
             )
         
-        if stage.stage_state not in (StageState.PENDING, StageState.FAILED):
-            from core.jobs.exceptions import InvalidStateTransitionError
+        if stage.stage_state != StageState.PENDING:
             raise InvalidStateTransitionError(
                 entity_type="Stage",
                 entity_id=f"{command.job_id}/{stage_type.value}",

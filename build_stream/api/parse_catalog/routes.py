@@ -158,11 +158,17 @@ async def parse_catalog(
 
     except TerminalStateViolationError as e:
         logger.warning("Job in terminal state: %s", job_id)
+        # Provide helpful message for terminal state violations
+        if e.state == "FAILED":
+            message = f"Job {job_id} is in {e.state} state and cannot be retried. Reset the job using /jobs/{job_id}/reset endpoint."
+        else:
+            message = f"Job {job_id} is in {e.state} state and cannot be modified."
+        
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail={
                 "error_code": "PRECONDITION_FAILED",
-                "message": f"Job is in terminal state: {job_id}",
+                "message": message,
                 "correlation_id": "test-correlation-id"
             },
         ) from e
@@ -184,7 +190,7 @@ async def parse_catalog(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "error_code": "INVALID_STATE_TRANSITION",
-                "message": str(e),
+                "message": f"Job {job_id}: {str(e)}",
                 "correlation_id": "test-correlation-id"
             },
         ) from e

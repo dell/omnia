@@ -30,6 +30,7 @@ from api.logging_utils import log_secure_info
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,
+    TerminalStateViolationError,
 )
 from core.jobs.value_objects import ClientId, CorrelationId, JobId
 from core.localrepo.exceptions import (
@@ -144,7 +145,28 @@ def create_local_repository(
             status_code=status.HTTP_409_CONFLICT,
             detail=_build_error_response(
                 "INVALID_STATE_TRANSITION",
-                exc.message,
+                f"Job {job_id}: {exc.message}",
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
+    except TerminalStateViolationError as exc:
+        log_secure_info(
+            "warning",
+            f"Terminal state violation for job {job_id}",
+            str(correlation_id.value),
+        )
+        # Provide helpful message for terminal state violations
+        if exc.state == "FAILED":
+            message = f"Job {job_id} stage is in {exc.state} state and cannot be retried. Reset the stage using /stages/create-local-repository/reset endpoint."
+        else:
+            message = f"Job {job_id} stage is in {exc.state} state and cannot be modified."
+        
+        raise HTTPException(
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
+            detail=_build_error_response(
+                "TERMINAL_STATE_VIOLATION",
+                message,
                 correlation_id.value,
             ).model_dump(),
         ) from exc
