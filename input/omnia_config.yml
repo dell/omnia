@@ -27,6 +27,15 @@
 # Storage name corresponding to the NFS share to be used by slurm cluster 
 # This should match with exactly with a entry in storage_config.yml
 
+# skip_merge
+# Variable indicates whether a specific configuration file path
+# under config_sources should be used as-is without merging
+# If skip_merge is set to true for a configuration source path,
+# that configuration file will be applied directly
+# without merging with defaults or existing configurations
+# It accepts true and false values
+# Default value is false
+
 # config_sources
 # defines how the Slurm configuration files are provided to the cluster.
 # <conf name>: 
@@ -50,6 +59,7 @@
 slurm_cluster:
   - cluster_name: slurm_cluster
     nfs_storage_name: nfs_slurm
+    # skip_merge: true
     # config_sources:
     #   slurm:
     #     SlurmctldTimeout: 60

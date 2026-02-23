@@ -146,7 +146,16 @@
             location = "gcr.io"
             [[registry.mirror]]
             location = "{{ pulp_mirror }}"
+{% if user_registry | default([]) | length > 0 %}
+{% for registry in user_registry %}
 
+            [[registry]]
+            prefix = "{{ registry.host }}"
+            location = "{{ registry.host }}"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+{% endfor %}
+{% endif %}
       runcmd:
         - /usr/local/bin/set-ssh.sh
         - "systemctl enable chronyd"
@@ -226,12 +235,11 @@
         - update-ca-trust extract
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
         - bash /usr/local/bin/doca-install.sh && bash /usr/local/bin/configure-ib-network.sh
+        - mkdir -p /etc/containers/registries.conf.d
+        - mv /tmp/crio.conf /etc/containers/registries.conf.d/crio.conf
         - systemctl start crio.service
         - systemctl enable crio.service
         - sudo systemctl enable --now kubelet
-        - mv /tmp/crio.conf /etc/containers/registries.conf.d/crio.conf
-        - systemctl daemon-reload
-        - systemctl restart crio
         - kubeadm config images pull --kubernetes-version={{ service_k8s_version }}
 {% set role_name = 'service_kube_node' %}
 {% include 'pull_additional_images.yaml.j2' %}

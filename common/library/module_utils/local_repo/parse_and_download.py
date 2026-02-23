@@ -64,16 +64,36 @@ def execute_command(cmd_string, logger, type_json=False):
             stderr=subprocess.PIPE,
             shell=True,
         )
-        logger.info(f"Command succeeded: {cmd_string}")
-        return True
+        status["returncode"] = cmd.returncode
+        status["stdout"] = cmd.stdout.strip() if cmd.stdout else None
+        status["stderr"] = cmd.stderr.strip() if cmd.stderr else None
+
+        if cmd.returncode != 0:
+            logger.error(f"Command failed with return code {cmd.returncode}")
+            logger.error(f"Error: {status['stderr']}")
+            return False
+
+        if type_json:
+            if not status["stdout"]:
+                logger.error("Command succeeded but returned empty output when JSON was expected")
+                return False
+            try:
+                status["stdout"] = json.loads(status["stdout"])
+            except json.JSONDecodeError as error:
+                logger.error(f"Failed to parse JSON output: {error}")
+                logger.error(f"Raw output was: {status['stdout']}")
+                return False
+
+        logger.info(f"Command succeeded: {safe_cmd_string}")
+        return status
     except subprocess.CalledProcessError as e:
-        logger.error(f"Command failed: {cmd_string} - {e}")
+        logger.error(f"Command failed: {safe_cmd_string} - {e}")
         return False
     except subprocess.TimeoutExpired as e:
-        logger.error(f"Command timed out: {cmd_string} - {e}")
+        logger.error(f"Command timed out: {safe_cmd_string} - {e}")
         return False
     except OSError as e:
-        logger.error(f"OS error during command: {cmd_string} - {e}")
+        logger.error(f"OS error during command: {safe_cmd_string} - {e}")
         return False
 
     finally:

@@ -30,7 +30,7 @@
 - name: Update normal partition Nodes to match cmpt_list
   ansible.builtin.set_fact:
     updated_partitions: "{{ updated_partitions | default([])
-     + [item | combine({'Nodes': cmpt_list | join(',')}) if item.PartitionName == slurm_partition_name else item] }}"
+     + [item | combine({'Nodes': (cmpt_list | join(',')) if cmpt_list | length > 0 else 'ALL'}) if item.PartitionName == slurm_partition_name else item] }}"
   loop: "{{ slurm_conf_dict.PartitionName | default([]) }}"
   when:
     - "'slurm' in conf_merge_dict"

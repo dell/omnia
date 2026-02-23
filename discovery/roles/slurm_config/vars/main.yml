@@ -68,6 +68,7 @@ gpu_slurm_conf:
   SlurmdParameters: l3cache_as_socket
 innodb_buffer_pool_size: 4G
 innodb_lock_wait_timeout: 900
+conf_server: "--conf-server {{ ctld_list | join(',') }}"
 # TODO tmp
 nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
 bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
@@ -79,7 +80,7 @@ cluster_name: cluster # TODO: direct load vars omnia_config.yml
 slurm_uid: 6001
 slurm_user: slurm
 slurm_user_group: slurm
-restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] }}"
+restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] | default(true) }}"
 slurm_db_username: "{{ hostvars['localhost']['slurm_db_username'] | default('dbuser') }}"
 slurm_db_password: "{{ hostvars['localhost']['slurm_db_password'] }}"
 slurm_db_host: "{{ hostvars['localhost']['slurm_db_host'] | default(false) }}"
@@ -117,12 +118,15 @@ munge_dir_mode: "0700"
 common_mode: "0755"
 slurm_dbd_mode: "0600"
 slurm_db_cnf_mode: "0600"
+node_drain_timeout: 900
+node_drain_delay: 30
+force_scancel_node: false
 dbd_slurm_conf:
   AccountingStoragePort: "{{ slurm_dbd_port }}"
   AccountingStorageType: accounting_storage/slurmdbd
 partition_params:
   PartitionName: "{{ slurm_partition_name }}"
-  Nodes: "{{ cmpt_list | join(',') }}"
+  Nodes: "{{ cmpt_list | join(',') if cmpt_list else 'ALL' }}"
   MaxTime: "INFINITE"
   State: "UP"
   Default: "YES"

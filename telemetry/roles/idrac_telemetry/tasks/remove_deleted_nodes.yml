@@ -1,0 +1,101 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Identify iDRAC IPs to remove (present in DB but not in bmc_data.csv)
+  ansible.builtin.set_fact:
+    ips_to_remove: "{{ db_idrac_ip_list | difference(bmc_ips) }}"
+
+- name: Show iDRAC IPs to be removed
+  ansible.builtin.debug:
+    msg: "iDRAC IPs to be removed: {{ ips_to_remove }}"
+  when: ips_to_remove | length > 0
+
+- name: Skip removal if no IPs to remove
+  ansible.builtin.debug:
+    msg: "{{ no_idracips_to_remove_msg }}"
+  when: ips_to_remove | length == 0
+
+- name: Disable telemetry on iDRAC nodes before removal
+  when: ips_to_remove | length > 0
+  block:
+    - name: Disable telemetry service on iDRAC nodes
+      disable_idrac_telemetry:
+        idrac_ips: "{{ ips_to_remove }}"
+        username: "{{ hostvars['localhost']['bmc_username'] }}"
+        password: "{{ hostvars['localhost']['bmc_password'] }}"
+        timeout: "{{ redfish_timeout }}"
+      register: disable_telemetry_result
+      ignore_errors: true
+
+    - name: Show successfully disabled telemetry IPs
+      ansible.builtin.debug:
+        msg: "Successfully disabled telemetry on: {{ disable_telemetry_result.disabled_ips | default([]) }}"
+      when:
+        - disable_telemetry_result.disabled_ips is defined
+        - disable_telemetry_result.disabled_ips | length > 0
+
+    - name: Show failed to disable telemetry IPs
+      ansible.builtin.debug:
+        msg: "Failed to disable telemetry on: {{ disable_telemetry_result.failed_ips | default([]) }}"
+      when:
+        - disable_telemetry_result.failed_ips is defined
+        - disable_telemetry_result.failed_ips | length > 0
+
+- name: Remove iDRAC IPs from MySQL database
+  when: ips_to_remove | length > 0
+  block:
+    - name: Delete iDRAC IPs from mysqldb
+      delete_idracips_from_mysqldb:
+        telemetry_namespace: "{{ telemetry_namespace }}"
+        idrac_podnames: "{{ idrac_podname_idracips.idrac_podname_ips.keys() | list }}"
+        mysqldb_k8s_name: "{{ mysqldb_k8s_name }}"
+        mysqldb_name: "{{ mysqldb_name }}"
+        mysqldb_user: "{{ hostvars['localhost']['mysqldb_user'] }}"
+        mysqldb_password: "{{ hostvars['localhost']['mysqldb_password'] }}"
+        ips_to_delete: "{{ ips_to_remove }}"
+        pod_to_db_idrac_ips: "{{ existing_pod_to_db_idrac_ips }}"
+        db_retries: "{{ db_retries }}"
+        db_delay: "{{ db_delay }}"
+      register: delete_idrac_result
+  rescue:
+    - name: Failed to delete iDRAC IPs from mysqldb
+      ansible.builtin.fail:
+        msg: "{{ mysqldb_delete_fail_msg }}"
+
+- name: Show deleted iDRAC IPs
+  ansible.builtin.debug:
+    msg: "Successfully deleted iDRAC IPs from mysqldb: {{ delete_idrac_result.deleted_ips | default([]) }}"
+  when:
+    - ips_to_remove | length > 0
+    - delete_idrac_result.deleted_ips is defined
+    - delete_idrac_result.deleted_ips | length > 0
+
+- name: Show failed to delete iDRAC IPs
+  ansible.builtin.debug:
+    msg: "Failed to delete iDRAC IPs from mysqldb: {{ delete_idrac_result.failed_ips | default([]) }}"
+  when:
+    - ips_to_remove | length > 0
+    - delete_idrac_result.failed_ips is defined
+    - delete_idrac_result.failed_ips | length > 0
+
+- name: Update telemetry report variables with deletion info
+  ansible.builtin.set_fact:
+    deleted_idrac_count: "{{ delete_idrac_result.deleted_ips | default([]) | length }}"
+    deleted_idrac_ips: "{{ delete_idrac_result.deleted_ips | default([]) }}"
+    failed_delete_count: "{{ delete_idrac_result.failed_ips | default([]) | length }}"
+    failed_delete_ips: "{{ delete_idrac_result.failed_ips | default([]) }}"
+    disabled_telemetry_count: "{{ disable_telemetry_result.disabled_ips | default([]) | length }}"
+    disabled_telemetry_ips: "{{ disable_telemetry_result.disabled_ips | default([]) }}"
+  when: ips_to_remove | length > 0

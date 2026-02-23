@@ -233,6 +233,19 @@ def validate_software_config(
             )
         )
 
+    # Check for required subgroups when specific software names are present
+    software_requiring_subgroups = ["additional_packages", "slurm_custom", "service_k8s"]
+    for software_name in software_requiring_subgroups:
+        if software_name in software_names:
+            if software_name not in data or not data[software_name]:
+                errors.append(
+                    create_error_msg(
+                        "Validation Error: ",
+                        software_name,
+                        f"is present in softwares but corresponding subgroup '{software_name}' is missing or empty in software_config.json. Please refer examples directory for the correct format."
+                    )
+                )
+
     for software_pkg in data['softwares']:
         software = software_pkg['name']
         arch_list = software_pkg.get('arch')
@@ -1061,9 +1074,12 @@ def validate_omnia_config(
                     "slurm NFS not provided",
                     f"NFS name {', '.join(diff_set)} required for slurm is not defined in {storage_config}"
                     ))
-        cnfg_src = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
+
         skip_conf_validation = os.path.exists("/opt/omnia/input/.skip_slurm_conf_validation")
-        for cfg_path_dict in cnfg_src:
+        cnfg_src = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
+        skip_merge_list = [clst.get('skip_merge', False) for clst in data.get('slurm_cluster')]
+        for idx, cfg_path_dict in enumerate(cnfg_src):
+            skip_merge = skip_merge_list[idx]
             for k,v in cfg_path_dict.items():
                 conf_dict = None
                 if isinstance(v, str):
@@ -1073,7 +1089,7 @@ def validate_omnia_config(
                                 f"provided conf path for {k} - {v} does not exist"))
                         continue
                     else: # path exists
-                        if not skip_conf_validation:
+                        if not skip_merge and not skip_conf_validation:
                             conf_dict, duplicate_keys = parse_slurm_conf(v, k, False)
                             if duplicate_keys:
                                 errors.append(

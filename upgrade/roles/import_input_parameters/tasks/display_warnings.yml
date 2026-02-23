@@ -29,6 +29,7 @@
 
 - name: Pause for user to review warnings
   ansible.builtin.pause:
+    seconds: 30
     prompt: |
       ╔════════════════════════════════════════════╗
       ║       ⚠️  UPGRADE WARNINGS REVIEW  ⚠️        ║
@@ -42,6 +43,7 @@
 
       Please review these warnings carefully.
       Press ENTER to continue or CTRL+C to abort.
+      Continuing automatically in 30 seconds...
   when:
     - upgrade_warnings is defined
     - upgrade_warnings | length > 0

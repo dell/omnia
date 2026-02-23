@@ -1,0 +1,88 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Update /etc/hosts with controller hostname and IP
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^{{ host_entry.value }}\s+{{ host_entry.key }}'
+    line: "{{ host_entry.value }} {{ host_entry.key }}"
+    state: present
+  loop: "{{ ip_name_map | dict2items | list }}"
+  loop_control:
+    loop_var: host_entry
+  ignore_unreachable: true
+  failed_when: false
+  delegate_to: "{{ slurmhost_ip }}"
+
+- name: Get munge changes
+  ansible.builtin.set_fact:
+    munge_key_changed: "{{ munge_key_copy.results | default([]) | rekey_on_member('item') }}"
+  when: munge_key_copy is defined
+
+# TODO: Clean unreachable handling
+- name: Block when munge key changed
+  when:
+    - munge_key_changed is defined
+    - munge_key_changed[name_ip_map[slurmhost_ip]]['changed'] | default(false)
+    - restart_slurm_services
+  delegate_to: "{{ slurmhost_ip }}"
+  ignore_unreachable: true
+  block:
+    - name: Update munge key permissions
+      ansible.builtin.file:
+        path: /etc/munge/munge.key
+        owner: munge
+        group: munge
+        mode: '0600'
+      register: munge_key_permissions_result
+
+    - name: Restart munge service if key changed
+      ansible.builtin.service:
+        name: munge
+        state: restarted
+      register: munge_restart_result
+      when:
+        - munge_key_permissions_result is defined
+        - munge_key_permissions_result is success
+
+    - name: Restart slurmctld if munge restarted
+      ansible.builtin.service:
+        name: slurmctld
+        state: restarted
+      when:
+        - name_ip_map[slurmhost_ip] in ctld_list
+        - munge_restart_result is defined
+        - munge_restart_result is success
+
+    - name: Restart slurmd if munge restarted
+      ansible.builtin.service:
+        name: slurmd
+        state: restarted
+      when:
+        - name_ip_map[slurmhost_ip] in (cmpt_list + login_list + compiler_login_list)
+        - munge_restart_result is defined
+        - munge_restart_result is success
+
+    - name: Restart slurmdbd if munge restarted
+      ansible.builtin.service:
+        name: slurmdbd
+        state: restarted
+      when:
+        - name_ip_map[slurmhost_ip] in dbd_list
+        - munge_restart_result is defined
+        - munge_restart_result is success
+  rescue:
+    - name: Handle munge restart failure
+      ansible.builtin.debug:
+        msg: "Failed task {{ ansible_failed_task.name }} on {{ slurmhost_ip }}"

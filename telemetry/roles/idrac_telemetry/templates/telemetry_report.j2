@@ -2,9 +2,9 @@
 
 ----- Telemetry Report for Cluster -----
 
-Total IP count with Telemetry activated: {{ (db_idrac_ip_list | length) + (telemetry_idrac | length) }}
+Total IP count with Telemetry activated: {{ ((db_idrac_ip_list + telemetry_idrac) | difference(deleted_idrac_ips | default([]))) | length }}
 Telemetry activated IPs List:
-{% for item in db_idrac_ip_list + telemetry_idrac %}
+{% for item in (db_idrac_ip_list + telemetry_idrac) | difference(deleted_idrac_ips | default([])) %}
   - {{ item }}
 {% endfor %}
 
@@ -13,6 +13,24 @@ Telemetry not supported IPs List:
 {% for item in failed_idrac + invalid_idrac_list %}
   - {{ item }}
 {% endfor %}
+
+{% if deleted_idrac_count is defined and deleted_idrac_count | int > 0 %}
+----- Node Deletion Report -----
+
+Total IP count removed from telemetry (not in bmc_data.csv): {{ deleted_idrac_count | int }}
+Removed IPs List:
+{% for item in deleted_idrac_ips %}
+  - {{ item }}
+{% endfor %}
+
+{% if disabled_telemetry_count is defined and disabled_telemetry_count | int > 0 %}
+IPs with telemetry disabled via Redfish: {{ disabled_telemetry_count | int }}
+Disabled telemetry IPs List:
+{% for item in disabled_telemetry_ips %}
+  - {{ item }}
+{% endfor %}
+{% endif %}
+{% endif %}
 
 ===== Telemetry Report End =====
 
