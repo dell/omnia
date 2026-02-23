@@ -1,0 +1,80 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# tasks/configure_oim_ssh.yml
+
+- name: Gather cluster hostnames and IP wildcard patterns from localhost facts
+  ansible.builtin.set_fact:
+    k8s_cluster_hostnames: "{{ hostvars['localhost']['k8s_cluster_hostnames'] | default([]) }}"
+    slurm_cluster_hostnames: "{{ hostvars['localhost']['slurm_cluster_hostnames'] | default([]) }}"
+    omnia_cluster_ip_patterns_raw: "{{ hostvars['localhost']['omnia_cluster_ip_patterns'] | default([]) }}"
+    omnia_hosts_map: "{{ hostvars['localhost']['omnia_hosts_map'] | default({}) }}"
+
+- name: Normalize OIM cluster IP patterns to wildcard subnets (x.x.x.*)
+  ansible.builtin.set_fact:
+    omnia_cluster_ip_patterns: >-
+      {{
+        (omnia_cluster_ip_patterns_raw | default([]))
+        | map('regex_replace', '\\.[0-9]+$', '.*')
+        | list
+        | unique
+      }}
+
+- name: Build hostname wildcard patterns from actual cluster hostnames
+  ansible.builtin.set_fact:
+    omnia_cluster_hostname_patterns: >-
+      {{
+        (
+          (k8s_cluster_hostnames | default([]))
+          +
+          (slurm_cluster_hostnames | default([]))
+        )
+        | map('regex_replace', '[0-9]+$', '*')
+        | list
+        | unique
+      }}
+
+- name: Build combined OIM SSH match list (hostname patterns + IP wildcard patterns)
+  ansible.builtin.set_fact:
+    omnia_cluster_ssh_matches: >-
+      {{
+        (omnia_cluster_hostname_patterns + omnia_cluster_ip_patterns)
+        | map('regex_replace', '\.[0-9]+$', '.*')
+        | list
+        | unique
+      }}
+
+
+- name: Manage /etc/hosts entries on OIM for Omnia cluster nodes
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    create: true
+    mode: '0644'
+    marker: "# {mark} OMNIA_CLUSTER_NODES"
+    block: |
+      {% for h in omnia_hosts_map | dict2items %}
+      {{ h.value }} {{ h.key }}
+      {% endfor %}
+  when: omnia_hosts_map | default({}) | length > 0
+
+# - name: DEBUG configure_oim_ssh facts
+ # ansible.builtin.debug:
+    # msg:
+     # k8s_cluster_hostnames: "{{ k8s_cluster_hostnames | default([]) }}"
+      # slurm_cluster_hostnames: "{{ slurm_cluster_hostnames | default([]) }}"
+      # omnia_cluster_ip_patterns_raw: "{{ omnia_cluster_ip_patterns_raw | default([]) }}"
+      # omnia_cluster_ip_patterns: "{{ omnia_cluster_ip_patterns | default([]) }}"
+      # omnia_cluster_hostname_patterns: "{{ omnia_cluster_hostname_patterns | default([]) }}"
+      # omnia_cluster_ssh_matches: "{{ omnia_cluster_ssh_matches | default([]) }}"
+      # omnia_hosts_map: "{{ omnia_hosts_map | default({}) }}"

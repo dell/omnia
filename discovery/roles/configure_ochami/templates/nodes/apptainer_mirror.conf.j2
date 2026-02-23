@@ -1,0 +1,43 @@
+unqualified-search-registries = ["{{ pulp_mirror }}"]
+
+[[registry]]
+prefix = "docker.io"
+location = "registry-1.docker.io"
+[[registry.mirror]]
+location = "{{ pulp_mirror }}"
+
+[[registry]]
+prefix = "ghcr.io"
+location = "ghcr.io"
+[[registry.mirror]]
+location = "{{ pulp_mirror }}"
+
+[[registry]]
+prefix = "quay.io"
+location = "quay.io"
+[[registry.mirror]]
+location = "{{ pulp_mirror }}"
+
+[[registry]]
+prefix = "registry.k8s.io"
+location = "registry.k8s.io"
+[[registry.mirror]]
+location = "{{ pulp_mirror }}"
+
+[[registry]]
+prefix = "nvcr.io"
+location = "nvcr.io"
+[[registry.mirror]]
+location = "{{ pulp_mirror }}"
+
+[[registry]]
+prefix = "public.ecr.aws"
+location = "public.ecr.aws"
+[[registry.mirror]]
+location = "{{ pulp_mirror }}"
+
+[[registry]]
+prefix = "gcr.io"
+location = "gcr.io"
+[[registry.mirror]]
+location = "{{ pulp_mirror }}"

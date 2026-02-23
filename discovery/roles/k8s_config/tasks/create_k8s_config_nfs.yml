@@ -39,6 +39,22 @@
     k8s_nfs_server_ip: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_ip }}"
     k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
 
+- name: Ensure SSH key directory exists on K8s share
+  ansible.builtin.file:
+    path: "{{ k8s_client_mount_path }}/ssh"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Copy OIM private key to K8s share for node-to-node SSH
+  ansible.builtin.copy:
+    src: "{{ ssh_private_key_path }}"
+    dest: "{{ k8s_client_mount_path }}/ssh/oim_rsa"
+    owner: root
+    group: root
+    mode: '0600'
+
 - name: Set admin network nic and ip
   ansible.builtin.set_fact:
     admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
@@ -103,6 +119,79 @@
 
 - name: Creating the persist folders in nfs share
   ansible.builtin.include_tasks: create_node_dir.yml
+
+# additional packages
+- name: Create x86_64 package base directory
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_x86_64 }}"
+    state: directory
+    mode: '{{ common_mode }}'
+
+- name: Create aarch64 package base directory
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_aarch64 }}"
+    state: directory
+    mode: '{{ common_mode }}'
+
+- name: Create x86_64 package layout directories
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_x86_64 }}/{{ item }}"
+    state: directory
+    mode: '{{ common_mode }}'
+  loop: "{{ packages_layout_x86_64 }}"
+
+- name: Create aarch64 package layout directories
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_aarch64 }}/{{ item }}"
+    state: directory
+    mode: '{{ common_mode }}'
+  loop: "{{ packages_layout_aarch64 }}"
+
+- name: Print copy paths for x86_64
+  ansible.builtin.debug:
+    msg: "{{ print_copy_msg }}"
+  loop: "{{ offline_path_x86_64 | default([]) }}"
+
+- name: Print copy paths for aarch64
+  ansible.builtin.debug:
+    msg: "{{ print_copy_msg }}"
+  loop: "{{ offline_path_aarch64 | default([]) }}"
+
+- name: Check x86_64 offline package sources
+  ansible.builtin.stat:
+    path: "{{ item.source_path }}"
+  loop: "{{ offline_path_x86_64 | default([]) }}"
+  register: x86_64_offline_pkg_sources
+
+- name: Check aarch64 offline package sources
+  ansible.builtin.stat:
+    path: "{{ item.source_path }}"
+  loop: "{{ offline_path_aarch64 | default([]) }}"
+  register: aarch64_offline_pkg_sources
+
+- name: Copy x86_64 offline packages
+  ansible.builtin.copy:
+    src: "{{ item.item.source_path }}/"
+    dest: "{{ item.item.dest_path }}/"
+    remote_src: true
+    mode: preserve
+  loop: "{{ x86_64_offline_pkg_sources.results | default([]) }}"
+  when:
+    - item.stat.exists
+    - item.item.source_path | length > 0
+    - item.item.dest_path | length > 0
+
+- name: Copy aarch64 offline packages
+  ansible.builtin.copy:
+    src: "{{ item.item.source_path }}/"
+    dest: "{{ item.item.dest_path }}/"
+    remote_src: true
+    mode: preserve
+  loop: "{{ aarch64_offline_pkg_sources.results | default([]) }}"
+  when:
+    - item.stat.exists
+    - item.item.source_path | length > 0
+    - item.item.dest_path | length > 0
 
 - name: Include local repo access variable file
   ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"

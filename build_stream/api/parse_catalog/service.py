@@ -19,9 +19,15 @@ import logging
 import os
 import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
 from core.catalog.generator import generate_root_json_from_catalog
+from common.config import load_config
+from container import container
+from core.jobs.value_objects import CorrelationId, JobId
+from infra.id_generator import UUIDv4Generator
+from orchestrator.catalog.commands.parse_catalog import ParseCatalogCommand
 
 logger = logging.getLogger(__name__)
 
@@ -44,32 +50,43 @@ class ParseResult:
 
     success: bool
     message: str
-    output_path: Optional[str] = None
 
 
 class ParseCatalogService:  # pylint: disable=too-few-public-methods
     """Service for parsing catalog files."""
-
-    DEFAULT_OUTPUT_ROOT = "out/generator"
 
     def __init__(self, output_root: Optional[str] = None):
         """Initialize the ParseCatalog service.
 
         Args:
             output_root: Root directory for generated output files.
+                        If None, uses working_dir from config.
         """
-        self.output_root = output_root or self.DEFAULT_OUTPUT_ROOT
+        if output_root is None:
+            try:
+                config = load_config()
+                working_dir = Path(config.artifact_store.working_dir)
+                working_dir.mkdir(parents=True, exist_ok=True)
+                self.output_root = str(working_dir / "tmp" / "generator")
+            except (FileNotFoundError, ValueError):
+                self.output_root = "/tmp/build_stream/tmp/generator"
+        else:
+            self.output_root = output_root
+
+        Path(self.output_root).mkdir(parents=True, exist_ok=True)
 
     async def parse_catalog(
         self,
         filename: str,
         contents: bytes,
+        job_id: str,
     ) -> ParseResult:
         """Parse a catalog from uploaded file contents.
 
         Args:
             filename: Name of the uploaded file.
             contents: Raw bytes content of the uploaded file.
+            job_id: The job identifier for the orchestrator.
 
         Returns:
             ParseResult containing the operation status and details.
@@ -81,11 +98,37 @@ class ParseCatalogService:  # pylint: disable=too-few-public-methods
         """
         logger.info("Starting catalog parse for file: %s", filename)
 
+        # Note: Job validation is handled by the orchestrator use case
         self._validate_file_format(filename)
         json_data = self._parse_json_content(contents)
         self._validate_json_structure(json_data)
 
-        return await self._process_catalog(json_data)
+        return await self._process_catalog_via_orchestrator(json_data, job_id)
+
+    async def _process_catalog_via_orchestrator(self, json_data: dict, job_id: str) -> ParseResult:
+        """Process catalog using the orchestrator use case."""
+        # Create command for orchestrator
+        uuid_gen = UUIDv4Generator()
+
+        # Convert json_data back to bytes as expected by orchestrator
+        json_bytes = json.dumps(json_data).encode('utf-8')
+
+        command = ParseCatalogCommand(
+            job_id=JobId(job_id),
+            correlation_id=CorrelationId(str(uuid_gen.generate())),
+            filename="uploaded.json",
+            content=json_bytes,
+        )
+
+        # Execute via orchestrator use case
+        use_case = container.parse_catalog_use_case()
+        result = use_case.execute(command)
+
+        # Convert orchestrator result to API result
+        return ParseResult(
+            success=True,
+            message=result.message,
+        )
 
     def _validate_file_format(self, filename: str) -> None:
         """Validate that the file has a .json extension."""
@@ -140,7 +183,6 @@ class ParseCatalogService:  # pylint: disable=too-few-public-methods
             return ParseResult(
                 success=True,
                 message="Catalog parsed successfully",
-                output_path=self.output_root,
             )
 
         except FileNotFoundError as e:

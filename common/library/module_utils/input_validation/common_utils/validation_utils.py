@@ -723,8 +723,18 @@ def validate_cluster_items(cluster_items, json_file_path):
     failures = []
     successes = []
 
+    is_additional_packages = json_file_path.endswith('additional_packages.json')
+    allowed_types_for_additional = {'rpm', 'image'}
+
     for item in cluster_items:
         item_type = item.get('type')
+
+        if is_additional_packages and item_type not in allowed_types_for_additional:
+            failures.append(
+                f"Failed. Type '{item_type}' is not allowed in '{json_file_path}'. "
+                f"Only 'rpm' and 'image' types are permitted in this file.")
+            continue
+
         required_fields = config.TYPE_REQUIREMENTS.get(item_type)
 
         if not required_fields:
@@ -780,7 +790,7 @@ def validate_softwaresubgroup_entries(
                 cluster_items = json_data[software_name]['cluster']
                 item_successes, item_failures = validate_cluster_items(cluster_items, json_path)
                 if item_failures:
-                    failures.append(f"{item_failures}")
+                    failures.extend(item_failures)
             else:
                 failures.append(
                     f"Failed. Invalid JSON format for: '{software_name}'"

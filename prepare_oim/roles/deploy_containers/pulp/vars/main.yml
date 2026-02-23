@@ -27,6 +27,10 @@ pulp_protocol_https: true
 # Tag is fixed for the Pulp container image as of 10-06-2025
 pulp_image: "docker.io/pulp/pulp:3.80"
 
+# Usage: deployment_prereq.yml - pull image retries
+pull_image_retries: 5
+pull_image_delay: 10
+
 arg_list:
   - "-e PULP_WORKERS=10"
   - "-e PULP_API_WORKERS=10"

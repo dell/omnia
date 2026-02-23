@@ -1,0 +1,42 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Display deployment information
+  ansible.builtin.debug:
+    msg:
+      - "============================================"
+      - "   GitLab Hosted Mode Deployment Complete   "
+      - "============================================"
+      - ""
+      - "Access URL: {{ gitlab_external_url_computed }}"
+      - "SSH Port:   {{ gitlab_ssh_port }}"
+      - "Username:   root"
+      - "Password:   {{ root_password.stdout | default('Check /etc/gitlab/initial_root_password') }}"
+      - ""
+      - "Project:    {{ gitlab_project_name }}"
+      - "Project ID: {{ gitlab_project_id }}"
+      - "Project URL: {{ gitlab_project_url }}"
+      - ""
+      - "Runner Auth Token: {{ gitlab_runner_auth_token }}"
+      - "Trigger Token saved to: /root/.gitlab_trigger_token"
+      - ""
+      - "Service:    {{ gitlab_ctl_command }} (start|stop|status|reconfigure)"
+      - "Runner:     {{ gitlab_runner_container_name }} (Podman container, registered)"
+      - ""
+      - "Next Steps:"
+      - "1. Push your catalog files to {{ gitlab_project_http_url }}"
+      - "2. Trigger pipeline: curl -X POST -F token=$(cat /root/.gitlab_trigger_token) -F ref={{ gitlab_default_branch }} {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/trigger/pipeline" # noqa: yaml[line-length]
+      - "============================================"

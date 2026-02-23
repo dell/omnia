@@ -1,0 +1,70 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# GitLab Omnibus paths
+gitlab_rb_path: "/etc/gitlab/gitlab.rb"
+gitlab_ctl_command: "gitlab-ctl"
+gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
+
+# Timeouts
+gitlab_startup_wait_minutes: 5
+gitlab_health_check_retries: 5
+gitlab_health_check_delay: 60
+gitlab_api_check_retries: 10
+gitlab_api_check_delay: 15
+gitlab_api_unreachable_msg: 'Unable to reach GitLab API at {{ gitlab_external_url_computed }}. Verify connectivity, credentials, or TLS configuration.'
+gitlab_default_status_codes:
+  project_create: [200, 201]
+  runner_create: [200, 201]
+  project_search: [200]
+  api_version: [200, 401]
+gitlab_api_ready_failure_msg: 'Failed to contact {{ gitlab_external_url_computed }}/api/v4/version before timeout.'
+gitlab_project_search_failure_msg: 'Failed to search for project {{ gitlab_project_name }} via GitLab API.'
+gitlab_project_create_failure_msg: 'Failed to create GitLab project {{ gitlab_project_name }} via API.'
+gitlab_runner_token_failure_msg: 'Failed to create GitLab runner authentication token for project {{ gitlab_project_name }}.'
+gitlab_root_token_name: "omnia-automation"
+gitlab_root_token_expiry_days: 365
+
+# Host prerequisites
+gitlab_hosted_prereq_packages:
+  - curl
+  - policycoreutils
+  - policycoreutils-python-utils
+  - openssl
+  - firewalld
+  - podman
+  - podman-docker
+
+# Runner container
+gitlab_runner_container_name: "gitlab-runner"
+gitlab_restart_policy: "always"
+gitlab_runner_description: "Omnia Hosted Runner"
+gitlab_runner_tags: "omnia"
+gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
+gitlab_runner_config_file: "{{ gitlab_runner_config_path }}/config.toml"
+gitlab_runner_pull_policy: "if-not-present"
+
+# Podman socket (Docker-compatible, used by runner)
+podman_socket_path: "/run/podman/podman.sock"
+docker_socket_path: "/var/run/docker.sock"
+
+# Certificate defaults
+gitlab_cert_validity_days: 825
+gitlab_ca_validity_days: 3650
+gitlab_ca_key_bits: 4096
+gitlab_server_key_bits: 2048
+gitlab_ca_subject: "/C=IN/ST=Karnataka/L=Bengaluru/O=Omnia/OU=IT/CN=Omnia Internal CA"
+gitlab_additional_dns_sans: []
+gitlab_additional_ip_sans: []

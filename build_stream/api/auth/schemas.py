@@ -57,7 +57,7 @@ class ClientRegistrationRequest(BaseModel):  # pylint: disable=too-few-public-me
     @classmethod
     def validate_scopes(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         """Validate that requested scopes are valid."""
-        valid_scopes = {"catalog:read", "catalog:write", "admin:read", "admin:write"}
+        valid_scopes = {"catalog:read", "catalog:write", "admin:read", "admin:write", "job:read", "job:write"}
         if v is not None:
             for scope in v:
                 if scope not in valid_scopes:
@@ -164,7 +164,7 @@ class TokenRequest:  # pylint: disable=too-few-public-methods
         """Validate client_id format if provided."""
         if v is not None and not v.startswith("bld_"):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=[{
                     "type": "value_error",
                     "loc": ["body", "client_id"],
@@ -178,7 +178,7 @@ class TokenRequest:  # pylint: disable=too-few-public-methods
         """Validate client_secret format if provided."""
         if v is not None and not v.startswith("bld_s_"):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=[{
                     "type": "value_error",
                     "loc": ["body", "client_secret"],

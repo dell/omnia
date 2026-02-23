@@ -1,0 +1,45 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# vars/main.yml
+
+# K8s functional groups (x86_64 example; extend if you have aarch64 variants)
+k8s_functional_groups:
+  - service_kube_control_plane_first_x86_64
+  - service_kube_control_plane_x86_64
+  - service_kube_node_x86_64
+
+# Slurm / login functional groups
+slurm_functional_groups:
+  - slurm_control_node_x86_64
+  - slurm_node_x86_64
+  - login_node_x86_64
+  - login_compiler_node_x86_64
+
+# Nodes.yaml group completeness checks
+omnia_required_groups_from_nodes_yaml:
+  - service_kube_control_plane_first_x86_64
+  - service_kube_control_plane_x86_64
+  - service_kube_node_x86_64
+  - slurm_control_node_x86_64
+  - slurm_node_x86_64
+  - login_node_x86_64
+  - login_compiler_node_x86_64
+
+omnia_optional_groups_from_nodes_yaml:
+  - service_kube_control_plane_first_aarch64
+  - service_kube_control_plane_aarch64
+  - service_kube_node_aarch64
+
+ssh_private_key_path: /root/.ssh/config

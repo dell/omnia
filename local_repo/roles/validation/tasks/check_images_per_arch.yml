@@ -1,0 +1,43 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set additional_packages.json path for {{ arch_item }}
+  ansible.builtin.set_fact:
+    additional_packages_path: "{{ project_input_path }}/config/{{ arch_item }}/{{ cluster_os_type }}/{{ cluster_os_version }}/additional_packages.json"
+
+- name: Check if additional_packages.json exists for {{ arch_item }}
+  ansible.builtin.stat:
+    path: "{{ additional_packages_path }}"
+  register: additional_packages_file
+
+- name: Load and check additional_packages.json for {{ arch_item }}
+  when: additional_packages_file.stat.exists
+  block:
+    - name: Load additional_packages.json
+      ansible.builtin.include_vars:
+        file: "{{ additional_packages_path }}"
+        name: additional_packages_data
+
+    - name: Check for image type packages in additional_packages
+      ansible.builtin.set_fact:
+        has_image_packages: true
+      when: >
+        additional_packages_data | dict2items |
+        selectattr('value.cluster', 'defined') |
+        map(attribute='value.cluster') |
+        flatten |
+        selectattr('type', 'defined') |
+        selectattr('type', 'equalto', 'image') |
+        list | length > 0

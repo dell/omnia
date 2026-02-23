@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,11 +12,32 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-
 # ***********************************************************************
 # DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 # ***********************************************************************
+
+# -----------------------------Powervault-------------------------------------------
+# powervault_config
+# Mandatory when using PowerVault for persistent storage.
+# Below parameters are mandatory when powervault_config is defined
+    # ip: A list of PowerVault controller ipv4 addresses used for iSCSI target discovery and login.
+    # iscsi_initiator: Specifies the InitiatorName used by the host when connecting to the iSCSI target. This IQN uniquely identifies the host to the storage array.
+    # volume_id: This is the unique WWN/identifier for the specific volume that should be used for persistent storage. This value is used for multipath scanning to select the correct mapped device.
+
+# Below are the optional parameters when powervault_config is defined
+    # port: Defines the TCP port for the iSCSI target service. When port is not specified, default port used will be 3260
+
+# Below is an example on how to configure powervault_config
+# In this configuration, a single controller portal is provided.
+
+#powervault_config:
+#  ip:
+#    - 172.1.2.3
+#  port: 3260
+#  iscsi_initiator: iqn.2025-01.com.dell:scontrol-node
+#  volume_id: 00c0ff4343f1f1f1001c8c4e6901000000
+
 
 # -----------------------------NFS------------------------------------------------
 
@@ -50,3 +71,4 @@ nfs_client_params:
     client_share_path: /share_omnia_k8s
     client_mount_options: "nosuid,rw,sync,hard,intr"
     nfs_name: nfs_k8s
+    

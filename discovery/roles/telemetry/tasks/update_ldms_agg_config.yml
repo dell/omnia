@@ -13,11 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Install make
-  ansible.builtin.package:
-    name: make
-    state: present
-
 - name: Verify values.yaml exists
   ansible.builtin.stat:
     path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/ldms/nersc-ldms-aggr/values.yaml"

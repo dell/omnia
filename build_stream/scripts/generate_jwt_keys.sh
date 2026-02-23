@@ -29,7 +29,7 @@ set -euo pipefail
 KEY_SIZE=4096
 PRIVATE_KEY_NAME="jwt_private.pem"
 PUBLIC_KEY_NAME="jwt_public.pem"
-DEFAULT_OUTPUT_DIR="/opt/omnia/build_stream/api/auth/keys"
+DEFAULT_OUTPUT_DIR="/opt/omnia/build_stream/api/.auth/keys"
 
 # Parse arguments
 OUTPUT_DIR="${1:-$DEFAULT_OUTPUT_DIR}"

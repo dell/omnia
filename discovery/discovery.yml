@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Check if upgrade is in progress
+  ansible.builtin.import_playbook: ../utils/upgrade_checkup.yml
+
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
   vars:
     openchami_vars_suppport: true
     omnia_metadata_support: true
+
+- name: Set build_stream_job_id from environment variable
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+    - name: Include build_stream config file
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+      failed_when: false
+
+    - name: Set default for compute_image_suffix
+      ansible.builtin.set_fact:
+        compute_image_suffix: ""
+
+    - name: Include build_stream_prerequisite.yml
+      ansible.builtin.include_role:
+        name: discovery_validations
+        tasks_from: build_stream_prerequisite.yml
+      when: enable_build_stream | default(false) | bool
 
 - name: Create oim group and provision group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
@@ -75,6 +98,18 @@
         name: discovery_validations
         tasks_from: validate_oim_timezone.yml
 
+- name: Build cluster host lists from PXE mapping
+  hosts: localhost
+  connection: local
+  roles:
+    - passwordless_ssh
+
+- name: Configure OIM SSH from cluster host lists
+  hosts: oim
+  connection: ssh
+  roles:
+    - passwordless_ssh
+
 - name: Validate discovery parameters
   hosts: oim
   connection: ssh
@@ -102,6 +137,11 @@
       ansible.builtin.include_role:
         name: configure_ochami
         tasks_from: discover_mapping_nodes.yml
+
+    - name: Read nodes.yaml and derive Omnia node facts
+      ansible.builtin.include_role:
+        name: passwordless_ssh
+        tasks_from: read_nodes_yaml.yml
   roles:
     - nfs_client
     - k8s_config

@@ -20,8 +20,8 @@ from typing import Dict
 import pytest
 from fastapi.testclient import TestClient
 
-from build_stream.main import app
-from build_stream.infra.id_generator import UUIDv4Generator
+from main import app
+from infra.id_generator import UUIDv4Generator
 
 
 @pytest.fixture(scope="function")

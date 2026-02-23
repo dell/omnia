@@ -180,6 +180,58 @@ class IdempotencyConflictError(JobDomainError):
         self.existing_job_id = existing_job_id
 
 
+class StageAlreadyCompletedError(JobDomainError):
+    """Stage has already been completed for this job."""
+
+    def __init__(
+        self,
+        job_id: str,
+        stage_name: str,
+        correlation_id: Optional[str] = None,
+    ) -> None:
+        """Initialize stage already completed error.
+
+        Args:
+            job_id: The job ID.
+            stage_name: The stage that is already completed.
+            correlation_id: Optional correlation ID for tracing.
+        """
+        super().__init__(
+            f"Stage {stage_name} already completed for job {job_id}",
+            correlation_id=correlation_id,
+        )
+        self.job_id = job_id
+        self.stage_name = stage_name
+
+
+class UpstreamStageNotCompletedError(JobDomainError):
+    """Required upstream stage has not completed."""
+
+    def __init__(
+        self,
+        job_id: str,
+        required_stage: str,
+        actual_state: str,
+        correlation_id: Optional[str] = None,
+    ) -> None:
+        """Initialize upstream stage not completed error.
+
+        Args:
+            job_id: The job ID.
+            required_stage: The upstream stage that must be completed.
+            actual_state: The actual state of the upstream stage.
+            correlation_id: Optional correlation ID for tracing.
+        """
+        super().__init__(
+            f"Upstream stage '{required_stage}' must be COMPLETED "
+            f"(current state: {actual_state}) for job '{job_id}'",
+            correlation_id=correlation_id,
+        )
+        self.job_id = job_id
+        self.required_stage = required_stage
+        self.actual_state = actual_state
+
+
 class StageNotFoundError(JobDomainError):
     """Stage does not exist for the given job."""
 

@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -31,6 +31,24 @@
     dest: "{{ bmc_group_data_filename }}"
     mode: "{{ file_permissions }}"
   when: not bmc_group_data_status.stat.exists
+
+- name: Clone iDRAC Telemetry Scripting repository
+  block:
+    - name: Checkout iDRAC Telemetry GitHub repo
+      ansible.builtin.git:
+        repo: "{{ idrac_telemetry_scripting_repo }}"
+        dest: "{{ idrac_telemetry_scripting_clone_dest }}"
+        version: "{{ idrac_telemetry_scripting_stable_commit }}"
+        update: false
+      register: clone_idrac_script
+      until: clone_idrac_script is succeeded
+      retries: "{{ max_retries }}"
+      delay: "{{ delay_count }}"
+  rescue:
+    - name: Fail if iDRAC telemetry Git clone fails
+      ansible.builtin.fail:
+        msg: "{{ idrac_script_git_clone_fail_msg.splitlines() | join(' ') }}"
+      when: clone_idrac_script is failed
 
 - name: Prepare oim completion
   ansible.builtin.debug:

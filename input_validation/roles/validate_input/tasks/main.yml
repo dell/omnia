@@ -17,20 +17,26 @@
     omnia_run_tags: "{{ ansible_run_tags | default([]) }}"
   when: omnia_run_tags is not defined
 
-- name: Validate omnia input config
-  vars:
-    # Note: When running a specific playbook without tags ansible run tags will default to ["all"], thus if two or more tags are present
-    # then the "all" tag should be removed so that only the config files related to that playbook are validated.
-    input_validate_tags: "{{ omnia_run_tags | default([]) | difference(['all']) if (omnia_run_tags | length) >= 2
-      else omnia_run_tags | default([]) }}"
-  validate_input:
-    omnia_base_dir: "{{ (input_dir + '/../') | ansible.builtin.realpath }}"
-    project_name: "{{ project_name }}"
-    tag_names: "{{ input_validate_tags }}"
-    module_utils_path: "{{ (role_path + '/../../../common/library/module_utils/') | ansible.builtin.realpath }}"
-  register: validation_status
-  when: (input_validate_tags | length) > 0
+- name: Set validation messages
+  ansible.builtin.set_fact:
+    validation_success_msg: "{{ messages.validation_success }}"
+    validation_error_msg: "{{ messages.validation_error }}"
 
-- name: Debug validation status
-  ansible.builtin.debug:
-    msg: "{{ messages.validation_success }}"
+- name: Validate omnia input config
+  block:
+    - name: Run validation
+      validate_input:
+        omnia_base_dir: "{{ (input_dir + '/../') | ansible.builtin.realpath }}"
+        project_name: "{{ project_name }}"
+        tag_names: "{{ input_validate_tags }}"
+        module_utils_path: "{{ (role_path + '/../../../common/library/module_utils/') | ansible.builtin.realpath }}"
+      register: validation_status
+      when: (input_validate_tags | length) > 0
+
+    - name: Debug validation status
+      ansible.builtin.debug:
+        msg: "{{ validation_success_msg }}"
+  rescue:
+    - name: Failed due to validation failure
+      ansible.builtin.fail:
+        msg: "{{ validation_error_msg }}"

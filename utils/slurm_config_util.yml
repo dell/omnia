@@ -1,0 +1,124 @@
+---
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: include_input_dir.yml
+  vars:
+    omnia_metadata_support: true
+  tags: always
+
+- name: Create oim group
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    oim_group: true
+  tags: always
+
+- name: Slurm config utilities
+  hosts: oim
+  connection: ssh
+  gather_facts: true
+  tasks:
+    - name: Include variable file omnia_config.yml
+      ansible.builtin.include_vars: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
+      tags: always
+
+    - name: Include storage vars
+      ansible.builtin.include_vars: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
+      tags: always
+
+    - name: Set facts for slurm
+      ansible.builtin.set_fact:
+        nfs_storage_name: "{{ slurm_cluster[0].nfs_storage_name }}"
+      tags: always
+
+    - name: Read the slurm mount point
+      ansible.builtin.set_fact:
+        share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).client_share_path }}"
+      tags: always
+
+    - name: Slurp remote YAML file
+      ansible.builtin.slurp:
+        src: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
+      register: slurped_yaml
+      tags: always
+
+    - name: Parse YAML into vars
+      ansible.builtin.set_fact:
+        node_yaml: "{{ slurped_yaml.content | b64decode | from_yaml }}"
+      tags: always
+
+    - name: Get name and IP mapping 1
+      ansible.builtin.set_fact:
+        tmp_ip_name_map: "{{ node_yaml.nodes | items2dict(key_name='name', value_name='interfaces') }}"
+      tags: always
+
+    - name: Get name and IP mapping 2
+      ansible.builtin.set_fact:
+        ip_name_map: "{{ ip_name_map | default({}) | combine({item.key: item.value[0]['ip_addrs'][0]['ip_addr']}) }}"
+      loop: "{{ tmp_ip_name_map | dict2items }}"
+      tags: always
+
+    - name: Read the node name group
+      ansible.builtin.set_fact:
+        name_group_map: "{{ node_yaml.nodes | items2dict(key_name='name', value_name='group') }}"
+      tags: always
+
+    - name: Group the functional_groups
+      ansible.builtin.set_fact:
+        tmp_grouped_nodes: "{{ name_group_map | dict2items | groupby('value') }}"
+      tags: always
+
+    - name: Re-organize the groups
+      ansible.builtin.set_fact:
+        grouped_nodes: "{{ grouped_nodes | default({}) | combine({item[0]: ((item[1] | items2dict).keys() | list)}) }}"
+      loop: "{{ tmp_grouped_nodes }}"
+      tags: always
+
+    - name: Assign slurm lists
+      ansible.builtin.set_fact:
+        ctld_list: "{{ grouped_nodes | dict2items
+                       | selectattr('key', 'match', '^' ~ 'slurm_control_node_')
+                       | map(attribute='value') | list | flatten }}"
+      tags: always
+
+    - name: Fail if Slurm controller list is empty
+      ansible.builtin.fail:
+        msg: "Slurm controller functional group is missing from PXE mapping file. Please update the file and rerun."
+      when: ctld_list | length == 0
+      tags: always
+
+    - name: Set slurm controller IP
+      ansible.builtin.set_fact:
+        controller_ip: "{{ ip_name_map[ctld_list | first] }}"
+      when: ctld_list | length > 0
+      tags: always
+
+    - name: Add slurm controller as dynamic host
+      ansible.builtin.add_host:
+        name: slurm_controller
+        ansible_host: "{{ controller_ip }}"
+        ansible_user: root
+        ansible_port: 22
+      when: controller_ip is defined
+      tags: always
+
+    - name: Run slurm config backup
+      ansible.builtin.include_role:
+        name: slurm_config_backup
+        apply:
+          tags: config_backup
+      tags: config_backup
+
+    - name: Run slurm cleanup
+      ansible.builtin.include_role:
+        name: slurm_cleanup
+        apply:
+          tags: slurm_cleanup
+      tags: slurm_cleanup
+
+    - name: Run slurm config rollback
+      ansible.builtin.include_role:
+        name: slurm_config_rollback
+        apply:
+          tags: config_rollback
+      tags: config_rollback

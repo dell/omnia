@@ -1,0 +1,129 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# tasks/build_host_lists.yml
+
+- name: Ensure PXE mapping file path is set
+  ansible.builtin.assert:
+    that: pxe_mapping_file_path is defined
+    fail_msg: "pxe_mapping_file_path is not defined. Check provision_config.yml."
+
+- name: Read PXE mapping file (FUNCTIONAL_GROUP_NAME, HOSTNAME, ...)
+  community.general.read_csv:
+    path: "{{ pxe_mapping_file_path }}"
+    key: ADMIN_MAC
+  register: pxe_mapping_dict
+
+- name: Initialize per-stack hostname lists and IP wildcard patterns
+  ansible.builtin.set_fact:
+    k8s_cluster_hostnames: []
+    slurm_cluster_hostnames: []
+    k8s_cluster_ip_patterns: []
+    slurm_cluster_ip_patterns: []
+    omnia_cluster_ip_patterns: []
+    omnia_hosts_map: {}
+  when: inventory_hostname == 'localhost'
+
+- name: Build per-stack hostname lists and IP wildcard patterns from PXE mapping
+  ansible.builtin.set_fact:
+    k8s_cluster_hostnames: >-
+      {{
+        (k8s_cluster_hostnames + [item.value.HOSTNAME])
+        if item.value.FUNCTIONAL_GROUP_NAME in k8s_functional_groups
+        else k8s_cluster_hostnames
+      }}
+    slurm_cluster_hostnames: >-
+      {{
+        (slurm_cluster_hostnames + [item.value.HOSTNAME])
+        if item.value.FUNCTIONAL_GROUP_NAME in slurm_functional_groups
+        else slurm_cluster_hostnames
+      }}
+    k8s_cluster_ip_patterns: >-
+      {{
+        (k8s_cluster_ip_patterns + [ (item.value.ADMIN_IP | regex_replace('\\.[0-9]+$', '.*')) ])
+        if (
+          item.value.ADMIN_IP | default('') | length > 0 and
+          item.value.FUNCTIONAL_GROUP_NAME in k8s_functional_groups
+        )
+        else k8s_cluster_ip_patterns
+      }}
+    slurm_cluster_ip_patterns: >-
+      {{
+        (slurm_cluster_ip_patterns + [ (item.value.ADMIN_IP | regex_replace('\\.[0-9]+$', '.*')) ])
+        if (
+          item.value.ADMIN_IP | default('') | length > 0 and
+          item.value.FUNCTIONAL_GROUP_NAME in slurm_functional_groups
+        )
+        else slurm_cluster_ip_patterns
+      }}
+    omnia_cluster_ip_patterns: >-
+      {{
+        (omnia_cluster_ip_patterns + [ (item.value.ADMIN_IP | regex_replace('\\.[0-9]+$', '.*')) ])
+        if (
+          item.value.ADMIN_IP | default('') | length > 0 and
+          (item.value.FUNCTIONAL_GROUP_NAME in k8s_functional_groups or
+           item.value.FUNCTIONAL_GROUP_NAME in slurm_functional_groups)
+        )
+        else omnia_cluster_ip_patterns
+      }}
+    omnia_hosts_map: >-
+      {{
+        (omnia_hosts_map | default({}))
+        | combine(
+            ({ (item.value.HOSTNAME): item.value.ADMIN_IP }
+             if (item.value.HOSTNAME | default('') | length > 0 and
+                 item.value.ADMIN_IP | default('') | length > 0)
+             else {}),
+            recursive=False
+          )
+      }}
+  loop: "{{ pxe_mapping_dict.dict | dict2items }}"
+  loop_control:
+    label: "{{ item.value.FUNCTIONAL_GROUP_NAME }} -> {{ item.value.HOSTNAME }} ({{ item.value.ADMIN_IP | default('no-ip') }})"
+
+- name: Deduplicate host lists and IP wildcard patterns
+  ansible.builtin.set_fact:
+    k8s_cluster_hostnames: "{{ k8s_cluster_hostnames | unique }}"
+    slurm_cluster_hostnames: "{{ slurm_cluster_hostnames | unique }}"
+    k8s_cluster_ip_patterns: >-
+      {{
+        (k8s_cluster_ip_patterns | default([]))
+        | map('regex_replace', '\\.[0-9]+$', '.*')
+        | list
+        | unique
+      }}
+    slurm_cluster_ip_patterns: >-
+      {{
+        (slurm_cluster_ip_patterns | default([]))
+        | map('regex_replace', '\\.[0-9]+$', '.*')
+        | list
+        | unique
+      }}
+    omnia_cluster_ip_patterns: >-
+      {{
+        (omnia_cluster_ip_patterns | default([]))
+        | map('regex_replace', '\\.[0-9]+$', '.*')
+        | list
+        | unique
+      }}
+
+- name: DEBUG passwordless_ssh facts built from PXE mapping
+  ansible.builtin.debug:
+    msg:
+      k8s_cluster_hostnames: "{{ k8s_cluster_hostnames | default([]) }}"
+      slurm_cluster_hostnames: "{{ slurm_cluster_hostnames | default([]) }}"
+      k8s_cluster_ip_patterns: "{{ k8s_cluster_ip_patterns | default([]) }}"
+      slurm_cluster_ip_patterns: "{{ slurm_cluster_ip_patterns | default([]) }}"
+      omnia_cluster_ip_patterns: "{{ omnia_cluster_ip_patterns | default([]) }}"
+      omnia_hosts_map: "{{ omnia_hosts_map | default({}) }}"

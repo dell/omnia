@@ -1,0 +1,100 @@
+#!/bin/bash
+set -e
+
+CLIENT_MOUNT="{{ client_mount_path }}"
+UCX_PREFIX="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
+UCX_BUILD="{{ client_mount_path }}/slurm/hpc_tools/compile/ucx"
+
+# Comprehensive logging
+LOGFILE="/var/log/ucx_installation.log"
+
+echo "===== UCX Installation Started ====="
+echo "Timestamp: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "Installation Prefix: $UCX_PREFIX"
+echo "Build Directory: $UCX_BUILD"
+echo "Log File: $LOGFILE" | tee -a "$LOGFILE"
+
+# Check that NFS is mounted
+if ! mountpoint -q "$CLIENT_MOUNT"; then
+    echo "[ERROR] $CLIENT_MOUNT is not mounted."
+    echo "        Please mount the NFS path before running install_ucx.sh"
+    exit 1
+fi
+
+echo "===== UCX build started ====="
+
+mkdir -p "$UCX_BUILD"
+cd "$UCX_BUILD"
+
+sys_arch="$(uname -m)"
+case "${sys_arch}" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+    *)
+        echo "Unsupported architecture: ${sys_arch}"
+        exit 1
+        ;;
+esac
+
+if [ ! -f ucx.tar.gz ]; then
+    echo "[INFO] Downloading UCX source code..."
+    wget --no-check-certificate \
+      https://{{ hostvars['localhost']['admin_nic_ip'] }}:2225/pulp/content/opt/omnia/offline_repo/cluster/${arch}/{{ hostvars['localhost']['cluster_os_type'] }}/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/ucx/ucx.tar.gz \
+      -O ucx.tar.gz >> "$LOGFILE" 2>&1
+    echo "[INFO] UCX download completed"
+else
+    echo "[INFO] ucx.tar.gz already exists, skipping download."
+fi
+
+echo "[INFO] Extracting UCX source code..."
+tar xzf ucx.tar.gz >> "$LOGFILE" 2>&1
+cd ucx-*
+echo "[INFO] UCX source extracted to $(pwd)"
+
+echo "[INFO] Creating build directory..."
+mkdir -p build
+cd build
+
+echo "[INFO] Configuring UCX build..."
+../contrib/configure-release --prefix="$UCX_PREFIX" >> "$LOGFILE" 2>&1
+
+echo "[INFO] Building UCX with {{ ucx_build_threads | default(8) }} threads..."
+make -j {{ ucx_build_threads | default(8) }} >> "$LOGFILE" 2>&1
+
+echo "[INFO] Installing UCX..."
+make install >> "$LOGFILE" 2>&1
+
+# Configure UCX environment variables system-wide
+UCX_ENV_FILE="/etc/profile.d/ucx.sh"
+
+echo "[INFO] Setting up UCX environment variables in $UCX_ENV_FILE..."
+cat > "$UCX_ENV_FILE" <<EOF
+# UCX environment
+export UCX_HOME="{{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx"
+export PATH="\$UCX_HOME/bin:\$PATH"
+export LD_LIBRARY_PATH="\$UCX_HOME/lib:\$LD_LIBRARY_PATH"
+EOF
+
+chmod 644 "$UCX_ENV_FILE"
+
+# Verify installation
+echo "[INFO] Verifying UCX installation..."
+if [ -f "$UCX_PREFIX/bin/ucx_info" ]; then
+    UCX_VERSION=$("$UCX_PREFIX/bin/ucx_info" -v | head -1)
+    echo "[SUCCESS] UCX installation verified - Version: $UCX_VERSION" | tee -a "$LOGFILE"
+else
+    echo "[ERROR] UCX installation verification failed - ucx_info not found" | tee -a "$LOGFILE"
+    exit 1
+fi
+
+echo "Log File Created:"
+echo "  - Installation Log: $LOGFILE" | tee -a "$LOGFILE"
+
+echo "[INFO] UCX installed under {{ client_mount_path }}/slurm/hpc_tools/benchmarks/ucx" | tee -a "$LOGFILE"
+echo "[INFO] UCX environment configured in $UCX_ENV_FILE" | tee -a "$LOGFILE"
+echo "[INFO] Run 'source $UCX_ENV_FILE' or re-login to use ucx_info" | tee -a "$LOGFILE"
+
+echo "===== UCX Installation Completed =====" | tee -a "$LOGFILE"
+echo "Completion Timestamp: $(date '+%Y-%m-%d %H:%M:%S')" | tee -a "$LOGFILE"
+echo "CLOUD-INIT: UCX installation completed successfully" | tee -a "$LOGFILE"
+

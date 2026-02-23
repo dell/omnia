@@ -21,6 +21,7 @@ import re
 import itertools
 import csv
 import yaml
+import ipaddress
 from ansible.module_utils.input_validation.common_utils import validation_utils
 from ansible.module_utils.input_validation.common_utils import config
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
@@ -89,6 +90,65 @@ def validate_functional_groups_separation(pxe_mapping_file_path):
 
     if errors:
         raise ValueError("PXE mapping file group separation validation errors: " + "; ".join([str(e) for e in errors]))
+
+def validate_slurm_login_compiler_prefix(pxe_mapping_file_path):
+    """Validate that slurm_node and login_compiler entries align on architecture suffix when both are present.
+
+    - Functional group suffix must be either _x86_64 or _aarch64 (case-sensitive).
+    - When both slurm_node* and login_compiler_node* are present, their suffixes must match.
+
+    Raises ValueError with details if suffixes differ. Prefix differences are allowed.
+    """
+
+    if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
+        raise ValueError(f"PXE mapping file not found: {pxe_mapping_file_path}")
+
+    with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.readlines()
+
+    non_comment_lines = [ln for ln in raw_lines if ln.strip()]
+    reader = csv.DictReader(non_comment_lines)
+
+    fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+    fg_col = fieldname_map.get("FUNCTIONAL_GROUP_NAME")
+    hostname_col = fieldname_map.get("HOSTNAME")
+
+    if not fg_col or not hostname_col:
+        raise ValueError("FUNCTIONAL_GROUP_NAME or HOSTNAME column not found in PXE mapping file")
+
+    arch_map = {"slurm_node": [], "login_compiler_node": []}
+
+    for row_idx, row in enumerate(reader, start=2):
+        fg_name = row.get(fg_col, "").strip() if row.get(fg_col) else ""
+        hostname = row.get(hostname_col, "").strip() if row.get(hostname_col) else ""
+        if not fg_name or not hostname:
+            continue
+
+        fg_arch = None
+        fg_base = fg_name
+        for suffix in ("_x86_64", "_aarch64"):
+            if fg_name.endswith(suffix):
+                fg_arch = suffix.lstrip("_")
+                fg_base = fg_name[: -len(suffix)]
+                break
+
+        if fg_base in arch_map and fg_arch:
+            arch_map[fg_base].append((fg_arch, row_idx))
+
+    if not arch_map["slurm_node"] or not arch_map["login_compiler_node"]:
+        return
+
+    slurm_arch, _ = arch_map["slurm_node"][0]
+    login_arch, _ = arch_map["login_compiler_node"][0]
+    if slurm_arch != login_arch:
+        slurm_rows = [str(r[1]) for r in arch_map["slurm_node"]]
+        login_rows = [str(r[1]) for r in arch_map["login_compiler_node"]]
+        raise ValueError(
+            "Architecture suffix mismatch between slurm_node and login_compiler_node. "
+            f"slurm_node suffix '{slurm_arch}' vs "
+            f"login_compiler_node suffix '{login_arch}' "
+            "Ensure both use the same suffix (_x86_64 or _aarch64)."
+        )
 
 def validate_duplicate_hostnames_in_mapping_file(pxe_mapping_file_path):
     """
@@ -673,8 +733,24 @@ def validate_provision_config(
             create_error_msg("language", input_file_path, en_us_validation_msg.LANGUAGE_FAIL_MSG)
         )
 
+    enable_build_stream = data.get("enable_build_stream", False)
+
+    # Override from build_stream_config.yml if present
+    try:
+        build_stream_config_path = create_file_path(input_file_path, file_names["build_stream_config"])
+        if os.path.isfile(build_stream_config_path):
+            with open(build_stream_config_path, "r", encoding="utf-8") as bfh:
+                bs_cfg = yaml.safe_load(bfh) or {}
+                enable_build_stream = bs_cfg.get("enable_build_stream", enable_build_stream)
+    except Exception:
+        # If file missing or malformed, fall back to provided data value
+        pass
+
     pxe_mapping_file_path = data.get("pxe_mapping_file_path", "")
-    if pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
+    if enable_build_stream:
+        # Build Stream flow: skip mapping file validation entirely
+        pass
+    elif pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
         try:
             validate_mapping_file_entries(pxe_mapping_file_path)
             validate_functional_groups_in_mapping_file(pxe_mapping_file_path)
@@ -683,6 +759,7 @@ def validate_provision_config(
             validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path)
             validate_functional_groups_separation(pxe_mapping_file_path)
             validate_parent_service_tag_hierarchy(pxe_mapping_file_path)
+            validate_slurm_login_compiler_prefix(pxe_mapping_file_path)
 
             # Validate ADMIN_IPs against network_spec.yml ranges
             network_spec_path = create_file_path(input_file_path, file_names["network_spec"])
@@ -743,6 +820,54 @@ def validate_network_spec(
             create_error_msg("Networks", None, en_us_validation_msg.ADMIN_NETWORK_MISSING_MSG)
         )
         return errors
+
+    # Extract admin and IB parameters for cross-validation
+    admin_netmask_bits = None
+    admin_primary_ip = None
+    ib_netmask_bits = None
+    ib_subnet = None
+    ib_present = False
+
+    for network in data["Networks"]:
+        if "admin_network" in network and isinstance(network["admin_network"], dict):
+            admin_net = network["admin_network"]
+            admin_netmask_bits = admin_net.get("netmask_bits", admin_netmask_bits)
+            admin_primary_ip = admin_net.get("primary_oim_admin_ip", admin_primary_ip)
+
+        if "ib_network" in network and isinstance(network["ib_network"], dict):
+            ib_net = network["ib_network"]
+            # Consider IB network present only when config is non-empty
+            if ib_net:
+                ib_present = True
+                ib_netmask_bits = ib_net.get("netmask_bits", ib_netmask_bits)
+                ib_subnet = ib_net.get("subnet", ib_subnet)
+
+    # If IB network is configured and both netmask bits are available, they must match
+    if ib_present and ib_netmask_bits and admin_netmask_bits and ib_netmask_bits != admin_netmask_bits:
+        errors.append(
+            create_error_msg(
+                "ib_network.netmask_bits",
+                ib_netmask_bits,
+                en_us_validation_msg.IB_NETMASK_BITS_MISMATCH_MSG,
+            )
+        )
+
+    # If IB subnet and admin primary IP are available, ensure IB subnet is not in admin range
+    if ib_present and ib_subnet and admin_primary_ip and admin_netmask_bits:
+        try:
+            admin_network = ipaddress.IPv4Network(f"{admin_primary_ip}/{admin_netmask_bits}", strict=False)
+            ib_ip = ipaddress.IPv4Address(ib_subnet)
+            if ib_ip in admin_network:
+                errors.append(
+                    create_error_msg(
+                        "ib_network.subnet",
+                        ib_subnet,
+                        en_us_validation_msg.IB_SUBNET_IN_ADMIN_RANGE_MSG,
+                    )
+                )
+        except ValueError:
+            # If IPs/netmask are invalid, rely on existing validations to report issues
+            pass
 
     for network in data["Networks"]:
         errors.extend(_validate_admin_network(network))
@@ -941,3 +1066,4 @@ def _validate_ip_ranges(dynamic_range, network_type, netmask_bits):
             )
 
     return errors
+

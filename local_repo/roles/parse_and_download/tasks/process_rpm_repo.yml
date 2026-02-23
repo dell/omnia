@@ -27,7 +27,15 @@
   process_rpm_config:
     local_config: "{{ result.local_config }}"
     log_dir: "{{ base_path }}"
+    additional_repos_config: "{{ result.additional_repos_config | default(omit) }}"
+    pulp_concurrency: "{{ pulp_concurrency }}"
+    sw_archs: "{{ result.sw_archs }}"
+    resync_repos: "{{ resync_repos | default(None) }}"
   register: rpm_result
+
+- name: Display RPM processing result
+  ansible.builtin.debug:
+    msg: "{{ rpm_result.result }}"
 
 - name: Regenerate DNF cache
   ansible.builtin.dnf:

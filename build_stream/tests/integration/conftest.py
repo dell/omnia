@@ -16,6 +16,8 @@
 
 # pylint: disable=redefined-outer-name,consider-using-with
 
+# Configure logging for integration tests
+
 import base64
 import logging
 import os
@@ -34,6 +36,7 @@ import httpx
 import pytest
 import yaml
 from argon2 import PasswordHasher, Type  # noqa: E0611 pylint: disable=no-name-in-module
+from api.logging_utils import log_secure_info
 
 # Configure logging for integration tests
 logging.basicConfig(
@@ -92,11 +95,11 @@ def generate_test_client_secret(length: int = 32) -> str:
     """
     if length < 8:
         raise ValueError("Client secret length must be at least 8 characters")
-
+    
     # Generate random part (subtract 6 for "bld_s_" prefix)
     random_part_length = max(8, length - 6)
     random_part = generate_secure_test_password(random_part_length)
-
+    
     return f"bld_s_{random_part}"
 
 
@@ -106,10 +109,7 @@ def generate_invalid_client_id() -> str:
     Returns:
         Invalid client ID without proper prefix
     """
-    return (
-        "invalid_client_id_" + 
-        ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(8))
-    )
+    return "invalid_client_id_" + ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(8))
 
 
 def generate_invalid_client_secret() -> str:
@@ -118,10 +118,7 @@ def generate_invalid_client_secret() -> str:
     Returns:
         Invalid client secret without proper prefix
     """
-    return (
-        "invalid_secret_" + 
-        ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(8))
-    )
+    return "invalid_secret_" + ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(8))
 
 
 class IntegrationTestConfig:
@@ -184,19 +181,19 @@ class VaultManager:  # noqa: R0902 pylint: disable=too-many-instance-attributes
             username: Registration username.
             password: Registration password.
         """
-        logger.info("Setting up Ansible Vault...")
-        logger.info("  Vault directory: %s", self.vault_dir)
-        logger.info("  Vault file: %s", self.vault_file)
-        logger.info("  Vault password file: %s", self.vault_pass_file)
+        log_secure_info("info", "Setting up Ansible Vault...")
+        log_secure_info("info", "  Vault directory: %s", self.vault_dir)
+        log_secure_info("info", "  Vault file: %s", self.vault_file)
+        log_secure_info("info", "  Vault password file: %s", self.vault_pass_file)
 
         self.vault_dir.mkdir(parents=True, exist_ok=True)
-        logger.info("  Created vault directory")
+        log_secure_info("info", "  Created vault directory")
 
         self.vault_pass_file.write_text(IntegrationTestConfig.get_vault_password())
         self.vault_pass_file.chmod(0o600)
-        logger.info("  Created vault password file")
+        log_secure_info("info", "  Created vault password file")
 
-        logger.info("  Generating Argon2id password hash...")
+        log_secure_info("info", "  Generating Argon2id password hash...")
         password_hash = self._hasher.hash(password)
 
         vault_content = {
@@ -214,7 +211,7 @@ class VaultManager:  # noqa: R0902 pylint: disable=too-many-instance-attributes
             temp_path = temp_file.name
 
         try:
-            logger.info("  Encrypting vault with ansible-vault...")
+            log_secure_info("info", "  Encrypting vault with ansible-vault...")
             subprocess.run(
                 [
                     "ansible-vault",
@@ -231,20 +228,20 @@ class VaultManager:  # noqa: R0902 pylint: disable=too-many-instance-attributes
 
             shutil.move(temp_path, str(self.vault_file))
             self.vault_file.chmod(0o600)
-            logger.info("  Vault encrypted and saved successfully")
+            log_secure_info("info", "  Vault encrypted and saved successfully")
         finally:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-        logger.info("Vault setup complete")
+        log_secure_info("info", "Vault setup complete")
 
         # Generate JWT keys for token signing
         self._generate_jwt_keys()
 
     def _generate_jwt_keys(self) -> None:
         """Generate RSA key pair for JWT signing in e2e tests."""
-        logger.info("Generating JWT keys for e2e tests...")
-        logger.info("  Keys directory: %s", self.keys_dir)
+        log_secure_info("info", "Generating JWT keys for e2e tests...")
+        log_secure_info("info", "  Keys directory: %s", self.keys_dir)
 
         self.keys_dir.mkdir(parents=True, exist_ok=True)
 
@@ -259,7 +256,7 @@ class VaultManager:  # noqa: R0902 pylint: disable=too-many-instance-attributes
             capture_output=True,
         )
         self.private_key_file.chmod(0o600)
-        logger.info("  Generated private key: %s", self.private_key_file)
+        log_secure_info("info", "  Generated private key: %s", self.private_key_file)
 
         # Extract public key
         subprocess.run(
@@ -273,15 +270,15 @@ class VaultManager:  # noqa: R0902 pylint: disable=too-many-instance-attributes
             capture_output=True,
         )
         self.public_key_file.chmod(0o644)
-        logger.info("  Generated public key: %s", self.public_key_file)
-        logger.info("JWT keys generated successfully")
+        log_secure_info("info", "  Generated public key: %s", self.public_key_file)
+        log_secure_info("info", "JWT keys generated successfully")
 
     def cleanup(self) -> None:
         """Clean up vault files."""
-        logger.info("Cleaning up vault files at: %s", self.base_dir)
+        log_secure_info("info", "Cleaning up vault files at: %s", self.base_dir)
         if self.base_dir.exists():
             shutil.rmtree(self.base_dir)
-        logger.info("Vault cleanup complete")
+        log_secure_info("info", "Vault cleanup complete")
 
 
 class ServerManager:
@@ -328,35 +325,35 @@ class ServerManager:
 
     def _setup_venv(self) -> None:
         """Create virtual environment and install dependencies."""
-        logger.info("Setting up Python virtual environment...")
-        logger.info("  Venv directory: %s", self.venv_dir)
+        log_secure_info("info", "Setting up Python virtual environment...")
+        log_secure_info("info", "  Venv directory: %s", self.venv_dir)
 
         if not self.venv_dir.exists():
-            logger.info("  Creating virtual environment...")
+            log_secure_info("info", "  Creating virtual environment...")
             subprocess.run(
                 ["python3", "-m", "venv", str(self.venv_dir)],
                 check=True,
                 capture_output=True,
             )
-            logger.info("  Virtual environment created")
+            log_secure_info("info", "  Virtual environment created")
         else:
-            logger.info("  Virtual environment already exists")
+            log_secure_info("info", "  Virtual environment already exists")
 
         pip_path = self.venv_dir / "bin" / "pip"
-        logger.info("  Upgrading pip...")
+        log_secure_info("info", "  Upgrading pip...")
         subprocess.run(
             [str(pip_path), "install", "--upgrade", "pip", "-q"],
             check=True,
             capture_output=True,
         )
 
-        logger.info("  Installing dependencies: %s", ", ".join(self.REQUIRED_PACKAGES))
+        log_secure_info("info", "  Installing dependencies: %s", ", ".join(self.REQUIRED_PACKAGES))
         subprocess.run(
             [str(pip_path), "install", "-q"] + self.REQUIRED_PACKAGES,
             check=True,
             capture_output=True,
         )
-        logger.info("  Dependencies installed successfully")
+        log_secure_info("info", "  Dependencies installed successfully")
 
     @property
     def python_path(self) -> str:
@@ -390,13 +387,13 @@ class ServerManager:
 
     def start(self) -> None:
         """Start the FastAPI server."""
-        logger.info("Starting FastAPI server...")
+        log_secure_info("info", "Starting FastAPI server...")
         self._setup_venv()
 
-        logger.info("  Freeing port %d if in use...", self.port)
+        log_secure_info("info", "  Freeing port %d if in use...", self.port)
         self._free_port()
 
-        logger.info("  Configuring server environment variables...")
+        log_secure_info("info", "  Configuring server environment variables...")
         env = os.environ.copy()
         env.update({
             "HOST": self.host,
@@ -409,19 +406,19 @@ class ServerManager:
             "LOG_LEVEL": "DEBUG",
             "PYTHONPATH": str(self.project_dir),
         })
-        logger.info("    HOST=%s", self.host)
-        logger.info("    PORT=%s", self.port)
-        logger.info("    ANSIBLE_VAULT_PASSWORD_FILE=%s", self.vault_manager.vault_pass_file)
-        logger.info("    OAUTH_CLIENTS_VAULT_PATH=%s", self.vault_manager.vault_file)
-        logger.info("    AUTH_CONFIG_VAULT_PATH=%s", self.vault_manager.vault_file)
-        logger.info("    JWT_PRIVATE_KEY_PATH=%s", self.vault_manager.private_key_file)
-        logger.info("    JWT_PUBLIC_KEY_PATH=%s", self.vault_manager.public_key_file)
-        logger.info("    LOG_LEVEL=DEBUG")
-        logger.info("    PYTHONPATH=%s", self.project_dir)
+        log_secure_info("info", "    HOST=%s", self.host)
+        log_secure_info("info", "    PORT=%s", self.port)
+        log_secure_info("info", "    ANSIBLE_VAULT_PASSWORD_FILE=%s", self.vault_manager.vault_pass_file)
+        log_secure_info("info", "    OAUTH_CLIENTS_VAULT_PATH=%s", self.vault_manager.vault_file)
+        log_secure_info("info", "    AUTH_CONFIG_VAULT_PATH=%s", self.vault_manager.vault_file)
+        log_secure_info("info", "    JWT_PRIVATE_KEY_PATH=%s", self.vault_manager.private_key_file)
+        log_secure_info("info", "    JWT_PUBLIC_KEY_PATH=%s", self.vault_manager.public_key_file)
+        log_secure_info("info", "    LOG_LEVEL=DEBUG")
+        log_secure_info("info", "    PYTHONPATH=%s", self.project_dir)
 
-        logger.info("  Starting uvicorn server...")
-        logger.info("    Python: %s", self.python_path)
-        logger.info("    Working directory: %s", self.project_dir)
+        log_secure_info("info", "  Starting uvicorn server...")
+        log_secure_info("info", "    Python: %s", self.python_path)
+        log_secure_info("info", "    Working directory: %s", self.project_dir)
 
         # Process needs to be managed separately for start/stop lifecycle
         # Cannot use 'with' statement as process must persist after method returns
@@ -441,14 +438,13 @@ class ServerManager:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        logger.info("  Server process started with PID: %d", self.process.pid)
+        log_secure_info("info", "  Server process started with PID: %d", self.process.pid)
 
         self._wait_for_server()
 
     def _wait_for_server(self) -> None:
         """Wait for server to be ready."""
-        logger.info("  Waiting for server to be ready (timeout: %ds)...",
-                    IntegrationTestConfig.SERVER_STARTUP_TIMEOUT)
+        log_secure_info("info", "  Waiting for server to be ready (timeout: %ds)...", IntegrationTestConfig.SERVER_STARTUP_TIMEOUT)
 
         start_time = time.time()
         while time.time() - start_time < IntegrationTestConfig.SERVER_STARTUP_TIMEOUT:
@@ -459,8 +455,8 @@ class ServerManager:
                 )
                 if response.status_code == 200:
                     elapsed = time.time() - start_time
-                    logger.info("  Server is ready! (took %.1fs)", elapsed)
-                    logger.info("  Server URL: http://%s:%d", self.host, self.port)
+                    log_secure_info("info", "  Server is ready! (took %.1fs)", elapsed)
+                    log_secure_info("info", "  Server URL: http://%s:%d", self.host, self.port)
                     return
             except httpx.RequestError:
                 pass
@@ -468,18 +464,18 @@ class ServerManager:
 
         # Log server output before stopping
         if self.process:
-            logger.error("Server failed to start. Checking process output...")
+            log_secure_info("error", "Server failed to start. Checking process output...")
             if self.process.stdout:
                 stdout_output = self.process.stdout.read().decode()
-                logger.error("Server STDOUT:\n%s", stdout_output)
+                log_secure_info("error", "Server STDOUT:\n%s", stdout_output)
             if self.process.stderr:
                 stderr_output = self.process.stderr.read().decode()
-                logger.error("Server STDERR:\n%s", stderr_output)
+                log_secure_info("error", "Server STDERR:\n%s", stderr_output)
 
             # Check process return code
             self.process.poll()
             if self.process.returncode is not None:
-                logger.error("Server process exited with code: %s", self.process.returncode)
+                log_secure_info("error", "Server process exited with code: %s", self.process.returncode)
 
         self.stop()
         raise RuntimeError(
@@ -488,22 +484,22 @@ class ServerManager:
 
     def stop(self) -> None:
         """Stop the FastAPI server."""
-        logger.info("Stopping FastAPI server...")
+        log_secure_info("info", "Stopping FastAPI server...")
         if self.process:
-            logger.info("  Terminating server process (PID: %d)...", self.process.pid)
+            log_secure_info("info", "  Terminating server process (PID: %d)...", self.process.pid)
             self.process.terminate()
             try:
                 self.process.wait(timeout=5)
-                logger.info("  Server stopped gracefully")
+                log_secure_info("info", "  Server stopped gracefully")
             except subprocess.TimeoutExpired:
-                logger.info("  Server did not stop gracefully, killing...")
+                log_secure_info("info", "  Server did not stop gracefully, killing...")
                 self.process.kill()
                 self.process.wait()
-                logger.info("  Server killed")
+                log_secure_info("info", "  Server killed")
             self.process = None
 
         self._free_port()
-        logger.info("Server shutdown complete")
+        log_secure_info("info", "Server shutdown complete")
 
     @property
     def base_url(self) -> str:

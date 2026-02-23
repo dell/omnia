@@ -11,6 +11,9 @@ PyJWT>=2.8.0
 cryptography>=41.0.0
 argon2-cffi>=23.1.0
 
+# Dependency injection
+dependency-injector>=4.41.0
+
 # Vault integration
 pyyaml>=6.0.0
 ansible>=8.0.0

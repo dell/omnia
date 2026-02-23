@@ -20,15 +20,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
+from api.logging_utils import log_secure_info
 from api.vault_client import VaultError
-from .schemas import (
+from api.auth.schemas import (
     AuthErrorResponse,
     ClientRegistrationRequest,
     ClientRegistrationResponse,
     TokenRequest,
     TokenResponse,
 )
-from .service import (
+from api.auth.service import (
     AuthService,
     AuthenticationError,
     ClientDisabledError,
@@ -189,7 +190,7 @@ async def register_client(
         )
 
     except MaxClientsReachedError as e:
-        logger.warning("Client registration failed - max clients reached: %s", str(e))
+        log_secure_info("warning", "Client registration failed - max clients reached")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -198,7 +199,7 @@ async def register_client(
             },
         ) from None
     except ClientExistsError:
-        logger.warning("Client registration failed - client exists")
+        log_secure_info("warning", "Client registration failed - client exists")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -207,7 +208,7 @@ async def register_client(
             },
         ) from None
     except VaultError:
-        logger.error("Client registration failed - vault error for: %s", request.client_name)
+        log_secure_info("error", "Client registration failed - vault error", identifier=request.client_name)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -216,10 +217,9 @@ async def register_client(
             },
         ) from None
     except Exception as e:
-        logger.exception(
-            "Unexpected error during client registration: %s - Exception type: %s",
-            request.client_name,
-            type(e).__name__
+        log_secure_info(
+            "error",
+            "Unexpected error during client registration"
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

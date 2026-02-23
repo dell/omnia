@@ -1,0 +1,4 @@
+---
+
+slurm_share_dir_name: slurm
+slurm_backups_dir_name: slurm_backups

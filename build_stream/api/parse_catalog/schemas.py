@@ -38,10 +38,6 @@ class ParseCatalogResponse(BaseModel):  # pylint: disable=too-few-public-methods
         ...,
         description="Human-readable message describing the result",
     )
-    output_path: Optional[str] = Field(
-        default=None,
-        description="Path to the generated output files (only on success)",
-    )
 
     model_config = {
         "json_schema_extra": {
@@ -49,12 +45,10 @@ class ParseCatalogResponse(BaseModel):  # pylint: disable=too-few-public-methods
                 {
                     "status": "success",
                     "message": "Catalog parsed successfully",
-                    "output_path": "out/generator",
                 },
                 {
                     "status": "error",
                     "message": "Invalid file format. Only JSON files are accepted.",
-                    "output_path": None,
                 },
             ]
         }

@@ -20,6 +20,18 @@
       disable_root: false
 
       write_files:
+        - path: /usr/local/bin/doca-install.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/doca-ofed/doca-install.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/configure-ib-network.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/doca-ofed/configure-ib-network.sh.j2') | indent(12) }}
+
         - path: /usr/local/bin/set-ssh.sh
           permissions: '0755'
           content: |
@@ -54,6 +66,13 @@
                     fi
                 done
             fi
+        
+        - path: /root/.ssh/config
+          permissions: '0600'
+          content: |
+            Host {{ k8s_control_ssh_patterns }}
+                IdentityFile {{ k8s_client_mount_path }}/ssh/oim_rsa
+                IdentitiesOnly yes
 
         - path: /etc/chrony.conf
           permissions: '0644'
@@ -90,6 +109,7 @@
             {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0
             {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0
             {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0
+            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0
             tmpfs   /tmp/crio-storage   tmpfs   size={{ k8s_crio_storage_size }},noatime,nodev,nosuid   0 0
           permissions: '0644'
 
@@ -149,6 +169,16 @@
             location = "gcr.io"
             [[registry.mirror]]
             location = "{{ pulp_mirror }}"
+{% if user_registry | default([]) | length > 0 %}
+{% for registry in user_registry %}
+
+            [[registry]]
+            prefix = "{{ registry.host }}"
+            location = "{{ registry.host }}"
+            [[registry.mirror]]
+            location = "{{ pulp_mirror }}"
+{% endfor %}
+{% endif %}
 
         - path: /tmp/kube-vip.yaml
           owner: root:root
@@ -369,7 +399,7 @@
         - sudo modprobe nf_conntrack || true
         - sudo modprobe vxlan || true
         - sysctl --system
-        - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }} /var/lib/etcd  /var/lib/kubelet /etc/kubernetes /var/log/pods
+        - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }} /var/lib/etcd  /var/lib/kubelet /etc/kubernetes /var/log/pods /var/lib/packages
         - |
           tmpfile=$(mktemp)
           # Extract the first 'search' line only (ignore duplicates)
@@ -391,17 +421,19 @@
             chattr +i /etc/resolv.conf || true
           fi
         - mount -a
-        - systemctl start crio.service
-        - systemctl enable crio.service
-        - sudo systemctl enable --now kubelet
-        - mv /tmp/crio.conf /etc/containers/registries.conf.d/crio.conf
-        - mv /tmp/generate-control-plane-join.sh {{ k8s_client_mount_path }}
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
-        - systemctl daemon-reload
-        - systemctl restart crio
+        - bash /usr/local/bin/doca-install.sh && bash /usr/local/bin/configure-ib-network.sh
+        - mkdir -p /etc/containers/registries.conf.d
+        - mv /tmp/crio.conf /etc/containers/registries.conf.d/crio.conf
+        - systemctl start crio.service
+        - systemctl enable crio.service
+        - sudo systemctl enable --now kubelet
+        - mv /tmp/generate-control-plane-join.sh {{ k8s_client_mount_path }}
         - kubeadm config images pull --kubernetes-version={{ service_k8s_version }}
+{% set role_name = 'service_kube_control_plane_first' %}
+{% include 'pull_additional_images.yaml.j2' %}
         - echo "Installing helm"
         - /usr/local/bin/install-helm.sh
 

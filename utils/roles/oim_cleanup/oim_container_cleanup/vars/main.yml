@@ -146,6 +146,7 @@ auth_service_container_name: omnia_auth
 build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/log/build_stream"
   - "{{ omnia_nfs_share }}/build_stream/ssl"
+  - "{{ omnia_nfs_share }}/playbook_queue"
 
 build_stream_container_name: omnia_build_stream
 

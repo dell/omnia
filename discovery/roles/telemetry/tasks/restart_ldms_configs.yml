@@ -1,0 +1,151 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Load high availability config
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/high_availability_config.yml"
+    name: ha_config
+
+- name: Set kube_vip fact
+  ansible.builtin.set_fact:
+    kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+
+- name: Test SSH connectivity to kube VIP only when PXE has changed
+  when:
+    - kube_vip | length > 0
+    - pxe_changed | default(false) | bool
+  block:
+    - name: SSH test to kube VIP
+      ansible.builtin.command:
+        cmd: "ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -o BatchMode=yes {{ kube_vip }} echo reachable"
+      delegate_to: localhost
+      register: kube_vip_ssh_check
+      changed_when: false
+
+    - name: Set kube VIP reachable fact
+      ansible.builtin.set_fact:
+        kube_vip_reachable: "{{ kube_vip_ssh_check.rc == 0 }}"
+
+  rescue:
+    - name: Display kube VIP unreachable message
+      ansible.builtin.debug:
+        msg: "{{ kube_vip_unreachable_msg }}"
+
+    - name: Set kube VIP reachable fact to false
+      ansible.builtin.set_fact:
+        kube_vip_reachable: false
+
+- name: Restart LDMS aggregator when PXE has changed
+  when: pxe_changed | default(false) | bool
+  block:
+    - name: Check if LDMS aggregator is running on service k8s cluster
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: StatefulSet
+        name: nersc-ldms-aggr
+        namespace: "{{ telemetry_namespace }}"
+      delegate_to: "{{ kube_vip }}"
+      register: ldms_statefulset_info
+      failed_when: false
+      when:
+        - kube_vip_reachable | bool
+
+    - name: Set LDMS running state
+      ansible.builtin.set_fact:
+        ldms_running: "{{ ldms_statefulset_info.resources is defined and ldms_statefulset_info.resources | length > 0 }}"
+      when:
+        - kube_vip_reachable | bool
+
+    - name: Check if LDMS conf ConfigMap file exists
+      ansible.builtin.stat:
+        path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/ldms/nersc-ldms-aggr/nersc-ldms-aggr/templates/cm.nersc-ldms-conf.yaml"
+      register: ldms_conf_file
+      when: ldms_running | default(false) | bool
+
+    - name: Check if LDMS bin ConfigMap file exists
+      ansible.builtin.stat:
+        path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/ldms/nersc-ldms-aggr/nersc-ldms-aggr/templates/cm.nersc-ldms-bin.yaml"
+      register: ldms_bin_file
+      when: ldms_running | default(false) | bool
+
+    - name: Apply LDMS configuration ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/ldms/nersc-ldms-aggr/nersc-ldms-aggr/templates/cm.nersc-ldms-conf.yaml"
+        namespace: "{{ telemetry_namespace }}"
+      delegate_to: "{{ kube_vip }}"
+      failed_when: false
+      when:
+        - ldms_running | default(false) | bool
+        - ldms_conf_file.stat.exists | default(false)
+
+    - name: Apply LDMS scripts ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        src: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/ldms/nersc-ldms-aggr/nersc-ldms-aggr/templates/cm.nersc-ldms-bin.yaml"
+        namespace: "{{ telemetry_namespace }}"
+      delegate_to: "{{ kube_vip }}"
+      failed_when: false
+      when:
+        - ldms_running | default(false) | bool
+        - ldms_bin_file.stat.exists | default(false)
+
+    - name: Restart LDMS aggregator StatefulSet
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: nersc-ldms-aggr
+            namespace: "{{ telemetry_namespace }}"
+          spec:
+            template:
+              metadata:
+                annotations:
+                  kubectl.kubernetes.io/restartedAt: "{{ ansible_date_time.iso8601 }}"
+      delegate_to: "{{ kube_vip }}"
+      failed_when: false
+      when:
+        - ldms_running | default(false) | bool
+        - ldms_conf_file.stat.exists | default(false)
+        - ldms_bin_file.stat.exists | default(false)
+
+    - name: Wait for LDMS aggregator pod to be ready after restart
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ telemetry_namespace }}"
+        label_selectors:
+          - "app=nersc-ldms-aggr"
+        wait: true
+        wait_condition:
+          type: Ready
+          status: "True"
+        wait_timeout: 120
+      delegate_to: "{{ kube_vip }}"
+      register: ldms_pod_ready
+      failed_when: false
+      when:
+        - ldms_running | default(false) | bool
+        - ldms_conf_file.stat.exists | default(false)
+        - ldms_bin_file.stat.exists | default(false)
+
+    - name: Display LDMS aggregator restart status
+      ansible.builtin.debug:
+        msg: "{{ ldms_pod_ready_msg if (ldms_pod_ready.resources | default([]) | length > 0) else ldms_pod_not_ready_msg }}"
+      when:
+        - ldms_running | default(false) | bool
+        - ldms_conf_file.stat.exists | default(false)
+        - ldms_bin_file.stat.exists | default(false)

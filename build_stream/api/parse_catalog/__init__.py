@@ -14,6 +14,6 @@
 
 """ParseCatalog API module."""
 
-from .routes import router
+from api.parse_catalog.routes import router
 
 __all__ = ["router"]

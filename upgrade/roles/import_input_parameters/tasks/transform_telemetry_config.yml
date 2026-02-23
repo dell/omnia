@@ -1,0 +1,148 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if backup telemetry_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ backup_location }}/telemetry_config.yml"
+  register: backup_telemetry_config_stat
+
+- name: Fail if backup telemetry_config.yml is not present
+  ansible.builtin.fail:
+    msg: "{{ msg_backup_telemetry_config_missing }}"
+  when: not backup_telemetry_config_stat.stat.exists
+
+- name: Check if telemetry_config.yml exists
+  ansible.builtin.stat:
+    path: "{{ input_project_dir }}/telemetry_config.yml"
+  register: telemetry_config_stat
+
+- name: Fail if telemetry_config.yml is not present
+  ansible.builtin.fail:
+    msg: "{{ msg_telemetry_config_missing }}"
+  when: not telemetry_config_stat.stat.exists
+
+- name: Read backup telemetry_config.yml (source of truth)
+  ansible.builtin.slurp:
+    src: "{{ backup_location }}/telemetry_config.yml"
+  register: backup_telemetry_config_slurp
+
+- name: Parse backup telemetry_config.yml
+  ansible.builtin.set_fact:
+    backup_telemetry_config: "{{ backup_telemetry_config_slurp.content | b64decode | from_yaml }}"
+
+- name: Normalize nested backup telemetry sections
+  ansible.builtin.set_fact:
+    backup_telemetry_victoria_config: "{{ backup_telemetry_config.victoria_configurations | default({}) }}"
+    backup_telemetry_kafka_config: "{{ backup_telemetry_config.kafka_configurations | default({}) }}"
+
+- name: Normalize telemetry_config.yml values
+  ansible.builtin.set_fact:
+    telemetry_idrac_telemetry_support: "{{ backup_telemetry_config.idrac_telemetry_support | default(true) }}"
+    telemetry_idrac_telemetry_collection_type: >-
+      {{
+        backup_telemetry_config.idrac_telemetry_collection_type
+        | default('victoria,kafka')
+      }}
+    telemetry_victoria_deployment_mode: "{{ backup_telemetry_victoria_config.deployment_mode | default('cluster') }}"
+    telemetry_victoria_persistence_size: "{{ backup_telemetry_victoria_config.persistence_size | default('8Gi') }}"
+    telemetry_victoria_retention_period: "{{ backup_telemetry_victoria_config.retention_period | default(168) }}"
+    telemetry_kafka_persistence_size: "{{ backup_telemetry_kafka_config.persistence_size | default('8Gi') }}"
+    telemetry_kafka_log_retention_hours: "{{ backup_telemetry_kafka_config.log_retention_hours | default(168) }}"
+    telemetry_kafka_log_retention_bytes: "{{ backup_telemetry_kafka_config.log_retention_bytes | default(-1) }}"
+    telemetry_kafka_log_segment_bytes: "{{ backup_telemetry_kafka_config.log_segment_bytes | default(1073741824) }}"
+    telemetry_kafka_topic_partitions: >-
+      {{
+        backup_telemetry_kafka_config.topic_partitions
+        | default([
+          {'name': 'idrac', 'partitions': 1},
+          {'name': 'ldms', 'partitions': 2}
+        ])
+      }}
+    telemetry_ldms_agg_port: "{{ backup_telemetry_config.ldms_agg_port | default(6001) }}"
+    telemetry_ldms_store_port: "{{ backup_telemetry_config.ldms_store_port | default(6001) }}"
+    telemetry_ldms_sampler_port: "{{ backup_telemetry_config.ldms_sampler_port | default(10001) }}"
+    telemetry_ldms_sampler_configurations: >-
+      {{
+        backup_telemetry_config.ldms_sampler_configurations
+        | default([
+          {
+            'plugin_name': 'meminfo',
+            'config_parameters': '',
+            'activation_parameters': 'interval=1000000'
+          },
+          {
+            'plugin_name': 'procstat2',
+            'config_parameters': '',
+            'activation_parameters': 'interval=1000000'
+          },
+          {
+            'plugin_name': 'vmstat',
+            'config_parameters': '',
+            'activation_parameters': 'interval=1000000'
+          },
+          {
+            'plugin_name': 'loadavg',
+            'config_parameters': '',
+            'activation_parameters': 'interval=1000000'
+          },
+          {
+            'plugin_name': 'procnetdev2',
+            'config_parameters': '',
+            'activation_parameters': 'interval=1000000 offset=0'
+          }
+        ])
+      }}
+
+- name: Write telemetry_config.yml in Omnia 2.1 format
+  ansible.builtin.template:
+    src: telemetry_config.j2
+    dest: "{{ input_project_dir }}/telemetry_config.yml"
+    mode: "{{ default_file_mode }}"
+  vars:
+    telemetry_idrac_telemetry_support: "{{ telemetry_idrac_telemetry_support }}"
+    telemetry_idrac_telemetry_collection_type: "{{ telemetry_idrac_telemetry_collection_type }}"
+    telemetry_victoria_deployment_mode: "{{ telemetry_victoria_deployment_mode }}"
+    telemetry_victoria_persistence_size: "{{ telemetry_victoria_persistence_size }}"
+    telemetry_victoria_retention_period: "{{ telemetry_victoria_retention_period }}"
+    telemetry_kafka_persistence_size: "{{ telemetry_kafka_persistence_size }}"
+    telemetry_kafka_log_retention_hours: "{{ telemetry_kafka_log_retention_hours }}"
+    telemetry_kafka_log_retention_bytes: "{{ telemetry_kafka_log_retention_bytes }}"
+    telemetry_kafka_log_segment_bytes: "{{ telemetry_kafka_log_segment_bytes }}"
+    telemetry_kafka_topic_partitions: "{{ telemetry_kafka_topic_partitions }}"
+    telemetry_ldms_agg_port: "{{ telemetry_ldms_agg_port }}"
+    telemetry_ldms_store_port: "{{ telemetry_ldms_store_port }}"
+    telemetry_ldms_sampler_port: "{{ telemetry_ldms_sampler_port }}"
+    telemetry_ldms_sampler_configurations: "{{ telemetry_ldms_sampler_configurations }}"
+
+- name: Validate YAML syntax of transformed telemetry_config.yml
+  ansible.builtin.command:
+    cmd: python3 -c "import yaml; yaml.safe_load(open('{{ input_project_dir }}/telemetry_config.yml','r'))"
+  register: telemetry_yaml_validation
+  changed_when: false
+
+- name: Fail if YAML validation fails
+  ansible.builtin.fail:
+    msg: "{{ msg_yaml_validation_failed }}"
+  when:
+    - telemetry_yaml_validation.rc != 0
+
+- name: Display backup path (no-op when skipped)
+  ansible.builtin.debug:
+    msg: "{{ msg_using_backup_telemetry_config }}"
+  when: true
+
+- name: Display transformation summary
+  ansible.builtin.debug:
+    msg: "{{ msg_telemetry_config_transform_summary }}"

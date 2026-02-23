@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,34 @@
 - name: Include storage vars
   ansible.builtin.include_vars: "{{ input_project_dir }}/storage_config.yml"
 
+- name: Load slurm_custom.json for x86_64
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/config/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/slurm_custom.json"
+    name: slurm_custom_x86_64
+  failed_when: false
+
+- name: Load slurm_custom.json for aarch64
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/config/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/slurm_custom.json"
+    name: slurm_custom_aarch64
+  failed_when: false
+
+- name: Extract CUDA runfile name for x86_64 from slurm_custom.json
+  ansible.builtin.set_fact:
+    cuda_runfile_x86_64: "{{ (slurm_custom_x86_64.slurm_node.cluster | selectattr('package', 'equalto', 'cuda-run') | first).url | basename }}"
+  when:
+    - slurm_custom_x86_64 is defined
+    - slurm_custom_x86_64.slurm_node is defined
+    - slurm_custom_x86_64.slurm_node.cluster | selectattr('package', 'equalto', 'cuda-run') | list | length > 0
+
+- name: Extract CUDA runfile name for aarch64 from slurm_custom.json
+  ansible.builtin.set_fact:
+    cuda_runfile_aarch64: "{{ (slurm_custom_aarch64.slurm_node.cluster | selectattr('package', 'equalto', 'cuda-run') | first).url | basename }}"
+  when:
+    - slurm_custom_aarch64 is defined
+    - slurm_custom_aarch64.slurm_node is defined
+    - slurm_custom_aarch64.slurm_node.cluster | selectattr('package', 'equalto', 'cuda-run') | list | length > 0
+
 - name: Set facts for slurm
   ansible.builtin.set_fact:
     nfs_storage_name: "{{ slurm_cluster[0].nfs_storage_name }}"
@@ -32,6 +60,7 @@
   ansible.builtin.set_fact:
     cluster_name: "{{ slurm_cluster[0].cluster_name }}"
     configs_input: "{{ slurm_cluster[0].config_sources | default({}) | dict2items | rejectattr('value', 'falsy') | list | items2dict }}"
+    skip_merge: "{{ slurm_cluster[0].skip_merge | default(false) }}"
     slurm_config_path: "{{ share_path }}/{{ slurm_dir_name }}"
     controller_trackfile_path: "{{ share_path }}/ctld_track"
 
@@ -39,16 +68,38 @@
   ansible.builtin.include_tasks: openldap_config.yml
   when: hostvars['localhost']['openldap_support']
 
+- name: Create slurm group
+  ansible.builtin.group:
+    name: "{{ slurm_user_group }}"
+    gid: "{{ slurm_uid }}"
+
+- name: Create slurm User
+  ansible.builtin.user:
+    name: "{{ slurm_user }}"
+    uid: "{{ slurm_uid }}"
+    group: "{{ slurm_user_group }}"
+    create_home: false
+
 - name: Set facts for slurm
   ansible.builtin.set_fact:
     share_prefix: "{{ slurm_config_path }}"
   when: conf_in_nfs
 
-- name: Clear the share directory
+- name: Clear Slurm-related files and directories
   ansible.builtin.file:
-    path: "{{ slurm_config_path }}"
+    path: "{{ slurm_config_path }}/{{ slurm_item }}"
     state: absent
-  when: clear_slurm_files
+  loop: "{{ (ctld_list | default([])
+   + cmpt_list | default([])
+   + login_list | default([])
+   + compiler_login_list | default([])
+   + dbd_list | default([])
+   + ['munge.key']) | flatten }}"
+  loop_control:
+    loop_var: slurm_item
+  failed_when: false
+  when:
+    - clear_slurm_files
 
 - name: Create the slurm directory in share
   ansible.builtin.file:
@@ -68,25 +119,15 @@
     group: root
     mode: "{{ common_mode }}"
 
-- name: Create the slurm ctld directory on share
-  ansible.builtin.file:
-    path: "{{ slurm_config_path }}/{{ item[0] }}{{ item[1] }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "{{ common_mode }}"
-  when: ctld_list
-  loop: "{{ ctld_list | product(ctld_dir) }}"
-
-- name: Create the slurm cmpt directory on share
-  ansible.builtin.file:
-    path: "{{ slurm_config_path }}/{{ item[0] }}{{ item[1] }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "{{ common_mode }}"
-  when: cmpt_list or login_list or compiler_login_list
-  loop: "{{ (cmpt_list + login_list + compiler_login_list) | product(cmpt_dir) }}"
+- name: Create all common directories
+  ansible.builtin.include_tasks: exist_dir.yml
+  loop:
+    - "{{ (ctld_list + cmpt_list + login_list + compiler_login_list) | product(common_dir) }}"
+    - "{{ ctld_list | product(ctld_dir) }}"
+    - "{{ dbd_list | product(db_dir) }}"
+    - "{{ (cmpt_list + login_list + compiler_login_list) | product(cmpt_dir) }}"
+  loop_control:
+    loop_var: product
 
 - name: Create the cert directory on share
   ansible.builtin.file:
@@ -103,58 +144,8 @@
     mode: "{{ file_mode }}"
   become: true
 
-- name: Create the cuda directory on share
-  ansible.builtin.file:
-    path: "{{ slurm_config_path }}/cuda"
-    state: directory
-    owner: root
-    group: root
-    mode: "{{ common_mode }}"
-
-- name: Create the runfile directory on share
-  ansible.builtin.file:
-    path: "{{ slurm_config_path }}/runfile"
-    state: directory
-    owner: root
-    group: root
-    mode: "{{ common_mode }}"
-
-- name: Set NFS info fact
-  ansible.builtin.set_fact:
-    oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
-
-- name: Check if source directory exists
-  ansible.builtin.stat:
-    path: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso/cuda-run/"
-  register: src_dir_check_x86_64
-
-
-- name: Check if source directory exists
-  ansible.builtin.stat:
-    path: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso/cuda-run/"
-  register: src_dir_check_aarch64
-
-- name: Copy cuda run file using copy module for aarch64
-  ansible.builtin.copy:
-    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso/cuda-run/"
-    dest: "{{ slurm_config_path }}/runfile/"
-    mode: '0755'
-    owner: root
-    group: root
-    directory_mode: '0755'
-    remote_src: true
-  when: src_dir_check_aarch64.stat.exists and src_dir_check_aarch64.stat.isdir
-
-- name: Copy cuda run file using copy module for x86_64
-  ansible.builtin.copy:
-    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso/cuda-run/"
-    dest: "{{ slurm_config_path }}/runfile/"
-    mode: '0755'
-    owner: root
-    group: root
-    directory_mode: '0755'
-    remote_src: true
-  when: src_dir_check_x86_64.stat.exists and src_dir_check_x86_64.stat.isdir
+- name: Create hpc tools dirs
+  ansible.builtin.include_tasks: hpc_tools.yml
 
 - name: Check if munge key exists top level
   ansible.builtin.stat:
@@ -171,78 +162,16 @@
   ansible.builtin.copy:
     src: "{{ slurm_config_path }}/munge.key"
     dest: "{{ slurm_config_path }}/{{ item }}/etc/munge/munge.key"
-    mode: "{{ common_mode }}"
+    mode: "0600"
     remote_src: true
+  register: munge_key_copy
   loop: "{{ (ctld_list | default([])) +
             (cmpt_list | default([])) +
             (compiler_login_list | default([])) +
             (login_list | default([])) }}"
 
-- name: Slurm path ops
-  ansible.builtin.set_fact:
-    conf_path_items: "{{ conf_path_items | default({}) | combine({item.key: item.value}) }}"
-  when: item.value is string
-  loop: "{{ configs_input | dict2items }}"
-
-- name: Slurm dict ops
-  ansible.builtin.set_fact:
-    conf_dict_items: "{{ conf_dict_items | default({}) | combine({item.key: item.value}) }}"
-  when: item.value is mapping
-  loop: "{{ configs_input | dict2items }}"
-
-- name: Slurm dict ops
-  ansible.builtin.set_fact:
-    apply_config: >-
-      {{ apply_config | default({})
-        | combine({
-            item: (
-              (__default_config[item] | default({}))
-              | combine(conf_dict_items[item] | default({}))
-            )
-          })
-      }}
-  loop: "{{ conf_files }}"
-
-- name: Read NodeName parameters
-  ansible.builtin.include_tasks: read_node_idrac.yml
-  when: cmpt_list
-  loop: "{{ cmpt_list }}"
-
-- name: Copy conf file if provided
-  ansible.builtin.copy:
-    src: "{{ conf_path_items.get(item.1) }}"
-    dest: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/{{ item.1 }}.conf"
-    mode: "{{ conf_file_mode }}"
-    remote_src: "{{ copy_from_oim }}"
-  when: ctld_list
-  loop: "{{ ctld_list | product(conf_path_items.keys() | default([])) }}"
-
-- name: Add gpu parameters to slurm conf
-  ansible.builtin.set_fact:
-    apply_config: "{{ apply_config | default({}) | combine({'slurm': (apply_config['slurm'] | combine(gpu_slurm_conf))}) }}"
-  when: gpu_params is defined and gpu_params
-
-- name: Verify slurm conf keys only
-  ansible.builtin.assert:
-    that:
-      - (apply_config[item].keys() | list) | difference(__conf_keys[item]) | length == 0
-    fail_msg: "The following {{ item }} config keys are invalid: {{ apply_config[item].keys() | list | difference(__conf_keys[item]) | join(', ') }}"
-  when: apply_config[item] and __conf_keys[item]
-  loop: "{{ conf_files }}"
-
-- name: Slurm dict ops
-  ansible.builtin.set_fact:
-    slurm_conf_dict: "{{ apply_config['slurm'] }}"
-
-- name: Create all .conf for ctld only
-  ansible.builtin.template:
-    src: "{{ item.1 }}.conf.j2"
-    dest: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/{{ item.1 }}.conf"
-    owner: "{{ root_user }}"
-    group: "{{ root_group }}"
-    mode: "{{ conf_file_mode }}"
-  when: ctld_list
-  loop: "{{ ctld_list | product(conf_files | difference(conf_path_items.keys() | default([]))) }}"
+- name: Conf merge and write using slurm_conf module
+  ansible.builtin.include_tasks: confs.yml
 
 - name: Create mariadb cnf
   ansible.builtin.template:
@@ -264,19 +193,9 @@
     dest: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/epilog.d/{{ item.1 }}"
     owner: "{{ root_user }}"
     group: "{{ root_group }}"
-    mode: "{{ conf_file_mode }}"
+    mode: "{{ common_mode }}"
   when: cmpt_list
-  loop: "{{ cmpt_list | product(['logout_user.sh', 'slurmd.service']) }}"
-
-- name: Create slurmd.service in login and login_compiler
-  ansible.builtin.template:
-    src: "{{ item.1 }}.j2"
-    dest: "{{ slurm_config_path }}/{{ item.0 }}/etc/slurm/epilog.d/{{ item.1 }}"
-    owner: "{{ root_user }}"
-    group: "{{ root_group }}"
-    mode: "{{ conf_file_mode }}"
-  when: login_list or compiler_login_list
-  loop: "{{ (login_list + compiler_login_list) | product(['slurmd.service']) }}"
+  loop: "{{ cmpt_list | product(['logout_user.sh']) }}"
 
 - name: Get the slurm NFS path
   ansible.builtin.debug:
@@ -300,3 +219,19 @@
   ansible.builtin.set_fact:
     cloud_init_slurm_nfs_path: "{{ nfs_server_ip }}:{{ nfs_server_path }}"
     client_mount_path: "{{ share_path }}"
+
+- name: Ensure SSH key directory exists on Slurm share
+  ansible.builtin.file:
+    path: "{{ slurm_config_path }}/ssh"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Copy OIM private key to Slurm share for node-to-node SSH
+  ansible.builtin.copy:
+    src: "{{ ssh_private_key_path }}"
+    dest: "{{ slurm_config_path }}/ssh/oim_rsa"
+    owner: root
+    group: root
+    mode: '0600'

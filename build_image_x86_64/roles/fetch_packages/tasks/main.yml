@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -24,22 +24,39 @@
         msg: "{{ local_repo_check_msg }}"
       when: not metadata_file_status.stat.exists
 
+- name: Initialize fg_x86_64 as false
+  ansible.builtin.set_fact:
+    fg_x86_64: "{{ fg_x86_64 | default(false) }}"
+  when: enable_build_stream | default(false)
+
 - name: Include functional groups config
   ansible.builtin.include_vars:
     file: "{{ functional_groups_file_path }}"
     name: functional_groups_config
+  when: not enable_build_stream
+
+- name: Set functional_groups_file_path for build_stream disabled flow
+  ansible.builtin.set_fact:
+    functional_groups_file_path: "{{ functional_groups_file_path }}"
+  when: not enable_build_stream
 
 - name: Include software config
   ansible.builtin.include_vars:
     file: "{{ software_config_file_path }}"
     name: software_config
+  when: enable_build_stream | default(false)
 
-- name: Set cluster_os_version as rhel_tag variable
+- name: Set cluster OS facts
   ansible.builtin.set_fact:
     rhel_tag: "{{ software_config.cluster_os_version }}"
+    default_json_path: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/default_packages.json"   # noqa: yaml[line-length]
+    additional_json_path: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/additional_packages.json"   # noqa: yaml[line-length]
+    admin_debug_json_path: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/admin_debug_packages.json"  # noqa: yaml[line-length]
 
 - name: Fetch pulp endpoint repos
   ansible.builtin.include_tasks: fetch_pulp_repos.yml
+  when: fg_x86_64 or enable_build_stream
 
 - name: Fetch packages for base and compute image softwares
   ansible.builtin.include_tasks: fetch_packages.yml
+  when: fg_x86_64 or enable_build_stream

@@ -184,16 +184,16 @@
               { "src" : "FilePmdMapped", "dst" : "FilePmdMapped", "type" : "u64" },
               { "src" : "CmaTotal", "dst" : "CmaTotal", "type" : "u64" },
               { "src" : "CmaFree", "dst" : "CmaFree", "type" : "u64" },
-              { "src" : "Unaccepted", "dst" : "Unaccepted", "type" : "u64" },
+              { "src" : "Unaccepted", "dst" : "Unaccepted", "type" : "u64", "fill" : 0 },
               { "src" : "HugePages_Total", "dst" : "HugePages_Total", "type" : "u64" },
               { "src" : "HugePages_Free", "dst" : "HugePages_Free", "type" : "u64" },
               { "src" : "HugePages_Rsvd", "dst" : "HugePages_Rsvd", "type" : "u64" },
               { "src" : "HugePages_Surp", "dst" : "HugePages_Surp", "type" : "u64" },
               { "src" : "Hugepagesize", "dst" : "Hugepagesize", "type" : "u64" },
               { "src" : "Hugetlb", "dst" : "Hugetlb", "type" : "u64" },
-              { "src" : "DirectMap4k", "dst" : "DirectMap4k", "type" : "u64" },
-              { "src" : "DirectMap2M", "dst" : "DirectMap2M", "type" : "u64" },
-              { "src" : "DirectMap1G", "dst" : "DirectMap1G", "type" : "u64" }
+              { "src" : "DirectMap4k", "dst" : "DirectMap4k", "type" : "u64", "fill" : 0 },
+              { "src" : "DirectMap2M", "dst" : "DirectMap2M", "type" : "u64", "fill" : 0 },
+              { "src" : "DirectMap1G", "dst" : "DirectMap1G", "type" : "u64", "fill" : 0 }
             ],
             "indices" : [
             ]
@@ -567,7 +567,7 @@
               { "src" : "thp_scan_exceed_none_pte", "dst" : "thp_scan_exceed_none_pte", "type" : "u64" },
               { "src" : "thp_scan_exceed_swap_pte", "dst" : "thp_scan_exceed_swap_pte", "type" : "u64" },
               { "src" : "thp_scan_exceed_share_pte", "dst" : "thp_scan_exceed_share_pte", "type" : "u64" },
-              { "src" : "thp_split_pud", "dst" : "thp_split_pud", "type" : "u64" },
+              { "src" : "thp_split_pud", "dst" : "thp_split_pud", "type" : "u64", "fill" : 0 },
               { "src" : "thp_zero_page_alloc", "dst" : "thp_zero_page_alloc", "type" : "u64" },
               { "src" : "thp_zero_page_alloc_failed", "dst" : "thp_zero_page_alloc_failed", "type" : "u64" },
               { "src" : "thp_swpout", "dst" : "thp_swpout", "type" : "u64" },
@@ -584,13 +584,13 @@
               { "src" : "zswpin", "dst" : "zswpin", "type" : "u64" },
               { "src" : "zswpout", "dst" : "zswpout", "type" : "u64" },
               { "src" : "zswpwb", "dst" : "zswpwb", "type" : "u64" },
-              { "src" : "direct_map_level2_splits", "dst" : "direct_map_level2_splits", "type" : "u64" },
-              { "src" : "direct_map_level3_splits", "dst" : "direct_map_level3_splits", "type" : "u64" },
+              { "src" : "direct_map_level2_splits", "dst" : "direct_map_level2_splits", "type" : "u64", "fill" : 0 },
+              { "src" : "direct_map_level3_splits", "dst" : "direct_map_level3_splits", "type" : "u64", "fill" : 0 },
               { "src" : "vma_lock_success", "dst" : "vma_lock_success", "type" : "u64" },
               { "src" : "vma_lock_abort", "dst" : "vma_lock_abort", "type" : "u64" },
               { "src" : "vma_lock_retry", "dst" : "vma_lock_retry", "type" : "u64" },
               { "src" : "vma_lock_miss", "dst" : "vma_lock_miss", "type" : "u64" },
-              { "src" : "nr_unaccepted", "dst" : "nr_unaccepted", "type" : "u64" },
+              { "src" : "nr_unaccepted", "dst" : "nr_unaccepted", "type" : "u64", "fill" : 0 },
               { "src" : "nr_unstable", "dst" : "nr_unstable", "type" : "u64" }
             ],
             "indices" : [
@@ -728,11 +728,13 @@
     "8BE378143DF8894C6C911EE1934E5BF166BAD9C012013D1E9F1361F0ACC249E1" : "loadavg_decomp",
     "EF4141E721CF871A14A0751296C04A439BD78F448721145DB896EB024D7C3829" : "lustre_llite_decomp",
     "EF957A75E226C57176D45950B7281DB1775E4EC86DFE4F7921C8E5210FD2A7EB" : "meminfo_decomp",
+    "1DFDD62FB6C37AE8A96FA04C5D7975BBFCCBE4C8A12A86678A2AF259F49A1BA4" : "meminfo_decomp",
     "E8B9CC8D83FB4E5B779071E801CA351B69DCB9E9CE2601A0B127A2977F11C62A" : "procnetdev2_decomp",
     "78935B2B0B932E5FDFD20CF29B561B842978B4A5E75663A3AEB02FD5E3F7712E" : "procstat2_decomp",
     "FB038D1C7A059BD675F0C06447F8644AD064583026174B998B904729D23F9487" : "slingshot_info_decomp",
     "181972BDD114E997CC71AD6979056DA3C172B640F130DB143649E1355C4F5599" : "slingshot_metrics_decomp",
     "85CE1C60D0570924DAE5B17758912D1A3ADA2091ABD946E06B9A0240F53F4FD8" : "vmstat_decomp",
+    "9292CFE0558DBE06EF95BE5B97A9FA13A3F66CF1523D3E175816F3F0D9C66DD4" : "vmstat_decomp",
     "F76BA26012C2F1F481AB0C1E0672D438ECFE0C4F7B2B4942AA7067A1FCE51A75" : "mt_slurm_decomp"
   }
 }

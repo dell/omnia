@@ -509,10 +509,9 @@ def validate_high_availability_config(
         ha_data = data.get(config_name)
         if ha_data:
             ha_data = ha_data[0] if isinstance(ha_data, list) else ha_data
-            if ha_data.get(enable_key):
-                validate_ha_config(ha_data, mandatory_fields, errors, config_name,
-                                   os.path.dirname(input_file_path),
-                                   all_service_tags, ha_node_vip_list)
+            validate_ha_config(ha_data, mandatory_fields, errors, config_name,
+                                os.path.dirname(input_file_path),
+                                all_service_tags, ha_node_vip_list)
         else:
             logger.warning(f"Configuration for {config_name} not found.")
 

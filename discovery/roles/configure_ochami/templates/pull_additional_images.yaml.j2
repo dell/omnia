@@ -1,0 +1,21 @@
+{# 
+  Common template to pull additional images using crictl.
+  This template should be included in service_kube role cloud-init files.
+  
+  Required variable: role_name (e.g., 'service_kube_control_plane', 'service_kube_node', 'service_kube_control_plane_first')
+  Uses: additional_images_dict[role_name] - list of dicts with:
+    - package: image name
+    - tag: image tag (if using tag)
+    - digest: image digest (if using digest)
+    - pull_ref: complete reference for crictl pull (package:tag or package@digest)
+#}
+{% if additional_images_dict is defined and additional_images_dict[role_name] is defined and additional_images_dict[role_name] | length > 0 %}
+        - |
+          echo "Pulling additional_packages.json images for {{ role_name }}..."
+          ADDITIONAL_IMAGES=({% for image in additional_images_dict[role_name] %}"{{ image.pull_ref }}"{% if not loop.last %} {% endif %}{% endfor %})
+          for img in "${ADDITIONAL_IMAGES[@]}"; do
+            echo "Pulling $img..."
+            crictl pull "$img" || echo "Failed to pull $img"
+          done
+          echo "Completed pulling additional images for {{ role_name }}."
+{% endif %}

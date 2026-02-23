@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ from jinja2 import Template
 import requests
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.common_functions import is_encrypted, process_file, get_arch_from_sw_config
+from ansible.module_utils.local_repo.parse_and_download import execute_command
 # Import default variables from config.py
 from ansible.module_utils.local_repo.config import (
     PACKAGE_TYPES,
@@ -36,7 +37,9 @@ from ansible.module_utils.local_repo.config import (
     RHEL_OS_URL,
     SOFTWARES_KEY,
     REPO_CONFIG,
-    ARCH_SUFFIXES
+    ARCH_SUFFIXES,
+    ADDITIONAL_REPOS_KEY,
+    pulp_container_commands
 )
 
 
@@ -173,21 +176,32 @@ def transform_package_dict(data, arch_val,logger):
     for sw_name, items in data.items():
         transformed_items = []
         rpm_packages = []
+        repo_mapping = {}
 
         for item in items:
-            if item.get("type") == "rpm":
+            if item.get("type") in ("rpm", "rpm_repo"):
                 rpm_packages.append(item["package"])
+                # Preserve repo_name if available
+                if "repo_name" in item:
+                    repo_mapping[item["package"]] = item["repo_name"]
             elif item.get("type") == "rpm_list":
                 rpm_packages.extend(item["package_list"])
+                # Preserve repo_mapping if available
+                if "repo_mapping" in item:
+                    repo_mapping.update(item["repo_mapping"])
             else:
                 transformed_items.append(item)
 
         if rpm_packages:
-            transformed_items.append({
+            rpm_task = {
                 "package": RPM_LABEL_TEMPLATE.format(key=sw_name),
                 "rpm_list": rpm_packages,
                 "type": "rpm"
-            })
+            }
+            # Add repo_mapping if we have any
+            if repo_mapping:
+                rpm_task["repo_mapping"] = repo_mapping
+            transformed_items.append(rpm_task)
 
         result[arch_val][sw_name] = transformed_items
         logger.info(f"Finished processing %s. Result: %s", sw_name, transformed_items)
@@ -198,7 +212,7 @@ def transform_package_dict(data, arch_val,logger):
 
 
 def parse_repo_urls(repo_config, local_repo_config_path,
-                    version_variables, vault_key_path, sub_urls,logger):
+                    version_variables, vault_key_path, sub_urls,logger,sw_archs=None):
     """
     Parses the repository URLs from the given local repository configuration file.
     Args:
@@ -209,6 +223,8 @@ def parse_repo_urls(repo_config, local_repo_config_path,
         sub_urls (dict): Mapping of architectures to subscription URLs that override 
                          default RHEL URLs when provided.
         logger (logging.Logger): Logger instance used for structured logging of process steps.
+        sw_archs (list, optional): List of architectures to process based on software_config.json.
+                                   If None, defaults to ARCH_SUFFIXES.
     Returns:
         tuple: A tuple where the first element is either the parsed repository URLs as a JSON string
                (on success) or the rendered URL (if unreachable),
@@ -221,8 +237,11 @@ def parse_repo_urls(repo_config, local_repo_config_path,
     user_repo_entry = {}
     rhel_repo_entry = {}
 
-    for arch in ARCH_SUFFIXES:
-        
+    archs_to_process = sw_archs if sw_archs else ARCH_SUFFIXES
+    logger.info(f"Processing repository URLs for architectures: {archs_to_process}")
+
+    for arch in archs_to_process:
+
         # Always ensure these are lists
         rhel_repo_entry[arch] = list(local_yaml.get(f"rhel_os_url_{arch}") or [])
         repo_entries[arch] = list(local_yaml.get(f"omnia_repo_url_rhel_{arch}") or [])
@@ -330,8 +349,8 @@ def parse_repo_urls(repo_config, local_repo_config_path,
     seen_urls = set()
     for arch, entries in repo_entries.items():
         if not entries:
-           logger.info(f"No OMNIA repository entries found for {arch}")
-           continue
+            logger.info(f"No OMNIA repository entries found for {arch}")
+            continue
 
         for repo in entries:
             name = repo.get("name", "unknown")
@@ -447,7 +466,7 @@ def get_subgroup_dict(user_data,logger):
                                     for item in user_data.get(software_name, [])]
         subgroup_dict[software_name] = subgroups if isinstance(
             user_data.get(software_name), list) else [sw['name']]
-    
+
     logger.info("Completed get_subgroup_dict(). Found %d software entries.", len(software_names))
     logger.info("Final subgroup_dict: %s", subgroup_dict)
 
@@ -471,17 +490,17 @@ def get_csv_software(file_name):
     """
 
     csv_software = []
- 
+
     if not os.path.isfile(file_name):
         return csv_software
- 
+
     with open(file_name, mode='r') as csv_file:
         reader = csv.DictReader(csv_file)
         csv_software = [row.get(CSV_COLUMNS["column1"], "").strip()
                         for row in reader]
 
     return csv_software
- 
+
 
 def get_failed_software(file_path):
     """
@@ -507,6 +526,81 @@ def get_failed_software(file_path):
     ]
     return failed_software
 
+def check_additional_image_in_pulp(image_entry, logger):
+    """
+    Checks if image present in additional_packages.json is configured in Pulp.
+    """
+    image_name = image_entry.get("package")
+    image_tag = image_entry.get("tag", None)
+    image_digest = image_entry.get("digest", None)
+
+    logger.info("Checking if %s is present in Pulp", image_name)
+
+    dist_name_prefix = "container_repo_"
+    transformed_dist_name = (f"{dist_name_prefix}{image_name.replace('/', '_').replace(':', '_')}")
+
+    repo_href_result = None
+    latest_version_href_result = None
+    tags_output_result = None
+
+    show_dist_cmd = (pulp_container_commands["container_distribution_show"] % transformed_dist_name)
+    repo_href_result = execute_command(show_dist_cmd, logger)
+    logger.info("repo_href_result: %s", repo_href_result)
+
+    if repo_href_result.get("stderr") and "Error:" in repo_href_result.get("stderr", ""):
+        logger.info("Distribution %s not found in Pulp", transformed_dist_name)
+        return {
+            "type": "image",
+            "package": image_name,
+            "tag": image_tag,
+        }
+    else:
+        logger.info("Distribution %s found in Pulp", transformed_dist_name)
+        repo_href = repo_href_result["stdout"]
+        show_repo_cmd = (pulp_container_commands["show_repository_version"] % repo_href)
+        latest_version_href_result = execute_command(show_repo_cmd, logger)
+        logger.info("latest_version_href_result: %s", latest_version_href_result)
+        if latest_version_href_result.get("stderr") and "Error:" in latest_version_href_result.get("stderr", ""):
+            logger.info("No repository version found. Empty repository")
+            return {
+                "type": "image",
+                "package": image_name,
+                "tag": image_tag,
+            }
+        else:
+            logger.info("Repository version found in Pulp")
+            latest_version_href = latest_version_href_result["stdout"]
+            show_tags_cmd = (pulp_container_commands["list_image_tags"] % latest_version_href)
+            tags_output_result = execute_command(show_tags_cmd, logger, type_json=True)
+            logger.info("tags_output_result: %s", tags_output_result)
+            if tags_output_result.get("stderr") and "Error:" in tags_output_result.get("stderr", ""):
+                logger.info("No tags found for %s", image_name)
+                return {
+                    "type": "image",
+                    "package": image_name,
+                    "tag": image_tag,
+                }
+            else:
+                logger.info("Tags found for %s", image_name)
+                tag_names = [tag["name"] for tag in tags_output_result.get("stdout", {}).get("results", [])]
+                logger.info("tag_names: %s", tag_names)
+                if image_tag and image_tag not in tag_names:
+                    logger.info("Tag %s not found for image %s in Pulp", image_tag, image_name)
+                    return {
+                        "type": "image",
+                        "package": image_name,
+                        "tag": image_tag,
+                    }
+                elif image_digest and image_digest not in tag_names:
+                    logger.info("Digest %s not found for image %s in Pulp", image_digest, image_name)
+                    return {
+                        "type": "image",
+                        "package": image_name,
+                        "tag": image_digest,
+                    }
+                else:
+                    logger.info("No download required as image is already present in Pulp")
+                    return {}
 
 def parse_json_data(file_path, package_types,logger, failed_list=None, subgroup_list=None):
     """
@@ -532,10 +626,25 @@ def parse_json_data(file_path, package_types,logger, failed_list=None, subgroup_
 
     filtered_list = []
 
+    # Check if file name is additional_packages.json
+    is_additional_packages = file_path.endswith("additional_packages.json")
+    logger.info("additional_packages present: %s", is_additional_packages)
+
     for key, package in data.items():
         if subgroup_list is None or key in subgroup_list:
             for value in package.values():
                 for item in value:
+                    # For every image, check if it is present in Pulp
+                    if is_additional_packages and item.get("type") == "image":
+                        logger.info("Calling function to check %s existence in Pulp", item)
+                        tag_missing_entry = check_additional_image_in_pulp(item, logger)
+                        logger.info("tag_missing_entry: %s", tag_missing_entry)
+                        if tag_missing_entry == {}:
+                            continue
+                        if tag_missing_entry:
+                            filtered_list.append(tag_missing_entry)
+                        continue
+
                     # Get package name
                     pkg_name = item.get("package")
 
@@ -604,7 +713,6 @@ def get_new_packages_not_in_status(json_path, csv_path, subgroup_list,logger):
         raise
 
     names = [row['name'] for row in status_csv_content]
-    
     # Read all packages from JSON
     try:
         all_packages = parse_json_data(json_path, PACKAGE_TYPES, logger,None, subgroup_list)
@@ -612,18 +720,23 @@ def get_new_packages_not_in_status(json_path, csv_path, subgroup_list,logger):
     except Exception as e:
         logger.error("Failed to parse JSON file '%s': %s", json_path, e)
         raise
-   
-    for pkg in all_packages:
 
+    for pkg in all_packages:
         if pkg["type"] == "image":
-           pkg_prefix = pkg.get("package", "").strip()
-           prefix_found = any(name.startswith(f"{pkg_prefix}:") for name in names)
-           if not prefix_found:
-               new_packages.append(pkg)
+            # Check exact package:tag or package:digest combination
+            pkg_base = pkg.get("package", "").strip()
+            pkg_identifier = pkg_base
+
+            if "tag" in pkg:
+                pkg_identifier += f":{pkg['tag']}"
+            elif "digest" in pkg:
+                pkg_identifier += f":{pkg['digest']}"
+
+            if pkg_identifier not in names:
+                new_packages.append(pkg)
         else:
             if pkg.get("package") not in names:
                 new_packages.append(pkg)
-
     logger.info("New packages list: %s", new_packages)
 
     logger.info("Finished get_new_packages_not_in_status()")
@@ -650,7 +763,7 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
         failed_packages = None
         logger.info("Fresh installation detected — skipping failed package check.")
     else:
-        try:    
+        try:
             failed_packages = None if fresh_installation else get_failed_software(csv_path)
             logger.info("Failed packages: %s", failed_packages)
         except Exception as e:
@@ -668,7 +781,7 @@ def process_software(software, fresh_installation, json_path, csv_path, subgroup
             raise
     else:
         logger.info("No failed RPM packages found for: %s", software)
- 
+
     # Parse main JSON data
     try:
         combined = parse_json_data(
@@ -700,7 +813,7 @@ def get_software_names_and_arch(json_data, arch):
         sw_arch = sw_arch_dict[sw["name"]]
         if arch in sw_arch:
             result.append(sw["name"])
-    
+
     return result
 
 def remove_duplicates_from_trans(trans):
@@ -719,7 +832,7 @@ def remove_duplicates_from_trans(trans):
 
             if group == "default_packages":  # Handle nested rpm_list case
                 for pkg in items:
-                    if pkg.get("type") == "rpm" and "rpm_list" in pkg:
+                    if pkg.get("type") in ("rpm", "rpm_repo") and "rpm_list" in pkg:
                         pkg["rpm_list"] = list(dict.fromkeys(pkg["rpm_list"]))
                 continue
 
@@ -730,7 +843,9 @@ def remove_duplicates_from_trans(trans):
                 type_ = item.get("type")
 
                 if type_ == "image":
-                    key = (item.get("package"), item.get("tag"))
+                    # Use digest if present, otherwise use tag
+                    identifier = item.get("digest") or item.get("tag")
+                    key = (item.get("package"), identifier)
 
                 elif type_ == "pip_module":
                     key = item.get("package")
@@ -741,7 +856,7 @@ def remove_duplicates_from_trans(trans):
                 elif type_ == "git":
                     key = (item.get("url"), item.get("version"))
 
-                elif type_ == "rpm" and "rpm_list" in item:
+                elif type_ in ("rpm", "rpm_repo") and "rpm_list" in item:
                     item["rpm_list"] = list(dict.fromkeys(item["rpm_list"]))
                     key = item.get("package")
 
@@ -755,3 +870,139 @@ def remove_duplicates_from_trans(trans):
             groups[group] = cleaned
 
     return trans
+
+
+def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, logger):
+    """
+    Parses additional repository URLs from the local repository configuration file.
+    These repos are aggregated into a single Pulp repository per architecture.
+
+    Args:
+        local_repo_config_path (str): The path to the local repository configuration file.
+        repo_config (str): Global repo configuration policy from software_config.json.
+        vault_key_path (str): Ansible vault key path for decrypting SSL certificates.
+        logger (logging.Logger): Logger instance for structured logging.
+
+    Returns:
+        tuple: (additional_repos_config, error_message)
+            - additional_repos_config (dict): Dictionary with arch as key and list of repo configs as value.
+            - error_message (str or None): Error message if validation fails, None otherwise.
+    """
+    logger.info("Starting parse_additional_repos()")
+    local_yaml = load_yaml(local_repo_config_path)
+
+    additional_repos_config = {}
+    policy = REPO_CONFIG.get(repo_config, "on_demand")
+
+    vault_key_full_path = os.path.join(vault_key_path, ".local_repo_credentials_key")
+
+    for arch in ARCH_SUFFIXES:
+        key = f"{ADDITIONAL_REPOS_KEY}_{arch}"
+        repo_list = local_yaml.get(key) or []
+
+        if not repo_list:
+            logger.info(f"No additional repos found for {arch}")
+            additional_repos_config[arch] = []
+            continue
+
+        # Validate for duplicate names within this arch
+        names_seen = set()
+        for repo in repo_list:
+            name = repo.get("name", "")
+            if name in names_seen:
+                error_msg = f"Duplicate name '{name}' found in {key}. Each repo must have a unique name."
+                logger.error(error_msg)
+                return None, error_msg
+            names_seen.add(name)
+
+        parsed_repos = []
+        for repo in repo_list:
+            name = repo.get("name", "unknown")
+            url = repo.get("url", "")
+            gpgkey = repo.get("gpgkey", "")
+            ca_cert = repo.get("sslcacert", "")
+            client_key = repo.get("sslclientkey", "")
+            client_cert = repo.get("sslclientcert", "")
+
+            logger.info(f"Processing additional repo '{name}' for arch '{arch}' - URL: {url}")
+
+            # Decrypt SSL certificates if encrypted
+            for path in [ca_cert, client_key, client_cert]:
+                if path and is_encrypted(path):
+                    result, message = process_file(path, vault_key_full_path, "decrypt")
+                    if result is False:
+                        error_msg = f"Decryption failed for additional repo path: {path} | Error: {message}"
+                        logger.error(error_msg)
+                        return None, error_msg
+
+            # Check URL reachability
+            if not is_remote_url_reachable(url, client_cert=client_cert,
+                                           client_key=client_key, ca_cert=ca_cert):
+                error_msg = f"Additional repo URL unreachable: {url}"
+                logger.error(error_msg)
+                return None, error_msg
+
+            parsed_repos.append({
+                "name": name,
+                "url": url,
+                "gpgkey": gpgkey if gpgkey else "",
+                "ca_cert": ca_cert,
+                "client_key": client_key,
+                "client_cert": client_cert,
+                "policy": policy,
+                "arch": arch
+            })
+            logger.info(f"Added additional repo entry: {name}")
+
+        additional_repos_config[arch] = parsed_repos
+
+    logger.info(f"Successfully parsed additional repos. x86_64: {len(additional_repos_config.get('x86_64', []))}, "
+                f"aarch64: {len(additional_repos_config.get('aarch64', []))}")
+    return additional_repos_config, None
+
+
+def validate_additional_repos_names(local_repo_config_path, logger):
+    """
+    Validates that names in additional_repos_* do not conflict with names in other repo keys.
+
+    Args:
+        local_repo_config_path (str): The path to the local repository configuration file.
+        logger (logging.Logger): Logger instance for structured logging.
+
+    Returns:
+        tuple: (is_valid, error_message)
+            - is_valid (bool): True if validation passes, False otherwise.
+            - error_message (str or None): Error message if validation fails, None otherwise.
+    """
+    logger.info("Starting validate_additional_repos_names()")
+    local_yaml = load_yaml(local_repo_config_path)
+
+    # Keys to check for conflicts
+    other_repo_keys = {
+        "x86_64": ["user_repo_url_x86_64", "rhel_os_url_x86_64", "omnia_repo_url_rhel_x86_64"],
+        "aarch64": ["user_repo_url_aarch64", "rhel_os_url_aarch64", "omnia_repo_url_rhel_aarch64"]
+    }
+
+    for arch in ARCH_SUFFIXES:
+        additional_key = f"{ADDITIONAL_REPOS_KEY}_{arch}"
+        additional_repos = local_yaml.get(additional_key) or []
+
+        if not additional_repos:
+            continue
+
+        # Get all names from additional_repos for this arch
+        additional_names = {repo.get("name", "") for repo in additional_repos if repo.get("name")}
+
+        # Check against other repo keys for the same arch
+        for other_key in other_repo_keys.get(arch, []):
+            other_repos = local_yaml.get(other_key) or []
+            for repo in other_repos:
+                other_name = repo.get("name", "")
+                if other_name in additional_names:
+                    error_msg = (f"Name '{other_name}' in {additional_key} conflicts with "
+                                 f"existing repo name in {other_key}. Please use a unique name.")
+                    logger.error(error_msg)
+                    return False, error_msg
+
+    logger.info("Additional repos name validation passed.")
+    return True, None

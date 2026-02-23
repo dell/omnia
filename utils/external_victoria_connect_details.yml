@@ -1,0 +1,64 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Preflight - validate inventory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Load Victoria utility role variables
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/roles/external_victoria_connect_details/vars/main.yml"
+
+    - name: Include input directory
+      ansible.builtin.include_role:
+        name: include_input_dir
+
+    - name: Set HA config path
+      ansible.builtin.set_fact:
+        k8s_ha_config_path: "{{ input_project_dir }}/high_availability_config.yml"
+
+    - name: Load High Availability config
+      ansible.builtin.include_vars:
+        file: "{{ k8s_ha_config_path }}"
+        name: ha_config
+      failed_when: false
+      register: ha_config_load
+
+    - name: Fail when High Availability config cannot be loaded
+      ansible.builtin.fail:
+        msg: "{{ victoria_preflight_err_ha_config_missing }}"
+      when: ha_config_load.failed
+
+    - name: Set service kube control plane VIP from HA config
+      ansible.builtin.set_fact:
+        kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+
+    - name: Fail when service kube control plane VIP is not available
+      ansible.builtin.fail:
+        msg: "{{ victoria_preflight_err_ha_vip_missing }}"
+      when: (kube_vip | trim | length) == 0
+
+    - name: Create service_kube_control_plane group from VIP
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        groups: service_kube_control_plane
+
+- name: Fetch external Victoria connection details
+  hosts: service_kube_control_plane
+  connection: ssh
+  gather_facts: false
+  roles:
+    - external_victoria_connect_details

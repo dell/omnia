@@ -1,0 +1,89 @@
+#!/bin/bash
+set -euo pipefail
+
+# Optimize firewall ports declaration later
+DOCA_FIREWALL_PORTS=(
+  "18515-18520/tcp"
+  "18515-18520/udp"
+  "18515/tcp"
+  "18515/udp"
+)
+
+echo "Checking for Mellanox / ConnectX / InfiniBand card..."
+
+if ! lspci | grep -i 'mellanox'; then
+    echo "No Mellanox RDMA hardware detected. Skipping DOCA-OFED installation."
+    exit 0
+fi
+
+echo "Mellanox RDMA hardware detected. Proceeding with DOCA-OFED installation."
+
+sys_arch="$(uname -m)"
+case "${sys_arch}" in
+    x86_64|amd64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+    *)
+        echo "Unsupported architecture: ${sys_arch}"
+        exit 1
+        ;;
+esac
+
+echo "Check if kernel-devel package is present"
+if rpm -q kernel-devel-$(uname -r) >/dev/null 2>&1; then
+    echo "kernel-devel package is already installed."
+else
+    echo "kernel-devel package is not installed. Installing..."
+    dnf install -y kernel-devel-$(uname -r)
+fi
+
+echo "Check if kernel-headers package is present"
+if rpm -q kernel-headers-$(uname -r) >/dev/null 2>&1; then
+    echo "kernel-headers package is already installed."
+else
+    echo "kernel-headers package is not installed. Installing..."
+    dnf install -y kernel-headers-$(uname -r)
+fi
+
+echo "Installing doca-ofed..."
+if rpm -q doca-ofed >/dev/null 2>&1; then
+    echo "doca-ofed package is already installed."
+else
+    echo "doca-ofed package is not installed. Installing..."
+    dnf install -y doca-ofed
+fi
+
+echo "Unloading RDMA kernel modules..."
+rmmod bnxt_re || true
+rmmod mlx5_ib    || true
+rmmod ib_uverbs  || true
+rmmod xpmem      || true
+rmmod ib_core    || true
+rmmod mlx5_core  || true
+
+echo "Loading RDMA kernel modules..."
+modprobe mlx5_core || true
+modprobe mlx5_ib || true
+modprobe ib_core || true
+modprobe ib_uverbs || true
+modprobe ib_umad || true
+modprobe ib_cm || true
+modprobe rdma_cm || true
+modprobe rdma_ucm || true
+modprobe xpmem || true
+modprobe knem || true
+modprobe ib_ipoib || true
+
+if command -v firewall-cmd &>/dev/null; then
+    echo "Adding firewall ports..."
+
+    for port in "${DOCA_FIREWALL_PORTS[@]}"; do
+        firewall-cmd --zone=public --add-port="$port" --permanent || true
+    done
+
+    firewall-cmd --reload || true
+else
+    echo "firewalld not running. Skipping firewall configuration."
+fi
+
+echo "DOCA-OFED installation completed successfully."
+ 

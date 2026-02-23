@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,16 +13,30 @@
 # limitations under the License.
 ---
 
-omnia_credential_file: "{{ input_project_dir }}/omnia_config_credentials.yml"
-omnia_credential_vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
-
-# Usage: fetch_optional_credentials.yml
-optional_warning_msg: "WARNING: The following are optional credentials. If left empty these credentials will be skipped. Please enter valid inputs."
+# Credential file configurations
+credential_files:
+  - credential_type: "Omnia"
+    file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
+    vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
+    condition: true
+  - credential_type: "Build Stream"
+    file_path: "{{ input_project_dir }}/build_stream_oauth_credentials.yml"
+    vault_path: "{{ input_project_dir }}/.build_stream_oauth_credentials_key"
+    condition: "{{ enable_build_stream | default(false) | bool }}"
+    mode: 600
+    template: "{{ role_path }}/../create_config/templates/build_stream_credential.j2"
 
 # Usage: fetch_mandatory_credentials.yml
-mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left them empty. Please enter valid inputs."
+mandatory_warning_msg: "WARNING: The following are mandatory credentials and cannot be left empty. Please provide valid inputs."
 mandatory_input: "is a [MANDATORY] credential and cannot be left empty."
+optional_warning_msg: |
+  WARNING: The following are optional credentials. If left empty, these credentials will be skipped.
+  Please provide valid inputs or press Enter to skip.
 optional_input: "is an [OPTIONAL] credential and can be left empty to skip."
+conditional_mandatory_input: "is a [CONDITIONAL MANDATORY] credential and cannot be left empty when the feature is enabled."
+conditional_mandatory_warning_msg: |
+  WARNING: Conditional mandatory credentials will be prompted based on your configuration.
+  These credentials are required when specific features are enabled and cannot be left empty.
 
 # Usage: prompt_credentials.yml
 mandatory_password_fail_msg: "Failed. Password is required for mandatory credential or any username input. Please provide valid password."
@@ -30,6 +44,12 @@ password_match_fail_msg: "Failed. Passwords do not match. Please try again."
 password_fail_msg: "Failed. Please provide valid password."
 mandatory_credentials_msg: "Failed. Please provide valid username for mandatory credential."
 username_fail_msg: "Failed. Please provide valid username."
+credential_encrypt_fail_msg: "Failed to encrypt credential file."
+
+# Usage: update_bs_credential_file.yml
+password_hash_fail_msg: "Failed to generate Argon2 password hash for build stream registrar. Please check the password format and try again."
+file_update_fail_msg: "Failed to update build_stream_oauth_credentials.yml. Please check file permissions and disk space."
+bs_encrypt_fail_msg: "Failed to encrypt build_stream_oauth_credentials.yml. Please check vault password and file permissions."
 
 docker_hub_warning: |
   Docker Hub Usage Warning:
@@ -48,8 +68,15 @@ omnia_credentials:
       - { username: docker_username, password: docker_password }
     mandatory:
       - { password: pulp_password }
-      - { username: postgres_user, password: postgres_password }
       - { password: minio_s3_password }
+    conditional_mandatory:
+      - username: build_stream_auth_username
+        password: build_stream_auth_password
+        condition: "{{ enable_build_stream | default(false) | bool }}"
+        file: "{{ credential_files[1].file_path }}"
+      - username: postgres_user
+        password: postgres_password
+        condition: "{{ enable_build_stream | default(false) | bool }}"
   local_repo:
     optional:
       - { username: docker_username, password: docker_password }

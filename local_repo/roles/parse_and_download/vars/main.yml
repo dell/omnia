@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ local_repo_config_path: "{{ project_input_path }}/local_repo_config.yml"
 sw_config_json_path: "{{ project_input_path }}/software_config.json"
 functional_groups_config_path: "{{ nfs_shared_path }}/.data/functional_groups_config.yml"
 user_json_file: "{{ project_input_path }}/software_config.json"
-user_reg_cred_input: "{{ project_input_path }}/user_registry_credential.yml"
-user_reg_key_path: "{{ project_input_path }}/.local_repo_credentials_key"
+# user_reg_cred_input: "{{ project_input_path }}/user_registry_credential.yml"
+# user_reg_key_path: "{{ project_input_path }}/.local_repo_credentials_key"
 omnia_credentials_yaml_path: "{{ project_input_path }}/omnia_config_credentials.yml"
 omnia_credentials_vault_path: "{{ project_input_path }}/.omnia_config_credentials_key"
 clean_rpms: true
@@ -37,7 +37,16 @@ localrepo_completion_msg1: |
   The playbook local_repo.yml has completed successfully.
   To build the node images, execute the appropriate playbook based on the target architecture:
   - For **x86_64** nodes, run:  `build_image_x86_64/build_image_x86_64.yml`
-
+# Pulp concurrency for sync/publish operations
+# For NFS storage: Use 1 (prevents 500/502/504 errors)
+# For local storage: Use 2 for optimal performance
+# For high-performance SAN: Can try 3-4 (monitor for errors)
+pulp_concurrency: 1
+# Resync repos control
+# - null/omit: Skip already synced repos (default)
+# - "all": Force resync all repos
+# - ["repo1", "repo2"]: Only sync specified repos
+# resync_repos: null
 local_repo_py_module_vars:
   default_vars: &sw_defaults
     timeout: 7200  # Timeout in seconds for each thread

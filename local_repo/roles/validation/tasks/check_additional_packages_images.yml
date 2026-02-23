@@ -1,0 +1,50 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Load local_repo_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ local_repo_config_file }}"
+    name: local_repo_config
+
+- name: Check if additional_packages is enabled in software_config
+  ansible.builtin.set_fact:
+    additional_packages_enabled: "{{ software | selectattr('name', 'equalto', 'additional_packages') | list | length > 0 }}"
+
+- name: Get additional_packages architectures
+  ansible.builtin.set_fact:
+    additional_packages_archs: "{{ (software | selectattr('name', 'equalto', 'additional_packages') | first).arch | default([]) }}"
+  when: additional_packages_enabled
+
+- name: Check for image packages in additional_packages.json
+  when: additional_packages_enabled
+  block:
+    - name: Initialize image found flag
+      ansible.builtin.set_fact:
+        has_image_packages: false
+
+    - name: Check each architecture for image packages
+      ansible.builtin.include_tasks: check_images_per_arch.yml
+      loop: "{{ additional_packages_archs }}"
+      loop_control:
+        loop_var: arch_item
+      when: additional_packages_archs is defined
+
+    - name: Display warning if images found in additional_packages.json but user_registry not defined
+      ansible.builtin.pause:
+        prompt: "{{ additional_packages_image_warning_msg }}"
+        seconds: "{{ warning_wait_time_warning }}"
+      when:
+        - has_image_packages | bool
+        - local_repo_config.user_registry is not defined or local_repo_config.user_registry is none or local_repo_config.user_registry | length == 0

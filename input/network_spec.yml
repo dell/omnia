@@ -33,6 +33,12 @@
 #     ntp_servers:
 #       - { address: "172.16.10.80", type: "server" }
 
+# 'ib_network' is a mandatory field, essential for IB network configuration.
+# The 'ib_network' section contains the following variables:
+# - 'subnet': The subnet of the IB network.
+# - 'netmask_bits': The number of bits in the subnet mask. This value must be same as the admin_network netmask_bits.
+
+
 Networks:
 - admin_network:
     oim_nic_name: "eno1"
@@ -42,3 +48,7 @@ Networks:
     dynamic_range: "172.16.107.201-172.16.107.250"
     dns: []
     ntp_servers: []
+
+- ib_network:
+    subnet: "192.168.0.0"
+    netmask_bits: "24"

@@ -6,7 +6,10 @@
             {"package": "firewalld", "type": "rpm", "repo_name": "aarch64_baseos"},
             {"package": "python3-firewall", "type": "rpm", "repo_name": "aarch64_baseos"},
             {"package": "pmix", "type": "rpm", "repo_name": "aarch64_appstream"},
-            {"package": "pmix-devel", "type": "rpm", "repo_name": "aarch64_appstream"}
+            {"package": "pmix-devel", "type": "rpm", "repo_name": "aarch64_appstream"},
+            {"package": "nvcr.io/nvidia/hpc-benchmarks", "tag": "25.09", "type": "image"},
+            {"package": "apptainer", "type": "rpm", "repo_name": "epel" },
+	    {"package": "doca-ofed", "type": "rpm_repo", "repo_name": "doca" }
         ]
     },
     "slurm_control_node": {
@@ -26,7 +29,13 @@
             {"package": "cuda-run",
              "type": "iso",
              "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda_13.0.2_580.95.05_linux_sbsa.run"
+            },
+            {
+            "package": "nvhpc_2025_2511_Linux_aarch64_cuda_13.0",
+            "type": "tarball",
+            "url": "https://developer.download.nvidia.com/hpc-sdk/25.11/nvhpc_2025_2511_Linux_aarch64_cuda_13.0.tar.gz"
             }
+             
         ]
     },
     "login_node":{

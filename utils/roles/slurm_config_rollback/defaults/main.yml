@@ -1,0 +1,5 @@
+---
+
+slurm_share_dir_name: slurm
+slurm_backups_dir_name: slurm_backups
+slurm_rollback_backup_list_limit_default: 20

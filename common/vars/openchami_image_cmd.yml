@@ -20,8 +20,6 @@ rhel_aarch64_base_image_name: "rhel-aarch64_base"
 base_image_commands:
   - "dracut --add 'dmsquash-live livenet network-manager' --install '/usr/lib/systemd/systemd-sysroot-fstab-check' --kver $(basename /lib/modules/*) -N -f --logfile /tmp/dracut.log 2>/dev/null"   # noqa: yaml[line-length]
   - "echo DRACUT LOG:; cat /tmp/dracut.log"
-  - "rm -f /var/lib/rpm/__db*"
-  - "rpmdb --rebuilddb"
 
 #  x86_64 compute commands
 default_x86_64_compute_commands:

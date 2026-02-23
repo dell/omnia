@@ -21,7 +21,7 @@
 # High Availability (HA) Configuration for Kubernetes (K8s) Service Node(List)
 # - cluster_name is required field it should match one of the values defined in omnia_config.yml where deployment is set to true.
 # - enable_k8s_ha: <Mandatory> Indicates whether to enable HA for the Kubernetes (K8s) service node. Set to 'true' to enable, 'false' to disable.
-# - virtual_ip_address: <Mandatory if enable_k8s_ha is true> The virtual IP address for the K8s service node HA setup.
+# - virtual_ip_address: <Mandatory> The virtual IP address for the K8s service node setup.
 # ***********************************************************************
 
 service_k8s_cluster_ha:

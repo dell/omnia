@@ -1,0 +1,53 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+kafka_namespace: "telemetry"
+kafka_lb_service_name: "kafka-kafka-external-bootstrap"
+kafka_bootstrap_port: 9094
+kafka_cluster_ca_secret: "kafka-cluster-ca-cert"
+kafka_client_secret: "kafkapump"
+kafka_output_dir: "/opt/omnia/telemetry/external_kafka"
+kafka_output_file: "/opt/omnia/telemetry/external_kafka_connect_details.yml"
+
+kafka_err_no_pods_found: "No Kafka pods found in namespace '{{ kafka_namespace }}'."
+kafka_err_pods_not_running: "One or more Kafka pods are not in Running state."
+kafka_err_pods_not_ready: "One or more Kafka pods are not Ready."
+
+kafka_err_external_ip_missing: >-
+  Failed to fetch Kafka LoadBalancer external IP. Ensure service '{{ kafka_lb_service_name }}'
+  exists in namespace '{{ kafka_namespace }}' and has an external IP assigned.
+
+kafka_preflight_err_ha_config_missing: >-
+  Failed to load High Availability config file: {{ k8s_ha_config_path }}.
+  Provide a valid HA config so the service Kubernetes VIP can be used.
+
+kafka_preflight_err_ha_vip_missing: >-
+  Failed to determine the service Kubernetes control plane VIP from High Availability config.
+  Ensure service_k8s_cluster_ha[0].virtual_ip_address is set in: {{ k8s_ha_config_path }}.
+
+kafka_preflight_err_service_k8s_controller_unreachable: >-
+  Service Kubernetes controller is not reachable over SSH: {{ ansible_host | default(inventory_hostname) }}.
+  Ensure the service Kubernetes VIP is reachable and resolvable from the OIM host.
+
+kafka_ome_ui_navigation_line1: "Configuration -> Remote Connectivity"
+kafka_ome_ui_enable_label: "Enable Kafka Connectivity"
+kafka_ome_auth_mode_value: "SSL"
+
+kafka_ome_server_cert_note: "Upload ca.crt as the server certificate in OME."
+kafka_ome_client_cert_note: "Upload user.pfx as the client certificate in OME (mTLS)."
+kafka_ome_cross_machine_note_line1: >-
+  If OME UI is accessed from a different system than the OIM host,
+kafka_ome_cross_machine_note_line2: >-
+  copy ca.crt and user.pfx to that system before uploading them in the UI.

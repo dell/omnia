@@ -23,7 +23,7 @@ Omnia 1.x Documentation is hosted on [Read The Docs 1.x](https://omnia-doc.readt
 
 Omnia 2.x Documentation is hosted on [Read The Docs 2.x](https://omnia.readthedocs.io/en/latest/index.html).
 
-Current Status: ![GitHub](https://readthedocs.org/projects/omnia-doc/badge/?version=latest)
+Current Status: ![GitHub](https://readthedocs.org/projects/omnia/badge/?version=latest)
 
 ## Licensing
 

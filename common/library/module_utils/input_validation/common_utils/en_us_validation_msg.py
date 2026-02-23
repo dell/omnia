@@ -326,6 +326,12 @@ ADMIN_IP_HOSTNAME_COLUMN_MISSING_MSG = (
     "Please ensure the CSV file has the required headers."
 )
 NETWORK_SPEC_FILE_NOT_FOUND_MSG = "network_spec.yml file not found in input folder."
+IB_NETMASK_BITS_MISMATCH_MSG = (
+    "netmask_bits configured for ib_network must match admin_network netmask_bits in network_spec.yml."
+)
+IB_SUBNET_IN_ADMIN_RANGE_MSG = (
+    "ib_network subnet must be outside the admin network range derived from primary_oim_admin_ip/netmask_bits in network_spec.yml."
+)
 
 # telemetry
 MANDATORY_FIELD_FAIL_MSG = "must not be empty"
@@ -391,6 +397,10 @@ ENABLE_BUILD_STREAM_REQUIRED_MSG = "Field 'enable_build_stream' is required in b
 ENABLE_BUILD_STREAM_BOOLEAN_MSG = "Field 'enable_build_stream' must be a boolean (true or false)."
 BUILD_STREAM_CONFIG_EMPTY_MSG = ("build_stream_config.yml file is empty or has syntax errors. "
                                  "It must contain valid YAML with 'enable_build_stream' field.")
+BUILD_STREAM_HOST_IP_INVALID_MSG = ("Field 'build_stream_host_ip' must be either the admin IP or public IP of OIM. "
+                                    "Provided IP does not match admin IP from network_spec.yml.")
+AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = ("Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
+                                                "Check network_spec.yml for admin network configuration.")
 
 # addtional_software
 ADDITIONAL_SOFTWARE_FAIL_MSG = "The additional_software is mandatory in additional_software.json"
@@ -433,3 +443,4 @@ def get_logic_failed(input_file_path):
 def get_logic_success(input_file_path):
     """Returns a formatted message indicating logic validation success for a file."""
     return f"{'#' * 10} Logic validation successful for {input_file_path} {'#' * 10}"
+

@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ ci_defaults_dest: '{{ cloud_init_dir }}/ci-defaults.yaml'
 ci_group_load_fail_msg: |
   "Template loading failed. Ensure the template exists in the specified path and is compatible with the defined functional groups."
 default_file_path: "{{ playbook_dir }}/roles/slurm_config/defaults/main.yml"
+ssh_private_key_path: /root/.ssh/oim_rsa
 
 # Usage: configure_cloud_init_common.yml
 ci_group_common_template: cloud_init/ci-group-common.yaml.j2
@@ -74,7 +75,6 @@ ldap_starttls_port: 389
 ldap_ssl_port: 636
 
 # Usage: ci-group-slurm_control_node_x86_64.yaml.j2
-slurm_group_name: slurm
 home_dir: /var/lib/slurm
 user: slurm
 munge_user: munge
@@ -86,3 +86,26 @@ file_mode_755: "0755"
 file_mode_600: "0600"
 ip_timeout: 10
 ip_wait_loop: 60
+
+# Hostname lists for stack-specific SSH configs (populated by passwordless_ssh role)
+k8s_cluster_hostnames: "{{ hostvars['localhost']['k8s_cluster_hostnames'] | default([]) }}"
+slurm_cluster_hostnames: "{{ hostvars['localhost']['slurm_cluster_hostnames'] | default([]) }}"
+
+# IP wildcard lists for stack-specific SSH configs
+k8s_cluster_ip_patterns: "{{ hostvars['localhost']['k8s_cluster_ip_patterns'] | default([]) }}"
+slurm_cluster_ip_patterns: "{{ hostvars['localhost']['slurm_cluster_ip_patterns'] | default([]) }}"
+
+# SSH Host patterns precomputed on OIM by passwordless_ssh/read_nodes_yaml.yml
+slurm_control_ssh_patterns: "{{ hostvars['oim']['slurm_ssh_patterns'] | default('*') }}"
+k8s_control_ssh_patterns: "{{ hostvars['oim']['k8s_ssh_patterns'] | default('*') }}"
+
+# Passwordless SSH mode flag derived from nodes.yaml (set on OIM by passwordless_ssh role)
+all_group_names_present: "{{ hostvars['oim']['all_group_names_present'] | default(false) }}"
+
+# CUDA/NVIDIA runfile names (extracted from slurm_custom.json in slurm_config role)
+cuda_runfile_x86_64: "{{ hostvars['oim']['cuda_runfile_x86_64'] | default('cuda_13.0.2_580.95.05_linux.run') }}"
+cuda_runfile_aarch64: "{{ hostvars['oim']['cuda_runfile_aarch64'] | default('cuda_13.0.2_580.95.05_linux_sbsa.run') }}"
+# Usage: fetch_additional_images.yml
+input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
+software_config_file_path: "{{ input_project_dir }}/software_config.json"
+local_repo_config_path: "{{ input_project_dir }}/local_repo_config.yml"

@@ -100,9 +100,35 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["ib_network"],
+            "properties": {
+              "ib_network": {
+                "type": "object",
+                "required": [
+                  "subnet",
+                  "netmask_bits"
+                ],
+                "properties": {
+                  "subnet": {
+                    "type": "string",
+                    "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})\\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]{1,2})$"
+                  },
+                  "netmask_bits": {
+                    "type": "string",
+                    "pattern": "^(1[0-9]|2[0-9]|[1-9])$|^3[0-2]$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
           }
         ]
       }
     }
   }
 }
+

@@ -28,10 +28,7 @@ from typing import Dict, Generator
 
 import pytest
 
-# Add project root to Python path for imports
-PROJECT_ROOT = Path(__file__).parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# Note: pythonpath is set in pytest.ini at project root
 
 # Lazy imports to avoid triggering FastAPI route registration
 # when running E2E tests that don't need these fixtures

@@ -4,54 +4,41 @@
   "properties": {
     "service_k8s_cluster_ha": {
       "type": "array",
-      "description": "High Availability (HA) configuration for Kubernetes (K8s) service nodes.",
+      "description": "High Availability (HA) configuration for Kubernetes (K8s) service clusters. Service K8s clusters are supported only in HA mode.",
+      "minItems": 1,
       "items": {
         "type": "object",
         "properties": {
           "cluster_name": {
             "type": "string",
             "minLength": 1,
-            "description": "Required. Name of the Kubernetes service cluster."
+            "description": "Required. Name of the Kubernetes service cluster. Must match the service cluster name defined elsewhere."
           },
           "enable_k8s_ha": {
             "type": "boolean",
-            "description": "Mandatory. Must be true. Service K8s cluster deployment is only supported for HA setup."
+            "description": "Mandatory. Must be true. Service Kubernetes cluster deployment is supported only in HA mode."
           },
           "virtual_ip_address": {
             "type": "string",
-            "description": "Mandatory if enable_k8s_ha is true. The virtual IP address for the K8s service node HA setup."
+            "description": "Mandatory. Virtual IP address used as the Kubernetes API endpoint for the service cluster setup.",
+            "allOf": [
+              { "pattern": "^[0-9.]+$" },
+              { "format": "ipv4" }
+            ]
           }
         },
         "required": [
           "cluster_name",
-          "enable_k8s_ha"
+          "enable_k8s_ha",
+          "virtual_ip_address"
         ],
-        "allOf": [
-        {
-          "if": {
-            "properties": {
-              "enable_k8s_ha": {
-                "const": true
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "virtual_ip_address"
-            ],
-            "properties": {
-              "virtual_ip_address": {
-                "type": "string",
-                "allOf": [
-                    { "pattern": "^[0-9.]+$" },
-                    { "format": "ipv4" }
-                ]
-              }
-            }
-          }
-        }
-      ]
+        "additionalProperties": false
       }
     }
-  }
+  },
+  "required": [
+    "service_k8s_cluster_ha"
+  ],
+  "additionalProperties": false
 }
+ 

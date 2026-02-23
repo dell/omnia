@@ -1,0 +1,78 @@
+#!/bin/bash
+set -euo pipefail
+
+# Check if Mellanox hardware is present
+if ! lspci | grep -i 'mellanox'; then
+    echo "No Mellanox RDMA hardware detected. Skipping IB network configuration."
+    exit 0
+fi
+
+ADMIN_NIC_IP="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+NETMASK_BITS="{{ hostvars['localhost']['admin_netmask_bits'] }}"
+IB_NETWORK_SUBNET="{{ hostvars['localhost']['ib_network_subnet'] }}"
+
+ip_to_int() {
+  local IFS=.
+  read -r a b c d <<< "$1"
+  echo $(( (a << 24) + (b << 16) + (c << 8) + d ))
+}
+
+int_to_ip() {
+  local ip=$1
+  echo "$(( (ip >> 24) & 255 )).$(( (ip >> 16) & 255 )).$(( (ip >> 8) & 255 )).$(( ip & 255 ))"
+}
+
+
+ADMIN_IP_INT=$(ip_to_int "$ADMIN_NIC_IP")
+IB_NET_INT=$(ip_to_int "$IB_NETWORK_SUBNET")
+
+HOST_BITS=$(( 32 - NETMASK_BITS ))
+HOST_MASK=$(( (1 << HOST_BITS) - 1 ))
+
+HOST_OFFSET=$(( ADMIN_IP_INT & HOST_MASK ))
+IB_IP_INT=$(( IB_NET_INT + HOST_OFFSET ))
+
+IB_IP=$(int_to_ip "$IB_IP_INT")
+
+echo "Derived IB IP : $IB_IP/$NETMASK_BITS"
+
+MAX_WAIT=120        # total wait time in seconds (2 minutes)
+INTERVAL=10         # check every 10 seconds
+ELAPSED=0
+IB_NIC=""
+
+while [[ $ELAPSED -lt $MAX_WAIT ]]; do
+  for nic in $(ip -o link show | awk -F': ' '{print $2}' | grep '^ib'); do
+    if ip link show "$nic" | grep -q "UP,LOWER_UP"; then
+      IB_NIC="$nic"
+      break 2
+    fi
+  done
+
+  echo "IB interface not ready yet. Waiting..."
+  sleep $INTERVAL
+  ELAPSED=$((ELAPSED + INTERVAL))
+done
+
+if [[ -z "$IB_NIC" ]]; then
+  echo "No active InfiniBand interface found after ${MAX_WAIT}s. Exiting."
+  exit 0
+fi
+
+echo "Using IB interface: $IB_NIC"
+
+if command -v nmcli >/dev/null 2>&1; then
+  echo "Configuring IB interface using NetworkManager"
+  nmcli con delete "$IB_NIC" &>/dev/null || true
+  nmcli con add type infiniband ifname "$IB_NIC" con-name "$IB_NIC"
+  nmcli con modify "$IB_NIC" ipv4.method manual ipv4.addresses "$IB_IP/$NETMASK_BITS"
+  nmcli con up "$IB_NIC"
+else
+  echo "Configuring IB interface using iproute2"
+  ip addr flush dev "$IB_NIC"
+  ip addr add "$IB_IP/$NETMASK_BITS" dev "$IB_NIC"
+  ip link set "$IB_NIC" up
+fi
+
+echo "SUCCESS: Assigned $IB_IP/$NETMASK_BITS to $IB_NIC"
+ 

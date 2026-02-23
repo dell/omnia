@@ -1,0 +1,55 @@
+---
+
+- name: Set slurm_config_path
+  ansible.builtin.set_fact:
+    slurm_config_path: "{{ share_path }}/{{ slurm_share_dir_name }}"
+  tags: slurm_cleanup
+
+- name: Prompt for pre-cleanup backup
+  ansible.builtin.pause:
+    prompt: "Before cleanup, take a config backup? (y/n)"
+  register: pre_cleanup_backup
+  tags: slurm_cleanup
+
+- name: Set pre-cleanup backup choice
+  ansible.builtin.set_fact:
+    pre_cleanup_backup_choice: "{{ pre_cleanup_backup.user_input | default('') | trim | lower }}"
+  tags: slurm_cleanup
+
+- name: Fail if pre-cleanup backup choice is empty
+  ansible.builtin.fail:
+    msg: "No input provided for pre-cleanup backup prompt. Cleanup aborted."
+  when: pre_cleanup_backup_choice | length == 0
+  tags: slurm_cleanup
+
+- name: Validate pre-cleanup backup choice
+  ansible.builtin.fail:
+    msg: "Invalid input '{{ pre_cleanup_backup.user_input | default('') }}'. Enter 'y' or 'n'."
+  when: pre_cleanup_backup_choice not in ['y', 'yes', 'n', 'no']
+  tags: slurm_cleanup
+
+- name: Run config backup before cleanup
+  ansible.builtin.include_role:
+    name: slurm_config_backup
+    apply:
+      tags: slurm_cleanup
+  when: pre_cleanup_backup_choice in ['y', 'yes']
+  tags: slurm_cleanup
+
+- name: Confirm cleanup
+  ansible.builtin.pause:
+    prompt: "This will delete {{ slurm_config_path }}. Type {{ slurm_cleanup_confirm_token }} to continue"
+  register: cleanup_confirm
+  tags: slurm_cleanup
+
+- name: Fail if cleanup not confirmed
+  ansible.builtin.fail:
+    msg: "Cleanup aborted"
+  when: cleanup_confirm.user_input != slurm_cleanup_confirm_token
+  tags: slurm_cleanup
+
+- name: Delete slurm share directory
+  ansible.builtin.file:
+    path: "{{ slurm_config_path }}"
+    state: absent
+  tags: slurm_cleanup
