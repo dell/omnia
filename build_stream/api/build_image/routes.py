@@ -124,7 +124,7 @@ def create_build_image(
             architecture=request_body.architecture,
             image_key=request_body.image_key,
             functional_groups=request_body.functional_groups,
-            inventory_host=request_body.inventory_host,
+            inventory_host=None,  # Will be handled automatically by use case
         )
         result = use_case.execute(command)
 

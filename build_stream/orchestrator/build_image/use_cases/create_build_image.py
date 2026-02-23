@@ -429,7 +429,7 @@ class CreateBuildImageUseCase:
 
         return BuildImageRequest(
             job_id=str(command.job_id),
-            stage_name="build-image",
+            stage_name="build-image-x86_64" if architecture.is_x86_64 else "build-image-aarch64",
             playbook_path=playbook_path,
             extra_vars=extra_vars,
             inventory_file_path=str(inventory_file_path) if inventory_file_path else None,
