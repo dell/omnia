@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Read NodeName parameters from iDRAC
+  ansible.builtin.include_tasks: read_node_idrac.yml
+  when: cmpt_list
+  loop: "{{ cmpt_list }}"
+
 - name: Append node_params list into NodeName list
   ansible.builtin.set_fact:
     apply_config: "{{ apply_config | default({})

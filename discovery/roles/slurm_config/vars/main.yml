@@ -68,6 +68,7 @@ gpu_slurm_conf:
   SlurmdParameters: l3cache_as_socket
 innodb_buffer_pool_size: 4G
 innodb_lock_wait_timeout: 900
+conf_server: "--conf-server {{ ctld_list | join(',') }}"
 # TODO tmp
 nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
 bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
@@ -79,7 +80,7 @@ cluster_name: cluster # TODO: direct load vars omnia_config.yml
 slurm_uid: 6001
 slurm_user: slurm
 slurm_user_group: slurm
-restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] }}"
+restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] | default(true) }}"
 slurm_db_username: "{{ hostvars['localhost']['slurm_db_username'] | default('dbuser') }}"
 slurm_db_password: "{{ hostvars['localhost']['slurm_db_password'] }}"
 slurm_db_host: "{{ hostvars['localhost']['slurm_db_host'] | default(false) }}"
@@ -117,12 +118,15 @@ munge_dir_mode: "0700"
 common_mode: "0755"
 slurm_dbd_mode: "0600"
 slurm_db_cnf_mode: "0600"
+node_drain_timeout: 900
+node_drain_delay: 30
+force_scancel_node: false
 dbd_slurm_conf:
   AccountingStoragePort: "{{ slurm_dbd_port }}"
   AccountingStorageType: accounting_storage/slurmdbd
 partition_params:
   PartitionName: "{{ slurm_partition_name }}"
-  Nodes: "{{ cmpt_list | join(',') }}"
+  Nodes: "{{ cmpt_list | join(',') if cmpt_list else 'ALL' }}"
   MaxTime: "INFINITE"
   State: "UP"
   Default: "YES"
@@ -141,20 +145,12 @@ packages_base_dir_aarch64: "{{ slurm_config_path }}/packages/aarch64"
 offline_repo_basepath_x86_64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso"
 offline_repo_basepath_aarch64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso"
 packages_layout_x86_64:
-  - doca-ofed
   - cuda
 packages_layout_aarch64:
-  - doca-ofed
   - cuda
 print_copy_msg: "Copying {{ item.name }} from {{ item.source_path }} to {{ item.dest_path }}"
-offline_path_x86_64:
-  - name: doca-ofed
-    source_path: "{{ offline_repo_basepath_x86_64 }}/doca-ofed"
-    dest_path: "{{ packages_base_dir_x86_64 }}/doca-ofed"
-offline_path_aarch64:
-  - name: doca-ofed
-    source_path: "{{ offline_repo_basepath_aarch64 }}/doca-ofed"
-    dest_path: "{{ packages_base_dir_aarch64 }}/doca-ofed"
+offline_path_x86_64: []
+offline_path_aarch64: []
 
 ssh_private_key_path: /root/.ssh/oim_rsa
 

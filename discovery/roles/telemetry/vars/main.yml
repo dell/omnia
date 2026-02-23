@@ -252,3 +252,24 @@ common_templates:
     skip_when: "{{ cluster_id_present | default(false) }}"
   - src: 'telemetry/kustomization.yaml.j2'
     dest: 'kustomization.yaml'
+
+# Usage: check_pxe_changes.yml
+backup_pxe_mapping_ldms_path: "/opt/omnia/telemetry/backup_pxe_mapping_ldms.csv"
+pxe_first_run_msg: "First discovery run detected. Saving PXE mapping backup. LDMS restart not required."
+pxe_no_change_msg: "PXE mapping file has not changed since last run. Skipping LDMS restart."
+pxe_changed_msg: "PXE mapping file has changed. LDMS restart will be triggered."
+
+# Usage: restart_ldms_configs.yml
+kube_vip_unreachable_msg: >-
+  Kube VIP ({{ kube_vip }}) is not reachable via SSH.
+  There might be issues with the k8s cluster.
+  LDMS aggregator restart will be skipped.
+
+  After discovery completes, manually restart the LDMS aggregator pod with:
+
+  ssh {{ kube_vip }}
+  kubectl rollout restart statefulset nersc-ldms-aggr -n {{ telemetry_namespace }}
+  kubectl get pods -n {{ telemetry_namespace }} -l app=nersc-ldms-aggr -w
+
+ldms_pod_ready_msg: "LDMS aggregator pod is ready."
+ldms_pod_not_ready_msg: "WARNING: LDMS aggregator pod did not become ready within 120s."

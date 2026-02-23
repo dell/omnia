@@ -20,7 +20,8 @@ import os
 import shutil
 from pathlib import Path
 from ansible.module_utils.local_repo.config import (
-    DNF_COMMANDS
+    DNF_COMMANDS,
+    DNF_INFO_COMMANDS
 )
 from multiprocessing import Lock
 from ansible.module_utils.local_repo.parse_and_download import write_status_to_file
@@ -95,11 +96,30 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             for pkg in rpm_list:
                 # Get repo_name for this specific RPM from mapping
                 pkg_repo_name = repo_mapping.get(pkg, "")
-                if any(pkg in line and ".rpm" in line for line in stdout_lines + stderr_lines):
+                # Check if package was downloaded successfully
+                # Look for "Already downloaded" or actual .rpm file in output
+                pkg_downloaded = False
+                for line in stdout_lines + stderr_lines:
+                    if pkg in line and (".rpm" in line or "Already downloaded" in line):
+                        pkg_downloaded = True
+                        break
+
+                # Also check for "No match for argument" or "No package" errors
+                pkg_not_found = False
+                for line in stderr_lines:
+                    if pkg in line and ("No match for argument" in line or 
+                                       "No package" in line or
+                                       "not found" in line.lower()):
+                        pkg_not_found = True
+                        break
+
+                if pkg_downloaded and not pkg_not_found:
                     downloaded.append(pkg)
                     write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
                 else:
                     failed.append(pkg)
+                    if pkg_not_found:
+                        logger.warning(f"Package '{pkg}' not found in configured repositories")
 
             # Retry failed ones individually
             if failed:
@@ -110,6 +130,15 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                     # Get repo_name for this specific RPM from mapping
                     pkg_repo_name = repo_mapping.get(pkg, "")
 
+                    # Check for package not found errors
+                    retry_stderr = retry_res.stderr.lower()
+                    pkg_invalid = any(err in retry_stderr for err in [
+                        "no match for argument",
+                        "no package",
+                        "not found",
+                        "unable to find a match"
+                    ])
+
                     if retry_res.returncode == 0 and ".rpm" in retry_res.stdout + retry_res.stderr:
                         downloaded.append(pkg)
                         failed.remove(pkg)
@@ -117,7 +146,10 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                         logger.info(f"Package '{pkg}' downloaded successfully on retry.")
                     else:
                         write_status_to_file(status_file_path, pkg, "rpm", "Failed", logger, file_lock, pkg_repo_name)
-                        logger.error(f"Package '{pkg}' still failed after retry.")
+                        if pkg_invalid:
+                            logger.error(f"Package '{pkg}' does not exist in configured repositories.")
+                        else:
+                            logger.error(f"Package '{pkg}' still failed after retry.")
 
             # Determine final status
             if not failed:
@@ -128,12 +160,59 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                 status = "Failed"
 
         else:
-            status = "Success"
             logger.info("RPM won't be downloaded when repo_config is partial or never")
+            logger.info("Validating package availability using dnf info...")
+
+            arch_key = "x86_64" if arc.lower() in ("x86_64") else "aarch64"
+            valid_packages = []
+            invalid_packages = []
+
             for pkg in package["rpm_list"]:
+                # Validate package using dnf info
+                dnf_info_command = DNF_INFO_COMMANDS[arch_key] + [
+                    "--repo=*",  # Search all enabled repositories
+                    pkg
+                ]
+                result = subprocess.run(
+                    dnf_info_command,
+                    check=False,
+                    capture_output=True,
+                    text=True
+                )
                 # Get repo_name for this specific RPM from mapping
                 pkg_repo_name = repo_mapping.get(pkg, "")
-                write_status_to_file(status_file_path, pkg, "rpm", "Success", logger, file_lock, pkg_repo_name)
+                if result.returncode == 0:
+                    # Package exists and is available
+                    valid_packages.append(pkg)
+                    write_status_to_file(
+                        status_file_path, pkg, "rpm", "Success", 
+                        logger, file_lock, pkg_repo_name
+                    )
+                    logger.info(f"Package '{pkg}' validated successfully")
+                else:
+                    # Package not found or invalid
+                    invalid_packages.append(pkg)
+                    write_status_to_file(
+                        status_file_path, pkg, "rpm", "Failed", 
+                        logger, file_lock, pkg_repo_name
+                    )
+                    logger.error(
+                        f"Package '{pkg}' validation failed. "
+                        f"Package may not exist in configured repositories."
+                    )
+
+            # Determine final status based on validation results
+            if not invalid_packages:
+                status = "Success"
+            elif valid_packages:
+                status = "Partial"
+            else:
+                status = "Failed"
+
+            logger.info(
+                f"Validation complete - Valid: {len(valid_packages)}, "
+                f"Invalid: {len(invalid_packages)}"
+            )
 
     except Exception as e:
         logger.error(f"Exception occurred: {e}")

@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+- name: Set backup location based on oim_metadata.yml
+  ansible.builtin.include_tasks: set_backup_location.yml
+
 - name: Validate backup location for upgrade input processing
   ansible.builtin.include_tasks: precheck_backup_location.yml
 
@@ -39,3 +42,12 @@
 
 - name: Restore input files from backup
   ansible.builtin.include_tasks: restore_input_files.yml
+
+- name: Restore user_registry_credential.yml from backup
+  ansible.builtin.include_tasks: restore_user_registry_credential.yml
+
+- name: Restore omnia_config_credentials.yml from backup
+  ansible.builtin.include_tasks: restore_omnia_config_credentials.yml
+
+- name: Display upgrade warnings summary
+  ansible.builtin.include_tasks: display_warnings.yml

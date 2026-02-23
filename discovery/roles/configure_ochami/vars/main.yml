@@ -108,3 +108,4 @@ cuda_runfile_aarch64: "{{ hostvars['oim']['cuda_runfile_aarch64'] | default('cud
 # Usage: fetch_additional_images.yml
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 software_config_file_path: "{{ input_project_dir }}/software_config.json"
+local_repo_config_path: "{{ input_project_dir }}/local_repo_config.yml"

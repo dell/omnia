@@ -58,6 +58,9 @@ def check_image_in_registry(
     """
 
     if not host.startswith(("http://", "https://")):
+        # Checkmarx: Communication_Over_HTTP
+        # HTTP is intentionally allowed here because this function must support
+        # insecure user registries.
         protocol = "https" if (cacert and key) else "http"
         host = f"{protocol}://{host}"
     image_url = f"{host}/v2/{image}/manifests/{tag}"
@@ -407,4 +410,3 @@ def handle_user_image_registry(package, package_content, version_variables, user
 
     logger.info("#" * 30 + f" {handle_user_image_registry.__name__} end " + "#" * 30)
     return result, package_info
-

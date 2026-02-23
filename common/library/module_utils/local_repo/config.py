@@ -51,7 +51,7 @@ FRESH_INSTALLATION_STATUS = True
 # Used by software_utils.py
 # ----------------------------
 PACKAGE_TYPES = ['rpm', 'deb', 'tarball', 'image', 'manifest', 'git',
-                 'pip_module', 'deb', 'shell', 'ansible_galaxy_collection', 'iso', 'rpm_list', 'rpm_file']
+                 'pip_module', 'deb', 'shell', 'ansible_galaxy_collection', 'iso', 'rpm_list', 'rpm_file', 'rpm_repo']
 CSV_COLUMNS = {"column1": "name", "column2": "status"}
 SOFTWARE_CONFIG_SUBDIR = "config"
 RPM_LABEL_TEMPLATE = "RPMs for {key}"
@@ -63,6 +63,10 @@ ARCH_SUFFIXES = {"x86_64", "aarch64"}
 DNF_COMMANDS = {
     "x86_64": ["dnf", "download", "--resolve", "--alldeps", "--arch=x86_64,noarch"],
     "aarch64": ["dnf", "download", "--forcearch", "aarch64", "--resolve", "--alldeps", "--exclude=*.x86_64"]
+}
+DNF_INFO_COMMANDS = {
+    "x86_64": ["dnf", "info", "--quiet"],
+    "aarch64": ["dnf", "info", "--quiet", "--forcearch=aarch64"]
 }
 
 # ----------------------------
@@ -222,7 +226,7 @@ CLEANUP_LOG_FILE_PATH = "/opt/omnia/log/local_repo/cleanup.log"
 # Naming convention: <arch>_omnia-additional to match existing filter patterns
 # ----------------------------
 ADDITIONAL_REPOS_KEY = "additional_repos"
-AGGREGATED_REPO_NAME_TEMPLATE = "{arch}_omnia-additional-repo"
+AGGREGATED_REPO_NAME_TEMPLATE = "{arch}_omnia-additional"
 AGGREGATED_REMOTE_NAME_TEMPLATE = "{arch}_omnia-additional-{name}"
 AGGREGATED_DISTRIBUTION_NAME_TEMPLATE = "{arch}_omnia-additional"
 AGGREGATED_BASE_PATH_TEMPLATE = "opt/omnia/offline_repo/cluster/{arch}/rhel/10.0/rpms/omnia-additional"

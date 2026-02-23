@@ -108,6 +108,12 @@
             {{ ip_name_map[key] }} {{ key }}
 {% endfor %}
 
+        - path: /etc/sysconfig/slurmd
+          owner: root:root
+          permissions: '0644'
+          content: |
+            SLURMD_OPTIONS="{{ conf_server }}"
+
         - path: /usr/local/bin/check_slurm_controller_status.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
@@ -142,7 +148,6 @@
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
         - bash /usr/local/bin/doca-install.sh && bash /usr/local/bin/configure-ib-network.sh
-        - yes | cp /etc/slurm/epilog.d/slurmd.service /usr/lib/systemd/system/
         - /usr/local/bin/check_slurm_controller_status.sh
         - chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_log_dir_effective }}
         - chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_pid_dir_effective }}

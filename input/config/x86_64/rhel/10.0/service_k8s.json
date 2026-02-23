@@ -33,7 +33,7 @@
       { "package": "strimzi-kafka-operator-helm-3-chart-0.48.0", "type": "tarball", "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.48.0/strimzi-kafka-operator-helm-3-chart-0.48.0.tgz" },
       { "package": "quay.io/strimzi/kafka-bridge", "tag": "0.33.1", "type": "image" },
       { "package": "apptainer", "type": "rpm", "repo_name": "epel" },
-      {"package": "doca-ofed", "type": "iso", "url": "https://www.mellanox.com/downloads/DOCA/DOCA_v3.2.1/host/doca-host-3.2.1-044000_25.10_rhel10.x86_64.rpm"}
+	  { "package": "doca-ofed", "type": "rpm_repo", "repo_name": "doca" }
     ]
   },
   "service_kube_control_plane": {
