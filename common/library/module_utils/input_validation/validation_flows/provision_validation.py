@@ -905,6 +905,16 @@ def _validate_admin_network(network):
             )
         )
 
+        # Ensure dynamic_range is inside the admin subnet (primary_oim_admin_ip/netmask_bits)
+        if not validation_utils.is_range_within_subnet(admin_net["dynamic_range"], primary_oim_admin_ip, netmask):
+            errors.append(
+                create_error_msg(
+                    "admin_network.dynamic_range",
+                    admin_net["dynamic_range"],
+                    en_us_validation_msg.RANGE_NETMASK_BOUNDARY_FAIL_MSG,
+                )
+            )
+
     #  Admin and BMC IP should not be the same
     errors.extend(validate_admin_bmc_ip_not_same(primary_oim_admin_ip, primary_oim_bmc_ip))
 
@@ -1033,21 +1043,6 @@ def _validate_ip_ranges(dynamic_range, network_type, netmask_bits):
                 en_us_validation_msg.RANGE_IP_CHECK_FAIL_MSG,
             )
         )
-
-    # Validate that IP ranges are within the netmask boundaries
-    if netmask_bits:
-        # Check dynamic range
-        if (validation_utils.validate_ipv4_range(dynamic_range) and
-                not validation_utils.is_range_within_netmask(
-                    dynamic_range, netmask_bits
-                )):
-            errors.append(
-                create_error_msg(
-                    f"{network_type}.dynamic_range",
-                    dynamic_range,
-                    en_us_validation_msg.RANGE_NETMASK_BOUNDARY_FAIL_MSG,
-                )
-            )
 
     return errors
 
