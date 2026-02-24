@@ -220,6 +220,22 @@ def validate_software_config(
                             sg for sg in subgroup_softwares if sg in valid_for_arch
                         ]
                     json_data = load_json(json_path)
+                    # Reverse check: every key in additional_packages.json (except the
+                    # top-level 'additional_packages' key) must be listed in
+                    # software_config.json additional_packages for this arch.
+                    if software == "additional_packages":
+                        for json_key in json_data:
+                            if json_key == software:
+                                continue
+                            if json_key not in valid_for_arch:
+                                errors.append(
+                                    create_error_msg(
+                                        "additional_packages.json",
+                                        json_path,
+                                        en_us_validation_msg.EXTRA_IN_ADDITIONAL_PACKAGES_JSON_MSG.format(
+                                            json_key, arch)
+                                    )
+                                )
                     for subgroup_software in subgroup_softwares:
                         _, fail_data = validation_utils.validate_softwaresubgroup_entries(
                             subgroup_software, json_path, json_data, validation_results, failures

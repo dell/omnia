@@ -398,6 +398,8 @@ ADDITIONAL_SOFTWARE_SUBGROUP_FAIL_MSG = ("The role or group name, [{0}] is prese
                                          "but not present in roles_config.yml")
 MISSING_IN_ADDITIONAL_SOFTWARE_MSG = ("The role or group name is present in software_config.json, "
                                      "but [{0}] is not present in additional_packages.json")
+EXTRA_IN_ADDITIONAL_PACKAGES_JSON_MSG = ("[{0}] is present in additional_packages.json for arch [{1}] "
+                                         "but is not listed under additional_packages in software_config.json")
 
 # login_node_security
 def restrict_softwares_fail_msg(software):
