@@ -28,6 +28,9 @@
 # Required: Set the target host in build_stream/gitlab/inventory/hosts.ini
 # Example entry: 172.168.0.5
 
+# Target host for GitLab deployment/cleanup
+gitlab_host: ""
+
 # Project settings
 # Name of the GitLab project Omnia will create/manage
 gitlab_project_name: "omnia-catalog"
