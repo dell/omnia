@@ -34,4 +34,4 @@
 - name: Install GitLab CE package
   ansible.builtin.package:
     name: "{{ gitlab_package_name }}"
-    state: present
+    state: "{{ gitlab_package_state }}"

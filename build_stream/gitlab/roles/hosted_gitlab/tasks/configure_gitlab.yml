@@ -63,10 +63,12 @@
   changed_when: false
   failed_when: gitlab_reconfigure.rc is defined and gitlab_reconfigure.rc != 0
 
-- name: Wait for GitLab to initialize
-  ansible.builtin.pause:
-    minutes: "{{ gitlab_startup_wait_minutes }}"
-    prompt: "Waiting for GitLab services to start..."
+- name: Wait for GitLab HTTPS port to be ready
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 443
+    delay: 5
+    timeout: "{{ (gitlab_startup_wait_minutes | int) * 60 }}"
 
 - name: Health check
   ansible.builtin.command: "{{ gitlab_ctl_command }} status"

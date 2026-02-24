@@ -18,6 +18,10 @@ gitlab_rb_path: "/etc/gitlab/gitlab.rb"
 gitlab_ctl_command: "gitlab-ctl"
 gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
 
+# Omnibus package
+gitlab_package_name: "gitlab-ce"
+gitlab_package_state: "present"
+
 # Timeouts
 gitlab_startup_wait_minutes: 5
 gitlab_health_check_retries: 5

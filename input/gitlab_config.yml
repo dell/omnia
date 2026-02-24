@@ -65,9 +65,6 @@ gitlab_ssl_dir: "/etc/gitlab/ssl"
 
 # Omnibus package
 # Override when pinning to gitlab-ee or a specific package version
-gitlab_package_name: "gitlab-ce"
-# Version control: latest | present | a specific version string
-gitlab_package_state: "present"
 gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh"
 
 # Minimum requirements
