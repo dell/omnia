@@ -64,9 +64,6 @@
   ansible.builtin.shell: "{{ gitlab_ctl_command }} reconfigure --force 2>&1 | tee /tmp/gitlab-reconfigure.log"
   async: 600
   poll: 15
-  environment:
-    GITLAB_ROOT_PASSWORD: "{{ gitlab_root_password }}"
-    GITLAB_DISABLE_SSH: "false"
   register: gitlab_reconfigure
   changed_when: false
 
