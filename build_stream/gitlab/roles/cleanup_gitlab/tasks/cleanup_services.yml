@@ -39,30 +39,36 @@
     state: absent
   ignore_errors: true
 
-- name: Remove GitLab configuration directory
-  ansible.builtin.file:
-    path: "/etc/gitlab"
-    state: absent
+- name: Clean GitLab configuration directory (preserve structure)
+  ansible.builtin.shell: |
+    if [ -d "/etc/gitlab" ]; then
+      find /etc/gitlab -type f -delete 2>/dev/null || true
+      find /etc/gitlab -type d -empty -delete 2>/dev/null || true
+    fi
   ignore_errors: true
 
-- name: Remove GitLab data directory
-  ansible.builtin.file:
-    path: "/var/opt/gitlab"
-    state: absent
+- name: Clean GitLab data directory (preserve structure)
+  ansible.builtin.shell: |
+    if [ -d "/var/opt/gitlab" ]; then
+      find /var/opt/gitlab -type f -delete 2>/dev/null || true
+      find /var/opt/gitlab -type d -empty -delete 2>/dev/null || true
+    fi
   ignore_errors: true
 
-- name: Remove GitLab log directory
-  ansible.builtin.file:
-    path: "/var/log/gitlab"
-    state: absent
+- name: Clean GitLab log directory (preserve structure)
+  ansible.builtin.shell: |
+    if [ -d "/var/log/gitlab" ]; then
+      find /var/log/gitlab -type f -delete 2>/dev/null || true
+      find /var/log/gitlab -type d -empty -delete 2>/dev/null || true
+    fi
   ignore_errors: true
 
-- name: Remove GitLab user
-  ansible.builtin.user:
-    name: git
-    state: absent
-    remove: true
-  ignore_errors: true
+- name: Note about GitLab user preservation
+  ansible.builtin.debug:
+    msg:
+      - "GitLab user 'git' preserved for system stability"
+      - "This ensures smooth reinstallation"
+      - "Only GitLab data/configurations removed"
 
 - name: Remove GitLab systemd services
   ansible.builtin.systemd:
