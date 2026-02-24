@@ -25,24 +25,6 @@
     backup: true
     mode: '0600'
 
-- name: Show reconfigure progress message
-  ansible.builtin.debug:
-    msg:
-      - "=========================================="
-      - "GitLab Reconfigure Started"
-      - "=========================================="
-      - "This may take 15-20 minutes on first run"
-      - "GitLab is:"
-      - "  - Compiling Ruby assets (takes 5-10 mins)"
-      - "  - Configuring PostgreSQL database"
-      - "  - Setting up Redis cache"
-      - "  - Configuring NGINX web server"
-      - "  - Generating SSL certificates"
-      - ""
-      - "Timeout set to 30 minutes"
-      - "Please be patient..."
-      - "=========================================="
-
 - name: Ensure git user exists
   ansible.builtin.user:
     name: git
@@ -64,14 +46,22 @@
     - /var/log/gitlab
     - /opt/gitlab
 
-- name: Reconfigure GitLab
-  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
-  register: gitlab_reconfigure
+- name: Ensure gitlab-runsvdir is enabled and started (required for runit sockets)
+  ansible.builtin.systemd:
+    name: gitlab-runsvdir
+    enabled: true
+    state: started
+    daemon_reload: true
+  failed_when: false
   changed_when: false
 
-- name: Check reconfigure result
-  ansible.builtin.debug:
-    msg: "GitLab reconfigure completed with exit code: {{ gitlab_reconfigure.rc }}"
+- name: Reconfigure GitLab
+  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+  async: 3600
+  poll: 15
+  register: gitlab_reconfigure
+  changed_when: false
+  failed_when: gitlab_reconfigure.rc is defined and gitlab_reconfigure.rc != 0
 
 - name: Wait for GitLab to initialize
   ansible.builtin.pause:

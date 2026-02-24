@@ -31,13 +31,13 @@
     - gitlab-ee
     - gitlab-ci
     - gitlab-runner
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab repository
   ansible.builtin.file:
     path: "{{ gitlab_repo_file_path }}"
     state: absent
-  ignore_errors: true
+  failed_when: false
 
 - name: Clean GitLab configuration directory (preserve structure)
   ansible.builtin.shell: |
@@ -45,7 +45,7 @@
       find /etc/gitlab -type f -delete 2>/dev/null || true
       find /etc/gitlab -type d -empty -delete 2>/dev/null || true
     fi
-  ignore_errors: true
+  failed_when: false
 
 - name: Clean GitLab data directory (preserve structure)
   ansible.builtin.shell: |
@@ -53,7 +53,7 @@
       find /var/opt/gitlab -type f -delete 2>/dev/null || true
       find /var/opt/gitlab -type d -empty -delete 2>/dev/null || true
     fi
-  ignore_errors: true
+  failed_when: false
 
 - name: Clean GitLab log directory (preserve structure)
   ansible.builtin.shell: |
@@ -61,7 +61,7 @@
       find /var/log/gitlab -type f -delete 2>/dev/null || true
       find /var/log/gitlab -type d -empty -delete 2>/dev/null || true
     fi
-  ignore_errors: true
+  failed_when: false
 
 - name: Note about GitLab user preservation
   ansible.builtin.debug:
@@ -77,7 +77,7 @@
     enabled: false
   loop:
     - gitlab-runsvdir
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab systemd service files
   ansible.builtin.file:
@@ -85,7 +85,7 @@
     state: absent
   loop:
     - gitlab-runsvdir.service
-  ignore_errors: true
+  failed_when: false
 
 - name: Force remove any remaining GitLab directories
   ansible.builtin.file:
@@ -96,7 +96,7 @@
     - "/var/opt/gitlab"
     - "/var/log/gitlab"
     - "/opt/gitlab"
-  ignore_errors: true
+  failed_when: false
 
 - name: Clean any remaining GitLab files (excluding system and user files)
   ansible.builtin.shell: "find /opt /etc /var /root /home -name '*gitlab*' -type f -delete 2>/dev/null || true"
@@ -111,4 +111,4 @@
     - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab"
     - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ce"
     - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ee"
-  ignore_errors: true
+  failed_when: false
