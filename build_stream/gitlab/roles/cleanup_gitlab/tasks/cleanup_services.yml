@@ -21,6 +21,22 @@
   retries: 3
   delay: 30
   until: gitlab_stop_result.rc == 0 or 'timeout' in gitlab_stop_result.stdout
+  failed_when: false
+  changed_when: false
+
+- name: Force stop sidekiq if graceful stop timed out
+  ansible.builtin.shell: |
+    {{ gitlab_ctl_command }} stop sidekiq || true
+    {{ gitlab_ctl_command }} kill sidekiq || true
+    pkill -f sidekiq || true
+  when:
+    - gitlab_status_check.rc == 0
+    - gitlab_stop_result is defined
+    - gitlab_stop_result.rc != 0
+    - gitlab_stop_result.stdout is defined
+    - "'sidekiq' in gitlab_stop_result.stdout"
+  failed_when: false
+  changed_when: false
 
 - name: Remove all GitLab packages
   ansible.builtin.package:
