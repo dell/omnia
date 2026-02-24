@@ -25,9 +25,34 @@
     backup: true
     mode: '0600'
 
-- name: Reconfigure GitLab
+- name: Show reconfigure progress message
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "GitLab Reconfigure Started"
+      - "=========================================="
+      - "This may take 5-10 minutes on first run"
+      - "GitLab is:"
+      - "  - Compiling Ruby assets"
+      - "  - Configuring PostgreSQL"
+      - "  - Setting up Redis"
+      - "  - Configuring NGINX"
+      - "  - Generating SSL certificates"
+      - ""
+      - "Please be patient..."
+      - "=========================================="
+
+- name: Reconfigure GitLab (this may take 5-10 minutes on first run)
   ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+  async: 600
+  poll: 30
+  register: gitlab_reconfigure
   changed_when: false
+
+- name: Check reconfigure result
+  ansible.builtin.debug:
+    msg: "GitLab reconfigure completed with exit code: {{ gitlab_reconfigure.rc }}"
+  when: gitlab_reconfigure is not failed
 
 - name: Wait for GitLab to initialize
   ansible.builtin.pause:
