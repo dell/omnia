@@ -84,9 +84,6 @@
 - name: Cleanup GitLab services and packages
   ansible.builtin.include_tasks: cleanup_services.yml
 
-- name: Cleanup firewall rules
-  ansible.builtin.include_tasks: cleanup_firewall.yml
-
 - name: Cleanup TLS certificates
   ansible.builtin.include_tasks: cleanup_tls.yml
 
