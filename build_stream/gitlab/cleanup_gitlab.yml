@@ -60,13 +60,14 @@
 
     - name: Set GitLab inventory host
       ansible.builtin.set_fact:
-        gitlab_inventory_host: "{{ groups['gitlab_server'][0] }}"
+        gitlab_inventory_host: "{{ groups['gitlab_server'][0] if (groups['gitlab_server'] is defined and groups['gitlab_server'] | length > 0) else gitlab_host }}"
 
     - name: Register GitLab SSH credentials for cleanup
       ansible.builtin.add_host:
         name: "{{ gitlab_inventory_host }}"
         groups: gitlab_server
-        ansible_host: "{{ gitlab_inventory_host }}"
+        ansible_host: "{{ hostvars[gitlab_inventory_host].ansible_host | default(gitlab_inventory_host) }}"
+        ansible_user: root
         ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
       no_log: true
