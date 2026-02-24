@@ -34,6 +34,10 @@
         gitlab_operation_mode: "cleanup"
         cacheable: true
 
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../../utils/include_input_dir.yml
+
 - name: Import credential utility playbook
   ansible.builtin.import_playbook: ../../utils/credential_utility/get_config_credentials.yml
   when: not config_file_status | default(false) | bool
@@ -48,20 +52,27 @@
       delegate_to: localhost
       run_once: true
 
+    - name: Ensure gitlab_host is provided in gitlab_config.yml
+      ansible.builtin.assert:
+        that:
+          - gitlab_host is defined
+          - gitlab_host | string | length > 0
+        fail_msg: "gitlab_host is not set. Provide gitlab_host in input/gitlab_config.yml"
+
     - name: Ensure provision password is available
       ansible.builtin.assert:
         that:
           - hostvars['localhost']['provision_password'] | default('') | length > 0
         fail_msg: "Provision password not found. Run credential utility to populate provision_password."
-      when: gitlab_deployment_mode == 'hosted'
 
     - name: Register GitLab SSH credentials for cleanup
       ansible.builtin.add_host:
-        name: "gitlab_server"
+        name: "{{ gitlab_host }}"
+        groups: gitlab_server
         ansible_host: "{{ gitlab_host }}"
+        ansible_user: "{{ gitlab_ansible_user | default('root') }}"
         ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-      when: gitlab_deployment_mode == 'hosted'
       no_log: true
 
 - name: Comprehensive GitLab Cleanup
@@ -97,17 +108,47 @@
     - cleanup_gitlab
 
   post_tasks:
+    - name: Verify GitLab packages are removed
+      ansible.builtin.command: rpm -qa | grep gitlab
+      register: gitlab_packages_check
+      failed_when: false
+      changed_when: false
+
+    - name: Verify GitLab directories are removed
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: gitlab_dirs_final_check
+      loop:
+        - "/etc/gitlab"
+        - "/var/opt/gitlab"
+        - "/var/log/gitlab"
+      failed_when: false
+
+    - name: Verify GitLab processes are stopped
+      ansible.builtin.command: ps aux | grep gitlab | grep -v grep
+      register: gitlab_processes_check
+      failed_when: false
+      changed_when: false
+
+    - name: Set cleanup validation status
+      ansible.builtin.set_fact:
+        cleanup_validated: "{{ gitlab_packages_check.stdout == '' and (gitlab_dirs_final_check.results | selectattr('stat.exists') | list | length == 0) and gitlab_processes_check.stdout == '' }}"
+
     - name: Display cleanup completion notice
       ansible.builtin.debug:
-        msg: |
-          ============================================
-          GitLab Comprehensive Cleanup - COMPLETED
-          ============================================
-          
-          🎯 All cleanup tasks have been executed.
-          📋 Detailed summary and checklist provided below.
-          🧪 Use the test commands to verify cleanup success.
-          🚀 System is ready for fresh GitLab installation.
-          
-          To reinstall: ansible-playbook gitlab.yml
-          ============================================
+        msg:
+          - "============================================"
+          - "GitLab Cleanup - COMPLETED"
+          - "============================================"
+          - ""
+          - "All cleanup tasks have been executed"
+          - ""
+          - "Validation status:"
+          - "  - GitLab packages: {{ 'Removed' if gitlab_packages_check.stdout == '' else 'Some remain' }}"
+          - "  - GitLab directories: {{ 'Removed' if (gitlab_dirs_final_check.results | selectattr('stat.exists') | list | length == 0) else 'Some remain' }}"
+          - "  - GitLab processes: {{ 'Stopped' if gitlab_processes_check.stdout == '' else 'Some running' }}"
+          - ""
+          - "System ready for fresh GitLab installation"
+          - ""
+          - "To reinstall: ansible-playbook gitlab.yml"
+          - "============================================"

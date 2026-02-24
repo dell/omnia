@@ -22,7 +22,7 @@
     - "/etc/gitlab/ci_templates"
     - "/opt/gitlab/ci_templates"
     - "{{ gitlab_ci_templates_path | default('/opt/gitlab/ci_templates') }}"
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab webhook configurations
   ansible.builtin.debug:
@@ -36,7 +36,7 @@
   loop:
     - "/etc/gitlab/triggers"
     - "/opt/gitlab/triggers"
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab project configurations
   ansible.builtin.debug:
@@ -51,7 +51,7 @@
     - "/root/.gitlab-tokens"
     - "/etc/gitlab/api-tokens"
     - "/opt/gitlab/tokens"
-  ignore_errors: true
+  failed_when: false
 
 - name: Clean up GitLab CI/CD cache
   ansible.builtin.file:
@@ -60,4 +60,4 @@
   loop:
     - "/var/opt/gitlab/gitlab-ci"
     - "/var/cache/gitlab"
-  ignore_errors: true
+  failed_when: false

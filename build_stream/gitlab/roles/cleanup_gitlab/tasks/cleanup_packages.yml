@@ -14,42 +14,34 @@
 
 ---
 
-- name: Remove GitLab packages
+- name: Remove GitLab packages only (preserve system prerequisites)
   ansible.builtin.package:
     name: "{{ item }}"
     state: absent
   loop:
     - gitlab-ce
+    - gitlab-ee
     - gitlab-ci
-    - gitlab-runner
-    - git
-  ignore_errors: true
-
-- name: Remove GitLab prerequisite packages (fresh install will reinstall)
-  ansible.builtin.package:
-    name: "{{ item }}"
-    state: absent
-  loop:
-    - gitlab-ce
     - gitlab-runner
   register: package_removal
   failed_when: false
-  ignore_errors: true
-
-- name: Note about package cleanup
+  
+- name: Note about preserved packages
   ansible.builtin.debug:
-    msg: |
-      Note: All GitLab-related packages removed including prerequisites.
-      Fresh install will reinstall all needed packages automatically.
-      This ensures a completely clean state.
+    msg:
+      - "System packages preserved for fresh install:"
+      - "  - curl"
+      - "  - policycoreutils"
+      - "  - openssl"
+      - "  - firewalld"
+      - "  - podman"
+      - "  - podman-docker"
+      - ""
+      - "Only GitLab-specific packages removed"
 
 - name: Clean package cache (safe operation)
-  ansible.builtin.command: "{{ item }}"
-  loop:
-    - "dnf clean all"
-    - "yum clean all"
-    - "apt-get clean"
-  ignore_errors: true
+  ansible.builtin.command: "dnf clean all"
+  failed_when: false
 
 - name: Remove GitLab GPG keys
   ansible.builtin.file:
@@ -58,4 +50,4 @@
   loop:
     - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab"
     - "/etc/apt/trusted.gpg.d/gitlab.gpg"
-  ignore_errors: true
+  failed_when: false

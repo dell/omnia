@@ -24,7 +24,7 @@
     - "/home/git"
     - "/srv/gitlab"
   when: gitlab_status_check.rc == 0
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab backup directories
   ansible.builtin.file:
@@ -33,7 +33,7 @@
   loop:
     - "/var/opt/gitlab/backups"
     - "/opt/gitlab_backup"
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab temporary directories
   ansible.builtin.file:
@@ -42,7 +42,7 @@
   loop:
     - "/tmp/gitlab"
     - "/var/tmp/gitlab"
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab socket directories
   ansible.builtin.file:
@@ -51,13 +51,13 @@
   loop:
     - "/var/run/gitlab"
     - "/run/gitlab"
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab logrotate configuration
   ansible.builtin.file:
     path: "/etc/logrotate.d/gitlab"
     state: absent
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab cron jobs
   ansible.builtin.cron:
@@ -66,4 +66,4 @@
   loop:
     - gitlab-backup
     - gitlab-cleanup
-  ignore_errors: true
+  failed_when: false

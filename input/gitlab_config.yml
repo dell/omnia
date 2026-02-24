@@ -28,6 +28,9 @@
 # Required: Set the target host in build_stream/gitlab/inventory/hosts.ini
 # Example entry: 172.168.0.5
 
+# Target host for GitLab deployment/cleanup
+gitlab_host: ""
+
 # Project settings
 # Name of the GitLab project Omnia will create/manage
 gitlab_project_name: "omnia-catalog"
@@ -65,9 +68,6 @@ gitlab_ssl_dir: "/etc/gitlab/ssl"
 
 # Omnibus package
 # Override when pinning to gitlab-ee or a specific package version
-gitlab_package_name: "gitlab-ce"
-# Version control: latest | present | a specific version string
-gitlab_package_state: "18.9.0"
 gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh"
 
 # Minimum requirements
