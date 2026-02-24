@@ -263,8 +263,10 @@
         command: >
           python -m alembic -c {{ bs_rsync_destination }}infra/db/alembic.ini upgrade head
         env:
-          DATABASE_URL: "postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ admin_ip }}:5432/{{ postgres_db_name }}"
-          PYTHONPATH: "{{ bs_rsync_destination }}"
+          DB_USER: "{{ postgres_user }}"
+          DB_PASSWORD: "{{ postgres_password }}"
+          DB_HOST: "{{ admin_ip }}"
+          DB_NAME: "{{ postgres_db_name }}"
       register: alembic_result
       changed_when: "'Running upgrade' in alembic_result.stdout"
 

@@ -306,12 +306,18 @@ class CreateBuildImageUseCase:
             try:
                 return InventoryHost(command.inventory_host)
             except ValueError as exc:
-                stage.start()
-                stage.fail(
-                    error_code="INVALID_INVENTORY_HOST",
-                    error_summary=f"Invalid inventory host format: {str(exc)}",
+                # Refresh stage from database to avoid OptimisticLockError
+                fresh_stage = self._stage_repo.find_by_job_and_name(
+                    command.job_id,
+                    stage.stage_name
                 )
-                self._stage_repo.save(stage)
+                if fresh_stage:
+                    fresh_stage.start()
+                    fresh_stage.fail(
+                        error_code="INVALID_INVENTORY_HOST",
+                        error_summary=f"Invalid inventory host format: {str(exc)}",
+                    )
+                    self._stage_repo.save(fresh_stage)
                 log_secure_info(
                     "error",
                     f"Invalid inventory host for job {command.job_id}",
@@ -330,12 +336,18 @@ class CreateBuildImageUseCase:
                 correlation_id=str(command.correlation_id),
             )
         except InventoryHostMissingError as exc:
-            stage.start()
-            stage.fail(
-                error_code="INVENTORY_HOST_MISSING",
-                error_summary=exc.message,
+            # Refresh stage from database to avoid OptimisticLockError
+            fresh_stage = self._stage_repo.find_by_job_and_name(
+                command.job_id,
+                stage.stage_name
             )
-            self._stage_repo.save(stage)
+            if fresh_stage:
+                fresh_stage.start()
+                fresh_stage.fail(
+                    error_code="INVENTORY_HOST_MISSING",
+                    error_summary=exc.message,
+                )
+                self._stage_repo.save(fresh_stage)
             log_secure_info(
                 "error",
                 f"Inventory host missing for job {command.job_id}",
@@ -374,12 +386,18 @@ class CreateBuildImageUseCase:
             )
             return inventory_file_path
         except IOError as exc:
-            stage.start()
-            stage.fail(
-                error_code="INVENTORY_FILE_CREATION_FAILED",
-                error_summary=f"Failed to create inventory file: {str(exc)}",
+            # Refresh stage from database to avoid OptimisticLockError
+            fresh_stage = self._stage_repo.find_by_job_and_name(
+                command.job_id,
+                stage.stage_name
             )
-            self._stage_repo.save(stage)
+            if fresh_stage:
+                fresh_stage.start()
+                fresh_stage.fail(
+                    error_code="INVENTORY_FILE_CREATION_FAILED",
+                    error_summary=f"Failed to create inventory file: {str(exc)}",
+                )
+                self._stage_repo.save(fresh_stage)
             log_secure_info(
                 "error",
                 f"Failed to create inventory file for job {command.job_id}",

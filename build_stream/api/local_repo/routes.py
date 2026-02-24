@@ -160,7 +160,7 @@ def create_local_repository(
         )
         # Provide helpful message for terminal state violations
         if exc.state == "FAILED":
-            message = f"Job {job_id} stage is in {exc.state} state and cannot be retried. Reset the stage using /stages/create-local-repository/reset endpoint."
+            message = f"Job {job_id} stage is in {exc.state} state and cannot be retried. Please create a new job to proceed."
         else:
             message = f"Job {job_id} stage is in {exc.state} state and cannot be modified."
         

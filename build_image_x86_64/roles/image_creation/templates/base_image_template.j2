@@ -1,15 +1,14 @@
 openchami_work_dir: "{{ openchami_work_dir }}"
-{% if enable_build_stream %}
-rhel_base_image_name: "{{ rhel_x86_64_base_image_name }}-{{ build_stream_image_key }}-{{ build_stream_job_id }}"
-{% else %}
 rhel_base_image_name: "{{ rhel_x86_64_base_image_name }}"
-{% endif %}
-rhel_base_image: "{{ oim_node_name }}/{{ rhel_x86_64_base_image_name }}"
+rhel_base_image: "{{ oim_node_name }}/{{ rhel_base_image_name }}"
 cluster_name: "{{ oim_node_name }}"
 cluster_domain: "{{ domain_name }}"
+group_name: base
 rhel_base_mounts: {{ ochami_mounts | join(' ') }}
 image_build_name: {{ ochami_x86_64_image | join(' ') }}
 rhel_base_command_options: {{ ochami_base_command | join(' ') }}
+# Override OpenCHAMI defaults to ensure correct mount path
+rhel_tag: "{{ rhel_tag }}"
 
 rhel_repos:
 {% for repo in rhel_x86_64_repos %}
