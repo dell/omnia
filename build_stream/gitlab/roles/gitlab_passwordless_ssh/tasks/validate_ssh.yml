@@ -20,7 +20,7 @@
   delegate_to: localhost
   run_once: true
   changed_when: false
-  ignore_errors: true
+  failed_when: false
   register: ssh_connection
 
 - name: SSH connection failed

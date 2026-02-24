@@ -30,7 +30,7 @@
     - "/etc/gitlab/ssl/ca.crt"
     - "/etc/gitlab/ssl/ca.key"
   when: gitlab_status_check.rc == 0
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab CA certificates from system trust store
   ansible.builtin.file:
@@ -39,7 +39,7 @@
   loop:
     - "/etc/pki/ca-trust/source/anchors/gitlab-ca.crt"
     - "/usr/local/share/ca-certificates/gitlab-ca.crt"
-  ignore_errors: true
+  failed_when: false
 
 - name: Update system CA trust store
   ansible.builtin.command: "{{ item }}"
@@ -47,4 +47,3 @@
     - update-ca-trust
   register: ca_trust_update
   failed_when: false
-  ignore_errors: true

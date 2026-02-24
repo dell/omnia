@@ -25,7 +25,6 @@
     - gitlab-runner
   register: package_removal
   failed_when: false
-  ignore_errors: true
   
 - name: Note about preserved packages
   ansible.builtin.debug:
@@ -46,7 +45,7 @@
     - "dnf clean all"
     - "yum clean all"
     - "apt-get clean"
-  ignore_errors: true
+  failed_when: false
 
 - name: Remove GitLab GPG keys
   ansible.builtin.file:
@@ -55,4 +54,4 @@
   loop:
     - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab"
     - "/etc/apt/trusted.gpg.d/gitlab.gpg"
-  ignore_errors: true
+  failed_when: false
