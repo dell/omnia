@@ -28,7 +28,6 @@
 
 - name: Generate TLS certificates
   ansible.builtin.include_tasks: generate_tls_certs.yml
-  when: gitlab_use_https
 
 - name: Install GitLab Omnibus RPM
   ansible.builtin.include_tasks: install_gitlab.yml

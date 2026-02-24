@@ -72,3 +72,8 @@ gitlab_additional_ip_sans: []
 # GitLab password change messages
 gitlab_password_change_fail_msg: "Failed to change GitLab root password. Please check GitLab logs and try again."
 gitlab_password_change_success_msg: "GitLab root password changed successfully!"
+
+# Pipeline trigger and catalog defaults
+gitlab_trigger_description: "Omnia Software Catalog Webhook"
+gitlab_catalog_repo_path: "catalog_rhel.json"
+gitlab_catalog_json_source: "{{ role_path }}/../../../../examples/catalog/catalog_rhel.json"

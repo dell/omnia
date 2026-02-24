@@ -21,22 +21,22 @@
 # ============================================================================
 
 # ----------------------------------------------------------------------------
-# DEPLOYMENT MODE
+# USER INPUT VARIABLES (SET THESE FIRST)
 # ----------------------------------------------------------------------------
-# Options: "hosted" or "existing"
-#   1. hosted   - Install GitLab CE via Omnibus RPM on a target server reachable by OIM
-#   2. existing - Integrate with an already configured GitLab instance reachable by OIM
-gitlab_deployment_mode: "hosted"
+# Set these values before running the GitLab build stream playbook.
 
-# ----------------------------------------------------------------------------
-# COMMON SETTINGS (used by both modes)
-# ----------------------------------------------------------------------------
-# Name for the GitLab project Omnia will manage/create
+# Required: Set the target host in build_stream/gitlab/inventory/hosts.ini
+# Example entry: 172.168.0.5
+
+# Project settings
+# Name of the GitLab project Omnia will create/manage
 gitlab_project_name: "omnia-catalog"
 # Visibility options: private | internal | public
 gitlab_project_visibility: "private"
-# Default branch used for pipeline pushes and API calls
+# Default branch used for repository and API operations
 gitlab_default_branch: "main"
+
+# HTTPS is always enabled for GitLab deployment
 
 # OIM API Server Configuration
 # Uncomment and set to integrate with Omnia Infrastructure Manager APIs.
@@ -45,35 +45,29 @@ gitlab_default_branch: "main"
 oim_api_verify_ssl: true
 
 # ----------------------------------------------------------------------------
-# HOSTED MODE SETTINGS (GitLab CE Omnibus RPM Deployment)
+# DEFAULT / ADVANCED VARIABLES (CHANGE ONLY IF NEEDED)
 # ----------------------------------------------------------------------------
-# IP/FQDN that Ansible can SSH into for GitLab installation
-# gitlab_host: "172.168.0.5"
-gitlab_host: ""
+# These defaults are suitable for most setups and can be tuned as required.
 
 # Network
-# GitLab external HTTP port (required even when HTTPS enabled)
-gitlab_http_port: 80
 # HTTPS port exposed via GitLab NGINX
 gitlab_https_port: 443
 # SSH port for git+ssh operations
 gitlab_ssh_port: 22
-# true enables TLS termination and cert management tasks
-gitlab_use_https: true
 
 # TLS / Certificates
 # Workspace for generated cert artifacts on target host
 gitlab_cert_dir: "/root/gitlab-certs"
 # Final location consumed by GitLab Omnibus
 gitlab_ssl_dir: "/etc/gitlab/ssl"
-# Provide existing cert/key pairs in gitlab_cert_dir to skip regeneration, or
-# allow the role to generate CA + leaf certs automatically when use_https=true.
+# Place existing cert/key pairs in gitlab_cert_dir to skip regeneration, or
+# allow the role to generate CA + leaf certs automatically.
 
 # Omnibus package
-# Override when pinning to gitlab-ee or a specific release
+# Override when pinning to gitlab-ee or a specific package version
 gitlab_package_name: "gitlab-ce"
 # Version control: latest | present | a specific version string
-gitlab_package_state: "latest"
+gitlab_package_state: "18.9.0"
 gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh"
 
 # Minimum requirements
@@ -81,6 +75,7 @@ gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab
 gitlab_min_storage_gb: 20
 # Adjust upward for production workloads
 gitlab_min_memory_gb: 4
+# Minimum CPU core count validated before install
 gitlab_min_cpu_cores: 2
 
 # Performance tuning
@@ -94,26 +89,13 @@ gitlab_puma_workers: 2
 gitlab_sidekiq_concurrency: 10
 
 # Runner (containerized via Podman)
-gitlab_runner_image: "docker.io/gitlab/gitlab-runner:latest"
+# GitLab Runner container image
+gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v18.9.0"
+# Host path for runner configuration
 gitlab_runner_config_path: "/srv/gitlab-runner/config"
-# Runner executor options: shell | docker | kubernetes etc.
+# Runner executor options: docker
 gitlab_runner_executor: "docker"
 # Default container image for CI jobs when executor=docker
-gitlab_runner_default_image: "alpine:latest"
+gitlab_runner_default_image: "docker.io/alpine:3.23.3"
 # Image pull policy: if-not-present | always | never
 gitlab_runner_pull_policy: "if-not-present"
-
-# Existing GitLab integration settings (used when gitlab_deployment_mode == "existing")
-# e.g., https://gitlab.example.com
-gitlab_external_url: ""
-# Personal Access Token (api scope) with project admin rights
-gitlab_api_token: ""
-# Group or namespace where the project resides/should be created
-gitlab_namespace: "root"
-
-# ----------------------------------------------------------------------------
-# PIPELINE TRIGGER CONFIGURATION
-# ----------------------------------------------------------------------------
-gitlab_trigger_description: "Omnia Software Catalog Webhook"
-# Catalog file Omnia uploads to the GitLab project
-software_catalog_file: "catalog_rhel.json"
