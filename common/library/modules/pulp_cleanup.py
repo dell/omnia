@@ -36,6 +36,7 @@ from ansible.module_utils.local_repo.standard_logger import setup_standard_logge
 from ansible.module_utils.local_repo.config import (
     CLEANUP_BASE_PATH_DEFAULT,
     CLEANUP_STATUS_FILE_PATH_DEFAULT,
+    CLEANUP_FILE_TYPES,
     pulp_rpm_commands,
     pulp_container_commands,
     pulp_file_commands,
@@ -173,26 +174,40 @@ def convert_to_pulp_container_name(image_name: str) -> str:
 # TYPE DETECTION
 # =============================================================================
 
-def detect_file_type(name: str) -> str:
-    """Detect artifact type from name."""
-    # Pip module: contains == (e.g., cffi==1.17.1)
-    if '==' in name:
-        return "pip_module"
-    # Ansible Galaxy collection: contains . but no / or == (e.g., community.general, ansible.posix)
-    if '.' in name and '/' not in name and '==' not in name and any(
-        x in name.lower() for x in ['ansible', 'community', 'galaxy']
-    ):
-        return "ansible_galaxy_collection"
-    if name.startswith('ansible_galaxy_collection'):
-        return "ansible_galaxy_collection"
-    if any(x in name.lower() for x in ['chart', 'tar', 'tgz', 'helm', 'bundle']):
-        return "tarball"
-    if any(x in name.lower() for x in ['git', 'repo', 'source', 'scm']):
-        return "git"
-    if any(x in name.lower() for x in ['manifest', 'calico', 'yml', 'yaml']):
-        return "manifest"
-    return "file"
-
+def detect_file_type(name: str, base_path: str = "/opt/omnia/offline_repo/cluster") -> str:
+    """Detect artifact type by searching for the package name in the filesystem.
+    
+    Searches in base_path/<arch>/<os>/<version>/{type_folder}/name
+    and returns the folder type where the package is found.
+    
+    Storage structure:
+        - iso/          : ISO files, run files (e.g., cuda-run)
+        - manifest/     : Kubernetes manifests (e.g., calico-v3.30.3, metallb-native-v0.15.2)
+        - pip_module/   : Python pip packages (e.g., PyMySQL==1.1.2, kubernetes==33.1.0)
+        - tarball/      : Tarballs, helm charts (e.g., helm-v3.19.0-amd64, nvhpc_2025_2511_Linux_x86_64_cuda_13.0)
+        - git/          : Git repositories
+        - ansible_galaxy_collection/ : Ansible Galaxy collections
+    
+    Args:
+        name: Package name from JSON (e.g., "calico-v3.30.3", "helm-v3.19.0-amd64")
+        base_path: Base path to search (default: /opt/omnia/offline_repo/cluster)
+    
+    Returns:
+        str: Type based on folder where package is found, or fallback to name-based detection
+    """
+    
+    # Search for the package name in the filesystem
+    # Pattern: base_path/*/*/*/{type_folder}/name
+    for file_type in CLEANUP_FILE_TYPES:
+        pattern = f"{base_path}/*/*/*/{file_type}/{name}"
+        matches = glob.glob(pattern)
+        if matches:
+            # Extract the parent folder name and return it
+            parent_folder = os.path.basename(os.path.dirname(matches[0]))
+            return parent_folder
+    
+    # If not found in filesystem, return None
+    return None
 
 # =============================================================================
 # EXISTENCE CHECKS

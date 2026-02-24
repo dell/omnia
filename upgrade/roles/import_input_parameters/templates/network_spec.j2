@@ -43,9 +43,7 @@ Networks:
     oim_nic_name: "{{ admin_network.oim_nic_name | default('') }}"
     netmask_bits: "{{ admin_network.netmask_bits | default('24') }}"
     primary_oim_admin_ip: "{{ admin_network.primary_oim_admin_ip | default('') }}"
-{% if (admin_network.primary_oim_bmc_ip is defined) and ((admin_network.primary_oim_bmc_ip | string | trim) != '') %}
-    primary_oim_bmc_ip: "{{ admin_network.primary_oim_bmc_ip }}"
-{% endif %}
+    primary_oim_bmc_ip: "{{ admin_network.primary_oim_bmc_ip | default('') }}"
     dynamic_range: "{{ admin_network.dynamic_range | default('') }}"
     dns: {{ admin_network.dns | default([]) }}
     ntp_servers: {{ admin_network.ntp_servers | default([]) }}

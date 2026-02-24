@@ -137,19 +137,41 @@ def validate_local_repo_config(input_file_path, data,
         arch_repo_names = []
         arch_list = url_list + [url+'_'+arch for url in url_list]
          # define base repos dynamically for this arch if subscription registered 
-        if sub_result:       
-            base_repo_names = [f"{arch}_baseos",f"{arch}_appstream",f"{arch}_codeready-builder"]
-            logger.info(f"Adding base repos for {arch}: {base_repo_names}")
+        if sub_result:
+            base_subscription_repos = [f"{arch}_baseos", f"{arch}_appstream", f"{arch}_codeready-builder"]
+            logger.info(f"Base subscription repos for {arch}: {base_subscription_repos}")
+        
+        # Collect repo names from standard repo lists
         for repurl in arch_list:
             repos = data.get(repurl)
             if repos:
                 arch_repo_names = arch_repo_names + [x.get('name') for x in repos]
+
+        # Handle rhel_subscription_repo_config separately
+        # Only add non-base repos to the name list (base repos are overrides, not duplicates)
+        subscription_config_key = f"rhel_subscription_repo_config_{arch}"
+        subscription_config = data.get(subscription_config_key, [])
+        if subscription_config:
+            for repo in subscription_config:
+                repo_name = repo.get('name')
+                if repo_name and repo_name not in base_subscription_repos:
+                    # This is a new repo, not an override of base repos
+                    arch_repo_names.append(repo_name)
+                    logger.info(f"Adding new subscription config repo: {repo_name}")
+                else:
+                    logger.info(f"Skipping base repo override from duplicate check: {repo_name}")
+
         # Add additional_repos names for this arch
         additional_repos_key = f"additional_repos_{arch}"
         additional_repos = data.get(additional_repos_key)
         if additional_repos:
             arch_repo_names = arch_repo_names + [x.get('name') for x in additional_repos]
-        repo_names[arch] = repo_names.get(arch, []) + arch_repo_names + base_repo_names
+        
+        # Add base subscription repos to the final list (they will be dynamically generated)
+        if sub_result:
+            arch_repo_names = arch_repo_names + base_subscription_repos
+        
+        repo_names[arch] = arch_repo_names
         logger.info(f"Total repos for {arch}: {repo_names[arch]}")
 
     for k,v in repo_names.items():

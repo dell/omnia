@@ -381,6 +381,8 @@ setup_omnia_core() {
     # Post container setup configuration
     post_setup_config
 
+    remove_container_omnia_sh
+
     # Start the container
     start_container_session
 }
@@ -1102,8 +1104,6 @@ EOF
     firewall-cmd --permanent --zone=public --add-port=2222/tcp
     firewall-cmd --reload
 }
-
-# This function sets up the configuration for the Omnia core.
 #  post_setup_config is a function that sets up the configuration for the Omnia core.
 #  It creates the necessary directories and files, copies input files from the Omnia container,
 #  and creates the oim_metadata.yml file.
@@ -1117,7 +1117,6 @@ post_setup_config() {
     mkdir -p "$OMNIA_INPUT_DIR/"
 
     # Create the default.yml file if it does not exist.
-    # This file contains the name of the project.
     if [ ! -f "$OMNIA_INPUT_DIR/default.yml" ]; then
         echo -e "${BLUE} Creating default.yml file.${NC}"
         {
@@ -1140,33 +1139,34 @@ post_setup_config() {
 }
 
 validate_nfs_server() {
-
-    # Validate NFS server permission
     if [ "$share_option" = "NFS" ]; then
-        # Create a temporary file inside $omnia_path
-        temp_file="$omnia_path/temp_file"
+        local temp_file="$omnia_path/temp_file"
         touch "$temp_file"
-        # Check if the file can be chown to root
         if chown root:root "$temp_file"; then
-            rm "$temp_file"
+            rm -f "$temp_file"
         else
             echo "Error: Unable to chown file to root in $omnia_path. NFS server permission validation failed. Please ensure no_root_squash option is enabled in the NFS export configuration."
             exit 1
         fi
+
         if [ "`ls -ld $omnia_path/omnia/ssh_config/.ssh/id_rsa | awk '{print $3 ":" $4}'`" != "root:root" ]; then
             echo "Error: The $omnia_path/omnia/ssh_config/.ssh/id_rsa file should be owned by root:root. NFS server permission validation failed. Please verify the NFS export configuration."
             exit 1
         fi
     fi
-
 }
 
 init_ssh_config() {
+    local ssh_port=2222
+
     mkdir -p "$HOME/.ssh"
-    touch $HOME/.ssh/known_hosts
-    # Add entry to /root/.ssh/known_hosts file to prevent errors caused by Known host
-    ssh-keygen -R "[localhost]:2222" >/dev/null 2>&1  # Remove existing entry if it exists
-    ssh-keyscan -p 2222 localhost 2>/dev/null | grep -v "^#" >> $HOME/.ssh/known_hosts  # Scan and add the new key
+    touch "$HOME/.ssh/known_hosts"
+    ssh-keygen -R "[localhost]:$ssh_port" >/dev/null 2>&1 || true
+    ssh-keyscan -p "$ssh_port" localhost 2>/dev/null | grep -v "^#" >> "$HOME/.ssh/known_hosts" || true
+}
+
+remove_container_omnia_sh() {
+    podman exec -u root omnia_core bash -c 'if [ -f /omnia/omnia.sh ]; then rm -f /omnia/omnia.sh; fi' >/dev/null 2>&1 || true
 }
 
 start_container_session() {
@@ -1213,8 +1213,8 @@ show_help() {
     echo "Usage: $0 [--install | --uninstall | --upgrade | --rollback | --version | --help]"
     echo "  -i, --install     Install and start the Omnia core container"
     echo "  -u, --uninstall   Uninstall the Omnia core container and clean up configuration"
-    echo "      --upgrade     Upgrade the Omnia core container to newer version
-    echo "      --rollback    Rollback the Omnia core container to previous version
+    echo "      --upgrade     Upgrade the Omnia core container to newer version"
+    echo "      --rollback    Rollback the Omnia core container to previous version"
     echo "  -v, --version     Display Omnia version information"
     echo "  -h, --help        More information about usage"
 }
@@ -1231,14 +1231,15 @@ install_omnia_core() {
             exit 1
         fi
     fi
-
+    
     local omnia_core_tag="2.1"
     local omnia_core_registry=""
     
     # Check if local omnia_core image exists using validate function
-    if validate_container_image "" "$omnia_core_tag" "install"; then
-        echo -e "${GREEN}✓ Omnia core image (omnia_core:${omnia_core_tag}) found locally.${NC}"
+    if ! validate_container_image "" "$omnia_core_tag" "install"; then
+        exit 1
     fi
+    echo -e "${GREEN}✓ Omnia core image (omnia_core:${omnia_core_tag}) found locally.${NC}"
 
     # Check if any other containers with 'omnia' in their name are running
     other_containers=$(podman ps -a --format '{{.Names}}' | grep -E 'omnia' | grep -v 'omnia_core')
@@ -1906,6 +1907,7 @@ upgrade_omnia_core() {
     show_post_upgrade_instructions "$TARGET_OMNIA_VERSION"
     # Initialize SSH config and start container session
     init_ssh_config
+    remove_container_omnia_sh
     start_container_session
     exit 0
 }
@@ -2324,6 +2326,7 @@ rollback_omnia_core() {
 
     # Initialize SSH config and start container session
     init_ssh_config
+    remove_container_omnia_sh
     start_container_session
 }
 

@@ -37,7 +37,9 @@ from ansible.module_utils.local_repo.config import (
     RPM_LABEL_TEMPLATE,
     RHEL_OS_URL,
     SOFTWARES_KEY,
-    REPO_CONFIG,
+    POLICY_CACHING_MAP,
+    DEFAULT_POLICY,
+    DEFAULT_CACHING,
     ARCH_SUFFIXES,
     ADDITIONAL_REPOS_KEY,
     pulp_container_commands
@@ -211,6 +213,32 @@ def transform_package_dict(data, arch_val,logger):
     logger.info("Transformation complete for arch '%s'. Final result keys: %s", arch_val, list(final_result.keys()))
     return final_result
 
+def resolve_pulp_policy(policy_str, caching_val, logger=None):
+    """
+    Resolve user-facing policy and caching into Pulp download policy.
+    Args:
+        policy_str (str): User policy ('always', 'on_demand', 'partial').
+        caching_val: Caching flag (bool, str 'true'/'false', or None).
+        logger: Optional logger instance.
+    Returns:
+        str: Pulp download policy ('immediate', 'on_demand', 'streamed').
+    """
+    policy = str(policy_str).lower() if policy_str else DEFAULT_POLICY
+    if isinstance(caching_val, str):
+        caching = caching_val.lower() in ('true', '1', 'yes')
+    elif isinstance(caching_val, bool):
+        caching = caching_val
+    else:
+        caching = DEFAULT_CACHING
+    pulp_policy = POLICY_CACHING_MAP.get(
+        (policy, caching), "on_demand"
+    )
+    if logger:
+        logger.info(
+            f"Resolved policy='{policy}', caching={caching}"
+            f" -> pulp_policy='{pulp_policy}'"
+        )
+    return pulp_policy
 
 def parse_repo_urls(repo_config, local_repo_config_path,
                     version_variables, vault_key_path, sub_urls,logger,sw_archs=None):
@@ -272,7 +300,10 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             client_key = url_.get("sslclientkey", "")
             client_cert = url_.get("sslclientcert", "")
             policy_given = url_.get("policy", repo_config)
-            policy = REPO_CONFIG.get(policy_given)
+            caching_given = url_.get("caching", True)
+            policy = resolve_pulp_policy(
+                policy_given, caching_given, logger
+            )
 
             logger.info(f"Processing user repo '{name}' for arch '{arch}' - URL: {url}")
 
@@ -303,7 +334,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
 
             logger.info(f"Added user repo entry: {name}")
 
-    # Handle RHEL repositories
+    # Handle RHEL repositories (includes subscription-based repos)
     for arch, repo_list in rhel_repo_entry.items():
         for url_ in repo_list:
             name = url_.get("name", "unknown")
@@ -313,7 +344,10 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             client_key = url_.get("sslclientkey", "")
             client_cert = url_.get("sslclientcert", "")
             policy_given = url_.get("policy", repo_config)
-            policy = REPO_CONFIG.get(policy_given)
+            caching_given = url_.get("caching", True)
+            policy = resolve_pulp_policy(
+                policy_given, caching_given, logger
+            )
 
             logger.info(f"Processing RHEL repo '{name}' for arch '{arch}' - URL: {url}")
 
@@ -358,7 +392,10 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             url = repo.get("url", "")
             gpgkey = repo.get("gpgkey", "")
             policy_given = repo.get("policy", repo_config)
-            policy = REPO_CONFIG.get(policy_given)
+            caching_given = repo.get("caching", True)
+            policy = resolve_pulp_policy(
+                policy_given, caching_given, logger
+            )
             logger.info(f"Processing OMNIA repo '{name}' for arch '{arch}' - Template URL: {url}")
 
             # Find unresolved template vars in URL
@@ -477,17 +514,11 @@ def get_subgroup_dict(user_data,logger):
 def get_csv_software(file_name):
 
     """
-
     Retrieves a list of software names from a CSV file.
- 
     Parameters:
-
         file_name (str): The name of the CSV file.
- 
     Returns:
-
         list: A list of software names.
-
     """
 
     csv_software = []
@@ -928,7 +959,9 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
     local_yaml = load_yaml(local_repo_config_path)
 
     additional_repos_config = {}
-    policy = REPO_CONFIG.get(repo_config, "on_demand")
+    global_policy = resolve_pulp_policy(
+        repo_config, True, logger
+    )
 
     vault_key_full_path = os.path.join(vault_key_path, ".local_repo_credentials_key")
 
@@ -985,7 +1018,7 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
                 "ca_cert": ca_cert,
                 "client_key": client_key,
                 "client_cert": client_cert,
-                "policy": policy,
+                "policy": global_policy,
                 "arch": arch
             })
             logger.info(f"Added additional repo entry: {name}")
