@@ -222,8 +222,33 @@ def validate_local_repo_config(input_file_path, data,
                 curr_json = load_json(json_path)
                 pkg_list = curr_json[sw]['cluster']
                 if sw in software_config_json:
+                    # For additional_packages, build set of subgroups valid for this arch
+                    # by checking which parent software each subgroup belongs to
+                    valid_subgroups_for_arch = None
+                    if sw == "additional_packages":
+                        sw_arch_map = {
+                            s["name"]: s.get("arch", [])
+                            for s in software_config_json.get("softwares", [])
+                        }
+                        # Map each subgroup to its parent software's arch list
+                        subgroup_to_parent_arch = {}
+                        for parent_sw_name, parent_arch in sw_arch_map.items():
+                            if parent_sw_name == "additional_packages":
+                                continue
+                            for sub_entry in software_config_json.get(parent_sw_name, []):
+                                subgroup_to_parent_arch[sub_entry["name"]] = parent_arch
+                        valid_subgroups_for_arch = {sw}
+                        for sub_pkg_entry in software_config_json[sw]:
+                            sg_name = sub_pkg_entry.get("name")
+                            if sg_name in subgroup_to_parent_arch:
+                                if arch in subgroup_to_parent_arch[sg_name]:
+                                    valid_subgroups_for_arch.add(sg_name)
+
                     for sub_pkg in software_config_json[sw]:
                         sub_sw = sub_pkg.get('name')
+                        # Skip subgroups not valid for this arch
+                        if valid_subgroups_for_arch is not None and sub_sw not in valid_subgroups_for_arch:
+                            continue
                         if sub_sw not in curr_json:
                             errors.append(
                                 create_error_msg(sw + '/' + arch,

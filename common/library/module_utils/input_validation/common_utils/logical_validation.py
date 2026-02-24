@@ -64,7 +64,6 @@ def validate_input_logic(
         "storage_config.yml": common_validation.validate_storage_config,
         "high_availability_config.yml":
             high_availability_validation.validate_high_availability_config,
-        "additional_software.json": common_validation.validate_additional_software,
     }
 
     path_parts = input_file_path.split("/")
