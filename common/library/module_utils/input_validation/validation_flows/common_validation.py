@@ -116,75 +116,6 @@ def validate_software_config(
                     )
                 )
 
-    #software groups and subgroups l2 validation
-    # Check for the additional software field
-    if "additional_software" in data:
-        # Run schema validation and call validate_additional_software()
-        schema_base_file_path = os.path.join(module_utils_base,'input_validation','schema')
-        passwords_set = config.passwords_set
-        extensions = config.extensions
-        fname = "additional_software"
-        schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
-        json_files = fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
-        json_files_dic = {}
-
-        for file_path in json_files:
-            json_files_dic.update({fetch.file_name_from_path(file_path): file_path})
-        new_file_path = json_files_dic.get("additional_software.json", None)
-
-        # Validate the schema of the input file (L1)
-        validation_status = {"Passed": [], "Failed": []}
-        vstatus = []
-        project_data = {project_name: {"status": [], "tag": "additional_software"}}
-        validation_status.update(project_data)
-        schema_status = validate.schema({
-                            "input_file_path": new_file_path,
-                            "schema_file_path": schema_file_path,
-                            "passwords_set": passwords_set,
-                            "omnia_base_dir": omnia_base_dir,
-                            "project_name": project_name,
-                            "logger": logger,
-                            "module": module,
-                        })
-        vstatus.append(schema_status)
-
-        # Append the validation status for the input file
-        if schema_status:
-            validation_status["Passed"].append(new_file_path)
-        else:
-            validation_status["Failed"].append(new_file_path)
-
-        if False in vstatus:
-            log_file_name = os.path.join(
-                config.input_validator_log_path, f"validation_omnia_{project_name}.log")
-            message = (f"Input validation failed for: {project_name} - additional_software.json"
-               f"Look at the logs for more details: filename={log_file_name}")
-
-            module.fail_json(
-                msg=message,
-                log_file_name=log_file_name,
-                passed_files=validation_status["Passed"],
-                failed_files=validation_status["Failed"]
-            )
-
-        # Check for the addtional_software.json file exist
-        if new_file_path is None or not file_exists(new_file_path, module, logger):
-            logger.info("The additional_software.json does not exist...")
-            errors.append(
-                create_error_msg(
-                    "additional_software.json",
-                    new_file_path,
-                    en_us_validation_msg.MISSING_ADDITIONAL_SOFTWARE_JSON_FILE))
-            return errors
-        additional_software_data = None
-        with open(json_files_dic["additional_software.json"], "r", encoding="utf-8") as schema_file:
-            additional_software_data = json.load(schema_file)
-
-        additional_software_errors = validate_additional_software(
-            new_file_path, additional_software_data,
-            logger, module, omnia_base_dir, module_utils_base, project_name)
-        errors.extend(additional_software_errors)
-
     # create the subgroups and softwares dictionary with version details
     subgroup_dict, _ = get_subgroup_dict(data,logger)
     # check if the corresponding json files for softwares and subgroups exists in config folder
@@ -249,12 +180,9 @@ def validate_software_config(
     for software_pkg in data['softwares']:
         software = software_pkg['name']
         arch_list = software_pkg.get('arch')
-        json_paths = []
         for arch in arch_list:
-            json_paths.append(get_json_file_path(
-                software, cluster_os_type, cluster_os_version, input_file_path, arch))
-        for json_path in json_paths:
-            # Check if json_path is None or if the JSON syntax is invalid
+            json_path = get_json_file_path(
+                software, cluster_os_type, cluster_os_version, input_file_path, arch)
             if not json_path:
                 errors.append(
                     create_error_msg(
@@ -265,6 +193,32 @@ def validate_software_config(
             else:
                 try:
                     subgroup_softwares = subgroup_dict.get(software, None)
+                    # For additional_packages, filter subgroups to only those valid for this arch.
+                    # Each subgroup name belongs to a parent software (e.g. service_k8s, slurm_custom).
+                    # Only validate the subgroup if the parent software supports the current arch.
+                    if software == "additional_packages" and subgroup_softwares:
+                        # Build map: subgroup_name -> parent software's arch list
+                        sw_arch_map = {
+                            sw["name"]: sw.get("arch", [])
+                            for sw in data.get("softwares", [])
+                        }
+                        subgroup_to_parent_arch = {}
+                        for parent_sw, parent_subgroups in subgroup_dict.items():
+                            if parent_sw == "additional_packages":
+                                continue
+                            for sg in parent_subgroups:
+                                if sg != parent_sw:
+                                    subgroup_to_parent_arch[sg] = sw_arch_map.get(parent_sw, [])
+                        valid_for_arch = {software}
+                        for sg in subgroup_softwares:
+                            if sg in subgroup_to_parent_arch:
+                                if arch in subgroup_to_parent_arch[sg]:
+                                    valid_for_arch.add(sg)
+                            elif sg == software:
+                                valid_for_arch.add(sg)
+                        subgroup_softwares = [
+                            sg for sg in subgroup_softwares if sg in valid_for_arch
+                        ]
                     json_data = load_json(json_path)
                     for subgroup_software in subgroup_softwares:
                         _, fail_data = validation_utils.validate_softwaresubgroup_entries(
@@ -1535,95 +1489,3 @@ def validate_telemetry_config(
     
     return errors
 
-def validate_additional_software(
-    input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
-):
-    """
-    Validates the additional software configuration.
-
-    Args:
-        input_file_path (str): The path to the input file.
-        data (dict): The data to be validated.
-        logger (Logger): A logger instance.
-        module (Module): A module instance.
-        omnia_base_dir (str): The base directory of the Omnia configuration.
-        module_utils_base (str): The base directory of the module utils.
-        project_name (str): The name of the project.
-
-    Returns:
-        list: A list of errors encountered during validation.
-
-    """
-    errors = []
-    # Get all keys in the data
-    raw_subgroups = list(data.keys())
-    flattened_sub_groups = set(flatten_sub_groups(list(data.keys())))
-
-    # Check if additional_software is not given in the config
-    if "additional_software" not in flattened_sub_groups:
-        errors.append(
-            create_error_msg(
-                "additional_software.json",
-                None,
-                en_us_validation_msg.ADDITIONAL_SOFTWARE_FAIL_MSG
-            )
-        )
-        return errors
-
-    # Get the roles config file
-    config_file_path = omnia_base_dir.replace("../", "")
-    roles_config_file_path = create_file_path(
-        config_file_path, file_names["roles_config"]
-    )
-
-    roles_config_json = validation_utils.load_yaml_as_json(
-        roles_config_file_path, omnia_base_dir, project_name, logger, module
-    )
-    valid_roles = roles_config_json["Roles"]
-
-    # Set of unique role names
-    available_roles_and_groups = set(role["name"] for role in roles_config_json["Roles"])
-    available_roles_and_groups.add("additional_software")
-
-    # Add the set of all unique group names
-    available_roles_and_groups.update(group for role in valid_roles for group in role["groups"])
-
-    # Check if a role or group name is present in the roles config file
-    for sub_group in flattened_sub_groups:
-        if sub_group not in available_roles_and_groups:
-            errors.append(
-                create_error_msg(
-                    "additional_software.json",
-                    None,
-                    en_us_validation_msg.ADDITIONAL_SOFTWARE_SUBGROUP_FAIL_MSG.format(sub_group),
-                )
-            )
-
-    # Validate subgroups defined for additional_software in software_config.json
-    # also present in additioanl_software.json
-    software_config_file_path = create_file_path(
-        config_file_path, file_names["software_config"]
-    )
-    with open(software_config_file_path, "r", encoding="utf-8") as f:
-        software_config_json = json.load(f)
-
-    # check if additional_software is present in software_config.json
-    if "addtional_software" not in software_config_json:
-        logger.warn("The additional_software field is not present in software_config.json")
-        software_config_json["additional_software"] = []
-
-    sub_groups_in_software_config = list(
-        sub_group["name"] for sub_group in software_config_json["additional_software"]
-    )
-
-    # Check for the additional_software key in software_config.json
-    for sub_group in sub_groups_in_software_config:
-        if sub_group not in raw_subgroups:
-            errors.append(
-                create_error_msg(
-                    "software_config.json",
-                    None,
-                    en_us_validation_msg.MISSING_IN_ADDITIONAL_SOFTWARE_MSG.format(sub_group),
-                )
-            )
-    return errors
