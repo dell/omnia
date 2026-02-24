@@ -40,11 +40,7 @@
       - "Only GitLab-specific packages removed"
 
 - name: Clean package cache (safe operation)
-  ansible.builtin.command: "{{ item }}"
-  loop:
-    - "dnf clean all"
-    - "yum clean all"
-    - "apt-get clean"
+  ansible.builtin.command: "dnf clean all"
   failed_when: false
 
 - name: Remove GitLab GPG keys
