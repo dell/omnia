@@ -18,7 +18,9 @@
   ansible.builtin.command: "{{ gitlab_ctl_command }} stop"
   register: gitlab_stop_result
   when: gitlab_status_check.rc == 0
-  failed_when: gitlab_stop_result.rc != 0
+  retries: 3
+  delay: 30
+  until: gitlab_stop_result.rc == 0 or 'timeout' in gitlab_stop_result.stdout
 
 - name: Remove GitLab package
   ansible.builtin.package:
