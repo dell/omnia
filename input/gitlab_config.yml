@@ -44,12 +44,6 @@ gitlab_default_branch: "main"
 # oim_api_url: "https://oim.example.com/api/v1"
 oim_api_verify_ssl: true
 
-# Pipeline trigger and catalog settings
-# Trigger description created in GitLab for Omnia pipeline execution
-gitlab_trigger_description: "Omnia Software Catalog Webhook"
-# Catalog file that Omnia uploads to the GitLab project
-software_catalog_file: "catalog_rhel.json"
-
 # ----------------------------------------------------------------------------
 # DEFAULT / ADVANCED VARIABLES (CHANGE ONLY IF NEEDED)
 # ----------------------------------------------------------------------------

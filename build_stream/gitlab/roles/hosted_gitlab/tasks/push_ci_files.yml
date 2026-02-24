@@ -17,12 +17,10 @@
   ansible.builtin.set_fact:
     gitlab_hosted_payload_dir: "{{ gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads') }}"
     gitlab_hosted_ci_pipeline_path: "{{ gitlab_hosted_ci_pipeline_path | default((gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads')) + '/.gitlab-ci.yml') }}"  # noqa: yaml[line-length]
-    gitlab_catalog_json_source_internal: "{{ gitlab_catalog_json_source | default(role_path + '/../../../tests/fixtures/catalogs/catalog_rhel.json') }}"
-    gitlab_catalog_repo_path_internal: "{{ gitlab_catalog_repo_path | default('catalog_rhel.json') }}"
 
 - name: Set catalog payload path
   ansible.builtin.set_fact:
-    gitlab_hosted_catalog_path: "{{ gitlab_hosted_catalog_path | default(gitlab_hosted_payload_dir + '/' + gitlab_catalog_repo_path_internal) }}"
+    gitlab_hosted_catalog_path: "{{ gitlab_hosted_catalog_path | default(gitlab_hosted_payload_dir + '/' + gitlab_catalog_repo_path) }}"
 
 - name: Check if .gitlab-ci.yml exists in repository
   ansible.builtin.uri:
@@ -37,7 +35,7 @@
 
 - name: Check if catalog JSON exists in repository
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path | urlencode }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
@@ -115,7 +113,7 @@
   block:
     - name: Copy catalog JSON to GitLab host
       ansible.builtin.copy:
-        src: "{{ gitlab_catalog_json_source_internal }}"
+        src: "{{ gitlab_catalog_json_source }}"
         dest: "{{ gitlab_hosted_catalog_path }}"
         mode: '0644'
 
@@ -126,7 +124,7 @@
 
     - name: Create catalog JSON in repository
       ansible.builtin.uri:
-        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path_internal | urlencode }}"  # noqa: yaml[line-length]
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path | urlencode }}"  # noqa: yaml[line-length]
         method: POST
         headers:
           PRIVATE-TOKEN: "{{ gitlab_root_token }}"
