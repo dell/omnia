@@ -31,23 +31,122 @@
       - "=========================================="
       - "GitLab Reconfigure Started"
       - "=========================================="
-      - "This may take 5-10 minutes on first run"
+      - "This may take 15-20 minutes on first run"
       - "GitLab is:"
-      - "  - Compiling Ruby assets"
-      - "  - Configuring PostgreSQL"
-      - "  - Setting up Redis"
-      - "  - Configuring NGINX"
+      - "  - Compiling Ruby assets (takes 5-10 mins)"
+      - "  - Configuring PostgreSQL database"
+      - "  - Setting up Redis cache"
+      - "  - Configuring NGINX web server"
       - "  - Generating SSL certificates"
       - ""
+      - "Timeout set to 30 minutes"
       - "Please be patient..."
       - "=========================================="
 
-- name: Reconfigure GitLab (this may take 5-10 minutes on first run)
-  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+- name: Check system resources before reconfigure
+  ansible.builtin.shell: |
+    echo "=== Memory Usage ==="
+    free -h
+    echo "=== Disk Space ==="
+    df -h
+    echo "=== CPU Info ==="
+    nproc
+    echo "=== GitLab Processes ==="
+    ps aux | grep gitlab | wc -l
+  register: system_resources
+  changed_when: false
+
+- name: Display system resources
+  ansible.builtin.debug:
+    msg: "{{ system_resources.stdout_lines }}"
+
+- name: Reconfigure GitLab with real-time output
+  ansible.builtin.shell: "{{ gitlab_ctl_command }} reconfigure --force 2>&1 | tee /tmp/gitlab-reconfigure.log"
   async: 600
-  poll: 30
+  poll: 15
+  environment:
+    GITLAB_ROOT_PASSWORD: "{{ gitlab_root_password }}"
+    GITLAB_DISABLE_SSH: "false"
   register: gitlab_reconfigure
   changed_when: false
+
+- name: Wait for reconfigure to complete (if still running)
+  ansible.builtin.async_status:
+    jid: "{{ gitlab_reconfigure.ansible_job_id }}"
+  register: reconfigure_result
+  until: reconfigure_result.finished
+  retries: 20
+  delay: 30
+  when: gitlab_reconfigure is not failed
+
+- name: Check if reconfigure is stuck
+  ansible.builtin.fail:
+    msg: "GitLab reconfigure appears to be stuck. Check logs with: gitlab-ctl tail"
+  when: gitlab_reconfigure is failed
+  ignore_errors: true
+
+- name: Show GitLab service status if reconfigure failed
+  ansible.builtin.shell: "{{ gitlab_ctl_command }} status"
+  register: gitlab_status_debug
+  when: gitlab_reconfigure is failed
+  ignore_errors: true
+
+- name: Display GitLab status
+  ansible.builtin.debug:
+    var: gitlab_status_debug.stdout_lines
+  when: gitlab_reconfigure is failed
+
+- name: Check PostgreSQL service if stuck
+  ansible.builtin.shell: "{{ gitlab_ctl_command }} tail postgresql"
+  register: postgresql_logs
+  when: gitlab_reconfigure is failed
+  ignore_errors: true
+
+- name: Show PostgreSQL logs
+  ansible.builtin.debug:
+    var: postgresql_logs.stdout_lines[-20:]
+  when: gitlab_reconfigure is failed
+
+- name: Check reconfigure logs if stuck
+  ansible.builtin.shell: "tail -50 /var/log/gitlab/reconfigure/$(ls -t /var/log/gitlab/reconfigure/ | head -1)/gitlab-ctl.log"
+  register: reconfigure_logs
+  when: gitlab_reconfigure is failed
+  ignore_errors: true
+
+- name: Show reconfigure logs
+  ansible.builtin.debug:
+    var: reconfigure_logs.stdout_lines
+  when: gitlab_reconfigure is failed
+
+- name: Always check latest reconfigure log
+  ansible.builtin.shell: "tail -30 /var/log/gitlab/reconfigure/$(ls -t /var/log/gitlab/reconfigure/ 2>/dev/null | head -1 2>/dev/null || echo 'no-logs')/gitlab-ctl.log 2>/dev/null || echo 'No log file found'"
+  register: latest_reconfigure_log
+  changed_when: false
+
+- name: Display latest reconfigure log
+  ansible.builtin.debug:
+    msg: "Latest reconfigure log:\n{{ latest_reconfigure_log.stdout }}"
+  when: latest_reconfigure_log.stdout != "No log file found"
+
+- name: Check reconfigure log file for errors
+  ansible.builtin.shell: "tail -100 /tmp/gitlab-reconfigure.log 2>/dev/null || echo 'No reconfigure log found'"
+  register: reconfigure_output
+  changed_when: false
+
+- name: Show reconfigure output on failure
+  ansible.builtin.debug:
+    msg: "Reconfigure output:\n{{ reconfigure_output.stdout }}"
+  when: gitlab_reconfigure is failed or reconfigure_output.stdout is defined
+
+- name: Check for common errors in reconfigure
+  ansible.builtin.shell: "grep -i -E '(error|fail|exception|timeout|permission denied|no space|memory|disk)' /tmp/gitlab-reconfigure.log 2>/dev/null || echo 'No errors found'"
+  register: reconfigure_errors
+  changed_when: false
+
+- name: Display any errors found
+  ansible.builtin.debug:
+    msg: "Errors found in reconfigure:\n{{ reconfigure_errors.stdout }}"
+  when: reconfigure_errors.stdout != "No errors found"
 
 - name: Check reconfigure result
   ansible.builtin.debug:
