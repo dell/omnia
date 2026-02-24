@@ -65,18 +65,29 @@
     state: absent
   ignore_errors: true
 
+- name: Check if gitlab-runner service exists
+  ansible.builtin.command: systemctl list-unit-files | grep gitlab-runner
+  register: gitlab_runner_service_check
+  failed_when: false
+  changed_when: false
+
 - name: Remove GitLab runner systemd service
   ansible.builtin.systemd:
     name: gitlab-runner
     state: stopped
     enabled: false
-  ignore_errors: true
+  when: gitlab_runner_service_check.rc == 0
+
+- name: Check if gitlab-runner service file exists
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/gitlab-runner.service"
+  register: gitlab_runner_service_file
 
 - name: Remove GitLab runner systemd service file
   ansible.builtin.file:
     path: "/etc/systemd/system/gitlab-runner.service"
     state: absent
-  ignore_errors: true
+  when: gitlab_runner_service_file.stat.exists
 
 - name: Remove runner from Docker (if Docker was used)
   community.docker.docker_container:
