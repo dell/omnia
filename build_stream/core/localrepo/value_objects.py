@@ -59,7 +59,7 @@ class PlaybookPath:
             raise ValueError(
                 f"Playbook name cannot contain path separators: {self.value}"
             )
-            
+
         # Validate playbook name format
         if not re.match(self.ALLOWED_NAME_PATTERN, self.value):
             raise ValueError(

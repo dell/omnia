@@ -53,7 +53,7 @@ Environment=OAUTH_CLIENTS_VAULT_PATH="/opt/omnia/input/project_default/build_str
 Environment=AUTH_CONFIG_VAULT_PATH="/opt/omnia/input/project_default/build_stream_oauth_credentials.yml"
 Environment=JWT_PRIVATE_KEY_PATH="/opt/omnia/build_stream/api/.auth/keys/jwt_private.pem"
 Environment=JWT_PUBLIC_KEY_PATH="/opt/omnia/build_stream/api/.auth/keys/jwt_public.pem"
-Environment=BUILD_STREAM_CONFIG_PATH="/opt/omnia/build_stream/build_stream.ini
+Environment=BUILD_STREAM_CONFIG_PATH="/opt/omnia/build_stream/build_stream.ini"
 
 # Volume mounts (shared from omnia_core)
 Volume={{ omnia_path }}/omnia:/opt/omnia{{ selinux_option }}

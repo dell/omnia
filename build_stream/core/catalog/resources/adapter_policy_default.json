@@ -5,7 +5,8 @@
   "targets": {
     "default_packages.json": {
       "transform": {
-        "exclude_fields": ["architecture"]
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
       },
       "sources": [
         {
@@ -27,7 +28,8 @@
     },
     "admin_debug_packages.json": {
       "transform": {
-        "exclude_fields": ["architecture"]
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
       },
       "sources": [
         {
@@ -49,7 +51,8 @@
     },
     "openldap.json": {
       "transform": {
-        "exclude_fields": ["architecture"]
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
       },
       "sources": [
         {
@@ -71,7 +74,8 @@
     },
     "ldms.json": {
       "transform": {
-        "exclude_fields": ["architecture"]
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
       },
       "sources": [
         {
@@ -93,14 +97,15 @@
     },
     "service_k8s.json": {
       "transform": {
-        "exclude_fields": ["architecture"]
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
       },
       "sources": [
         {
           "source_file": "functional_layer.json",
           "pulls": [
-            {"source_key": "service_kube_control_plane_x86_64", "target_key": "service_kube_control_plane_first"},
             {"source_key": "service_kube_control_plane_x86_64", "target_key": "service_kube_control_plane"},
+            {"source_key": "service_kube_control_plane_x86_64", "target_key": "service_kube_control_plane_first"},
             {"source_key": "service_kube_node_x86_64", "target_key": "service_kube_node"}
           ]
         }
@@ -111,7 +116,7 @@
           "operation": {
             "type": "extract_common",
             "from_keys": ["service_kube_control_plane_first", "service_kube_control_plane", "service_kube_node"],
-            "min_occurrences": 2,
+            "min_occurrences": 3,
             "remove_from_sources": true
           }
         }
@@ -119,29 +124,30 @@
     },
     "slurm_custom.json": {
       "transform": {
-        "exclude_fields": ["architecture"]
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
       },
       "sources": [
         {
           "source_file": "functional_layer.json",
           "pulls": [
+            {"source_key": "slurm_control_node_x86_64", "target_key": "slurm_control_node"},
+            {"source_key": "slurm_node_x86_64", "target_key": "slurm_node"},
+            {"source_key": "slurm_node_aarch64", "target_key": "slurm_node"},
             {"source_key": "login_node_x86_64", "target_key": "login_node"},
             {"source_key": "login_node_aarch64", "target_key": "login_node"},
             {"source_key": "login_compiler_node_x86_64", "target_key": "login_compiler_node"},
-            {"source_key": "login_compiler_node_aarch64", "target_key": "login_compiler_node"},
-            {"source_key": "slurm_control_node_x86_64", "target_key": "slurm_control_node"},
-            {"source_key": "slurm_node_x86_64", "target_key": "slurm_node"},
-            {"source_key": "slurm_node_aarch64", "target_key": "slurm_node"}
+            {"source_key": "login_compiler_node_aarch64", "target_key": "login_compiler_node"}
           ]
         }
       ],
       "derived": [
         {
-          "target_key": "slurms_custom",
+          "target_key": "slurm_custom",
           "operation": {
             "type": "extract_common",
             "from_keys": ["login_node", "login_compiler_node", "slurm_control_node", "slurm_node"],
-            "min_occurrences": 2,
+            "min_occurrences": 4,
             "remove_from_sources": true
           }
         }
@@ -149,29 +155,22 @@
     },
     "additional_packages.json": {
       "transform": {
-        "exclude_fields": ["architecture"]
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
       },
       "sources": [
         {
           "source_file": "functional_layer.json",
           "pulls": [
-            {"source_key": "login_node_x86_64", "target_key": "login_node"},
-            {"source_key": "login_node_aarch64", "target_key": "login_node"},
-            {"source_key": "login_compiler_node_x86_64", "target_key": "login_compiler_node"},
-            {"source_key": "login_compiler_node_aarch64", "target_key": "login_compiler_node"},
-            {"source_key": "slurm_control_node_x86_64", "target_key": "slurm_control_node"},
-            {"source_key": "slurm_node_x86_64", "target_key": "slurm_node"},
-            {"source_key": "slurm_node_aarch64", "target_key": "slurm_node"},
-            {"source_key": "service_kube_control_plane_x86_64", "target_key": "service_kube_control_plane_first"},
-            {"source_key": "service_kube_control_plane_x86_64", "target_key": "service_kube_control_plane"},
-            {"source_key": "service_kube_node_x86_64", "target_key": "service_kube_node"}
+            {"source_key": "login_node_x86_64", "target_key": "login_node"}
           ]
         }
       ]
     },
     "csi_driver_powerscale.json": {
       "transform": {
-        "exclude_fields": ["architecture"]
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
       },
       "sources": [
         {

@@ -52,11 +52,32 @@
         file: "{{ input_project_dir }}/build_stream_config.yml"
       failed_when: false
 
+    - name: Set build_stream variables from extra_vars
+      ansible.builtin.set_fact:
+        build_stream_job_id: "{{ job_id | default('') }}"
+        build_stream_image_key: "{{ image_key | default('') }}"
+        build_stream_functional_groups: "{{ functional_groups | default([]) }}"
+        enable_build_stream_flag: "{{ enable_build_stream | default(false) | bool }}"
+
+    - name: Debug - Show build_stream variables
+      ansible.builtin.debug:
+        msg:
+          - "build_stream_job_id: {{ build_stream_job_id }}"
+          - "build_stream_image_key: {{ build_stream_image_key }}"
+          - "build_stream_functional_groups: {{ build_stream_functional_groups }}"
+          - "enable_build_stream_flag: {{ enable_build_stream_flag }}"
+        verbosity: 2
+
     - name: Fetch build_stream prerequisites
       ansible.builtin.include_role:
         name: fetch_packages
         tasks_from: build_stream_prerequisite.yml
-      when: enable_build_stream
+      vars:
+        job_id: "{{ build_stream_job_id }}"
+        image_key: "{{ build_stream_image_key }}"
+        functional_groups: "{{ build_stream_functional_groups }}"
+        enable_build_stream: "{{ enable_build_stream_flag }}"
+      when: enable_build_stream_flag
 
 - name: Create oim group and provision group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml

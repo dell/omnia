@@ -88,13 +88,55 @@ class GetJobResponse(BaseModel):
     """Response model for retrieving a job."""
     job_id: str = Field(..., description="Job identifier")
     correlation_id: str = Field(..., description="Correlation identifier")
-    job_state: str = Field(..., description="Job state")
+    job_state: str = Field(..., description="Job state (PENDING, RUNNING, SUCCEEDED, FAILED, CLEANED)")
     created_at: str = Field(..., description="Creation timestamp (ISO 8601)")
     updated_at: Optional[str] = Field(
         default=None, description="Update timestamp (ISO 8601)"
     )
     tombstone: Optional[bool] = Field(default=None, description="Tombstone flag")
-    stages: List[StageResponse] = Field(..., description="Job stages")
+    stages: List[StageResponse] = Field(..., description="Job stages (step breakdown)")
+    
+    # Additional fields for state change timestamps
+    state_timestamps: Optional[Dict[str, str]] = Field(
+        default=None, description="Timestamps for each state change"
+    )
+    
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "job_id": "019bf590-1234-7890-abcd-ef1234567890",
+                    "correlation_id": "corr-123456",
+                    "job_state": "RUNNING",
+                    "created_at": "2026-02-21T10:30:00Z",
+                    "updated_at": "2026-02-21T10:35:00Z",
+                    "tombstone": False,
+                    "stages": [
+                        {
+                            "stage_name": "parse-catalog",
+                            "stage_state": "COMPLETED",
+                            "started_at": "2026-02-21T10:31:00Z",
+                            "ended_at": "2026-02-21T10:32:30Z",
+                            "error_code": None,
+                            "error_summary": None
+                        },
+                        {
+                            "stage_name": "create-local-repository",
+                            "stage_state": "IN_PROGRESS",
+                            "started_at": "2026-02-21T10:33:00Z",
+                            "ended_at": None,
+                            "error_code": None,
+                            "error_summary": None
+                        }
+                    ],
+                    "state_timestamps": {
+                        "CREATED": "2026-02-21T10:30:00Z",
+                        "IN_PROGRESS": "2026-02-21T10:31:00Z"
+                    }
+                }
+            ]
+        }
+    }
 
 
 class ErrorResponse(BaseModel):

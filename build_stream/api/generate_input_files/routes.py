@@ -21,6 +21,7 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from api.dependencies import require_catalog_read, verify_token
+from api.generate_input_files.dependencies import get_generate_input_files_use_case
 from container import container
 from core.artifacts.exceptions import ArtifactNotFoundError
 from core.artifacts.value_objects import SafePath
@@ -38,6 +39,7 @@ from core.jobs.value_objects import CorrelationId, JobId
 from orchestrator.catalog.commands.generate_input_files import (
     GenerateInputFilesCommand,
 )
+from orchestrator.catalog.use_cases import GenerateInputFilesUseCase
 
 from api.generate_input_files.schemas import (
     ArtifactRefResponse,
@@ -69,6 +71,7 @@ async def generate_input_files(
     request_body: Optional[GenerateInputFilesRequest] = Body(default=None),
     token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
     scope_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
+    use_case: Annotated[GenerateInputFilesUseCase, Depends(get_generate_input_files_use_case)] = None,
 ) -> GenerateInputFilesResponse:
     """Generate Omnia input files from a parsed catalog.
 
@@ -115,7 +118,6 @@ async def generate_input_files(
     )
 
     try:
-        use_case = container.generate_input_files_use_case()
         result = use_case.execute(command)
 
         return GenerateInputFilesResponse(

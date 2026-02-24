@@ -20,6 +20,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from api.dependencies import require_catalog_read, verify_token
+from api.parse_catalog.dependencies import get_parse_catalog_use_case
 from api.parse_catalog.schemas import ErrorResponse, ParseCatalogResponse, ParseCatalogStatus
 from api.parse_catalog.service import (
     InvalidFileFormatError,
@@ -39,8 +40,6 @@ from core.jobs.exceptions import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["Catalog Parsing"])
-
-_service = ParseCatalogService()
 
 
 @router.post(
@@ -81,6 +80,7 @@ async def parse_catalog(
     file: UploadFile = File(..., description="The catalog JSON file to parse"),
     token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
     scope_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
+    parse_catalog_use_case = Depends(get_parse_catalog_use_case),
 ) -> ParseCatalogResponse:
     """Parse a catalog from an uploaded JSON file.
 
@@ -108,7 +108,11 @@ async def parse_catalog(
 
     try:
         contents = await file.read()
-        result = await _service.parse_catalog(
+        
+        # Create service with injected use case
+        service = ParseCatalogService(parse_catalog_use_case=parse_catalog_use_case)
+        
+        result = await service.parse_catalog(
             filename=file.filename or "unknown.json",
             contents=contents,
             job_id=job_id,  # Pass job_id to service
@@ -158,11 +162,17 @@ async def parse_catalog(
 
     except TerminalStateViolationError as e:
         logger.warning("Job in terminal state: %s", job_id)
+        # Provide helpful message for terminal state violations
+        if e.state == "FAILED":
+            message = f"Job {job_id} is in {e.state} state and cannot be retried. Reset the job using /jobs/{job_id}/reset endpoint."
+        else:
+            message = f"Job {job_id} is in {e.state} state and cannot be modified."
+        
         raise HTTPException(
             status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail={
                 "error_code": "PRECONDITION_FAILED",
-                "message": f"Job is in terminal state: {job_id}",
+                "message": message,
                 "correlation_id": "test-correlation-id"
             },
         ) from e
@@ -184,7 +194,7 @@ async def parse_catalog(
             status_code=status.HTTP_409_CONFLICT,
             detail={
                 "error_code": "INVALID_STATE_TRANSITION",
-                "message": str(e),
+                "message": f"Job {job_id}: {str(e)}",
                 "correlation_id": "test-correlation-id"
             },
         ) from e

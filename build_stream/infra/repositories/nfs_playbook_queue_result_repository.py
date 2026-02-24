@@ -49,6 +49,9 @@ class NfsPlaybookQueueResultRepository:
         self._results_dir = self._queue_base / RESULTS_DIR_NAME
         self._archive_dir = self._queue_base / ARCHIVE_DIR_NAME
         self._processed_files: Set[str] = set()
+        # Clear cache on startup to ensure we don't miss any files
+        self.clear_processed_cache()
+        logger.info("Initialized NfsPlaybookQueueResultRepository with cleared cache")
 
     def get_unprocessed_results(self) -> List[Path]:
         """Return list of result files not yet processed.
@@ -56,13 +59,20 @@ class NfsPlaybookQueueResultRepository:
         Returns:
             List of paths to unprocessed result JSON files.
         """
-        if not self._results_dir.is_dir():
-            return []
-
         result_files = []
-        for file_path in sorted(self._results_dir.glob("*.json")):
-            if file_path.name not in self._processed_files:
-                result_files.append(file_path)
+        
+        # Check results directory
+        if self._results_dir.is_dir():
+            for file_path in sorted(self._results_dir.glob("*.json")):
+                if file_path.name not in self._processed_files:
+                    result_files.append(file_path)
+        
+        # Also check archive/results directory for any missed files
+        if self._archive_dir.is_dir():
+            for file_path in sorted(self._archive_dir.glob("*.json")):
+                if file_path.name not in self._processed_files:
+                    result_files.append(file_path)
+                    logger.info(f"Found unprocessed result in archive: {file_path.name}")
 
         return result_files
 
@@ -107,12 +117,19 @@ class NfsPlaybookQueueResultRepository:
         archive_path = self._archive_dir / result_path.name
 
         try:
-            shutil.move(str(result_path), str(archive_path))
+            # Only move if not already in archive
+            if result_path.parent != self._archive_dir:
+                shutil.move(str(result_path), str(archive_path))
+                log_secure_info(
+                    "info",
+                    "Result file moved to archive",
+                )
+            else:
+                log_secure_info(
+                    "info",
+                    "Result file already in archive",
+                )
             self._processed_files.add(result_path.name)
-            log_secure_info(
-                "info",
-                "Result file archived",
-            )
         except OSError:  # pylint: disable=unused-variable
             log_secure_info(
                 "error",
