@@ -22,42 +22,46 @@
   delay: 30
   until: gitlab_stop_result.rc == 0 or 'timeout' in gitlab_stop_result.stdout
 
-- name: Remove GitLab package
+- name: Remove all GitLab packages
   ansible.builtin.package:
-    name: gitlab-ce
+    name: "{{ item }}"
     state: absent
-  when: gitlab_status_check.rc == 0
+  loop:
+    - gitlab-ce
+    - gitlab-ee
+    - gitlab-ci
+    - gitlab-runner
+  ignore_errors: true
 
 - name: Remove GitLab repository
   ansible.builtin.file:
     path: "{{ gitlab_repo_file_path }}"
     state: absent
-  when: gitlab_status_check.rc == 0
+  ignore_errors: true
 
 - name: Remove GitLab configuration directory
   ansible.builtin.file:
     path: "/etc/gitlab"
     state: absent
-  when: gitlab_status_check.rc == 0
+  ignore_errors: true
 
 - name: Remove GitLab data directory
   ansible.builtin.file:
     path: "/var/opt/gitlab"
     state: absent
-  when: gitlab_status_check.rc == 0
+  ignore_errors: true
 
 - name: Remove GitLab log directory
   ansible.builtin.file:
     path: "/var/log/gitlab"
     state: absent
-  when: gitlab_status_check.rc == 0
+  ignore_errors: true
 
 - name: Remove GitLab user
   ansible.builtin.user:
     name: git
     state: absent
     remove: true
-  when: gitlab_status_check.rc == 0
   ignore_errors: true
 
 - name: Remove GitLab systemd services
@@ -75,4 +79,30 @@
     state: absent
   loop:
     - gitlab-runsvdir.service
+  ignore_errors: true
+
+- name: Force remove any remaining GitLab directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/gitlab"
+    - "/var/opt/gitlab"
+    - "/var/log/gitlab"
+    - "/opt/gitlab"
+  ignore_errors: true
+
+- name: Clean any remaining GitLab files (excluding system and user files)
+  ansible.builtin.command: "find /opt /etc /var /root /home -name '*gitlab*' -type f -delete 2>/dev/null || true"
+  register: gitlab_file_cleanup
+  changed_when: false
+
+- name: Remove GitLab GPG keys
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab"
+    - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ce"
+    - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ee"
   ignore_errors: true

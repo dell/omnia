@@ -48,8 +48,7 @@
 
     - name: Load GitLab configuration inputs
       ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
-      delegate_to: localhost
+        file: "{{ input_project_dir }}/gitlab_config.yml"
       run_once: true
 
     - name: Ensure provision password is available
@@ -66,22 +65,16 @@
           - hostvars['localhost']['gitlab_root_password'] | length > 0
         fail_msg: "GitLab root password not found. Run credential utility to populate gitlab_root_password."
 
-    - name: Validate GitLab inventory host is provided
-      ansible.builtin.assert:
-        that:
-          - groups['gitlab_server'] is defined
-          - groups['gitlab_server'] | length > 0
-        fail_msg: "Set at least one target host under [gitlab_server] in build_stream/gitlab/inventory/hosts.ini"
-
     - name: Set GitLab inventory host
       ansible.builtin.set_fact:
-        gitlab_inventory_host: "{{ groups['gitlab_server'][0] }}"
+        gitlab_inventory_host: "{{ groups['gitlab_server'][0] if (groups['gitlab_server'] is defined and groups['gitlab_server'] | length > 0) else gitlab_host }}"
 
     - name: Register GitLab SSH credentials
       ansible.builtin.add_host:
         name: "{{ gitlab_inventory_host }}"
         groups: gitlab_server
         ansible_host: "{{ hostvars[gitlab_inventory_host].ansible_host | default(gitlab_inventory_host) }}"
+        ansible_user: root
         ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
       no_log: true

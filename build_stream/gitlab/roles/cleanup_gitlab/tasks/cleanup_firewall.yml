@@ -20,7 +20,7 @@
   failed_when: false
   changed_when: false
 
-- name: Remove GitLab firewall ports (not services - preserve SSH access)
+- name: Remove GitLab firewall ports (preserve SSH port 22)
   ansible.posix.firewalld:
     port: "{{ item }}/tcp"
     state: disabled
@@ -29,7 +29,6 @@
   loop:
     - "{{ gitlab_http_port | default('80') }}"
     - "{{ gitlab_https_port | default('443') }}"
-    - "{{ gitlab_ssh_port | default('22') }}"
   when: firewalld_check.rc == 0
   ignore_errors: true
 
@@ -38,7 +37,6 @@
   loop:
     - "{{ gitlab_http_port | default('80') }}"
     - "{{ gitlab_https_port | default('443') }}"
-    - "{{ gitlab_ssh_port | default('22') }}"
   register: rich_rule_removal
   failed_when: false
   ignore_errors: true
