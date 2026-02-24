@@ -47,18 +47,37 @@
   failed_when: false
   changed_when: false
 
+- name: Check for GitLab packages
+  ansible.builtin.package_facts:
+    manager: auto
+  failed_when: false
+
+- name: Check for GitLab directories
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: gitlab_dirs_check
+  loop:
+    - "/etc/gitlab"
+    - "/var/opt/gitlab"
+    - "/var/log/gitlab"
+  failed_when: false
+
+- name: Determine if cleanup is needed
+  ansible.builtin.set_fact:
+    cleanup_needed: "{{ gitlab_status_check.rc == 0 or ('gitlab-ce' in ansible_facts.packages | default({})) or (gitlab_dirs_check.results | selectattr('stat.exists') | list | length > 0) }}"
+
 - name: Display GitLab status
   ansible.builtin.debug:
-    msg: "GitLab status: {{ 'INSTALLED' if gitlab_status_check.rc == 0 else 'NOT INSTALLED' }}"
+    msg: "GitLab status: {{ 'INSTALLED' if gitlab_status_check.rc == 0 else 'PARTIALLY INSTALLED' if cleanup_needed else 'NOT INSTALLED' }}"
 
 - name: Skip cleanup if GitLab not installed
   ansible.builtin.debug:
     msg: "GitLab is not installed. Nothing to cleanup."
-  when: gitlab_status_check.rc != 0
+  when: not cleanup_needed
 
 - name: Exit if GitLab not installed (idempotency)
   ansible.builtin.meta: end_play
-  when: gitlab_status_check.rc != 0
+  when: not cleanup_needed
 
 # Include all cleanup tasks
 - name: Cleanup GitLab services and packages
