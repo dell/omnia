@@ -16,10 +16,12 @@
 
 # GitLab Comprehensive Cleanup Playbook
 # This playbook removes ALL GitLab configurations created by gitlab.yml
-# Usage: ansible-playbook cleanup_gitlab.yml
+# Usage Options:
+# 1. For remote GitLab server: ansible-playbook cleanup_gitlab.yml -i inventory/hosts.ini
+# 2. For GitLab on localhost: ansible-playbook cleanup_gitlab.yml
 
 - name: Comprehensive GitLab Cleanup
-  hosts: gitlab_server
+  hosts: "{{ gitlab_cleanup_host | default('gitlab_server') }}"
   become: true
   gather_facts: true
   roles:
