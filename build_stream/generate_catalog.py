@@ -116,6 +116,12 @@ def load_pxe_functional_groups(pxe_file):
 
     return sorted(functional_groups)
 
+
+def _append_unique_source(pkg_sources, source):
+    """Append source only if an identical entry does not already exist."""
+    if source not in pkg_sources:
+        pkg_sources.append(source)
+
 def collect_packages_from_config(config_dir, allowed_bundles_by_arch):
     """Collect all packages from config JSON files, filtered by allowed bundles per arch."""
     # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
@@ -175,20 +181,26 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch):
                     packages[key]['bundles'].add(bundle_name)
 
                     # Handle different package types
-                    if pkg_type == 'rpm':
+                    if pkg_type in ['rpm', 'rpm_repo']:
                         repo_name = pkg.get('repo_name', '')
                         if repo_name:
-                            packages[key]['sources'].append({
-                                'Architecture': arch,
-                                'RepoName': repo_name
-                            })
+                            _append_unique_source(
+                                packages[key]['sources'],
+                                {
+                                    'Architecture': arch,
+                                    'RepoName': repo_name
+                                }
+                            )
                     elif pkg_type in ['tarball', 'manifest', 'iso']:
                         url = pkg.get('url', '')
                         if url and '{{' not in url:  # Skip templated URLs for now
-                            packages[key]['sources'].append({
-                                'Architecture': arch,
-                                'Uri': url
-                            })
+                            _append_unique_source(
+                                packages[key]['sources'],
+                                {
+                                    'Architecture': arch,
+                                    'Uri': url
+                                }
+                            )
                         packages[key]['url'] = url
                     elif pkg_type == 'image':
                         tag = pkg.get('tag', '')

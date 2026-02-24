@@ -365,10 +365,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_baseos"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
           }
         ]
       },
@@ -389,10 +385,6 @@
           {
             "Architecture": "aarch64",
             "RepoName": "aarch64_baseos"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
           },
           {
             "Architecture": "x86_64",
@@ -480,10 +472,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "epel"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "epel"
           }
         ]
       },
@@ -499,7 +487,17 @@
           "aarch64",
           "x86_64"
         ],
-        "Type": "rpm_repo"
+        "Type": "rpm_repo",
+        "Sources": [
+          {
+            "Architecture": "aarch64",
+            "RepoName": "doca"
+          },
+          {
+            "Architecture": "x86_64",
+            "RepoName": "doca"
+          }
+        ]
       },
       "package_id_10": {
         "Name": "slurm-slurmctld",
@@ -614,22 +612,6 @@
           {
             "Architecture": "aarch64",
             "RepoName": "aarch64_slurm_custom"
-          },
-          {
-            "Architecture": "aarch64",
-            "RepoName": "aarch64_slurm_custom"
-          },
-          {
-            "Architecture": "aarch64",
-            "RepoName": "aarch64_slurm_custom"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
           },
           {
             "Architecture": "x86_64",
@@ -771,14 +753,6 @@
             "RepoName": "aarch64_slurm_custom"
           },
           {
-            "Architecture": "aarch64",
-            "RepoName": "aarch64_slurm_custom"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
-          },
-          {
             "Architecture": "x86_64",
             "RepoName": "x86_64_slurm_custom"
           }
@@ -812,14 +786,6 @@
         ],
         "Type": "rpm",
         "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          },
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_appstream"
@@ -1453,10 +1419,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "kubernetes"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "kubernetes"
           }
         ]
       },
@@ -1486,10 +1448,6 @@
         ],
         "Type": "rpm",
         "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          },
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_appstream"

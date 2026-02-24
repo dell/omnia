@@ -174,10 +174,10 @@
       },
       "sources": [
         {
-          "source_file": "base_os.json",
+          "source_file": "infrastructure.json",
           "pulls": [
             {
-              "source_key": "Base OS",
+              "source_key": "csi",
               "target_key": "csi_driver_powerscale",
               "filter": {
                 "type": "allowlist",
