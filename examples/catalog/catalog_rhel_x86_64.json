@@ -305,10 +305,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_baseos"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
           }
         ]
       },
@@ -328,10 +324,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_baseos"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
           }
         ]
       },
@@ -348,14 +340,6 @@
         ],
         "Type": "rpm",
         "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          },
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_appstream"
@@ -809,10 +793,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "epel"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "epel"
           }
         ]
       },
@@ -827,7 +807,13 @@
         "Architecture": [
           "x86_64"
         ],
-        "Type": "rpm_repo"
+        "Type": "rpm_repo",
+        "Sources": [
+          {
+            "Architecture": "x86_64",
+            "RepoName": "doca"
+          }
+        ]
       },
       "package_id_34": {
         "Name": "ghcr.io/kube-vip/kube-vip",
@@ -1025,10 +1011,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "kubernetes"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "kubernetes"
           }
         ]
       },
@@ -1058,10 +1040,6 @@
         ],
         "Type": "rpm",
         "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          },
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_appstream"
@@ -1421,14 +1399,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_slurm_custom"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
           }
         ]
       },
@@ -1540,10 +1510,6 @@
         ],
         "Type": "rpm",
         "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
-          },
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_slurm_custom"
@@ -3352,21 +3318,6 @@
             "RepoName": "x86_64_baseos"
           }
         ]
-      },
-      "os_package_id_95": {
-        "Name": "docker.io/dellhpcomniaaisolution/image-build-el10",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "1.0",
-        "Version": "1.0"
       }
     },
     "InfrastructurePackages": {}
