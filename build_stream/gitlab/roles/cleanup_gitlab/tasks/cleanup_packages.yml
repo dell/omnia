@@ -29,7 +29,11 @@
   ansible.builtin.package:
     name: "{{ item }}"
     state: absent
-  loop: "{{ gitlab_hosted_prereq_packages }}"
+  loop:
+    - gitlab-ce
+    - gitlab-runner
+  register: package_removal
+  failed_when: false
   ignore_errors: true
 
 - name: Note about package cleanup

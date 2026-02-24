@@ -44,6 +44,7 @@
 - name: Update system CA trust store
   ansible.builtin.command: "{{ item }}"
   loop:
-    - "update-ca-trust"
-    - "update-ca-certificates"
+    - update-ca-trust
+  register: ca_trust_update
+  failed_when: false
   ignore_errors: true
