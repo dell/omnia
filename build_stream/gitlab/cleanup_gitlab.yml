@@ -1,0 +1,42 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+# GitLab Comprehensive Cleanup Playbook
+# This playbook removes ALL GitLab configurations created by gitlab.yml
+# Usage: ansible-playbook cleanup_gitlab.yml
+
+- name: Comprehensive GitLab Cleanup
+  hosts: gitlab_server
+  become: true
+  gather_facts: true
+  roles:
+    - cleanup_gitlab
+
+  post_tasks:
+    - name: Display cleanup completion notice
+      ansible.builtin.debug:
+        msg: |
+          ============================================
+          GitLab Comprehensive Cleanup - COMPLETED
+          ============================================
+          
+          🎯 All cleanup tasks have been executed.
+          📋 Detailed summary and checklist provided below.
+          🧪 Use the test commands to verify cleanup success.
+          🚀 System is ready for fresh GitLab installation.
+          
+          To reinstall: ansible-playbook gitlab.yml
+          ============================================

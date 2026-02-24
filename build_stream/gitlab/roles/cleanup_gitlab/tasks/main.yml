@@ -1,0 +1,89 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+# GitLab Comprehensive Cleanup Tasks
+# This role cleans up ALL configurations created by GitLab playbook
+
+- name: Display comprehensive cleanup message
+  ansible.builtin.debug:
+    msg: |
+      ============================================
+      GitLab Comprehensive Cleanup Mode
+      ============================================
+      This will CLEAN UP ALL GitLab configurations:
+      
+      📋 TASKS BEING CLEANED UP:
+      1. configure_firewall.yml - Firewall rules (HTTP/HTTPS/SSH)
+      2. configure_gitlab.yml - GitLab configuration and services
+      3. create_directories.yml - Custom directories and paths
+      4. create_project.yml - GitLab projects, tokens, API configs
+      5. create_trigger.yml - Pipeline triggers and webhooks
+      6. deploy_runner.yml - GitLab runner containers and configs
+      7. display_summary.yml - No cleanup needed (display only)
+      8. generate_tls_certs.yml - TLS certificates and CA certs
+      9. install_gitlab.yml - GitLab packages and repositories
+      10. install_packages.yml - System packages (podman, docker, etc.)
+      11. main.yml - Orchestration (no direct cleanup needed)
+      12. push_ci_files.yml - CI/CD templates and pipeline files
+      13. root_password_change.yml - Password configurations
+      14. validate_prerequisites.yml - No cleanup needed (validation only)
+
+- name: Check if GitLab is installed
+  ansible.builtin.command: "{{ gitlab_ctl_command }} status"
+  register: gitlab_status_check
+  failed_when: false
+  changed_when: false
+
+- name: Display GitLab status
+  ansible.builtin.debug:
+    msg: "GitLab status: {{ 'INSTALLED' if gitlab_status_check.rc == 0 else 'NOT INSTALLED' }}"
+
+- name: Skip cleanup if GitLab not installed
+  ansible.builtin.debug:
+    msg: "GitLab is not installed. Nothing to cleanup."
+  when: gitlab_status_check.rc != 0
+
+- name: Exit if GitLab not installed (idempotency)
+  ansible.builtin.meta: end_play
+  when: gitlab_status_check.rc != 0
+
+# Include all cleanup tasks
+- name: Cleanup GitLab services and packages
+  ansible.builtin.include_tasks: cleanup_services.yml
+
+- name: Cleanup firewall rules
+  ansible.builtin.include_tasks: cleanup_firewall.yml
+
+- name: Cleanup TLS certificates
+  ansible.builtin.include_tasks: cleanup_tls.yml
+
+- name: Cleanup GitLab runner
+  ansible.builtin.include_tasks: cleanup_runner.yml
+
+- name: Cleanup directories and data
+  ansible.builtin.include_tasks: cleanup_directories.yml
+
+- name: Cleanup CI/CD configurations
+  ansible.builtin.include_tasks: cleanup_cicd.yml
+
+- name: Cleanup system packages
+  ansible.builtin.include_tasks: cleanup_packages.yml
+
+- name: Cleanup passwords and credentials
+  ansible.builtin.include_tasks: cleanup_credentials.yml
+
+- name: Display cleanup summary and checklist
+  ansible.builtin.include_tasks: cleanup_summary.yml

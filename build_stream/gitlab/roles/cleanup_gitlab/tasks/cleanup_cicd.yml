@@ -1,0 +1,63 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Remove GitLab CI/CD template files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/gitlab/ci_templates"
+    - "/opt/gitlab/ci_templates"
+    - "{{ gitlab_ci_templates_path | default('/opt/gitlab/ci_templates') }}"
+  ignore_errors: true
+
+- name: Remove GitLab webhook configurations
+  ansible.builtin.debug:
+    msg: "Note: Webhooks and triggers are cleaned up when GitLab data is removed"
+  when: gitlab_status_check.rc == 0
+
+- name: Remove GitLab pipeline trigger files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/gitlab/triggers"
+    - "/opt/gitlab/triggers"
+  ignore_errors: true
+
+- name: Remove GitLab project configurations
+  ansible.builtin.debug:
+    msg: "Note: Projects and repositories are cleaned up when GitLab data is removed"
+  when: gitlab_status_check.rc == 0
+
+- name: Remove GitLab API tokens (if stored locally)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/root/.gitlab-tokens"
+    - "/etc/gitlab/api-tokens"
+    - "/opt/gitlab/tokens"
+  ignore_errors: true
+
+- name: Clean up GitLab CI/CD cache
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/var/opt/gitlab/gitlab-ci"
+    - "/var/cache/gitlab"
+  ignore_errors: true

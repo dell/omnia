@@ -1,0 +1,70 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Stop and remove GitLab runner container
+  containers.podman.podman_container:
+    name: "{{ gitlab_runner_container_name }}"
+    state: absent
+  ignore_errors: true
+
+- name: Remove GitLab runner registration container
+  containers.podman.podman_container:
+    name: gitlab-runner-register
+    state: absent
+  ignore_errors: true
+
+- name: Remove GitLab runner image
+  containers.podman.podman_image:
+    name: "{{ gitlab_runner_image | default('gitlab/gitlab-runner:latest') }}"
+    state: absent
+  ignore_errors: true
+
+- name: Remove GitLab runner configuration directory
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_config_path | default('/etc/gitlab-runner') }}"
+    state: absent
+  ignore_errors: true
+
+- name: Remove GitLab runner registration token
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_registration_token_path }}"
+    state: absent
+  ignore_errors: true
+
+- name: Remove GitLab runner systemd service
+  ansible.builtin.systemd:
+    name: gitlab-runner
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Remove GitLab runner systemd service file
+  ansible.builtin.file:
+    path: "/etc/systemd/system/gitlab-runner.service"
+    state: absent
+  ignore_errors: true
+
+- name: Remove runner from Docker (if Docker was used)
+  community.docker.docker_container:
+    name: "{{ gitlab_runner_container_name }}"
+    state: absent
+  ignore_errors: true
+
+- name: Remove runner image from Docker
+  community.docker.docker_image:
+    name: "{{ gitlab_runner_image | default('gitlab/gitlab-runner:latest') }}"
+    state: absent
+  ignore_errors: true

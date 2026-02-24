@@ -25,6 +25,11 @@
         omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['gitlab'] + ['provision']) | unique }}"
         cacheable: true
 
+    - name: Set GitLab operation mode
+      ansible.builtin.set_fact:
+        gitlab_operation_mode: "{{ gitlab_operation_mode | default('install') }}"
+        cacheable: true
+
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../../utils/include_input_dir.yml
@@ -94,6 +99,21 @@
           - gitlab_host is defined and gitlab_host != ''
         fail_msg: "Set gitlab_host in gitlab_config.yml for hosted mode"
       when: gitlab_deployment_mode == 'hosted'
+
+    - name: Handle GitLab uninstall/cleanup mode
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+        tasks_from: uninstall
+      when: gitlab_operation_mode == 'uninstall'
+
+    - name: Skip deployment when in uninstall mode
+      ansible.builtin.debug:
+        msg: "GitLab uninstall/cleanup completed. Skipping deployment."
+      when: gitlab_operation_mode == 'uninstall'
+    
+    - name: Exit playbook after uninstall
+      ansible.builtin.meta: end_play
+      when: gitlab_operation_mode == 'uninstall'
 
     - name: Bootstrap passwordless SSH
       ansible.builtin.include_role:

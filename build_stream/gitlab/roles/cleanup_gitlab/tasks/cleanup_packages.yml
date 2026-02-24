@@ -1,0 +1,57 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Remove GitLab packages
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - gitlab-ce
+    - gitlab-ci
+    - gitlab-runner
+    - git
+  ignore_errors: true
+
+- name: Remove GitLab prerequisite packages (fresh install will reinstall)
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ gitlab_hosted_prereq_packages }}"
+  ignore_errors: true
+
+- name: Note about package cleanup
+  ansible.builtin.debug:
+    msg: |
+      Note: All GitLab-related packages removed including prerequisites.
+      Fresh install will reinstall all needed packages automatically.
+      This ensures a completely clean state.
+
+- name: Clean package cache (safe operation)
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - "dnf clean all"
+    - "yum clean all"
+    - "apt-get clean"
+  ignore_errors: true
+
+- name: Remove GitLab GPG keys
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab"
+    - "/etc/apt/trusted.gpg.d/gitlab.gpg"
+  ignore_errors: true

@@ -1,0 +1,144 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Generate cleanup check summary
+  ansible.builtin.debug:
+    msg: |
+      ============================================
+      GitLab Cleanup Check Summary
+      ============================================
+      
+      ✅ CLEANUP VERIFICATION CHECKLIST:
+      
+      📦 PACKAGES AND SERVICES:
+      [ ] gitlab-ce package removed: rpm -qa | grep gitlab
+      [ ] gitlab-runner removed: rpm -qa | grep gitlab-runner
+      [ ] GitLab services stopped: systemctl status gitlab-runsvdir
+      [ ] GitLab repository removed: ls /etc/yum.repos.d/gitlab*
+      
+      🔥 FIREWALL RULES:
+      [ ] HTTP port removed: firewall-cmd --list-ports | grep 80/tcp
+      [ ] HTTPS port removed: firewall-cmd --list-ports | grep 443/tcp
+      [ ] SSH port removed: firewall-cmd --list-ports | grep 22/tcp
+      [ ] SSH service preserved: firewall-cmd --list-services | grep ssh
+      
+      🔐 TLS CERTIFICATES:
+      [ ] SSL directory removed: ls /etc/gitlab/ssl
+      [ ] Cert files removed: ls /etc/gitlab/ssl/*.crt
+      [ ] Key files removed: ls /etc/gitlab/ssl/*.key
+      
+      🏃 RUNNER CONTAINERS:
+      [ ] Runner container stopped: podman ps -a | grep gitlab-runner
+      [ ] Runner image removed: podman images | grep gitlab-runner
+      [ ] Runner config removed: ls /etc/gitlab-runner
+      
+      📁 DIRECTORIES AND DATA:
+      [ ] Config directory removed: ls /etc/gitlab
+      [ ] Data directory removed: ls /var/opt/gitlab
+      [ ] Log directory removed: ls /var/log/gitlab
+      [ ] Custom directories removed: ls /opt/gitlab
+      
+      🔑 CREDENTIALS AND PASSWORDS:
+      [ ] Root password file removed: ls /etc/gitlab/initial_root_password
+      [ ] SSH keys removed: ls /etc/gitlab/ssh_host_*
+      [ ] Known hosts cleared: grep gitlab ~/.ssh/known_hosts
+      
+      📦 SYSTEM PACKAGES:
+      [ ] GitLab packages removed: rpm -qa | grep gitlab
+      [ ] Prerequisite packages removed: rpm -qa | grep -E "curl|policycoreutils|openssl|podman|docker"
+      [ ] GitLab repository removed: ls /etc/yum.repos.d/gitlab*
+      [ ] GitLab GPG keys removed: ls /etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab
+      
+      ============================================
+
+- name: Display testing methods
+  ansible.builtin.debug:
+    msg: |
+      ============================================
+      How to Test Cleanup Success
+      ============================================
+      
+      🧪 AUTOMATED TEST COMMANDS:
+      Run these commands to verify cleanup:
+      
+      # 1. Check no GitLab processes
+      ps aux | grep gitlab
+      
+      # 2. Check no GitLab packages
+      rpm -qa | grep gitlab || echo "✅ No GitLab packages found"
+      
+      # 3. Check no GitLab directories
+      ls -la /etc/gitlab 2>/dev/null || echo "✅ /etc/gitlab removed"
+      ls -la /var/opt/gitlab 2>/dev/null || echo "✅ /var/opt/gitlab removed"
+      
+      # 4. Check firewall rules
+      firewall-cmd --list-all | grep -E "http|https|git" || echo "✅ No GitLab firewall rules"
+      
+      # 5. Check no GitLab containers
+      podman ps -a | grep gitlab || echo "✅ No GitLab containers"
+      
+      # 6. Check no GitLab services
+      systemctl list-units | grep gitlab || echo "✅ No GitLab services"
+      
+      # 7. Check no GitLab users
+      id git 2>/dev/null || echo "✅ Git user removed"
+      
+      # 8. Check ports are free
+      netstat -tlnp | grep -E ":80|:443|:22" || echo "✅ GitLab ports free"
+      
+      🔄 TEST REINSTALL:
+      After cleanup, test fresh install:
+      ansible-playbook gitlab.yml
+      
+      Expected: Fresh GitLab installation without errors
+      ============================================
+
+- name: Display final cleanup summary
+  ansible.builtin.debug:
+    msg: |
+      ============================================
+      GitLab Comprehensive Cleanup - COMPLETED
+      ============================================
+      
+      📊 CLEANUP SUMMARY:
+      - ✅ configure_firewall.yml → Firewall rules removed
+      - ✅ configure_gitlab.yml → GitLab config and services removed
+      - ✅ create_directories.yml → All custom directories removed
+      - ✅ create_project.yml → Projects and tokens cleaned
+      - ✅ create_trigger.yml → Pipeline triggers removed
+      - ✅ deploy_runner.yml → Runner containers and configs removed
+      - ✅ display_summary.yml → No cleanup needed (display only)
+      - ✅ generate_tls_certs.yml → TLS certificates removed
+      - ✅ install_gitlab.yml → GitLab packages removed
+      - ✅ install_packages.yml → System packages removed
+      - ✅ main.yml → Orchestration completed
+      - ✅ push_ci_files.yml → CI/CD templates removed
+      - ✅ root_password_change.yml → Old password files removed (prompting system intact)
+      - ✅ validate_prerequisites.yml → No cleanup needed (validation only)
+      
+      🎯 SYSTEM STATUS:
+      - All GitLab configurations removed
+      - System ready for fresh installation
+      - No leftover artifacts or conflicts
+      
+      🚀 NEXT STEPS:
+      1. Run the test commands above to verify cleanup
+      2. Run: ansible-playbook gitlab.yml for fresh install
+      
+      ⚠️  IMPORTANT:
+      - Manually clear gitlab_root_password from credential utility
+      - Verify no other services need removed packages
+      ============================================
