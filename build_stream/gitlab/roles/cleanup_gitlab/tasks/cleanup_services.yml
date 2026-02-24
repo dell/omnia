@@ -93,7 +93,7 @@
   ignore_errors: true
 
 - name: Clean any remaining GitLab files (excluding system and user files)
-  ansible.builtin.command: "find /opt /etc /var /root /home -name '*gitlab*' -type f -delete 2>/dev/null || true"
+  ansible.builtin.shell: "find /opt /etc /var /root /home -name '*gitlab*' -type f -delete 2>/dev/null || true"
   register: gitlab_file_cleanup
   changed_when: false
 

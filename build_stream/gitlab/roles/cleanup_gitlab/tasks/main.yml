@@ -17,7 +17,7 @@
 # GitLab Comprehensive Cleanup Tasks
 # This role cleans up ALL configurations created by GitLab playbook
 
-- name: Display comprehensive cleanup message
+- name: Display comprehensive cleanup mode message
   ansible.builtin.debug:
     msg:
       - "============================================"
@@ -27,7 +27,6 @@
       - "This will clean up ALL GitLab configurations:"
       - ""
       - "Components being cleaned:"
-      - "  - Firewall Rules (HTTP/HTTPS/SSH ports)"
       - "  - GitLab Configuration & Services"
       - "  - Custom Directories & Paths"
       - "  - GitLab Projects & API Tokens"
@@ -39,6 +38,7 @@
       - "  - CI/CD Templates & Pipeline Files"
       - "  - Password Configurations"
       - ""
+      - "Note: Firewall rules are preserved for system access"
       - "Result: Clean slate for fresh GitLab installation"
       - "============================================"
 
