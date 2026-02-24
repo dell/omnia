@@ -19,29 +19,28 @@
 
 - name: Display comprehensive cleanup message
   ansible.builtin.debug:
-    msg: |
-      ============================================
-      🧹 GitLab Comprehensive Cleanup Mode 🧹
-      ============================================
-      
-      This will CLEAN UP ALL GitLab configurations:
-      
-      📋 COMPONENTS BEING CLEANED:
-      ───────────────────────────────────────
-      🔥 Firewall Rules (HTTP/HTTPS/SSH ports)
-      ⚙️  GitLab Configuration & Services
-      📁 Custom Directories & Paths
-      🚀 GitLab Projects & API Tokens
-      🔧 Pipeline Triggers & Webhooks
-      🏃 GitLab Runner Containers & Configs
-      🔐 TLS Certificates & CA Trust
-      📦 GitLab Packages & Repositories
-      🐳 System Packages (Docker/Podman)
-      📄 CI/CD Templates & Pipeline Files
-      🔑 Password Configurations
-      
-      ✨ RESULT: Clean slate for fresh GitLab installation!
-      ============================================
+    msg:
+      - "============================================"
+      - "GitLab Comprehensive Cleanup Mode"
+      - "============================================"
+      - ""
+      - "This will clean up ALL GitLab configurations:"
+      - ""
+      - "Components being cleaned:"
+      - "  - Firewall Rules (HTTP/HTTPS/SSH ports)"
+      - "  - GitLab Configuration & Services"
+      - "  - Custom Directories & Paths"
+      - "  - GitLab Projects & API Tokens"
+      - "  - Pipeline Triggers & Webhooks"
+      - "  - GitLab Runner Containers & Configs"
+      - "  - TLS Certificates & CA Trust"
+      - "  - GitLab Packages & Repositories"
+      - "  - System Packages (Docker/Podman)"
+      - "  - CI/CD Templates & Pipeline Files"
+      - "  - Password Configurations"
+      - ""
+      - "Result: Clean slate for fresh GitLab installation"
+      - "============================================"
 
 - name: Check if GitLab is installed
   ansible.builtin.command: "{{ gitlab_ctl_command }} status"
