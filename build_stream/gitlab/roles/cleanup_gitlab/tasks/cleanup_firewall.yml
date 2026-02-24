@@ -26,21 +26,24 @@
     - "{{ gitlab_ssh_port | default('22') }}"
   ignore_errors: true
 
+- name: Remove GitLab rich rules (if any)
+  ansible.builtin.command: "firewall-cmd --permanent --remove-rich-rule='rule family=\"ipv4\" source address=\"0.0.0.0/0\" port port=\"{{ item }}\" protocol=\"tcp\" accept'"
+  loop:
+    - "{{ gitlab_http_port | default('80') }}"
+    - "{{ gitlab_https_port | default('443') }}"
+    - "{{ gitlab_ssh_port | default('22') }}"
+  register: rich_rule_removal
+  failed_when: false
+  ignore_errors: true
+
+- name: Reload firewall to apply changes
+  ansible.builtin.command: firewall-cmd --reload
+  failed_when: false
+  ignore_errors: true
+
 - name: Note about SSH service preservation
   ansible.builtin.debug:
     msg: |
       Note: Only GitLab PORTS are removed, not SSH service.
       SSH service remains enabled for system access.
       Fresh install will re-open these ports as needed.
-
-- name: Remove GitLab custom firewall rules
-  ansible.builtin.command: firewall-cmd --permanent --remove-rich-rule="{{ item }}"
-  loop:
-    - "rule port=\"80\" protocol=\"tcp\" accept"
-    - "rule port=\"443\" protocol=\"tcp\" accept"
-    - "rule port=\"22\" protocol=\"tcp\" accept"
-  ignore_errors: true
-
-- name: Reload firewall to apply changes
-  ansible.builtin.command: firewall-cmd --reload
-  ignore_errors: true
