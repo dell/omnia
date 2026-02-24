@@ -3,10 +3,8 @@
 
 external_url '{{ gitlab_external_url_computed }}'
 letsencrypt['enable'] = false
-{% if gitlab_use_https %}
 nginx['ssl_certificate'] = '{{ gitlab_ssl_dir }}/{{ gitlab_host }}.crt'
 nginx['ssl_certificate_key'] = '{{ gitlab_ssl_dir }}/{{ gitlab_host }}.key'
-{% endif %}
 gitlab_rails['gitlab_shell_ssh_port'] = {{ gitlab_ssh_port }}
 prometheus_monitoring['enable'] = {{ 'false' if gitlab_disable_prometheus else 'true' }}
 puma['worker_processes'] = {{ gitlab_puma_workers }}
