@@ -73,6 +73,7 @@
         ansible_user: "{{ gitlab_ansible_user | default('root') }}"
         ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+        gitlab_host: "{{ gitlab_host }}"
       no_log: true
 
 - name: Comprehensive GitLab Cleanup
