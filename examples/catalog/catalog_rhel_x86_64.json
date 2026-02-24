@@ -15,7 +15,7 @@
           "package_id_58",
           "package_id_59",
           "package_id_68",
-          "package_id_73"
+          "package_id_74"
         ]
       },
       {
@@ -29,7 +29,7 @@
           "package_id_58",
           "package_id_59",
           "package_id_68",
-          "package_id_73"
+          "package_id_74"
         ]
       },
       {
@@ -162,7 +162,8 @@
           "package_id_69",
           "package_id_70",
           "package_id_71",
-          "package_id_72"
+          "package_id_72",
+          "package_id_73"
         ]
       }
     ],
@@ -264,7 +265,8 @@
           "os_package_id_91",
           "os_package_id_92",
           "os_package_id_93",
-          "os_package_id_94"
+          "os_package_id_94",
+          "os_package_id_95"
         ]
       }
     ],
@@ -303,10 +305,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_baseos"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
           }
         ]
       },
@@ -326,10 +324,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_baseos"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
           }
         ]
       },
@@ -346,14 +340,6 @@
         ],
         "Type": "rpm",
         "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          },
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_appstream"
@@ -807,10 +793,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "epel"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "epel"
           }
         ]
       },
@@ -825,15 +807,11 @@
         "Architecture": [
           "x86_64"
         ],
-        "Type": "iso",
+        "Type": "rpm_repo",
         "Sources": [
           {
             "Architecture": "x86_64",
-            "Uri": "https://www.mellanox.com/downloads/DOCA/DOCA_v3.2.1/host/doca-host-3.2.1-044000_25.10_rhel10.x86_64.rpm"
-          },
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://www.mellanox.com/downloads/DOCA/DOCA_v3.2.1/host/doca-host-3.2.1-044000_25.10_rhel10.x86_64.rpm"
+            "RepoName": "doca"
           }
         ]
       },
@@ -1033,10 +1011,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "kubernetes"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "kubernetes"
           }
         ]
       },
@@ -1066,10 +1040,6 @@
         ],
         "Type": "rpm",
         "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          },
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_appstream"
@@ -1429,14 +1399,6 @@
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_slurm_custom"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
-          },
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
           }
         ]
       },
@@ -1517,6 +1479,25 @@
         ]
       },
       "package_id_73": {
+        "Name": "nvhpc_2025_2511_Linux_x86_64_cuda_13.0",
+        "SupportedOS": [
+          {
+            "Name": "RHEL",
+            "Version": "10.0"
+          }
+        ],
+        "Architecture": [
+          "x86_64"
+        ],
+        "Type": "tarball",
+        "Sources": [
+          {
+            "Architecture": "x86_64",
+            "Uri": "https://developer.download.nvidia.com/hpc-sdk/25.11/nvhpc_2025_2511_Linux_x86_64_cuda_13.0.tar.gz"
+          }
+        ]
+      },
+      "package_id_74": {
         "Name": "slurm",
         "SupportedOS": [
           {
@@ -1529,10 +1510,6 @@
         ],
         "Type": "rpm",
         "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
-          },
           {
             "Architecture": "x86_64",
             "RepoName": "x86_64_slurm_custom"
@@ -3157,6 +3134,21 @@
         ]
       },
       "os_package_id_86": {
+        "Name": "docker.io/dellhpcomniaaisolution/image-build-el10",
+        "SupportedOS": [
+          {
+            "Name": "RHEL",
+            "Version": "10.0"
+          }
+        ],
+        "Architecture": [
+          "x86_64"
+        ],
+        "Type": "image",
+        "Tag": "1.0",
+        "Version": "1.0"
+      },
+      "os_package_id_87": {
         "Name": "python3-devel",
         "SupportedOS": [
           {
@@ -3175,7 +3167,7 @@
           }
         ]
       },
-      "os_package_id_87": {
+      "os_package_id_88": {
         "Name": "python3-cython",
         "SupportedOS": [
           {
@@ -3194,7 +3186,7 @@
           }
         ]
       },
-      "os_package_id_88": {
+      "os_package_id_89": {
         "Name": "openssl-libs",
         "SupportedOS": [
           {
@@ -3213,7 +3205,7 @@
           }
         ]
       },
-      "os_package_id_89": {
+      "os_package_id_90": {
         "Name": "ovis-ldms",
         "SupportedOS": [
           {
@@ -3232,7 +3224,7 @@
           }
         ]
       },
-      "os_package_id_90": {
+      "os_package_id_91": {
         "Name": "openldap-clients",
         "SupportedOS": [
           {
@@ -3251,7 +3243,7 @@
           }
         ]
       },
-      "os_package_id_91": {
+      "os_package_id_92": {
         "Name": "nss-pam-ldapd",
         "SupportedOS": [
           {
@@ -3270,7 +3262,7 @@
           }
         ]
       },
-      "os_package_id_92": {
+      "os_package_id_93": {
         "Name": "sssd",
         "SupportedOS": [
           {
@@ -3289,7 +3281,7 @@
           }
         ]
       },
-      "os_package_id_93": {
+      "os_package_id_94": {
         "Name": "oddjob-mkhomedir",
         "SupportedOS": [
           {
@@ -3308,7 +3300,7 @@
           }
         ]
       },
-      "os_package_id_94": {
+      "os_package_id_95": {
         "Name": "authselect",
         "SupportedOS": [
           {
