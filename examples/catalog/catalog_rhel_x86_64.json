@@ -264,7 +264,8 @@
           "os_package_id_91",
           "os_package_id_92",
           "os_package_id_93",
-          "os_package_id_94"
+          "os_package_id_94",
+          "os_package_id_95"
         ]
       }
     ],
@@ -3326,6 +3327,21 @@
             "RepoName": "x86_64_baseos"
           }
         ]
+      },
+      "os_package_id_95": {
+        "Name": "docker.io/dellhpcomniaaisolution/image-build-el10",
+        "SupportedOS": [
+          {
+            "Name": "RHEL",
+            "Version": "10.0"
+          }
+        ],
+        "Architecture": [
+          "x86_64"
+        ],
+        "Type": "image",
+        "Tag": "1.0",
+        "Version": "1.0"
       }
     },
     "InfrastructurePackages": {}

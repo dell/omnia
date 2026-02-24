@@ -18,7 +18,7 @@
               "filter": {
                 "type": "allowlist",
                 "field": "package",
-                "values": ["systemd", "systemd-udev", "kernel", "dracut", "dracut-live", "dracut-network", "squashfs-tools", "nfs-utils", "nfs4-acl-tools", "NetworkManager", "nm-connection-editor", "iproute", "iputils", "curl", "bash", "coreutils", "grep", "sed", "gawk", "findutils", "util-linux", "kbd", "lsof", "cryptsetup", "lvm2", "device-mapper", "rsyslog", "chrony", "sudo", "gzip", "wget", "cloud-init", "glibc-langpack-en", "gedit"],
+                "values": ["systemd", "systemd-udev", "kernel", "dracut", "dracut-live", "dracut-network", "squashfs-tools", "nfs-utils", "nfs4-acl-tools", "NetworkManager", "nm-connection-editor", "iproute", "iputils", "curl", "bash", "coreutils", "grep", "sed", "gawk", "findutils", "util-linux", "kbd", "lsof", "cryptsetup", "lvm2", "device-mapper", "rsyslog", "chrony", "sudo", "gzip", "wget", "cloud-init", "glibc-langpack-en", "gedit", "docker.io/dellhpcomniaaisolution/image-build-aarch64", "docker.io/dellhpcomniaaisolution/image-build-el10"],
                 "case_sensitive": false
               }
             }
