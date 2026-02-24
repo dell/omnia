@@ -58,22 +58,15 @@
           - hostvars['localhost']['provision_password'] | default('') | length > 0
         fail_msg: "Provision password not found. Run credential utility to populate provision_password."
 
-    - name: Validate GitLab inventory host is provided
-      ansible.builtin.assert:
-        that:
-          - groups['gitlab_server'] is defined
-          - groups['gitlab_server'] | length > 0
-        fail_msg: "Set at least one target host under [gitlab_server] in build_stream/gitlab/inventory/hosts.ini"
-
-    - name: Set GitLab inventory host
+    - name: Set GitLab host from inventory (fallback to gitlab_host if inventory not loaded)
       ansible.builtin.set_fact:
-        gitlab_inventory_host: "{{ groups['gitlab_server'][0] }}"
+        gitlab_inventory_host: "{{ groups['gitlab_server'][0] if (groups['gitlab_server'] is defined and groups['gitlab_server'] | length > 0) else gitlab_host }}"
 
     - name: Register GitLab SSH credentials for cleanup
       ansible.builtin.add_host:
         name: "{{ gitlab_inventory_host }}"
         groups: gitlab_server
-        ansible_host: "{{ hostvars[gitlab_inventory_host].ansible_host | default(gitlab_inventory_host) }}"
+        ansible_host: "{{ gitlab_inventory_host }}"
         ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
       no_log: true
