@@ -14,22 +14,43 @@
 
 ---
 
+- name: Check if Podman is available
+  ansible.builtin.command: which podman
+  register: podman_check
+  failed_when: false
+  changed_when: false
+
 - name: Stop and remove GitLab runner container
-  containers.podman.podman_container:
-    name: "{{ gitlab_runner_container_name }}"
-    state: absent
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - "podman stop {{ gitlab_runner_container_name }}"
+    - "podman rm {{ gitlab_runner_container_name }}"
+  register: runner_container_removal
+  when: podman_check.rc == 0
+  failed_when: false
   ignore_errors: true
+
+- name: Check if Docker is available
+  ansible.builtin.command: which docker
+  register: docker_check
+  failed_when: false
+  changed_when: false
 
 - name: Remove GitLab runner registration container
-  containers.podman.podman_container:
-    name: gitlab-runner-register
-    state: absent
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - "docker stop {{ gitlab_runner_container_name }}"
+    - "docker rm {{ gitlab_runner_container_name }}"
+  register: runner_docker_removal
+  when: docker_check.rc == 0
+  failed_when: false
   ignore_errors: true
 
-- name: Remove GitLab runner image
-  containers.podman.podman_image:
-    name: "{{ gitlab_runner_image | default('gitlab/gitlab-runner:latest') }}"
-    state: absent
+- name: Remove GitLab runner image (Podman)
+  ansible.builtin.command: "podman rmi gitlab/gitlab-runner:latest"
+  register: runner_image_removal
+  when: podman_check.rc == 0
+  failed_when: false
   ignore_errors: true
 
 - name: Remove GitLab runner configuration directory
@@ -61,10 +82,12 @@
   community.docker.docker_container:
     name: "{{ gitlab_runner_container_name }}"
     state: absent
+  when: docker_check.rc == 0
   ignore_errors: true
 
 - name: Remove runner image from Docker
   community.docker.docker_image:
     name: "{{ gitlab_runner_image | default('gitlab/gitlab-runner:latest') }}"
     state: absent
+  when: docker_check.rc == 0
   ignore_errors: true

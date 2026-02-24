@@ -14,6 +14,12 @@
 
 ---
 
+- name: Check if firewalld is available and running
+  ansible.builtin.command: systemctl is-active firewalld
+  register: firewalld_check
+  failed_when: false
+  changed_when: false
+
 - name: Remove GitLab firewall ports (not services - preserve SSH access)
   ansible.posix.firewalld:
     port: "{{ item }}/tcp"
@@ -24,6 +30,7 @@
     - "{{ gitlab_http_port | default('80') }}"
     - "{{ gitlab_https_port | default('443') }}"
     - "{{ gitlab_ssh_port | default('22') }}"
+  when: firewalld_check.rc == 0
   ignore_errors: true
 
 - name: Remove GitLab rich rules (if any)
