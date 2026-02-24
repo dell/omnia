@@ -81,6 +81,8 @@
   hosts: gitlab_server
   become: true
   gather_facts: true
+  vars:
+    gitlab_operation_mode: "{{ hostvars['localhost']['gitlab_operation_mode'] | default('install') }}"
   tasks:
     - name: Install sshpass on localhost
       ansible.builtin.package:
