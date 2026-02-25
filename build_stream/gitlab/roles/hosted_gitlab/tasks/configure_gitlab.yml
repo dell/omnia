@@ -30,7 +30,7 @@
     name: git
     shell: /bin/sh
     home: /var/opt/gitlab
-    create_home: no
+    create_home: false
     state: present
 
 - name: Ensure GitLab directories exist

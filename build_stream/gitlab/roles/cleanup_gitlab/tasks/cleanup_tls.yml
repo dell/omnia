@@ -42,8 +42,7 @@
   failed_when: false
 
 - name: Update system CA trust store
-  ansible.builtin.command: "{{ item }}"
-  loop:
-    - update-ca-trust
+  ansible.builtin.command: update-ca-trust
   register: ca_trust_update
+  changed_when: false
   failed_when: false

@@ -85,7 +85,7 @@
     gitlab_rb_path: "/etc/gitlab/gitlab.rb"
     gitlab_ctl_command: "gitlab-ctl"
     gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
-    
+
     # Host prerequisites (from vars/main.yml)
     gitlab_hosted_prereq_packages:
       - curl
@@ -95,12 +95,12 @@
       - firewalld
       - podman
       - podman-docker
-    
+
     # Runner container (from vars/main.yml)
     gitlab_runner_container_name: "gitlab-runner"
     gitlab_runner_config_path: "/etc/gitlab-runner"
     gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
-    
+
     # GitLab ports (default values)
     gitlab_http_port: "80"
     gitlab_https_port: "443"
@@ -109,11 +109,24 @@
     - cleanup_gitlab
 
   post_tasks:
-    - name: Verify GitLab packages are removed
-      ansible.builtin.command: rpm -qa | grep gitlab
-      register: gitlab_packages_check
+    - name: Gather installed packages for verification
+      ansible.builtin.package_facts:
+        manager: auto
       failed_when: false
-      changed_when: false
+
+    - name: Verify GitLab packages are removed
+      ansible.builtin.set_fact:
+        gitlab_packages_present: >-
+          {{
+            (
+              ansible_facts.packages | default({})
+            )
+            | dict2items
+            | selectattr('key', 'match', '^(gitlab(-|$)|gitlab-).*$')
+            | list
+            | length
+            > 0
+          }}
 
     - name: Verify GitLab directories are removed
       ansible.builtin.stat:
@@ -133,7 +146,12 @@
 
     - name: Set cleanup validation status
       ansible.builtin.set_fact:
-        cleanup_validated: "{{ gitlab_packages_check.stdout == '' and (gitlab_dirs_final_check.results | selectattr('stat.exists') | list | length == 0) and gitlab_processes_check.stdout == '' }}"
+        cleanup_validated: >-
+          {{
+            (not (gitlab_packages_present | default(false) | bool))
+            and ((gitlab_dirs_final_check.results | selectattr('stat.exists') | list | length) == 0)
+            and (gitlab_processes_check.stdout == '')
+          }}
 
     - name: Display cleanup completion notice
       ansible.builtin.debug:
@@ -145,7 +163,7 @@
           - "All cleanup tasks have been executed"
           - ""
           - "Validation status:"
-          - "  - GitLab packages: {{ 'Removed' if gitlab_packages_check.stdout == '' else 'Some remain' }}"
+          - "  - GitLab packages: {{ 'Removed' if not (gitlab_packages_present | default(false) | bool) else 'Some remain' }}"
           - "  - GitLab directories: {{ 'Removed' if (gitlab_dirs_final_check.results | selectattr('stat.exists') | list | length == 0) else 'Some remain' }}"
           - "  - GitLab processes: {{ 'Stopped' if gitlab_processes_check.stdout == '' else 'Some running' }}"
           - ""

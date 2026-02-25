@@ -28,6 +28,7 @@
   register: runner_container_removal
   when: podman_check.rc == 0
   failed_when: false
+  changed_when: false
 
 - name: Check if Docker is available
   ansible.builtin.command: which docker
@@ -43,12 +44,14 @@
   register: runner_docker_removal
   when: docker_check.rc == 0
   failed_when: false
+  changed_when: false
 
 - name: Remove GitLab runner image (Podman)
   ansible.builtin.command: "podman rmi gitlab/gitlab-runner:latest"
   register: runner_image_removal
   when: podman_check.rc == 0
   failed_when: false
+  changed_when: false
 
 - name: Remove GitLab runner configuration directory
   ansible.builtin.file:
@@ -62,18 +65,15 @@
     state: absent
   failed_when: false
 
-- name: Check if gitlab-runner service exists
-  ansible.builtin.command: systemctl list-unit-files | grep gitlab-runner
-  register: gitlab_runner_service_check
-  failed_when: false
-  changed_when: false
+- name: Gather service facts
+  ansible.builtin.service_facts:
 
 - name: Remove GitLab runner systemd service
   ansible.builtin.systemd:
     name: gitlab-runner
     state: stopped
     enabled: false
-  when: gitlab_runner_service_check.rc == 0
+  when: "'gitlab-runner.service' in ansible_facts.services"
 
 - name: Check if gitlab-runner service file exists
   ansible.builtin.stat:

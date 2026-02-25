@@ -25,7 +25,7 @@
     - gitlab-runner
   register: package_removal
   failed_when: false
-  
+
 - name: Note about preserved packages
   ansible.builtin.debug:
     msg:
@@ -41,6 +41,7 @@
 
 - name: Clean package cache (safe operation)
   ansible.builtin.command: "dnf clean all"
+  changed_when: false
   failed_when: false
 
 - name: Remove GitLab GPG keys

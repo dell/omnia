@@ -62,6 +62,7 @@
       find /etc/gitlab -type d -empty -delete 2>/dev/null || true
     fi
   failed_when: false
+  changed_when: false
 
 - name: Clean GitLab data directory (preserve structure)
   ansible.builtin.shell: |
@@ -70,6 +71,7 @@
       find /var/opt/gitlab -type d -empty -delete 2>/dev/null || true
     fi
   failed_when: false
+  changed_when: false
 
 - name: Clean GitLab log directory (preserve structure)
   ansible.builtin.shell: |
@@ -78,6 +80,7 @@
       find /var/log/gitlab -type d -empty -delete 2>/dev/null || true
     fi
   failed_when: false
+  changed_when: false
 
 - name: Note about GitLab user preservation
   ansible.builtin.debug:
