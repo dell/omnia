@@ -18,11 +18,17 @@
 # This playbook removes ALL GitLab configurations created by gitlab.yml
 # Usage: ansible-playbook cleanup_gitlab.yml
 
-- name: Set_fact for GitLab operation mode
+- name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
   tags: always
   tasks:
+    - name: Set dynamic run tags including 'gitlab'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['gitlab'] + ['provision']) | unique }}"
+        cacheable: true
+
     - name: Set GitLab operation mode
       ansible.builtin.set_fact:
         gitlab_operation_mode: "cleanup"
@@ -31,6 +37,10 @@
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../../utils/include_input_dir.yml
+
+- name: Import credential utility playbook
+  ansible.builtin.import_playbook: ../../utils/credential_utility/get_config_credentials.yml
+  when: not config_file_status | default(false) | bool
 
 - name: Prepare GitLab host credentials for cleanup
   hosts: localhost
