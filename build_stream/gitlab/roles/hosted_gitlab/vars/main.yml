@@ -106,3 +106,64 @@ gitlab_password_change_success_msg: "GitLab root password changed successfully!"
 gitlab_trigger_description: "Omnia Software Catalog Webhook"
 gitlab_catalog_repo_path: "catalog_rhel.json"
 gitlab_catalog_json_source: "{{ role_path }}/../../../../examples/catalog/catalog_rhel.json"
+
+# Debug messages
+gitlab_cert_status_msg: |
+  Certificate Status:
+  - CA Certificate: {{ 'Exists' if _ca_cert_stat.stat.exists else 'Missing' }}
+  - CA Key: {{ 'Exists' if _ca_key_stat.stat.exists else 'Missing' }}
+  - Server Certificate: {{ 'Exists' if _server_cert_stat.stat.exists else 'Missing' }}
+  - Server Key: {{ 'Exists' if _server_key_stat.stat.exists else 'Missing' }}
+  - Generation Needed: {{ _certs_need_generation }}
+  {% if not _certs_need_generation %}
+  - Certificates will be reused (idempotent operation)
+  {% endif %}
+
+gitlab_ca_export_msg: |
+  ========================================
+  CA Certificate Exported
+  ========================================
+  
+  Certificate path: {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt
+  
+  Download this certificate and import it into your browser
+  to avoid "Not Secure" warnings when accessing GitLab.
+  ========================================
+
+gitlab_deployment_complete_msg:
+  - "============================================"
+  - "   GitLab Hosted Mode Deployment Complete   "
+  - "============================================"
+  - ""
+  - "Access URL: {{ gitlab_external_url_computed }}"
+  - "SSH Port:   {{ gitlab_ssh_port }}"
+  - "Username:   root"
+  - "Password:   [CONFIGURED - See /root/.gitlab_root_access]"
+  - ""
+  - "Project:    {{ gitlab_project_name }}"
+  - "Project ID: {{ gitlab_project_id }}"
+  - "Project URL: {{ gitlab_project_url }}"
+  - ""
+  - "Runner Auth Token: [CONFIGURED]"
+  - "Trigger Token saved to: /root/.gitlab_trigger_token"
+  - ""
+  - "Certificates:"
+  - "- CA Certificate: {{ gitlab_cert_dir }}/ca.crt"
+  - "- Server Certificate: {{ gitlab_cert_dir }}/{{ gitlab_host }}.crt"
+  - "- Export for Browser: {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt"
+  - "- Certificates are reused on re-run (generated only if missing)"
+  - ""
+  - "Service:    {{ gitlab_ctl_command }} (start|stop|status|reconfigure)"
+  - "Runner:     {{ gitlab_runner_container_name }} (Podman container, registered)"
+  - ""
+  - "Next Steps:"
+  - "1. Copy CA certificate: scp root@{{ gitlab_host }}:{{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt ."
+  - "2. Import certificate into your browser (see deployment log for detailed instructions)"
+  - "3. Clear browser cache and restart browser"
+  - "4. Log in to GitLab at {{ gitlab_external_url_computed }}"
+  - "5. Use your configured root password (see /root/.gitlab_root_access)"
+  - "6. Explore the {{ gitlab_project_name }} project"
+  - "7. Push your catalog files to {{ gitlab_project_http_url }}"
+  - ""
+  - "WARNING: You will see 'Not Secure' warning until you import the CA certificate!"
+  - "============================================"

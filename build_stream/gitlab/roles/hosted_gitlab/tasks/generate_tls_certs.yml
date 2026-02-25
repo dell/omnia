@@ -44,16 +44,7 @@
 
 - name: Display certificate status
   ansible.builtin.debug:
-    msg: |
-      Certificate Status:
-      - CA Certificate: {{ 'Exists' if _ca_cert_stat.stat.exists else 'Missing' }}
-      - CA Key: {{ 'Exists' if _ca_key_stat.stat.exists else 'Missing' }}
-      - Server Certificate: {{ 'Exists' if _server_cert_stat.stat.exists else 'Missing' }}
-      - Server Key: {{ 'Exists' if _server_key_stat.stat.exists else 'Missing' }}
-      - Generation Needed: {{ _certs_need_generation }}
-      {% if not _certs_need_generation %}
-      - Certificates will be reused (idempotent operation)
-      {% endif %}
+    msg: "{{ gitlab_cert_status_msg }}"
 
 - name: Generate CA private key
   ansible.builtin.command: >
@@ -152,37 +143,6 @@
     remote_src: true
     mode: '0644'
 
-- name: Display CA certificate export location and setup instructions
+- name: Display CA certificate export location
   ansible.builtin.debug:
-    msg: |
-      ========================================
-      IMPORTANT: Browser Certificate Setup
-      ========================================
-      
-      The GitLab CA certificate has been exported to:
-      {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt
-      
-      To avoid "Not Secure" warnings in your browser:
-      
-      === CHROME/EDGE ===:
-      1. Copy {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt to your local machine
-      2. Open Chrome Settings > Privacy and security > Security > Manage certificates
-      3. Click "Authorities" tab > "Import" > select the copied file
-      4. Check "Trust this certificate for identifying websites"
-      5. Click OK and restart Chrome
-      
-      === FIREFOX ===:
-      1. Copy {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt to your local machine
-      2. Open Firefox Settings > Privacy & Security > Certificates > View Certificates
-      3. Click "Authorities" tab > "Import" > select the copied file
-      4. Check "Trust this CA to identify websites" and click OK
-      
-      === COMMAND LINE (Linux/Mac) ===:
-      If accessing from the same machine:
-      sudo cp {{ gitlab_cert_dir }}/ca.crt /etc/pki/ca-trust/source/anchors/gitlab-ca.crt
-      sudo update-ca-trust
-      
-      After importing the certificate, clear browser cache and restart
-      the browser before accessing GitLab at {{ gitlab_external_url_computed }}
-      
-      ========================================
+    msg: "{{ gitlab_ca_export_msg }}"

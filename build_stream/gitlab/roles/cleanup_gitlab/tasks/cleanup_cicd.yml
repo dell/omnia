@@ -23,7 +23,7 @@
 
 - name: Remove GitLab webhook configurations
   ansible.builtin.debug:
-    msg: "Note: Webhooks and triggers are cleaned up when GitLab data is removed"
+    msg: "{{ gitlab_webhook_cleanup_note }}"
   when: gitlab_status_check.rc == 0
 
 - name: Remove GitLab pipeline trigger files
@@ -35,7 +35,7 @@
 
 - name: Remove GitLab project configurations
   ansible.builtin.debug:
-    msg: "Note: Projects and repositories are cleaned up when GitLab data is removed"
+    msg: "{{ gitlab_project_cleanup_note }}"
   when: gitlab_status_check.rc == 0
 
 - name: Remove GitLab API tokens (if stored locally)

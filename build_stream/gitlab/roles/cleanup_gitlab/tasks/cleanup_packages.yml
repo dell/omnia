@@ -28,16 +28,7 @@
 
 - name: Note about preserved packages
   ansible.builtin.debug:
-    msg:
-      - "System packages preserved for fresh install:"
-      - "  - curl"
-      - "  - policycoreutils"
-      - "  - openssl"
-      - "  - firewalld"
-      - "  - podman"
-      - "  - podman-docker"
-      - ""
-      - "Only GitLab-specific packages removed"
+    msg: "{{ gitlab_preserved_packages_msg }}"
 
 - name: Clean package cache (safe operation)
   ansible.builtin.command: "dnf clean all"
