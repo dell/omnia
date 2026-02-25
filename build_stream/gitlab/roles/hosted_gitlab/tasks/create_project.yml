@@ -138,3 +138,10 @@
   ansible.builtin.set_fact:
     gitlab_runner_auth_token: "{{ runner_creation.json.token }}"
   no_log: true
+
+- name: Save runner authentication token to disk
+  ansible.builtin.copy:
+    content: "{{ runner_creation.json.token }}"
+    dest: "{{ gitlab_runner_registration_token_path }}"
+    mode: '0600'
+  no_log: true
