@@ -36,10 +36,7 @@
   ansible.builtin.stat:
     path: "{{ item }}"
   register: gitlab_dirs_check
-  loop:
-    - "/etc/gitlab"
-    - "/var/opt/gitlab"
-    - "/var/log/gitlab"
+  loop: "{{ gitlab_directory_check_paths }}"
   failed_when: false
 
 # Include all cleanup tasks

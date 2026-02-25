@@ -28,6 +28,9 @@ gitlab_health_check_retries: 5
 gitlab_health_check_delay: 60
 gitlab_api_check_retries: 10
 gitlab_api_check_delay: 15
+gitlab_reconfigure_async: 3600
+gitlab_reconfigure_poll: 15
+gitlab_reconfigure_delay: 5
 gitlab_api_unreachable_msg: 'Unable to reach GitLab API at {{ gitlab_external_url_computed }}. Verify connectivity, credentials, or TLS configuration.'
 gitlab_default_status_codes:
   project_create: [200, 201]

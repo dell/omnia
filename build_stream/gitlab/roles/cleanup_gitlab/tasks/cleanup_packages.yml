@@ -18,11 +18,7 @@
   ansible.builtin.package:
     name: "{{ item }}"
     state: absent
-  loop:
-    - gitlab-ce
-    - gitlab-ee
-    - gitlab-ci
-    - gitlab-runner
+  loop: "{{ gitlab_cleanup_packages }}"
   register: package_removal
   failed_when: false
 

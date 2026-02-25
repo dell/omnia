@@ -18,8 +18,8 @@
   ansible.builtin.command: "{{ gitlab_ctl_command }} stop"
   register: gitlab_stop_result
   when: gitlab_status_check.rc == 0
-  retries: 3
-  delay: 30
+  retries: "{{ gitlab_cleanup_service_retries }}"
+  delay: "{{ gitlab_cleanup_service_delay }}"
   until: gitlab_stop_result.rc == 0 or 'timeout' in gitlab_stop_result.stdout
   failed_when: false
   changed_when: false
@@ -87,7 +87,7 @@
 
 - name: Remove GitLab systemd service files
   ansible.builtin.file:
-    path: "/etc/systemd/system/{{ item }}"
+    path: "{{ gitlab_systemd_service_path }}/{{ item }}"
     state: absent
   loop: "{{ gitlab_systemd_service_files }}"
   failed_when: false

@@ -48,6 +48,22 @@ gitlab_cleanup_core_directories:
   - "/var/opt/gitlab"
   - "/var/log/gitlab"
   - "/opt/gitlab"
+
+# GitLab cleanup packages
+gitlab_cleanup_packages:
+  - gitlab-ce
+  - gitlab-ee
+  - gitlab-ci
+  - gitlab-runner
+
+# GitLab cleanup timeouts
+gitlab_cleanup_service_retries: 3
+gitlab_cleanup_service_delay: 30
+gitlab_systemd_service_path: "/etc/systemd/system"
+gitlab_directory_check_paths:
+  - "/etc/gitlab"
+  - "/var/opt/gitlab"
+  - "/var/log/gitlab"
 gitlab_cleanup_preserve_structure_directories:
   - "/etc/gitlab"
   - "/var/opt/gitlab"

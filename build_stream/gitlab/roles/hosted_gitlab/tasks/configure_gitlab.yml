@@ -53,8 +53,8 @@
 
 - name: Reconfigure GitLab
   ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
-  async: 3600
-  poll: 15
+  async: "{{ gitlab_reconfigure_async }}"
+  poll: "{{ gitlab_reconfigure_poll }}"
   register: gitlab_reconfigure
   changed_when: false
   failed_when: gitlab_reconfigure.rc is defined and gitlab_reconfigure.rc != 0
