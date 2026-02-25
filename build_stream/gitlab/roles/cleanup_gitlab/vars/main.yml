@@ -30,7 +30,7 @@ gitlab_hosted_prereq_packages:
 
 # Runner container
 gitlab_runner_container_name: "gitlab-runner"
-gitlab_runner_config_path: "/etc/gitlab-runner"
+gitlab_runner_config_path: "/srv/gitlab-runner/config"
 gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
 gitlab_runner_image: "gitlab/gitlab-runner:latest"
 

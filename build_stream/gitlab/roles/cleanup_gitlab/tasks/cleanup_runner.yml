@@ -55,13 +55,7 @@
 
 - name: Remove GitLab runner configuration directory
   ansible.builtin.file:
-    path: "{{ gitlab_runner_config_path | default('/etc/gitlab-runner') }}"
-    state: absent
-  failed_when: false
-
-- name: Remove GitLab runner registration token
-  ansible.builtin.file:
-    path: "{{ gitlab_runner_registration_token_path }}"
+    path: "{{ gitlab_runner_config_path | default('/srv/gitlab-runner/config') }}"
     state: absent
   failed_when: false
 

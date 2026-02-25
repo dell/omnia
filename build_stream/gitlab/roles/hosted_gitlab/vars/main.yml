@@ -83,6 +83,7 @@ gitlab_runner_description: "Omnia Hosted Runner"
 gitlab_runner_tags: "omnia"
 gitlab_runner_executor: "docker"
 gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
+gitlab_runner_config_path: "/srv/gitlab-runner/config"
 gitlab_runner_config_file: "{{ gitlab_runner_config_path }}/config.toml"
 gitlab_runner_pull_policy: "if-not-present"
 

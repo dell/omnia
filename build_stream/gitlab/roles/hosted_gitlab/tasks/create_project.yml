@@ -109,6 +109,12 @@
     gitlab_project_url: "{{ new_project.json.web_url if not project_exists else project_search.json[0].web_url }}"
     gitlab_project_http_url: "{{ new_project.json.http_url_to_repo if not project_exists else project_search.json[0].http_url_to_repo }}"
 
+- name: Check if runner config exists
+  ansible.builtin.stat:
+    path: "{{ gitlab_runner_config_file }}"
+  register: gitlab_runner_config_stat_check
+  failed_when: false
+
 - name: Create runner authentication token via API
   block:
     - name: Request runner authentication token
@@ -133,15 +139,10 @@
     - name: Fail when runner token API call fails
       ansible.builtin.fail:
         msg: "{{ gitlab_runner_token_failure_msg }}"
+  when: not gitlab_runner_config_stat_check.stat.exists
 
 - name: Set runner authentication token fact
   ansible.builtin.set_fact:
     gitlab_runner_auth_token: "{{ runner_creation.json.token }}"
   no_log: true
-
-- name: Save runner authentication token to disk
-  ansible.builtin.copy:
-    content: "{{ runner_creation.json.token }}"
-    dest: "{{ gitlab_runner_registration_token_path }}"
-    mode: '0600'
-  no_log: true
+  when: not gitlab_runner_config_stat_check.stat.exists
