@@ -18,10 +18,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/etc/gitlab/ci_templates"
-    - "/opt/gitlab/ci_templates"
-    - "{{ gitlab_ci_templates_path | default('/opt/gitlab/ci_templates') }}"
+  loop: "{{ gitlab_cicd_template_directories }}"
   failed_when: false
 
 - name: Remove GitLab webhook configurations
@@ -33,9 +30,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/etc/gitlab/triggers"
-    - "/opt/gitlab/triggers"
+  loop: "{{ gitlab_trigger_directories }}"
   failed_when: false
 
 - name: Remove GitLab project configurations
@@ -47,17 +42,12 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/root/.gitlab-tokens"
-    - "/etc/gitlab/api-tokens"
-    - "/opt/gitlab/tokens"
+  loop: "{{ gitlab_api_token_files }}"
   failed_when: false
 
 - name: Clean up GitLab CI/CD cache
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/var/opt/gitlab/gitlab-ci"
-    - "/var/cache/gitlab"
+  loop: "{{ gitlab_cicd_cache_directories }}"
   failed_when: false

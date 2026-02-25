@@ -120,6 +120,8 @@ gitlab_cicd_cache_directories:
 # GitLab services and packages cleanup
 gitlab_systemd_services:
   - gitlab-runsvdir
+gitlab_systemd_slices:
+  - gitlab.slice
 gitlab_systemd_service_files:
   - gitlab-runsvdir.service
 gitlab_gpg_key_files:

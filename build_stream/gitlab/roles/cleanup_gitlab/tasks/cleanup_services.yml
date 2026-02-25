@@ -55,30 +55,13 @@
     state: absent
   failed_when: false
 
-- name: Clean GitLab configuration directory (preserve structure)
+- name: Clean GitLab directories (preserve structure)
   ansible.builtin.shell: |
-    if [ -d "/etc/gitlab" ]; then
-      find /etc/gitlab -type f -delete 2>/dev/null || true
-      find /etc/gitlab -type d -empty -delete 2>/dev/null || true
+    if [ -d "{{ item }}" ]; then
+      find "{{ item }}" -type f -delete 2>/dev/null || true
+      find "{{ item }}" -type d -empty -delete 2>/dev/null || true
     fi
-  failed_when: false
-  changed_when: false
-
-- name: Clean GitLab data directory (preserve structure)
-  ansible.builtin.shell: |
-    if [ -d "/var/opt/gitlab" ]; then
-      find /var/opt/gitlab -type f -delete 2>/dev/null || true
-      find /var/opt/gitlab -type d -empty -delete 2>/dev/null || true
-    fi
-  failed_when: false
-  changed_when: false
-
-- name: Clean GitLab log directory (preserve structure)
-  ansible.builtin.shell: |
-    if [ -d "/var/log/gitlab" ]; then
-      find /var/log/gitlab -type f -delete 2>/dev/null || true
-      find /var/log/gitlab -type d -empty -delete 2>/dev/null || true
-    fi
+  loop: "{{ gitlab_cleanup_preserve_structure_directories }}"
   failed_when: false
   changed_when: false
 
@@ -94,31 +77,34 @@
     name: "{{ item }}"
     state: stopped
     enabled: false
-  loop:
-    - gitlab-runsvdir
+  loop: "{{ gitlab_systemd_services }}"
   failed_when: false
+
+- name: Stop GitLab systemd slice (best effort)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ gitlab_systemd_slices }}"
+  failed_when: false
+  changed_when: false
 
 - name: Remove GitLab systemd service files
   ansible.builtin.file:
     path: "/etc/systemd/system/{{ item }}"
     state: absent
-  loop:
-    - gitlab-runsvdir.service
+  loop: "{{ gitlab_systemd_service_files }}"
   failed_when: false
 
 - name: Force remove any remaining GitLab directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/etc/gitlab"
-    - "/var/opt/gitlab"
-    - "/var/log/gitlab"
-    - "/opt/gitlab"
+  loop: "{{ gitlab_cleanup_core_directories }}"
   failed_when: false
 
 - name: Clean any remaining GitLab files (excluding system and user files)
-  ansible.builtin.shell: "find /opt /etc /var /root /home -name '*gitlab*' -type f -delete 2>/dev/null || true"
+  ansible.builtin.shell: >-
+    find {{ gitlab_cleanup_find_roots | join(' ') }} -name '*gitlab*' -type f -delete 2>/dev/null || true
   register: gitlab_file_cleanup
   changed_when: false
 
@@ -126,8 +112,5 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab"
-    - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ce"
-    - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ee"
+  loop: "{{ gitlab_gpg_key_files }}"
   failed_when: false

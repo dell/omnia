@@ -18,11 +18,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/opt/gitlab"
-    - "/var/lib/gitlab"
-    - "/home/git"
-    - "/srv/gitlab"
+  loop: "{{ gitlab_cleanup_custom_directories }}"
   when: gitlab_status_check.rc == 0
   failed_when: false
 
@@ -30,32 +26,26 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/var/opt/gitlab/backups"
-    - "/opt/gitlab_backup"
+  loop: "{{ gitlab_cleanup_backup_directories }}"
   failed_when: false
 
 - name: Remove GitLab temporary directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/tmp/gitlab"
-    - "/var/tmp/gitlab"
+  loop: "{{ gitlab_cleanup_temp_directories }}"
   failed_when: false
 
 - name: Remove GitLab socket directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/var/run/gitlab"
-    - "/run/gitlab"
+  loop: "{{ gitlab_cleanup_socket_directories }}"
   failed_when: false
 
 - name: Remove GitLab logrotate configuration
   ansible.builtin.file:
-    path: "/etc/logrotate.d/gitlab"
+    path: "{{ gitlab_cleanup_logrotate_config_path }}"
     state: absent
   failed_when: false
 
@@ -63,7 +53,5 @@
   ansible.builtin.cron:
     name: "{{ item }}"
     state: absent
-  loop:
-    - gitlab-backup
-    - gitlab-cleanup
+  loop: "{{ gitlab_cleanup_cron_jobs }}"
   failed_when: false

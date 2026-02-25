@@ -16,7 +16,7 @@
 
 - name: Remove GitLab SSL certificates directory
   ansible.builtin.file:
-    path: "/etc/gitlab/ssl"
+    path: "{{ gitlab_ssl_certs_dir }}"
     state: absent
   when: gitlab_status_check.rc == 0
 
@@ -24,11 +24,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/etc/gitlab/ssl/{{ gitlab_host }}.crt"
-    - "/etc/gitlab/ssl/{{ gitlab_host }}.key"
-    - "/etc/gitlab/ssl/ca.crt"
-    - "/etc/gitlab/ssl/ca.key"
+  loop: "{{ gitlab_tls_certificate_files }}"
   when: gitlab_status_check.rc == 0
   failed_when: false
 
@@ -36,13 +32,11 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-  loop:
-    - "/etc/pki/ca-trust/source/anchors/gitlab-ca.crt"
-    - "/usr/local/share/ca-certificates/gitlab-ca.crt"
+  loop: "{{ gitlab_ca_trust_store_files }}"
   failed_when: false
 
 - name: Update system CA trust store
-  ansible.builtin.command: update-ca-trust
+  ansible.builtin.command: "{{ gitlab_ca_trust_update_command }}"
   register: ca_trust_update
   changed_when: false
   failed_when: false

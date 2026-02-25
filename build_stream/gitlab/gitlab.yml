@@ -120,7 +120,7 @@
       ansible.builtin.debug:
         msg: "GitLab uninstall/cleanup completed. Skipping deployment."
       when: gitlab_operation_mode == 'uninstall'
-    
+
     - name: Exit playbook after uninstall
       ansible.builtin.meta: end_play
       when: gitlab_operation_mode == 'uninstall'
