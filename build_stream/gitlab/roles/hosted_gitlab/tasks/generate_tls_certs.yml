@@ -113,7 +113,6 @@
   loop:
     - { src: "{{ gitlab_host }}.crt", dest: "{{ gitlab_host }}.crt", mode: "0644" }
     - { src: "{{ gitlab_host }}.key", dest: "{{ gitlab_host }}.key", mode: "0600" }
-  when: _certs_need_generation
 
 - name: Copy CA to runner certs dir
   ansible.builtin.copy:
@@ -121,7 +120,6 @@
     dest: "{{ gitlab_runner_config_path }}/certs/{{ gitlab_host }}.crt"
     remote_src: true
     mode: '0644'
-  when: _certs_need_generation
 
 - name: Trust CA system-wide (RHEL/CentOS)
   ansible.builtin.copy:
@@ -129,12 +127,12 @@
     dest: "/etc/pki/ca-trust/source/anchors/gitlab-ca.crt"
     remote_src: true
     mode: '0644'
-  when: ansible_facts['os_family'] == 'RedHat' and _certs_need_generation
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Update CA trust
   ansible.builtin.command: update-ca-trust
   changed_when: false
-  when: ansible_facts['os_family'] == 'RedHat' and _certs_need_generation
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Export CA certificate for browser import
   ansible.builtin.copy:
