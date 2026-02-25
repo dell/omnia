@@ -38,7 +38,7 @@
   ansible.builtin.set_fact:
     _certs_need_generation: >-
       {{
-        not (_ca_cert_stat.stat.exists and _ca_key_stat.stat.exists and 
+        not (_ca_cert_stat.stat.exists and _ca_key_stat.stat.exists and
              _server_cert_stat.stat.exists and _server_key_stat.stat.exists)
       }}
 
