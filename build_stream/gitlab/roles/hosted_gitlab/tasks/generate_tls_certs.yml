@@ -134,13 +134,6 @@
   changed_when: false
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Export CA certificate for browser import
-  ansible.builtin.copy:
-    src: "{{ gitlab_cert_dir }}/ca.crt"
-    dest: "{{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt"
-    remote_src: true
-    mode: '0644'
-
 - name: Display CA certificate export location
   ansible.builtin.debug:
     msg: "{{ gitlab_ca_export_msg }}"

@@ -111,7 +111,7 @@ gitlab_catalog_repo_path: "catalog_rhel.json"
 gitlab_catalog_json_source: "{{ role_path }}/../../../../examples/catalog/catalog_rhel.json"
 
 # Debug messages
-gitlab_ca_export_path: "{{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt"
+gitlab_ca_export_path: "{{ gitlab_cert_dir }}/ca.crt"
 
 gitlab_cert_status_msg: |
   Certificate Status:
