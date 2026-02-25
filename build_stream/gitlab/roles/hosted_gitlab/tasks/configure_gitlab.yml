@@ -27,10 +27,10 @@
 
 - name: Ensure git user exists
   ansible.builtin.user:
-    name: git
-    shell: /bin/sh
-    home: /var/opt/gitlab
-    create_home: false
+    name: "{{ gitlab_system_user_name }}"
+    shell: "{{ gitlab_system_user_shell }}"
+    home: "{{ gitlab_system_user_home }}"
+    create_home: "{{ gitlab_system_user_create_home }}"
     state: present
 
 - name: Ensure GitLab directories exist
@@ -40,11 +40,7 @@
     owner: root
     group: root
     mode: '0755'
-  loop:
-    - /etc/gitlab
-    - /var/opt/gitlab
-    - /var/log/gitlab
-    - /opt/gitlab
+  loop: "{{ gitlab_directories }}"
 
 - name: Ensure gitlab-runsvdir is enabled and started (required for runit sockets)
   ansible.builtin.systemd:
@@ -66,7 +62,7 @@
 - name: Wait for GitLab HTTPS port to be ready
   ansible.builtin.wait_for:
     host: 127.0.0.1
-    port: 443
+    port: "{{ gitlab_https_port | int }}"
     delay: 5
     timeout: "{{ (gitlab_startup_wait_minutes | int) * 60 }}"
 
@@ -98,7 +94,7 @@
 
 - name: Clean up initial root password file
   ansible.builtin.file:
-    path: "/etc/gitlab/initial_root_password"
+    path: "{{ gitlab_initial_root_password_path }}"
     state: absent
   when:
     - gitlab_root_password is defined

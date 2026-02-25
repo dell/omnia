@@ -1,0 +1,134 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# GitLab Omnibus paths
+gitlab_rb_path: "/etc/gitlab/gitlab.rb"
+gitlab_ctl_command: "gitlab-ctl"
+gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
+
+# Host prerequisites
+gitlab_hosted_prereq_packages:
+  - curl
+  - policycoreutils
+  - policycoreutils-python-utils
+  - openssl
+  - firewalld
+  - podman
+  - podman-docker
+
+# Runner container
+gitlab_runner_container_name: "gitlab-runner"
+gitlab_runner_config_path: "/etc/gitlab-runner"
+gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
+gitlab_runner_image: "gitlab/gitlab-runner:latest"
+
+# GitLab ports
+gitlab_http_port: "80"
+gitlab_https_port: "443"
+gitlab_ssh_port: "22"
+
+# GitLab CI/CD
+gitlab_ci_templates_path: "/opt/gitlab/ci_templates"
+
+# GitLab cleanup directories
+gitlab_cleanup_core_directories:
+  - "/etc/gitlab"
+  - "/var/opt/gitlab"
+  - "/var/log/gitlab"
+  - "/opt/gitlab"
+gitlab_cleanup_preserve_structure_directories:
+  - "/etc/gitlab"
+  - "/var/opt/gitlab"
+  - "/var/log/gitlab"
+gitlab_cleanup_custom_directories:
+  - "/opt/gitlab"
+  - "/var/lib/gitlab"
+  - "/home/git"
+  - "/srv/gitlab"
+gitlab_cleanup_backup_directories:
+  - "/var/opt/gitlab/backups"
+  - "/opt/gitlab_backup"
+gitlab_cleanup_temp_directories:
+  - "/tmp/gitlab"
+  - "/var/tmp/gitlab"
+gitlab_cleanup_socket_directories:
+  - "/var/run/gitlab"
+  - "/run/gitlab"
+gitlab_cleanup_logrotate_config_path: "/etc/logrotate.d/gitlab"
+gitlab_cleanup_cron_jobs:
+  - gitlab-backup
+  - gitlab-cleanup
+
+# GitLab credentials cleanup
+gitlab_initial_root_password_path: "/etc/gitlab/initial_root_password"
+gitlab_old_password_files:
+  - "/etc/gitlab/old_root_password"
+  - "/tmp/gitlab_old_password"
+  - "/var/opt/gitlab/old_password"
+gitlab_ssh_host_key_files:
+  - "/etc/gitlab/ssh_host_rsa_key"
+  - "/etc/gitlab/ssh_host_rsa_key.pub"
+  - "/etc/gitlab/ssh_host_ecdsa_key"
+  - "/etc/gitlab/ssh_host_ecdsa_key.pub"
+  - "/etc/gitlab/ssh_host_ed25519_key"
+  - "/etc/gitlab/ssh_host_ed25519_key.pub"
+gitlab_database_encryption_key_files:
+  - "/etc/gitlab/gitlab-secrets.json"
+  - "/var/opt/gitlab/.gitlab_shell_secret"
+  - "/var/opt/gitlab/gitlab-rails/etc/secret"
+
+# GitLab TLS/CA trust cleanup
+gitlab_ssl_certs_dir: "/etc/gitlab/ssl"
+gitlab_tls_certificate_files:
+  - "/etc/gitlab/ssl/{{ gitlab_host }}.crt"
+  - "/etc/gitlab/ssl/{{ gitlab_host }}.key"
+  - "/etc/gitlab/ssl/ca.crt"
+  - "/etc/gitlab/ssl/ca.key"
+gitlab_ca_trust_store_files:
+  - "/etc/pki/ca-trust/source/anchors/gitlab-ca.crt"
+  - "/usr/local/share/ca-certificates/gitlab-ca.crt"
+gitlab_ca_trust_update_command: update-ca-trust
+
+# GitLab CI/CD cleanup
+gitlab_cicd_template_directories:
+  - "/etc/gitlab/ci_templates"
+  - "/opt/gitlab/ci_templates"
+  - "{{ gitlab_ci_templates_path }}"
+gitlab_trigger_directories:
+  - "/etc/gitlab/triggers"
+  - "/opt/gitlab/triggers"
+gitlab_api_token_files:
+  - "/root/.gitlab-tokens"
+  - "/etc/gitlab/api-tokens"
+  - "/opt/gitlab/tokens"
+gitlab_cicd_cache_directories:
+  - "/var/opt/gitlab/gitlab-ci"
+  - "/var/cache/gitlab"
+
+# GitLab services and packages cleanup
+gitlab_systemd_services:
+  - gitlab-runsvdir
+gitlab_systemd_service_files:
+  - gitlab-runsvdir.service
+gitlab_gpg_key_files:
+  - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab"
+  - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ce"
+  - "/etc/pki/rpm-gpg/RPM-GPG-KEY-gitlab-ee"
+gitlab_cleanup_find_roots:
+  - /opt
+  - /etc
+  - /var
+  - /root
+  - /home

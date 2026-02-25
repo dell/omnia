@@ -80,31 +80,6 @@
   hosts: gitlab_server
   become: true
   gather_facts: true
-  vars:
-    # GitLab Omnibus paths (from vars/main.yml)
-    gitlab_rb_path: "/etc/gitlab/gitlab.rb"
-    gitlab_ctl_command: "gitlab-ctl"
-    gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
-
-    # Host prerequisites (from vars/main.yml)
-    gitlab_hosted_prereq_packages:
-      - curl
-      - policycoreutils
-      - policycoreutils-python-utils
-      - openssl
-      - firewalld
-      - podman
-      - podman-docker
-
-    # Runner container (from vars/main.yml)
-    gitlab_runner_container_name: "gitlab-runner"
-    gitlab_runner_config_path: "/etc/gitlab-runner"
-    gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
-
-    # GitLab ports (default values)
-    gitlab_http_port: "80"
-    gitlab_https_port: "443"
-    gitlab_ssh_port: "22"
   roles:
     - cleanup_gitlab
 
@@ -152,22 +127,3 @@
             and ((gitlab_dirs_final_check.results | selectattr('stat.exists') | list | length) == 0)
             and (gitlab_processes_check.stdout == '')
           }}
-
-    - name: Display cleanup completion notice
-      ansible.builtin.debug:
-        msg:
-          - "============================================"
-          - "GitLab Cleanup - COMPLETED"
-          - "============================================"
-          - ""
-          - "All cleanup tasks have been executed"
-          - ""
-          - "Validation status:"
-          - "  - GitLab packages: {{ 'Removed' if not (gitlab_packages_present | default(false) | bool) else 'Some remain' }}"
-          - "  - GitLab directories: {{ 'Removed' if (gitlab_dirs_final_check.results | selectattr('stat.exists') | list | length == 0) else 'Some remain' }}"
-          - "  - GitLab processes: {{ 'Stopped' if gitlab_processes_check.stdout == '' else 'Some running' }}"
-          - ""
-          - "System ready for fresh GitLab installation"
-          - ""
-          - "To reinstall: ansible-playbook gitlab.yml"
-          - "============================================"

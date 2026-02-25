@@ -51,6 +51,28 @@ gitlab_hosted_prereq_packages:
   - podman
   - podman-docker
 
+# GitLab system user
+gitlab_system_user_name: "git"
+gitlab_system_user_shell: "/bin/sh"
+gitlab_system_user_home: "/var/opt/gitlab"
+gitlab_system_user_create_home: false
+
+# GitLab directories
+gitlab_directories:
+  - "/etc/gitlab"
+  - "/var/opt/gitlab"
+  - "/var/log/gitlab"
+  - "/opt/gitlab"
+
+# GitLab files
+gitlab_initial_root_password_path: "/etc/gitlab/initial_root_password"
+gitlab_root_access_file_path: "/root/.gitlab_root_access"
+
+# GitLab ports
+gitlab_http_port: "80"
+gitlab_https_port: "443"
+gitlab_ssh_port: "22"
+
 # Runner container
 gitlab_runner_container_name: "gitlab-runner"
 gitlab_restart_policy: "always"
