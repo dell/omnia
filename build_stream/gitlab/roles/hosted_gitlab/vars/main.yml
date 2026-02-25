@@ -108,6 +108,8 @@ gitlab_catalog_repo_path: "catalog_rhel.json"
 gitlab_catalog_json_source: "{{ role_path }}/../../../../examples/catalog/catalog_rhel.json"
 
 # Debug messages
+gitlab_ca_export_path: "{{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt"
+
 gitlab_cert_status_msg: |
   Certificate Status:
   - CA Certificate: {{ 'Exists' if _ca_cert_stat.stat.exists else 'Missing' }}
@@ -119,16 +121,17 @@ gitlab_cert_status_msg: |
   - Certificates will be reused (idempotent operation)
   {% endif %}
 
-gitlab_ca_export_msg: |
-  ========================================
-  CA Certificate Exported
-  ========================================
-  
-  Certificate path: {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt
-  
-  Download this certificate and import it into your browser
-  to avoid "Not Secure" warnings when accessing GitLab.
-  ========================================
+gitlab_ca_export_msg:
+  - "========================================"
+  - "CA Certificate Exported"
+  - "========================================"
+  - ""
+  - "Certificate path: {{ gitlab_ca_export_path }}"
+  - ""
+  - "Download this certificate and import it into your browser"
+  - "to avoid 'Not Secure' warnings when accessing GitLab."
+  - ""
+  - "========================================"
 
 gitlab_deployment_complete_msg:
   - "============================================"
@@ -150,14 +153,14 @@ gitlab_deployment_complete_msg:
   - "Certificates:"
   - "- CA Certificate: {{ gitlab_cert_dir }}/ca.crt"
   - "- Server Certificate: {{ gitlab_cert_dir }}/{{ gitlab_host }}.crt"
-  - "- Export for Browser: {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt"
+  - "- Export for Browser: {{ gitlab_ca_export_path }}"
   - "- Certificates are reused on re-run (generated only if missing)"
   - ""
   - "Service:    {{ gitlab_ctl_command }} (start|stop|status|reconfigure)"
   - "Runner:     {{ gitlab_runner_container_name }} (Podman container, registered)"
   - ""
   - "Next Steps:"
-  - "1. Copy CA certificate: scp root@{{ gitlab_host }}:{{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt ."
+  - "1. Copy CA certificate: scp root@{{ gitlab_host }}:{{ gitlab_ca_export_path }} ."
   - "2. Import certificate into your browser (see deployment log for detailed instructions)"
   - "3. Clear browser cache and restart browser"
   - "4. Log in to GitLab at {{ gitlab_external_url_computed }}"

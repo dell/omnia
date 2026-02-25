@@ -17,3 +17,7 @@
 - name: Display deployment information
   ansible.builtin.debug:
     msg: "{{ gitlab_deployment_complete_msg }}"
+
+- name: Display CA certificate export information
+  ansible.builtin.debug:
+    msg: "{{ gitlab_ca_export_msg }}"
