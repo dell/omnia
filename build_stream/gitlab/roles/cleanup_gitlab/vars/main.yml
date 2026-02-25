@@ -91,6 +91,7 @@ gitlab_database_encryption_key_files:
 
 # GitLab TLS/CA trust cleanup
 gitlab_ssl_certs_dir: "/etc/gitlab/ssl"
+gitlab_cert_dir: "/root/gitlab-certs"
 gitlab_tls_certificate_files:
   - "/etc/gitlab/ssl/{{ gitlab_host }}.crt"
   - "/etc/gitlab/ssl/{{ gitlab_host }}.key"

@@ -20,6 +20,12 @@
     state: absent
   when: gitlab_status_check.rc == 0
 
+- name: Remove GitLab certificate generation directory
+  ansible.builtin.file:
+    path: "{{ gitlab_cert_dir }}"
+    state: absent
+  when: gitlab_status_check.rc == 0
+
 - name: Remove GitLab TLS certificate files
   ansible.builtin.file:
     path: "{{ item }}"
