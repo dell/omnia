@@ -14,11 +14,53 @@
 
 ---
 
+- name: Check if CA certificate exists
+  ansible.builtin.stat:
+    path: "{{ gitlab_cert_dir }}/ca.crt"
+  register: _ca_cert_stat
+
+- name: Check if CA key exists
+  ansible.builtin.stat:
+    path: "{{ gitlab_cert_dir }}/ca.key"
+  register: _ca_key_stat
+
+- name: Check if server certificate exists
+  ansible.builtin.stat:
+    path: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.crt"
+  register: _server_cert_stat
+
+- name: Check if server key exists
+  ansible.builtin.stat:
+    path: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.key"
+  register: _server_key_stat
+
+- name: Determine if certificates need to be generated
+  ansible.builtin.set_fact:
+    _certs_need_generation: >-
+      {{
+        not (_ca_cert_stat.stat.exists and _ca_key_stat.stat.exists and 
+             _server_cert_stat.stat.exists and _server_key_stat.stat.exists)
+      }}
+
+- name: Display certificate status
+  ansible.builtin.debug:
+    msg: |
+      Certificate Status:
+      - CA Certificate: {{ 'Exists' if _ca_cert_stat.stat.exists else 'Missing' }}
+      - CA Key: {{ 'Exists' if _ca_key_stat.stat.exists else 'Missing' }}
+      - Server Certificate: {{ 'Exists' if _server_cert_stat.stat.exists else 'Missing' }}
+      - Server Key: {{ 'Exists' if _server_key_stat.stat.exists else 'Missing' }}
+      - Generation Needed: {{ _certs_need_generation }}
+      {% if not _certs_need_generation %}
+      - Certificates will be reused (idempotent operation)
+      {% endif %}
+
 - name: Generate CA private key
   ansible.builtin.command: >
     openssl genrsa -out {{ gitlab_cert_dir }}/ca.key {{ gitlab_ca_key_bits }}
   args:
     creates: "{{ gitlab_cert_dir }}/ca.key"
+  when: _certs_need_generation
 
 - name: Generate CA certificate
   ansible.builtin.command: >
@@ -29,18 +71,21 @@
     -out {{ gitlab_cert_dir }}/ca.crt
   args:
     creates: "{{ gitlab_cert_dir }}/ca.crt"
+  when: _certs_need_generation
 
 - name: Write SAN config from template
   ansible.builtin.template:
     src: san.cnf.j2
     dest: "{{ gitlab_cert_dir }}/san.cnf"
     mode: '0644'
+  when: _certs_need_generation
 
 - name: Generate server key
   ansible.builtin.command: >
     openssl genrsa -out {{ gitlab_cert_dir }}/{{ gitlab_host }}.key {{ gitlab_server_key_bits }}
   args:
     creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.key"
+  when: _certs_need_generation
 
 - name: Generate CSR
   ansible.builtin.command: >
@@ -50,6 +95,7 @@
     -config {{ gitlab_cert_dir }}/san.cnf
   args:
     creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.csr"
+  when: _certs_need_generation
 
 - name: Sign server certificate
   ansible.builtin.command: >
@@ -65,6 +111,7 @@
     -extfile {{ gitlab_cert_dir }}/san.cnf
   args:
     creates: "{{ gitlab_cert_dir }}/{{ gitlab_host }}.crt"
+  when: _certs_need_generation
 
 - name: Install certs to GitLab SSL dir
   ansible.builtin.copy:
@@ -75,6 +122,7 @@
   loop:
     - { src: "{{ gitlab_host }}.crt", dest: "{{ gitlab_host }}.crt", mode: "0644" }
     - { src: "{{ gitlab_host }}.key", dest: "{{ gitlab_host }}.key", mode: "0600" }
+  when: _certs_need_generation
 
 - name: Copy CA to runner certs dir
   ansible.builtin.copy:
@@ -82,6 +130,7 @@
     dest: "{{ gitlab_runner_config_path }}/certs/{{ gitlab_host }}.crt"
     remote_src: true
     mode: '0644'
+  when: _certs_need_generation
 
 - name: Trust CA system-wide (RHEL/CentOS)
   ansible.builtin.copy:
@@ -89,9 +138,51 @@
     dest: "/etc/pki/ca-trust/source/anchors/gitlab-ca.crt"
     remote_src: true
     mode: '0644'
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat' and _certs_need_generation
 
 - name: Update CA trust
   ansible.builtin.command: update-ca-trust
   changed_when: false
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['os_family'] == 'RedHat' and _certs_need_generation
+
+- name: Export CA certificate for browser import
+  ansible.builtin.copy:
+    src: "{{ gitlab_cert_dir }}/ca.crt"
+    dest: "{{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt"
+    remote_src: true
+    mode: '0644'
+
+- name: Display CA certificate export location and setup instructions
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      IMPORTANT: Browser Certificate Setup
+      ========================================
+      
+      The GitLab CA certificate has been exported to:
+      {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt
+      
+      To avoid "Not Secure" warnings in your browser:
+      
+      === CHROME/EDGE ===:
+      1. Copy {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt to your local machine
+      2. Open Chrome Settings > Privacy and security > Security > Manage certificates
+      3. Click "Authorities" tab > "Import" > select the copied file
+      4. Check "Trust this certificate for identifying websites"
+      5. Click OK and restart Chrome
+      
+      === FIREFOX ===:
+      1. Copy {{ gitlab_cert_dir }}/gitlab-ca-for-browser.crt to your local machine
+      2. Open Firefox Settings > Privacy & Security > Certificates > View Certificates
+      3. Click "Authorities" tab > "Import" > select the copied file
+      4. Check "Trust this CA to identify websites" and click OK
+      
+      === COMMAND LINE (Linux/Mac) ===:
+      If accessing from the same machine:
+      sudo cp {{ gitlab_cert_dir }}/ca.crt /etc/pki/ca-trust/source/anchors/gitlab-ca.crt
+      sudo update-ca-trust
+      
+      After importing the certificate, clear browser cache and restart
+      the browser before accessing GitLab at {{ gitlab_external_url_computed }}
+      
+      ========================================

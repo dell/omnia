@@ -78,6 +78,7 @@ gitlab_runner_container_name: "gitlab-runner"
 gitlab_restart_policy: "always"
 gitlab_runner_description: "Omnia Hosted Runner"
 gitlab_runner_tags: "omnia"
+gitlab_runner_executor: "docker"
 gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
 gitlab_runner_config_file: "{{ gitlab_runner_config_path }}/config.toml"
 gitlab_runner_pull_policy: "if-not-present"
@@ -86,7 +87,9 @@ gitlab_runner_pull_policy: "if-not-present"
 podman_socket_path: "/run/podman/podman.sock"
 docker_socket_path: "/var/run/docker.sock"
 
-# Certificate defaults
+# GitLab certificate defaults
+gitlab_cert_dir: "/etc/gitlab/ssl/certs"
+gitlab_ssl_dir: "/etc/gitlab/ssl"
 gitlab_cert_validity_days: 825
 gitlab_ca_validity_days: 3650
 gitlab_ca_key_bits: 4096

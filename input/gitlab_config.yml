@@ -93,8 +93,6 @@ gitlab_sidekiq_concurrency: 10
 gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v18.9.0"
 # Host path for runner configuration
 gitlab_runner_config_path: "/srv/gitlab-runner/config"
-# Runner executor options: docker
-gitlab_runner_executor: "docker"
 # Default container image for CI jobs when executor=docker
 gitlab_runner_default_image: "docker.io/alpine:3.23.3"
 # Image pull policy: if-not-present | always | never
