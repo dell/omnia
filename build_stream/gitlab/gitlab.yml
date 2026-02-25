@@ -110,21 +110,6 @@
           - gitlab_host is defined and gitlab_host != ''
         fail_msg: "Set a valid gitlab_host in input/gitlab_config.yml"
 
-    - name: Handle GitLab uninstall/cleanup mode
-      ansible.builtin.include_role:
-        name: hosted_gitlab
-        tasks_from: uninstall
-      when: gitlab_operation_mode == 'uninstall'
-
-    - name: Skip deployment when in uninstall mode
-      ansible.builtin.debug:
-        msg: "GitLab uninstall/cleanup completed. Skipping deployment."
-      when: gitlab_operation_mode == 'uninstall'
-
-    - name: Exit playbook after uninstall
-      ansible.builtin.meta: end_play
-      when: gitlab_operation_mode == 'uninstall'
-
     - name: Bootstrap passwordless SSH
       ansible.builtin.include_role:
         name: gitlab_passwordless_ssh
