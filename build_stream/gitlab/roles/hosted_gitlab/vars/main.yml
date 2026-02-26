@@ -110,6 +110,7 @@ gitlab_additional_dns_sans: []
 gitlab_additional_ip_sans: []
 
 # GitLab password change messages
+gitlab_password_change_stdout_check: "Password changed successfully"
 gitlab_password_change_fail_msg: "Failed to change GitLab root password. Please check GitLab logs and try again."
 gitlab_password_change_success_msg: "GitLab root password changed successfully!"
 
@@ -127,14 +128,38 @@ gitlab_pipeline_bs_variables:
     value: "{{ gitlab_root_token }}"
     variable_type: "env_var"
     masked: true
+  - key: "BSM_API_URL"
+    value: "{{ _gitlab_bsm_api_url | default('') }}"
+    variable_type: "env_var"
+    masked: false
   - key: "BSM_API_USERNAME"
     value: "{{ _gitlab_bs_auth_username | default('') }}"
     variable_type: "env_var"
     masked: false
   - key: "BSM_API_PASSWORD"
-    value: "{{ _gitlab_bs_auth_password_hash | default('') }}"
+    value: "{{ _gitlab_bs_auth_password | default('') }}"
     variable_type: "env_var"
     masked: true
+
+gitlab_bs_not_enabled_fail_msg: >
+  enable_build_stream is not set to true in build_stream_config.yml.
+  Set enable_build_stream to true before running the GitLab playbook.
+
+gitlab_bs_auth_username_fail_msg: >
+  Build stream auth username is empty. Run the credential utility to populate
+  build_stream_auth_username before running the GitLab playbook.
+
+gitlab_bs_auth_password_fail_msg: >
+  Build stream auth password is empty. Run the credential utility to populate
+  build_stream_auth_password before running the GitLab playbook.
+
+gitlab_selinux_fail_msg: >
+  SELinux is currently enabled. GitLab installation requires SELinux to be disabled.
+  Disable SELinux and reboot the host before running this playbook.
+
+gitlab_sshpass_install_fail_msg: >
+  Failed to install sshpass. Ensure AppStream and BaseOS repositories
+  are configured and enabled on this host before running this playbook.
 
 # Debug messages
 gitlab_ca_export_path: "{{ gitlab_cert_dir }}/ca.crt"

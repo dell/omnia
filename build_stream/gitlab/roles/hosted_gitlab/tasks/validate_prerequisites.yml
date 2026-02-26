@@ -13,6 +13,12 @@
 # limitations under the License.
 
 ---
+- name: Validate SELinux is disabled
+  ansible.builtin.assert:
+    that:
+      - ansible_selinux is not defined or ansible_selinux.status == 'disabled'
+    fail_msg: "{{ gitlab_selinux_fail_msg }}"
+
 - name: Check minimum memory
   ansible.builtin.shell: |
     set -o pipefail
