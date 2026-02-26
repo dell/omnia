@@ -127,7 +127,8 @@ gitlab_trigger_directories:
   - "/etc/gitlab/triggers"
   - "/opt/gitlab/triggers"
 gitlab_api_token_files:
-  - "/root/.gitlab-tokens"
+  - "/root/.gitlab_root_token"
+  - "/root/.gitlab_root_access"
 
 # Debug messages
 gitlab_cleanup_complete_msg:

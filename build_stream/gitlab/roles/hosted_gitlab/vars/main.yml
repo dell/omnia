@@ -71,6 +71,7 @@ gitlab_directories:
 
 # GitLab files
 gitlab_initial_root_password_path: "/etc/gitlab/initial_root_password"
+gitlab_root_token_file_path: "/root/.gitlab_root_token"
 gitlab_root_access_file_path: "/root/.gitlab_root_access"
 
 # Runner container

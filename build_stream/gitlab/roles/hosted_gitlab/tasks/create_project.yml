@@ -54,7 +54,7 @@
 - name: Save root API token to disk
   ansible.builtin.copy:
     content: "{{ gitlab_root_token }}"
-    dest: "/root/.gitlab_root_token"
+    dest: "{{ gitlab_root_token_file_path }}"
     mode: '0600'
   no_log: true
 
