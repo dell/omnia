@@ -19,18 +19,9 @@
     file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
   delegate_to: localhost
 
-- name: Resolve build stream host IP
-  ansible.builtin.set_fact:
-    _bsm_host_ip: >-
-      {{ build_stream_host_ip
-         if (build_stream_host_ip is defined and
-             build_stream_host_ip != None and
-             build_stream_host_ip | string | length > 0)
-         else hostvars['localhost']['admin_nic_ip'] | default('localhost') }}
-
 - name: Set pipeline variable facts
   ansible.builtin.set_fact:
-    _gitlab_bsm_api_url: "https://{{ _bsm_host_ip }}:{{ build_stream_port | default('8010') }}"
+    _gitlab_bsm_api_url: "https://{{ build_stream_host_ip }}:{{ build_stream_port | default('8010') }}"
     _gitlab_bs_auth_username: "{{ hostvars['localhost']['build_stream_auth_username'] | default('') }}"
     _gitlab_bs_auth_password: "{{ hostvars['localhost']['build_stream_auth_password'] | default('') }}"
   no_log: true
