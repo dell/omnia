@@ -118,6 +118,26 @@ gitlab_trigger_description: "Omnia Software Catalog Webhook"
 gitlab_catalog_repo_path: "catalog_rhel.json"
 gitlab_catalog_json_source: "{{ role_path }}/../../../../examples/catalog/catalog_rhel.json"
 
+# Pipeline CI/CD variables
+gitlab_pipeline_token_name: "omnia-pipeline"
+gitlab_pipeline_token_expiry_days: 365
+gitlab_pipeline_var_check_status_codes: [200, 404]
+gitlab_pipeline_var_create_status_codes: [200, 201]
+gitlab_pipeline_var_update_status_codes: [200, 201]
+gitlab_pipeline_bs_variables:
+  - key: "GITLAB_API_TOKEN"
+    value: "{{ _gitlab_pipeline_api_token | default('') }}"
+    variable_type: "env_var"
+    masked: true
+  - key: "BSM_API_USERNAME"
+    value: "{{ _gitlab_bs_auth_username | default('') }}"
+    variable_type: "env_var"
+    masked: false
+  - key: "BSM_API_PASSWORD"
+    value: "{{ _gitlab_bs_auth_password_hash | default('') }}"
+    variable_type: "env_var"
+    masked: true
+
 # Debug messages
 gitlab_ca_export_path: "{{ gitlab_cert_dir }}/ca.crt"
 

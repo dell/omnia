@@ -1,0 +1,103 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Create dedicated pipeline API token
+  ansible.builtin.shell: |
+    gitlab-rails runner "
+      existing = User.find_by_username('root').personal_access_tokens
+        .where(name: '{{ gitlab_pipeline_token_name }}', revoked: false)
+        .where('expires_at > ?', Time.now)
+        .first
+      if existing
+        puts existing.token
+      else
+        token = User.find_by_username('root').personal_access_tokens.create(
+          scopes: [:api],
+          name: '{{ gitlab_pipeline_token_name }}',
+          expires_at: {{ gitlab_pipeline_token_expiry_days }}.days.from_now
+        )
+        token.set_token('pipeline-' + SecureRandom.hex(20))
+        token.save!
+        puts token.token
+      end
+    "
+  register: _pipeline_token_output
+  changed_when: false
+  no_log: true
+
+- name: Set pipeline variable facts
+  ansible.builtin.set_fact:
+    _gitlab_pipeline_api_token: "{{ _pipeline_token_output.stdout | trim }}"
+    _gitlab_bs_auth_username: "{{ hostvars['localhost']['build_stream_auth_username'] | default('') }}"
+    _gitlab_bs_auth_password_hash: "{{ hostvars['localhost']['build_stream_auth_password_hash'] | default('') }}"
+  no_log: true
+
+- name: Set GitLab pipeline variables for build stream auth
+  ansible.builtin.uri:
+    url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/variables/{{ item.key }}
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: "{{ gitlab_pipeline_var_check_status_codes }}"
+  register: _pipeline_var_check
+  loop: "{{ gitlab_pipeline_bs_variables }}"
+  loop_control:
+    label: "{{ item.key }}"
+  no_log: true
+
+- name: Create GitLab pipeline variable when it does not exist
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/variables"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      key: "{{ item.item.key }}"
+      value: "{{ item.item.value }}"
+      variable_type: "{{ item.item.variable_type }}"
+      masked: "{{ item.item.masked }}"
+      protected: false
+    validate_certs: false
+    status_code: "{{ gitlab_pipeline_var_create_status_codes }}"
+  when: item.status == 404
+  loop: "{{ _pipeline_var_check.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  no_log: true
+
+- name: Update GitLab pipeline variable when it already exists
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/variables/{{ item.item.key }}"
+    method: PUT
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      value: "{{ item.item.value }}"
+      variable_type: "{{ item.item.variable_type }}"
+      masked: "{{ item.item.masked }}"
+      protected: false
+    validate_certs: false
+    status_code: "{{ gitlab_pipeline_var_update_status_codes }}"
+  when: item.status == 200
+  loop: "{{ _pipeline_var_check.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  no_log: true

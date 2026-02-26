@@ -44,6 +44,9 @@
 - name: Create pipeline trigger
   ansible.builtin.include_tasks: create_trigger.yml
 
+- name: Set GitLab CI/CD pipeline variables
+  ansible.builtin.include_tasks: set_pipeline_variables.yml
+
 - name: Push CI/CD files to repository
   ansible.builtin.include_tasks: push_ci_files.yml
 
