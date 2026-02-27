@@ -402,6 +402,43 @@ BUILD_STREAM_HOST_IP_INVALID_MSG = ("Field 'build_stream_host_ip' must be either
 AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = ("Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
                                                 "Check network_spec.yml for admin network configuration.")
 
+# gitlab_config.yml
+GITLAB_HOST_EMPTY_MSG = ("Field 'gitlab_host' is required and cannot be empty. "
+                         "Provide the IPv4 address of the target host for GitLab deployment.")
+GITLAB_HOST_INVALID_IP_MSG = ("Field 'gitlab_host' must be a valid IPv4 address. "
+                              "Example: 192.168.1.10")
+GITLAB_PROJECT_NAME_EMPTY_MSG = ("Field 'gitlab_project_name' is required and cannot be empty. "
+                                 "Provide a valid GitLab project name.")
+GITLAB_PROJECT_VISIBILITY_INVALID_MSG = ("Field 'gitlab_project_visibility' must be one of: "
+                                         "private, internal, public.")
+GITLAB_DEFAULT_BRANCH_EMPTY_MSG = ("Field 'gitlab_default_branch' is required and cannot be empty. "
+                                   "Provide a valid git branch name. Default: main")
+GITLAB_DEFAULT_BRANCH_INVALID_MSG = ("Field 'gitlab_default_branch' contains invalid characters. "
+                                     "Branch name must start with alphanumeric and may contain "
+                                     "letters, digits, dots, hyphens, underscores, or slashes.")
+GITLAB_HTTPS_PORT_INVALID_MSG = ("Field 'gitlab_https_port' must be a valid port number between "
+                                 "1 and 65535. Default: 443")
+GITLAB_SSH_PORT_INVALID_MSG = ("Field 'gitlab_ssh_port' must be a valid port number between "
+                               "1 and 65535. Default: 22")
+GITLAB_PORTS_CONFLICT_MSG = ("Fields 'gitlab_https_port' and 'gitlab_ssh_port' must not use "
+                             "the same port number.")
+GITLAB_MIN_STORAGE_INVALID_MSG = ("Field 'gitlab_min_storage_gb' must be an integer >= 10. "
+                                  "GitLab requires at least 10 GB of free disk space. Default: 20")
+GITLAB_MIN_MEMORY_INVALID_MSG = ("Field 'gitlab_min_memory_gb' must be an integer >= 1. "
+                                 "Default: 4")
+GITLAB_MIN_CPU_INVALID_MSG = ("Field 'gitlab_min_cpu_cores' must be an integer >= 1. "
+                              "Default: 2")
+GITLAB_PUMA_WORKERS_INVALID_MSG = ("Field 'gitlab_puma_workers' must be an integer between "
+                                   "1 and 64. Default: 2")
+GITLAB_SIDEKIQ_CONCURRENCY_INVALID_MSG = ("Field 'gitlab_sidekiq_concurrency' must be an integer "
+                                          "between 1 and 200. Default: 10")
+GITLAB_OIM_VERIFY_SSL_INVALID_MSG = ("Field 'oim_api_verify_ssl' must be a boolean (true or false). "
+                                     "Default: true")
+GITLAB_CONFIG_EMPTY_MSG = ("gitlab_config.yml is empty or has syntax errors. "
+                           "It must contain valid YAML with required fields: "
+                           "gitlab_host, gitlab_project_name, gitlab_project_visibility, "
+                           "gitlab_default_branch, gitlab_https_port.")
+
 # addtional_software
 ADDITIONAL_SOFTWARE_FAIL_MSG = "The additional_software is mandatory in additional_software.json"
 ADDITIONAL_SOFTWARE_SUBGROUP_FAIL_MSG = ("The role or group name, [{0}] is present in subgroup "

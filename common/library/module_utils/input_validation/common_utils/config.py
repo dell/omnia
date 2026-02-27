@@ -44,7 +44,8 @@ files = {
     "storage_config": "storage_config.yml",
     "telemetry_config": "telemetry_config.yml",
     "high_availability_config": "high_availability_config.yml",
-    "build_stream_config": "build_stream_config.yml"
+    "build_stream_config": "build_stream_config.yml",
+    "gitlab_config": "gitlab_config.yml"
     # "additional_software": "additional_software.json"
 }
 
@@ -87,6 +88,7 @@ input_file_inventory = {
     # "high_availability": [files["high_availability_config"]],
     # "additional_software": [files["additional_software"]],
     "build_stream": [files["build_stream_config"]],
+    "gitlab": [files["gitlab_config"], files["build_stream_config"]],
     "all": [
         files["local_repo_config"],
         files["network_spec"],
@@ -98,6 +100,7 @@ input_file_inventory = {
         files["storage_config"],
         files["high_availability_config"],
         files["build_stream_config"],
+        files["gitlab_config"],
     ],
 }
 
