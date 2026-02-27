@@ -40,12 +40,6 @@ gitlab_default_branch: "main"
  
 # HTTPS is always enabled for GitLab deployment
  
-# OIM API Server Configuration
-# Uncomment and set to integrate with Omnia Infrastructure Manager APIs.
-# If OIM uses an untrusted/self-signed cert, set oim_api_verify_ssl to false.
-# oim_api_url: "https://oim.example.com/api/v1"
-oim_api_verify_ssl: true
- 
 # ----------------------------------------------------------------------------
 # DEFAULT / ADVANCED VARIABLES (CHANGE ONLY IF NEEDED)
 # ----------------------------------------------------------------------------
@@ -54,21 +48,6 @@ oim_api_verify_ssl: true
 # Network
 # HTTPS port exposed via GitLab NGINX
 gitlab_https_port: 443
-# SSH port for git+ssh operations
-gitlab_ssh_port: 22
- 
-# TLS / Certificates
-# Workspace for generated cert artifacts on target host
-gitlab_cert_dir: "/root/gitlab-certs"
-# Final location consumed by GitLab Omnibus
-gitlab_ssl_dir: "/etc/gitlab/ssl"
-# Place existing cert/key pairs in gitlab_cert_dir to skip regeneration, or
-# allow the role to generate CA + leaf certs automatically.
- 
-# Omnibus package
-# Override when pinning to gitlab-ee or a specific package version
-gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh"
- 
 # Minimum requirements
 # Free disk space validated before install
 gitlab_min_storage_gb: 20

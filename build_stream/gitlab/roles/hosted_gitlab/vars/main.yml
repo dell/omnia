@@ -21,6 +21,7 @@ gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
 # Omnibus package
 gitlab_package_name: "gitlab-ce-18.8.0"
 gitlab_package_state: "present"
+gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh"
 
 # Timeouts
 gitlab_startup_wait_minutes: 5
@@ -98,6 +99,9 @@ gitlab_runner_online_failure_msg: "No online runner is assigned to project {{ gi
 # Podman socket (Docker-compatible, used by runner)
 podman_socket_path: "/run/podman/podman.sock"
 docker_socket_path: "/var/run/docker.sock"
+
+# Network
+gitlab_ssh_port: 22
 
 # GitLab certificate defaults
 gitlab_cert_dir: "/root/gitlab-certs"
@@ -191,6 +195,9 @@ gitlab_ca_export_msg:
   - "to avoid 'Not Secure' warnings when accessing GitLab."
   - ""
   - "========================================"
+
+# OIM API Server Configuration
+oim_api_verify_ssl: true
 
 gitlab_deployment_complete_msg:
   - "============================================"
