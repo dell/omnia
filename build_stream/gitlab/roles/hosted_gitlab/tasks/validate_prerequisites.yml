@@ -44,3 +44,17 @@
     that:
       - cpu_cores.stdout | int >= gitlab_min_cpu_cores
     fail_msg: "Insufficient CPU cores. Required: {{ gitlab_min_cpu_cores }}, Available: {{ cpu_cores.stdout }}"
+
+- name: Check connectivity to build stream host
+  when: build_stream_host_ip is defined and build_stream_host_ip | length > 0
+  ansible.builtin.command: ping -c 3 -W 2 {{ build_stream_host_ip }}
+  register: build_stream_host_ping
+  changed_when: false
+  failed_when: false
+
+- name: Validate build stream host connectivity
+  when: build_stream_host_ip is defined and build_stream_host_ip | length > 0
+  ansible.builtin.assert:
+    that:
+      - build_stream_host_ping.rc == 0
+    fail_msg: "{{ gitlab_bs_host_connectivity_fail_msg }}"
