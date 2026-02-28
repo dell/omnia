@@ -213,12 +213,6 @@ gitlab_preserved_packages_msg:
   - ""
   - "Only GitLab-specific packages removed"
 
-gitlab_user_preservation_msg:
-  - "GitLab user 'git' preserved for system stability"
-  - "This ensures smooth reinstallation"
-  - "Only GitLab data/configurations removed"
-  - "/etc/gitlab/api-tokens"
-  - "/opt/gitlab/tokens"
 gitlab_cicd_cache_directories:
   - "/var/opt/gitlab/gitlab-ci"
   - "/var/cache/gitlab"
