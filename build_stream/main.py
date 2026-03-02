@@ -162,8 +162,6 @@ if __name__ == "__main__":
         
         uvicorn.run("main:app", host=host, port=port)
     except ValueError as e:
-        logger.error("Configuration error: %s", e)
-        raise
+        raise ValueError("Invalid server configuration")
     except Exception as e:
-        logger.error("Failed to start server: %s", e)
-        raise
+        raise RuntimeError("Internal server error")

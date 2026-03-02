@@ -155,16 +155,14 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
             
         except yaml.YAMLError as exc:
             logger.error(
-                "Failed to parse build_stream_config.yml for job %s: %s",
+                "Failed to parse build_stream_config.yml for job %s",
                 job_id,
-                exc,
             )
             return None
         except Exception as exc:
             logger.error(
-                "Unexpected error reading build_stream_config.yml for job %s: %s",
+                "Unexpected error reading build_stream_config.yml for job %s",
                 job_id,
-                exc,
             )
             return None
 
@@ -209,11 +207,10 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
 
         except (OSError, IOError) as exc:
             logger.error(
-                "Failed to create inventory file for job %s: %s",
+                "Failed to create inventory file for job %s",
                 job_id,
-                exc,
             )
-            raise IOError(f"Cannot create inventory file for job {job_id}: {exc}") from exc
+            raise IOError("Cannot create inventory file") from None
 
     # === Input Directory Management Methods ===
 

@@ -101,13 +101,11 @@ class StageType(str, Enum):
     PARSE_CATALOG = "parse-catalog"
     GENERATE_INPUT_FILES = "generate-input-files"
     CREATE_LOCAL_REPOSITORY = "create-local-repository"
-    UPDATE_LOCAL_REPOSITORY = "update-local-repository"
-    CREATE_IMAGE_REPOSITORY = "create-image-repository"
+    #CREATE_IMAGE_REPOSITORY = "create-image-repository"
     BUILD_IMAGE_X86_64 = "build-image-x86_64"
     BUILD_IMAGE_AARCH64 = "build-image-aarch64"
-    VALIDATE_IMAGE = "validate-image"
     VALIDATE_IMAGE_ON_TEST = "validate-image-on-test"
-    PROMOTE = "promote"
+    #PROMOTE = "promote"
 
 
 @dataclass(frozen=True)
