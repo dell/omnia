@@ -61,10 +61,6 @@
   failed_when: false
   changed_when: false
 
-- name: Note about GitLab user preservation
-  ansible.builtin.debug:
-    msg: "{{ gitlab_user_preservation_msg }}"
-
 - name: Remove GitLab systemd services
   ansible.builtin.systemd:
     name: "{{ item }}"

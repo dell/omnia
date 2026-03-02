@@ -169,6 +169,7 @@ gitlab_bs_host_ip_fail_msg: >
 gitlab_selinux_fail_msg: >
   SELinux is currently enabled. GitLab installation requires SELinux to be disabled.
   Disable SELinux and reboot the host before running this playbook.
+gitlab_bs_host_connectivity_fail_msg: "Cannot reach build stream host at {{ build_stream_host_ip }}. GitLab server must be able to ping the build stream host."
 
 gitlab_sshpass_install_fail_msg: >
   Failed to install sshpass. Ensure AppStream and BaseOS repositories

@@ -17,10 +17,16 @@
 This module contains validation messages in English (US) for input validation.
 These messages are used to provide user-friendly error messages during configuration validation.
 """
-PRIMARY_ADMIN_IP_INTERFACE_MISMATCH_MSG = "primary_oim_admin_ip does not match the actual IP configured on the specified interface"
-NETMASK_BITS_INTERFACE_MISMATCH_MSG = "netmask_bits does not match the netmask configured on the specified interface"
+PRIMARY_ADMIN_IP_INTERFACE_MISMATCH_MSG = (
+    "primary_oim_admin_ip does not match the actual IP configured on the specified interface"
+)
+NETMASK_BITS_INTERFACE_MISMATCH_MSG = (
+    "netmask_bits does not match the netmask configured on the specified interface"
+)
 MISSING_CLUSTER_NAME_MSG = "Cluster name is mandatory for all kubernetes roles."
-CLUSTER_NAME_OVERLAP_MSG = "The cluster name '{0}' cannot be shared between service and compute Kubernetes roles."
+CLUSTER_NAME_OVERLAP_MSG = (
+    "The cluster name '{0}' cannot be shared between service and compute Kubernetes roles."
+)
 CLUSTER_NAME_INCONSISTENT_MSG = (
     "Inconsistent 'cluster_name' values found across Service or Compute Kubernetes roles. "
     "Each of the following role sets must use the same 'cluster_name': "
@@ -35,15 +41,25 @@ MAX_NUMBER_OF_ROLES_PER_GROUP_MSG = "Groups can support a maximum of 5 roles."
 RESOURCE_MGR_ID_MSG = ("The resource_mgr_id is mandatory if the group is mapped to "
                        "kube_node, slurm_node roles, service_kube_node, etcd, service_etcd roles.")
 GRP_EXIST_MSG = "A valid group must be provided."
-INVALID_SWITCH_IP_MSG = "Please provide a valid switch IPv4 address (example: 10.5.0.1)."
+INVALID_SWITCH_IP_MSG = (
+    "Please provide a valid switch IPv4 address (example: 10.5.0.1)."
+)
 GRP_ROLE_MSG = "Please associate this group with a role."
-PARENT_SERVICE_NODE_MSG = ("A group associated with the management_layer should not have a parent value.")
-PARENT_SERVICE_ROLE_DNE_MSG = ("Parent field is only supported when 'service_kube_control_plane, service_kube_node' role is defined,"
-    " Please remove the 'parent' field from this role's group definition.")
-PARENT_SERVICE_ROLE_MSG = (" A 'service_kube_control_plane, service_kube_node' role is not defined, so the 'parent' field should"
-    " be empty for groups associated with 'worker' or 'default' roles.")
-PARENT_SERVICE_ROLE_REQUIRED_MSG = ("When 'service_kube_control_plane', 'service_kube_node' role is defined,"
-    " the 'parent' field is required for groups associated with 'worker' or 'default' roles.")
+PARENT_SERVICE_NODE_MSG = (
+    "A group associated with the management_layer should not have a parent value."
+)
+PARENT_SERVICE_ROLE_DNE_MSG = (
+    "Parent field is only supported when 'service_kube_control_plane, service_kube_node' "
+    "role is defined, Please remove the 'parent' field from this role's group definition."
+)
+PARENT_SERVICE_ROLE_MSG = (
+    "A 'service_kube_control_plane, service_kube_node' role is not defined, so the "
+    "'parent' field should be empty for groups associated with 'worker' or 'default' roles."
+)
+PARENT_SERVICE_ROLE_REQUIRED_MSG = (
+    "When 'service_kube_control_plane', 'service_kube_node' role is defined, "
+    "the 'parent' field is required for groups associated with 'worker' or 'default' roles."
+)
 BMC_STATIC_RANGE_INVALID_MSG = ("Static range should be in the following format: "
                                "IPv4Start-IPv4End (example: 10.5.0.1-10.5.0.200).")
 OVERLAPPING_STATIC_RANGE = "bmc_detail's static_range is overlapping with other static ranges."
@@ -59,7 +75,9 @@ INVALID_ATTRIBUTES_ROLE_MSG = ("Please provide valid attributes for the role, "
                               "both 'name' and 'groups' are mandatory.")
 NO_GROUPS_MSG = "Outer Group object was probably not defined."
 NO_ROLES_MSG = "Outer Role object was probably not defined."
-INVALID_SWITCH_PORTS_MSG = "Please provide any port ranges as start-end (example: 0-15,4:4,51-53)."
+INVALID_SWITCH_PORTS_MSG = (
+    "Please provide any port ranges as start-end (example: 0-15,4:4,51-53)."
+)
 DUPLICATE_GROUP_NAME_MSG = "Duplicate group names are not allowed."
 EMPTY_OR_SYNTAX_ERROR_ROLES_CONFIG_MSG = ("File is either empty or contains syntax errors. "
                                          "File must contain valid YAML with 'Roles' and 'Groups' "
@@ -403,10 +421,10 @@ ENABLE_BUILD_STREAM_REQUIRED_MSG = "Field 'enable_build_stream' is required in b
 ENABLE_BUILD_STREAM_BOOLEAN_MSG = "Field 'enable_build_stream' must be a boolean (true or false)."
 BUILD_STREAM_CONFIG_EMPTY_MSG = ("build_stream_config.yml file is empty or has syntax errors. "
                                  "It must contain valid YAML with 'enable_build_stream' field.")
-AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = ("Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
-                                                "Check network_spec.yml for admin network configuration.")
-AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = ("Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
-                                                "Check network_spec.yml for admin network configuration.")
+AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = (
+    "Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
+    "Check network_spec.yml for admin network configuration."
+)
 
 def build_stream_host_ip_not_oim_ip_msg(ip, allowed_ips):
     """Returns error message for build_stream_host_ip not matching any OIM ethernet interface IP."""
@@ -414,7 +432,8 @@ def build_stream_host_ip_not_oim_ip_msg(ip, allowed_ips):
             f"It must match an IP assigned to an ethernet interface on the OIM "
             f"(i.e., the OIM admin IP or OIM public IP). "
             f"Allowed IPs (from ethernet interfaces): {', '.join(allowed_ips)}. "
-            f"Please set build_stream_host_ip to one of these IPs or leave it empty to use the admin IP.")
+            f"Please set build_stream_host_ip to one of these IPs or leave it empty to "
+            f"use the admin IP.")
 
 BUILD_STREAM_HOST_IP_NO_ETHERNET_IPS_MSG = (
     "Unable to determine OIM ethernet interface IPs. "
@@ -426,7 +445,45 @@ def build_stream_port_in_use_msg(port):
     """Returns error message for port already in use."""
     return (f"Port {port} is already in use. "
             f"Please choose a different port or stop the service using this port. "
-            f"To check which process is using this port, run: 'ss -tulpn | grep :{port}'")
+            f"To check which process is using this port, run: "
+            f"'ss -tulpn | grep :{port}'")
+
+# gitlab_config.yml
+GITLAB_HOST_EMPTY_MSG = ("Field 'gitlab_host' is required and cannot be empty. "
+                         "Provide the IPv4 address of the target host for GitLab deployment.")
+GITLAB_HOST_INVALID_IP_MSG = ("Field 'gitlab_host' must be a valid IPv4 address. "
+                              "Example: 192.168.1.10")
+GITLAB_PROJECT_NAME_EMPTY_MSG = ("Field 'gitlab_project_name' is required and cannot be empty. "
+                                 "Provide a valid GitLab project name.")
+GITLAB_PROJECT_VISIBILITY_INVALID_MSG = ("Field 'gitlab_project_visibility' must be one of: "
+                                         "private, internal, public.")
+GITLAB_DEFAULT_BRANCH_EMPTY_MSG = ("Field 'gitlab_default_branch' is required and cannot be empty. "
+                                   "Provide a valid git branch name. Default: main")
+GITLAB_DEFAULT_BRANCH_INVALID_MSG = ("Field 'gitlab_default_branch' contains invalid characters. "
+                                     "Branch name must start with alphanumeric and may contain "
+                                     "letters, digits, dots, hyphens, underscores, or slashes.")
+GITLAB_HTTPS_PORT_INVALID_MSG = ("Field 'gitlab_https_port' must be a valid port number between "
+                                 "1 and 65535. Default: 443")
+GITLAB_SSH_PORT_INVALID_MSG = ("Field 'gitlab_ssh_port' must be a valid port number between "
+                               "1 and 65535. Default: 22")
+GITLAB_PORTS_CONFLICT_MSG = ("Fields 'gitlab_https_port' and 'gitlab_ssh_port' must not use "
+                             "the same port number.")
+GITLAB_MIN_STORAGE_INVALID_MSG = ("Field 'gitlab_min_storage_gb' must be an integer >= 10. "
+                                  "GitLab requires at least 10 GB of free disk space. Default: 20")
+GITLAB_MIN_MEMORY_INVALID_MSG = ("Field 'gitlab_min_memory_gb' must be an integer >= 1. "
+                                 "Default: 4")
+GITLAB_MIN_CPU_INVALID_MSG = ("Field 'gitlab_min_cpu_cores' must be an integer >= 1. "
+                              "Default: 2")
+GITLAB_PUMA_WORKERS_INVALID_MSG = ("Field 'gitlab_puma_workers' must be an integer between "
+                                   "1 and 64. Default: 2")
+GITLAB_SIDEKIQ_CONCURRENCY_INVALID_MSG = ("Field 'gitlab_sidekiq_concurrency' must be an integer "
+                                          "between 1 and 200. Default: 10")
+GITLAB_OIM_VERIFY_SSL_INVALID_MSG = ("Field 'oim_api_verify_ssl' must be a boolean (true or false). "
+                                     "Default: true")
+GITLAB_CONFIG_EMPTY_MSG = ("gitlab_config.yml is empty or has syntax errors. "
+                           "It must contain valid YAML with required fields: "
+                           "gitlab_host, gitlab_project_name, gitlab_project_visibility, "
+                           "gitlab_default_branch, gitlab_https_port.")
 
 # addtional_software
 ADDITIONAL_SOFTWARE_FAIL_MSG = "The additional_software is mandatory in additional_software.json"
