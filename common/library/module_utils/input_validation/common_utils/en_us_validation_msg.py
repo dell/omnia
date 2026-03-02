@@ -17,8 +17,12 @@
 This module contains validation messages in English (US) for input validation.
 These messages are used to provide user-friendly error messages during configuration validation.
 """
-PRIMARY_ADMIN_IP_INTERFACE_MISMATCH_MSG = "primary_oim_admin_ip does not match the actual IP configured on the specified interface"
-NETMASK_BITS_INTERFACE_MISMATCH_MSG = "netmask_bits does not match the netmask configured on the specified interface"
+PRIMARY_ADMIN_IP_INTERFACE_MISMATCH_MSG = (
+    "primary_oim_admin_ip does not match the actual IP configured on the specified interface"
+)
+NETMASK_BITS_INTERFACE_MISMATCH_MSG = (
+    "netmask_bits does not match the netmask configured on the specified interface"
+)
 MISSING_CLUSTER_NAME_MSG = "Cluster name is mandatory for all kubernetes roles."
 CLUSTER_NAME_OVERLAP_MSG = "The cluster name '{0}' cannot be shared between service and compute Kubernetes roles."
 CLUSTER_NAME_INCONSISTENT_MSG = (
@@ -397,10 +401,10 @@ ENABLE_BUILD_STREAM_REQUIRED_MSG = "Field 'enable_build_stream' is required in b
 ENABLE_BUILD_STREAM_BOOLEAN_MSG = "Field 'enable_build_stream' must be a boolean (true or false)."
 BUILD_STREAM_CONFIG_EMPTY_MSG = ("build_stream_config.yml file is empty or has syntax errors. "
                                  "It must contain valid YAML with 'enable_build_stream' field.")
-AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = ("Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
-                                                "Check network_spec.yml for admin network configuration.")
-AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = ("Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
-                                                "Check network_spec.yml for admin network configuration.")
+AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = (
+    "Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
+    "Check network_spec.yml for admin network configuration."
+)
 
 def build_stream_host_ip_not_oim_ip_msg(ip, allowed_ips):
     """Returns error message for build_stream_host_ip not matching any OIM ethernet interface IP."""
@@ -408,7 +412,8 @@ def build_stream_host_ip_not_oim_ip_msg(ip, allowed_ips):
             f"It must match an IP assigned to an ethernet interface on the OIM "
             f"(i.e., the OIM admin IP or OIM public IP). "
             f"Allowed IPs (from ethernet interfaces): {', '.join(allowed_ips)}. "
-            f"Please set build_stream_host_ip to one of these IPs or leave it empty to use the admin IP.")
+            f"Please set build_stream_host_ip to one of these IPs or leave it empty to "
+            f"use the admin IP.")
 
 BUILD_STREAM_HOST_IP_NO_ETHERNET_IPS_MSG = (
     "Unable to determine OIM ethernet interface IPs. "
@@ -420,7 +425,8 @@ def build_stream_port_in_use_msg(port):
     """Returns error message for port already in use."""
     return (f"Port {port} is already in use. "
             f"Please choose a different port or stop the service using this port. "
-            f"To check which process is using this port, run: 'ss -tulpn | grep :{port}'")
+            f"To check which process is using this port, run: "
+            f"'ss -tulpn | grep :{port}'")
 
 # gitlab_config.yml
 GITLAB_HOST_EMPTY_MSG = ("Field 'gitlab_host' is required and cannot be empty. "

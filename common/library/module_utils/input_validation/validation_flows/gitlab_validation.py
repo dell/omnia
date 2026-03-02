@@ -106,13 +106,13 @@ def _validate_ports(data, gitlab_yml, errors):
     """Validate gitlab_https_port and gitlab_ssh_port are valid port numbers."""
     https_port = data.get("gitlab_https_port")
     if https_port is not None:
-        if not isinstance(https_port, int) or not (1 <= https_port <= 65535):
+        if not isinstance(https_port, int) or not 1 <= https_port <= 65535:
             errors.append(create_error_msg(gitlab_yml, "gitlab_https_port",
                                            msg.GITLAB_HTTPS_PORT_INVALID_MSG))
 
     ssh_port = data.get("gitlab_ssh_port")
     if ssh_port is not None:
-        if not isinstance(ssh_port, int) or not (1 <= ssh_port <= 65535):
+        if not isinstance(ssh_port, int) or not 1 <= ssh_port <= 65535:
             errors.append(create_error_msg(gitlab_yml, "gitlab_ssh_port",
                                            msg.GITLAB_SSH_PORT_INVALID_MSG))
 
@@ -148,13 +148,13 @@ def _validate_performance_tuning(data, gitlab_yml, errors):
     """Validate puma workers and sidekiq concurrency values."""
     puma_workers = data.get("gitlab_puma_workers")
     if puma_workers is not None:
-        if not isinstance(puma_workers, int) or not (1 <= puma_workers <= 64):
+        if not isinstance(puma_workers, int) or not 1 <= puma_workers <= 64:
             errors.append(create_error_msg(gitlab_yml, "gitlab_puma_workers",
                                            msg.GITLAB_PUMA_WORKERS_INVALID_MSG))
 
     sidekiq_concurrency = data.get("gitlab_sidekiq_concurrency")
     if sidekiq_concurrency is not None:
-        if not isinstance(sidekiq_concurrency, int) or not (1 <= sidekiq_concurrency <= 200):
+        if not isinstance(sidekiq_concurrency, int) or not 1 <= sidekiq_concurrency <= 200:
             errors.append(create_error_msg(gitlab_yml, "gitlab_sidekiq_concurrency",
                                            msg.GITLAB_SIDEKIQ_CONCURRENCY_INVALID_MSG))
 
