@@ -39,6 +39,9 @@ _BASE_DIR = os.path.dirname(__file__)
 _DEFAULT_POLICY_PATH = os.path.join(_BASE_DIR, "resources", "adapter_policy_default.json")
 _DEFAULT_SCHEMA_PATH = os.path.join(_BASE_DIR, "resources", "AdapterPolicySchema.json")
 
+_K8S_VERSION = "1.34.1"
+_CSI_VERSION = "v2.15.0"
+
 
 def _validate_input_policy_and_schema_paths(
     input_dir: str,
@@ -102,48 +105,132 @@ def discover_os_versions(input_dir: str, arch: str) -> List[Tuple[str, str]]:
     return results
 
 
-def copy_software_config(output_dir: str) -> None:
-    """Copy software_config.json into the output input/ directory.
 
-    Resolution order:
-    - Derive project_name from /opt/omnia/input/default.yml
-    - Use /opt/omnia/input/{project_name}/software_config.json
 
-    Raises:
-        FileNotFoundError: when default.yml or resolved software_config.json is missing.
-        ValueError: when project_name is invalid.
+
+
+def _has_non_empty_cluster(target_data: Dict) -> bool:
+    """Return True if any subgroup in target_data has a non-empty cluster list."""
+    for subgroup_body in target_data.values():
+        if subgroup_body.get(schema.CLUSTER):
+            return True
+    return False
+
+
+def _collect_non_empty_subgroups(
+    target_name: str,
+    target_data: Dict,
+) -> List[str]:
+    """Return subgroup names that have non-empty cluster and differ from target_name."""
+    return [
+        key for key, body in target_data.items()
+        if key != target_name and body.get(schema.CLUSTER)
+    ]
+
+
+def generate_software_config(
+    output_dir: str,
+    os_family: str,
+    os_version: str,
+    all_arch_target_configs: Dict[str, Dict[str, Dict]],
+) -> None:
+    """Generate software_config.json from collected target configs.
+
+    Args:
+        output_dir: Root output directory (file written to output_dir/input/software_config.json).
+        os_family: OS family string (e.g. "rhel").
+        os_version: OS version string (e.g. "10.0").
+        all_arch_target_configs: Mapping of arch -> {target_file -> {subgroup -> {cluster: [...]}}}.
     """
+    # Discover all target files across architectures
+    all_target_files: set = set()
+    for arch_targets in all_arch_target_configs.values():
+        all_target_files.update(arch_targets.keys())
+
+    softwares: List[Dict] = []
+    subgroup_sections: Dict[str, List[Dict]] = {}
+
+    for target_file in sorted(all_target_files):
+        target_name = target_file.removesuffix(".json")
+
+        # Determine which arches have non-empty content for this target
+        supported_arches: List[str] = []
+        for arch in sorted(all_arch_target_configs.keys()):
+            target_data = all_arch_target_configs[arch].get(target_file)
+            if target_data and _has_non_empty_cluster(target_data):
+                supported_arches.append(arch)
+
+        if not supported_arches:
+            continue
+
+        entry: Dict[str, Any] = {"name": target_name}
+        if "service_k8" in target_name:
+            entry["version"] = _K8S_VERSION
+        elif "csi" in target_name:
+            entry["version"] = _CSI_VERSION
+        entry["arch"] = supported_arches
+        softwares.append(entry)
+
+        # Collect subgroups (union across arches, non-empty only, exclude target name)
+        merged_subgroups: set = set()
+        for arch in all_arch_target_configs:
+            target_data = all_arch_target_configs[arch].get(target_file)
+            if target_data:
+                merged_subgroups.update(
+                    _collect_non_empty_subgroups(target_name, target_data)
+                )
+        if merged_subgroups:
+            subgroup_sections[target_name] = [
+                {"name": sg} for sg in sorted(merged_subgroups)
+            ]
+
+    config: Dict[str, Any] = {
+        "cluster_os_type": os_family,
+        "cluster_os_version": os_version,
+        "repo_config": "partial",
+        "softwares": softwares,
+    }
+    config.update(subgroup_sections)
 
     input_dir = os.path.join(output_dir, "input")
     os.makedirs(input_dir, exist_ok=True)
+    output_path = os.path.join(input_dir, "software_config.json")
 
-    output_software_config_path = os.path.join(input_dir, "software_config.json")
+    # Write with compact single-line arrays to match expected format
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("{\n")
+        
+        # Write top-level fields
+        f.write(f'    "cluster_os_type": "{config["cluster_os_type"]}",\n')
+        f.write(f'    "cluster_os_version": "{config["cluster_os_version"]}",\n')
+        f.write(f'    "repo_config": "{config["repo_config"]}",\n')
+        
+        # Write softwares array (compact format)
+        f.write('    "softwares": [\n')
+        softwares = config["softwares"]
+        for i, sw in enumerate(softwares):
+            line = "        " + json.dumps(sw, separators=(",", ": "))
+            if i < len(softwares) - 1:
+                line += ","
+            f.write(line + "\n")
+        f.write('    ]')
+        
+        # Write subgroup sections (compact format)
+        subgroup_keys = [k for k in config.keys() if k not in ("cluster_os_type", "cluster_os_version", "repo_config", "softwares")]
+        for key in subgroup_keys:
+            f.write(',\n')
+            f.write(f'    "{key}": [\n')
+            items = config[key]
+            for i, item in enumerate(items):
+                line = "        " + json.dumps(item, separators=(",", ": "))
+                if i < len(items) - 1:
+                    line += ","
+                f.write(line + "\n")
+            f.write('    ]')
+        
+        f.write("\n\n}\n")
 
-    default_yml_path = "/opt/omnia/input/default.yml"
-    if not os.path.isfile(default_yml_path):
-        raise FileNotFoundError(default_yml_path)
-
-    with open(default_yml_path, "r", encoding="utf-8") as f:
-        default_config = yaml.safe_load(f) or {}
-
-    project_name = default_config.get("project_name")
-    if not isinstance(project_name, str) or not project_name.strip():
-        raise ValueError("default.yml missing valid 'project_name'")
-    project_name = project_name.strip()
-    if len(project_name) > 128:
-        raise ValueError("default.yml 'project_name' exceeds 128 characters")
-
-    resolved_software_config_path = os.path.join(
-        "/opt/omnia/input", project_name, "software_config.json"
-    )
-
-    if not os.path.isfile(resolved_software_config_path):
-        raise FileNotFoundError(resolved_software_config_path)
-
-    shutil.copy2(resolved_software_config_path, output_software_config_path)
-    logger.info("Copied software_config.json from: %s", resolved_software_config_path)
-
-    return None
+    logger.info("Generated software_config.json at: %s", output_path)
 
 
 def _package_key(pkg: Dict) -> Tuple[str, str, str]:
@@ -633,11 +720,19 @@ def generate_configs_from_policy(
         
     logger.info("Discovered architectures: %s", architectures)
 
+    all_arch_target_configs: Dict[str, Dict[str, Dict]] = {}
+    resolved_os_family: Optional[str] = None
+    resolved_os_version: Optional[str] = None
+
     for arch in architectures:
         os_versions = discover_os_versions(input_dir, arch)
 
         for os_family, version in os_versions:
             logger.info("Processing: arch=%s, os=%s, version=%s", arch, os_family, version)
+
+            if resolved_os_family is None:
+                resolved_os_family = os_family
+                resolved_os_version = version
 
             source_dir = os.path.join(input_dir, arch, os_family, version)
             target_dir = os.path.join(output_dir, "input", "config", arch, os_family, version)
@@ -672,7 +767,14 @@ def generate_configs_from_policy(
                     write_config_file(file_path, data)
                     logger.info("Written: %s", file_path)
 
-    copy_software_config(output_dir=output_dir)
+            all_arch_target_configs[arch] = target_configs
+
+    generate_software_config(
+        output_dir=output_dir,
+        os_family=resolved_os_family or "",
+        os_version=resolved_os_version or "",
+        all_arch_target_configs=all_arch_target_configs,
+    )
 
 
 def main():

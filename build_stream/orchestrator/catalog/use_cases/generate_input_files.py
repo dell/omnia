@@ -292,6 +292,20 @@ class GenerateInputFilesUseCase:
         config_output_dir: Path,
     ) -> Tuple[ArtifactRef, ArtifactRecord]:
         """Store generated configs as archive artifact and persist metadata."""
+        # Check if artifact already exists (idempotency handling)
+        existing_record = self._artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id=command.job_id,
+            stage_name=StageName(StageType.GENERATE_INPUT_FILES.value),
+            label="omnia-configs",
+        )
+        if existing_record is not None:
+            logger.info(
+                "Artifact already exists for job %s, returning existing record: %s",
+                command.job_id,
+                existing_record.artifact_ref.key.value,
+            )
+            return existing_record.artifact_ref, existing_record
+
         hint = StoreHint(
             namespace="input-files",
             label="omnia-configs",

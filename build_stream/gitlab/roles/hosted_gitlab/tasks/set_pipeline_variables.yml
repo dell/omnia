@@ -19,11 +19,18 @@
     file: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
   delegate_to: localhost
 
+- name: Read BSM API certificate from localhost
+  ansible.builtin.slurp:
+    src: "{{ gitlab_bs_cert_path }}"
+  delegate_to: localhost
+  register: _bs_cert_read
+
 - name: Set pipeline variable facts
   ansible.builtin.set_fact:
     _gitlab_bsm_api_url: "https://{{ build_stream_host_ip }}:{{ build_stream_port | default('8010') }}"
     _gitlab_bs_auth_username: "{{ hostvars['localhost']['build_stream_auth_username'] | default('') }}"
     _gitlab_bs_auth_password: "{{ hostvars['localhost']['build_stream_auth_password'] | default('') }}"
+    _gitlab_bs_api_cert: "{{ _bs_cert_read.content | b64decode }}"
   no_log: true
 
 - name: Set GitLab pipeline variables for build stream auth

@@ -397,10 +397,30 @@ ENABLE_BUILD_STREAM_REQUIRED_MSG = "Field 'enable_build_stream' is required in b
 ENABLE_BUILD_STREAM_BOOLEAN_MSG = "Field 'enable_build_stream' must be a boolean (true or false)."
 BUILD_STREAM_CONFIG_EMPTY_MSG = ("build_stream_config.yml file is empty or has syntax errors. "
                                  "It must contain valid YAML with 'enable_build_stream' field.")
-BUILD_STREAM_HOST_IP_INVALID_MSG = ("Field 'build_stream_host_ip' must be either the admin IP or public IP of OIM. "
-                                    "Provided IP does not match admin IP from network_spec.yml.")
 AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = ("Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
                                                 "Check network_spec.yml for admin network configuration.")
+AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = ("Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
+                                                "Check network_spec.yml for admin network configuration.")
+
+def build_stream_host_ip_not_oim_ip_msg(ip, allowed_ips):
+    """Returns error message for build_stream_host_ip not matching any OIM ethernet interface IP."""
+    return (f"build_stream_host_ip '{ip}' is not a valid OIM IP address. "
+            f"It must match an IP assigned to an ethernet interface on the OIM "
+            f"(i.e., the OIM admin IP or OIM public IP). "
+            f"Allowed IPs (from ethernet interfaces): {', '.join(allowed_ips)}. "
+            f"Please set build_stream_host_ip to one of these IPs or leave it empty to use the admin IP.")
+
+BUILD_STREAM_HOST_IP_NO_ETHERNET_IPS_MSG = (
+    "Unable to determine OIM ethernet interface IPs. "
+    "Cannot validate build_stream_host_ip. Ensure nmcli and ip commands are available "
+    "and ethernet interfaces are configured on the OIM."
+)
+
+def build_stream_port_in_use_msg(port):
+    """Returns error message for port already in use."""
+    return (f"Port {port} is already in use. "
+            f"Please choose a different port or stop the service using this port. "
+            f"To check which process is using this port, run: 'ss -tulpn | grep :{port}'")
 
 # gitlab_config.yml
 GITLAB_HOST_EMPTY_MSG = ("Field 'gitlab_host' is required and cannot be empty. "

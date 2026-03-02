@@ -20,7 +20,6 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from api.dependencies import require_catalog_read, verify_token
-from container import container
 from api.generate_input_files.dependencies import get_generate_input_files_use_case
 from api.logging_utils import log_secure_info
 from core.artifacts.exceptions import ArtifactNotFoundError
@@ -123,7 +122,6 @@ async def generate_input_files(
     )
 
     try:
-        use_case = container.generate_input_files_use_case()
         result = use_case.execute(command)
         log_secure_info(
             "debug",

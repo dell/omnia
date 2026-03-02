@@ -24,15 +24,12 @@ import pytest
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.exceptions import ArtifactNotFoundError
 from core.artifacts.value_objects import (
-    ArtifactDigest,
-    ArtifactKey,
     ArtifactKind,
-    ArtifactRef,
     SafePath,
     StoreHint,
 )
+from core.catalog.exceptions import ConfigGenerationError
 from core.jobs.exceptions import (
-    InvalidStateTransitionError,
     JobNotFoundError,
     StageAlreadyCompletedError,
     TerminalStateViolationError,
@@ -64,15 +61,19 @@ def _make_command() -> GenerateInputFilesCommand:
     )
 
 
-def _build_use_case(
-    job_repo, stage_repo, audit_repo,
-    artifact_store, artifact_metadata_repo, uuid_generator,
+def _build_use_case(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    job_repo,
+    stage_repo,
+    audit_repo,
+    artifact_store,
+    artifact_metadata_repo,
+    uuid_generator,
     default_policy_path=None,
     policy_schema_path=None,
 ) -> GenerateInputFilesUseCase:
     if default_policy_path is None:
-        # Use the real default adapter policy from the codebase
-        base = Path(__file__).resolve().parent.parent.parent.parent.parent / "core" / "catalog" / "resources"
+        base_path = Path(__file__).resolve().parent.parent.parent.parent.parent
+        base = base_path / "core" / "catalog" / "resources"
         policy = base / "adapter_policy_default.json"
         schema = base / "AdapterPolicySchema.json"
         # Fallback checks for different file naming conventions (historical/compatibility)
@@ -144,10 +145,16 @@ def _seed_upstream_artifacts(
 class TestStageGuards:
     """Tests for stage guard validation."""
 
-    def test_job_not_found(
-        self, job_repo, stage_repo, audit_repo,
-        artifact_store, artifact_metadata_repo, uuid_generator,
+    def test_job_not_found(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
     ) -> None:
+        """Test that JobNotFoundError is raised when job does not exist."""
         uc = _build_use_case(
             job_repo, stage_repo, audit_repo,
             artifact_store, artifact_metadata_repo, uuid_generator,
@@ -155,11 +162,18 @@ class TestStageGuards:
         with pytest.raises(JobNotFoundError):
             uc.execute(_make_command())
 
-    def test_job_in_terminal_state(
-        self, job_repo, stage_repo, audit_repo,
-        artifact_store, artifact_metadata_repo, uuid_generator,
-        in_progress_job, generate_input_files_stage,
+    def test_job_in_terminal_state(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
+        in_progress_job,
+        generate_input_files_stage,
     ) -> None:
+        """Test that TerminalStateViolationError is raised for terminal job."""
         in_progress_job.fail()
         job_repo.save(in_progress_job)
         stage_repo.save(generate_input_files_stage)
@@ -171,11 +185,18 @@ class TestStageGuards:
         with pytest.raises(TerminalStateViolationError):
             uc.execute(_make_command())
 
-    def test_stage_already_completed(
-        self, job_repo, stage_repo, audit_repo,
-        artifact_store, artifact_metadata_repo, uuid_generator,
-        in_progress_job, generate_input_files_stage,
+    def test_stage_already_completed(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
+        in_progress_job,
+        generate_input_files_stage,
     ) -> None:
+        """Test that StageAlreadyCompletedError is raised for completed stage."""
         generate_input_files_stage.start()
         generate_input_files_stage.complete()
         job_repo.save(in_progress_job)
@@ -192,10 +213,17 @@ class TestStageGuards:
 class TestUpstreamValidation:
     """Tests for upstream stage validation."""
 
-    def test_upstream_not_completed(
-        self, job_repo, stage_repo, audit_repo,
-        artifact_store, artifact_metadata_repo, uuid_generator,
-        in_progress_job, parse_catalog_stage, generate_input_files_stage,
+    def test_upstream_not_completed(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
+        in_progress_job,
+        parse_catalog_stage,
+        generate_input_files_stage,
     ) -> None:
         """parse-catalog still PENDING → should raise."""
         job_repo.save(in_progress_job)
@@ -209,10 +237,16 @@ class TestUpstreamValidation:
         with pytest.raises(UpstreamStageNotCompletedError):
             uc.execute(_make_command())
 
-    def test_upstream_artifact_not_found(
-        self, job_repo, stage_repo, audit_repo,
-        artifact_store, artifact_metadata_repo, uuid_generator,
-        in_progress_job, completed_parse_catalog_stage,
+    def test_upstream_artifact_not_found(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
+        in_progress_job,
+        completed_parse_catalog_stage,
         generate_input_files_stage,
     ) -> None:
         """parse-catalog COMPLETED but no root-jsons artifact → should raise."""
@@ -236,11 +270,18 @@ class TestUpstreamValidation:
 class TestHappyPath:
     """Tests for successful generate-input-files execution."""
 
-    def test_generates_and_stores_configs(
-        self, job_repo, stage_repo, audit_repo,
-        artifact_store, artifact_metadata_repo, uuid_generator,
-        in_progress_job, completed_parse_catalog_stage,
-        generate_input_files_stage, tmp_path,
+    def test_generates_and_stores_configs(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
+        in_progress_job,
+        completed_parse_catalog_stage,
+        generate_input_files_stage,
+        tmp_path,
     ) -> None:
         """Full happy path with mocked adapter policy engine."""
         job_repo.save(in_progress_job)
@@ -250,12 +291,12 @@ class TestHappyPath:
             artifact_store, artifact_metadata_repo, uuid_generator
         )
 
-        # Mock the adapter policy engine to produce output files
-        def mock_generate(input_dir, output_dir, policy_path, schema_path, **kwargs):
-            # Create some output config files
+        def mock_generate(input_dir, output_dir, policy_path, schema_path, **kwargs):  # pylint: disable=unused-argument
             arch_dir = os.path.join(output_dir, "x86_64", "rhel", "9.5")
             os.makedirs(arch_dir, exist_ok=True)
-            with open(os.path.join(arch_dir, "omnia_config.json"), "w") as f:
+            with open(
+                os.path.join(arch_dir, "omnia_config.json"), "w", encoding="utf-8"
+            ) as f:
                 json.dump({"config": "test"}, f)
 
         # Use a temp file as policy path
@@ -296,11 +337,18 @@ class TestHappyPath:
         )
         assert record is not None
 
-    def test_stage_fails_on_config_generation_error(
-        self, job_repo, stage_repo, audit_repo,
-        artifact_store, artifact_metadata_repo, uuid_generator,
-        in_progress_job, completed_parse_catalog_stage,
-        generate_input_files_stage, tmp_path,
+    def test_stage_fails_on_config_generation_error(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
+        in_progress_job,
+        completed_parse_catalog_stage,
+        generate_input_files_stage,
+        tmp_path,
     ) -> None:
         """Config generation failure → stage FAILED."""
         job_repo.save(in_progress_job)
@@ -316,22 +364,24 @@ class TestHappyPath:
         schema_file.write_text(json.dumps({}))
 
         uc = _build_use_case(
-            job_repo, stage_repo, audit_repo,
-            artifact_store, artifact_metadata_repo, uuid_generator,
+            job_repo,
+            stage_repo,
+            audit_repo,
+            artifact_store,
+            artifact_metadata_repo,
+            uuid_generator,
             default_policy_path=SafePath(policy_file),
             policy_schema_path=SafePath(schema_file),
         )
 
-        # Mock generates no output files → ConfigGenerationError
-        def mock_generate_empty(input_dir, output_dir, policy_path, schema_path, **kwargs):
-            pass  # produces no files
+        def mock_generate_empty(input_dir, output_dir, policy_path, schema_path, **kwargs):  # pylint: disable=unused-argument
+            pass
 
         with patch(
             "orchestrator.catalog.use_cases.generate_input_files"
             ".generate_configs_from_policy",
             side_effect=mock_generate_empty,
         ):
-            from core.catalog.exceptions import ConfigGenerationError
             with pytest.raises(ConfigGenerationError):
                 uc.execute(_make_command())
 
@@ -340,11 +390,18 @@ class TestHappyPath:
         )
         assert stage.stage_state == StageState.FAILED
 
-    def test_audit_events_emitted(
-        self, job_repo, stage_repo, audit_repo,
-        artifact_store, artifact_metadata_repo, uuid_generator,
-        in_progress_job, completed_parse_catalog_stage,
-        generate_input_files_stage, tmp_path,
+    def test_audit_events_emitted(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
+        in_progress_job,
+        completed_parse_catalog_stage,
+        generate_input_files_stage,
+        tmp_path,
     ) -> None:
         """Audit events emitted on success."""
         job_repo.save(in_progress_job)
@@ -354,10 +411,12 @@ class TestHappyPath:
             artifact_store, artifact_metadata_repo, uuid_generator
         )
 
-        def mock_generate(input_dir, output_dir, policy_path, schema_path, **kwargs):
+        def mock_generate(input_dir, output_dir, policy_path, schema_path, **kwargs):  # pylint: disable=unused-argument
             arch_dir = os.path.join(output_dir, "x86_64", "rhel", "9.5")
             os.makedirs(arch_dir, exist_ok=True)
-            with open(os.path.join(arch_dir, "config.json"), "w") as f:
+            with open(
+                os.path.join(arch_dir, "config.json"), "w", encoding="utf-8"
+            ) as f:
                 json.dump({"config": "test"}, f)
 
         policy_file = tmp_path / "policy.json"
@@ -383,3 +442,132 @@ class TestHappyPath:
         event_types = [e.event_type for e in events]
         assert "STAGE_STARTED" in event_types
         assert "STAGE_COMPLETED" in event_types
+
+
+class TestIdempotency:
+    """Tests for idempotent behavior when artifacts already exist."""
+
+    def test_idempotent_artifact_storage_returns_existing_artifact(  # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
+        in_progress_job,
+        completed_parse_catalog_stage,
+        generate_input_files_stage,
+        tmp_path,
+    ) -> None:
+        """When artifact already exists, return existing record instead of failing."""
+        job_repo.save(in_progress_job)
+        stage_repo.save(completed_parse_catalog_stage)
+        stage_repo.save(generate_input_files_stage)
+        _seed_upstream_artifacts(
+            artifact_store, artifact_metadata_repo, uuid_generator
+        )
+
+        hint = StoreHint(
+            namespace="input-files",
+            label="omnia-configs",
+            tags={"job_id": VALID_JOB_ID},
+        )
+        existing_ref = artifact_store.store(
+            hint=hint,
+            kind=ArtifactKind.ARCHIVE,
+            file_map={"test.json": b'{"test": "data"}'},
+            content_type="application/zip",
+        )
+        existing_record = ArtifactRecord(
+            id=str(uuid_generator.generate()),
+            job_id=JobId(VALID_JOB_ID),
+            stage_name=StageName(StageType.GENERATE_INPUT_FILES.value),
+            label="omnia-configs",
+            artifact_ref=existing_ref,
+            kind=ArtifactKind.ARCHIVE,
+            content_type="application/zip",
+            tags={"job_id": VALID_JOB_ID},
+        )
+        artifact_metadata_repo.save(existing_record)
+
+        def mock_generate(input_dir, output_dir, policy_path, schema_path, **kwargs):  # pylint: disable=unused-argument
+            arch_dir = os.path.join(output_dir, "x86_64", "rhel", "9.5")
+            os.makedirs(arch_dir, exist_ok=True)
+            with open(
+                os.path.join(arch_dir, "config.json"), "w", encoding="utf-8"
+            ) as f:
+                json.dump({"config": "new"}, f)
+
+        policy_file = tmp_path / "policy.json"
+        policy_file.write_text(json.dumps({"targets": {}}))
+        schema_file = tmp_path / "schema.json"
+        schema_file.write_text(json.dumps({}))
+
+        uc = _build_use_case(
+            job_repo, stage_repo, audit_repo,
+            artifact_store, artifact_metadata_repo, uuid_generator,
+            default_policy_path=SafePath(policy_file),
+            policy_schema_path=SafePath(schema_file),
+        )
+
+        with patch(
+            "orchestrator.catalog.use_cases.generate_input_files"
+            ".generate_configs_from_policy",
+            side_effect=mock_generate,
+        ):
+            result = uc.execute(_make_command())
+
+        # Should succeed and return the existing artifact
+        assert result.stage_state == "COMPLETED"
+        assert result.configs_ref.key == existing_ref.key
+
+        # Stage should be COMPLETED
+        stage = stage_repo.find_by_job_and_name(
+            JobId(VALID_JOB_ID), StageName(StageType.GENERATE_INPUT_FILES.value)
+        )
+        assert stage.stage_state == StageState.COMPLETED
+
+        # Should still have only one artifact record (the existing one)
+        record = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id=JobId(VALID_JOB_ID),
+            stage_name=StageName(StageType.GENERATE_INPUT_FILES.value),
+            label="omnia-configs",
+        )
+        assert record is not None
+        assert record.id == existing_record.id
+
+    def test_stage_already_completed_prevents_rerun(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self,
+        job_repo,
+        stage_repo,
+        audit_repo,
+        artifact_store,
+        artifact_metadata_repo,
+        uuid_generator,
+        in_progress_job,
+        completed_parse_catalog_stage,
+        generate_input_files_stage,
+    ) -> None:
+        """Stage guard should prevent execution if stage already COMPLETED."""
+        generate_input_files_stage.start()
+        generate_input_files_stage.complete()
+
+        job_repo.save(in_progress_job)
+        stage_repo.save(completed_parse_catalog_stage)
+        stage_repo.save(generate_input_files_stage)
+
+        uc = _build_use_case(
+            job_repo,
+            stage_repo,
+            audit_repo,
+            artifact_store,
+            artifact_metadata_repo,
+            uuid_generator,
+        )
+
+        with pytest.raises(StageAlreadyCompletedError) as exc_info:
+            uc.execute(_make_command())
+
+        assert "generate-input-files" in str(exc_info.value)
+        assert VALID_JOB_ID in str(exc_info.value)

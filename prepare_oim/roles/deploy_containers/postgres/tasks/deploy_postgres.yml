@@ -55,10 +55,6 @@
     share_option: "{{ metadata_content.stdout | regex_search('omnia_share_option:\\s*(\\S+)', '\\1') | first | default('') }}"
     nfs_type: "{{ metadata_content.stdout | regex_search('nfs_type:\\s*(\\S+)', '\\1') | first | default('') }}"
 
-- name: Set SELinux option for volume mounts
-  ansible.builtin.set_fact:
-    selinux_option: "{{ ':z' if (share_option != 'NFS' or nfs_type | default('') != 'external') else '' }}"
-
 # Create required directories
 - name: Create data directory for omnia_postgres
   ansible.builtin.file:

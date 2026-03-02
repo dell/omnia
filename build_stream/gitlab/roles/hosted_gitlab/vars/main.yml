@@ -145,6 +145,10 @@ gitlab_pipeline_bs_variables:
     value: "{{ _gitlab_bs_auth_password | default('') }}"
     variable_type: "env_var"
     masked: true
+  - key: "BSM_API_CERT"
+    value: "{{ _gitlab_bs_api_cert | default('') }}"
+    variable_type: "env_var"
+    masked: false
 
 gitlab_bs_not_enabled_fail_msg: >
   enable_build_stream is not set to true in build_stream_config.yml.
@@ -199,6 +203,7 @@ gitlab_ca_export_msg:
 
 # OIM API Server Configuration
 oim_api_verify_ssl: true
+gitlab_bs_cert_path: "/opt/omnia/build_stream_ssl/ssl/bs_cert.pem"
 
 gitlab_deployment_complete_msg:
   - "============================================"

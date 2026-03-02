@@ -440,7 +440,7 @@ async def delete_job(
             end_section=True,
         )
         remove_job_logger(job_id)
-                cancelled_count += 1
+        cancelled_count += 1
 
         log_secure_info(
             "info",

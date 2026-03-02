@@ -65,14 +65,6 @@
     postgres_db_name: "{{ hostvars['localhost']['postgres_db_name'] }}"
   no_log: true
 
-- name: Set SELinux option for volume mounts
-  ansible.builtin.set_fact:
-    selinux_option: >-
-      {{ ':z'
-         if (share_option | trim != 'NFS' or nfs_type | trim != 'external')
-         else '' }}
-  changed_when: false
-
 # -------------------------------------------------------------------
 # 2) Set build_stream_host_ip from config or fallback to admin_ip
 # -------------------------------------------------------------------
