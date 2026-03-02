@@ -40,9 +40,12 @@ arg_list:
   - "-e PULP_API_WORKERS_MAX_REQUESTS_JITTER=50"
 pulp_deployed_msg: "The {{ pulp_container_name }} container has been successfully deployed."
 pulp_deployed_fail_msg:
-  The deployment of the {{ pulp_container_name }} container has failed. To resolve this issue,
-  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
-  After the cleanup, you can re-run the original playbook to deploy the {{ pulp_container_name }} container successfully.
+  "The {{ pulp_container_name }} container deployment failed. Common causes:
+  • Missing or inaccessible pulp container image
+  • Pulp service not starting successfully
+  • NFS storage not reachable or not mounted
+  Run utility/oim_cleanup.yml to cleanup, then re-run the playbook to deploy the {{ pulp_container_name }}
+  container successfully."
 retries_var: 8
 delay_var: 30
 delay_var_sixty: 30

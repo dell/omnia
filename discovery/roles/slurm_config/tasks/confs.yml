@@ -15,7 +15,7 @@
 - name: Slurm dict ops
   ansible.builtin.set_fact:
     apply_config: "{{ __default_config }}"
-  no_log: true
+  no_log: "{{ _no_log }}"
 
 - name: Remove keys from conf_files if they have string values in configs_input (when skip_merge is true)
   ansible.builtin.set_fact:
@@ -23,6 +23,121 @@
   when:
     - skip_merge | default(false)
     - configs_input is defined
+
+- name: Initialize node_params collection
+  ansible.builtin.set_fact:
+    node_params: []
+
+- name: Set discovery mode and get groups with specs
+  ansible.builtin.set_fact:
+    discovery_mode: "{{ (slurm_cluster[0].node_discovery_mode | default('heterogeneous')) | lower }}"
+    groups_with_specs: "{{ slurm_cluster[0].node_hardware_defaults | default({}) | list }}"
+
+- name: DEBUG - Show discovery configuration
+  ansible.builtin.debug:
+    msg:
+      - "Discovery Mode: {{ discovery_mode }}"
+      - "Groups with specs: {{ groups_with_specs }}"
+      - "Total compute nodes: {{ cmpt_list | length }}"
+      - "Node-to-hardware-group mapping: {{ name_hardware_group_map }}"
+
+- name: Categorize nodes for processing (homogeneous mode)
+  ansible.builtin.set_fact:
+    homogeneous_nodes: []
+    sample_idrac_groups: {}
+  when: discovery_mode == 'homogeneous'
+
+- name: DEBUG - Show node group checking details
+  ansible.builtin.debug:
+    msg:
+      - "Node: {{ item }}"
+      - "Hardware Group: {{ name_hardware_group_map.get(item, 'NOT_FOUND') }}"
+      - "Groups with specs: {{ groups_with_specs }}"
+      - "Is in specs: {{ name_hardware_group_map.get(item, '') in groups_with_specs }}"
+  loop: "{{ cmpt_list }}"
+  when:
+    - discovery_mode == 'homogeneous'
+    - name_hardware_group_map | length > 0
+
+- name: Build homogeneous nodes list (groups with specs)
+  ansible.builtin.set_fact:
+    homogeneous_nodes: >-
+      {{
+        homogeneous_nodes + [item]
+        if (name_hardware_group_map.get(item, '') in groups_with_specs)
+        else homogeneous_nodes
+      }}
+  loop: "{{ cmpt_list }}"
+  when:
+    - discovery_mode == 'homogeneous'
+    - name_hardware_group_map | length > 0
+
+- name: DEBUG - Show homogeneous nodes categorization
+  ansible.builtin.debug:
+    msg:
+      - "Homogeneous nodes (with user specs): {{ homogeneous_nodes | default([]) }}"
+      - "Nodes count: {{ homogeneous_nodes | default([]) | length }}"
+      - "Will process homogeneous task: {{ (discovery_mode == 'homogeneous' and homogeneous_nodes | length > 0) }}"
+  when: discovery_mode == 'homogeneous'
+
+- name: DEBUG - About to process homogeneous nodes
+  ansible.builtin.debug:
+    msg: "Processing {{ homogeneous_nodes | length }} nodes with user specs: {{ homogeneous_nodes }}"
+  when:
+    - discovery_mode == 'homogeneous'
+    - homogeneous_nodes | length > 0
+
+- name: Process homogeneous groups with user specs (no iDRAC)
+  ansible.builtin.include_tasks: read_node_homogeneous.yml
+  loop: "{{ homogeneous_nodes }}"
+  loop_control:
+    loop_var: item
+  when:
+    - discovery_mode == 'homogeneous'
+    - homogeneous_nodes | length > 0
+
+- name: Build sample iDRAC groups mapping (groups without specs)
+  ansible.builtin.set_fact:
+    sample_idrac_groups: >-
+      {{
+        sample_idrac_groups | default({}) |
+        combine({
+          name_hardware_group_map.get(item, ''): sample_idrac_groups.get(name_hardware_group_map.get(item, ''), []) + [item]
+        })
+      }}
+  loop: "{{ cmpt_list }}"
+  when:
+    - discovery_mode == 'homogeneous'
+    - name_hardware_group_map | length > 0
+    - name_hardware_group_map.get(item, '') not in groups_with_specs
+
+- name: Process homogeneous groups with user specs (no iDRAC)
+  ansible.builtin.include_tasks: read_node_homogeneous.yml
+  loop: "{{ homogeneous_nodes }}"
+  when:
+    - discovery_mode == 'homogeneous'
+    - homogeneous_nodes | length > 0
+
+- name: Process homogeneous groups without specs (group iDRAC)
+  ansible.builtin.include_tasks: read_node_idrac_group.yml
+  loop: "{{ sample_idrac_groups | dict2items }}"
+  loop_control:
+    loop_var: group_item
+  when:
+    - discovery_mode == 'homogeneous'
+    - sample_idrac_groups | default({}) | length > 0
+
+- name: Process heterogeneous nodes (individual iDRAC)
+  ansible.builtin.include_tasks: read_node_idrac.yml
+  loop: "{{ cmpt_list }}"
+  when:
+    - discovery_mode == 'heterogeneous'
+
+- name: DEBUG - Show final node_params before building slurm.conf
+  ansible.builtin.debug:
+    msg:
+      - "Total node_params entries: {{ node_params | length }}"
+      - "node_params: {{ node_params }}"
 
 - name: Build slurm.conf
   ansible.builtin.include_tasks: build_slurm_conf.yml
@@ -34,7 +149,7 @@
      | combine({'slurmdbd': (apply_config['slurmdbd']
      | combine({'DbdHost': ctld_list[0], 'StorageHost': ctld_list[0]}))}) }}"
   when: ctld_list
-  no_log: true
+  no_log: "{{ _no_log }}"
 
 - name: Check .conf files existence
   ansible.builtin.stat:
@@ -51,7 +166,7 @@
   delegate_to: localhost
   loop: "{{ configs_input | default({}) | dict2items }}"
   register: parsed_configs_input_results
-  no_log: true
+  no_log: "{{ _no_log }}"
   when:
     - configs_input is defined
     - configs_input
@@ -62,7 +177,7 @@
   ansible.builtin.set_fact:
     parsed_configs_input: "{{ parsed_configs_input | default({}) | combine({item.item.key: item.conf_dict}) }}"
   loop: "{{ parsed_configs_input_results.results }}"
-  no_log: true
+  no_log: "{{ _no_log }}"
   when:
     - parsed_configs_input_results is defined
     - not item.skipped | default(false)
@@ -71,7 +186,7 @@
   ansible.builtin.set_fact:
     parsed_configs_input: "{{ parsed_configs_input | default({}) | combine({item.key: item.value}) }}"
   loop: "{{ configs_input | default({}) | dict2items }}"
-  no_log: true
+  no_log: "{{ _no_log }}"
   when:
     - configs_input is defined
     - configs_input
@@ -83,8 +198,8 @@
         conf_merge_dict | default({})
         | combine({
             existing_conf_set.item.1: (
-              [apply_config[existing_conf_set.item.1]]
-              + ([existing_conf_set.stat.path] if existing_conf_set.stat.exists else [])
+              ([existing_conf_set.stat.path] if existing_conf_set.stat.exists else [])
+              + [apply_config[existing_conf_set.item.1]]
               + ([parsed_configs_input.get(existing_conf_set.item.1)]
                if parsed_configs_input is defined and parsed_configs_input.get(existing_conf_set.item.1) else [])
             )
@@ -94,7 +209,7 @@
   loop_control:
     loop_var: existing_conf_set
   register: prepared_conf_lists
-  no_log: true
+  no_log: "{{ _no_log }}"
 
 # All the updates to the confs follow after this point before merge
 - name: Prepend ClusterName and SlurmctldHost to slurm conf sources
@@ -102,14 +217,14 @@
     conf_merge_dict: "{{ conf_merge_dict
      | combine({'slurm': [{'ClusterName': cluster_name, 'AccountingStorageHost': dbd_list[0], 'SlurmctldHost': ctld_list}] + conf_merge_dict['slurm']}) }}"
   when: "'slurm' in conf_merge_dict"
-  no_log: true
+  no_log: "{{ _no_log }}"
 
 - name: Slurm dbd - DbdHost and StorageHost
   ansible.builtin.set_fact:
     conf_merge_dict: "{{ conf_merge_dict
      | combine({'slurmdbd': [{'DbdHost': ctld_list[0], 'StorageHost': ctld_list[0]}] + conf_merge_dict['slurmdbd']}) }}"
   when: "'slurmdbd' in conf_merge_dict"
-  no_log: true
+  no_log: "{{ _no_log }}"
 
 - name: Merge the confs
   slurm_conf:
@@ -118,7 +233,7 @@
     conf_name: "{{ item.key }}"
   loop: "{{ conf_merge_dict | dict2items }}"
   register: merged_conf
-  no_log: true
+  no_log: "{{ _no_log }}"
 
 - name: Update slurm_conf_dict with merged configuration for cloud_init read. # TODO: Remove cloud init dependency
   ansible.builtin.set_fact:
@@ -145,6 +260,66 @@
     - "'slurm' in conf_merge_dict"
     - normal_partition is defined
     - normal_partition | length > 0
+
+- name: Detect busy nodes
+  ansible.builtin.include_tasks: detect_busy_nodes.yml
+  loop: "{{ nodes_in_normal_not_in_cmpt }}"
+  loop_control:
+    loop_var: node_to_remove
+  when:
+    - not force_scancel_node
+    - "'slurm' in conf_merge_dict"
+    - nodes_in_normal_not_in_cmpt is defined
+    - nodes_in_normal_not_in_cmpt | length > 0
+
+- name: Prompt for user input when jobs are running
+  ansible.builtin.pause:
+    prompt: |
+      ================================================================================
+      WARNING: ACTIVE JOBS DETECTED ON THE FOLLOWING NODES
+      ================================================================================
+
+      Busy Nodes:
+      {% for node, jobs in busy_nodes.items() %}
+        - {{ node }}: {{ jobs }} running job(s)
+      {% endfor %}
+
+      These nodes has active running jobs.
+      All other nodes without jobs will be removed.
+
+      To view job details, run:
+      {% for node in busy_nodes.keys() %}
+        squeue -w {{ node }}
+      {% endfor %}
+
+      Available Options:
+        A. ABORT (Recommended)
+            - Remove the IDLE nodes from the cluster and abort this playbook
+            - Manually cancel jobs or wait for them to complete
+            - Then re-run this playbook to remove these nodes
+
+        F. FORCE REMOVAL (Destructive)
+            - All running jobs will be forcefully terminated
+            - Users will lose any unsaved work
+
+      ================================================================================
+      Enter 'A' to abort, or 'F' to force remove:
+  register: user_input
+  until: user_input.user_input | default('') | trim | upper in ['A', 'F']
+  retries: 10
+  delay: 1
+  when:
+    - busy_nodes is defined
+    - busy_nodes | length > 0
+    - not force_scancel_node
+
+- name: Remove busy_nodes from nodes_in_normal_not_in_cmpt
+  ansible.builtin.set_fact:
+    nodes_in_normal_not_in_cmpt: "{{ nodes_in_normal_not_in_cmpt | difference(busy_nodes.keys() | list) }}"
+  when:
+    - busy_nodes is defined
+    - busy_nodes | length > 0
+    - user_input.user_input | default('') | trim | upper == 'A'
 
 - name: Remove nodes
   ansible.builtin.include_tasks: remove_node.yml
@@ -182,7 +357,7 @@
     remote_src: "{{ copy_from_oim }}"
   loop: "{{ merged_conf.results }}"
   register: ctld_conf_files
-  no_log: true
+  no_log: "{{ _no_log }}"
   when:
     - item.ini_lines
 
@@ -195,6 +370,9 @@
   loop_control:
     loop_var: extra_conf
 
+- name: Backup Slurm configuration files when changed
+  ansible.builtin.include_tasks: backup_conf.yml
+
 - name: Check if cluster running
   ansible.builtin.include_tasks: check_ctld_running.yml
   when:
@@ -203,3 +381,31 @@
   loop: "{{ ctld_list }}"
   loop_control:
     loop_var: ctld
+
+- name: Handle user choice - ABORT
+  ansible.builtin.fail:
+    msg: |
+      ================================================================================
+      PLAYBOOK ABORTED BY USER
+      ================================================================================
+
+      You chose to abort the playbook (Option A).
+
+      Next Steps:
+        1. Cancel running jobs manually:
+      {% for node in busy_nodes.keys() %}
+           scancel -w {{ node }}
+      {% endfor %}
+
+        2. Or wait for jobs to complete naturally
+
+        3. Re-run this playbook to remove the nodes
+
+      Idle nodes (if any) have already been removed from the cluster.
+
+      ================================================================================
+  when:
+    - busy_nodes is defined
+    - busy_nodes | length > 0
+    - not force_scancel_node
+    - user_input.user_input | default('') | trim | upper in ['A']

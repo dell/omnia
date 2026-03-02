@@ -1,4 +1,4 @@
-#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -40,6 +40,99 @@
      | selectattr('ProcessorType', 'equalto', 'GPU')
      | selectattr('Manufacturer', 'defined')
      | selectattr('Manufacturer', 'search', '(?i)nvidia') | list }}" # TODO: other GPUs also
+
+- name: Fallback - Read PCIe Devices for GPU detection (when no GPUs found via Processors)
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip_map[item] }}/redfish/v1/Chassis/System.Embedded.1/PCIeDevices"
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code:
+      - 200
+  register: pcie_devices
+  failed_when: false
+  when: gpus | length == 0
+
+- name: Debug - Show PCIe devices structure
+  ansible.builtin.debug:
+    var: pcie_devices.json.Members
+  when: gpus | length == 0 and pcie_devices.json.Members is defined
+
+- name: Fallback - Extract PCIe device URLs
+  ansible.builtin.set_fact:
+    pcie_device_urls: "{{ pcie_devices.json.Members | default([]) | json_query('[*].\"@odata.id\"') }}"
+  when: gpus | length == 0
+
+- name: Fallback - Get PCIe Device details for GPU detection
+  ansible.builtin.uri:
+    url: "https://{{ bmc_ip_map[item.0] }}{{ item.1 }}"
+    user: "{{ bmc_username }}"
+    password: "{{ bmc_password }}"
+    method: GET
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+    body_format: json
+    timeout: 60
+    headers:
+      Accept: "application/json"
+      Content-Type: "application/json"
+      OData-Version: "4.0"
+    status_code:
+      - 200
+  register: pcie_device_details
+  with_nested:
+    - ["{{ item }}"]
+    - "{{ pcie_device_urls | default([]) }}"
+  loop_control:
+    label: "{{ item.1 }}"
+  failed_when: false
+  when: gpus | length == 0 and pcie_device_urls is defined and pcie_device_urls | length > 0
+
+- name: Fallback - Detect GPUs from PCIe devices
+  ansible.builtin.set_fact:
+    fallback_gpus: "{{ pcie_device_details.results | default([])
+      | selectattr('json', 'defined')
+      | map(attribute='json')
+      | selectattr('ClassCode', 'defined')
+      | selectattr('VendorId', 'defined')
+      | selectattr('ClassCode', 'equalto', '0x0300') | list }}"
+  when: gpus | length == 0
+
+- name: Fallback - Detect GPUs from PCIe devices (additional criteria)
+  ansible.builtin.set_fact:
+    fallback_gpus_additional: "{{ pcie_device_details.results | default([])
+      | selectattr('json', 'defined')
+      | map(attribute='json')
+      | selectattr('ClassCode', 'defined')
+      | selectattr('VendorId', 'defined')
+      | selectattr('ClassCode', 'equalto', '0x0302') | list }}"
+  when: gpus | length == 0 and fallback_gpus | default([]) | length == 0
+
+- name: Fallback - Detect GPUs from Manufacturer/Name (NVIDIA only)
+  ansible.builtin.set_fact:
+    fallback_gpus_manufacturer: "{{ pcie_device_details.results | default([])
+      | selectattr('json', 'defined')
+      | map(attribute='json')
+      | selectattr('Manufacturer', 'defined')
+      | selectattr('Name', 'defined')
+      | selectattr('Manufacturer', 'search', '(?i)NVIDIA')
+      | selectattr('Name', 'search', '(?i)GPU|RTX|TESLA|A100|H100|L40|GB') | list }}"
+  when: gpus | length == 0 and fallback_gpus | default([]) | length == 0 and fallback_gpus_additional | default([]) | length == 0
+
+- name: Fallback - Update GPUs list if PCIe detection found GPUs
+  ansible.builtin.set_fact:
+    gpus: "{{ (fallback_gpus | default([])) or (fallback_gpus_additional | default([])) or (fallback_gpus_manufacturer | default([])) }}"
+  when: gpus | length == 0
 
 
 - name: Read Memory NodeParams

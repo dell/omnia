@@ -184,6 +184,10 @@ LDMS_REQUIRES_SERVICE_K8S_MSG = (
 LDMS_REQUIRES_SLURM_MSG = (
     "requires Slurm package 'slurm_custom' to be present in the 'softwares' list in software_config.json."
 )
+USER_REPO_NAME_PREFIX_FAIL_MSG = (
+    "Repository name '{repo_name}' in {repo_key} must start with '{expected_prefix}'. "
+    "Please update the name to '{expected_prefix}{repo_name}'."
+)
 
 # omnia_config.yml
 INVALID_PASSWORD_MSG = ("Provided password is invalid. Password must meet the specified "
@@ -402,6 +406,8 @@ BMC_VIRTUAL_IP_NOT_VALID = ("should be outside any bmc static and dynamic ranges
                             "roles_config.yml")
 FEILD_MUST_BE_EMPTY = "feild must be empty."
 DUPLICATE_VIRTUAL_IP = "is already used. Please give unique virtual ip address"
+VIRTUAL_IP_SAME_AS_PRIMARY_OIM_ADMIN_IP = ("virtual_ip_address provided in high_availability_config.yml must not be the same as primary_oim_admin_ip in network_spec.yml. "
+                                           "Please provide a different virtual IP address.")
 INVALID_PASSIVE_NODE_SERVICE_TAG = "active node and passive node service tag cannot be same."
 GROUP_NOT_FOUND = "is not defined in the roles_config.yml. Please define the group in roles_config.yml"
 ROLE_NODE_FOUND = "is not defined in roles_config.yml. Please define the role in roles_config.yml"

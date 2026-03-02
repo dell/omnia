@@ -81,3 +81,23 @@ oim_timezone_changed_warning_msg: |
   inconsistent behavior.
 
 oim_metadata_file_path: "/opt/omnia/.data/oim_metadata.yml"
+
+# Usage: validate_openldap_container.yml
+openldap_container_missing_msg: "{{ '\x1b[31m' }}\
+  ==================================================================================\n\
+  ERROR: OpenLDAP container is not running.\n\
+  ==================================================================================\n\
+  \n\
+  OpenLDAP support is enabled but the OpenLDAP container was not found.\n\
+  This typically happens when prepare_oim.yml was run without the OpenLDAP\n\
+  package in software_config.json.\n\
+  \n\
+  To resolve this issue:\n\
+  1. Ensure the 'openldap' package is added to software_config.json\n\
+  2. Re-run prepare_oim.yml to start the OpenLDAP container and generate certificates\n\
+  3. Run local_repo.yml to download OpenLDAP packages\n\
+  4. Then re-run discovery.yml\n\
+  \n\
+  For more information, refer to the Omnia documentation on OpenLDAP configuration.\n\
+  ==================================================================================\
+  {{ '\x1b[0m' }}"

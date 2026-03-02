@@ -36,6 +36,42 @@
 # It accepts true and false values
 # Default value is false
 
+# node_discovery_mode
+# Controls how hardware specifications are discovered for Slurm compute nodes
+# Options: "heterogeneous" or "homogeneous"
+# - heterogeneous: Discovers each node individually via iDRAC (1 call per node)
+#   Best for: Mixed hardware environments with different node configurations
+# - homogeneous: Groups nodes by hardware type for optimized discovery
+#   Best for: Standardized hardware groups (grp0-grp100 in pxe_mapping_file.csv)
+#   Performance: 0 iDRAC calls (with specs) or 1 call per group (without specs)
+# Default value is heterogeneous
+
+# node_hardware_defaults
+# Optional: Pre-define hardware specifications for homogeneous node groups
+# Only used when node_discovery_mode is set to "homogeneous"
+# Key: GROUP_NAME from pxe_mapping_file.csv (e.g., grp0, grp1, grp2, etc.)
+# Value: Hardware specifications for all nodes in that group
+#   - sockets: Number of CPU sockets per node (integer, minimum 1)
+#   - cores_per_socket: Number of CPU cores per socket (integer, minimum 1)
+#   - threads_per_core: Number of CPU threads per core (integer, minimum 1)
+#   - real_memory: Memory in MB (integer, minimum 1)
+#   - gres: Optional GPU resources in format "gpu:N" (e.g., "gpu:4")
+# If a group is not listed here, one node from that group will be discovered via iDRAC
+# and the specs will be applied to all nodes in the group
+# Example:
+#   node_hardware_defaults:
+#     grp1:
+#       sockets: 2
+#       cores_per_socket: 64
+#       threads_per_core: 2
+#       real_memory: 512000
+#       gres: "gpu:4"
+#     grp2:
+#       sockets: 2
+#       cores_per_socket: 32
+#       threads_per_core: 2
+#       real_memory: 256000
+
 # config_sources
 # defines how the Slurm configuration files are provided to the cluster.
 # <conf name>: 
@@ -60,6 +96,24 @@ slurm_cluster:
   - cluster_name: slurm_cluster
     nfs_storage_name: nfs_slurm
     # skip_merge: true
+    
+    # Uncomment to enable homogeneous discovery mode
+    # node_discovery_mode: "homogeneous"
+    
+    # Uncomment to provide hardware specs for homogeneous groups
+    # node_hardware_defaults:
+    #   grp1:
+    #     sockets: 2
+    #     cores_per_socket: 64
+    #     threads_per_core: 2
+    #     real_memory: 512000
+    #     gres: "gpu:4"
+    #   grp2:
+    #     sockets: 2
+    #     cores_per_socket: 32
+    #     threads_per_core: 2
+    #     real_memory: 256000
+    
     # config_sources:
     #   slurm:
     #     SlurmctldTimeout: 60

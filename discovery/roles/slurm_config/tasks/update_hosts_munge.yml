@@ -12,77 +12,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Update /etc/hosts with controller hostname and IP
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    regexp: '^{{ host_entry.value }}\s+{{ host_entry.key }}'
-    line: "{{ host_entry.value }} {{ host_entry.key }}"
-    state: present
-  loop: "{{ ip_name_map | dict2items | list }}"
-  loop_control:
-    loop_var: host_entry
+- name: Edit /etc/hosts file till DNS
   ignore_unreachable: true
-  failed_when: false
   delegate_to: "{{ slurmhost_ip }}"
+  block:
+    - name: Remove deleted nodes if any hostname exists in /etc/hosts
+      ansible.builtin.lineinfile:
+        path: "/etc/hosts"
+        regexp: '(\b{{ node_to_remove }}\b)'
+        state: absent
+      loop: "{{ nodes_in_normal_not_in_cmpt }}"
+      loop_control:
+        loop_var: node_to_remove
+      when:
+        - nodes_in_normal_not_in_cmpt is defined
+        - nodes_in_normal_not_in_cmpt | length > 0
+
+    - name: Remove existing /etc/hosts entries containing the IP or hostname
+      ansible.builtin.lineinfile:
+        path: "/etc/hosts"
+        regexp: '(\b{{ host_entry.value }}\b|\b{{ host_entry.key }}\b)'
+        state: absent
+      loop: "{{ ip_name_map | dict2items | list }}"
+      loop_control:
+        loop_var: host_entry
+
+    - name: Add correct /etc/hosts entry for controller hostname and IP
+      ansible.builtin.lineinfile:
+        path: "/etc/hosts"
+        line: "{{ host_entry.value }} {{ host_entry.key }}"
+        state: present
+        mode: '0644'
+        create: true
+      loop: "{{ ip_name_map | dict2items | list }}"
+      loop_control:
+        loop_var: host_entry
+  rescue:
+    - name: Print error if editing /etc/hosts fails
+      ansible.builtin.debug:
+        msg: "Failed to edit /etc/hosts file on {{ slurmhost_ip }}"
 
 - name: Get munge changes
   ansible.builtin.set_fact:
     munge_key_changed: "{{ munge_key_copy.results | default([]) | rekey_on_member('item') }}"
   when: munge_key_copy is defined
 
-# TODO: Clean unreachable handling
 - name: Block when munge key changed
+  ansible.builtin.debug:
+    msg: "Munge key updates detected on NFS for {{ slurmhost_ip }}\n.
+     Please restart munge service on {{ slurmhost_ip }} followed by the dependent slurm services on them\n."
   when:
     - munge_key_changed is defined
     - munge_key_changed[name_ip_map[slurmhost_ip]]['changed'] | default(false)
     - restart_slurm_services
-  delegate_to: "{{ slurmhost_ip }}"
+  no_log: "{{ _no_log }}"
   ignore_unreachable: true
-  block:
-    - name: Update munge key permissions
-      ansible.builtin.file:
-        path: /etc/munge/munge.key
-        owner: munge
-        group: munge
-        mode: '0600'
-      register: munge_key_permissions_result
-
-    - name: Restart munge service if key changed
-      ansible.builtin.service:
-        name: munge
-        state: restarted
-      register: munge_restart_result
-      when:
-        - munge_key_permissions_result is defined
-        - munge_key_permissions_result is success
-
-    - name: Restart slurmctld if munge restarted
-      ansible.builtin.service:
-        name: slurmctld
-        state: restarted
-      when:
-        - name_ip_map[slurmhost_ip] in ctld_list
-        - munge_restart_result is defined
-        - munge_restart_result is success
-
-    - name: Restart slurmd if munge restarted
-      ansible.builtin.service:
-        name: slurmd
-        state: restarted
-      when:
-        - name_ip_map[slurmhost_ip] in (cmpt_list + login_list + compiler_login_list)
-        - munge_restart_result is defined
-        - munge_restart_result is success
-
-    - name: Restart slurmdbd if munge restarted
-      ansible.builtin.service:
-        name: slurmdbd
-        state: restarted
-      when:
-        - name_ip_map[slurmhost_ip] in dbd_list
-        - munge_restart_result is defined
-        - munge_restart_result is success
-  rescue:
-    - name: Handle munge restart failure
-      ansible.builtin.debug:
-        msg: "Failed task {{ ansible_failed_task.name }} on {{ slurmhost_ip }}"

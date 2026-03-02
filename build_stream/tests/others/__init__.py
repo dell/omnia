@@ -11,8 +11,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-storage_config_path: "/opt/omnia/input/project_default/storage_config.yml"
-storage_content: "{{ lookup('file', storage_config_path, errors='ignore') | default('') }}"
-storage_yaml: "{{ storage_content | from_yaml | default({}) }}"
-nfs_params: "{{ storage_yaml.nfs_client_params | default([]) }}"
+
+"""Other tests that don't fit into specific categories."""

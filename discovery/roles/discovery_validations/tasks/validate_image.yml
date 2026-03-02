@@ -26,7 +26,7 @@
   ansible.builtin.shell: |
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
-    grep {{ functional_group_name }}{% if enable_build_stream and (build_stream_job_id | default('') != '') %}-{{ build_stream_job_id }}{% endif %} | \
+    grep {{ functional_group_name }}{% if enable_build_stream and (compute_image_suffix | default('') != '') %}_{{ compute_image_suffix }}{% endif %} | \
     grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false

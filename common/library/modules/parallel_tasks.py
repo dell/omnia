@@ -106,7 +106,7 @@ def update_status_csv(csv_dir, software, overall_status,slogger):
 
     # Transform the new status.
     transformed_status = re.sub(r'failure', 'failed', overall_status.lower())
-    transformed_status = re.sub(r'partial', 'failed', overall_status.lower())
+    transformed_status = re.sub(r'timeout', 'failed', transformed_status)
 
     # Update or add the entry for each given software.
     if isinstance(software, list):

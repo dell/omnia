@@ -19,40 +19,87 @@
     idrac_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
     validate_certs: false
   register: lc_check_status
+  ignore_errors: true
+
+- name: Set reboot type
+  ansible.builtin.set_fact:
+    reboot_type: "{{ 'ForceRestart' if force_restart else 'GracefulRestart' }}"
+
+- name: IDRAC ops when ready
+  when:
+    - lc_check_status is success
+    - lc_check_status.lc_status_info.LCReady
+  block:
+    - name: Set boot from pxe
+      dellemc.openmanage.idrac_boot:
+        idrac_ip: "{{ inventory_hostname }}"
+        idrac_user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
+        idrac_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+        validate_certs: false
+        boot_source_override_mode: uefi
+        boot_source_override_target: "{{ boot_source_override_target }}"
+        boot_source_override_enabled: "{{ boot_source_override_enabled }}"
+        reset_type: "none" # Dont Restart here as to Handle poweroff case
+      register: pxe_provisioning
+      ignore_errors: true
+      ignore_unreachable: true
+
+    - name: Try ForceRestart
+      dellemc.openmanage.redfish_powerstate:
+        baseuri: "{{ inventory_hostname }}"
+        username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
+        password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+        validate_certs: false
+        reset_type: ForceRestart
+      when: restart_host
+      register: restart_op
+      failed_when: false
+
+    - name: Try On if ForceRestart did not change
+      dellemc.openmanage.redfish_powerstate:
+        baseuri: "{{ inventory_hostname }}"
+        username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
+        password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
+        validate_certs: false
+        reset_type: "On"
+      register: power_on_op
+      failed_when: false
+      when:
+        - restart_host
+        - not (restart_op is changed)
 
 - name: Check LC availibility
   ansible.builtin.fail:
     msg: "{{ lc_check_fail_msg }}"
-  when: not lc_check_status.lc_status_info.LCReady
+  when: lc_check_status is failed or not (lc_check_status.lc_status_info.LCReady | default(false))
 
-- name: Set reboot type
-  ansible.builtin.set_fact:
-    reboot_type: "{{ 'none' if not restart_host else ('force_restart' if force_restart else 'graceful_restart') }}"
-
-- name: Set boot from pxe
-  dellemc.openmanage.idrac_boot:
-    idrac_ip: "{{ inventory_hostname }}"
-    idrac_user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
-    idrac_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
-    validate_certs: false
-    boot_source_override_mode: uefi
-    boot_source_override_target: "{{ boot_source_override_target }}"
-    boot_source_override_enabled: "{{ boot_source_override_enabled }}"
-    reset_type: "{{ reboot_type }}"
-  register: pxe_provisioning
-  ignore_errors: true
-  ignore_unreachable: true
-
-- name: OS provisioning failed using PXE
+- name: Fail if PXE provisioning failed
   ansible.builtin.fail:
     msg: "{{ pxe_provisioning_fail_msg }}"
-  when: pxe_provisioning is failed
+  when:
+    - pxe_provisioning is defined
+    - pxe_provisioning is failed
 
-- name: IDRAC might be unreachable during OS provisioning
-  ansible.builtin.debug:
+- name: Fail if PXE provisioning target is unreachable
+  ansible.builtin.fail:
     msg: "{{ unreachable_idrac_msg }}"
-  when: pxe_provisioning is unreachable
+  when:
+    - pxe_provisioning is defined
+    - pxe_provisioning is unreachable
 
-- name: Provision OS status
+- name: Fail if power operation failed
+  ansible.builtin.fail:
+    msg: "Power operation failed on {{ inventory_hostname }}. Failed to restart server."
+  when:
+    - restart_host
+    - not (restart_op is defined and restart_op is changed)
+    - not (power_on_op is defined and power_on_op is changed)
+
+- name: Summarize PXE boot and power operation results
   ansible.builtin.debug:
-    msg: "{{ provision_os_msg }}"
+    msg: >-
+      PXE Boot: {{ 'OK' if pxe_provisioning is success else ('UNREACHABLE' if pxe_provisioning is unreachable else 'FAILED') }} |
+      Power: {{ 'Restart OK' if (restart_op is defined and restart_op is changed)
+      else ('On OK' if (power_on_op is defined and power_on_op is changed)
+      else ('Skipped (no restart)' if not restart_host
+      else 'FAILED')) }}

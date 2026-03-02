@@ -527,6 +527,30 @@ def validate_netmask_bits(bits):
     except (ValueError, TypeError):
         return False
 
+def is_range_within_subnet(ip_range, reference_ip, netmask_bits):
+    """
+    Validates that the given IP range falls within the subnet
+    derived from reference_ip and netmask_bits.
+
+    Args:
+        ip_range (str): IP range in "start_ip-end_ip" format.
+        reference_ip (str): A reference IP in the subnet (e.g., primary_oim_admin_ip).
+        netmask_bits (str or int): The CIDR prefix length (e.g., "24").
+
+    Returns:
+        bool: True if both start and end IPs are within the subnet, False otherwise.
+    """
+    try:
+        network = ipaddress.IPv4Network(f"{reference_ip}/{netmask_bits}", strict=False)
+        parts = ip_range.split("-")
+        if len(parts) != 2:
+            return False
+        start_ip = ipaddress.IPv4Address(parts[0].strip())
+        end_ip = ipaddress.IPv4Address(parts[1].strip())
+        return start_ip in network and end_ip in network
+    except (ValueError, TypeError):
+        return False
+
 def check_bmc_static_range_overlap(static_range, static_range_group_mapping) -> list:
     """
     Checks if the given static BMC range overlaps with any of the ranges in other groups.
@@ -624,41 +648,6 @@ def check_port_ranges(port_ranges) -> bool:
                 return False
 
     return True
-
-def is_range_within_netmask(ip_range, netmask_bits):
-    """
-    Check if a given IP range falls within the valid IP address range for a given netmask.
-
-    Args:
-        ip_range (str): The IP range in format "start_ip-end_ip"
-            (e.g., "192.168.1.10-192.168.1.50").
-        netmask_bits (int or str): The netmask bits (e.g., 20 for /20).
-
-    Returns:
-        bool: True if the IP range is valid for the given netmask, False otherwise.
-    """
-    try:
-        # Parse the IP range
-        start_ip, end_ip = ip_range.split('-')
-        start_ip_obj = ipaddress.ip_address(start_ip)
-        end_ip_obj = ipaddress.ip_address(end_ip)
-
-        # Ensure start_ip <= end_ip
-        if start_ip_obj > end_ip_obj:
-            return False
-
-        # Create network from start_ip with the given netmask
-        network = ipaddress.ip_network(f"{start_ip}/{netmask_bits}", strict=False)
-
-        # Get first and last usable addresses (excluding network and broadcast)
-        first_usable = network.network_address + 1
-        last_usable = network.broadcast_address - 1
-
-        # Check if both start and end IPs are within the usable range
-        return (first_usable <= start_ip_obj <= last_usable and
-                first_usable <= end_ip_obj <= last_usable)
-    except (ValueError, TypeError):
-        return False
 
 def is_ip_within_range(ip_range, ip):
     """

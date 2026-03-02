@@ -11,4 +11,4 @@ TOKEN_AUTH_DISABLED=True
 {% endfor -%}
 {% set random_key = ''.join(random_key) -%}
 SECRET_KEY='{{ random_key }}'
-
+REMOTE_CONTENT_DOWNLOAD_TIMEOUT=2700

@@ -30,6 +30,12 @@
   ansible.builtin.set_fact:
     software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
 
+- name: Set support flags for credential conditions
+  ansible.builtin.set_fact:
+    csi_driver_powerscale_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'csi_driver_powerscale') | list | length > 0 }}"
+    service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+    openldap_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openldap') | list | length > 0 }}"
+
 - name: Fetch telemetry status from telemetry_config.yml
   fetch_telemetry_status:
     input_path: "{{ input_project_dir }}"

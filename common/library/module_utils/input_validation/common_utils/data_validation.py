@@ -58,6 +58,13 @@ def schema(config):
             error_bucket.append("input data reading failed.")
             return error_bucket
 
+        # Normalize case-sensitive fields for omnia_config.yml
+        if "omnia_config" in input_file_path:
+            if "slurm_cluster" in input_data:
+                for cluster in input_data["slurm_cluster"]:
+                    if "node_discovery_mode" in cluster and isinstance(cluster["node_discovery_mode"], str):
+                        cluster["node_discovery_mode"] = cluster["node_discovery_mode"].lower()
+
         # Load schema
         with open(schema_file_path, "r", encoding="utf-8") as schema_file:
             j_schema = json.load(schema_file)

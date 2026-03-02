@@ -16,16 +16,28 @@
 # PXE PREREQUISITES
 # -------------------------------------------------------------------------
 # 1. Dell iDRAC BMCs must be reachable from the Ansible controller
-# 2. PXE (Pre‑boot eXecution Environment) support – the NIC's
+# 2. The PXE order must be set in the BIOS/UEFI settings
+# 3. PXE (Pre‑boot eXecution Environment) support – the NIC's
 #    firmware must implement the PXE option and must be enabled.
-# 3. The `dellemc.openmanage` Ansible collection must be installed:
+# 4. The `dellemc.openmanage` Ansible collection must be installed:
 #       ansible-galaxy collection install dellemc.openmanage
-# 4. iDRAC firmware version must support the 'Boot Source Override'
+# 5. iDRAC firmware version must support the 'Boot Source Override'
 #    API (most modern iDRAC9/10 firmware do).
 # 5. The TFTP/NFS/HTTP server that provides the PXE
 #    boot image must be reachable by the target nodes once the iDRAC
 #    is set to PXE mode.
 # -------------------------------------------------------------------------
+- name: Validate BMC group exists in inventory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check if bmc group exists in inventory
+      ansible.builtin.fail:
+        msg: "Failed. 'bmc' group not found in inventory or has no hosts.
+         Please ensure the inventory file contains a 'bmc' group with at least one BMC IP address."
+      when: groups['bmc'] is not defined or groups['bmc'] | length | int == 0
+
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
@@ -47,11 +59,6 @@
   hosts: bmc
   connection: local
   gather_facts: false
-  pre_tasks:
-    - name: Validate bmc group
-      ansible.builtin.assert:
-        that: groups['bmc'] | length | int >= 1
-        fail_msg: "Failed. bmc group in inventory must have atleast one bmc ip."
   roles:
     - role: idrac_pxe_boot
       # vars:

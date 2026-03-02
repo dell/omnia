@@ -18,9 +18,15 @@
 #   # Repository cleanup (include architecture prefix)
 #   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_epel,aarch64_epel"
 #   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_appstream"
-#   ansible-playbook pulp_cleanup.yml -e "cleanup_containers=nginx,redis"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_containers=registry.k8s.io/pause,docker.io/library/nginx"
 #   ansible-playbook pulp_cleanup.yml -e "cleanup_files=git,chart-0.48.0"
-#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_epel -e cleanup_containers=nginx -e force=true"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_epel -e cleanup_containers=docker.io/library/nginx -e force=true"
+#
+#   # Cleanup ALL artifacts of a type:
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=all"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_containers=all"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_files=all"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=all" -e "cleanup_containers=all" -e "cleanup_files=all"
 #
 #   # Examples: x86_64_epel, aarch64_epel, x86_64_appstream, aarch64_baseos
 #   # Note: Use architecture prefix (x86_64_ or aarch64_) for repository names

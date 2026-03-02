@@ -121,12 +121,13 @@ slurm_db_cnf_mode: "0600"
 node_drain_timeout: 900
 node_drain_delay: 30
 force_scancel_node: false
+_no_log: true
 dbd_slurm_conf:
   AccountingStoragePort: "{{ slurm_dbd_port }}"
   AccountingStorageType: accounting_storage/slurmdbd
 partition_params:
   PartitionName: "{{ slurm_partition_name }}"
-  Nodes: "{{ cmpt_list | join(',') if cmpt_list else 'ALL' }}"
+  Nodes: "{{ cmpt_list | join(',') if cmpt_list else slurm_partition_name }}"
   MaxTime: "INFINITE"
   State: "UP"
   Default: "YES"

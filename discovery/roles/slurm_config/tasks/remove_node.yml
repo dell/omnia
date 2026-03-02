@@ -12,6 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Check if controller is reachable via SSH
+  ansible.builtin.wait_for:
+    host: "{{ ctld_list[0] }}"
+    port: 22 # TODO: make it configurable
+    timeout: 10
+    state: started
+  delegate_to: localhost
+  register: ssh_check
+  ignore_errors: true
+
+- name: Drain and remove nodes if any
+  ansible.builtin.include_tasks: drain_and_remove_node.yml
+  loop: "{{ nodes_in_normal_not_in_cmpt }}"
+  loop_control:
+    loop_var: node_to_remove
+  when:
+    - ssh_check is success
+    - nodes_in_normal_not_in_cmpt is defined
+    - nodes_in_normal_not_in_cmpt | length > 0
+
 - name: Remove nodes from NodeName list that are not in cmpt_list
   ansible.builtin.set_fact:
     filtered_nodenames: "{{ slurm_conf_dict.NodeName | rejectattr('NodeName', 'in', nodes_in_normal_not_in_cmpt) | list }}"
@@ -30,7 +50,9 @@
 - name: Update normal partition Nodes to match cmpt_list
   ansible.builtin.set_fact:
     updated_partitions: "{{ updated_partitions | default([])
-     + [item | combine({'Nodes': (cmpt_list | join(',')) if cmpt_list | length > 0 else 'ALL'}) if item.PartitionName == slurm_partition_name else item] }}"
+      + [item | combine({'Nodes': ((cmpt_list | difference(nodes_in_normal_not_in_cmpt)) | join(','))
+      if (cmpt_list | difference(nodes_in_normal_not_in_cmpt)) | length > 0 else slurm_partition_name})
+      if item.PartitionName == slurm_partition_name else item] }}"
   loop: "{{ slurm_conf_dict.PartitionName | default([]) }}"
   when:
     - "'slurm' in conf_merge_dict"

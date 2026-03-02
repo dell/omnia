@@ -121,14 +121,12 @@ def create_build_image(
             architecture=request_body.architecture,
             image_key=request_body.image_key,
             functional_groups=request_body.functional_groups,
-            inventory_host=request_body.inventory_host,
         )
         log_secure_info(
             "debug",
             f"Build image executing: job_id={job_id}, arch={request_body.architecture}, "
             f"image_key={request_body.image_key}, "
-            f"functional_groups={request_body.functional_groups}, "
-            f"inventory_host={request_body.inventory_host}",
+            f"functional_groups={request_body.functional_groups}",
             job_id=job_id,
         )
         result = use_case.execute(command)

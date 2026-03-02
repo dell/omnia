@@ -20,6 +20,7 @@ import glob
 import re
 from ansible.module_utils.input_validation.common_utils import validation_utils
 from ansible.module_utils.input_validation.common_utils import config
+from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
 from ansible.module_utils.local_repo.software_utils import load_yaml, load_json
 
 file_names = config.files
@@ -128,6 +129,27 @@ def validate_local_repo_config(input_file_path, data,
             if key_path and not os.path.exists(key_path):
                 errors.append(create_error_msg(local_repo_yml, "user_registry", 
                                              f"Key file not found: {key_path}"))
+
+    # Validate user_repo_url name prefixes
+    user_repo_prefix_map = {
+        "user_repo_url_x86_64": "x86_64_",
+        "user_repo_url_aarch64": "aarch64_",
+    }
+    for repo_key, expected_prefix in user_repo_prefix_map.items():
+        user_repos = data.get(repo_key)
+        if user_repos:
+            for repo in user_repos:
+                repo_name = repo.get("name", "")
+                if repo_name and not repo_name.startswith(expected_prefix):
+                    errors.append(create_error_msg(
+                        local_repo_yml, repo_key,
+                        en_us_validation_msg.USER_REPO_NAME_PREFIX_FAIL_MSG.format(
+                            repo_name=repo_name,
+                            repo_key=repo_key,
+                            expected_prefix=expected_prefix
+                        )
+                    ))
+
     repo_names = {}
     sub_result = check_subscription_status(logger)
     logger.info(f"validate_local_repo_config: Subscription status: {sub_result}")
@@ -137,19 +159,41 @@ def validate_local_repo_config(input_file_path, data,
         arch_repo_names = []
         arch_list = url_list + [url+'_'+arch for url in url_list]
          # define base repos dynamically for this arch if subscription registered 
-        if sub_result:       
-            base_repo_names = [f"{arch}_baseos",f"{arch}_appstream",f"{arch}_codeready-builder"]
-            logger.info(f"Adding base repos for {arch}: {base_repo_names}")
+        if sub_result:
+            base_subscription_repos = [f"{arch}_baseos", f"{arch}_appstream", f"{arch}_codeready-builder"]
+            logger.info(f"Base subscription repos for {arch}: {base_subscription_repos}")
+        
+        # Collect repo names from standard repo lists
         for repurl in arch_list:
             repos = data.get(repurl)
             if repos:
                 arch_repo_names = arch_repo_names + [x.get('name') for x in repos]
+
+        # Handle rhel_subscription_repo_config separately
+        # Only add non-base repos to the name list (base repos are overrides, not duplicates)
+        subscription_config_key = f"rhel_subscription_repo_config_{arch}"
+        subscription_config = data.get(subscription_config_key, [])
+        if subscription_config:
+            for repo in subscription_config:
+                repo_name = repo.get('name')
+                if repo_name and repo_name not in base_subscription_repos:
+                    # This is a new repo, not an override of base repos
+                    arch_repo_names.append(repo_name)
+                    logger.info(f"Adding new subscription config repo: {repo_name}")
+                else:
+                    logger.info(f"Skipping base repo override from duplicate check: {repo_name}")
+
         # Add additional_repos names for this arch
         additional_repos_key = f"additional_repos_{arch}"
         additional_repos = data.get(additional_repos_key)
         if additional_repos:
             arch_repo_names = arch_repo_names + [x.get('name') for x in additional_repos]
-        repo_names[arch] = repo_names.get(arch, []) + arch_repo_names + base_repo_names
+        
+        # Add base subscription repos to the final list (they will be dynamically generated)
+        if sub_result:
+            arch_repo_names = arch_repo_names + base_subscription_repos
+        
+        repo_names[arch] = arch_repo_names
         logger.info(f"Total repos for {arch}: {repo_names[arch]}")
 
     for k,v in repo_names.items():
@@ -186,6 +230,8 @@ def validate_local_repo_config(input_file_path, data,
                     )
 
     os_ver_path = f"/{software_config_json['cluster_os_type']}/{software_config_json['cluster_os_version']}/"
+    supported_subgroups = config.ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS
+
     for software in software_config_json["softwares"]:
         sw = software["name"]
         arch_list = software.get("arch")
@@ -199,10 +245,37 @@ def validate_local_repo_config(input_file_path, data,
             else:
                 curr_json = load_json(json_path)
                 pkg_list = curr_json[sw]['cluster']
+                # For additional_packages, validate subgroup keys in the JSON
+                if sw == "additional_packages":
+                    if "additional_packages" not in curr_json:
+                        errors.append(
+                            create_error_msg(sw + '/' + arch,
+                                            json_path,
+                                            f"Required key 'additional_packages' is missing from the JSON file."))
+                    arch_supported = supported_subgroups.get(arch, [])
+                    user_subgroups = [p.get('name') for p in software_config_json.get(sw, [])]
+                    for json_key in curr_json:
+                        if json_key == "additional_packages":
+                            continue
+                        if json_key not in arch_supported:
+                            errors.append(
+                                create_error_msg(sw + '/' + arch,
+                                                json_path,
+                                                f"Subgroup '{json_key}' is not supported for architecture {arch}."))
+                        elif json_key not in user_subgroups:
+                            errors.append(
+                                create_error_msg(sw + '/' + arch,
+                                                json_path,
+                                                f"Subgroup '{json_key}' is present in JSON but not listed under additional_packages in software_config.json."))
                 if sw in software_config_json:
                     for sub_pkg in software_config_json[sw]:
                         sub_sw = sub_pkg.get('name')
                         if sub_sw not in curr_json:
+                            # For additional_packages, skip subgroups that
+                            # are not supported for this arch
+                            if sw == "additional_packages":
+                                if sub_sw not in supported_subgroups.get(arch, []):
+                                    continue
                             errors.append(
                                 create_error_msg(sw + '/' + arch,
                                                 json_path,

@@ -19,6 +19,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from api.dependencies import require_catalog_read, verify_token
+from api.catalog_roles.dependencies import get_catalog_roles_service
 from api.catalog_roles.schemas import ErrorResponse, GetRolesResponse
 from api.logging_utils import log_secure_info
 from api.catalog_roles.service import (
@@ -30,22 +31,6 @@ from core.jobs.exceptions import JobNotFoundError
 from core.jobs.value_objects import JobId
 
 router = APIRouter(prefix="/jobs", tags=["Catalog Roles"])
-
-
-def _get_container():
-    """Lazy import of container to avoid circular imports."""
-    from container import container  # pylint: disable=import-outside-toplevel
-    return container
-
-
-def _get_catalog_roles_service() -> CatalogRolesService:
-    """Provide a CatalogRolesService instance from the DI container."""
-    c = _get_container()
-    return CatalogRolesService(
-        artifact_store=c.artifact_store(),
-        artifact_metadata_repo=c.artifact_metadata_repository(),
-        stage_repo=c.stage_repository(),
-    )
 
 
 @router.get(
@@ -87,6 +72,7 @@ async def get_catalog_roles(
     job_id: str,
     token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
     scope_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
+    service: CatalogRolesService = Depends(get_catalog_roles_service),
 ) -> GetRolesResponse:
     """Return roles from the parse-catalog intermediate JSON for a given job.
 
@@ -129,8 +115,6 @@ async def get_catalog_roles(
                 "message": f"Invalid job_id format: {job_id}",
             },
         ) from exc
-
-    service = _get_catalog_roles_service()
 
     try:
         log_secure_info(

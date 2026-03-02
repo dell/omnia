@@ -62,8 +62,8 @@ class NfsBuildImageInventoryRepository:
         try:
             self._inventory_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            logger.error("Failed to create inventory directory %s: %s", self._inventory_dir, exc)
-            raise IOError(f"Failed to create inventory directory: {exc}") from exc
+            logger.error("Failed to create inventory directory: %s", self._inventory_dir)
+            raise IOError("Failed to create inventory directory") from None
 
         inventory_file_path = self._inventory_dir / self._inventory_filename
 
@@ -84,9 +84,8 @@ class NfsBuildImageInventoryRepository:
 
         except OSError as exc:
             logger.error(
-                "Failed to write inventory file %s for job %s: %s",
+                "Failed to write inventory file %s for job %s",
                 inventory_file_path,
                 job_id,
-                exc,
             )
-            raise IOError(f"Failed to write inventory file: {exc}") from exc
+            raise IOError("Failed to write inventory file") from None

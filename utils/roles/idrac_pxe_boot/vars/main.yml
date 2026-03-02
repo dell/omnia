@@ -16,7 +16,7 @@
 restart_host: true
 
 # Change to true for forceful reboot. by default graceful will happen
-force_restart: false
+force_restart: true
 
 # Set boot source override mode. Valid values are once, continuous, or disabled
 boot_source_override_enabled: continuous

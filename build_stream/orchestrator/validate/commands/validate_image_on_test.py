@@ -30,8 +30,10 @@ class ValidateImageOnTestCommand:
         job_id: Job identifier from URL path.
         client_id: Client who owns this job (from auth).
         correlation_id: Request correlation identifier for tracing.
+        image_key: Image key for the build to validate.
     """
 
     job_id: JobId
     client_id: ClientId
     correlation_id: CorrelationId
+    image_key: str

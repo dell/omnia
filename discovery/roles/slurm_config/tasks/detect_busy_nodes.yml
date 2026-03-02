@@ -46,37 +46,18 @@
       ansible.builtin.debug:
         msg: "Node {{ node_to_remove }} currently has {{ current_jobs.stdout }} running job(s)"
 
-    - name: Force cancel jobs on the node to be removed from cluster
-      ansible.builtin.command: scancel -f -w {{ node_to_remove }} # Safe does not fail if no jobs are running
-      changed_when: true
-      register: scancel_result
-      failed_when: scancel_result.rc != 0
-      delegate_to: "{{ ctld_list[0] }}"
+    - name: Populate busy_nodes list
+      ansible.builtin.set_fact:
+        busy_nodes: "{{ (busy_nodes | default({})) | combine({node_to_remove: current_jobs.stdout | int}) }}"
+      when:
+        - current_jobs.stdout | int > 0
 
-    - name: Set node to DOWN state
-      ansible.builtin.command: >
-        scontrol update NodeName={{ node_to_remove }}
-        State=DOWN
-        Reason="Node removed from cluster via OMNIA discovery.yml"
-      changed_when: true
-      failed_when: false
-      delegate_to: "{{ ctld_list[0] }}"
-      when: node_exists_check.rc == 0
+    - name: Display busy_nodes list
+      ansible.builtin.debug:
+        var: busy_nodes
 
-    - name: Stop the slurmd service on node
-      ansible.builtin.service:
-        name: slurmd
-        state: stopped
-      delegate_to: "{{ node_to_remove }}"
-      ignore_unreachable: true
-      failed_when: false
-
-    - name: Delete the dir from NFS
-      ansible.builtin.file:
-        path: "{{ slurm_config_path }}/{{ node_to_remove }}"
-        state: absent
   rescue:
-    - name: Failure to remove node
-      ansible.builtin.fail:
-        msg: "Node {{ node_to_remove }} failed to be removed from slurm cluster,
+    - name: Failure to detect busy nodes
+      ansible.builtin.debug:
+        msg: "Node {{ node_to_remove }} busy node detection failed from slurm cluster,
           as task {{ ansible_failed_task.name }} failed."

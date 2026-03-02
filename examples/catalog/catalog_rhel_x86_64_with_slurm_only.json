@@ -5,165 +5,41 @@
     "Identifier": "image-build",
     "FunctionalLayer": [
       {
-        "Name": "login_compiler_node_x86_64",
-        "FunctionalPackages": [
-          "package_id_2",
-          "package_id_3",
-          "package_id_32",
-          "package_id_33",
-          "package_id_57",
-          "package_id_58",
-          "package_id_59",
-          "package_id_68",
-          "package_id_74"
-        ]
-      },
-      {
-        "Name": "login_node_x86_64",
-        "FunctionalPackages": [
-          "package_id_2",
-          "package_id_3",
-          "package_id_32",
-          "package_id_33",
-          "package_id_57",
-          "package_id_58",
-          "package_id_59",
-          "package_id_68",
-          "package_id_74"
-        ]
-      },
-      {
-        "Name": "service_kube_control_plane_x86_64",
-        "FunctionalPackages": [
-          "package_id_1",
-          "package_id_10",
-          "package_id_11",
-          "package_id_12",
-          "package_id_13",
-          "package_id_14",
-          "package_id_15",
-          "package_id_16",
-          "package_id_17",
-          "package_id_18",
-          "package_id_19",
-          "package_id_2",
-          "package_id_20",
-          "package_id_21",
-          "package_id_22",
-          "package_id_23",
-          "package_id_24",
-          "package_id_25",
-          "package_id_26",
-          "package_id_27",
-          "package_id_28",
-          "package_id_29",
-          "package_id_3",
-          "package_id_30",
-          "package_id_31",
-          "package_id_32",
-          "package_id_33",
-          "package_id_34",
-          "package_id_35",
-          "package_id_36",
-          "package_id_37",
-          "package_id_38",
-          "package_id_39",
-          "package_id_4",
-          "package_id_40",
-          "package_id_41",
-          "package_id_42",
-          "package_id_43",
-          "package_id_44",
-          "package_id_45",
-          "package_id_46",
-          "package_id_47",
-          "package_id_48",
-          "package_id_49",
-          "package_id_5",
-          "package_id_50",
-          "package_id_6",
-          "package_id_7",
-          "package_id_8",
-          "package_id_9"
-        ]
-      },
-      {
-        "Name": "service_kube_node_x86_64",
-        "FunctionalPackages": [
-          "package_id_1",
-          "package_id_10",
-          "package_id_11",
-          "package_id_12",
-          "package_id_13",
-          "package_id_14",
-          "package_id_15",
-          "package_id_16",
-          "package_id_17",
-          "package_id_18",
-          "package_id_19",
-          "package_id_2",
-          "package_id_20",
-          "package_id_21",
-          "package_id_22",
-          "package_id_23",
-          "package_id_24",
-          "package_id_25",
-          "package_id_26",
-          "package_id_27",
-          "package_id_28",
-          "package_id_29",
-          "package_id_3",
-          "package_id_30",
-          "package_id_31",
-          "package_id_32",
-          "package_id_33",
-          "package_id_4",
-          "package_id_45",
-          "package_id_5",
-          "package_id_55",
-          "package_id_56",
-          "package_id_6",
-          "package_id_7",
-          "package_id_8",
-          "package_id_9"
-        ]
-      },
-      {
         "Name": "slurm_control_node_x86_64",
         "FunctionalPackages": [
+          "package_id_1",
+          "package_id_10",
+          "package_id_11",
+          "package_id_12",
+          "package_id_13",
+          "package_id_14",
+          "package_id_15",
           "package_id_2",
           "package_id_3",
-          "package_id_32",
-          "package_id_33",
-          "package_id_57",
-          "package_id_58",
-          "package_id_59",
-          "package_id_60",
-          "package_id_61",
-          "package_id_62",
-          "package_id_63",
-          "package_id_64",
-          "package_id_65",
-          "package_id_66",
-          "package_id_67"
+          "package_id_4",
+          "package_id_5",
+          "package_id_6",
+          "package_id_7",
+          "package_id_8",
+          "package_id_9"
         ]
       },
       {
         "Name": "slurm_node_x86_64",
         "FunctionalPackages": [
+          "package_id_1",
+          "package_id_16",
+          "package_id_17",
+          "package_id_18",
+          "package_id_19",
           "package_id_2",
+          "package_id_20",
+          "package_id_21",
           "package_id_3",
-          "package_id_32",
-          "package_id_33",
-          "package_id_57",
-          "package_id_58",
-          "package_id_59",
-          "package_id_68",
-          "package_id_69",
-          "package_id_70",
-          "package_id_71",
-          "package_id_72",
-          "package_id_73"
+          "package_id_4",
+          "package_id_5",
+          "package_id_6",
+          "package_id_7"
         ]
       }
     ],
@@ -262,11 +138,7 @@
           "os_package_id_89",
           "os_package_id_9",
           "os_package_id_90",
-          "os_package_id_91",
-          "os_package_id_92",
-          "os_package_id_93",
-          "os_package_id_94",
-          "os_package_id_95"
+          "os_package_id_91"
         ]
       }
     ],
@@ -275,7 +147,7 @@
     "DriverPackages": {},
     "FunctionalPackages": {
       "package_id_1": {
-        "Name": "docker.io/library/busybox",
+        "Name": "munge",
         "SupportedOS": [
           {
             "Name": "RHEL",
@@ -285,9 +157,13 @@
         "Architecture": [
           "x86_64"
         ],
-        "Type": "image",
-        "Tag": "1.36",
-        "Version": "1.36"
+        "Type": "rpm",
+        "Sources": [
+          {
+            "Architecture": "x86_64",
+            "RepoName": "x86_64_appstream"
+          }
+        ]
       },
       "package_id_2": {
         "Name": "firewalld",
@@ -328,876 +204,6 @@
         ]
       },
       "package_id_4": {
-        "Name": "git",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          }
-        ]
-      },
-      "package_id_5": {
-        "Name": "vim",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          }
-        ]
-      },
-      "package_id_6": {
-        "Name": "fuse-overlayfs",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          }
-        ]
-      },
-      "package_id_7": {
-        "Name": "podman",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          }
-        ]
-      },
-      "package_id_8": {
-        "Name": "kubeadm-1.34.1",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "kubernetes"
-          }
-        ]
-      },
-      "package_id_9": {
-        "Name": "kubelet-1.34.1",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "kubernetes"
-          }
-        ]
-      },
-      "package_id_10": {
-        "Name": "container-selinux",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          }
-        ]
-      },
-      "package_id_11": {
-        "Name": "cri-o-1.34.1",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "cri-o"
-          }
-        ]
-      },
-      "package_id_12": {
-        "Name": "docker.io/victoriametrics/victoria-metrics",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.128.0",
-        "Version": "v1.128.0"
-      },
-      "package_id_13": {
-        "Name": "docker.io/victoriametrics/vmagent",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.128.0",
-        "Version": "v1.128.0"
-      },
-      "package_id_14": {
-        "Name": "docker.io/victoriametrics/vmstorage",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.128.0-cluster",
-        "Version": "v1.128.0-cluster"
-      },
-      "package_id_15": {
-        "Name": "docker.io/victoriametrics/vminsert",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.128.0-cluster",
-        "Version": "v1.128.0-cluster"
-      },
-      "package_id_16": {
-        "Name": "docker.io/victoriametrics/vmselect",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.128.0-cluster",
-        "Version": "v1.128.0-cluster"
-      },
-      "package_id_17": {
-        "Name": "docker.io/alpine/kubectl",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "1.34.1",
-        "Version": "1.34.1"
-      },
-      "package_id_18": {
-        "Name": "docker.io/curlimages/curl",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "8.17.0",
-        "Version": "8.17.0"
-      },
-      "package_id_19": {
-        "Name": "docker.io/rmohr/activemq",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "5.15.9",
-        "Version": "5.15.9"
-      },
-      "package_id_20": {
-        "Name": "docker.io/library/mysql",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "9.3.0",
-        "Version": "9.3.0"
-      },
-      "package_id_21": {
-        "Name": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "1.0",
-        "Version": "1.0"
-      },
-      "package_id_22": {
-        "Name": "docker.io/dellhpcomniaaisolution/kafkapump",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "1.0",
-        "Version": "1.0"
-      },
-      "package_id_23": {
-        "Name": "docker.io/dellhpcomniaaisolution/victoriapump",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "1.0",
-        "Version": "1.0"
-      },
-      "package_id_24": {
-        "Name": "cryptography==45.0.7",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "pip_module"
-      },
-      "package_id_25": {
-        "Name": "omsdk==1.2.518",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "pip_module"
-      },
-      "package_id_26": {
-        "Name": "cffi==1.17.1",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "pip_module"
-      },
-      "package_id_27": {
-        "Name": "quay.io/strimzi/operator",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "0.48.0",
-        "Version": "0.48.0"
-      },
-      "package_id_28": {
-        "Name": "quay.io/strimzi/kafka",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "0.48.0-kafka-4.1.0",
-        "Version": "0.48.0-kafka-4.1.0"
-      },
-      "package_id_29": {
-        "Name": "docker.io/dellhpcomniaaisolution/ubuntu-ldms",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "1.0",
-        "Version": "1.0"
-      },
-      "package_id_30": {
-        "Name": "strimzi-kafka-operator-helm-3-chart-0.48.0",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "tarball",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.48.0/strimzi-kafka-operator-helm-3-chart-0.48.0.tgz"
-          }
-        ]
-      },
-      "package_id_31": {
-        "Name": "quay.io/strimzi/kafka-bridge",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "0.33.1",
-        "Version": "0.33.1"
-      },
-      "package_id_32": {
-        "Name": "apptainer",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "epel"
-          }
-        ]
-      },
-      "package_id_33": {
-        "Name": "doca-ofed",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm_repo",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "doca"
-          }
-        ]
-      },
-      "package_id_34": {
-        "Name": "ghcr.io/kube-vip/kube-vip",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v0.8.9",
-        "Version": "v0.8.9"
-      },
-      "package_id_35": {
-        "Name": "registry.k8s.io/kube-apiserver",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.34.1",
-        "Version": "v1.34.1"
-      },
-      "package_id_36": {
-        "Name": "registry.k8s.io/kube-controller-manager",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.34.1",
-        "Version": "v1.34.1"
-      },
-      "package_id_37": {
-        "Name": "registry.k8s.io/kube-scheduler",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.34.1",
-        "Version": "v1.34.1"
-      },
-      "package_id_38": {
-        "Name": "registry.k8s.io/kube-proxy",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.34.1",
-        "Version": "v1.34.1"
-      },
-      "package_id_39": {
-        "Name": "registry.k8s.io/coredns/coredns",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v1.12.1",
-        "Version": "v1.12.1"
-      },
-      "package_id_40": {
-        "Name": "registry.k8s.io/pause",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "3.10.1",
-        "Version": "3.10.1"
-      },
-      "package_id_41": {
-        "Name": "registry.k8s.io/etcd",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "3.6.4-0",
-        "Version": "3.6.4-0"
-      },
-      "package_id_42": {
-        "Name": "docker.io/calico/cni",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v3.30.3",
-        "Version": "v3.30.3"
-      },
-      "package_id_43": {
-        "Name": "docker.io/calico/kube-controllers",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v3.30.3",
-        "Version": "v3.30.3"
-      },
-      "package_id_44": {
-        "Name": "docker.io/calico/node",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v3.30.3",
-        "Version": "v3.30.3"
-      },
-      "package_id_45": {
-        "Name": "quay.io/metallb/speaker",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v0.15.2",
-        "Version": "v0.15.2"
-      },
-      "package_id_46": {
-        "Name": "kubectl-1.34.1",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "kubernetes"
-          }
-        ]
-      },
-      "package_id_47": {
-        "Name": "prettytable==3.14.0",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "pip_module"
-      },
-      "package_id_48": {
-        "Name": "python3.12",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          }
-        ]
-      },
-      "package_id_49": {
-        "Name": "kubernetes==33.1.0",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "pip_module"
-      },
-      "package_id_50": {
-        "Name": "PyMySQL==1.1.2",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "pip_module"
-      },
-      "package_id_51": {
-        "Name": "calico-v3.30.3",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "manifest",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://raw.githubusercontent.com/projectcalico/calico/v3.30.3/manifests/calico.yaml"
-          }
-        ]
-      },
-      "package_id_52": {
-        "Name": "metallb-native-v0.15.2",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "manifest",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://raw.githubusercontent.com/metallb/metallb/v0.15.2/config/manifests/metallb-native.yaml"
-          }
-        ]
-      },
-      "package_id_53": {
-        "Name": "helm-v3.19.0-amd64",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "tarball",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz"
-          }
-        ]
-      },
-      "package_id_54": {
-        "Name": "nfs-subdir-external-provisioner-4.0.18",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "tarball",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz"
-          }
-        ]
-      },
-      "package_id_55": {
-        "Name": "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v4.0.2",
-        "Version": "v4.0.2"
-      },
-      "package_id_56": {
-        "Name": "quay.io/metallb/controller",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image",
-        "Tag": "v0.15.2",
-        "Version": "v0.15.2"
-      },
-      "package_id_57": {
-        "Name": "munge",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          }
-        ]
-      },
-      "package_id_58": {
         "Name": "pmix",
         "SupportedOS": [
           {
@@ -1216,7 +222,7 @@
           }
         ]
       },
-      "package_id_59": {
+      "package_id_5": {
         "Name": "nvcr.io/nvidia/hpc-benchmarks",
         "SupportedOS": [
           {
@@ -1231,7 +237,45 @@
         "Tag": "25.09",
         "Version": "25.09"
       },
-      "package_id_60": {
+      "package_id_6": {
+        "Name": "apptainer",
+        "SupportedOS": [
+          {
+            "Name": "RHEL",
+            "Version": "10.0"
+          }
+        ],
+        "Architecture": [
+          "x86_64"
+        ],
+        "Type": "rpm",
+        "Sources": [
+          {
+            "Architecture": "x86_64",
+            "RepoName": "epel"
+          }
+        ]
+      },
+      "package_id_7": {
+        "Name": "doca-ofed",
+        "SupportedOS": [
+          {
+            "Name": "RHEL",
+            "Version": "10.0"
+          }
+        ],
+        "Architecture": [
+          "x86_64"
+        ],
+        "Type": "rpm_repo",
+        "Sources": [
+          {
+            "Architecture": "x86_64",
+            "RepoName": "doca"
+          }
+        ]
+      },
+      "package_id_8": {
         "Name": "slurm-slurmctld",
         "SupportedOS": [
           {
@@ -1250,7 +294,7 @@
           }
         ]
       },
-      "package_id_61": {
+      "package_id_9": {
         "Name": "slurm-slurmdbd",
         "SupportedOS": [
           {
@@ -1269,7 +313,7 @@
           }
         ]
       },
-      "package_id_62": {
+      "package_id_10": {
         "Name": "python3-PyMySQL",
         "SupportedOS": [
           {
@@ -1288,7 +332,7 @@
           }
         ]
       },
-      "package_id_63": {
+      "package_id_11": {
         "Name": "mariadb-server",
         "SupportedOS": [
           {
@@ -1307,7 +351,7 @@
           }
         ]
       },
-      "package_id_64": {
+      "package_id_12": {
         "Name": "iscsi-initiator-utils",
         "SupportedOS": [
           {
@@ -1326,7 +370,7 @@
           }
         ]
       },
-      "package_id_65": {
+      "package_id_13": {
         "Name": "device-mapper-multipath",
         "SupportedOS": [
           {
@@ -1345,7 +389,7 @@
           }
         ]
       },
-      "package_id_66": {
+      "package_id_14": {
         "Name": "sg3_utils",
         "SupportedOS": [
           {
@@ -1364,7 +408,7 @@
           }
         ]
       },
-      "package_id_67": {
+      "package_id_15": {
         "Name": "lsscsi",
         "SupportedOS": [
           {
@@ -1383,7 +427,7 @@
           }
         ]
       },
-      "package_id_68": {
+      "package_id_16": {
         "Name": "slurm-slurmd",
         "SupportedOS": [
           {
@@ -1402,7 +446,7 @@
           }
         ]
       },
-      "package_id_69": {
+      "package_id_17": {
         "Name": "slurm-pam_slurm",
         "SupportedOS": [
           {
@@ -1421,7 +465,7 @@
           }
         ]
       },
-      "package_id_70": {
+      "package_id_18": {
         "Name": "kernel-devel",
         "SupportedOS": [
           {
@@ -1440,7 +484,7 @@
           }
         ]
       },
-      "package_id_71": {
+      "package_id_19": {
         "Name": "kernel-headers",
         "SupportedOS": [
           {
@@ -1459,7 +503,7 @@
           }
         ]
       },
-      "package_id_72": {
+      "package_id_20": {
         "Name": "cuda-run",
         "SupportedOS": [
           {
@@ -1478,7 +522,7 @@
           }
         ]
       },
-      "package_id_73": {
+      "package_id_21": {
         "Name": "nvhpc_2025_2511_Linux_x86_64_cuda_13.0",
         "SupportedOS": [
           {
@@ -1497,7 +541,7 @@
           }
         ]
       },
-      "package_id_74": {
+      "package_id_22": {
         "Name": "slurm",
         "SupportedOS": [
           {
@@ -3149,82 +2193,6 @@
         "Version": "1.0"
       },
       "os_package_id_87": {
-        "Name": "python3-devel",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          }
-        ]
-      },
-      "os_package_id_88": {
-        "Name": "python3-cython",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
-          }
-        ]
-      },
-      "os_package_id_89": {
-        "Name": "openssl-libs",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
-          }
-        ]
-      },
-      "os_package_id_90": {
-        "Name": "ovis-ldms",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "rpm",
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "RepoName": "x86_64_ldms"
-          }
-        ]
-      },
-      "os_package_id_91": {
         "Name": "openldap-clients",
         "SupportedOS": [
           {
@@ -3243,7 +2211,7 @@
           }
         ]
       },
-      "os_package_id_92": {
+      "os_package_id_88": {
         "Name": "nss-pam-ldapd",
         "SupportedOS": [
           {
@@ -3262,7 +2230,7 @@
           }
         ]
       },
-      "os_package_id_93": {
+      "os_package_id_89": {
         "Name": "sssd",
         "SupportedOS": [
           {
@@ -3281,7 +2249,7 @@
           }
         ]
       },
-      "os_package_id_94": {
+      "os_package_id_90": {
         "Name": "oddjob-mkhomedir",
         "SupportedOS": [
           {
@@ -3300,7 +2268,7 @@
           }
         ]
       },
-      "os_package_id_95": {
+      "os_package_id_91": {
         "Name": "authselect",
         "SupportedOS": [
           {
@@ -3320,6 +2288,7 @@
         ]
       }
     },
+    "Miscellaneous": [],
     "InfrastructurePackages": {}
   }
 }

@@ -47,6 +47,7 @@ slurm_cluster:
   - cluster_name: {{ _cluster.cluster_name | default('') }}
     nfs_storage_name: {{ _cluster.nfs_storage_name | default('') }}
 {% if _cluster.config_sources is defined and (_cluster.config_sources | length > 0) %}
+    skip_merge: {{ _cluster.skip_merge | default(true) }}
     config_sources:
 {% set _supported = ['slurm', 'cgroup', 'slurmdbd', 'gres'] %}
 {% for _conf_name, _conf_val in _cluster.config_sources.items() %}
@@ -84,6 +85,7 @@ slurm_cluster:
     #   slurmdbd: /path/to/custom_slurmdbd.conf
     #   gres: /path/to/custom_gres.conf
 {% else %}
+    # skip_merge: True
     # config_sources:
     #   slurm:
     #     SlurmctldTimeout: 60
@@ -105,6 +107,22 @@ slurm_cluster:
 {% endif %}
 {% endfor %}
 {% endif %}
+
+    # node_discovery_mode: "homogeneous"
+    # # Specify hardware specs for groups (optional - will use group iDRAC if not specified)
+    # node_hardware_defaults:
+    #   grp12:
+    #     sockets: 5
+    #     cores_per_socket: 6
+    #     threads_per_core: 3
+    #     real_memory: 117968
+    #     gres: "gpu:4"  # optional
+
+    #   grp13:
+    #     sockets: 13
+    #     cores_per_socket: 13
+    #     threads_per_core: 13
+    #     real_memory: 117913
 
 # ----------------------------SERVICE K8S------------------------------------------------------
 # For service k8s cluster below parameters are required,(List)

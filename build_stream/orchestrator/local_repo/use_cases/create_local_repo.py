@@ -208,12 +208,19 @@ class CreateLocalRepoUseCase:
                 correlation_id=str(command.correlation_id),
             )
         except (InputFilesMissingError, InputDirectoryInvalidError) as exc:
-            stage.start()
-            stage.fail(
-                error_code=type(exc).__name__.upper(),
-                error_summary=exc.message,
-            )
-            self._stage_repo.save(stage)
+            try:
+                stage.start()
+                stage.fail(
+                    error_code=type(exc).__name__.upper(),
+                    error_summary=exc.message,
+                )
+                self._stage_repo.save(stage)
+            except Exception as save_exc:
+                # If save fails, stage was modified elsewhere
+                log_secure_info(
+                    "Stage fail save failed, stage already modified elsewhere: %s",
+                    str(save_exc)
+                )
             log_secure_info(
                 "error",
                 f"Input preparation failed for job {command.job_id}",
@@ -244,8 +251,15 @@ class CreateLocalRepoUseCase:
         stage: Stage,
     ) -> None:
         """Submit playbook request to NFS queue for watcher service."""
-        stage.start()
-        self._stage_repo.save(stage)
+        try:
+            stage.start()
+            self._stage_repo.save(stage)
+        except Exception as save_exc:
+            # If save fails, stage was modified elsewhere, continue with queue submission
+            log_secure_info(
+                "Stage start save failed, continuing with queue submission: %s",
+                str(save_exc)
+            )
 
         # Submit request to NFS queue
         self._playbook_queue_service.submit_request(

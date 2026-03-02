@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,6 +51,11 @@
         sslclientkey: "{{ lookup('pipe', 'ls {{ omnia_rhel_cert_dir }}/*-key.pem | head -n1') }}"
         sslclientcert: "{{ lookup('pipe', 'ls {{ omnia_rhel_cert_dir }}/*.pem | grep -v -- -key.pem | head -n1') }}"
         sub_rhel_x86_64_urls: []
+        sub_rhel_aarch64_urls: []
+        sub_policy_default: "{{ sw_config.repo_config | default('on_demand') }}"
+        sub_caching_default: true
+        sub_x86_64_override_config: "{{ local_config.rhel_subscription_repo_config_x86_64 | default([]) }}"
+        sub_aarch64_override_config: "{{ local_config.rhel_subscription_repo_config_aarch64 | default([]) }}"
 
     - name: Append repo entries to x86_64 list
       ansible.builtin.set_fact:
@@ -64,7 +69,8 @@
               'sslcacert' : sslcacert,
               'sslclientkey' : sslclientkey,
               'sslclientcert': sslclientcert,
-              'policy': 'partial',
+              'policy': sub_policy_default,
+              'caching': sub_caching_default,
               'name': (
                 arch ~ '_appstream' if 'appstream' in repo_url else
                 arch ~ '_baseos' if 'baseos' in repo_url else
@@ -83,12 +89,106 @@
           'name': item.name | replace('x86_64', 'aarch64'),
           'gpgkey': item.gpgkey,
           'policy': item.policy,
+          'caching': item.caching,
           'sslcacert': item.sslcacert,
           'sslclientcert': item.sslclientcert,
           'sslclientkey': item.sslclientkey}] }}"
       loop: "{{ sub_rhel_x86_64_urls }}"
       loop_control:
         loop_var: item
+
+    # 3️ Apply override configurations and merge additional repositories
+    - name: Create name mapping for x86_64 dynamic repos
+      ansible.builtin.set_fact:
+        x86_64_dynamic_names: "{{ sub_rhel_x86_64_urls | map(attribute='name') | list }}"
+
+    - name: Apply x86_64 overrides to matching repos
+      ansible.builtin.set_fact:
+        sub_rhel_x86_64_urls: >-
+          {%- set result = [] -%}
+          {%- for repo in sub_rhel_x86_64_urls -%}
+            {%- set override = (sub_x86_64_override_config | selectattr('name', 'equalto', repo.name) | first | default({})) -%}
+            {%- set updated_repo = repo | combine({
+              'policy': override.policy | default(repo.policy),
+              'caching': override.caching | default(repo.caching),
+              'url': override.url | default(repo.url),
+              'gpgkey': override.gpgkey | default(repo.gpgkey)
+            }) -%}
+            {%- set _ = result.append(updated_repo) -%}
+          {%- endfor -%}
+          {{ result }}
+
+    - name: Identify non-matching x86_64 override repos
+      ansible.builtin.set_fact:
+        additional_x86_64_repos: >-
+          {{
+            sub_x86_64_override_config | rejectattr('name', 'in', x86_64_dynamic_names) | list
+          }}
+
+    - name: Add non-matching x86_64 override repos as additional
+      ansible.builtin.set_fact:
+        sub_rhel_x86_64_urls: >-
+          {%- set result = sub_rhel_x86_64_urls -%}
+          {%- for repo in additional_x86_64_repos -%}
+            {%- set new_repo = {
+              'url': repo.url,
+              'gpgkey': repo.gpgkey | default(''),
+              'name': repo.name,
+              'policy': repo.policy | default(sub_policy_default),
+              'caching': repo.caching | default(sub_caching_default),
+              'sslcacert': sslcacert,
+              'sslclientcert': sslclientcert,
+              'sslclientkey': sslclientkey
+            } -%}
+            {%- set _ = result.append(new_repo) -%}
+          {%- endfor -%}
+          {{ result }}
+
+    - name: Apply aarch64 overrides to matching repos
+      ansible.builtin.set_fact:
+        sub_rhel_aarch64_urls: >-
+          {%- set result = [] -%}
+          {%- for repo in sub_rhel_aarch64_urls -%}
+            {%- set override = (sub_aarch64_override_config | selectattr('name', 'equalto', repo.name) | first | default({})) -%}
+            {%- set updated_repo = repo | combine({
+              'policy': override.policy | default(repo.policy),
+              'caching': override.caching | default(repo.caching),
+              'url': override.url | default(repo.url),
+              'gpgkey': override.gpgkey | default(repo.gpgkey)
+            }) -%}
+            {%- set _ = result.append(updated_repo) -%}
+          {%- endfor -%}
+          {{ result }}
+
+    - name: Identify non-matching aarch64 override repos
+      ansible.builtin.set_fact:
+        aarch64_dynamic_names: "{{ sub_rhel_aarch64_urls | map(attribute='name') | list }}"
+        additional_aarch64_repos: >-
+          {{
+            sub_aarch64_override_config | rejectattr('name', 'in', aarch64_dynamic_names) | list
+          }}
+      when: "'aarch64' in archs"
+
+    - name: Add non-matching aarch64 override repos as additional
+      ansible.builtin.set_fact:
+        sub_rhel_aarch64_urls: >-
+          {%- set result = sub_rhel_aarch64_urls -%}
+          {%- for repo in additional_aarch64_repos -%}
+            {%- set new_repo = {
+              'url': repo.url,
+              'gpgkey': repo.gpgkey | default(''),
+              'name': repo.name,
+              'policy': repo.policy | default(sub_policy_default),
+              'caching': repo.caching | default(sub_caching_default),
+              'sslcacert': sslcacert,
+              'sslclientcert': sslclientcert,
+              'sslclientkey': sslclientkey
+            } -%}
+            {%- set _ = result.append(new_repo) -%}
+          {%- endfor -%}
+          {{ result }}
+      when: "'aarch64' in archs"
+
 - name: Build final repo dict
   ansible.builtin.set_fact:
     sub_final_repo_urls:

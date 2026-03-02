@@ -33,6 +33,17 @@ SYSTEM_REDHAT_REPO = '/etc/yum.repos.d/redhat.repo'
 OMNIA_ENTITLEMENT_PATH = '/opt/omnia/rhel_repo_certs/*.pem'
 OMNIA_REDHAT_REPO = '/opt/omnia/rhel_repo_certs/redhat.repo'
 
+# Supported functional groups for additional_packages per architecture
+ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS = {
+    "x86_64": [
+        "slurm_control_node", "slurm_node", "login_node", "login_compiler_node",
+        "service_kube_control_plane", "service_kube_control_plane_first", "service_kube_node"
+    ],
+    "aarch64": [
+        "slurm_control_node", "slurm_node", "login_node", "login_compiler_node"
+    ]
+}
+
 # dict to hold the file names. If any file's name changes just change it here.
 files = {
     "local_repo_config": "local_repo_config.yml",

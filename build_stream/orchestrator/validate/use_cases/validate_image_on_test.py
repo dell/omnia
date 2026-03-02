@@ -187,8 +187,12 @@ class ValidateImageOnTestUseCase:
         """Create ValidateImageOnTestRequest entity."""
         playbook_path = PlaybookPath(DISCOVERY_PLAYBOOK_NAME)
 
+        # Get image_key from the API request
+        image_key = command.image_key
+
         extra_vars_dict = {
             "job_id": str(command.job_id),
+            "image_key": image_key,
         }
         extra_vars = ExtraVars(extra_vars_dict)
 
@@ -210,20 +214,34 @@ class ValidateImageOnTestUseCase:
         stage: Stage,
     ) -> None:
         """Submit playbook request to NFS queue for watcher service."""
-        stage.start()
-        self._stage_repo.save(stage)
+        try:
+            stage.start()
+            self._stage_repo.save(stage)
+        except Exception as save_exc:
+            # If save fails, stage was modified elsewhere, continue with queue submission
+            log_secure_info(
+                "Stage start save failed, continuing with queue submission: %s",
+                str(save_exc)
+            )
 
         try:
             self._queue_service.submit_request(
                 request=request,
-                correlation_id=command.correlation_id,
+                correlation_id=str(command.correlation_id),
             )
         except Exception as exc:
-            stage.fail(
-                error_code="QUEUE_SUBMISSION_FAILED",
-                error_summary=str(exc),
-            )
-            self._stage_repo.save(stage)
+            try:
+                stage.fail(
+                    error_code="QUEUE_SUBMISSION_FAILED",
+                    error_summary=str(exc),
+                )
+                self._stage_repo.save(stage)
+            except Exception as save_exc:
+                # If save fails, stage was modified elsewhere
+                log_secure_info(
+                    "Stage fail save failed, stage already modified elsewhere: %s",
+                    str(save_exc)
+                )
             log_secure_info(
                 "error",
                 f"Queue submission failed for job {command.job_id}",

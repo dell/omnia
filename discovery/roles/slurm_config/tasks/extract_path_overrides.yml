@@ -24,7 +24,7 @@
   ansible.builtin.set_fact:
     slurmdbd_merged_dict: "{{ (merged_conf.results | selectattr('item.key', 'equalto', 'slurmdbd') | first).conf_dict }}"
   when: "'slurmdbd' in conf_merge_dict"
-  no_log: true
+  no_log: "{{ _no_log }}"
 
 - name: Extract cgroup.conf merged dict
   ansible.builtin.set_fact:

@@ -246,14 +246,14 @@ def validate_software_config(
                     )
                 )
 
+    supported_subgroups = config.ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS
+
     for software_pkg in data['softwares']:
         software = software_pkg['name']
         arch_list = software_pkg.get('arch')
-        json_paths = []
         for arch in arch_list:
-            json_paths.append(get_json_file_path(
-                software, cluster_os_type, cluster_os_version, input_file_path, arch))
-        for json_path in json_paths:
+            json_path = get_json_file_path(
+                software, cluster_os_type, cluster_os_version, input_file_path, arch)
             # Check if json_path is None or if the JSON syntax is invalid
             if not json_path:
                 errors.append(
@@ -266,7 +266,43 @@ def validate_software_config(
                 try:
                     subgroup_softwares = subgroup_dict.get(software, None)
                     json_data = load_json(json_path)
+                    # For additional_packages, validate subgroup keys in the JSON
+                    if software == "additional_packages":
+                        if "additional_packages" not in json_data:
+                            errors.append(
+                                create_error_msg(
+                                    software + '/' + arch,
+                                    json_path,
+                                    f"Required key 'additional_packages' is missing from the JSON file."
+                                )
+                            )
+                        arch_supported = supported_subgroups.get(arch, [])
+                        user_subgroups = [p.get('name') for p in data.get(software, [])]
+                        for json_key in json_data:
+                            if json_key == "additional_packages":
+                                continue
+                            if json_key not in arch_supported:
+                                errors.append(
+                                    create_error_msg(
+                                        software + '/' + arch,
+                                        json_path,
+                                        f"Subgroup '{json_key}' is not supported for architecture {arch}."
+                                    )
+                                )
+                            elif json_key not in user_subgroups:
+                                errors.append(
+                                    create_error_msg(
+                                        software + '/' + arch,
+                                        json_path,
+                                        f"Subgroup '{json_key}' is present in JSON but not listed under additional_packages in software_config.json."
+                                    )
+                                )
                     for subgroup_software in subgroup_softwares:
+                        # For additional_packages, skip subgroups that are
+                        # not supported for this arch
+                        if software == "additional_packages":
+                            if subgroup_software not in supported_subgroups.get(arch, []):
+                                continue
                         _, fail_data = validation_utils.validate_softwaresubgroup_entries(
                             subgroup_software, json_path, json_data, validation_results, failures
                         )
@@ -1074,7 +1110,30 @@ def validate_omnia_config(
                     "slurm NFS not provided",
                     f"NFS name {', '.join(diff_set)} required for slurm is not defined in {storage_config}"
                     ))
-
+        
+        # Validate node_hardware_defaults requires node_discovery_mode=homogeneous
+        for clst in data.get('slurm_cluster', []):
+            node_hardware_defaults = clst.get('node_hardware_defaults')
+            node_discovery_mode = clst.get('node_discovery_mode')
+            
+            # Normalize mode to lowercase for case-insensitive comparison
+            if node_discovery_mode and isinstance(node_discovery_mode, str):
+                node_discovery_mode = node_discovery_mode.lower()
+            
+            if node_hardware_defaults and len(node_hardware_defaults) > 0:
+                if not node_discovery_mode or node_discovery_mode != 'homogeneous':
+                    group_names = list(node_hardware_defaults.keys())
+                    errors.append(
+                        create_error_msg(
+                            input_file_path,
+                            "slurm_cluster configuration inconsistency",
+                            f"'node_hardware_defaults' is specified for groups {group_names}, but 'node_discovery_mode' is not set to 'homogeneous'. "
+                            f"Current mode: {node_discovery_mode if node_discovery_mode else 'not set (defaults to heterogeneous)'}. "
+                            f"Either set 'node_discovery_mode: \"homogeneous\"' to use the hardware specifications, "
+                            f"or remove 'node_hardware_defaults' to use heterogeneous discovery."
+                        ))
+        
+        cnfg_src = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
         skip_conf_validation = os.path.exists("/opt/omnia/input/.skip_slurm_conf_validation")
         cnfg_src = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
         skip_merge_list = [clst.get('skip_merge', False) for clst in data.get('slurm_cluster')]

@@ -12,17 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Gather NFS share paths from storage_config.yml
+  ansible.builtin.set_fact:
+    nfs_slurm_server_share_path: >-
+      {{ nfs_params | selectattr('nfs_name', 'equalto', 'nfs_slurm')
+      | map(attribute='server_share_path') | first | default('not specified') }}
+    nfs_k8s_server_share_path: >-
+      {{ nfs_params | selectattr('nfs_name', 'equalto', 'nfs_k8s')
+      | map(attribute='server_share_path') | first | default('not specified') }}
 
 
 - name: Display cluster reprovision guidance
   ansible.builtin.pause:
     prompt: "{{ '\x1b[32m' }}===================================================
           CLUSTER REPROVISION REQUIRED
-      ===========================================================
+      ==========================================================
 
       Cluster reprovisioning is required after upgrade to enable new features.
 
       Review and update new 2.1 input fields present at /opt/omnia/input/project_default/ directory before reprovisioning:
+
 
         1. local_repo_config.yml
 
@@ -30,11 +39,13 @@
 
             - Set additional_repos_aarch64 (list of extra repo URLs or file paths for aarch64)
 
+
         2. network_spec.yml (ib_network section)
 
             - Define InfiniBand fabric settings (subnet manager/BMC, IP ranges, VLAN if applicable)
 
             - Ensure host IB interfaces map to the IB network entries
+
 
         3. omnia_config.yml (slurm_cluster.config_source)
 
@@ -42,26 +53,59 @@
 
             - Populate location to point to your Slurm config bundle (local path or remote URL)
 
-      Do NFS cleanup (if NFS share is used for k8s/slurm)
+            - New variable: skip_merge (set to true to skip merging configs during upgrade when using external bundles)
 
-         - Clean stale mounts and ensure the NFS share is accessible before reprovision
+            - New variable: node_discovery_mode: 'Homogeneous' or 'Heterogeneous'
 
-         - Remove any leftover cluster state on the NFS share that could conflict with fresh deployment
+            - New variable: node_hardware_defaults:
+
+              | Mode | What happens | iDRAC calls for 500 nodes |
+
+              |---|---|---|
+
+              Heterogeneous (default) | Each node queried individually 500
+
+              Homogeneous with specs provided | Specs applied directly, no querying 0
+
+              Homogeneous without specs | One node per group queried, specs shared 1 per group
+
+              also provide node_hardware_defaults for groups where you want to apply specs
+
+      Optional: NFS cleanup (only if you are reprovisioning the cluster)
+
+      If you choose to reprovision the cluster and your setup uses an NFS share for Kubernetes and/or Slurm, you may optionally perform an NFS
+      cleanup beforehand:
+
+        Detected NFS share paths from storage_config.yml:
+
+          - Slurm (nfs_slurm) server_share_path:  {{ nfs_slurm_server_share_path }}
+
+          - Kubernetes (nfs_k8s) server_share_path:  {{ nfs_k8s_server_share_path }}
 
 
-      Run the following playbooks in sequence from the Omnia root directory to reprovision the cluster:
+        Clean stale mounts and confirm the NFS share is reachable and accessible.
+
+        Remove any leftover cluster state on the NFS share that could conflict with a fresh deployment.
+
+
+      Optional: Reprovision playbooks (run in order from the Omnia root directory)
 
         1. ansible-playbook local_repo/local_repo.yml
 
         2. ansible-playbook build_image_x86_64/build_image_x86_64.yml
 
-        3. Only if the user is using aarch64 nodes, run the below playbook after build_image_x86_64:
+        3. Only if using aarch64 nodes (run after x86_64 image build):
 
-        ansible-playbook build_image_aarch64/build_image_aarch64.yml
+        -> ansible-playbook build_image_aarch64/build_image_aarch64.yml
 
         4. ansible-playbook discovery/discovery.yml
 
-      Please follow the omnia documentation for steps in more detail.
+
+      For detailed steps and prerequisites, follow the official Omnia documentation.
+
+
+          ==================================================================
+     ========================================================================
 
     {{ '\x1b[0m' }}"
     seconds: 1

@@ -1136,6 +1136,284 @@
         ]
       },
       "description": "Optional list of additional repository URLs for aarch64 architecture. These repos are aggregated into a single Pulp repository."
+    },
+     "rhel_subscription_repo_config_x86_64": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(https?:\\/\\/).+"
+          },
+          "gpgkey": {
+            "type": "string",
+            "pattern": "^(|[a-zA-Z][a-zA-Z0-9+.-]*:\\/\\/\\S+)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\s*$).+"
+          },
+          "policy": {
+            "type": "string",
+            "enum": [
+              "always",
+              "partial"
+            ]
+          },
+          "caching": {
+            "type": "boolean"
+          },
+          "sslcacert": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sslclientkey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sslclientcert": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "url",
+          "gpgkey",
+          "name"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "sslcacert"
+              ],
+              "properties": {
+                "sslcacert": {
+                  "minLength": 1
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "sslclientkey",
+                "sslclientcert"
+              ],
+              "properties": {
+                "sslclientkey": {
+                  "minLength": 1
+                },
+                "sslclientcert": {
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "sslclientkey"
+              ],
+              "properties": {
+                "sslclientkey": {
+                  "minLength": 1
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "sslcacert",
+                "sslclientcert"
+              ],
+              "properties": {
+                "sslcacert": {
+                  "minLength": 1
+                },
+                "sslclientcert": {
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "sslclientcert"
+              ],
+              "properties": {
+                "sslclientcert": {
+                  "minLength": 1
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "sslcacert",
+                "sslclientkey"
+              ],
+              "properties": {
+                "sslcacert": {
+                  "minLength": 1
+                },
+                "sslclientkey": {
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "description": "Optional configuration for overriding policy and caching settings for RHEL subscription-based repositories on x86_64 architecture."
+    },
+    "rhel_subscription_repo_config_aarch64": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(https?:\\/\\/).+"
+          },
+          "gpgkey": {
+            "type": "string",
+            "pattern": "^(|[a-zA-Z][a-zA-Z0-9+.-]*:\\/\\/\\S+)$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\s*$).+"
+          },
+          "policy": {
+            "type": "string",
+            "enum": [
+              "always",
+              "partial"
+            ]
+          },
+          "caching": {
+            "type": "boolean"
+          },
+          "sslcacert": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sslclientkey": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sslclientcert": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "url",
+          "gpgkey",
+          "name"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "sslcacert"
+              ],
+              "properties": {
+                "sslcacert": {
+                  "minLength": 1
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "sslclientkey",
+                "sslclientcert"
+              ],
+              "properties": {
+                "sslclientkey": {
+                  "minLength": 1
+                },
+                "sslclientcert": {
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "sslclientkey"
+              ],
+              "properties": {
+                "sslclientkey": {
+                  "minLength": 1
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "sslcacert",
+                "sslclientcert"
+              ],
+              "properties": {
+                "sslcacert": {
+                  "minLength": 1
+                },
+                "sslclientcert": {
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "sslclientcert"
+              ],
+              "properties": {
+                "sslclientcert": {
+                  "minLength": 1
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "sslcacert",
+                "sslclientkey"
+              ],
+              "properties": {
+                "sslcacert": {
+                  "minLength": 1
+                },
+                "sslclientkey": {
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        ]
+      },
+      "description": "Optional configuration for overriding policy and caching settings for RHEL subscription-based repositories on aarch64 architecture."
     }
   },
   "required": [

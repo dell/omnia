@@ -32,32 +32,6 @@ def get_validate_image_on_test_use_case():
     return _get_container().validate_image_on_test_use_case()
 
 
-def get_validate_client_id(
-    authorization: str = Header(..., description="Bearer token for authentication"),
-) -> ClientId:
-    """Extract ClientId from Bearer token header."""
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization header format",
-        )
-
-    token = authorization[7:].lstrip()
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token",
-        )
-
-    try:
-        return ClientId(token[:128] if len(token) > 128 else token)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid client credentials",
-        ) from exc
-
-
 def get_validate_correlation_id(
     x_correlation_id: Optional[str] = Header(
         default=None,

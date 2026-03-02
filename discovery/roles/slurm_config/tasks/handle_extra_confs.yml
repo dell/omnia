@@ -19,7 +19,7 @@
     conf_name: "{{ extra_conf }}"
   register: ex_conf
   delegate_to: localhost
-  no_log: true
+  no_log: "{{ _no_log }}"
   when:
     - "'.' not in extra_conf"
 
@@ -31,7 +31,7 @@
     owner: "{{ slurm_user }}"
     group: "{{ slurm_user_group }}"
     remote_src: "{{ copy_from_oim }}"
-  no_log: true
+  no_log: "{{ _no_log }}"
   when:
     - "'.' not in extra_conf"
     - ex_conf is success

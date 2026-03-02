@@ -21,6 +21,22 @@
   ansible.builtin.set_fact:
     node_yaml: "{{ slurped_yaml.content | b64decode | from_yaml }}"
 
+- name: Build hostname to GROUP_NAME mapping from existing PXE mapping
+  ansible.builtin.set_fact:
+    name_hardware_group_map: >-
+      {{
+        dict(
+          hostvars['localhost']['pxe_mapping_dict'].dict.values() | map(attribute='HOSTNAME') | list
+          | zip(hostvars['localhost']['pxe_mapping_dict'].dict.values() | map(attribute='GROUP_NAME') | list)
+        )
+      }}
+  when: hostvars['localhost']['pxe_mapping_dict'] is defined
+
+- name: Set empty mapping if PXE mapping not available
+  ansible.builtin.set_fact:
+    name_hardware_group_map: {}
+  when: hostvars['localhost']['pxe_mapping_dict'] is not defined
+
 - name: Read the node name group
   ansible.builtin.set_fact:
     name_group_map: "{{ node_yaml.nodes | items2dict(key_name='name', value_name='group') }}"

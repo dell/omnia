@@ -85,6 +85,10 @@
           "package_id_64",
           "package_id_65",
           "package_id_66",
+          "package_id_67",
+          "package_id_68",
+          "package_id_69",
+          "package_id_70",
           "package_id_8",
           "package_id_9"
         ]
@@ -298,7 +302,6 @@
         ]
       }
     ],
-    "Miscellaneous": [],
     "Drivers": [],
     "DriverPackages": {},
     "FunctionalPackages": {
@@ -3971,6 +3974,7 @@
         "Version": "1.0"
       }
     },
+    "Miscellaneous": [],
     "InfrastructurePackages": {
       "infrastructure_package_id_1": {
         "Name": "csi-powerscale",

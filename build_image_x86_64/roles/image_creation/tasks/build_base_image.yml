@@ -40,9 +40,6 @@
     src: "{{ openchami_base_image_vars_template }}"
     dest: "{{ openchami_x86_64_base_image_vars_path }}"
     mode: "{{ dir_permissions_644 }}"
-  vars:
-    # Override rhel_base_image_name for build stream
-    rhel_base_image_name: "{{ rhel_base_image_name | default(rhel_x86_64_base_image_name) }}"
 
 - name: Invoking Openchami playbook for rhel-base image build
   ansible.builtin.shell: |

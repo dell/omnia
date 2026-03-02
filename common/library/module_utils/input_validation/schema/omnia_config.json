@@ -23,6 +23,50 @@
             "type": "boolean", 
             "description": "Variable indicates whether a specific configuration file path under config_sources should be used as-is without merging" 
           },
+          "node_discovery_mode": {
+            "type": "string",
+            "enum": ["homogeneous", "heterogeneous"],
+            "description": "Node hardware discovery mode. 'homogeneous' for group-based discovery, 'heterogeneous' for individual node discovery. Default: heterogeneous"
+          },
+          "node_hardware_defaults": {
+            "type": "object",
+            "description": "Hardware specifications for homogeneous node groups. Key is group name (grp0-grp100), value is hardware specs.",
+            "patternProperties": {
+              "^grp([0-9]|[1-9][0-9]|100)$": {
+                "type": "object",
+                "properties": {
+                  "sockets": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Number of CPU sockets per node"
+                  },
+                  "cores_per_socket": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Number of CPU cores per socket"
+                  },
+                  "threads_per_core": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Number of CPU threads per core"
+                  },
+                  "real_memory": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Memory in MB (exact value to use in Slurm)"
+                  },
+                  "gres": {
+                    "type": "string",
+                    "pattern": "^gpu:[0-9]+$",
+                    "description": "GPU resources in format 'gpu:N' (optional)"
+                  }
+                },
+                "required": ["sockets", "cores_per_socket", "threads_per_core", "real_memory"],
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
           "config_sources": {
             "type": "object",
             "description": "Config can be a file path or inline mapping",

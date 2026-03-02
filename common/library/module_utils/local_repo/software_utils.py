@@ -21,6 +21,7 @@ import os
 import json
 import csv
 import re
+import shlex
 import yaml
 from jinja2 import Template
 import requests
@@ -36,7 +37,9 @@ from ansible.module_utils.local_repo.config import (
     RPM_LABEL_TEMPLATE,
     RHEL_OS_URL,
     SOFTWARES_KEY,
-    REPO_CONFIG,
+    POLICY_CACHING_MAP,
+    DEFAULT_POLICY,
+    DEFAULT_CACHING,
     ARCH_SUFFIXES,
     ADDITIONAL_REPOS_KEY,
     pulp_container_commands
@@ -210,6 +213,32 @@ def transform_package_dict(data, arch_val,logger):
     logger.info("Transformation complete for arch '%s'. Final result keys: %s", arch_val, list(final_result.keys()))
     return final_result
 
+def resolve_pulp_policy(policy_str, caching_val, logger=None):
+    """
+    Resolve user-facing policy and caching into Pulp download policy.
+    Args:
+        policy_str (str): User policy ('always', 'on_demand', 'partial').
+        caching_val: Caching flag (bool, str 'true'/'false', or None).
+        logger: Optional logger instance.
+    Returns:
+        str: Pulp download policy ('immediate', 'on_demand', 'streamed').
+    """
+    policy = str(policy_str).lower() if policy_str else DEFAULT_POLICY
+    if isinstance(caching_val, str):
+        caching = caching_val.lower() in ('true', '1', 'yes')
+    elif isinstance(caching_val, bool):
+        caching = caching_val
+    else:
+        caching = DEFAULT_CACHING
+    pulp_policy = POLICY_CACHING_MAP.get(
+        (policy, caching), "on_demand"
+    )
+    if logger:
+        logger.info(
+            f"Resolved policy='{policy}', caching={caching}"
+            f" -> pulp_policy='{pulp_policy}'"
+        )
+    return pulp_policy
 
 def parse_repo_urls(repo_config, local_repo_config_path,
                     version_variables, vault_key_path, sub_urls,logger,sw_archs=None):
@@ -271,7 +300,10 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             client_key = url_.get("sslclientkey", "")
             client_cert = url_.get("sslclientcert", "")
             policy_given = url_.get("policy", repo_config)
-            policy = REPO_CONFIG.get(policy_given)
+            caching_given = url_.get("caching", True)
+            policy = resolve_pulp_policy(
+                policy_given, caching_given, logger
+            )
 
             logger.info(f"Processing user repo '{name}' for arch '{arch}' - URL: {url}")
 
@@ -302,7 +334,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
 
             logger.info(f"Added user repo entry: {name}")
 
-    # Handle RHEL repositories
+    # Handle RHEL repositories (includes subscription-based repos)
     for arch, repo_list in rhel_repo_entry.items():
         for url_ in repo_list:
             name = url_.get("name", "unknown")
@@ -312,7 +344,10 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             client_key = url_.get("sslclientkey", "")
             client_cert = url_.get("sslclientcert", "")
             policy_given = url_.get("policy", repo_config)
-            policy = REPO_CONFIG.get(policy_given)
+            caching_given = url_.get("caching", True)
+            policy = resolve_pulp_policy(
+                policy_given, caching_given, logger
+            )
 
             logger.info(f"Processing RHEL repo '{name}' for arch '{arch}' - URL: {url}")
 
@@ -357,7 +392,10 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             url = repo.get("url", "")
             gpgkey = repo.get("gpgkey", "")
             policy_given = repo.get("policy", repo_config)
-            policy = REPO_CONFIG.get(policy_given)
+            caching_given = repo.get("caching", True)
+            policy = resolve_pulp_policy(
+                policy_given, caching_given, logger
+            )
             logger.info(f"Processing OMNIA repo '{name}' for arch '{arch}' - Template URL: {url}")
 
             # Find unresolved template vars in URL
@@ -476,17 +514,11 @@ def get_subgroup_dict(user_data,logger):
 def get_csv_software(file_name):
 
     """
-
     Retrieves a list of software names from a CSV file.
- 
     Parameters:
-
         file_name (str): The name of the CSV file.
- 
     Returns:
-
         list: A list of software names.
-
     """
 
     csv_software = []
@@ -526,6 +558,37 @@ def get_failed_software(file_path):
     ]
     return failed_software
 
+def _sanitize_shell_arg(value, logger, field_name="value"):
+    """
+    Sanitize a value before using it in a shell command to prevent argument injection.
+
+    Validates the value against a strict allowlist of characters that are safe
+    for shell interpolation, then applies shlex.quote for safe shell escaping.
+
+    Args:
+        value (str): The value to sanitize.
+        logger (logging.Logger): Logger instance.
+        field_name (str): Name of the field being sanitized (for logging).
+
+    Returns:
+        str: The sanitized, shell-quoted value.
+
+    Raises:
+        ValueError: If the value contains disallowed characters.
+    """
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"Invalid {field_name}: must be a non-empty string")
+    value = value.strip().strip('"')
+    safe_pattern = re.compile(r'^[a-zA-Z0-9._\-/:@=?&\[\]]+$')
+    if not safe_pattern.match(value):
+        logger.error("Potentially unsafe characters detected in %s: %s", field_name, value)
+        raise ValueError(
+            f"Invalid {field_name}{value}: contains disallowed characters. "
+            f"Only alphanumeric characters and ._-/:@=?&[] are allowed."
+        )
+    return shlex.quote(value)
+
+
 def check_additional_image_in_pulp(image_entry, logger):
     """
     Checks if image present in additional_packages.json is configured in Pulp.
@@ -536,6 +599,8 @@ def check_additional_image_in_pulp(image_entry, logger):
 
     logger.info("Checking if %s is present in Pulp", image_name)
 
+    _sanitize_shell_arg(image_name, logger, "image_name")
+
     dist_name_prefix = "container_repo_"
     transformed_dist_name = (f"{dist_name_prefix}{image_name.replace('/', '_').replace(':', '_')}")
 
@@ -543,7 +608,7 @@ def check_additional_image_in_pulp(image_entry, logger):
     latest_version_href_result = None
     tags_output_result = None
 
-    show_dist_cmd = (pulp_container_commands["container_distribution_show"] % transformed_dist_name)
+    show_dist_cmd = (pulp_container_commands["container_distribution_show"] % shlex.quote(transformed_dist_name))
     repo_href_result = execute_command(show_dist_cmd, logger)
     logger.info("repo_href_result: %s", repo_href_result)
 
@@ -557,6 +622,7 @@ def check_additional_image_in_pulp(image_entry, logger):
     else:
         logger.info("Distribution %s found in Pulp", transformed_dist_name)
         repo_href = repo_href_result["stdout"]
+        repo_href = _sanitize_shell_arg(repo_href, logger, "repo_href")
         show_repo_cmd = (pulp_container_commands["show_repository_version"] % repo_href)
         latest_version_href_result = execute_command(show_repo_cmd, logger)
         logger.info("latest_version_href_result: %s", latest_version_href_result)
@@ -570,6 +636,7 @@ def check_additional_image_in_pulp(image_entry, logger):
         else:
             logger.info("Repository version found in Pulp")
             latest_version_href = latest_version_href_result["stdout"]
+            latest_version_href = _sanitize_shell_arg(latest_version_href, logger, "latest_version_href")
             show_tags_cmd = (pulp_container_commands["list_image_tags"] % latest_version_href)
             tags_output_result = execute_command(show_tags_cmd, logger, type_json=True)
             logger.info("tags_output_result: %s", tags_output_result)
@@ -892,7 +959,9 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
     local_yaml = load_yaml(local_repo_config_path)
 
     additional_repos_config = {}
-    policy = REPO_CONFIG.get(repo_config, "on_demand")
+    global_policy = resolve_pulp_policy(
+        repo_config, True, logger
+    )
 
     vault_key_full_path = os.path.join(vault_key_path, ".local_repo_credentials_key")
 
@@ -949,7 +1018,7 @@ def parse_additional_repos(local_repo_config_path, repo_config, vault_key_path, 
                 "ca_cert": ca_cert,
                 "client_key": client_key,
                 "client_cert": client_cert,
-                "policy": policy,
+                "policy": global_policy,
                 "arch": arch
             })
             logger.info(f"Added additional repo entry: {name}")

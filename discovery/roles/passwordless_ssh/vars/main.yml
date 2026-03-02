@@ -26,6 +26,9 @@ slurm_functional_groups:
   - slurm_node_x86_64
   - login_node_x86_64
   - login_compiler_node_x86_64
+  - slurm_node_aarch64
+  - login_node_aarch64
+  - login_compiler_node_aarch64
 
 # Nodes.yaml group completeness checks
 omnia_required_groups_from_nodes_yaml:
@@ -41,5 +44,8 @@ omnia_optional_groups_from_nodes_yaml:
   - service_kube_control_plane_first_aarch64
   - service_kube_control_plane_aarch64
   - service_kube_node_aarch64
+  - slurm_node_aarch64
+  - login_node_aarch64
+  - login_compiler_node_aarch64
 
 ssh_private_key_path: /root/.ssh/config

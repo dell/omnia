@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,9 +19,10 @@ slurmctld_service_default_path: '/usr/lib/systemd/system/slurmctld.service'
 slurmd_service_default_path: '/usr/lib/systemd/system/slurmd.service'
 slurmdbd_service_default_path: '/usr/lib/systemd/system/slurmdbd.service'
 sys_env_path: '/etc/environment'
-default_real_memory: 4 # This is the minimum default memory in GiB
+default_real_memory: 884736
 default_threadspercore: 1
-default_corespersocket: 1
+default_corespersocket: 72
+default_sockets: 2
 share_prefix: "/"
 conf_path_items: {}
 conf_dict_items: {}
@@ -61,6 +62,9 @@ __default_config:
     SlurmdTimeout: 300
     Epilog: "/etc/slurm/epilog.d/logout_user.sh"
     PluginDir: "{{ plugin_slurm_dir }}"
+    NodeSet:
+      - NodeSet: "{{ slurm_partition_name }}"
+        Feature: "{{ slurm_partition_name }}"
     NodeName:
       - NodeName: DEFAULT
         State: UNKNOWN

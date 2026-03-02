@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,10 +37,10 @@ from ansible.module_utils.local_repo.config import (
     pulp_file_commands,
     pulp_rpm_commands,
     CLI_FILE_PATH,
-    POST_TIMEOUT,
-    ISO_POLL_VAL,
-    TAR_POLL_VAL,
-    FILE_POLL_VAL,
+    ISO_TIMEOUT_MIN,
+    TAR_TIMEOUT_MIN,
+    FILE_TIMEOUT_MIN,
+    TASK_POLL_INTERVAL,
     FILE_URI,
     PULP_SSL_CA_CERT
 )
@@ -201,7 +201,7 @@ def wait_for_task(task_href, base_url, username, password, logger, timeout=3600,
     logger.error("Timeout waiting for task to complete")
     return False
 
-def handle_file_upload(repository_name, relative_path, file_url, poll_interval, logger):
+def handle_file_upload(repository_name, relative_path, file_url, timeout_minutes, logger):
     """
     Ensure repository exists, then POST a file to Pulp and wait for the task to complete.
 
@@ -209,7 +209,7 @@ def handle_file_upload(repository_name, relative_path, file_url, poll_interval, 
         repository_name (str): Name of the repository.
         relative_path (str): Relative path for the file in the repository.
         file_url (str): URL of the file to upload.
-        poll_interval: Polling time
+        timeout_minutes (int): Maximum time in minutes to wait for task completion.
         logger (logging.Logger): Logger instance.
 
     Returns:
@@ -262,9 +262,10 @@ def handle_file_upload(repository_name, relative_path, file_url, poll_interval, 
         return "Failed"
 
     # Wait for task completion
-    logger.info(f"Waiting for task {task_href} to complete...")
+    timeout_seconds = timeout_minutes * 60
+    logger.info(f"Waiting for task {task_href} to complete (timeout: {timeout_minutes} min)...")
     task_result = wait_for_task(task_href, base_url, config["username"], passcode,
-                               logger, timeout=POST_TIMEOUT, interval=poll_interval)
+                               logger, timeout=timeout_seconds, interval=TASK_POLL_INTERVAL)
     if task_result:
         logger.info(f"File successfully uploaded to repository '{repository_name}'.")
         return "Success"
@@ -272,7 +273,7 @@ def handle_file_upload(repository_name, relative_path, file_url, poll_interval, 
         logger.error(f"Task {task_href} failed or timed out. File upload to repository '{repository_name}' failed.")
         return "Failed"
 
-def handle_post_request(repository_name, relative_path, base_path, file_url, poll_interval,logger):
+def handle_post_request(repository_name, relative_path, base_path, file_url, timeout_minutes,logger):
     """
     Handles the full Pulp upload and distribution process for a given repository and file.
     Args:
@@ -280,13 +281,13 @@ def handle_post_request(repository_name, relative_path, base_path, file_url, pol
         relative_path (str): Path where the file should be stored inside the repository.
         base_path (str): The base path for the distribution.
         file_url (str): URL of the file to be uploaded.
-        poll_interval: Interval for polling
+        timeout_minutes (int): Maximum time in minutes to wait for upload task completion.
         logger (logging.Logger): Logger for logging messages and errors.
 
     Returns:
         str: "Success" if the operation completes successfully, "Failed" otherwise.
     """
-    result = handle_file_upload(repository_name, relative_path, file_url, poll_interval,logger)
+    result = handle_file_upload(repository_name, relative_path, file_url, timeout_minutes,logger)
     if result =="Success":
         distribution_name = repository_name
         logger.info("Creating publication...")
@@ -483,7 +484,7 @@ def process_manifest(file,repo_store_path, status_file_path, cluster_os_type, cl
         relative_path = output_file
         base_path = manifest_directory.strip("/")
         status = handle_post_request(repository_name, relative_path,
-                 base_path, url, FILE_POLL_VAL, logger)
+                 base_path, url, FILE_TIMEOUT_MIN, logger)
     except Exception as e:
         logger.error(f"Error processing manifest: {e}")
         status= "Failed"
@@ -775,7 +776,7 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
             if url:
                 try:
                     status = handle_post_request(repository_name, relative_path,
-                             base_path, url, TAR_POLL_VAL,logger)
+                             base_path, url, TAR_TIMEOUT_MIN,logger)
                 except Exception as e:
                     logger.error(f"Error processing tarball: {e}")
                     status = "Failed"
@@ -882,7 +883,7 @@ def process_iso(package, repo_store_path, status_file_path,
                 # non-zero for failure)
                 subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
                 status = handle_post_request(repository_name, relative_path,
-                         base_path, url, ISO_POLL_VAL,logger)
+                         base_path, url, ISO_TIMEOUT_MIN,logger)
         except subprocess.CalledProcessError as e:
             logger.error(f"Error executing iso commands: {e}")
             status = "Failed"
@@ -942,7 +943,7 @@ def process_pip(package, repo_store_path, status_file_path,  cluster_os_type, cl
         package_name = shlex.quote(package['package']).strip("'\"")
         package_type = package['type']
         version = package.get('version', None)
-        pip_repo =  arc.lower() + "_pip_module" + package_name
+        pip_repo = arc.lower() + "_pip_module" + package_name
         distribution_name = pip_repo
 
         logger.info(f"Processing Pip Package: {package_name}, Version: {version}")

@@ -102,8 +102,10 @@ omnia_credentials:
       - { username: mysqldb_user, password: mysqldb_password }
       - { password: mysqldb_root_password }
   csi_driver_powerscale:
-    mandatory:
-      - { username: csi_username, password: csi_password }
+    conditional_mandatory:
+      - username: csi_username
+        password: csi_password
+        condition: "{{ csi_driver_powerscale_support | default(false) | bool }}"
   build_aarch_image:
     mandatory:
       - { password: provision_password }
