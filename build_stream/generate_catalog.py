@@ -335,10 +335,14 @@ def build_functional_layers(functional_packages, pxe_groups, role_package_map):
         # Remove architecture suffix
         role_name = pxe_group.replace('_x86_64', '').replace('_aarch64', '')
 
-        # Find packages for this role
-        package_ids = []
-        if role_name in role_package_map:
-            package_ids = role_package_map[role_name]
+        # Find packages for this role.
+        # Also merge in packages from the "<role>_first" section (e.g.,
+        # service_kube_control_plane_first) which covers first-node-only items
+        # like manifests and tarballs that are not present in the base section.
+        package_ids = list(role_package_map.get(role_name, []))
+        first_role = role_name + "_first"
+        if first_role in role_package_map:
+            package_ids = sorted(set(package_ids) | set(role_package_map[first_role]))
 
         # Filter package IDs by architecture encoded in PXE group name.
         pxe_arch = _extract_arch_from_pxe_group(pxe_group)
