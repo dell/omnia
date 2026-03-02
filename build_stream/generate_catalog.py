@@ -205,6 +205,11 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch):
                                 }
                             )
                         packages[key]['url'] = url
+                    elif pkg_type == 'git':
+                        url = pkg.get('url', '')
+                        version = pkg.get('version', '')
+                        packages[key]['url'] = url
+                        packages[key]['version'] = version
                     elif pkg_type == 'image':
                         tag = pkg.get('tag', '')
                         packages[key]['tag'] = tag
@@ -450,7 +455,7 @@ def create_infra_package_entry(pkg_data):
     entry = {
         "Name": pkg_data['name'],
         "Type": pkg_data['type'],
-        "Version": pkg_data.get('version', '1.0.0'),
+        "Version": pkg_data.get('version'),
         "SupportedFunctions": [{"Name": "csi"}]
     }
 
@@ -459,6 +464,9 @@ def create_infra_package_entry(pkg_data):
 
     if pkg_data['tag']:
         entry["Tag"] = pkg_data['tag']
+
+    if pkg_data.get('url'):
+        entry["Url"] = pkg_data['url']
 
     return entry
 
