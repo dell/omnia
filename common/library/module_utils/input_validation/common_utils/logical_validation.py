@@ -19,12 +19,12 @@ import sys
 
 sys.path.append("validation_flows")
 
-from . import provision_validation
-from . import common_validation
-from . import high_availability_validation
-from . import local_repo_validation
-from . import build_stream_validation
-from . import gitlab_validation
+from ansible.module_utils.input_validation.validation_flows import provision_validation
+from ansible.module_utils.input_validation.validation_flows import common_validation
+from ansible.module_utils.input_validation.validation_flows import high_availability_validation
+from ansible.module_utils.input_validation.validation_flows import local_repo_validation
+from ansible.module_utils.input_validation.validation_flows import build_stream_validation
+from ansible.module_utils.input_validation.validation_flows import gitlab_validation
 
 
 # L2 Validation Code - validate anything that could not have been validated with JSON schema
