@@ -1,4 +1,4 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ def main():
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
-
+    
     module_utils_base = module.params["module_utils_path"]
     omnia_base_dir = module.params["omnia_base_dir"]
     project_name = module.params["project_name"]
@@ -108,16 +108,10 @@ def main():
         error_message = f"The input directory {input_dir_path} does not exist."
         module.fail_json(msg=error_message)
 
-    input_files = fetch.files_recursively(
-        omnia_base_dir + "/" + project_name, extensions['json']
-    )
-    input_files = input_files + fetch.files_recursively(
-        omnia_base_dir + "/" + project_name, extensions['yml']
-    )
+    input_files = fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['json'])
+    input_files = input_files + fetch.files_recursively(omnia_base_dir + "/" + project_name, extensions['yml'])
 
-    input_file_dict = {
-        fetch.file_name_from_path(file_path): file_path for file_path in input_files
-    }
+    input_file_dict = { fetch.file_name_from_path(file_path): file_path for file_path in input_files }
 
     if not input_files:
         error_message = f"yml and json files not found in directory: {input_dir_path}"

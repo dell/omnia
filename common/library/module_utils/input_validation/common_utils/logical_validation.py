@@ -1,4 +1,4 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,12 +19,12 @@ import sys
 
 sys.path.append("validation_flows")
 
-from ..validation_flows import provision_validation
-from ..validation_flows import common_validation
-from ..validation_flows import high_availability_validation
-from ..validation_flows import local_repo_validation
-from ..validation_flows import build_stream_validation
-from ..validation_flows import gitlab_validation
+from . import provision_validation
+from . import common_validation
+from . import high_availability_validation
+from . import local_repo_validation
+from . import build_stream_validation
+from . import gitlab_validation
 
 
 # L2 Validation Code - validate anything that could not have been validated with JSON schema

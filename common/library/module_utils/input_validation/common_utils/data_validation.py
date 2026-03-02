@@ -1,4 +1,4 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,9 +63,7 @@ def schema(config):
             j_schema = json.load(schema_file)
         logger.debug(en_us_validation_msg.get_validation_initiated(input_file_path))
 
-        validator = jsonschema.Draft7Validator(
-            j_schema, format_checker=jsonschema.Draft7Validator.FORMAT_CHECKER
-        )
+        validator = jsonschema.Draft7Validator(j_schema, format_checker=jsonschema.Draft7Validator.FORMAT_CHECKER)
         errors = sorted(validator.iter_errors(input_data), key=lambda e: e.path)
 
         # if errors exist, then print an error with the line number
