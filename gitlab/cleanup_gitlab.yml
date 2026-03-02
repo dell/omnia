@@ -36,10 +36,10 @@
 
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../../utils/include_input_dir.yml
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
 - name: Import credential utility playbook
-  ansible.builtin.import_playbook: ../../utils/credential_utility/get_config_credentials.yml
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
   when: not config_file_status | default(false) | bool
 
 - name: Prepare GitLab host credentials for cleanup

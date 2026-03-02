@@ -32,10 +32,10 @@
 
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../../utils/include_input_dir.yml
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
 - name: Load Omnia credential utility
-  ansible.builtin.import_playbook: ../../utils/credential_utility/get_config_credentials.yml
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
 
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost
