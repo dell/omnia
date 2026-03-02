@@ -34,6 +34,7 @@ gitlab_host: ""
 #   - Default: "omnia-catalog"
 #   - This project will be created automatically if it doesn't exist
 gitlab_project_name: "omnia-catalog"
+
 # Visibility options: private | internal | public
 # Fields:
 #   gitlab_project_visibility: Visibility options - private | internal | public
@@ -42,6 +43,7 @@ gitlab_project_name: "omnia-catalog"
 #   - internal: The project can be cloned by any logged in user
 #   - public: The project can be cloned without any authentication
 gitlab_project_visibility: "private"
+
 # Default branch used for repository and API operations
 # Fields:
 #   gitlab_default_branch: Name of the default branch
@@ -49,9 +51,9 @@ gitlab_project_visibility: "private"
 #   - Default: "main"
 #   - This branch will be used as the default for all operations
 gitlab_default_branch: "main"
+
  
-# HTTPS is always enabled for GitLab deployment
- 
+# HTTPS is always enabled for GitLab deployment 
 # ----------------------------------------------------------------------------
 # DEFAULT / ADVANCED VARIABLES (CHANGE ONLY IF NEEDED)
 # ----------------------------------------------------------------------------
@@ -66,6 +68,7 @@ gitlab_default_branch: "main"
 #   - Must be between 1-65535
 #   - Must not conflict with other services
 gitlab_https_port: 443
+
 # Minimum requirements
 # Free disk space validated before install
 # Fields:
@@ -74,6 +77,7 @@ gitlab_https_port: 443
 #   - Default: 20
 #   - GitLab requires at least 20GB of free disk space
 gitlab_min_storage_gb: 20
+
 # Adjust upward for production workloads
 # Fields:
 #   gitlab_min_memory_gb: Minimum memory in GB
@@ -81,6 +85,7 @@ gitlab_min_storage_gb: 20
 #   - Default: 4
 #   - Adjust upward for production workloads
 gitlab_min_memory_gb: 4
+
 # Minimum CPU core count validated before install
 # Fields:
 #   gitlab_min_cpu_cores: Minimum number of CPU cores
@@ -97,6 +102,7 @@ gitlab_min_cpu_cores: 2
 #   - Default: true
 #   - Set to false to enable Prometheus monitoring
 gitlab_disable_prometheus: true
+
 # Disable Grafana if not needed
 # Fields:
 #   gitlab_disable_grafana: boolean - true | false
@@ -104,6 +110,7 @@ gitlab_disable_prometheus: true
 #   - Default: true
 #   - Set to false to enable Grafana dashboards
 gitlab_disable_grafana: true
+
 # Web worker count; scale with CPU
 # Fields:
 #   gitlab_puma_workers: Number of worker processes
@@ -111,10 +118,14 @@ gitlab_disable_grafana: true
 #   - Default: 2
 #   - Scale with CPU cores (recommended: 1-2 workers per CPU core)
 gitlab_puma_workers: 2
+
 # Background job concurrency
 # Fields:
 #   gitlab_sidekiq_concurrency: Number of concurrent background jobs
 # Notes:
 #   - Default: 10
 #   - Adjust based on available memory and workload
+ 
+# Target host for GitLab deployment/cleanup
 gitlab_sidekiq_concurrency: 10
+ 
