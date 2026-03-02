@@ -4,28 +4,120 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
- 
-# ============================================================================
-# GitLab Configuration for Omnia Build Stream
-# ============================================================================
-# This file contains all user inputs required for GitLab deployment and
-# integration with Omnia Infrastructure Manager (OIM).
-# ============================================================================
- 
-# ----------------------------------------------------------------------------
-# USER INPUT VARIABLES (SET THESE FIRST)
-# ----------------------------------------------------------------------------
-# Set these values before running the GitLab build stream playbook.
- 
-# Required: Set the target host in build_stream/gitlab/inventory/hosts.ini
-# Example entry: 172.168.0.5
+# ***********************************************************************
+# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
+# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
+# ***********************************************************************
+
+# ================================
+# VARIABLE DETAILS
+# ================================
+# 1. gitlab_host
+#--------------------------
+# Target host for GitLab deployment/cleanup
+# Fields:
+#   gitlab_host: IP address of the target host where GitLab will be deployed
+# Notes:
+#   - This is the IP address of the server where GitLab will be installed
+#   - Must be accessible from the OIM server
+#   - Must be configured in build_stream/gitlab/inventory/hosts.ini
+# 2. gitlab_project_name
+#--------------------------
+# Name of the GitLab project Omnia will create/manage
+# Fields:
+#   gitlab_project_name: Name for the GitLab project
+# Notes:
+#   - Default: "omnia-catalog"
+#   - This project will be created automatically if it doesn't exist
+# 3. gitlab_project_visibility
+#--------------------------
+# Visibility level for the GitLab project
+# Fields:
+#   gitlab_project_visibility: Visibility options - private | internal | public
+# Notes:
+#   - private: Project access must be granted explicitly for each user
+#   - internal: The project can be cloned by any logged in user
+#   - public: The project can be cloned without any authentication
+# 4. gitlab_default_branch
+#--------------------------
+# Default branch used for repository and API operations
+# Fields:
+#   gitlab_default_branch: Name of the default branch
+# Notes:
+#   - Default: "main"
+#   - This branch will be used as the default for all operations
+# 5. gitlab_https_port
+#--------------------------
+# HTTPS port exposed via GitLab NGINX
+# Fields:
+#   gitlab_https_port: Port number for HTTPS access
+# Notes:
+#   - Default: 443
+#   - Must be between 1-65535
+#   - Must not conflict with other services
+# 6. gitlab_min_storage_gb
+#--------------------------
+# Minimum free disk space required for GitLab installation
+# Fields:
+#   gitlab_min_storage_gb: Minimum storage in GB
+# Notes:
+#   - Default: 20
+#   - GitLab requires at least 20GB of free disk space
+# 7. gitlab_min_memory_gb
+#--------------------------
+# Minimum memory required for GitLab installation
+# Fields:
+#   gitlab_min_memory_gb: Minimum memory in GB
+# Notes:
+#   - Default: 4
+#   - Adjust upward for production workloads
+# 8. gitlab_min_cpu_cores
+#--------------------------
+# Minimum CPU cores required for GitLab installation
+# Fields:
+#   gitlab_min_cpu_cores: Minimum number of CPU cores
+# Notes:
+#   - Default: 2
+#   - More cores may be needed for production workloads
+# 9. gitlab_disable_prometheus
+#--------------------------
+# Disable bundled Prometheus monitoring to save resources
+# Fields:
+#   gitlab_disable_prometheus: boolean - true | false
+# Notes:
+#   - Default: true
+#   - Set to false to enable Prometheus monitoring
+# 10. gitlab_disable_grafana
+#--------------------------
+# Disable bundled Grafana to save resources
+# Fields:
+#   gitlab_disable_grafana: boolean - true | false
+# Notes:
+#   - Default: true
+#   - Set to false to enable Grafana dashboards
+# 11. gitlab_puma_workers
+#--------------------------
+# Number of web worker processes
+# Fields:
+#   gitlab_puma_workers: Number of worker processes
+# Notes:
+#   - Default: 2
+#   - Scale with CPU cores (recommended: 1-2 workers per CPU core)
+# 12. gitlab_sidekiq_concurrency
+#--------------------------
+# Background job concurrency
+# Fields:
+#   gitlab_sidekiq_concurrency: Number of concurrent background jobs
+# Notes:
+#   - Default: 10
+#   - Adjust based on available memory and workload
  
 # Target host for GitLab deployment/cleanup
 gitlab_host: ""
