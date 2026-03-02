@@ -24,7 +24,9 @@ NETMASK_BITS_INTERFACE_MISMATCH_MSG = (
     "netmask_bits does not match the netmask configured on the specified interface"
 )
 MISSING_CLUSTER_NAME_MSG = "Cluster name is mandatory for all kubernetes roles."
-CLUSTER_NAME_OVERLAP_MSG = "The cluster name '{0}' cannot be shared between service and compute Kubernetes roles."
+CLUSTER_NAME_OVERLAP_MSG = (
+    "The cluster name '{0}' cannot be shared between service and compute Kubernetes roles."
+)
 CLUSTER_NAME_INCONSISTENT_MSG = (
     "Inconsistent 'cluster_name' values found across Service or Compute Kubernetes roles. "
     "Each of the following role sets must use the same 'cluster_name': "
@@ -39,15 +41,25 @@ MAX_NUMBER_OF_ROLES_PER_GROUP_MSG = "Groups can support a maximum of 5 roles."
 RESOURCE_MGR_ID_MSG = ("The resource_mgr_id is mandatory if the group is mapped to "
                        "kube_node, slurm_node roles, service_kube_node, etcd, service_etcd roles.")
 GRP_EXIST_MSG = "A valid group must be provided."
-INVALID_SWITCH_IP_MSG = "Please provide a valid switch IPv4 address (example: 10.5.0.1)."
+INVALID_SWITCH_IP_MSG = (
+    "Please provide a valid switch IPv4 address (example: 10.5.0.1)."
+)
 GRP_ROLE_MSG = "Please associate this group with a role."
-PARENT_SERVICE_NODE_MSG = ("A group associated with the management_layer should not have a parent value.")
-PARENT_SERVICE_ROLE_DNE_MSG = ("Parent field is only supported when 'service_kube_control_plane, service_kube_node' role is defined,"
-    " Please remove the 'parent' field from this role's group definition.")
-PARENT_SERVICE_ROLE_MSG = (" A 'service_kube_control_plane, service_kube_node' role is not defined, so the 'parent' field should"
-    " be empty for groups associated with 'worker' or 'default' roles.")
-PARENT_SERVICE_ROLE_REQUIRED_MSG = ("When 'service_kube_control_plane', 'service_kube_node' role is defined,"
-    " the 'parent' field is required for groups associated with 'worker' or 'default' roles.")
+PARENT_SERVICE_NODE_MSG = (
+    "A group associated with the management_layer should not have a parent value."
+)
+PARENT_SERVICE_ROLE_DNE_MSG = (
+    "Parent field is only supported when 'service_kube_control_plane, service_kube_node' "
+    "role is defined, Please remove the 'parent' field from this role's group definition."
+)
+PARENT_SERVICE_ROLE_MSG = (
+    "A 'service_kube_control_plane, service_kube_node' role is not defined, so the "
+    "'parent' field should be empty for groups associated with 'worker' or 'default' roles."
+)
+PARENT_SERVICE_ROLE_REQUIRED_MSG = (
+    "When 'service_kube_control_plane', 'service_kube_node' role is defined, "
+    "the 'parent' field is required for groups associated with 'worker' or 'default' roles."
+)
 BMC_STATIC_RANGE_INVALID_MSG = ("Static range should be in the following format: "
                                "IPv4Start-IPv4End (example: 10.5.0.1-10.5.0.200).")
 OVERLAPPING_STATIC_RANGE = "bmc_detail's static_range is overlapping with other static ranges."
@@ -63,7 +75,9 @@ INVALID_ATTRIBUTES_ROLE_MSG = ("Please provide valid attributes for the role, "
                               "both 'name' and 'groups' are mandatory.")
 NO_GROUPS_MSG = "Outer Group object was probably not defined."
 NO_ROLES_MSG = "Outer Role object was probably not defined."
-INVALID_SWITCH_PORTS_MSG = "Please provide any port ranges as start-end (example: 0-15,4:4,51-53)."
+INVALID_SWITCH_PORTS_MSG = (
+    "Please provide any port ranges as start-end (example: 0-15,4:4,51-53)."
+)
 DUPLICATE_GROUP_NAME_MSG = "Duplicate group names are not allowed."
 EMPTY_OR_SYNTAX_ERROR_ROLES_CONFIG_MSG = ("File is either empty or contains syntax errors. "
                                          "File must contain valid YAML with 'Roles' and 'Groups' "

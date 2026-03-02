@@ -63,7 +63,9 @@ def schema(config):
             j_schema = json.load(schema_file)
         logger.debug(en_us_validation_msg.get_validation_initiated(input_file_path))
 
-        validator = jsonschema.Draft7Validator(j_schema, format_checker=jsonschema.Draft7Validator.FORMAT_CHECKER)
+        validator = jsonschema.Draft7Validator(
+            j_schema, format_checker=jsonschema.Draft7Validator.FORMAT_CHECKER
+        )
         errors = sorted(validator.iter_errors(input_data), key=lambda e: e.path)
 
         # if errors exist, then print an error with the line number
