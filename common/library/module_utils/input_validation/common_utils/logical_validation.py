@@ -17,7 +17,7 @@ This module contains functions for validating function based on the file data.
 """
 import sys
 
-sys.path.append("validation_flows")
+sys.path.append("module_utils/validation_flows")
 
 from ansible.module_utils.input_validation.validation_flows import provision_validation
 from ansible.module_utils.input_validation.validation_flows import common_validation
