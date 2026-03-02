@@ -122,7 +122,7 @@ gitlab_password_change_success_msg: "GitLab root password changed successfully!"
 # Pipeline trigger and catalog defaults
 gitlab_trigger_description: "Omnia Software Catalog Webhook"
 gitlab_catalog_repo_path: "catalog_rhel.json"
-gitlab_catalog_json_source: "{{ role_path }}/../../../../examples/catalog/catalog_rhel.json"
+gitlab_catalog_json_source: "{{ role_path }}/../../../examples/catalog/catalog_rhel.json"
 
 # Pipeline CI/CD variables
 gitlab_pipeline_var_check_status_codes: [200, 404]
