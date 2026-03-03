@@ -74,6 +74,13 @@ get_version_from_git_tag() {
     return 0
 }
 
+trim_whitespace() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "$value"
+}
+
 # Function to validate version string format
 validate_version_string() {
     local version="$1"
@@ -455,9 +462,44 @@ check_internal_nfs_export() {
         exit 1
     fi
 
-    # Check if path is in the export list
-    if echo "$exports" | awk '{print $1}' | grep -Fxq "$nfs_server_share_path"; then
-        echo -e "${GREEN}Path $nfs_server_share_path is exported by $nfs_server_ip.${NC}"
+    share_path_trimmed="$(trim_whitespace "$nfs_server_share_path")"
+    share_path_trimmed="${share_path_trimmed%/}"
+    [[ -z "$share_path_trimmed" ]] && share_path_trimmed="/"
+
+    matching_export=""
+    while IFS= read -r export_line; do
+        export_line="$(trim_whitespace "$export_line")"
+        [[ -z "$export_line" ]] && continue
+        export_path="${export_line%%[[:space:]]*}"
+        [[ "$export_path" != /* ]] && continue
+        export_path_trimmed="${export_path%/}"
+        [[ -z "$export_path_trimmed" ]] && export_path_trimmed="/"
+
+        if [[ "$share_path_trimmed" == "$export_path_trimmed" ]] || [[ "$share_path_trimmed" == "$export_path_trimmed"/* ]]; then
+            matching_export="$export_path_trimmed"
+            break
+        fi
+    done <<< "$(echo "$exports" | tail -n +2)"
+
+    if [[ -z "$matching_export" ]] && [[ -f /etc/exports ]]; then
+        while IFS= read -r export_line; do
+            export_line="$(trim_whitespace "$export_line")"
+            [[ -z "$export_line" ]] && continue
+            [[ "${export_line:0:1}" == "#" ]] && continue
+            export_path="${export_line%%[[:space:]]*}"
+            [[ "$export_path" != /* ]] && continue
+            export_path_trimmed="${export_path%/}"
+            [[ -z "$export_path_trimmed" ]] && export_path_trimmed="/"
+
+            if [[ "$share_path_trimmed" == "$export_path_trimmed" ]] || [[ "$share_path_trimmed" == "$export_path_trimmed"/* ]]; then
+                matching_export="$export_path_trimmed"
+                break
+            fi
+        done < /etc/exports
+    fi
+
+    if [[ -n "$matching_export" ]]; then
+        echo -e "${GREEN}Path $nfs_server_share_path is covered by exported path $matching_export on $nfs_server_ip.${NC}"
     else
         echo -e "${RED}ERROR: Path $nfs_server_share_path is NOT exported by $nfs_server_ip.${NC}"
         exit 1
