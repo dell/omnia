@@ -174,6 +174,38 @@
         - firewall-cmd --permanent --add-port={{ slurm_conf_dict.SrunPortRange }}/udp
         - firewall-cmd --permanent --add-port={{  slurm_conf_dict.SlurmdPort }}/tcp
         - firewall-cmd --permanent --add-port={{ slurm_conf_dict.SlurmdPort }}/udp
+        
+        # Add PXE network to trusted zone for ORTE communication
+        - echo "[INFO] Adding PXE network to trusted zone for ORTE communication"
+        - |
+          bash -c '
+          ADMIN_IP="{{ hostvars['localhost']['admin_nic_ip'] }}"
+          NETMASK_BITS="{{ hostvars['localhost']['admin_netmask_bits'] }}"
+          
+          # Convert IP to integer and calculate network address
+          ip_to_int() {
+            local IFS=.
+            read -r a b c d <<< "$1"
+            echo $(( (a << 24) + (b << 16) + (c << 8) + d ))
+          }
+          
+          int_to_ip() {
+            local ip=$1
+            echo "$(( (ip >> 24) & 255 )).$(( (ip >> 16) & 255 )).$(( (ip >> 8) & 255 )).$(( ip & 255 ))"  
+          }
+          
+          ADMIN_IP_INT=$(ip_to_int "$ADMIN_IP")
+          HOST_BITS=$(( 32 - NETMASK_BITS ))
+          HOST_MASK=$(( (1 << HOST_BITS) - 1 ))
+          NETWORK_MASK=$(( ~HOST_MASK & 0xFFFFFFFF ))
+          NETWORK_INT=$(( ADMIN_IP_INT & NETWORK_MASK ))
+          NETWORK_IP=$(int_to_ip "$NETWORK_INT")
+          
+          PXE_SUBNET="$NETWORK_IP/$NETMASK_BITS"
+          echo "[INFO] Admin IP: $ADMIN_IP, Netmask: /$NETMASK_BITS, PXE Subnet: $PXE_SUBNET"
+          firewall-cmd --zone=trusted --add-source="$PXE_SUBNET" --permanent
+          '
+        
         - firewall-cmd --reload
         - systemctl enable sshd
         - systemctl start sshd

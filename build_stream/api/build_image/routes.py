@@ -40,7 +40,9 @@ from core.build_image.exceptions import (
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,
+    StageNotFoundError,
     TerminalStateViolationError,
+    UpstreamStageNotCompletedError,
 )
 from core.jobs.value_objects import ClientId, CorrelationId, JobId
 from orchestrator.build_image.commands import CreateBuildImageCommand
@@ -157,6 +159,33 @@ def create_build_image(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=_build_error_response(
                 "JOB_NOT_FOUND",
+                exc.message,
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
+    except StageNotFoundError as exc:
+        log_secure_info("warning", f"Build image failed: job_id={job_id}, reason=stage_not_found, status=404", job_id=job_id, end_section=True)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=_build_error_response(
+                "STAGE_NOT_FOUND",
+                exc.message,
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
+    except UpstreamStageNotCompletedError as exc:
+        log_secure_info(
+            "warning",
+            f"Build image failed: job_id={job_id}, reason=upstream_stage_not_completed, status=412",
+            job_id=job_id,
+            end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
+            detail=_build_error_response(
+                "UPSTREAM_STAGE_NOT_COMPLETED",
                 exc.message,
                 correlation_id.value,
             ).model_dump(),

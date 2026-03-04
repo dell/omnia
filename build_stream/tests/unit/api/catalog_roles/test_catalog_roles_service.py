@@ -23,9 +23,9 @@ import pytest
 
 from api.catalog_roles.service import (
     CatalogRolesService,
-    ParseCatalogNotCompletedError,
     RolesNotFoundError,
 )
+from core.jobs.exceptions import UpstreamStageNotCompletedError
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.exceptions import ArtifactNotFoundError
 from core.artifacts.value_objects import ArtifactDigest, ArtifactKey, ArtifactKind, ArtifactRef
@@ -100,7 +100,7 @@ class TestCatalogRolesServiceGetRoles:
         assert roles == ["Compiler", "K8S Controller", "Slurm Worker"]
 
     def test_raises_when_no_artifact_record(self):
-        """Raises ParseCatalogNotCompletedError when no root-jsons record exists."""
+        """Raises UpstreamStageNotCompletedError when no root-jsons record exists."""
         job_id = _make_job_id()
 
         metadata_repo = MagicMock()
@@ -108,11 +108,11 @@ class TestCatalogRolesServiceGetRoles:
 
         service = self._make_service(artifact_metadata_repo=metadata_repo)
 
-        with pytest.raises(ParseCatalogNotCompletedError):
+        with pytest.raises(UpstreamStageNotCompletedError):
             service.get_roles(job_id)
 
     def test_raises_when_artifact_not_in_store(self):
-        """Raises ParseCatalogNotCompletedError when artifact file is missing from store."""
+        """Raises UpstreamStageNotCompletedError when artifact file is missing from store."""
         job_id = _make_job_id()
         ref = _make_artifact_ref()
         record = _make_artifact_record(job_id, ref)
@@ -125,7 +125,7 @@ class TestCatalogRolesServiceGetRoles:
 
         service = self._make_service(artifact_store, metadata_repo)
 
-        with pytest.raises(ParseCatalogNotCompletedError):
+        with pytest.raises(UpstreamStageNotCompletedError):
             service.get_roles(job_id)
 
     def test_raises_when_no_functional_layer_in_archive(self):
@@ -267,7 +267,7 @@ class TestCatalogRolesServiceGetRoles:
 
         service = self._make_service(artifact_metadata_repo=metadata_repo)
 
-        with pytest.raises(ParseCatalogNotCompletedError):
+        with pytest.raises(UpstreamStageNotCompletedError):
             service.get_roles(job_id)
 
         metadata_repo.find_by_job_stage_and_label.assert_called_once_with(

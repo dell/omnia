@@ -321,6 +321,14 @@
     - busy_nodes | length > 0
     - user_input.user_input | default('') | trim | upper == 'A'
 
+- name: Empty Busy nodes for Force removal
+  ansible.builtin.set_fact:
+    busy_nodes: {}
+  when:
+    - busy_nodes is defined
+    - busy_nodes | length > 0
+    - user_input.user_input | default('') | trim | upper == 'F'
+
 - name: Remove nodes
   ansible.builtin.include_tasks: remove_node.yml
   when:
@@ -384,26 +392,17 @@
 
 - name: Handle user choice - ABORT
   ansible.builtin.fail:
-    msg: |
-      ================================================================================
-      PLAYBOOK ABORTED BY USER
-      ================================================================================
-
-      You chose to abort the playbook (Option A).
-
-      Next Steps:
-        1. Cancel running jobs manually:
-      {% for node in busy_nodes.keys() %}
-           scancel -w {{ node }}
-      {% endfor %}
-
-        2. Or wait for jobs to complete naturally
-
-        3. Re-run this playbook to remove the nodes
-
-      Idle nodes (if any) have already been removed from the cluster.
-
-      ================================================================================
+    msg:
+      - "==============================================================================="
+      - "PLAYBOOK ABORTED BY USER"
+      - "==============================================================================="
+      - "You chose to abort the playbook (Option A)."
+      - "Next Steps:"
+      - "1. Cancel running jobs manually: 'scancel -w <node_name>'"
+      - "2. Or wait for jobs to complete naturally"
+      - "3. Re-run this playbook to remove the nodes"
+      - "Idle nodes (if any) have already been removed from the cluster."
+      - "==============================================================================="
   when:
     - busy_nodes is defined
     - busy_nodes | length > 0

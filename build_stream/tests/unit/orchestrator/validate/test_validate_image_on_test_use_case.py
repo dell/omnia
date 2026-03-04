@@ -19,7 +19,10 @@ import uuid
 import pytest
 
 from core.jobs.entities import Job, Stage
-from core.jobs.exceptions import JobNotFoundError
+from core.jobs.exceptions import (
+    JobNotFoundError,
+    UpstreamStageNotCompletedError,
+)
 from core.jobs.value_objects import (
     ClientId,
     CorrelationId,
@@ -30,7 +33,6 @@ from core.jobs.value_objects import (
     StageType,
 )
 from core.validate.exceptions import (
-    StageGuardViolationError,
     ValidationExecutionError,
 )
 from orchestrator.validate.commands import ValidateImageOnTestCommand
@@ -74,71 +76,102 @@ def _make_command(
         job_id=job_id or JobId(_uuid()),
         client_id=client_id or ClientId("test-client"),
         correlation_id=CorrelationId(_uuid()),
+        image_key="test-image",
     )
 
 
 # --- Mock repositories ---
 
 class MockJobRepo:
+    """Mock job repository for testing."""
+    # pylint: disable=too-few-public-methods
+
     def __init__(self):
+        """Initialize mock job repository."""
         self._jobs = {}
 
     def save(self, job: Job) -> None:
+        """Save job to repository."""
         self._jobs[str(job.job_id)] = job
 
     def find_by_id(self, job_id):
+        """Find job by ID."""
         key = str(job_id) if not isinstance(job_id, str) else job_id
         return self._jobs.get(key)
 
     def exists(self, job_id) -> bool:
+        """Check if job exists."""
         key = str(job_id) if not isinstance(job_id, str) else job_id
         return key in self._jobs
 
 
 class MockStageRepo:
+    """Mock stage repository for testing."""
+    # pylint: disable=too-few-public-methods
+
     def __init__(self):
+        """Initialize mock stage repository."""
         self._stages = {}
 
     def save(self, stage: Stage) -> None:
+        """Save stage to repository."""
         key = (str(stage.job_id), str(stage.stage_name))
         self._stages[key] = stage
 
     def save_all(self, stages) -> None:
+        """Save multiple stages."""
         for s in stages:
             self.save(s)
 
     def find_by_job_and_name(self, job_id, stage_name):
+        """Find stage by job ID and stage name."""
         key = (str(job_id), str(stage_name))
         return self._stages.get(key)
 
     def find_all_by_job(self, job_id):
+        """Find all stages for a job."""
         jid = str(job_id)
         return [s for k, s in self._stages.items() if k[0] == jid]
 
 
 class MockAuditRepo:
+    """Mock audit repository for testing."""
+    # pylint: disable=too-few-public-methods
+
     def __init__(self):
+        """Initialize mock audit repository."""
         self._events = []
 
     def save(self, event) -> None:
+        """Save event to repository."""
         self._events.append(event)
 
     def find_by_job(self, job_id):
+        """Find events by job ID."""
         jid = str(job_id)
         return [e for e in self._events if str(e.job_id) == jid]
 
 
 class MockUUIDGenerator:
+    """Mock UUID generator for testing."""
+    # pylint: disable=too-few-public-methods
+
     def generate(self):
+        """Generate a UUID."""
         return uuid.uuid4()
 
 
 class MockQueueService:
+    """Mock queue service for testing."""
+    # pylint: disable=too-few-public-methods
+
     def __init__(self, should_fail: bool = False):
+        """Initialize mock queue service."""
         self.submitted = []
         self.should_fail = should_fail
 
     def submit_request(self, request, correlation_id):
+        """Submit request to queue."""
         if self.should_fail:
             raise IOError("Queue unavailable")
         self.submitted.append(request)
@@ -148,30 +181,36 @@ class MockQueueService:
 
 @pytest.fixture
 def job_repo():
+    """Provide mock job repository."""
     return MockJobRepo()
 
 
 @pytest.fixture
 def stage_repo():
+    """Provide mock stage repository."""
     return MockStageRepo()
 
 
 @pytest.fixture
 def audit_repo():
+    """Provide mock audit repository."""
     return MockAuditRepo()
 
 
 @pytest.fixture
 def uuid_gen():
+    """Provide mock UUID generator."""
     return MockUUIDGenerator()
 
 
 @pytest.fixture
 def queue_service():
+    """Provide mock queue service."""
     return MockQueueService()
 
 
 def _build_use_case(job_repo, stage_repo, audit_repo, queue_service, uuid_gen):
+    """Build use case with mocked dependencies."""
     return ValidateImageOnTestUseCase(
         job_repo=job_repo,
         stage_repo=stage_repo,
@@ -190,6 +229,7 @@ class TestValidateImageOnTestUseCase:
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
     ):
         """Successful execution should submit to queue and return response."""
+        # pylint: disable=too-many-arguments, redefined-outer-name
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
 
@@ -216,12 +256,13 @@ class TestValidateImageOnTestUseCase:
         assert result.stage_name == "validate-image-on-test"
         assert result.status == "accepted"
         assert len(queue_service.submitted) == 1
-        assert len(audit_repo._events) == 1
+        assert len(audit_repo.find_by_job(job_id)) == 1
 
     def test_execute_with_aarch64_completed(
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
     ):
         """Should succeed when aarch64 build stage is completed."""
+        # pylint: disable=too-many-arguments, redefined-outer-name
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
 
@@ -248,6 +289,7 @@ class TestValidateImageOnTestUseCase:
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
     ):
         """Should raise JobNotFoundError when job does not exist."""
+        # pylint: disable=too-many-arguments, redefined-outer-name
         command = _make_command()
         use_case = _build_use_case(
             job_repo, stage_repo, audit_repo, queue_service, uuid_gen
@@ -260,6 +302,7 @@ class TestValidateImageOnTestUseCase:
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
     ):
         """Should raise JobNotFoundError when client doesn't own the job."""
+        # pylint: disable=too-many-arguments, redefined-outer-name
         job_id = JobId(_uuid())
         job = _make_job(job_id, ClientId("owner-client"))
         job_repo.save(job)
@@ -276,6 +319,7 @@ class TestValidateImageOnTestUseCase:
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
     ):
         """Should raise JobNotFoundError when validate stage doesn't exist."""
+        # pylint: disable=too-many-arguments, redefined-outer-name
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
         job = _make_job(job_id, client_id)
@@ -292,7 +336,8 @@ class TestValidateImageOnTestUseCase:
     def test_execute_stage_guard_violation_no_build_stages(
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
     ):
-        """Should raise StageGuardViolationError when no build stage completed."""
+        """Should raise UpstreamStageNotCompletedError when no build stage completed."""
+        # pylint: disable=too-many-arguments, redefined-outer-name
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
 
@@ -307,13 +352,14 @@ class TestValidateImageOnTestUseCase:
             job_repo, stage_repo, audit_repo, queue_service, uuid_gen
         )
 
-        with pytest.raises(StageGuardViolationError):
+        with pytest.raises(UpstreamStageNotCompletedError):
             use_case.execute(command)
 
     def test_execute_stage_guard_violation_build_pending(
         self, job_repo, stage_repo, audit_repo, queue_service, uuid_gen
     ):
-        """Should raise StageGuardViolationError when build stage is PENDING."""
+        """Should raise UpstreamStageNotCompletedError when build stage is PENDING."""
+        # pylint: disable=too-many-arguments, redefined-outer-name
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
 
@@ -333,7 +379,7 @@ class TestValidateImageOnTestUseCase:
             job_repo, stage_repo, audit_repo, queue_service, uuid_gen
         )
 
-        with pytest.raises(StageGuardViolationError):
+        with pytest.raises(UpstreamStageNotCompletedError):
             use_case.execute(command)
 
     def test_execute_queue_failure(

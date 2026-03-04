@@ -51,8 +51,10 @@ from core.localrepo.value_objects import (
 from core.jobs.entities import AuditEvent, Stage
 from core.jobs.exceptions import (
     JobNotFoundError,
+    StageNotFoundError,
     StageAlreadyCompletedError,
     InvalidStateTransitionError,
+    UpstreamStageNotCompletedError,
 )
 from core.jobs.repositories import (
     AuditEventRepository,
@@ -63,6 +65,7 @@ from core.jobs.repositories import (
 from core.jobs.value_objects import (
     StageName,
     StageType,
+    StageState,
 )
 
 from orchestrator.build_image.commands import CreateBuildImageCommand
@@ -192,29 +195,36 @@ class CreateBuildImageUseCase:
 
         return job
 
-    def _validate_stage(self, command: CreateBuildImageCommand, architecture: Architecture) -> Stage:
-        """Validate stage exists and is in PENDING state, with prerequisite completed."""
+    def _verify_upstream_stage_completed(
+        self, command: CreateBuildImageCommand
+    ) -> None:
+        """Verify that create-local-repository stage is COMPLETED."""
         from core.jobs.value_objects import StageState
         
-        # Check prerequisite stage is completed
         prerequisite_stage = self._stage_repo.find_by_job_and_name(
             command.job_id, 
             StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
         )
-        if prerequisite_stage is None:
-            raise JobNotFoundError(
+        if (
+            prerequisite_stage is None
+            or prerequisite_stage.stage_state != StageState.COMPLETED
+        ):
+            raise UpstreamStageNotCompletedError(
                 job_id=str(command.job_id),
+                required_stage="create-local-repository",
+                actual_state=(
+                    prerequisite_stage.stage_state.value
+                    if prerequisite_stage
+                    else "NOT_FOUND"
+                ),
                 correlation_id=str(command.correlation_id),
             )
+
+    def _validate_stage(self, command: CreateBuildImageCommand, architecture: Architecture) -> Stage:
+        """Validate stage exists and is in PENDING state."""
         
-        if prerequisite_stage.stage_state != StageState.COMPLETED:
-            raise InvalidStateTransitionError(
-                entity_type="Stage",
-                entity_id=f"{command.job_id}/create-local-repository",
-                from_state=prerequisite_stage.stage_state.value,
-                to_state="COMPLETED",
-                correlation_id=str(command.correlation_id),
-            )
+        # Verify upstream stage is completed
+        self._verify_upstream_stage_completed(command)
         
         # Use architecture-specific stage type
         if architecture.is_x86_64:
@@ -226,8 +236,9 @@ class CreateBuildImageUseCase:
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
 
         if stage is None:
-            raise JobNotFoundError(
+            raise StageNotFoundError(
                 job_id=str(command.job_id),
+                stage_name=stage_type.value,
                 correlation_id=str(command.correlation_id),
             )
         

@@ -24,6 +24,7 @@ from core.jobs.exceptions import (
     JobNotFoundError,
     StageAlreadyCompletedError,
     InvalidStateTransitionError,
+    UpstreamStageNotCompletedError,
 )
 from core.jobs.repositories import (
     AuditEventRepository,
@@ -148,9 +149,37 @@ class CreateLocalRepoUseCase:
 
         return job
 
+    def _verify_upstream_stage_completed(
+        self, command: CreateLocalRepoCommand
+    ) -> None:
+        """Verify that generate-input-files stage is COMPLETED."""
+        from core.jobs.value_objects import StageState
+        
+        prerequisite_stage = self._stage_repo.find_by_job_and_name(
+            command.job_id, 
+            StageName(StageType.GENERATE_INPUT_FILES.value)
+        )
+        if (
+            prerequisite_stage is None
+            or prerequisite_stage.stage_state != StageState.COMPLETED
+        ):
+            raise UpstreamStageNotCompletedError(
+                job_id=str(command.job_id),
+                required_stage="generate-input-files",
+                actual_state=(
+                    prerequisite_stage.stage_state.value
+                    if prerequisite_stage
+                    else "NOT_FOUND"
+                ),
+                correlation_id=str(command.correlation_id),
+            )
+
     def _validate_stage(self, command: CreateLocalRepoCommand) -> Stage:
         """Validate stage exists and is not already COMPLETED or IN_PROGRESS or in PENDING state."""
         from core.jobs.value_objects import StageState
+        
+        # Verify upstream stage is completed
+        self._verify_upstream_stage_completed(command)
         
         stage_name = StageName(StageType.CREATE_LOCAL_REPOSITORY.value)
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)

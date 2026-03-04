@@ -46,12 +46,6 @@
   when: node_params is defined and node_params
   no_log: "{{ _no_log }}"
 
-- name: Add gpu parameters to slurm conf
-  ansible.builtin.set_fact:
-    apply_config: "{{ apply_config | default({}) | combine({'slurm': (apply_config['slurm'] | combine(gpu_slurm_conf))}) }}"
-  when: gpu_params is defined and gpu_params
-  no_log: "{{ _no_log }}"
-
 - name: Add dbd parameters to slurm conf
   ansible.builtin.set_fact:
     apply_config: "{{ apply_config | default({}) | combine({'slurm': (apply_config['slurm'] | combine(dbd_slurm_conf))}) }}"

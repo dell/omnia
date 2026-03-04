@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# BuildStream API Client — GitLab CI/CD Pipeline
+# BuildStream API Client -- GitLab CI/CD Pipeline
 #
 # Prerequisites:
 #   - GitLab runner with curl and jq installed (alpine/ubuntu image works)
@@ -20,13 +20,19 @@
 #   - catalog_rhel.json in the same directory as this file
 #   - GITLAB_API_TOKEN stored as a masked CI/CD variable (PAT with api scope)
 #   - BSM_API_USERNAME / BSM_API_PASSWORD for first-time registration
-#   - BSM_API_CERT stored as a CI/CD variable (PEM-encoded CA certificate for BSM API TLS)
+#   - BSM_API_CERT stored as a CI/CD variable (PEM-encoded CA certificate)
+#
+# Token Management:
+#   - Access tokens expire after 1 hour
+#   - All API calls detect 401 errors (token_expired, invalid_token, missing_token)
+#   - On 401, the pipeline refreshes the token and retries the failed call once
+#   - Token refresh is transparent via the api_call_with_retry wrapper
 #
 # Usage:
 #   Place this file and catalog_rhel.json in a GitLab repo.
 #   The pipeline triggers on catalog_rhel.json changes or via trigger API.
 # ---------------------------------------------------------------------------
-# Workflow rules — pipeline runs when catalog changes or via trigger API
+# Workflow rules -- pipeline runs when catalog changes or via trigger API
 # ---------------------------------------------------------------------------
 workflow:
   rules:
@@ -35,7 +41,7 @@ workflow:
     - if: '$CI_PIPELINE_SOURCE == "trigger"'
 
 # ---------------------------------------------------------------------------
-# Variables — BSM_API_URL, BSM_API_USERNAME, BSM_API_PASSWORD,
+# Variables -- BSM_API_URL, BSM_API_USERNAME, BSM_API_PASSWORD,
 # GITLAB_API_TOKEN, and BSM_API_CERT must be set as CI/CD project variables.
 # BSM_API_CERT contains the PEM-encoded CA certificate for BSM API TLS.
 # BSM_CLIENT_ID / BSM_CLIENT_SECRET are auto-stored on first registration.
@@ -43,11 +49,11 @@ workflow:
 variables:
   CATALOG_FILE: "catalog_rhel.json"
   POLL_INTERVAL: "30"
-  MAX_POLL_ATTEMPTS: "90"
+  MAX_POLL_ATTEMPTS: "300"
   BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
 
 # ---------------------------------------------------------------------------
-# Stages — executed in order
+# Stages -- executed in order
 # ---------------------------------------------------------------------------
 stages:
   - auth
@@ -61,7 +67,7 @@ stages:
   - poll-build-status
   - validate-image
   - poll-validate-status
-  - job-summary
+  - summary
 
 # ---------------------------------------------------------------------------
 # Default settings applied to every job
@@ -71,7 +77,7 @@ default:
     - apk add --no-cache curl jq coreutils openssl
     - |
       if [ -z "${BSM_API_CERT:-}" ]; then
-        echo "ERROR: BSM_API_CERT variable is not set — cannot verify TLS"
+        echo "ERROR: BSM_API_CERT variable is not set -- cannot verify TLS"
         exit 1
       fi
       if [ -f "${BSM_API_CERT}" ]; then
@@ -100,6 +106,84 @@ default:
         exit 1
       fi
 
+      # ---------------------------------------------------------------------------
+      # Token Refresh Helper Function (POSIX sh compatible)
+      # Refreshes ACCESS_TOKEN using CLIENT_ID / CLIENT_SECRET
+      # ---------------------------------------------------------------------------
+      refresh_token() {
+        echo "  [TOKEN REFRESH] Requesting new access token..."
+
+        if [ -z "${CLIENT_ID:-}" ] || [ -z "${CLIENT_SECRET:-}" ]; then
+          echo "  [TOKEN REFRESH] ERROR: CLIENT_ID or CLIENT_SECRET not available"
+          return 1
+        fi
+
+        TOKEN_HTTP_CODE=$(curl -s -o token_refresh_response.json -w "%{http_code}" \
+          -X POST "${BSM_API_URL}/api/v1/auth/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
+          --retry 2 --retry-delay 1 --cacert "${BSM_CERT_FILE}")
+
+        if [ "$TOKEN_HTTP_CODE" != "200" ]; then
+          echo "  [TOKEN REFRESH] ERROR: Token refresh failed (HTTP ${TOKEN_HTTP_CODE})"
+          cat token_refresh_response.json 2>/dev/null || true
+          return 1
+        fi
+
+        ACCESS_TOKEN=$(jq -r '.access_token' token_refresh_response.json)
+        if [ -z "${ACCESS_TOKEN}" ] || [ "${ACCESS_TOKEN}" = "null" ]; then
+          echo "  [TOKEN REFRESH] ERROR: No access_token in response"
+          return 1
+        fi
+
+        echo "  [TOKEN REFRESH] New token obtained successfully"
+        export ACCESS_TOKEN
+        return 0
+      }
+
+      # ---------------------------------------------------------------------------
+      # API Call Wrapper with Automatic Token Refresh (POSIX sh compatible)
+      # Usage: HTTP_CODE=$(api_call_with_retry <output_file> [curl_args...])
+      #
+      # Detects 401 responses from verify_token():
+      #   - error: token_expired  (Access token has expired)
+      #   - error: invalid_token  (Invalid token signature / Invalid access token)
+      #   - error: missing_token  (Authorization header is required)
+      # On match, refreshes the token and retries the call once.
+      #
+      # The wrapper injects -H "Authorization: Bearer ${ACCESS_TOKEN}" automatically.
+      # Callers must NOT pass their own Authorization header.
+      # ---------------------------------------------------------------------------
+      api_call_with_retry() {
+        _RETRY_OUTPUT_FILE="$1"
+        shift
+
+        # First attempt
+        _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
+          -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@")
+
+        # Only retry on 401 Unauthorized
+        if [ "$_RETRY_HTTP_CODE" = "401" ]; then
+          _RETRY_ERROR=$(jq -r '.detail.error // .error // ""' "${_RETRY_OUTPUT_FILE}" 2>/dev/null || echo "")
+
+          case "${_RETRY_ERROR}" in
+            token_expired|invalid_token|missing_token)
+              echo "  [RETRY] 401 auth error detected: ${_RETRY_ERROR}"
+              if refresh_token; then
+                echo "  [RETRY] Retrying API call with new token..."
+                _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
+                  -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@")
+                echo "  [RETRY] Retry response code: ${_RETRY_HTTP_CODE}"
+              else
+                echo "  [RETRY] Token refresh failed -- cannot retry"
+              fi
+              ;;
+          esac
+        fi
+
+        echo "${_RETRY_HTTP_CODE}"
+      }
+
 # ============================= STAGE 1 ====================================
 # Authenticate: skip registration if credentials exist, else register once
 # Outputs: CLIENT_ID, CLIENT_SECRET, ACCESS_TOKEN via dotenv artifact
@@ -122,12 +206,12 @@ auth:
 
       # --- 1a. Check for stored client credentials ---
       if [ -n "${BSM_CLIENT_ID:-}" ] && [ -n "${BSM_CLIENT_SECRET:-}" ]; then
-        echo "  Stored credentials found — skipping registration"
+        echo "  Stored credentials found -- skipping registration"
         echo "  CLIENT_ID: ${BSM_CLIENT_ID:0:12}..."
         CLIENT_ID="${BSM_CLIENT_ID}"
         CLIENT_SECRET="${BSM_CLIENT_SECRET}"
       else
-        echo "  No stored credentials — registering new client"
+        echo "  No stored credentials -- registering new client"
 
         AUTH_HEADER=$(echo -n "${BSM_API_USERNAME}:${BSM_API_PASSWORD}" | base64)
         CLIENT_NAME="gitlab-ci-client-$(date +%s)"
@@ -160,7 +244,7 @@ auth:
 
         # --- 1b. Persist credentials as GitLab CI/CD variables ---
         if [ -z "${GITLAB_API_TOKEN:-}" ]; then
-          echo "  WARNING: GITLAB_API_TOKEN not set — cannot persist credentials"
+          echo "  WARNING: GITLAB_API_TOKEN not set -- cannot persist credentials"
           echo "  Credentials will not survive across pipeline runs"
         else
           echo "  Persisting credentials to GitLab CI/CD variables..."
@@ -187,7 +271,7 @@ auth:
         fi
       fi
 
-      # --- 1c. Get access token (always — tokens are short-lived) ---
+      # --- 1c. Get access token (always -- tokens are short-lived) ---
       echo ""
       echo "  Requesting access token..."
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/auth/token"
@@ -239,10 +323,9 @@ create-job:
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs"
       echo "  Idempotency-Key: ${IDEMPOTENCY_KEY}"
 
-      HTTP_CODE=$(curl -s -o job_response.json -w "%{http_code}" \
+      HTTP_CODE=$(api_call_with_retry job_response.json \
         -X POST "${BSM_API_URL}/api/v1/jobs" \
         -H "Content-Type: application/json" \
-        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
         -H "Idempotency-Key: ${IDEMPOTENCY_KEY}" \
         -H "X-Correlation-ID: ${CORRELATION_ID}" \
         -d "{
@@ -286,7 +369,7 @@ create-job:
       dotenv: job.env
 
 # ============================= STAGE 3 ====================================
-# Parse catalog — upload catalog JSON file
+# Parse catalog -- upload catalog JSON file
 # ==========================================================================
 parse-catalog:
   stage: parse-catalog
@@ -310,9 +393,8 @@ parse-catalog:
       echo "  Catalog file: ${CATALOG_PATH} (${CATALOG_SIZE} bytes)"
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/parse-catalog"
 
-      HTTP_CODE=$(curl -s -o parse_response.json -w "%{http_code}" \
+      HTTP_CODE=$(api_call_with_retry parse_response.json \
         -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/parse-catalog" \
-        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
         -F "file=@${CATALOG_PATH};type=application/json" \
         --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 
@@ -343,9 +425,8 @@ generate-input-files:
 
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/generate-input-files"
 
-      HTTP_CODE=$(curl -s -o gen_response.json -w "%{http_code}" \
+      HTTP_CODE=$(api_call_with_retry gen_response.json \
         -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/generate-input-files" \
-        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
         --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 
       echo "  Response code: ${HTTP_CODE}"
@@ -362,7 +443,7 @@ generate-input-files:
       echo "  [OK] Generate input files complete"
 
 # ============================= STAGE 5 ====================================
-# Create local repository (async — returns 202)
+# Create local repository (async -- returns 202)
 # ==========================================================================
 create-local-repo:
   stage: create-local-repo
@@ -375,9 +456,8 @@ create-local-repo:
 
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/create-local-repository"
 
-      HTTP_CODE=$(curl -s -o repo_response.json -w "%{http_code}" \
+      HTTP_CODE=$(api_call_with_retry repo_response.json \
         -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/create-local-repository" \
-        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
         --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 
       echo "  Response code: ${HTTP_CODE}"
@@ -415,9 +495,8 @@ poll-local-repo:
       ATTEMPT=1
 
       while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
-        HTTP_CODE=$(curl -s -o status_response.json -w "%{http_code}" \
+        HTTP_CODE=$(api_call_with_retry status_response.json \
           -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
-          -H "Authorization: Bearer ${ACCESS_TOKEN}" \
           --cacert "${BSM_CERT_FILE}")
 
         if [ "$HTTP_CODE" != "200" ]; then
@@ -479,9 +558,8 @@ get-roles:
 
       echo "  Endpoint: GET ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/catalog/roles"
 
-      HTTP_CODE=$(curl -s -o roles_response.json -w "%{http_code}" \
+      HTTP_CODE=$(api_call_with_retry roles_response.json \
         -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/catalog/roles" \
-        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
         --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 
       echo "  Response code: ${HTTP_CODE}"
@@ -523,7 +601,7 @@ get-roles:
       dotenv: roles.env
 
 # ============================= STAGE 8 ====================================
-# Build images — call build-image API for each architecture
+# Build images -- call build-image API for each architecture
 # ==========================================================================
 build-images:
   stage: build-images
@@ -554,10 +632,9 @@ build-images:
         echo "  --- Build ${BUILD_COUNT}: architecture=${ARCH} ---"
         echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image"
 
-        HTTP_CODE=$(curl -s -o "build_response_${ARCH}.json" -w "%{http_code}" \
+        HTTP_CODE=$(api_call_with_retry "build_response_${ARCH}.json" \
           -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/build-image" \
           -H "Content-Type: application/json" \
-          -H "Authorization: Bearer ${ACCESS_TOKEN}" \
           -d "{
             \"architecture\": \"${ARCH}\",
             \"image_key\": \"${IMAGE_KEY}\",
@@ -600,9 +677,8 @@ poll-build-status:
       ATTEMPT=1
 
       while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
-        HTTP_CODE=$(curl -s -o status_response.json -w "%{http_code}" \
+        HTTP_CODE=$(api_call_with_retry status_response.json \
           -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
-          -H "Authorization: Bearer ${ACCESS_TOKEN}" \
           --cacert "${BSM_CERT_FILE}")
 
         if [ "$HTTP_CODE" != "200" ]; then
@@ -612,14 +688,46 @@ poll-build-status:
           continue
         fi
 
+        # Check all build-image stages (including architecture-specific ones)
+        BUILD_STAGES=$(jq -r '.stages[]? | select(.stage_name | startswith("build-image")) | .stage_state' status_response.json 2>/dev/null || echo "")
         JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
         STAGE_SUMMARY=$(jq -r '[.stages[]? | "\(.stage_name)=\(.stage_state)"] | join(", ")' status_response.json 2>/dev/null || echo "N/A")
 
-        echo "  [${ATTEMPT}] job_state=${JOB_STATE}  stages: ${STAGE_SUMMARY}"
+        echo "  [${ATTEMPT}] job_state=${JOB_STATE}  build_stages=${BUILD_STAGES}  stages: ${STAGE_SUMMARY}"
 
-        # Check for terminal states
+        # Check if all build-image stages are complete
+        if [ -n "${BUILD_STAGES}" ]; then
+          ALL_COMPLETED=true
+          for STAGE_STATE in ${BUILD_STAGES}; do
+            case "${STAGE_STATE}" in
+              COMPLETED|SUCCEEDED)
+                # Stage is complete, continue checking others
+                ;;
+              FAILED|CANCELLED)
+                echo "  ERROR: build-image stage reached ${STAGE_STATE}"
+                exit 1
+                ;;
+              *)
+                # Stage still running or unknown
+                ALL_COMPLETED=false
+                break
+                ;;
+            esac
+          done
+
+          if [ "$ALL_COMPLETED" = "true" ]; then
+            TERMINAL_REACHED=true
+            break
+          fi
+        fi
+
+        # Also check if overall job reached terminal state
         case "${JOB_STATE}" in
-          SUCCEEDED|FAILED|CLEANED|COMPLETED|CANCELLED)
+          FAILED|CANCELLED)
+            echo "  ERROR: Job reached ${JOB_STATE} state"
+            exit 1
+            ;;
+          SUCCEEDED|COMPLETED)
             TERMINAL_REACHED=true
             break
             ;;
@@ -642,11 +750,11 @@ poll-build-status:
       echo "  [OK] Build image polling complete: ${JOB_STATE}"
 
 # ============================= STAGE 10 ===================================
-# Validate image on test — trigger validation after build completes
+# Validate image on test -- trigger validation after build completes
 # ==========================================================================
 validate-image:
   stage: validate-image
-  needs: [auth, create-job, poll-build-status]
+  needs: [auth, create-job, get-roles, poll-build-status]
   script:
     - |
       echo "============================================================"
@@ -654,10 +762,12 @@ validate-image:
       echo "============================================================"
 
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/validate-image-on-test"
+      echo "  Image Key: ${IMAGE_KEY}"
 
-      HTTP_CODE=$(curl -s -o validate_response.json -w "%{http_code}" \
+      HTTP_CODE=$(api_call_with_retry validate_response.json \
         -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/validate-image-on-test" \
-        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "{\"image_key\": \"${IMAGE_KEY}\"}" \
         --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
 
       echo "  Response code: ${HTTP_CODE}"
@@ -695,9 +805,8 @@ poll-validate-status:
       ATTEMPT=1
 
       while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
-        HTTP_CODE=$(curl -s -o status_response.json -w "%{http_code}" \
+        HTTP_CODE=$(api_call_with_retry status_response.json \
           -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
-          -H "Authorization: Bearer ${ACCESS_TOKEN}" \
           --cacert "${BSM_CERT_FILE}")
 
         if [ "$HTTP_CODE" != "200" ]; then
@@ -754,26 +863,55 @@ poll-validate-status:
       echo "  [OK] validate-image-on-test stage completed"
 
 # ============================= STAGE 12 ===================================
-# Job summary — fetch final job status and print all stage results
+# Summary -- fetch final job status and display comprehensive results
+# Runs after any stage (success or failure) to provide complete pipeline summary
 # ==========================================================================
-job-summary:
-  stage: job-summary
-  needs: [auth, create-job, poll-validate-status]
+summary:
+  stage: summary
+  needs: [auth, create-job, parse-catalog, generate-input-files, create-local-repo, poll-local-repo, get-roles, build-images,
+          poll-build-status, validate-image, poll-validate-status]
+  when: always
   script:
     - |
       echo "============================================================"
-      echo "  [${JOB_ID}] STAGE 12: Job Summary"
+      echo "  STAGE 12: Pipeline Summary"
       echo "============================================================"
 
-      HTTP_CODE=$(curl -s -o final_status.json -w "%{http_code}" \
+      # Check if we have a job ID (might not if auth or create-job failed)
+      if [ -z "${JOB_ID:-}" ]; then
+        echo "  No job ID available - pipeline likely failed before job creation"
+        echo ""
+        echo "  +-----------------------------------------------------------+"
+        echo "  |                  BSM PIPELINE SUMMARY                     |"
+        echo "  +-----------------------------------------------------------+"
+        echo "  |  Job ID:     NOT AVAILABLE                                |"
+        echo "  |  Job State:  UNKNOWN                                      |"
+        echo "  |  Reason:     Authentication or job creation failed        |"
+        echo "  +-----------------------------------------------------------+"
+        exit 1
+      fi
+
+      echo "  Job ID: ${JOB_ID}"
+      echo "  Fetching final job status..."
+
+      HTTP_CODE=$(api_call_with_retry final_status.json \
         -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
-        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
         --cacert "${BSM_CERT_FILE}")
 
       if [ "$HTTP_CODE" != "200" ]; then
-        echo "  ERROR: Failed to fetch final job status (HTTP ${HTTP_CODE})"
+        echo "  WARNING: Failed to fetch final job status (HTTP ${HTTP_CODE})"
+        echo ""
+        echo "  +-----------------------------------------------------------+"
+        echo "  |                  BSM PIPELINE SUMMARY                     |"
+        echo "  +-----------------------------------------------------------+"
+        echo "  |  Job ID:     ${JOB_ID}"
+        echo "  |  Job State:  UNKNOWN (API returned ${HTTP_CODE})"
+        echo "  +-----------------------------------------------------------+"
         exit 1
       fi
+
+      echo "  Job status fetched successfully"
+      echo ""
 
       JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' final_status.json)
       TOTAL_STAGES=$(jq -r '.stages | length' final_status.json 2>/dev/null || echo "0")
@@ -782,36 +920,39 @@ job-summary:
       SKIPPED=$(jq -r '[.stages[]? | select(.stage_state == "SKIPPED")] | length' final_status.json 2>/dev/null || echo "0")
       PENDING=$(jq -r '[.stages[]? | select(.stage_state == "PENDING" or .stage_state == "IN_PROGRESS")] | length' final_status.json 2>/dev/null || echo "0")
 
-      echo ""
-      echo "  ┌─────────────────────────────────────────────────────────┐"
-      echo "  │                  BSM JOB SUMMARY                       │"
-      echo "  ├─────────────────────────────────────────────────────────┤"
-      echo "  │  Job ID:     ${JOB_ID}"
-      echo "  │  Job State:  ${JOB_STATE}"
-      echo "  │  Stages:     ${TOTAL_STAGES} total (${COMPLETED} completed, ${FAILED} failed, ${SKIPPED} skipped, ${PENDING} pending)"
-      echo "  ├─────────────────────────────────────────────────────────┤"
-      echo "  │  Stage Results:                                        │"
+      echo "  +-----------------------------------------------------------+"
+      echo "  |                  BSM PIPELINE SUMMARY                     |"
+      echo "  +-----------------------------------------------------------+"
+      echo "  |  Job ID:     ${JOB_ID}"
+      echo "  |  Job State:  ${JOB_STATE}"
+      echo "  |  Stages:     ${TOTAL_STAGES} total (${COMPLETED} ok, ${FAILED} failed, ${SKIPPED} skipped, ${PENDING} pending)"
+      echo "  +-----------------------------------------------------------+"
+      echo "  |  Stage Results:                                           |"
 
-      jq -r '.stages[]? | "  │    \(.stage_name): \(.stage_state)\(if .error_code then "  [\(.error_code)]" else "" end)"' \
-        final_status.json 2>/dev/null || echo "  │    (no stage data)"
+      jq -r '.stages[]? | "  |    \(.stage_name): \(.stage_state)\(if .error_code then "  [\(.error_code)]" else "" end)"' \
+        final_status.json 2>/dev/null || echo "  |    (no stage data)"
 
-      echo "  ├─────────────────────────────────────────────────────────┤"
+      echo "  +-----------------------------------------------------------+"
 
       # Print errors if any
       ERRORS=$(jq -r '.stages[]? | select(.stage_state == "FAILED") | \
-        "  │    ✗ \(.stage_name): \(.error_summary // "no details")"' final_status.json 2>/dev/null)
+                     "  |    X \(.stage_name): \(.error_summary // "no details")"' \
+                     final_status.json 2>/dev/null)
       if [ -n "${ERRORS}" ]; then
-        echo "  │  Errors:                                               │"
+        echo "  |  Errors:                                                |"
         echo "${ERRORS}"
-        echo "  ├─────────────────────────────────────────────────────────┤"
+        echo "  +-----------------------------------------------------------+"
       fi
 
-      echo "  └─────────────────────────────────────────────────────────┘"
+      echo "  +-----------------------------------------------------------+"
       echo ""
 
       if [ "$JOB_STATE" = "FAILED" ] || [ "$FAILED" -gt 0 ]; then
-        echo "  RESULT: FAILED — ${FAILED} stage(s) failed"
+        echo "  RESULT: FAILED -- ${FAILED} stage(s) failed"
         exit 1
       fi
 
-      echo "  RESULT: SUCCESS — all stages completed"
+      echo "  RESULT: SUCCESS -- all stages completed"
+  artifacts:
+    paths:
+      - final_status.json

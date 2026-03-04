@@ -61,11 +61,6 @@ db_dir:
 cmpt_dir:
   - /etc/slurm/epilog.d
 
-gpu_slurm_conf:
-  GresTypes: gpu
-  SelectType: select/cons_tres
-  SelectTypeParameters: CR_Core_Memory
-  SlurmdParameters: l3cache_as_socket
 innodb_buffer_pool_size: 4G
 innodb_lock_wait_timeout: 900
 conf_server: "--conf-server {{ ctld_list | join(',') }}"
@@ -131,6 +126,7 @@ partition_params:
   MaxTime: "INFINITE"
   State: "UP"
   Default: "YES"
+busy_nodes: {}
 openldap_dir_name: "openldap/"
 software_config_file: "{{ input_project_dir }}/software_config.json"
 omnia_run_tags: "{{ hostvars['localhost']['omnia_run_tags'] }}"

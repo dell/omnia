@@ -18,6 +18,9 @@ restart_host: true
 # Change to true for forceful reboot. by default graceful will happen
 force_restart: true
 
+reboot_status: "PXE boot initiated but not completed."
+reboot_failed: false
+
 # Set boot source override mode. Valid values are once, continuous, or disabled
 boot_source_override_enabled: continuous
 

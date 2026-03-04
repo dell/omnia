@@ -18,7 +18,8 @@ Catalog Roles API Integration Tests
 Tests the GET /jobs/{job_id}/catalog/roles endpoint including:
 - Successful role retrieval after parse-catalog completes
 - Authentication/authorization enforcement
-- 404 when job does not exist or parse-catalog has not run
+- 422 when parse-catalog has not run (upstream stage not completed)
+- 404 when job does not exist
 - 400 for invalid job_id format
 """
 
@@ -209,7 +210,7 @@ class TestGetCatalogRolesAPI:  # pylint: disable=too-many-public-methods
         assert response.status_code in [401, 404]
 
     # ------------------------------------------------------------------
-    # Job not found / parse-catalog not completed
+    # Job not found / upstream stage not completed
     # ------------------------------------------------------------------
 
     def test_get_roles_nonexistent_job_returns_404(
@@ -227,18 +228,15 @@ class TestGetCatalogRolesAPI:  # pylint: disable=too-many-public-methods
 
         assert response.status_code == 404
         data = response.json()
-        assert data["detail"]["error_code"] in [
-            "PARSE_CATALOG_NOT_COMPLETED",
-            "JOB_NOT_FOUND",
-        ]
+        assert data["detail"]["error_code"] == "JOB_NOT_FOUND"
 
-    def test_get_roles_before_parse_catalog_returns_404(
+    def test_get_roles_before_parse_catalog_returns_412(
         self,
         client: TestClient,
         auth_headers: Dict[str, str],
         created_job: Dict[str, Any],
     ) -> None:
-        """Test that calling get-roles before parse-catalog returns 404."""
+        """Test that calling get-roles before parse-catalog returns 412."""
         job_id = created_job["job_id"]
 
         response = client.get(
@@ -246,9 +244,9 @@ class TestGetCatalogRolesAPI:  # pylint: disable=too-many-public-methods
             headers=auth_headers,
         )
 
-        assert response.status_code == 404
+        assert response.status_code == 412
         data = response.json()
-        assert data["detail"]["error_code"] == "PARSE_CATALOG_NOT_COMPLETED"
+        assert data["detail"]["error"] == "UPSTREAM_STAGE_NOT_COMPLETED"
 
     # ------------------------------------------------------------------
     # Input validation

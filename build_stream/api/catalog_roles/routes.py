@@ -24,10 +24,9 @@ from api.catalog_roles.schemas import ErrorResponse, GetRolesResponse
 from api.logging_utils import log_secure_info
 from api.catalog_roles.service import (
     CatalogRolesService,
-    ParseCatalogNotCompletedError,
     RolesNotFoundError,
 )
-from core.jobs.exceptions import JobNotFoundError
+from core.jobs.exceptions import JobNotFoundError, UpstreamStageNotCompletedError
 from core.jobs.value_objects import JobId
 
 router = APIRouter(prefix="/jobs", tags=["Catalog Roles"])
@@ -59,7 +58,11 @@ router = APIRouter(prefix="/jobs", tags=["Catalog Roles"])
             "model": ErrorResponse,
         },
         404: {
-            "description": "Job not found or parse-catalog not yet completed",
+            "description": "Job not found",
+            "model": ErrorResponse,
+        },
+        422: {
+            "description": "Upstream stage not completed (parse-catalog must be COMPLETED)",
             "model": ErrorResponse,
         },
         500: {
@@ -88,7 +91,8 @@ async def get_catalog_roles(
         HTTPException 400: If job_id is not a valid UUID format.
         HTTPException 401: If the Bearer token is missing or invalid.
         HTTPException 403: If the token lacks the required scope.
-        HTTPException 404: If the job does not exist or parse-catalog has not completed.
+        HTTPException 404: If the job does not exist.
+        HTTPException 422: If parse-catalog stage has not completed.
         HTTPException 500: If an unexpected error occurs.
     """
     log_secure_info(
@@ -136,20 +140,19 @@ async def get_catalog_roles(
             architectures=result["architectures"],
         )
 
-    except ParseCatalogNotCompletedError as exc:
+    except UpstreamStageNotCompletedError as exc:
         log_secure_info(
-            "warning",
-            f"Get catalog roles failed: job_id={job_id},"
-            f" reason=parse_catalog_not_completed, detail={exc}, status=404",
+            "error",
+            f"Get catalog roles failed: job_id={job_id}, reason=upstream_not_completed, status=412",
             job_id=job_id,
-            exc_info=True,
             end_section=True,
         )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail={
-                "error_code": "PARSE_CATALOG_NOT_COMPLETED",
-                "message": str(exc),
+                "error": "UPSTREAM_STAGE_NOT_COMPLETED",
+                "message": exc.message,
+                "correlation_id": exc.correlation_id,
             },
         ) from exc
 
