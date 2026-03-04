@@ -74,13 +74,6 @@ get_version_from_git_tag() {
     return 0
 }
 
-trim_whitespace() {
-    local value="$1"
-    value="${value#"${value%%[![:space:]]*}"}"
-    value="${value%"${value##*[![:space:]]}"}"
-    printf '%s' "$value"
-}
-
 # Function to validate version string format
 validate_version_string() {
     local version="$1"
