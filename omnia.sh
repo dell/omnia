@@ -444,66 +444,60 @@ get_upgrade_guard_lock_path() {
 }
 
 check_internal_nfs_export() {
-    nfs_server_ip=$1
-    nfs_server_share_path=$2
+    local nfs_server_ip="$1" nfs_server_share_path="$2"
+    local exports line export_path share_path export_path_norm share_path_norm
 
-    if is_local_ip "$nfs_server_ip"; then
-        echo "The provided NFS server IP ($nfs_server_ip) belongs to the current system."
-    else
+    if ! is_local_ip "$nfs_server_ip"; then
         echo "The provided NFS server IP ($nfs_server_ip) is NOT the current system's IP."
         exit 1
     fi
+    echo "The provided NFS server IP ($nfs_server_ip) belongs to the current system."
 
-    # Query the remote server for exports
-    exports=$(showmount -e "$nfs_server_ip" 2>/dev/null)
-
-    if [[ $? -ne 0 ]]; then
+    if ! exports=$(showmount -e "$nfs_server_ip" 2>/dev/null); then
         echo -e "${RED}ERROR: Unable to contact NFS server at $nfs_server_ip. Ensure NFS and rpcbind are running, and firewall allows access.${NC}"
         exit 1
     fi
 
-    share_path_trimmed="$(trim_whitespace "$nfs_server_share_path")"
-    share_path_trimmed="${share_path_trimmed%/}"
-    [[ -z "$share_path_trimmed" ]] && share_path_trimmed="/"
+    # Normalize share path
+    share_path="${nfs_server_share_path#"${nfs_server_share_path%%[![:space:]]*}"}"
+    share_path="${share_path%"${share_path##*[![:space:]]}"}"
+    share_path_norm="${share_path%/}"
+    [[ -z "$share_path_norm" ]] && share_path_norm="/"
 
-    matching_export=""
-    while IFS= read -r export_line; do
-        export_line="$(trim_whitespace "$export_line")"
-        [[ -z "$export_line" ]] && continue
-        export_path="${export_line%%[[:space:]]*}"
+    # Check showmount exports
+    while IFS= read -r line; do
+        line="${line#"${line%%[![:space:]]*}"}"
+        [[ -z "$line" || "$line" == \#* || "$line" == Export\ list\ for* ]] && continue
+        export_path="${line%%[[:space:]]*}"
         [[ "$export_path" != /* ]] && continue
-        export_path_trimmed="${export_path%/}"
-        [[ -z "$export_path_trimmed" ]] && export_path_trimmed="/"
-
-        if [[ "$share_path_trimmed" == "$export_path_trimmed" ]] || [[ "$share_path_trimmed" == "$export_path_trimmed"/* ]]; then
-            matching_export="$export_path_trimmed"
-            break
+        export_path_norm="${export_path%/}"
+        [[ -z "$export_path_norm" ]] && export_path_norm="/"
+       
+        if [[ "$share_path_norm" == "$export_path_norm" || "$share_path_norm" == "$export_path_norm"/* ]]; then
+            echo -e "${GREEN}Path $nfs_server_share_path is covered by exported path $export_path_norm on $nfs_server_ip.${NC}"
+            return 0
         fi
-    done <<< "$(echo "$exports" | tail -n +2)"
+    done <<< "$exports"
 
-    if [[ -z "$matching_export" ]] && [[ -f /etc/exports ]]; then
-        while IFS= read -r export_line; do
-            export_line="$(trim_whitespace "$export_line")"
-            [[ -z "$export_line" ]] && continue
-            [[ "${export_line:0:1}" == "#" ]] && continue
-            export_path="${export_line%%[[:space:]]*}"
+    # Fallback: check /etc/exports if showmount didn't find a match
+    if [[ -f /etc/exports ]]; then
+        while IFS= read -r line; do
+            line="${line#"${line%%[![:space:]]*}"}"
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            export_path="${line%%[[:space:]]*}"
             [[ "$export_path" != /* ]] && continue
-            export_path_trimmed="${export_path%/}"
-            [[ -z "$export_path_trimmed" ]] && export_path_trimmed="/"
-
-            if [[ "$share_path_trimmed" == "$export_path_trimmed" ]] || [[ "$share_path_trimmed" == "$export_path_trimmed"/* ]]; then
-                matching_export="$export_path_trimmed"
-                break
+            export_path_norm="${export_path%/}"
+            [[ -z "$export_path_norm" ]] && export_path_norm="/"
+           
+            if [[ "$share_path_norm" == "$export_path_norm" || "$share_path_norm" == "$export_path_norm"/* ]]; then
+                echo -e "${GREEN}Path $nfs_server_share_path is covered by exported path $export_path_norm on $nfs_server_ip.${NC}"
+                return 0
             fi
         done < /etc/exports
     fi
 
-    if [[ -n "$matching_export" ]]; then
-        echo -e "${GREEN}Path $nfs_server_share_path is covered by exported path $matching_export on $nfs_server_ip.${NC}"
-    else
-        echo -e "${RED}ERROR: Path $nfs_server_share_path is NOT exported by $nfs_server_ip.${NC}"
-        exit 1
-    fi
+    echo -e "${RED}ERROR: Path $nfs_server_share_path is NOT exported by $nfs_server_ip.${NC}"
+    exit 1
 }
 
 display_supported_use_cases() {
