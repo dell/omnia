@@ -55,3 +55,15 @@
   when: >
     postgres_service_status.status is not defined or
     postgres_service_status.status.ActiveState != 'active'
+
+- name: Check if build stream SSL certificate exists
+  ansible.builtin.stat:
+    path: "{{ gitlab_bs_cert_path }}"
+  register: bs_cert_stat
+  delegate_to: localhost
+  connection: local
+
+- name: Fail if build stream SSL certificate is missing
+  ansible.builtin.fail:
+    msg: "{{ gitlab_bs_cert_missing_msg }}"
+  when: not bs_cert_stat.stat.exists

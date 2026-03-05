@@ -160,8 +160,7 @@ gitlab_sshpass_install_fail_msg: >
   are configured and enabled on this gitlab host before running this playbook.
 
 gitlab_bs_not_enabled_fail_msg: >
-  enable_build_stream is not set to true in build_stream_config.yml.
-  Set enable_build_stream to true before running the GitLab playbook.
+  Build stream is not enabled. Set enable_build_stream: true in build_stream_config.yml before running prepare_oim.yml.
 
 gitlab_bs_auth_username_fail_msg: >
   Build stream auth username is empty. Run the credential utility to populate
@@ -186,18 +185,22 @@ gitlab_bs_host_connectivity_fail_msg: "Cannot reach build stream host at {{ buil
 gitlab_watcher_not_running_msg: >
   playbook_watcher.service is not running on OIM host {{ build_stream_host_ip }}.
   Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
 
 gitlab_build_stream_not_running_msg: >
   omnia_build_stream.service is not running on OIM host {{ build_stream_host_ip }}.
   Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
 
 gitlab_postgres_not_running_msg: >
   omnia_postgres.service is not running on OIM host {{ build_stream_host_ip }}.
   Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
 
 gitlab_bs_cert_missing_msg: >
   Build stream SSL certificate not found at {{ gitlab_bs_cert_path }} on OIM host {{ build_stream_host_ip }}.
   Ensure prepare_oim.yml has been successfully executed and certificates are generated.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
 
 gitlab_memory_insufficient_msg: >
   Insufficient memory. Required: {{ gitlab_min_memory_gb }}GB, Available: {{ total_memory.stdout }}GB.

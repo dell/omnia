@@ -78,16 +78,6 @@
     msg: "{{ gitlab_bs_host_ip_fail_msg }}"
   when: (build_stream_host_ip | default('', true) | trim | length) == 0
 
-- name: Check if build stream SSL certificate exists
-  ansible.builtin.stat:
-    path: "{{ gitlab_bs_cert_path }}"
-  register: bs_cert_stat
-
-- name: Fail if build stream SSL certificate is missing
-  ansible.builtin.fail:
-    msg: "{{ gitlab_bs_cert_missing_msg }}"
-  when: not bs_cert_stat.stat.exists
-
 - name: Register GitLab SSH credentials
   ansible.builtin.add_host:
     name: "{{ gitlab_host }}"
