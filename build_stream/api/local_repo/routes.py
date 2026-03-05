@@ -30,6 +30,7 @@ from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,
     TerminalStateViolationError,
+    UpstreamStageNotCompletedError,
 )
 from core.jobs.value_objects import ClientId, CorrelationId, JobId
 from core.localrepo.exceptions import (
@@ -143,6 +144,22 @@ def create_local_repository(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=_build_error_response(
                 "JOB_NOT_FOUND",
+                exc.message,
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
+    except UpstreamStageNotCompletedError as exc:
+        log_secure_info(
+            "warning",
+            f"Local repo failed: job_id={job_id}, reason=upstream_stage_not_completed, status=412",
+            job_id=job_id,
+            end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
+            detail=_build_error_response(
+                "UPSTREAM_STAGE_NOT_COMPLETED",
                 exc.message,
                 correlation_id.value,
             ).model_dump(),

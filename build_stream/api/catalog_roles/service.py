@@ -23,17 +23,13 @@ from typing import Dict, List
 from core.artifacts.exceptions import ArtifactNotFoundError
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
 from core.artifacts.value_objects import ArtifactKind
-from core.jobs.exceptions import InvalidStateTransitionError
+from core.jobs.exceptions import InvalidStateTransitionError, UpstreamStageNotCompletedError
 from core.jobs.repositories import StageRepository
 from core.jobs.value_objects import JobId, StageName, StageState, StageType
 
 logger = logging.getLogger(__name__)
 
 _FUNCTIONAL_LAYER_FILENAME = "functional_layer.json"
-
-
-class ParseCatalogNotCompletedError(Exception):
-    """Raised when the parse-catalog stage has not completed for the given job."""
 
 
 class RolesNotFoundError(Exception):
@@ -69,7 +65,7 @@ class CatalogRolesService:
                 - architectures: List of supported architectures
 
         Raises:
-            ParseCatalogNotCompletedError: If parse-catalog has not completed
+            UpstreamStageNotCompletedError: If parse-catalog has not completed
                 or artifacts are missing.
             RolesNotFoundError: If functional_layer.json cannot be parsed.
         """
@@ -89,8 +85,10 @@ class CatalogRolesService:
                 "root-jsons artifact not found for job %s; parse-catalog may not have completed",
                 job_id,
             )
-            raise ParseCatalogNotCompletedError(
-                f"Parse-catalog stage has not completed for job: {job_id}"
+            raise UpstreamStageNotCompletedError(
+                job_id=str(job_id),
+                required_stage="parse-catalog",
+                actual_state="NOT_COMPLETED",
             )
 
         logger.debug(
@@ -108,8 +106,10 @@ class CatalogRolesService:
             logger.error(
                 "root-jsons artifact file missing from store for job %s", job_id
             )
-            raise ParseCatalogNotCompletedError(
-                f"Root-jsons artifact not found in store for job: {job_id}"
+            raise UpstreamStageNotCompletedError(
+                job_id=str(job_id),
+                required_stage="parse-catalog",
+                actual_state="NOT_FOUND",
             ) from exc
 
         # Extract roles from functional_layer.json
@@ -213,7 +213,7 @@ class CatalogRolesService:
             job_id: The job identifier.
 
         Raises:
-            ParseCatalogNotCompletedError: If stage is not in COMPLETED state.
+            UpstreamStageNotCompletedError: If stage is not in COMPLETED state.
         """
         stage = self._stage_repo.find_by_job_and_name(
             job_id, StageName(StageType.PARSE_CATALOG.value)
@@ -223,8 +223,10 @@ class CatalogRolesService:
             logger.warning(
                 "parse-catalog stage not found for job %s", job_id
             )
-            raise ParseCatalogNotCompletedError(
-                f"Parse-catalog stage not found for job: {job_id}"
+            raise UpstreamStageNotCompletedError(
+                job_id=str(job_id),
+                required_stage="parse-catalog",
+                actual_state="NOT_FOUND",
             )
 
         if stage.stage_state != StageState.COMPLETED:
@@ -233,9 +235,10 @@ class CatalogRolesService:
                 job_id,
                 stage.stage_state.value,
             )
-            raise ParseCatalogNotCompletedError(
-                f"Parse-catalog stage is in {stage.stage_state.value} state, "
-                f"must be COMPLETED before querying roles"
+            raise UpstreamStageNotCompletedError(
+                job_id=str(job_id),
+                required_stage="parse-catalog",
+                actual_state=stage.stage_state.value,
             )
 
     def _extract_catalog_metadata(self, job_id: JobId) -> Dict[str, any]:
@@ -248,7 +251,7 @@ class CatalogRolesService:
             Dictionary with 'image_key' and 'architectures' keys.
 
         Raises:
-            ParseCatalogNotCompletedError: If catalog-file artifact not found.
+            UpstreamStageNotCompletedError: If catalog-file artifact not found.
             RolesNotFoundError: If catalog cannot be parsed.
         """
         # Find catalog-file artifact
@@ -262,8 +265,10 @@ class CatalogRolesService:
             logger.error(
                 "catalog-file artifact not found for job %s", job_id
             )
-            raise ParseCatalogNotCompletedError(
-                f"Catalog file artifact not found for job: {job_id}"
+            raise UpstreamStageNotCompletedError(
+                job_id=str(job_id),
+                required_stage="parse-catalog",
+                actual_state="NOT_FOUND",
             )
 
         try:
@@ -275,8 +280,10 @@ class CatalogRolesService:
             logger.error(
                 "catalog-file missing from store for job %s", job_id
             )
-            raise ParseCatalogNotCompletedError(
-                f"Catalog file not found in store for job: {job_id}"
+            raise UpstreamStageNotCompletedError(
+                job_id=str(job_id),
+                required_stage="parse-catalog",
+                actual_state="NOT_FOUND",
             ) from exc
 
         try:

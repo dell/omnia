@@ -17,6 +17,12 @@
 from pydantic import BaseModel, Field
 
 
+class ValidateImageOnTestRequest(BaseModel):
+    """Request model for validate-image-on-test stage."""
+
+    image_key: str = Field(..., description="Image key to validate")
+
+
 class ValidateImageOnTestResponse(BaseModel):
     """Response model for validate-image-on-test stage acceptance (202 Accepted)."""
 

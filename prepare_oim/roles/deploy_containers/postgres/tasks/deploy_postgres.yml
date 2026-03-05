@@ -41,19 +41,9 @@
     state: absent
   when: existing_container_info.containers | length > 0
 
-# Get metadata and configuration
-- name: Get metadata from omnia_core
-  containers.podman.podman_container_exec:
-    name: omnia_core
-    command: cat {{ oim_metadata_file }}
-  register: metadata_content
-  changed_when: false
-
 - name: Extract configuration from metadata
   ansible.builtin.set_fact:
-    omnia_path: "{{ metadata_content.stdout | regex_search('oim_shared_path:\\s*(\\S+)', '\\1') | first }}"
-    share_option: "{{ metadata_content.stdout | regex_search('omnia_share_option:\\s*(\\S+)', '\\1') | first | default('') }}"
-    nfs_type: "{{ metadata_content.stdout | regex_search('nfs_type:\\s*(\\S+)', '\\1') | first | default('') }}"
+    omnia_path: "{{ oim_shared_path }}"
 
 # Create required directories
 - name: Create data directory for omnia_postgres

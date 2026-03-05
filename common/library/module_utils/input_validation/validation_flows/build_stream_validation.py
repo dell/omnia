@@ -15,11 +15,9 @@
 """
 Validates build stream configuration files for Omnia.
 """
-import fcntl
 import ipaddress
 import os
 import socket
-import struct
 import subprocess
 from ansible.module_utils.input_validation.common_utils import validation_utils
 from ansible.module_utils.input_validation.common_utils import config
@@ -36,8 +34,8 @@ def get_ethernet_interface_ips(logger):
     Get all IPv4 addresses assigned to physical ethernet interfaces on the OIM.
 
     Uses /sys/class/net/ to identify physical ethernet interfaces
-    (type=1, has 'device' symlink, not a bridge) and socket ioctl
-    to retrieve their IPv4 addresses. No external tools required.
+    (type=1, has 'device' symlink, not a bridge) and the `ip` command
+    to retrieve all IPv4 addresses (including secondary addresses).
 
     Args:
         logger: Logger instance
@@ -47,8 +45,6 @@ def get_ethernet_interface_ips(logger):
     """
     ethernet_ips = []
     net_dir = '/sys/class/net'
-    # SIOCGIFADDR ioctl to get interface address
-    siocgifaddr = 0x8915
 
     try:
         if not os.path.isdir(net_dir):
@@ -76,22 +72,26 @@ def get_ethernet_interface_ips(logger):
             if not os.path.exists(os.path.join(iface_path, 'device')):
                 continue
 
-            # Get IPv4 address via ioctl
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-                    ip_bytes = fcntl.ioctl(
-                        sock.fileno(),
-                        siocgifaddr,
-                        struct.pack('256s', iface.encode('utf-8')[:15])
-                    )[20:24]
-                    ip_addr = socket.inet_ntoa(ip_bytes)
-                    ethernet_ips.append(ip_addr)
-            except (IOError, OSError):
-                # Interface exists but has no IPv4 address assigned
+            # Get all IPv4 addresses (primary + secondary) via ip command
+            ip_result = subprocess.run(
+                ['ip', '-4', '-o', 'addr', 'show', 'dev', iface],
+                capture_output=True, text=True, timeout=10, check=False
+            )
+            if ip_result.returncode != 0:
                 logger.debug("No IPv4 address on interface %s", iface)
                 continue
 
-        logger.debug("Ethernet interface IPs found: %s", ethernet_ips)
+            for line in ip_result.stdout.strip().split('\n'):
+                if not line:
+                    continue
+                parts = line.split()
+                for i, part in enumerate(parts):
+                    if part == 'inet' and i + 1 < len(parts):
+                        ip_addr = parts[i + 1].split('/')[0]
+                        if ip_addr not in ethernet_ips:
+                            ethernet_ips.append(ip_addr)
+
+        logger.debug("Valid IPs found: %s", ethernet_ips)
     except OSError as e:
         logger.warning("Failed to get ethernet interface IPs: %s", str(e))
     return ethernet_ips
@@ -216,43 +216,36 @@ def validate_build_stream_config(input_file_path, data,
         # Cannot validate without admin network info
         return errors
 
-    # Validate build_stream_host_ip (optional field)
+    # Validate build_stream_host_ip (mandatory field)
     build_stream_host_ip = data.get("build_stream_host_ip")
 
-    if build_stream_host_ip and build_stream_host_ip not in ["", None]:
-        # Check if it's a valid IP format (already validated by schema, but double-check)
-        try:
-            ipaddress.IPv4Address(build_stream_host_ip)
-        except ValueError:
-            errors.append(create_error_msg(build_stream_yml, "build_stream_host_ip",
-                                          "Invalid IPv4 address format"))
-            return errors
+    if not build_stream_host_ip or build_stream_host_ip in ["", None]:
+        errors.append(create_error_msg(build_stream_yml, "build_stream_host_ip",
+                                       msg.BUILD_STREAM_HOST_IP_REQUIRED_MSG))
+        return errors
 
-        # Validate that build_stream_host_ip matches an IP on an OIM ethernet interface
-        # (i.e., it must be the OIM admin IP or OIM public IP)
-        ethernet_ips = get_ethernet_interface_ips(logger)
+    # Check if it's a valid IP format
+    try:
+        ipaddress.IPv4Address(build_stream_host_ip)
+    except ValueError:
+        errors.append(create_error_msg(build_stream_yml, "build_stream_host_ip",
+                                       "Invalid IPv4 address format"))
+        return errors
 
-        if not ethernet_ips:
-            errors.append(create_error_msg(build_stream_yml, "build_stream_host_ip",
-                                          msg.BUILD_STREAM_HOST_IP_NO_ETHERNET_IPS_MSG))
-            return errors
+    # Validate that build_stream_host_ip matches an IP on an OIM ethernet interface
+    # (i.e., it must be the OIM admin IP or OIM public IP)
+    ethernet_ips = get_ethernet_interface_ips(logger)
 
-        if build_stream_host_ip not in ethernet_ips:
-            errors.append(create_error_msg(
-                build_stream_yml, "build_stream_host_ip",
-                msg.build_stream_host_ip_not_oim_ip_msg(build_stream_host_ip, ethernet_ips)
-            ))
-        else:
-            logger.info(
-                "build_stream_host_ip (%s) validated against OIM ethernet interface IPs",
-                build_stream_host_ip
-            )
-    else:
-        # If not provided, admin IP will be used as default (no validation needed)
-        logger.info(
-            "build_stream_host_ip not provided, admin IP (%s) will be used as default",
-            admin_ip
-        )
+    if not ethernet_ips:
+        errors.append(create_error_msg(build_stream_yml, "build_stream_host_ip",
+                                       msg.BUILD_STREAM_HOST_IP_NO_ETHERNET_IPS_MSG))
+        return errors
+
+    if build_stream_host_ip not in ethernet_ips:
+        errors.append(create_error_msg(
+            build_stream_yml, "build_stream_host_ip",
+            msg.build_stream_host_ip_not_oim_ip_msg(build_stream_host_ip, ethernet_ips)
+        ))
 
     # Validate aarch64_inventory_host_ip
     aarch64_inventory_host_ip = data.get("aarch64_inventory_host_ip")

@@ -47,11 +47,19 @@
     - "'slurm' in conf_merge_dict"
     - filtered_nodenames is defined
 
+- name: Set partition nodes exactly as cmpt_list minus removed nodes
+  ansible.builtin.set_fact:
+    partition_nodes: "{{ cmpt_list | difference(nodes_in_normal_not_in_cmpt) | union(busy_nodes.keys() | default([]) | list) }}"
+  when:
+    - "'slurm' in conf_merge_dict"
+    - nodes_in_normal_not_in_cmpt is defined
+    - nodes_in_normal_not_in_cmpt | length > 0
+
 - name: Update normal partition Nodes to match cmpt_list
   ansible.builtin.set_fact:
     updated_partitions: "{{ updated_partitions | default([])
-      + [item | combine({'Nodes': ((cmpt_list | difference(nodes_in_normal_not_in_cmpt)) | join(','))
-      if (cmpt_list | difference(nodes_in_normal_not_in_cmpt)) | length > 0 else slurm_partition_name})
+      + [item | combine({'Nodes': (partition_nodes | join(','))
+      if partition_nodes | length > 0 else slurm_partition_name})
       if item.PartitionName == slurm_partition_name else item] }}"
   loop: "{{ slurm_conf_dict.PartitionName | default([]) }}"
   when:

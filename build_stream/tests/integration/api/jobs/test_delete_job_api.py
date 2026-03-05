@@ -104,17 +104,17 @@ class TestDeleteJobNotFound:
 class TestDeleteJobAuthentication:
     """Tests for authentication in job deletion."""
 
-    def test_delete_job_missing_authorization_returns_422(self, client, unique_correlation_id):
-        """Delete job without auth header should return 422 Unprocessable Entity."""
+    def test_delete_job_missing_authorization_returns_422(self, unauth_client, unique_correlation_id):
+        """Delete job without auth header should return 401 Unauthorized."""
         job_id = "019bf590-1234-7890-abcd-ef1234567890"
         headers = {"X-Correlation-Id": unique_correlation_id}
 
-        response = client.delete(f"/api/v1/jobs/{job_id}", headers=headers)
+        response = unauth_client.delete(f"/api/v1/jobs/{job_id}", headers=headers)
 
-        assert response.status_code == 422
+        assert response.status_code == 401
 
     def test_delete_job_invalid_auth_format_returns_401(
-        self, client, unique_correlation_id
+        self, unauth_client, unique_correlation_id
     ):
         """Delete job with invalid auth format should return 401 Unauthorized."""
         job_id = "019bf590-1234-7890-abcd-ef1234567890"
@@ -123,7 +123,7 @@ class TestDeleteJobAuthentication:
             "X-Correlation-Id": unique_correlation_id,
         }
 
-        response = client.delete(f"/api/v1/jobs/{job_id}", headers=headers)
+        response = unauth_client.delete(f"/api/v1/jobs/{job_id}", headers=headers)
 
         assert response.status_code == 401
 

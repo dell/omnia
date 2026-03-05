@@ -15,19 +15,51 @@
 """Shared fixtures for Jobs API integration tests."""
 
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 import pytest
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.testclient import TestClient
 
 from main import app
+from api.dependencies import verify_token
 from infra.id_generator import UUIDv4Generator
+
+_bearer = HTTPBearer(auto_error=False)
+
+
+def _mock_verify_token(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+):
+    """Mock verify_token that uses the token value as client_id."""
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": "missing_token", "error_description": "Authorization header is required"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = credentials.credentials
+    return {
+        "client_id": token,
+        "client_name": token,
+        "scopes": ["job:write", "job:read"],
+        "token_id": "test-token-id",
+    }
 
 
 @pytest.fixture(scope="function")
 def client():
-    """Create test client with fresh container for each test."""
-    os.environ["ENV"] = "dev"
+    """Create test client with mocked JWT auth for business logic tests."""
+    app.dependency_overrides[verify_token] = _mock_verify_token
+    test_client = TestClient(app)
+    yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def unauth_client():
+    """Create test client without auth mock for testing real auth behaviour."""
     return TestClient(app)
 
 

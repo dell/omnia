@@ -78,6 +78,7 @@ class Package:
     """Represents a package entry inside a generated FeatureList JSON."""
 
     package: str
+    version: Optional[str]
     type: str
     repo_name: str
     architecture: List[str]
@@ -127,6 +128,7 @@ def _filter_featurelist_for_arch(feature_list: FeatureList, arch: str) -> Featur
                 narrowed_pkgs.append(
                     Package(
                         package=p.package,
+                        version=getattr(p, "version", None),
                         type=p.type,
                         repo_name=repo_name,
                         architecture=[arch],
@@ -196,6 +198,7 @@ def generate_functional_layer_json(catalog: Catalog) -> FeatureList:
                 feature_json.packages.append(
                     Package(
                         package=pkg.name,
+                        version=pkg.version,
                         type=pkg.type,
                         repo_name="",
                         architecture=pkg.architecture,
@@ -234,6 +237,7 @@ def generate_infrastructure_json(catalog: Catalog) -> FeatureList:
                 feature_json.packages.append(
                     Package(
                         package=pkg.name,
+                        version=pkg.version,
                         type=pkg.type,
                         repo_name="",
                         architecture=pkg.architecture,
@@ -274,6 +278,7 @@ def generate_drivers_json(catalog: Catalog) -> FeatureList:
             feature_json.packages.append(
                 Package(
                     package=driver.name,
+                    version=driver.version,
                     type=driver.type,
                     repo_name="",
                     architecture=driver.architecture,
@@ -305,6 +310,7 @@ def generate_drivers_json(catalog: Catalog) -> FeatureList:
             feature_json.packages.append(
                 Package(
                     package=driver.name,
+                    version=driver.version,
                     type=driver.type,
                     repo_name="",
                     architecture=driver.architecture,
@@ -343,6 +349,7 @@ def generate_base_os_json(catalog: Catalog) -> FeatureList:
                 feature_json.packages.append(
                     Package(
                         package=pkg.name,
+                        version=pkg.version,
                         type=pkg.type,
                         repo_name="",
                         architecture=pkg.architecture,
@@ -380,6 +387,7 @@ def generate_miscellaneous_json(catalog: Catalog) -> FeatureList:
         feature_json.packages.append(
             Package(
                 package=pkg.name,
+                version=pkg.version,
                 type=pkg.type,
                 repo_name="",
                 architecture=pkg.architecture,
@@ -401,6 +409,8 @@ def _package_common_dict(pkg: Package) -> Dict:
     consistent for package, type, repo_name, uri, and tag.
     """
     data: Dict = {"package": pkg.package, "type": pkg.type}
+    if getattr(pkg, "version", None):
+        data["version"] = pkg.version
     if getattr(pkg, "repo_name", ""):
         data["repo_name"] = pkg.repo_name
     if getattr(pkg, "uri", None) is not None:
@@ -419,6 +429,7 @@ def _package_to_json_dict(pkg: Package) -> Dict:
 def _package_from_json_dict(data: Dict) -> Package:
     return Package(
         package=data["package"],
+        version=data.get("version"),
         type=data["type"],
         repo_name=data.get("repo_name", ""),
         architecture=data.get("architecture", []),

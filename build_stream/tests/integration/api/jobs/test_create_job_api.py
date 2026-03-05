@@ -64,18 +64,15 @@ class TestCreateJobSuccess:
 
         assert response.status_code == 201
         stages = response.json()["stages"]
-        assert len(stages) == 9
+        assert len(stages) == 6
 
         expected_stages = [
             "parse-catalog",
             "generate-input-files",
             "create-local-repository",
-            "update-local-repository",
-            "create-image-repository",
-            "build-image",
-            "validate-image",
+            "build-image-x86_64",
+            "build-image-aarch64",
             "validate-image-on-test",
-            "promote"
         ]
 
         stage_names = [s["stage_name"] for s in stages]
@@ -236,7 +233,7 @@ class TestCreateJobValidation:
 class TestCreateJobAuthentication:
     """Authentication header tests."""
 
-    def test_missing_authorization_header_returns_422(self, client, unique_idempotency_key):
+    def test_missing_authorization_header_returns_422(self, unauth_client, unique_idempotency_key):
         """Auth header required."""
         headers = {
             "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
@@ -244,12 +241,12 @@ class TestCreateJobAuthentication:
         }
         payload = {"client_id": "client-123", "client_name": "test-client"}
 
-        response = client.post("/api/v1/jobs", json=payload, headers=headers)
+        response = unauth_client.post("/api/v1/jobs", json=payload, headers=headers)
 
-        assert response.status_code == 422
+        assert response.status_code == 401
 
     def test_invalid_authorization_format_returns_401(
-        self, client, unique_idempotency_key
+        self, unauth_client, unique_idempotency_key
     ):
         """Invalid auth scheme returns 401."""
         headers = {
@@ -259,11 +256,11 @@ class TestCreateJobAuthentication:
         }
         payload = {"client_id": "client-123", "client_name": "test-client"}
 
-        response = client.post("/api/v1/jobs", json=payload, headers=headers)
+        response = unauth_client.post("/api/v1/jobs", json=payload, headers=headers)
 
         assert response.status_code == 401
 
-    def test_empty_bearer_token_returns_401(self, client, unique_idempotency_key):
+    def test_empty_bearer_token_returns_401(self, unauth_client, unique_idempotency_key):
         """Empty bearer token returns 401."""
         headers = {
             "Authorization": "Bearer ",
@@ -272,7 +269,7 @@ class TestCreateJobAuthentication:
         }
         payload = {"client_id": "client-123", "client_name": "test-client"}
 
-        response = client.post("/api/v1/jobs", json=payload, headers=headers)
+        response = unauth_client.post("/api/v1/jobs", json=payload, headers=headers)
 
         assert response.status_code == 401
 

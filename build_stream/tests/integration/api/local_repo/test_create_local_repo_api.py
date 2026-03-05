@@ -127,34 +127,34 @@ class TestCreateLocalRepoValidation:
 class TestCreateLocalRepoAuthentication:
     """Authentication header tests."""
 
-    def test_missing_authorization_returns_422(self, client, created_job):
+    def test_missing_authorization_returns_422(self, unauth_client):
         headers = {
             "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
         }
-        response = client.post(
-            f"/api/v1/jobs/{created_job}/stages/create-local-repository",
-            headers=headers,
-        )
-        assert response.status_code == 422
-
-    def test_invalid_authorization_format_returns_401(self, client, created_job):
-        headers = {
-            "Authorization": "InvalidFormat test-token",
-            "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
-        }
-        response = client.post(
-            f"/api/v1/jobs/{created_job}/stages/create-local-repository",
+        response = unauth_client.post(
+            "/api/v1/jobs/019bf590-1234-7890-abcd-ef1234567890/stages/create-local-repository",
             headers=headers,
         )
         assert response.status_code == 401
 
-    def test_empty_bearer_token_returns_401(self, client, created_job):
+    def test_invalid_authorization_format_returns_401(self, unauth_client):
+        headers = {
+            "Authorization": "InvalidFormat test-token",
+            "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
+        }
+        response = unauth_client.post(
+            "/api/v1/jobs/019bf590-1234-7890-abcd-ef1234567890/stages/create-local-repository",
+            headers=headers,
+        )
+        assert response.status_code == 401
+
+    def test_empty_bearer_token_returns_401(self, unauth_client):
         headers = {
             "Authorization": "Bearer ",
             "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
         }
-        response = client.post(
-            f"/api/v1/jobs/{created_job}/stages/create-local-repository",
+        response = unauth_client.post(
+            "/api/v1/jobs/019bf590-1234-7890-abcd-ef1234567890/stages/create-local-repository",
             headers=headers,
         )
         assert response.status_code == 401

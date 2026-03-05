@@ -19,18 +19,21 @@
     idrac_password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
     validate_certs: false
   register: lc_check_status
-  ignore_errors: true
-
-- name: Set reboot type
-  ansible.builtin.set_fact:
-    reboot_type: "{{ 'ForceRestart' if force_restart else 'GracefulRestart' }}"
+  until:
+    - lc_check_status.lc_status_info.LCReady is defined
+    - lc_check_status.lc_status_info.LCReady
+  retries: 3
+  delay: 5
+  # ignore_errors: true
+  # free startegy should be used to avoid blocking on failed hosts
+  # but issue will be summarizing/syncing summary report of all at the end
 
 - name: IDRAC ops when ready
   when:
     - lc_check_status is success
     - lc_check_status.lc_status_info.LCReady
   block:
-    - name: Set boot from pxe
+    - name: Set boot option from pxe
       dellemc.openmanage.idrac_boot:
         idrac_ip: "{{ inventory_hostname }}"
         idrac_user: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
@@ -50,7 +53,7 @@
         username: "{{ bmc_username | default(hostvars['localhost']['bmc_username']) }}"
         password: "{{ bmc_password | default(hostvars['localhost']['bmc_password']) }}"
         validate_certs: false
-        reset_type: ForceRestart
+        reset_type: "{{ 'ForceRestart' if force_restart else 'GracefulRestart' }}"
       when: restart_host
       register: restart_op
       failed_when: false
@@ -69,37 +72,46 @@
         - not (restart_op is changed)
 
 - name: Check LC availibility
-  ansible.builtin.fail:
-    msg: "{{ lc_check_fail_msg }}"
-  when: lc_check_status is failed or not (lc_check_status.lc_status_info.LCReady | default(false))
+  ansible.builtin.set_fact:
+    reboot_failed: true
+    reboot_status: "{{ lc_check_fail_msg }}"
+  when: lc_check_status is unreachable or lc_check_status is failed or not (lc_check_status.lc_status_info.LCReady | default(false))
 
 - name: Fail if PXE provisioning failed
-  ansible.builtin.fail:
-    msg: "{{ pxe_provisioning_fail_msg }}"
+  ansible.builtin.set_fact:
+    reboot_failed: true
+    reboot_status: "{{ pxe_provisioning_fail_msg }}"
   when:
+    - not reboot_failed
     - pxe_provisioning is defined
     - pxe_provisioning is failed
 
 - name: Fail if PXE provisioning target is unreachable
-  ansible.builtin.fail:
-    msg: "{{ unreachable_idrac_msg }}"
+  ansible.builtin.set_fact:
+    reboot_failed: true
+    reboot_status: "{{ unreachable_idrac_msg }}"
   when:
+    - not reboot_failed
     - pxe_provisioning is defined
     - pxe_provisioning is unreachable
 
 - name: Fail if power operation failed
-  ansible.builtin.fail:
-    msg: "Power operation failed on {{ inventory_hostname }}. Failed to restart server."
+  ansible.builtin.set_fact:
+    reboot_failed: true
+    reboot_status: "Power operation failed on {{ inventory_hostname }}. Failed to restart server."
   when:
+    - not reboot_failed
     - restart_host
     - not (restart_op is defined and restart_op is changed)
     - not (power_on_op is defined and power_on_op is changed)
 
 - name: Summarize PXE boot and power operation results
-  ansible.builtin.debug:
-    msg: >-
+  ansible.builtin.set_fact:
+    reboot_failed: false
+    reboot_status: >-
       PXE Boot: {{ 'OK' if pxe_provisioning is success else ('UNREACHABLE' if pxe_provisioning is unreachable else 'FAILED') }} |
       Power: {{ 'Restart OK' if (restart_op is defined and restart_op is changed)
       else ('On OK' if (power_on_op is defined and power_on_op is changed)
       else ('Skipped (no restart)' if not restart_host
       else 'FAILED')) }}
+  when: not reboot_failed

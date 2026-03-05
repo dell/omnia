@@ -80,9 +80,9 @@ INVALID_SWITCH_PORTS_MSG = (
 )
 DUPLICATE_GROUP_NAME_MSG = "Duplicate group names are not allowed."
 EMPTY_OR_SYNTAX_ERROR_ROLES_CONFIG_MSG = ("File is either empty or contains syntax errors. "
-                                         "File must contain valid YAML with 'Roles' and 'Groups' "
-                                         "sections along with valid syntax. Check the file content "
-                                         "and ensure proper YAML formatting.")
+    "File must contain valid YAML with 'Roles' and 'Groups' "
+    "sections along with valid syntax. Check the file content "
+    "and ensure proper YAML formatting.")
 DUPLICATE_GROUP_NAME_IN_LAYERS_MSG = ("The following groups are mapped to both frontend and "
                                      "compute layers, which is not allowed for group: [{0}] in "
                                      "frontend layer: [{1}] and compute layer: [{2}]")
@@ -94,7 +94,7 @@ SERVICE_K8S_ENTRY_MISSING_SOFTWARE_CONFIG_MSG = ("The role service_kube_control_
     "but the service_k8s package entry is missing in software_config.json. "
     "To deploy Kubernetes in the service_k8s cluster, the package must be added to software_config.json.")
 SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG = ("The 'service_node' role defined in roles_config.yml"
-    " is not currently supported and is reserved for future use. Please remove or update this role"
+    " is not currently supported and is reserved for future use. Please remove or update this role" 
     " to avoid configuration errors.")
 
 # Functional Groups Config Validation Messages
@@ -419,21 +419,29 @@ DUPLICATE_PASSIVE_NODE_SERVICE_TAG = ("the service tag configured for a passive 
 # build_stream_config.yml
 ENABLE_BUILD_STREAM_REQUIRED_MSG = "Field 'enable_build_stream' is required in build_stream_config.yml."
 ENABLE_BUILD_STREAM_BOOLEAN_MSG = "Field 'enable_build_stream' must be a boolean (true or false)."
-BUILD_STREAM_CONFIG_EMPTY_MSG = ("build_stream_config.yml file is empty or has syntax errors. "
-                                 "It must contain valid YAML with 'enable_build_stream' field.")
+BUILD_STREAM_CONFIG_EMPTY_MSG = (
+    "build_stream_config.yml file is empty or has syntax errors. "
+    "It must contain valid YAML with 'enable_build_stream' field."
+)
 AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = (
     "Field 'aarch64_inventory_host_ip' must be in the same subnet as OIM admin IP. "
     "Check network_spec.yml for admin network configuration."
 )
 
+BUILD_STREAM_HOST_IP_REQUIRED_MSG = (
+    "Field 'build_stream_host_ip' is mandatory in build_stream_config.yml. "
+    "Please provide a valid IPv4 address (OIM admin IP or OIM public IP)."
+)
+
 def build_stream_host_ip_not_oim_ip_msg(ip, allowed_ips):
     """Returns error message for build_stream_host_ip not matching any OIM ethernet interface IP."""
-    return (f"build_stream_host_ip '{ip}' is not a valid OIM IP address. "
-            f"It must match an IP assigned to an ethernet interface on the OIM "
-            f"(i.e., the OIM admin IP or OIM public IP). "
-            f"Allowed IPs (from ethernet interfaces): {', '.join(allowed_ips)}. "
-            f"Please set build_stream_host_ip to one of these IPs or leave it empty to "
-            f"use the admin IP.")
+    return (
+        f"build_stream_host_ip '{ip}' is not a valid OIM IP address. "
+        f"It must match an IP assigned to an ethernet interface on the OIM "
+        f"(i.e., the OIM admin IP or OIM public IP). "
+        f"Allowed IPs (from ethernet interfaces): {', '.join(allowed_ips)}. "
+        f"Provide an IP configured on an OIM ethernet interface that is reachable from the host."
+    )
 
 BUILD_STREAM_HOST_IP_NO_ETHERNET_IPS_MSG = (
     "Unable to determine OIM ethernet interface IPs. "
@@ -443,10 +451,12 @@ BUILD_STREAM_HOST_IP_NO_ETHERNET_IPS_MSG = (
 
 def build_stream_port_in_use_msg(port):
     """Returns error message for port already in use."""
-    return (f"Port {port} is already in use. "
-            f"Please choose a different port or stop the service using this port. "
-            f"To check which process is using this port, run: "
-            f"'ss -tulpn | grep :{port}'")
+    return (
+        f"Port {port} is already in use. "
+        f"Please choose a different port or stop the service using this port. "
+        f"To check which process is using this port, run: "
+        f"'ss -tulpn | grep :{port}'"
+    )
 
 # gitlab_config.yml
 GITLAB_HOST_EMPTY_MSG = ("Field 'gitlab_host' is required and cannot be empty. "
@@ -460,7 +470,7 @@ GITLAB_PROJECT_VISIBILITY_INVALID_MSG = ("Field 'gitlab_project_visibility' must
 GITLAB_DEFAULT_BRANCH_EMPTY_MSG = ("Field 'gitlab_default_branch' is required and cannot be empty. "
                                    "Provide a valid git branch name. Default: main")
 GITLAB_DEFAULT_BRANCH_INVALID_MSG = ("Field 'gitlab_default_branch' contains invalid characters. "
-                                     "Branch name must start with alphanumeric and may contain "
+    "Branch name must start with alphanumeric and may contain "
                                      "letters, digits, dots, hyphens, underscores, or slashes.")
 GITLAB_HTTPS_PORT_INVALID_MSG = ("Field 'gitlab_https_port' must be a valid port number between "
                                  "1 and 65535. Default: 443")
@@ -481,8 +491,8 @@ GITLAB_SIDEKIQ_CONCURRENCY_INVALID_MSG = ("Field 'gitlab_sidekiq_concurrency' mu
 GITLAB_OIM_VERIFY_SSL_INVALID_MSG = ("Field 'oim_api_verify_ssl' must be a boolean (true or false). "
                                      "Default: true")
 GITLAB_CONFIG_EMPTY_MSG = ("gitlab_config.yml is empty or has syntax errors. "
-                           "It must contain valid YAML with required fields: "
-                           "gitlab_host, gitlab_project_name, gitlab_project_visibility, "
+    "It must contain valid YAML with required fields: "
+    "gitlab_host, gitlab_project_name, gitlab_project_visibility, "
                            "gitlab_default_branch, gitlab_https_port.")
 
 # addtional_software
@@ -526,4 +536,3 @@ def get_logic_failed(input_file_path):
 def get_logic_success(input_file_path):
     """Returns a formatted message indicating logic validation success for a file."""
     return f"{'#' * 10} Logic validation successful for {input_file_path} {'#' * 10}"
-

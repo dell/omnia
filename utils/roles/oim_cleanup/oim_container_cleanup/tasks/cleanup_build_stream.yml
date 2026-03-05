@@ -49,6 +49,25 @@
     state: absent
   loop: "{{ build_stream_quad_path_list }}"
 
+- name: Stop playbook_watcher service if it exists
+  ansible.builtin.systemd_service:
+    name: playbook_watcher.service
+    state: stopped
+  when:
+    - ("playbook_watcher.service" in ansible_facts.services)
+    - ansible_facts.services['playbook_watcher.service'].state == 'running'
+
+- name: Disable playbook_watcher service
+  ansible.builtin.systemd_service:
+    name: playbook_watcher.service
+    enabled: false
+  when: ("playbook_watcher.service" in ansible_facts.services)
+
+- name: Remove playbook_watcher service file
+  ansible.builtin.file:
+    path: "{{ playbook_watcher_service_file }}"
+    state: absent
+
 - name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true
@@ -91,5 +110,12 @@
   ansible.builtin.replace:
     path: "{{ omnia_target }}"
     regexp: "{{ build_stream_container_name }}.service"
+    replace: ''
+  when: p.stat.exists
+
+- name: Remove playbook_watcher service from omnia.target
+  ansible.builtin.replace:
+    path: "{{ omnia_target }}"
+    regexp: "playbook_watcher.service"
     replace: ''
   when: p.stat.exists

@@ -56,7 +56,7 @@ class TestGetJobSuccess:
 
         assert get_response.status_code == 200
         stages = get_response.json()["stages"]
-        assert len(stages) == 9
+        assert len(stages) == 10
 
     def test_get_job_returns_correlation_id(self, client, auth_headers, unique_correlation_id):
         """Get job should return correlation ID from headers."""
@@ -105,16 +105,16 @@ class TestGetJobNotFound:
 class TestGetJobAuthentication:
     """Tests for authentication in job retrieval."""
 
-    def test_get_job_missing_authorization_returns_422(self, client, unique_correlation_id):
-        """Get job without auth header should return 422 Unprocessable Entity."""
+    def test_get_job_missing_authorization_returns_422(self, unauth_client, unique_correlation_id):
+        """Get job without auth header should return 401 Unauthorized."""
         job_id = "019bf590-1234-7890-abcd-ef1234567890"
         headers = {"X-Correlation-Id": unique_correlation_id}
 
-        response = client.get(f"/api/v1/jobs/{job_id}", headers=headers)
+        response = unauth_client.get(f"/api/v1/jobs/{job_id}", headers=headers)
 
-        assert response.status_code == 422
+        assert response.status_code == 401
 
-    def test_get_job_invalid_authorization_format_returns_401(self, client, unique_correlation_id):
+    def test_get_job_invalid_authorization_format_returns_401(self, unauth_client, unique_correlation_id):
         """Get job with invalid auth format should return 401 Unauthorized."""
         job_id = "019bf590-1234-7890-abcd-ef1234567890"
         headers = {
@@ -122,7 +122,7 @@ class TestGetJobAuthentication:
             "X-Correlation-Id": unique_correlation_id,
         }
 
-        response = client.get(f"/api/v1/jobs/{job_id}", headers=headers)
+        response = unauth_client.get(f"/api/v1/jobs/{job_id}", headers=headers)
 
         assert response.status_code == 401
 

@@ -53,6 +53,8 @@ from api.jobs.schemas import (
     GetJobResponse,
     StageResponse,
 )
+from api.catalog_roles.dependencies import get_catalog_roles_service
+from api.catalog_roles.service import CatalogRolesService
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -207,7 +209,12 @@ async def create_job(
         )
 
     except IdempotencyConflictError as e:
-        log_secure_info("warning", f"Create job failed: reason=idempotency_conflict, status=409", job_id=None, end_section=True)
+        log_secure_info(
+            "warning",
+            f"Create job failed: reason=idempotency_conflict, status=409",
+            job_id=None,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=_build_error_response(
@@ -218,7 +225,12 @@ async def create_job(
         ) from e
 
     except Exception as e:
-        log_secure_info("error", "Create job failed: reason=unexpected_error, status=500", exc_info=True, end_section=True)
+        log_secure_info(
+            "error",
+            "Create job failed: reason=unexpected_error, status=500",
+            exc_info=True,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=_build_error_response(
@@ -247,6 +259,7 @@ async def get_job(
     job_repo = Depends(get_job_repo),
     stage_repo = Depends(get_stage_repo),
     audit_repo = Depends(get_audit_repo),
+    catalog_roles_service: CatalogRolesService = Depends(get_catalog_roles_service),
 ) -> GetJobResponse:
     """Return a job if it exists for the requesting client."""
 
@@ -291,6 +304,70 @@ async def get_job(
 
         # Get stage breakdown
         stages_entities = stage_repo.find_all_by_job(validated_job_id)  # pylint: disable=no-member
+        
+        # Try to get supported architectures from catalog to filter build-image stages
+        supported_architectures = []
+        try:
+            catalog_roles = catalog_roles_service.get_roles(validated_job_id)
+            # catalog_roles returns a dict, not a Pydantic model
+            if isinstance(catalog_roles, dict):
+                supported_architectures = catalog_roles.get("architectures", [])
+                log_secure_info(
+                    "debug",
+                    f"Filtering build-image stages for job {job_id}: "
+                    f"supported_architectures={supported_architectures}",
+                    job_id=job_id,
+                )
+            else:
+                log_secure_info(
+                    "warning",
+                    f"Unexpected catalog roles type for job {job_id}: "
+                    f"{type(catalog_roles).__name__}",
+                    job_id=job_id,
+                )
+                supported_architectures = []
+        except AttributeError as e:
+            # Specific handling for attribute errors
+            log_secure_info(
+                "warning",
+                f"AttributeError getting catalog roles for job {job_id}",
+                job_id=job_id,
+            )
+            supported_architectures = []
+        except Exception as e:
+            # If catalog roles are not available, include all stages (fallback behavior)
+            log_secure_info(
+                "warning",
+                f"Could not get catalog roles for job {job_id}, including all stages",
+                job_id=job_id,
+            )
+            supported_architectures = []
+        
+        # Filter stages based on supported architectures
+        filtered_stages = []
+        for s in stages_entities:
+            stage_name = str(s.stage_name)
+            
+            # Check if this is a build-image stage
+            if stage_name.startswith("build-image-"):
+                # Extract architecture from stage name (e.g., "build-image-x86_64" -> "x86_64")
+                stage_arch = stage_name.replace("build-image-", "")
+                
+                # Only include this build-image stage if the architecture is supported
+                if not supported_architectures or stage_arch in supported_architectures:
+                    filtered_stages.append(s)
+                else:
+                    log_secure_info(
+                        "debug",
+                        f"Filtering out build-image stage for unsupported "
+                        f"architecture: job_id={job_id}, stage={stage_name}, "
+                        f"arch={stage_arch}",
+                        job_id=job_id,
+                    )
+            else:
+                # Include all non-build-image stages
+                filtered_stages.append(s)
+        
         stages = [
             StageResponse(
                 stage_name=str(s.stage_name),
@@ -300,7 +377,7 @@ async def get_job(
                 error_code=s.error_code,
                 error_summary=s.error_summary,
             )
-            for s in stages_entities
+            for s in filtered_stages
         ]
         
         # Get audit events for state change timestamps
@@ -318,13 +395,9 @@ async def get_job(
         
         log_secure_info(
             "info",
-            f"Get job success: job_id={job_id}, job_state={_map_job_state_to_api_state(job.job_state)}, status=200",
-            job_id=job_id,
-            end_section=True,
-        )
-        log_secure_info(
-            "info",
-            f"Get job success: job_id={job_id}, job_state={_map_job_state_to_api_state(job.job_state)}, status=200",
+            f"Get job success: job_id={job_id}, "
+            f"job_state={_map_job_state_to_api_state(job.job_state)}, "
+            f"status=200",
             job_id=job_id,
             end_section=True,
         )
@@ -340,7 +413,13 @@ async def get_job(
         )
 
     except JobNotFoundError as e:
-        log_secure_info("warning", f"Get job failed: job_id={job_id}, reason=not_found, status=404", job_id=job_id, end_section=True)
+        log_secure_info(
+            "warning",
+            f"Get job failed: job_id={job_id}, "
+            f"reason=not_found, status=404",
+            job_id=job_id,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=_build_error_response(
@@ -351,7 +430,14 @@ async def get_job(
         ) from e
 
     except Exception as e:
-        log_secure_info("error", f"Get job failed: job_id={job_id}, reason=unexpected_error, status=500", job_id=job_id, exc_info=True, end_section=True)
+        log_secure_info(
+            "error",
+            f"Get job failed: job_id={job_id}, "
+            f"reason=unexpected_error, status=500",
+            job_id=job_id,
+            exc_info=True,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=_build_error_response(
@@ -425,7 +511,6 @@ async def delete_job(
 
         stages_entities = stage_repo.find_all_by_job(validated_job_id)  # pylint: disable=no-member
         cancelled_count = 0
-        cancelled_count = 0
         for stage in stages_entities:
             if not stage.stage_state.is_terminal():
                 stage.cancel()
@@ -452,7 +537,13 @@ async def delete_job(
         remove_job_logger(job_id)
 
     except JobNotFoundError as e:
-        log_secure_info("warning", f"Delete job failed: job_id={job_id}, reason=not_found, status=404", job_id=job_id, end_section=True)
+        log_secure_info(
+            "warning",
+            f"Delete job failed: job_id={job_id}, "
+            f"reason=not_found, status=404",
+            job_id=job_id,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=_build_error_response(
@@ -463,7 +554,13 @@ async def delete_job(
         ) from e
 
     except InvalidStateTransitionError as e:
-        log_secure_info("warning", f"Delete job failed: job_id={job_id}, reason=invalid_state_transition, status=400", job_id=job_id, end_section=True)
+        log_secure_info(
+            "warning",
+            f"Delete job failed: job_id={job_id}, "
+            f"reason=invalid_state_transition, status=400",
+            job_id=job_id,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=_build_error_response(
@@ -474,7 +571,14 @@ async def delete_job(
         ) from e
 
     except Exception as e:
-        log_secure_info("error", f"Delete job failed: job_id={job_id}, reason=unexpected_error, status=500", job_id=job_id, exc_info=True, end_section=True)
+        log_secure_info(
+            "error",
+            f"Delete job failed: job_id={job_id}, "
+            f"reason=unexpected_error, status=500",
+            job_id=job_id,
+            exc_info=True,
+            end_section=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=_build_error_response(

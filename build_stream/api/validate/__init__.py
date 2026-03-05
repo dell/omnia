@@ -14,6 +14,4 @@
 
 """ValidateImageOnTest API module."""
 
-from api.validate.routes import router
-
-__all__ = ["router"]
+__all__ = []

@@ -175,9 +175,9 @@ async def generate_input_files(
         ) from e
 
     except UpstreamStageNotCompletedError as e:
-        log_secure_info("error", f"Generate-input-files failed: job_id={job_id}, reason=upstream_not_completed, status=422", job_id=job_id, end_section=True)
+        log_secure_info("error", f"Generate-input-files failed: job_id={job_id}, reason=upstream_not_completed, status=412", job_id=job_id, end_section=True)
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail={
                 "error": "UPSTREAM_STAGE_NOT_COMPLETED",
                 "message": e.message,

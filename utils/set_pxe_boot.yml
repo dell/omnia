@@ -54,13 +54,27 @@
 
 # This configures Dell iDRAC BMCs to boot a host from PXE (network) and optionally reboots the server.
 # This will set the boot mode to pxe
-# Note: Restart will not happen if the server is powered off, only pxe mode will be set.
 - name: Reboot Host via PXE
   hosts: bmc
   connection: local
+  strategy: host_pinned
   gather_facts: false
   roles:
     - role: idrac_pxe_boot
       # vars:
       #   restart_host: false # By default restart will be true, set to false not to restart
       #   force_restart: true # By default graceful_restart will happen, set to true to force restart
+
+- name: Synchronized Reporting
+  hosts: bmc
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Fail if reboot function failed
+      ansible.builtin.fail:
+        msg: "{{ reboot_status }}"
+      when: reboot_failed
+
+    - name: Show passed iDRACs
+      ansible.builtin.debug:
+        msg: "{{ inventory_hostname }}: {{ reboot_status }}"

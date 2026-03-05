@@ -25,6 +25,7 @@ from api.validate.dependencies import (
 )
 from api.dependencies import verify_token, require_job_write
 from api.validate.schemas import (
+    ValidateImageOnTestRequest,
     ValidateImageOnTestResponse,
     ValidateImageOnTestErrorResponse,
 )
@@ -32,6 +33,7 @@ from api.logging_utils import log_secure_info
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,
+    UpstreamStageNotCompletedError,
 )
 from core.jobs.value_objects import ClientId, CorrelationId, JobId
 from core.validate.exceptions import (
@@ -78,6 +80,7 @@ def _build_error_response(
 )
 def create_validate_image_on_test(
     job_id: str,
+    request_body: ValidateImageOnTestRequest,
     token_data: dict = Depends(verify_token),
     use_case: ValidateImageOnTestUseCase = Depends(get_validate_image_on_test_use_case),
     correlation_id: CorrelationId = Depends(get_validate_correlation_id),
@@ -89,13 +92,14 @@ def create_validate_image_on_test(
     The playbook execution is handled by the NFS queue watcher service.
     """
     # Extract client_id from token_data
-    client_id = token_data["client_id"]
+    client_id = ClientId(token_data["client_id"])
     
     logger.info(
-        "Validate image on test request: job_id=%s, client_id=%s, correlation_id=%s",
+        "Validate image on test request: job_id=%s, client_id=%s, correlation_id=%s, image_key=%s",
         job_id,
         client_id.value,
         correlation_id.value,
+        request_body.image_key,
     )
 
     try:
@@ -115,6 +119,7 @@ def create_validate_image_on_test(
             job_id=validated_job_id,
             client_id=client_id,
             correlation_id=correlation_id,
+            image_key=request_body.image_key,
         )
         result = use_case.execute(command)
 
@@ -147,6 +152,21 @@ def create_validate_image_on_test(
             status_code=status.HTTP_409_CONFLICT,
             detail=_build_error_response(
                 "INVALID_STATE_TRANSITION",
+                exc.message,
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
+    except UpstreamStageNotCompletedError as exc:
+        log_secure_info(
+            "warning",
+            f"Validate failed: job_id={job_id}, reason=upstream_stage_not_completed, status=412",
+            str(correlation_id.value),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
+            detail=_build_error_response(
+                "UPSTREAM_STAGE_NOT_COMPLETED",
                 exc.message,
                 correlation_id.value,
             ).model_dump(),

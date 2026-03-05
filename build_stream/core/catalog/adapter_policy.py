@@ -187,7 +187,7 @@ def generate_software_config(
     config: Dict[str, Any] = {
         "cluster_os_type": os_family,
         "cluster_os_version": os_version,
-        "repo_config": "partial",
+        "repo_config": "always",
         "softwares": softwares,
     }
     config.update(subgroup_sections)
@@ -261,6 +261,11 @@ def transform_package(pkg: Dict, transform_config: Optional[Dict]) -> Dict:
         return pkg.copy()
 
     result = pkg.copy()
+
+    # Auto-exclude versions for non-git packages
+    package_type = result.get("type")
+    if package_type != "git":
+        result.pop("version", None)
 
     exclude_fields = transform_config.get(schema.EXCLUDE_FIELDS, [])
     for field in exclude_fields:

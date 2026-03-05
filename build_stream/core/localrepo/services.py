@@ -217,7 +217,7 @@ class PlaybookQueueResultService:
                 log_secure_info(
                     "info",
                     f"Processed result for job {result.job_id}",
-                    str(result.correlation_id),
+                    str(result.request_id),
                 )
             except (ValueError, KeyError) as exc:
                 log_secure_info(

@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from api.logging_utils import log_secure_info
 
 from core.jobs.entities import AuditEvent
+from core.jobs.entities.stage import StageState
 from core.jobs.repositories import (
     AuditEventRepository,
     StageRepository,
@@ -138,10 +139,21 @@ class ResultPoller:
                 return
 
             # Update stage based on result
+            # Check if stage is already in terminal state (e.g., after service restart)
+            if stage.stage_state in {StageState.COMPLETED, StageState.FAILED, StageState.CANCELLED}:
+                logger.info(
+                    "Stage already in terminal state: job_id=%s, stage=%s, state=%s",
+                    result.job_id,
+                    result.stage_name,
+                    stage.stage_state,
+                )
+                # Return early - service will archive the result file automatically
+                return
+            
             if result.status == "success":
                 stage.complete()
                 logger.info(
-                    "Stage completed successfully: job_id=%s, stage=%s",
+                    "Stage completed: job_id=%s, stage=%s",
                     result.job_id,
                     result.stage_name,
                 )
@@ -175,6 +187,13 @@ class ResultPoller:
                 },
             )
             self._audit_repo.save(event)
+            
+            # Commit both repositories if using SQL
+            # Note: Each repository may have its own session, so commit both
+            if hasattr(self._stage_repo, 'session'):
+                self._stage_repo.session.commit()
+            if hasattr(self._audit_repo, 'session'):
+                    self._audit_repo.session.commit()
 
             log_secure_info(
                 "info",

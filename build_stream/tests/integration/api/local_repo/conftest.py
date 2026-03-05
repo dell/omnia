@@ -48,6 +48,13 @@ def client():
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(scope="function")
+def unauth_client():
+    """Create test client without auth mock for testing real auth behaviour."""
+    os.environ["ENV"] = "dev"
+    return TestClient(app)
+
+
 @pytest.fixture(name="uuid_generator")
 def uuid_generator_fixture():
     """UUID generator for test fixtures."""

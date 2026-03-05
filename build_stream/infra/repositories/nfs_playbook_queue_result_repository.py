@@ -67,12 +67,6 @@ class NfsPlaybookQueueResultRepository:
                 if file_path.name not in self._processed_files:
                     result_files.append(file_path)
         
-        # Also check archive/results directory for any missed files
-        if self._archive_dir.is_dir():
-            for file_path in sorted(self._archive_dir.glob("*.json")):
-                if file_path.name not in self._processed_files:
-                    result_files.append(file_path)
-                    logger.info(f"Found unprocessed result in archive: {file_path.name}")
 
         return result_files
 

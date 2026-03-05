@@ -10,7 +10,6 @@
         {"name": "slurm_custom", "arch": ["x86_64","aarch64"]},
         {"name": "csi_driver_powerscale", "version":"v2.15.0", "arch": ["x86_64"]},
         {"name": "ldms", "arch": ["x86_64","aarch64"]},
-        {"name": "csi_driver_powerscale", "version":"v2.15.0", "arch": ["x86_64"]},
         {"name": "additional_packages", "arch": ["x86_64","aarch64"]}
     ],
     "slurm_custom": [

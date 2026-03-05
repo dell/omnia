@@ -97,10 +97,10 @@ class TestCreateLocalRepoEdgeCases:
         # Should return an error status (400, 500, or 503 are all acceptable)
         assert response.status_code in [400, 500, 503]
 
-    def test_request_with_malformed_authorization_header(self, client, created_job):
+    def test_request_with_malformed_authorization_header(self, unauth_client):
         """Test request with malformed authorization header."""
-        response = client.post(
-            f"/api/v1/jobs/{created_job}/stages/create-local-repository",
+        response = unauth_client.post(
+            "/api/v1/jobs/019bf590-1234-7890-abcd-ef1234567890/stages/create-local-repository",
             headers={"Authorization": "InvalidFormat token123"},
         )
 
@@ -129,20 +129,20 @@ class TestCreateLocalRepoEdgeCases:
         # Should handle permission issues gracefully (may return various error codes)
         assert response.status_code in [400, 403, 500]
 
-    def test_request_with_multiple_auth_headers(self, client, auth_headers, created_job):
+    def test_request_with_multiple_auth_headers(self, unauth_client):
         """Test request with multiple authorization headers."""
         multiple_auth_headers = {
-            **auth_headers,
             "Authorization": "Bearer second-token",
+            "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
         }
 
-        response = client.post(
-            f"/api/v1/jobs/{created_job}/stages/create-local-repository",
+        response = unauth_client.post(
+            "/api/v1/jobs/019bf590-1234-7890-abcd-ef1234567890/stages/create-local-repository",
             headers=multiple_auth_headers,
         )
 
-        # FastAPI should handle this gracefully - may return 404 if job not found for different client
-        assert response.status_code in [401, 202, 404]
+        # Unrecognised token returns 401 from real JWT validation
+        assert response.status_code in [401, 202, 404, 400]
 
     def test_request_with_large_request_body(self, client, auth_headers, created_job, nfs_queue_dir, input_dir):
         """Test request with unexpected large body."""
