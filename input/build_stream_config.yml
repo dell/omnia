@@ -28,7 +28,7 @@ enable_build_stream: false
 
 # Mandatory: Build Stream API server host IP
 # Accepted values: public IP address of OIM or admin IP of OIM
-build_stream_host_ip:
+build_stream_host_ip: ""
 
 # Mandatory: Build Stream API server port
 # Accepted values: valid port number (1-65535) which is free
@@ -38,7 +38,7 @@ build_stream_port: 8010
 # Conditional Mandatory: AArch64 inventory host IP for aarch64 builds
 # Accepted values: admin IP of aarch64 host where OS is installed
 # Default none - by deafult aarch64 builds will not be generated
-aarch64_inventory_host_ip:
+aarch64_inventory_host_ip: ""
 
 # PostgreSQL configuration for build stream
 postgres_db_name: "build_stream_db"

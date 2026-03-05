@@ -29,11 +29,6 @@
         omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['provision']) | unique }}"
         cacheable: true
 
-    - name: Set GitLab operation mode
-      ansible.builtin.set_fact:
-        gitlab_operation_mode: "cleanup"
-        cacheable: true
-
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
