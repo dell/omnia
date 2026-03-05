@@ -162,10 +162,6 @@ gitlab_bs_auth_password_fail_msg: >
   Build stream auth password is empty. Run the credential utility to populate
   build_stream_auth_password before running the GitLab playbook.
 
-gitlab_bs_host_ip_fail_msg: >
-  build_stream_host_ip is not set in build_stream_config.yml.
-  Provide the OIM IP address in build_stream_host_ip before running the GitLab playbook.
-
 gitlab_root_password_fail_msg: >
   GitLab root password not found. Run credential utility to populate gitlab_root_password.
 
