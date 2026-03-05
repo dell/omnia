@@ -26,16 +26,12 @@
     - name: Set dynamic run tags including 'gitlab'
       when: not config_file_status | default(false) | bool
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['gitlab'] + ['provision']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['provision']) | unique }}"
         cacheable: true
 
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
-
-- name: Invoke validate_config.yml to perform L1 and L2 validations with gitlab tag
-  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
-  tags: always
 
 - name: Import credential utility playbook
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
