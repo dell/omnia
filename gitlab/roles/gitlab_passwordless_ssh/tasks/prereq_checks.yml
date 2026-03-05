@@ -29,13 +29,3 @@
     file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
   delegate_to: localhost
   run_once: true
-
-- name: Set gitlab_host from provided configuration
-  ansible.builtin.set_fact:
-    gitlab_host: "{{ ansible_host | default(inventory_hostname) }}"
-
-- name: Validate hosted-mode requirements
-  ansible.builtin.assert:
-    that:
-      - gitlab_host is defined and gitlab_host != ''
-    fail_msg: "Set a valid gitlab_host in input/gitlab_config.yml"
