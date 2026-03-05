@@ -45,6 +45,21 @@
       - cpu_cores.stdout | int >= gitlab_min_cpu_cores
     fail_msg: "Insufficient CPU cores. Required: {{ gitlab_min_cpu_cores }}, Available: {{ cpu_cores.stdout }}"
 
+- name: Check available disk space
+  ansible.builtin.shell: |
+    set -o pipefail
+    df -BG / | awk 'NR==2{print $4}' | sed 's/G//'
+  args:
+    executable: /bin/bash
+  register: available_disk_space
+  changed_when: false
+
+- name: Validate storage requirements
+  ansible.builtin.assert:
+    that:
+      - available_disk_space.stdout | int >= gitlab_min_storage_gb
+    fail_msg: "Insufficient storage space. Required: {{ gitlab_min_storage_gb }}GB, Available: {{ available_disk_space.stdout }}GB"
+
 - name: Check connectivity to build stream host
   when: build_stream_host_ip is defined and build_stream_host_ip | length > 0
   ansible.builtin.command: ping -c 3 -W 2 {{ build_stream_host_ip }}
