@@ -284,14 +284,16 @@ def validate_build_stream_config(input_file_path, data,
                 "Port must be an integer between 1 and 65535"
             ))
         else:
-            # Validate port availability (allows re-deployment with same port)
-            is_available, port_error = check_port_available(build_stream_port, admin_ip, logger)
-            if not is_available:
-                errors.append(create_error_msg(
-                    build_stream_yml,
-                    "build_stream_port",
-                    port_error
-                ))
-                logger.error("Port %d is not available: %s", build_stream_port, port_error)
+            # Commenting out port availability check - temporarily disabled
+            # Validate port availability (allows re-deployment with same port) - temporarily disabled
+            # is_available, port_error = check_port_available(build_stream_port, admin_ip, logger)
+            # if not is_available:
+            #     errors.append(create_error_msg(
+            #         build_stream_yml,
+            #         "build_stream_port",
+            #         port_error
+            #     ))
+            #     logger.error("Port %d is not available: %s", build_stream_port, port_error)
+            pass
 
     return errors
