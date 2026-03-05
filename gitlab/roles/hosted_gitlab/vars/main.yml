@@ -214,6 +214,18 @@ gitlab_storage_insufficient_msg: >
   Insufficient storage space. Required: {{ gitlab_min_storage_gb }}GB, Available: {{ available_disk_space.stdout }}GB.
   Please ensure the GitLab host has at least {{ gitlab_min_storage_gb }}GB of free disk space.
 
+gitlab_memory_insufficient_msg: >
+  Insufficient memory. Required: {{ gitlab_min_memory_gb }}GB, Available: {{ total_memory.stdout }}GB.
+  Please ensure the GitLab host has at least {{ gitlab_min_memory_gb }}GB of RAM.
+
+gitlab_cpu_insufficient_msg: >
+  Insufficient CPU cores. Required: {{ gitlab_min_cpu_cores }}, Available: {{ cpu_cores.stdout }}.
+  Please ensure the GitLab host has at least {{ gitlab_min_cpu_cores }} CPU cores.
+
+gitlab_storage_insufficient_msg: >
+  Insufficient storage space. Required: {{ gitlab_min_storage_gb }}GB, Available: {{ available_disk_space.stdout }}GB.
+  Please ensure the GitLab host has at least {{ gitlab_min_storage_gb }}GB of free disk space.
+
 # Debug messages
 gitlab_ca_export_path: "{{ gitlab_cert_dir }}/ca.crt"
 
