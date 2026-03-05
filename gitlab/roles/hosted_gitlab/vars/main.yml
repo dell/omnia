@@ -199,11 +199,6 @@ gitlab_bs_cert_missing_msg: >
   Build stream SSL certificate not found at {{ gitlab_bs_cert_path }} on OIM host {{ build_stream_host_ip }}.
   Ensure prepare_oim.yml has been successfully executed and certificates are generated.
 
-# Validation error messages
-gitlab_selinux_fail_msg: >
-  SELinux is enabled on the GitLab host. GitLab requires SELinux to be disabled.
-  Please disable SELinux by running 'setenforce 0' and editing /etc/selinux/config to set SELINUX=disabled.
-
 gitlab_memory_insufficient_msg: >
   Insufficient memory. Required: {{ gitlab_min_memory_gb }}GB, Available: {{ total_memory.stdout }}GB.
   Please ensure the GitLab host has at least {{ gitlab_min_memory_gb }}GB of RAM.
