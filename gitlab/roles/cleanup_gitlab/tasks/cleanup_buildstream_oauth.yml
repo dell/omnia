@@ -52,12 +52,12 @@
             - vault_key_stat.stat.exists
 
         - name: Remove OAuth client section from credentials file
-          ansible.builtin.blockinfile:
+          ansible.builtin.replace:
             path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_oauth_credentials.yml"
-            block: ""
-            marker: "# {mark} ANSIBLE MANAGED BLOCK - OAUTH CLIENTS"
-            insertafter: "^oauth_clients:"
-            create: false
+            regexp: 'oauth_clients:\n(?:[ ]{2,}.*\n)*\n?'
+            replace: ''
+            backup: true
+          register: oauth_removal_result
           failed_when: false
 
         - name: Re-encrypt credentials file if it was encrypted
