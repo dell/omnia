@@ -150,6 +150,10 @@ gitlab_pipeline_bs_variables:
     variable_type: "env_var"
     masked: false
 
+gitlab_sshpass_install_fail_msg: >
+  Failed to install sshpass. Ensure AppStream and BaseOS repositories
+  are configured and enabled on this host before running this playbook.
+
 gitlab_bs_not_enabled_fail_msg: >
   enable_build_stream is not set to true in build_stream_config.yml.
   Set enable_build_stream to true before running the GitLab playbook.
