@@ -214,17 +214,40 @@ gitlab_storage_insufficient_msg: >
   Insufficient storage space. Required: {{ gitlab_min_storage_gb }}GB, Available: {{ available_disk_space.stdout }}GB.
   Please ensure the GitLab host has at least {{ gitlab_min_storage_gb }}GB of free disk space.
 
-gitlab_memory_insufficient_msg: >
-  Insufficient memory. Required: {{ gitlab_min_memory_gb }}GB, Available: {{ total_memory.stdout }}GB.
-  Please ensure the GitLab host has at least {{ gitlab_min_memory_gb }}GB of RAM.
+# Image pull configuration
+gitlab_image_pull_retries: 5
+gitlab_image_pull_delay: 10
 
-gitlab_cpu_insufficient_msg: >
-  Insufficient CPU cores. Required: {{ gitlab_min_cpu_cores }}, Available: {{ cpu_cores.stdout }}.
-  Please ensure the GitLab host has at least {{ gitlab_min_cpu_cores }} CPU cores.
+# Image pull error messages
+gitlab_runner_image_pull_fail_msg: >
+  Failed to pull GitLab runner image '{{ gitlab_runner_image }}' after {{ gitlab_image_pull_retries }} attempts.
+  Possible causes:
+  - Network connectivity issues to container registry
+  - Insufficient disk space for image download
+  - Registry authentication issues
+  - Image name or tag does not exist
+  - Docker Hub pull rate limit exceeded (for anonymous users: 100 pulls per 6 hours)
+  Please check network connectivity, registry access, or consider authenticating to Docker Hub.
 
-gitlab_storage_insufficient_msg: >
-  Insufficient storage space. Required: {{ gitlab_min_storage_gb }}GB, Available: {{ available_disk_space.stdout }}GB.
-  Please ensure the GitLab host has at least {{ gitlab_min_storage_gb }}GB of free disk space.
+gitlab_helper_image_pull_fail_msg: >
+  Failed to pull GitLab runner helper image '{{ gitlab_runner_helper_image_resolved }}' after {{ gitlab_image_pull_retries }} attempts.
+  Possible causes:
+  - Network connectivity issues to GitLab registry
+  - Insufficient disk space for image download
+  - Registry authentication issues
+  - Helper image version '{{ gitlab_runner_helper_image_version }}' may not be available
+  - Docker Hub pull rate limit exceeded (for anonymous users: 100 pulls per 6 hours)
+  Please check network connectivity to registry.gitlab.com or consider authenticating to Docker Hub.
+
+gitlab_default_image_pull_fail_msg: >
+  Failed to pull default CI job image '{{ gitlab_runner_default_image }}' after {{ gitlab_image_pull_retries }} attempts.
+  Possible causes:
+  - Network connectivity issues to container registry
+  - Insufficient disk space for image download
+  - Registry authentication issues
+  - Image name or tag does not exist
+  - Docker Hub pull rate limit exceeded (for anonymous users: 100 pulls per 6 hours)
+  Please check network connectivity, registry access, or consider authenticating to Docker Hub.
 
 # Debug messages
 gitlab_ca_export_path: "{{ gitlab_cert_dir }}/ca.crt"

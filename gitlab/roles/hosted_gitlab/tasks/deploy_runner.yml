@@ -37,21 +37,51 @@
          or (runner_container_info.containers[0].State.Status | default('') != 'running') }}
 
 - name: Pull GitLab runner image (force if container not running or flag set)
-  containers.podman.podman_image:
-    name: "{{ gitlab_runner_image }}"
-    state: present
-    force: "{{ _runner_force_pull | bool }}"
+  block:
+    - name: Pull GitLab runner image
+      containers.podman.podman_image:
+        name: "{{ gitlab_runner_image }}"
+        state: present
+        force: "{{ _runner_force_pull | bool }}"
+      register: _runner_image_pull
+      until: _runner_image_pull is succeeded
+      retries: "{{ gitlab_image_pull_retries }}"
+      delay: "{{ gitlab_image_pull_delay }}"
+  rescue:
+    - name: Fail with detailed error message for runner image
+      ansible.builtin.fail:
+        msg: "{{ gitlab_runner_image_pull_fail_msg }}"
 
 - name: Pull GitLab runner helper image (always force to avoid stale cache)
-  containers.podman.podman_image:
-    name: "{{ gitlab_runner_helper_image_resolved }}"
-    state: present
-    force: true
+  block:
+    - name: Pull GitLab runner helper image
+      containers.podman.podman_image:
+        name: "{{ gitlab_runner_helper_image_resolved }}"
+        state: present
+        force: true
+      register: _helper_image_pull
+      until: _helper_image_pull is succeeded
+      retries: "{{ gitlab_image_pull_retries }}"
+      delay: "{{ gitlab_image_pull_delay }}"
+  rescue:
+    - name: Fail with detailed error message for helper image
+      ansible.builtin.fail:
+        msg: "{{ gitlab_helper_image_pull_fail_msg }}"
 
 - name: Pull default CI job image
-  containers.podman.podman_image:
-    name: "{{ gitlab_runner_default_image }}"
-    state: present
+  block:
+    - name: Pull default CI job image
+      containers.podman.podman_image:
+        name: "{{ gitlab_runner_default_image }}"
+        state: present
+      register: _default_image_pull
+      until: _default_image_pull is succeeded
+      retries: "{{ gitlab_image_pull_retries }}"
+      delay: "{{ gitlab_image_pull_delay }}"
+  rescue:
+    - name: Fail with detailed error message for default image
+      ansible.builtin.fail:
+        msg: "{{ gitlab_default_image_pull_fail_msg }}"
 
 - name: Ensure runner config directory exists
   ansible.builtin.file:
