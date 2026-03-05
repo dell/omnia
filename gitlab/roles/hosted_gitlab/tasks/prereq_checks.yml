@@ -76,7 +76,7 @@
 - name: Ensure build stream host IP is provided
   ansible.builtin.fail:
     msg: "{{ gitlab_bs_host_ip_fail_msg }}"
-  when: build_stream_host_ip is not defined or build_stream_host_ip | default('') | length == 0
+  when: (build_stream_host_ip | default('', true) | trim | length) == 0
 
 - name: Register GitLab SSH credentials
   ansible.builtin.add_host:
