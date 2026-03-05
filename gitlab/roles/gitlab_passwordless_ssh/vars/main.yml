@@ -11,8 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 ---
+
+# Usage: prereq_checks.yml
+gitlab_sshpass_install_fail_msg: >
+  Failed to install sshpass. Ensure AppStream and BaseOS repositories
+  are configured and enabled on this host before running this playbook.
+
+# Usage: generate_keypair. yml
 ssh_key_path: "/root/.ssh/omnia_gitlab"
 ssh_key_comment: "omnia_gitlab"
+
+# Usage: validate_ssh.yml
 ssh_connection_failure_msg: 'Passwordless SSH to {{ gitlab_host }} failed. Verify connectivity manually.'

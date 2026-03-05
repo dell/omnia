@@ -8,7 +8,7 @@
       "description": "Enable or disable build stream pipeline. Accepted values: true or false. Default: false"
     },
     "build_stream_host_ip": {
-      "type": ["string", "null"],
+      "type": ["string"],
       "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
       "description": "Build Stream API server host IP. Must be either admin IP or public IP of OIM. If not provided, admin IP of OIM will be used. Accepted values: valid IPv4 address or null"
     },

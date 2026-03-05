@@ -25,14 +25,13 @@
         omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['gitlab'] + ['provision']) | unique }}"
         cacheable: true
 
-    - name: Set GitLab operation mode
-      ansible.builtin.set_fact:
-        gitlab_operation_mode: "{{ gitlab_operation_mode | default('install') }}"
-        cacheable: true
-
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations with gitlab tag
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+  tags: always
 
 - name: Load Omnia credential utility
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
@@ -40,118 +39,17 @@
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost
   gather_facts: false
-  vars_files:
-    - roles/hosted_gitlab/vars/main.yml
   tasks:
-    - name: Install sshpass on localhost
-      block:
-        - name: Install sshpass package
-          ansible.builtin.package:
-            name: sshpass
-            state: present
-      rescue:
-        - name: Fail with repo configuration guidance
-          ansible.builtin.fail:
-            msg: "{{ gitlab_sshpass_install_fail_msg }}"
-
-    - name: Load GitLab configuration inputs
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/gitlab_config.yml"
-      run_once: true
-
-    - name: Ensure gitlab_host is provided in gitlab_config.yml
-      ansible.builtin.assert:
-        that:
-          - gitlab_host is defined
-          - gitlab_host | string | length > 0
-        fail_msg: "gitlab_host is not set. Provide gitlab_host in input/gitlab_config.yml"
-
-    - name: Ensure provision password is available
-      ansible.builtin.assert:
-        that:
-          - hostvars['localhost']['provision_password'] | default('') | length > 0
-        fail_msg: "Provision password not found. Run credential utility to populate provision_password."
-
-    - name: Ensure gitlab root password is available
-      ansible.builtin.assert:
-        that:
-          - hostvars['localhost']['gitlab_root_password'] is defined
-          - hostvars['localhost']['gitlab_root_password'] != ""
-          - hostvars['localhost']['gitlab_root_password'] | length > 0
-        fail_msg: "GitLab root password not found. Run credential utility to populate gitlab_root_password."
-
-    - name: Load build stream configuration
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/build_stream_config.yml"
-      run_once: true
-
-    - name: Ensure build stream is enabled
-      ansible.builtin.assert:
-        that:
-          - enable_build_stream | default(false) | bool
-        fail_msg: "{{ gitlab_bs_not_enabled_fail_msg }}"
-
-    - name: Ensure build stream auth username is available
-      ansible.builtin.assert:
-        that:
-          - hostvars['localhost']['build_stream_auth_username'] | default('') | length > 0
-        fail_msg: "{{ gitlab_bs_auth_username_fail_msg }}"
-
-    - name: Ensure build stream auth password is available
-      ansible.builtin.assert:
-        that:
-          - hostvars['localhost']['build_stream_auth_password'] | default('') | length > 0
-        fail_msg: "{{ gitlab_bs_auth_password_fail_msg }}"
-
-    - name: Ensure build stream host IP is provided
-      ansible.builtin.fail:
-        msg: "{{ gitlab_bs_host_ip_fail_msg }}"
-      when: build_stream_host_ip is not defined or build_stream_host_ip | default('') | length == 0
-
-    - name: Register GitLab SSH credentials
-      ansible.builtin.add_host:
-        name: "{{ gitlab_host }}"
-        groups: gitlab_server
-        ansible_host: "{{ gitlab_host }}"
-        ansible_user: "{{ gitlab_ansible_user | default('root') }}"
-        ansible_password: "{{ hostvars['localhost']['provision_password'] }}"
-        ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
-      no_log: true
+    - name: Prerequisite checks
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+        tasks_from: prereq_checks.yml
 
 - name: Deploy GitLab CE on target host (hosted mode)
   hosts: gitlab_server
   become: true
   gather_facts: true
-  vars:
-    gitlab_operation_mode: "{{ hostvars['localhost']['gitlab_operation_mode'] | default('install') }}"
   tasks:
-    - name: Install sshpass on localhost
-      block:
-        - name: Install sshpass package
-          ansible.builtin.package:
-            name: sshpass
-            state: present
-      rescue:
-        - name: Fail with repo configuration guidance
-          ansible.builtin.fail:
-            msg: "{{ gitlab_sshpass_install_fail_msg }}"
-
-    - name: Load GitLab configuration inputs
-      ansible.builtin.include_vars:
-        file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
-      delegate_to: localhost
-      run_once: true
-
-    - name: Set gitlab_host from provided configuration
-      ansible.builtin.set_fact:
-        gitlab_host: "{{ ansible_host | default(inventory_hostname) }}"
-
-    - name: Validate hosted-mode requirements
-      ansible.builtin.assert:
-        that:
-          - gitlab_host is defined and gitlab_host != ''
-        fail_msg: "Set a valid gitlab_host in input/gitlab_config.yml"
-
     - name: Bootstrap passwordless SSH
       ansible.builtin.include_role:
         name: gitlab_passwordless_ssh
