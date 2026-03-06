@@ -1,0 +1,74 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+    - name: Set dynamic run tags including 'gitlab'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['gitlab'] + ['provision']) | unique }}"
+        cacheable: true
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations with gitlab tag
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+  tags: always
+
+- name: Load Omnia credential utility
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+
+- name: Create oim group and provision group
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    oim_group: true
+  tags: always
+
+- name: Prepare GitLab host credentials from provision secrets
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Prerequisite checks
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+        tasks_from: prereq_checks.yml
+
+- name: Validate BuildStream prerequisites
+  hosts: oim
+  gather_facts: false
+  tasks:
+    - name: Prerequisite checks
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+        tasks_from: check_oim_prerequisites.yml
+
+- name: Deploy GitLab CE on target host (hosted mode)
+  hosts: gitlab_server
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Bootstrap passwordless SSH
+      ansible.builtin.include_role:
+        name: gitlab_passwordless_ssh
+
+    - name: Run hosted GitLab deployment
+      ansible.builtin.include_role:
+        name: hosted_gitlab

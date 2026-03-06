@@ -925,7 +925,7 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/39791839?v=4",
       "profile": "https://github.com/jagadeeshnv",
       "contributions": [
-         "code"
+        "code"
       ]
     },
     {
@@ -1038,11 +1038,78 @@
         "code",
         "test"
       ]
+    },
+    {
+      "login": "Diya-Sumod",
+      "name": "Diya-Sumod",
+      "avatar_url": "https://avatars.githubusercontent.com/u/225136254?v=4",
+      "profile": "https://github.com/Diya-Sumod",
+      "contributions": [
+        "code",
+        "test"
+      ]
+    },
+    {
+      "login": "Tanmay-Raj1004",
+      "name": "Tanmay-Raj1004",
+      "avatar_url": "https://avatars.githubusercontent.com/u/227950687?v=4",
+      "profile": "https://github.com/Tanmay-Raj1004",
+      "contributions": [
+        "code",
+        "test"
+      ]
+    },
+    {
+      "login": "Anurag-Bijalwan",
+      "name": "Anurag-Bijalwan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/218922922?v=4",
+      "profile": "https://github.com/Anurag-Bijalwan",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "SOWJANYAJAGADISH123",
+      "name": "SOWJANYAJAGADISH123",
+      "avatar_url": "https://avatars.githubusercontent.com/u/257989626?v=4",
+      "profile": "https://github.com/SOWJANYAJAGADISH123",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "mithileshreddy04",
+      "name": "mithileshreddy04",
+      "avatar_url": "https://avatars.githubusercontent.com/u/258000200?v=4",
+      "profile": "https://github.com/mithileshreddy04",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Rajeshkumar-s2",
+      "name": "Rajeshkumar-s2",
+      "avatar_url": "https://avatars.githubusercontent.com/u/242588082?v=4",
+      "profile": "https://github.com/Rajeshkumar-s2",
+      "contributions": [
+        "code",
+        "test"
+      ]
+    },
+    {
+      "login": "Venu-p1",
+      "name": "Venu-p1",
+      "avatar_url": "https://avatars.githubusercontent.com/u/236371043?v=4",
+      "profile": "https://github.com/Venu-p1",
+      "contributions": [
+        "code",
+        "test"
+      ]
     }
   ],
   "contributorsPerLine": 7,
   "projectName": "omnia",
-  "projectOwner": "dellhpc",
+  "projectOwner": "dell",
   "repoType": "github",
   "repoHost": "https://github.com",
   "skipCi": true,

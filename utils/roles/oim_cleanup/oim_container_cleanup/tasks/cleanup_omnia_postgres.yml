@@ -1,0 +1,99 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Populate service facts for omnia_postgres
+  ansible.builtin.service_facts:
+
+- name: Select omnia_postgres service units
+  ansible.builtin.set_fact:
+    postgres_services: >-
+      {{ ansible_facts['services'].keys()
+         | select('match', '^' + postgres_container_name)
+         | list }}
+
+- name: Stop omnia_postgres services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ postgres_services }}"
+  when:
+    - item in ansible_facts.services
+    - ansible_facts.services[item].state == 'running'
+
+- name: Locate omnia_postgres Quadlet files
+  ansible.builtin.find:
+    paths: "{{ quadlet_dir }}"
+    patterns: "{{ postgres_container_name }}*"
+    file_type: file
+  register: postgres_quadlets
+
+- name: Track omnia_postgres Quadlet paths
+  ansible.builtin.set_fact:
+    postgres_quadlet_paths: "{{ postgres_quadlets.files | map(attribute='path') | list }}"
+
+- name: Remove omnia_postgres systemd unit files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ postgres_quadlet_paths }}"
+  when: postgres_quadlet_paths | length > 0
+
+- name: Reload systemd daemon after removing omnia_postgres units
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Gather omnia_postgres container info
+  containers.podman.podman_container_info:
+    name: "{{ postgres_container_name }}"
+  register: postgres_info
+  failed_when: false
+
+- name: Stop omnia_postgres container if present
+  containers.podman.podman_container:
+    name: "{{ postgres_container_name }}"
+    state: stopped
+  when: postgres_info.containers | length > 0
+
+- name: Remove omnia_postgres container
+  containers.podman.podman_container:
+    name: "{{ postgres_container_name }}"
+    state: absent
+    force_delete: true
+  when: postgres_info.containers | length > 0
+
+- name: Remove omnia_postgres cleanup directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+    force: true
+  loop: "{{ postgres_cleanup_directory }}"
+  register: postgres_directory_deletion
+  until: postgres_directory_deletion is not failed
+  retries: "{{ max_retries }}"
+
+- name: Check if omnia.target exists before cleaning postgres service entries
+  ansible.builtin.stat:
+    path: "{{ omnia_target }}"
+  register: omnia_target_stat
+
+- name: Remove omnia_postgres service from omnia.target
+  ansible.builtin.replace:
+    path: "{{ omnia_target }}"
+    regexp: "{{ postgres_container_name }}.service"
+    replace: ''
+  when: omnia_target_stat.stat.exists

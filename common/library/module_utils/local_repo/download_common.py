@@ -943,7 +943,7 @@ def process_pip(package, repo_store_path, status_file_path,  cluster_os_type, cl
         package_name = shlex.quote(package['package']).strip("'\"")
         package_type = package['type']
         version = package.get('version', None)
-        pip_repo =  arc.lower() + "_pip_module" + package_name
+        pip_repo = arc.lower() + "_pip_module" + package_name
         distribution_name = pip_repo
 
         logger.info(f"Processing Pip Package: {package_name}, Version: {version}")

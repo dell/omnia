@@ -1,0 +1,41 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Debug - Show explicitly passed variables
+  ansible.builtin.debug:
+    msg:
+      - "job_id: {{ job_id | default('NOT_SET') }}"
+      - "image_key: {{ image_key | default('NOT_SET') }}"
+      - "functional_groups: {{ functional_groups | default('NOT_SET') }}"
+      - "enable_build_stream: {{ enable_build_stream | default('NOT_SET') }}"
+    verbosity: 2
+
+- name: Set build_stream variables from explicitly passed values
+  ansible.builtin.set_fact:
+    build_stream_job_id: "{{ job_id }}"
+    image_key: "{{ image_key }}"
+    cacheable: true
+
+- name: Normalize functional_groups input into list
+  ansible.builtin.set_fact:
+    functional_group_list: "{{ functional_groups if functional_groups is iterable and functional_groups is not string else (functional_groups | from_yaml) }}"
+  when: functional_groups is defined and enable_build_stream
+
+- name: Fail when build stream enabled without job id or functional groups
+  ansible.builtin.fail:
+    msg: "{{ build_stream_prerequisite_fail_msg }}"
+  when:
+    - enable_build_stream | bool
+    - (build_stream_job_id | default('') | string) | length == 0 or (functional_group_list | default([]) | length == 0) or (image_key | default('') | string) | length == 0   # noqa: yaml[line-length]

@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# GitLab Omnibus configuration managed by Omnia
+
+external_url '{{ gitlab_external_url_computed }}'
+letsencrypt['enable'] = false
+{% if gitlab_https_port != 443 %}
+nginx['listen_port'] = {{ gitlab_https_port }}
+{% endif %}
+nginx['ssl_certificate'] = '{{ gitlab_ssl_dir }}/{{ gitlab_host }}.crt'
+nginx['ssl_certificate_key'] = '{{ gitlab_ssl_dir }}/{{ gitlab_host }}.key'
+gitlab_rails['gitlab_shell_ssh_port'] = {{ gitlab_ssh_port }}
+prometheus_monitoring['enable'] = {{ 'false' if gitlab_disable_prometheus else 'true' }}
+puma['worker_processes'] = {{ gitlab_puma_workers }}
+sidekiq['max_concurrency'] = {{ gitlab_sidekiq_concurrency }}

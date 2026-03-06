@@ -410,3 +410,4 @@ def handle_user_image_registry(package, package_content, version_variables, user
 
     logger.info("#" * 30 + f" {handle_user_image_registry.__name__} end " + "#" * 30)
     return result, package_info
+

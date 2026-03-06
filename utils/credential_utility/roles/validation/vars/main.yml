@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,16 +13,29 @@
 # limitations under the License.
 ---
 
-# Usage: validate_omnia_credential_file.yml
-omnia_credential_file: "{{ input_project_dir }}/omnia_config_credentials.yml"
+# Credential file configurations - centralized structure
+credential_files:
+  - credential_type: "Omnia"
+    file_path: "{{ input_project_dir }}/omnia_config_credentials.yml"
+    vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
+    condition: true
+  - credential_type: "Build Stream"
+    file_path: "{{ input_project_dir }}/build_stream_oauth_credentials.yml"
+    vault_path: "{{ input_project_dir }}/.build_stream_oauth_credentials_key"
+    condition: "{{ enable_build_stream | default(false) | bool }}"
 
 # Usage: pre_requisite.yml
 ansible_vault_search_key: "$ANSIBLE_VAULT;"
-omnia_credential_vault_path: "{{ input_project_dir }}/.omnia_config_credentials_key"
 conf_file_mode: "0600"
 software_config_file: "{{ input_project_dir }}/software_config.json"
-invalid_software_config_fail_msg: "Failed. Please provide valid software_config.json file with cluster_os_type, cluster_os_version, repo_config
-and repo_config values."
-software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
-password_fail_msg: "Failed. Syntax errors present in omnia_config_credentails.yml. Fix errors and re-run playbook again."
 telemetry_config_path: "{{ input_project_dir }}/telemetry_config.yml"
+
+# Validation error messages
+invalid_software_config_fail_msg: >-
+  Failed. Please provide valid software_config.json file with
+  cluster_os_type, cluster_os_version, repo_config and repo_config values.
+software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
+
+# Credential validation error messages
+password_fail_msg: "Failed to validate credentials file"
+include_credentials_msg: "Failed to include {{ credential_file_path }}"

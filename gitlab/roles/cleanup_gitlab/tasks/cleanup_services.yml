@@ -1,0 +1,105 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Stop GitLab services
+  ansible.builtin.command: "{{ gitlab_ctl_command }} stop"
+  register: gitlab_stop_result
+  when: gitlab_status_check.rc == 0
+  retries: "{{ gitlab_cleanup_service_retries }}"
+  delay: "{{ gitlab_cleanup_service_delay }}"
+  until: gitlab_stop_result.rc == 0 or 'timeout' in gitlab_stop_result.stdout
+  failed_when: false
+  changed_when: false
+
+- name: Force stop sidekiq if graceful stop timed out
+  ansible.builtin.shell: |
+    {{ gitlab_ctl_command }} stop sidekiq || true
+    {{ gitlab_ctl_command }} kill sidekiq || true
+    pkill -f sidekiq || true
+  when:
+    - gitlab_status_check.rc == 0
+    - gitlab_stop_result is defined
+    - gitlab_stop_result.rc != 0
+    - gitlab_stop_result.stdout is defined
+    - "'sidekiq' in gitlab_stop_result.stdout"
+  failed_when: false
+  changed_when: false
+
+- name: Remove all GitLab packages
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ gitlab_cleanup_packages }}"
+  failed_when: false
+
+- name: Remove GitLab repository
+  ansible.builtin.file:
+    path: "{{ gitlab_repo_file_path }}"
+    state: absent
+  failed_when: false
+
+- name: Clean GitLab directories (preserve structure)
+  ansible.builtin.shell: |
+    if [ -d "{{ item }}" ]; then
+      find "{{ item }}" -type f -delete 2>/dev/null || true
+      find "{{ item }}" -type d -empty -delete 2>/dev/null || true
+    fi
+  loop: "{{ gitlab_cleanup_preserve_structure_directories }}"
+  failed_when: false
+  changed_when: false
+
+- name: Remove GitLab systemd services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop: "{{ gitlab_systemd_services }}"
+  failed_when: false
+
+- name: Stop GitLab systemd slice (best effort)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ gitlab_systemd_slices }}"
+  failed_when: false
+  changed_when: false
+
+- name: Remove GitLab systemd service files
+  ansible.builtin.file:
+    path: "{{ gitlab_systemd_service_path }}/{{ item }}"
+    state: absent
+  loop: "{{ gitlab_systemd_service_files }}"
+  failed_when: false
+
+- name: Force remove any remaining GitLab directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ gitlab_cleanup_core_directories }}"
+  failed_when: false
+
+- name: Clean any remaining GitLab files (excluding system and user files)
+  ansible.builtin.shell: >-
+    find {{ gitlab_cleanup_find_roots | join(' ') }} -name '*gitlab*' -type f -delete 2>/dev/null || true
+  register: gitlab_file_cleanup
+  changed_when: false
+
+- name: Remove GitLab GPG keys
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ gitlab_gpg_key_files }}"
+  failed_when: false

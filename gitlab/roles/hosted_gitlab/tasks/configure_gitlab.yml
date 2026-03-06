@@ -1,0 +1,102 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Set external URL
+  ansible.builtin.set_fact:
+    gitlab_external_url_computed: "https://{{ gitlab_host }}{% if gitlab_https_port != 443 %}:{{ gitlab_https_port }}{% endif %}"
+
+- name: Configure gitlab.rb from template
+  ansible.builtin.template:
+    src: gitlab.rb.j2
+    dest: "{{ gitlab_rb_path }}"
+    backup: true
+    mode: '0600'
+
+- name: Ensure git user exists
+  ansible.builtin.user:
+    name: "{{ gitlab_system_user_name }}"
+    shell: "{{ gitlab_system_user_shell }}"
+    home: "{{ gitlab_system_user_home }}"
+    create_home: "{{ gitlab_system_user_create_home }}"
+    state: present
+
+- name: Ensure GitLab directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop: "{{ gitlab_directories }}"
+
+- name: Ensure gitlab-runsvdir is enabled and started (required for runit sockets)
+  ansible.builtin.systemd:
+    name: gitlab-runsvdir
+    enabled: true
+    state: started
+    daemon_reload: true
+  failed_when: false
+  changed_when: false
+
+- name: Reconfigure GitLab
+  ansible.builtin.command: "{{ gitlab_ctl_command }} reconfigure"
+  async: "{{ gitlab_reconfigure_async }}"
+  poll: "{{ gitlab_reconfigure_poll }}"
+  register: gitlab_reconfigure
+  changed_when: false
+  failed_when: gitlab_reconfigure.rc is defined and gitlab_reconfigure.rc != 0
+
+- name: Wait for GitLab HTTPS port to be ready
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ gitlab_https_port | int }}"
+    delay: 5
+    timeout: "{{ (gitlab_startup_wait_minutes | int) * 60 }}"
+
+- name: Health check
+  ansible.builtin.command: "{{ gitlab_ctl_command }} status"
+  register: gitlab_status
+  retries: "{{ gitlab_health_check_retries }}"
+  delay: "{{ gitlab_health_check_delay }}"
+  until: gitlab_status.rc == 0
+  changed_when: false
+
+- name: Wait for GitLab API to be ready
+  block:
+    - name: Probe GitLab API version endpoint
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/version"
+        method: GET
+        validate_certs: false
+        status_code: "{{ gitlab_default_status_codes.api_version }}"
+      register: gitlab_api_check
+      retries: "{{ gitlab_api_check_retries }}"
+      delay: "{{ gitlab_api_check_delay }}"
+      until: gitlab_api_check.status in gitlab_default_status_codes.api_version
+      changed_when: false
+  rescue:
+    - name: Fail when GitLab API is unreachable
+      ansible.builtin.fail:
+        msg: "{{ gitlab_api_ready_failure_msg }}"
+
+- name: Clean up initial root password file
+  ansible.builtin.file:
+    path: "{{ gitlab_initial_root_password_path }}"
+    state: absent
+  when:
+    - gitlab_root_password is defined
+    - gitlab_root_password | length > 0
+  no_log: true

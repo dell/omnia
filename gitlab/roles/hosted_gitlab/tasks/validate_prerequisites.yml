@@ -1,0 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Validate SELinux is disabled
+  ansible.builtin.assert:
+    that:
+      - ansible_selinux is not defined or ansible_selinux.status == 'disabled'
+    fail_msg: "{{ gitlab_selinux_fail_msg }}"
+
+- name: Check minimum memory
+  ansible.builtin.shell: |
+    set -o pipefail
+    free -g | awk '/^Mem:/{print $2}'
+  args:
+    executable: /bin/bash
+  register: total_memory
+  changed_when: false
+
+- name: Validate memory requirements
+  ansible.builtin.assert:
+    that:
+      - total_memory.stdout | int >= gitlab_min_memory_gb
+    fail_msg: "{{ gitlab_memory_insufficient_msg }}"
+
+- name: Check CPU cores
+  ansible.builtin.command: nproc
+  register: cpu_cores
+  changed_when: false
+
+- name: Validate CPU requirements
+  ansible.builtin.assert:
+    that:
+      - cpu_cores.stdout | int >= gitlab_min_cpu_cores
+    fail_msg: "{{ gitlab_cpu_insufficient_msg }}"
+
+- name: Check available disk space
+  ansible.builtin.shell: |
+    set -o pipefail
+    df -BG / | awk 'NR==2{print $4}' | sed 's/G//'
+  args:
+    executable: /bin/bash
+  register: available_disk_space
+  changed_when: false
+
+- name: Validate storage requirements
+  ansible.builtin.assert:
+    that:
+      - available_disk_space.stdout | int >= gitlab_min_storage_gb
+    fail_msg: "{{ gitlab_storage_insufficient_msg }}"
+
+- name: Check connectivity to build stream host
+  when: build_stream_host_ip is defined and build_stream_host_ip | length > 0
+  ansible.builtin.command: ping -c 3 -W 2 {{ build_stream_host_ip }}
+  register: build_stream_host_ping
+  changed_when: false
+  failed_when: false
+
+- name: Validate build stream host connectivity
+  when: build_stream_host_ip is defined and build_stream_host_ip | length > 0
+  ansible.builtin.assert:
+    that:
+      - build_stream_host_ping.rc == 0
+    fail_msg: "{{ gitlab_bs_host_connectivity_fail_msg }}"

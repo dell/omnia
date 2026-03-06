@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,16 +16,72 @@
 - name: Check if upgrade is in progress
   ansible.builtin.import_playbook: ../utils/upgrade_checkup.yml
 
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+  tags: always
+
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
   tags: always
   tasks:
     - name: Set dynamic run tags including 'prepare_oim'
-      when: not config_file_status | default(false) | bool
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['prepare_oim']) + ['openldap'] | unique }}"
+        omnia_run_tags: >-
+          {{
+            (
+              ansible_run_tags | default([]) +
+              ['prepare_oim', 'provision', 'local_repo']
+            ) | unique
+          }}
         cacheable: true
+
+    - name: Read software_config.json to check for additional services
+      block:
+        - name: Load software_config.json
+          ansible.builtin.include_vars:
+            file: "{{ input_project_dir }}/software_config.json"
+            name: software_config
+          no_log: true
+
+        - name: Set software names list
+          ansible.builtin.set_fact:
+            sw_names: "{{ software_config.softwares | map(attribute='name') | list }}"
+
+        - name: Add service-specific tags based on software presence
+          ansible.builtin.set_fact:
+            omnia_run_tags: >-
+              {%- set tags = omnia_run_tags | default([]) | list -%}
+              {%- if 'openldap' in sw_names %}{% set _ = tags.append('openldap') %}{% endif -%}
+              {%- if 'slurm' in sw_names %}{% set _ = tags.append('slurm') %}{% endif -%}
+              {%- if 'slurm_custom' in sw_names %}{% set _ = tags.append('slurm_custom') %}{% endif -%}
+              {%- if 'csi_driver_powerscale' in sw_names %}{% set _ = tags.append('csi_driver_powerscale') %}{% endif -%}
+              {%- if 'ldms' in sw_names %}{% set _ = tags.append('ldms') %}{% endif -%}
+              {{ tags | unique }}
+
+        - name: Check telemetry configuration and add idrac_telemetry tag if enabled
+          block:
+            - name: Check if telemetry_config.yml exists
+              ansible.builtin.stat:
+                path: "{{ input_project_dir }}/telemetry_config.yml"
+              register: telemetry_config_stat
+
+            - name: Load telemetry_config.yml
+              ansible.builtin.include_vars:
+                file: "{{ input_project_dir }}/telemetry_config.yml"
+                name: telemetry_config
+              when: telemetry_config_stat.stat.exists
+
+            - name: Add idrac_telemetry tag if support is enabled
+              ansible.builtin.set_fact:
+                omnia_run_tags: >-
+                  {{
+                    (omnia_run_tags | default([]) | list + ['idrac_telemetry']) | unique
+                  }}
+              when:
+                - telemetry_config_stat.stat.exists
+                - telemetry_config.idrac_telemetry_support | default(false) | bool
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations with prepare_oim tag
   ansible.builtin.import_playbook: ../input_validation/validate_config.yml
@@ -33,11 +89,6 @@
 
 - name: Invoke get_config_credentials.yml
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
-
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
-  tags: always
 
 - name: Create oim group and provision group
   ansible.builtin.import_playbook: ../utils/create_container_group.yml
@@ -82,7 +133,18 @@
         name: deploy_containers/auth
         tasks_from: generate_ldap_password_hashes.yml
 
-- name: Deploy the pulp container
+- name: Load build_stream configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Include build_stream config file
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+      failed_when: false
+
+- name: Deploy containers
   hosts: oim
   connection: ssh
   gather_facts: false
@@ -153,6 +215,24 @@
         name: deploy_containers/pulp
         tasks_from: reload_pulp_nginx.yml
       when: hostvars['oim']['pulp_protocol_https']
+
+- name: Deploy postgres container
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags: postgres
+  roles:
+    - role: deploy_containers/postgres  # noqa:role-name[path]
+      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
+
+- name: Deploy build_stream container
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags: build_stream
+  roles:
+    - role: deploy_containers/build_stream  # noqa:role-name[path]
+      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
 
 - name: Omnia service deployment
   hosts: oim
