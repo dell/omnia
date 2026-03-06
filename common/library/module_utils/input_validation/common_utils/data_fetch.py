@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -138,7 +138,11 @@ def input_data(input_file_path, omnia_base_dir, project_name, logger, module):
     """
     _, extension = os.path.splitext(input_file_path)
     if "json" in extension:
-        return json.load(open(input_file_path, "r")), extension
+        try:
+            return json.load(open(input_file_path, "r")), extension
+        except json.JSONDecodeError as e:
+            # Re-raise with the correct filename in the error message
+            raise ValueError(f"JSON syntax error in {input_file_path}: {e}")
     if "yml" in extension or "yaml" in extension:
         return (
             validation_utils.load_yaml_as_json(

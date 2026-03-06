@@ -167,7 +167,7 @@ def get_os_type(config):
     return cluster_os_type
 
 
-def handle_generate_metadata(sw_config,repo_data,output_file):
+def handle_generate_metadata(sw_config,repo_data,output_file,sub_urls=None):
     """
     Generates metadata for repository configurations based on the provided software configuration
     and repository data files. The metadata is written to the specified output file.
@@ -176,6 +176,9 @@ def handle_generate_metadata(sw_config,repo_data,output_file):
         sw_config (str): Path to the software configuration JSON file.
         repo_data (str): Path to the local repository YAML data file.
         output_file (str): Path where the generated metadata should be written.
+        sub_urls (dict, optional): Mapping of arch to list of subscription repo dicts
+            (from RHEL subscription). When provided, these are recorded under
+            rhel_subscription_url_{arch} in the metadata.
 
     Returns:
         dict: A dictionary containing the last repo key processed and its generated policy.
@@ -195,8 +198,12 @@ def handle_generate_metadata(sw_config,repo_data,output_file):
     keys_to_process = (
         [f'user_repo_url_{arch}' for arch in ARCH_SUFFIXES] +
         [f'omnia_repo_url_{os_type}_{arch}' for arch in ARCH_SUFFIXES] +
-        [f'{os_type}_os_url_{arch}' for arch in ARCH_SUFFIXES]
+        [f'{os_type}_os_url_{arch}' for arch in ARCH_SUFFIXES] +
+        [f'{os_type}_subscription_repo_config_{arch}' for arch in ARCH_SUFFIXES] +
+        [f'additional_repos_{arch}' for arch in ARCH_SUFFIXES]
     )
+    last_key = None
+    last_policy = {}
     # Iterate over each key and generate/update policy metadata
     for key in keys_to_process:
         repo_list = repo_data.get(key, [])
@@ -205,12 +212,25 @@ def handle_generate_metadata(sw_config,repo_data,output_file):
         repo_src_name = key
         new_policy = generate_policy_dict(repo_list, default_policy)
         update_metadata_file(output_file, repo_src_name, new_policy)
+        last_key = repo_src_name
+        last_policy = new_policy
+
+    # Record RHEL subscription repos if provided (in-memory URLs from subscription manager)
+    if sub_urls:
+        for arch in ARCH_SUFFIXES:
+            arch_repos = sub_urls.get(arch, [])
+            if arch_repos:
+                sub_key = f"{os_type}_subscription_url_{arch}"
+                sub_policy = generate_policy_dict(arch_repos, default_policy)
+                update_metadata_file(output_file, sub_key, sub_policy)
+                last_key = sub_key
+                last_policy = sub_policy
 
     # Append common footer metadata such as repo mode and timestamp
     append_metadata_footer(output_file,default_policy)
 
     # Return the last policy generated as a summary result
-    return {repo_src_name: new_policy}
+    return {last_key: last_policy} if last_key else {}
 
 
 def handle_compare_data(original_file,updated_file,ignore_keys):

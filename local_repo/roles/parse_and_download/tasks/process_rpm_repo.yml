@@ -15,10 +15,10 @@
 
 - name: Prepare software packages tasklist
   prepare_tasklist:
-    csv_file_path: "{{ base_path }}"
+    csv_file_path: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
     user_json_file: "{{ user_json_file }}"
     local_repo_config_path: "{{ local_repo_config_path }}"
-    log_dir: "{{ base_path }}"
+    log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
     key_path: "{{ project_input_path }}"
     sub_urls: "{{ sub_final_repo_urls }}"
   register: result
@@ -26,11 +26,12 @@
 - name: Process URL mirrors from local_repo_config
   process_rpm_config:
     local_config: "{{ result.local_config }}"
-    log_dir: "{{ base_path }}"
+    log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
     additional_repos_config: "{{ result.additional_repos_config | default(omit) }}"
     pulp_concurrency: "{{ pulp_concurrency }}"
     sw_archs: "{{ result.sw_archs }}"
     resync_repos: "{{ resync_repos | default(None) }}"
+    cluster_os_version: "{{ cluster_os_version }}"
   register: rpm_result
 
 - name: Display RPM processing result

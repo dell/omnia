@@ -1148,7 +1148,7 @@ def process_rpm_file(package, repo_store_path, status_file_path, cluster_os_type
                 write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
                 return status
 
-            base_path = f" opt/omnia/offline_repo/cluster/{arc}/rhel/10.0/rpms/{repo_name}"
+            base_path = f" opt/omnia/offline_repo/cluster/{arc}/rhel/{cluster_os_version}/rpms/{repo_name}"
             dist_create_command = pulp_rpm_commands["distribute_repository"] % (repo_name, base_path, repo_name)
             if not execute_command(dist_create_command, logger):
                 logger.error(f"Failed to create distribution: {repo_name}")
