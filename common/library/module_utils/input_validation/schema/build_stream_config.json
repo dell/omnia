@@ -20,8 +20,8 @@
     },
     "aarch64_inventory_host_ip": {
       "type": ["string", "null"],
-      "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
-      "description": "AArch64 inventory host IP for aarch64 builds. Must be in same subnet as OIM admin IP. Accepted values: valid IPv4 address or null"
+      "pattern": "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+      "description": "AArch64 inventory host IP for aarch64 builds. Must be in same subnet as OIM admin IP. Accepted values: valid IPv4 address, empty string, or null"
     },
     "postgres_db_name": {
       "type": "string",

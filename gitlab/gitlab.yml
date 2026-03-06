@@ -36,6 +36,12 @@
 - name: Load Omnia credential utility
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
 
+- name: Create oim group and provision group
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    oim_group: true
+  tags: always
+
 - name: Prepare GitLab host credentials from provision secrets
   hosts: localhost
   gather_facts: false
@@ -44,6 +50,15 @@
       ansible.builtin.include_role:
         name: hosted_gitlab
         tasks_from: prereq_checks.yml
+
+- name: Validate BuildStream prerequisites
+  hosts: oim
+  gather_facts: false
+  tasks:
+    - name: Prerequisite checks
+      ansible.builtin.include_role:
+        name: hosted_gitlab
+        tasks_from: check_oim_prerequisites.yml
 
 - name: Deploy GitLab CE on target host (hosted mode)
   hosts: gitlab_server

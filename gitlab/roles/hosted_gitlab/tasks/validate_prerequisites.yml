@@ -32,7 +32,7 @@
   ansible.builtin.assert:
     that:
       - total_memory.stdout | int >= gitlab_min_memory_gb
-    fail_msg: "Insufficient memory. Required: {{ gitlab_min_memory_gb }}GB, Available: {{ total_memory.stdout }}GB"
+    fail_msg: "{{ gitlab_memory_insufficient_msg }}"
 
 - name: Check CPU cores
   ansible.builtin.command: nproc
@@ -43,7 +43,22 @@
   ansible.builtin.assert:
     that:
       - cpu_cores.stdout | int >= gitlab_min_cpu_cores
-    fail_msg: "Insufficient CPU cores. Required: {{ gitlab_min_cpu_cores }}, Available: {{ cpu_cores.stdout }}"
+    fail_msg: "{{ gitlab_cpu_insufficient_msg }}"
+
+- name: Check available disk space
+  ansible.builtin.shell: |
+    set -o pipefail
+    df -BG / | awk 'NR==2{print $4}' | sed 's/G//'
+  args:
+    executable: /bin/bash
+  register: available_disk_space
+  changed_when: false
+
+- name: Validate storage requirements
+  ansible.builtin.assert:
+    that:
+      - available_disk_space.stdout | int >= gitlab_min_storage_gb
+    fail_msg: "{{ gitlab_storage_insufficient_msg }}"
 
 - name: Check connectivity to build stream host
   when: build_stream_host_ip is defined and build_stream_host_ip | length > 0

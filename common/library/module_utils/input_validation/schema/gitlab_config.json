@@ -39,8 +39,8 @@
     },
     "gitlab_min_storage_gb": {
       "type": "integer",
-      "minimum": 10,
-      "description": "Minimum free disk space in GB required before install. Accepted values: integer >= 10. Default: 20"
+      "minimum": 20,
+      "description": "Minimum free disk space in GB required before install. Accepted values: integer >= 20. Default: 20"
     },
     "gitlab_min_memory_gb": {
       "type": "integer",

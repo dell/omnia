@@ -204,6 +204,12 @@ class CatalogRolesService:
             )
 
         roles = sorted(data.keys())
+        
+        # Add service_kube_control_plane_first_x86 if service_kube_control_plane_x86_64 exists
+        if "service_kube_control_plane_x86_64" in roles and "service_kube_control_plane_first_x86_64" not in roles:
+            roles.append("service_kube_control_plane_first_x86_64")
+            roles = sorted(roles)
+        
         return roles
 
     def _validate_parse_catalog_completed(self, job_id: JobId) -> None:

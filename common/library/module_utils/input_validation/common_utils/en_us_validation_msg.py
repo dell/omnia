@@ -428,6 +428,21 @@ AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = (
     "Check network_spec.yml for admin network configuration."
 )
 
+AARCH64_INVENTORY_HOST_IP_REQUIRED_MSG = (
+    "Field 'aarch64_inventory_host_ip' is required when PXE mapping file contains aarch64 functional groups. "
+    "Provide the admin IP of the aarch64 inventory host or remove aarch64 groups from PXE mapping."
+)
+
+AARCH64_INVENTORY_HOST_IP_NOT_REACHABLE_MSG = (
+    "aarch64 inventory host IP {0} is not reachable on SSH port 22. "
+    "Ensure the host is online, SSH service is running, and accessible from OIM."
+)
+
+AARCH64_INVENTORY_HOST_IP_REACHABILITY_CHECK_FAILED_MSG = (
+    "Unable to verify reachability of aarch64 inventory host IP {0}. "
+    "Ensure network connectivity and SSH service are available on the host."
+)
+
 BUILD_STREAM_HOST_IP_REQUIRED_MSG = (
     "Field 'build_stream_host_ip' is mandatory in build_stream_config.yml. "
     "Please provide a valid IPv4 address (OIM admin IP or OIM public IP)."

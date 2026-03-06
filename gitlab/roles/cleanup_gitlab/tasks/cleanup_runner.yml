@@ -88,3 +88,21 @@
     path: "{{ gitlab_runner_systemd_service_file }}"
     state: absent
   failed_when: false
+
+- name: Stop GitLab runner quadlet service
+  ansible.builtin.systemd_service:
+    name: "{{ gitlab_runner_container_name }}.service"
+    state: stopped
+    enabled: false
+  failed_when: false
+
+- name: Remove GitLab runner quadlet file
+  ansible.builtin.file:
+    path: "{{ quadlet_dir }}/{{ gitlab_runner_container_name }}.container"
+    state: absent
+  failed_when: false
+
+- name: Reload systemd daemon after quadlet removal
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  failed_when: false

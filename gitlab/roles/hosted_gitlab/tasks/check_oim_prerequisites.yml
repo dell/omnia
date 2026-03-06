@@ -1,0 +1,69 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Set build_stream_host_ip fact from localhost
+  ansible.builtin.set_fact:
+    build_stream_host_ip: "{{ hostvars['localhost']['build_stream_host_ip'] }}"
+
+- name: Check if playbook_watcher service is running
+  ansible.builtin.systemd_service:
+    name: playbook_watcher.service
+  register: watcher_service_status
+  failed_when: false
+
+- name: Fail if playbook_watcher service is not running
+  ansible.builtin.fail:
+    msg: "{{ gitlab_watcher_not_running_msg }}"
+  when: >
+    watcher_service_status.status is not defined or
+    watcher_service_status.status.ActiveState != 'active'
+
+- name: Check if omnia_build_stream service is running
+  ansible.builtin.systemd_service:
+    name: omnia_build_stream.service
+  register: build_stream_service_status
+  failed_when: false
+
+- name: Fail if omnia_build_stream service is not running
+  ansible.builtin.fail:
+    msg: "{{ gitlab_build_stream_not_running_msg }}"
+  when: >
+    build_stream_service_status.status is not defined or
+    build_stream_service_status.status.ActiveState != 'active'
+
+- name: Check if omnia_postgres container is running
+  ansible.builtin.systemd_service:
+    name: omnia_postgres.service
+  register: postgres_service_status
+  failed_when: false
+
+- name: Fail if omnia_postgres container is not running
+  ansible.builtin.fail:
+    msg: "{{ gitlab_postgres_not_running_msg }}"
+  when: >
+    postgres_service_status.status is not defined or
+    postgres_service_status.status.ActiveState != 'active'
+
+- name: Check if build stream SSL certificate exists
+  ansible.builtin.stat:
+    path: "{{ gitlab_bs_cert_path }}"
+  register: bs_cert_stat
+  delegate_to: localhost
+  connection: local
+
+- name: Fail if build stream SSL certificate is missing
+  ansible.builtin.fail:
+    msg: "{{ gitlab_bs_cert_missing_msg }}"
+  when: not bs_cert_stat.stat.exists
