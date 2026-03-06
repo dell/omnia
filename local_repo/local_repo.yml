@@ -45,6 +45,16 @@
   vars:
     oim_group: true
 
+- name: Set SELinux context
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Set SELinux context
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/"
+      changed_when: true
+      failed_when: false
+
 - name: Set_fact for fetch cluster os version
   hosts: localhost
   connection: local
