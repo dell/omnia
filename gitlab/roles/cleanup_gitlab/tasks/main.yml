@@ -61,5 +61,8 @@
 - name: Cleanup passwords and credentials
   ansible.builtin.include_tasks: cleanup_credentials.yml
 
+- name: Cleanup build stream OAuth credentials on OIM
+  ansible.builtin.include_tasks: cleanup_buildstream_oauth.yml
+
 - name: Display cleanup summary and checklist
   ansible.builtin.include_tasks: cleanup_summary.yml

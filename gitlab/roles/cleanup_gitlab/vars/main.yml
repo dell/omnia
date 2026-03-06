@@ -49,6 +49,9 @@ gitlab_cleanup_core_directories:
   - "/var/log/gitlab"
   - "/opt/gitlab"
 
+# Quadlet configuration
+quadlet_dir: "/etc/containers/systemd"
+
 # GitLab cleanup packages
 gitlab_cleanup_packages:
   - gitlab-ce

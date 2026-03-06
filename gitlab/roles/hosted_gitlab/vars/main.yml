@@ -100,6 +100,11 @@ gitlab_runner_online_failure_msg: "No online runner is assigned to project {{ gi
 podman_socket_path: "/run/podman/podman.sock"
 docker_socket_path: "/var/run/docker.sock"
 
+# Quadlet configuration
+quadlet_dir: "/etc/containers/systemd"
+quadlet_dir_mode: "0755"
+quadlet_file_mode: "0644"
+
 # Network
 gitlab_ssh_port: 22
 
@@ -155,8 +160,7 @@ gitlab_sshpass_install_fail_msg: >
   are configured and enabled on this gitlab host before running this playbook.
 
 gitlab_bs_not_enabled_fail_msg: >
-  enable_build_stream is not set to true in build_stream_config.yml.
-  Set enable_build_stream to true before running the GitLab playbook.
+  Build stream is not enabled. Set enable_build_stream: true in build_stream_config.yml before running prepare_oim.yml.
 
 gitlab_bs_auth_username_fail_msg: >
   Build stream auth username is empty. Run the credential utility to populate
@@ -177,6 +181,73 @@ gitlab_selinux_fail_msg: >
   SELinux is currently enabled. GitLab installation requires SELinux to be disabled.
   Disable SELinux and reboot the host before running this playbook.
 gitlab_bs_host_connectivity_fail_msg: "Cannot reach build stream host at {{ build_stream_host_ip }}. GitLab server must be able to ping the build stream host."
+
+gitlab_watcher_not_running_msg: >
+  playbook_watcher.service is not running on OIM host {{ build_stream_host_ip }}.
+  Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
+
+gitlab_build_stream_not_running_msg: >
+  omnia_build_stream.service is not running on OIM host {{ build_stream_host_ip }}.
+  Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
+
+gitlab_postgres_not_running_msg: >
+  omnia_postgres.service is not running on OIM host {{ build_stream_host_ip }}.
+  Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
+
+gitlab_bs_cert_missing_msg: >
+  Build stream SSL certificate not found at {{ gitlab_bs_cert_path }} on OIM host {{ build_stream_host_ip }}.
+  Ensure prepare_oim.yml has been successfully executed and certificates are generated.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
+
+gitlab_memory_insufficient_msg: >
+  Insufficient memory. Required: {{ gitlab_min_memory_gb }}GB, Available: {{ total_memory.stdout }}GB.
+  Please ensure the GitLab host has at least {{ gitlab_min_memory_gb }}GB of RAM.
+
+gitlab_cpu_insufficient_msg: >
+  Insufficient CPU cores. Required: {{ gitlab_min_cpu_cores }}, Available: {{ cpu_cores.stdout }}.
+  Please ensure the GitLab host has at least {{ gitlab_min_cpu_cores }} CPU cores.
+
+gitlab_storage_insufficient_msg: >
+  Insufficient storage space. Required: {{ gitlab_min_storage_gb }}GB, Available: {{ available_disk_space.stdout }}GB.
+  Please ensure the GitLab host has at least {{ gitlab_min_storage_gb }}GB of free disk space.
+
+# Image pull configuration
+gitlab_image_pull_retries: 5
+gitlab_image_pull_delay: 10
+
+# Image pull error messages
+gitlab_runner_image_pull_fail_msg: >
+  Failed to pull GitLab runner image '{{ gitlab_runner_image }}' after {{ gitlab_image_pull_retries }} attempts.
+  Possible causes:
+  - Network connectivity issues to container registry
+  - Insufficient disk space for image download
+  - Registry authentication issues
+  - Image name or tag does not exist
+  - Docker Hub pull rate limit exceeded (for anonymous users: 100 pulls per 6 hours)
+  Please check network connectivity, registry access, or consider authenticating to Docker Hub.
+
+gitlab_helper_image_pull_fail_msg: >
+  Failed to pull GitLab runner helper image '{{ gitlab_runner_helper_image_resolved }}' after {{ gitlab_image_pull_retries }} attempts.
+  Possible causes:
+  - Network connectivity issues to GitLab registry
+  - Insufficient disk space for image download
+  - Registry authentication issues
+  - Helper image version '{{ gitlab_runner_helper_image_version }}' may not be available
+  - Docker Hub pull rate limit exceeded (for anonymous users: 100 pulls per 6 hours)
+  Please check network connectivity to registry.gitlab.com or consider authenticating to Docker Hub.
+
+gitlab_default_image_pull_fail_msg: >
+  Failed to pull default CI job image '{{ gitlab_runner_default_image }}' after {{ gitlab_image_pull_retries }} attempts.
+  Possible causes:
+  - Network connectivity issues to container registry
+  - Insufficient disk space for image download
+  - Registry authentication issues
+  - Image name or tag does not exist
+  - Docker Hub pull rate limit exceeded (for anonymous users: 100 pulls per 6 hours)
+  Please check network connectivity, registry access, or consider authenticating to Docker Hub.
 
 # Debug messages
 gitlab_ca_export_path: "{{ gitlab_cert_dir }}/ca.crt"
@@ -232,6 +303,6 @@ gitlab_deployment_complete_msg:
   - "- Certificates are reused on re-run (generated only if missing)"
   - ""
   - "Service:    {{ gitlab_ctl_command }} (start|stop|status|reconfigure)"
-  - "Runner:     {{ gitlab_runner_container_name }} (Podman container, registered)"
+  - "Runner:     {{ gitlab_runner_container_name }}.service (Quadlet systemd service, persists across reboots)"
   - ""
   - "============================================"
