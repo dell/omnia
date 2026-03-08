@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# Port validation error message
+gitlab_https_port_in_use_msg: >
+  GitLab HTTPS port {{ gitlab_https_port }} is already in use by another service.
+  Please stop the conflicting service or configure GitLab to use a different port.
+  You can check which process is using the port with: 'ss -tulpn | grep :{{ gitlab_https_port }}'
 
 # Usage: prereq_checks.yml
 gitlab_sshpass_install_fail_msg: >

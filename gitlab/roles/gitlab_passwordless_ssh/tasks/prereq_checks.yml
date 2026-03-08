@@ -29,3 +29,22 @@
     file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
   delegate_to: localhost
   run_once: true
+
+- name: Copy port check script to GitLab host
+  ansible.builtin.copy:
+    src: files/check_gitlab_port.sh
+    dest: /tmp/check_gitlab_port.sh
+    mode: '0755'
+    remote_src: false
+
+- name: Check processes using GitLab HTTPS port
+  ansible.builtin.command: /tmp/check_gitlab_port.sh {{ gitlab_https_port }}
+  register: https_port_check
+  changed_when: false
+  failed_when: false
+
+- name: Validate GitLab HTTPS port availability
+  ansible.builtin.assert:
+    that:
+      - https_port_check.rc != 1
+    fail_msg: "{{ gitlab_https_port_in_use_msg }}"

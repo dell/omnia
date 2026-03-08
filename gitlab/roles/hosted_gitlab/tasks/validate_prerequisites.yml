@@ -60,25 +60,6 @@
       - available_disk_space.stdout | int >= gitlab_min_storage_gb
     fail_msg: "{{ gitlab_storage_insufficient_msg }}"
 
-- name: Copy port check script to GitLab host
-  ansible.builtin.copy:
-    src: check_gitlab_port.sh
-    dest: /tmp/check_gitlab_port.sh
-    mode: '0755'
-    remote_src: false
-
-- name: Check processes using GitLab HTTPS port
-  ansible.builtin.command: /tmp/check_gitlab_port.sh {{ gitlab_https_port }}
-  register: https_port_check
-  changed_when: false
-  failed_when: false
-
-- name: Validate GitLab HTTPS port availability
-  ansible.builtin.assert:
-    that:
-      - https_port_check.rc != 1
-    fail_msg: "{{ gitlab_https_port_in_use_msg }}"
-
 - name: Check connectivity to build stream host
   when: build_stream_host_ip is defined and build_stream_host_ip | length > 0
   ansible.builtin.command: ping -c 3 -W 2 {{ build_stream_host_ip }}
