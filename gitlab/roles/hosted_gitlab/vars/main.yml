@@ -218,8 +218,9 @@ gitlab_storage_insufficient_msg: >
   Please ensure the GitLab host has at least {{ gitlab_min_storage_gb }}GB of free disk space.
 
 gitlab_https_port_in_use_msg: >
-  GitLab HTTPS port {{ gitlab_https_port }} is already in use on this host.
-  Please stop the service using this port or configure GitLab to use a different port.
+  GitLab HTTPS port {{ gitlab_https_port }} is already in use by another service.
+  GitLab services (nginx, puma, gitaly, sidekiq, redis, postgresql) are allowed to use this port.
+  Please stop the conflicting service or configure GitLab to use a different port.
   You can check which process is using the port with: 'ss -tulpn | grep :{{ gitlab_https_port }}'
 
 # Image pull configuration
