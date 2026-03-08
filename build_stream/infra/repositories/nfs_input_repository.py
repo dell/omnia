@@ -36,7 +36,7 @@ try:
     DEFAULT_BUILD_STREAM_BASE = Path(local_config.file_store.base_path)
 except (FileNotFoundError, AttributeError):
     # Fallback to default path if config is not available
-    DEFAULT_BUILD_STREAM_BASE = Path("/opt/omnia/build_stream")
+    DEFAULT_BUILD_STREAM_BASE = Path("/opt/omnia/build_stream_root")
 
 DEFAULT_PLAYBOOK_INPUT_DIR = "/opt/omnia/input/project_default/"
 
@@ -221,7 +221,7 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
             job_id: Job identifier.
 
         Returns:
-            Path like /opt/omnia/build_stream/{job_id}/input/
+            Path like <omnia/build_stream_root>/artifacts/{job_id}/input/
         """
         return self._build_stream_base / job_id / "input"
 

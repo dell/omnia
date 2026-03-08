@@ -37,6 +37,17 @@
   gather_facts: false
 
   pre_tasks:
+    # Step 0: Load software_config to determine OS type and version
+    - name: Load software_config.json
+      ansible.builtin.include_vars:
+        file: "/opt/omnia/input/project_default/software_config.json"
+        name: software_config
+
+    - name: Set OS type and version facts
+      ansible.builtin.set_fact:
+        cluster_os_type: "{{ software_config.cluster_os_type }}"
+        cluster_os_version: "{{ software_config.cluster_os_version }}"
+
     # Step 1: Input Validation
     - name: Validate input - at least one cleanup type must be specified
       ansible.builtin.assert:
@@ -67,7 +78,7 @@
       ansible.builtin.pause:
         prompt: |
 
-          ⚠️  WARNING: This will permanently delete the specified artifacts.
+          WARNING: This will permanently delete the specified artifacts.
           This action cannot be undone.
 
           Type 'yes' to continue or press Ctrl+C to abort
@@ -83,13 +94,15 @@
 
   tasks:
     # Step 3: Call Python Module
-    - name: Execute cleanup
+    - name: Execute cleanup ( This task might take sometime )
       pulp_cleanup:
         cleanup_repos: "{{ repo_list | default([]) }}"
         cleanup_containers: "{{ container_list | default([]) }}"
         cleanup_files: "{{ file_list | default([]) }}"
         base_path: "{{ base_path | default('/opt/omnia/log/local_repo') }}"
         repo_store_path: "{{ repo_store_path | default('/opt/omnia') }}"
+        cluster_os_type: "{{ cluster_os_type }}"
+        cluster_os_version: "{{ cluster_os_version }}"
       register: cleanup_result
 
   post_tasks:

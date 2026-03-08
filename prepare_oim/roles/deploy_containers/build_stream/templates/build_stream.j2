@@ -51,8 +51,8 @@ Environment=DATABASE_URL=postgresql://{{ postgres_user }}:{{ postgres_password }
 Environment=ANSIBLE_VAULT_PASSWORD_FILE="/opt/omnia/input/project_default/.build_stream_oauth_credentials_key"
 Environment=OAUTH_CLIENTS_VAULT_PATH="/opt/omnia/input/project_default/build_stream_oauth_credentials.yml"
 Environment=AUTH_CONFIG_VAULT_PATH="/opt/omnia/input/project_default/build_stream_oauth_credentials.yml"
-Environment=JWT_PRIVATE_KEY_PATH="/opt/omnia/build_stream/api/.auth/keys/jwt_private.pem"
-Environment=JWT_PUBLIC_KEY_PATH="/opt/omnia/build_stream/api/.auth/keys/jwt_public.pem"
+Environment=JWT_PRIVATE_KEY_PATH="/opt/omnia/build_stream_root/api/.auth/keys/jwt_private.pem"
+Environment=JWT_PUBLIC_KEY_PATH="/opt/omnia/build_stream_root/api/.auth/keys/jwt_public.pem"
 Environment=BUILD_STREAM_CONFIG_PATH="/opt/omnia/build_stream/build_stream.ini"
 
 # Volume mounts (shared from omnia_core)

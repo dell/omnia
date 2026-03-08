@@ -33,8 +33,10 @@ gitlab_reconfigure_async: 3600
 gitlab_reconfigure_poll: 15
 gitlab_reconfigure_delay: 5
 gitlab_api_unreachable_msg: 'Unable to reach GitLab API at {{ gitlab_external_url_computed }}. Verify connectivity, credentials, or TLS configuration.'
+gitlab_project_ci_timeout: 9000
 gitlab_default_status_codes:
   project_create: [200, 201]
+  project_update: [200]
   runner_create: [200, 201]
   project_runners_list: [200]
   runner_delete: [202, 204]
@@ -44,6 +46,7 @@ gitlab_api_ready_failure_msg: 'Failed to contact {{ gitlab_external_url_computed
 gitlab_project_search_failure_msg: 'Failed to search for project {{ gitlab_project_name }} via GitLab API.'
 gitlab_project_create_failure_msg: 'Failed to create GitLab project {{ gitlab_project_name }} via API.'
 gitlab_runner_token_failure_msg: 'Failed to create GitLab runner authentication token for project {{ gitlab_project_name }}.'
+gitlab_project_timeout_failure_msg: 'Failed to update CI/CD job timeout for project {{ gitlab_project_name }} via GitLab API.'
 gitlab_root_token_name: "omnia-automation"
 gitlab_root_token_expiry_days: 365
 

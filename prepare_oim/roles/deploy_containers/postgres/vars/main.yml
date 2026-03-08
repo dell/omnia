@@ -29,7 +29,7 @@ postgres_port: 5432
 # Database configuration
 postgres_user: "{{ hostvars['localhost']['postgres_user'] }}"
 postgres_password: "{{ hostvars['localhost']['postgres_password'] }}"
-postgres_db_name: "{{ hostvars['localhost']['postgres_db_name'] | default('build_stream_db') }}"
+postgres_db_name: "build_stream_db"
 
 # Storage configuration
 postgres_data_dir: "{{ omnia_path }}/postgres/data"

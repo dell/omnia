@@ -101,20 +101,20 @@ pulp_file_commands = {
     "delete_repository": "pulp file repository destroy --name %s",
     "delete_distribution": "pulp file distribution destroy --name %s",
     "delete_publication": "pulp file publication destroy --href %s",
-    "list_publications": "pulp file publication list --repository %s",
-    "list_repositories": "pulp file repository list",
-    "list_distributions": "pulp file distribution list",
-    "list_content": "pulp file content list --repository-version %s",
+    "list_publications": "pulp file publication list --repository %s --limit 1000",
+    "list_repositories": "pulp file repository list --limit 1000",
+    "list_distributions": "pulp file distribution list --limit 1000",
+    "list_content": "pulp file content list --repository-version %s --limit 1000",
     "show_repository_version": "pulp file repository version show --repository %s",
     "orphan_cleanup": "pulp orphan cleanup --protection-time 0"
 }
 
 # Pulp Python repository commands (for pip modules)
 pulp_python_commands = {
-    "list_repositories": "pulp python repository list",
+    "list_repositories": "pulp python repository list --limit 1000",
     "show_repository": "pulp python repository show --name %s",
     "delete_repository": "pulp python repository destroy --name %s",
-    "list_distributions": "pulp python distribution list",
+    "list_distributions": "pulp python distribution list --limit 1000",
     "delete_distribution": "pulp python distribution destroy --name %s",
     "orphan_cleanup": "pulp orphan cleanup --protection-time 0"
 }
@@ -153,9 +153,9 @@ pulp_container_commands = {
     "delete_repository": "pulp container repository destroy --name %s",
     "delete_remote": "pulp container remote destroy --name %s",
     "delete_distribution": "pulp container distribution destroy --name %s",
-    "list_repositories": "pulp container repository list",
-    "list_remotes": "pulp container remote list",
-    "list_distributions": "pulp container distribution list",
+    "list_repositories": "pulp container repository list --limit 1000",
+    "list_remotes": "pulp container remote list --limit 1000",
+    "list_distributions": "pulp container distribution list --limit 1000",
     # Tag-specific cleanup commands
     "get_repo_version": "pulp container repository show --href %s",
     "list_tags_by_version": "pulp show --href /pulp/api/v3/content/container/tags/?repository_version=%s",
@@ -192,17 +192,17 @@ pulp_rpm_commands = {
     "delete_repository": "pulp rpm repository destroy --name %s",
     "delete_remote": "pulp rpm remote destroy --name %s",
     "delete_distribution": "pulp rpm distribution destroy --name %s",
-    "list_publications": "pulp rpm publication list --repository %s",
+    "list_publications": "pulp rpm publication list --repository %s --limit 1000",
     "update_distribution_publication": "pulp rpm distribution update --name %s --publication %s",
     "check_distribution": "pulp rpm distribution show --name %s",
-    "check_publication": "pulp rpm publication list --repository %s",
+    "check_publication": "pulp rpm publication list --repository %s --limit 1000",
     "delete_publication": "pulp rpm publication destroy --href %s",
     "get_repo_version": "pulp rpm repository show --name %s",
-    "list_repositories": "pulp rpm repository list",
-    "list_remotes": "pulp rpm remote list",
-    "list_distributions": "pulp rpm distribution list",
+    "list_repositories": "pulp rpm repository list --limit 1000",
+    "list_remotes": "pulp rpm remote list --limit 1000",
+    "list_distributions": "pulp rpm distribution list --limit 1000",
     "orphan_cleanup": "pulp orphan cleanup --protection-time 0",
-    "list_all_publications": "pulp rpm publication list",
+    "list_all_publications": "pulp rpm publication list --limit 1000",
     "upload_content": "pulp rpm content upload --repository %s --file %s",
     "update_distribution_repo_config": "pulp rpm distribution update --name %s --generate-repo-config"
 }
@@ -243,7 +243,7 @@ ADDITIONAL_REPOS_KEY = "additional_repos"
 AGGREGATED_REPO_NAME_TEMPLATE = "{arch}_omnia-additional"
 AGGREGATED_REMOTE_NAME_TEMPLATE = "{arch}_omnia-additional-{name}"
 AGGREGATED_DISTRIBUTION_NAME_TEMPLATE = "{arch}_omnia-additional"
-AGGREGATED_BASE_PATH_TEMPLATE = "opt/omnia/offline_repo/cluster/{arch}/rhel/10.0/rpms/omnia-additional"
+AGGREGATED_BASE_PATH_TEMPLATE = "opt/omnia/offline_repo/cluster/{arch}/rhel/{os_version}/rpms/omnia-additional"
 STANDARD_LOG_FILE_PATH = "/opt/omnia/log/local_repo/standard.log"
 
 # ----------------------------

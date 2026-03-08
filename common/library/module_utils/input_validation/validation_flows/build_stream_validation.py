@@ -18,7 +18,9 @@ Validates build stream configuration files for Omnia.
 import ipaddress
 import os
 import socket
+import ssl
 import subprocess
+from http import client
 from ansible.module_utils.input_validation.common_utils import validation_utils
 from ansible.module_utils.input_validation.common_utils import config
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg as msg
@@ -96,71 +98,6 @@ def get_ethernet_interface_ips(logger):
         logger.warning("Failed to get ethernet interface IPs: %s", str(e))
     return ethernet_ips
 
-
-def is_port_used_by_build_stream(port, admin_ip, logger):
-    """
-    Check if the configured port is already in use by build_stream service.
-
-    Build_stream listens on admin_ip:port. If we find the port listening on
-    admin IP, it means build_stream is already deployed with this port.
-
-    Args:
-        port (int): The configured port from build_stream_config.yml
-        admin_ip (str): The admin IP where build_stream listens
-        logger: Logger instance
-
-    Returns:
-        bool: True if port is listening on admin IP (build_stream deployed)
-    """
-    try:
-        result = subprocess.run(
-            ['ss', '-tln', f'sport = :{port}'],
-            capture_output=True, text=True, timeout=10, check=False
-        )
-        if result.returncode == 0 and admin_ip in result.stdout and 'LISTEN' in result.stdout:
-            logger.info(
-                "Port %d is listening on %s (build_stream re-deployment allowed)",
-                port, admin_ip
-            )
-            return True
-    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        logger.warning("Failed to check port status: %s", str(e))
-    return False
-
-
-def check_port_available(port, admin_ip, logger):
-    """
-    Validate if port is available for build_stream deployment.
-
-    Validation Logic:
-    1. If port is listening on admin_ip → build_stream already deployed
-       → PASS (re-deployment with same port allowed)
-    2. If port is NOT listening on admin_ip → check if port is free
-       → If free: PASS (new deployment)
-       → If in use: FAIL (port conflict with another service)
-
-    Args:
-        port (int): The configured port from build_stream_config.yml
-        admin_ip (str): The admin IP where build_stream listens
-        logger: Logger instance
-
-    Returns:
-        tuple: (is_available: bool, error_message: str or None)
-    """
-    # Case 1: Port already used by build_stream → allow re-deployment
-    if is_port_used_by_build_stream(port, admin_ip, logger):
-        return True, None
-
-    # Case 2: Check if port is free for new deployment
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind(('', port))
-            return True, None
-    except OSError:
-        return False, msg.build_stream_port_in_use_msg(port)
- 
- 
 def validate_build_stream_config(input_file_path, data,
                                   logger, module, omnia_base_dir,
                                   module_utils_base, project_name):
@@ -247,7 +184,49 @@ def validate_build_stream_config(input_file_path, data,
             msg.build_stream_host_ip_not_oim_ip_msg(build_stream_host_ip, ethernet_ips)
         ))
 
-    # Validate aarch64_inventory_host_ip (conditional - required if PXE mapping has aarch64 groups)
+    # Validate aarch64_inventory_host_ip (c
+    # Validate build_stream_port availability
+    build_stream_port = data.get("build_stream_port")
+    if build_stream_port:
+        try:
+            port_int = int(build_stream_port)
+            if not (1 <= port_int <= 65535):
+                raise ValueError
+        except (TypeError, ValueError):
+            errors.append(create_error_msg(
+                build_stream_yml,
+                "build_stream_port",
+                msg.BUILD_STREAM_PORT_RANGE_MSG,
+            ))
+            return errors
+
+        port_in_use = False
+        try:
+            with socket.create_connection((build_stream_host_ip, port_int), timeout=2):
+                port_in_use = True
+        except (OSError, ValueError):
+            port_in_use = False
+
+        if port_in_use:
+            # Port is in use, check if it's build_stream by probing /health
+            try:
+                context = ssl._create_unverified_context()
+                conn = client.HTTPSConnection(build_stream_host_ip, port_int, timeout=2, context=context)
+                conn.request("GET", "/health")
+                resp = conn.getresponse()
+                conn.close()
+                if resp.status not in [200, 401, 403, 404, 500]:
+                    raise ValueError(f"Unexpected HTTP status {resp.status}")
+            except Exception as exc:  # pylint: disable=broad-except
+                errors.append(create_error_msg(
+                    build_stream_yml,
+                    "build_stream_port",
+                    msg.BUILD_STREAM_PORT_INUSE_MSG.format(port=port_int, host_ip=build_stream_host_ip, detail=str(exc)),
+                ))
+                return errors
+
+    # Validate aarch64_inventory_host_ip
+
     aarch64_inventory_host_ip = data.get("aarch64_inventory_host_ip")
     
     ### aarch64_inventory_host_ip check
@@ -303,7 +282,6 @@ def validate_build_stream_config(input_file_path, data,
 
         # Check aarch64 host IP reachability using socket (safer than subprocess)
         try:
-            import socket
             # Try to connect to SSH port which is usually open on inventory hosts
             ssh_port = 22  # SSH
             reachable = False
@@ -355,5 +333,6 @@ def validate_build_stream_config(input_file_path, data,
             #     ))
             #     logger.error("Port %d is not available: %s", build_stream_port, port_error)
             pass
+
 
     return errors

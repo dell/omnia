@@ -22,6 +22,7 @@
   register: build_stream_service_status
   failed_when: false
   changed_when: false
+  no_log: true
 
 - name: Stop and disable omnia_build_stream service if present
   ansible.builtin.systemd_service:
@@ -30,6 +31,8 @@
     enabled: false
   when: build_stream_service_status.status is defined
   failed_when: false
+  changed_when: false
+  no_log: true
 
 - name: Check if omnia_build_stream container exists
   containers.podman.podman_container_info:
@@ -54,25 +57,15 @@
     pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
     postgres_user: "{{ hostvars['localhost']['postgres_user'] }}"
     postgres_password: "{{ hostvars['localhost']['postgres_password'] }}"
-    postgres_db_name: "{{ hostvars['localhost']['postgres_db_name'] }}"
+    postgres_db_name: "{{ postgres_db_name }}"
   no_log: true
 
 # -------------------------------------------------------------------
-# 2) Set build_stream_host_ip from config or fallback to admin_ip
+# 2) Display build_stream_host_ip being used
 # -------------------------------------------------------------------
-- name: Set build_stream_host_ip from config or fallback to admin_ip
-  ansible.builtin.set_fact:
-    build_stream_host_ip: "{{
-      build_stream_host_ip
-      if (build_stream_host_ip is defined and
-          build_stream_host_ip != None and
-          build_stream_host_ip != '')
-      else admin_ip }}"
-  changed_when: false
-
 - name: Display host IP being used
   ansible.builtin.debug:
-    msg: "Using host IP: {{ build_stream_host_ip }} for Build stream API server"
+    msg: "Using host IP: {{ build_stream_host_ip }} and port: {{ build_stream_port }} for Build stream API server"
     verbosity: 1
 
 # -------------------------------------------------------------------
@@ -129,64 +122,175 @@
     verbosity: 2
   when: image_pull_result is succeeded
 
-# Generate SSL certificates
-- name: Remove existing SSL certificate directory if it exists
-  ansible.builtin.file:
-    path: "{{ build_stream_ssl_dir }}"
-    state: absent
+# -------------------------------------------------------------------
+# 6) Generate SSL certificates (idempotent)
+# -------------------------------------------------------------------
+- name: Check if Build Stream SSL certificates exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: cert_files_check
+  loop:
+    - "{{ build_stream_ssl_cert }}"
+    - "{{ build_stream_ssl_key }}"
+  no_log: true
 
-- name: Create SSL certificate directory
+- name: Check certificate expiration
+  ansible.builtin.command: |
+    openssl x509 -enddate -noout -in {{ build_stream_ssl_cert }}
+  register: cert_enddate
+  changed_when: false
+  failed_when: false
+  when: cert_files_check.results | selectattr('stat.exists') | list | length == 2
+  no_log: true
+
+- name: Verify key-certificate pairing
+  ansible.builtin.shell: |
+    set -o pipefail
+    cert_modulus=$(openssl x509 -noout -modulus -in {{ build_stream_ssl_cert }} | openssl md5)
+    key_modulus=$(openssl rsa -noout -modulus -in {{ build_stream_ssl_key }} | openssl md5)
+    [ "$cert_modulus" = "$key_modulus" ]
+  register: cert_key_match
+  changed_when: false
+  failed_when: false
+  when: cert_files_check.results | selectattr('stat.exists') | list | length == 2
+  no_log: true
+
+- name: Check certificate SAN entries
+  ansible.builtin.command: |
+    openssl x509 -noout -ext subjectAltName -in {{ build_stream_ssl_cert }}
+  register: cert_san
+  changed_when: false
+  failed_when: false
+  when: cert_files_check.results | selectattr('stat.exists') | list | length == 2
+  no_log: true
+
+- name: Determine if certificate regeneration is needed
+  ansible.builtin.set_fact:
+    cert_regeneration_needed: >-
+      {{
+        (cert_files_check.results | selectattr('stat.exists') | list | length != 2) or
+        (cert_enddate.rc != 0) or
+        (cert_key_match.rc != 0) or
+        (cert_san.rc != 0) or
+        (cert_san.stdout is not search('DNS:' + ansible_hostname)) or
+        (cert_san.stdout is not search('IP:' + admin_ip)) or
+        (cert_enddate.stdout is not search('GMT'))
+      }}
+  no_log: true
+
+- name: Display certificate validation result
+  ansible.builtin.debug:
+    msg: "SSL certificate regeneration needed: {{ cert_regeneration_needed }}"
+    verbosity: 2
+
+- name: Ensure SSL certificate directory exists
   ansible.builtin.file:
     path: "{{ build_stream_ssl_dir }}"
     state: directory
     mode: "{{ build_stream_dir_mode }}"
+  no_log: true
 
-- name: Generate self-signed SSL certificate
+- name: Generate self-signed SSL certificate (only if needed)
   ansible.builtin.command: |
     openssl req -x509 -newkey rsa:4096 -nodes -days {{ build_stream_ssl_days }}
     -keyout {{ build_stream_ssl_key }}
     -out {{ build_stream_ssl_cert }}
     -subj "/C=US/ST=State/L=City/O=Omnia/CN={{ ansible_hostname }}"
-    -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:localhost,IP:{{ ansible_default_ipv4.address }},IP:127.0.0.1,IP:{{ admin_ip }}"
+    -addext "subjectAltName=DNS:{{ ansible_hostname }},DNS:localhost,IP:{{ ansible_default_ipv4.address }},IP:127.0.0.1,IP:{{ build_stream_host_ip }}"
   changed_when: true
+  when: cert_regeneration_needed | default(true)
+  no_log: true
 
-- name: Set permissions on SSL certificates
+- name: Set permissions on SSL certificates (only when newly generated)
   ansible.builtin.file:
     path: "{{ item }}"
     mode: "{{ build_stream_ssl_file_mode }}"
   loop:
     - "{{ build_stream_ssl_cert }}"
     - "{{ build_stream_ssl_key }}"
+  when: cert_regeneration_needed | default(true)
+  no_log: true
 
 - name: Set execute permission on JWT key generation script
   ansible.builtin.file:
     path: "{{ build_stream_jwt_keys_script }}"
     mode: "{{ build_stream_jwt_script_mode }}"
   delegate_to: localhost
+  no_log: true
+
+- name: Ensure JWT keys directory exists
+  ansible.builtin.file:
+    path: "{{ build_stream_jwt_keys_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  no_log: true
 
 - name: Check if JWT keys already exist
   ansible.builtin.stat:
-    path: "{{ build_stream_jwt_keys_dir }}/jwt_private.pem"
-  register: jwt_private_key
+    path: "{{ item }}"
+  register: jwt_keys_check
+  loop:
+    - "{{ build_stream_jwt_keys_dir }}/jwt_private.pem"
+    - "{{ build_stream_jwt_keys_dir }}/jwt_public.pem"
   delegate_to: localhost
+  no_log: true
 
-- name: Check if JWT public key exists
-  ansible.builtin.stat:
-    path: "{{ build_stream_jwt_keys_dir }}/jwt_public.pem"
-  register: jwt_public_key
+- name: Validate existing JWT keys
+  ansible.builtin.shell: |
+    set -o pipefail
+    # Check if private key is valid
+    openssl rsa -in "{{ build_stream_jwt_keys_dir }}/jwt_private.pem" -check -noout
+    # Check if public key is valid
+    openssl rsa -pubin -in "{{ build_stream_jwt_keys_dir }}/jwt_public.pem" -check -noout
+    # Check if keys match (modulus comparison)
+    priv_mod=$(openssl rsa -in "{{ build_stream_jwt_keys_dir }}/jwt_private.pem" -noout -modulus | openssl md5)
+    pub_mod=$(openssl rsa -pubin -in "{{ build_stream_jwt_keys_dir }}/jwt_public.pem" -noout -modulus | openssl md5)
+    [ "$priv_mod" = "$pub_mod" ]
+  register: jwt_keys_validation
+  changed_when: false
+  failed_when: false
   delegate_to: localhost
+  when: jwt_keys_check.results | selectattr('stat.exists') | list | length == 2
+  no_log: true
 
-- name: Remove existing JWT keys directory if it exists
+- name: Determine if JWT key regeneration is needed
+  ansible.builtin.set_fact:
+    jwt_regeneration_needed: >-
+      {{
+        (jwt_keys_check.results | selectattr('stat.exists') | list | length != 2) or
+        (jwt_keys_validation.rc | default(1) != 0)
+      }}
+  no_log: true
+
+- name: Display JWT key validation result
+  ansible.builtin.debug:
+    msg: "JWT key regeneration needed: {{ jwt_regeneration_needed }}"
+    verbosity: 2
+
+- name: Remove incomplete JWT keys if regeneration needed
   ansible.builtin.file:
     path: "{{ build_stream_jwt_keys_dir }}"
     state: absent
   delegate_to: localhost
-  when: jwt_private_key.stat.exists or jwt_public_key.stat.exists
+  when: jwt_regeneration_needed | bool
+  no_log: true
 
-- name: Generate JWT keys
+- name: Recreate JWT keys directory
+  ansible.builtin.file:
+    path: "{{ build_stream_jwt_keys_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  when: jwt_regeneration_needed | bool
+  no_log: true
+
+- name: Generate JWT keys (only if needed)
   ansible.builtin.command: "{{ build_stream_jwt_keys_script }}"
   delegate_to: localhost
-  changed_when: false
+  when: jwt_regeneration_needed | bool
+  changed_when: true
+  no_log: true
 
 # - name: Update project name in default.yml
 #  ansible.builtin.replace:
@@ -228,36 +332,46 @@
         name: "{{ build_stream_service }}"
         enabled: true
         state: started
+      no_log: true
+      changed_when: false
+    - name: "Ensure build_stream readiness and migrations"
+      block:
+        - name: Wait until omnia_build_stream container exists and is running
+          containers.podman.podman_container_info:
+            name: "{{ build_stream_container_name }}"
+          register: bs_info
+          retries: "{{ bs_container_wait_retries }}"
+          delay: "{{ bs_container_wait_delay }}"
+          until:
+            - bs_info.containers is defined
+            - bs_info.containers | length > 0
+            - bs_info.containers[0].State is defined
+            - bs_info.containers[0].State.Running | bool
+          no_log: true
 
-    - name: Wait until omnia_build_stream container exists and is running
-      containers.podman.podman_container_info:
-        name: "{{ build_stream_container_name }}"
-      register: bs_info
-      retries: "{{ bs_container_wait_retries }}"
-      delay: "{{ bs_container_wait_delay }}"
-      until:
-        - bs_info.containers is defined
-        - bs_info.containers | length > 0
-        - bs_info.containers[0].State is defined
-        - bs_info.containers[0].State.Running | bool
+        - name: Run Alembic database migrations inside build_stream container
+          containers.podman.podman_container_exec:
+            name: "{{ build_stream_container_name }}"
+            command: >
+              python -m alembic -c {{ bs_rsync_destination }}infra/db/alembic.ini upgrade head
+            env:
+              DB_USER: "{{ postgres_user }}"
+              DB_PASSWORD: "{{ postgres_password }}"
+              DB_HOST: "{{ admin_ip }}"
+              DB_NAME: "{{ postgres_db_name }}"
+          register: alembic_result
+          changed_when: "'Running upgrade' in alembic_result.stdout"
+          no_log: true
 
-    - name: Run Alembic database migrations inside build_stream container
-      containers.podman.podman_container_exec:
-        name: "{{ build_stream_container_name }}"
-        command: >
-          python -m alembic -c {{ bs_rsync_destination }}infra/db/alembic.ini upgrade head
-        env:
-          DB_USER: "{{ postgres_user }}"
-          DB_PASSWORD: "{{ postgres_password }}"
-          DB_HOST: "{{ admin_ip }}"
-          DB_NAME: "{{ postgres_db_name }}"
-      register: alembic_result
-      changed_when: "'Running upgrade' in alembic_result.stdout"
+        - name: Display migration result
+          ansible.builtin.debug:
+            msg: "Database migrations completed: {{ alembic_result.stdout }}"
+            verbosity: 2
 
-    - name: Display migration result
-      ansible.builtin.debug:
-        msg: "Database migrations completed: {{ alembic_result.stdout }}"
-        verbosity: 2
+      rescue:
+        - name: Fail build_stream deployment safely
+          ansible.builtin.fail:
+            msg: "{{ build_stream_container_failure_msg }}"
 
     - name: Configure firewall for omnia_build_stream
       block:

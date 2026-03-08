@@ -443,6 +443,11 @@ AARCH64_INVENTORY_HOST_IP_REACHABILITY_CHECK_FAILED_MSG = (
     "Ensure network connectivity and SSH service are available on the host."
 )
 
+BUILD_STREAM_PORT_RANGE_MSG = "build_stream_port must be an integer between 1 and 65535."
+BUILD_STREAM_PORT_INUSE_MSG = (
+    "Port {port} is already in use and is not serving build_stream on {host_ip}. Please choose another free port."
+)
+
 BUILD_STREAM_HOST_IP_REQUIRED_MSG = (
     "Field 'build_stream_host_ip' is mandatory in build_stream_config.yml. "
     "Please provide a valid IPv4 address (OIM admin IP or OIM public IP)."
@@ -463,15 +468,6 @@ BUILD_STREAM_HOST_IP_NO_ETHERNET_IPS_MSG = (
     "Cannot validate build_stream_host_ip. Ensure nmcli and ip commands are available "
     "and ethernet interfaces are configured on the OIM."
 )
-
-def build_stream_port_in_use_msg(port):
-    """Returns error message for port already in use."""
-    return (
-        f"Port {port} is already in use. "
-        f"Please choose a different port or stop the service using this port. "
-        f"To check which process is using this port, run: "
-        f"'ss -tulpn | grep :{port}'"
-    )
 
 # gitlab_config.yml
 GITLAB_HOST_EMPTY_MSG = ("Field 'gitlab_host' is required and cannot be empty. "

@@ -139,8 +139,8 @@ container_image_list_path: "{{ slurm_config_path }}/hpc_tools/scripts/container_
 pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
 packages_base_dir_x86_64: "{{ slurm_config_path }}/packages/x86_64"
 packages_base_dir_aarch64: "{{ slurm_config_path }}/packages/aarch64"
-offline_repo_basepath_x86_64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso"
-offline_repo_basepath_aarch64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso"
+offline_repo_basepath_x86_64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso"
+offline_repo_basepath_aarch64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso"
 packages_layout_x86_64:
   - cuda
 packages_layout_aarch64:
@@ -157,8 +157,8 @@ ssh_private_key_path: /root/.ssh/oim_rsa
 nvhpc_pkg_name_x86_64: "nvhpc_2025_2511_Linux_x86_64_cuda_13.0"
 nvhpc_pkg_name_aarch64: "nvhpc_2025_2511_Linux_aarch64_cuda_13.0"
 
-nvhpc_tarball_x86_64_relpath: "offline_repo/cluster/x86_64/rhel/10.0/tarball/{{ nvhpc_pkg_name_x86_64 }}/{{ nvhpc_pkg_name_x86_64 }}.tar.gz"
-nvhpc_tarball_aarch64_relpath: "offline_repo/cluster/aarch64/rhel/10.0/tarball/{{ nvhpc_pkg_name_aarch64 }}/{{ nvhpc_pkg_name_aarch64 }}.tar.gz"
+nvhpc_tarball_x86_64_relpath: "offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/{{ nvhpc_pkg_name_x86_64 }}/{{ nvhpc_pkg_name_x86_64 }}.tar.gz" # noqa: yaml[line-length]
+nvhpc_tarball_aarch64_relpath: "offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/{{ nvhpc_pkg_name_aarch64 }}/{{ nvhpc_pkg_name_aarch64 }}.tar.gz" # noqa: yaml[line-length]
 
 nvhpc_nfs_rel_dir: "hpc_tools/nvidia_sdk"
 
@@ -173,12 +173,12 @@ parallel_copy_candidates:
 
   # CUDA Runfile (aarch64 repo path)
   - name: cuda_runfile_aarch64
-    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/10.0/iso/cuda-run/"
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso/cuda-run/"
     dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
 
   # CUDA Runfile (x86_64 repo path)
   - name: cuda_runfile_x86_64
-    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/10.0/iso/cuda-run/"
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso/cuda-run/"
     dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
 
   # NVIDIA HPC SDK (x86_64 tarball extracted dir)

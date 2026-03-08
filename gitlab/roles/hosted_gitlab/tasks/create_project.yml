@@ -109,6 +109,25 @@
     gitlab_project_url: "{{ new_project.json.web_url if not project_exists else project_search.json[0].web_url }}"
     gitlab_project_http_url: "{{ new_project.json.http_url_to_repo if not project_exists else project_search.json[0].http_url_to_repo }}"
 
+- name: Set project CI/CD job timeout
+  block:
+    - name: Update project job timeout via GitLab API
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}"
+        method: PUT
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          build_timeout: "{{ gitlab_project_ci_timeout }}"
+        status_code: "{{ gitlab_default_status_codes.project_update }}"
+        validate_certs: false
+      no_log: true
+  rescue:
+    - name: Fail when project timeout update API call fails
+      ansible.builtin.fail:
+        msg: "{{ gitlab_project_timeout_failure_msg }}"
+
 - name: Check if runner config exists
   ansible.builtin.stat:
     path: "{{ gitlab_runner_config_file }}"

@@ -94,13 +94,13 @@ def validate_software_config(
     if cluster_os_type.lower() in os_version_ranges:
         version_range = os_version_ranges[cluster_os_type.lower()]
         if cluster_os_type.lower() in ["rhel", "rocky"]:
-            if float(cluster_os_version) != float(version_range[0]):
+            if cluster_os_version not in version_range:
                 errors.append(
                     create_error_msg(
                         "cluster_os_version",
                         cluster_os_version,
                         en_us_validation_msg.os_version_fail_msg(
-                            cluster_os_type, version_range[0], None
+                            cluster_os_type, ", ".join(version_range), None
                         ),
                     )
                 )
