@@ -33,6 +33,12 @@ class ArtifactStoreConfig:
 
 
 @dataclass
+class PathsConfig:
+    """BuildStream paths configuration."""
+    build_stream_base_path: str
+
+
+@dataclass
 class FileStoreConfig:
     """File store configuration."""
     base_path: str
@@ -41,6 +47,7 @@ class FileStoreConfig:
 @dataclass
 class BuildStreamConfig:
     """BuildStream configuration."""
+    paths: PathsConfig
     artifact_store: ArtifactStoreConfig
     file_store: Optional[FileStoreConfig]
 
@@ -74,6 +81,14 @@ def load_config(config_path: Optional[str] = None) -> BuildStreamConfig:
     
     if not parser.sections():
         raise ValueError(f"Empty configuration file: {config_file}")
+    
+    # Parse paths config
+    paths_section = "paths"
+    build_stream_base_path = parser.get(paths_section, "build_stream_base_path", fallback="/opt/omnia/build_stream_root")
+    
+    paths = PathsConfig(
+        build_stream_base_path=build_stream_base_path,
+    )
     
     # Parse artifact_store config
     artifact_store_section = "artifact_store"
@@ -112,6 +127,7 @@ def load_config(config_path: Optional[str] = None) -> BuildStreamConfig:
             raise ValueError("file_store section with base_path is required when backend=file_store")
     
     return BuildStreamConfig(
+        paths=paths,
         artifact_store=artifact_store,
         file_store=file_store,
     )

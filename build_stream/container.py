@@ -89,13 +89,13 @@ def _create_artifact_store():
 
         # Fall back to file store with default path
         return FileArtifactStore(
-            base_path=Path("/opt/omnia/build_stream/artifacts"),
+            base_path=Path("/opt/omnia/build_stream_root/artifacts"),
             max_artifact_size_bytes=config.artifact_store.max_file_size_bytes,
         )
     except (FileNotFoundError, ValueError):
         # If config not found or invalid, use file store with defaults as fallback
         return FileArtifactStore(
-            base_path=Path("/opt/omnia/build_stream/artifacts"),
+            base_path=Path("/opt/omnia/build_stream_root/artifacts"),
             max_artifact_size_bytes=5242880,  # 5MB default
         )
 

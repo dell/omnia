@@ -483,6 +483,7 @@
             {{ lookup('template', 'templates/hpc_tools/export_nvhpc_env.sh.j2') | indent(12) }}
 
       runcmd:
+        - rm -rf /var/lib/cloud/instance
         - /usr/local/bin/set-ssh.sh
         - /usr/local/bin/install_nvidia_driver.sh
         # slurm user and group created in the users module

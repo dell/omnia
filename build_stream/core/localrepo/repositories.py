@@ -102,7 +102,7 @@ class InputDirectoryRepository(Protocol):
             job_id: Job identifier.
 
         Returns:
-            Path like /opt/omnia/build_stream/{job_id}/input/
+            Path like <build_stream_root>/artifacts/{job_id}/input/
         """
         ...
 

@@ -51,11 +51,14 @@ variables:
   POLL_INTERVAL: "30"
   MAX_POLL_ATTEMPTS: "300"
   BSM_CERT_FILE: "/tmp/bsm_api_ca.crt"
+  CURL_CONNECT_TIMEOUT: "15"
+  CURL_MAX_TIME: "45"
 
 # ---------------------------------------------------------------------------
 # Stages -- executed in order
 # ---------------------------------------------------------------------------
 stages:
+  - health-check
   - auth
   - create-job
   - parse-catalog
@@ -111,33 +114,36 @@ default:
       # Refreshes ACCESS_TOKEN using CLIENT_ID / CLIENT_SECRET
       # ---------------------------------------------------------------------------
       refresh_token() {
-        echo "  [TOKEN REFRESH] Requesting new access token..."
+        echo "  [TOKEN REFRESH] Requesting new access token..." >&2
 
         if [ -z "${CLIENT_ID:-}" ] || [ -z "${CLIENT_SECRET:-}" ]; then
-          echo "  [TOKEN REFRESH] ERROR: CLIENT_ID or CLIENT_SECRET not available"
+          echo "  [TOKEN REFRESH] ERROR: CLIENT_ID or CLIENT_SECRET not available" >&2
           return 1
         fi
 
         TOKEN_HTTP_CODE=$(curl -s -o token_refresh_response.json -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
           -X POST "${BSM_API_URL}/api/v1/auth/token" \
           -H "Content-Type: application/x-www-form-urlencoded" \
           -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
           --retry 2 --retry-delay 1 --cacert "${BSM_CERT_FILE}")
 
         if [ "$TOKEN_HTTP_CODE" != "200" ]; then
-          echo "  [TOKEN REFRESH] ERROR: Token refresh failed (HTTP ${TOKEN_HTTP_CODE})"
-          cat token_refresh_response.json 2>/dev/null || true
+          echo "  [TOKEN REFRESH] ERROR: Token refresh failed (HTTP ${TOKEN_HTTP_CODE})" >&2
+          cat token_refresh_response.json >&2 2>/dev/null || true
           return 1
         fi
 
         ACCESS_TOKEN=$(jq -r '.access_token' token_refresh_response.json)
         if [ -z "${ACCESS_TOKEN}" ] || [ "${ACCESS_TOKEN}" = "null" ]; then
-          echo "  [TOKEN REFRESH] ERROR: No access_token in response"
+          echo "  [TOKEN REFRESH] ERROR: No access_token in response" >&2
           return 1
         fi
 
-        echo "  [TOKEN REFRESH] New token obtained successfully"
+        echo "  [TOKEN REFRESH] New token obtained successfully" >&2
         export ACCESS_TOKEN
+        # Persist to temp file so parent shell can read it back (subshell export doesn't propagate)
+        echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
         return 0
       }
 
@@ -153,14 +159,34 @@ default:
       #
       # The wrapper injects -H "Authorization: Bearer ${ACCESS_TOKEN}" automatically.
       # Callers must NOT pass their own Authorization header.
+      # Includes timeout handling with --connect-timeout and --max-time.
       # ---------------------------------------------------------------------------
       api_call_with_retry() {
         _RETRY_OUTPUT_FILE="$1"
         shift
 
-        # First attempt
+        # First attempt with timeout
         _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
-          -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@")
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@") || {
+          _CURL_EXIT=$?
+          case "$_CURL_EXIT" in
+            7)
+              echo "  ERROR: Connection refused - BSM API server unreachable at ${BSM_API_URL}" >&2
+              ;;
+            28)
+              echo "  ERROR: Request timeout - BSM API server did not respond within ${CURL_MAX_TIME}s" >&2
+              ;;
+            6)
+              echo "  ERROR: DNS resolution failed - cannot resolve BSM API hostname" >&2
+              ;;
+            *)
+              echo "  ERROR: Curl failed with exit code ${_CURL_EXIT}" >&2
+              ;;
+          esac
+          echo "000"
+          return
+        }
 
         # Only retry on 401 Unauthorized
         if [ "$_RETRY_HTTP_CODE" = "401" ]; then
@@ -168,14 +194,15 @@ default:
 
           case "${_RETRY_ERROR}" in
             token_expired|invalid_token|missing_token)
-              echo "  [RETRY] 401 auth error detected: ${_RETRY_ERROR}"
+              echo "  [RETRY] 401 auth error detected: ${_RETRY_ERROR}" >&2
               if refresh_token; then
-                echo "  [RETRY] Retrying API call with new token..."
+                echo "  [RETRY] Retrying API call with new token..." >&2
                 _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
+                  --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
                   -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@")
-                echo "  [RETRY] Retry response code: ${_RETRY_HTTP_CODE}"
+                echo "  [RETRY] Retry response code: ${_RETRY_HTTP_CODE}" >&2
               else
-                echo "  [RETRY] Token refresh failed -- cannot retry"
+                echo "  [RETRY] Token refresh failed -- cannot retry" >&2
               fi
               ;;
           esac
@@ -183,6 +210,98 @@ default:
 
         echo "${_RETRY_HTTP_CODE}"
       }
+
+# ============================= STAGE 0 ====================================
+# Health Check -- verify BSM API server is reachable before proceeding
+# Fails fast if the API server is unreachable, preventing long hangs
+# ==========================================================================
+health-check:
+  stage: health-check
+  script:
+    - |
+      echo "============================================================"
+      echo "  STAGE 0: BSM API Health Check"
+      echo "============================================================"
+
+      echo "  Checking BSM API server connectivity..."
+      echo "  Endpoint: ${BSM_API_URL}/health"
+      echo "  Connect timeout: ${CURL_CONNECT_TIMEOUT}s"
+      echo "  Max time: ${CURL_MAX_TIME}s"
+      echo ""
+
+      # Perform health check with timeout
+      HTTP_CODE=$(curl -s -o health_response.json -w "%{http_code}" \
+        --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+        -X GET "${BSM_API_URL}/health" \
+        --cacert "${BSM_CERT_FILE}" 2>&1) || {
+        CURL_EXIT=$?
+        echo ""
+        echo "  +-----------------------------------------------------------+"
+        echo "  |              BSM API HEALTH CHECK FAILED                  |"
+        echo "  +-----------------------------------------------------------+"
+        case "$CURL_EXIT" in
+          7)
+            echo "  |  Error: Connection refused                                |"
+            echo "  |  The BSM API server is unreachable at:                    |"
+            echo "  |  ${BSM_API_URL}"
+            echo "  |                                                           |"
+            echo "  |  Possible causes:                                         |"
+            echo "  |  - BSM API server is not running                          |"
+            echo "  |  - Firewall blocking the connection                       |"
+            echo "  |  - Incorrect BSM_API_URL configured                       |"
+            ;;
+          28)
+            echo "  |  Error: Connection timeout (${CURL_CONNECT_TIMEOUT}s)                          |"
+            echo "  |  The BSM API server did not respond in time at:           |"
+            echo "  |  ${BSM_API_URL}"
+            echo "  |                                                           |"
+            echo "  |  Possible causes:                                         |"
+            echo "  |  - Network latency or routing issues                      |"
+            echo "  |  - BSM API server is overloaded                           |"
+            ;;
+          6)
+            echo "  |  Error: DNS resolution failed                             |"
+            echo "  |  Cannot resolve hostname in BSM_API_URL                   |"
+            ;;
+          35|51|60)
+            echo "  |  Error: SSL/TLS certificate verification failed           |"
+            echo "  |  Check BSM_API_CERT configuration                         |"
+            ;;
+          *)
+            echo "  |  Error: Curl failed with exit code ${CURL_EXIT}                      |"
+            ;;
+        esac
+        echo "  +-----------------------------------------------------------+"
+        echo ""
+        echo "  RESULT: FAILED -- BSM API server is not reachable"
+        exit 1
+      }
+
+      echo "  Health check response code: ${HTTP_CODE}"
+
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo ""
+        echo "  +-----------------------------------------------------------+"
+        echo "  |              BSM API HEALTH CHECK FAILED                  |"
+        echo "  +-----------------------------------------------------------+"
+        echo "  |  Error: Unexpected response code ${HTTP_CODE}                        |"
+        echo "  |  Expected: 200 OK                                         |"
+        echo "  +-----------------------------------------------------------+"
+        cat health_response.json 2>/dev/null || true
+        echo ""
+        echo "  RESULT: FAILED -- BSM API health check returned ${HTTP_CODE}"
+        exit 1
+      fi
+
+      echo ""
+      echo "  +-----------------------------------------------------------+"
+      echo "  |              BSM API HEALTH CHECK PASSED                  |"
+      echo "  +-----------------------------------------------------------+"
+      echo "  |  BSM API server is reachable and healthy                  |"
+      echo "  |  URL: ${BSM_API_URL}"
+      echo "  +-----------------------------------------------------------+"
+      echo ""
+      echo "  [OK] Health check passed - proceeding with pipeline"
 
 # ============================= STAGE 1 ====================================
 # Authenticate: skip registration if credentials exist, else register once
@@ -198,6 +317,7 @@ default:
 # ==========================================================================
 auth:
   stage: auth
+  needs: [health-check]
   script:
     - |
       echo "============================================================"
@@ -220,6 +340,7 @@ auth:
         echo "  Endpoint: POST ${BSM_API_URL}/api/v1/auth/register"
 
         HTTP_CODE=$(curl -s -o register_response.json -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
           -X POST "${BSM_API_URL}/api/v1/auth/register" \
           -H "Content-Type: application/json" \
           -H "Authorization: Basic ${AUTH_HEADER}" \
@@ -277,6 +398,7 @@ auth:
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/auth/token"
 
       HTTP_CODE=$(curl -s -o token_response.json -w "%{http_code}" \
+        --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
         -X POST "${BSM_API_URL}/api/v1/auth/token" \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}" \
@@ -498,6 +620,8 @@ poll-local-repo:
         HTTP_CODE=$(api_call_with_retry status_response.json \
           -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
           --cacert "${BSM_CERT_FILE}")
+        # Read back refreshed token if it was renewed inside the subshell
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
 
         if [ "$HTTP_CODE" != "200" ]; then
           echo "  [${ATTEMPT}] Status check returned ${HTTP_CODE}"
@@ -680,6 +804,8 @@ poll-build-status:
         HTTP_CODE=$(api_call_with_retry status_response.json \
           -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
           --cacert "${BSM_CERT_FILE}")
+        # Read back refreshed token if it was renewed inside the subshell
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
 
         if [ "$HTTP_CODE" != "200" ]; then
           echo "  [${ATTEMPT}] Status check returned ${HTTP_CODE}"
@@ -808,6 +934,8 @@ poll-validate-status:
         HTTP_CODE=$(api_call_with_retry status_response.json \
           -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
           --cacert "${BSM_CERT_FILE}")
+        # Read back refreshed token if it was renewed inside the subshell
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
 
         if [ "$HTTP_CODE" != "200" ]; then
           echo "  [${ATTEMPT}] Status check returned ${HTTP_CODE}"
@@ -868,8 +996,8 @@ poll-validate-status:
 # ==========================================================================
 summary:
   stage: summary
-  needs: [auth, create-job, parse-catalog, generate-input-files, create-local-repo, poll-local-repo, get-roles, build-images,
-          poll-build-status, validate-image, poll-validate-status]
+  needs: [health-check, auth, create-job, parse-catalog, generate-input-files, create-local-repo, poll-local-repo,
+          get-roles, build-images, poll-build-status, validate-image, poll-validate-status]
   when: always
   script:
     - |
@@ -885,7 +1013,7 @@ summary:
         echo "  |                  BSM PIPELINE SUMMARY                     |"
         echo "  +-----------------------------------------------------------+"
         echo "  |  Job ID:     NOT AVAILABLE                                |"
-        echo "  |  Job State:  UNKNOWN                                      |"
+        echo "  |  Job State:  FAILED                                       |"
         echo "  |  Reason:     Authentication or job creation failed        |"
         echo "  +-----------------------------------------------------------+"
         exit 1
@@ -905,7 +1033,7 @@ summary:
         echo "  |                  BSM PIPELINE SUMMARY                     |"
         echo "  +-----------------------------------------------------------+"
         echo "  |  Job ID:     ${JOB_ID}"
-        echo "  |  Job State:  UNKNOWN (API returned ${HTTP_CODE})"
+        echo "  |  Job State:  FAILED (API returned ${HTTP_CODE})"
         echo "  +-----------------------------------------------------------+"
         exit 1
       fi
@@ -920,11 +1048,27 @@ summary:
       SKIPPED=$(jq -r '[.stages[]? | select(.stage_state == "SKIPPED")] | length' final_status.json 2>/dev/null || echo "0")
       PENDING=$(jq -r '[.stages[]? | select(.stage_state == "PENDING" or .stage_state == "IN_PROGRESS")] | length' final_status.json 2>/dev/null || echo "0")
 
+      # Determine final display state based on actual results
+      if [ "$FAILED" -gt 0 ] || [ "$JOB_STATE" = "FAILED" ]; then
+        DISPLAY_STATE="FAILED"
+      elif [ "$JOB_STATE" = "COMPLETED" ] || [ "$JOB_STATE" = "SUCCEEDED" ]; then
+        DISPLAY_STATE="SUCCESS"
+      elif [ "$JOB_STATE" = "IN_PROGRESS" ] || [ "$JOB_STATE" = "RUNNING" ]; then
+        # If job is still running but all stages completed, show SUCCESS
+        if [ "$PENDING" -eq 0 ] && [ "$COMPLETED" -gt 0 ]; then
+          DISPLAY_STATE="SUCCESS"
+        else
+          DISPLAY_STATE="IN_PROGRESS"
+        fi
+      else
+        DISPLAY_STATE="${JOB_STATE}"
+      fi
+
       echo "  +-----------------------------------------------------------+"
       echo "  |                  BSM PIPELINE SUMMARY                     |"
       echo "  +-----------------------------------------------------------+"
       echo "  |  Job ID:     ${JOB_ID}"
-      echo "  |  Job State:  ${JOB_STATE}"
+      echo "  |  Job State:  ${DISPLAY_STATE}"
       echo "  |  Stages:     ${TOTAL_STAGES} total (${COMPLETED} ok, ${FAILED} failed, ${SKIPPED} skipped, ${PENDING} pending)"
       echo "  +-----------------------------------------------------------+"
       echo "  |  Stage Results:                                           |"
@@ -947,7 +1091,7 @@ summary:
       echo "  +-----------------------------------------------------------+"
       echo ""
 
-      if [ "$JOB_STATE" = "FAILED" ] || [ "$FAILED" -gt 0 ]; then
+      if [ "$DISPLAY_STATE" = "FAILED" ]; then
         echo "  RESULT: FAILED -- ${FAILED} stage(s) failed"
         exit 1
       fi

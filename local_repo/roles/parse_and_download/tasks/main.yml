@@ -29,7 +29,7 @@
 - name: Encrypt user certificates if exist
   cert_vault_handler:
     mode: encrypt
-    log_dir: "{{ base_path }}"
+    log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
     key_path: "{{ project_input_path }}"
   register: vault_result
 
@@ -124,6 +124,7 @@
     localrepo_config_path: "{{ local_repo_config_path }}"
     output_file: "{{ metadata_file_path }}"
     update_metadata: "{{ update_metadata }}"
+    sub_urls: "{{ sub_final_repo_urls | default({}) }}"
   register: policy_result
   when:
     - final_status == 'SUCCESS'

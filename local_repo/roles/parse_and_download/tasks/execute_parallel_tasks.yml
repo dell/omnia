@@ -18,11 +18,11 @@
     - name: Execute tasks and process results
       parallel_tasks:
         tasks: "{{ item.value }}"
-        log_dir: "{{ base_path }}/{{ item.arch }}/{{ item.key }}/logs"
-        log_file: "{{ base_path }}/{{ item.arch }}/{{ item.key }}_task_results.log"
-        slog_file: "{{ base_path }}"
+        log_dir: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs"
+        log_file: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}_task_results.log"
+        slog_file: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}"
         software: "{{ item.key }}"
-        csv_file_path: "{{ base_path }}/{{ item.arch }}/{{ item.key }}"
+        csv_file_path: "{{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}"
         repo_store_path: "{{ nfs_shared_path }}"
         user_json_file: "{{ user_json_file }}"
         local_repo_config_path: "{{ local_repo_config_path }}"
@@ -58,22 +58,22 @@
 
     - name: Confirm all tasks Success
       ansible.builtin.debug:
-        msg: "All tasks completed successfully. Log path: {{ base_path }}/{{ item.arch }}/{{ item.key }}/logs/"
+        msg: "All tasks completed successfully. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/"
       when: task_results.overall_status == "SUCCESS"
 
     - name: Fail if Partial Success
       ansible.builtin.debug:
-        msg: "Some tasks partially failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ item.arch }}/{{ item.key }}/logs/" # noqa: yaml[line-length]
+        msg: "Some tasks partially failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/" # noqa: yaml[line-length]
       when: task_results.overall_status == "PARTIAL"
 
     - name: Fail if Failure to download package
       ansible.builtin.debug:
-        msg: "Some tasks failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ item.arch }}/{{ item.key }}/logs/" # noqa: yaml[line-length]
+        msg: "Some tasks failed. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs/" # noqa: yaml[line-length]
       when: task_results.overall_status == "FAILURE"
 
     - name: Fail if Timeout during download
       ansible.builtin.debug:
-        msg: "Some tasks failed due to timeout. Please review the task details above for more information. Log path: {{ base_path }}/{{ item.arch }}/{{ item.key }}/logs" # noqa: yaml[line-length]
+        msg: "Some tasks failed due to timeout. Please review the task details above for more information. Log path: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs" # noqa: yaml[line-length]
       when: task_results.overall_status == "TIMEOUT"
 
   rescue:
@@ -81,8 +81,8 @@
       ansible.builtin.debug:
         msg:
           - "Parallel tasks encountered an error. Check the logs for details:"
-          - "Log directory: {{ base_path }}/{{ item.arch }}/{{ item.key }}/logs"
-          - "Log file: {{ base_path }}/{{ item.arch }}/{{ item.key }}_task_results.log"
+          - "Log directory: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}/logs"
+          - "Log file: {{ base_path }}/{{ cluster_os_type }}/{{ cluster_os_version }}/{{ item.arch }}/{{ item.key }}_task_results.log"
           - "Error: {{ ansible_failed_result.msg | default('Unknown error') }}"
 
     - name: Fail the playbook execution

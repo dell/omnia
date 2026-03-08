@@ -117,6 +117,7 @@ def get_csv_file_path(software_name, user_csv_dir, arch):
     Parameters:
         software_name (str): The name of the software.
         user_csv_dir (str): The directory path where the CSV file is located.
+            Expected to already include os_type/os_version (e.g., .../rhel/10.1).
         arch: Architecture of the software
 
     Returns:

@@ -20,6 +20,8 @@
     name: "{{ postgres_container_name }}.service"
   register: postgres_service_status
   failed_when: false
+  changed_when: false
+  no_log: true
 
 - name: Stop omnia_postgres service if running
   ansible.builtin.systemd:
@@ -28,6 +30,8 @@
     enabled: false
   when: postgres_service_status.status is defined
   failed_when: false
+  changed_when: false
+  no_log: true
 
 - name: Check if omnia_postgres container exists
   containers.podman.podman_container_info:
@@ -93,6 +97,7 @@
         enabled: true
         state: started
       no_log: true
+      changed_when: false
 
     - name: Restart postgres container if Quadlet changed
       ansible.builtin.systemd_service:
@@ -100,78 +105,90 @@
         name: "{{ postgres_container_name }}.service"
       when: quadlet_out.changed # noqa: no-handler
       no_log: true
+      changed_when: false
 
     - name: Wait for PostgreSQL to be ready
       ansible.builtin.pause:
         seconds: "{{ postgres_ready_wait_seconds }}"
 
-    - name: Check if postgres container is running after deployment
-      containers.podman.podman_container_info:
-        name: "{{ postgres_container_name }}"
-      register: postgres_container_status
+    - name: Verify postgres readiness and initialization
+      block:
+        - name: Check if postgres container is running after deployment
+          containers.podman.podman_container_info:
+            name: "{{ postgres_container_name }}"
+          register: postgres_container_status
+          no_log: true
 
-    - name: Wait for PostgreSQL to accept connections
-      containers.podman.podman_container_exec:
-        name: "{{ postgres_container_name }}"
-        command: pg_isready -U {{ postgres_user }}
-      register: pg_ready
-      retries: "{{ postgres_ready_retries }}"
-      delay: "{{ postgres_ready_delay }}"
-      until: pg_ready.rc == 0
-      changed_when: false
+        - name: Wait for PostgreSQL to accept connections
+          containers.podman.podman_container_exec:
+            name: "{{ postgres_container_name }}"
+            command: pg_isready -U {{ postgres_user }}
+          register: pg_ready
+          retries: "{{ postgres_ready_retries }}"
+          delay: "{{ postgres_ready_delay }}"
+          until: pg_ready.rc == 0
+          changed_when: false
+          no_log: true
 
-    - name: Create temporary directory for initialization script
-      ansible.builtin.tempfile:
-        state: directory
-        suffix: _postgres_init
-      register: temp_init_dir
+        - name: Create temporary directory for initialization script
+          ansible.builtin.tempfile:
+            state: directory
+            suffix: _postgres_init
+          register: temp_init_dir
 
-    - name: Generate database initialization script
-      ansible.builtin.template:
-        src: init_build_stream_db.sql.j2
-        dest: "{{ temp_init_dir.path }}/init_build_stream_db.sql"
-        mode: "0644"
+        - name: Generate database initialization script
+          ansible.builtin.template:
+            src: init_build_stream_db.sql.j2
+            dest: "{{ temp_init_dir.path }}/init_build_stream_db.sql"
+            mode: "0644"
 
-    - name: Check if build_stream_db exists
-      containers.podman.podman_container_exec:
-        name: "{{ postgres_container_name }}"
-        command: psql -U {{ postgres_user }} -d {{ postgres_db_name }} -tAc "SELECT 1"
-      register: db_exists_check
-      changed_when: false
-      failed_when: false
+        - name: Check if build_stream_db exists
+          containers.podman.podman_container_exec:
+            name: "{{ postgres_container_name }}"
+            command: psql -U {{ postgres_user }} -d {{ postgres_db_name }} -tAc "SELECT 1"
+          register: db_exists_check
+          changed_when: false
+          failed_when: false
+          no_log: true
 
-    - name: Create build_stream_db database if it doesn't exist
-      containers.podman.podman_container_exec:
-        name: "{{ postgres_container_name }}"
-        command: createdb -U {{ postgres_user }} {{ postgres_db_name }}
-      when: db_exists_check.rc != 0
-      register: db_create_result
-      changed_when: db_create_result.rc == 0
-      failed_when: db_create_result.rc != 0 and 'already exists' not in db_create_result.stderr
+        - name: Create build_stream_db database if it doesn't exist
+          containers.podman.podman_container_exec:
+            name: "{{ postgres_container_name }}"
+            command: createdb -U {{ postgres_user }} {{ postgres_db_name }}
+          when: db_exists_check.rc != 0
+          register: db_create_result
+          changed_when: db_create_result.rc == 0
+          failed_when: db_create_result.rc != 0 and 'already exists' not in db_create_result.stderr
+          no_log: true
 
-    - name: Copy initialization script to postgres container
-      ansible.builtin.command:
-        cmd: podman cp "{{ temp_init_dir.path }}/init_build_stream_db.sql" "{{ postgres_container_name }}:/tmp/init_build_stream_db.sql"
-      changed_when: true
+        - name: Copy initialization script to postgres container
+          ansible.builtin.command:
+            cmd: podman cp "{{ temp_init_dir.path }}/init_build_stream_db.sql" "{{ postgres_container_name }}:/tmp/init_build_stream_db.sql"
+          changed_when: true
 
-    - name: Set up database schema permissions
-      containers.podman.podman_container_exec:
-        name: "{{ postgres_container_name }}"
-        command: psql -U {{ postgres_user }} -d {{ postgres_db_name }} -f /tmp/init_build_stream_db.sql
-      register: db_init_result
-      changed_when: false
+        - name: Set up database schema permissions
+          containers.podman.podman_container_exec:
+            name: "{{ postgres_container_name }}"
+            command: psql -U {{ postgres_user }} -d {{ postgres_db_name }} -f /tmp/init_build_stream_db.sql
+          register: db_init_result
+          changed_when: false
+          no_log: true
 
-    - name: Display database initialization result
-      ansible.builtin.debug:
-        msg: "{{ db_init_result.stdout_lines }}"
-        verbosity: 2
+        - name: Display database initialization result
+          ansible.builtin.debug:
+            msg: "{{ db_init_result.stdout_lines }}"
+            verbosity: 2
 
-    - name: Remove initialization script from container
-      containers.podman.podman_container_exec:
-        name: "{{ postgres_container_name }}"
-        command: rm -f /tmp/init_build_stream_db.sql
-      changed_when: false
-      failed_when: false
+        - name: Remove initialization script from container
+          containers.podman.podman_container_exec:
+            name: "{{ postgres_container_name }}"
+            command: rm -f /tmp/init_build_stream_db.sql
+          changed_when: false
+
+      rescue:
+        - name: Postgres | rescue | cleanup on failure
+          ansible.builtin.fail:
+            msg: "{{ postgres_container_failure_msg }}"
 
     - name: Remove temporary initialization directory
       ansible.builtin.file:

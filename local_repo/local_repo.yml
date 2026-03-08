@@ -76,6 +76,7 @@
     - name: Set cluster OS version
       ansible.builtin.set_fact:
         cluster_os_version: "{{ software_config.cluster_os_version }}"
+        cluster_os_type: "{{ software_config.cluster_os_type }}"
 
 - name: Check rhel subscription enabled or not
   hosts: oim
