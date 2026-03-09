@@ -56,7 +56,6 @@
             path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_oauth_credentials.yml"
             regexp: 'oauth_clients:\n(?:[ ]{2,}.*\n)*\n?'
             replace: ''
-            backup: true
           register: oauth_removal_result
           failed_when: false
 
