@@ -70,6 +70,8 @@ omnia_credentials:
   gitlab:
     mandatory:
       - { password: gitlab_root_password }
+    optional:
+      - { username: docker_username, password: docker_password }
   prepare_oim:
     optional:
       - { username: docker_username, password: docker_password }

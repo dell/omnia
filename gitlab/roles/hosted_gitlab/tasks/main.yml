@@ -50,6 +50,9 @@
 - name: Push CI/CD files to repository
   ansible.builtin.include_tasks: push_ci_files.yml
 
+- name: Podman login to Docker registry
+  ansible.builtin.include_tasks: podman_login.yml
+
 - name: Deploy GitLab Runner container
   ansible.builtin.include_tasks: deploy_runner.yml
 
