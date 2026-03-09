@@ -1,8 +1,8 @@
 ---
 - name: Podman login
   ansible.builtin.command: >-
-    podman login docker.io 
-    -u {{ hostvars['localhost']['docker_username'] }} 
+    podman login docker.io
+    -u {{ hostvars['localhost']['docker_username'] }}
     -p {{ hostvars['localhost']['docker_password'] }}
   changed_when: true
   register: podman_login_output
