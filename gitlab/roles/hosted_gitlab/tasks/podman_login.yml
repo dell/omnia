@@ -1,10 +1,9 @@
 ---
-- name: Debug - Show login command (without password)
-  ansible.builtin.debug:
-    msg: "Attempting podman login to docker.io with username: {{ docker_username | default('NOT_SET') }}"
-
 - name: Podman login
-  ansible.builtin.command: "{{ login_cmd }}"
+  ansible.builtin.command: >-
+    podman login docker.io 
+    -u {{ hostvars['localhost']['docker_username'] }} 
+    -p {{ hostvars['localhost']['docker_password'] }}
   changed_when: true
   register: podman_login_output
   retries: "{{ retry_count }}"
@@ -12,18 +11,6 @@
   until: podman_login_output.rc == 0
   failed_when: false
   no_log: true
-
-- name: Debug - Show login result (without sensitive data)
-  ansible.builtin.debug:
-    msg: "Podman login RC: {{ podman_login_output.rc }}, Stderr exists: {{ podman_login_output.stderr is defined and podman_login_output.stderr | length > 0 }}"
-  when: podman_login_output is defined
-
-- name: Debug - Show actual error (TEMPORARY - REMOVE AFTER DEBUGGING)
-  ansible.builtin.debug:
-    msg: "PODMAN LOGIN FAILED - RC: {{ podman_login_output.rc }}, STDERR: {{ podman_login_output.stderr | default('NO_STDERR') }}, STDOUT: {{ podman_login_output.stdout | default('NO_STDOUT') }}"
-  when: 
-    - podman_login_output is defined
-    - podman_login_output.rc != 0
 
 - name: Podman login check
   ansible.builtin.fail:
