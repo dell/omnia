@@ -83,6 +83,19 @@
       when:
         - ctld_state[ctld] is true
 
+    - name: Undrain if any nodes are drain
+      ansible.builtin.command:
+        cmd: |
+          for drained_node in $(sinfo --states=drain,draining,down --noheader -o "%N"); do
+              scontrol update NodeName=$drained_node State=RESUME
+          done
+      changed_when: scontrol_node_resume.rc == 0
+      failed_when: false
+      register: scontrol_node_resume
+      delegate_to: "{{ ctld }}"
+      when:
+        - ctld_state[ctld] is true
+
   rescue:
     - name: Fail if slurmctld is not running on any host
       ansible.builtin.debug:

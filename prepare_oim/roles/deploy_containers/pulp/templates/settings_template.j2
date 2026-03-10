@@ -11,4 +11,5 @@ TOKEN_AUTH_DISABLED=True
 {% endfor -%}
 {% set random_key = ''.join(random_key) -%}
 SECRET_KEY='{{ random_key }}'
-REMOTE_CONTENT_DOWNLOAD_TIMEOUT=2700
+import aiohttp
+aiohttp.client.DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=7200, sock_connect=600, sock_read=600)

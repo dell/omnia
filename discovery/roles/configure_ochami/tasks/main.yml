@@ -13,6 +13,11 @@
 # limitations under the License.
 ---
 
+- name: Refresh SMD access token before ochami operations
+  ansible.builtin.include_tasks: "{{ role_path }}/../../../common/tasks/common/openchami_auth.yml"
+  vars:
+    oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
 - name: Configure the ochami
   environment: "{{ hostvars['oim']['ochami_env'] }}"
   block:
