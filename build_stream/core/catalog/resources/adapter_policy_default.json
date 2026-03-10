@@ -133,7 +133,22 @@
               "filter": {
                 "type": "allowlist",
                 "field": "package",
-                "values": ["openmpi", "pmix-devel", "munge-devel", "gcc-c++", "make"],
+                "values": ["openmpi", "gcc-c++", "make"],
+                "case_sensitive": false
+              }
+            }
+          ]
+        },
+        {
+          "source_file": "functional_layer.json",
+          "pulls": [
+            {
+              "source_key": "slurm_control_node_x86_64",
+              "target_key": "openmpi",
+              "filter": {
+                "type": "allowlist",
+                "field": "package",
+                "values": ["pmix-devel", "munge-devel"],
                 "case_sensitive": false
               }
             }

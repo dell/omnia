@@ -665,7 +665,10 @@ def process_target_spec(
             packages = apply_filter(packages, source_data, source_key, filter_config)
             packages = [transform_package(pkg, pull_transform) for pkg in packages]
 
-            target_roles[target_key] = packages
+            if target_key in target_roles:
+                target_roles[target_key].extend(packages)
+            else:
+                target_roles[target_key] = packages
 
     for derived in target_spec.get(schema.DERIVED, []) or []:
         derived_key = derived.get(schema.TARGET_KEY)

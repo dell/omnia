@@ -142,9 +142,11 @@
           "package_id_11",
           "package_id_12",
           "package_id_13",
+          "package_id_2",
           "package_id_3",
           "package_id_4",
           "package_id_5",
+          "package_id_6",
           "package_id_7",
           "package_id_73",
           "package_id_74",
@@ -340,13 +342,18 @@
           }
         ],
         "Architecture": [
-          "aarch64"
+          "aarch64",
+          "x86_64"
         ],
         "Type": "rpm",
         "Sources": [
           {
             "Architecture": "aarch64",
             "RepoName": "aarch64_codeready-builder"
+          },
+          {
+            "Architecture": "x86_64",
+            "RepoName": "x86_64_codeready-builder"
           }
         ]
       },
