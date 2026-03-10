@@ -95,6 +95,52 @@
         }
       ]
     },
+    "ucx.json": {
+      "transform": {
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
+      },
+      "sources": [
+        {
+          "source_file": "base_os.json",
+          "pulls": [
+            {
+              "source_key": "Base OS",
+              "target_key": "ucx",
+              "filter": {
+                "type": "allowlist",
+                "field": "package",
+                "values": ["ucx", "gcc-c++", "make"],
+                "case_sensitive": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "openmpi.json": {
+      "transform": {
+        "exclude_fields": ["architecture"],
+        "rename_fields": {"uri": "url"}
+      },
+      "sources": [
+        {
+          "source_file": "base_os.json",
+          "pulls": [
+            {
+              "source_key": "Base OS",
+              "target_key": "openmpi",
+              "filter": {
+                "type": "allowlist",
+                "field": "package",
+                "values": ["openmpi", "pmix-devel", "munge-devel", "gcc-c++", "make"],
+                "case_sensitive": false
+              }
+            }
+          ]
+        }
+      ]
+    },
     "service_k8s.json": {
       "conditions": {
         "architectures": ["x86_64"]

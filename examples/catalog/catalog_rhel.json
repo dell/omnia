@@ -275,7 +275,9 @@
           "os_package_id_93",
           "os_package_id_94",
           "os_package_id_95",
-          "os_package_id_96"
+          "os_package_id_96",
+          "os_package_id_97",
+          "os_package_id_98"
         ]
       }
     ],
@@ -429,13 +431,18 @@
           }
         ],
         "Architecture": [
-          "aarch64"
+          "aarch64",
+          "x86_64"
         ],
         "Type": "rpm",
         "Sources": [
           {
             "Architecture": "aarch64",
             "RepoName": "aarch64_appstream"
+          },
+          {
+            "Architecture": "x86_64",
+            "RepoName": "x86_64_appstream"
           }
         ]
       },
@@ -3972,6 +3979,56 @@
         "Type": "image",
         "Tag": "1.0",
         "Version": "1.0"
+      },
+      "os_package_id_97": {
+        "Name": "ucx",
+        "SupportedOS": [
+          {
+            "Name": "RHEL",
+            "Version": "10.0"
+          }
+        ],
+        "Architecture": [
+          "aarch64",
+          "x86_64"
+        ],
+        "Type": "tarball",
+        "Version": "1.19.0",
+        "Sources": [
+          {
+            "Architecture": "aarch64",
+            "Uri": "https://github.com/openucx/ucx/releases/download/v1.19.0/ucx-1.19.0.tar.gz"
+          },
+          {
+            "Architecture": "x86_64",
+            "Uri": "https://github.com/openucx/ucx/releases/download/v1.19.0/ucx-1.19.0.tar.gz"
+          }
+        ]
+      },
+      "os_package_id_98": {
+        "Name": "openmpi",
+        "SupportedOS": [
+          {
+            "Name": "RHEL",
+            "Version": "10.0"
+          }
+        ],
+        "Architecture": [
+          "aarch64",
+          "x86_64"
+        ],
+        "Type": "tarball",
+        "Version": "5.0.8",
+        "Sources": [
+          {
+            "Architecture": "aarch64",
+            "Uri": "https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.8.tar.gz"
+          },
+          {
+            "Architecture": "x86_64",
+            "Uri": "https://download.open-mpi.org/release/open-mpi/v5.0/openmpi-5.0.8.tar.gz"
+          }
+        ]
       }
     },
     "Miscellaneous": [],

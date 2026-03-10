@@ -128,6 +128,35 @@ def _collect_non_empty_subgroups(
     ]
 
 
+def _extract_version_from_target_config(
+    target_name: str,
+    target_data: Dict[str, Dict]
+) -> Optional[str]:
+    """Extract version from target config package.
+    
+    Args:
+        target_name: Name of the target (e.g., "ucx", "openmpi")
+        target_data: Target configuration data
+        
+    Returns:
+        Version string if found, None otherwise
+    """
+    if target_name not in target_data:
+        return None
+        
+    # Get the cluster packages for this target
+    cluster_data = target_data[target_name].get(schema.CLUSTER, [])
+    if not cluster_data:
+        return None
+        
+    # Find the main package (same name as target)
+    for pkg in cluster_data:
+        if pkg.get("package") == target_name:
+            return pkg.get("version")
+    
+    return None
+
+
 def generate_software_config(
     output_dir: str,
     os_family: str,
@@ -168,6 +197,18 @@ def generate_software_config(
             entry["version"] = _K8S_VERSION
         elif "csi" in target_name:
             entry["version"] = _CSI_VERSION
+        elif target_name in ("ucx", "openmpi"):
+            # Extract version from target config for UCX and OpenMPI
+            version = None
+            for arch in ("x86_64", "aarch64"):
+                arch_configs = all_arch_target_configs.get(arch, {})
+                target_data = arch_configs.get(target_file)
+                if target_data:
+                    version = _extract_version_from_target_config(target_name, target_data)
+                    if version:
+                        break
+            if version:
+                entry["version"] = version
         entry["arch"] = supported_arches
         softwares.append(entry)
 
@@ -262,9 +303,10 @@ def transform_package(pkg: Dict, transform_config: Optional[Dict]) -> Dict:
 
     result = pkg.copy()
 
-    # Auto-exclude versions for non-git packages
+    # Auto-exclude versions for non-git packages, except UCX and OpenMPI
     package_type = result.get("type")
-    if package_type != "git":
+    package_name = result.get("package")
+    if package_type != "git" and package_name not in ("ucx", "openmpi"):
         result.pop("version", None)
 
     exclude_fields = transform_config.get(schema.EXCLUDE_FIELDS, [])
