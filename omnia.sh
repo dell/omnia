@@ -1105,12 +1105,6 @@ setup_container() {
         selinux_option=""
     fi
 
-    # Check if RHEL subscription is enabled
-    subscription_enabled=false
-    if [ -d "/etc/pki/entitlement" ] && [ "$(ls -A /etc/pki/entitlement/*.pem 2>/dev/null)" ]; then
-        subscription_enabled=true
-    fi
-
     # --- Generate Quadlet container file ---
     cat > /etc/containers/systemd/${container_name}.container <<EOF
 # ===============================================================
@@ -1135,17 +1129,6 @@ Volume=${omnia_path}/omnia/ssh_config/.ssh:/root/.ssh${selinux_option}
 Volume=${omnia_path}/omnia/log/core/container:/var/log${selinux_option}
 Volume=${omnia_path}/omnia/hosts:/etc/hosts${selinux_option}
 Volume=${omnia_path}/omnia/pulp/pulp_ha:/root/.config/pulp${selinux_option}
-EOF
-
-    # Add subscription volume mounts only if subscription is enabled
-    if [ "$subscription_enabled" = true ]; then
-        cat >> /etc/containers/systemd/${container_name}.container <<EOF
-Volume=/etc/pki/entitlement:/etc/pki/entitlement:ro,z
-Volume=/etc/yum.repos.d/redhat.repo:/etc/yum.repos.d/redhat.repo:ro,z
-EOF
-    fi
-
-    cat >> /etc/containers/systemd/${container_name}.container <<EOF
 
 [Service]
 Restart=always
@@ -1531,13 +1514,6 @@ phase1_validate() {
 
     echo "[INFO] [ORCHESTRATOR] Phase 1: Pre-Upgrade Validation"
 
-    if [ "$(id -u)" -ne 0 ]; then
-        if ! sudo -n true >/dev/null 2>&1; then
-            echo "[ERROR] [ORCHESTRATOR] Prerequisite failed: run as root or configure passwordless sudo"
-            return 1
-        fi
-    fi
-
     if ! podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
         echo "[ERROR] [ORCHESTRATOR] Prerequisite failed: omnia_core container is not running"
         display_cleanup_instructions
@@ -1547,12 +1523,14 @@ phase1_validate() {
     core_config=$(podman exec omnia_core /bin/bash -c 'cat /opt/omnia/.data/oim_metadata.yml' 2>/dev/null)
     if [ -z "$core_config" ]; then
         echo "[ERROR] [ORCHESTRATOR] Unable to read oim_metadata.yml from omnia_core container"
+        display_cleanup_instructions
         return 1
     fi
 
     previous_omnia_version=$(echo "$core_config" | grep "^omnia_version:" | cut -d':' -f2 | tr -d ' \t\n\r')
     if [ -z "$previous_omnia_version" ]; then
         echo "[ERROR] [ORCHESTRATOR] omnia_version not found in oim_metadata.yml"
+        display_cleanup_instructions
         return 1
     fi
 
@@ -1773,8 +1751,7 @@ phase4_container_swap() {
     if [ ! -f "$quadlet_file" ]; then
         echo "[ERROR] [ORCHESTRATOR] Phase 4.3 failed: Quadlet file not found: $quadlet_file"
         echo "[ERROR] [ORCHESTRATOR] Upgrade failed: Quadlet configuration file missing"
-        echo "[ERROR] [ORCHESTRATOR] Initiating rollback to restore container..."
-        rollback_omnia_core
+        display_cleanup_instructions
         return 1
     fi
 
@@ -1872,6 +1849,14 @@ phase4_container_swap() {
 }
 
 upgrade_omnia_core() {
+    # FIRST THING: Check if user has root privileges
+    if [ "$(id -u)" -ne 0 ]; then
+        echo -e "${RED}ERROR: Upgrade requires root or sudo privileges${NC}"
+        echo -e "${YELLOW}Please run this script with sudo or login as root user.${NC}"
+        echo -e "${YELLOW}Example: sudo $0 --upgrade${NC}"
+        exit 1
+    fi
+    
     echo -e "${BLUE}=================== Omnia Core Upgrade ====================${NC}"
     echo -e "${BLUE}This script will upgrade Omnia core container.${NC}"
     echo -e "${BLUE}Current version will be backed up and upgraded to target version.${NC}"
@@ -1882,6 +1867,7 @@ upgrade_omnia_core() {
     if [ -z "$OMNIA_VERSION" ]; then
         echo -e "${RED}ERROR: Could not determine current Omnia version${NC}"
         echo -e "${YELLOW}Please ensure omnia_core container is running and metadata is accessible${NC}"
+        display_cleanup_instructions
         exit 1
     fi
     
@@ -1889,6 +1875,7 @@ upgrade_omnia_core() {
     if [[ "$OMNIA_VERSION" == *-rc* ]]; then
         echo -e "${RED}Upgrade is not supported for release-candidate builds ($OMNIA_VERSION).${NC}"
         echo -e "${YELLOW}Please install a GA version before attempting an upgrade.${NC}"
+        display_cleanup_instructions
         exit 1
     fi
     
@@ -2203,6 +2190,14 @@ display_cleanup_instructions() {
 }
 
 rollback_omnia_core() {
+    # FIRST THING: Check if user has root privileges
+    if [ "$(id -u)" -ne 0 ]; then
+        echo -e "${RED}ERROR: Upgrade requires root or sudo privileges${NC}"
+        echo -e "${YELLOW}Please run this script with sudo or login as root user.${NC}"
+        echo -e "${YELLOW}Example: sudo $0 --rollback${NC}"
+        exit 1
+    fi
+    
     echo -e "${GREEN}================================================================================${NC}"
     echo -e "${GREEN}                         OMNIA CORE ROLLBACK${NC}"
     echo -e "${GREEN}================================================================================${NC}"
@@ -2337,7 +2332,8 @@ rollback_omnia_core() {
     done < <(podman exec -u root omnia_core find /opt/omnia/backups/upgrade -maxdepth 1 -type d -name "version_${selected_version}*" 2>/dev/null | sort -r)
     
     if [ ${#backup_dirs[@]} -eq 0 ]; then
-        echo -e "${RED}ERROR: No backup directories found for version $selected_version.${NC}"
+        echo -e "${RED}ERROR: Rollback failed from version $current_version to version $selected_version because backup of version $selected_version is missing.${NC}"
+        echo -e "${YELLOW}No backup directories found for version $selected_version.${NC}"
         exit 1
     fi
     

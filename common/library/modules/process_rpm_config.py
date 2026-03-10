@@ -29,7 +29,6 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.local_repo.standard_logger import setup_standard_logger
 from ansible.module_utils.local_repo.config import (
     pulp_rpm_commands,
-    STANDARD_LOG_FILE_PATH,
     AGGREGATED_REPO_NAME_TEMPLATE,
     AGGREGATED_REMOTE_NAME_TEMPLATE,
     AGGREGATED_DISTRIBUTION_NAME_TEMPLATE,
@@ -615,14 +614,15 @@ def create_publication(repo,log, resync_repos=None):
     finally:
         log.info("Completed publication process for repository '%s'", repo.get("package", "unknown"))
 
-def create_distribution(repo, log, resync_repos=None):
+def create_distribution(repo, log, resync_repos=None, cluster_os_version="10.0"):
     """
     Create or update a distribution for an RPM repository.
 
     Args:
         repo (dict): A dictionary containing the repository information.
         log (logging.Logger): Logger instance for logging the process and errors.
-        resync_repos (str/list, optional): Controls which repos to process. 
+        resync_repos (str/list, optional): Controls which repos to process.
+        cluster_os_version (str): The cluster OS version (e.g., '10.0', '10.1').
     Returns:
         bool: True if the distribution was created or updated successfully, False otherwise.
     """
@@ -634,10 +634,10 @@ def create_distribution(repo, log, resync_repos=None):
         sw_arch = repo.get("sw_arch")
 
         if version != "null":
-            base_path = f" opt/omnia/offline_repo/cluster/{sw_arch}/rhel/10.0/rpms/{package_name}/{version}"
+            base_path = f" opt/omnia/offline_repo/cluster/{sw_arch}/rhel/{cluster_os_version}/rpms/{package_name}/{version}"
             repo_name = f"{repo_name}_{version}"
         else:
-            base_path = f"opt/omnia/offline_repo/cluster/{sw_arch}/rhel/10.0/rpms/{package_name}"
+            base_path = f"opt/omnia/offline_repo/cluster/{sw_arch}/rhel/{cluster_os_version}/rpms/{package_name}"
 
         show_command = pulp_rpm_commands["check_distribution"] % repo_name
         create_command = pulp_rpm_commands["distribute_repository"] % (repo_name, base_path, repo_name)
@@ -1117,7 +1117,7 @@ def create_aggregated_publication(repo_name, log):
         return False, None
 
 
-def create_aggregated_distribution(arch, pub_href, log):
+def create_aggregated_distribution(arch, pub_href, log, cluster_os_version="10.0"):
     """
     Create or update the distribution for the aggregated repository.
 
@@ -1125,13 +1125,14 @@ def create_aggregated_distribution(arch, pub_href, log):
         arch (str): Architecture (x86_64 or aarch64).
         pub_href (str): Publication href to associate with distribution.
         log (logging.Logger): Logger instance.
+        cluster_os_version (str): The cluster OS version (e.g., '10.0', '10.1').
 
     Returns:
         tuple: (success, distribution_name)
     """
     repo_name = AGGREGATED_REPO_NAME_TEMPLATE.format(arch=arch)
     dist_name = AGGREGATED_DISTRIBUTION_NAME_TEMPLATE.format(arch=arch)
-    base_path = AGGREGATED_BASE_PATH_TEMPLATE.format(arch=arch)
+    base_path = AGGREGATED_BASE_PATH_TEMPLATE.format(arch=arch, os_version=cluster_os_version)
 
     log.info(f"Creating/updating distribution '{dist_name}' with base_path '{base_path}'")
 
@@ -1174,7 +1175,7 @@ def create_aggregated_distribution(arch, pub_href, log):
     return True, dist_name
 
 
-def manage_aggregated_repos(additional_repos_config, log):
+def manage_aggregated_repos(additional_repos_config, log, cluster_os_version="10.0"):
     """
     Manage aggregated repositories for additional_repos_* entries.
     This function handles the complete workflow:
@@ -1188,6 +1189,7 @@ def manage_aggregated_repos(additional_repos_config, log):
     Args:
         additional_repos_config (dict): Dictionary with arch as key and list of repo configs as value.
         log (logging.Logger): Logger instance.
+        cluster_os_version (str): The cluster OS version (e.g., '10.0', '10.1').
 
     Returns:
         tuple: (success, error_message)
@@ -1239,7 +1241,7 @@ def manage_aggregated_repos(additional_repos_config, log):
 
         # Step 6: Create/update distribution
         log.info(f"Step 6: Creating/updating distribution for {arch}")
-        success, _ = create_aggregated_distribution(arch, pub_href, log)
+        success, _ = create_aggregated_distribution(arch, pub_href, log, cluster_os_version)
         if not success:
             return False, f"Failed to create distribution for aggregated repo {arch}"
 
@@ -1248,7 +1250,7 @@ def manage_aggregated_repos(additional_repos_config, log):
     log.info("Completed management of all aggregated repositories")
     return True, "success"
 
-def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_repos=None):
+def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_repos=None, cluster_os_version="10.0"):
     """
     Manage RPM repositories using multiprocessing.
 
@@ -1261,6 +1263,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
             - None/empty: Skip already synced repos (default)
             - "all": Force resync all repos
             - list of repo names: Only sync specified repos
+        cluster_os_version (str): The cluster OS version (e.g., '10.0', '10.1').
     Returns:
         tuple: (bool, str) indicating success and a message
     """
@@ -1360,7 +1363,7 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     log.info("Step 5: Starting concurrent RPM distribution creation/update")
     log.info(f"Processing distribution for {len(repos_for_pub_dist)} repos")
     with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
-        result = pool.map(partial(create_distribution, log=log, resync_repos=resync_repos), repos_for_pub_dist)
+        result = pool.map(partial(create_distribution, log=log, resync_repos=resync_repos, cluster_os_version=cluster_os_version), repos_for_pub_dist)
     failed = [name for success, name in result if not success]
     if failed:
         log.error("Failed during distribution of RPM repository for: %s", ", ".join(failed))
@@ -1418,7 +1421,8 @@ def main():
         "additional_repos_config": {"type": "dict", "required": False, "default": None},
         "pulp_concurrency": {"type": "int", "required": False, "default": None},
         "sw_archs": {"type": "list", "required": False, "default": None},
-        "resync_repos": {"type": "raw", "required": False, "default": None}
+        "resync_repos": {"type": "raw", "required": False, "default": None},
+        "cluster_os_version": {"type": "str", "required": False, "default": "10.0"}
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=False)
@@ -1430,8 +1434,10 @@ def main():
     pulp_concurrency = module.params["pulp_concurrency"]
     sw_archs = module.params["sw_archs"]
     resync_repos = module.params["resync_repos"]
+    cluster_os_version = module.params["cluster_os_version"]
 
     log = setup_standard_logger(log_dir)
+    standard_log_path = os.path.join(log_dir, "standard.log")
 
     # Optional override from Ansible (keep config.py defaults if unset)
     global PULP_CONCURRENCY
@@ -1450,17 +1456,17 @@ def main():
     log.info(f"Architectures to process: {sw_archs}")
     log.info(f"Resync repos setting: {resync_repos}")
     # Call the function to manage RPM repositories
-    result, output = manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs, resync_repos)
+    result, output = manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs, resync_repos, cluster_os_version)
 
     if result is False:
-        module.fail_json(msg=f"Error {output}, check {STANDARD_LOG_FILE_PATH}")
+        module.fail_json(msg=f"Error {output}, check {standard_log_path}")
 
     # Handle aggregated repos if additional_repos_config is provided
     if additional_repos_config:
         log.info("Processing additional_repos aggregated repositories")
-        result, output = manage_aggregated_repos(additional_repos_config, log)
+        result, output = manage_aggregated_repos(additional_repos_config, log, cluster_os_version)
         if result is False:
-            module.fail_json(msg=f"Error in aggregated repos: {output}, check {STANDARD_LOG_FILE_PATH}")
+            module.fail_json(msg=f"Error in aggregated repos: {output}, check {standard_log_path}")
         log.info("Successfully processed additional_repos aggregated repositories")
 
     module.exit_json(changed=True, result=output)

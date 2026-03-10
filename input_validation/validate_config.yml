@@ -32,6 +32,82 @@
     - telemetry
     - additional_software
 
+- name: Create oim group
+  when:
+    - not oim_group_status | default(false) | bool
+    - "'local_repo' in (omnia_run_tags | default(ansible_run_tags) | default([]))"
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    oim_group: true
+  tags:
+    - local_repo
+
+- name: Local repo subscription validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - local_repo
+  tasks:
+    - name: Run subscription validation tasks
+      when: "'local_repo' in (omnia_run_tags | default(ansible_run_tags) | default([]))"
+      block:
+        - name: Include metadata vars
+          ansible.builtin.include_vars: "/opt/omnia/.data/oim_metadata.yml"
+          no_log: true
+
+        - name: Validate JSON before loading
+          ansible.builtin.command: "jq . {{ input_project_dir }}/software_config.json"
+          register: json_check
+          changed_when: false
+          failed_when: false
+          ignore_errors: true
+          no_log: true
+
+        - name: Fail if JSON is invalid
+          ansible.builtin.fail:
+            msg: |
+              JSON validation failed for software_config.json.
+              File: {{ input_project_dir }}/software_config.json
+              {{ json_check.stderr | default('Unknown jq error') }}
+              Please fix the JSON syntax
+          when: json_check.rc != 0
+
+        - name: Load software_config JSON
+          ansible.builtin.set_fact:
+            software_config: "{{ lookup('file', input_project_dir + '/software_config.json') | from_json }}"
+
+        - name: Set cluster OS version
+          ansible.builtin.set_fact:
+            cluster_os_version: "{{ software_config.cluster_os_version }}"
+            cluster_os_type: "{{ software_config.cluster_os_type }}"
+
+- name: Check RHEL subscription on OIM
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags:
+    - local_repo
+  tasks:
+    - name: Check rhel subscription enabled or not
+      ansible.builtin.include_role:
+        name: validate_subscription
+        tasks_from: check_rhel_subscription.yml
+      when: "'local_repo' in (hostvars['localhost']['omnia_run_tags'] | default(ansible_run_tags) | default([]))"
+
+- name: Configure RHEL repository URLs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - local_repo
+  tasks:
+    - name: Configure RHEL os URLS for codeready-builder baseoc appstream repositories
+      ansible.builtin.include_role:
+        name: validate_subscription
+        tasks_from: configure_rhel_os_urls.yml
+      when: "'local_repo' in (omnia_run_tags | default(ansible_run_tags) | default([]))"
+
 - name: Validate omnia input config
   hosts: localhost
   connection: local

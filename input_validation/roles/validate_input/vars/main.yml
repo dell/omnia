@@ -22,5 +22,11 @@ input_validate_tags: "{{ omnia_run_tags | default([]) | difference(['all']) if (
   else omnia_run_tags | default([]) }}"
 
 messages:
-  validation_success: "Successfully validated Omnia input config file(s)"
-  validation_error: "Input validation failed. Please check the validation output above for detailed error information."
+  validation_success: >-
+    Successfully validated Omnia input config file(s).
+    Note: There might be warnings - please review the log file at
+    /opt/omnia/log/core/playbooks/validation_omnia_{{ project_name }}.log
+    for details.
+  validation_error: >-
+    Input validation failed. Please check the validation output above
+    for detailed error information.

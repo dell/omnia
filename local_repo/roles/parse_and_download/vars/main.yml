@@ -32,7 +32,7 @@ user_json_file: "{{ project_input_path }}/software_config.json"
 omnia_credentials_yaml_path: "{{ project_input_path }}/omnia_config_credentials.yml"
 omnia_credentials_vault_path: "{{ project_input_path }}/.omnia_config_credentials_key"
 clean_rpms: true
-rpm_dir_path: "{{ repo_store_path }}/offline_repo/cluster/{{ item }}/rhel/10.0/rpm"
+rpm_dir_path: "{{ repo_store_path }}/offline_repo/cluster/{{ item }}/rhel/{{ cluster_os_version }}/rpm"
 localrepo_completion_msg1: |
   The playbook local_repo.yml has completed successfully.
   To build the node images, execute the appropriate playbook based on the target architecture:

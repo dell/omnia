@@ -43,7 +43,8 @@ def main():
         "localrepo_config_path": {"type": "str", "required": True},
         "output_file": {"type": "str", "required": True},
         "update_metadata": {"type": "bool", "default": False},
-        "ignore_keys": {"type": "list", "elements": "str", "default": ["lastrun_timestamp"]}
+        "ignore_keys": {"type": "list", "elements": "str", "default": ["lastrun_timestamp"]},
+        "sub_urls": {"type": "dict", "required": False, "default": {}}
     }
     module = AnsibleModule(
         argument_spec=argument_spec,
@@ -55,17 +56,19 @@ def main():
     output_file = module.params["output_file"]
     ignore_keys = module.params['ignore_keys']
     update_flag = module.params["update_metadata"]
+    sub_urls = module.params["sub_urls"] or None
 
     try:
         if not output_file or not Path(output_file).exists():
-            policy_result = handle_generate_metadata(sw_config,repo_data,output_file)
+            policy_result = handle_generate_metadata(sw_config,repo_data,output_file,sub_urls)
             module.exit_json(changed=True, policy=policy_result, msg="Metadata generated")
         else:
             if not update_flag:
                 policy_result = handle_generate_metadata(
                     sw_config,
                     repo_data,
-                    metadata_rerun_file_path
+                    metadata_rerun_file_path,
+                    sub_urls
                 )
 
                 compare_output = handle_compare_data(

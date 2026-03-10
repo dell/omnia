@@ -5,7 +5,7 @@
       { "package": "firewalld", "type": "rpm", "repo_name": "x86_64_baseos" },
       { "package": "python3-firewall", "type": "rpm", "repo_name": "x86_64_baseos" },      
       { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
-      { "package": "vim", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "vim-enhanced", "type": "rpm", "repo_name": "x86_64_appstream"},
       { "package": "fuse-overlayfs", "type": "rpm", "repo_name": "x86_64_appstream"},
       { "package": "podman", "type": "rpm", "repo_name": "x86_64_appstream"},
       { "package": "kubeadm-1.34.1", "type": "rpm", "repo_name": "kubernetes"},
@@ -53,7 +53,7 @@
       { "package": "quay.io/metallb/speaker", "tag": "v0.15.2", "type": "image" },
       { "package": "kubectl-1.34.1", "type": "rpm", "repo_name": "kubernetes"},
       { "package": "prettytable==3.14.0", "type": "pip_module" },
-      { "package": "python3.12", "type": "rpm", "repo_name": "x86_64_appstream" },
+      { "package": "python3-3.12.9", "type": "rpm", "repo_name": "x86_64_baseos" },
       { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
       { "package": "kubernetes==33.1.0", "type": "pip_module" },
       { "package": "PyMySQL==1.1.2", "type": "pip_module" }
@@ -89,7 +89,7 @@
 	    { "package": "nfs-subdir-external-provisioner-4.0.18", "type": "tarball", "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz" },
       { "package": "kubectl-1.34.1", "type": "rpm", "repo_name": "kubernetes"},
       { "package": "prettytable==3.14.0", "type": "pip_module" },
-      { "package": "python3.12", "type": "rpm", "repo_name": "x86_64_appstream" },
+      { "package": "python3-3.12.9", "type": "rpm", "repo_name": "x86_64_baseos" },
       { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
       { "package": "kubernetes==33.1.0", "type": "pip_module" },
       { "package": "PyMySQL==1.1.2", "type": "pip_module" }

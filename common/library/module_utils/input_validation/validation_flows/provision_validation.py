@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -753,8 +753,12 @@ def validate_provision_config(
     """
     errors = []
     software_config_file_path = create_file_path(input_file_path, file_names["software_config"])
-    with open(software_config_file_path, "r", encoding="utf-8") as f:
-        software_config_json = json.load(f)
+    try:
+        with open(software_config_file_path, "r", encoding="utf-8") as f:
+            software_config_json = json.load(f)
+    except json.JSONDecodeError as e:
+        # Return error with correct filename using proper format
+        return [create_error_msg("JSON syntax error", software_config_file_path, str(e))]
 
     # Call validate_software_config from common_validation
     software_errors = common_validation.validate_software_config(

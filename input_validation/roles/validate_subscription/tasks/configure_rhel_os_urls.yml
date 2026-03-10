@@ -24,6 +24,37 @@
     file: "{{ local_repo_config_file }}"
     name: local_config
 
+- name: Validate RHEL repository configuration when subscription is enabled
+  ansible.builtin.fail:
+    msg: |
+      ERROR: RHEL subscription is enabled, but '{{ invalid_vars | join("' and '") }}'
+      {{ 'are' if invalid_vars | length > 1 else 'is' }} defined in local_repo_config.yml.
+
+      When RHEL subscription is active:
+      - DO NOT use 'rhel_os_url_x86_64' or 'rhel_os_url_aarch64'
+      - These variables are only for non-subscription scenarios
+
+      To override or add repositories when subscription is enabled, use:
+      - 'rhel_subscription_repo_config_x86_64' for x86_64 architecture
+      - 'rhel_subscription_repo_config_aarch64' for aarch64 architecture
+
+      Please remove '{{ invalid_vars | join("' and '") }}' from local_repo_config.yml
+      or disable the RHEL subscription.
+  vars:
+    invalid_vars: >-
+      {{
+        (['rhel_os_url_x86_64'] if (local_config.rhel_os_url_x86_64 is defined
+          and local_config.rhel_os_url_x86_64 is not none
+          and local_config.rhel_os_url_x86_64 | length > 0) else [])
+        +
+        (['rhel_os_url_aarch64'] if (local_config.rhel_os_url_aarch64 is defined
+          and local_config.rhel_os_url_aarch64 is not none
+          and local_config.rhel_os_url_aarch64 | length > 0) else [])
+      }}
+  when:
+    - subscription_status_flag
+    - invalid_vars | length > 0
+
 - name: Load software_config.json
   ansible.builtin.include_vars:
     file: "{{ sw_config_json_path }}"

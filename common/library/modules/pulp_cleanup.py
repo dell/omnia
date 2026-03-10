@@ -29,6 +29,8 @@ import glob
 import json
 import shutil
 import subprocess
+import re
+import yaml
 from typing import Dict, List, Any, Tuple
 
 from ansible.module_utils.basic import AnsibleModule
@@ -223,7 +225,7 @@ def file_exists_in_status(name: str, base_path: str, logger) -> bool:
     """Check if file artifact exists in status files."""
     try:
         for arch in ARCH_SUFFIXES:
-            for status_file in glob.glob(f"{base_path}/{arch}/*/status.csv"):
+            for status_file in glob.glob(f"{base_path}/*/*/{arch}/*/status.csv"):
                 with open(status_file, 'r', encoding='utf-8') as f:
                     if name in f.read():
                         return True
@@ -325,6 +327,7 @@ def cleanup_container(user_input: str, base_path: str, logger) -> Dict[str, Any]
     # Check if input is already a Pulp repository name (from get_all_containers)
     if user_input.startswith('container_repo_'):
         pulp_name = user_input
+        repo_suffix = user_input[len('container_repo_'):]
     else:
         # Validate format
         is_valid, error_msg = validate_container_format(user_input)
@@ -334,6 +337,7 @@ def cleanup_container(user_input: str, base_path: str, logger) -> Dict[str, Any]
 
         # Convert to Pulp naming convention
         pulp_name = convert_to_pulp_container_name(user_input)
+        repo_suffix = pulp_name[len('container_repo_'):]
 
     # Check existence
     if not container_exists(pulp_name, logger):
@@ -350,6 +354,42 @@ def cleanup_container(user_input: str, base_path: str, logger) -> Dict[str, Any]
             for d in dists:
                 if d.get('name', '') == pulp_name:
                     run_cmd(pulp_container_commands["delete_distribution"] % d.get('name', ''), logger)
+
+        # Delete remote(s)
+        # Omnia creates container remotes as:
+        #   - remote_<image_sans_separators> (for standard images)
+        #   - user_remote_<image_sans_separators> (for user registries)
+        # where the suffix matches the container repo name after 'container_repo_'.
+        remote_candidates = [
+            f"remote_{repo_suffix}",
+            f"user_remote_{repo_suffix}",
+        ]
+
+        # Also try to discover any remotes that match this suffix (defensive)
+        remote_list = run_cmd(pulp_container_commands["list_remotes"], logger)
+        if remote_list["rc"] == 0:
+            remotes = safe_json_parse(remote_list["stdout"], default=[])
+            for r in remotes:
+                rname = r.get('name', '') if isinstance(r, dict) else ''
+                if not rname:
+                    continue
+                if rname.endswith(f"_{repo_suffix}") or rname in remote_candidates:
+                    remote_candidates.append(rname)
+
+        seen = set()
+        for remote_name in remote_candidates:
+            if not remote_name or remote_name in seen:
+                continue
+            seen.add(remote_name)
+            remote_result = run_cmd(
+                pulp_container_commands["delete_remote"] % remote_name, logger
+            )
+            if remote_result["rc"] == 0:
+                logger.info(f"Deleted container remote: {remote_name}")
+            else:
+                logger.warning(
+                    f"Could not delete container remote '{remote_name}': {remote_result['stderr']}"
+                )
 
         # Delete repository
         del_result = run_cmd(pulp_container_commands["delete_repository"] % pulp_name, logger)
@@ -819,7 +859,7 @@ def remove_rpms_from_repository(repo_name: str, base_path: str, logger) -> Dict[
     affected_software[target_arch] = []
     
     try:        
-        for status_file in glob.glob(f"{base_path}/{target_arch}/*/status.csv"):
+        for status_file in glob.glob(f"{base_path}/*/*/{target_arch}/*/status.csv"):
             rows = []
             removed = False
             has_repo_column = False
@@ -879,7 +919,7 @@ def remove_from_status_files(artifact_name: str, artifact_type: str, base_path: 
     try:
         for arch in ARCH_SUFFIXES:
             arch_affected = []
-            for status_file in glob.glob(f"{base_path}/{arch}/*/status.csv"):
+            for status_file in glob.glob(f"{base_path}/*/*/{arch}/*/status.csv"):
                 rows = []
                 removed = False
                 with open(status_file, 'r', encoding='utf-8') as f:
@@ -950,30 +990,27 @@ def mark_software_partial(affected_software, base_path: str, logger, artifact_ty
             if not software_names:
                 continue
 
-            software_file = f"{base_path}/{arch}/software.csv"
-            logger.info(f"Looking for software file: {software_file}")
-            if not os.path.exists(software_file):
-                logger.warning(f"Software file not found: {software_file}")
-                continue
+            for software_file in glob.glob(f"{base_path}/*/*/{arch}/software.csv"):
+                logger.info(f"Looking for software file: {software_file}")
 
-            rows = []
-            updated = False
-            with open(software_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                fieldnames = reader.fieldnames
-                for row in reader:
-                    if row.get('name') in software_names:
-                        row['status'] = 'partial'
-                        updated = True
-                        logger.info(f"Marked '{row.get('name')}' as partial in {arch}/software.csv ({artifact_type} cleanup)")
-                    rows.append(row)
+                rows = []
+                updated = False
+                with open(software_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    fieldnames = reader.fieldnames
+                    for row in reader:
+                        if row.get('name') in software_names:
+                            row['status'] = 'partial'
+                            updated = True
+                            logger.info(f"Marked '{row.get('name')}' as partial in {software_file} ({artifact_type} cleanup)")
+                        rows.append(row)
 
-            if fieldnames and rows and updated:
-                with open(software_file, 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(rows)
-                logger.info(f"Successfully wrote updated software.csv for {arch}")
+                if fieldnames and rows and updated:
+                    with open(software_file, 'w', newline='', encoding='utf-8') as f:
+                        writer = csv.DictWriter(f, fieldnames=fieldnames)
+                        writer.writeheader()
+                        writer.writerows(rows)
+                    logger.info(f"Successfully wrote updated {software_file}")
     except OSError as e:
         logger.error(f"Failed to update software.csv: {e}")
 
@@ -990,20 +1027,16 @@ def software_has_type(software_name: str, arch: str, base_path: str, logger, typ
     Returns:
         True if software has matching entries, False otherwise
     """
-    status_file = f"{base_path}/{arch}/{software_name}/status.csv"
-    if not os.path.exists(status_file):
-        return False
-
-    try:
-        with open(status_file, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                if row.get('type', '').lower() in type_values:
-                    return True
-        return False
-    except OSError as e:
-        logger.error(f"Error checking {type_values} for {software_name}: {e}")
-        return False
+    for status_file in glob.glob(f"{base_path}/*/*/{arch}/{software_name}/status.csv"):
+        try:
+            with open(status_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row.get('type', '').lower() in type_values:
+                        return True
+        except OSError as e:
+            logger.error(f"Error checking {type_values} for {software_name}: {e}")
+    return False
 
 
 def mark_all_software_partial_by_type(base_path: str, logger, type_values: tuple, type_label: str):
@@ -1020,35 +1053,31 @@ def mark_all_software_partial_by_type(base_path: str, logger, type_values: tuple
     logger.info(f"Marking software with {type_label} dependencies as partial")
     try:
         for arch in ARCH_SUFFIXES:
-            software_file = f"{base_path}/{arch}/software.csv"
-            logger.info(f"Processing software file: {software_file}")
+            for software_file in glob.glob(f"{base_path}/*/*/{arch}/software.csv"):
+                logger.info(f"Processing software file: {software_file}")
 
-            if not os.path.exists(software_file):
-                logger.info(f"Software file not found: {software_file}")
-                continue
+                rows = []
+                updated = False
+                with open(software_file, 'r', encoding='utf-8') as f:
+                    reader = csv.DictReader(f)
+                    fieldnames = reader.fieldnames
+                    for row in reader:
+                        software_name = row.get('name', '')
+                        if row.get('status') == 'success':
+                            if software_has_type(software_name, arch, base_path, logger, type_values):
+                                row['status'] = 'partial'
+                                updated = True
+                                logger.info(f"Marked '{software_name}' as partial in {software_file} (has {type_label} deps)")
+                            else:
+                                logger.info(f"Skipping '{software_name}' - no {type_label} dependencies")
+                        rows.append(row)
 
-            rows = []
-            updated = False
-            with open(software_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                fieldnames = reader.fieldnames
-                for row in reader:
-                    software_name = row.get('name', '')
-                    if row.get('status') == 'success':
-                        if software_has_type(software_name, arch, base_path, logger, type_values):
-                            row['status'] = 'partial'
-                            updated = True
-                            logger.info(f"Marked '{software_name}' as partial in {arch}/software.csv (has {type_label} deps)")
-                        else:
-                            logger.info(f"Skipping '{software_name}' - no {type_label} dependencies")
-                    rows.append(row)
-
-            if fieldnames and rows and updated:
-                with open(software_file, 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(rows)
-                logger.info(f"Successfully updated {software_file}")
+                if fieldnames and rows and updated:
+                    with open(software_file, 'w', newline='', encoding='utf-8') as f:
+                        writer = csv.DictWriter(f, fieldnames=fieldnames)
+                        writer.writeheader()
+                        writer.writerows(rows)
+                    logger.info(f"Successfully updated {software_file}")
     except OSError as e:
         logger.error(f"Failed to mark all software as partial ({type_label}): {e}")
 
@@ -1072,7 +1101,7 @@ def remove_all_from_status_files(artifact_type: str, base_path: str, logger) -> 
     try:
         for arch in ARCH_SUFFIXES:
             arch_affected = []
-            for status_file in glob.glob(f"{base_path}/{arch}/*/status.csv"):
+            for status_file in glob.glob(f"{base_path}/*/*/{arch}/*/status.csv"):
                 rows = []
                 removed = False
                 with open(status_file, 'r', encoding='utf-8') as f:
@@ -1118,6 +1147,163 @@ def write_cleanup_status(results: List[Dict], base_path: str):
     return status_file
 
 
+def update_metadata_after_cleanup(cleaned_repos: List[str], metadata_file: str, logger,
+                                  cleanup_all: bool = False):
+    """Remove cleaned-up repository entries from localrepo_metadata.yml.
+
+    For each successfully cleaned repo, find and remove its policy entry
+    from the metadata file. Repo names in metadata are normalized
+    (hyphens replaced with underscores, suffixed with _policy).
+
+    When cleanup_all is True (i.e. cleanup_repos=all), the entire metadata
+    file is deleted.
+
+    Args:
+        cleaned_repos: List of repo names that were successfully deleted
+        metadata_file: Path to localrepo_metadata.yml
+        logger: Logger instance
+        cleanup_all: If True, delete the entire metadata file
+    """
+    if not cleaned_repos or not metadata_file:
+        return
+
+    if not os.path.exists(metadata_file):
+        logger.info(f"Metadata file not found: {metadata_file}, skipping metadata update")
+        return
+
+    try:
+        # When cleanup_repos=all, delete the metadata file entirely.
+        if cleanup_all:
+            os.remove(metadata_file)
+            logger.info(f"Deleted metadata file: {metadata_file}")
+            return
+
+        with open(metadata_file, 'r', encoding='utf-8') as f:
+            metadata = yaml.safe_load(f) or {}
+
+        updated = False
+        for repo_name in cleaned_repos:
+            # Normalize repo name to match metadata key format: <name>_policy.
+            # Metadata may store keys either with arch prefix (e.g., x86_64_doca_policy)
+            # or without it (e.g., doca_policy), so try both.
+            normalized_name = repo_name.replace('-', '_')
+            candidate_policy_keys = {f"{normalized_name}_policy"}
+            repo_arch = None
+            for arch in ARCH_SUFFIXES:
+                arch_prefix = f"{arch}_"
+                if normalized_name.startswith(arch_prefix):
+                    repo_arch = arch
+                    candidate_policy_keys.add(f"{normalized_name[len(arch_prefix):]}_policy")
+
+            def _section_matches_repo_arch(section: str, arch: str) -> bool:
+                """Return True if a metadata section belongs to the given arch.
+
+                Expected section naming patterns in localrepo_metadata.yml:
+                    - omnia_repo_url_rhel_x86_64 / omnia_repo_url_rhel_aarch64
+                    - rhel_subscription_url_x86_64 / rhel_subscription_url_aarch64
+                    - user_repo_url_x86_64 / user_repo_url_aarch64
+                """
+                suffix = f"_{arch}"
+                return isinstance(section, str) and section.endswith(suffix)
+
+            # Search through all sections in metadata for these policy keys
+            for section_key in list(metadata.keys()):
+                if repo_arch and not _section_matches_repo_arch(section_key, repo_arch):
+                    continue
+                if not isinstance(metadata.get(section_key), dict):
+                    continue
+                for policy_key in list(candidate_policy_keys):
+                    if policy_key in metadata[section_key]:
+                        del metadata[section_key][policy_key]
+                        updated = True
+                        logger.info(
+                            f"Removed '{policy_key}' from metadata section '{section_key}'"
+                        )
+                # Remove the section if it's now empty
+                if section_key in metadata and isinstance(metadata[section_key], dict) and not metadata[section_key]:
+                    del metadata[section_key]
+                    logger.info(f"Removed empty metadata section '{section_key}'")
+
+        if updated:
+            with open(metadata_file, 'w', encoding='utf-8') as f:
+                yaml.dump(metadata, f, default_flow_style=False)
+            logger.info(f"Successfully updated metadata file: {metadata_file}")
+        else:
+            logger.info("No matching entries found in metadata for cleaned repos")
+
+    except Exception as e:
+        logger.error(f"Failed to update metadata after cleanup: {e}")
+
+
+def remove_repos_from_pulp_repo_file(cleaned_repos: List[str], pulp_repo_file: str, logger):
+    """Remove cleaned repository stanzas from a yum repo file (pulp.repo).
+
+    The pulp repo file is an INI-like file with sections such as:
+        [repo_name]
+        name=...
+        baseurl=...
+
+    For each repo in cleaned_repos, remove the entire stanza block.
+    If the file becomes empty (no sections remain), remove the file.
+    """
+    if not cleaned_repos or not pulp_repo_file:
+        return
+
+    if not os.path.exists(pulp_repo_file):
+        logger.info(f"pulp repo file not found: {pulp_repo_file}, skipping")
+        return
+
+    try:
+        repo_names = {r.replace('-', '_') for r in cleaned_repos if isinstance(r, str) and r}
+        if not repo_names:
+            return
+
+        with open(pulp_repo_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Split into sections keeping headers. Regex finds section headers like [name].
+        header_re = re.compile(r'^\[([^\]]+)\]\s*$', re.MULTILINE)
+        matches = list(header_re.finditer(content))
+        if not matches:
+            logger.info(f"No repo sections found in {pulp_repo_file}, skipping")
+            return
+
+        kept_blocks: List[str] = []
+        removed = 0
+        for idx, m in enumerate(matches):
+            section_name = m.group(1).strip()
+            start = m.start()
+            end = matches[idx + 1].start() if idx + 1 < len(matches) else len(content)
+            block = content[start:end]
+
+            # Section names in pulp.repo are expected to match Pulp distribution names.
+            # Compare normalized (hyphens -> underscores) for safety.
+            normalized_section = section_name.replace('-', '_')
+            if normalized_section in repo_names:
+                removed += 1
+                logger.info(f"Removed repo stanza [{section_name}] from {pulp_repo_file}")
+                continue
+
+            kept_blocks.append(block.rstrip() + "\n\n")
+
+        new_content = "".join(kept_blocks).strip() + "\n" if kept_blocks else ""
+        if not new_content.strip():
+            os.remove(pulp_repo_file)
+            logger.info(f"Removed empty pulp repo file: {pulp_repo_file}")
+            return
+
+        with open(pulp_repo_file, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        logger.info(f"Updated pulp repo file: {pulp_repo_file}")
+
+    except PermissionError:
+        logger.error(
+            f"Permission denied while updating {pulp_repo_file}. Run with elevated privileges."
+        )
+    except Exception as e:
+        logger.error(f"Failed to update {pulp_repo_file} after cleanup: {e}")
+
+
 # =============================================================================
 # MAIN MODULE
 # =============================================================================
@@ -1134,6 +1320,20 @@ def run_module():
             ),
             repo_store_path=dict(
                 type='str', default='/opt/omnia'
+            ),
+            cluster_os_type=dict(
+                type='str', required=False, default='rhel'
+            ),
+            cluster_os_version=dict(
+                type='str', required=False, default='10.0'
+            ),
+            metadata_file=dict(
+                type='str', required=False,
+                default='/opt/omnia/offline_repo/.data/localrepo_metadata.yml'
+            ),
+            pulp_repo_file=dict(
+                type='str', required=False,
+                default='/etc/yum.repos.d/pulp.repo'
             )
         ),
         supports_check_mode=True
@@ -1144,10 +1344,14 @@ def run_module():
     cleanup_files = module.params['cleanup_files']
     base_path = module.params['base_path']
     repo_store_path = module.params['repo_store_path']
+    cluster_os_type = module.params['cluster_os_type']
+    cluster_os_version = module.params['cluster_os_version']
+    metadata_file = module.params['metadata_file']
+    pulp_repo_file = module.params['pulp_repo_file']
 
     # Setup logger - setup_standard_logger expects a directory, creates standard.log inside
-    log_dir = os.path.join(base_path, "cleanup")
-    os.makedirs(base_path, exist_ok=True)
+    log_dir = os.path.join(base_path, cluster_os_type, cluster_os_version, "cleanup")
+    os.makedirs(log_dir, exist_ok=True)
     logger = setup_standard_logger(log_dir)
 
     # Handle 'all' keyword for repositories
@@ -1245,6 +1449,17 @@ def run_module():
         cleanup_all_file_content_directories(repo_store_path, logger)
         mark_all_software_partial_by_type(base_path, logger, tuple(CLEANUP_FILE_TYPES), 'file')
 
+    # Update metadata file to remove entries for successfully cleaned repos
+    successfully_cleaned = [r['name'] for r in all_results if r['status'] == 'Success']
+    if successfully_cleaned and metadata_file:
+        update_metadata_after_cleanup(successfully_cleaned, metadata_file, logger,
+                                          cleanup_all=cleanup_all_repos)
+
+    # Update yum repo file (pulp.repo) to remove stanzas for successfully cleaned repositories
+    cleaned_repo_names = [r['name'] for r in all_results if r['status'] == 'Success' and r.get('type') == 'repository']
+    if cleaned_repo_names and pulp_repo_file:
+        remove_repos_from_pulp_repo_file(cleaned_repo_names, pulp_repo_file, logger)
+
     # Run orphan cleanup once after all deletions to reclaim disk space
     any_success = any(r['status'] == 'Success' for r in all_results)
     if any_success:
@@ -1256,7 +1471,7 @@ def run_module():
             logger.warning(f"Orphan cleanup warning: {orphan_result['stderr']}")
 
     # Write status file
-    status_file = write_cleanup_status(all_results, base_path)
+    status_file = write_cleanup_status(all_results, log_dir)
 
     # Calculate summary
     total = len(all_results)

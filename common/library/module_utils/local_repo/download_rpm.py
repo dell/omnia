@@ -24,7 +24,7 @@ from ansible.module_utils.local_repo.config import (
     DNF_INFO_COMMANDS
 )
 from multiprocessing import Lock
-from ansible.module_utils.local_repo.parse_and_download import write_status_to_file
+from ansible.module_utils.local_repo.parse_and_download import write_status_to_file, _prefix_repo_name_with_arch
 
 file_lock = Lock()
 
@@ -168,19 +168,27 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
             invalid_packages = []
 
             for pkg in package["rpm_list"]:
-                # Validate package using dnf info
-                dnf_info_command = DNF_INFO_COMMANDS[arch_key] + [
-                    "--repo=*",  # Search all enabled repositories
-                    pkg
-                ]
+                # Get repo_name for this specific RPM from mapping
+                pkg_repo_name = repo_mapping.get(pkg, "")
+                
+                # Validate package using dnf info with specific repo only
+                if pkg_repo_name:
+                    # Apply architecture prefixing if needed
+                    prefixed_repo_name = _prefix_repo_name_with_arch(pkg_repo_name, status_file_path, logger)
+                    dnf_info_command = DNF_INFO_COMMANDS[arch_key] + [
+                        f"--repo={prefixed_repo_name}",  # Search specific repo from JSON
+                        pkg
+                    ]
+                else:
+                    # Skip validation if no specific repo is defined
+                    logger.warning(f"No repo_name defined for package '{pkg}', skipping validation")
+                    continue
                 result = subprocess.run(
                     dnf_info_command,
                     check=False,
                     capture_output=True,
                     text=True
                 )
-                # Get repo_name for this specific RPM from mapping
-                pkg_repo_name = repo_mapping.get(pkg, "")
                 if result.returncode == 0:
                     # Package exists and is available
                     valid_packages.append(pkg)
@@ -198,7 +206,7 @@ def process_rpm(package, repo_store_path, status_file_path, cluster_os_type,
                     )
                     logger.error(
                         f"Package '{pkg}' validation failed. "
-                        f"Package may not exist in configured repositories."
+                        f"Package may not exist in repository '{prefixed_repo_name}'."
                     )
 
             # Determine final status based on validation results

@@ -231,6 +231,7 @@ def validate_local_repo_config(input_file_path, data,
 
     os_ver_path = f"/{software_config_json['cluster_os_type']}/{software_config_json['cluster_os_version']}/"
     supported_subgroups = config.ADDITIONAL_PACKAGES_SUPPORTED_SUBGROUPS
+    additional_packages_warnings = False
 
     for software in software_config_json["softwares"]:
         sw = software["name"]
@@ -248,33 +249,39 @@ def validate_local_repo_config(input_file_path, data,
                 # For additional_packages, validate subgroup keys in the JSON
                 if sw == "additional_packages":
                     if "additional_packages" not in curr_json:
-                        errors.append(
-                            create_error_msg(sw + '/' + arch,
-                                            json_path,
-                                            f"Required key 'additional_packages' is missing from the JSON file."))
+                        logger.warning(
+                            f"{sw}/{arch}: {json_path} - "
+                            f"Required key 'additional_packages' is missing from the JSON file.")
+                        additional_packages_warnings = True
                     arch_supported = supported_subgroups.get(arch, [])
                     user_subgroups = [p.get('name') for p in software_config_json.get(sw, [])]
                     for json_key in curr_json:
                         if json_key == "additional_packages":
                             continue
                         if json_key not in arch_supported:
-                            errors.append(
-                                create_error_msg(sw + '/' + arch,
-                                                json_path,
-                                                f"Subgroup '{json_key}' is not supported for architecture {arch}."))
+                            logger.warning(
+                                f"{sw}/{arch}: {json_path} - "
+                                f"Subgroup '{json_key}' is not supported for architecture {arch}.")
+                            additional_packages_warnings = True
                         elif json_key not in user_subgroups:
-                            errors.append(
-                                create_error_msg(sw + '/' + arch,
-                                                json_path,
-                                                f"Subgroup '{json_key}' is present in JSON but not listed under additional_packages in software_config.json."))
+                            logger.warning(
+                                f"{sw}/{arch}: {json_path} - "
+                                f"Subgroup '{json_key}' is present in JSON but not listed under additional_packages in software_config.json.")
+                            additional_packages_warnings = True
                 if sw in software_config_json:
                     for sub_pkg in software_config_json[sw]:
                         sub_sw = sub_pkg.get('name')
                         if sub_sw not in curr_json:
                             # For additional_packages, skip subgroups that
-                            # are not supported for this arch
+                            # are not supported for this arch, or warn if supported but missing
                             if sw == "additional_packages":
                                 if sub_sw not in supported_subgroups.get(arch, []):
+                                    continue
+                                else:
+                                    logger.warning(
+                                        f"{sw}/{arch}: {json_path} - "
+                                        f"Software {sub_sw} not found in {sw}.")
+                                    additional_packages_warnings = True
                                     continue
                             errors.append(
                                 create_error_msg(sw + '/' + arch,
@@ -296,4 +303,10 @@ def validate_local_repo_config(input_file_path, data,
                                 create_error_msg(sw + '/' + arch,
                                                  f"Repo name {repo_name} not found.",
                                                 json_path))
+    
+    if additional_packages_warnings:
+        logger.info(
+            "[INFO] Additional packages validation completed with warnings. "
+            "Please review the log file for additional_packages configuration details.")
+    
     return errors

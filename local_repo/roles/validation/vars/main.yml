@@ -81,7 +81,7 @@ warning_msg_local_repo: "[WARNING] Omnia will remove any package/software confli
 # Usage: check_rhel_subscription.yml
 rhel_repo_cert_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/rhel_repo_certs"
 omnia_rhel_cert_dir: "/opt/omnia/rhel_repo_certs"  # Define NFS share path
-rhel_version: 10
+rhel_version: "{{ hostvars['localhost']['cluster_os_version'].split('.')[0] }}"
 required_repos:
   - codeready-builder
   - baseos
@@ -121,8 +121,10 @@ valid_cluster_os_type:
   - 'fedora'
 rhel_valid_os_versions:
   - '10.0'
+  - '10.1'
 rocky_valid_os_versions:
   - '10.0'
+  - '10.1'
 
 valid_repo_config:
   - 'always'

@@ -56,6 +56,27 @@
     - name: Delete smd configuration
       ansible.builtin.include_tasks: delete_smd_config.yml
 
+    - name: Restart the cloud-init service to clear node instance data
+      ansible.builtin.service:
+        name: cloud-init-server
+        state: restarted
+
+    - name: Check whether openchami.target is up
+      ansible.builtin.service:
+        name: openchami.target
+        state: started
+      register: openchami_target_status
+      retries: 4
+      delay: 5
+      until: openchami_target_status is success
+
+    - name: Fail if openchami.target is not up
+      ansible.builtin.fail:
+        msg: "openchami.target is not up"
+      when:
+        - openchami_target_status is defined
+        - openchami_target_status is not success
+
     - name: Discover ochami nodes
       block:
         - name: Discover ochami nodes
