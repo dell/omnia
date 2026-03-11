@@ -78,6 +78,9 @@
 #    <mapping> or <filepath>
 # <mapping> Supply the configuration values directly as a key–value map
 # <filepath> Supply the absolute path to a custom configuration file
+#            This path can be any path inside the omnia_core container.
+#            The default input path "/opt/omnia/input/project_default" 
+#            can also be used to place the custom conf files
 # The conf files supported by slurm are
 # slurm
 # cgroup
@@ -135,10 +138,9 @@ slurm_cluster:
     #   OR
   
     # config_sources:
-    #   slurm: /path/to/custom_slurm.conf
-    #   cgroup: /path/to/custom_cgroup.conf
-    #   slurmdbd: /path/to/custom_slurmdbd.conf
-    #   gres: /path/to/custom_gres.conf
+    #   slurm: /opt/omnia/input/project_default/slurm.conf
+    #   cgroup: /opt/omnia/input/project_default/cgroup.conf
+    #   slurmdbd: /opt/omnia/input/project_default/slurmdbd.conf
   
 # ----------------------------SERVICE K8S------------------------------------------------------
 # For service k8s cluster below parameters are required,(List)
