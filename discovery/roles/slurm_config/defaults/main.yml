@@ -29,12 +29,11 @@ conf_dict_items: {}
 
 __default_config:
   cgroup:
-    # CgroupAutomount: true
     CgroupPlugin: autodetect
-    ConstrainCores: true
-    ConstrainDevices: true
-    ConstrainRAMSpace: true
-    ConstrainSwapSpace: true
+    ConstrainCores: 'yes'
+    ConstrainDevices: 'yes'
+    ConstrainRAMSpace: 'yes'
+    ConstrainSwapSpace: 'yes'
   slurm:
     SlurmUser: "{{ slurm_user }}"
     SlurmctldPort: 6817
