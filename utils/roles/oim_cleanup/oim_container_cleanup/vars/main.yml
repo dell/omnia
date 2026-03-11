@@ -147,17 +147,15 @@ build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/log/build_stream"
   - "{{ omnia_nfs_share }}/playbook_queue"
   - "{{ omnia_nfs_share }}/build_stream_ssl"
-  - "{{ omnia_nfs_share }}/build_stream_logs"
   - "{{ omnia_nfs_share }}/build_stream_inv"
   - "{{ omnia_nfs_share }}/build_stream"
+  - "{{ omnia_nfs_share }}/build_stream_root"
 
 build_stream_container_name: omnia_build_stream
 playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
 
 # Usage: cleanup_postgres.yml
-postgres_cleanup_directory:
-  - "{{ omnia_nfs_share }}/log/postgres"
-  - "{{ omnia_nfs_share }}/postgres"
+postgres_cleanup_directory: []
 
 postgres_container_name: omnia_postgres
 

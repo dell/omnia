@@ -33,7 +33,8 @@ postgres_db_name: "build_stream_db"
 
 # Storage configuration
 postgres_data_dir: "{{ omnia_path }}/postgres/data"
-postgres_log_dir: "{{ omnia_path }}/log/postgres"
+# keep logs off the shared NFS; use local host path
+postgres_log_dir: "/var/log/omnia/postgres"
 
 # Directory permissions
 postgres_dir_mode: "0750"

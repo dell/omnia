@@ -37,7 +37,7 @@ build_stream_image_tag: "1.0"
 # Ports & Logs
 build_stream_port: "{{ hostvars['localhost']['build_stream_port'] }}"
 build_stream_host_ip: "{{ hostvars['localhost']['build_stream_host_ip'] }}"
-build_stream_log_dir: "{{ omnia_path }}/log/build_stream"
+build_stream_log_dir: "{{ omnia_path }}/omnia/log/build_stream"
 build_stream_nfs_path_error_msg: "Directory {{ oim_shared_path }}/omnia/build_stream is missing; ensure oim_shared_path is mounted and populated correctly."
 omnia_default_dir: "/omnia"
 # Build Stream watcher service

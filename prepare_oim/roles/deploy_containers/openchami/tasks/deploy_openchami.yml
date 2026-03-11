@@ -73,6 +73,7 @@
       until: job_result.finished
       retries: "{{ job_retry }}"  # Retry the task {{ job_retry }} times
       delay: "{{ job_delay }}"   # Wait {{ job_delay }} seconds between retries
+      no_log: true
   rescue:
     - name: Openchami installation failed
       ansible.builtin.fail:
