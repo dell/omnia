@@ -155,6 +155,17 @@
             }
           },
           "required": ["name", "fs_spec", "fs_file"],
+          "anyOf": [
+            {
+              "required": ["roles"]
+            },
+            {
+              "required": ["hostnames"]
+            },
+            {
+              "required": ["groups"]
+            }
+          ],
           "additionalProperties": false
         }
       },
@@ -164,11 +175,11 @@
         "properties": {
           "fields": {
             "type": "array",
-            "description": "Default fstab fields [fs_vfstype, fs_mntops, fs_freq, fs_passno]",
+            "description": "When specified, 6 items are required and represent /etc/fstab entries. Default: defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev.",
             "items": {
               "type": "string"
             },
-            "minItems": 4,
+            "minItems": 6,
             "maxItems": 6
           },
           "roles": {
@@ -200,6 +211,17 @@
           }
         },
         "required": ["fields"],
+        "anyOf": [
+          {
+            "required": ["roles"]
+          },
+          {
+            "required": ["hostnames"]
+          },
+          {
+            "required": ["groups"]
+          }
+        ],
         "additionalProperties": false
       },
       "swap": {
@@ -259,6 +281,17 @@
             }
           },
           "required": ["name", "filename", "size"],
+          "anyOf": [
+            {
+              "required": ["roles"]
+            },
+            {
+              "required": ["hostnames"]
+            },
+            {
+              "required": ["groups"]
+            }
+          ],
           "additionalProperties": false
         }
       }
