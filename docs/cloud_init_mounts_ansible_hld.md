@@ -34,17 +34,6 @@ mounts:
     roles: ["slurm_control_node", "slurm_node"]
     hostnames: []
     groups: []
-
-  - name: "local_data"
-    fs_spec: "/dev/sdc"
-    fs_file: "/opt/data"
-    fs_vfstype: "ext4"
-    fs_mntops: "defaults,nofail"
-    fs_freq: "0"
-    fs_passno: "2"
-    roles: []
-    hostnames: []
-    groups: ["grp1"]
 ```
 
 #### 1.2 Swap Configuration
@@ -63,34 +52,32 @@ swap:
 #### 1.3 Mount Default Fields
 
 ```yaml
-mount_default_fields: ["auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
+mount_default_fields:
+  fields: ["auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
+  roles: []
+  hostnames: []
+  groups: []
 ```
 
-### 2. Ansible Role Structure
+### 2. Simplified Implementation Approach
+
+**New Ansible Module**: `cloud_init_mounts_config`
+
+This module handles all resolution logic and cloud-init configuration generation:
 
 ```
 storage_generic/
+├── library/
+│   └── cloud_init_mounts_config.py    # New module
 ├── roles/
-│   ├── storage_mounts/
-│   │   ├── tasks/
-│   │   │   ├── main.yml
-│   │   │   ├── parse_pxe_mapping.yml
-│   │   │   ├── resolve_targets.yml
-│   │   │   ├── generate_cloud_init.yml
-│   │   │   └── apply_mounts.yml
-│   │   ├── templates/
-│   │   │   ├── cloud_init_mounts.yml.j2
-│   │   │   └── fstab_entry.j2
-│   │   ├── vars/
-│   │   │   └── main.yml
-│   │   └── defaults/
-│   │       └── main.yml
-│   └── nfs_client/
-│       └── (existing role - can be extended)
-├── input/
-│   └── storage_config.yml
-└── playbooks/
-    └── configure_storage_mounts.yml
+│   └── configure_ochani/              # Existing role - modified
+│       ├── tasks/
+│       │   ├── main.yml
+│       │   └── configure_mounts.yml   # New task file
+│       └── templates/
+│           └── cloud_init_mounts.yml.j2
+└── input/
+    └── storage_config.yml
 ```
 
 ### 3. Target Resolution Process (Ansible Implementation)

@@ -93,8 +93,9 @@ nfs_client_params:
 #   - groups: List of node groups to apply this mount to (e.g., ["grp1", "grp2"]). Optional
 # Note: If roles, hostnames, and groups are all empty or not specified, the mount will be applied to all nodes
 
-# mount_default_fields: Default values for optional mount fields
-# Must contain exactly 4 items: [fs_vfstype, fs_mntops, fs_freq, fs_passno]
+# mount_default_fields: Default mount configuration for any mount entry with less than 6 options provided.
+#   When specified, 6 items are required and represent /etc/fstab entries.
+#   Default: defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev.
 # Default: ["auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
 
 # swap: Swap file configuration (list of swap configurations)
@@ -162,7 +163,11 @@ mounts: []
   #   hostnames: []
   #   groups: []
 
-mount_default_fields: ["auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
+mount_default_fields:
+  fields: ["auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
+  roles: []
+  hostnames: []
+  groups: []
 
 # Example swap configuration:
 # swap:

@@ -82,6 +82,185 @@
             "pattern": "^[a-fA-F0-9]+$"
           }
         }
+      },
+      "mounts": {
+        "type": "array",
+        "description": "Cloud-init compatible mount configurations",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Unique identifier for this mount entry",
+              "pattern": "^[a-zA-Z0-9_-]+$",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "fs_spec": {
+              "type": "string",
+              "description": "Device name or network path (e.g., /dev/sdc, UUID=xxx, 192.168.1.100:/export/share)",
+              "minLength": 1
+            },
+            "fs_file": {
+              "type": "string",
+              "description": "Mount point path",
+              "pattern": "^/[a-zA-Z0-9/_.-]*$"
+            },
+            "fs_vfstype": {
+              "type": "string",
+              "description": "Filesystem type (e.g., ext4, xfs, nfs, cifs, auto)",
+              "enum": ["auto", "ext2", "ext3", "ext4", "xfs", "btrfs", "nfs", "nfs4", "cifs", "tmpfs", "cephfs", "vfat", "ntfs"]
+            },
+            "fs_mntops": {
+              "type": "string",
+              "description": "Mount options (e.g., defaults,noexec,nofail)",
+              "pattern": "^[a-zA-Z0-9,=._-]+$"
+            },
+            "fs_freq": {
+              "type": "string",
+              "description": "Dump frequency (usually 0)",
+              "pattern": "^[0-2]$"
+            },
+            "fs_passno": {
+              "type": "string",
+              "description": "Fsck pass number (usually 0 or 2)",
+              "pattern": "^[0-9]$"
+            },
+            "roles": {
+              "type": "array",
+              "description": "List of node roles to apply this mount to",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "uniqueItems": true
+            },
+            "hostnames": {
+              "type": "array",
+              "description": "List of specific hostnames to apply this mount to",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9.-]+$"
+              },
+              "uniqueItems": true
+            },
+            "groups": {
+              "type": "array",
+              "description": "List of node groups to apply this mount to",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": ["name", "fs_spec", "fs_file"],
+          "additionalProperties": false
+        }
+      },
+      "mount_default_fields": {
+        "type": "object",
+        "description": "Default mount configuration for any mount entry with less than 6 options provided",
+        "properties": {
+          "fields": {
+            "type": "array",
+            "description": "Default fstab fields [fs_vfstype, fs_mntops, fs_freq, fs_passno]",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 4,
+            "maxItems": 6
+          },
+          "roles": {
+            "type": "array",
+            "description": "List of node roles to apply these defaults to",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            },
+            "uniqueItems": true
+          },
+          "hostnames": {
+            "type": "array",
+            "description": "List of specific hostnames to apply these defaults to",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9.-]+$"
+            },
+            "uniqueItems": true
+          },
+          "groups": {
+            "type": "array",
+            "description": "List of node groups to apply these defaults to",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            },
+            "uniqueItems": true
+          }
+        },
+        "required": ["fields"],
+        "additionalProperties": false
+      },
+      "swap": {
+        "type": "array",
+        "description": "Swap file configurations",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Unique identifier for this swap entry",
+              "pattern": "^[a-zA-Z0-9_-]+$",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "filename": {
+              "type": "string",
+              "description": "Path to the swap file to create",
+              "pattern": "^/[a-zA-Z0-9/_.-]+$"
+            },
+            "size": {
+              "type": "string",
+              "description": "Size in bytes, 'auto', or human-readable format (e.g., 2G, 512M)",
+              "pattern": "^(auto|[0-9]+[BKMGT]?)$"
+            },
+            "maxsize": {
+              "type": "string",
+              "description": "Maximum size in bytes or human-readable format (used with size: auto)",
+              "pattern": "^[0-9]+[BKMGT]?$"
+            },
+            "roles": {
+              "type": "array",
+              "description": "List of node roles to apply this swap to",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "uniqueItems": true
+            },
+            "hostnames": {
+              "type": "array",
+              "description": "List of specific hostnames to apply this swap to",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9.-]+$"
+              },
+              "uniqueItems": true
+            },
+            "groups": {
+              "type": "array",
+              "description": "List of node groups to apply this swap to",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": ["name", "filename", "size"],
+          "additionalProperties": false
+        }
       }
     },
     "required": [
