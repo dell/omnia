@@ -24,6 +24,14 @@
         {"name": "service_kube_control_plane_first"},
         {"name": "service_kube_control_plane"},
         {"name": "service_kube_node"}
+    ],
+     "additional_packages":[
+        {"name": "service_kube_control_plane_first"},
+        {"name": "service_kube_control_plane"},
+        {"name": "service_kube_node"},
+        {"name": "slurm_control_node"},
+        {"name": "slurm_node"},
+        {"name": "login_node"},
+        {"name": "login_compiler_node"}
     ]
-
 }

@@ -43,13 +43,6 @@ def upgrade() -> None:
         sa.Column("client_id", sa.String(128), nullable=False),
         sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False),
         sa.Column("details", JSONB, nullable=True),
-        sa.CheckConstraint(
-            "event_type IN ("
-            "'JOB_CREATED', 'JOB_RETRIEVED', 'JOB_DELETED', "
-            "'STAGE_STARTED', 'STAGE_INVOKED', 'STAGE_COMPLETED', 'STAGE_FAILED'"
-            ")",
-            name="ck_audit_event_type",
-        ),
     )
 
     op.create_index("ix_audit_job_id", "audit_events", ["job_id"])

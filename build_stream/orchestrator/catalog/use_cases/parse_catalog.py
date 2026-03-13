@@ -50,6 +50,7 @@ from core.jobs.repositories import (
     StageRepository,
     UUIDGenerator,
 )
+from core.jobs.services import JobStateHelper
 from core.jobs.value_objects import (
     ClientId,
     StageName,
@@ -381,6 +382,19 @@ class ParseCatalogUseCase:  # pylint: disable=too-few-public-methods
                 "error_code": error_code,
                 "error_summary": error_summary,
             },
+        )
+        
+        # Update job state to FAILED when stage fails
+        JobStateHelper.handle_stage_failure(
+            job_repo=self._job_repo,
+            audit_repo=self._audit_repo,
+            uuid_generator=self._uuid_generator,
+            job_id=command.job_id,
+            stage_name="parse-catalog",
+            error_code=error_code,
+            error_summary=error_summary,
+            correlation_id=str(command.correlation_id),
+            client_id=str(command.client_id),
         )
 
     # ------------------------------------------------------------------

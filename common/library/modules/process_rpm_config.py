@@ -1345,42 +1345,49 @@ def manage_rpm_repositories_multiprocess(rpm_config, log, sw_archs=None, resync_
     # Process sync results and get repos for publication/distribution
     repos_for_pub_dist, should_skip, skip_message  = process_sync_results(sync_results, rpm_config, resync_repos, log)
     
-    if should_skip:
-        return True, skip_message
+    # Only run publication/distribution if repos need it
+    if not should_skip:
+        # Step 4: Concurrent publication creation
+        # Deletes old publications and creates new ones
+        log.info("Step 4: Starting concurrent RPM publication creation")
+        log.info(f"Processing publication for {len(repos_for_pub_dist)} repos")
+        with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
+            result = pool.map(partial(create_publication, log=log, resync_repos=resync_repos), repos_for_pub_dist)
+        failed = [name for success, name in result if not success]
+        if failed:
+            log.error("Failed during publication of RPM repository for: %s", ", ".join(failed))
+            return False, f"During publication of RPM repository for: {', '.join(failed)}. Please refer to the troubleshooting guide for more information."
 
-    # Step 4: Concurrent publication creation
-    # Deletes old publications and creates new ones
-    log.info("Step 4: Starting concurrent RPM publication creation")
-    log.info(f"Processing publication for {len(repos_for_pub_dist)} repos")
-    with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
-        result = pool.map(partial(create_publication, log=log, resync_repos=resync_repos), repos_for_pub_dist)
-    failed = [name for success, name in result if not success]
-    if failed:
-        log.error("Failed during publication of RPM repository for: %s", ", ".join(failed))
-        return False, f"During publication of RPM repository for: {', '.join(failed)}. Please refer to the troubleshooting guide for more information."
+        # Step 5: Concurrent distribution creation/update
+        log.info("Step 5: Starting concurrent RPM distribution creation/update")
+        log.info(f"Processing distribution for {len(repos_for_pub_dist)} repos")
+        with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
+            result = pool.map(partial(create_distribution, log=log, resync_repos=resync_repos, cluster_os_version=cluster_os_version), repos_for_pub_dist)
+        failed = [name for success, name in result if not success]
+        if failed:
+            log.error("Failed during distribution of RPM repository for: %s", ", ".join(failed))
+            return False, f"During distribution of RPM repository for: {', '.join(failed)}"
+    else:
+        log.info("Skipping publication/distribution steps - repos already up to date")
 
-    # Step 5: Concurrent distribution creation/update
-    log.info("Step 5: Starting concurrent RPM distribution creation/update")
-    log.info(f"Processing distribution for {len(repos_for_pub_dist)} repos")
-    with multiprocessing.Pool(processes=min(pulp_process, len(repos_for_pub_dist))) as pool:
-        result = pool.map(partial(create_distribution, log=log, resync_repos=resync_repos, cluster_os_version=cluster_os_version), repos_for_pub_dist)
-    failed = [name for success, name in result if not success]
-    if failed:
-        log.error("Failed during distribution of RPM repository for: %s", ", ".join(failed))
-        return False, f"During distribution of RPM repository for: {', '.join(failed)}"
-
-    # --- STEP 6: Fetch Base URLs and Create YUM Repo File ---
-    log.info("Step 6: Fetching base URLs and creating yum repo file")
+    # --- STEP 6: Always ensure pulp.repo exists ---
+    # This handles the scenario where omnia_core upgrade deletes pulp.repo
+    # and local_repo.yml runs again with already-synced repos.
+    # Distributions must exist before we can fetch base_urls.
+    log.info("Step 6: Ensuring pulp.repo file exists")
     base_urls = get_base_urls(log)
     if not base_urls:
-        log.error("No base URLs retrieved from Pulp. Skipping repo file creation.")
+        log.error("No base URLs retrieved from Pulp. Cannot create repo file.")
         return False, "Base URLs fetch failed — repo file not created."
-
+    
     log.info(f"Fetched {len(base_urls)} base URLs from Pulp.")
     create_yum_repo_file(base_urls, log)
-    log.info("Successfully created yum repo file with fetched base URLs.")
+    log.info("Successfully created/updated pulp.repo file with fetched base URLs.")
 
-    # Return appropriate success message based on resync_repos
+    # Return appropriate success message based on resync_repos and skip status
+    if should_skip:
+        return True, skip_message
+    
     if resync_repos == "all":
         return True, "Resync completed successfully for all repositories"
     elif resync_repos:

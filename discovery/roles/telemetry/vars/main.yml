@@ -273,3 +273,6 @@ kube_vip_unreachable_msg: >-
 
 ldms_pod_ready_msg: "LDMS aggregator pod is ready."
 ldms_pod_not_ready_msg: "WARNING: LDMS aggregator pod did not become ready within 120s."
+ldms_store_pod_ready_msg: "LDMS store daemon pod restarted successfully and is ready"
+ldms_store_pod_not_ready_msg: "LDMS store daemon pod restart failed or not ready within timeout"
+ldms_store_restart_wait_seconds: 10

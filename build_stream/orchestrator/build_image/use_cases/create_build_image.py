@@ -62,6 +62,7 @@ from core.jobs.repositories import (
     StageRepository,
     UUIDGenerator,
 )
+from core.jobs.services import JobStateHelper
 from core.jobs.value_objects import (
     StageName,
     StageType,
@@ -319,12 +320,27 @@ class CreateBuildImageUseCase:
             )
         except InventoryHostMissingError as exc:
             try:
+                error_code = "INVENTORY_HOST_MISSING"
+                error_summary = exc.message
                 stage.start()
                 stage.fail(
-                    error_code="INVENTORY_HOST_MISSING",
-                    error_summary=exc.message,
+                    error_code=error_code,
+                    error_summary=error_summary,
                 )
                 self._stage_repo.save(stage)
+                
+                # Update job state to FAILED when stage fails
+                JobStateHelper.handle_stage_failure(
+                    job_repo=self._job_repo,
+                    audit_repo=self._audit_repo,
+                    uuid_generator=self._uuid_generator,
+                    job_id=command.job_id,
+                    stage_name=str(stage.stage_name),
+                    error_code=error_code,
+                    error_summary=error_summary,
+                    correlation_id=str(command.correlation_id),
+                    client_id=str(command.client_id),
+                )
             except Exception as save_exc:
                 # If save fails, stage was modified elsewhere
                 log_secure_info(
@@ -375,10 +391,25 @@ class CreateBuildImageUseCase:
                 stage.stage_name
             )
             if fresh_stage:
+                error_code = "INVENTORY_FILE_CREATION_FAILED"
+                error_summary = f"Failed to create inventory file: {str(exc)}"
                 fresh_stage.start()
                 fresh_stage.fail(
-                    error_code="INVENTORY_FILE_CREATION_FAILED",
-                    error_summary=f"Failed to create inventory file: {str(exc)}",
+                    error_code=error_code,
+                    error_summary=error_summary,
+                )
+                
+                # Update job state to FAILED when stage fails
+                JobStateHelper.handle_stage_failure(
+                    job_repo=self._job_repo,
+                    audit_repo=self._audit_repo,
+                    uuid_generator=self._uuid_generator,
+                    job_id=command.job_id,
+                    stage_name=str(fresh_stage.stage_name),
+                    error_code=error_code,
+                    error_summary=error_summary,
+                    correlation_id=str(command.correlation_id),
+                    client_id=str(command.client_id),
                 )
                 self._stage_repo.save(fresh_stage)
             log_secure_info(

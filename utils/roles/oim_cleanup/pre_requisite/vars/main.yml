@@ -17,10 +17,15 @@
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 software_config_file: "{{ input_project_dir }}/software_config.json"
 invalid_software_config_fail_msg: "Failed. Please provide valid software_config.json file with cluster_os_type, cluster_os_version, repo_config
-and repo_config values."
+  and repo_config values."
 software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
 local_repo_config_file: "{{ input_project_dir }}/local_repo_config.yml"
 local_repo_config_syntax_fail_msg: "Failed. Syntax errors present in local_repo_config.yml. Fix errors and re-run playbook again."
+postgres_credentials_backup_msg: "Warning: Record or back up the Postgres credentials.
+ They will be required later to restore data when running the prepare_oim playbook after oim_cleanup."
+wait_delay: 30
+postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
+ if postgres_backup | bool else 'DELETE data (postgres_backup=false)' }}"
 
 # Build stream configuration
 build_stream_config_file: "{{ input_project_dir }}/build_stream_config.yml"

@@ -195,6 +195,7 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     result_poller = providers.Singleton(
         ResultPoller,
         result_service=playbook_queue_result_service,
+        job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
         uuid_generator=uuid_generator,
@@ -366,6 +367,7 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     result_poller = providers.Singleton(
         ResultPoller,
         result_service=playbook_queue_result_service,
+        job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
         uuid_generator=uuid_generator,

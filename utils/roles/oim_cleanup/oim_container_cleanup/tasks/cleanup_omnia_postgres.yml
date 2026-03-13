@@ -12,6 +12,14 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
+- name: Set default postgres_backup parameter
+  ansible.builtin.set_fact:
+    postgres_backup: "{{ postgres_backup | default(true) }}"
+
+- name: Display cleanup mode
+  ansible.builtin.debug:
+    msg: "{{ postgres_cleanup_mode_msg }}"
+
 - name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true
@@ -76,15 +84,62 @@
     force_delete: true
   when: postgres_info.containers | length > 0
 
-- name: Remove omnia_postgres cleanup directories
+- name: Get list of Postgres-related Podman volumes
+  ansible.builtin.command:
+    cmd: podman volume ls --format json
+  register: podman_volumes_output
+  changed_when: false
+  failed_when: false
+  when:
+    - not postgres_backup | bool
+
+- name: Parse Podman volumes
+  ansible.builtin.set_fact:
+    postgres_volumes: "{{ (podman_volumes_output.stdout | from_json) | selectattr('Name', 'search', postgres_container_name) | map(attribute='Name') | list }}"
+  when:
+    - not postgres_backup | bool
+    - podman_volumes_output.rc == 0
+    - podman_volumes_output.stdout | length > 0
+
+- name: Remove Postgres-related Podman volumes when postgres_backup=false
+  containers.podman.podman_volume:
+    name: "{{ item }}"
+    state: absent
+    force: true
+  loop: "{{ postgres_volumes | default([]) }}"
+  when:
+    - not postgres_backup | bool
+    - postgres_volumes is defined
+    - postgres_volumes | length > 0
+
+- name: Log preserved volumes when postgres_backup=true
+  ansible.builtin.debug:
+    msg: "{{ postgres_preserved_volumes_msg }}"
+  when:
+    - postgres_backup | bool
+    - postgres_volumes is defined
+    - postgres_volumes | length > 0
+
+- name: Remove omnia_postgres data directories when postgres_backup=false
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
     force: true
   loop: "{{ postgres_cleanup_directory }}"
+  when: not postgres_backup | bool
   register: postgres_directory_deletion
   until: postgres_directory_deletion is not failed
   retries: "{{ max_retries }}"
+
+- name: Log preserved data directories when postgres_backup=true
+  ansible.builtin.debug:
+    msg: "{{ postgres_preserved_msg }}"
+  when: postgres_backup | bool
+
+- name: Log deleted resources when postgres_backup=false
+  ansible.builtin.debug:
+    msg: "{{ postgres_deleted_msg }}"
+  when: not postgres_backup | bool
 
 - name: Check if omnia.target exists before cleaning postgres service entries
   ansible.builtin.stat:

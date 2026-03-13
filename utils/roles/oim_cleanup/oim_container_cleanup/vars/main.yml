@@ -147,7 +147,7 @@ build_stream_cleanup_directory:
   - "{{ omnia_nfs_share }}/log/build_stream"
   - "{{ omnia_nfs_share }}/playbook_queue"
   - "{{ omnia_nfs_share }}/build_stream_ssl"
-  - "{{ omnia_nfs_share }}/build_stream_logs"
+  - "{{ omnia_nfs_share }}/build_stream_root"
   - "{{ omnia_nfs_share }}/build_stream_inv"
   - "{{ omnia_nfs_share }}/build_stream"
 
@@ -156,10 +156,17 @@ playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
 
 # Usage: cleanup_postgres.yml
 postgres_cleanup_directory:
-  - "{{ omnia_nfs_share }}/log/postgres"
-  - "{{ omnia_nfs_share }}/postgres"
+  - "{{ omnia_nfs_share }}/omnia/postgres"
 
 postgres_container_name: omnia_postgres
+postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
+ if postgres_backup | bool else 'DELETE data (postgres_backup=false)' }}"
+postgres_preserved_msg: "PRESERVED: Postgres data directories retained (postgres_backup=true): {{ postgres_cleanup_directory }}"
+postgres_preserved_volumes_msg: "PRESERVED: Postgres volumes retained (postgres_backup=true): {{ postgres_volumes | default([]) }}"
+postgres_deleted_msg:
+  - "DELETED: Postgres data directories removed (postgres_backup=false)"
+  - "Directories: {{ postgres_cleanup_directory }}"
+  - "Volumes: {{ postgres_volumes | default([]) }}"
 
 # Usage: cleanup_note.yml
 oim_cleanup_note: |

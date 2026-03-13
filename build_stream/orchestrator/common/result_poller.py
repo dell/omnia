@@ -29,10 +29,12 @@ from core.jobs.entities import AuditEvent
 from core.jobs.entities.stage import StageState
 from core.jobs.repositories import (
     AuditEventRepository,
+    JobRepository,
     StageRepository,
     UUIDGenerator,
 )
-from core.jobs.value_objects import StageName
+from core.jobs.services import JobStateHelper
+from core.jobs.value_objects import JobId, StageName
 from core.localrepo.entities import PlaybookResult
 from core.localrepo.services import PlaybookQueueResultService
 
@@ -49,6 +51,7 @@ class ResultPoller:
 
     Attributes:
         result_service: Service for polling NFS result queue.
+        job_repo: Job repository for updating job states.
         stage_repo: Stage repository for updating stage states.
         audit_repo: Audit event repository for emitting events.
         uuid_generator: UUID generator for event IDs.
@@ -59,6 +62,7 @@ class ResultPoller:
     def __init__(
         self,
         result_service: PlaybookQueueResultService,
+        job_repo: JobRepository,
         stage_repo: StageRepository,
         audit_repo: AuditEventRepository,
         uuid_generator: UUIDGenerator,
@@ -68,12 +72,14 @@ class ResultPoller:
 
         Args:
             result_service: Service for polling NFS result queue.
+            job_repo: Job repository implementation.
             stage_repo: Stage repository implementation.
             audit_repo: Audit event repository implementation.
             uuid_generator: UUID generator for identifiers.
             poll_interval: Interval in seconds between polls (default: 5).
         """
         self._result_service = result_service
+        self._job_repo = job_repo
         self._stage_repo = stage_repo
         self._audit_repo = audit_repo
         self._uuid_generator = uuid_generator
@@ -157,6 +163,18 @@ class ResultPoller:
                     result.job_id,
                     result.stage_name,
                 )
+                
+                # Check if this is the final stage (validate-image-on-test)
+                # If so, mark the job as completed
+                if result.stage_name == "validate-image-on-test":
+                    JobStateHelper.handle_job_completion(
+                        job_repo=self._job_repo,
+                        audit_repo=self._audit_repo,
+                        uuid_generator=self._uuid_generator,
+                        job_id=JobId(result.job_id),
+                        correlation_id=result.request_id.value if hasattr(result.request_id, 'value') else str(result.request_id),
+                        client_id=str(result.job_id),
+                    )
             else:
                 error_code = result.error_code or "PLAYBOOK_FAILED"
                 error_summary = result.error_summary or "Playbook execution failed"
@@ -166,6 +184,19 @@ class ResultPoller:
                     result.job_id,
                     result.stage_name,
                     error_code,
+                )
+                
+                # Update job state to FAILED when stage fails
+                JobStateHelper.handle_stage_failure(
+                    job_repo=self._job_repo,
+                    audit_repo=self._audit_repo,
+                    uuid_generator=self._uuid_generator,
+                    job_id=JobId(result.job_id),
+                    stage_name=result.stage_name,
+                    error_code=error_code,
+                    error_summary=error_summary,
+                    correlation_id=result.request_id.value if hasattr(result.request_id, 'value') else str(result.request_id),
+                    client_id=str(result.job_id),
                 )
 
             # Update log file path if available

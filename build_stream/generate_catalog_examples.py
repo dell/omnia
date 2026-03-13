@@ -72,16 +72,14 @@ def generate_example_catalogs(base_dir: str):
 
     # Map output catalog files to their corresponding mapping folder names
     targets = {
-        'catalog_rhel_with_openmpi_ucx.json': 'catalog_rhel_with_openmpi_ucx_json',
-        'catalog_rhel_x86_64.json': 'catalog_rhel_x86_64_json',
+        'catalog_rhel_aarch64_with_slurm_only.json': 'catalog_rhel_aarch64_with_slurm_only_json',
         'catalog_rhel_x86_64_with_slurm_only.json': 'catalog_rhel_x86_64_with_slurm_only_json',
         'catalog_rhel.json': 'catalog_rhel_json',
     }
 
     # Ensure catalog_rhel.json is generated last
     generation_order = [
-        'catalog_rhel_with_openmpi_ucx.json',
-        'catalog_rhel_x86_64.json',
+        'catalog_rhel_aarch64_with_slurm_only.json',
         'catalog_rhel_x86_64_with_slurm_only.json',
         'catalog_rhel.json',
     ]

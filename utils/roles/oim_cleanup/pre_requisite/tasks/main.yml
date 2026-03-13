@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Set default postgres_backup parameter
+  ansible.builtin.set_fact:
+    postgres_backup: "{{ postgres_backup | default(true) }}"
+
 - name: Import pre-requisite tasks
   ansible.builtin.include_tasks: pre_requisite.yml
   tags: always

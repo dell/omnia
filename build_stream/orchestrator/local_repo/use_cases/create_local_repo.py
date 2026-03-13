@@ -32,9 +32,11 @@ from core.jobs.repositories import (
     StageRepository,
     UUIDGenerator,
 )
+from core.jobs.services import JobStateHelper
 from core.jobs.value_objects import (
     StageName,
     StageType,
+    StageState,
 )
 from core.localrepo.entities import PlaybookRequest
 from core.localrepo.exceptions import (
@@ -238,12 +240,27 @@ class CreateLocalRepoUseCase:
             )
         except (InputFilesMissingError, InputDirectoryInvalidError) as exc:
             try:
+                error_code = type(exc).__name__.upper()
+                error_summary = exc.message
                 stage.start()
                 stage.fail(
-                    error_code=type(exc).__name__.upper(),
-                    error_summary=exc.message,
+                    error_code=error_code,
+                    error_summary=error_summary,
                 )
                 self._stage_repo.save(stage)
+                
+                # Update job state to FAILED when stage fails
+                JobStateHelper.handle_stage_failure(
+                    job_repo=self._job_repo,
+                    audit_repo=self._audit_repo,
+                    uuid_generator=self._uuid_generator,
+                    job_id=command.job_id,
+                    stage_name=StageType.CREATE_LOCAL_REPOSITORY.value,
+                    error_code=error_code,
+                    error_summary=error_summary,
+                    correlation_id=str(command.correlation_id),
+                    client_id=str(command.client_id),
+                )
             except Exception as save_exc:
                 # If save fails, stage was modified elsewhere
                 log_secure_info(

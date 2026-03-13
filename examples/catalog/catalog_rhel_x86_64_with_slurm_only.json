@@ -5,6 +5,34 @@
     "Identifier": "image-build",
     "FunctionalLayer": [
       {
+        "Name": "login_compiler_node_x86_64",
+        "FunctionalPackages": [
+          "package_id_1",
+          "package_id_16",
+          "package_id_2",
+          "package_id_22",
+          "package_id_3",
+          "package_id_4",
+          "package_id_5",
+          "package_id_6",
+          "package_id_7"
+        ]
+      },
+      {
+        "Name": "login_node_x86_64",
+        "FunctionalPackages": [
+          "package_id_1",
+          "package_id_16",
+          "package_id_2",
+          "package_id_22",
+          "package_id_3",
+          "package_id_4",
+          "package_id_5",
+          "package_id_6",
+          "package_id_7"
+        ]
+      },
+      {
         "Name": "slurm_control_node_x86_64",
         "FunctionalPackages": [
           "package_id_1",

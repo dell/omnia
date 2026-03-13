@@ -32,8 +32,7 @@ postgres_password: "{{ hostvars['localhost']['postgres_password'] }}"
 postgres_db_name: "build_stream_db"
 
 # Storage configuration
-postgres_data_dir: "{{ omnia_path }}/postgres/data"
-postgres_log_dir: "{{ omnia_path }}/log/postgres"
+postgres_data_dir: "{{ omnia_path }}/omnia/postgres/data"
 
 # Directory permissions
 postgres_dir_mode: "0750"
@@ -53,6 +52,18 @@ postgres_image_pull_success_msg:
   - "Image: {{ postgres_image }}:{{ postgres_image_tag }}"
 postgres_container_success_msg: "The {{ postgres_container_name }} container has been successfully deployed."
 postgres_container_failure_msg: |
-  The deployment of the {{ postgres_container_name }} container has failed. To resolve this issue,
-  please run the utility/oim_cleanup.yml playbook to clean up any existing OIM resources.
-  After the cleanup, you can re-run the original playbook to deploy the {{ postgres_container_name }} container successfully.
+  The deployment of the {{ postgres_container_name }} container has failed.
+
+  This failure is typically caused by database initialization issues when existing data is present.
+
+  To resolve this issue, choose one of the following options:
+
+  Option 1: Preserve existing database data
+    - Re-run prepare_oim.yml using the SAME postgres credentials used in the previous deployment
+    - This will reuse the existing database at {{ postgres_data_dir }}
+
+  Option 2: Delete existing database data and start fresh
+    - Run the cleanup playbook with postgres_backup=false:
+      ansible-playbook utils/oim_cleanup.yml -e postgres_backup=false
+    - This will delete the Postgres data at {{ postgres_data_dir }} (and associated data/logs)
+    - After cleanup completes, re-run prepare_oim.yml to deploy a fresh {{ postgres_container_name }} container

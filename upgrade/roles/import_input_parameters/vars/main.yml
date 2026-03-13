@@ -79,6 +79,35 @@ msg_user_registry_decrypt_error: |-
   Please check the backup integrity and ensure the key file
   matches the encrypted file.
 
+# User registry credential restore messages and modes
+user_registry_file_mode: '0600'
+user_registry_key_mode: '0600'
+user_registry_file_name: "user_registry_credential.yml"
+user_registry_key_name: ".local_repo_credentials_key"
+
+msg_user_registry_encrypted_success: |-
+  user_registry_credential.yml restored from backup.
+  Backup: {{ backup_location }}/user_registry_credential.yml
+  Target: {{ input_project_dir }}/user_registry_credential.yml
+  Status: Encrypted (key file also restored)
+
+msg_user_registry_plaintext_encrypted_success: |-
+  user_registry_credential.yml was plaintext in backup.
+  Copied and encrypted using provided key.
+  Target: {{ input_project_dir }}/user_registry_credential.yml
+
+msg_user_registry_plaintext_no_key: |-
+  user_registry_credential.yml copied in plaintext (no key present in backup).
+  Backup: {{ backup_location }}/user_registry_credential.yml
+  Target: {{ input_project_dir }}/user_registry_credential.yml
+  Note: No encryption performed because key is missing.
+
+msg_user_registry_encrypted_missing_key: |-
+  ERROR: Inconsistent state detected for user_registry_credential.yml:
+  - File is encrypted but key file (.local_repo_credentials_key) is missing
+  Please check the backup integrity and ensure both files are present
+  in consistent states.
+
 msg_omnia_config_decrypt_error: |-
   ERROR: Failed to decrypt omnia_config_credentials.yml.
   The backup key file may be corrupted or incompatible.
