@@ -101,3 +101,7 @@ openldap_container_missing_msg: "{{ '\x1b[31m' }}\
   For more information, refer to the Omnia documentation on OpenLDAP configuration.\n\
   ==================================================================================\
   {{ '\x1b[0m' }}"
+
+# Usage: generate_bmc_inventory.yml
+pxe_mapping_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/pxe_mapping_file.csv"
+bmc_inventory_path: "/opt/omnia/provision/bmc_inventory"

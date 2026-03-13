@@ -42,3 +42,7 @@
   when:
     - idrac_telemetry_support | lower == 'true' | default('false') or
       ldms_support | default('false')
+
+- name: Generate BMC inventory from PXE mapping file
+  ansible.builtin.include_tasks: generate_bmc_inventory.yml
+  when: mapping_file_status
