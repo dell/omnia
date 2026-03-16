@@ -27,47 +27,16 @@
 #    boot image must be reachable by the target nodes once the iDRAC
 #    is set to PXE mode.
 # -------------------------------------------------------------------------
-- name: Validate BMC group exists in inventory
+
+- name: Validate and setup BMC inventory
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
-    - name: Check if custom inventory was provided
-      ansible.builtin.set_fact:
-        custom_inventory_provided: "{{ groups['bmc'] is defined and groups['bmc'] | length | int > 0 }}"
-
-    - name: Use auto-generated BMC inventory if no custom inventory provided
-      when: not custom_inventory_provided
-      block:
-        - name: Check if auto-generated BMC inventory exists
-          ansible.builtin.stat:
-            path: /opt/omnia/provision/bmc_inventory
-          register: bmc_inventory_stat
-
-        - name: Fail if no BMC inventory available
-          ansible.builtin.fail:
-            msg: |
-              Failed. No BMC inventory found.
-              
-              Please either:
-              1. Provide a custom inventory file with 'bmc' group:
-                 ansible-playbook set_pxe_boot.yml -i <your_inventory_file>
-              
-              2. Or run discovery.yml first to auto-generate BMC inventory from PXE mapping file at:
-                 /opt/omnia/provision/bmc_inventory
-          when: not bmc_inventory_stat.stat.exists
-
-        - name: Add auto-generated BMC inventory to in-memory inventory
-          ansible.builtin.add_host:
-            name: "{{ item }}"
-            groups: bmc
-          loop: "{{ lookup('file', '/opt/omnia/provision/bmc_inventory').split('\n') | select('match', '^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$') | list }}"
-          when: bmc_inventory_stat.stat.exists
-
-    - name: Validate BMC group has hosts
-      ansible.builtin.fail:
-        msg: "Failed. 'bmc' group has no hosts. Please check your inventory file or PXE mapping file."
-      when: groups['bmc'] is not defined or groups['bmc'] | length | int == 0
+    - name: Include pre-checks for BMC inventory validation
+      ansible.builtin.include_role:
+        name: idrac_pxe_boot
+        tasks_from: pre_checks
 
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
