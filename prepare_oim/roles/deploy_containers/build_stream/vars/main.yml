@@ -53,7 +53,7 @@ watcher_memory_max: "512M"
 watcher_cpu_quota: "50%"
 build_stream_watcher_playbook_queue_base: "{{ omnia_path }}/omnia/playbook_queue"
 watcher_poll_interval_seconds: 2
-watcher_max_concurrent_jobs: 5
+watcher_max_concurrent_jobs: 1
 watcher_default_timeout_minutes: 150
 watcher_log_level: "INFO"
 

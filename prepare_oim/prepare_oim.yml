@@ -73,6 +73,7 @@
               {%- if 'slurm_custom' in sw_names %}{% set _ = tags.append('slurm_custom') %}{% endif -%}
               {%- if 'csi_driver_powerscale' in sw_names %}{% set _ = tags.append('csi_driver_powerscale') %}{% endif -%}
               {%- if 'ldms' in sw_names %}{% set _ = tags.append('ldms') %}{% endif -%}
+              {%- if 'service_k8s' in sw_names %}{% set _ = tags.append('service_k8s') %}{% endif -%}
               {{ tags | unique }}
 
         - name: Check telemetry configuration and add idrac_telemetry tag if enabled
@@ -88,11 +89,11 @@
                 name: telemetry_config
               when: telemetry_config_stat.stat.exists
 
-            - name: Add idrac_telemetry tag if support is enabled
+            - name: Add telemetry tag if idrac_telemetry_support is enabled
               ansible.builtin.set_fact:
                 omnia_run_tags: >-
                   {{
-                    (omnia_run_tags | default([]) | list + ['idrac_telemetry']) | unique
+                    (omnia_run_tags | default([]) | list + ['telemetry']) | unique
                   }}
               when:
                 - telemetry_config_stat.stat.exists

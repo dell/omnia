@@ -41,9 +41,9 @@ idrac_telemetry_scripting_copy_fail_msg: |
 
 # Pre-built container images for iDRAC telemetry components
 # These default to your published images but can be overridden via telemetry_images
-idrac_telemetry_receiver_image: "{{ telemetry_images['dellhpcomniaaisolution/idrac_telemetry_receiver'] | default('docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.0') }}" # noqa: yaml[line-length]
-kafkapump_image: "{{ telemetry_images['dellhpcomniaaisolution/kafkapump'] | default('docker.io/dellhpcomniaaisolution/kafkapump:1.0') }}"
-victoriapump_image: "{{ telemetry_images['dellhpcomniaaisolution/victoriapump'] | default('docker.io/dellhpcomniaaisolution/victoriapump:1.0') }}"
+idrac_telemetry_receiver_image: "{{ telemetry_images['dellhpcomniaaisolution/idrac_telemetry_receiver'] | default('docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.2') }}" # noqa: yaml[line-length]
+kafkapump_image: "{{ telemetry_images['dellhpcomniaaisolution/kafkapump'] | default('docker.io/dellhpcomniaaisolution/kafkapump:1.2') }}"
+victoriapump_image: "{{ telemetry_images['dellhpcomniaaisolution/victoriapump'] | default('docker.io/dellhpcomniaaisolution/victoriapump:1.2') }}"
 
 activemq_image: "{{ telemetry_images['rmohr/activemq'] | default('docker.io/rmohr/activemq:5.15.9') }}"
 activemq_http_port_1: 8161

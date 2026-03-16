@@ -27,17 +27,84 @@
 # Storage name corresponding to the NFS share to be used by slurm cluster 
 # This should match with exactly with a entry in storage_config.yml
 
+# skip_merge
+# Variable indicates whether a specific configuration file path
+# under config_sources should be used as-is without merging
+# If skip_merge is set to true for a configuration source path,
+# that configuration file will be applied directly
+# without merging with defaults or existing configurations
+# It accepts true and false values
+# Default value is false
+
+# node_discovery_mode
+# Controls how hardware specifications are discovered for Slurm compute nodes
+# Options: "heterogeneous" or "homogeneous"
+# - heterogeneous: Discovers each node individually via iDRAC (1 call per node)
+#   Best for: Mixed hardware environments with different node configurations
+# - homogeneous: Groups nodes by hardware type for optimized discovery
+#   Best for: Standardized hardware groups (grp0-grp100 in pxe_mapping_file.csv)
+#   Performance: 0 iDRAC calls (with specs) or 1 call per group (without specs)
+# Default value is heterogeneous
+
+# node_hardware_defaults
+# Optional: Pre-define hardware specifications for homogeneous node groups
+# Only used when node_discovery_mode is set to "homogeneous"
+# Key: GROUP_NAME from pxe_mapping_file.csv (e.g., grp0, grp1, grp2, etc.)
+# Value: Hardware specifications for all nodes in that group
+#   - sockets: Number of CPU sockets per node (integer, minimum 1)
+#   - cores_per_socket: Number of CPU cores per socket (integer, minimum 1)
+#   - threads_per_core: Number of CPU threads per core (integer, minimum 1)
+#   - real_memory: Memory in MB (integer, minimum 1)
+#   - gres: Optional GPU resources in format "gpu:N" (e.g., "gpu:4")
+# If a group is not listed here, one node from that group will be discovered via iDRAC
+# and the specs will be applied to all nodes in the group
+# Example:
+#   node_hardware_defaults:
+#     grp1:
+#       sockets: 2
+#       cores_per_socket: 64
+#       threads_per_core: 2
+#       real_memory: 512000
+#       gres: "gpu:4"
+#     grp2:
+#       sockets: 2
+#       cores_per_socket: 32
+#       threads_per_core: 2
+#       real_memory: 256000
+
 # config_sources
 # defines how the Slurm configuration files are provided to the cluster.
 # <conf name>: 
 #    <mapping> or <filepath>
 # <mapping> Supply the configuration values directly as a key–value map
 # <filepath> Supply the absolute path to a custom configuration file
+#            This path can be any path inside the omnia_core container.
+#            The default input path "/opt/omnia/input/project_default" 
+#            can also be used to place the custom conf files
+# Example (slurm mapping):
+#   config_sources:
+#     slurm:
+#       SlurmctldTimeout: 60
+#       SlurmdTimeout: 150
+#       NodeName:
+#         - NodeName: node1
+#           CPUs: 16
+#           RealMemory: 64000
+#         - NodeName: node2
+#           CPUs: 16
+#           RealMemory: 64000
 # The conf files supported by slurm are
 # slurm
 # cgroup
 # slurmdbd
 # gres
+# acct_gather
+# helpers
+# job_container
+# mpi
+# oci
+# topology
+# burst_buffer
 # Thes files will be written into the slurm_config directory with .conf suffix
 
 slurm_cluster:
@@ -46,35 +113,36 @@ slurm_cluster:
 {% for _cluster in _slurm_cluster %}
   - cluster_name: {{ _cluster.cluster_name | default('') }}
     nfs_storage_name: {{ _cluster.nfs_storage_name | default('') }}
+    # skip_merge: False
+
+    # Uncomment to enable homogeneous discovery mode
+    # node_discovery_mode: "homogeneous"
+
+    # # Optional hardware specs per group (if omitted, one node per group is discovered via iDRAC)
+    # node_hardware_defaults:
+    #   grp1:
+    #     sockets: 2
+    #     cores_per_socket: 64
+    #     threads_per_core: 2
+    #     real_memory: 512000
+    #     gres: "gpu:4"
+    #   grp2:
+    #     sockets: 2
+    #     cores_per_socket: 32
+    #     threads_per_core: 2
+    #     real_memory: 256000
+
 {% if _cluster.config_sources is defined and (_cluster.config_sources | length > 0) %}
-    skip_merge: {{ _cluster.skip_merge | default(true) }}
+
     config_sources:
-{% set _supported = ['slurm', 'cgroup', 'slurmdbd', 'gres'] %}
 {% for _conf_name, _conf_val in _cluster.config_sources.items() %}
-{% if _conf_name in _supported %}
-{% if _conf_name == 'cgroup' and (_conf_val is mapping) %}
-      cgroup:
-        CgroupPlugin: {{ _conf_val.CgroupPlugin | default('autodetect') }}
-{% for _k, _v in _conf_val.items() %}
-{% if _k not in ['AllowedRAMSpace', 'CgroupPlugin', 'ConstrainCores', 'ConstrainDevices', 'ConstrainRAMSpace', 'ConstrainSwapSpace'] %}
-        {{ _k }}: {{ _v }}
-{% endif %}
-{% endfor %}
-        ConstrainCores: {{ _conf_val.ConstrainCores | default(true) }}
-        ConstrainDevices: {{ _conf_val.ConstrainDevices | default(true) }}
-        ConstrainRAMSpace: {{ _conf_val.ConstrainRAMSpace | default(true) }}
-        ConstrainSwapSpace: {{ _conf_val.ConstrainSwapSpace | default(true) }}
-{% if _conf_val.AllowedRAMSpace is defined %}
-        ### AllowedRAMSpace: {{ _conf_val.AllowedRAMSpace }}       This is not supported in 2.1, just attached for reference
-{% endif %}
-{% elif _conf_val is mapping %}
+{% if _conf_val is mapping %}
       {{ _conf_name }}:
 {% for _k, _v in _conf_val.items() %}
         {{ _k }}: {{ _v }}
 {% endfor %}
 {% else %}
       {{ _conf_name }}: {{ _conf_val }}
-{% endif %}
 {% endif %}
 {% endfor %}
     #   OR
@@ -85,11 +153,18 @@ slurm_cluster:
     #   slurmdbd: /path/to/custom_slurmdbd.conf
     #   gres: /path/to/custom_gres.conf
 {% else %}
-    # skip_merge: True
+
     # config_sources:
     #   slurm:
     #     SlurmctldTimeout: 60
     #     SlurmdTimeout: 150
+    #     NodeName:
+    #       - NodeName: newnode1
+    #         CPUs: 16
+    #         RealMemory: 64000
+    #       - NodeName: newnode2
+    #         CPUs: 16
+    #         RealMemory: 64000
     #   cgroup:
     #     CgroupPlugin: autodetect
     #     ConstrainCores: True
@@ -108,21 +183,6 @@ slurm_cluster:
 {% endfor %}
 {% endif %}
 
-    # node_discovery_mode: "homogeneous"
-    # # Specify hardware specs for groups (optional - will use group iDRAC if not specified)
-    # node_hardware_defaults:
-    #   grp12:
-    #     sockets: 5
-    #     cores_per_socket: 6
-    #     threads_per_core: 3
-    #     real_memory: 117968
-    #     gres: "gpu:4"  # optional
-
-    #   grp13:
-    #     sockets: 13
-    #     cores_per_socket: 13
-    #     threads_per_core: 13
-    #     real_memory: 117913
 
 # ----------------------------SERVICE K8S------------------------------------------------------
 # For service k8s cluster below parameters are required,(List)

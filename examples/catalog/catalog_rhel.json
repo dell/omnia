@@ -274,29 +274,7 @@
         ]
       }
     ],
-    "Infrastructure": [
-      {
-        "Name": "csi",
-        "InfrastructurePackages": [
-          "infrastructure_package_id_1",
-          "infrastructure_package_id_10",
-          "infrastructure_package_id_11",
-          "infrastructure_package_id_12",
-          "infrastructure_package_id_13",
-          "infrastructure_package_id_14",
-          "infrastructure_package_id_15",
-          "infrastructure_package_id_16",
-          "infrastructure_package_id_2",
-          "infrastructure_package_id_3",
-          "infrastructure_package_id_4",
-          "infrastructure_package_id_5",
-          "infrastructure_package_id_6",
-          "infrastructure_package_id_7",
-          "infrastructure_package_id_8",
-          "infrastructure_package_id_9"
-        ]
-      }
-    ],
+    "Infrastructure": [],
     "Drivers": [],
     "DriverPackages": {},
     "FunctionalPackages": {
@@ -1038,8 +1016,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "1.0",
-        "Version": "1.0"
+        "Tag": "1.2",
+        "Version": "1.2"
       },
       "package_id_38": {
         "Name": "docker.io/dellhpcomniaaisolution/kafkapump",
@@ -1053,8 +1031,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "1.0",
-        "Version": "1.0"
+        "Tag": "1.2",
+        "Version": "1.2"
       },
       "package_id_39": {
         "Name": "docker.io/dellhpcomniaaisolution/victoriapump",
@@ -1068,8 +1046,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "1.0",
-        "Version": "1.0"
+        "Tag": "1.2",
+        "Version": "1.2"
       },
       "package_id_40": {
         "Name": "cryptography==45.0.7",
@@ -3913,246 +3891,6 @@
       }
     },
     "Miscellaneous": [],
-    "InfrastructurePackages": {
-      "infrastructure_package_id_1": {
-        "Name": "csi-powerscale",
-        "Type": "git",
-        "Version": "v2.15.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://github.com/dell/csi-powerscale.git"
-          }
-        ]
-      },
-      "infrastructure_package_id_2": {
-        "Name": "external-snapshotter",
-        "Type": "git",
-        "Version": "v8.3.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://github.com/kubernetes-csi/external-snapshotter.git"
-          }
-        ]
-      },
-      "infrastructure_package_id_3": {
-        "Name": "helm-charts",
-        "Type": "git",
-        "Version": "csi-isilon-2.15.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://github.com/dell/helm-charts.git"
-          }
-        ]
-      },
-      "infrastructure_package_id_4": {
-        "Name": "quay.io/dell/container-storage-modules/csi-isilon",
-        "Type": "image",
-        "Version": "v2.15.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v2.15.0"
-      },
-      "infrastructure_package_id_5": {
-        "Name": "registry.k8s.io/sig-storage/csi-attacher",
-        "Type": "image",
-        "Version": "v4.9.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v4.9.0"
-      },
-      "infrastructure_package_id_6": {
-        "Name": "registry.k8s.io/sig-storage/csi-provisioner",
-        "Type": "image",
-        "Version": "v5.3.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v5.3.0"
-      },
-      "infrastructure_package_id_7": {
-        "Name": "registry.k8s.io/sig-storage/csi-snapshotter",
-        "Type": "image",
-        "Version": "v8.3.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v8.3.0"
-      },
-      "infrastructure_package_id_8": {
-        "Name": "registry.k8s.io/sig-storage/csi-resizer",
-        "Type": "image",
-        "Version": "v1.14.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v1.14.0"
-      },
-      "infrastructure_package_id_9": {
-        "Name": "registry.k8s.io/sig-storage/csi-node-driver-registrar",
-        "Type": "image",
-        "Version": "v2.14.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v2.14.0"
-      },
-      "infrastructure_package_id_10": {
-        "Name": "registry.k8s.io/sig-storage/csi-external-health-monitor-controller",
-        "Type": "image",
-        "Version": "v0.15.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v0.15.0"
-      },
-      "infrastructure_package_id_11": {
-        "Name": "quay.io/dell/container-storage-modules/dell-csi-replicator",
-        "Type": "image",
-        "Version": "v1.13.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v1.13.0"
-      },
-      "infrastructure_package_id_12": {
-        "Name": "quay.io/dell/container-storage-modules/podmon",
-        "Type": "image",
-        "Version": "v1.14.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v1.14.0"
-      },
-      "infrastructure_package_id_13": {
-        "Name": "quay.io/dell/container-storage-modules/csm-authorization-sidecar",
-        "Type": "image",
-        "Version": "v2.3.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v2.3.0"
-      },
-      "infrastructure_package_id_14": {
-        "Name": "quay.io/dell/container-storage-modules/csi-metadata-retriever",
-        "Type": "image",
-        "Version": "v1.12.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v1.12.0"
-      },
-      "infrastructure_package_id_15": {
-        "Name": "registry.k8s.io/sig-storage/snapshot-controller",
-        "Type": "image",
-        "Version": "v8.3.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v8.3.0"
-      },
-      "infrastructure_package_id_16": {
-        "Name": "docker.io/dellemc/csm-encryption",
-        "Type": "image",
-        "Version": "v0.6.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v0.6.0"
-      }
-    }
+    "InfrastructurePackages": {}
   }
 }

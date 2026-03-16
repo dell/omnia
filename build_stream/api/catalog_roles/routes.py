@@ -175,11 +175,10 @@ async def get_catalog_roles(
 
     except JobNotFoundError as exc:
         log_secure_info(
-            "warning",
+            "error",
             f"Get catalog roles failed: job_id={job_id},"
-            f" reason=job_not_found, detail={exc}, status=404",
+            f" reason=job_not_found, status=404",
             job_id=job_id,
-            exc_info=True,
             end_section=True,
         )
         raise HTTPException(

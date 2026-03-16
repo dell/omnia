@@ -175,6 +175,7 @@ http_key: http
 # Usage: validate_metadata.yml
 meta_dest: "{{ nfs_shared_path }}/offline_repo/.data"
 metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
+build_stream_auto_accept_metadata_msg: "Build stream is enabled, automatically accepting metadata changes."
 
 # Usage: remove_k8s_line.yml
 software_csv_file_path: "/opt/omnia/log/local_repo/software.csv"

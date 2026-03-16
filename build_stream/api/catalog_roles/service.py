@@ -23,8 +23,8 @@ from typing import Dict, List
 from core.artifacts.exceptions import ArtifactNotFoundError
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
 from core.artifacts.value_objects import ArtifactKind
-from core.jobs.exceptions import InvalidStateTransitionError, UpstreamStageNotCompletedError
-from core.jobs.repositories import StageRepository
+from core.jobs.exceptions import InvalidStateTransitionError, JobNotFoundError, UpstreamStageNotCompletedError
+from core.jobs.repositories import JobRepository, StageRepository
 from core.jobs.value_objects import JobId, StageName, StageState, StageType
 
 logger = logging.getLogger(__name__)
@@ -44,10 +44,12 @@ class CatalogRolesService:
         artifact_store: ArtifactStore,
         artifact_metadata_repo: ArtifactMetadataRepository,
         stage_repo: StageRepository,
+        job_repo: JobRepository,
     ) -> None:
         self._artifact_store = artifact_store
         self._artifact_metadata_repo = artifact_metadata_repo
         self._stage_repo = stage_repo
+        self._job_repo = job_repo
 
     def get_roles(self, job_id: JobId) -> Dict[str, any]:
         """Return catalog metadata including roles, image_key, and architectures.
@@ -70,6 +72,13 @@ class CatalogRolesService:
             RolesNotFoundError: If functional_layer.json cannot be parsed.
         """
         logger.info("Retrieving catalog metadata for job: %s", job_id)
+        
+        # Validate job exists first
+        if not self._job_repo.exists(job_id):
+            logger.warning(
+                "Job not found for catalog metadata retrieval: %s", job_id
+            )
+            raise JobNotFoundError(str(job_id))
         
         # Validate parse-catalog stage is completed
         self._validate_parse_catalog_completed(job_id)

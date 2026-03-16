@@ -58,10 +58,6 @@ docker_hub_warning: |
   Proceed to enter your Docker credentials if you want to avoid pull rate limits.
   Press Enter.
 
-# Build stream automation messages
-build_stream_auto_force_node_msg: "Build stream is enabled, automatically forcing removal of node {{ node_to_remove }} (jobs will be killed)."
-build_stream_auto_accept_metadata_msg: "Build stream is enabled, automatically accepting metadata changes."
-
 omnia_credentials:
   provision:
     mandatory:

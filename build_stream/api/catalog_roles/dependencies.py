@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from api.dependencies import (
     get_db_session,
     _create_sql_stage_repo,
+    _create_sql_job_repo,
     _get_container,
     _ENV,
 )
@@ -45,9 +46,11 @@ def get_catalog_roles_service(
             artifact_store=container.artifact_store(),
             artifact_metadata_repo=SqlArtifactMetadataRepository(db_session),
             stage_repo=_create_sql_stage_repo(db_session),
+            job_repo=_create_sql_job_repo(db_session),
         )
     return _get_container().catalog_roles_service() if hasattr(_get_container(), 'catalog_roles_service') else CatalogRolesService(
         artifact_store=_get_container().artifact_store(),
         artifact_metadata_repo=_get_container().artifact_metadata_repository(),
         stage_repo=_get_container().stage_repository(),
+        job_repo=_get_container().job_repository(),
     )
