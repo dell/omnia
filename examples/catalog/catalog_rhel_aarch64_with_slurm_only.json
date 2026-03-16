@@ -2878,8 +2878,8 @@
           "x86_64"
         ],
         "Type": "image",
-        "Tag": "1.0",
-        "Version": "1.0"
+        "Tag": "1.1",
+        "Version": "1.1"
       }
     },
     "Miscellaneous": [],
