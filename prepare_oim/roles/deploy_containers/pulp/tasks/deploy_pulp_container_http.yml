@@ -47,11 +47,31 @@
         enabled: true
       no_log: true
 
+    - name: Check if Pulp container is already running
+      containers.podman.podman_container_info:
+        name: "{{ pulp_container_name }}"
+      register: pulp_running_check
+      failed_when: false
+
+    - name: Check current timeout setting in running Pulp container
+      containers.podman.podman_container_exec:
+        name: "{{ pulp_container_name }}"
+        command: python3 -c "import aiohttp; print(aiohttp.client.DEFAULT_TIMEOUT.total if hasattr(aiohttp.client, 'DEFAULT_TIMEOUT') else 'not_set')"
+      register: current_timeout
+      failed_when: false
+      when:
+        - pulp_running_check.containers | length > 0
+        - pulp_running_check.containers[0].State.Status == 'running'
+
+    - name: Determine if timeout is already correct
+      ansible.builtin.set_fact:
+        timeout_correct: "{{ (current_timeout.rc | default(1) == 0) and (current_timeout.stdout | default('') | trim == '7200') }}"
+
     - name: Restart pulp container
       ansible.builtin.systemd_service:
         state: restarted
         name: "{{ pulp_container_name }}"
-      when: quad_out.changed # noqa: no-handler
+      when: quad_out.changed or not timeout_correct # noqa: no-handler
       no_log: true
 
     - name: Check if Pulp container is running after deployment
