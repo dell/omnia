@@ -38,11 +38,11 @@ unreachable_idrac_msg: "iDRAC is unreachable. pxe boot might be set. Please chec
 bmc_inventory_path: "/opt/omnia/provision/bmc_inventory"
 bmc_inventory_not_found_msg: |
   Failed. No BMC inventory found.
-  
+
   Please either:
   1. Provide a custom inventory file with 'bmc' group:
      ansible-playbook set_pxe_boot.yml -i <your_inventory_file>
-  
+
   2. Or run discovery.yml first to auto-generate BMC inventory from PXE mapping file at:
      {{ bmc_inventory_path }}
 bmc_no_hosts_msg: "Failed. 'bmc' group has no hosts. Please check your inventory file or PXE mapping file."
