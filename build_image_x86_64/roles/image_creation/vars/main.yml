@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-pulp_x86_64_image_name: "dellhpcomniaaisolution/image-build-el10:1.0"
+pulp_x86_64_image_name: "dellhpcomniaaisolution/image-build-el10:1.1"
 x86_64_local_tag: "x86_64-image-builder/ochami"
 pull_image_retries: "3"
 pull_image_delay: "10"

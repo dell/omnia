@@ -214,6 +214,7 @@ def validate_build_stream_config(input_file_path, data,
             # Port is in use, check if it's build_stream by probing /health
             try:
                 context = ssl._create_unverified_context()
+                socket.setdefaulttimeout(2)
                 conn = client.HTTPSConnection(build_stream_host_ip, port_int, timeout=2, context=context)
                 conn.request("GET", "/health")
                 resp = conn.getresponse()
@@ -290,13 +291,10 @@ def validate_build_stream_config(input_file_path, data,
             reachable = False
             
             try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                    sock.settimeout(2)  # 2-second timeout
-                    result = sock.connect_ex((str(aarch64_ip), ssh_port))
-                    if result == 0:
-                        reachable = True
-                        logger.debug(f"aarch64 host {aarch64_ip} reachable on SSH port {ssh_port}")
-            except (socket.timeout, socket.error):
+                with socket.create_connection((str(aarch64_ip), ssh_port), timeout=2):
+                    reachable = True
+                    logger.debug(f"aarch64 host {aarch64_ip} reachable on SSH port {ssh_port}")
+            except (socket.timeout, socket.error, OSError):
                 pass
             
             if not reachable:

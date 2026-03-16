@@ -156,7 +156,7 @@ playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
 
 # Usage: cleanup_postgres.yml
 postgres_cleanup_directory:
-  - "{{ omnia_nfs_share }}/omnia/postgres"
+  - "{{ omnia_nfs_share }}/postgres"
 
 postgres_container_name: omnia_postgres
 postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
