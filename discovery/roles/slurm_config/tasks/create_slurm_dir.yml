@@ -48,19 +48,19 @@
 
 - name: Extract NVHPC package name for x86_64 from slurm_custom.json
   ansible.builtin.set_fact:
-    nvhpc_pkg_name_x86_64: "{{ (slurm_custom_x86_64.slurm_node.cluster | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'match', '^nvhpc_.*_Linux_x86_64_cuda_.*') | first).package }}"
+    nvhpc_pkg_name_x86_64: "{{ (slurm_custom_x86_64.slurm_node.cluster | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'match', '^nvhpc_.*_Linux_x86_64_cuda_.*') | first).package }}" # noqa: yaml[line-length]
   when:
     - slurm_custom_x86_64 is defined
     - slurm_custom_x86_64.slurm_node is defined
-    - slurm_custom_x86_64.slurm_node.cluster | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'match', '^nvhpc_.*_Linux_x86_64_cuda_.*') | list | length > 0
+    - slurm_custom_x86_64.slurm_node.cluster | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'match', '^nvhpc_.*_Linux_x86_64_cuda_.*') | list | length > 0 # noqa: yaml[line-length]
 
 - name: Extract NVHPC package name for aarch64 from slurm_custom.json
   ansible.builtin.set_fact:
-    nvhpc_pkg_name_aarch64: "{{ (slurm_custom_aarch64.slurm_node.cluster | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'match', '^nvhpc_.*_Linux_aarch64_cuda_.*') | first).package }}"
+    nvhpc_pkg_name_aarch64: "{{ (slurm_custom_aarch64.slurm_node.cluster | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'match', '^nvhpc_.*_Linux_aarch64_cuda_.*') | first).package }}" # noqa: yaml[line-length]
   when:
     - slurm_custom_aarch64 is defined
     - slurm_custom_aarch64.slurm_node is defined
-    - slurm_custom_aarch64.slurm_node.cluster | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'match', '^nvhpc_.*_Linux_aarch64_cuda_.*') | list | length > 0
+    - slurm_custom_aarch64.slurm_node.cluster | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'match', '^nvhpc_.*_Linux_aarch64_cuda_.*') | list | length > 0 # noqa: yaml[line-length]
 
 - name: Set facts for slurm
   ansible.builtin.set_fact:
