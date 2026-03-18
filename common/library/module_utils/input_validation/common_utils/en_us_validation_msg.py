@@ -171,6 +171,10 @@ PXE_MAPPING_FILE_PATH_FAIL_MSG = ("File path is invalid. Please ensure the file 
                                  "not a directory.")
 PXE_MAPPING_FILE_EXT_FAIL_MSG = ("File path is invalid. Please ensure that the file ends with "
                                  ".csv extension")
+PXE_MAPPING_AARCH64_LOCAL_PATH_MSG = ("aarch64 nodes are present in pxe_mapping_file.csv but "
+                                      "local share path is selected. aarch64 nodes require NFS share path. "
+                                      "Please configure NFS in storage_config.yml or remove aarch64 nodes "
+                                      "from pxe_mapping_file.csv.")
 CLUSTER_OS_FAIL_MSG = "Cluster OS must be 'rhel' for RHEL Omnia Infrastructure Manager"
 
 # local_repo.yml
