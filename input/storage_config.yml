@@ -124,26 +124,39 @@ nfs_client_params:
 
 # Example configuration:
 # mounts:
-#   # Example 1: PowerVault iSCSI storage - Fully specified for Slurm persistent storage
+#   # Example 1: PowerVault iSCSI storage - Persistent storage (matches setup_iscsi_storage.sh)
 #   - name: "powervault_slurm_persist"
-#     source: "/dev/mapper/mpatha1"  # PowerVault multipath device partition
+#     source: "UUID=<uuid-from-blkid>"  # Or /dev/mapper/mpatha1 (partition created by setup script)
 #     mount_point: "/mnt/slurm-persist"
-#     fs_type: "xfs"
-#     mnt_opts: "defaults,_netdev,noatime,x-systemd.requires=iscsi.service"
-#     dump_freq: "0"
-#     fsck_pass: "0"
+#     mount_default_field: "powervault_iscsi"
+#     # fs_type (xfs), mnt_opts, dump_freq, fsck_pass from powervault_iscsi profile
 #     roles: ["slurm_control_node"]
-#     # All fields explicit - mount_default_field not needed
 #
-#   # Example 2: VAST NFS storage - Home directories using default profile
+#   # Example 2: PowerVault bind mount - MySQL data directory (from /mnt/slurm-persist/mysql)
+#   - name: "powervault_mysql_bind"
+#     source: "/mnt/slurm-persist/mysql"
+#     mount_point: "/var/lib/mysql"
+#     mount_default_field: "bind_mounts"
+#     # fs_type (none), mnt_opts (bind), dump_freq, fsck_pass from bind_mounts profile
+#     roles: ["slurm_control_node"]
+#
+#   # Example 3: PowerVault bind mount - Slurm spool directory (from /mnt/slurm-persist/spool)
+#   - name: "powervault_spool_bind"
+#     source: "/mnt/slurm-persist/spool"
+#     mount_point: "/var/spool"
+#     mount_default_field: "bind_mounts"
+#     # fs_type (none), mnt_opts (bind), dump_freq, fsck_pass from bind_mounts profile
+#     roles: ["slurm_control_node"]
+#
+#   # Example 4: VAST NFS storage - Home directories using default profile
 #   - name: "vast_home"
 #     source: "192.168.1.100:/home"  # VAST NFS export
 #     mount_point: "/home"
-#     mount_default_field: "default"
-#     # fs_type, mnt_opts, dump_freq, fsck_pass ALL from default profile
+#     mount_default_field: "vast_nfs"
+#     # fs_type (nfs4), mnt_opts, dump_freq, fsck_pass from vast_nfs profile
 #     roles: ["slurm_control_node", "slurm_node", "login_node"]
 #
-#   # Example 3: VAST NFS storage - Shared applications with explicit fs_type
+#   # Example 5: VAST NFS storage - Shared applications with explicit fs_type
 #   - name: "vast_apps"
 #     source: "192.168.1.100:/apps"  # VAST NFS export
 #     mount_point: "/opt/apps"
@@ -153,62 +166,42 @@ nfs_client_params:
 #     # fs_type from network_storage is IGNORED (explicit wins)
 #     roles: ["slurm_control_node", "slurm_node"]
 #
-#   # Example 4: VAST NFS storage - Read-only data with custom mount options
-#   - name: "vast_data_ro"
-#     source: "192.168.1.100:/datasets"  # VAST NFS export
-#     mount_point: "/data"
-#     fs_type: "nfs4"  # ← EXPLICIT
-#     mnt_opts: "defaults,nofail,_netdev,ro,noatime"  # ← EXPLICIT (read-only)
-#     mount_default_field: "network_storage"
-#     # dump_freq, fsck_pass from network_storage profile
-#     # fs_type and mnt_opts from network_storage are IGNORED (explicit wins)
-#     roles: ["slurm_node"]
-#
-#   # Example 5: PowerVault bind mount - MySQL data directory
-#   - name: "powervault_mysql_bind"
-#     source: "/mnt/slurm-persist/mysql"
-#     mount_point: "/var/lib/mysql"
-#     mount_default_field: "bind_mounts"
-#     # fs_type, mnt_opts, dump_freq, fsck_pass ALL from bind_mounts profile
-#     roles: ["slurm_control_node"]
-#
-#   # Example 6: VAST NFS storage - Scratch space with high-performance options
+#   # Example 6: VAST NFS storage - High-performance scratch with performance profile
 #   - name: "vast_scratch"
 #     source: "192.168.1.100:/scratch"  # VAST NFS export
 #     mount_point: "/scratch"
-#     fs_type: "nfs4"
-#     mnt_opts: "defaults,nofail,_netdev,noatime,nodiratime,rsize=1048576,wsize=1048576"
-#     dump_freq: "0"
-#     fsck_pass: "0"
+#     mount_default_field: "vast_nfs_performance"
+#     # fs_type (nfs4), mnt_opts (with 1MB buffers), dump_freq, fsck_pass from vast_nfs_performance profile
 #     roles: ["slurm_node"]
 
 mounts: []
-  # Example 1: VAST NFS storage - Home directories using default NFS profile
+  # Example 1: PowerVault iSCSI storage - Persistent storage using profile
+  # - name: "powervault_slurm_persist"
+  #   source: "UUID=<uuid-from-blkid>"
+  #   mount_point: "/mnt/slurm-persist"
+  #   mount_default_field: "powervault_iscsi"
+  #   # fs_type (xfs), mnt_opts, dump_freq, fsck_pass from powervault_iscsi profile
+  #   roles: ["slurm_control_node"]
+  #
+  # Example 2: PowerVault bind mount - MySQL data directory
+  # - name: "powervault_mysql_bind"
+  #   source: "/mnt/slurm-persist/mysql"
+  #   mount_point: "/var/lib/mysql"
+  #   mount_default_field: "bind_mounts"
+  #   roles: ["slurm_control_node"]
+  #
+  # Example 3: VAST NFS storage - Home directories using VAST profile
   # - name: "vast_home"
   #   source: "192.168.1.100:/home"
   #   mount_point: "/home"
-  #   mount_default_field: "default"
-  #   # fs_type (nfs), mnt_opts, dump_freq, fsck_pass will be filled from default profile
+  #   mount_default_field: "vast_nfs"
   #   roles: ["slurm_control_node", "slurm_node", "login_node"]
   #
-  # Example 2: PowerVault iSCSI storage - Fully specified persistent storage
-  # - name: "powervault_slurm_persist"
-  #   source: "/dev/mapper/mpatha1" #TODO: how to derive this?
-  #   mount_point: "/mnt/slurm-persist"
-  #   fs_type: "xfs"
-  #   mnt_opts: "defaults,_netdev,noatime,x-systemd.requires=iscsi.service"
-  #   dump_freq: "0"
-  #   fsck_pass: "0"
-  #   roles: ["slurm_control_node"]
-  #
-  # Example 3: VAST NFS storage - High-performance scratch with custom options
+  # Example 4: VAST NFS storage - High-performance scratch
   # - name: "vast_scratch"
   #   source: "192.168.1.100:/scratch"
   #   mount_point: "/scratch"
-  #   fs_type: "nfs4"
-  #   mnt_opts: "defaults,nofail,_netdev,noatime,nodiratime,rsize=1048576,wsize=1048576"
-  #   dump_freq: "0"
-  #   fsck_pass: "0"
+  #   mount_default_field: "vast_nfs_performance"
   #   roles: ["slurm_node"]
 
 # Named default profiles for mount configurations
