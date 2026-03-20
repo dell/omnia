@@ -80,23 +80,29 @@ nfs_client_params:
 
 # Each mount entry contains the following fields (matching /etc/fstab format):
 #   - name: Unique identifier for this mount entry (e.g., "data_mount", "nfs_home", "swap_storage"). Required
-#   - fs_spec: Device name (e.g., /dev/sdc, ephemeral0, UUID=xxx, or network path like 192.168.1.100:/export/share)
-#   - fs_file: Mount point path (e.g., /mnt, /opt/data)
-#   - fs_vfstype: Filesystem type (e.g., ext4, xfs, nfs, cifs, auto), supported by mount module
+#   - source: Device name (e.g., /dev/sdc, ephemeral0, UUID=xxx, or network path like 192.168.1.100:/export/share)
+#   - mount_point: Mount point path (e.g., /mnt, /opt/data)
+#   - fs_type: Filesystem type (e.g., ext4, xfs, nfs, cifs, auto), supported by mount module
 #       - nfs, tmpfs, cifs, cephfs, btrfs, ext2, ext3, ext4, xfs, etc.
-#       - For network filesystems (nfs, cifs, etc.), fs_spec should be the server path (e.g., 192.168.1.100:/export/share)
-#   - fs_mntops: Mount options (e.g., defaults,noexec,nofail). Optional, defaults to "defaults,nofail,x-systemd.after=cloud-init-network.service"
-#   - fs_freq: Dump frequency (usually "0"). Optional, defaults to "0"
-#   - fs_passno: Fsck pass number (usually "0" or "2"). Optional, defaults to "2"
+#       - For network filesystems (nfs, cifs, etc.), source should be the server path (e.g., 192.168.1.100:/export/share)
+#   - mnt_opts: Mount options (e.g., defaults,noexec,nofail). Optional, defaults to "defaults,nofail,x-systemd.after=cloud-init-network.service"
+#   - dump_freq: Dump frequency (usually "0"). Optional, defaults to "0"
+#   - fsck_pass: Fsck pass number (usually "0" or "2"). Optional, defaults to "2"
 #   - roles: List of node roles to apply this mount to (e.g., ["slurm_control_node", "slurm_node", "login_node"]). Optional
 #   - hostnames: List of specific hostnames to apply this mount to (e.g., ["node01", "node02"]). Optional
 #   - groups: List of node groups to apply this mount to (e.g., ["grp1", "grp2"]). Optional
 # Note: If roles, hostnames, and groups are all empty or not specified, the mount will be applied to all nodes
 
-# mount_default_fields: Default mount configuration for any mount entry with less than 6 options provided.
-#   When specified, 6 items are required and represent /etc/fstab entries.
-#   Default: defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev.
-# Default: ["auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
+# mount_default_fields: 
+#   - fields: Default mount configuration for any mount entry with less than 6 options provided.
+#           When specified, 6 items are required and represent /etc/fstab entries.
+#           Default: ["auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
+#   - roles: List of node roles to apply this default to (e.g., ["slurm_node", "kube_node"]). Optional
+#     Example: ["slurm_node", "kube_node"]
+#   - hostnames: List of specific hostnames to apply this default to (e.g., ["node01", "node02"]). Optional
+#     Example: ["node01", "node02"]
+#   - groups: List of node groups to apply this default to (e.g., ["grp1", "grp2"]). Optional
+#     Example: ["grp1", "grp2"]
 
 # swap: Swap file configuration (list of swap configurations)
 # Each swap entry contains the following fields:
@@ -113,52 +119,52 @@ nfs_client_params:
 # Example configuration:
 # mounts:
 #   - name: "node_storage_mount"
-#     fs_spec: "/dev/sdc"
-#     fs_file: "/opt/data"
-#     fs_vfstype: "ext4"
-#     fs_mntops: "defaults,nofail"
-#     fs_freq: "0"
-#     fs_passno: "2"
+#     source: "/dev/sdc"
+#     mount_point: "/opt/data"
+#     fs_type: "ext4"
+#     mnt_opts: "defaults,nofail"
+#     dump_freq: "0"
+#     fsck_pass: "2"
 #     roles: ["slurm_node"]
 #     hostnames: []
 #     groups: ["grp1"]
 #   - name: "ephemeral_mount"
-#     fs_spec: "ephemeral0"
-#     fs_file: "/mnt"
-#     fs_vfstype: "auto"
-#     fs_mntops: "defaults,noexec"
+#     source: "ephemeral0"
+#     mount_point: "/mnt"
+#     fs_type: "auto"
+#     mnt_opts: "defaults,noexec"
 #     roles: []
 #     hostnames: ["node01", "node02"]
 #     groups: []
 #   - name: "nfs_slurm"
-#     fs_spec: "192.168.1.100:/export/share"
-#     fs_file: "/mnt/nfs"
-#     fs_vfstype: "nfs"
-#     fs_mntops: "defaults,nofail,_netdev"
-#     fs_freq: "0"
-#     fs_passno: "0"
+#     source: "192.168.1.100:/export/share"
+#     mount_point: "/mnt/nfs"
+#     fs_type: "nfs"
+#     mnt_opts: "defaults,nofail,_netdev"
+#     dump_freq: "0"
+#     fsck_pass: "0"
 #     roles: ["slurm_control_node", "slurm_node", "login_node"]
 #     hostnames: []
 #     groups: []
 #   - name: "cifs_k8s"
-#     fs_spec: "//server/share"
-#     fs_file: "/mnt/cifs"
-#     fs_vfstype: "cifs"
-#     fs_mntops: "credentials=/root/.smbcreds,nofail"
-#     fs_freq: "0"
-#     fs_passno: "0"
+#     source: "//server/share"
+#     mount_point: "/mnt/cifs"
+#     fs_type: "cifs"
+#     mnt_opts: "credentials=/root/.smbcreds,nofail"
+#     dump_freq: "0"
+#     fsck_pass: "0"
 #     roles: ['kube_control_plane', 'kube_node']
 #     hostnames: []
 #     groups: ["grp2"]
 
 mounts: []
   # - name: "nfs_slurm_home"
-  #   fs_spec: "172.16.107.168:/mnt/share/omnia"
-  #   fs_file: "/home"
-  #   fs_vfstype: "nfs"
-  #   fs_mntops: "defaults,nofail,_netdev"
-  #   fs_freq: "0"
-  #   fs_passno: "0"
+  #   source: "172.16.107.168:/mnt/share/omnia"
+  #   mount_point: "/home"
+  #   fs_type: "nfs"
+  #   mnt_opts: "defaults,nofail,_netdev"
+  #   dump_freq: "0"
+  #   fsck_pass: "0"
   #   roles: ["slurm_control_node", "slurm_node", "login_node"]
   #   hostnames: []
   #   groups: []

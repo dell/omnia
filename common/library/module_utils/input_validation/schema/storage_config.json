@@ -96,32 +96,32 @@
               "minLength": 1,
               "maxLength": 64
             },
-            "fs_spec": {
+            "source": {
               "type": "string",
               "description": "Device name or network path (e.g., /dev/sdc, UUID=xxx, 192.168.1.100:/export/share)",
               "minLength": 1
             },
-            "fs_file": {
+            "mount_point": {
               "type": "string",
               "description": "Mount point path",
               "pattern": "^/[a-zA-Z0-9/_.-]*$"
             },
-            "fs_vfstype": {
+            "fs_type": {
               "type": "string",
               "description": "Filesystem type (e.g., ext4, xfs, nfs, cifs, auto)",
               "enum": ["auto", "ext2", "ext3", "ext4", "xfs", "btrfs", "nfs", "nfs4", "cifs", "tmpfs", "cephfs", "vfat", "ntfs"]
             },
-            "fs_mntops": {
+            "mnt_opts": {
               "type": "string",
               "description": "Mount options (e.g., defaults,noexec,nofail)",
               "pattern": "^[a-zA-Z0-9,=._-]+$"
             },
-            "fs_freq": {
+            "dump_freq": {
               "type": "string",
               "description": "Dump frequency (usually 0)",
               "pattern": "^[0-2]$"
             },
-            "fs_passno": {
+            "fsck_pass": {
               "type": "string",
               "description": "Fsck pass number (usually 0 or 2)",
               "pattern": "^[0-9]$"
@@ -173,14 +173,25 @@
         "type": "object",
         "description": "Default mount configuration for any mount entry with less than 6 options provided",
         "properties": {
-          "fields": {
-            "type": "array",
-            "description": "When specified, 6 items are required and represent /etc/fstab entries. Default: defaults,nofail,x-systemd.after=cloud-init-network.service,_netdev.",
-            "items": {
-              "type": "string"
-            },
-            "minItems": 6,
-            "maxItems": 6
+          "fs_type": {
+            "type": "string",
+            "description": "Filesystem type (e.g., ext4, xfs, nfs, cifs, auto)",
+            "enum": ["auto", "ext2", "ext3", "ext4", "xfs", "btrfs", "nfs", "nfs4", "cifs", "tmpfs", "cephfs", "vfat", "ntfs"]
+          },
+          "mnt_opts": {
+            "type": "string",
+            "description": "Mount options (e.g., defaults,noexec,nofail)",
+            "pattern": "^[a-zA-Z0-9,=._-]+$"
+          },
+          "dump_freq": {
+            "type": "string",
+            "description": "Dump frequency (usually 0)",
+            "pattern": "^[0-2]$"
+          },
+          "fsck_pass": {
+            "type": "string",
+            "description": "Fsck pass number (usually 0 or 2)",
+            "pattern": "^[0-9]$"
           },
           "roles": {
             "type": "array",
@@ -210,7 +221,7 @@
             "uniqueItems": true
           }
         },
-        "required": ["fields"],
+        "required": ["fs_type", "mnt_opts", "dump_freq", "fsck_pass"],
         "anyOf": [
           {
             "required": ["roles"]
