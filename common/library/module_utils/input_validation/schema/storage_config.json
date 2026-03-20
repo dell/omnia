@@ -135,35 +135,21 @@
               },
               "uniqueItems": true
             },
-            "hostnames": {
-              "type": "array",
-              "description": "List of specific hostnames to apply this mount to",
-              "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9.-]+$"
-              },
-              "uniqueItems": true
-            },
-            "groups": {
-              "type": "array",
-              "description": "List of node groups to apply this mount to",
-              "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9_-]+$"
-              },
-              "uniqueItems": true
+            "mount_default_field": {
+              "type": "string",
+              "description": "Name of the default profile to use for missing optional fields (references mount_default_fields.name)",
+              "pattern": "^[a-zA-Z0-9_-]+$"
             }
           },
-          "required": ["name", "fs_spec", "fs_file"],
+          "required": ["name", "source", "mount_point", "roles"],
           "anyOf": [
             {
-              "required": ["roles"]
+              "required": ["mount_default_field"],
+              "description": "Must have mount_default_field to reference a default profile"
             },
             {
-              "required": ["hostnames"]
-            },
-            {
-              "required": ["groups"]
+              "required": ["mnt_opts"],
+              "description": "Must have mnt_opts explicitly specified"
             }
           ],
           "additionalProperties": false
@@ -171,68 +157,36 @@
       },
       "mount_default_fields": {
         "type": "object",
-        "description": "Default mount configuration for any mount entry with less than 6 options provided",
-        "properties": {
-          "fs_type": {
-            "type": "string",
-            "description": "Filesystem type (e.g., ext4, xfs, nfs, cifs, auto)",
-            "enum": ["auto", "ext2", "ext3", "ext4", "xfs", "btrfs", "nfs", "nfs4", "cifs", "tmpfs", "cephfs", "vfat", "ntfs"]
-          },
-          "mnt_opts": {
-            "type": "string",
-            "description": "Mount options (e.g., defaults,noexec,nofail)",
-            "pattern": "^[a-zA-Z0-9,=._-]+$"
-          },
-          "dump_freq": {
-            "type": "string",
-            "description": "Dump frequency (usually 0)",
-            "pattern": "^[0-2]$"
-          },
-          "fsck_pass": {
-            "type": "string",
-            "description": "Fsck pass number (usually 0 or 2)",
-            "pattern": "^[0-9]$"
-          },
-          "roles": {
-            "type": "array",
-            "description": "List of node roles to apply these defaults to",
-            "items": {
-              "type": "string",
-              "pattern": "^[a-zA-Z0-9_-]+$"
+        "description": "Named default mount configurations (key = profile name, value = profile settings)",
+        "patternProperties": {
+          "^[a-zA-Z0-9_-]+$": {
+            "type": "object",
+            "properties": {
+              "fs_type": {
+                "type": "string",
+                "description": "Default filesystem type (e.g., ext4, xfs, nfs, cifs, auto)",
+                "enum": ["auto", "ext2", "ext3", "ext4", "xfs", "btrfs", "nfs", "nfs4", "cifs", "tmpfs", "cephfs", "vfat", "ntfs", "none"]
+              },
+              "mnt_opts": {
+                "type": "string",
+                "description": "Default mount options (e.g., defaults,noexec,nofail)",
+                "pattern": "^[a-zA-Z0-9,=._\\\\-]+$"
+              },
+              "dump_freq": {
+                "type": "string",
+                "description": "Default dump frequency (usually 0)",
+                "pattern": "^[0-2]$"
+              },
+              "fsck_pass": {
+                "type": "string",
+                "description": "Default fsck pass number (usually 0 or 2)",
+                "pattern": "^[0-9]$"
+              }
             },
-            "uniqueItems": true
-          },
-          "hostnames": {
-            "type": "array",
-            "description": "List of specific hostnames to apply these defaults to",
-            "items": {
-              "type": "string",
-              "pattern": "^[a-zA-Z0-9.-]+$"
-            },
-            "uniqueItems": true
-          },
-          "groups": {
-            "type": "array",
-            "description": "List of node groups to apply these defaults to",
-            "items": {
-              "type": "string",
-              "pattern": "^[a-zA-Z0-9_-]+$"
-            },
-            "uniqueItems": true
+            "required": ["fs_type", "mnt_opts", "dump_freq", "fsck_pass"],
+            "additionalProperties": false
           }
         },
-        "required": ["fs_type", "mnt_opts", "dump_freq", "fsck_pass"],
-        "anyOf": [
-          {
-            "required": ["roles"]
-          },
-          {
-            "required": ["hostnames"]
-          },
-          {
-            "required": ["groups"]
-          }
-        ],
         "additionalProperties": false
       },
       "swap": {
@@ -271,38 +225,9 @@
                 "pattern": "^[a-zA-Z0-9_-]+$"
               },
               "uniqueItems": true
-            },
-            "hostnames": {
-              "type": "array",
-              "description": "List of specific hostnames to apply this swap to",
-              "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9.-]+$"
-              },
-              "uniqueItems": true
-            },
-            "groups": {
-              "type": "array",
-              "description": "List of node groups to apply this swap to",
-              "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9_-]+$"
-              },
-              "uniqueItems": true
             }
           },
-          "required": ["name", "filename", "size"],
-          "anyOf": [
-            {
-              "required": ["roles"]
-            },
-            {
-              "required": ["hostnames"]
-            },
-            {
-              "required": ["groups"]
-            }
-          ],
+          "required": ["name", "filename", "size", "roles"],
           "additionalProperties": false
         }
       }

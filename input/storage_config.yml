@@ -79,101 +79,202 @@ nfs_client_params:
 # This configuration will be used to generate cloud-init compatible mount configurations
 
 # Each mount entry contains the following fields (matching /etc/fstab format):
-#   - name: Unique identifier for this mount entry (e.g., "data_mount", "nfs_home", "swap_storage"). Required
-#   - source: Device name (e.g., /dev/sdc, ephemeral0, UUID=xxx, or network path like 192.168.1.100:/export/share)
-#   - mount_point: Mount point path (e.g., /mnt, /opt/data)
-#   - fs_type: Filesystem type (e.g., ext4, xfs, nfs, cifs, auto), supported by mount module
-#       - nfs, tmpfs, cifs, cephfs, btrfs, ext2, ext3, ext4, xfs, etc.
+#   - name: Unique identifier for this mount entry (e.g., "iscsi_slurm_persist", "nfs_slurm_home"). Required
+#   - source: Device name (e.g., /dev/sdc, UUID=xxx, or network path like 192.168.1.100:/export/share). Required
+#   - mount_point: Mount point path (e.g., /mnt, /opt/data). Required
+#   - fs_type: Filesystem type (e.g., ext4, xfs, nfs, cifs, auto). Optional
+#       - Supported: nfs, nfs4, cifs, tmpfs, cephfs, btrfs, ext2, ext3, ext4, xfs, none, etc.
 #       - For network filesystems (nfs, cifs, etc.), source should be the server path (e.g., 192.168.1.100:/export/share)
-#   - mnt_opts: Mount options (e.g., defaults,noexec,nofail). Optional, defaults to "defaults,nofail,x-systemd.after=cloud-init-network.service"
-#   - dump_freq: Dump frequency (usually "0"). Optional, defaults to "0"
-#   - fsck_pass: Fsck pass number (usually "0" or "2"). Optional, defaults to "2"
-#   - roles: List of node roles to apply this mount to (e.g., ["slurm_control_node", "slurm_node", "login_node"]). Optional
-#   - hostnames: List of specific hostnames to apply this mount to (e.g., ["node01", "node02"]). Optional
-#   - groups: List of node groups to apply this mount to (e.g., ["grp1", "grp2"]). Optional
-# Note: If roles, hostnames, and groups are all empty or not specified, the mount will be applied to all nodes
+#       - If specified, takes PRIORITY over mount_default_field
+#   - mnt_opts: Mount options (e.g., defaults,noexec,nofail). Optional
+#       - If specified, takes PRIORITY over mount_default_field
+#   - dump_freq: Dump frequency (usually "0"). Optional
+#       - If specified, takes PRIORITY over mount_default_field
+#   - fsck_pass: Fsck pass number (usually "0" or "2"). Optional
+#       - If specified, takes PRIORITY over mount_default_field
+#   - mount_default_field: Name of the default profile to use (references mount_default_fields.name). Optional
+#       - Used ONLY for fields not explicitly specified in the mount entry
+#       - If not specified, system will auto-select based on fs_type or use global defaults
+#   - roles: List of node roles to apply this mount to (e.g., ["slurm_control_node", "slurm_node"]). Required
+#
+# PRIORITY ORDER for field resolution:
+#   1. Explicit value in mount entry (HIGHEST PRIORITY)
+#   2. Value from mount_default_field profile (if specified)
+#   3. Auto-selected profile based on fs_type
+#   4. Global fallback profile
+#   5. Hardcoded system defaults (LOWEST PRIORITY)
 
-# mount_default_fields: 
-#   - fields: Default mount configuration for any mount entry with less than 6 options provided.
-#           When specified, 6 items are required and represent /etc/fstab entries.
-#           Default: ["auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
-#   - roles: List of node roles to apply this default to (e.g., ["slurm_node", "kube_node"]). Optional
-#     Example: ["slurm_node", "kube_node"]
-#   - hostnames: List of specific hostnames to apply this default to (e.g., ["node01", "node02"]). Optional
-#     Example: ["node01", "node02"]
-#   - groups: List of node groups to apply this default to (e.g., ["grp1", "grp2"]). Optional
-#     Example: ["grp1", "grp2"]
+# mount_default_fields: Mapping of named default profiles (key = profile name)
+# Each profile (value) contains:
+#   - fs_type: Default filesystem type (e.g., "auto", "xfs", "nfs"). Required
+#   - mnt_opts: Default mount options (e.g., "defaults,nofail,_netdev"). Required
+#   - dump_freq: Default dump frequency (usually "0"). Required
+#   - fsck_pass: Default fsck pass number (usually "0" or "2"). Required
+# Note: Profiles are templates that can be referenced by any mount entry
+# Note: Profile names must match pattern ^[a-zA-Z0-9_-]+$ (alphanumeric, underscore, hyphen)
 
 # swap: Swap file configuration (list of swap configurations)
 # Each swap entry contains the following fields:
 #   - name: Unique identifier for this swap entry (e.g., "compute_swap", "slurm_swap"). Required
-#   - filename: Path to the swap file to create (e.g., /swapfile)
-#   - size: Size in bytes, 'auto', or human-readable format (e.g., "2G", "512M")
+#   - filename: Path to the swap file to create (e.g., /swapfile). Required
+#   - size: Size in bytes, 'auto', or human-readable format (e.g., "2G", "512M"). Required
 #            Units: B, K, M, G, T (Note: 1K = 1024B)
-#   - maxsize: Maximum size in bytes or human-readable format (used with size: auto)
-#   - roles: List of node roles to apply this swap to (e.g., ["slurm_node", "kube_node"]). Optional
-#   - groups: List of node groups to apply this swap to (e.g., ["grp1", "grp2"]). Optional
-#   - hostnames: List of specific hostnames to apply this swap to (e.g., ["node01", "node02"]). Optional
-# Note: If roles, hostnames, and groups are all empty or not specified, the swap will be applied to all nodes
+#   - maxsize: Maximum size in bytes or human-readable format (used with size: auto). Optional
+#   - roles: List of node roles to apply this swap to (e.g., ["slurm_node"]). Required
 
 # Example configuration:
 # mounts:
-#   - name: "node_storage_mount"
-#     source: "/dev/sdc"
-#     mount_point: "/opt/data"
-#     fs_type: "ext4"
-#     mnt_opts: "defaults,nofail"
-#     dump_freq: "0"
-#     fsck_pass: "2"
-#     roles: ["slurm_node"]
-#     hostnames: []
-#     groups: ["grp1"]
-#   - name: "ephemeral_mount"
-#     source: "ephemeral0"
-#     mount_point: "/mnt"
-#     fs_type: "auto"
-#     mnt_opts: "defaults,noexec"
-#     roles: []
-#     hostnames: ["node01", "node02"]
-#     groups: []
-#   - name: "nfs_slurm"
-#     source: "192.168.1.100:/export/share"
-#     mount_point: "/mnt/nfs"
-#     fs_type: "nfs"
-#     mnt_opts: "defaults,nofail,_netdev"
+#   # Example 1: PowerVault iSCSI storage - Fully specified for Slurm persistent storage
+#   - name: "powervault_slurm_persist"
+#     source: "/dev/mapper/mpatha1"  # PowerVault multipath device partition
+#     mount_point: "/mnt/slurm-persist"
+#     fs_type: "xfs"
+#     mnt_opts: "defaults,_netdev,noatime,x-systemd.requires=iscsi.service"
 #     dump_freq: "0"
 #     fsck_pass: "0"
+#     roles: ["slurm_control_node"]
+#     # All fields explicit - mount_default_field not needed
+#
+#   # Example 2: VAST NFS storage - Home directories using default profile
+#   - name: "vast_home"
+#     source: "192.168.1.100:/home"  # VAST NFS export
+#     mount_point: "/home"
+#     mount_default_field: "default"
+#     # fs_type, mnt_opts, dump_freq, fsck_pass ALL from default profile
 #     roles: ["slurm_control_node", "slurm_node", "login_node"]
-#     hostnames: []
-#     groups: []
-#   - name: "cifs_k8s"
-#     source: "//server/share"
-#     mount_point: "/mnt/cifs"
-#     fs_type: "cifs"
-#     mnt_opts: "credentials=/root/.smbcreds,nofail"
+#
+#   # Example 3: VAST NFS storage - Shared applications with explicit fs_type
+#   - name: "vast_apps"
+#     source: "192.168.1.100:/apps"  # VAST NFS export
+#     mount_point: "/opt/apps"
+#     fs_type: "nfs4"  # ← EXPLICIT (takes priority over profile)
+#     mount_default_field: "network_storage"
+#     # mnt_opts, dump_freq, fsck_pass from network_storage profile
+#     # fs_type from network_storage is IGNORED (explicit wins)
+#     roles: ["slurm_control_node", "slurm_node"]
+#
+#   # Example 4: VAST NFS storage - Read-only data with custom mount options
+#   - name: "vast_data_ro"
+#     source: "192.168.1.100:/datasets"  # VAST NFS export
+#     mount_point: "/data"
+#     fs_type: "nfs4"  # ← EXPLICIT
+#     mnt_opts: "defaults,nofail,_netdev,ro,noatime"  # ← EXPLICIT (read-only)
+#     mount_default_field: "network_storage"
+#     # dump_freq, fsck_pass from network_storage profile
+#     # fs_type and mnt_opts from network_storage are IGNORED (explicit wins)
+#     roles: ["slurm_node"]
+#
+#   # Example 5: PowerVault bind mount - MySQL data directory
+#   - name: "powervault_mysql_bind"
+#     source: "/mnt/slurm-persist/mysql"
+#     mount_point: "/var/lib/mysql"
+#     mount_default_field: "bind_mounts"
+#     # fs_type, mnt_opts, dump_freq, fsck_pass ALL from bind_mounts profile
+#     roles: ["slurm_control_node"]
+#
+#   # Example 6: VAST NFS storage - Scratch space with high-performance options
+#   - name: "vast_scratch"
+#     source: "192.168.1.100:/scratch"  # VAST NFS export
+#     mount_point: "/scratch"
+#     fs_type: "nfs4"
+#     mnt_opts: "defaults,nofail,_netdev,noatime,nodiratime,rsize=1048576,wsize=1048576"
 #     dump_freq: "0"
 #     fsck_pass: "0"
-#     roles: ['kube_control_plane', 'kube_node']
-#     hostnames: []
-#     groups: ["grp2"]
+#     roles: ["slurm_node"]
 
 mounts: []
-  # - name: "nfs_slurm_home"
-  #   source: "172.16.107.168:/mnt/share/omnia"
+  # Example 1: VAST NFS storage - Home directories using default NFS profile
+  # - name: "vast_home"
+  #   source: "192.168.1.100:/home"
   #   mount_point: "/home"
-  #   fs_type: "nfs"
-  #   mnt_opts: "defaults,nofail,_netdev"
+  #   mount_default_field: "default"
+  #   # fs_type (nfs), mnt_opts, dump_freq, fsck_pass will be filled from default profile
+  #   roles: ["slurm_control_node", "slurm_node", "login_node"]
+  #
+  # Example 2: PowerVault iSCSI storage - Fully specified persistent storage
+  # - name: "powervault_slurm_persist"
+  #   source: "/dev/mapper/mpatha1" #TODO: how to derive this?
+  #   mount_point: "/mnt/slurm-persist"
+  #   fs_type: "xfs"
+  #   mnt_opts: "defaults,_netdev,noatime,x-systemd.requires=iscsi.service"
   #   dump_freq: "0"
   #   fsck_pass: "0"
-  #   roles: ["slurm_control_node", "slurm_node", "login_node"]
-  #   hostnames: []
-  #   groups: []
+  #   roles: ["slurm_control_node"]
+  #
+  # Example 3: VAST NFS storage - High-performance scratch with custom options
+  # - name: "vast_scratch"
+  #   source: "192.168.1.100:/scratch"
+  #   mount_point: "/scratch"
+  #   fs_type: "nfs4"
+  #   mnt_opts: "defaults,nofail,_netdev,noatime,nodiratime,rsize=1048576,wsize=1048576"
+  #   dump_freq: "0"
+  #   fsck_pass: "0"
+  #   roles: ["slurm_node"]
 
+# Named default profiles for mount configurations
 mount_default_fields:
-  fields: ["auto", "defaults,nofail,x-systemd.after=cloud-init-network.service", "0", "2"]
-  roles: []
-  hostnames: []
-  groups: []
+  # Default NFS mount configuration - standard NFS defaults
+  default:
+    fs_type: "nfs"
+    mnt_opts: "defaults,nofail,_netdev,x-systemd.after=cloud-init-network.service"
+    dump_freq: "0"
+    fsck_pass: "0"
+
+  # VAST NFS storage - Standard configuration for VAST Data NFS exports
+  vast_nfs:
+    fs_type: "nfs4"
+    mnt_opts: "defaults,nofail,_netdev,noatime,x-systemd.after=cloud-init-network.service"
+    dump_freq: "0"
+    fsck_pass: "0"
+
+  # VAST NFS storage - High-performance configuration with large buffers
+  vast_nfs_performance:
+    fs_type: "nfs4"
+    mnt_opts: "defaults,nofail,_netdev,noatime,nodiratime,rsize=1048576,wsize=1048576"
+    dump_freq: "0"
+    fsck_pass: "0"
+
+  # PowerVault iSCSI storage - Block device with XFS filesystem
+  powervault_iscsi:
+    fs_type: "xfs"
+    mnt_opts: "defaults,_netdev,noatime,x-systemd.requires=iscsi.service"
+    dump_freq: "0"
+    fsck_pass: "0"
+
+  # Network storage defaults (generic NFS, CIFS, etc.)
+  network_storage:
+    fs_type: "auto"
+    mnt_opts: "defaults,nofail,_netdev,x-systemd.after=cloud-init-network.service"
+    dump_freq: "0"
+    fsck_pass: "0"
+
+  # Local storage defaults (ext4, xfs, etc.)
+  local_storage:
+    fs_type: "auto"
+    mnt_opts: "defaults,nofail,noatime"
+    dump_freq: "0"
+    fsck_pass: "2"
+
+  # Bind mount defaults
+  bind_mounts:
+    fs_type: "none"
+    mnt_opts: "bind"
+    dump_freq: "0"
+    fsck_pass: "0"
+
+  # High-performance scratch storage
+  scratch_storage:
+    fs_type: "xfs"
+    mnt_opts: "defaults,nofail,noatime,nodiratime,largeio,inode64"
+    dump_freq: "0"
+    fsck_pass: "2"
+
+  # Global fallback defaults
+  global:
+    fs_type: "auto"
+    mnt_opts: "defaults,nofail,x-systemd.after=cloud-init-network.service"
+    dump_freq: "0"
+    fsck_pass: "2"
 
 # Example swap configuration:
 # swap:
@@ -182,20 +283,17 @@ mount_default_fields:
 #     size: "4G"
 #     maxsize: "8G"
 #     roles: ["slurm_node"]
-#     groups: []
+#
 #   - name: "k8s_swap"
 #     filename: "/swapfile"
 #     size: "2G"
 #     maxsize: "4G"
 #     roles: ["kube_node"]
-#     groups: ["grp2"]
 
 swap: []
   # - name: "compute_swap"
   #   filename: "/swapfile"
   #   size: "2G"
   #   maxsize: "4G"
-  #   roles: []
-  #   groups: []
-  #   hostnames: []
+  #   roles: ["slurm_node"]
 
