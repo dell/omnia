@@ -24,9 +24,7 @@ discovery_inputs:
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
-build_stream_job_id_absent: |
-    Build Stream mode is enabled. Manual execution is not supported.
-    Please trigger this workflow via the GitLab pipeline.
+build_stream_job_id_absent: "Failed: enable_build_stream is set to true, but no 'job_id' was found during the execution of discovery.yml."  # noqa: yaml[line-length]
 input_syntax_fail_msg: "Failed. Syntax errors present in {{ item.path }}. Fix errors and re-run playbook again."  # noqa: yaml[line-length]
 
 # Usage: include_software_config.yml
@@ -103,3 +101,11 @@ openldap_container_missing_msg: "{{ '\x1b[31m' }}\
   For more information, refer to the Omnia documentation on OpenLDAP configuration.\n\
   ==================================================================================\
   {{ '\x1b[0m' }}"
+
+# Usage: generate_bmc_inventory.yml
+pxe_mapping_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/pxe_mapping_file.csv"
+bmc_inventory_path: "/opt/omnia/provision/bmc_inventory"
+provision_dir_path: "/opt/omnia/provision"
+provision_dir_mode: "0755"
+bmc_inventory_file_mode: "0644"
+bmc_inventory_generated_msg: "BMC inventory generated at {{ bmc_inventory_path }} with {{ bmc_ip_list | length }} BMC IP(s)"
