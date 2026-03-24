@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -103,6 +103,8 @@ systemd_files:
   - /etc/containers/systemd/registry.container
   - /etc/containers/systemd/minio.container
 
+quadlet_dir: "/etc/containers/systemd"
+
 regctl_files:
   - ~/.regctl/config.json
   - /usr/local/bin/regctl
@@ -139,6 +141,46 @@ auth_cleanup_directory:
   - "{{ omnia_nfs_share }}/auth"
 
 auth_service_container_name: omnia_auth
+
+# Usage: cleanup_build_stream.yml
+build_stream_cleanup_directory:
+  - "{{ omnia_nfs_share }}/log/build_stream"
+  - "{{ omnia_nfs_share }}/playbook_queue"
+  - "{{ omnia_nfs_share }}/build_stream_ssl"
+  - "{{ omnia_nfs_share }}/build_stream_root"
+  - "{{ omnia_nfs_share }}/build_stream_inv"
+  - "{{ omnia_nfs_share }}/build_stream"
+
+build_stream_container_name: omnia_build_stream
+playbook_watcher_service_file: "/etc/systemd/system/playbook_watcher.service"
+
+# Build stream cleanup failure message
+build_stream_cleanup_failure_msg:
+  - "Build stream cleanup failed due to directory locks."
+  - "[Manual Intervention Required]"
+  - "Logout of core container and perform below operations in OIM"
+  - "1. Force stop the playbook watcher service:"
+  - "   - systemctl stop playbook_watcher.service"
+  - "   - systemctl disable playbook_watcher.service"
+  - "2. Check for processes using the directory: Example:"
+  - "   - lsof +D {{ omnia_nfs_share }}/log/build_stream"
+  - "3. Force remove these directories:"
+  - "   - {{ build_stream_cleanup_directory | join(', ') }}"
+  - "After manual cleanup, you can safely retry the oim cleanup playbook from omnia_core."
+
+# Usage: cleanup_postgres.yml
+postgres_cleanup_directory:
+  - "{{ omnia_nfs_share }}/postgres"
+
+postgres_container_name: omnia_postgres
+postgres_cleanup_mode_msg: "Postgres cleanup mode: {{ 'PRESERVE data (postgres_backup=true)'
+ if postgres_backup | bool else 'DELETE data (postgres_backup=false)' }}"
+postgres_preserved_msg: "PRESERVED: Postgres data directories retained (postgres_backup=true): {{ postgres_cleanup_directory }}"
+postgres_preserved_volumes_msg: "PRESERVED: Postgres volumes retained (postgres_backup=true): {{ postgres_volumes | default([]) }}"
+postgres_deleted_msg:
+  - "DELETED: Postgres data directories removed (postgres_backup=false)"
+  - "Directories: {{ postgres_cleanup_directory }}"
+  - "Volumes: {{ postgres_volumes | default([]) }}"
 
 # Usage: cleanup_note.yml
 oim_cleanup_note: |

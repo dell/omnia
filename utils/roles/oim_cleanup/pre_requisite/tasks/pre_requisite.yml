@@ -41,3 +41,34 @@
     - name: Failed to include local_repo_config.yml
       ansible.builtin.fail:
         msg: "{{ local_repo_config_syntax_fail_msg }} Possible Syntax Error Hints: {{ include_local_repo_config.message }}"
+
+- name: Load build stream configuration
+  ansible.builtin.include_vars:
+    file: "{{ build_stream_config_file }}"
+    name: build_stream_config
+  when:
+    - hostvars['localhost']['input_project_dir'] is defined
+
+- name: Set enable_build_stream from file build_stream_config.yml
+  ansible.builtin.set_fact:
+    enable_build_stream: "{{ build_stream_config.enable_build_stream | default(false) }}"
+
+- name: Display cleanup mode
+  ansible.builtin.debug:
+    msg: "{{ postgres_cleanup_mode_msg }}"
+  when: enable_build_stream
+
+- name: Wait task to prompt user to preserve the postgres credentials.
+  ansible.builtin.pause:
+    prompt: "{{ postgres_credentials_backup_msg }}"
+    seconds: "{{ wait_delay }}"
+  when:
+    - postgres_backup | bool
+    - enable_build_stream
+
+- name: Warn about GitLab cleanup when build stream is enabled
+  ansible.builtin.pause:
+    prompt: "{{ build_stream_cleanup_warning }}"
+    seconds: "{{ build_stream_pause_seconds }}"
+  when: enable_build_stream | default(false) | bool
+  tags: always

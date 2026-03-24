@@ -1,0 +1,69 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+---
+
+# PostgreSQL Container Configuration
+postgres_container_name: "omnia_postgres"
+
+# OIM metadata file path
+oim_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
+
+# Docker Hub configuration
+postgres_dockerhub_registry: "docker.io/library"
+postgres_image: "{{ postgres_dockerhub_registry }}/postgres"
+postgres_image_tag: "16"
+postgres_port: 5432
+
+# Database configuration
+postgres_user: "{{ hostvars['localhost']['postgres_user'] }}"
+postgres_password: "{{ hostvars['localhost']['postgres_password'] }}"
+postgres_db_name: "build_stream_db"
+
+# Storage configuration
+postgres_data_dir: "{{ omnia_path }}/omnia/postgres/data"
+
+# Directory permissions
+postgres_dir_mode: "0750"
+
+# Quadlet service file path
+postgres_quadlet_path: "/etc/containers/systemd/{{ postgres_container_name }}.container"
+postgres_quadlet_file_mode: "0644"
+
+# Wait for PostgreSQL to be ready
+postgres_ready_wait_seconds: 10
+postgres_ready_retries: 12
+postgres_ready_delay: 5
+
+# Messages
+postgres_image_pull_success_msg:
+  - "Successfully pulled PostgreSQL image from Docker Hub"
+  - "Image: {{ postgres_image }}:{{ postgres_image_tag }}"
+postgres_container_success_msg: "The {{ postgres_container_name }} container has been successfully deployed."
+postgres_container_failure_msg: |
+  The deployment of the {{ postgres_container_name }} container has failed.
+
+  This failure is typically caused by database initialization issues when existing data is present.
+
+  To resolve this issue, choose one of the following options:
+
+  Option 1: Preserve existing database data
+    - Re-run prepare_oim.yml using the SAME postgres credentials used in the previous deployment
+    - This will reuse the existing database at {{ postgres_data_dir }}
+
+  Option 2: Delete existing database data and start fresh
+    - Run the cleanup playbook with postgres_backup=false:
+      ansible-playbook utils/oim_cleanup.yml -e postgres_backup=false
+    - This will delete the Postgres data at {{ postgres_data_dir }} (and associated data/logs)
+    - After cleanup completes, re-run prepare_oim.yml to deploy a fresh {{ postgres_container_name }} container

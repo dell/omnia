@@ -65,3 +65,8 @@
   when:
     - hostvars['localhost']['ldms_support']
     - pxe_changed | default(false) | bool
+
+- name: Apply telemetry configurations on upgrade
+  ansible.builtin.include_tasks: apply_telemetry_on_upgrade.yml
+  when:
+    - hostvars['localhost']['upgrade_enabled'] | default(false) | bool

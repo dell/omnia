@@ -35,6 +35,26 @@
       no_log: true
       tags: always
 
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+
+- name: Create oim group
+  when: not oim_group_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    oim_group: true
+
+- name: Set SELinux context
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Set SELinux context
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/"
+      changed_when: true
+      failed_when: false
+
 - name: Invoke validate_config.yml to perform L1 and L2 validations for local repo
   ansible.builtin.import_playbook: ../input_validation/validate_config.yml
 

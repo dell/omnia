@@ -1,0 +1,15 @@
+# Development and testing dependencies for Build Stream API
+# Install with: pip install -r requirements-dev.txt
+
+# Testing framework
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# HTTP client for FastAPI testing
+httpx>=0.25.0
+
+# Code quality
+pylint>=3.0.0
+black>=23.0.0
+isort>=5.12.0

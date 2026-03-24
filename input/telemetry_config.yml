@@ -234,22 +234,22 @@ ldms_sampler_configurations:
   # Memory usage statistics (free, used, buffers, cached, etc.)
   - plugin_name: meminfo
     config_parameters: ""
-    activation_parameters: "interval=1000000"  # interval=1000000 microseconds
+    activation_parameters: "interval=30000000"  # interval=30000000 microseconds (30 seconds)
 
   # Process statistics (CPU, memory, I/O per process)
   - plugin_name: procstat2
     config_parameters: ""
-    activation_parameters: "interval=1000000"  # interval=1000000 microseconds
+    activation_parameters: "interval=30000000"  # interval=30000000 microseconds (30 seconds)
 
   # Virtual memory statistics (paging, swapping, memory pressure)
   - plugin_name: vmstat
     config_parameters: ""
-    activation_parameters: "interval=1000000"  # interval=1000000 microseconds
+    activation_parameters: "interval=30000000"  # interval=30000000 microseconds (30 seconds)
 
   # System load average (1, 5, and 15 minute averages)
   - plugin_name: loadavg
     config_parameters: ""
-    activation_parameters: "interval=1000000"  # interval=1000000 microseconds
+    activation_parameters: "interval=30000000"  # interval=30000000 microseconds (30 seconds)
 
   # Network interface statistics (bytes, packets, errors, drops per interface)
   # Config parameters (optional):
@@ -257,4 +257,4 @@ ldms_sampler_configurations:
   #   - If not specified, all network interfaces will be monitored
   - plugin_name: procnetdev2
     config_parameters: ""  # Monitor all interfaces
-    activation_parameters: "interval=1000000 offset=0"  # interval=1000000 microseconds, offset=0
+    activation_parameters: "interval=30000000 offset=0"  # interval=30000000 microseconds (30 seconds), offset=0

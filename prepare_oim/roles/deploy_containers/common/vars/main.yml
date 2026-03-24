@@ -59,6 +59,9 @@ idrac_script_git_clone_fail_msg: |
 prepare_oim_completion_msg: |
   The playbook prepare_oim.yml has completed successfully. To create the offline repositories and
   registry for the cluster nodes, please execute the playbook local_repo/local_repo.yml as the next step.
+prepare_oim_completion_msg_build_stream: |
+  The playbook prepare_oim.yml has completed successfully. To deploy GitLab and enable Build Stream
+  pipeline execution, please execute the playbook gitlab/gitlab.yml as the next step.
 
 # podman_login.yml
 login_cmd: "podman login docker.io -u {{ docker_username }} -p {{ docker_password }}"

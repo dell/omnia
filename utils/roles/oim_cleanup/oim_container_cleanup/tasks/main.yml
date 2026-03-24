@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,6 +42,16 @@
 - name: Cleanup auth container
   ansible.builtin.import_tasks: cleanup_auth.yml
   tags: auth
+
+- name: Cleanup build_stream container
+  ansible.builtin.import_tasks: cleanup_build_stream.yml
+  when: hostvars['localhost']['enable_build_stream'] | bool
+  tags: build_stream
+
+- name: Cleanup omnia_postgres container
+  ansible.builtin.import_tasks: cleanup_omnia_postgres.yml
+  when: hostvars['localhost']['enable_build_stream'] | bool
+  tags: postgres
 
 - name: Cleanup common configuration
   ansible.builtin.import_tasks: cleanup_common.yml

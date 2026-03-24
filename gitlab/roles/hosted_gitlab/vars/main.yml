@@ -1,0 +1,329 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# GitLab Omnibus paths
+gitlab_rb_path: "/etc/gitlab/gitlab.rb"
+gitlab_ctl_command: "gitlab-ctl"
+gitlab_repo_file_path: "/etc/yum.repos.d/gitlab_gitlab-ce.repo"
+
+# Omnibus package
+gitlab_package_name: "gitlab-ce-18.8.0"
+gitlab_package_state: "present"
+gitlab_repo_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.rpm.sh"
+
+# Timeouts
+gitlab_startup_wait_minutes: 5
+gitlab_health_check_retries: 5
+gitlab_health_check_delay: 60
+gitlab_api_check_retries: 10
+gitlab_api_check_delay: 15
+gitlab_reconfigure_async: 3600
+gitlab_reconfigure_poll: 15
+gitlab_reconfigure_delay: 5
+gitlab_api_unreachable_msg: 'Unable to reach GitLab API at {{ gitlab_external_url_computed }}. Verify connectivity, credentials, or TLS configuration.'
+gitlab_project_ci_timeout: 9000
+gitlab_default_status_codes:
+  project_create: [200, 201]
+  project_update: [200]
+  runner_create: [200, 201]
+  project_runners_list: [200]
+  runner_delete: [202, 204]
+  project_search: [200]
+  api_version: [200, 401]
+gitlab_api_ready_failure_msg: 'Failed to contact {{ gitlab_external_url_computed }}/api/v4/version before timeout.'
+gitlab_project_search_failure_msg: 'Failed to search for project {{ gitlab_project_name }} via GitLab API.'
+gitlab_project_create_failure_msg: 'Failed to create GitLab project {{ gitlab_project_name }} via API.'
+gitlab_runner_token_failure_msg: 'Failed to create GitLab runner authentication token for project {{ gitlab_project_name }}.'
+gitlab_project_timeout_failure_msg: 'Failed to update CI/CD job timeout for project {{ gitlab_project_name }} via GitLab API.'
+gitlab_root_token_name: "omnia-automation"
+gitlab_root_token_expiry_days: 365
+
+# Host prerequisites
+gitlab_hosted_prereq_packages:
+  - curl
+  - policycoreutils
+  - policycoreutils-python-utils
+  - openssl
+  - firewalld
+  - podman
+  - podman-docker
+
+# GitLab system user
+gitlab_system_user_name: "git"
+gitlab_system_user_shell: "/bin/sh"
+gitlab_system_user_home: "/var/opt/gitlab"
+gitlab_system_user_create_home: false
+
+# GitLab directories
+gitlab_directories:
+  - "/etc/gitlab"
+  - "/var/opt/gitlab"
+  - "/var/log/gitlab"
+  - "/opt/gitlab"
+
+# GitLab files
+gitlab_initial_root_password_path: "/etc/gitlab/initial_root_password"
+gitlab_root_token_file_path: "/root/.gitlab_root_token"
+
+# Runner container
+gitlab_runner_image: "docker.io/gitlab/gitlab-runner:v18.8.0"
+gitlab_runner_default_image: "docker.io/library/alpine:3.23.3"
+gitlab_runner_helper_image_registry: "registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper"
+gitlab_runner_helper_image_version: "v18.8.0"
+gitlab_runner_container_name: "gitlab-runner"
+gitlab_restart_policy: "always"
+gitlab_runner_description: "Omnia Hosted Runner"
+gitlab_runner_tags: "omnia"
+gitlab_runner_executor: "docker"
+gitlab_runner_registration_token_path: "/etc/gitlab/runner-registration-token"
+gitlab_runner_config_path: "/srv/gitlab-runner/config"
+gitlab_runner_config_file: "{{ gitlab_runner_config_path }}/config.toml"
+gitlab_runner_pull_policy: "if-not-present"
+force_re_register_runner: false
+gitlab_runner_cleanup_existing_project_runners: true
+gitlab_runner_require_online_after_deploy: true
+gitlab_runner_online_check_retries: 12
+gitlab_runner_online_check_delay: 10
+gitlab_runner_online_failure_msg: "No online runner is assigned to project {{ gitlab_project_name }} after deployment."
+
+gitlab_runner_online_check_detailed_fail_msg: |
+  Failed to detect online GitLab runner after deployment.
+  This can be caused by GitLab configuration changes like:
+  - GitLab port changed (current: {{ gitlab_https_port }})
+  - GitLab project name/ID changed (current: {{ gitlab_project_name }})
+  For any GitLab reconfiguration, you must run gitlab_cleanup.yml before re-running the gitlab playbook.
+
+# Podman socket (Docker-compatible, used by runner)
+podman_socket_path: "/run/podman/podman.sock"
+docker_socket_path: "/var/run/docker.sock"
+
+# Quadlet configuration
+quadlet_dir: "/etc/containers/systemd"
+quadlet_dir_mode: "0755"
+quadlet_file_mode: "0644"
+
+# Network
+gitlab_ssh_port: 22
+
+# GitLab certificate defaults
+gitlab_cert_dir: "/root/gitlab-certs"
+gitlab_ssl_dir: "/etc/gitlab/ssl"
+gitlab_cert_validity_days: 825
+gitlab_ca_validity_days: 3650
+gitlab_ca_key_bits: 4096
+gitlab_server_key_bits: 2048
+gitlab_ca_subject: "/C=IN/ST=Karnataka/L=Bengaluru/O=Omnia/OU=IT/CN=Omnia Internal CA"
+gitlab_additional_dns_sans: []
+gitlab_additional_ip_sans: []
+
+# GitLab password change messages
+gitlab_password_change_stdout_check: "Password changed successfully"
+gitlab_password_change_fail_msg: "Failed to change GitLab root password. Please check GitLab logs and try again."
+gitlab_password_change_success_msg: "GitLab root password changed successfully!"
+
+# Pipeline trigger and catalog defaults
+gitlab_trigger_description: "Omnia Software Catalog Webhook"
+gitlab_catalog_repo_path: "catalog_rhel.json"
+gitlab_catalog_json_source: "{{ role_path }}/../../../examples/catalog/catalog_rhel.json"
+
+# Pipeline CI/CD variables
+gitlab_pipeline_var_check_status_codes: [200, 404]
+gitlab_pipeline_var_create_status_codes: [200, 201]
+gitlab_pipeline_var_update_status_codes: [200, 201]
+gitlab_pipeline_bs_variables:
+  - key: "GITLAB_API_TOKEN"
+    value: "{{ gitlab_root_token }}"
+    variable_type: "env_var"
+    masked: true
+  - key: "BSM_API_URL"
+    value: "{{ _gitlab_bsm_api_url | default('') }}"
+    variable_type: "env_var"
+    masked: false
+  - key: "BSM_API_USERNAME"
+    value: "{{ _gitlab_bs_auth_username | default('') }}"
+    variable_type: "env_var"
+    masked: false
+  - key: "BSM_API_PASSWORD"
+    value: "{{ _gitlab_bs_auth_password | default('') }}"
+    variable_type: "env_var"
+    masked: true
+  - key: "BSM_API_CERT"
+    value: "{{ _gitlab_bs_api_cert | default('') }}"
+    variable_type: "env_var"
+    masked: false
+
+gitlab_sshpass_install_fail_msg: >
+  Failed to install sshpass. Ensure AppStream and BaseOS repositories
+  are configured and enabled on this gitlab host before running this playbook.
+
+gitlab_bs_not_enabled_fail_msg: >
+  Build stream is not enabled. Set enable_build_stream: true in build_stream_config.yml before running prepare_oim.yml.
+
+gitlab_bs_auth_username_fail_msg: >
+  Build stream auth username is empty. Run the credential utility to populate
+  build_stream_auth_username before running the GitLab playbook.
+
+gitlab_bs_auth_password_fail_msg: >
+  Build stream auth password is empty. Run the credential utility to populate
+  build_stream_auth_password before running the GitLab playbook.
+
+gitlab_bs_host_ip_fail_msg: >
+  build_stream_host_ip is not set in build_stream_config.yml.
+  Provide the OIM IP address in build_stream_host_ip before running the GitLab playbook.
+
+gitlab_root_password_fail_msg: >
+  GitLab root password not found. Run credential utility to populate gitlab_root_password.
+
+gitlab_selinux_fail_msg: >
+  SELinux is currently enabled. GitLab installation requires SELinux to be disabled.
+  Disable SELinux and reboot the host before running this playbook.
+gitlab_bs_host_connectivity_fail_msg: "Cannot reach build stream host at {{ build_stream_host_ip }}. GitLab server must be able to ping the build stream host."
+
+gitlab_watcher_not_running_msg: >
+  playbook_watcher.service is not running on OIM host {{ build_stream_host_ip }}.
+  Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
+
+gitlab_build_stream_not_running_msg: >
+  omnia_build_stream.service is not running on OIM host {{ build_stream_host_ip }}.
+  Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
+
+gitlab_postgres_not_running_msg: >
+  omnia_postgres.service is not running on OIM host {{ build_stream_host_ip }}.
+  Ensure prepare_oim.yml has been successfully executed before deploying GitLab.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
+
+gitlab_bs_cert_missing_msg: >
+  Build stream SSL certificate not found at {{ gitlab_bs_cert_path }} on OIM host {{ build_stream_host_ip }}.
+  Ensure prepare_oim.yml has been successfully executed and certificates are generated.
+  Note: Build stream must be enabled in build_stream_config.yml (enable_build_stream: true) before running prepare_oim.yml.
+
+gitlab_memory_insufficient_msg: >
+  Insufficient memory. Required: {{ gitlab_min_memory_gb }}GB, Available: {{ total_memory.stdout }}GB.
+  Please ensure the GitLab host has at least {{ gitlab_min_memory_gb }}GB of RAM.
+
+gitlab_cpu_insufficient_msg: >
+  Insufficient CPU cores. Required: {{ gitlab_min_cpu_cores }}, Available: {{ cpu_cores.stdout }}.
+  Please ensure the GitLab host has at least {{ gitlab_min_cpu_cores }} CPU cores.
+
+gitlab_storage_insufficient_msg: >
+  Insufficient storage space. Required: {{ gitlab_min_storage_gb }}GB, Available: {{ available_disk_space.stdout }}GB.
+  Please ensure the GitLab host has at least {{ gitlab_min_storage_gb }}GB of free disk space.
+
+gitlab_disable_prometheus: true
+gitlab_disable_grafana: true
+
+# Podman login configuration
+retry_count: "5"
+delay_time: "10"
+podman_login_fail_msg: >
+  Podman login failed. Please ensure the podman login credentials in the input/omnia_config_credentials.yml are valid.
+  If they are, this error can occur due to a pull limit issue or multiple requests. Please try running the playbook again after waiting for a while.
+
+# Image pull configuration
+gitlab_image_pull_retries: 5
+gitlab_image_pull_delay: 10
+
+# Image pull error messages
+gitlab_runner_image_pull_fail_msg: >
+  Failed to pull GitLab runner image '{{ gitlab_runner_image }}' after {{ gitlab_image_pull_retries }} attempts.
+  Possible causes:
+  - Network connectivity issues to container registry
+  - Insufficient disk space for image download
+  - Registry authentication issues
+  - Image name or tag does not exist
+  - Docker Hub pull rate limit exceeded (for anonymous users: 100 pulls per 6 hours)
+  Please check network connectivity, registry access, or consider authenticating to Docker Hub.
+
+gitlab_helper_image_pull_fail_msg: >
+  Failed to pull GitLab runner helper image '{{ gitlab_runner_helper_image_resolved }}' after {{ gitlab_image_pull_retries }} attempts.
+  Possible causes:
+  - Network connectivity issues to GitLab registry
+  - Insufficient disk space for image download
+  - Registry authentication issues
+  - Helper image version '{{ gitlab_runner_helper_image_version }}' may not be available
+  - Docker Hub pull rate limit exceeded (for anonymous users: 100 pulls per 6 hours)
+  Please check network connectivity to registry.gitlab.com or consider authenticating to Docker Hub.
+
+gitlab_default_image_pull_fail_msg: >
+  Failed to pull default CI job image '{{ gitlab_runner_default_image }}' after {{ gitlab_image_pull_retries }} attempts.
+  Possible causes:
+  - Network connectivity issues to container registry
+  - Insufficient disk space for image download
+  - Registry authentication issues
+  - Image name or tag does not exist
+  - Docker Hub pull rate limit exceeded (for anonymous users: 100 pulls per 6 hours)
+  Please check network connectivity, registry access, or consider authenticating to Docker Hub.
+
+# Debug messages
+gitlab_ca_export_path: "{{ gitlab_cert_dir }}/ca.crt"
+
+gitlab_cert_status_msg: |
+  Certificate Status:
+  - CA Certificate: {{ 'Exists' if _ca_cert_stat.stat.exists else 'Missing' }}
+  - CA Key: {{ 'Exists' if _ca_key_stat.stat.exists else 'Missing' }}
+  - Server Certificate: {{ 'Exists' if _server_cert_stat.stat.exists else 'Missing' }}
+  - Server Key: {{ 'Exists' if _server_key_stat.stat.exists else 'Missing' }}
+  - Generation Needed: {{ _certs_need_generation }}
+  {% if not _certs_need_generation %}
+  - Certificates will be reused (idempotent operation)
+  {% endif %}
+
+gitlab_ca_export_msg: |
+   -"========================================"
+   - "CA Certificate Exported"
+   - "========================================"
+   - ""
+   - "Certificate path: {{ gitlab_ca_export_path }}"
+   - ""
+   - "Download this certificate and import it into your browser"
+   - "to avoid 'Not Secure' warnings when accessing GitLab."
+   - ""
+   - "========================================"
+
+# OIM API Server Configuration
+oim_api_verify_ssl: true
+gitlab_bs_cert_path: "/opt/omnia/build_stream_ssl/ssl/bs_cert.pem"
+
+gitlab_deployment_complete_msg:
+  - "============================================"
+  - "   GitLab Hosted Mode Deployment Complete   "
+  - "============================================"
+  - ""
+  - "Access URL: {{ gitlab_external_url_computed }}"
+  - "SSH Port:   {{ gitlab_ssh_port }}"
+  - "Username:   root"
+  - "Password:   [Encrypted - Stored in {{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml]"
+  - ""
+  - "Project:    {{ gitlab_project_name }}"
+  - "Project ID: {{ gitlab_project_id }}"
+  - "Project URL: {{ gitlab_project_url }}"
+  - ""
+  - "Runner Auth Token: [CONFIGURED]"
+  - "Trigger Token saved to: /root/.gitlab_trigger_token"
+  - ""
+  - "Certificates:"
+  - "- CA Certificate: {{ gitlab_cert_dir }}/ca.crt"
+  - "- Server Certificate: {{ gitlab_cert_dir }}/{{ gitlab_host }}.crt"
+  - "- Export for Browser: {{ gitlab_ca_export_path }}"
+  - "- Certificates are reused on re-run (generated only if missing)"
+  - ""
+  - "Service:    {{ gitlab_ctl_command }} (start|stop|status|reconfigure)"
+  - "Runner:     {{ gitlab_runner_container_name }}.service (Quadlet systemd service, persists across reboots)"
+  - ""
+  - "IMPORTANT: For any new GitLab reconfiguration, run cleanup_gitlab.yml before running gitlab.yml"
+  - ""
+  - "============================================"

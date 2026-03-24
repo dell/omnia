@@ -625,12 +625,15 @@ def cleanup_file_repository(name: str, file_type: str, base_path: str, repo_stor
 def parse_pulp_file_repo_name(repo_name: str) -> Tuple[str, str, str]:
     """Parse a Pulp file/python repository name into components.
     
-    Pulp repo names from cleanup_files=all follow the format:
-        {arch}_{type}{content_name}
+    Pulp repo names follow the format:
+        {arch}_{os_type}_{os_version}_{type}{content_name}
     e.g.:
+        x86_64_rhel_10.0_manifestcalico-v3.30.3 -> ('x86_64', 'manifest', 'calico-v3.30.3')
+        x86_64_rhel_10.0_pip_modulecffi==1.17.1 -> ('x86_64', 'pip_module', 'cffi==1.17.1')
+        aarch64_rhel_10.0_isocuda-run            -> ('aarch64', 'iso', 'cuda-run')
+    
+    Also supports legacy format without os_type/version for backward compatibility:
         x86_64_manifestcalico-v3.30.3 -> ('x86_64', 'manifest', 'calico-v3.30.3')
-        x86_64_pip_modulecffi==1.17.1 -> ('x86_64', 'pip_module', 'cffi==1.17.1')
-        aarch64_isocuda-run            -> ('aarch64', 'iso', 'cuda-run')
     
     Returns:
         Tuple of (arch, file_type, content_name).
@@ -640,8 +643,17 @@ def parse_pulp_file_repo_name(repo_name: str) -> Tuple[str, str, str]:
         prefix = f"{arch}_"
         if repo_name.startswith(prefix):
             remainder = repo_name[len(prefix):]
-            # Try longest type prefixes first to avoid partial matches
-            # e.g., 'ansible_galaxy_collection' before 'pip_module' before 'iso'
+            # Try to strip os_type_os_version_ prefix (e.g., "rhel_10.0_")
+            # os_type is alphabetic, os_version is digits/dots
+            os_match = re.match(r'^([a-z]+)_(\d+(?:\.\d+)*)_', remainder)
+            if os_match:
+                remainder_after_os = remainder[os_match.end():]
+                # Check if the remainder after os_type/version matches a file type
+                for file_type in sorted(CLEANUP_FILE_TYPES, key=len, reverse=True):
+                    if remainder_after_os.startswith(file_type):
+                        content_name = remainder_after_os[len(file_type):]
+                        return arch, file_type, content_name
+            # Fallback: try legacy format without os_type/version
             for file_type in sorted(CLEANUP_FILE_TYPES, key=len, reverse=True):
                 if remainder.startswith(file_type):
                     content_name = remainder[len(file_type):]
@@ -692,7 +704,7 @@ def cleanup_content_directory(content_name: str, content_type: str, repo_store_p
     """Remove uploaded content directory from the filesystem.
 
     Builds the content path the same way as download_common.py:
-        <repo_store_path>/offline_repo/cluster/<arch>/rhel/<version>/<content_type>/<content_name>
+        <repo_store_path>/offline_repo/cluster/<arch>/<os_type>/<os_version>/<content_type>/<content_name>
 
     This mirrors how remove_from_status_files iterates over ARCH_SUFFIXES to
     clean status.csv entries.
@@ -728,7 +740,7 @@ def cleanup_content_directory(content_name: str, content_type: str, repo_store_p
             if not os.path.isdir(arch_path):
                 continue
 
-            for version_dir in glob.glob(f"{arch_path}/rhel/*/"):
+            for version_dir in glob.glob(f"{arch_path}/*/*/"):
                 for search_type in types_to_search:
                     content_dir = os.path.join(version_dir, search_type, content_name)
                     if os.path.exists(content_dir):
@@ -791,7 +803,7 @@ def cleanup_all_file_content_directories(repo_store_path: str, logger) -> Dict[s
             if not os.path.isdir(arch_path):
                 continue
 
-            for version_dir in glob.glob(f"{arch_path}/rhel/*/"):
+            for version_dir in glob.glob(f"{arch_path}/*/*/"):
                 for file_type in CLEANUP_FILE_TYPES:
                     type_dir = os.path.join(version_dir, file_type)
                     if os.path.isdir(type_dir):

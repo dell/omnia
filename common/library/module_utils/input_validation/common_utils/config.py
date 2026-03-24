@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,13 +54,16 @@ files = {
     "software_config": "software_config.json",
     "storage_config": "storage_config.yml",
     "telemetry_config": "telemetry_config.yml",
-    "high_availability_config": "high_availability_config.yml"
+    "high_availability_config": "high_availability_config.yml",
+    "build_stream_config": "build_stream_config.yml",
+    "gitlab_config": "gitlab_config.yml"
     # "additional_software": "additional_software.json"
 }
 
 # Tags and the files that will be run based off of it
 input_file_inventory = {
     "build_image": [files["provision_config"]],
+    "software_config": [files["software_config"]],
     "scheduler": [
         files["software_config"],
 
@@ -91,10 +94,13 @@ input_file_inventory = {
     "storage": [files["storage_config"]],
     "prepare_oim": [
         files["network_spec"],
-        files["software_config"]
+        files["software_config"],
+        files["build_stream_config"]
     ],
     # "high_availability": [files["high_availability_config"]],
     # "additional_software": [files["additional_software"]],
+    "build_stream": [files["build_stream_config"]],
+    "gitlab": [files["gitlab_config"], files["build_stream_config"]],
     "all": [
         files["local_repo_config"],
         files["network_spec"],
@@ -105,6 +111,8 @@ input_file_inventory = {
         files["software_config"],
         files["storage_config"],
         files["high_availability_config"],
+        files["build_stream_config"],
+        files["gitlab_config"],
     ],
 }
 
@@ -135,7 +143,7 @@ passwords_set = {
     "mysqldb_root_password",
     "grafana_password",
     "provision_password",
-    "postgresdb_password",
+    "postgres_password",
     "bmc_password",
     "switch_snmp3_password",
     "docker_password"

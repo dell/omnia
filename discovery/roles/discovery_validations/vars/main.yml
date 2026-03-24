@@ -23,12 +23,13 @@ discovery_inputs:
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/telemetry_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
-
-input_syntax_fail_msg: "Failed. Syntax errors present in {{ item.path }}. Fix errors and re-run playbook again."
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+build_stream_job_id_absent: "Failed: enable_build_stream is set to true, but no 'job_id' was found during the execution of discovery.yml."  # noqa: yaml[line-length]
+input_syntax_fail_msg: "Failed. Syntax errors present in {{ item.path }}. Fix errors and re-run playbook again."  # noqa: yaml[line-length]
 
 # Usage: include_software_config.yml
 software_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
-software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."
+software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."  # noqa: yaml[line-length]
 
 # Usage: validate_mapping_mechanism.yml
 invalid_mapping_fail_msg: |

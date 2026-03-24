@@ -1,0 +1,110 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Set hosted GitLab payload defaults
+  ansible.builtin.set_fact:
+    gitlab_hosted_payload_dir: "{{ gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads') }}"
+    gitlab_hosted_ci_pipeline_path: "{{ gitlab_hosted_ci_pipeline_path | default((gitlab_hosted_payload_dir | default('/tmp/omnia_gitlab_payloads')) + '/.gitlab-ci.yml') }}"  # noqa: yaml[line-length]
+
+- name: Set catalog payload path
+  ansible.builtin.set_fact:
+    gitlab_hosted_catalog_path: "{{ gitlab_hosted_catalog_path | default(gitlab_hosted_payload_dir + '/' + gitlab_catalog_repo_path) }}"
+
+- name: Check if catalog JSON exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path | urlencode }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: catalog_file_check
+  no_log: true
+
+- name: Check if .gitlab-ci.yml exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml?ref={{ gitlab_default_branch }}"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: ci_file_check
+  no_log: true
+
+- name: Ensure payload directory exists on GitLab host
+  ansible.builtin.file:
+    path: "{{ gitlab_hosted_payload_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create catalog JSON when missing
+  when: catalog_file_check.status == 404
+  block:
+    - name: Copy catalog JSON to GitLab host
+      ansible.builtin.copy:
+        src: "{{ gitlab_catalog_json_source }}"
+        dest: "{{ gitlab_hosted_catalog_path }}"
+        mode: '0644'
+
+    - name: Read catalog JSON from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_catalog_path }}"
+      register: hosted_catalog_json_content
+
+    - name: Create catalog JSON in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_catalog_repo_path | urlencode }}"  # noqa: yaml[line-length]
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_catalog_json_content.content }}"
+          commit_message: "Add catalog_rhel.json"
+        status_code: [200, 201]
+        validate_certs: false
+
+- name: Create .gitlab-ci.yml when missing
+  when: ci_file_check.status == 404
+  block:
+    - name: Copy .gitlab-ci.yml to GitLab host
+      ansible.builtin.copy:
+        src: "{{ role_path }}/files/.gitlab-ci.yml"
+        dest: "{{ gitlab_hosted_ci_pipeline_path }}"
+        mode: '0644'
+
+    - name: Read .gitlab-ci.yml from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_ci_pipeline_path }}"
+      register: hosted_ci_file_content
+
+    - name: Create .gitlab-ci.yml in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci.yml"  # noqa: yaml[line-length]
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_file_content.content }}"
+          commit_message: "Add Omnia CI/CD pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true

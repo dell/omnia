@@ -26,7 +26,6 @@ from ansible.module_utils.build_image.common_functions import (
     deduplicate_list
 )
 
-
 def get_additional_packages_for_role(additional_json_path, role_name, module):
     """
     Get RPM packages for a specific role from additional_packages.json.
@@ -56,75 +55,77 @@ def get_additional_packages_for_role(additional_json_path, role_name, module):
 
     return packages
 
+def normalize_functional_groups(raw_fgs, module):
+    """Normalize functional_groups input into a list of strings."""
+    if raw_fgs is None:
+        return []
 
-def collect_packages_from_json(sw_data, fg_name=None, slurm_defined=False, service_k8s_defined=False):
+    # Accept YAML/JSON string from extra-vars
+    if isinstance(raw_fgs, str):
+        try:
+            raw_fgs = yaml.safe_load(raw_fgs)
+        except Exception as exc:  # pragma: no cover - defensive
+            module.fail_json(msg=f"Unable to parse functional_groups: {exc}")
+
+    # If provided as dict with key functional_groups
+    if isinstance(raw_fgs, dict):
+        raw_fgs = raw_fgs.get("functional_groups", [])
+
+    if not isinstance(raw_fgs, list):
+        module.fail_json(msg="functional_groups must be a list of strings")
+
+    fgs = []
+    for fg in raw_fgs:
+        if isinstance(fg, str):
+            fgs.append(fg)
+        elif isinstance(fg, dict) and "name" in fg:
+            fgs.append(fg["name"])
+        else:
+            module.fail_json(msg="functional_groups items must be strings or dicts with 'name'")
+    return fgs
+
+
+def collect_packages_from_json(sw_data, fg_name=None,
+                               slurm_defined=False,
+                               service_k8s_defined=False):
     """
     Collect RPM package names from a JSON-like dictionary of software data.
-
-    Parameters
-    ----------
-    sw_data : dict
-        The software JSON structure, containing sections such as "slurm_custom",
-        "login_node", or a top-level "cluster".
-    fg_name : str, optional
-        The functional group name (e.g., "compute_x86_64"). If slurm_defined=True,
-        this will be normalized (suffixes "_aarch64" and "_x86_64" are removed)
-        and used to look up group-specific cluster entries.
-    slurm_defined : bool, default=False
-        If True:
-          - Always collect packages from the top-level "slurm_custom/cluster".
-          - Additionally, collect packages from the functional group cluster
-            matching `fg_name`.
-        If False:
-          - Collect packages from all nested "cluster" sections.
-          - Collect packages from a top-level "cluster" if present.
-
-    Returns
-    -------
-    list of str
-        A flat list of RPM package names extracted from the JSON structure.
     """
-
     packages = []
+
     if slurm_defined:
         fg_name = fg_name.replace("_aarch64", "").replace("_x86_64", "")
 
-        # Always collect from top-level "slurm_custom" section
         if "slurm_custom" in sw_data and "cluster" in sw_data["slurm_custom"]:
             for entry in sw_data["slurm_custom"]["cluster"]:
                 if entry.get("type") == "rpm" and "package" in entry:
                     packages.append(entry["package"])
 
-        # Collect from matching functional group inside slurm_custom.json
         if fg_name in sw_data and "cluster" in sw_data[fg_name]:
             for entry in sw_data[fg_name]["cluster"]:
                 if entry.get("type") == "rpm" and "package" in entry:
                     packages.append(entry["package"])
-    
+
     elif service_k8s_defined:
         fg_name = fg_name.replace("_aarch64", "").replace("_x86_64", "")
 
-        # Always collect from top-level "service_k8s" section
         if "service_k8s" in sw_data and "cluster" in sw_data["service_k8s"]:
             for entry in sw_data["service_k8s"]["cluster"]:
                 if entry.get("type") == "rpm" and "package" in entry:
                     packages.append(entry["package"])
 
-        # Collect from matching functional group inside service_k8s
         if fg_name in sw_data and "cluster" in sw_data[fg_name]:
             for entry in sw_data[fg_name]["cluster"]:
                 if entry.get("type") == "rpm" and "package" in entry:
                     packages.append(entry["package"])
 
     else:
-        # Case 1: nested sections like "slurm_custom", "login_node", etc.
-        for section, section_data in sw_data.items():
+        for section_data in sw_data.values():
             if isinstance(section_data, dict) and "cluster" in section_data:
                 for entry in section_data["cluster"]:
                     if entry.get("type") == "rpm" and "package" in entry:
                         packages.append(entry["package"])
 
-        # Case 2: "cluster" directly at the top level
         if "cluster" in sw_data and isinstance(sw_data["cluster"], list):
             for entry in sw_data["cluster"]:
                 if entry.get("type") == "rpm" and "package" in entry:
@@ -133,30 +134,15 @@ def collect_packages_from_json(sw_data, fg_name=None, slurm_defined=False, servi
     return packages
 
 
-def process_functional_group(fg_name, base_name, arch, os_version, input_project_dir,
+def process_functional_group(fg_name, arch, os_version, input_project_dir,
                              software_map, allowed_softwares, module):
     """
-    Process a functional group and collect the list of required packages.
-
-    This function scans the `config/{arch}/rhel/{os_version}` directory for JSON
-    definitions corresponding to the given functional group, filters them based on
-    the allowed software list, and extracts package names from those JSON files.
-
-    Args:
-        fg_name (str): Functional group name (e.g., "slurm_node_x86_64").
-        base_name (str): Base image or role name (not directly used in this function).
-        arch (str): Target architecture (e.g., "x86_64").
-        os_version (str): OS version (e.g., "9.3").
-        input_project_dir (str): Base project directory containing configuration files.
-        software_map (dict): Mapping of functional groups to lists of software JSON files.
-        allowed_softwares (list): List of software names allowed for this build.
-        module (object): Ansible module (or compatible) used for logging.
-
-    Returns:
-        list: A deduplicated list of package names required by the functional group,
-              preserving the original order of appearance.
+    Process a single functional group and return its package list.
     """
-    group_path = os.path.join(input_project_dir, "config", arch, "rhel", os_version)
+    group_path = os.path.join(
+        input_project_dir, "config", arch, "rhel", os_version
+    )
+
     if not os.path.isdir(group_path):
         module.log(f"Directory not found: {group_path}")
         return []
@@ -165,7 +151,6 @@ def process_functional_group(fg_name, base_name, arch, os_version, input_project
     packages = []
 
     for json_file in json_files:
-        # only include if its base name is in allowed_softwares
         sw_name = json_file.replace(".json", "")
         if sw_name not in allowed_softwares:
             continue
@@ -179,12 +164,18 @@ def process_functional_group(fg_name, base_name, arch, os_version, input_project
         if not sw_data:
             continue
 
-        # pylint: disable=line-too-long
-        # Special handling for slurm_custom.json
         if json_file == "slurm_custom.json":
-            packages.extend(collect_packages_from_json(sw_data, fg_name=fg_name, slurm_defined=True))
+            packages.extend(
+                collect_packages_from_json(
+                    sw_data, fg_name=fg_name, slurm_defined=True
+                )
+            )
         elif json_file == "service_k8s.json":
-            packages.extend(collect_packages_from_json(sw_data, fg_name=fg_name, service_k8s_defined=True))
+            packages.extend(
+                collect_packages_from_json(
+                    sw_data, fg_name=fg_name, service_k8s_defined=True
+                )
+            )
         else:
             packages.extend(collect_packages_from_json(sw_data))
 
@@ -194,41 +185,45 @@ def process_functional_group(fg_name, base_name, arch, os_version, input_project
 
 def run_module():
     """
-    Run the Ansible module.
-
-    This function:
-    - Parses arguments for functional group and software configuration files.
-    - Loads YAML and JSON configuration files.
-    - Iterates over functional groups to determine required packages.
-    - Produces a mapping (`compute_images_dict`) of groups to packages.
-    - Exits cleanly with results or fails with an error.
+    Entry point for the Ansible module.
     """
 
     module_args = dict(
-        functional_groups_file=dict(type="str", required=True),
+        # allow raw to support YAML/JSON string or list
+        functional_groups=dict(type="raw", required=True),
         software_config_file=dict(type="str", required=True),
         input_project_dir=dict(type="str", required=True),
         additional_json_path=dict(type="str", required=False, default=""),
     )
 
-    result = dict(changed=False, compute_images_dict={})
-    module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
+    result = dict(
+        changed=False,
+        compute_images_dict={}
+    )
 
-    functional_groups_file = module.params["functional_groups_file"]
+    module = AnsibleModule(
+        argument_spec=module_args,
+        supports_check_mode=True
+    )
+
+    functional_groups = normalize_functional_groups(
+        module.params["functional_groups"], module
+    )
     software_config_file = module.params["software_config_file"]
     input_project_dir = module.params["input_project_dir"]
     additional_json_path = module.params["additional_json_path"]
 
-    # Load configs
-    functional_groups = load_yaml_file(functional_groups_file, module)
     software_config = load_json_file(software_config_file, module)
+    if not software_config:
+        module.fail_json(msg="Failed to load software_config.json")
 
-    os_version = software_config.get("cluster_os_version") if software_config else None
+    os_version = software_config.get("cluster_os_version")
     if not os_version:
         module.fail_json(msg="cluster_os_version not found in software_config.json")
 
-    # Build list of allowed softwares (from software_config.json)
-    allowed_softwares = {sw["name"] for sw in software_config.get("softwares", [])}
+    allowed_softwares = {
+        sw["name"] for sw in software_config.get("softwares", [])
+    }
 
     # Check if additional_packages is enabled and get allowed subgroups
     additional_enabled = is_additional_packages_enabled(software_config)
@@ -241,33 +236,37 @@ def run_module():
         "service_kube_node_x86_64": ["service_k8s.json"],
         "service_kube_control_plane_first_x86_64": ["service_k8s.json"],
         "service_kube_control_plane_x86_64": ["service_k8s.json"],
-        "slurm_control_node_x86_64": ["slurm_custom.json", "openldap.json","ldms.json"],
-        "slurm_node_x86_64": ["slurm_custom.json", "openldap.json","ldms.json"],
-        "login_node_x86_64": ["slurm_custom.json", "openldap.json","ldms.json"],
-        "login_compiler_node_x86_64": ["slurm_custom.json", "openldap.json", "ucx.json", "openmpi.json","ldms.json"],
-        "slurm_node_aarch64": ["slurm_custom.json", "openldap.json","ldms.json"],
-        "login_node_aarch64": ["slurm_custom.json", "openldap.json","ldms.json"],
-        "login_compiler_node_aarch64": ["slurm_custom.json", "openldap.json","ldms.json"]
+        "slurm_control_node_x86_64": ["slurm_custom.json", "openldap.json", "ldms.json"],
+        "slurm_node_x86_64": ["slurm_custom.json", "openldap.json", "ldms.json"],
+        "login_node_x86_64": ["slurm_custom.json", "openldap.json", "ldms.json"],
+        "login_compiler_node_x86_64": [
+            "slurm_custom.json", "openldap.json",
+            "ucx.json", "openmpi.json", "ldms.json"
+        ],
+        "slurm_node_aarch64": ["slurm_custom.json", "openldap.json", "ldms.json"],
+        "login_node_aarch64": ["slurm_custom.json", "openldap.json", "ldms.json"],
+        "login_compiler_node_aarch64": [
+            "slurm_custom.json", "openldap.json", "ldms.json"
+        ],
     }
 
     compute_images_dict = {}
 
-    for fg in functional_groups.get("functional_groups", []):
-        fg_name = fg.get("name") if isinstance(fg, dict) else str(fg)
+    for fg_name in functional_groups:
 
-        # Detect arch + base_name
         if fg_name.endswith("_x86_64"):
-            base_name = fg_name.replace("_x86_64", "")
             arch = "x86_64"
         elif fg_name.endswith("_aarch64"):
-            base_name = fg_name.replace("_aarch64", "")
             arch = "aarch64"
         else:
-            base_name = fg_name
             arch = "x86_64"
 
+        # Base role name without architecture suffix, used for role-specific
+        # additional packages lookups
+        base_name = fg_name.replace("_x86_64", "").replace("_aarch64", "")
+
         packages = process_functional_group(
-            fg_name, base_name, arch, os_version, input_project_dir,
+            fg_name, arch, os_version, input_project_dir,
             software_map, allowed_softwares, module
         )
 
@@ -289,11 +288,6 @@ def run_module():
 
 
 def main():
-    """
-    Main entry point of the module.
-
-    This function calls the run_module function to execute the module's logic.
-    """
     run_module()
 
 

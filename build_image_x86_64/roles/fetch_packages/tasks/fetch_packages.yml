@@ -14,7 +14,6 @@
 ---
 
 - name: Fetch x86_64 default_packages.json and additional_packages.json software packages
-  when: fg_x86_64
   block:
     - name: Collect base image RPM packages (default + additional + admin_debug)
       base_image_package_collector:
@@ -33,9 +32,25 @@
         var: x86_64_base_image_packages
         verbosity: 2
 
+    - name: Parse functional_group_config.yml to list
+      functional_group_parser:
+        functional_groups_file: "{{ functional_groups_file_path }}"
+      register: functional_group_parser_list
+      when: not enable_build_stream
+
+    - name: Set fact for functional_group_list
+      ansible.builtin.set_fact:
+        functional_group_list: "{{ functional_group_parser_list.functional_groups }}"
+      when: not enable_build_stream
+
+    - name: Debug full functional group parser output
+      ansible.builtin.debug:
+        var: functional_group_list
+        verbosity: 2
+
     - name: Read packages for compute image softwares
       image_package_collector:
-        functional_groups_file: "{{ functional_groups_file_path }}"
+        functional_groups: "{{ functional_group_list }}"
         software_config_file: "{{ software_config_file_path }}"
         input_project_dir: "{{ input_project_dir }}"
         additional_json_path: "{{ additional_json_path }}"

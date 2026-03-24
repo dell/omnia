@@ -6,6 +6,7 @@ on:
       - main
       - staging
       - release_1.7.1
+      - pub/build_stream
       - pub/v2.1_rc1
       - pub/q1_dev
 

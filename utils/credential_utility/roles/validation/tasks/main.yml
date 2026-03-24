@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,27 @@
     omnia_run_tags: "{{ ansible_run_tags | default([]) }}"
   when: omnia_run_tags is not defined
 
-- name: Validate if Omnia Credential file exists
-  ansible.builtin.include_tasks: validate_omnia_credential_file.yml
+- name: Load build_stream_config.yml to check if enabled
+  block:
+    - name: Include build_stream_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+      register: include_build_stream_config
+  rescue:
+    - name: Set enable_build_stream to false if config not found
+      ansible.builtin.set_fact:
+        enable_build_stream: false
+
+- name: Validate credential files
+  ansible.builtin.include_tasks: validate_cred_file.yml
+  loop: "{{ credential_files }}"
+  loop_control:
+    loop_var: cred_config
+  when: cred_config.condition | default(true) | bool
+  vars:
+    credential_type: "{{ cred_config.credential_type }}"
+    credential_file_path: "{{ cred_config.file_path }}"
+    status_var_name: "{{ cred_config.credential_type | lower | replace(' ', '_') }}_cred_file_status"
 
 - name: Include pre_requisite.yml
   ansible.builtin.include_tasks: pre_requisite.yml

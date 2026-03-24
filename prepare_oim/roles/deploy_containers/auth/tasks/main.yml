@@ -14,7 +14,7 @@
 
 ---
 
-- name: Deploy pulp container tasks
+- name: Deploy auth container tasks
   ansible.builtin.include_tasks: deploy_auth_service.yml
   when:
     - hostvars['localhost']['openldap_support']

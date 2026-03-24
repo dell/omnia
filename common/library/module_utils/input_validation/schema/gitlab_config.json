@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GitLab Configuration",
+  "type": "object",
+  "properties": {
+    "gitlab_host": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Target host IP for GitLab deployment. Accepted values: valid IPv4 address. Cannot be empty."
+    },
+    "gitlab_project_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_\\-\\.]*$",
+      "description": "Name of the GitLab project Omnia will create/manage. Accepted values: alphanumeric string starting with a letter or digit. Default: omnia-catalog"
+    },
+    "gitlab_project_visibility": {
+      "type": "string",
+      "enum": ["private", "internal", "public"],
+      "description": "GitLab project visibility. Accepted values: private, internal, public. Default: private"
+    },
+    "gitlab_default_branch": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Default branch for repository and API operations. Accepted values: valid git branch name. Default: main"
+    },
+    "gitlab_https_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "HTTPS port exposed via GitLab NGINX. Accepted values: valid port number (1-65535). Default: 443"
+    },
+    "gitlab_ssh_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "SSH port for git+ssh operations. Accepted values: valid port number (1-65535). Default: 22"
+    },
+    "gitlab_min_storage_gb": {
+      "type": "integer",
+      "minimum": 20,
+      "description": "Minimum free disk space in GB required before install. Accepted values: integer >= 20. Default: 20"
+    },
+    "gitlab_min_memory_gb": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Minimum RAM in GB required before install. Accepted values: integer >= 1. Default: 4"
+    },
+    "gitlab_min_cpu_cores": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Minimum CPU core count required before install. Accepted values: integer >= 1. Default: 2"
+    },
+    "gitlab_puma_workers": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64,
+      "description": "Puma web worker count. Scale with CPU count. Accepted values: integer (1-64). Default: 2"
+    },
+    "gitlab_sidekiq_concurrency": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "description": "Sidekiq background job concurrency. Accepted values: integer (1-200). Default: 10"
+    },
+    "oim_api_verify_ssl": {
+      "type": "boolean",
+      "description": "Verify SSL certificate when connecting to OIM API. Set to false for self-signed certs. Accepted values: true or false. Default: true"
+    },
+    "gitlab_cert_dir": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Directory on target host where cert artifacts are generated/stored. Accepted values: absolute path string. Default: /root/gitlab-certs"
+    },
+    "gitlab_ssl_dir": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Final SSL directory consumed by GitLab Omnibus. Accepted values: absolute path string. Default: /etc/gitlab/ssl"
+    },
+    "gitlab_repo_script_url": {
+      "type": "string",
+      "minLength": 1,
+      "description": "URL for the GitLab package repository setup script. Override only when pinning to gitlab-ee or a specific version."
+    }
+  },
+  "required": [
+    "gitlab_host",
+    "gitlab_project_name",
+    "gitlab_project_visibility",
+    "gitlab_default_branch",
+    "gitlab_https_port"
+  ],
+  "additionalProperties": false
+}

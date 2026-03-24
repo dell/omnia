@@ -1,0 +1,75 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Read oim metadata
+  ansible.builtin.slurp:
+    src: "{{ oim_metadata_file }}"
+  register: oim_metadata_raw
+  delegate_to: localhost
+  connection: local
+
+- name: Parse oim_shared_path
+  ansible.builtin.set_fact:
+    oim_shared_path: "{{ (oim_metadata_raw.content | b64decode | from_yaml).oim_shared_path }}"
+
+- name: Check build_stream directory exists in oim_shared_path
+  ansible.builtin.stat:
+    path: "{{ oim_shared_path }}/omnia/build_stream"
+  register: build_stream_stat
+
+- name: Fail if build_stream directory missing
+  ansible.builtin.fail:
+    msg: "{{ build_stream_nfs_path_error_msg }}"
+  when: not build_stream_stat.stat.exists
+
+- name: Create playbook_queue directory
+  ansible.builtin.file:
+    path: "{{ oim_shared_path }}/omnia/playbook_queue"
+    state: directory
+    mode: "{{ build_stream_dir_mode }}"
+
+- name: Deploy playbook watcher systemd unit
+  ansible.builtin.template:
+    src: playbook_watcher.service.j2
+    dest: "{{ watcher_systemd_path }}/{{ watcher_service_name }}"
+    mode: "{{ build_stream_file_mode }}"
+  notify:
+    - Reload systemd
+
+- name: Apply systemd reload for watcher
+  ansible.builtin.meta: flush_handlers
+
+- name: Restart and enable playbook watcher service
+  ansible.builtin.systemd_service:
+    name: "{{ watcher_service_name }}"
+    enabled: true
+    state: restarted
+
+- name: Check watcher service status
+  ansible.builtin.command: "systemctl status {{ watcher_service_name | regex_replace('\\.service$', '') }} --no-pager"
+  register: watcher_status
+  changed_when: false
+
+- name: Show recent watcher logs
+  ansible.builtin.command: "journalctl -u {{ watcher_service_name | regex_replace('\\.service$', '') }} -n 10 --no-pager"
+  when: watcher_status.rc == 0
+  register: watcher_logs
+  changed_when: false
+
+- name: Show recent watcher logs
+  ansible.builtin.command: "journalctl -u {{ watcher_service_name | regex_replace('\\.service$', '') }} -n 10 --no-pager"
+  when: watcher_status.rc == 0
+  register: watcher_logs
+  changed_when: false

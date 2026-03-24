@@ -733,6 +733,60 @@ def validate_admin_ips_against_network_spec(pxe_mapping_file_path, network_spec_
 
     return errors
 
+def validate_aarch64_local_path_compatibility(pxe_mapping_file_path):
+    """
+    Validates that aarch64 nodes are not present when using local share path.
+    
+    Args:
+        pxe_mapping_file_path (str): Path to the PXE mapping file.
+        
+    Raises:
+        ValueError: If aarch64 nodes are found with local share path configuration.
+    """
+    # Check metadata file for omnia_share_option
+    metadata_path = "/opt/omnia/.data/oim_metadata.yml"
+    
+    # Default to Local if metadata doesn't exist or omnia_Share_option is not set
+    share_option = "Local"
+    
+    if os.path.isfile(metadata_path):
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                metadata = yaml.safe_load(f) or {}
+                
+            # Check omnia_share_option in metadata
+            share_option = metadata.get("omnia_share_option", "Local")
+        except Exception:
+            # If there's an error reading metadata, assume Local
+            pass
+    
+    # If share option is NFS, no need to check further
+    if share_option.lower() == "nfs":
+        return
+    
+    # Check for aarch64 nodes in PXE mapping file
+    with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.readlines()
+    
+    non_comment_lines = [ln for ln in raw_lines if ln.strip()]
+    reader = csv.DictReader(non_comment_lines)
+    
+    fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+    fg_col = fieldname_map.get("FUNCTIONAL_GROUP_NAME")
+    
+    if not fg_col:
+        return
+    
+    aarch64_found = False
+    for row in reader:
+        fg_name = row.get(fg_col, "").strip() if row.get(fg_col) else ""
+        if fg_name and "aarch64" in fg_name.lower():
+            aarch64_found = True
+            break
+    
+    if aarch64_found:
+        raise ValueError(en_us_validation_msg.PXE_MAPPING_AARCH64_LOCAL_PATH_MSG)
+
 def validate_provision_config(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name
 ):
@@ -783,8 +837,24 @@ def validate_provision_config(
             create_error_msg("language", input_file_path, en_us_validation_msg.LANGUAGE_FAIL_MSG)
         )
 
+    enable_build_stream = data.get("enable_build_stream", False)
+
+    # Override from build_stream_config.yml if present
+    try:
+        build_stream_config_path = create_file_path(input_file_path, file_names["build_stream_config"])
+        if os.path.isfile(build_stream_config_path):
+            with open(build_stream_config_path, "r", encoding="utf-8") as bfh:
+                bs_cfg = yaml.safe_load(bfh) or {}
+                enable_build_stream = bs_cfg.get("enable_build_stream", enable_build_stream)
+    except Exception:
+        # If file missing or malformed, fall back to provided data value
+        pass
+
     pxe_mapping_file_path = data.get("pxe_mapping_file_path", "")
-    if pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
+    if enable_build_stream:
+        # Build Stream flow: skip mapping file validation entirely
+        pass
+    elif pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
         try:
             validate_mapping_file_entries(pxe_mapping_file_path)
             validate_functional_groups_in_mapping_file(pxe_mapping_file_path)
@@ -795,6 +865,7 @@ def validate_provision_config(
             validate_functional_groups_separation(pxe_mapping_file_path)
             validate_parent_service_tag_hierarchy(pxe_mapping_file_path)
             validate_slurm_login_compiler_prefix(pxe_mapping_file_path)
+            validate_aarch64_local_path_compatibility(pxe_mapping_file_path)
 
             # Validate ADMIN_IPs against network_spec.yml ranges
             network_spec_path = create_file_path(input_file_path, file_names["network_spec"])
@@ -1096,4 +1167,3 @@ def _validate_ip_ranges(dynamic_range, network_type, netmask_bits):
         )
 
     return errors
-

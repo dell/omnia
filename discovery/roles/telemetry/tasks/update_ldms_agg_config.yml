@@ -25,6 +25,12 @@
     mode: '0755'
   when: not values_file_exists.stat.exists
 
+- name: Copy ldms decompose.json
+  ansible.builtin.copy:
+    src: files/scripts/decomp.json
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/ldms/nersc-ldms-aggr/scripts/decomp.json"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+
 - name: Generate ldms_machine_config.json from template
   ansible.builtin.template:
     src: 'telemetry/ldms/ldms_machine_config.json.j2'

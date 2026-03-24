@@ -40,11 +40,21 @@
           {{ metadata_warn_msg }}
           Do you want to continue? (yes/no)
       register: user_input
-      when: not metadata_compare.identical
+      when:
+        - not metadata_compare.identical
+        - not (enable_build_stream | default(false) | bool)
+
+    - name: Auto-continue when build stream is enabled
+      ansible.builtin.debug:
+        msg: "{{ build_stream_auto_accept_metadata_msg }}"
+      when:
+        - not metadata_compare.identical
+        - enable_build_stream | default(false) | bool
 
     - name: Fail if user chooses not to continue
       ansible.builtin.fail:
         msg: "User choose not to continue due to metadata change."
       when:
         - not metadata_compare.identical
+        - not (enable_build_stream | default(false) | bool)
         - user_input.user_input | lower != 'yes'

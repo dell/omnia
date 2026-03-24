@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Build Stream Configuration",
+  "type": "object",
+  "properties": {
+    "enable_build_stream": {
+      "type": "boolean",
+      "description": "Enable or disable build stream pipeline. Accepted values: true or false. Default: false"
+    },
+    "build_stream_host_ip": {
+      "type": "string",
+      "description": "Mandatory when build stream is enabled: Build Stream API server host IP. Must be either admin IP or public IP of OIM. Accepted values: valid IPv4 address"
+    },
+    "build_stream_port": {
+      "type": ["integer", "string"],
+      "description": "Build Stream API server port. Accepted values: valid port number (1-65535). Default: 443"
+    },
+    "aarch64_inventory_host_ip": {
+      "type": ["string", "null"],
+      "pattern": "^$|^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+      "description": "AArch64 inventory host IP for aarch64 builds. Must be in same subnet as OIM admin IP. Accepted values: valid IPv4 address, empty string, or null"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "enable_build_stream": { "const": true }
+        },
+        "required": ["enable_build_stream"]
+      },
+      "then": {
+        "required": ["enable_build_stream", "build_stream_host_ip", "build_stream_port"],
+        "properties": {
+          "build_stream_host_ip": {
+            "type": "string",
+            "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+          },
+          "build_stream_port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        }
+      },
+      "else": {
+        "required": ["enable_build_stream"]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

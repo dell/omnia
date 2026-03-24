@@ -44,7 +44,7 @@
   no_log: true
   tags: always
 
-- name: Export firewall ports for pcs container
+- name: Export firewall ports for containers
   ansible.builtin.include_tasks: firewall_settings.yml
 
 - name: Run podman login command

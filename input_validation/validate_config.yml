@@ -31,6 +31,7 @@
     - prepare_oim
     - telemetry
     - additional_software
+    - gitlab
 
 - name: Create oim group
   when:

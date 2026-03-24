@@ -52,4 +52,8 @@
 
 - name: Prepare oim completion
   ansible.builtin.debug:
-    msg: "{{ prepare_oim_completion_msg.splitlines() | join(' ') }}"
+    msg: >-
+      {{
+        (prepare_oim_completion_msg_build_stream if hostvars['localhost']['enable_build_stream'] | bool
+         else prepare_oim_completion_msg).splitlines() | join(' ')
+      }}

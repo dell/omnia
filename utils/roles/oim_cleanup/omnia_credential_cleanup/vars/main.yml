@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,5 +16,7 @@
 # Usage: cleanup_credentials
 omnia_credential_config: "{{ input_project_dir }}/omnia_config_credentials.yml"
 omnia_credential_config_key: "{{ input_project_dir }}/.omnia_config_credentials_key"
+bs_credential_config: "{{ input_project_dir }}/build_stream_oauth_credentials.yml"
+bs_credential_config_key: "{{ input_project_dir }}/.build_stream_oauth_credentials_key"
 service_cluster_metadata_path: "/opt/omnia/.data/service_cluster_metadata.yml"
 functional_groups_config_path: "/opt/omnia/.data/functional_groups_config.yml"
