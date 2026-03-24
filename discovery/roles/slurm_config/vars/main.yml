@@ -152,6 +152,10 @@ offline_path_aarch64: []
 ssh_private_key_path: /root/.ssh/oim_rsa
 
 # nvidia sdk vars
+# NVHPC package name patterns for extraction
+
+nvhpc_pattern_x86_64: "^nvhpc_.*_Linux_x86_64_cuda_.*"
+nvhpc_pattern_aarch64: "^nvhpc_.*_Linux_aarch64_cuda_.*"
 # Dynamically extracted from slurm_custom.json
 nvhpc_pkg_name_x86_64: "{{ hostvars['oim']['nvhpc_pkg_name_x86_64'] }}"
 nvhpc_pkg_name_aarch64: "{{ hostvars['oim']['nvhpc_pkg_name_aarch64'] }}"
