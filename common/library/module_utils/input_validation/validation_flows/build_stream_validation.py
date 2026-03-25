@@ -187,7 +187,7 @@ def validate_build_stream_config(input_file_path, data,
             msg.build_stream_host_ip_not_oim_ip_msg(build_stream_host_ip, ethernet_ips)
         ))
 
-    # Validate aarch64_inventory_host_ip (c
+    # Validate aarch64_inventory_host_ip
     # Validate build_stream_port availability
     build_stream_port = data.get("build_stream_port")
     if build_stream_port:
@@ -230,7 +230,6 @@ def validate_build_stream_config(input_file_path, data,
             return errors
 
     # Validate aarch64_inventory_host_ip
-
     aarch64_inventory_host_ip = data.get("aarch64_inventory_host_ip")
     
     ### aarch64_inventory_host_ip check

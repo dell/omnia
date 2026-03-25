@@ -21,6 +21,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory={{ oim_shared_path }}/omnia/build_stream
+ExecStartPre=/bin/sleep {{ watcher_startup_delay_seconds }}
 ExecStart={{ build_stream_watcher_exec }}
 Restart=always
 RestartSec={{ watcher_restart_sec }}

@@ -45,7 +45,8 @@ watcher_service_name: "playbook_watcher.service"
 watcher_service_src_path: "templates/playbook_watcher.service.j2"
 watcher_systemd_path: "/etc/systemd/system"
 build_stream_watcher_exec: "/usr/bin/python3 {{ omnia_path }}/omnia/build_stream/playbook-watcher/playbook_watcher_service.py"
-watcher_restart_sec: 5
+watcher_restart_sec: 10
+watcher_startup_delay_seconds: 20
 watcher_no_new_privileges: true
 watcher_private_tmp: true
 watcher_limit_nofile: 4096

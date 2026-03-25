@@ -851,10 +851,7 @@ def validate_provision_config(
         pass
 
     pxe_mapping_file_path = data.get("pxe_mapping_file_path", "")
-    if enable_build_stream:
-        # Build Stream flow: skip mapping file validation entirely
-        pass
-    elif pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
+    if pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
         try:
             validate_mapping_file_entries(pxe_mapping_file_path)
             validate_functional_groups_in_mapping_file(pxe_mapping_file_path)

@@ -24,7 +24,9 @@ discovery_inputs:
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
-build_stream_job_id_absent: "Failed: enable_build_stream is set to true, but no 'job_id' was found during the execution of discovery.yml."  # noqa: yaml[line-length]
+build_stream_job_id_absent: |
+    Build Stream mode is enabled. Manual execution is not supported.
+    Please trigger this workflow via the GitLab pipeline.
 input_syntax_fail_msg: "Failed. Syntax errors present in {{ item.path }}. Fix errors and re-run playbook again."  # noqa: yaml[line-length]
 
 # Usage: include_software_config.yml

@@ -107,16 +107,17 @@
 
 
       Optional: Reprovision playbooks (run in order from the Omnia root directory)
+        1. ansible-playbook prepare_oim/prepare_oim.yml
 
-        1. ansible-playbook local_repo/local_repo.yml
+        2. ansible-playbook local_repo/local_repo.yml
 
-        2. ansible-playbook build_image_x86_64/build_image_x86_64.yml
+        3. ansible-playbook build_image_x86_64/build_image_x86_64.yml
 
-        3. Only if using aarch64 nodes (run after x86_64 image build):
+        4. Only if using aarch64 nodes (run after x86_64 image build):
 
         -> ansible-playbook build_image_aarch64/build_image_aarch64.yml
 
-        4. ansible-playbook discovery/discovery.yml
+        5. ansible-playbook discovery/discovery.yml
 
 
       For detailed steps and prerequisites, follow the official Omnia documentation.

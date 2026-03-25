@@ -74,6 +74,7 @@ def generate_example_catalogs(base_dir: str):
     targets = {
         'catalog_rhel_aarch64_with_slurm_only.json': 'catalog_rhel_aarch64_with_slurm_only_json',
         'catalog_rhel_x86_64_with_slurm_only.json': 'catalog_rhel_x86_64_with_slurm_only_json',
+        'catalog_rhel_with_ucx_openmpi.json': 'catalog_rhel_with_ucx_openmpi_json',
         'catalog_rhel.json': 'catalog_rhel_json',
     }
 
@@ -81,6 +82,7 @@ def generate_example_catalogs(base_dir: str):
     generation_order = [
         'catalog_rhel_aarch64_with_slurm_only.json',
         'catalog_rhel_x86_64_with_slurm_only.json',
+        'catalog_rhel_with_ucx_openmpi.json',
         'catalog_rhel.json',
     ]
 
