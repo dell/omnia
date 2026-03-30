@@ -20,6 +20,21 @@
     bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
   no_log: true
 
+- name: Load OIM metadata
+  ansible.builtin.set_fact:
+    oim_metadata: "{{ lookup('file', oim_metadata_file_path) | from_yaml }}"
+
+- name: Set upgrade_enabled flag from metadata
+  ansible.builtin.set_fact:
+    upgrade_enabled: false
+
+- name: Set upgrade_enabled flag from metadata
+  ansible.builtin.set_fact:
+    upgrade_enabled: true
+  when:
+    - oim_metadata.upgrade_backup_dir is defined
+    - oim_metadata.upgrade_backup_dir | length > 0
+
 - name: Include discovery inputs
   ansible.builtin.include_tasks: include_inputs.yml
   with_items: "{{ discovery_inputs }}"
