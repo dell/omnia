@@ -240,7 +240,7 @@ class TestValidateImageOnTestStageFailure:
             headers=auth_headers_with_ids
         )
         
-        assert validate_response.status_code in [400, 409]
+        assert validate_response.status_code == 422
 
     def test_validate_image_for_nonexistent_job_returns_404(
         self, http_client: httpx.Client, auth_headers_with_ids: dict

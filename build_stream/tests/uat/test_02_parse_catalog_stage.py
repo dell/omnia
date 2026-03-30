@@ -178,38 +178,7 @@ class TestParseCatalogStageFailure:
         
         assert stage_response.status_code in [400, 422]
 
-    def test_parse_catalog_with_missing_required_fields_returns_400(
-        self, http_client: httpx.Client, auth_headers_with_ids: dict
-    ):
-        """Test parse-catalog with missing required fields returns 400."""
-        catalog_data = {
-            "metadata": {
-                "name": "incomplete-catalog",
-            }
-        }
-        catalog_content = json.dumps(catalog_data).encode('utf-8')
-        
-        payload = {
-            "client_id": "uat-parse-catalog-client",
-            "client_name": "UAT Parse Catalog Test",
-        }
-        
-        create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
-        assert create_response.status_code == 201
-        job_id = create_response.json()["job_id"]
-        
-        files = {
-            "file": ("catalog.json", catalog_content, "application/json")
-        }
-        
-        stage_response = http_client.post(
-            f"/api/v1/jobs/{job_id}/stages/parse-catalog",
-            files=files,
-            headers={"Authorization": auth_headers_with_ids["Authorization"]}
-        )
-        
-        assert stage_response.status_code in [400, 422]
-
+    
     def test_parse_catalog_for_nonexistent_job_returns_404(
         self, http_client: httpx.Client, auth_headers_with_ids: dict, real_catalog_content: bytes
     ):

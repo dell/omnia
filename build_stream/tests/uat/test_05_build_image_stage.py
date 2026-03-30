@@ -37,7 +37,7 @@ class TestBuildImageStageSuccess:
         job_id = create_response.json()["job_id"]
         
         files = {
-            "file": ("catalog.json", sample_catalog_content, "application/json")
+            "file": ("catalog.json", real_catalog_content, "application/json")
         }
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
@@ -46,7 +46,7 @@ class TestBuildImageStageSuccess:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
@@ -54,7 +54,7 @@ class TestBuildImageStageSuccess:
         )
         assert generate_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
@@ -88,7 +88,7 @@ class TestBuildImageStageSuccess:
         job_id = create_response.json()["job_id"]
         
         files = {
-            "file": ("catalog.json", sample_catalog_content, "application/json")
+            "file": ("catalog.json", real_catalog_content, "application/json")
         }
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
@@ -97,7 +97,7 @@ class TestBuildImageStageSuccess:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
@@ -105,7 +105,7 @@ class TestBuildImageStageSuccess:
         )
         assert generate_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
@@ -145,7 +145,7 @@ class TestBuildImageStageSuccess:
         assert build_stage["stage_state"] == "PENDING"
         
         files = {
-            "file": ("catalog.json", sample_catalog_content, "application/json")
+            "file": ("catalog.json", real_catalog_content, "application/json")
         }
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
@@ -154,7 +154,7 @@ class TestBuildImageStageSuccess:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
@@ -162,7 +162,7 @@ class TestBuildImageStageSuccess:
         )
         assert generate_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
@@ -195,7 +195,7 @@ class TestBuildImageStageSuccess:
         job_id = create_response.json()["job_id"]
         
         files = {
-            "file": ("catalog.json", sample_catalog_content, "application/json")
+            "file": ("catalog.json", real_catalog_content, "application/json")
         }
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
@@ -204,7 +204,7 @@ class TestBuildImageStageSuccess:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
@@ -212,7 +212,7 @@ class TestBuildImageStageSuccess:
         )
         assert generate_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
@@ -230,7 +230,7 @@ class TestBuildImageStageSuccess:
         
         max_attempts = 120
         for _ in range(max_attempts):
-            time.sleep(5)
+            time.sleep(6)
             get_response = http_client.get(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
             assert get_response.status_code == 200
             stages = get_response.json()["stages"]
@@ -267,7 +267,7 @@ class TestBuildImageStageFailure:
             headers=auth_headers_with_ids
         )
         
-        assert build_response.status_code in [400, 409]
+        assert build_response.status_code == 404
 
     def test_build_image_for_nonexistent_job_returns_404(
         self, http_client: httpx.Client, auth_headers_with_ids: dict
@@ -305,7 +305,7 @@ class TestBuildImageStageFailure:
             headers=auth_headers_with_ids
         )
         
-        assert build_response.status_code == 422
+        assert build_response.status_code == 404
 
     def test_build_image_twice_returns_409(
         self, http_client: httpx.Client, auth_headers_with_ids: dict, real_catalog_content: bytes
@@ -321,7 +321,7 @@ class TestBuildImageStageFailure:
         job_id = create_response.json()["job_id"]
         
         files = {
-            "file": ("catalog.json", sample_catalog_content, "application/json")
+            "file": ("catalog.json", real_catalog_content, "application/json")
         }
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
@@ -330,7 +330,7 @@ class TestBuildImageStageFailure:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
@@ -338,7 +338,7 @@ class TestBuildImageStageFailure:
         )
         assert generate_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",

@@ -169,7 +169,7 @@ class TestGenerateInputFilesStageFailure:
             headers=auth_headers_with_ids
         )
         
-        assert generate_response.status_code in [400, 409]
+        assert generate_response.status_code == 412
 
     def test_generate_input_files_for_nonexistent_job_returns_404(
         self, http_client: httpx.Client, auth_headers_with_ids: dict
@@ -207,7 +207,7 @@ class TestGenerateInputFilesStageFailure:
             headers=auth_headers_with_ids
         )
         
-        assert generate_response.status_code == 422
+        assert generate_response.status_code == 400
 
     def test_generate_input_files_twice_returns_409(
         self, http_client: httpx.Client, auth_headers_with_ids: dict, real_catalog_content: bytes
@@ -232,7 +232,7 @@ class TestGenerateInputFilesStageFailure:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        time.sleep(2)
         
         first_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",

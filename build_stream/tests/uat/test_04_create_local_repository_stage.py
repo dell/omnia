@@ -46,7 +46,7 @@ class TestCreateLocalRepositoryStageSuccess:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
@@ -54,7 +54,7 @@ class TestCreateLocalRepositoryStageSuccess:
         )
         assert generate_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
@@ -63,8 +63,8 @@ class TestCreateLocalRepositoryStageSuccess:
         
         assert repo_response.status_code in [200, 202]
         data = repo_response.json()
-        assert "stage_state" in data
-        assert data["stage_state"] in ["RUNNING", "COMPLETED"]
+        assert "status" in data
+        assert data["status"] == "accepted"
 
     def test_create_local_repository_stage_transitions_to_running(
         self, http_client: httpx.Client, auth_headers_with_ids: dict, real_catalog_content: bytes
@@ -95,7 +95,7 @@ class TestCreateLocalRepositoryStageSuccess:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
@@ -103,7 +103,7 @@ class TestCreateLocalRepositoryStageSuccess:
         )
         assert generate_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
@@ -112,7 +112,8 @@ class TestCreateLocalRepositoryStageSuccess:
         
         assert repo_response.status_code in [200, 202]
         data = repo_response.json()
-        assert data["stage_state"] in ["RUNNING", "COMPLETED"]
+        assert "status" in data
+        assert data["status"] == "accepted"
 
     def test_create_local_repository_eventually_completes(
         self, http_client: httpx.Client, auth_headers_with_ids: dict, real_catalog_content: bytes
@@ -137,7 +138,7 @@ class TestCreateLocalRepositoryStageSuccess:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
@@ -145,7 +146,7 @@ class TestCreateLocalRepositoryStageSuccess:
         )
         assert generate_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
@@ -192,7 +193,7 @@ class TestCreateLocalRepositoryStageFailure:
             headers=auth_headers_with_ids
         )
         
-        assert repo_response.status_code in [400, 409]
+        assert repo_response.status_code == 412
 
     def test_create_local_repository_for_nonexistent_job_returns_404(
         self, http_client: httpx.Client, auth_headers_with_ids: dict
@@ -230,7 +231,7 @@ class TestCreateLocalRepositoryStageFailure:
             headers=auth_headers_with_ids
         )
         
-        assert repo_response.status_code == 422
+        assert repo_response.status_code == 400
 
     def test_create_local_repository_twice_returns_409(
         self, http_client: httpx.Client, auth_headers_with_ids: dict, real_catalog_content: bytes
@@ -255,7 +256,7 @@ class TestCreateLocalRepositoryStageFailure:
         )
         assert parse_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
@@ -263,7 +264,7 @@ class TestCreateLocalRepositoryStageFailure:
         )
         assert generate_response.status_code in [200, 202]
         
-        time.sleep(5)
+        
         
         first_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",

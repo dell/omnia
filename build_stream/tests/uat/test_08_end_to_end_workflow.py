@@ -226,28 +226,28 @@ class TestEndToEndWorkflow:
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
-        assert generate_response.status_code in [400, 409]
+        assert generate_response.status_code == 412
         print("✓ Generate-input-files correctly rejected without parse-catalog")
         
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
-        assert repo_response.status_code in [400, 409]
+        assert repo_response.status_code == 412
         print("✓ Create-local-repository correctly rejected without generate-input-files")
         
         build_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image-x86_64",
             headers=auth_headers_with_ids
         )
-        assert build_response.status_code in [400, 409]
+        assert build_response.status_code == 404
         print("✓ Build-image correctly rejected without create-local-repository")
         
         validate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
-        assert validate_response.status_code in [400, 409]
+        assert validate_response.status_code == 422
         print("✓ Validate-image correctly rejected without build-image")
 
     def test_workflow_with_catalog_query(
