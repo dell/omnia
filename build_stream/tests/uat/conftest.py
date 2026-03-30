@@ -414,3 +414,16 @@ def sample_catalog_content() -> bytes:
         ],
     }
     return json.dumps(catalog_data, indent=2).encode('utf-8')
+
+
+@pytest.fixture(scope="session")
+def real_catalog_content() -> bytes:
+    """Load real RHEL catalog content for testing.
+    
+    Returns:
+        Real catalog JSON content as bytes for file upload testing.
+    """
+    from pathlib import Path
+    catalog_path = Path(__file__).parent.parent.parent.parent / "examples" / "catalog" / "catalog_rhel.json"
+    with open(catalog_path, "rb") as f:
+        return f.read()
