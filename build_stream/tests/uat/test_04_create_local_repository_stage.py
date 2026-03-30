@@ -31,11 +31,11 @@ class TestCreateLocalRepositoryStageSuccess:
             "client_id": "uat-create-repo-client",
             "client_name": "UAT Create Repo Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", real_catalog_content, "application/json")
         }
@@ -45,22 +45,22 @@ class TestCreateLocalRepositoryStageSuccess:
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
-        
-        
+
+
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
-        
-        
-        
+
+
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
-        
+
         assert repo_response.status_code in [200, 202]
         data = repo_response.json()
         assert "status" in data
@@ -74,17 +74,17 @@ class TestCreateLocalRepositoryStageSuccess:
             "client_id": "uat-create-repo-client",
             "client_name": "UAT Create Repo Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         get_response = http_client.get(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
         assert get_response.status_code == 200
         stages = get_response.json()["stages"]
         repo_stage = next(s for s in stages if s["stage_name"] == "create-local-repository")
         assert repo_stage["stage_state"] == "PENDING"
-        
+
         files = {
             "file": ("catalog.json", real_catalog_content, "application/json")
         }
@@ -94,22 +94,22 @@ class TestCreateLocalRepositoryStageSuccess:
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
-        
-        
+
+
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
-        
-        
-        
+
+
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
-        
+
         assert repo_response.status_code in [200, 202]
         data = repo_response.json()
         assert "status" in data
@@ -123,11 +123,11 @@ class TestCreateLocalRepositoryStageSuccess:
             "client_id": "uat-create-repo-client",
             "client_name": "UAT Create Repo Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", real_catalog_content, "application/json")
         }
@@ -137,23 +137,23 @@ class TestCreateLocalRepositoryStageSuccess:
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
-        
-        
+
+
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
-        
-        
-        
+
+
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
         assert repo_response.status_code in [200, 202]
-        
+
         max_attempts = 60
         for _ in range(max_attempts):
             time.sleep(5)
@@ -161,13 +161,13 @@ class TestCreateLocalRepositoryStageSuccess:
             assert get_response.status_code == 200
             stages = get_response.json()["stages"]
             repo_stage = next(s for s in stages if s["stage_name"] == "create-local-repository")
-            
+
             if repo_stage["stage_state"] in ["COMPLETED", "FAILED"]:
                 assert repo_stage["stage_state"] == "COMPLETED"
                 assert repo_stage["started_at"] is not None
                 assert repo_stage["ended_at"] is not None
                 return
-        
+
         pytest.fail("create-local-repository stage did not complete within timeout")
 
 
@@ -183,16 +183,16 @@ class TestCreateLocalRepositoryStageFailure:
             "client_id": "uat-create-repo-client",
             "client_name": "UAT Create Repo Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
-        
+
         assert repo_response.status_code == 412
 
     def test_create_local_repository_for_nonexistent_job_returns_404(
@@ -201,23 +201,23 @@ class TestCreateLocalRepositoryStageFailure:
         """Test create-local-repository for nonexistent job returns 404."""
         import uuid
         nonexistent_job_id = str(uuid.uuid4())
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{nonexistent_job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
-        
+
         assert repo_response.status_code == 404
 
     def test_create_local_repository_without_auth_returns_401(self, http_client: httpx.Client):
         """Test create-local-repository without authentication returns 401."""
         import uuid
         job_id = str(uuid.uuid4())
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository"
         )
-        
+
         assert repo_response.status_code == 401
 
     def test_create_local_repository_with_invalid_job_id_returns_422(
@@ -225,12 +225,12 @@ class TestCreateLocalRepositoryStageFailure:
     ):
         """Test create-local-repository with invalid job ID format returns 422."""
         invalid_job_id = "not-a-valid-uuid"
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{invalid_job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
-        
+
         assert repo_response.status_code == 400
 
     def test_create_local_repository_twice_returns_409(
@@ -241,11 +241,11 @@ class TestCreateLocalRepositoryStageFailure:
             "client_id": "uat-create-repo-client",
             "client_name": "UAT Create Repo Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", real_catalog_content, "application/json")
         }
@@ -255,28 +255,28 @@ class TestCreateLocalRepositoryStageFailure:
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
-        
-        
+
+
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
-        
-        
-        
+
+
+
         first_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
         assert first_response.status_code in [200, 202]
-        
+
         time.sleep(2)
-        
+
         second_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
-        
+
         assert second_response.status_code == 409

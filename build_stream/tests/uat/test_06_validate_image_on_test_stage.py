@@ -31,11 +31,11 @@ class TestValidateImageOnTestStageSuccess:
             "client_id": "uat-validate-image-client",
             "client_name": "UAT Validate Image Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", sample_catalog_content, "application/json")
         }
@@ -45,38 +45,38 @@ class TestValidateImageOnTestStageSuccess:
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         time.sleep(5)
-        
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
-        
+
         time.sleep(5)
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
         assert repo_response.status_code in [200, 202]
-        
+
         time.sleep(10)
-        
+
         build_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image-x86_64",
             headers=auth_headers_with_ids
         )
         assert build_response.status_code in [200, 202]
-        
+
         time.sleep(15)
-        
+
         validate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
-        
+
         assert validate_response.status_code in [200, 202]
         data = validate_response.json()
         assert "stage_state" in data
@@ -90,17 +90,17 @@ class TestValidateImageOnTestStageSuccess:
             "client_id": "uat-validate-image-client",
             "client_name": "UAT Validate Image Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         get_response = http_client.get(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
         assert get_response.status_code == 200
         stages = get_response.json()["stages"]
         validate_stage = next(s for s in stages if s["stage_name"] == "validate-image-on-test")
         assert validate_stage["stage_state"] == "PENDING"
-        
+
         files = {
             "file": ("catalog.json", sample_catalog_content, "application/json")
         }
@@ -110,38 +110,38 @@ class TestValidateImageOnTestStageSuccess:
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         time.sleep(5)
-        
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
-        
+
         time.sleep(5)
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
         assert repo_response.status_code in [200, 202]
-        
+
         time.sleep(10)
-        
+
         build_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image-x86_64",
             headers=auth_headers_with_ids
         )
         assert build_response.status_code in [200, 202]
-        
+
         time.sleep(15)
-        
+
         validate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
-        
+
         assert validate_response.status_code in [200, 202]
         data = validate_response.json()
         assert data["stage_state"] in ["RUNNING", "COMPLETED"]
@@ -154,11 +154,11 @@ class TestValidateImageOnTestStageSuccess:
             "client_id": "uat-validate-image-client",
             "client_name": "UAT Validate Image Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", sample_catalog_content, "application/json")
         }
@@ -168,39 +168,39 @@ class TestValidateImageOnTestStageSuccess:
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         time.sleep(5)
-        
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
-        
+
         time.sleep(5)
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
         assert repo_response.status_code in [200, 202]
-        
+
         time.sleep(10)
-        
+
         build_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image-x86_64",
             headers=auth_headers_with_ids
         )
         assert build_response.status_code in [200, 202]
-        
+
         time.sleep(15)
-        
+
         validate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
         assert validate_response.status_code in [200, 202]
-        
+
         max_attempts = 60
         for _ in range(max_attempts):
             time.sleep(5)
@@ -208,13 +208,13 @@ class TestValidateImageOnTestStageSuccess:
             assert get_response.status_code == 200
             stages = get_response.json()["stages"]
             validate_stage = next(s for s in stages if s["stage_name"] == "validate-image-on-test")
-            
+
             if validate_stage["stage_state"] in ["COMPLETED", "FAILED"]:
                 assert validate_stage["stage_state"] == "COMPLETED"
                 assert validate_stage["started_at"] is not None
                 assert validate_stage["ended_at"] is not None
                 return
-        
+
         pytest.fail("validate-image-on-test stage did not complete within timeout")
 
 
@@ -230,16 +230,16 @@ class TestValidateImageOnTestStageFailure:
             "client_id": "uat-validate-image-client",
             "client_name": "UAT Validate Image Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         validate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
-        
+
         assert validate_response.status_code == 422
 
     def test_validate_image_for_nonexistent_job_returns_404(
@@ -248,23 +248,23 @@ class TestValidateImageOnTestStageFailure:
         """Test validate-image-on-test for nonexistent job returns 404."""
         import uuid
         nonexistent_job_id = str(uuid.uuid4())
-        
+
         validate_response = http_client.post(
             f"/api/v1/jobs/{nonexistent_job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
-        
+
         assert validate_response.status_code == 404
 
     def test_validate_image_without_auth_returns_401(self, http_client: httpx.Client):
         """Test validate-image-on-test without authentication returns 401."""
         import uuid
         job_id = str(uuid.uuid4())
-        
+
         validate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test"
         )
-        
+
         assert validate_response.status_code == 401
 
     def test_validate_image_with_invalid_job_id_returns_422(
@@ -272,12 +272,12 @@ class TestValidateImageOnTestStageFailure:
     ):
         """Test validate-image-on-test with invalid job ID format returns 422."""
         invalid_job_id = "not-a-valid-uuid"
-        
+
         validate_response = http_client.post(
             f"/api/v1/jobs/{invalid_job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
-        
+
         assert validate_response.status_code == 422
 
     def test_validate_image_twice_returns_409(
@@ -288,11 +288,11 @@ class TestValidateImageOnTestStageFailure:
             "client_id": "uat-validate-image-client",
             "client_name": "UAT Validate Image Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", sample_catalog_content, "application/json")
         }
@@ -302,44 +302,44 @@ class TestValidateImageOnTestStageFailure:
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         time.sleep(5)
-        
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
-        
+
         time.sleep(5)
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
         assert repo_response.status_code in [200, 202]
-        
+
         time.sleep(10)
-        
+
         build_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image-x86_64",
             headers=auth_headers_with_ids
         )
         assert build_response.status_code in [200, 202]
-        
+
         time.sleep(15)
-        
+
         first_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
         assert first_response.status_code in [200, 202]
-        
+
         time.sleep(2)
-        
+
         second_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
-        
+
         assert second_response.status_code == 409

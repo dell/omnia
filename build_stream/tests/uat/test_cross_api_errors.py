@@ -39,7 +39,7 @@ class TestCrossAPIErrors:
         self, http_client: httpx.Client, auth_headers: dict, endpoint: str, method: str
     ):
         """Test all APIs return 404 for nonexistent job ID.
-        
+
         Note: Some endpoints validate request body before checking job existence,
         so they may return 422 (validation error) instead of 404.
         """
@@ -56,7 +56,7 @@ class TestCrossAPIErrors:
                 response = http_client.post(endpoint, headers=auth_headers, files=files)
             else:
                 response = http_client.post(endpoint, headers=auth_headers, json={})
-            
+
             # Stage endpoints may validate request body first (422) or check job existence first (404)
             assert response.status_code in [404, 422]
 
@@ -86,7 +86,7 @@ class TestCrossAPIErrors:
                 response = http_client.post(endpoint, files=files)
             else:
                 response = http_client.post(endpoint, json={})
-        
+
         assert response.status_code == 401
 
     @pytest.mark.parametrize("endpoint,method", [
@@ -102,7 +102,7 @@ class TestCrossAPIErrors:
             "Authorization": "Bearer invalid-token-12345",
             "Content-Type": "application/json",
         }
-        
+
         if method == "GET":
             response = http_client.get(endpoint, headers=headers)
         elif method == "DELETE":
@@ -114,7 +114,7 @@ class TestCrossAPIErrors:
                 response = http_client.post(endpoint, files=files, headers=headers)
             else:
                 response = http_client.post(endpoint, json={}, headers=headers)
-        
+
         assert response.status_code == 401
 
     @pytest.mark.parametrize("endpoint", [
@@ -128,6 +128,6 @@ class TestCrossAPIErrors:
         """Test all APIs return 400 for invalid job ID format."""
         # Try GET first (works for most endpoints)
         response = http_client.get(endpoint, headers=auth_headers)
-        
+
         # 400 for invalid format, 404 if validates format first, 405 if method not allowed, 422 for validation
         assert response.status_code in [400, 404, 405, 422]

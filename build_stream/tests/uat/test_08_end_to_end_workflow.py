@@ -45,21 +45,21 @@ class TestEndToEndWorkflow:
             ],
         }
         catalog_content = json.dumps(catalog_data, indent=2).encode('utf-8')
-        
+
         payload = {
             "client_id": "uat-e2e-client",
             "client_name": "UAT E2E Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
         print(f"\n✓ Job created: {job_id}")
-        
+
         files = {
             "file": ("catalog.json", catalog_content, "application/json")
         }
-        
+
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
@@ -67,57 +67,57 @@ class TestEndToEndWorkflow:
         )
         assert parse_response.status_code in [200, 202]
         print("✓ Parse-catalog stage initiated")
-        
+
         self._wait_for_stage_completion(http_client, job_id, "parse-catalog", auth_headers_with_ids, max_wait=60)
         print("✓ Parse-catalog stage completed")
-        
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
         print("✓ Generate-input-files stage initiated")
-        
+
         self._wait_for_stage_completion(http_client, job_id, "generate-input-files", auth_headers_with_ids, max_wait=60)
         print("✓ Generate-input-files stage completed")
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
         assert repo_response.status_code in [200, 202]
         print("✓ Create-local-repository stage initiated")
-        
+
         self._wait_for_stage_completion(http_client, job_id, "create-local-repository", auth_headers_with_ids, max_wait=300)
         print("✓ Create-local-repository stage completed")
-        
+
         build_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image-x86_64",
             headers=auth_headers_with_ids
         )
         assert build_response.status_code in [200, 202]
         print("✓ Build-image-x86_64 stage initiated")
-        
+
         self._wait_for_stage_completion(http_client, job_id, "build-image-x86_64", auth_headers_with_ids, max_wait=600)
         print("✓ Build-image-x86_64 stage completed")
-        
+
         validate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
         )
         assert validate_response.status_code in [200, 202]
         print("✓ Validate-image-on-test stage initiated")
-        
+
         self._wait_for_stage_completion(http_client, job_id, "validate-image-on-test", auth_headers_with_ids, max_wait=300)
         print("✓ Validate-image-on-test stage completed")
-        
+
         final_response = http_client.get(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
         assert final_response.status_code == 200
         final_data = final_response.json()
-        
+
         assert final_data["job_state"] in ["COMPLETED", "RUNNING"]
         print(f"✓ Final job state: {final_data['job_state']}")
-        
+
         stages = final_data["stages"]
         completed_stages = [s for s in stages if s["stage_state"] == "COMPLETED"]
         assert len(completed_stages) >= 5
@@ -149,63 +149,63 @@ class TestEndToEndWorkflow:
             ],
         }
         catalog_content = json.dumps(catalog_data, indent=2).encode('utf-8')
-        
+
         payload = {
             "client_id": "uat-e2e-multi-arch-client",
             "client_name": "UAT E2E Multi-Arch Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
         print(f"\n✓ Job created: {job_id}")
-        
+
         files = {
             "file": ("catalog.json", catalog_content, "application/json")
         }
-        
+
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         self._wait_for_stage_completion(http_client, job_id, "parse-catalog", auth_headers_with_ids, max_wait=60)
-        
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code in [200, 202]
-        
+
         self._wait_for_stage_completion(http_client, job_id, "generate-input-files", auth_headers_with_ids, max_wait=60)
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
         assert repo_response.status_code in [200, 202]
-        
+
         self._wait_for_stage_completion(http_client, job_id, "create-local-repository", auth_headers_with_ids, max_wait=300)
-        
+
         build_x86_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image-x86_64",
             headers=auth_headers_with_ids
         )
         assert build_x86_response.status_code in [200, 202]
         print("✓ Build-image-x86_64 stage initiated")
-        
+
         build_arm_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image-aarch64",
             headers=auth_headers_with_ids
         )
         assert build_arm_response.status_code in [200, 202]
         print("✓ Build-image-aarch64 stage initiated")
-        
+
         self._wait_for_stage_completion(http_client, job_id, "build-image-x86_64", auth_headers_with_ids, max_wait=600)
         print("✓ Build-image-x86_64 stage completed")
-        
+
         self._wait_for_stage_completion(http_client, job_id, "build-image-aarch64", auth_headers_with_ids, max_wait=600)
         print("✓ Build-image-aarch64 stage completed")
 
@@ -217,32 +217,32 @@ class TestEndToEndWorkflow:
             "client_id": "uat-e2e-dependencies-client",
             "client_name": "UAT E2E Dependencies Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         generate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/generate-input-files",
             headers=auth_headers_with_ids
         )
         assert generate_response.status_code == 412
         print("✓ Generate-input-files correctly rejected without parse-catalog")
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids
         )
         assert repo_response.status_code == 412
         print("✓ Create-local-repository correctly rejected without generate-input-files")
-        
+
         build_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/build-image-x86_64",
             headers=auth_headers_with_ids
         )
         assert build_response.status_code == 404
         print("✓ Build-image correctly rejected without create-local-repository")
-        
+
         validate_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/validate-image-on-test",
             headers=auth_headers_with_ids
@@ -270,42 +270,42 @@ class TestEndToEndWorkflow:
             ],
         }
         catalog_content = json.dumps(catalog_data, indent=2).encode('utf-8')
-        
+
         payload = {
             "client_id": "uat-e2e-query-client",
             "client_name": "UAT E2E Query Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", catalog_content, "application/json")
         }
-        
+
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         self._wait_for_stage_completion(http_client, job_id, "parse-catalog", auth_headers_with_ids, max_wait=60)
-        
+
         query_response = http_client.get(
             f"/api/v1/jobs/{job_id}/catalog",
             headers=auth_headers_with_ids
         )
         assert query_response.status_code == 200
         print("✓ Catalog query successful after parse-catalog")
-        
+
         query_data = query_response.json()
         assert isinstance(query_data, dict)
         print(f"✓ Catalog data retrieved: {len(str(query_data))} bytes")
 
     def _wait_for_stage_completion(
-        self, http_client: httpx.Client, job_id: str, stage_name: str, 
+        self, http_client: httpx.Client, job_id: str, stage_name: str,
         auth_headers: dict, max_wait: int = 60
     ):
         """Wait for a stage to complete with timeout."""
@@ -315,19 +315,19 @@ class TestEndToEndWorkflow:
             get_response = http_client.get(f"/api/v1/jobs/{job_id}", headers=auth_headers)
             if get_response.status_code != 200:
                 continue
-            
+
             stages = get_response.json()["stages"]
             stage = next((s for s in stages if s["stage_name"] == stage_name), None)
-            
+
             if stage and stage["stage_state"] == "COMPLETED":
                 return
-            
+
             if stage and stage["stage_state"] == "FAILED":
                 pytest.fail(f"Stage {stage_name} failed")
-            
+
             if attempt % 6 == 0:
                 print(f"  Waiting for {stage_name}... ({attempt * 5}s elapsed)")
-        
+
         pytest.fail(f"Stage {stage_name} did not complete within {max_wait}s")
 
 
@@ -341,26 +341,26 @@ class TestEndToEndWorkflowFailures:
     ):
         """Test workflow fails gracefully with invalid catalog."""
         invalid_catalog = b"{ invalid json"
-        
+
         payload = {
             "client_id": "uat-e2e-failure-client",
             "client_name": "UAT E2E Failure Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", invalid_catalog, "application/json")
         }
-        
+
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
-        
+
         assert parse_response.status_code in [400, 422]
         print("✓ Workflow correctly rejected invalid catalog")
 
@@ -372,24 +372,24 @@ class TestEndToEndWorkflowFailures:
             "client_id": "uat-e2e-skip-client",
             "client_name": "UAT E2E Skip Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
-            "file": ("catalog.json", sample_catalog_content, "application/json")
+            "file": ("catalog.json", real_catalog_content, "application/json")
         }
-        
+
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         time.sleep(10)
-        
+
         repo_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/create-local-repository",
             headers=auth_headers_with_ids

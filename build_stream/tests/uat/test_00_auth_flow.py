@@ -33,14 +33,14 @@ class TestClientRegistration:
             "Authorization": f"Basic {credentials}",
             "Content-Type": "application/json",
         }
-        
+
         payload = {
             "client_name": f"uat-test-{uuid.uuid4()}",
             "allowed_scopes": ["catalog:read", "catalog:write"],
         }
-        
+
         response = http_client.post("/api/v1/auth/register", json=payload, headers=headers)
-        
+
         # May be 201 (new) or 409 (already exists)
         assert response.status_code in [201, 409]
         if response.status_code == 201:
@@ -59,14 +59,14 @@ class TestClientRegistration:
             "Authorization": f"Basic {credentials}",
             "Content-Type": "application/json",
         }
-        
+
         payload = {
             "client_name": "test-client",
             "allowed_scopes": ["catalog:read"],
         }
-        
+
         response = http_client.post("/api/v1/auth/register", json=payload, headers=headers)
-        
+
         assert response.status_code == 401
 
 

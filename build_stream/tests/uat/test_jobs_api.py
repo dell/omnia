@@ -29,9 +29,9 @@ class TestCreateJob:
             "client_id": "uat-test-client",
             "client_name": "UAT Test Client",
         }
-        
+
         response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
-        
+
         assert response.status_code == 201
         data = response.json()
         assert "job_id" in data
@@ -46,12 +46,12 @@ class TestCreateJob:
             "client_id": "uat-test-client",
             "client_name": "UAT Test Client",
         }
-        
+
         response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
-        
+
         assert response.status_code == 201
         job_id = response.json()["job_id"]
-        
+
         # Validate UUID format
         try:
             uuid.UUID(job_id)
@@ -64,13 +64,13 @@ class TestCreateJob:
             "client_id": "uat-test-client",
             "client_name": "UAT Test Client",
         }
-        
+
         response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
-        
+
         assert response.status_code == 201
         stages = response.json()["stages"]
         assert len(stages) == 6
-        
+
         expected_stages = {
             "build-image-aarch64",
             "build-image-x86_64",
@@ -79,11 +79,11 @@ class TestCreateJob:
             "parse-catalog",
             "validate-image-on-test",
         }
-        
+
         # Check all expected stages are present (order doesn't matter)
         stage_names = {s["stage_name"] for s in stages}
         assert stage_names == expected_stages
-        
+
         # Verify all stages are in PENDING state initially
         for stage in stages:
             assert stage["stage_state"] == "PENDING"
@@ -97,9 +97,9 @@ class TestCreateJob:
         payload = {
             "client_name": "UAT Test Client",
         }
-        
+
         response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
-        
+
         assert response.status_code == 422  # FastAPI validation error
 
     @pytest.mark.skip(reason="Idempotency not implemented in API yet - returns 201 instead of 200")
@@ -113,22 +113,22 @@ class TestCreateJob:
             "Idempotency-Key": unique_idempotency_key,
             "X-Correlation-Id": unique_correlation_id,
         }
-        
+
         payload = {
             "client_id": "uat-test-client",
             "client_name": "UAT Test Client",
         }
-        
+
         # First request
         response1 = http_client.post("/api/v1/jobs", json=payload, headers=headers)
         assert response1.status_code == 201
         job_id1 = response1.json()["job_id"]
-        
+
         # Second request with same idempotency key
         response2 = http_client.post("/api/v1/jobs", json=payload, headers=headers)
         assert response2.status_code == 200  # Returns existing job
         job_id2 = response2.json()["job_id"]
-        
+
         # Should return same job
         assert job_id1 == job_id2
 
@@ -146,14 +146,14 @@ class TestGetJob:
             "client_id": "uat-test-client",
             "client_name": "UAT Test Client",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         # Then get the job
         get_response = http_client.get(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
-        
+
         assert get_response.status_code == 200
         data = get_response.json()
         assert data["job_id"] == job_id
@@ -165,7 +165,7 @@ class TestGetJob:
     ):
         """Test getting job with invalid ID returns 404."""
         response = http_client.get(f"/api/v1/jobs/{invalid_job_id}", headers=auth_headers)
-        
+
         assert response.status_code == 404
 
 
@@ -183,14 +183,14 @@ class TestDeleteJob:
             "client_id": "uat-test-client",
             "client_name": "UAT Test Client",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         # Then delete the job
         delete_response = http_client.delete(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
-        
+
         assert delete_response.status_code == 204
 
     def test_delete_nonexistent_job_returns_404(
@@ -198,5 +198,5 @@ class TestDeleteJob:
     ):
         """Test deleting nonexistent job returns 404."""
         response = http_client.delete(f"/api/v1/jobs/{invalid_job_id}", headers=auth_headers)
-        
+
         assert response.status_code == 404

@@ -25,7 +25,7 @@ class TestHealthEndpoint:
     def test_health_endpoint_returns_200(self, http_client: httpx.Client):
         """Test health endpoint returns 200 OK."""
         response = http_client.get("/health")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "status" in data
@@ -47,7 +47,7 @@ class TestRootEndpoint:
     def test_root_endpoint_returns_200(self, http_client: httpx.Client):
         """Test root endpoint returns 200 OK."""
         response = http_client.get("/")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "message" in data
@@ -57,7 +57,7 @@ class TestRootEndpoint:
     def test_root_endpoint_returns_welcome_message(self, http_client: httpx.Client):
         """Test root endpoint returns welcome message."""
         response = http_client.get("/")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert "Build Stream" in data["message"]

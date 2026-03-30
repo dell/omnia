@@ -32,21 +32,21 @@ class TestParseCatalogStageSuccess:
             "client_id": "uat-parse-catalog-client",
             "client_name": "UAT Parse Catalog Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", real_catalog_content, "application/json")
         }
-        
+
         stage_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
-        
+
         assert stage_response.status_code in [200, 202]
         data = stage_response.json()
         assert "status" in data
@@ -60,27 +60,27 @@ class TestParseCatalogStageSuccess:
             "client_id": "uat-parse-catalog-client",
             "client_name": "UAT Parse Catalog Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         get_response = http_client.get(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
         assert get_response.status_code == 200
         stages = get_response.json()["stages"]
         parse_stage = next(s for s in stages if s["stage_name"] == "parse-catalog")
         assert parse_stage["stage_state"] == "PENDING"
-        
+
         files = {
             "file": ("catalog.json", real_catalog_content, "application/json")
         }
-        
+
         stage_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
-        
+
         assert stage_response.status_code in [200, 202]
         data = stage_response.json()
         assert "status" in data
@@ -94,23 +94,23 @@ class TestParseCatalogStageSuccess:
             "client_id": "uat-parse-catalog-client",
             "client_name": "UAT Parse Catalog Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", real_catalog_content, "application/json")
         }
-        
+
         stage_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
-        
+
         assert stage_response.status_code in [200, 202]
-        
+
         max_attempts = 30
         for _ in range(max_attempts):
             time.sleep(2)
@@ -118,13 +118,13 @@ class TestParseCatalogStageSuccess:
             assert get_response.status_code == 200
             stages = get_response.json()["stages"]
             parse_stage = next(s for s in stages if s["stage_name"] == "parse-catalog")
-            
+
             if parse_stage["stage_state"] in ["COMPLETED", "FAILED"]:
                 assert parse_stage["stage_state"] == "COMPLETED"
                 assert parse_stage["started_at"] is not None
                 assert parse_stage["ended_at"] is not None
                 return
-        
+
         pytest.fail("parse-catalog stage did not complete within timeout")
 
 
@@ -140,16 +140,16 @@ class TestParseCatalogStageFailure:
             "client_id": "uat-parse-catalog-client",
             "client_name": "UAT Parse Catalog Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         stage_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             headers=auth_headers_with_ids
         )
-        
+
         assert stage_response.status_code == 422
 
     def test_parse_catalog_with_invalid_json_returns_400(
@@ -160,42 +160,42 @@ class TestParseCatalogStageFailure:
             "client_id": "uat-parse-catalog-client",
             "client_name": "UAT Parse Catalog Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         invalid_content = b"{ invalid json content"
         files = {
             "catalog": ("catalog.json", invalid_content, "application/json")
         }
-        
+
         stage_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
-        
+
         assert stage_response.status_code in [400, 422]
 
-    
+
     def test_parse_catalog_for_nonexistent_job_returns_404(
         self, http_client: httpx.Client, auth_headers_with_ids: dict, real_catalog_content: bytes
     ):
         """Test parse-catalog for nonexistent job returns 404."""
         import uuid
         nonexistent_job_id = str(uuid.uuid4())
-        
+
         files = {
             "file": ("catalog.json", real_catalog_content, "application/json")
         }
-        
+
         stage_response = http_client.post(
             f"/api/v1/jobs/{nonexistent_job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
-        
+
         assert stage_response.status_code == 404
 
     def test_parse_catalog_without_auth_returns_401(
@@ -204,16 +204,16 @@ class TestParseCatalogStageFailure:
         """Test parse-catalog without authentication returns 401."""
         import uuid
         job_id = str(uuid.uuid4())
-        
+
         files = {
             "file": ("catalog.json", real_catalog_content, "application/json")
         }
-        
+
         stage_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files
         )
-        
+
         assert stage_response.status_code == 401
 
     def test_parse_catalog_with_wrong_content_type_returns_400(
@@ -224,21 +224,21 @@ class TestParseCatalogStageFailure:
             "client_id": "uat-parse-catalog-client",
             "client_name": "UAT Parse Catalog Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.txt", b"not a json file", "text/plain")
         }
-        
+
         stage_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
-        
+
         assert stage_response.status_code in [400, 422]
 
     def test_parse_catalog_with_empty_file_returns_400(
@@ -249,19 +249,19 @@ class TestParseCatalogStageFailure:
             "client_id": "uat-parse-catalog-client",
             "client_name": "UAT Parse Catalog Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "catalog": ("catalog.json", b"", "application/json")
         }
-        
+
         stage_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
-        
+
         assert stage_response.status_code in [400, 422]

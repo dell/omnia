@@ -32,29 +32,29 @@ class TestCatalogQuerySuccess:
             "client_id": "uat-catalog-query-client",
             "client_name": "UAT Catalog Query Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
-            "file": ("catalog.json", sample_catalog_content, "application/json")
+            "file": ("catalog.json", real_catalog_content, "application/json")
         }
-        
+
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         time.sleep(10)
-        
+
         query_response = http_client.get(
             f"/api/v1/jobs/{job_id}/catalog",
             headers=auth_headers_with_ids
         )
-        
+
         assert query_response.status_code == 200
         data = query_response.json()
         assert "metadata" in data or "software" in data or isinstance(data, dict)
@@ -79,34 +79,34 @@ class TestCatalogQuerySuccess:
             ],
         }
         catalog_content = json.dumps(catalog_data, indent=2).encode('utf-8')
-        
+
         payload = {
             "client_id": "uat-catalog-query-client",
             "client_name": "UAT Catalog Query Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
             "file": ("catalog.json", catalog_content, "application/json")
         }
-        
+
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         time.sleep(10)
-        
+
         query_response = http_client.get(
             f"/api/v1/jobs/{job_id}/catalog",
             headers=auth_headers_with_ids
         )
-        
+
         assert query_response.status_code == 200
         data = query_response.json()
         assert isinstance(data, dict)
@@ -119,29 +119,29 @@ class TestCatalogQuerySuccess:
             "client_id": "uat-catalog-query-client",
             "client_name": "UAT Catalog Query Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
-            "file": ("catalog.json", sample_catalog_content, "application/json")
+            "file": ("catalog.json", real_catalog_content, "application/json")
         }
-        
+
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         time.sleep(10)
-        
+
         query_response = http_client.get(
             f"/api/v1/jobs/{job_id}/catalog?arch=x86_64",
             headers=auth_headers_with_ids
         )
-        
+
         assert query_response.status_code in [200, 404]
 
     def test_list_all_catalogs(
@@ -152,7 +152,7 @@ class TestCatalogQuerySuccess:
             "/api/v1/catalog",
             headers=auth_headers
         )
-        
+
         assert list_response.status_code == 200
         data = list_response.json()
         assert isinstance(data, (list, dict))
@@ -170,16 +170,16 @@ class TestCatalogQueryFailure:
             "client_id": "uat-catalog-query-client",
             "client_name": "UAT Catalog Query Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         query_response = http_client.get(
             f"/api/v1/jobs/{job_id}/catalog",
             headers=auth_headers_with_ids
         )
-        
+
         assert query_response.status_code == 404
 
     def test_query_catalog_for_nonexistent_job_returns_404(
@@ -188,23 +188,23 @@ class TestCatalogQueryFailure:
         """Test querying catalog for nonexistent job returns 404."""
         import uuid
         nonexistent_job_id = str(uuid.uuid4())
-        
+
         query_response = http_client.get(
             f"/api/v1/jobs/{nonexistent_job_id}/catalog",
             headers=auth_headers
         )
-        
+
         assert query_response.status_code == 404
 
     def test_query_catalog_without_auth_returns_401(self, http_client: httpx.Client):
         """Test querying catalog without authentication returns 401."""
         import uuid
         job_id = str(uuid.uuid4())
-        
+
         query_response = http_client.get(
             f"/api/v1/jobs/{job_id}/catalog"
         )
-        
+
         assert query_response.status_code == 401
 
     def test_query_catalog_with_invalid_job_id_returns_422(
@@ -212,12 +212,12 @@ class TestCatalogQueryFailure:
     ):
         """Test querying catalog with invalid job ID format returns 422."""
         invalid_job_id = "not-a-valid-uuid"
-        
+
         query_response = http_client.get(
             f"/api/v1/jobs/{invalid_job_id}/catalog",
             headers=auth_headers
         )
-        
+
         assert query_response.status_code == 422
 
     def test_query_catalog_with_invalid_filter_returns_400(
@@ -228,33 +228,33 @@ class TestCatalogQueryFailure:
             "client_id": "uat-catalog-query-client",
             "client_name": "UAT Catalog Query Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         files = {
-            "file": ("catalog.json", sample_catalog_content, "application/json")
+            "file": ("catalog.json", real_catalog_content, "application/json")
         }
-        
+
         parse_response = http_client.post(
             f"/api/v1/jobs/{job_id}/stages/parse-catalog",
             files=files,
             headers={"Authorization": auth_headers_with_ids["Authorization"]}
         )
         assert parse_response.status_code in [200, 202]
-        
+
         time.sleep(10)
-        
+
         query_response = http_client.get(
             f"/api/v1/jobs/{job_id}/catalog?invalid_param=value",
             headers=auth_headers_with_ids
         )
-        
+
         assert query_response.status_code in [200, 400, 422]
 
     def test_list_catalogs_without_auth_returns_401(self, http_client: httpx.Client):
         """Test listing catalogs without authentication returns 401."""
         list_response = http_client.get("/api/v1/catalog")
-        
+
         assert list_response.status_code == 401

@@ -29,9 +29,9 @@ class TestJobLifecycle:
             "client_id": "uat-lifecycle-client",
             "client_name": "UAT Lifecycle Test",
         }
-        
+
         response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
-        
+
         assert response.status_code == 201
         data = response.json()
         assert "job_id" in data
@@ -48,13 +48,13 @@ class TestJobLifecycle:
             "client_id": "uat-lifecycle-client",
             "client_name": "UAT Lifecycle Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         get_response = http_client.get(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
-        
+
         assert get_response.status_code == 200
         data = get_response.json()
         assert data["job_id"] == job_id
@@ -66,9 +66,9 @@ class TestJobLifecycle:
     ):
         """Test getting nonexistent job returns 404."""
         nonexistent_id = str(uuid.uuid4())
-        
+
         response = http_client.get(f"/api/v1/jobs/{nonexistent_id}", headers=auth_headers)
-        
+
         assert response.status_code == 404
         data = response.json()
         assert "detail" in data
@@ -78,9 +78,9 @@ class TestJobLifecycle:
     ):
         """Test getting job with invalid UUID format returns 400."""
         invalid_id = "not-a-valid-uuid"
-        
+
         response = http_client.get(f"/api/v1/jobs/{invalid_id}", headers=auth_headers)
-        
+
         assert response.status_code == 400
 
     @pytest.mark.skip(reason="DELETE endpoint not implemented yet")
@@ -90,13 +90,13 @@ class TestJobLifecycle:
             "client_id": "uat-lifecycle-client",
             "client_name": "UAT Lifecycle Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         delete_response = http_client.delete(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
-        
+
         assert delete_response.status_code == 204
 
     @pytest.mark.skip(reason="DELETE endpoint not implemented yet")
@@ -106,14 +106,14 @@ class TestJobLifecycle:
             "client_id": "uat-lifecycle-client",
             "client_name": "UAT Lifecycle Test",
         }
-        
+
         create_response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
         assert create_response.status_code == 201
         job_id = create_response.json()["job_id"]
-        
+
         delete_response = http_client.delete(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
         assert delete_response.status_code == 204
-        
+
         get_response = http_client.get(f"/api/v1/jobs/{job_id}", headers=auth_headers_with_ids)
         assert get_response.status_code == 404
 
@@ -122,9 +122,9 @@ class TestJobLifecycle:
     ):
         """Test deleting nonexistent job returns 404."""
         nonexistent_id = str(uuid.uuid4())
-        
+
         response = http_client.delete(f"/api/v1/jobs/{nonexistent_id}", headers=auth_headers)
-        
+
         assert response.status_code == 404
 
     def test_create_job_without_auth_returns_401(self, http_client: httpx.Client):
@@ -133,9 +133,9 @@ class TestJobLifecycle:
             "client_id": "uat-lifecycle-client",
             "client_name": "UAT Lifecycle Test",
         }
-        
+
         response = http_client.post("/api/v1/jobs", json=payload)
-        
+
         assert response.status_code == 401
 
     def test_create_job_with_invalid_token_returns_401(self, http_client: httpx.Client):
@@ -148,9 +148,9 @@ class TestJobLifecycle:
             "client_id": "uat-lifecycle-client",
             "client_name": "UAT Lifecycle Test",
         }
-        
+
         response = http_client.post("/api/v1/jobs", json=payload, headers=headers)
-        
+
         assert response.status_code == 401
 
     def test_create_job_with_missing_required_fields_returns_422(
@@ -160,9 +160,9 @@ class TestJobLifecycle:
         payload = {
             "client_name": "UAT Lifecycle Test",
         }
-        
+
         response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
-        
+
         assert response.status_code == 422
 
     def test_job_id_is_valid_uuid_v4(self, http_client: httpx.Client, auth_headers_with_ids: dict):
@@ -171,12 +171,12 @@ class TestJobLifecycle:
             "client_id": "uat-lifecycle-client",
             "client_name": "UAT Lifecycle Test",
         }
-        
+
         response = http_client.post("/api/v1/jobs", json=payload, headers=auth_headers_with_ids)
-        
+
         assert response.status_code == 201
         job_id = response.json()["job_id"]
-        
+
         try:
             parsed_uuid = uuid.UUID(job_id)
             assert parsed_uuid.version == 4

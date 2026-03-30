@@ -17,7 +17,7 @@ print(f"Script location: {Path(__file__).parent}")
 print("\n=== Environment Variables ===")
 env_vars = [
     "BUILD_STREAM_CLIENT_ID",
-    "BUILD_STREAM_CLIENT_SECRET", 
+    "BUILD_STREAM_CLIENT_SECRET",
     "BUILD_STREAM_AUTH_PASSWORD",
     "BUILD_STREAM_BASE_URL",
     "BUILD_STREAM_AUTH_USERNAME",
@@ -52,13 +52,13 @@ print("\n=== python-dotenv Test ===")
 try:
     from dotenv import load_dotenv
     print("✅ python-dotenv is available")
-    
+
     # Test loading from the first available .env
     for env_file in env_paths:
         if env_file.exists():
             print(f"Testing load from: {env_file}")
             load_dotenv(env_file)
-            
+
             # Check if variables are now loaded
             client_id = os.getenv("BUILD_STREAM_CLIENT_ID")
             if client_id:
