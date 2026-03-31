@@ -200,7 +200,7 @@ def get_db_session() -> Generator[Session, None, None]:
     if _ENV != "prod":
         yield None  # type: ignore[misc]
         return
-    
+
     from infra.db.session import SessionLocal  # pylint: disable=import-outside-toplevel
     session = SessionLocal()
     try:
@@ -238,6 +238,98 @@ def _create_sql_audit_repo(session: Session):
     """Create SQL audit event repository with session."""
     from infra.db.repositories import SqlAuditEventRepository  # pylint: disable=import-outside-toplevel
     return SqlAuditEventRepository(session=session)
+
+
+# ------------------------------------------------------------------
+# Stage Failure Helper
+# ------------------------------------------------------------------
+def mark_stage_as_failed(
+    job_id: str, stage_name: str, error_code: str, error_summary: str, db_session: Session = None
+):
+    """Mark a stage as failed when validation fails at API layer.
+    
+    Also marks the job as FAILED to maintain consistency with orchestrator behavior.
+    
+    Args:
+        job_id: The job identifier
+        stage_name: The stage name (e.g., 'parse-catalog')
+        error_code: Error classification code
+        error_summary: Human-readable error description
+        db_session: Database session (if None, creates new session)
+    """
+    from core.jobs.value_objects import JobId, StageName  # pylint: disable=import-outside-toplevel
+    from core.jobs.services import JobStateHelper  # pylint: disable=import-outside-toplevel
+
+    try:
+        # Get or create session
+        if db_session is None and _ENV == "prod":
+            from infra.db.session import SessionLocal  # pylint: disable=import-outside-toplevel
+            db_session = SessionLocal()
+            should_close = True
+        else:
+            should_close = False
+
+        stage_repo = (
+            _create_sql_stage_repo(db_session)
+            if _ENV == "prod"
+            else _get_container().stage_repository()
+        )
+
+        # Find the stage
+        stage = stage_repo.find_by_job_and_name(JobId(job_id), StageName(stage_name))
+
+        if stage and stage.stage_state.value == "PENDING":
+            # Start the stage first if it's still PENDING
+            stage.start()
+            stage_repo.save(stage)
+
+            # Then mark it as failed
+            stage.fail(error_code=error_code, error_summary=error_summary)
+            stage_repo.save(stage)
+
+            # Commit after failing the stage
+            if _ENV == "prod" and db_session.is_active:
+                db_session.commit()
+
+            # Also mark the job as FAILED (same as orchestrator)
+            if _ENV == "prod":
+                from infra.id_generator import UUIDv4Generator  # pylint: disable=import-outside-toplevel
+                
+                job_repo = _create_sql_job_repo(db_session)
+                audit_repo = _create_sql_audit_repo(db_session)
+                uuid_generator = UUIDv4Generator()
+                
+                # Transition job to IN_PROGRESS first if it's CREATED
+                job = job_repo.find_by_id(JobId(job_id))
+                if job and job.job_state.value == "CREATED":
+                    job.start()
+                    job_repo.save(job)
+                    if db_session.is_active:
+                        db_session.commit()
+                
+                JobStateHelper.handle_stage_failure(
+                    job_repo=job_repo,
+                    audit_repo=audit_repo,
+                    uuid_generator=uuid_generator,
+                    job_id=JobId(job_id),
+                    stage_name=stage_name,
+                    error_code=error_code,
+                    error_summary=error_summary,
+                    correlation_id=str(uuid_generator.generate()),
+                    client_id="unknown",
+                )
+                
+                # Ensure the session is committed after JobStateHelper completes
+                if db_session.is_active:
+                    db_session.commit()
+
+        if should_close and db_session:
+            db_session.close()
+
+    except Exception as e:
+        log_secure_info("warning", "Failed to mark stage as failed: %s", str(e), job_id=job_id)
+        if db_session:
+            db_session.rollback()
 
 
 # ------------------------------------------------------------------

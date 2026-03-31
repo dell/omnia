@@ -17,3 +17,5 @@ cluster_env_key: "{{ oim_node_name | upper }}_ACCESS_TOKEN"
 openchami_log_dir: /opt/omnia/log/openchami
 cert_wait_time: 10
 cert_restart_fail_msg: "Failed to restart acme-deploy service"
+openchami_auth_retries: 5
+openchami_auth_delay: 5

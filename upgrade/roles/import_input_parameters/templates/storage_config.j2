@@ -36,12 +36,24 @@
 # specific volume that should be used for persistent storage.
 # The script uses this value during multipath scanning to select the correct mapped device
 
+{% set pv = storage_powervault_config | default({}) %}
+{% if pv %}
+powervault_config:
+  ip:
+{% for _ip in pv.ip | default([]) %}
+    - {{ _ip }}
+{% endfor %}
+  port: {{ pv.port | default('') }}
+  isci_initiators: {{ pv.isci_initiators | default('') }}
+  volume_id: {{ pv.volume_id | default('') }}
+{% else %}
 #powervault_config:
 #  ip:
 #    - 172.1.2.3
 #  port: 3260
 #  isci_initiators: iqn.initiator.com.example:7d7d7d7d7d7
 #  volume_id: 00c0ff4343f1f1f1001c8c4e6901000000
+{% endif %}
 
 # -----------------------------NFS------------------------------------------------
 
@@ -64,8 +76,9 @@
 # - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard"}
 # - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard"}
 
-nfs_client_params:
 {% set _nfs = storage_nfs_client_params | default([]) %}
+{% if _nfs %}
+nfs_client_params:
 {% for _entry in _nfs %}
   - server_ip: "{{ _entry.server_ip | default('') }}" # Provide the IP of the NFS server
     server_share_path: "{{ _entry.server_share_path | default('') }}" # Provide server share path of the NFS Server
@@ -76,3 +89,4 @@ nfs_client_params:
 {% endif %}
 
 {% endfor %}
+{% endif %}
