@@ -27,7 +27,6 @@ discovery_inputs:
 build_stream_job_id_absent: |
   "Build Stream mode is enabled. Manual execution is not supported.
   Please trigger this workflow via the GitLab pipeline."
-build_stream_job_id_absent_msg: "Failed: enable_build_stream is set to true, but no 'job_id' was found during the execution of discovery.yml."  # noqa: yaml[line-length]
 input_syntax_fail_msg: "Failed. Syntax errors present in {{ item.path }}. Fix errors and re-run playbook again."  # noqa: yaml[line-length]
 
 # Usage: include_software_config.yml
