@@ -704,7 +704,7 @@ build-images:
       echo "============================================================"
       echo ""
 
-      echo "  Step 1/3: Retrieve catalog roles and image metadata..."
+      echo "  Step 1/2: Retrieve catalog roles and image metadata..."
       echo "  ------------------------------------------------------------"
       echo ""
       echo "  API Request:"
@@ -746,14 +746,27 @@ build-images:
       echo "  [OK] Roles retrieved successfully"
       echo ""
 
-      echo "  Step 2/3: Trigger image builds for each architecture..."
+      echo "  Step 2/2: Build images sequentially for each architecture..."
       echo "  ------------------------------------------------------------"
+      echo "  Strategy: Sequential execution with fail-fast behavior"
+      echo "  - Submit build for one architecture at a time"
+      echo "  - Wait for completion before starting the next"
+      echo "  - Exit immediately if any build fails"
+      echo ""
       BUILD_COUNT=0
 
       for ARCH in ${ARCHITECTURES}; do
         BUILD_COUNT=$((BUILD_COUNT + 1))
         echo ""
+        echo "  ============================================================"
         echo "  Build ${BUILD_COUNT}/${ARCH_COUNT}: ${ARCH}"
+        echo "  ============================================================"
+        echo ""
+
+        # Determine stage name for this architecture
+        STAGE_NAME="build-image-${ARCH}"
+
+        echo "  Step 2.${BUILD_COUNT}a: Submit build request for ${ARCH}..."
         echo "  ------------------------------------------------------------"
         echo ""
         echo "  API Request:"
@@ -781,7 +794,7 @@ build-images:
         echo ""
 
         if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-          echo "  ERROR: Build image failed for architecture ${ARCH}"
+          echo "  ERROR: Build image request failed for architecture ${ARCH}"
           echo "  Response Body:"
           jq '.' "build_response_${ARCH}.json" 2>/dev/null || cat "build_response_${ARCH}.json"
           exit 1
@@ -791,102 +804,94 @@ build-images:
         jq '.' "build_response_${ARCH}.json" 2>/dev/null || cat "build_response_${ARCH}.json"
         echo ""
         echo "  [OK] Build request accepted for ${ARCH}"
-      done
+        echo ""
 
-      echo ""
-      echo "  [OK] All ${BUILD_COUNT} build request(s) submitted successfully"
-      echo ""
+        echo "  Step 2.${BUILD_COUNT}b: Wait for ${ARCH} build to complete..."
+        echo "  ------------------------------------------------------------"
+        echo "  Polling interval: ${POLL_INTERVAL}s"
+        echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+        echo "  Stage name: ${STAGE_NAME}"
+        echo ""
 
-      echo "  Step 3/3: Wait for all builds to complete..."
-      echo "  ------------------------------------------------------------"
-      echo "  Polling interval: ${POLL_INTERVAL}s"
-      echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
-      echo ""
+        TERMINAL_REACHED=false
+        ATTEMPT=1
 
-      TERMINAL_REACHED=false
-      ATTEMPT=1
+        while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+          HTTP_CODE=$(api_call_with_retry "status_response_${ARCH}.json" \
+            -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+            --cacert "${BSM_CERT_FILE}")
+          [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
 
-      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
-        HTTP_CODE=$(api_call_with_retry status_response.json \
-          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
-          --cacert "${BSM_CERT_FILE}")
-        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
+            ATTEMPT=$((ATTEMPT + 1))
+            sleep "${POLL_INTERVAL}"
+            continue
+          fi
 
-        if [ "$HTTP_CODE" != "200" ]; then
-          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
+          # Get status of the specific stage for this architecture
+          STAGE_STATE=$(jq -r ".stages[]? | select(.stage_name == \"${STAGE_NAME}\") | .stage_state" \
+            "status_response_${ARCH}.json" 2>/dev/null || echo "UNKNOWN")
+          JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' "status_response_${ARCH}.json")
+
+          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Stage ${STAGE_NAME}: ${STAGE_STATE}"
+
+          # Check stage state
+          case "${STAGE_STATE}" in
+            COMPLETED|SUCCEEDED)
+              TERMINAL_REACHED=true
+              echo ""
+              echo "  Stage Details:"
+              jq ".stages[]? | select(.stage_name == \"${STAGE_NAME}\") |
+                {stage: .stage_name, state: .stage_state, started: .started_at, ended: .ended_at}" "status_response_${ARCH}.json" 2>/dev/null
+              echo ""
+              echo "  [OK] Build completed successfully for ${ARCH}"
+              break
+              ;;
+            FAILED|CANCELLED)
+              echo ""
+              echo "  ERROR: Build-image stage reached ${STAGE_STATE} for ${ARCH}"
+              echo "  Stage Details:"
+              jq ".stages[]? | select(.stage_name == \"${STAGE_NAME}\")" "status_response_${ARCH}.json" 2>/dev/null
+              echo ""
+              echo "  Stopping sequential build process (fail-fast)"
+              exit 1
+              ;;
+            PENDING|IN_PROGRESS|RUNNING)
+              # Still in progress, continue polling
+              ;;
+            *)
+              echo "  WARNING: Unexpected stage state: ${STAGE_STATE}"
+              ;;
+          esac
+
+          # Check job state for early failure detection
+          case "${JOB_STATE}" in
+            FAILED|CANCELLED)
+              echo ""
+              echo "  ERROR: Job reached ${JOB_STATE} state"
+              exit 1
+              ;;
+          esac
+
           ATTEMPT=$((ATTEMPT + 1))
           sleep "${POLL_INTERVAL}"
-          continue
+        done
+
+        if [ "$TERMINAL_REACHED" = "false" ]; then
+          echo ""
+          echo "  ERROR: Polling timed out for ${ARCH} after ${MAX_POLL_ATTEMPTS} attempts"
+          echo "  Last known stage state: ${STAGE_STATE}"
+          exit 1
         fi
 
-        BUILD_STAGES=$(jq -r '.stages[]? | select(.stage_name | startswith("build-image")) | .stage_state' status_response.json 2>/dev/null || echo "")
-        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
-
-        BUILD_STATUS=$(jq -r '[.stages[]? | select(.stage_name | startswith("build-image")) |
-          "\(.stage_name | split("-") | last)=\(.stage_state)"] | join(", ")' status_response.json 2>/dev/null || echo "N/A")
-
-        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Builds: ${BUILD_STATUS}"
-
-        if [ -n "${BUILD_STAGES}" ]; then
-          ALL_COMPLETED=true
-          for STAGE_STATE in ${BUILD_STAGES}; do
-            case "${STAGE_STATE}" in
-              COMPLETED|SUCCEEDED)
-                ;;
-              FAILED|CANCELLED)
-                echo ""
-                echo "  ERROR: Build-image stage reached ${STAGE_STATE}"
-                echo "  Build Stage Details:"
-                jq '.stages[]? | select(.stage_name | startswith("build-image"))' status_response.json 2>/dev/null
-                exit 1
-                ;;
-              *)
-                ALL_COMPLETED=false
-                break
-                ;;
-            esac
-          done
-
-          if [ "$ALL_COMPLETED" = "true" ]; then
-            TERMINAL_REACHED=true
-            echo ""
-            echo "  Final Build Status:"
-            jq '.stages[]? | select(.stage_name | startswith("build-image")) |
-              {stage: .stage_name, state: .stage_state, started: .started_at, ended: .ended_at}' status_response.json 2>/dev/null
-            break
-          fi
-        fi
-
-        case "${JOB_STATE}" in
-          FAILED|CANCELLED)
-            echo ""
-            echo "  ERROR: Job reached ${JOB_STATE} state"
-            exit 1
-            ;;
-          SUCCEEDED|COMPLETED)
-            TERMINAL_REACHED=true
-            break
-            ;;
-        esac
-
-        ATTEMPT=$((ATTEMPT + 1))
-        sleep "${POLL_INTERVAL}"
+        echo ""
       done
 
-      if [ "$TERMINAL_REACHED" = "false" ]; then
-        echo ""
-        echo "  ERROR: Polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
-        exit 1
-      fi
-
-      if [ "$JOB_STATE" = "FAILED" ]; then
-        echo ""
-        echo "  ERROR: Job ended in FAILED state"
-        exit 1
-      fi
-
       echo ""
-      echo "  [OK] All images built successfully"
+      echo "  ============================================================"
+      echo "  [OK] All ${BUILD_COUNT} image(s) built successfully"
+      echo "  ============================================================"
   artifacts:
     paths:
       - roles_response.json

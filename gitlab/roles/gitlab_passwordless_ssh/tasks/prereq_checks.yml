@@ -13,6 +13,21 @@
 # limitations under the License.
 ---
 
+- name: Check repository reachability
+  block:
+    - name: Verify all repositories are accessible
+      ansible.builtin.command: dnf makecache
+      register: repo_check
+      changed_when: false
+  rescue:
+    - name: Display detailed repository failure information
+      ansible.builtin.debug:
+        msg: "{{ gitlab_repo_check_fail_msg }}"
+
+    - name: Abort playbook due to repository connectivity issues
+      ansible.builtin.fail:
+        msg: "{{ gitlab_repo_fail_msg }}"
+
 - name: Install sshpass on localhost
   block:
     - name: Install sshpass package

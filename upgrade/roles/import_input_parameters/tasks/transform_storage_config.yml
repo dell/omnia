@@ -45,6 +45,7 @@
 - name: Normalize storage_config.yml values
   ansible.builtin.set_fact:
     storage_nfs_client_params: "{{ backup_storage_config.nfs_client_params | default([]) }}"
+    storage_powervault_config: "{{ backup_storage_config.powervault_config | default({}) }}"
 
 - name: Fail if nfs_client_params is missing
   ansible.builtin.fail:
@@ -67,6 +68,7 @@
     mode: "{{ default_file_mode }}"
   vars:
     storage_nfs_client_params: "{{ storage_nfs_client_params }}"
+    storage_powervault_config: "{{ storage_powervault_config }}"
 
 - name: Validate YAML syntax of transformed storage_config.yml
   ansible.builtin.command:

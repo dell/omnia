@@ -19,7 +19,7 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from api.dependencies import require_catalog_read, verify_token
+from api.dependencies import require_catalog_read, verify_token, mark_stage_as_failed, get_db_session
 from api.generate_input_files.dependencies import get_generate_input_files_use_case
 from api.logging_utils import log_secure_info
 from core.artifacts.exceptions import ArtifactNotFoundError
@@ -69,6 +69,7 @@ async def generate_input_files(
     token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
     scope_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
     use_case: Annotated[GenerateInputFilesUseCase, Depends(get_generate_input_files_use_case)] = None,
+    db_session = Depends(get_db_session),
 ) -> GenerateInputFilesResponse:
     """Generate Omnia input files from a parsed catalog.
 
@@ -110,6 +111,8 @@ async def generate_input_files(
             )
         except ValueError as e:
             log_secure_info("error", f"Generate-input-files failed: job_id={job_id}, reason=invalid_policy_path, status=400", job_id=job_id, end_section=True)
+            # Mark stage as failed since validation failed at API layer
+            mark_stage_as_failed(job_id, "generate-input-files", "INVALID_POLICY_PATH", str(e), db_session)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error": "INVALID_POLICY_PATH", "message": str(e)},

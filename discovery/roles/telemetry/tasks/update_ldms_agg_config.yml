@@ -27,7 +27,7 @@
 
 - name: Copy ldms decompose.json
   ansible.builtin.copy:
-    src: files/scripts/decomp.json
+    src: files/nersc-ldms-aggr/scripts/decomp.json
     dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/ldms/nersc-ldms-aggr/scripts/decomp.json"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
 
