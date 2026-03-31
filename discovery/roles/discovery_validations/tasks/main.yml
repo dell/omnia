@@ -57,4 +57,3 @@
   when:
     - idrac_telemetry_support | lower == 'true' | default('false') or
       ldms_support | default('false')
-
