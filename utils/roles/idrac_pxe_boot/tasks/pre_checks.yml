@@ -13,6 +13,14 @@
 # limitations under the License.
 ---
 
+- name: Debug groups available
+  ansible.builtin.debug:
+    msg: "Available groups: {{ groups.keys() | list }}"
+
+- name: Debug BMC group
+  ansible.builtin.debug:
+    msg: "BMC group: {{ groups['bmc'] | default('undefined') }}"
+
 - name: Check if custom inventory was provided
   ansible.builtin.set_fact:
     custom_inventory_provided: "{{ groups['bmc'] is defined and groups['bmc'] | length | int > 0 }}"
