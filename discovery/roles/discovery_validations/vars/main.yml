@@ -105,9 +105,3 @@ openldap_container_missing_msg: "{{ '\x1b[31m' }}\
   {{ '\x1b[0m' }}"
 
 # Usage: generate_bmc_inventory.yml
-pxe_mapping_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/pxe_mapping_file.csv"
-bmc_inventory_path: "/opt/omnia/provision/bmc_inventory"
-provision_dir_path: "/opt/omnia/provision"
-provision_dir_mode: "0755"
-bmc_inventory_file_mode: "0644"
-bmc_inventory_generated_msg: "BMC inventory generated at {{ bmc_inventory_path }} with {{ bmc_ip_list | length }} BMC IP(s)"
