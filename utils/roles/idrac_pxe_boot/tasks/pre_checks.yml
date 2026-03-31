@@ -15,7 +15,7 @@
 
 - name: Check if custom inventory was provided
   ansible.builtin.set_fact:
-    custom_inventory_provided: "{{ groups['bmc'] is defined and groups['bmc'] | length | int > 0 }}"
+    custom_inventory_provided: "{{ custom_inventory_provided | default(groups['bmc'] is defined and groups['bmc'] | length | int > 0) }}"
 
 - name: Generate BMC inventory from PXE mapping file if no custom inventory provided
   when: not custom_inventory_provided
