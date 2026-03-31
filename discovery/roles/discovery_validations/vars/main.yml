@@ -103,4 +103,3 @@ openldap_container_missing_msg: "{{ '\x1b[31m' }}\
   For more information, refer to the Omnia documentation on OpenLDAP configuration.\n\
   ==================================================================================\
   {{ '\x1b[0m' }}"
-
