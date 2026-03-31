@@ -17,10 +17,19 @@
   ansible.builtin.set_fact:
     custom_inventory_provided: "{{ groups['bmc'] is defined and groups['bmc'] | length | int > 0 }}"
 
-- name: Use auto-generated BMC inventory if no custom inventory provided
+- name: Generate BMC inventory from PXE mapping file if no custom inventory provided
   when: not custom_inventory_provided
   block:
-    - name: Check if auto-generated BMC inventory exists
+    - name: Check if PXE mapping file exists
+      ansible.builtin.stat:
+        path: "{{ pxe_mapping_file_path }}"
+      register: pxe_mapping_stat
+
+    - name: Generate BMC inventory from PXE mapping file
+      ansible.builtin.include_tasks: generate_bmc_inventory.yml
+      when: pxe_mapping_stat.stat.exists
+
+    - name: Check if BMC inventory was generated
       ansible.builtin.stat:
         path: "{{ bmc_inventory_path }}"
       register: bmc_inventory_stat

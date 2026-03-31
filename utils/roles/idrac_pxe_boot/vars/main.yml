@@ -46,3 +46,10 @@ bmc_inventory_not_found_msg: |
   2. Or run discovery.yml first to auto-generate BMC inventory from PXE mapping file at:
      {{ bmc_inventory_path }}
 bmc_no_hosts_msg: "Failed. 'bmc' group has no hosts. Please check your inventory file or PXE mapping file."
+
+# Usage: generate_bmc_inventory.yml
+pxe_mapping_file_path: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}/pxe_mapping_file.csv"
+provision_dir_path: "/opt/omnia/provision"
+provision_dir_mode: "0755"
+bmc_inventory_file_mode: "0644"
+bmc_inventory_generated_msg: "BMC inventory generated at {{ bmc_inventory_path }} with {{ bmc_ip_list | length }} BMC IP(s)"
