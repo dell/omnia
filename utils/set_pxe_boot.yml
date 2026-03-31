@@ -33,17 +33,10 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Check if custom inventory was provided
-      ansible.builtin.set_fact:
-        custom_inventory_provided: "{{ groups['bmc'] is defined and groups['bmc'] | length | int > 0 }}"
-        cacheable: true
-    
     - name: Include pre-checks for BMC inventory validation
       ansible.builtin.include_role:
         name: idrac_pxe_boot
         tasks_from: pre_checks
-      vars:
-        custom_inventory_provided: "{{ custom_inventory_provided }}"
 
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
