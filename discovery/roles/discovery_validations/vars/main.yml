@@ -104,4 +104,3 @@ openldap_container_missing_msg: "{{ '\x1b[31m' }}\
   ==================================================================================\
   {{ '\x1b[0m' }}"
 
-# Usage: generate_bmc_inventory.yml
