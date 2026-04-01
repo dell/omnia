@@ -17,7 +17,7 @@ Configures OpenCHAMI (Open Composable HPC Architecture Management Interface) for
 
 ---
 
-### 2. **discovery_validations**
+### 2. **provision_validations**
 Validates all node discovery-related configuration files and inputs before the discovery process begins. Acts as a gatekeeper to prevent misconfigured deployments.
 
 **Key Functions**:
@@ -27,7 +27,7 @@ Validates all node discovery-related configuration files and inputs before the d
 - Telemetry configuration validation
 - Hosts file updates
 
-[View Detailed README](./discovery_validations/README.md)
+[View Detailed README](./provision_validations/README.md)
 
 ---
 
@@ -104,7 +104,7 @@ Configures Slurm workload manager settings and creates necessary directory struc
 
 Typical discovery workflow role sequence:
 
-1. **discovery_validations** - Validate all inputs
+1. **provision_validations** - Validate all inputs
 2. **nfs_client** - Mount NFS shares (if needed early)
 3. **openldap** - Setup LDAP connection parameters
 4. **k8s_config** - Generate Kubernetes configurations

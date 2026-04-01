@@ -15,4 +15,4 @@
 
 - name: Discovery completion
   ansible.builtin.debug:
-    msg: "{{ discovery_completion_msg.splitlines() | join(' ') }}"
+    msg: "{{ provision_completion_msg.splitlines() | join(' ') }}"

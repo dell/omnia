@@ -36,4 +36,4 @@
       ansible.builtin.include_tasks: configure_bss_cloud_init.yml
 
     - name: Discovery completion
-      ansible.builtin.include_tasks: discovery_completion.yml
+      ansible.builtin.include_tasks: provision_completion.yml
