@@ -73,7 +73,6 @@
               This is an upcoming functionality and is not yet supported.
               Please use 'ome' as the discovery_mechanism for now.
               ============================================================
-          
         - name: End play for magellan
           ansible.builtin.meta: end_play
 
