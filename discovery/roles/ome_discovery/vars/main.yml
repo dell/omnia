@@ -18,9 +18,9 @@ ome_session_url: "https://{{ ome_ip }}/api/SessionService/Sessions"
 ome_devices_url: "https://{{ ome_ip }}/api/DeviceService/Devices"
 ome_device_inventory_url: "https://{{ ome_ip }}/api/DeviceService/Devices({{ device_id }})/InventoryDetails"
 
-# Vault configuration
-ome_vault_file: "{{ playbook_dir }}/../.vault/ome_credentials.yml"
-vault_password_file: "{{ playbook_dir }}/../.vault/.vault_password"
+# Unified credential file (populated by get_config_credentials / prepare_oim)
+omnia_config_credentials_file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/omnia_config_credentials.yml"
+omnia_config_credentials_vault_key: "{{ input_project_dir | default(playbook_dir + '/../input') }}/.omnia_config_credentials_key"
 
 # Output file configuration
 pxe_mapping_output_file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/bmc_pxe_mapping_file.csv"
