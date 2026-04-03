@@ -34,7 +34,7 @@ admin_aarch64_count_error_msg: "The inventory group 'admin_aarch64' must have ex
 network_spec_syntax_fail_msg: "Failed to load network_spec.yml due to syntax error"
 pulp_repo_missing_error_msg: "pulp.repo file not found. Please run local_repo.yml playbook to create a repo file."
 not_aarch64_error_msg: "This is not an aarch64 machine. Only ARM nodes can be used to build the image."
-repo_not_found_error_msg: "The aarch64_baseos repo section is not available in pulp.repo"
+repo_not_found_error_msg: "The baseos repo section is not available in pulp.repo"
 nfs_not_configured_msg: >
   To build aarch64 images on an ARM node, the NFS server must be configured on the OIM.
   Please run oim_cleanup.yml and reinstall the omnia_core container with the NFS option.

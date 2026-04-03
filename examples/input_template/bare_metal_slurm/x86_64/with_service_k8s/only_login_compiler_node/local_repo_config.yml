@@ -22,7 +22,7 @@
 #--------------------------
 #    Optional list of user-defined repository URLs for x86_64 architecture.
 #    Each entry can include: url, gpgkey, sslcacert, sslclientkey, sslclientcert, name, policy.
-#    Used for custom cluster packages like <arch>_slurm_custom.
+#    Used for custom cluster packages like slurm_custom.
 # Fields:
 #   url         : Base URL of the repository
 #   gpgkey      : GPG key URL (leave empty to disable gpgcheck; Omnia will trust this repo and user is responsible for its security)
@@ -34,7 +34,7 @@
 # Notes:
 #   - Do not use Jinja variables in this configuration.
 #   - Omit SSL fields entirely if SSL is not in use.
-#   - Its a madatory field in case of slurm_custom with name as '<arch>_slurm_custom'
+#   - Its a mandatory field in case of slurm_custom with name as 'slurm_custom'
 #
 # 2. user_repo_url_aarch64
 #---------------------------
@@ -51,11 +51,11 @@
 #   sslclientkey: Path to SSL client key (if using SSL)
 #   sslclientcert: Path to SSL client certificate (if using SSL)
 #   policy      : Repository policy if mentioned allowed values (always, partial). IF not mentioned will consider from software_config.json
-#   name        : Name of the repository [ Allowed repo names <arch>_codeready-builder, <arch>_appstream, <arch>_baseos
+#   name        : Name of the repository [ Allowed repo names: codeready-builder, appstream, baseos
 # Notes:
 #   - Do not use Jinja variables in this configuration.
 #   - Omit SSL fields entirely if SSL is not in use.
-#   - RHEL subscription is not registered, All 3 repositories [ <arch>_codeready-builder, <arch>_appstream, <arch>_baseos ]entries
+#   - RHEL subscription is not registered, All 3 repositories [ codeready-builder, appstream, baseos ] entries
 #      are mandatory.
 #
 # 5. rhel_os_url_aarch64
@@ -85,14 +85,14 @@
 # ================================
 # Example    
 # user_repo_url_x86_64:
-#  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "x86_64_slurm_custom" }
+#  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "slurm_custom" }
 user_repo_url_x86_64:
 user_repo_url_aarch64:
 #Example:
 # rhel_os_url_x86_64:
-#  - { url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "x86_64_codeready-builder"}
-#  - { url: "http://BaseOS.com/BaseOS/x86_64/os/", gpgkey: "http://BaseOS.com/BaseOS/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "x86_64_baseos"}
-#  - { url: "http://AppStream.com/AppStream/x86_64/os/", gpgkey: "http://AppStream.com/AppStream/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "x86_64_appstream" }
+#  - { url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "codeready-builder"}
+#  - { url: "http://BaseOS.com/BaseOS/x86_64/os/", gpgkey: "http://BaseOS.com/BaseOS/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "baseos"}
+#  - { url: "http://AppStream.com/AppStream/x86_64/os/", gpgkey: "http://AppStream.com/AppStream/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "appstream" }
 rhel_os_url_x86_64:
 rhel_os_url_aarch64:
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.

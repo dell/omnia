@@ -24,6 +24,9 @@
   register: access_token_result
   changed_when: false
   failed_when: false
+  retries: "{{ openchami_auth_retries }}"
+  delay: "{{ openchami_auth_delay }}"
+  until: access_token_result.rc == 0 and access_token_result.stdout not in ["", "null"]
 
 - name: Set ochami_env
   ansible.builtin.set_fact:

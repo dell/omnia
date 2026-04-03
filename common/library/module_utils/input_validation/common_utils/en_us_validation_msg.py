@@ -23,6 +23,8 @@ PRIMARY_ADMIN_IP_INTERFACE_MISMATCH_MSG = (
 NETMASK_BITS_INTERFACE_MISMATCH_MSG = (
     "netmask_bits does not match the netmask configured on the specified interface"
 )
+# Admin NIC state validation
+ADMIN_NIC_DOWN_MSG = "Admin NIC '{nic}' is down or not active. Bring the interface up and retry."
 MISSING_CLUSTER_NAME_MSG = "Cluster name is mandatory for all kubernetes roles."
 CLUSTER_NAME_OVERLAP_MSG = (
     "The cluster name '{0}' cannot be shared between service and compute Kubernetes roles."

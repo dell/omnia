@@ -164,7 +164,7 @@ def main():
             for arch in sw.get("arch", [])
         ))
         logger.info(f"Unique architectures from software_config: {sw_archs}")
-        local_config, url_result = parse_repo_urls(repo_config, local_repo_config_path, version_variables, vault_key_path, sub_urls, logger, sw_archs)
+        local_config, url_result = parse_repo_urls(repo_config, local_repo_config_path, version_variables, vault_key_path, sub_urls, logger, sw_archs, cluster_os_type, cluster_os_version)
         if not url_result:
             module.fail_json(f"{local_config} is either unreachable, invalid or has incorrect SSL certificates, please verify and provide correct details")
 

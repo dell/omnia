@@ -23,6 +23,9 @@
   ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
   no_log: true
 
+- name: Migrate Pulp repo names from old to new naming convention
+  ansible.builtin.include_tasks: pulp_repo_name_migration.yml
+
 - name: Process and configure local_repo_config
   ansible.builtin.include_tasks: process_rpm_repo.yml
 

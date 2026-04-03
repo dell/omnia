@@ -81,6 +81,15 @@
     msg: "{{ pulp_repo_missing_error_msg }}"
   when: not pulp_repo_stat.stat.exists
 
+- name: Load software config for OS info
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/software_config.json"
+    name: sw_config
+
+- name: Set baseos repo section name
+  ansible.builtin.set_fact:
+    baseos_section_name: "aarch64_{{ sw_config.cluster_os_type }}_{{ sw_config.cluster_os_version }}_baseos"
+
 # Read pulp.repo file
 - name: Read pulp.repo content
   ansible.builtin.slurp:
@@ -88,25 +97,23 @@
   register: pulp_repo_content
   when: pulp_repo_stat.stat.exists
 
-- name: Extract aarch64_baseos repo section
+- name: Extract baseos repo section
   ansible.builtin.set_fact:
     aarch64_baseos_repo: >-
       {{
         (pulp_repo_content.content | b64decode)
         | regex_search(
-            '''(?s)\[aarch64_baseos\].*?(?=\n\[|\Z)'''
+            '(?s)\[' ~ baseos_section_name ~ '\].*?(?=\n\[|\Z)'
           )
       }}
   when: pulp_repo_stat.stat.exists
 
-# Fail if aarch64_appstream repo is not found
-- name: Fail if aarch64_baseos repo section is missing
+- name: Fail if baseos repo section is missing
   ansible.builtin.fail:
     msg: "{{ repo_not_found_error_msg }}"
   when: aarch64_baseos_repo is not defined or aarch64_baseos_repo | length == 0
 
-# Write only aarch64_appstream repo into new pulp.repo
-- name: Write aarch64_appstream repo into pulp repo path
+- name: Write baseos repo into pulp repo path
   ansible.builtin.copy:
     content: "{{ aarch64_baseos_repo }}"
     dest: "{{ pulp_repo_store_path }}"

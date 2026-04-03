@@ -113,24 +113,60 @@ def get_arch_from_status_path(status_file_path):
             return arch
     return None
 
+
+def get_os_info_from_status_path(status_file_path):
+    """Extract OS type and version from status file path.
+
+    The expected path pattern is:
+        .../<os_type>/<os_version>/<arch>/<software>/status.csv
+    e.g., /opt/omnia/log/local_repo/rhel/10.0/x86_64/software_name/status.csv
+
+    Args:
+        status_file_path: Path to status file
+
+    Returns:
+        tuple: (os_type, os_version) or (None, None) if not found
+    """
+    for arch in ARCH_SUFFIXES:
+        marker = f"/{arch}/"
+        idx = status_file_path.find(marker)
+        if idx > 0:
+            # Everything before /<arch>/ contains .../<os_type>/<os_version>
+            prefix = status_file_path[:idx]
+            parts = prefix.rstrip("/").rsplit("/", 2)
+            if len(parts) >= 3:
+                return parts[-2], parts[-1]
+    return None, None
+
+
 def _prefix_repo_name_with_arch(repo_name: str, status_file_path: str, logger) -> str:
-    """Add architecture prefix to repo_name if not already present.
-    
+    """Add architecture and OS prefix to repo_name if not already present.
+
+    Builds prefix: <arch>_<os_type>_<os_version>_
+    e.g., x86_64_rhel_10.0_
+
     Args:
         repo_name: Repository name to prefix
-        status_file_path: Path to extract architecture from
+        status_file_path: Path to extract architecture and OS info from
         logger: Logger instance
         
     Returns:
-        str: Repository name with architecture prefix
+        str: Repository name with architecture and OS prefix
     """
     if not repo_name:
         return repo_name
         
     arch = get_arch_from_status_path(status_file_path)
     if arch and not any(repo_name.startswith(f"{prefix}_") for prefix in ARCH_SUFFIXES):
-        prefixed_name = f"{arch}_{repo_name}"
-        logger.info(f"Auto-prefixed repo_name with architecture: {prefixed_name}")
+        os_type, os_version = get_os_info_from_status_path(status_file_path)
+        if os_type and os_version:
+            # Lazy import to avoid circular dependency (software_utils imports from this module)
+            from ansible.module_utils.local_repo.software_utils import build_repo_name_prefix
+            prefixed_name = build_repo_name_prefix(arch, os_type, os_version) + repo_name
+        else:
+            prefixed_name = f"{arch}_{repo_name}"
+        if logger:
+            logger.info(f"Auto-prefixed repo_name with architecture and OS: {prefixed_name}")
         return prefixed_name
     return repo_name
 

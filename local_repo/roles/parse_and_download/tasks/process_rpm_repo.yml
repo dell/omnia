@@ -31,6 +31,7 @@
     pulp_concurrency: "{{ pulp_concurrency }}"
     sw_archs: "{{ result.sw_archs }}"
     resync_repos: "{{ resync_repos | default(None) }}"
+    cluster_os_type: "{{ cluster_os_type }}"
     cluster_os_version: "{{ cluster_os_version }}"
   register: rpm_result
 

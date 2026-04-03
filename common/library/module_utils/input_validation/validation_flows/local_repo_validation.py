@@ -130,24 +130,16 @@ def validate_local_repo_config(input_file_path, data,
                 errors.append(create_error_msg(local_repo_yml, "user_registry", 
                                              f"Key file not found: {key_path}"))
 
-    # Validate user_repo_url name prefixes
-    user_repo_prefix_map = {
-        "user_repo_url_x86_64": "x86_64_",
-        "user_repo_url_aarch64": "aarch64_",
-    }
-    for repo_key, expected_prefix in user_repo_prefix_map.items():
+    # Validate user_repo_url entries have a 'name' field
+    for repo_key in ("user_repo_url_x86_64", "user_repo_url_aarch64"):
         user_repos = data.get(repo_key)
         if user_repos:
             for repo in user_repos:
                 repo_name = repo.get("name", "")
-                if repo_name and not repo_name.startswith(expected_prefix):
+                if not repo_name:
                     errors.append(create_error_msg(
                         local_repo_yml, repo_key,
-                        en_us_validation_msg.USER_REPO_NAME_PREFIX_FAIL_MSG.format(
-                            repo_name=repo_name,
-                            repo_key=repo_key,
-                            expected_prefix=expected_prefix
-                        )
+                        "Each user repo entry must have a non-empty 'name' field."
                     ))
 
     repo_names = {}
@@ -155,19 +147,29 @@ def validate_local_repo_config(input_file_path, data,
     logger.info(f"validate_local_repo_config: Subscription status: {sub_result}")
     all_archs = ['x86_64', 'aarch64']
     url_list = ["omnia_repo_url_rhel", "rhel_os_url", "user_repo_url"]
+
+    software_config_file_path = create_file_path(input_file_path, file_names["software_config"])
+    software_config_json = load_json(software_config_file_path)
+    cluster_os_type = software_config_json.get("cluster_os_type", "rhel")
+    cluster_os_version = software_config_json.get("cluster_os_version", "10.0")
+
     for arch in all_archs:
         arch_repo_names = []
         arch_list = url_list + [url+'_'+arch for url in url_list]
          # define base repos dynamically for this arch if subscription registered 
         if sub_result:
-            base_subscription_repos = [f"{arch}_baseos", f"{arch}_appstream", f"{arch}_codeready-builder"]
+            base_subscription_repos = ["baseos", "appstream", "codeready-builder"]
             logger.info(f"Base subscription repos for {arch}: {base_subscription_repos}")
         
         # Collect repo names from standard repo lists
+        # Names are kept as-is (short format); build_repo_name() is applied at runtime
         for repurl in arch_list:
             repos = data.get(repurl)
             if repos:
-                arch_repo_names = arch_repo_names + [x.get('name') for x in repos]
+                for x in repos:
+                    raw_name = x.get('name')
+                    if raw_name:
+                        arch_repo_names.append(raw_name)
 
         # Handle rhel_subscription_repo_config separately
         # Only add non-base repos to the name list (base repos are overrides, not duplicates)
@@ -175,19 +177,23 @@ def validate_local_repo_config(input_file_path, data,
         subscription_config = data.get(subscription_config_key, [])
         if subscription_config:
             for repo in subscription_config:
-                repo_name = repo.get('name')
-                if repo_name and repo_name not in base_subscription_repos:
-                    # This is a new repo, not an override of base repos
-                    arch_repo_names.append(repo_name)
-                    logger.info(f"Adding new subscription config repo: {repo_name}")
-                else:
-                    logger.info(f"Skipping base repo override from duplicate check: {repo_name}")
+                raw_name = repo.get('name')
+                if raw_name:
+                    if raw_name not in base_subscription_repos:
+                        # This is a new repo, not an override of base repos
+                        arch_repo_names.append(raw_name)
+                        logger.info(f"Adding new subscription config repo: {raw_name}")
+                    else:
+                        logger.info(f"Skipping base repo override from duplicate check: {raw_name}")
 
         # Add additional_repos names for this arch
         additional_repos_key = f"additional_repos_{arch}"
         additional_repos = data.get(additional_repos_key)
         if additional_repos:
-            arch_repo_names = arch_repo_names + [x.get('name') for x in additional_repos]
+            for x in additional_repos:
+                raw_name = x.get('name')
+                if raw_name:
+                    arch_repo_names.append(raw_name)
         
         # Add base subscription repos to the final list (they will be dynamically generated)
         if sub_result:
@@ -204,14 +210,11 @@ def validate_local_repo_config(input_file_path, data,
                     errors.append(create_error_msg(local_repo_yml, k,
                                                 f"Repo with name {c} found more than once."))
 
-    software_config_file_path = create_file_path(input_file_path, file_names["software_config"])
-    software_config_json = load_json(software_config_file_path)
-
-    # Extra validation: custom_slurm must have <arch>_slurm_custom in user_repo_url_<arch>
+    # Extra validation: custom_slurm must have slurm_custom in user_repo_url_<arch>
     for sw in software_config_json["softwares"]:
         if sw["name"] == "slurm_custom":
             for arch in sw.get("arch", []):
-                expected_repo = f"{arch}_slurm_custom"
+                expected_repo = "slurm_custom"
 
                 # Look specifically under user_repo_url_<arch>
                 user_repo_key = f"user_repo_url_{arch}"
@@ -293,10 +296,12 @@ def validate_local_repo_config(input_file_path, data,
                     if pkg.get("type") in ['rpm', 'rpm_list']:
                         repo_name = pkg.get("repo_name")
                         # Skip slurm_custom repo check (already validated above)
-                        if sw == "slurm_custom" and repo_name.endswith("_slurm_custom"):
+                        if sw == "slurm_custom" and repo_name == "slurm_custom":
                             continue
                         # Skip base RHEL repo validation if subscription is enabled
-                        if sub_result and repo_name in [f"{arch}_baseos", f"{arch}_appstream", f"{arch}_codeready-builder"]:
+                        if sub_result and repo_name in [
+                            "baseos", "appstream", "codeready-builder",
+                        ]:
                             continue
                         if repo_name not in repo_names.get(arch, []):
                             errors.append(

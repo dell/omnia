@@ -59,6 +59,15 @@ RHEL_OS_URL = "rhel_os_url"
 SOFTWARES_KEY = "softwares"
 USER_REPO_URL = "user_repo_url"
 ARCH_SUFFIXES = {"x86_64", "aarch64"}
+
+# ----------------------------
+# Repo Naming Format
+# Controls the naming convention for Pulp repositories, remotes, and distributions.
+# Placeholders: {arch}, {os_type}, {os_version}, {name}
+# ----------------------------
+REPO_NAME_FORMAT = "{arch}_{os_type}_{os_version}_{name}"
+REPO_NAME_PREFIX_FORMAT = "{arch}_{os_type}_{os_version}_"
+
 DEFAULT_POLICY = "on_demand"
 DEFAULT_CACHING = True
 POLICY_CACHING_MAP = {
@@ -237,13 +246,11 @@ CLEANUP_LOG_FILE_PATH = "/opt/omnia/log/local_repo/cleanup.log"
 # ----------------------------
 # Additional Repos Aggregation Settings
 # Used by process_rpm_config.py for aggregated repos feature
-# Naming convention: <arch>_omnia-additional to match existing filter patterns
+# Naming convention: build_repo_name(arch, os_type, os_version, AGGREGATED_REPO_SUFFIX)
 # ----------------------------
 ADDITIONAL_REPOS_KEY = "additional_repos"
-AGGREGATED_REPO_NAME_TEMPLATE = "{arch}_omnia-additional"
-AGGREGATED_REMOTE_NAME_TEMPLATE = "{arch}_omnia-additional-{name}"
-AGGREGATED_DISTRIBUTION_NAME_TEMPLATE = "{arch}_omnia-additional"
-AGGREGATED_BASE_PATH_TEMPLATE = "opt/omnia/offline_repo/cluster/{arch}/rhel/{os_version}/rpms/omnia-additional"
+AGGREGATED_REPO_SUFFIX = "omnia-additional"
+AGGREGATED_BASE_PATH_TEMPLATE = "opt/omnia/offline_repo/cluster/{arch}/{os_type}/{os_version}/rpms/omnia-additional"
 STANDARD_LOG_FILE_PATH = "/opt/omnia/log/local_repo/standard.log"
 
 # ----------------------------

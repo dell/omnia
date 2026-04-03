@@ -15,12 +15,12 @@
 # Pulp Cleanup Playbook - Clean Architecture
 #
 # Usage:
-#   # Repository cleanup (include architecture prefix)
-#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_epel,aarch64_epel"
-#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_appstream"
+#   # Repository cleanup (use full repo name format: <arch>_<os>_<version>_<name>)
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_rhel_10.0_epel,aarch64_rhel_10.0_epel"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_rhel_10.0_appstream"
 #   ansible-playbook pulp_cleanup.yml -e "cleanup_containers=registry.k8s.io/pause,docker.io/library/nginx"
 #   ansible-playbook pulp_cleanup.yml -e "cleanup_files=git,chart-0.48.0"
-#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_epel -e cleanup_containers=docker.io/library/nginx -e force=true"
+#   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=x86_64_rhel_10.0_epel -e cleanup_containers=docker.io/library/nginx -e force=true"
 #
 #   # Cleanup ALL artifacts of a type:
 #   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=all"
@@ -28,8 +28,8 @@
 #   ansible-playbook pulp_cleanup.yml -e "cleanup_files=all"
 #   ansible-playbook pulp_cleanup.yml -e "cleanup_repos=all" -e "cleanup_containers=all" -e "cleanup_files=all"
 #
-#   # Examples: x86_64_epel, aarch64_epel, x86_64_appstream, aarch64_baseos
-#   # Note: Use architecture prefix (x86_64_ or aarch64_) for repository names
+#   # Examples: x86_64_rhel_10.0_epel, aarch64_rhel_10.0_epel, x86_64_rhel_10.0_appstream, aarch64_rhel_10.0_baseos
+#   # Note: Repository names follow the format <arch>_<os_type>_<os_version>_<name>
 
 - name: Pulp Cleanup
   hosts: localhost

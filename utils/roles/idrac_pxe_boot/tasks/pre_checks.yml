@@ -1,0 +1,52 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if custom inventory was provided
+  ansible.builtin.set_fact:
+    custom_inventory_provided: "{{ groups['bmc'] is defined and groups['bmc'] | length | int > 0 }}"
+
+- name: Generate BMC inventory from PXE mapping file if no custom inventory provided
+  when: not custom_inventory_provided
+  block:
+    - name: Check if PXE mapping file exists
+      ansible.builtin.stat:
+        path: "{{ pxe_mapping_file_path }}"
+      register: pxe_mapping_stat
+
+    - name: Generate BMC inventory from PXE mapping file
+      ansible.builtin.include_tasks: generate_bmc_inventory.yml
+      when: pxe_mapping_stat.stat.exists
+
+    - name: Check if BMC inventory was generated
+      ansible.builtin.stat:
+        path: "{{ bmc_inventory_path }}"
+      register: bmc_inventory_stat
+
+    - name: Fail if no BMC inventory available
+      ansible.builtin.fail:
+        msg: "{{ bmc_inventory_not_found_msg }}"
+      when: not bmc_inventory_stat.stat.exists
+
+    - name: Add auto-generated BMC inventory to in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: bmc
+      loop: "{{ lookup('file', bmc_inventory_path).split('\n') | select('match', '^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$') | list }}"
+      when: bmc_inventory_stat.stat.exists
+
+- name: Validate BMC group has hosts
+  ansible.builtin.fail:
+    msg: "{{ bmc_no_hosts_msg }}"
+  when: groups['bmc'] is not defined or groups['bmc'] | length | int == 0

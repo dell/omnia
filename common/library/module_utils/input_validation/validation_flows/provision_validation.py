@@ -851,10 +851,7 @@ def validate_provision_config(
         pass
 
     pxe_mapping_file_path = data.get("pxe_mapping_file_path", "")
-    if enable_build_stream:
-        # Build Stream flow: skip mapping file validation entirely
-        pass
-    elif pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
+    if pxe_mapping_file_path and validation_utils.verify_path(pxe_mapping_file_path):
         try:
             validate_mapping_file_entries(pxe_mapping_file_path)
             validate_functional_groups_in_mapping_file(pxe_mapping_file_path)
@@ -1006,6 +1003,17 @@ def _validate_admin_network(network):
     dynamic_range = admin_net.get("dynamic_range", "")
     oim_nic_name = admin_net.get("oim_nic_name", "")
     netmask_bits = admin_net.get("netmask_bits", "")
+
+    # Ensure admin NIC is up
+    if oim_nic_name:
+        if not validation_utils.is_interface_up(oim_nic_name):
+            errors.append(
+                create_error_msg(
+                    "admin_network.oim_nic_name",
+                    oim_nic_name,
+                    en_us_validation_msg.ADMIN_NIC_DOWN_MSG.format(nic=oim_nic_name),
+                )
+            )
 
     # Validate netmask_bits
     if "netmask_bits" in admin_net:

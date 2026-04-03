@@ -846,7 +846,7 @@ def remove_rpms_from_repository(repo_name: str, base_path: str, logger) -> Dict[
     Uses the repo_name column in status.csv to accurately identify RPMs from the repository.
 
     Args:
-        repo_name: Repository name (e.g., 'x86_64_appstream', 'aarch64_epel')
+        repo_name: Repository name (e.g., 'x86_64_rhel_10.0_appstream', 'aarch64_rhel_10.0_epel')
         base_path: Base path for status files
         logger: Logger instance
 

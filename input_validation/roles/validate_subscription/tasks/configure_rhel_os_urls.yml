@@ -103,9 +103,9 @@
               'policy': sub_policy_default,
               'caching': sub_caching_default,
               'name': (
-                arch ~ '_appstream' if 'appstream' in repo_url else
-                arch ~ '_baseos' if 'baseos' in repo_url else
-                arch ~ '_codeready-builder' if 'codeready-builder' in repo_url else
+                'appstream' if 'appstream' in repo_url else
+                'baseos' if 'baseos' in repo_url else
+                'codeready-builder' if 'codeready-builder' in repo_url else
                 omit
               )
             }
@@ -245,12 +245,11 @@
       ansible.builtin.fail:
         msg: >-
           Subscription is disabled and required repos are missing for {{ arch_item }}.
-          Expected: {{ required_with_arch | join(', ') }}.
+          Expected: {{ required_repos | join(', ') }}.
           Found: {{ present_repos | join(', ') }}
       vars:
         present_repos: "{{ vars['rhel_url_' ~ arch_item] | map(attribute='name') | list }}"
-        required_with_arch: "{{ required_repos | map('regex_replace', '^(.*)$', arch_item ~ '_\\1') | list }}"
-      when: present_repos is not superset(required_with_arch)
+      when: present_repos is not superset(required_repos)
       loop: "{{ archs }}"
       loop_control:
         loop_var: arch_item

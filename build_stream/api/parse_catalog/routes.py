@@ -18,7 +18,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from api.dependencies import require_catalog_read, verify_token
+from api.dependencies import require_catalog_read, verify_token, mark_stage_as_failed, get_db_session
 from api.parse_catalog.dependencies import get_parse_catalog_use_case
 from api.parse_catalog.schemas import ErrorResponse, ParseCatalogResponse, ParseCatalogStatus
 from api.parse_catalog.service import (
@@ -79,6 +79,7 @@ async def parse_catalog(
     token_data: Annotated[dict, Depends(verify_token)] = None,  # pylint: disable=unused-argument
     scope_data: Annotated[dict, Depends(require_catalog_read)] = None,  # pylint: disable=unused-argument
     parse_catalog_use_case = Depends(get_parse_catalog_use_case),
+    db_session = Depends(get_db_session),
 ) -> ParseCatalogResponse:
     """Parse a catalog from an uploaded JSON file.
 
@@ -104,12 +105,6 @@ async def parse_catalog(
             "info",
             f"Parse-catalog request: job_id={job_id}, "
             f"filename={file.filename}, size_bytes={len(contents)}",
-            job_id=job_id,
-        )
-        log_secure_info(
-            "debug",
-            f"Parse-catalog executing: job_id={job_id}, "
-            f"filename={file.filename}, size_bytes={len(contents)}, content_type={file.content_type}",
             job_id=job_id,
         )
 
@@ -205,6 +200,8 @@ async def parse_catalog(
 
     except InvalidFileFormatError as e:
         log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_file_format, status=400", job_id=job_id, end_section=True)
+        # Mark stage as failed since validation failed at API layer
+        mark_stage_as_failed(job_id, "parse-catalog", "INVALID_FILE_FORMAT", str(e), db_session)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -216,6 +213,8 @@ async def parse_catalog(
 
     except InvalidJSONError as e:
         log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_json, status=400", job_id=job_id, end_section=True)
+        # Mark stage as failed since validation failed at API layer
+        mark_stage_as_failed(job_id, "parse-catalog", "INVALID_JSON", str(e), db_session)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={

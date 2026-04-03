@@ -603,6 +603,23 @@ def get_interface_ips_and_netmasks(interface):
     except Exception:
         return []
 
+
+def is_interface_up(interface: str) -> bool:
+    """
+    Return True if the interface link state is UP (active).
+
+    Args:
+        interface (str): Interface name
+
+    Returns:
+        bool: True if interface is up, False otherwise
+    """
+    try:
+        with open(f"/sys/class/net/{interface}/operstate", "r", encoding="utf-8") as f:
+            return f.read().strip() == "up"
+    except Exception:
+        return False
+
 def check_port_overlap(port_ranges) -> bool:
     """
     Check if any of the port ranges in the given string overlap.

@@ -44,8 +44,76 @@ from ansible.module_utils.local_repo.config import (
     FILE_URI,
     PULP_SSL_CA_CERT
 )
+from ansible.module_utils.local_repo.software_utils import build_repo_name
 
 file_lock = Lock()
+
+# Mapping from task type to the prefix used in the Pulp repo name.
+# E.g. a tarball package "helm-v3.19.0" becomes "tarballhelm-v3.19.0".
+TASK_TYPE_PREFIX = {
+    "manifest": "manifest",
+    "git": "git",
+    "shell": "shell",
+    "ansible_galaxy_collection": "ansible_galaxy_collection",
+    "tarball": "tarball",
+    "iso": "iso",
+    "pip_module": "pip_module",
+    "rpm_file": "",
+}
+
+
+def build_task_repo_name(task, arc, cluster_os_type, cluster_os_version,
+                         version_variables=None):
+    """Build the Pulp repository name for a download task.
+
+    Resolves any Jinja2 template variables in the package name, prepends
+    the type-specific prefix, and delegates to ``build_repo_name()``.
+
+    Args:
+        task (dict): Task dict with at least ``package`` and ``type`` keys.
+        arc (str): Architecture (e.g. ``x86_64``).
+        cluster_os_type (str): OS type (e.g. ``rhel``).
+        cluster_os_version (str): OS version (e.g. ``10.0``).
+        version_variables (dict, optional): Jinja2 variables for template
+            rendering.  Required for tarball / iso tasks whose package
+            name may contain ``{{ … }}`` placeholders.
+
+    Returns:
+        str: Fully-qualified Pulp repository name.
+    """
+    raw_name = task.get("package", "")
+    if version_variables:
+        raw_name = Template(raw_name).render(**version_variables)
+
+    prefix = TASK_TYPE_PREFIX.get(task.get("type", ""), "")
+    return build_repo_name(arc.lower(), cluster_os_type, cluster_os_version,
+                           prefix + raw_name)
+
+
+def build_content_base_dir(repo_store_path, arc, cluster_os_type, cluster_os_version):
+    """Return the common base directory for offline content.
+
+    Every process_* function stores artefacts under::
+
+        <repo_store_path>/offline_repo/cluster/<arc>/<os_type>/<os_version>/
+
+    Building this once avoids repeating the same ``os.path.join`` in every
+    function.
+
+    Args:
+        repo_store_path (str): Root store path (e.g. ``/opt/omnia``).
+        arc (str): Architecture (e.g. ``x86_64``).
+        cluster_os_type (str): OS type (e.g. ``rhel``).
+        cluster_os_version (str): OS version (e.g. ``10.0``).
+
+    Returns:
+        str: Absolute path to the base content directory.
+    """
+    return os.path.join(
+        repo_store_path, "offline_repo", "cluster",
+        arc.lower(), cluster_os_type, cluster_os_version,
+    )
+
 CHUNK_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_RETRY = 5  # retry resume up to 5 times
 
@@ -451,13 +519,14 @@ def process_file_without_download(repository_name, output_file, relative_path,
     finally:
         logger.info("#" * 30 + f" {process_file_without_download.__name__} end " + "#" * 30)
 
-def process_manifest(file,repo_store_path, status_file_path, cluster_os_type, cluster_os_version, arc,logger):
+def process_manifest(file, status_file_path, content_base_dir, repo_name, logger):
     """
     Process a manifest file.
     Args:
         file (dict): The file to process.
-        repo_store_path (str): The path to the repository store.
         status_file_path (str): The path to the status file.
+        content_base_dir (str): Pre-built base directory for offline content.
+        repo_name (str): Pre-built Pulp repository name.
         logger (logging.Logger): The logger.
     Returns:
         str: The status of the processing.
@@ -476,10 +545,10 @@ def process_manifest(file,repo_store_path, status_file_path, cluster_os_type, cl
         subprocess.run(['wget', '-q', '--spider', '--tries=1', url], check=True)
 
         # Ensure the manifest directory exists
-        manifest_directory = os.path.join(repo_store_path, "offline_repo", "cluster",arc.lower(), cluster_os_type, cluster_os_version, "manifest", package_name)
+        manifest_directory = os.path.join(content_base_dir, "manifest", package_name)
         # # Determine the manifest file path
         file_path = os.path.join(manifest_directory, f"{package_name}.yaml")
-        repository_name = arc.lower() + "_manifest" + package_name
+        repository_name = repo_name
         output_file =  package_name + ".yml"
         relative_path = output_file
         base_path = manifest_directory.strip("/")
@@ -499,13 +568,14 @@ def process_manifest(file,repo_store_path, status_file_path, cluster_os_type, cl
         logger.info("#" * 30 + f" {process_manifest.__name__} end " + "#" * 30)  # End of function
         return status
 
-def process_git(file,repo_store_path, status_file_path, cluster_os_type, cluster_os_version, arc,logger):
+def process_git(file, status_file_path, content_base_dir, repo_name, logger):
     """
     Process a Git package.
     Args:
         file (dict): A dictionary containing the package information.
-        repo_store_path (str): The path to the repository store.
         status_file_path (str): The path to the status file.
+        content_base_dir (str): Pre-built base directory for offline content.
+        repo_name (str): Pre-built Pulp repository name.
         logger (logging.Logger): The logger instance.
     Returns:
         str: The status of the Git package processing.
@@ -527,13 +597,13 @@ def process_git(file,repo_store_path, status_file_path, cluster_os_type, cluster
         logger.info(f"Processing Git Package: {package_name}, URL: {url}, Version: {version}")
 
         # Assuming you have a specific path to store Git packages
-        git_modules_directory = os.path.join(repo_store_path, "offline_repo", 'cluster',arc.lower(), cluster_os_type, cluster_os_version, 'git', package_name)
+        git_modules_directory = os.path.join(content_base_dir, 'git', package_name)
         os.makedirs(git_modules_directory, exist_ok=True)  # Ensure the directory exists
 
         clone_directory = os.path.join(git_modules_directory, package_name)
         clone_directory = shlex.quote(clone_directory).strip("'\"")
         tarball_path = os.path.join(git_modules_directory, f'{package_name}.tar.gz')
-        repository_name = arc.lower() + "_git" + package_name
+        repository_name = repo_name
         output_file = package_name + ".tar.gz"
         relative_path = output_file
         base_path = git_modules_directory.strip("/")
@@ -574,14 +644,15 @@ def process_git(file,repo_store_path, status_file_path, cluster_os_type, cluster
         return status
 
 # Function to process a shell file
-def process_shell(file,repo_store_path, status_file_path,  cluster_os_type, cluster_os_version, arc,logger):
+def process_shell(file, status_file_path, content_base_dir, repo_name, logger):
     """
     Process a shell package.
 
     Args:
         file (dict): A dictionary containing the package information.
-        repo_store_path (str): The path to the repository store.
         status_file_path (str): The path to the status file.
+        content_base_dir (str): Pre-built base directory for offline content.
+        repo_name (str): Pre-built Pulp repository name.
         logger (logging.Logger): The logger instance.
 
     Returns:
@@ -598,11 +669,11 @@ def process_shell(file,repo_store_path, status_file_path,  cluster_os_type, clus
         logger.info(f"Processing sh Package: {package_name}, URL: {url}")
 
         # Creating the local path to save the sh file
-        sh_directory = os.path.join(repo_store_path, "offline_repo", 'cluster',arc.lower(), cluster_os_type, cluster_os_version, 'shell', package_name)
+        sh_directory = os.path.join(content_base_dir, 'shell', package_name)
         os.makedirs(sh_directory, exist_ok=True)  # Ensure the directory exists
 
         sh_path = os.path.join(sh_directory, f"{package_name}.sh")
-        repository_name = arc.lower() + "_shell" + package_name
+        repository_name = repo_name
         output_file = package_name + ".sh"
         relative_path = output_file
         base_path = sh_directory.strip("/")
@@ -620,14 +691,15 @@ def process_shell(file,repo_store_path, status_file_path,  cluster_os_type, clus
         logger.info("#" * 30 + f" {process_shell.__name__} end " + "#" * 30)  # End of function
         return status
 
-def process_ansible_galaxy_collection(file, repo_store_path, status_file_path, cluster_os_type, cluster_os_version, arc, logger):
+def process_ansible_galaxy_collection(file, status_file_path, content_base_dir, repo_name, logger):
     """
     Process an Ansible Galaxy Collection.
 
     Args:
         file (dict): A dictionary containing the package information.
-        repo_store_path (str): The path to the repository store.
         status_file_path (str): The path to the status file.
+        content_base_dir (str): Pre-built base directory for offline content.
+        repo_name (str): Pre-built Pulp repository name.
         logger (logging.Logger): The logger instance.
     Returns:
         str: The status of the Ansible Galaxy Collection processing.
@@ -649,11 +721,11 @@ def process_ansible_galaxy_collection(file, repo_store_path, status_file_path, c
         )
 
         # Assuming you have a specific path to store Ansible Galaxy Collections
-        galaxy_collections_directory = os.path.join(repo_store_path, "offline_repo", 'cluster', arc.lower(), cluster_os_type, cluster_os_version, 'ansible_galaxy_collection', package_name)
+        galaxy_collections_directory = os.path.join(content_base_dir, 'ansible_galaxy_collection', package_name)
         galaxy_collections_directory = shlex.quote(galaxy_collections_directory).strip("'\"")
         os.makedirs(galaxy_collections_directory, exist_ok=True)  # Ensure the directory exists
         collections_tarball_path = os.path.join(galaxy_collections_directory, f'{package_name.replace(".", "-")}-{version}.tar.gz')
-        repository_name = arc.lower() + "_ansible_galaxy_collection" + package_name
+        repository_name = repo_name
         output_file = f"{file['package'].replace('.', '-')}-{file['version']}.tar.gz"
         relative_path = output_file
         base_path = galaxy_collections_directory.strip("/")
@@ -713,15 +785,16 @@ def process_ansible_galaxy_collection(file, repo_store_path, status_file_path, c
         logger.info("#" * 30 + f" {process_ansible_galaxy_collection.__name__} end " + "#" * 30)
         return status
 
-def process_tarball(package, repo_store_path, status_file_path, version_variables, cluster_os_type, cluster_os_version, arc, logger):
+def process_tarball(package, status_file_path, version_variables, content_base_dir, repo_name, logger):
     """
     Process a tarball package.
 
     Args:
         package (dict): The package information.
-        repo_store_path (str): The path to the repository store.
         status_file_path (str): The path to the status file.
         version_variables (dict): The version variables.
+        content_base_dir (str): Pre-built base directory for offline content.
+        repo_name (str): Pre-built Pulp repository name.
         logger (logging.Logger): The logger.
 
     Returns:
@@ -752,7 +825,7 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
             url_support = False
 
     # Creating the local path to save the tarball
-    tarball_directory = os.path.join(repo_store_path, "offline_repo", 'cluster', arc.lower(), cluster_os_type, cluster_os_version, 'tarball', package_name)
+    tarball_directory = os.path.join(content_base_dir, 'tarball', package_name)
 
     logger.info(f"Processing tarball to directory: {tarball_directory}")
 
@@ -760,7 +833,7 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
     tarball_path = os.path.join(tarball_directory, f"{package_name}.tar.gz")
     tarball_path = shlex.quote(tarball_path).strip("'\"")
 
-    repository_name = arc.lower() + "_tarball" + package_name
+    repository_name = repo_name
     output_file = package_name + ".tar.gz"
     relative_path = output_file
     base_path = tarball_directory.strip("/")
@@ -818,18 +891,17 @@ def process_tarball(package, repo_store_path, status_file_path, version_variable
 
             return status
 
-def process_iso(package, repo_store_path, status_file_path,
-               cluster_os_type, cluster_os_version, version_variables, arc, logger):
+def process_iso(package, status_file_path,
+               version_variables, content_base_dir, repo_name, logger):
     """
     Process an ISO package.
 
     Args:
         package (dict): A dictionary containing the package information.
-        repo_store_path (str): The path to the repository store.
         status_file_path (str): The path to the status file.
-        cluster_os_type (str): The type of the cluster operating system.
-        cluster_os_version (str): The version of the cluster operating system.
         version_variables (dict): A dictionary of version variables.
+        content_base_dir (str): Pre-built base directory for offline content.
+        repo_name (str): Pre-built Pulp repository name.
         logger (logging.Logger): The logger instance.
 
     Returns:
@@ -846,7 +918,7 @@ def process_iso(package, repo_store_path, status_file_path,
     url_support = True
     package_name = package['package']
     package_type = package['type']
-    repository_name = arc.lower() + "_iso" + package_name
+    repository_name = repo_name
 
     distribution_name = repository_name
     if 'url' in package:
@@ -863,7 +935,7 @@ def process_iso(package, repo_store_path, status_file_path,
             path_support = True
             url_support = False
 
-    iso_directory = os.path.join(repo_store_path, "offline_repo", 'cluster', arc.lower(), cluster_os_type, cluster_os_version, 'iso', package_name)
+    iso_directory = os.path.join(content_base_dir, 'iso', package_name)
     base_path = iso_directory.strip("/")
     logger.info(f"Processing iso Package to directory: {iso_directory}")
 
@@ -924,14 +996,16 @@ def process_iso(package, repo_store_path, status_file_path,
             logger.info("#" * 30 + f" {process_iso.__name__} end " + "#" * 30)  # End of function
             return status
 
-def process_pip(package, repo_store_path, status_file_path,  cluster_os_type, cluster_os_version, arc,logger):
+def process_pip(package, status_file_path, content_base_dir, repo_name, logger):
     """
     Process a pip package using Pulp.
 
     Args:
         package (dict): Package info with 'package' (name) and optional 'version'.
-        repo_store_path (str): Path to store the downloaded package.
         status_file_path (str): Path to log processing status.
+        content_base_dir (str): Pre-built base directory for offline content.
+        repo_name (str): Pre-built Pulp repository name.
+        logger (logging.Logger): The logger instance.
 
     Returns:
         str: "Success" if the process is successful, otherwise "Failed".
@@ -943,14 +1017,14 @@ def process_pip(package, repo_store_path, status_file_path,  cluster_os_type, cl
         package_name = shlex.quote(package['package']).strip("'\"")
         package_type = package['type']
         version = package.get('version', None)
-        pip_repo = arc.lower() + "_pip_module" + package_name
+        pip_repo = repo_name
         distribution_name = pip_repo
 
         logger.info(f"Processing Pip Package: {package_name}, Version: {version}")
 
         # Define storage path
-        pip_package_directory = os.path.join(repo_store_path, "offline_repo", 'cluster',arc.lower(), cluster_os_type, cluster_os_version, 'pip_module', package_name)
-        base_package_directory = os.path.join(repo_store_path, "offline_repo", 'cluster', arc.lower(), cluster_os_type, cluster_os_version,'pip_module', package_name)
+        pip_package_directory = os.path.join(content_base_dir, 'pip_module', package_name)
+        base_package_directory = os.path.join(content_base_dir, 'pip_module', package_name)
         base_package_directory = base_package_directory.strip("/")
 
         os.makedirs(pip_package_directory, exist_ok=True)  # Ensure directory exists
@@ -1026,17 +1100,15 @@ def process_pip(package, repo_store_path, status_file_path,  cluster_os_type, cl
         logger.info("#" * 30 + f" {process_pip.__name__} end " + "#" * 30)
         return status
 
-def process_rpm_file(package, repo_store_path, status_file_path, cluster_os_type, cluster_os_version, arc, logger):
+def process_rpm_file(package, status_file_path, content_base_dir, repo_name_arg, logger):
     """
     Process an RPM file package by downloading it and setting up a Pulp RPM repository.
 
     Args:
         package (dict): A dictionary containing the package information.
-        repo_store_path (str): The path to the repository store.
         status_file_path (str): The path to the status file.
-        cluster_os_type (str): The type of the cluster operating system.
-        cluster_os_version (str): The version of the cluster operating system.
-        arc (str): The architecture (x86_64 or aarch64).
+        content_base_dir (str): Pre-built base directory for offline content.
+        repo_name_arg (str): Pre-built Pulp repository name.
         logger (logging.Logger): The logger instance.
 
     Returns:
@@ -1048,7 +1120,7 @@ def process_rpm_file(package, repo_store_path, status_file_path, cluster_os_type
         package_name = package['package']
         url = package.get('url', None)
         package_type = package['type']
-        repo_name = arc.lower() + "_" + package_name
+        repo_name = repo_name_arg
 
         if not url:
             logger.error(f"No URL provided for RPM file package: {package_name}")
@@ -1061,8 +1133,7 @@ def process_rpm_file(package, repo_store_path, status_file_path, cluster_os_type
 
         # Create rpm_file directory structure
         rpm_file_directory = os.path.join(
-            repo_store_path, "offline_repo", "cluster", arc.lower(),
-                        cluster_os_type, cluster_os_version, "rpm_file", package_name
+            content_base_dir, "rpm_file", package_name
         )
         os.makedirs(rpm_file_directory, exist_ok=True)
 
@@ -1148,7 +1219,7 @@ def process_rpm_file(package, repo_store_path, status_file_path, cluster_os_type
                 write_status_to_file(status_file_path, package_name, package_type, status, logger, file_lock, repo_name)
                 return status
 
-            base_path = f" opt/omnia/offline_repo/cluster/{arc}/rhel/{cluster_os_version}/rpms/{repo_name}"
+            base_path = os.path.join(content_base_dir, "rpms", repo_name).strip("/")
             dist_create_command = pulp_rpm_commands["distribute_repository"] % (repo_name, base_path, repo_name)
             if not execute_command(dist_create_command, logger):
                 logger.error(f"Failed to create distribution: {repo_name}")

@@ -34,14 +34,14 @@ pulp_protocol_https: true
 # Notes:
 #   - Do not use Jinja variables in this configuration.
 #   - Omit SSL fields entirely if SSL is not in use.
-#   - Its a madatory field in case of slurm_custom with name as '<arch>_slurm_custom'
+#   - Its a mandatory field in case of slurm_custom with name as 'slurm_custom'
 # Example    
 # user_repo_url_x86_64:
-#  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "x86_64_slurm_custom" }
+#  - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "",  name: "slurm_custom" }
 user_repo_url_x86_64:
 
 # user_repo_url_aarch64:
-#   - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "aarch64_slurm_custom" }
+#   - { url: "", gpgkey: "", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "slurm_custom" }
 user_repo_url_aarch64:
 
 # Optional
@@ -72,24 +72,24 @@ user_registry:
 #   sslclientkey: Path to SSL client key (if using SSL)
 #   sslclientcert: Path to SSL client certificate (if using SSL)
 #   policy      : Repository policy if mentioned allowed values (always, partial). IF not mentioned will consider from software_config.json
-#   name        : Name of the repository [ Allowed repo names <arch>_codeready-builder, <arch>_appstream, <arch>_baseos
+#   name        : Name of the repository [ Allowed repo names: codeready-builder, appstream, baseos
 # Notes:
 #   - Do not use Jinja variables in this configuration.
 #   - Omit SSL fields entirely if SSL is not in use.
-#   - RHEL subscription is not registered, All 3 repositories [ <arch>_codeready-builder, <arch>_appstream, <arch>_baseos ]entries
+#   - RHEL subscription is not registered, All 3 repositories [ codeready-builder, appstream, baseos ] entries
 #      are mandatory.
 # Example:
 # rhel_os_url_x86_64:
-#  - { url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "x86_64_codeready-builder"}
-#  - { url: "http://BaseOS.com/BaseOS/x86_64/os/", gpgkey: "http://BaseOS.com/BaseOS/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "x86_64_baseos"}
-#  - { url: "http://AppStream.com/AppStream/x86_64/os/", gpgkey: "http://AppStream.com/AppStream/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "x86_64_appstream" }
+#  - { url: "http://crb.com/CRB/x86_64/os/", gpgkey: "http://crb.com/CRB/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "codeready-builder"}
+#  - { url: "http://BaseOS.com/BaseOS/x86_64/os/", gpgkey: "http://BaseOS.com/BaseOS/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "baseos"}
+#  - { url: "http://AppStream.com/AppStream/x86_64/os/", gpgkey: "http://AppStream.com/AppStream/x86_64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "appstream" }
 rhel_os_url_x86_64:
 
 # Example:
 # rhel_os_url_aarch64:
-#  - { url: "http://crb.com/CRB/aarch64/os/", gpgkey: "http://crb.com/CRB/aarch64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "aarch64_codeready-builder" }
-#  - { url: "http://BaseOS.com/BaseOS/aarch64/os/", gpgkey: "http://BaseOS.com/BaseOS/aarch64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "aarch64_baseos"}
-#  - { url: "http://AppStream.com/AppStream/aarch64/os/", gpgkey: "http://AppStream.com/AppStream/aarch64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "aarch64_appstream" }
+#  - { url: "http://crb.com/CRB/aarch64/os/", gpgkey: "http://crb.com/CRB/aarch64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "codeready-builder" }
+#  - { url: "http://BaseOS.com/BaseOS/aarch64/os/", gpgkey: "http://BaseOS.com/BaseOS/aarch64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "baseos"}
+#  - { url: "http://AppStream.com/AppStream/aarch64/os/", gpgkey: "http://AppStream.com/AppStream/aarch64/os/RPM-GPG-KEY", sslcacert: "", sslclientkey: "", sslclientcert: "", name: "appstream" }
 rhel_os_url_aarch64:
 
 ### ADVANCE CONFIGURATIONS FOR LOCAL REPO ###

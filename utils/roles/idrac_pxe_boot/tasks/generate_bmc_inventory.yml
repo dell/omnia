@@ -1,0 +1,41 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Create provision directory if it doesn't exist
+  ansible.builtin.file:
+    path: "{{ provision_dir_path }}"
+    state: directory
+    mode: "{{ provision_dir_mode }}"
+
+- name: Read PXE mapping file
+  ansible.builtin.read_csv:
+    path: "{{ pxe_mapping_file_path }}"
+  register: pxe_mapping_data
+
+- name: Extract BMC IPs from PXE mapping file
+  ansible.builtin.set_fact:
+    bmc_ip_list: "{{ pxe_mapping_data.list | map(attribute='BMC_IP') | list }}"
+
+- name: Generate BMC inventory file
+  ansible.builtin.template:
+    src: bmc_inventory.j2
+    dest: "{{ bmc_inventory_path }}"
+    mode: "{{ bmc_inventory_file_mode }}"
+  when: bmc_ip_list | length > 0
+
+- name: Display BMC inventory generation status
+  ansible.builtin.debug:
+    msg: "{{ bmc_inventory_generated_msg }}"
+  when: bmc_ip_list | length > 0

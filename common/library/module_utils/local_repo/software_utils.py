@@ -42,8 +42,39 @@ from ansible.module_utils.local_repo.config import (
     DEFAULT_CACHING,
     ARCH_SUFFIXES,
     ADDITIONAL_REPOS_KEY,
+    REPO_NAME_FORMAT,
+    REPO_NAME_PREFIX_FORMAT,
     pulp_container_commands
 )
+
+
+# ----------------------------
+# Repo Naming Convention Helpers
+# Single place to define how Pulp repo / remote / distribution names
+# are built from (arch, os_type, os_version, name).
+#
+# Format:  <arch>_<os_type>_<os_version>_<name>
+# Example: x86_64_rhel_10.0_baseos
+# ----------------------------
+
+def build_repo_name(arch, os_type, os_version, name):
+    """Build a Pulp repository/remote/distribution name.
+
+    Uses ``REPO_NAME_FORMAT`` from config.py.
+    Default: ``<arch>_<os_type>_<os_version>_<name>``.
+    """
+    return REPO_NAME_FORMAT.format(arch=arch, os_type=os_type,
+                                   os_version=os_version, name=name)
+
+
+def build_repo_name_prefix(arch, os_type, os_version):
+    """Return the prefix portion used to detect/construct full names.
+
+    Uses ``REPO_NAME_PREFIX_FORMAT`` from config.py.
+    Default: ``<arch>_<os_type>_<os_version>_``.
+    """
+    return REPO_NAME_PREFIX_FORMAT.format(arch=arch, os_type=os_type,
+                                          os_version=os_version)
 
 
 def load_json(file_path):
@@ -242,7 +273,8 @@ def resolve_pulp_policy(policy_str, caching_val, logger=None):
     return pulp_policy
 
 def parse_repo_urls(repo_config, local_repo_config_path,
-                    version_variables, vault_key_path, sub_urls,logger,sw_archs=None):
+                    version_variables, vault_key_path, sub_urls,logger,sw_archs=None,
+                    cluster_os_type="rhel", cluster_os_version="10.0"):
     """
     Parses the repository URLs from the given local repository configuration file.
     Args:
@@ -255,6 +287,8 @@ def parse_repo_urls(repo_config, local_repo_config_path,
         logger (logging.Logger): Logger instance used for structured logging of process steps.
         sw_archs (list, optional): List of architectures to process based on software_config.json.
                                    If None, defaults to ARCH_SUFFIXES.
+        cluster_os_type (str): The cluster OS type (e.g., 'rhel').
+        cluster_os_version (str): The cluster OS version (e.g., '10.0').
     Returns:
         tuple: A tuple where the first element is either the parsed repository URLs as a JSON string
                (on success) or the rendered URL (if unreachable),
@@ -321,8 +355,9 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 logger.error(f"User repo URL unreachable: {url}")
                 return url, False
 
+            sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
             parsed_repos.append({
-                "package": name,
+                "package": sw_name,
                 "url": url,
                 "gpgkey": gpgkey if gpgkey else "null",
                 "version": "null",
@@ -333,7 +368,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "sw_arch": arch
             })
 
-            logger.info(f"Added user repo entry: {name}")
+            logger.info(f"Added user repo entry: {sw_name}")
 
     # Handle RHEL repositories (includes subscription-based repos)
     for arch, repo_list in rhel_repo_entry.items():
@@ -368,8 +403,9 @@ def parse_repo_urls(repo_config, local_repo_config_path,
             # if not is_remote_url_reachable(url):
             #     return url, False
 
+            sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
             parsed_repos.append({
-                "package": name,
+                "package": sw_name,
                 "url": url,
                 "gpgkey": gpgkey if gpgkey else "null",
                 "version": "null",
@@ -379,7 +415,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "policy": policy,
                 "sw_arch": arch
             })
-            logger.info(f"Added RHEL repo entry: {name}")
+            logger.info(f"Added RHEL repo entry: {sw_name}")
 
     # Handle OMNIA repositories
     seen_urls = set()
@@ -436,7 +472,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 except Exception:
                     rendered_gpgkey = gpgkey  # fallback to original
 
-            sw_name = f"{arch}_{name}"
+            sw_name = build_repo_name(arch, cluster_os_type, cluster_os_version, name)
             version = "null"
             for var in template_vars_url:
                 if var in version_variables:
@@ -451,7 +487,7 @@ def parse_repo_urls(repo_config, local_repo_config_path,
                 "policy": policy,
                 "sw_arch": arch
             })
-            logger.info(f"Added OMNIA repo entry: {arch}_{name}")
+            logger.info(f"Added OMNIA repo entry: {sw_name}")
 
     logger.info(f"Successfully parsed {len(parsed_repos)} repository entries.")
     return parsed_repos, True

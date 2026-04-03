@@ -22,6 +22,8 @@ from collections import defaultdict
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.local_repo.process_parallel import execute_parallel, log_table_output
 from ansible.module_utils.local_repo.download_common import (
+    build_task_repo_name,
+    build_content_base_dir,
     process_manifest,
     process_tarball,
     process_git,
@@ -164,40 +166,47 @@ def determine_function(
 
 
         task_type = task.get("type")
+
+        # Build the Pulp repo name once for all non-image/non-rpm task types
+        repo_name = None
+        content_base_dir = None
+        if task_type not in ("image", "rpm", "rpm_repo"):
+            repo_name = build_task_repo_name(
+                task, arc, cluster_os_type, cluster_os_version, version_variables
+            )
+            content_base_dir = build_content_base_dir(
+                repo_store_path, arc, cluster_os_type, cluster_os_version
+            )
+
         if task_type == "manifest":
             return process_manifest, [
-                task, repo_store_path, status_file, cluster_os_type,
-                cluster_os_version, arc
+                task, status_file, content_base_dir, repo_name
             ]
         if task_type == "git":
             return process_git, [
-                task, repo_store_path, status_file, cluster_os_type,
-                cluster_os_version, arc
+                task, status_file, content_base_dir, repo_name
             ]
         if task_type == "tarball":
             return process_tarball, [
-                task, repo_store_path, status_file, version_variables,
-                cluster_os_type, cluster_os_version, arc
+                task, status_file, version_variables,
+                content_base_dir, repo_name
             ]
         if task_type == "shell":
             return process_shell, [
-                task, repo_store_path, status_file, cluster_os_type,
-                cluster_os_version, arc
+                task, status_file, content_base_dir, repo_name
             ]
         if task_type == "ansible_galaxy_collection":
             return process_ansible_galaxy_collection, [
-                task, repo_store_path, status_file, cluster_os_type,
-                cluster_os_version, arc
+                task, status_file, content_base_dir, repo_name
             ]
         if task_type == "iso":
             return process_iso, [
-                task, repo_store_path, status_file, cluster_os_type,
-                cluster_os_version, version_variables, arc
+                task, status_file, version_variables,
+                content_base_dir, repo_name
             ]
         if task_type == "pip_module":
             return process_pip, [
-                task, repo_store_path, status_file, cluster_os_type,
-                cluster_os_version, arc
+                task, status_file, content_base_dir, repo_name
             ]
         if task_type == "image":
             return process_image, [
@@ -206,8 +215,7 @@ def determine_function(
             ]
         if task_type == "rpm_file":
             return process_rpm_file, [
-                task, repo_store_path, status_file, cluster_os_type,
-                cluster_os_version, arc
+                task, status_file, content_base_dir, repo_name
             ]
         if task_type in ("rpm", "rpm_repo"):
             return process_rpm, [
