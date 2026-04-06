@@ -116,7 +116,7 @@
     mode: '0755'
 
 - name: Sync Omnia input files into GitLab repository
-  include_tasks: sync_input_file.yml
+  ansible.builtin.include_tasks: sync_input_file.yml
   loop: "{{ gitlab_input_files }}"
   loop_control:
     label: "{{ item.name }}"
