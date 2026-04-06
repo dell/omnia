@@ -30,7 +30,6 @@
     status_code: [200, 404]
     validate_certs: false
   register: gitlab_input_file_check
-  no_log: true
 
 - name: Copy input file to GitLab host payload directory
   ansible.builtin.copy:
