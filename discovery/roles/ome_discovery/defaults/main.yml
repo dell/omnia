@@ -30,11 +30,3 @@ hostname_padding: 5
 
 # OME device type for servers
 ome_server_device_type: 1000
-
-# InfiniBand subnet used to derive IB_IP (e.g. 192.168.2.0)
-# Last two octets are taken from the BMC IP of each node
-ib_subnet: ""
-
-# Admin network subnet from network_spec.yml admin_network.subnet (e.g. 172.16.0.0)
-# First two octets used with last two octets of iDRAC IP to derive ADMIN_IP
-admin_subnet: ""

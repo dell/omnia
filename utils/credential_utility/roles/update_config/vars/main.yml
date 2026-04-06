@@ -112,5 +112,4 @@ omnia_credentials:
       - { password: ldms_sampler_password }
   discovery:
     mandatory:
-      - { username: ome_ip }
       - { username: ome_username, password: ome_password }
