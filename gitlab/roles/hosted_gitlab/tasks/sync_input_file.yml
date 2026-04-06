@@ -43,7 +43,7 @@
 - name: Create input file in GitLab repository
   when: gitlab_input_file_check.status == 404
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_repo_file_path }}"
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_repo_file_path | urlencode }}"
     method: POST
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
@@ -59,7 +59,7 @@
 - name: Update input file in GitLab repository
   when: gitlab_input_file_check.status == 200
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_repo_file_path }}"
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_repo_file_path | urlencode }}"
     method: PUT
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
