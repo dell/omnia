@@ -116,80 +116,10 @@
     mode: '0755'
 
 - name: Sync Omnia input files into GitLab repository
-  block:
-    - name: Check if input file exists in repository
-      ansible.builtin.uri:
-        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_repo_file_path }}?ref={{ gitlab_default_branch }}"
-        method: GET
-        headers:
-          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-        status_code: [200, 404]
-        validate_certs: false
-      register: gitlab_input_file_check
-      no_log: true
-      vars:
-        _gitlab_input_repo_file_path: "{{ (gitlab_input_repo_dir ~ '/' ~ item.name) | urlencode }}"
-      loop: "{{ gitlab_input_files }}"
-      loop_control:
-        label: "{{ item.name }}"
-
-    - name: Copy input file to GitLab host payload directory
-      ansible.builtin.copy:
-        src: "{{ item.src }}"
-        dest: "{{ gitlab_hosted_payload_dir }}/{{ gitlab_input_repo_dir }}/{{ item.name }}"
-        mode: '0644'
-      loop: "{{ gitlab_input_files }}"
-      loop_control:
-        label: "{{ item.name }}"
-
-    - name: Read input file from GitLab host
-      ansible.builtin.slurp:
-        src: "{{ gitlab_hosted_payload_dir }}/{{ gitlab_input_repo_dir }}/{{ item.name }}"
-      register: gitlab_input_file_content
-      loop: "{{ gitlab_input_files }}"
-      loop_control:
-        label: "{{ item.name }}"
-
-    - name: Create input file in GitLab repository
-      when: gitlab_input_file_check.results[item_index].status == 404
-      ansible.builtin.uri:
-        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_repo_file_path }}"
-        method: POST
-        headers:
-          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-        body_format: json
-        body:
-          branch: "{{ gitlab_default_branch }}"
-          encoding: base64
-          content: "{{ gitlab_input_file_content.results[item_index].content }}"
-          commit_message: "Add {{ gitlab_input_repo_dir }}/{{ item.name }}"
-        status_code: [200, 201]
-        validate_certs: false
-      vars:
-        _gitlab_input_repo_file_path: "{{ (gitlab_input_repo_dir ~ '/' ~ item.name) | urlencode }}"
-      loop: "{{ gitlab_input_files }}"
-      loop_control:
-        extended: true
-        label: "{{ item.name }}"
-
-    - name: Update input file in GitLab repository
-      when: gitlab_input_file_check.results[item_index].status == 200
-      ansible.builtin.uri:
-        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_repo_file_path }}"
-        method: PUT
-        headers:
-          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
-        body_format: json
-        body:
-          branch: "{{ gitlab_default_branch }}"
-          encoding: base64
-          content: "{{ gitlab_input_file_content.results[item_index].content }}"
-          commit_message: "Update {{ gitlab_input_repo_dir }}/{{ item.name }}"
-        status_code: [200]
-        validate_certs: false
-      vars:
-        _gitlab_input_repo_file_path: "{{ (gitlab_input_repo_dir ~ '/' ~ item.name) | urlencode }}"
-      loop: "{{ gitlab_input_files }}"
-      loop_control:
-        extended: true
-        label: "{{ item.name }}"
+  include_tasks: sync_input_file.yml
+  loop: "{{ gitlab_input_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    input_file_name: "{{ item.name }}"
+    input_file_src: "{{ item.src }}"
