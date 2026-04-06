@@ -19,18 +19,6 @@
     _gitlab_input_hosted_path: "{{ gitlab_hosted_payload_dir }}/{{ gitlab_input_repo_dir }}/{{ input_file_name }}"
     _gitlab_input_encoded_path: "{{ (gitlab_input_repo_dir ~ '/' ~ input_file_name) | urlencode | replace('/', '%2F') }}"
 
-- name: Debug file paths
-  ansible.builtin.debug:
-    msg:
-      - "Project ID: {{ gitlab_project_id }}"
-      - "File path: {{ _gitlab_input_repo_file_path }}"
-      - "Encoded path: {{ _gitlab_input_encoded_path }}"
-      - "API URL: {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_encoded_path }}"
-
-- name: Debug actual URL being used for POST
-  ansible.builtin.debug:
-    msg: "POST URL will be: {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_encoded_path }}"
-
 - name: Check if input file exists in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_encoded_path }}?ref={{ gitlab_default_branch }}"
