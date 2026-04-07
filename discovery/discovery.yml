@@ -17,6 +17,10 @@
 #   ansible-playbook discovery/discovery.yml -e "discovery_mechanism=ome"
 #   ansible-playbook discovery/discovery.yml -e "discovery_mechanism=magellan"
 
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+
 - name: BMC Discovery Playbook
   hosts: localhost
   connection: local
@@ -35,8 +39,8 @@
           ansible.builtin.debug:
             msg:
               - "============================================================"
-              - "Usage: ansible-playbook discovery/discovery.yml"
-              - '       -e "discovery_mechanism=<mechanism>"'
+              - "Usage: ansible-playbook discovery.yml"
+              - "       -e discovery_mechanism=<mechanism>"
               - ""
               - "Please specify a discovery_mechanism parameter."
               - ""
@@ -45,8 +49,8 @@
               - "  - magellan : Magellan (upcoming, not yet supported)"
               - ""
               - "Examples:"
-              - '  ansible-playbook discovery.yml -e "discovery_mechanism=ome"'
-              - '  ansible-playbook discovery.yml -e "discovery_mechanism=magellan"'
+              - "  ansible-playbook discovery.yml -e discovery_mechanism=ome"
+              - "  ansible-playbook discovery.yml -e discovery_mechanism=magellan"
               - "============================================================"
 
         - name: End play when no discovery_mechanism specified
@@ -57,7 +61,7 @@
         msg: |
           Invalid discovery_mechanism '{{ discovery_mechanism }}' specified.
           Supported mechanisms are: {{ supported_mechanisms | join(', ') }}.
-          Usage: ansible-playbook discovery/discovery.yml -e "discovery_mechanism=ome"
+          Usage: ansible-playbook discovery.yml -e discovery_mechanism=ome
       when: discovery_mechanism not in supported_mechanisms
 
   tasks:
@@ -66,13 +70,13 @@
       block:
         - name: Display Magellan not supported message
           ansible.builtin.debug:
-            msg: |
-              ============================================================
-              NOTICE: Magellan Discovery
-              ============================================================
-              This is an upcoming functionality and is not yet supported.
-              Please use 'ome' as the discovery_mechanism for now.
-              ============================================================
+            msg:
+              - "============================================================"
+              - "NOTICE: Magellan Discovery"
+              - "============================================================"
+              - "This is an upcoming functionality and is not yet supported."
+              - "Please use 'ome' as the discovery_mechanism for now."
+              - "============================================================"
         - name: End play for magellan
           ansible.builtin.meta: end_play
 
