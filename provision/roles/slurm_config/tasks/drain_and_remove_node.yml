@@ -57,7 +57,7 @@
       ansible.builtin.command: >
         scontrol update NodeName={{ node_to_remove }}
         State=DOWN
-        Reason="Node removed from cluster via OMNIA discovery.yml"
+        Reason="Node removed from cluster via OMNIA provision.yml"
       changed_when: true
       failed_when: false
       delegate_to: "{{ ctld_list[0] }}"

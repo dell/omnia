@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -77,16 +77,16 @@
         - openchami_target_status is defined
         - openchami_target_status is not success
 
-    - name: Discover ochami nodes
+    - name: Provision ochami nodes
       block:
-        - name: Discover ochami nodes
+        - name: Provision ochami nodes
           ansible.builtin.command: /usr/bin/ochami discover static -f yaml -d @"{{ openchami_nodes_vars_path }}" --overwrite
           changed_when: true
-          register: openchami_discover
+          register: openchami_provision
       rescue:
-        - name: Failed to discover nodes
+        - name: Failed to provision nodes
           ansible.builtin.debug:
-            msg: "{{ discover_fail_msg }}. Error: {{ openchami_discover.stderr_lines }}"
+            msg: "{{ provision_fail_msg }}. Error: {{ openchami_provision.stderr_lines }}"
 
     - name: Verify node created in smd
       ansible.builtin.shell: |

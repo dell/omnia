@@ -83,7 +83,7 @@
   when: not config_file_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
 
-- name: Validate discovery parameters
+- name: Validate provision parameters
   hosts: localhost
   connection: local
   roles:
@@ -110,7 +110,7 @@
   roles:
     - passwordless_ssh
 
-- name: Validate discovery parameters
+- name: Validate provision parameters
   hosts: oim
   connection: ssh
   tasks:
@@ -135,14 +135,14 @@
       vars:
         oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
 
-- name: Discover nodes, configure bss and cloud-init
+- name: Provision nodes, configure bss and cloud-init
   hosts: oim
   connection: ssh
   pre_tasks:
-    - name: Discover nodes
+    - name: Provision nodes
       ansible.builtin.include_role:
         name: configure_ochami
-        tasks_from: discover_mapping_nodes.yml
+        tasks_from: provision_mapping_nodes.yml
 
     - name: Read nodes.yaml and derive Omnia node facts
       ansible.builtin.include_role:

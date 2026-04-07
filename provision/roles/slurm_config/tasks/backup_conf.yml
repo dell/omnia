@@ -21,7 +21,7 @@
     - name: Set backup timestamp
       ansible.builtin.set_fact:
         backup_timestamp: "{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"
-        backup_base_name: "auto_backup_discovery"
+        backup_base_name: "auto_backup_provision"
 
     - name: Set backup name suffix
       ansible.builtin.set_fact:

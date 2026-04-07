@@ -13,6 +13,9 @@
 # limitations under the License.
 ---
 
+# Input config file paths
+discovery_config: "{{ input_project_dir }}/discovery_config.yml"
+
 # OME API endpoints
 ome_session_url: "https://{{ ome_ip }}/api/SessionService/Sessions"
 ome_devices_url: "https://{{ ome_ip }}/api/DeviceService/Devices"

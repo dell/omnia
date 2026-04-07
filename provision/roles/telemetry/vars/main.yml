@@ -37,7 +37,7 @@ idrac_telemetry_scripting_git_clone_path: "{{ service_cluster_idrac_telemetry_di
 idrac_telemetry_scripting_copy_fail_msg: |
   Failed to copy iDRAC Telemetry Scripting from {{ idrac_telemetry_scripting_src_path }}
   to {{ idrac_telemetry_scripting_git_clone_path }}. Please ensure prepare_oim.yml has been
-  executed successfully before running discovery.
+  executed successfully before running provision.
 
 # Pre-built container images for iDRAC telemetry components
 # These default to your published images but can be overridden via telemetry_images
@@ -257,7 +257,7 @@ common_templates:
 
 # Usage: check_pxe_changes.yml
 backup_pxe_mapping_ldms_path: "/opt/omnia/telemetry/backup_pxe_mapping_ldms.csv"
-pxe_first_run_msg: "First discovery run detected. Saving PXE mapping backup. LDMS restart not required."
+pxe_first_run_msg: "First provision run detected. Saving PXE mapping backup. LDMS restart not required."
 pxe_no_change_msg: "PXE mapping file has not changed since last run. Skipping LDMS restart."
 pxe_changed_msg: "PXE mapping file has changed. LDMS restart will be triggered."
 
@@ -267,7 +267,7 @@ kube_vip_unreachable_msg: >-
   There might be issues with the k8s cluster.
   LDMS aggregator restart will be skipped.
 
-  After discovery completes, manually restart the LDMS aggregator pod with:
+  After provision completes, manually restart the LDMS aggregator pod with:
 
   ssh {{ kube_vip }}
   kubectl rollout restart statefulset nersc-ldms-aggr -n {{ telemetry_namespace }}

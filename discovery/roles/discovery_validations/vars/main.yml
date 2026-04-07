@@ -14,7 +14,7 @@
 ---
 
 # Usage: include_inputs.yml
-discovery_inputs:
+provision_inputs:
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
   - path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"

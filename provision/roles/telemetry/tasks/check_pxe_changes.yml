@@ -25,7 +25,7 @@
   delegate_to: localhost
   register: backup_pxe_file
 
-- name: Handle first discovery run (no backup exists)
+- name: Handle first provision run (no backup exists)
   when:
     - current_pxe_file.stat.exists
     - not backup_pxe_file.stat.exists

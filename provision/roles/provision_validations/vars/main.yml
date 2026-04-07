@@ -14,7 +14,7 @@
 ---
 
 # Usage: include_inputs.yml
-discovery_inputs:
+provision_inputs:
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
   - path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
@@ -59,7 +59,7 @@ hosts_file_path: /opt/omnia/hosts
 image_missing_fail_msg: |
   Error: Image not found for functional group {{ functional_group_name }}.
   Please create the image by running the corresponding build playbook (build_image_x86_64.yml for x86_64 or build_image_aarch64.yml for aarch64)
-  and re-run the discovery.yml playbook.
+  and re-run the provision.yml playbook.
 
 # Usage: validate_telemetry.yml
 warning_idrac_telemetry_support_false: |
@@ -99,7 +99,7 @@ openldap_container_missing_msg: "{{ '\x1b[31m' }}\
   1. Ensure the 'openldap' package is added to software_config.json\n\
   2. Re-run prepare_oim.yml to start the OpenLDAP container and generate certificates\n\
   3. Run local_repo.yml to download OpenLDAP packages\n\
-  4. Then re-run discovery.yml\n\
+  4. Then re-run provision.yml\n\
   \n\
   For more information, refer to the Omnia documentation on OpenLDAP configuration.\n\
   ==================================================================================\

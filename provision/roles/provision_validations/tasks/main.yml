@@ -35,14 +35,14 @@
     - oim_metadata.upgrade_backup_dir is defined
     - oim_metadata.upgrade_backup_dir | length > 0
 
-- name: Include discovery inputs
+- name: Include provision inputs
   ansible.builtin.include_tasks: include_inputs.yml
-  with_items: "{{ discovery_inputs }}"
+  with_items: "{{ provision_inputs }}"
 
 - name: Include software config
   ansible.builtin.include_tasks: include_software_config.yml
 
-- name: Check if discovery mechanism is mapping
+- name: Check if provision mechanism is mapping
   ansible.builtin.include_tasks: validate_mapping_mechanism.yml
 
 - name: Validate mapping file
