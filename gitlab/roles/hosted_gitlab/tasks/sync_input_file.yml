@@ -55,4 +55,3 @@
       commit_message: "Add {{ gitlab_input_repo_dir }}/{{ input_file_name }}"
     status_code: [200, 201]
     validate_certs: false
-
