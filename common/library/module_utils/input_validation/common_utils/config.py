@@ -63,6 +63,7 @@ files = {
 # Tags and the files that will be run based off of it
 input_file_inventory = {
     "build_image": [files["provision_config"]],
+    "build_aarch_image": [files["provision_config"]],
     "software_config": [files["software_config"]],
     "scheduler": [
         files["software_config"],

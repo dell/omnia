@@ -5,7 +5,7 @@
     "groups": {
       "type": "object",
       "patternProperties": {
-        "^grp([1-9][0-9]?|0)$": {
+        "^(grp([0-9]|[1-9][0-9]|100)|[Ss][Uu]([1-9]|[1-9][0-9]|100))$": {
           "type": "object",
           "properties": {
             "location_id": {
@@ -60,7 +60,7 @@
             "description": "List of groups defined by the user",
             "items": {
               "type": "string",
-              "pattern": "^grp\\d{1,2}$"
+              "pattern": "^(grp([0-9]|[1-9][0-9]|100)|[Ss][Uu]([1-9]|[1-9][0-9]|100))$"
             },
             "minItems": 1,
             "uniqueItems": true

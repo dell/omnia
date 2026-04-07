@@ -30,9 +30,9 @@
           },
           "node_hardware_defaults": {
             "type": "object",
-            "description": "Hardware specifications for homogeneous node groups. Key is group name (grp0-grp100), value is hardware specs.",
+            "description": "Hardware specifications for homogeneous node groups. Key is group name (grp0-grp100 or SU1-SU100), value is hardware specs.",
             "patternProperties": {
-              "^grp([0-9]|[1-9][0-9]|100)$": {
+              "^(grp([0-9]|[1-9][0-9]|100)|[Ss][Uu]([1-9]|[1-9][0-9]|100))$": {
                 "type": "object",
                 "properties": {
                   "sockets": {
