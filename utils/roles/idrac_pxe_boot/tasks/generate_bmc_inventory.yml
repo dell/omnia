@@ -34,8 +34,3 @@
     dest: "{{ bmc_inventory_path }}"
     mode: "{{ bmc_inventory_file_mode }}"
   when: bmc_ip_list | length > 0
-
-- name: Display BMC inventory generation status
-  ansible.builtin.debug:
-    msg: "{{ bmc_inventory_generated_msg }}"
-  when: bmc_ip_list | length > 0

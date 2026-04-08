@@ -15,10 +15,10 @@
 
 - name: Check if custom inventory was provided
   ansible.builtin.set_fact:
-    custom_inventory_provided: "{{ groups['bmc'] is defined and groups['bmc'] | length | int > 0 }}"
+    custom_inventory_provided: "{{ 'bmc' in groups and (groups['bmc'] | length > 0) }}"
 
 - name: Generate BMC inventory from PXE mapping file if no custom inventory provided
-  when: not custom_inventory_provided
+  when: not (custom_inventory_provided | bool)
   block:
     - name: Check if PXE mapping file exists
       ansible.builtin.stat:
@@ -43,10 +43,9 @@
       ansible.builtin.add_host:
         name: "{{ item }}"
         groups: bmc
-      loop: "{{ lookup('file', bmc_inventory_path).split('\n') | select('match', '^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$') | list }}"
-      when: bmc_inventory_stat.stat.exists
+      loop: "{{ bmc_ip_list | default([]) }}"
 
 - name: Validate BMC group has hosts
   ansible.builtin.fail:
     msg: "{{ bmc_no_hosts_msg }}"
-  when: groups['bmc'] is not defined or groups['bmc'] | length | int == 0
+  when: ('bmc' not in groups) or (groups['bmc'] | length | int == 0)
