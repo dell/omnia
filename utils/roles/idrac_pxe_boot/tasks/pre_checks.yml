@@ -43,8 +43,12 @@
       ansible.builtin.add_host:
         name: "{{ item }}"
         groups: bmc
-      loop: "{{ lookup('file', bmc_inventory_path).split('\n') | select('match', '^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$') | list }}"
-      when: bmc_inventory_stat.stat.exists
+      loop: >-
+        {{ lookup('file', bmc_inventory_path, errors='ignore') | default('', true)
+           | split('\n')
+           | select('match', '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
+           | list }}
+      when: bmc_inventory_stat.stat.exists | default(false)
 
 - name: Validate BMC group has hosts
   ansible.builtin.fail:
