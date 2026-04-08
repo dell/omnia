@@ -24,29 +24,13 @@
     path: "{{ pxe_mapping_file_path }}"
   register: pxe_mapping_data
 
-- name: Debug PXE mapping data
-  ansible.builtin.debug:
-    msg:
-      - "PXE mapping file path: {{ pxe_mapping_file_path }}"
-      - "PXE mapping data: {{ pxe_mapping_data }}"
-      - "CSV headers: {{ pxe_mapping_data.list | map('dict2items') | first | json_query('items[].key') if pxe_mapping_data.list else 'No data' }}"
-
 - name: Extract BMC IPs from PXE mapping file
   ansible.builtin.set_fact:
     bmc_ip_list: "{{ pxe_mapping_data.list | map(attribute='BMC_IP') | list }}"
-
-- name: Debug extracted BMC IPs
-  ansible.builtin.debug:
-    msg: "Extracted BMC IPs: {{ bmc_ip_list }}"
 
 - name: Generate BMC inventory file
   ansible.builtin.template:
     src: bmc_inventory.j2
     dest: "{{ bmc_inventory_path }}"
     mode: "{{ bmc_inventory_file_mode }}"
-  when: bmc_ip_list | length > 0
-
-- name: Display BMC inventory generation status
-  ansible.builtin.debug:
-    msg: "{{ bmc_inventory_generated_msg }}"
   when: bmc_ip_list | length > 0

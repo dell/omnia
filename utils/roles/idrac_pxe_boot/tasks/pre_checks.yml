@@ -34,18 +34,6 @@
         path: "{{ bmc_inventory_path }}"
       register: bmc_inventory_stat
 
-    - name: Debug BMC inventory file status
-      ansible.builtin.debug:
-        msg:
-          - "BMC inventory path: {{ bmc_inventory_path }}"
-          - "BMC inventory exists: {{ bmc_inventory_stat.stat.exists | default(false) }}"
-          - "PXE mapping file path: {{ pxe_mapping_file_path }}"
-
-    - name: Debug BMC inventory content (if exists)
-      ansible.builtin.debug:
-        msg: "BMC inventory content: {{ lookup('file', bmc_inventory_path, errors='ignore') }}"
-      when: bmc_inventory_stat.stat.exists | default(false)
-
     - name: Fail if no BMC inventory available
       ansible.builtin.fail:
         msg: "{{ bmc_inventory_not_found_msg }}"
