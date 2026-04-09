@@ -32,7 +32,7 @@
           {{
             (
               ansible_run_tags | default([]) +
-              ['prepare_oim', 'provision', 'local_repo']
+              ['prepare_oim', 'local_repo', 'discovery']
             ) | unique
           }}
         cacheable: true

@@ -1,0 +1,240 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Apply telemetry configurations for upgrade
+  when:
+    - kube_vip is defined
+    - kube_vip | length > 0
+    - hostvars['localhost']['idrac_telemetry_support'] | default(false) | bool
+  block:
+    - name: Check if telemetry deployment file exists
+      ansible.builtin.stat:
+        path: "{{ idrac_telemetry_statefulset_path }}"
+      register: telemetry_stat
+
+    - name: Get current iDRAC telemetry StatefulSet configuration
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: StatefulSet
+        name: idrac-telemetry
+        namespace: "{{ telemetry_namespace }}"
+      register: current_idrac_statefulset
+      failed_when: false
+      when:
+        - telemetry_stat.stat.exists | default(false)
+
+    - name: Set replica count as fact
+      ansible.builtin.set_fact:
+        preserved_replica_count: "{{ current_idrac_statefulset.resources[0].spec.replicas | default(1) }}"
+      when:
+        - current_idrac_statefulset.resources is defined and current_idrac_statefulset.resources | length > 0
+
+    - name: Show current replica count
+      ansible.builtin.debug:
+        msg: "Current replica count: {{ preserved_replica_count }}"
+        verbosity: 2
+      when:
+        - preserved_replica_count is defined
+
+    - name: Read iDRAC telemetry StatefulSet YAML file
+      ansible.builtin.slurp:
+        src: "{{ idrac_telemetry_statefulset_path }}"
+      register: idrac_statefulset_yaml
+
+    - name: Update StatefulSet definition with preserved replica count
+      ansible.builtin.set_fact:
+        updated_statefulset_definition: "{{ idrac_statefulset_yaml.content | b64decode | regex_replace('---\\n', '') | from_yaml | combine({'spec': {'replicas': preserved_replica_count | int}}, recursive=true) }}"  # noqa: yaml[line-length]
+      when:
+        - telemetry_stat.stat.exists | default(false)
+        - preserved_replica_count is defined
+
+    - name: Apply iDRAC telemetry StatefulSet with preserved replica count
+      kubernetes.core.k8s:
+        state: present
+        definition: "{{ updated_statefulset_definition }}"
+      register: kubectl_apply_result
+      when:
+        - updated_statefulset_definition is defined
+        - telemetry_stat.stat.exists | default(false)
+
+    - name: Display kubectl apply result
+      ansible.builtin.debug:
+        msg: "{{ kubectl_apply_result }}"
+      when:
+        - kubectl_apply_result is defined
+
+    - name: Wait for idrac telemetry receiver to be ready
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ telemetry_namespace }}"
+        label_selectors:
+          - "app=idrac-telemetry-receiver"
+        wait: true
+        wait_condition:
+          type: Ready
+          status: "True"
+        wait_timeout: 120
+      delegate_to: "{{ kube_vip }}"
+      register: idrac_telemetry_receiver_ready
+      failed_when: false
+      when:
+        - hostvars['localhost']['idrac_telemetry_support'] | default(false) | bool
+
+    - name: Display idrac telemetry receiver ready status
+      ansible.builtin.debug:
+        msg: "{{ idrac_telemetry_receiver_ready }}"
+      when:
+        - hostvars['localhost']['idrac_telemetry_support'] | default(false) | bool
+        - idrac_telemetry_receiver_ready is defined
+
+- name: Apply LDMS configurations for upgrade
+  when:
+    - kube_vip is defined
+    - kube_vip | length > 0
+    - hostvars['localhost']['ldms_support'] | default(false) | bool
+  block:
+    - name: Check if LDMS aggregator is running on service k8s cluster
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: StatefulSet
+        name: nersc-ldms-aggr
+        namespace: "{{ telemetry_namespace }}"
+      delegate_to: "{{ kube_vip }}"
+      register: ldms_statefulset_info
+      failed_when: false
+
+    - name: Set LDMS running state
+      ansible.builtin.set_fact:
+        ldms_running: "{{ ldms_statefulset_info.resources is defined and ldms_statefulset_info.resources | length > 0 }}"
+
+    - name: Check if LDMS store daemon is running on service k8s cluster
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ telemetry_namespace }}"
+        label_selectors:
+          - "app=nersc-ldms-store"
+      delegate_to: "{{ kube_vip }}"
+      register: ldms_store_pod_info
+      failed_when: false
+      when:
+        - ldms_running | default(false) | bool
+
+    - name: Set LDMS store daemon running state
+      ansible.builtin.set_fact:
+        ldms_store_running: "{{ ldms_store_pod_info.resources is defined and ldms_store_pod_info.resources | length > 0 }}"
+      when:
+        - ldms_running | default(false) | bool
+
+    - name: Restart LDMS store daemon pod
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Pod
+        name: "{{ ldms_store_pod_info.resources[0].metadata.name }}"
+        namespace: "{{ telemetry_namespace }}"
+      delegate_to: "{{ kube_vip }}"
+      failed_when: false
+      when:
+        - ldms_store_running | default(false) | bool
+
+    - name: Wait for LDMS store daemon pod to be ready after restart
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ telemetry_namespace }}"
+        label_selectors:
+          - "app=nersc-ldms-store"
+        wait: true
+        wait_condition:
+          type: Ready
+          status: "True"
+        wait_timeout: 120
+      delegate_to: "{{ kube_vip }}"
+      register: ldms_store_pod_ready
+      failed_when: false
+      when:
+        - ldms_store_running | default(false) | bool
+
+    - name: Display LDMS store daemon restart status
+      ansible.builtin.debug:
+        msg: >
+          {{ ldms_store_pod_ready_msg
+          if (ldms_store_pod_ready.resources | default([]) | length > 0)
+          else ldms_store_pod_not_ready_msg }}
+      when:
+        - ldms_store_running | default(false) | bool
+
+    - name: Check if decomp.json exists
+      ansible.builtin.stat:
+        path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/ldms/nersc-ldms-aggr/scripts/decomp.json"
+      register: decomp_json_stat
+
+    - name: Copy decompose.json if it doesn't exist
+      ansible.builtin.copy:
+        src: files/scripts/decomp.json
+        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/ldms/nersc-ldms-aggr/scripts/decomp.json"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+      when: not decomp_json_stat.stat.exists
+
+    - name: Restart LDMS aggregator StatefulSet
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: nersc-ldms-aggr
+            namespace: "{{ telemetry_namespace }}"
+          spec:
+            template:
+              metadata:
+                annotations:
+                  kubectl.kubernetes.io/restartedAt: "{{ ansible_date_time.iso8601 }}"
+      delegate_to: "{{ kube_vip }}"
+      failed_when: false
+      when:
+        - ldms_running | default(false) | bool
+        - ldms_conf_file.stat.exists | default(false)
+        - ldms_bin_file.stat.exists | default(false)
+
+    - name: Wait for LDMS aggregator pod to be ready after restart
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ telemetry_namespace }}"
+        label_selectors:
+          - "app=nersc-ldms-aggr"
+        wait: true
+        wait_condition:
+          type: Ready
+          status: "True"
+        wait_timeout: 120
+      delegate_to: "{{ kube_vip }}"
+      register: ldms_pod_ready
+      failed_when: false
+      when:
+        - ldms_running | default(false) | bool
+        - ldms_conf_file.stat.exists | default(false)
+        - ldms_bin_file.stat.exists | default(false)
+
+    - name: Display LDMS aggregator restart status
+      ansible.builtin.debug:
+        msg: "{{ ldms_pod_ready_msg if (ldms_pod_ready.resources | default([]) | length > 0) else ldms_pod_not_ready_msg }}"
+      when:
+        - ldms_running | default(false) | bool
+        - ldms_conf_file.stat.exists | default(false)
+        - ldms_bin_file.stat.exists | default(false)

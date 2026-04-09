@@ -1,0 +1,280 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: generate_service_cluster_metadata.yml
+functional_groups_config_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+functional_groups_config_syntax_fail_msg: "Failed. Syntax errors present in functional_groups_config.yml. Fix errors and re-run playbook again."
+service_cluster_metadata_path: "/opt/omnia/.data/service_cluster_metadata.yml"
+metadata_perm: "0644"
+
+# Usage: read_software_config.yml
+k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_k8s.json"
+
+# Usage: secrets_creation.yml
+mysqldb_secrets_name: mysqldb-credentials
+
+# Usage: idrac_telemetry_deployment.yml
+service_cluster_idrac_telemetry_dir_path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/idrac_telemetry"
+dir_permissions_755: "0755"
+telemetry_namespace: "telemetry"
+idrac_telemetry_k8s_name: idrac-telemetry
+
+# iDRAC Telemetry scripting repository
+idrac_telemetry_scripting_src_path: "{{ oim_shared_path }}/omnia/telemetry/iDRAC-Telemetry-Scripting"
+idrac_telemetry_scripting_git_clone_path: "{{ service_cluster_idrac_telemetry_dir_path }}/iDRAC-Telemetry-Scripting"
+idrac_telemetry_scripting_copy_fail_msg: |
+  Failed to copy iDRAC Telemetry Scripting from {{ idrac_telemetry_scripting_src_path }}
+  to {{ idrac_telemetry_scripting_git_clone_path }}. Please ensure prepare_oim.yml has been
+  executed successfully before running provision.
+
+# Pre-built container images for iDRAC telemetry components
+# These default to your published images but can be overridden via telemetry_images
+idrac_telemetry_receiver_image: "{{ telemetry_images['dellhpcomniaaisolution/idrac_telemetry_receiver'] | default('docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver:1.2') }}" # noqa: yaml[line-length]
+kafkapump_image: "{{ telemetry_images['dellhpcomniaaisolution/kafkapump'] | default('docker.io/dellhpcomniaaisolution/kafkapump:1.2') }}"
+victoriapump_image: "{{ telemetry_images['dellhpcomniaaisolution/victoriapump'] | default('docker.io/dellhpcomniaaisolution/victoriapump:1.2') }}"
+
+activemq_image: "{{ telemetry_images['rmohr/activemq'] | default('docker.io/rmohr/activemq:5.15.9') }}"
+activemq_http_port_1: 8161
+activemq_http_port_2: 61616
+messagebus_http_port: 61613
+configui_http_port: 8082
+mysqldb_storage: 1Gi
+mysqldb_pvc_name: mysqldb-storage-claim
+mysqldb_k8s_name: mysqldb
+mysqldb_name: "idrac_telemetrydb"
+idrac_telemetry_service_name: "idrac-telemetry-service"
+mysqldb_container_port1: 3306
+mysqldb_container_port2: 33060
+mysql_image: "{{ telemetry_images['library/mysql'] | default('docker.io/library/mysql:9.3.0') }}"
+pod_wait_timeout: "10m"
+kafka_skip_verify: true
+
+# Usage: kafka_deployment.yml
+kafka:
+  app_name: "kafka"
+  container_name: "kafka-controller"
+  service_name: "kafka-headless"
+  lb_service_name: "kafka-loadbalancer"
+  container_port1: 9093
+  # Kafka images from service_k8s.json
+  operator_image: "{{ telemetry_images['strimzi/operator'] | default('quay.io/strimzi/operator:0.48.0') }}"
+  kafka_image: "{{ telemetry_images['strimzi/kafka'] | default('quay.io/strimzi/kafka:0.48.0-kafka-4.1.0') }}"
+  bridge_image: "{{ telemetry_images['strimzi/kafka-bridge'] | default('quay.io/strimzi/kafka-bridge:0.33.1') }}"
+  container_port2: 9093
+  image: "apache/kafka:4.1.0"
+  cluster_id: "kafka-cluster-id"
+
+  # Kafka topic names (FIXED - cannot be changed)
+  topics:
+    idrac:
+      name: "idrac"
+      consumer_group: "idrac-consumer-group"
+    ldms:
+      name: "ldms"
+      consumer_group: "ldms-consumer-group"
+
+# Dynamic image configuration from service_k8s.json
+# Images and versions are read dynamically from input/config/x86_64/rhel/10.0/service_k8s.json
+telemetry_images: "{{ service_k8s_images | default({}) }}"
+
+# Usage: victoriametric_deployment.yml
+# Single-node VictoriaMetrics (deprecated - use cluster mode)
+victoria:
+  app_name: "victoriametrics"
+  container_name: "victoriametrics"
+  service_name: "victoria-loadbalancer"
+  container_port: 8443
+  image: "{{ telemetry_images['victoriametrics/victoria-metrics'] | default('victoriametrics/victoria-metrics:v1.128.0') }}"
+
+# VictoriaMetrics Cluster Configuration
+# Deployment mode is controlled by victoria_configurations.deployment_mode in telemetry_config.yml
+# Supported modes: "single-node" or "cluster"
+victoria_cluster:
+  # Auto-configured based on telemetry_config.yml
+  # true = cluster mode, false = single-node mode
+  enabled: "{{ true if hostvars['localhost']['victoria_configurations']['deployment_mode'] == 'cluster' else false }}"
+  tls_enabled: true   # Set to true to enable TLS for cluster components
+  # VMStorage: Stores raw data and returns query results
+  vmstorage:
+    replicas: 3
+    image: "{{ telemetry_images['victoriametrics/vmstorage'] | default('victoriametrics/vmstorage:v1.128.0-cluster') }}"
+    dedup_min_scrape_interval: "1m"  # Deduplication interval
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "500m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+  # VMInsert: Accepts data ingestion and routes to vmstorage
+  vminsert:
+    replicas: 2
+    image: "{{ telemetry_images['victoriametrics/vminsert'] | default('victoriametrics/vminsert:v1.128.0-cluster') }}"
+    # External access configuration
+    external_access: true  # Enable LoadBalancer service for external data ingestion
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+  # VMSelect: Performs queries against vmstorage nodes
+  vmselect:
+    replicas: 2
+    image: "{{ telemetry_images['victoriametrics/vmselect'] | default('victoriametrics/vmselect:v1.128.0-cluster') }}"
+    max_query_duration: "5m"
+    max_concurrent_requests: "8"
+    cache_data_path: true  # Enable query result caching
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+# Telemetry shared path configuration
+telemetry_share_path: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/telemetry"
+
+# VictoriaMetrics TLS Configuration
+victoria_tls_cert_days: 3650
+victoria_cert_dir: "{{ telemetry_share_path }}/victoria-certs"
+
+# Usage: vmagent-scrape-config.yaml
+vmagent:
+  configmap_name: "vmagent-scrape-config"
+  global:
+    scrape_interval: "10s"
+  job_name: "idrac-telemetry"
+  kubernetes_sd_namespace: "{{ telemetry_namespace }}"
+  target_pod_label: "{{ idrac_telemetry_k8s_name }}"
+  metrics_container_name: "victoria-pump"
+  metrics_port: 2112
+  service_account_name: "vmagent"
+  role_name: "vmagent-sd"
+  rolebinding_name: "vmagent-sd-binding"
+  app_name: "vmagent"
+  container_name: "vmagent"
+  image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
+  scrape_config_path: "/etc/vmagent/prometheus.yml"
+  # Single-node URL
+  remote_write_url: "https://victoria-loadbalancer.telemetry.svc.cluster.local:8443/api/v1/write"
+  # Cluster URL (used when victoria_cluster.enabled: true)
+  remote_write_url_cluster: >
+    {% if victoria_cluster.tls_enabled %}https{% else %}
+    http{% endif %}://vminsert.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
+
+strmzi_kafka_tarball_url: "{{ offline_tarball_path }}/{{ strimzi_kafka_pkg }}/{{ strimzi_kafka_pkg }}.tar.gz"
+
+# Usage: validate_idrac_inventory.yml
+bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
+bmc_group_data_headers: "BMC_IP,GROUP_NAME,PARENT"
+openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir"
+nodes_dir: "{{ openchami_work_dir }}/nodes"
+openchami_nodes_vars_path: "{{ nodes_dir }}/nodes.yaml"
+
+# Usage: update_ldms_sampler.yml
+telemetry_config_file_path: "{{ hostvars['localhost']['input_project_dir'] }}/telemetry_config.yml"
+common_mode: "0755"
+
+# Usage: generate_telemetry_deployments.yml - Template lists for different components
+# Victoria templates - conditional based on victoria_cluster.enabled
+victoria_templates_common:
+  - src: 'telemetry/victoria/victoria-tls-secret.yaml.j2'
+    dest: 'victoria-tls-secret.yaml'
+  - src: 'telemetry/victoria/victoria-vmagent-rbac.yaml.j2'
+    dest: 'victoria-vmagent-rbac.yaml'
+  - src: 'telemetry/victoria/vmagent-scrape-config.yaml.j2'
+    dest: 'vmagent-scrape-config.yaml'
+  - src: 'telemetry/victoria/victoria-agent-deployment.yaml.j2'
+    dest: 'victoria-agent-deployment.yaml'
+
+idrac_telemetry_statefulset_path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/idrac_telemetry_statefulset.yaml"
+
+# Single-node templates (used when victoria_cluster.enabled: false)
+victoria_templates_single:
+  - src: 'telemetry/victoria/victoria-statefulset.yaml.j2'
+    dest: 'victoria-statefulset.yaml'
+
+# Cluster templates (used when victoria_cluster.enabled: true)
+victoria_templates_cluster:
+  - src: 'telemetry/victoria/victoria-cluster-vmstorage.yaml.j2'
+    dest: 'victoria-cluster-vmstorage.yaml'
+  - src: 'telemetry/victoria/victoria-cluster-vminsert.yaml.j2'
+    dest: 'victoria-cluster-vminsert.yaml'
+  - src: 'telemetry/victoria/victoria-cluster-vmselect.yaml.j2'
+    dest: 'victoria-cluster-vmselect.yaml'
+
+# Test job template (optional)
+victoria_templates_test:
+  - src: 'telemetry/victoria/victoria-tls-test-job.yaml.j2'
+    dest: 'test/victoria-tls-test-job.yaml'
+
+# Combined victoria_templates for backward compatibility
+# Note: victoria_templates_test is commented out by default in kustomization.yaml.j2
+victoria_templates: >
+  {{ victoria_templates_common +
+     (victoria_templates_cluster if victoria_cluster.enabled else victoria_templates_single) +
+     victoria_templates_test }}
+
+kafka_templates:
+  - src: 'telemetry/kafka/kafka.kafka.yaml.j2'
+    dest: 'kafka.kafka.yaml'
+  - src: 'telemetry/kafka/kafka.kafkapump_user.yaml.j2'
+    dest: 'kafka.kafkapump_user.yaml'
+  - src: 'telemetry/kafka/kafka.kafka_bridge.yaml.j2'
+    dest: 'kafka.kafka_bridge.yaml'
+  - src: 'telemetry/kafka/kafka.kafka_bridge_lb.yaml.j2'
+    dest: 'kafka.kafka_bridge_lb.yaml'
+  - src: 'telemetry/kafka/kafka.tls_test_job.yaml.j2'
+    dest: 'test/kafka.tls_test_job.yaml'
+
+common_templates:
+  - src: 'telemetry/common/telemetry_cleaner_rbac.yaml.j2'
+    dest: 'telemetry_cleaner_rbac.yaml'
+  - src: 'telemetry/common/telemetry_pod_cleanup.yaml.j2'
+    dest: 'telemetry_pod_cleanup.yaml'
+  - src: 'telemetry/common/telemetry_namespace_creation.yaml.j2'
+    dest: 'telemetry_namespace_creation.yaml'
+  - src: 'telemetry/common/telemetry_secret_creation.yaml.j2'
+    dest: 'telemetry_secret_creation.yaml'
+    skip_when: "{{ cluster_id_present | default(false) }}"
+  - src: 'telemetry/kustomization.yaml.j2'
+    dest: 'kustomization.yaml'
+
+# Usage: check_pxe_changes.yml
+backup_pxe_mapping_ldms_path: "/opt/omnia/telemetry/backup_pxe_mapping_ldms.csv"
+pxe_first_run_msg: "First provision run detected. Saving PXE mapping backup. LDMS restart not required."
+pxe_no_change_msg: "PXE mapping file has not changed since last run. Skipping LDMS restart."
+pxe_changed_msg: "PXE mapping file has changed. LDMS restart will be triggered."
+
+# Usage: restart_ldms_configs.yml
+kube_vip_unreachable_msg: >-
+  Kube VIP ({{ kube_vip }}) is not reachable via SSH.
+  There might be issues with the k8s cluster.
+  LDMS aggregator restart will be skipped.
+
+  After provision completes, manually restart the LDMS aggregator pod with:
+
+  ssh {{ kube_vip }}
+  kubectl rollout restart statefulset nersc-ldms-aggr -n {{ telemetry_namespace }}
+  kubectl get pods -n {{ telemetry_namespace }} -l app=nersc-ldms-aggr -w
+
+ldms_pod_ready_msg: "LDMS aggregator pod is ready."
+ldms_pod_not_ready_msg: "WARNING: LDMS aggregator pod did not become ready within 120s."
+ldms_store_pod_ready_msg: "LDMS store daemon pod restarted successfully and is ready"
+ldms_store_pod_not_ready_msg: "LDMS store daemon pod restart failed or not ready within timeout"
+ldms_store_restart_wait_seconds: 10

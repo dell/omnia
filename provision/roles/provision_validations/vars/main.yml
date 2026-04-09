@@ -1,0 +1,106 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# Usage: include_inputs.yml
+provision_inputs:
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/network_spec.yml"
+  - path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+  - path: "/opt/omnia/.data/oim_metadata.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/security_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/telemetry_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/discovery_config.yml"
+build_stream_job_id_absent: |
+    "Build Stream mode is enabled. Manual execution is not supported.
+    Please trigger this workflow via the GitLab pipeline."
+input_syntax_fail_msg: "Failed. Syntax errors present in {{ item.path }}. Fix errors and re-run playbook again."  # noqa: yaml[line-length]
+
+# Usage: include_software_config.yml
+software_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
+software_config_syntax_fail_msg: "Failed. Syntax errors present in software_config.json. Fix errors and re-run playbook again."  # noqa: yaml[line-length]
+
+# Usage: validate_mapping_mechanism.yml
+invalid_mapping_fail_msg: |
+  "Failed. pxe_mapping_file_path should be a valid path in provision_config.yml.
+  Please provide valid path and re-run the playbook.
+
+# Usage: validate_mapping_file.yml
+mapping_file_key: "ADMIN_MAC"
+hostname_chars_fail_msg: |
+  Failed. Hostname should not contain _ or . or space or node- as it might result in issues with provisioning/authentication
+  tools like FreeIPA. Make sure the mapping file contains only the hostname, and not the domain_name. Found in:
+temp_mapping_file_path: "/opt/omnia/pxe_mapping_file.csv"
+capital_hostname_fail_msg: |
+  "Failed. Invalid hostname {{ item }}. Hostname should be in lower case and should not start with numbers.
+  Refer documentation for more details."
+temp_pxe_file_path: "/opt/omnia/openchami/temp_pxe_file.csv"
+file_mode: "0644"
+functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config_path'] }}"
+
+# Usage: updates_hosts.yml
+hosts_file_path: /opt/omnia/hosts
+
+# Usage: validate_image.yml
+image_missing_fail_msg: |
+  Error: Image not found for functional group {{ functional_group_name }}.
+  Please create the image by running the corresponding build playbook (build_image_x86_64.yml for x86_64 or build_image_aarch64.yml for aarch64)
+  and re-run the provision.yml playbook.
+
+# Usage: validate_telemetry.yml
+warning_idrac_telemetry_support_false: |
+  "[WARNING] idrac_telemetry_support is set to false in telemetry_config.yml. This means iDRAC telemetry will not be activated.
+  To use telemetry, set idrac_telemetry_support to true in telemetry_config.yml."
+
+warning_idrac_telemetry_support_true: |
+  "[WARNING] idrac_telemetry_support is set to true in telemetry_config.yml.
+  iDRAC telemetry will be activated for all BMC IPs listed in mapping file.
+  Confirm that all BMC IPs are reachable from the respective service cluster nodes for telemetry to function properly.
+  Make sure that Redfish is enabled and the iDRAC has a datacenter license.
+  Also, ensure that the firmware version is greater than 4 for iDRAC9 or greater than 1 for iDRAC10."
+pause_time_15: 15
+bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
+
+# Usage: validate_oim_timezone.yml
+oim_timezone_changed_warning_msg: |
+  WARNING: OIM timezone has changed from '{{ stored_oim_timezone }}' to '{{ current_oim_timezone }}'
+  after omnia_core container was deployed. Omnia will now proceed using the UPDATED timezone value
+  and update the metadata accordingly. If this change was not intentional, please revert the
+  OIM host timezone back to the original value, else REPROVISION THE ENTIRE CLUSTER to avoid
+  inconsistent behavior.
+
+oim_metadata_file_path: "/opt/omnia/.data/oim_metadata.yml"
+
+# Usage: validate_openldap_container.yml
+openldap_container_missing_msg: "{{ '\x1b[31m' }}\
+  ==================================================================================\n\
+  ERROR: OpenLDAP container is not running.\n\
+  ==================================================================================\n\
+  \n\
+  OpenLDAP support is enabled but the OpenLDAP container was not found.\n\
+  This typically happens when prepare_oim.yml was run without the OpenLDAP\n\
+  package in software_config.json.\n\
+  \n\
+  To resolve this issue:\n\
+  1. Ensure the 'openldap' package is added to software_config.json\n\
+  2. Re-run prepare_oim.yml to start the OpenLDAP container and generate certificates\n\
+  3. Run local_repo.yml to download OpenLDAP packages\n\
+  4. Then re-run provision.yml\n\
+  \n\
+  For more information, refer to the Omnia documentation on OpenLDAP configuration.\n\
+  ==================================================================================\
+  {{ '\x1b[0m' }}"

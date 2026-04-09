@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Load network spec
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/network_spec.yml"
+    name: network_spec_data
+
+- name: Set admin_subnet from network spec
+  ansible.builtin.set_fact:
+    admin_subnet: "{{ (network_spec_data.Networks | selectattr('admin_network', 'defined') | first).admin_network.subnet | default('') }}"
+
+- name: Set ib_subnet from network spec
+  ansible.builtin.set_fact:
+    ib_subnet: "{{ (network_spec_data.Networks | selectattr('ib_network', 'defined') | first).ib_network.subnet | default('') }}"
+
+- name: Ensure input directory exists
+  ansible.builtin.file:
+    path: "{{ pxe_mapping_output_file | dirname }}"
+    state: directory
+    mode: '0755'
+
+- name: Generate PXE mapping file
+  generate_pxe_mapping:
+    servers: "{{ discovered_servers }}"
+    output_file: "{{ pxe_mapping_output_file }}"
+    functional_group: "{{ default_functional_group }}"
+    group_name: "{{ default_group_name }}"
+    hostname_prefix: "{{ hostname_prefix }}"
+    hostname_start: "{{ hostname_start_number }}"
+    hostname_padding: "{{ hostname_padding }}"
+    ib_subnet: "{{ ib_subnet }}"
+    admin_subnet: "{{ admin_subnet }}"
+  register: pxe_mapping_result
+
+- name: Display discovery completion message
+  ansible.builtin.debug:
+    msg: "{{ discovery_complete_msg }}"
+
+- name: Display generated BMC PXE mapping file path
+  ansible.builtin.debug:
+    msg: "BMC PXE mapping file saved to: {{ pxe_mapping_output_file }}"

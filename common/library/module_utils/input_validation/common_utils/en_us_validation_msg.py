@@ -70,7 +70,7 @@ SWITCH_DETAILS_INCOMPLETE_MSG = ("If providing switch details, please provide bo
                                  "and Ports fields.")
 SWITCH_DETAILS_NO_BMC_DETAILS_MSG = ("If switch details are provided then bmc_detail's "
                                     "static_range must also be provided.")
-INVALID_GROUP_NAME_MSG = "Groups must be defined in the form of grp<n> where n is 0-99."
+INVALID_GROUP_NAME_MSG = "Groups must be defined in the form of grp<n> where n is 0-100, or SU<n> where n is 1-100."
 INVALID_LOCATION_ID_MSG = ("location_id must follow the format SU-<n>.RACK-<n> where n is 0-99. "
                           "This input is case-sensitive. Please use uppercase letters only.")
 INVALID_ATTRIBUTES_ROLE_MSG = ("Please provide valid attributes for the role, "
