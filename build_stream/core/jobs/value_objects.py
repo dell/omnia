@@ -98,6 +98,7 @@ class StageType(str, Enum):
     for validation and by domain logic to avoid raw string comparisons.
     """
 
+    # Existing (Release 1)
     PARSE_CATALOG = "parse-catalog"
     GENERATE_INPUT_FILES = "generate-input-files"
     CREATE_LOCAL_REPOSITORY = "create-local-repository"
@@ -106,6 +107,11 @@ class StageType(str, Enum):
     BUILD_IMAGE_AARCH64 = "build-image-aarch64"
     VALIDATE_IMAGE_ON_TEST = "validate-image-on-test"
     #PROMOTE = "promote"
+
+    # New (Release 2 — Deploy Pipeline)
+    DEPLOY = "deploy"
+    PXE_BOOT = "pxe_boot"
+    VALIDATE = "validate"
 
 
 @dataclass(frozen=True)

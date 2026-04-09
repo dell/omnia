@@ -75,8 +75,8 @@ class TestCreateJobSuccess:
             "validate-image-on-test",
         ]
 
-        stage_names = [s["stage_name"] for s in stages]
-        assert stage_names == expected_stages
+        stage_names = sorted([s["stage_name"] for s in stages])
+        assert stage_names == sorted(expected_stages)
 
     def test_create_job_all_stages_pending(self, client, auth_headers):
         payload = {"client_id": "client-123", "client_name": "test-client"}

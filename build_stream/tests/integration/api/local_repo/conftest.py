@@ -27,9 +27,29 @@ from infra.id_generator import UUIDv4Generator
 
 
 @pytest.fixture(scope="function")
-def client():
+def client(tmp_path):
     """Create test client with fresh container for each test."""
     os.environ["ENV"] = "dev"
+    db_file = tmp_path / "test.db"
+    db_url = f"sqlite:///{db_file}"
+    os.environ["DATABASE_URL"] = db_url
+
+    import infra.db.config as config_module  # pylint: disable=import-outside-toplevel
+    import importlib  # pylint: disable=import-outside-toplevel
+
+    config_module.db_config = config_module.DatabaseConfig()
+
+    import infra.db.session  # pylint: disable=import-outside-toplevel
+    importlib.reload(infra.db.session)
+    session_module = infra.db.session
+
+    from sqlalchemy import create_engine  # pylint: disable=import-outside-toplevel
+    engine = create_engine(db_url)
+    session_module._engine = engine  # pylint: disable=protected-access
+    session_module._session_factory = None  # pylint: disable=protected-access
+
+    from infra.db.models import Base  # pylint: disable=import-outside-toplevel
+    Base.metadata.create_all(engine)
 
     def mock_verify_token():
         return {
@@ -40,9 +60,8 @@ def client():
 
     app.dependency_overrides[verify_token] = mock_verify_token
 
-    test_client = TestClient(app)
-
-    yield test_client
+    with TestClient(app) as test_client:
+        yield test_client
 
     # Cleanup
     app.dependency_overrides.clear()

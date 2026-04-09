@@ -31,6 +31,8 @@ from infra.repositories import (
     InMemoryStageRepository,
     InMemoryIdempotencyRepository,
     InMemoryAuditEventRepository,
+    InMemoryImageGroupRepository,
+    InMemoryImageRepository,
     NfsInputRepository,
     NfsPlaybookQueueRequestRepository,
     NfsPlaybookQueueResultRepository,
@@ -41,6 +43,8 @@ from infra.db.repositories import (
     SqlIdempotencyRepository,
     SqlAuditEventRepository,
     SqlArtifactMetadataRepository,
+    SqlImageGroupRepository,
+    SqlImageRepository,
 )
 from infra.db.session import SessionLocal
 from orchestrator.catalog.use_cases.generate_input_files import GenerateInputFilesUseCase
@@ -148,6 +152,10 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     stage_repository = providers.Singleton(InMemoryStageRepository)
     idempotency_repository = providers.Singleton(InMemoryIdempotencyRepository)
     audit_repository = providers.Singleton(InMemoryAuditEventRepository)
+
+    # --- ImageGroup/Image repositories ---
+    image_group_repository = providers.Singleton(InMemoryImageGroupRepository)
+    image_repository = providers.Singleton(InMemoryImageRepository)
 
     # --- input repository ---
     input_repository = providers.Singleton(
@@ -321,6 +329,10 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     stage_repository = providers.Factory(SqlStageRepository, session=db_session)
     idempotency_repository = providers.Factory(SqlIdempotencyRepository, session=db_session)
     audit_repository = providers.Factory(SqlAuditEventRepository, session=db_session)
+
+    # --- ImageGroup/Image repositories (PostgreSQL-backed) ---
+    image_group_repository = providers.Factory(SqlImageGroupRepository, session=db_session)
+    image_repository = providers.Factory(SqlImageRepository, session=db_session)
 
     # --- Consolidated input repository ---
     input_repository = providers.Singleton(

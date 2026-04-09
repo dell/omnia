@@ -298,11 +298,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -322,11 +322,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -346,11 +346,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -370,11 +370,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -394,11 +394,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -482,11 +482,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_slurm_custom"
+            "RepoName": "slurm_custom"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
+            "RepoName": "slurm_custom"
           }
         ]
       },
@@ -506,11 +506,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_slurm_custom"
+            "RepoName": "slurm_custom"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
+            "RepoName": "slurm_custom"
           }
         ]
       },
@@ -530,11 +530,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -554,11 +554,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -578,11 +578,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_slurm_custom"
+            "RepoName": "slurm_custom"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
+            "RepoName": "slurm_custom"
           }
         ]
       },
@@ -602,11 +602,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_slurm_custom"
+            "RepoName": "slurm_custom"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
+            "RepoName": "slurm_custom"
           }
         ]
       },
@@ -626,11 +626,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -650,11 +650,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -717,11 +717,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_slurm_custom"
+            "RepoName": "slurm_custom"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_slurm_custom"
+            "RepoName": "slurm_custom"
           }
         ]
       },
@@ -755,7 +755,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -774,7 +774,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -793,7 +793,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -850,7 +850,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -1398,7 +1398,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1549,7 +1549,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1568,7 +1568,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1587,7 +1587,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1606,7 +1606,7 @@
         "Sources": [
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1647,11 +1647,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1671,11 +1671,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -1695,11 +1695,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1719,11 +1719,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -1767,11 +1767,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1791,11 +1791,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1815,11 +1815,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1839,11 +1839,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1863,11 +1863,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1887,11 +1887,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -1911,11 +1911,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1935,11 +1935,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1959,11 +1959,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -1983,11 +1983,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2007,11 +2007,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2031,11 +2031,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2055,11 +2055,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2079,11 +2079,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2103,11 +2103,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2127,11 +2127,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2151,11 +2151,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2175,11 +2175,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2199,11 +2199,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2223,11 +2223,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2247,11 +2247,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2271,11 +2271,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2295,11 +2295,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2319,11 +2319,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2343,11 +2343,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2367,11 +2367,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2391,11 +2391,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2415,11 +2415,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2439,11 +2439,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2463,11 +2463,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2487,11 +2487,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2511,11 +2511,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2535,11 +2535,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2559,11 +2559,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2583,11 +2583,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2607,11 +2607,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2631,11 +2631,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2655,11 +2655,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2679,11 +2679,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2703,11 +2703,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2727,11 +2727,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2751,11 +2751,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2775,11 +2775,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2823,11 +2823,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2847,11 +2847,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2871,11 +2871,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2895,11 +2895,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2919,11 +2919,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2943,11 +2943,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -2967,11 +2967,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -2991,11 +2991,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3015,11 +3015,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3039,11 +3039,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3063,11 +3063,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3087,11 +3087,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -3111,11 +3111,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3135,11 +3135,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3159,11 +3159,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3183,11 +3183,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3207,11 +3207,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3231,11 +3231,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3255,11 +3255,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3279,11 +3279,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3303,11 +3303,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3327,11 +3327,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3351,11 +3351,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3375,11 +3375,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3399,11 +3399,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3423,11 +3423,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3447,11 +3447,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3471,11 +3471,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -3495,11 +3495,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3519,11 +3519,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3543,11 +3543,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3567,11 +3567,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -3591,11 +3591,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -3615,11 +3615,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3678,11 +3678,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -3702,11 +3702,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_codeready-builder"
+            "RepoName": "codeready-builder"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_codeready-builder"
+            "RepoName": "codeready-builder"
           }
         ]
       },
@@ -3726,11 +3726,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3750,11 +3750,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_ldms"
+            "RepoName": "ldms"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_ldms"
+            "RepoName": "ldms"
           }
         ]
       },
@@ -3774,11 +3774,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3822,11 +3822,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3846,11 +3846,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -3870,11 +3870,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_baseos"
+            "RepoName": "baseos"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_baseos"
+            "RepoName": "baseos"
           }
         ]
       },
@@ -3919,11 +3919,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_appstream"
+            "RepoName": "appstream"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_appstream"
+            "RepoName": "appstream"
           }
         ]
       },
@@ -3943,11 +3943,11 @@
         "Sources": [
           {
             "Architecture": "aarch64",
-            "RepoName": "aarch64_codeready-builder"
+            "RepoName": "codeready-builder"
           },
           {
             "Architecture": "x86_64",
-            "RepoName": "x86_64_codeready-builder"
+            "RepoName": "codeready-builder"
           }
         ]
       },

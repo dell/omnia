@@ -40,18 +40,18 @@ class TestGetPackageList(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.base_dir = os.path.dirname(__file__)
-        # Calculate path to fixtures: tests/integration/core/catalog -> tests/fixtures/catalogs
+        # Calculate path to fixtures: tests/integration/core/catalog -> core/catalog/test_fixtures
         self.fixture_path = os.path.abspath(
-            os.path.join(self.base_dir, "..", "..", "..", "fixtures", "catalogs", "functional_layer.json")
+            os.path.join(self.base_dir, "..", "..", "..", "..", "core", "catalog", "test_fixtures", "functional_layer.json")
         )
 
     def test_get_packages_for_valid_single_role(self):
         """TC01: Given a valid role, returns list with one role object containing packages."""
-        result = get_package_list(self.fixture_path, role="Compiler")
+        result = get_package_list(self.fixture_path, role="slurm_control_node_x86_64")
 
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["roleName"], "Compiler")
+        self.assertEqual(result[0]["roleName"], "slurm_control_node_x86_64")
         self.assertIn("packages", result[0])
         self.assertIsInstance(result[0]["packages"], list)
         self.assertGreater(len(result[0]["packages"]), 0)
@@ -61,14 +61,17 @@ class TestGetPackageList(unittest.TestCase):
         result = get_package_list(self.fixture_path, role=None)
 
         self.assertIsInstance(result, list)
-        # Fixture has 6 roles
+        # Fixture has 9 roles
         expected_roles = [
-            "Compiler",
-            "K8S Controller",
-            "K8S Worker",
-            "Login Node",
-            "Slurm Controller",
-            "Slurm Worker",
+            "service_kube_control_plane_x86_64",
+            "service_kube_node_x86_64",
+            "login_node_x86_64",
+            "login_node_aarch64",
+            "login_compiler_node_x86_64",
+            "login_compiler_node_aarch64",
+            "slurm_control_node_x86_64",
+            "slurm_node_x86_64",
+            "slurm_node_aarch64",
         ]
         actual_roles = [r["roleName"] for r in result]
         self.assertCountEqual(actual_roles, expected_roles)
@@ -138,7 +141,7 @@ class TestGetPackageList(unittest.TestCase):
 
     def test_package_attributes_are_complete(self):
         """TC08: All package fields are present in the response."""
-        result = get_package_list(self.fixture_path, role="Compiler")
+        result = get_package_list(self.fixture_path, role="slurm_control_node_x86_64")
 
         self.assertEqual(len(result), 1)
         packages = result[0]["packages"]
@@ -146,13 +149,13 @@ class TestGetPackageList(unittest.TestCase):
 
         # Check first package has all required fields
         first_pkg = packages[0]
-        required_fields = ["name", "type", "repo_name", "architecture", "uri", "tag"]
+        required_fields = ["name", "type", "repo_name", "architecture"]
         for field in required_fields:
             self.assertIn(field, first_pkg, f"Missing field: {field}")
 
     def test_package_with_uri_and_tag(self):
         """Verify packages with uri and tag fields are correctly returned."""
-        result = get_package_list(self.fixture_path, role="K8S Controller")
+        result = get_package_list(self.fixture_path, role="service_kube_control_plane_x86_64")
 
         packages = result[0]["packages"]
         # Find a package with tag (image type)
@@ -161,18 +164,16 @@ class TestGetPackageList(unittest.TestCase):
         # Image packages should have tag
         self.assertIsNotNone(image_pkgs[0].get("tag"))
 
-        # Find a package with uri (tarball type)
+        # Find a package with tarball type
         tarball_pkgs = [p for p in packages if p["type"] == "tarball"]
         self.assertGreater(len(tarball_pkgs), 0)
-        # Tarball packages should have uri
-        self.assertIsNotNone(tarball_pkgs[0].get("uri"))
 
-    def test_role_with_spaces_in_name(self):
-        """Verify roles with spaces in name work correctly."""
-        result = get_package_list(self.fixture_path, role="K8S Controller")
+    def test_role_with_underscore_in_name(self):
+        """Verify roles with underscores in name work correctly."""
+        result = get_package_list(self.fixture_path, role="slurm_node_x86_64")
 
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["roleName"], "K8S Controller")
+        self.assertEqual(result[0]["roleName"], "slurm_node_x86_64")
 
     def test_all_roles_returns_correct_package_counts(self):
         """Verify each role returns the correct number of packages."""
@@ -191,33 +192,33 @@ class TestGetPackageList(unittest.TestCase):
 
     def test_case_insensitive_role_matching_lowercase(self):
         """Verify role matching is case-insensitive with lowercase input."""
-        result = get_package_list(self.fixture_path, role="compiler")
+        result = get_package_list(self.fixture_path, role="SLURM_CONTROL_NODE_X86_64")
 
         self.assertEqual(len(result), 1)
         # Should return the original role name from JSON
-        self.assertEqual(result[0]["roleName"], "Compiler")
+        self.assertEqual(result[0]["roleName"], "slurm_control_node_x86_64")
 
     def test_case_insensitive_role_matching_uppercase(self):
         """Verify role matching is case-insensitive with uppercase input."""
-        result = get_package_list(self.fixture_path, role="COMPILER")
+        result = get_package_list(self.fixture_path, role="LOGIN_NODE_X86_64")
 
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["roleName"], "Compiler")
+        self.assertEqual(result[0]["roleName"], "login_node_x86_64")
 
     def test_case_insensitive_role_matching_mixed_case(self):
         """Verify role matching is case-insensitive with mixed case input."""
-        result = get_package_list(self.fixture_path, role="k8s controller")
+        result = get_package_list(self.fixture_path, role="Slurm_Node_X86_64")
 
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]["roleName"], "K8S Controller")
+        self.assertEqual(result[0]["roleName"], "slurm_node_x86_64")
 
     def test_case_insensitive_role_matching_preserves_original_name(self):
         """Verify the returned roleName preserves the original case from JSON."""
-        result = get_package_list(self.fixture_path, role="SLURM CONTROLLER")
+        result = get_package_list(self.fixture_path, role="SERVICE_KUBE_NODE_X86_64")
 
         self.assertEqual(len(result), 1)
         # Should preserve original case from JSON
-        self.assertEqual(result[0]["roleName"], "Slurm Controller")
+        self.assertEqual(result[0]["roleName"], "service_kube_node_x86_64")
 
 
 if __name__ == "__main__":

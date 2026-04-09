@@ -240,6 +240,18 @@ def _create_sql_audit_repo(session: Session):
     return SqlAuditEventRepository(session=session)
 
 
+def _create_sql_image_group_repo(session: Session):
+    """Create SQL image group repository with session."""
+    from infra.db.repositories import SqlImageGroupRepository  # pylint: disable=import-outside-toplevel
+    return SqlImageGroupRepository(session=session)
+
+
+def _create_sql_image_repo(session: Session):
+    """Create SQL image repository with session."""
+    from infra.db.repositories import SqlImageRepository  # pylint: disable=import-outside-toplevel
+    return SqlImageRepository(session=session)
+
+
 # ------------------------------------------------------------------
 # Stage Failure Helper
 # ------------------------------------------------------------------
@@ -353,6 +365,20 @@ def get_audit_repo(db_session: Session = Depends(get_db_session)):
     if _ENV == "prod":
         return _create_sql_audit_repo(db_session)
     return _get_container().audit_repository()
+
+
+def get_image_group_repo(db_session: Session = Depends(get_db_session)):
+    """Provide image group repository with shared session in prod."""
+    if _ENV == "prod":
+        return _create_sql_image_group_repo(db_session)
+    return _get_container().image_group_repository()
+
+
+def get_image_repo(db_session: Session = Depends(get_db_session)):
+    """Provide image repository with shared session in prod."""
+    if _ENV == "prod":
+        return _create_sql_image_repo(db_session)
+    return _get_container().image_repository()
 
 
 # ------------------------------------------------------------------

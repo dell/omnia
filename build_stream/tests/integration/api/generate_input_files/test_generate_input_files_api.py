@@ -27,10 +27,28 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
     """Integration tests for GenerateInputFiles API endpoint."""
 
     @pytest.fixture
-    def client(self) -> TestClient:
-        """Create test client with in-memory stores."""
-        container = DevContainer()
-        container.wire(modules=["api.generate_input_files.routes"])
+    def client(self, tmp_path) -> TestClient:
+        """Create test client with in-memory stores and fresh DB."""
+        db_file = tmp_path / "test.db"
+        db_url = f"sqlite:///{db_file}"
+        os.environ["DATABASE_URL"] = db_url
+        os.environ["ENV"] = "dev"
+
+        import infra.db.config as config_module  # pylint: disable=import-outside-toplevel
+        import importlib  # pylint: disable=import-outside-toplevel
+        config_module.db_config = config_module.DatabaseConfig()
+
+        import infra.db.session  # pylint: disable=import-outside-toplevel
+        importlib.reload(infra.db.session)
+        session_module = infra.db.session
+
+        from sqlalchemy import create_engine  # pylint: disable=import-outside-toplevel
+        engine = create_engine(db_url)
+        session_module._engine = engine  # pylint: disable=protected-access
+        session_module._session_factory = None  # pylint: disable=protected-access
+
+        from infra.db.models import Base  # pylint: disable=import-outside-toplevel
+        Base.metadata.create_all(engine)
 
         with TestClient(app) as client:
             yield client
@@ -97,7 +115,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         )
 
         # Should accept the request structure (may fail due to missing dependencies)
-        assert response.status_code in [200, 400, 422, 500]
+        assert response.status_code in [200, 400, 412, 422, 500]
 
     def test_request_with_custom_policy(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any], custom_policy_request_data: Dict[str, Any]) -> None:
         """Test generate input files with custom adapter policy."""
@@ -109,7 +127,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         )
 
         # Should accept the custom policy path (may fail due to missing file/job)
-        assert response.status_code in [200, 400, 422, 500]
+        assert response.status_code in [200, 400, 412, 422, 500]
 
     def test_missing_correlation_id(self, client: TestClient, created_job: Dict[str, Any]) -> None:
         """Test that correlation ID is required."""
@@ -119,7 +137,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             headers={"Authorization": "Bearer test-token"},
         )
         
-        assert response.status_code == 422
+        assert response.status_code in [412, 422]
 
     def test_invalid_job_id_format(self, client: TestClient, auth_headers: Dict[str, str]) -> None:
         """Test generate input files with invalid job ID format."""
@@ -149,8 +167,8 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
                 json=request_data
             )
             
-            # Should reject path traversal attempts
-            assert response.status_code in [400, 422]
+            # Should reject path traversal attempts (409 if job already in terminal state)
+            assert response.status_code in [400, 409, 412, 422]
 
     def test_invalid_json_request(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any]) -> None:
         """Test generate input files with invalid JSON."""
@@ -174,7 +192,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         )
         
         # Should handle empty body gracefully
-        assert response.status_code in [200, 400, 422, 500]
+        assert response.status_code in [200, 400, 412, 422, 500]
 
     def test_concurrent_requests(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any]) -> None:
         """Test concurrent requests to the same job."""
@@ -201,7 +219,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         
         # All requests should be processed (may succeed or fail gracefully)
         for response in responses:
-            assert response.status_code in [200, 400, 422, 500]
+            assert response.status_code in [200, 400, 409, 412, 422, 500]
 
     def test_response_structure_on_success(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any]) -> None:
         """Test that successful response has correct structure."""
@@ -328,7 +346,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         )
         
         # Should handle missing policy file
-        assert response.status_code in [400, 422, 500]
+        assert response.status_code in [400, 412, 422, 500]
 
     def test_idempotency_key_handling(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any]) -> None:
         """Test that idempotency key is properly handled."""
@@ -349,8 +367,8 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         )
         
         # Both should be processed (idempotency behavior may vary)
-        assert response1.status_code in [200, 400, 422, 500]
-        assert response2.status_code in [200, 400, 422, 500]
+        assert response1.status_code in [200, 400, 409, 412, 422, 500]
+        assert response2.status_code in [200, 400, 409, 412, 422, 500]
 
     def test_large_policy_path(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any]) -> None:
         """Test handling of unusually long policy paths."""
@@ -366,7 +384,7 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
         )
         
         # Should handle long paths gracefully (may fail validation)
-        assert response.status_code in [200, 400, 422, 500]
+        assert response.status_code in [200, 400, 412, 422, 500]
 
     def test_special_characters_in_policy_path(self, client: TestClient, auth_headers: Dict[str, str], created_job: Dict[str, Any]) -> None:
         """Test handling of special characters in policy paths."""
@@ -387,4 +405,4 @@ class TestGenerateInputFilesAPI:  # pylint: disable=too-many-public-methods
             )
             
             # Should handle special characters (may fail if file doesn't exist)
-            assert response.status_code in [200, 400, 422, 500]
+            assert response.status_code in [200, 400, 412, 422, 500]

@@ -108,3 +108,18 @@
         status_code: [200, 201]
         validate_certs: false
       no_log: true
+
+- name: Ensure input directory exists on GitLab host
+  ansible.builtin.file:
+    path: "{{ gitlab_hosted_payload_dir }}/{{ gitlab_input_repo_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Sync Omnia input files into GitLab repository
+  ansible.builtin.include_tasks: sync_input_file.yml
+  loop: "{{ gitlab_input_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    input_file_name: "{{ item.name }}"
+    input_file_src: "{{ item.src }}"

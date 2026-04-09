@@ -32,6 +32,31 @@ import pytest
 # Set DATABASE_URL early for test environment
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
+# Patch JSONB to JSON for SQLite compatibility (must be before any model imports)
+from sqlalchemy import JSON as _sa_JSON
+
+if 'sqlalchemy.dialects.postgresql' not in sys.modules:
+    _postgresql_module = type(sys)('postgresql')
+    sys.modules['sqlalchemy.dialects.postgresql'] = _postgresql_module
+
+sys.modules['sqlalchemy.dialects.postgresql'].JSONB = _sa_JSON
+
+# Patch infra.db.session engine creation for SQLite compatibility
+# SQLite does not support pool_size/max_overflow parameters
+import infra.db.session as _db_session_mod
+from sqlalchemy import create_engine as _sa_create_engine, event as _sa_event
+
+_sqlite_engine = _sa_create_engine("sqlite:///:memory:", echo=False)
+
+@_sa_event.listens_for(_sqlite_engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):  # pylint: disable=unused-argument
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+_db_session_mod._engine = _sqlite_engine  # pylint: disable=protected-access
+_db_session_mod._session_factory = None  # pylint: disable=protected-access
+
 # Patch JWT exceptions for compatibility with newer PyJWT versions
 # This must be done before any imports of jwt.exceptions
 import jwt.exceptions

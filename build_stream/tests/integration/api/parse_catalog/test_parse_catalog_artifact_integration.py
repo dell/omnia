@@ -44,6 +44,32 @@ class TestFileArtifactStorage:  # pylint: disable=attribute-defined-outside-init
         self.original_env = os.environ.get("BUILD_STREAM_CONFIG_PATH")
         self.config_file = None
 
+        # Set up in-memory SQLite DB
+        db_url = "sqlite://"
+        os.environ["DATABASE_URL"] = db_url
+
+        import infra.db.config as config_module  # pylint: disable=import-outside-toplevel
+        import importlib  # pylint: disable=import-outside-toplevel
+        config_module.db_config = config_module.DatabaseConfig()
+
+        import infra.db.session  # pylint: disable=import-outside-toplevel
+        importlib.reload(infra.db.session)
+        session_module = infra.db.session
+
+        from sqlalchemy import create_engine  # pylint: disable=import-outside-toplevel
+        from sqlalchemy.pool import StaticPool  # pylint: disable=import-outside-toplevel
+        engine = create_engine(
+            db_url,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        self._test_engine = engine
+        session_module._engine = engine  # pylint: disable=protected-access
+        session_module._session_factory = None  # pylint: disable=protected-access
+
+        from infra.db.models import Base  # pylint: disable=import-outside-toplevel
+        Base.metadata.create_all(engine)
+
         # Create a test config file
         self.config_file = Path(self.temp_file_dir) / "test_config.ini"
         self.config_file.write_text(f"""[artifact_store]
@@ -83,8 +109,8 @@ base_path = {self.temp_file_dir}/artifacts
     def test_parse_catalog_creates_artifacts_on_file_store(self) -> None:  # pylint: disable=too-many-locals
         """Test that parse catalog creates artifact files on file store."""
         # Load a valid catalog from fixtures
-        fixtures_dir = Path(__file__).parent.parent.parent.parent
-        catalog_fixture_path = fixtures_dir / "fixtures" / "catalogs" / "catalog_rhel.json"
+        project_root = Path(__file__).parent.parent.parent.parent.parent
+        catalog_fixture_path = project_root / "core" / "catalog" / "test_fixtures" / "catalog_rhel.json"
         with open(catalog_fixture_path, "r", encoding="utf-8") as f:
             catalog_data = json.load(f)
 

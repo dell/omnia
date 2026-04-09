@@ -56,7 +56,10 @@ def client(tmp_path):
     importlib.reload(infra.db.session)
     session_module = infra.db.session
     
-    engine = session_module._get_engine()
+    from sqlalchemy import create_engine
+    engine = create_engine(db_url)
+    session_module._engine = engine
+    session_module._session_factory = None
     Base.metadata.create_all(engine)
     
     from fastapi.testclient import TestClient
