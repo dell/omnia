@@ -1,7 +1,7 @@
 #!/bin/bash
 # Restart API Test Script
 BASE="https://100.10.0.80:8010"
-AUTH=$(echo -n "admin:dell1234" | base64)
+AUTH=$(echo -n "dell1234:dell1234" | base64)
 
 echo "=== Step 1: Register client ==="
 CLIENT_RESPONSE=$(curl -sk -X POST "$BASE/api/v1/auth/register" \
