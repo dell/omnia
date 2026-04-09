@@ -31,7 +31,7 @@ spec:
   
   # Pod metrics endpoints
   podMetricsEndpoints:
-    - port: "{{ vmagent.metrics_port }}"
+    - port: "victoriapump"
       interval: {{ vmagent.global.scrape_interval }}
       honorLabels: true
       

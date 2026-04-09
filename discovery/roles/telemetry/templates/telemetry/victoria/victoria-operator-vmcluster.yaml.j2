@@ -113,8 +113,9 @@ spec:
       tag: {{ victoria_cluster.vmselect.image.split(':')[1] }}
       pullPolicy: IfNotPresent
 
-    # External access via LoadBalancer
+    # External access via LoadBalancer (useAsDefault merges into the main service)
     serviceSpec:
+      useAsDefault: true
       spec:
         type: LoadBalancer
     
@@ -232,8 +233,9 @@ spec:
 {% endif %}
 {% if victoria_cluster.vminsert.external_access %}
     
-    # External access via LoadBalancer
+    # External access via LoadBalancer (useAsDefault merges into the main service)
     serviceSpec:
+      useAsDefault: true
       spec:
         type: LoadBalancer
 {% endif %}

@@ -72,6 +72,18 @@ DNS.23 = vmstorage-victoria-cluster-2.vmstorage-victoria-cluster.{{ telemetry_na
 IP.1 = 127.0.0.1
 EOF
 
+# Check if existing cert has the required operator-managed SANs
+# If SANs are stale (missing operator-managed names), force server cert regeneration
+# CA is preserved so external clients do not need to re-import it
+if [ -f "$CERT_FILE" ]; then
+  REQUIRED_SAN="vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local"
+  if ! openssl x509 -in "$CERT_FILE" -text -noout 2>/dev/null | grep -q "$REQUIRED_SAN"; then
+    echo "Existing certificate missing required SAN: $REQUIRED_SAN"
+    echo "Removing stale server cert/key/csr to force regeneration..."
+    rm -f "$CERT_KEY" "$CSR_FILE" "$CERT_FILE"
+  fi
+fi
+
 # Generate CA key
 if [ ! -f "$CA_KEY" ]; then
   echo "Generating CA key..."
