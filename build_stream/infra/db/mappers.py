@@ -34,7 +34,16 @@ from core.jobs.value_objects import (
     StageName,
     StageState,
 )
-from .models import AuditEventModel, IdempotencyKeyModel, JobModel, StageModel
+from core.image_group.entities import ImageGroup, Image
+from core.image_group.value_objects import ImageGroupId, ImageGroupStatus
+from .models import (
+    AuditEventModel,
+    IdempotencyKeyModel,
+    ImageGroupModel,
+    ImageModel,
+    JobModel,
+    StageModel,
+)
 
 
 class JobMapper:
@@ -218,4 +227,86 @@ class AuditEventMapper:
             client_id=ClientId(model.client_id),
             timestamp=model.timestamp,
             details=model.details if model.details else {},
+        )
+
+
+class ImageGroupMapper:
+    """Mapper for ImageGroup entity ↔ ImageGroupModel ORM."""
+
+    @staticmethod
+    def to_orm(entity: ImageGroup) -> ImageGroupModel:
+        """Convert ImageGroup domain entity to ORM model.
+
+        Args:
+            entity: ImageGroup domain entity.
+
+        Returns:
+            ImageGroupModel ORM instance.
+        """
+        return ImageGroupModel(
+            id=str(entity.id),
+            job_id=str(entity.job_id),
+            status=entity.status.value,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+        )
+
+    @staticmethod
+    def to_domain(model: ImageGroupModel) -> ImageGroup:
+        """Convert ImageGroupModel ORM to ImageGroup domain entity.
+
+        Args:
+            model: ImageGroupModel ORM instance.
+
+        Returns:
+            ImageGroup domain entity.
+        """
+        images = [ImageMapper.to_domain(img) for img in model.images]
+        return ImageGroup(
+            id=ImageGroupId(model.id),
+            job_id=JobId(model.job_id),
+            status=ImageGroupStatus(model.status),
+            images=images,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+        )
+
+
+class ImageMapper:
+    """Mapper for Image entity ↔ ImageModel ORM."""
+
+    @staticmethod
+    def to_orm(entity: Image) -> ImageModel:
+        """Convert Image domain entity to ORM model.
+
+        Args:
+            entity: Image domain entity.
+
+        Returns:
+            ImageModel ORM instance.
+        """
+        return ImageModel(
+            id=entity.id,
+            image_group_id=entity.image_group_id,
+            role=entity.role,
+            image_name=entity.image_name,
+            created_at=entity.created_at,
+        )
+
+    @staticmethod
+    def to_domain(model: ImageModel) -> Image:
+        """Convert ImageModel ORM to Image domain entity.
+
+        Args:
+            model: ImageModel ORM instance.
+
+        Returns:
+            Image domain entity.
+        """
+        return Image(
+            id=model.id,
+            image_group_id=model.image_group_id,
+            role=model.role,
+            image_name=model.image_name,
+            created_at=model.created_at,
         )

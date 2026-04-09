@@ -110,3 +110,6 @@ omnia_credentials:
   ldms:
     mandatory:
       - { password: ldms_sampler_password }
+  discovery:
+    mandatory:
+      - { username: ome_username, password: ome_password }

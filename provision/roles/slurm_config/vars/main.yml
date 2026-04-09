@@ -1,0 +1,193 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+ctld_list: []
+cmpt_list: []
+login_list: []
+dbd_list: []
+conf_files: # Must match this MASTER list
+  - slurm
+  - slurmdbd
+  - cgroup
+  - gres
+  - acct_gather
+  - helpers
+  - job_container
+  - mpi
+  - oci
+  - topology
+  - burst_buffer
+
+# Supported configuration files are:
+  # slurm.conf
+  # slurmdbd.conf
+  # cgroup.conf
+  # gres.conf
+  # acct_gather.conf
+  # helpers.conf
+  # job_container.conf
+  # mpi.conf
+  # oci.conf
+  # topology.conf
+  # burst_buffer.conf
+
+# Non Conf files
+  # topology.yaml
+  # namespace.yaml
+  # plugstack.conf
+  # scrun.lua
+  # cli_filter.lua
+
+copy_from_oim: false
+common_dir:
+  - /etc/munge
+ctld_dir:
+  - /etc/slurm
+db_dir:
+  - /etc/my.cnf.d
+  - /var/lib/mysql
+  - /var/log/mariadb
+cmpt_dir:
+  - /etc/slurm/epilog.d
+
+innodb_buffer_pool_size: 4G
+innodb_lock_wait_timeout: 900
+conf_server: "--conf-server {{ ctld_list | join(',') }}"
+# TODO tmp
+nodes_yaml: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir/nodes/nodes.yaml"
+bmc_username: "{{ hostvars['localhost']['bmc_username'] }}"
+bmc_password: "{{ hostvars['localhost']['bmc_password'] }}"
+clear_slurm_files: false
+conf_in_nfs: true
+input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
+cluster_name: cluster # TODO: direct load vars omnia_config.yml
+slurm_uid: 6001
+slurm_user: slurm
+slurm_user_group: slurm
+restart_slurm_services: "{{ hostvars['localhost']['restart_slurm_services'] | default(true) }}"
+slurm_db_username: "{{ hostvars['localhost']['slurm_db_username'] | default('dbuser') }}"
+slurm_db_password: "{{ hostvars['localhost']['slurm_db_password'] }}"
+slurm_db_host: "{{ hostvars['localhost']['slurm_db_host'] | default(false) }}"
+slurm_db_port: "{{ hostvars['localhost']['slurm_db_port'] | default(3306) }}"
+slurm_db_type: "{{ hostvars['localhost']['slurm_db_type'] | default('mariadb') }}"
+# share_path: "{{ hostvars['localhost']['share_path'] }}" # TODO: direct load vars omnia_config.yml
+slurm_support: "{{ hostvars['localhost']['slurm_support'] }}"
+slurm_share_prefix: "/"
+slurm_config_dir: etc/slurm
+slurm_dir_name: "slurm"
+slurm_dbd_port: 6819
+slurm_dbd_db_username: "{{ slurm_user }}"
+slurmdbd_conf_path: "/etc/slurm/slurmdbd.conf"
+slurm_db_login_unix_socket: /var/lib/mysql/mysql.sock
+slurm_mysql_cnf_path: /etc/my.cnf.d/mysql-server.cnf
+slurm_mariadb_cnf_path: /etc/my.cnf.d/mariadb-server.cnf
+slurm_partition_name: normal
+nfs_share_slurm: "nfs_share"
+configless_slurm: "configless"
+mariadb: mariadb
+mysql: mysql
+root_user: root
+root_group: root
+plugin_slurm_dir: "/usr/lib64/slurm"
+munge_key_cmd: "dd if=/dev/urandom bs=1 count=1024"
+slurm_ctld_parameters: ['enable_configless']
+partitions: {}
+_clean_before_install: false
+_force_install_nfs: true
+installroot: "/"
+conf_file_mode: "0644"
+slurm_mode: "0644"
+munge_mode: "0400"
+munge_dir_mode: "0700"
+common_mode: "0755"
+slurm_dbd_mode: "0600"
+slurm_db_cnf_mode: "0600"
+node_drain_timeout: 900
+node_drain_delay: 30
+force_scancel_node: false
+_no_log: true
+dbd_slurm_conf:
+  AccountingStoragePort: "{{ slurm_dbd_port }}"
+  AccountingStorageType: accounting_storage/slurmdbd
+partition_params:
+  PartitionName: "{{ slurm_partition_name }}"
+  Nodes: "{{ cmpt_list | join(',') if cmpt_list else slurm_partition_name }}"
+  MaxTime: "INFINITE"
+  State: "UP"
+  Default: "YES"
+busy_nodes: {}
+openldap_dir_name: "openldap/"
+software_config_file: "{{ input_project_dir }}/software_config.json"
+omnia_run_tags: "{{ hostvars['localhost']['omnia_run_tags'] }}"
+auth_tls_certs_path: "/opt/omnia/auth/tls_certs/ldapserver.crt"
+slurm_installation_type: configless
+pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
+controller_empty_msg: "Slurm controller functional group is missing from PXE mapping file. Please update the file and rerun provision.yml."
+download_container_image_path: "{{ slurm_config_path }}/hpc_tools/scripts/download_container_image.sh"
+container_image_list_path: "{{ slurm_config_path }}/hpc_tools/scripts/container_image.list"
+pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+packages_base_dir_x86_64: "{{ slurm_config_path }}/packages/x86_64"
+packages_base_dir_aarch64: "{{ slurm_config_path }}/packages/aarch64"
+offline_repo_basepath_x86_64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso"
+offline_repo_basepath_aarch64: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso"
+packages_layout_x86_64:
+  - cuda
+packages_layout_aarch64:
+  - cuda
+print_copy_msg: "Copying {{ item.name }} from {{ item.source_path }} to {{ item.dest_path }}"
+offline_path_x86_64: []
+offline_path_aarch64: []
+
+ssh_private_key_path: /root/.ssh/oim_rsa
+
+# nvidia sdk vars
+# Fully resolved tarball relative paths (no nested Jinja2)
+# nvidia sdk vars
+nvhpc_pkg_name_x86_64: "nvhpc_2025_2511_Linux_x86_64_cuda_13.0"
+nvhpc_pkg_name_aarch64: "nvhpc_2025_2511_Linux_aarch64_cuda_13.0"
+
+nvhpc_tarball_x86_64_relpath: "offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/{{ nvhpc_pkg_name_x86_64 }}/{{ nvhpc_pkg_name_x86_64 }}.tar.gz" # noqa: yaml[line-length]
+nvhpc_tarball_aarch64_relpath: "offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/tarball/{{ nvhpc_pkg_name_aarch64 }}/{{ nvhpc_pkg_name_aarch64 }}.tar.gz" # noqa: yaml[line-length]
+
+nvhpc_nfs_rel_dir: "hpc_tools/nvidia_sdk"
+
+# parallel file copy
+parallel_copy_max_workers: 4
+
+# ------------------------------------------------------------
+# Parallel Copy Candidates (Only path existence matters)
+# ------------------------------------------------------------
+
+parallel_copy_candidates:
+
+  # CUDA Runfile (aarch64 repo path)
+  - name: cuda_runfile_aarch64
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso/cuda-run/"
+    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
+
+  # CUDA Runfile (x86_64 repo path)
+  - name: cuda_runfile_x86_64
+    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso/cuda-run/"
+    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
+
+  # NVIDIA HPC SDK (x86_64 tarball extracted dir)
+  - name: nvhpc_sdk_x86_64
+    src: "{{ oim_shared_path }}/omnia/{{ nvhpc_tarball_x86_64_relpath | dirname }}/"
+    dest: "{{ slurm_config_path }}/hpc_tools/nvidia_sdk/"
+
+  - name: nvhpc_sdk_aarch64
+    src: "{{ oim_shared_path }}/omnia/{{ nvhpc_tarball_aarch64_relpath | dirname }}/"
+    dest: "{{ slurm_config_path }}/hpc_tools/nvidia_sdk/"
+
+backup_dir: "{{ slurm_config_path }}/{{ ctld_list[0] }}/etc/slurm/backup_{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '-') }}"

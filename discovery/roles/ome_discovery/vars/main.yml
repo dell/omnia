@@ -1,0 +1,55 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# OME API endpoints
+ome_session_url: "https://{{ ome_ip }}/api/SessionService/Sessions"
+ome_devices_url: "https://{{ ome_ip }}/api/DeviceService/Devices"
+ome_device_inventory_url: "https://{{ ome_ip }}/api/DeviceService/Devices({{ device_id }})/InventoryDetails"
+
+# Unified credential file (populated by get_config_credentials / prepare_oim)
+omnia_config_credentials_file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/omnia_config_credentials.yml"
+omnia_config_credentials_vault_key: "{{ input_project_dir | default(playbook_dir + '/../input') }}/.omnia_config_credentials_key"
+
+# Output file configuration
+pxe_mapping_output_file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/bmc_pxe_mapping_file.csv"
+pxe_mapping_headers: "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,BMC_HOSTNAME,IB_MAC,IB_IP"
+
+# Messages
+ome_credentials_prompt_msg: |
+  OME credentials are required for discovery.
+  Please provide the OME IP address, username, and password.
+
+ome_connection_success_msg: "Successfully connected to OME at {{ ome_ip }}"
+ome_connection_fail_msg: "Failed to connect to OME at {{ ome_ip }}. Please verify credentials and network connectivity."
+
+discovery_complete_msg:
+  - "============================================================"
+  - "OME Discovery Complete"
+  - "============================================================"
+  - "BMC PXE mapping file generated: {{ pxe_mapping_output_file }}"
+  - "Total servers discovered: {{ discovered_servers | length }}"
+  - ""
+  - "Next Steps:"
+  - "1. Review and edit the generated file:"
+  - "     {{ pxe_mapping_output_file }}"
+  - "2. Update HOSTNAME, FUNCTIONAL_GROUP_NAME, GROUP_NAME as needed."
+  - "3. Rename or copy the file to:"
+  - "     input/pxe_mapping_file.csv"
+  - "4. Run: ansible-playbook provision/provision.yml"
+  - "============================================================"
+
+no_servers_found_msg: |
+  No servers found in OME inventory.
+  Please verify that servers are discovered and managed by OME.

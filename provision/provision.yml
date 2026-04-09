@@ -1,0 +1,157 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Check if upgrade is in progress
+  ansible.builtin.import_playbook: ../utils/upgrade_checkup.yml
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+  vars:
+    openchami_vars_suppport: true
+    omnia_metadata_support: true
+
+- name: Set build_stream_job_id from environment variable
+  hosts: localhost
+  connection: local
+  tags: always
+  tasks:
+    - name: Include build_stream config file
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+      failed_when: false
+
+    - name: Set default for compute_image_suffix
+      ansible.builtin.set_fact:
+        compute_image_suffix: ""
+
+    - name: Include build_stream_prerequisite.yml
+      ansible.builtin.include_role:
+        name: provision_validations
+        tasks_from: build_stream_prerequisite.yml
+      when: enable_build_stream | default(false) | bool
+
+- name: Create oim group and provision group
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  vars:
+    oim_group: true
+  tags: always
+
+- name: Generate functional groups configuration
+  ansible.builtin.import_playbook: ../utils/generate_functional_groups.yml
+  tags: always
+
+- name: Set_fact for fetch omnia config credentials
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Set dynamic run tags including 'provision'
+      when: not config_file_status | default(false) | bool
+      ansible.builtin.set_fact:
+        omnia_run_tags: >-
+          {{
+            (
+              ansible_run_tags | default([]) +
+              ['provision', 'slurm', 'slurm_custom', 'security', 'csi_driver_powerscale', 'ldms', 'telemetry'] +
+              (
+                ['service_k8s']
+                if ( 'service_k8s' in (
+                    lookup('file', hostvars['localhost']['input_project_dir'] ~ '/software_config.json')
+                    | from_json).softwares | map(attribute='name') | list )
+                else []
+              )
+            ) | unique
+          }}
+        cacheable: true
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations
+  when: not config_file_status | default(false) | bool
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+
+- name: Invoke get_config_credentials.yml
+  when: not config_file_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+
+- name: Validate provision parameters
+  hosts: localhost
+  connection: local
+  roles:
+    - provision_validations
+
+- name: Validate OIM timezone
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Validate OIM timezone has not changed
+      ansible.builtin.include_role:
+        name: provision_validations
+        tasks_from: validate_oim_timezone.yml
+
+- name: Build cluster host lists from PXE mapping
+  hosts: localhost
+  connection: local
+  roles:
+    - passwordless_ssh
+
+- name: Configure OIM SSH from cluster host lists
+  hosts: oim
+  connection: ssh
+  roles:
+    - passwordless_ssh
+
+- name: Validate provision parameters
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Validate OpenLDAP container is running
+      ansible.builtin.include_role:
+        name: provision_validations
+        tasks_from: validate_openldap_container.yml
+      when: hostvars['localhost']['openldap_support']
+
+    - name: Image validation
+      ansible.builtin.include_role:
+        name: provision_validations
+        tasks_from: validate_image.yml
+      with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
+
+- name: Configure auth for openchami
+  hosts: oim
+  connection: ssh
+  tasks:
+    - name: Openchami cluster authentication
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/common/openchami_auth.yml"
+      vars:
+        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
+- name: Provision nodes, configure bss and cloud-init
+  hosts: oim
+  connection: ssh
+  pre_tasks:
+    - name: Provision nodes
+      ansible.builtin.include_role:
+        name: configure_ochami
+        tasks_from: provision_mapping_nodes.yml
+
+    - name: Read nodes.yaml and derive Omnia node facts
+      ansible.builtin.include_role:
+        name: passwordless_ssh
+        tasks_from: read_nodes_yaml.yml
+  roles:
+    - nfs_client
+    - k8s_config
+    - slurm_config
+    - openldap
+    - telemetry
+    - configure_ochami

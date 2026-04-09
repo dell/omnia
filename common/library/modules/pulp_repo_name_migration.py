@@ -35,8 +35,10 @@ Migration strategy (create-copy-switch):
       2. Copy all content from the old repo to the new repo (no re-sync).
       3. Create a new publication for the new repo.
       4. Create a new distribution with updated name and base_path.
-      5. Recreate the remote with the new name and the same URL/policy.
-      6. Delete the old distribution, publications, remote, and repo.
+      5. Rename the remote via REST API PATCH (preserves TLS certificates
+         and ``RemoteArtifact`` links for on-demand content).  Falls back
+         to delete+recreate with a post-migration sync if rename fails.
+      6. Delete the old distribution, publications, and repo.
     This preserves all existing content — nothing is re-downloaded.
 
     Content copy mechanism varies by repo type:
@@ -357,6 +359,86 @@ def _pulp_api_get(base_url: str, username: str, password: str,
         return {"ok": False, "status": 0, "body": {"error": str(exc)}}
 
 
+def _pulp_api_patch(base_url: str, username: str, password: str,
+                    uri: str, data: dict, logger) -> Dict[str, Any]:
+    """Make a PATCH request to the Pulp REST API.
+
+    Returns ``{"ok": True/False, "status": <int>, "body": <parsed_json>}``.
+    """
+    try:
+        parsed = urlparse(base_url)
+        auth = base64.b64encode(f"{username}:{password}".encode()).decode()
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Basic {auth}",
+        }
+
+        if parsed.scheme == "https":
+            context = ssl._create_unverified_context()
+            conn = http.client.HTTPSConnection(
+                parsed.hostname, parsed.port or 443, context=context, timeout=120
+            )
+        else:
+            conn = http.client.HTTPConnection(
+                parsed.hostname, parsed.port or 80, timeout=120
+            )
+
+        conn.request("PATCH", uri, body=json.dumps(data), headers=headers)
+        resp = conn.getresponse()
+        body_raw = resp.read().decode("utf-8", errors="replace")
+        conn.close()
+
+        body = {}
+        if body_raw.strip():
+            try:
+                body = json.loads(body_raw)
+            except (ValueError, TypeError):
+                body = {"raw": body_raw}
+
+        ok = resp.status in (200, 202)
+        if not ok:
+            logger.error("Pulp API PATCH %s returned %d: %s", uri, resp.status, body_raw[:500])
+
+        return {"ok": ok, "status": resp.status, "body": body}
+
+    except Exception as exc:
+        logger.error("Pulp API PATCH %s failed: %s", uri, exc)
+        return {"ok": False, "status": 0, "body": {"error": str(exc)}}
+
+
+def _rename_remote_via_api(old_remote_href: str, new_name: str, logger) -> bool:
+    """Rename a Pulp RPM remote via the REST API (PATCH).
+
+    Renaming (instead of delete + recreate) preserves all remote settings
+    including TLS certificates, client keys, and — critically — the
+    ``RemoteArtifact`` rows that link on-demand content to this remote.
+    Deleting the old remote would cascade-delete those rows, breaking
+    on-demand package serving for any ``pulp rpm copy``-ed content.
+
+    Returns ``True`` on success, ``False`` on failure.
+    """
+    creds = _load_pulp_credentials(logger)
+    if not creds:
+        logger.error("Cannot rename remote: no Pulp credentials")
+        return False
+
+    if not old_remote_href.endswith("/"):
+        old_remote_href += "/"
+
+    result = _pulp_api_patch(
+        creds["base_url"], creds["username"], creds["password"],
+        old_remote_href, {"name": new_name}, logger
+    )
+
+    if result["ok"]:
+        logger.info("Renamed remote %s -> '%s'", old_remote_href, new_name)
+        return True
+
+    logger.error("Failed to rename remote %s -> '%s': HTTP %d",
+                 old_remote_href, new_name, result["status"])
+    return False
+
+
 def _list_repo_content_via_api(version_href: str, logger) -> Optional[List[str]]:
     """List content hrefs for a repository version via Pulp REST API.
 
@@ -469,10 +551,16 @@ def _get_repo_info(repo_type: str, name: str, logger) -> Optional[Dict]:
     return safe_json_parse(res["stdout"], default=None)
 
 
-def _delete_old_repo_entities(repo_type: str, old_name: str, logger):
+def _delete_old_repo_entities(repo_type: str, old_name: str, logger,
+                              skip_remote: bool = False):
     """Best-effort deletion of old distribution, publications, remote, and repo.
 
     Called after the new-name entities have been successfully created.
+
+    Args:
+        skip_remote: If True, skip deleting the old remote.  Used when the
+            remote was already renamed (rather than recreated) to preserve
+            ``RemoteArtifact`` rows that link on-demand content to the remote.
     """
     cmd_maps = {
         "rpm": pulp_rpm_commands,
@@ -495,8 +583,8 @@ def _delete_old_repo_entities(repo_type: str, old_name: str, logger):
                 if href and "delete_publication" in cmds:
                     run_cmd(cmds["delete_publication"] % href, logger)
 
-    # 3. Delete old remote (best-effort)
-    if "delete_remote" in cmds:
+    # 3. Delete old remote (best-effort) — skip if it was renamed
+    if not skip_remote and "delete_remote" in cmds:
         run_cmd(cmds["delete_remote"] % shlex.quote(old_name), logger)
 
     # 4. Delete old repository
@@ -521,8 +609,13 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
          ``pulp rpm copy`` (no re-download required).
       3. Create a new publication for the new repo.
       4. Create a new distribution with the new name and updated base_path.
-      5. Recreate the remote with the new name (same URL, policy, certs).
-      6. Delete the old distribution, publications, remote, and repository.
+      5. Rename the remote via the Pulp REST API (PATCH) to preserve TLS
+         certificates and ``RemoteArtifact`` links (critical for on-demand
+         content).  Falls back to delete+recreate if rename fails.
+      6. Delete the old distribution, publications, and repository.
+         The old remote is only deleted if it could not be renamed.
+      7. If the remote had to be recreated (fallback), trigger a re-sync to
+         recreate ``RemoteArtifact`` entries for on-demand content.
     """
     results = []
 
@@ -694,39 +787,73 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
             logger.warning("Distribution creation for '%s' failed: %s",
                            new_name, dist_create_res["stderr"])
 
-        # -- Step 6: Recreate remote with new name ------------------------
+        # -- Step 6: Rename remote to new name (preserves certs and RemoteArtifacts)
+        #    Deleting and recreating a remote would cascade-delete all
+        #    RemoteArtifact rows that link on-demand content to that remote,
+        #    breaking package serving for repos synced with on_demand policy.
+        #    Renaming via the REST API PATCH avoids this problem entirely.
         old_remote = old_remote_map.get(old_name, {})
+        remote_renamed = False
         if old_remote:
-            remote_url = old_remote.get("url", "")
-            remote_policy = old_remote.get("policy", "on_demand")
-            ca_cert = old_remote.get("ca_cert", "")
-            client_cert = old_remote.get("client_cert", "")
-            client_key = old_remote.get("client_key", "")
+            old_remote_href = old_remote.get("pulp_href", "")
+            if old_remote_href:
+                remote_renamed = _rename_remote_via_api(old_remote_href, new_name, logger)
+                if remote_renamed:
+                    logger.info("Renamed remote '%s' -> '%s' (preserving certs and RemoteArtifacts)",
+                                old_name, new_name)
+                else:
+                    # Fallback: recreate remote (will lose certs and RemoteArtifacts)
+                    logger.warning("Remote rename failed for '%s'; falling back to delete+recreate "
+                                   "(WARNING: on-demand content may not be served until re-sync)",
+                                   old_name)
+                    remote_url = old_remote.get("url", "")
+                    remote_policy = old_remote.get("policy", "on_demand")
+                    ca_cert = old_remote.get("ca_cert", "")
+                    client_cert = old_remote.get("client_cert", "")
+                    client_key = old_remote.get("client_key", "")
 
-            if ca_cert and client_cert and client_key:
-                remote_create_cmd = (
-                    pulp_rpm_commands.get("create_remote_cert", "") % (
-                        shlex.quote(new_name), shlex.quote(remote_url),
-                        shlex.quote(remote_policy), shlex.quote(ca_cert),
-                        shlex.quote(client_cert), shlex.quote(client_key),
-                    )
-                )
-            else:
-                remote_create_cmd = (
-                    pulp_rpm_commands["create_remote"] % (
-                        shlex.quote(new_name), shlex.quote(remote_url),
-                        shlex.quote(remote_policy),
-                    )
-                )
-            remote_res = run_cmd(remote_create_cmd, logger)
-            if remote_res["rc"] != 0:
-                logger.warning("Remote recreation for '%s' failed: %s",
-                               new_name, remote_res["stderr"])
+                    if ca_cert and client_cert and client_key:
+                        remote_create_cmd = (
+                            pulp_rpm_commands.get("create_remote_cert", "") % (
+                                shlex.quote(new_name), shlex.quote(remote_url),
+                                shlex.quote(remote_policy), shlex.quote(ca_cert),
+                                shlex.quote(client_cert), shlex.quote(client_key),
+                            )
+                        )
+                    else:
+                        remote_create_cmd = (
+                            pulp_rpm_commands["create_remote"] % (
+                                shlex.quote(new_name), shlex.quote(remote_url),
+                                shlex.quote(remote_policy),
+                            )
+                        )
+                    remote_res = run_cmd(remote_create_cmd, logger)
+                    if remote_res["rc"] != 0:
+                        logger.warning("Remote recreation for '%s' failed: %s",
+                                       new_name, remote_res["stderr"])
 
         # -- Step 7: Delete remaining old entities (repo, publications, remote)
         #    Distribution already deleted above; _delete_old_repo_entities
         #    handles the rest (best-effort, skips if already gone).
-        _delete_old_repo_entities("rpm", old_name, logger)
+        #    Skip remote deletion if it was successfully renamed.
+        _delete_old_repo_entities("rpm", old_name, logger, skip_remote=remote_renamed)
+
+        # -- Step 8: Re-sync to recreate RemoteArtifacts (if remote was recreated)
+        #    When the remote was recreated (not renamed), RemoteArtifacts for
+        #    on-demand content were lost.  A sync recreates them without
+        #    re-downloading any content that already exists in the repo.
+        if not remote_renamed and old_remote:
+            logger.info("Triggering post-migration sync for '%s' to recreate RemoteArtifacts...",
+                        new_name)
+            sync_res = run_cmd(
+                pulp_rpm_commands["sync_repository"] % (
+                    shlex.quote(new_name), shlex.quote(new_name)
+                ), logger
+            )
+            if sync_res["rc"] != 0:
+                logger.warning("Post-migration sync for '%s' failed: %s. "
+                               "On-demand packages may not be served until a manual re-sync.",
+                               new_name, sync_res["stderr"])
 
         results.append({"name": old_name, "new_name": new_name,
                         "type": "rpm_repository", "status": "Success",
@@ -1509,8 +1636,7 @@ def run_module():
             module.exit_json(
                 changed=changed,
                 msg=(f"Migration completed: {success_count} renamed, "
-                     f"{skipped_count} skipped."
-                     f"See {log_dir}/{LOG_FILENAME} for details."),
+                     f"{skipped_count} skipped."),
                 results=all_results,
                 summary_table=table,
             )

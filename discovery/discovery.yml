@@ -1,4 +1,4 @@
-# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,146 +12,86 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Check if upgrade is in progress
-  ansible.builtin.import_playbook: ../utils/upgrade_checkup.yml
+# Discovery Playbook
+# Usage:
+#   ansible-playbook discovery/discovery.yml -e "discovery_mechanism=ome"
+#   ansible-playbook discovery/discovery.yml -e "discovery_mechanism=magellan"
 
 - name: Include input project directory
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
-  vars:
-    openchami_vars_suppport: true
-    omnia_metadata_support: true
 
-- name: Set build_stream_job_id from environment variable
+- name: Load discovery configuration
   hosts: localhost
   connection: local
-  tags: always
   tasks:
-    - name: Include build_stream config file
+    - name: Include discovery config file
       ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/build_stream_config.yml"
+        file: "{{ input_project_dir }}/discovery_config.yml"
       failed_when: false
 
-    - name: Set default for compute_image_suffix
-      ansible.builtin.set_fact:
-        compute_image_suffix: ""
-
-    - name: Include build_stream_prerequisite.yml
-      ansible.builtin.include_role:
-        name: discovery_validations
-        tasks_from: build_stream_prerequisite.yml
-      when: enable_build_stream | default(false) | bool
-
-- name: Create oim group and provision group
-  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+- name: BMC Discovery Playbook
+  hosts: localhost
+  connection: local
+  gather_facts: true
   vars:
-    oim_group: true
-  tags: always
+    discovery_mechanism: ""
+    supported_mechanisms:
+      - ome
+      - magellan
 
-- name: Generate functional groups configuration
-  ansible.builtin.import_playbook: ../utils/generate_functional_groups.yml
-  tags: always
-
-- name: Set_fact for fetch omnia config credentials
-  hosts: localhost
-  connection: local
-  tasks:
-    - name: Set dynamic run tags including 'provision'
-      when: not config_file_status | default(false) | bool
-      ansible.builtin.set_fact:
-        omnia_run_tags: >-
-          {{
-            (
-              ansible_run_tags | default([]) +
-              ['provision', 'slurm', 'slurm_custom', 'security', 'csi_driver_powerscale', 'ldms', 'telemetry'] +
-              (
-                ['service_k8s']
-                if ( 'service_k8s' in (
-                    lookup('file', hostvars['localhost']['input_project_dir'] ~ '/software_config.json')
-                    | from_json).softwares | map(attribute='name') | list )
-                else []
-              )
-            ) | unique
-          }}
-        cacheable: true
-
-- name: Invoke validate_config.yml to perform L1 and L2 validations
-  when: not config_file_status | default(false) | bool
-  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
-
-- name: Invoke get_config_credentials.yml
-  when: not config_file_status | default(false) | bool
-  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
-
-- name: Validate discovery parameters
-  hosts: localhost
-  connection: local
-  roles:
-    - discovery_validations
-
-- name: Validate OIM timezone
-  hosts: oim
-  connection: ssh
-  tasks:
-    - name: Validate OIM timezone has not changed
-      ansible.builtin.include_role:
-        name: discovery_validations
-        tasks_from: validate_oim_timezone.yml
-
-- name: Build cluster host lists from PXE mapping
-  hosts: localhost
-  connection: local
-  roles:
-    - passwordless_ssh
-
-- name: Configure OIM SSH from cluster host lists
-  hosts: oim
-  connection: ssh
-  roles:
-    - passwordless_ssh
-
-- name: Validate discovery parameters
-  hosts: oim
-  connection: ssh
-  tasks:
-    - name: Validate OpenLDAP container is running
-      ansible.builtin.include_role:
-        name: discovery_validations
-        tasks_from: validate_openldap_container.yml
-      when: hostvars['localhost']['openldap_support']
-
-    - name: Image validation
-      ansible.builtin.include_role:
-        name: discovery_validations
-        tasks_from: validate_image.yml
-      with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
-
-- name: Configure auth for openchami
-  hosts: oim
-  connection: ssh
-  tasks:
-    - name: Openchami cluster authentication
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/common/openchami_auth.yml"
-      vars:
-        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
-
-- name: Discover nodes, configure bss and cloud-init
-  hosts: oim
-  connection: ssh
   pre_tasks:
-    - name: Discover nodes
-      ansible.builtin.include_role:
-        name: configure_ochami
-        tasks_from: discover_mapping_nodes.yml
+    - name: Display usage information when no discovery_mechanism is specified
+      when: discovery_mechanism == ""
+      block:
+        - name: Show usage prompt
+          ansible.builtin.debug:
+            msg:
+              - "============================================================"
+              - "Usage: ansible-playbook discovery.yml"
+              - "       -e discovery_mechanism=<mechanism>"
+              - ""
+              - "Please specify a discovery_mechanism parameter."
+              - ""
+              - "Supported discovery mechanisms:"
+              - "  - ome      : Dell OpenManage Enterprise (OME)"
+              - "  - magellan : Magellan (upcoming, not yet supported)"
+              - ""
+              - "Examples:"
+              - "  ansible-playbook discovery.yml -e discovery_mechanism=ome"
+              - "  ansible-playbook discovery.yml -e discovery_mechanism=magellan"
+              - "============================================================"
 
-    - name: Read nodes.yaml and derive Omnia node facts
-      ansible.builtin.include_role:
-        name: passwordless_ssh
-        tasks_from: read_nodes_yaml.yml
-  roles:
-    - nfs_client
-    - k8s_config
-    - slurm_config
-    - openldap
-    - telemetry
-    - configure_ochami
+        - name: End play when no discovery_mechanism specified
+          ansible.builtin.meta: end_play
+
+    - name: Validate discovery_mechanism parameter
+      ansible.builtin.fail:
+        msg: |
+          Invalid discovery_mechanism '{{ discovery_mechanism }}' specified.
+          Supported mechanisms are: {{ supported_mechanisms | join(', ') }}.
+          Usage: ansible-playbook discovery.yml -e discovery_mechanism=ome
+      when: discovery_mechanism not in supported_mechanisms
+
+  tasks:
+    - name: Handle Magellan discovery mechanism
+      when: discovery_mechanism == 'magellan'
+      block:
+        - name: Display Magellan not supported message
+          ansible.builtin.debug:
+            msg:
+              - "============================================================"
+              - "NOTICE: Magellan Discovery"
+              - "============================================================"
+              - "This is an upcoming functionality and is not yet supported."
+              - "Please use 'ome' as the discovery_mechanism for now."
+              - "============================================================"
+        - name: End play for magellan
+          ansible.builtin.meta: end_play
+
+    - name: Handle OME discovery mechanism
+      when: discovery_mechanism == 'ome'
+      block:
+        - name: Include OME discovery role
+          ansible.builtin.include_role:
+            name: ome_discovery
