@@ -2,6 +2,11 @@ kubectl apply -f {{ k8s_client_mount_path }}/telemetry/deployments/telemetry_nam
 {% if kafka_support %}
 helm -n telemetry install strimzi-cluster-operator {{ k8s_client_mount_path }}/telemetry/{{ strimzi_kafka_pkg }}.tar.gz
 {% endif %}
+{% if 'victoria' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',') %}
+helm -n telemetry install victoria-metrics-operator {{ k8s_client_mount_path }}/telemetry/{{ victoria_operator_pkg }}.tar.gz
+echo "Waiting for victoria-metrics-operator to be ready..."
+kubectl wait --for=condition=available --timeout=300s deployment -l app.kubernetes.io/name=victoria-metrics-operator -n telemetry || true
+{% endif %}
 kubectl apply -k {{ k8s_client_mount_path }}/telemetry/deployments/.
 {% if hostvars['localhost']['ldms_support'] %}
 kubectl create secret generic nersc-ldms-ovis-auth   --from-file=ldmsauth.conf={{ k8s_client_mount_path }}/telemetry/ldms/ldmsauth.conf   --dry-run=client -o yaml | kubectl apply -f  - -n telemetry

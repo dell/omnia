@@ -115,6 +115,19 @@
         dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/{{ strimzi_kafka_pkg }}.tar.gz"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
 
+- name: Victoria Metrics operator configuration
+  when: "'victoria' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')"
+  block:
+    - name: Extract and set facts for tarball URLs for victoria metrics operator
+      ansible.builtin.set_fact:
+        victoria_operator_pkg: "{{ k8s_packages_json['service_k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'victoria-metrics-operator') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+
+    - name: Download victoria metrics operator tarball
+      ansible.builtin.get_url:
+        url: "{{ victoria_operator_tarball_url }}"
+        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/{{ victoria_operator_pkg }}.tar.gz"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+
 - name: Populate common telemetry deployment configs
   ansible.builtin.template:
     src: "{{ item.src }}"

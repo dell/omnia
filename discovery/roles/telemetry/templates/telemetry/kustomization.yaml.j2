@@ -2,23 +2,24 @@ resources:
   - telemetry_secret_creation.yaml
 {% set types = hostvars['localhost']['idrac_telemetry_collection_type'].split(',') %}
 {% if 'victoria' in types %}
-  # VictoriaMetrics Common Resources
-  - victoria-tls-secret.yaml
+  # VictoriaMetrics Common Resources (RBAC)
   - victoria-vmagent-rbac.yaml
-  - vmagent-scrape-config.yaml
-  - victoria-agent-deployment.yaml
-  # VictoriaMetrics Deployment (mode: {{ hostvars['localhost']['victoria_configurations']['deployment_mode'] }})
-{% if hostvars['localhost']['victoria_configurations']['deployment_mode'] == 'cluster' %}
-  # Cluster Mode: High-availability deployment
-  - victoria-cluster-vmstorage.yaml
-  - victoria-cluster-vminsert.yaml
-  - victoria-cluster-vmselect.yaml
-{% else %}
-  # Single-Node Mode: Simple deployment
-  - victoria-statefulset.yaml
+{% if victoria_cluster.tls_enabled | default(false) %}
+  # TLS secret for VictoriaMetrics cluster components
+  - victoria-tls-secret.yaml
 {% endif %}
-  # Uncomment to deploy VictoriaMetrics TLS test job
-  # - test/victoria-tls-test-job.yaml
+  # VictoriaMetrics Operator-based Deployment (mode: {{ hostvars['localhost']['victoria_configurations']['deployment_mode'] }})
+{% if hostvars['localhost']['victoria_configurations']['deployment_mode'] == 'cluster' %}
+  # Cluster Mode: VMCluster CR (operator manages StatefulSets)
+  - victoria-operator-vmcluster.yaml
+{% else %}
+  # Single-Node Mode: VMSingle CR (operator manages StatefulSet)
+  - victoria-operator-vmsingle.yaml
+{% endif %}
+  # VMAgent CR (operator-managed scraper)
+  - victoria-operator-vmagent.yaml
+  # VMPodScrape CR (native operator-based pod discovery)
+  - victoria-operator-vmpodscrape.yaml
 {% endif %}
 {% if kafka_support %}
   - kafka.kafka.yaml

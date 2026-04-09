@@ -52,23 +52,23 @@ DNS.5 = victoria-metric-0
 DNS.6 = victoria-metric-0.{{ telemetry_namespace }}
 DNS.7 = victoria-metric-0.{{ telemetry_namespace }}.svc
 DNS.8 = victoria-metric-0.{{ telemetry_namespace }}.svc.cluster.local
-# Cluster deployment names
-DNS.9 = vminsert
-DNS.10 = vminsert.{{ telemetry_namespace }}
-DNS.11 = vminsert.{{ telemetry_namespace }}.svc
-DNS.12 = vminsert.{{ telemetry_namespace }}.svc.cluster.local
-DNS.13 = vmselect
-DNS.14 = vmselect.{{ telemetry_namespace }}
-DNS.15 = vmselect.{{ telemetry_namespace }}.svc
-DNS.16 = vmselect.{{ telemetry_namespace }}.svc.cluster.local
-DNS.17 = vmstorage
-DNS.18 = vmstorage.{{ telemetry_namespace }}
-DNS.19 = vmstorage.{{ telemetry_namespace }}.svc
-DNS.20 = vmstorage.{{ telemetry_namespace }}.svc.cluster.local
-# VMStorage StatefulSet pods
-DNS.21 = vmstorage-0.vmstorage.{{ telemetry_namespace }}.svc.cluster.local
-DNS.22 = vmstorage-1.vmstorage.{{ telemetry_namespace }}.svc.cluster.local
-DNS.23 = vmstorage-2.vmstorage.{{ telemetry_namespace }}.svc.cluster.local
+# Cluster deployment names (operator-managed)
+DNS.9 = vminsert-victoria-cluster
+DNS.10 = vminsert-victoria-cluster.{{ telemetry_namespace }}
+DNS.11 = vminsert-victoria-cluster.{{ telemetry_namespace }}.svc
+DNS.12 = vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.13 = vmselect-victoria-cluster
+DNS.14 = vmselect-victoria-cluster.{{ telemetry_namespace }}
+DNS.15 = vmselect-victoria-cluster.{{ telemetry_namespace }}.svc
+DNS.16 = vmselect-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.17 = vmstorage-victoria-cluster
+DNS.18 = vmstorage-victoria-cluster.{{ telemetry_namespace }}
+DNS.19 = vmstorage-victoria-cluster.{{ telemetry_namespace }}.svc
+DNS.20 = vmstorage-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
+# VMStorage StatefulSet pods (operator-managed)
+DNS.21 = vmstorage-victoria-cluster-0.vmstorage-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.22 = vmstorage-victoria-cluster-1.vmstorage-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.23 = vmstorage-victoria-cluster-2.vmstorage-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
 IP.1 = 127.0.0.1
 EOF
 

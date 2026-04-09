@@ -17,6 +17,15 @@ victoria_namespace: "telemetry"
 victoria_output_file: "/opt/omnia/telemetry/external_victoria_connect_details.yml"
 victoria_tls_cert_dir: "/opt/omnia/telemetry/victoria-certs"
 
+# Operator-managed service names (derived from VMCluster CR name "victoria-cluster")
+victoria_vminsert_svc: "vminsert-victoria-cluster"
+victoria_vmselect_svc: "vmselect-victoria-cluster"
+victoria_vmstorage_svc: "vmstorage-victoria-cluster"
+
+# TLS configuration (must match victoria_cluster.tls_enabled in telemetry role)
+victoria_tls_enabled: true
+victoria_url_scheme: "{{ 'https' if victoria_tls_enabled else 'http' }}"
+
 victoria_err_mode_not_supported: >-
   Victoria deployment mode detected: {{ victoria_deployment_mode }}.
   External integration is supported only for Victoria cluster mode (vminsert/vmselect/vmstorage).
@@ -27,7 +36,7 @@ victoria_err_pods_not_running: "One or more Victoria pods are not in Running sta
 victoria_err_pods_not_ready: "One or more Victoria pods are not Ready."
 
 victoria_err_lb_missing: >-
-  Failed to fetch Victoria LoadBalancer IP(s). Ensure services 'vminsert' and 'vmselect'
+  Failed to fetch Victoria LoadBalancer IP(s). Ensure services '{{ victoria_vminsert_svc }}' and '{{ victoria_vmselect_svc }}'
   exist in namespace '{{ victoria_namespace }}' and have external IPs assigned.
 
 victoria_preflight_err_ha_config_missing: >-

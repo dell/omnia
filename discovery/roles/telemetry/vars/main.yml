@@ -173,11 +173,16 @@ vmagent:
   # Single-node URL
   remote_write_url: "https://victoria-loadbalancer.telemetry.svc.cluster.local:8443/api/v1/write"
   # Cluster URL (used when victoria_cluster.enabled: true)
-  remote_write_url_cluster: >
-    {% if victoria_cluster.tls_enabled %}https{% else %}
-    http{% endif %}://vminsert.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
+  # Operator creates service as vminsert-victoria-cluster (not vminsert)
+  # Protocol depends on tls_enabled: https when TLS is on, http otherwise
+  remote_write_url_cluster: >-
+    {{ 'https' if victoria_cluster.tls_enabled else 'http' }}://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
 
 strmzi_kafka_tarball_url: "{{ offline_tarball_path }}/{{ strimzi_kafka_pkg }}/{{ strimzi_kafka_pkg }}.tar.gz"
+
+# Victoria Metrics operator tarball configuration
+victoria_operator_pkg: "victoria-metrics-operator-0.57.1"
+victoria_operator_tarball_url: "{{ offline_tarball_path }}/{{ victoria_operator_pkg }}/{{ victoria_operator_pkg }}.tar.gz"
 
 # Usage: validate_idrac_inventory.yml
 bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
@@ -193,30 +198,42 @@ common_mode: "0755"
 # Usage: generate_telemetry_deployments.yml - Template lists for different components
 # Victoria templates - conditional based on victoria_cluster.enabled
 victoria_templates_common:
-  - src: 'telemetry/victoria/victoria-tls-secret.yaml.j2'
-    dest: 'victoria-tls-secret.yaml'
   - src: 'telemetry/victoria/victoria-vmagent-rbac.yaml.j2'
     dest: 'victoria-vmagent-rbac.yaml'
-  - src: 'telemetry/victoria/vmagent-scrape-config.yaml.j2'
-    dest: 'vmagent-scrape-config.yaml'
-  - src: 'telemetry/victoria/victoria-agent-deployment.yaml.j2'
-    dest: 'victoria-agent-deployment.yaml'
+
+# Operator-based templates (new default)
+# Single-node operator template (used when victoria_cluster.enabled: false)
+victoria_templates_operator_single:
+  - src: 'telemetry/victoria/victoria-operator-vmsingle.yaml.j2'
+    dest: 'victoria-operator-vmsingle.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmagent.yaml.j2'
+    dest: 'victoria-operator-vmagent.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmpodscrape.yaml.j2'
+    dest: 'victoria-operator-vmpodscrape.yaml'
+
+# Cluster operator template (used when victoria_cluster.enabled: true)
+victoria_templates_operator_cluster:
+  - src: 'telemetry/victoria/victoria-operator-vmcluster.yaml.j2'
+    dest: 'victoria-operator-vmcluster.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmagent.yaml.j2'
+    dest: 'victoria-operator-vmagent.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmpodscrape.yaml.j2'
+    dest: 'victoria-operator-vmpodscrape.yaml'
+
+# Legacy manual deployment templates (removed - use operator-based templates above)
+# Raw victoria-cluster-vminsert/vmselect/vmstorage.yaml.j2 files have been removed
+# in favor of the operator-managed victoria-operator-vmcluster.yaml.j2
 
 idrac_telemetry_statefulset_path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/idrac_telemetry_statefulset.yaml"
 
 # Single-node templates (used when victoria_cluster.enabled: false)
 victoria_templates_single:
+  - src: 'telemetry/victoria/victoria-tls-secret.yaml.j2'
+    dest: 'victoria-tls-secret.yaml'
   - src: 'telemetry/victoria/victoria-statefulset.yaml.j2'
     dest: 'victoria-statefulset.yaml'
-
-# Cluster templates (used when victoria_cluster.enabled: true)
-victoria_templates_cluster:
-  - src: 'telemetry/victoria/victoria-cluster-vmstorage.yaml.j2'
-    dest: 'victoria-cluster-vmstorage.yaml'
-  - src: 'telemetry/victoria/victoria-cluster-vminsert.yaml.j2'
-    dest: 'victoria-cluster-vminsert.yaml'
-  - src: 'telemetry/victoria/victoria-cluster-vmselect.yaml.j2'
-    dest: 'victoria-cluster-vmselect.yaml'
+  - src: 'telemetry/victoria/victoria-agent-deployment.yaml.j2'
+    dest: 'victoria-agent-deployment.yaml'
 
 # Test job template (optional)
 victoria_templates_test:
@@ -227,7 +244,7 @@ victoria_templates_test:
 # Note: victoria_templates_test is commented out by default in kustomization.yaml.j2
 victoria_templates: >
   {{ victoria_templates_common +
-     (victoria_templates_cluster if victoria_cluster.enabled else victoria_templates_single) +
+     (victoria_templates_operator_cluster if victoria_cluster.enabled else victoria_templates_operator_single) +
      victoria_templates_test }}
 
 kafka_templates:
@@ -278,3 +295,42 @@ ldms_pod_not_ready_msg: "WARNING: LDMS aggregator pod did not become ready withi
 ldms_store_pod_ready_msg: "LDMS store daemon pod restarted successfully and is ready"
 ldms_store_pod_not_ready_msg: "LDMS store daemon pod restart failed or not ready within timeout"
 ldms_store_restart_wait_seconds: 10
+
+# ============================================================================
+# PowerScale Telemetry Configuration
+# ============================================================================
+# Usage: deploy_powerscale_metrics.yml
+# PowerScale telemetry is deployed via Helm chart (karavi-observability).
+# The Helm chart deploys CSM Metrics PowerScale, OTEL Collector, and all
+# associated Kubernetes resources. No per-cluster Kustomize manifests needed.
+# PowerScale metrics are scraped by the existing shared vmagent.
+
+# Karavi Observability offline installer variables
+# All files are on the NFS share at {{ k8s_client_mount_path }}/karavi-observability/
+karavi_observability_git: "karavi-observability.tar.gz"
+karavi_helm_charts_git: "helm-charts.tar.gz"
+karavi_helm_chart_path: "{{ k8s_client_mount_path }}/karavi-observability/helm-charts/charts/karavi-observability"
+permission_644: "0644"
+
+# Internal namespace constants (not user-configurable)
+csm_namespace: "telemetry"
+csi_driver_namespace: "isilon"
+
+# Usage: deploy_powerscale_metrics.yml - messages
+ps_csi_driver_not_configured_msg: >-
+  PowerScale telemetry requires csi_driver_powerscale to be configured in software_config.json.
+  Please add csi_driver_powerscale to software_config.json and re-run.
+ps_cert_manager_disabled_msg: >-
+  cert-manager must be enabled in the CSM Observability Helm values file.
+  Set 'cert-manager.enabled: true' in {{ ps_helm_values_file }}.
+  cert-manager is required for automatic TLS certificate management (otel-collector-tls secret).
+ps_auth_mode_direct_msg: "PowerScale telemetry authentication mode: Direct Authentication (Mode A)"
+ps_auth_mode_karavi_msg: "PowerScale telemetry authentication mode: Karavi Authorization (Mode B)"
+ps_csi_secret_read_fail_msg: >-
+  Failed to load CSI PowerScale driver secret from '{{ ps_csi_secret_path }}'.
+  Please verify the file exists and contains valid isilonClusters configuration.
+ps_no_clusters_found_msg: >-
+  No PowerScale clusters found in CSI driver secret.yaml.
+  Please define at least one cluster in isilonClusters.
+ps_clusters_found_msg: >-
+  Found {{ ps_clusters | default([]) | length }} PowerScale cluster(s) for telemetry deployment.
