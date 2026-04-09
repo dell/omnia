@@ -89,6 +89,7 @@ PLAYBOOK_NAME_TO_PATH = {
     "build_image_x86_64.yml": "/omnia/build_image_x86_64/build_image_x86_64.yml",
     "discovery.yml": "/omnia/discovery/discovery.yml",
     "local_repo.yml": "/omnia/local_repo/local_repo.yml",
+    "set_pxe_boot.yml": "/omnia/utils/set_pxe_boot.yml",
 }
 
 # Logging configuration

@@ -836,6 +836,60 @@ class ParseCatalogDemo:
             inventory_host="182.10.0.170",
         )
 
+    def trigger_restart_stage(self):
+        """Trigger the restart stage (PXE-based node restart)."""
+        print("\n" + "="*60)
+        print("🔄 STEP 9: Trigger Restart Stage")
+        print("="*60)
+
+        if not self.job_id:
+            print("❌ No job_id available. Create a job before triggering this stage.")
+            return False
+
+        print(f"📍 Endpoint: POST {self.base_url}/api/v1/jobs/{self.job_id}/stages/restart")
+        print("📋 Headers:")
+        print(f"   Authorization: Bearer {self.access_token[:20]}...{self.access_token[-10:]}")
+        print("📋 Request Body: (none -- restart requires no parameters)")
+
+        self.wait_for_enter("Press ENTER to trigger restart stage...")
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/v1/jobs/{self.job_id}/stages/restart",
+                headers={"Authorization": f"Bearer {self.access_token}"},
+                timeout=60,
+                verify=False,
+            )
+
+            print(f"\n✅ Response Status: {response.status_code}")
+
+            if response.status_code in (200, 202):
+                result = response.json()
+                print("📋 Response Body:")
+                print(json.dumps(result, indent=2))
+                print("\n✅ Restart stage triggered!")
+                print("   The playbook watcher will execute set_pxe_boot.yml")
+
+                # Show links if present
+                links = result.get("_links", {})
+                if links:
+                    print("\n📎 HATEOAS Links:")
+                    for key, value in links.items():
+                        print(f"   {key}: {value}")
+
+                # Get job info after restart
+                self.get_job_info()
+                return True
+
+            print("📋 Response Body:")
+            print(response.text)
+            print("\n❌ Failed to trigger restart stage")
+            return False
+
+        except Exception as exc:
+            print(f"\n❌ Error: {exc}")
+            return False
+
     def run_demo(self):
         """Run the complete demo."""
         print("\n" + "="*60)
@@ -916,6 +970,10 @@ class ParseCatalogDemo:
             if not self.trigger_build_image_aarch64_stage():
                 return
 
+            # Step 9: Restart stage (PXE-based node restart)
+            if not self.trigger_restart_stage():
+                return
+
             print("\n" + "="*60)
             print("✅ Demo Completed Successfully!")
             print("="*60)
@@ -926,6 +984,7 @@ class ParseCatalogDemo:
             print(f"📦 Input Files Artifacts: {Path(self.build_stream_artifact_root) / 'input-files'}/")
             print("📦 Local Repository: Created via Ansible playbook")
             print("📦 Build Image Stage: Submitted for both x86_64 and aarch64")
+            print("📦 Restart Stage: Submitted (set_pxe_boot.yml)")
             print("="*60)
 
         except KeyboardInterrupt:

@@ -49,6 +49,7 @@ from orchestrator.jobs.use_cases import CreateJobUseCase
 from orchestrator.local_repo.use_cases import CreateLocalRepoUseCase
 from orchestrator.common.result_poller import ResultPoller
 from orchestrator.build_image.use_cases import CreateBuildImageUseCase
+from orchestrator.restart.use_cases import CreateRestartUseCase
 from orchestrator.validate.use_cases import ValidateImageOnTestUseCase
 
 from core.localrepo.services import (
@@ -122,6 +123,8 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
             "api.local_repo.dependencies",
             "api.build_image.routes",
             "api.build_image.dependencies",
+            "api.restart.routes",
+            "api.restart.dependencies",
             "api.validate.routes",
             "api.validate.dependencies",
             "api.parse_catalog.routes",
@@ -262,6 +265,15 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
+    create_restart_use_case = providers.Factory(
+        CreateRestartUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        queue_service=playbook_queue_request_service,
+        uuid_generator=uuid_generator,
+    )
+
     validate_image_on_test_use_case = providers.Factory(
         ValidateImageOnTestUseCase,
         job_repo=job_repository,
@@ -289,6 +301,8 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
             "api.local_repo.dependencies",
             "api.build_image.routes",
             "api.build_image.dependencies",
+            "api.restart.routes",
+            "api.restart.dependencies",
             "api.validate.routes",
             "api.validate.dependencies",
             "api.parse_catalog.routes",
@@ -419,6 +433,15 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         config_service=build_image_config_service,
         queue_service=playbook_queue_request_service,
         inventory_repo=input_repository,
+        uuid_generator=uuid_generator,
+    )
+
+    create_restart_use_case = providers.Factory(
+        CreateRestartUseCase,
+        job_repo=job_repository,
+        stage_repo=stage_repository,
+        audit_repo=audit_repository,
+        queue_service=playbook_queue_request_service,
         uuid_generator=uuid_generator,
     )
 
