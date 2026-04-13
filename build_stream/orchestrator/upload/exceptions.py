@@ -17,9 +17,7 @@
 
 class InvalidFilenameError(ValueError):
     """Raised when filename is not in allowed whitelist."""
-    pass
 
 
 class FileSizeExceededError(ValueError):
     """Raised when file size exceeds maximum limit."""
-    pass

@@ -25,7 +25,7 @@ from orchestrator.upload.results.upload_files import (
 
 class UploadSummarySchema(BaseModel):
     """Upload summary schema."""
-    
+
     total_files: int = Field(..., description="Total number of files uploaded")
     changed_files: int = Field(..., description="Number of files that were changed")
     unchanged_files: int = Field(..., description="Number of files that were unchanged")
@@ -33,7 +33,7 @@ class UploadSummarySchema(BaseModel):
 
 class UploadedFileSchema(BaseModel):
     """Uploaded file information schema."""
-    
+
     filename: str = Field(..., description="Name of the uploaded file")
     status: FileChangeStatus = Field(..., description="Change status (CHANGED or UNCHANGED)")
     size_bytes: int = Field(..., description="Size of the file in bytes")
@@ -41,18 +41,18 @@ class UploadedFileSchema(BaseModel):
 
 class UploadFilesResponse(BaseModel):
     """Upload files response schema."""
-    
+
     job_id: str = Field(..., description="Job identifier")
     upload_summary: UploadSummarySchema = Field(..., description="Summary of the upload operation")
     files: List[UploadedFileSchema] = Field(..., description="List of uploaded file information")
-    
+
     @classmethod
     def from_result(cls, result: UploadFilesResult) -> "UploadFilesResponse":
         """Convert use case result to API response.
-        
+
         Args:
             result: Upload files result from use case.
-            
+
         Returns:
             API response schema.
         """
@@ -72,7 +72,7 @@ class UploadFilesResponse(BaseModel):
                 for f in result.files
             ],
         )
-    
+
     class Config:
         """Pydantic config."""
         schema_extra = {

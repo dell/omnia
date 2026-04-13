@@ -17,8 +17,7 @@
 import logging
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 
 from api.upload.schemas import UploadFilesResponse
@@ -52,33 +51,33 @@ async def upload_files(
     use_case: UploadFilesUseCase = Depends(get_upload_files_use_case),
 ) -> UploadFilesResponse:
     """Upload configuration files to a job.
-    
+
     Args:
         job_id: Job identifier (UUID v7).
         files: List of files to upload.
         token_data: Token data from authentication (injected).
         correlation_id: Request correlation ID (injected).
         use_case: Upload files use case (injected).
-        
+
     Returns:
         Upload result with summary and file details.
-        
+
     Raises:
         HTTPException: On validation or processing errors.
     """
     try:
         # Extract client_id from token
         client_id = ClientId(token_data["client_id"])
-        
+
         # Parse job ID
         job_id_vo = JobId(job_id)
-        
+
         # Read file contents
         file_tuples = []
         for upload_file in files:
             content = await upload_file.read()
             file_tuples.append((upload_file.filename, content))
-        
+
         # Create command
         command = UploadFilesCommand(
             job_id=job_id_vo,
@@ -86,13 +85,33 @@ async def upload_files(
             client_id=client_id,
             correlation_id=correlation_id,
         )
-        
+
         # Execute use case
         result = use_case.execute(command)
-        
+
         # Convert to response schema
         return UploadFilesResponse.from_result(result)
-        
+
+    except InvalidFilenameError as e:
+        logger.warning("Invalid filename in upload: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "INVALID_FILENAME",
+                "message": str(e),
+            },
+        ) from e
+
+    except FileSizeExceededError as e:
+        logger.warning("File size exceeded: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "FILE_SIZE_EXCEEDED",
+                "message": str(e),
+            },
+        ) from e
+
     except ValueError as e:
         # Invalid JobId format
         logger.warning("Invalid job_id format: %s", job_id)
@@ -102,8 +121,8 @@ async def upload_files(
                 "error_code": "INVALID_JOB_ID",
                 "message": f"Invalid job ID format: {str(e)}",
             },
-        )
-    
+        ) from e
+
     except JobNotFoundError as e:
         logger.warning("Job not found: %s", job_id)
         raise HTTPException(
@@ -112,8 +131,8 @@ async def upload_files(
                 "error_code": "JOB_NOT_FOUND",
                 "message": str(e),
             },
-        )
-    
+        ) from e
+
     except TerminalStateViolationError as e:
         logger.warning("Job in terminal state: %s", job_id)
         raise HTTPException(
@@ -122,28 +141,8 @@ async def upload_files(
                 "error_code": "JOB_IN_TERMINAL_STATE",
                 "message": str(e),
             },
-        )
-    
-    except InvalidFilenameError as e:
-        logger.warning("Invalid filename in upload: %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error_code": "INVALID_FILENAME",
-                "message": str(e),
-            },
-        )
-    
-    except FileSizeExceededError as e:
-        logger.warning("File size exceeded: %s", str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error_code": "FILE_SIZE_EXCEEDED",
-                "message": str(e),
-            },
-        )
-    
+        ) from e
+
     except Exception as e:
         logger.error("Unexpected error in upload: %s", str(e), exc_info=True)
         raise HTTPException(
@@ -152,4 +151,4 @@ async def upload_files(
                 "error_code": "INTERNAL_ERROR",
                 "message": "An unexpected error occurred during upload",
             },
-        )
+        ) from e
