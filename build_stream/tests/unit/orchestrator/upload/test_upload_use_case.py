@@ -21,8 +21,8 @@ import pytest
 
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.value_objects import ArtifactRef, ArtifactKind, StoreHint, ArtifactDigest
-from core.jobs.entities import Job
-from core.jobs.value_objects import JobId, JobState
+from core.jobs.entities import Job, Stage
+from core.jobs.value_objects import JobId, JobState, StageName, StageType, StageState
 from core.jobs.exceptions import JobNotFoundError, TerminalStateViolationError
 
 from orchestrator.upload.use_cases.upload_files import (
@@ -36,6 +36,17 @@ from orchestrator.upload.exceptions import (
     InvalidFilenameError,
     FileSizeExceededError,
 )
+
+
+def _create_mock_upload_stage(job_id, state=StageState.PENDING):
+    """Helper to create a mock upload stage."""
+    stage = Mock(spec=Stage)
+    stage.job_id = job_id
+    stage.stage_name = StageName(StageType.UPLOAD.value)
+    stage.stage_state = state
+    stage.start = Mock()
+    stage.complete = Mock()
+    return stage
 
 
 class TestUploadFilesValidation:
@@ -118,10 +129,19 @@ class TestUploadFilesValidation:
     
     def _create_use_case(self):
         """Create use case with mocked dependencies."""
+        job_id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
+        stage = _create_mock_upload_stage(job_id)
+        
+        stage_repo = Mock()
+        stage_repo.find_by_job_and_name.return_value = stage
+        
         return UploadFilesUseCase(
             job_repository=Mock(),
+            stage_repository=stage_repo,
+            audit_repository=Mock(),
             artifact_store=Mock(),
             artifact_metadata_repo=Mock(),
+            uuid_generator=Mock(),
             config=Mock(artifact_store=Mock(max_file_size_bytes=5242880)),
         )
 
@@ -136,8 +156,11 @@ class TestUploadFilesJobValidation:
         
         use_case = UploadFilesUseCase(
             job_repository=job_repo,
+            stage_repository=Mock(),
+            audit_repository=Mock(),
             artifact_store=Mock(),
             artifact_metadata_repo=Mock(),
+            uuid_generator=Mock(),
             config=Mock(),
         )
         
@@ -201,14 +224,21 @@ class TestUploadFilesJobValidation:
         job_repo = Mock()
         job_repo.find_by_id.return_value = job
         
+        stage = _create_mock_upload_stage(job.id)
+        stage_repo = Mock()
+        stage_repo.find_by_job_and_name.return_value = stage
+        
         artifact_store = Mock()
         metadata_repo = Mock()
         metadata_repo.find_by_job_stage_and_label.return_value = None
         
         return UploadFilesUseCase(
             job_repository=job_repo,
+            stage_repository=stage_repo,
+            audit_repository=Mock(),
             artifact_store=artifact_store,
             artifact_metadata_repo=metadata_repo,
+            uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
                 file_store=Mock(base_path="/tmp/artifacts"),
@@ -320,6 +350,10 @@ class TestUploadFilesChangeDetection:
         job_repo = Mock()
         job_repo.find_by_id.return_value = job
         
+        stage = _create_mock_upload_stage(job.id)
+        stage_repo = Mock()
+        stage_repo.find_by_job_and_name.return_value = stage
+        
         artifact_store = Mock()
         artifact_store.store.return_value = ArtifactRef(
             key="config-files/abc123/test.yml.bin",
@@ -330,8 +364,11 @@ class TestUploadFilesChangeDetection:
         
         return UploadFilesUseCase(
             job_repository=job_repo,
+            stage_repository=stage_repo,
+            audit_repository=Mock(),
             artifact_store=artifact_store,
             artifact_metadata_repo=metadata_repo,
+            uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
                 file_store=Mock(base_path="/tmp/artifacts"),
@@ -443,10 +480,17 @@ class TestUploadFilesStorageIntegration:
         job_repo = Mock()
         job_repo.find_by_id.return_value = job
         
+        stage = _create_mock_upload_stage(job.id)
+        stage_repo = Mock()
+        stage_repo.find_by_job_and_name.return_value = stage
+        
         return UploadFilesUseCase(
             job_repository=job_repo,
+            stage_repository=stage_repo,
+            audit_repository=Mock(),
             artifact_store=artifact_store,
             artifact_metadata_repo=metadata_repo,
+            uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
                 file_store=Mock(base_path="/tmp/artifacts"),
@@ -578,6 +622,10 @@ class TestUploadFilesMultiFileUpload:
         job_repo = Mock()
         job_repo.find_by_id.return_value = job
         
+        stage = _create_mock_upload_stage(job.id)
+        stage_repo = Mock()
+        stage_repo.find_by_job_and_name.return_value = stage
+        
         artifact_store = Mock()
         artifact_store.store.return_value = ArtifactRef(
             key="config-files/abc123/test.yml.bin",
@@ -592,8 +640,11 @@ class TestUploadFilesMultiFileUpload:
         
         return UploadFilesUseCase(
             job_repository=job_repo,
+            stage_repository=stage_repo,
+            audit_repository=Mock(),
             artifact_store=artifact_store,
             artifact_metadata_repo=metadata_repo,
+            uuid_generator=Mock(),
             config=Mock(
                 artifact_store=Mock(max_file_size_bytes=5242880),
                 file_store=Mock(base_path="/tmp/artifacts"),

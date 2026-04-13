@@ -24,9 +24,11 @@ from common.config import BuildStreamConfig
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
 from core.artifacts.value_objects import ArtifactKind, StoreHint
-from core.jobs.repositories import JobRepository
-from core.jobs.exceptions import JobNotFoundError, TerminalStateViolationError
-from core.jobs.value_objects import StageName, StageType
+from core.jobs.repositories import JobRepository, StageRepository, AuditEventRepository
+from core.jobs.exceptions import JobNotFoundError, TerminalStateViolationError, StageNotFoundError
+from core.jobs.value_objects import StageName, StageType, StageState
+from core.jobs.entities import AuditEvent
+from infra.id_generator import UUIDGenerator
 
 from orchestrator.upload.commands.upload_files import UploadFilesCommand
 from orchestrator.upload.results.upload_files import (
@@ -71,21 +73,30 @@ class UploadFilesUseCase:
     def __init__(
         self,
         job_repository: JobRepository,
+        stage_repository: StageRepository,
+        audit_repository: AuditEventRepository,
         artifact_store: ArtifactStore,
         artifact_metadata_repo: ArtifactMetadataRepository,
+        uuid_generator: UUIDGenerator,
         config: BuildStreamConfig,
     ):
         """Initialize use case with dependencies.
         
         Args:
             job_repository: Repository for job entities.
+            stage_repository: Repository for stage entities.
+            audit_repository: Repository for audit events.
             artifact_store: Store for immutable artifacts.
             artifact_metadata_repo: Repository for artifact metadata.
+            uuid_generator: UUID generator for events.
             config: BuildStream configuration.
         """
         self._job_repo = job_repository
+        self._stage_repo = stage_repository
+        self._audit_repo = audit_repository
         self._artifact_store = artifact_store
         self._artifact_metadata_repo = artifact_metadata_repo
+        self._uuid_generator = uuid_generator
         self._config = config
     
     def execute(self, command: UploadFilesCommand) -> UploadFilesResult:
@@ -108,8 +119,15 @@ class UploadFilesUseCase:
         # Validate job exists and is in valid state
         job = self._validate_job(command.job_id)
         
+        # Retrieve and validate upload stage
+        stage = self._get_upload_stage(command.job_id)
+        
         # Validate all files before processing (fail-fast)
         self._validate_all_files(command.files)
+        
+        # Mark stage as started (first upload transitions to IN_PROGRESS)
+        if stage.stage_state == StageState.PENDING:
+            self._mark_stage_started(stage)
         
         # Process each file
         uploaded_files: List[UploadedFileInfo] = []
@@ -124,6 +142,9 @@ class UploadFilesUseCase:
                 changed_count += 1
             else:
                 unchanged_count += 1
+        
+        # Mark stage as completed
+        self._mark_stage_completed(stage)
         
         # Build result
         summary = UploadSummary(
@@ -353,3 +374,48 @@ class UploadFilesUseCase:
         """
         import uuid
         return str(uuid.uuid4())
+    
+    def _get_upload_stage(self, job_id):
+        """Retrieve upload stage for the job.
+        
+        Args:
+            job_id: Job identifier.
+            
+        Returns:
+            Upload stage entity.
+            
+        Raises:
+            StageNotFoundError: If upload stage does not exist.
+        """
+        stage = self._stage_repo.find_by_job_and_name(
+            job_id=job_id,
+            stage_name=StageName(StageType.UPLOAD.value),
+        )
+        
+        if stage is None:
+            raise StageNotFoundError(
+                job_id=str(job_id),
+                stage_name=StageType.UPLOAD.value,
+            )
+        
+        return stage
+    
+    def _mark_stage_started(self, stage):
+        """Transition stage to IN_PROGRESS.
+        
+        Args:
+            stage: Stage entity.
+        """
+        stage.start()
+        self._stage_repo.save(stage)
+        logger.info("Upload stage started: job_id=%s", stage.job_id)
+    
+    def _mark_stage_completed(self, stage):
+        """Transition stage to COMPLETED.
+        
+        Args:
+            stage: Stage entity.
+        """
+        stage.complete()
+        self._stage_repo.save(stage)
+        logger.info("Upload stage completed: job_id=%s", stage.job_id)

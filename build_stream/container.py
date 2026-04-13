@@ -254,8 +254,11 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     upload_files_use_case = providers.Factory(
         UploadFilesUseCase,
         job_repository=job_repository,
+        stage_repository=stage_repository,
+        audit_repository=audit_repository,
         artifact_store=artifact_store,
         artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
         config=config,
     )
 
@@ -442,8 +445,11 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
     upload_files_use_case = providers.Factory(
         UploadFilesUseCase,
         job_repository=job_repository,
+        stage_repository=stage_repository,
+        audit_repository=audit_repository,
         artifact_store=artifact_store,
         artifact_metadata_repo=artifact_metadata_repository,
+        uuid_generator=uuid_generator,
         config=config,
     )
 
