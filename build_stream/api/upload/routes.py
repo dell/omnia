@@ -15,15 +15,17 @@
 """Upload API routes."""
 
 import logging
-from typing import List
+from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 
 
 from api.upload.schemas import UploadFilesResponse
 from api.upload.dependencies import get_upload_files_use_case
-from core.jobs.value_objects import JobId
+from api.dependencies import verify_token, get_correlation_id
+from core.jobs.value_objects import JobId, ClientId, CorrelationId
+from core.jobs.exceptions import JobNotFoundError, TerminalStateViolationError
 from orchestrator.upload.commands.upload_files import UploadFilesCommand
 from orchestrator.upload.exceptions import InvalidFilenameError, FileSizeExceededError
 from orchestrator.upload.use_cases.upload_files import UploadFilesUseCase
@@ -45,6 +47,8 @@ router = APIRouter(prefix="/jobs", tags=["upload"])
 async def upload_files(
     job_id: str,
     files: List[UploadFile] = File(..., description="Configuration files to upload"),
+    token_data: Annotated[dict, Depends(verify_token)] = None,
+    correlation_id: CorrelationId = Depends(get_correlation_id),
     use_case: UploadFilesUseCase = Depends(get_upload_files_use_case),
 ) -> UploadFilesResponse:
     """Upload configuration files to a job.
@@ -52,6 +56,8 @@ async def upload_files(
     Args:
         job_id: Job identifier (UUID v7).
         files: List of files to upload.
+        token_data: Token data from authentication (injected).
+        correlation_id: Request correlation ID (injected).
         use_case: Upload files use case (injected).
         
     Returns:
@@ -61,6 +67,9 @@ async def upload_files(
         HTTPException: On validation or processing errors.
     """
     try:
+        # Extract client_id from token
+        client_id = ClientId(token_data["client_id"])
+        
         # Parse job ID
         job_id_vo = JobId(job_id)
         
@@ -74,6 +83,8 @@ async def upload_files(
         command = UploadFilesCommand(
             job_id=job_id_vo,
             files=file_tuples,
+            client_id=client_id,
+            correlation_id=correlation_id,
         )
         
         # Execute use case

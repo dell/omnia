@@ -17,6 +17,7 @@
 import hashlib
 import logging
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -26,7 +27,7 @@ from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
 from core.artifacts.value_objects import ArtifactKind, StoreHint
 from core.jobs.repositories import JobRepository, StageRepository, AuditEventRepository
 from core.jobs.exceptions import JobNotFoundError, TerminalStateViolationError, StageNotFoundError
-from core.jobs.value_objects import StageName, StageType, StageState
+from core.jobs.value_objects import StageName, StageType, StageState, CorrelationId
 from core.jobs.entities import AuditEvent
 from infra.id_generator import UUIDGenerator
 
@@ -117,7 +118,7 @@ class UploadFilesUseCase:
         logger.info("Executing upload files for job_id=%s", command.job_id)
         
         # Validate job exists and is in valid state
-        job = self._validate_job(command.job_id)
+        self._current_job = self._validate_job(command.job_id)
         
         # Retrieve and validate upload stage
         stage = self._get_upload_stage(command.job_id)
@@ -127,7 +128,9 @@ class UploadFilesUseCase:
         
         # Mark stage as started (first upload transitions to IN_PROGRESS)
         if stage.stage_state == StageState.PENDING:
-            self._mark_stage_started(stage)
+            # Collect filenames for audit event
+            filenames = [filename for filename, _ in command.files]
+            self._mark_stage_started(stage, command, filenames)
         
         # Process each file
         uploaded_files: List[UploadedFileInfo] = []
@@ -143,8 +146,8 @@ class UploadFilesUseCase:
             else:
                 unchanged_count += 1
         
-        # Mark stage as completed
-        self._mark_stage_completed(stage)
+        # Mark stage as completed with file details
+        self._mark_stage_completed(stage, command, uploaded_files)
         
         # Build result
         summary = UploadSummary(
@@ -400,22 +403,86 @@ class UploadFilesUseCase:
         
         return stage
     
-    def _mark_stage_started(self, stage):
+    def _mark_stage_started(self, stage, command: UploadFilesCommand, filenames: List[str]):
         """Transition stage to IN_PROGRESS.
         
         Args:
             stage: Stage entity.
+            command: Upload files command.
+            filenames: List of filenames being uploaded.
         """
         stage.start()
         self._stage_repo.save(stage)
-        logger.info("Upload stage started: job_id=%s", stage.job_id)
+        self._emit_audit_event(
+            command, 
+            "STAGE_STARTED", 
+            {
+                "stage_name": "upload",
+                "files": filenames,
+                "file_count": len(filenames),
+            }
+        )
+        logger.info("Upload stage started: job_id=%s, files=%s", stage.job_id, filenames)
     
-    def _mark_stage_completed(self, stage):
+    def _mark_stage_completed(self, stage, command: UploadFilesCommand, uploaded_files: List[UploadedFileInfo]):
         """Transition stage to COMPLETED.
         
         Args:
             stage: Stage entity.
+            command: Upload files command.
+            uploaded_files: List of uploaded file information.
         """
         stage.complete()
         self._stage_repo.save(stage)
-        logger.info("Upload stage completed: job_id=%s", stage.job_id)
+        
+        # Build file details for audit event
+        file_details = [
+            {
+                "filename": file_info.filename,
+                "status": file_info.status.value,
+                "size_bytes": file_info.size_bytes,
+            }
+            for file_info in uploaded_files
+        ]
+        
+        # Count changed vs unchanged
+        changed_count = sum(1 for f in uploaded_files if f.status == FileChangeStatus.CHANGED)
+        unchanged_count = sum(1 for f in uploaded_files if f.status == FileChangeStatus.UNCHANGED)
+        
+        self._emit_audit_event(
+            command, 
+            "STAGE_COMPLETED", 
+            {
+                "stage_name": "upload",
+                "files": file_details,
+                "total_files": len(uploaded_files),
+                "changed_files": changed_count,
+                "unchanged_files": unchanged_count,
+            }
+        )
+        logger.info("Upload stage completed: job_id=%s, total=%d, changed=%d, unchanged=%d", 
+                   stage.job_id, len(uploaded_files), changed_count, unchanged_count)
+    
+    def _emit_audit_event(
+        self,
+        command: UploadFilesCommand,
+        event_type: str,
+        details: dict,
+    ) -> None:
+        """Emit an audit event.
+        
+        Args:
+            command: Upload files command.
+            event_type: Type of audit event.
+            details: Additional event details.
+        """
+        event = AuditEvent(
+            event_id=str(self._uuid_generator.generate()),
+            job_id=command.job_id,
+            event_type=event_type,
+            correlation_id=command.correlation_id,
+            client_id=command.client_id,
+            timestamp=datetime.now(timezone.utc),
+            details=details,
+        )
+        self._audit_repo.save(event)

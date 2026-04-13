@@ -17,7 +17,7 @@
 from dataclasses import dataclass
 from typing import List, Tuple
 
-from core.jobs.value_objects import JobId
+from core.jobs.value_objects import JobId, ClientId, CorrelationId
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,10 @@ class UploadFilesCommand:
     Attributes:
         job_id: Target job identifier.
         files: List of (filename, content) tuples to upload.
+        client_id: Client who owns this job (from auth).
+        correlation_id: Request correlation identifier for tracing.
     """
     job_id: JobId
     files: List[Tuple[str, bytes]]
+    client_id: ClientId
+    correlation_id: CorrelationId

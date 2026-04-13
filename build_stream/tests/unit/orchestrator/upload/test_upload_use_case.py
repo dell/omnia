@@ -22,7 +22,7 @@ import pytest
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.value_objects import ArtifactRef, ArtifactKind, StoreHint, ArtifactDigest
 from core.jobs.entities import Job, Stage
-from core.jobs.value_objects import JobId, JobState, StageName, StageType, StageState
+from core.jobs.value_objects import JobId, JobState, StageName, StageType, StageState, ClientId, CorrelationId
 from core.jobs.exceptions import JobNotFoundError, TerminalStateViolationError
 
 from orchestrator.upload.use_cases.upload_files import (
@@ -47,6 +47,21 @@ def _create_mock_upload_stage(job_id, state=StageState.PENDING):
     stage.start = Mock()
     stage.complete = Mock()
     return stage
+
+
+def _create_upload_command(job_id, files, client_id=None, correlation_id=None):
+    """Helper to create UploadFilesCommand with default values."""
+    if client_id is None:
+        client_id = ClientId("test-client")
+    if correlation_id is None:
+        correlation_id = CorrelationId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")  # Valid UUID
+    
+    return UploadFilesCommand(
+        job_id=job_id,
+        files=files,
+        client_id=client_id,
+        correlation_id=correlation_id,
+    )
 
 
 class TestUploadFilesValidation:
@@ -164,7 +179,7 @@ class TestUploadFilesJobValidation:
             config=Mock(),
         )
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10"),
             files=[("test.yml", b"content")],
         )
@@ -177,7 +192,7 @@ class TestUploadFilesJobValidation:
         job = self._create_job(JobState.CREATED)
         use_case = self._create_use_case_with_job(job)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[("network_spec.yml", b"content")],
         )
@@ -191,7 +206,7 @@ class TestUploadFilesJobValidation:
         job = self._create_job(JobState.COMPLETED)
         use_case = self._create_use_case_with_job(job)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[("network_spec.yml", b"content")],
         )
@@ -258,7 +273,7 @@ class TestUploadFilesChangeDetection:
         
         use_case = self._create_use_case(job, metadata_repo)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[("network_spec.yml", b"content")],
         )
@@ -289,7 +304,7 @@ class TestUploadFilesChangeDetection:
         
         use_case = self._create_use_case(job, metadata_repo)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[("network_spec.yml", content)],
         )
@@ -321,7 +336,7 @@ class TestUploadFilesChangeDetection:
         
         use_case = self._create_use_case(job, metadata_repo)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[("network_spec.yml", new_content)],
         )
@@ -389,7 +404,7 @@ class TestUploadFilesStorageIntegration:
         
         use_case = self._create_use_case(job, artifact_store, metadata_repo)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[("network_spec.yml", b"content")],
         )
@@ -423,7 +438,7 @@ class TestUploadFilesStorageIntegration:
         
         use_case = self._create_use_case(job, artifact_store, metadata_repo)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[("network_spec.yml", content)],
         )
@@ -449,7 +464,7 @@ class TestUploadFilesStorageIntegration:
         
         use_case = self._create_use_case(job, artifact_store, metadata_repo)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[("network_spec.yml", b"content")],
         )
@@ -507,7 +522,7 @@ class TestUploadFilesMultiFileUpload:
         job = self._create_job()
         use_case = self._create_use_case(job)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[("network_spec.yml", b"content")],
         )
@@ -522,7 +537,7 @@ class TestUploadFilesMultiFileUpload:
         job = self._create_job()
         use_case = self._create_use_case(job)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[
                 ("network_spec.yml", b"content1"),
@@ -541,7 +556,7 @@ class TestUploadFilesMultiFileUpload:
         job = self._create_job()
         use_case = self._create_use_case(job)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[
                 ("network_spec.yml", b"content1"),
@@ -590,7 +605,7 @@ class TestUploadFilesMultiFileUpload:
         
         use_case = self._create_use_case(job, metadata_repo)
         
-        command = UploadFilesCommand(
+        command = _create_upload_command(
             job_id=job.id,
             files=[
                 ("network_spec.yml", content1),
@@ -651,3 +666,139 @@ class TestUploadFilesMultiFileUpload:
                 paths=Mock(build_stream_base_path="/tmp/buildstream"),
             ),
         )
+
+
+class TestUploadFilesAuditEvents:
+    """Test audit event emission with file details."""
+    
+    def test_stage_started_audit_event_includes_filenames(self):
+        """STAGE_STARTED audit event should include list of filenames."""
+        job = self._create_job()
+        audit_repo = Mock()
+        use_case = self._create_use_case(job, audit_repo=audit_repo)
+        
+        command = _create_upload_command(
+            job.id,
+            [("network_spec.yml", b"content1"), ("pxe_mapping_file.csv", b"content2")]
+        )
+        
+        use_case.execute(command)
+        
+        # Find STAGE_STARTED audit event
+        started_calls = [
+            call for call in audit_repo.save.call_args_list
+            if call[0][0].event_type == "STAGE_STARTED"
+        ]
+        assert len(started_calls) == 1
+        
+        started_event = started_calls[0][0][0]
+        assert started_event.details["stage_name"] == "upload"
+        assert started_event.details["files"] == ["network_spec.yml", "pxe_mapping_file.csv"]
+        assert started_event.details["file_count"] == 2
+    
+    def test_stage_completed_audit_event_includes_file_details(self):
+        """STAGE_COMPLETED audit event should include file details and counts."""
+        job = self._create_job()
+        audit_repo = Mock()
+        
+        # Setup metadata repo to simulate one file unchanged
+        metadata_repo = Mock()
+        metadata_repo.find_by_job_stage_and_label.side_effect = [
+            None,  # First file not found (will be CHANGED)
+            Mock(  # Second file found with same digest (will be UNCHANGED)
+                artifact_ref=ArtifactRef(
+                    key="test",
+                    digest=ArtifactDigest(hashlib.sha256(b"content2").hexdigest()),
+                    size_bytes=8,
+                    uri="file:///tmp/test",
+                )
+            ),
+        ]
+        
+        use_case = self._create_use_case(job, audit_repo=audit_repo, metadata_repo=metadata_repo)
+        
+        command = _create_upload_command(
+            job.id,
+            [("network_spec.yml", b"content1"), ("pxe_mapping_file.csv", b"content2")]
+        )
+        
+        use_case.execute(command)
+        
+        # Find STAGE_COMPLETED audit event
+        completed_calls = [
+            call for call in audit_repo.save.call_args_list
+            if call[0][0].event_type == "STAGE_COMPLETED"
+        ]
+        assert len(completed_calls) == 1
+        
+        completed_event = completed_calls[0][0][0]
+        assert completed_event.details["stage_name"] == "upload"
+        assert completed_event.details["total_files"] == 2
+        assert completed_event.details["changed_files"] == 1
+        assert completed_event.details["unchanged_files"] == 1
+        
+        # Check file details
+        file_details = completed_event.details["files"]
+        assert len(file_details) == 2
+        
+        # First file should be CHANGED
+        assert file_details[0]["filename"] == "network_spec.yml"
+        assert file_details[0]["status"] == "CHANGED"
+        assert file_details[0]["size_bytes"] == 8
+        
+        # Second file should be UNCHANGED
+        assert file_details[1]["filename"] == "pxe_mapping_file.csv"
+        assert file_details[1]["status"] == "UNCHANGED"
+        assert file_details[1]["size_bytes"] == 8
+    
+    def _create_job(self):
+        """Create mock job."""
+        job = Mock(spec=Job)
+        job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
+        job.job_state = JobState.CREATED
+        job.is_in_terminal_state = Mock(return_value=False)
+        
+        job.is_completed = Mock(return_value=False)
+        job.is_failed = Mock(return_value=False)
+        job.is_cancelled = Mock(return_value=False)
+        
+        return job
+    
+    def _create_use_case(self, job, audit_repo=None, metadata_repo=None):
+        """Create use case with mocked dependencies."""
+        job_repo = Mock()
+        job_repo.find_by_id.return_value = job
+        
+        stage = _create_mock_upload_stage(job.id)
+        stage_repo = Mock()
+        stage_repo.find_by_job_and_name.return_value = stage
+        
+        artifact_store = Mock()
+        artifact_store.store.return_value = ArtifactRef(
+            key="config-files/abc123/test.yml.bin",
+            digest=ArtifactDigest("a" * 64),
+            size_bytes=100,
+            uri="file:///tmp/test.yml.bin",
+        )
+        
+        if audit_repo is None:
+            audit_repo = Mock()
+        
+        if metadata_repo is None:
+            metadata_repo = Mock()
+            metadata_repo.find_by_job_stage_and_label.return_value = None
+        
+        return UploadFilesUseCase(
+            job_repository=job_repo,
+            stage_repository=stage_repo,
+            audit_repository=audit_repo,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=metadata_repo,
+            uuid_generator=Mock(),
+            config=Mock(
+                artifact_store=Mock(max_file_size_bytes=5242880),
+                file_store=Mock(base_path="/tmp/artifacts"),
+                paths=Mock(build_stream_base_path="/tmp/buildstream"),
+            ),
+        )
+
