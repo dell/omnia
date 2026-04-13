@@ -20,12 +20,10 @@ from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import JSONResponse
 
-from dependency_injector.wiring import Provide, inject
 
 from api.upload.schemas import UploadFilesResponse
-from container import get_container_class
+from api.upload.dependencies import get_upload_files_use_case
 from core.jobs.value_objects import JobId
-from core.jobs.exceptions import JobNotFoundError, TerminalStateViolationError
 from orchestrator.upload.commands.upload_files import UploadFilesCommand
 from orchestrator.upload.exceptions import InvalidFilenameError, FileSizeExceededError
 from orchestrator.upload.use_cases.upload_files import UploadFilesUseCase
@@ -44,11 +42,10 @@ router = APIRouter(prefix="/jobs", tags=["upload"])
                 "Only whitelisted configuration files are accepted. "
                 "Files are stored in multiple locations for audit and playbook consumption.",
 )
-@inject
 async def upload_files(
     job_id: str,
     files: List[UploadFile] = File(..., description="Configuration files to upload"),
-    use_case: UploadFilesUseCase = Depends(Provide[get_container_class().upload_files_use_case]),
+    use_case: UploadFilesUseCase = Depends(get_upload_files_use_case),
 ) -> UploadFilesResponse:
     """Upload configuration files to a job.
     
