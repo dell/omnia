@@ -126,6 +126,7 @@ class UploadFilesUseCase:
         self._validate_all_files(command.files)
 
         # Mark stage as started (first upload transitions to IN_PROGRESS)
+        # Allow uploads even if stage is already COMPLETED
         if stage.stage_state == StageState.PENDING:
             # Collect filenames for audit event
             filenames = [filename for filename, _ in command.files]
@@ -145,8 +146,13 @@ class UploadFilesUseCase:
             else:
                 unchanged_count += 1
 
-        # Mark stage as completed with file details
-        self._mark_stage_completed(stage, command, uploaded_files)
+        # Emit audit event for file upload
+        if stage.stage_state != StageState.COMPLETED:
+            # First upload: mark stage as completed
+            self._mark_stage_completed(stage)
+        
+        # Always emit audit event with file details (for all uploads)
+        self._emit_upload_files_audit_event(command, uploaded_files)
 
         # Build result
         summary = UploadSummary(
@@ -423,22 +429,27 @@ class UploadFilesUseCase:
         )
         logger.info("Upload stage started: job_id=%s, files=%s", stage.job_id, filenames)
 
-    def _mark_stage_completed(
-        self,
-        stage,
-        command: UploadFilesCommand,
-        uploaded_files: List[UploadedFileInfo]
-    ):
+    def _mark_stage_completed(self, stage):
         """Transition stage to COMPLETED.
 
         Args:
             stage: Stage entity.
-            command: Upload files command.
-            uploaded_files: List of uploaded file information.
         """
         stage.complete()
         self._stage_repo.save(stage)
+        logger.info("Upload stage marked as completed: job_id=%s", stage.job_id)
 
+    def _emit_upload_files_audit_event(
+        self,
+        command: UploadFilesCommand,
+        uploaded_files: List[UploadedFileInfo]
+    ):
+        """Emit audit event for file upload.
+
+        Args:
+            command: Upload files command.
+            uploaded_files: List of uploaded file information.
+        """
         # Build file details for audit event
         file_details = [
             {
@@ -464,9 +475,10 @@ class UploadFilesUseCase:
                 "unchanged_files": unchanged_count,
             }
         )
+        
         logger.info(
-            "Upload stage completed: job_id=%s, total=%d, changed=%d, unchanged=%d",
-            stage.job_id, len(uploaded_files), changed_count, unchanged_count
+            "Files uploaded: job_id=%s, total=%d, changed=%d, unchanged=%d",
+            command.job_id, len(uploaded_files), changed_count, unchanged_count
         )
 
     def _emit_audit_event(

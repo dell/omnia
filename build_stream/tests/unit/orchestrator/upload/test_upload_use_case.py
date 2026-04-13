@@ -47,8 +47,17 @@ def _create_mock_upload_stage(job_id, state=StageState.PENDING):
     stage.job_id = job_id
     stage.stage_name = StageName(StageType.UPLOAD.value)
     stage.stage_state = state
-    stage.start = Mock()
-    stage.complete = Mock()
+    
+    # Mock start() to transition to IN_PROGRESS
+    def mock_start():
+        stage.stage_state = StageState.IN_PROGRESS
+    stage.start = Mock(side_effect=mock_start)
+    
+    # Mock complete() to transition to COMPLETED
+    def mock_complete():
+        stage.stage_state = StageState.COMPLETED
+    stage.complete = Mock(side_effect=mock_complete)
+    
     return stage
 
 
@@ -753,6 +762,80 @@ class TestUploadFilesAuditEvents:
         assert file_details[1]["filename"] == "pxe_mapping_file.csv"
         assert file_details[1]["status"] == "UNCHANGED"
         assert file_details[1]["size_bytes"] == 8
+
+    def test_upload_allowed_when_stage_already_completed(self):
+        """Upload should succeed even when stage is already COMPLETED."""
+        job = self._create_job()
+        audit_repo = Mock()
+
+        # Create stage in COMPLETED state
+        stage = _create_mock_upload_stage(job.id, state=StageState.COMPLETED)
+        stage_repo = Mock()
+        stage_repo.find_by_job_and_name.return_value = stage
+
+        # Create use case with completed stage
+        job_repo = Mock()
+        job_repo.find_by_id.return_value = job
+
+        artifact_store = Mock()
+        artifact_store.store.return_value = ArtifactRef(
+            key="config-files/abc123/test.yml.bin",
+            digest=ArtifactDigest("a" * 64),
+            size_bytes=100,
+            uri="file:///tmp/test.yml.bin",
+        )
+
+        metadata_repo = Mock()
+        metadata_repo.find_by_job_stage_and_label.return_value = None
+
+        use_case = UploadFilesUseCase(
+            job_repository=job_repo,
+            stage_repository=stage_repo,
+            audit_repository=audit_repo,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=metadata_repo,
+            uuid_generator=Mock(),
+            config=Mock(
+                artifact_store=Mock(max_file_size_bytes=5242880),
+                file_store=Mock(base_path="/tmp/artifacts"),
+                paths=Mock(build_stream_base_path="/tmp/buildstream"),
+            ),
+        )
+
+        command = _create_upload_command(
+            job.id,
+            [("network_spec.yml", b"content1")]
+        )
+
+        # Should not raise TerminalStateViolationError
+        result = use_case.execute(command)
+
+        # Verify upload succeeded
+        assert result.upload_summary.total_files == 1
+        assert result.upload_summary.changed_files == 1
+
+        # Verify stage.complete() was NOT called (stage already completed)
+        stage.complete.assert_not_called()
+
+        # Verify stage.start() was NOT called (stage not PENDING)
+        stage.start.assert_not_called()
+
+        # Verify STAGE_COMPLETED audit event was emitted
+        completed_calls = [
+            call for call in audit_repo.save.call_args_list
+            if call[0][0].event_type == "STAGE_COMPLETED"
+        ]
+        assert len(completed_calls) == 1
+
+        completed_event = completed_calls[0][0][0]
+        assert completed_event.details["stage_name"] == "upload"
+        assert completed_event.details["total_files"] == 1
+        assert completed_event.details["changed_files"] == 1
+        assert completed_event.details["unchanged_files"] == 0
+        assert len(completed_event.details["files"]) == 1
+        assert completed_event.details["files"][0]["filename"] == "network_spec.yml"
+        assert completed_event.details["files"][0]["status"] == "CHANGED"
+
 
     def _create_job(self):
         """Create mock job."""
