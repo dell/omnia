@@ -41,6 +41,10 @@ from orchestrator.upload.exceptions import InvalidFilenameError, FileSizeExceede
 logger = logging.getLogger(__name__)
 
 
+# Shared input directory path for playbook consumption
+# This matches the path used by NfsInputRepository and expected by Omnia playbooks
+DEFAULT_PLAYBOOK_INPUT_DIR = "/opt/omnia/input/project_default/"
+
 # Whitelist of allowed configuration files
 ALLOWED_CONFIG_FILES = {
     "local_repo_config.yml",
@@ -331,11 +335,12 @@ class UploadFilesUseCase:
             filename: Filename.
             content: File content.
         """
-        base_path = Path(self._config.paths.build_stream_base_path)
-        shared_dir = base_path / "input" / "project_default"
-        shared_dir.mkdir(parents=True, exist_ok=True)
+        # Use the standard Omnia playbook input directory
+        # This path matches NfsInputRepository.get_destination_input_repository_path()
+        playbook_input_dir = Path(DEFAULT_PLAYBOOK_INPUT_DIR)
+        playbook_input_dir.mkdir(parents=True, exist_ok=True)
         
-        target_file = shared_dir / filename
+        target_file = playbook_input_dir / filename
         target_file.write_bytes(content)
         
         logger.debug("Wrote to shared input directory: %s", target_file)
