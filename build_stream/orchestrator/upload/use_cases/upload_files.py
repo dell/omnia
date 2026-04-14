@@ -55,6 +55,11 @@ ALLOWED_CONFIG_FILES = {
     "pxe_mapping_file.csv",
     "storage_config.yml",
     "telemetry_config.yml",
+    "storage_config.yml",
+    "security_config.yml",
+    "ha_config.yml",
+    "omnia_config.yml",
+    "build_stream_config.yml",
 }
 
 
