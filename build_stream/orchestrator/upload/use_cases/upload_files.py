@@ -57,7 +57,7 @@ ALLOWED_CONFIG_FILES = {
     "telemetry_config.yml",
     "storage_config.yml",
     "security_config.yml",
-    "ha_config.yml",
+    "high_availability_config.yml",
     "omnia_config.yml",
     "build_stream_config.yml",
 }
