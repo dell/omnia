@@ -28,7 +28,6 @@
 #   2. VictoriaMetrics    : Time-series database for metric storage
 #   3. Kafka              : Distributed streaming platform for telemetry data
 #   4. LDMS               : Lightweight Distributed Metric Service for compute nodes
-#   5. DCGM               : NVIDIA Data Center GPU Manager for GPU telemetry
 #
 # ============================================================================
 # STORAGE REQUIREMENTS SUMMARY
@@ -84,28 +83,6 @@ idrac_telemetry_support: true
 #   - "victoria,kafka"  : Store in both (recommended)
 # Default: "victoria,kafka"
 idrac_telemetry_collection_type: "victoria,kafka"
-
-# ============================================================================
-# NVIDIA DCGM (Data Center GPU Manager) CONFIGURATION
-# ============================================================================
-# DCGM monitors NVIDIA GPU health and collects GPU telemetry metrics from
-# compute nodes equipped with NVIDIA GPUs.
-#
-# When enabled, the DCGM daemon (nvidia-dcgm.service) is started on GPU nodes
-# during cloud-init provisioning. It validates the NVIDIA driver, enumerates
-# GPUs via dcgmi discovery, and exposes GPU health data.
-#
-# PREREQUISITE: NVIDIA GPU driver must be installed on the target nodes.
-#   The driver is installed automatically via the CUDA runfile during
-#   cloud-init when an NVIDIA GPU is detected via lspci.
-#
-# NOTE: DCGM exporter deployment (dcgm-exporter on port 9400) and Prometheus
-#   scrape configuration are planned for a future release.
-
-# Enable or disable NVIDIA DCGM support on GPU compute nodes
-# Accepted values: true or false
-# Default: true
-dcgm_support: true
 
 # ============================================================================
 # VICTORIAMETRICS CONFIGURATION

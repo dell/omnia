@@ -6,10 +6,6 @@
     "idrac_telemetry_support": {
       "type": "boolean"
     },
-    "dcgm_support": {
-      "type": "boolean",
-      "description": "Enable or disable NVIDIA DCGM (Data Center GPU Manager) on GPU compute nodes. When true, nvidia-dcgm.service is started during cloud-init provisioning. Default: true"
-    },
     "idrac_telemetry_collection_type": {
       "anyOf": [
         {
@@ -126,7 +122,7 @@
       ]
     }
   },
-  "required": ["idrac_telemetry_support", "dcgm_support", "idrac_telemetry_collection_type", "ldms_sampler_configurations", "ldms_agg_port", "ldms_store_port", "ldms_sampler_port" ],
+  "required": ["idrac_telemetry_support", "idrac_telemetry_collection_type", "ldms_sampler_configurations", "ldms_agg_port", "ldms_store_port", "ldms_sampler_port" ],
   "$defs": {
     "kafka_configurations": {
       "type": "object",

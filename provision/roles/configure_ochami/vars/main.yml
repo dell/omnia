@@ -105,13 +105,6 @@ all_group_names_present: "{{ hostvars['oim']['all_group_names_present'] | defaul
 # CUDA/NVIDIA runfile names (extracted from slurm_custom.json in slurm_config role)
 cuda_runfile_x86_64: "{{ hostvars['oim']['cuda_runfile_x86_64'] | default('cuda_13.0.2_580.95.05_linux.run') }}"
 cuda_runfile_aarch64: "{{ hostvars['oim']['cuda_runfile_aarch64'] | default('cuda_13.0.2_580.95.05_linux_sbsa.run') }}"
-
-# Usage: ci-group-slurm_node_x86_64.yaml.j2, ci-group-slurm_node_aarch64.yaml.j2
-# NVIDIA DCGM (Data Center GPU Manager) configuration
-dcgm_service_name: "nvidia-dcgm"
-dcgm_health_check_retries: 3
-dcgm_support: "{{ hostvars['localhost']['dcgm_support'] | default(true) }}"
-
 # Usage: fetch_additional_images.yml
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 software_config_file_path: "{{ input_project_dir }}/software_config.json"
