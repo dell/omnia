@@ -21,7 +21,7 @@ import os
 import yaml
 import json
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
-from ansible.module_utils.input_validation.common_utils.data_validation import create_error_msg
+from ansible.module_utils.input_validation.common_utils.validation_utils import create_error_msg
 
 
 def validate_powerscale_telemetry_config(

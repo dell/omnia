@@ -227,8 +227,8 @@ service_k8s_cluster:
     csi_powerscale_driver_values_file_path: ""
     powerscale_authorization:
       enabled: false
-      csm_authorization_values_file_path: "" #"/path/to/your/updated/csm-authorization-values.yaml"
-      tenants:
+#      csm_authorization_values_file_path: ""   # Required when enabled: true - "/path/to/your/updated/csm-authorization-values.yaml"
+#      tenants: # Required when enabled: true
 #        - name: "team-omnia"
 #          roles:
 #            - name: "role-omnia"

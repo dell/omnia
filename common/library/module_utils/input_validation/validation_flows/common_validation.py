@@ -918,7 +918,7 @@ def is_ip_in_range(ip_str, ip_range_str):
 
 
 def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors, 
-                 st_config, module, input_file_path):
+                 st_config, module, input_file_path, logger):
     """
     Validates Kubernetes cluster configurations.
 
@@ -927,6 +927,7 @@ def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors,
         admin_networks (dict): A dictionary containing admin network information.
         softwares (list): A list of software name sin software_config.
         errors (list): A list to store error messages.
+        logger (object): Logger object for logging.
     """
     admin_dynamic_range = admin_networks["admin_network"]["dynamic_range"]
     primary_oim_admin_ip = admin_networks["admin_network"]["primary_oim_admin_ip"]
@@ -1114,7 +1115,7 @@ def validate_omnia_config(
         for k in ["service_k8s_cluster_ha"]:
             ha_config[k] = [xha["cluster_name"] for xha in ha_config.get(k, [])]
         validate_k8s(data, admin_networks, sw_list, ha_config, tag_names,
-                        errors, st_config, module, input_file_path)
+                        errors, st_config, module, input_file_path, logger)
     # slurm L2
     if (("slurm" in sw_list or "slurm_custom" in sw_list) and "slurm" in tag_names):     
         slurm_nfs = [clst.get('nfs_storage_name') for clst in data.get('slurm_cluster')]

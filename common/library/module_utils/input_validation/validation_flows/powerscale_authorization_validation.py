@@ -22,7 +22,7 @@ import yaml
 import json
 import csv
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
-from ansible.module_utils.input_validation.common_utils.data_validation import create_error_msg
+from ansible.module_utils.input_validation.common_utils.validation_utils import create_error_msg
 
 
 def check_is_service_cluster_functional_groups_defined(
