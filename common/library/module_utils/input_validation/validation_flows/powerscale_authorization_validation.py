@@ -19,6 +19,7 @@ Contains validation logic for PowerScale multi-tenant storage authorization conf
 
 import os
 import yaml
+import json
 import csv
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
 from ansible.module_utils.input_validation.common_utils.data_validation import create_error_msg
@@ -172,7 +173,7 @@ def validate_csm_auth_image_versions(csm_auth_values_path, config_paths, logger,
             return
         
         with open(csi_json_path, 'r', encoding='utf-8') as f:
-            csi_config = __import__('json').load(f)
+            csi_config = json.load(f)
         
         # Extract image versions from csi_driver_powerscale.json
         csi_images = {}
@@ -216,7 +217,7 @@ def validate_csm_auth_image_versions(csm_auth_values_path, config_paths, logger,
         
         logger.info("CSM Authorization image version validation completed")
         
-    except (yaml.YAMLError, __import__('json').JSONDecodeError, IOError) as e:
+    except (yaml.YAMLError, json.JSONDecodeError, IOError) as e:
         errors.append(
             create_error_msg(
                 "csm_authorization_values_file_path",

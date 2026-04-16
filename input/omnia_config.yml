@@ -227,11 +227,10 @@ service_k8s_cluster:
     csi_powerscale_driver_values_file_path: ""
     powerscale_authorization:
       enabled: false
-      csm_authorization_values_file_path: "/path/to/your/upddated/csm-authorization-values.yaml"
+      csm_authorization_values_file_path: "" #"/path/to/your/updated/csm-authorization-values.yaml"
       tenants:
-        - name: "team-omnia"
-          roles:
-            - name: "role-omnia"
-              storage_pool: "/ifs/data/csi/team-omnia"
-              quota_limit: "200Gi"
-    
+#        - name: "team-omnia"
+#          roles:
+#            - name: "role-omnia"
+#              storage_pool: "/ifs/data/csi/team-omnia"
+#              quota_limit: "200Gi"

@@ -76,7 +76,7 @@ def validate_powerscale_telemetry_config(
                             software.get("name") == "csi_driver_powerscale" for software in softwares
                         )
                 except (json.JSONDecodeError, IOError) as e:
-                    logger.warn(f"Could not load software_config.json for PowerScale validation: {e}")
+                    logger.warning(f"Could not load software_config.json for PowerScale validation: {e}")
 
             if not csi_powerscale_found:
                 errors.append(create_error_msg(
@@ -165,10 +165,10 @@ def validate_powerscale_telemetry_config(
                                 ))
 
                         # Cross-validate image versions between values.yaml and service_k8s.json
-                        service_k8s_json_path = config_paths.get("service_k8s_json_path")
-                        csi_driver_powerscale_json_path = config_paths.get("csi_driver_powerscale_json_path")
+                        service_k8s_json_path = config_paths.get("service_k8s_json_path", "")
+                        csi_driver_powerscale_json_path = config_paths.get("csi_driver_powerscale_json_path", "")
 
-                        if os.path.exists(service_k8s_json_path):
+                        if service_k8s_json_path and os.path.exists(service_k8s_json_path):
                             try:
                                 with open(service_k8s_json_path, 'r', encoding='utf-8') as sk8s_f:
                                     service_k8s_data = json.load(sk8s_f)
@@ -198,7 +198,7 @@ def validate_powerscale_telemetry_config(
                                 sidecar_proxy = karavi_auth.get("sidecarProxy", {})
                                 if sidecar_proxy and sidecar_proxy.get("image"):
                                     # csm-authorization-sidecar is in csi_driver_powerscale.json, not service_k8s.json
-                                    if os.path.exists(csi_driver_powerscale_json_path):
+                                    if csi_driver_powerscale_json_path and os.path.exists(csi_driver_powerscale_json_path):
                                         try:
                                             with open(csi_driver_powerscale_json_path, 'r', encoding='utf-8') as csi_f:
                                                 csi_ps_data = json.load(csi_f)
@@ -220,7 +220,7 @@ def validate_powerscale_telemetry_config(
                                                         logger.info(f"Image version match for csm-authorization-sidecar: {sidecar_values_tag}")
                                                     break
                                         except (json.JSONDecodeError, IOError) as csi_err:
-                                            logger.warn(f"Could not read csi_driver_powerscale.json: {csi_err}")
+                                            logger.warning(f"Could not read csi_driver_powerscale.json: {csi_err}")
 
                                 for img_name, values_image, sk8s_key in images_to_check:
                                     if sk8s_key in sk8s_images:
@@ -239,12 +239,12 @@ def validate_powerscale_telemetry_config(
                                         else:
                                             logger.info(f"Image version match for {img_name}: {values_tag}")
                                     else:
-                                        logger.warn(f"Image {sk8s_key} not found in service_k8s.json, skipping version check")
+                                        logger.warning(f"Image {sk8s_key} not found in service_k8s.json, skipping version check")
 
                             except (json.JSONDecodeError, IOError) as sk8s_err:
-                                logger.warn(f"Could not read service_k8s.json for image version validation: {sk8s_err}")
+                                logger.warning(f"Could not read service_k8s.json for image version validation: {sk8s_err}")
                         else:
-                            logger.warn(f"service_k8s.json not found at {service_k8s_json_path}, skipping image version validation")
+                            logger.warning(f"service_k8s.json not found at {service_k8s_json_path}, skipping image version validation")
 
                         logger.info("CSM Observability values.yaml validation passed")
                 except (yaml.YAMLError, IOError) as e:
@@ -258,7 +258,7 @@ def validate_powerscale_telemetry_config(
             additional_endpoints = powerscale_config.get("additional_remote_write_endpoints", [])
             if additional_endpoints and isinstance(additional_endpoints, list):
                 if len(additional_endpoints) > 5:
-                    logger.warn(f"More than 5 additional_remote_write_endpoints configured ({len(additional_endpoints)}). "
+                    logger.warning(f"More than 5 additional_remote_write_endpoints configured ({len(additional_endpoints)}). "
                                 "This may impact performance.")
                 for idx, endpoint in enumerate(additional_endpoints):
                     if not isinstance(endpoint, dict):
