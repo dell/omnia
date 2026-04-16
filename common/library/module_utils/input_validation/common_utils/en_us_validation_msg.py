@@ -333,6 +333,46 @@ POWERSCALE_SERVICE_K8S_JSON_NOT_FOUND_MSG = (
     "service_k8s.json not found. Cannot validate PowerScale telemetry image versions. "
     "Please ensure local_repo.yml has been executed."
 )
+
+# PowerScale CSM Authorization validation messages
+POWERSCALE_AUTH_CSI_DRIVER_MISSING_MSG = (
+    "PowerScale CSM Authorization requires 'csi_driver_powerscale' to be present in software_config.json."
+)
+POWERSCALE_AUTH_SERVICE_CLUSTER_MISSING_MSG = (
+    "PowerScale CSM Authorization requires service cluster nodes (service_kube_node_*, "
+    "service_kube_control_plane_*) to be defined in the PXE mapping file."
+)
+POWERSCALE_AUTH_CSM_VALUES_PATH_REQUIRED_MSG = (
+    "csm_authorization_values_file_path is required when powerscale_authorization.enabled is true."
+)
+def powerscale_auth_csm_values_not_found_msg(path):
+    """Returns error message when CSM Authorization values.yaml file is not found."""
+    return (
+        f"CSM Authorization values file does not exist at path: {path}. "
+        "Please verify the file path is correct."
+    )
+def powerscale_auth_csm_values_validation_error_msg(error):
+    """Returns error message when CSM Authorization values.yaml validation fails."""
+    return f"Error validating CSM Authorization image versions: {error}"
+POWERSCALE_AUTH_TENANTS_REQUIRED_MSG = (
+    "At least one tenant must be defined when powerscale_authorization.enabled is true."
+)
+def powerscale_auth_tenant_roles_required_msg(tenant_name):
+    """Returns error message when a tenant has no roles defined."""
+    return (
+        f"At least one role must be defined for tenant '{tenant_name}'."
+    )
+def powerscale_auth_image_version_mismatch_msg(image_name, values_version, csi_version):
+    """Returns error message when CSM Authorization image version doesn't match csi_driver_powerscale.json."""
+    return (
+        f"Image version for {image_name} in CSM Authorization values.yaml ({values_version}) "
+        f"does not match csi_driver_powerscale.json ({csi_version}). "
+        f"Please ensure both files use the same version."
+    )
+POWERSCALE_AUTH_CSI_JSON_NOT_FOUND_MSG = (
+    "csi_driver_powerscale.json not found. Cannot validate CSM Authorization image versions. "
+    "Please ensure the file exists at input/config/x86_64/rhel/10.0/csi_driver_powerscale.json."
+)
 def boolean_fail_msg(value):
     """Returns a formatted message indicating boolean_fail_msg."""
     return f"{value} must be set to either true or false."

@@ -65,8 +65,53 @@
       "type": "image"
      },
       {
-       "package": "quay.io/dell/container-storage-modules/csm-authorization-sidecar",
+      "package": "quay.io/dell/container-storage-modules/csm-authorization-sidecar",
       "tag": "v2.4.0",
+      "type": "image"
+     },
+     {
+      "package": "quay.io/dell/container-storage-modules/csm-authorization-proxy",
+      "tag": "v2.4.0",
+      "type": "image"
+     },
+     {
+      "package": "quay.io/dell/container-storage-modules/csm-authorization-tenant",
+      "tag": "v2.4.0",
+      "type": "image"
+     },
+     {
+      "package": "quay.io/dell/container-storage-modules/csm-authorization-role",
+      "tag": "v2.4.0",
+      "type": "image"
+     },
+     {
+      "package": "quay.io/dell/container-storage-modules/csm-authorization-storage",
+      "tag": "v2.4.0",
+      "type": "image"
+     },
+     {
+      "package": "quay.io/dell/container-storage-modules/csm-authorization-controller",
+      "tag": "v2.4.0",
+      "type": "image"
+     },
+     {
+      "package": "docker.io/openpolicyagent/opa",
+      "tag": "0.70.0",
+      "type": "image"
+     },
+     {
+      "package": "openpolicyagent/kube-mgmt",
+      "tag": "9.3.0",
+      "type": "image"
+     },
+     {
+      "package": "docker.io/library/redis",
+      "tag": "8.4.0-alpine",
+      "type": "image"
+     },
+     {
+      "package": "rediscommander/redis-commander",
+      "tag": "latest",
       "type": "image"
      },
     {
