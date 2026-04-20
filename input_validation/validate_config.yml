@@ -139,5 +139,3 @@
   roles:
     - role: validate_input
       tags: *common_tags
-      vars:
-        build_stream_enabled: "{{ build_stream_enabled | default(true) }}"

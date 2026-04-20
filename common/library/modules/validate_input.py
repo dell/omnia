@@ -128,6 +128,9 @@ def main():
     files_to_validate = []
     build_stream_files = ['gitlab_config.yml', 'build_stream_config.yml']
 
+    logger.info(f"build_stream_enabled: {build_stream_enabled}")
+    logger.info(f"Tags received: {tag_names}")
+
     # Collect files from inventory based on tags
     for tag_name in tag_names:
         for name in input_file_inventory.get(tag_name, []):
@@ -148,6 +151,8 @@ def main():
     # Remove duplicates while preserving order
     seen = set()
     files_to_validate = [x for x in files_to_validate if not (x in seen or seen.add(x))]
+
+    logger.info(f"Final files to validate: {files_to_validate}")
 
     for name in files_to_validate:
         fname, _ = os.path.splitext(name)
