@@ -123,14 +123,25 @@ def main():
     # Run L1 and L2 validation if user included a tag and extra var files.
     # Or user only had tags and no extra var files.
     error_bucket = []
+
+    # Add build_stream files to validation if build_stream is enabled
+    build_stream_files = ['gitlab_config.yml', 'build_stream_config.yml']
+    if build_stream_enabled:
+        # Add build_stream files to the validation list
+        for tag_name in tag_names:
+            for bs_file in build_stream_files:
+                if bs_file not in input_file_inventory.get(tag_name, []):
+                    # Add file to the inventory for this tag
+                    input_file_inventory.setdefault(tag_name, []).append(bs_file)
+                    logger.info(f"Added {bs_file} to validation for tag {tag_name} as build_stream is enabled")
+    else:
+        # Remove build_stream files from validation if build_stream is disabled
+        for tag_name in tag_names:
+            input_file_inventory[tag_name] = [f for f in input_file_inventory.get(tag_name, []) if f not in build_stream_files]
+            logger.info(f"Removed build_stream files from validation for tag {tag_name} as build_stream is disabled")
+
     for tag_name in tag_names:
         for name in input_file_inventory.get(tag_name, []):
-            # Skip validation for gitlab_config.yml and build_stream_config.yml when build_stream is disabled
-            if not build_stream_enabled and name in ['gitlab_config.yml', 'build_stream_config.yml']:
-                logger.info(f"Skipping validation for {name} as build_stream is disabled")
-                validation_status["Passed"].append(name)
-                continue
-
             fname, _ = os.path.splitext(name)
 
             schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
