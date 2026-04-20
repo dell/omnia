@@ -77,8 +77,7 @@ def main():
         "omnia_base_dir": {"type": "str", "required": True},
         "project_name": {"type": "str", "required": True},
         "tag_names": {"type": "list", "required": True},
-        "module_utils_path": {"type": "str"},
-        "build_stream_enabled": {"type": "bool", "default": True, "required": False}
+        "module_utils_path": {"type": "str"}
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -87,7 +86,6 @@ def main():
     omnia_base_dir = module.params["omnia_base_dir"]
     project_name = module.params["project_name"]
     tag_names = module.params["tag_names"]
-    build_stream_enabled = module.params["build_stream_enabled"]
 
     schema_base_file_path = os.path.join(module_utils_base,'input_validation','schema')
     input_dir_path = os.path.join(omnia_base_dir, project_name)
@@ -123,99 +121,69 @@ def main():
     # Run L1 and L2 validation if user included a tag and extra var files.
     # Or user only had tags and no extra var files.
     error_bucket = []
-
-    # Build list of files to validate
-    files_to_validate = []
-    build_stream_files = ['gitlab_config.yml', 'build_stream_config.yml']
-
-    logger.info(f"build_stream_enabled: {build_stream_enabled}")
-    logger.info(f"Tags received: {tag_names}")
-
-    # Collect files from inventory based on tags
     for tag_name in tag_names:
         for name in input_file_inventory.get(tag_name, []):
-            # Skip build_stream files if build_stream is disabled
-            if not build_stream_enabled and name in build_stream_files:
-                logger.info(f"Skipping validation for {name} as build_stream is disabled")
-                validation_status["Passed"].append(name)
-                continue
-            files_to_validate.append(name)
+            fname, _ = os.path.splitext(name)
 
-    # Add build_stream files if build_stream is enabled and not already in the list
-    if build_stream_enabled:
-        for bs_file in build_stream_files:
-            if bs_file not in files_to_validate:
-                files_to_validate.append(bs_file)
-                logger.info(f"Added {bs_file} to validation as build_stream is enabled")
+            schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
 
-    # Remove duplicates while preserving order
-    seen = set()
-    files_to_validate = [x for x in files_to_validate if not (x in seen or seen.add(x))]
+            if not verify.file_exists(schema_file_path, module, logger):
+                error_message = (
+                    f"The file schema: {fname}.json does not exist "
+                    f"in directory: {schema_base_file_path}."
+                )
+                logger.info(error_message)
+                module.fail_json(msg=error_message)
 
-    logger.info(f"Final files to validate: {files_to_validate}")
+            input_file_path = input_file_dict.get(name)
 
-    for name in files_to_validate:
-        fname, _ = os.path.splitext(name)
+            if input_file_path is None:
+                error_message = (
+                    f"file not found in directory: {omnia_base_dir}/{project_name}"
+                )
+                logger.error(error_message)
+                module.fail_json(msg=error_message)
 
-        schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
+            # Validate the schema of the input file (L1)
+            l1_errors = validate.schema({
+                                "input_file_path": input_file_path,
+                                "schema_file_path": schema_file_path,
+                                "passwords_set": passwords_set,
+                                "omnia_base_dir": omnia_base_dir,
+                                "project_name": project_name,
+                                "logger": logger,
+                                "module": module,
+                            })
+            if l1_errors:
+                error_bucket = error_bucket + l1_errors
+                schema_status = False
+            else:
+                schema_status = True
 
-        if not verify.file_exists(schema_file_path, module, logger):
-            error_message = (
-                f"The file schema: {fname}.json does not exist "
-                f"in directory: {schema_base_file_path}."
-            )
-            logger.info(error_message)
-            module.fail_json(msg=error_message)
-
-        input_file_path = input_file_dict.get(name)
-
-        if input_file_path is None:
-            error_message = (
-                f"file not found in directory: {omnia_base_dir}/{project_name}"
-            )
-            logger.error(error_message)
-            module.fail_json(msg=error_message)
-
-        # Validate the schema of the input file (L1)
-        l1_errors = validate.schema({
+            # Validate the logic of the input file (L2) if L1 is success
+            logic_status = True
+            if schema_status:
+                l2_errors = validate.logic({
                             "input_file_path": input_file_path,
-                            "schema_file_path": schema_file_path,
-                            "passwords_set": passwords_set,
+                            "module_utils_base": module_utils_base,
                             "omnia_base_dir": omnia_base_dir,
                             "project_name": project_name,
                             "logger": logger,
                             "module": module,
                         })
-        if l1_errors:
-            error_bucket = error_bucket + l1_errors
-            schema_status = False
-        else:
-            schema_status = True
-
-        # Validate the logic of the input file (L2) if L1 is success
-        logic_status = True
-        if schema_status:
-            l2_errors = validate.logic({
-                        "input_file_path": input_file_path,
-                        "module_utils_base": module_utils_base,
-                        "omnia_base_dir": omnia_base_dir,
-                        "project_name": project_name,
-                        "logger": logger,
-                        "module": module,
-                    })
-            if l2_errors:
-                error_bucket = error_bucket + l2_errors
-                logic_status = False
+                if l2_errors:
+                    error_bucket = error_bucket + l2_errors
+                    logic_status = False
+                else:
+                    logic_status = True
+            # Append the validation status for the input file
+            if (schema_status and logic_status):
+                validation_status["Passed"].append(input_file_path)
             else:
-                logic_status = True
-        # Append the validation status for the input file
-        if (schema_status and logic_status):
-            validation_status["Passed"].append(input_file_path)
-        else:
-            validation_status["Failed"].append(input_file_path)
+                validation_status["Failed"].append(input_file_path)
 
-        vstatus.append(schema_status)
-        vstatus.append(logic_status)
+            vstatus.append(schema_status)
+            vstatus.append(logic_status)
 
     if not validation_status:
         message = "No validation has been performed. \

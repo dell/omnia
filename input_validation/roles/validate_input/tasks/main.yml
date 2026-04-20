@@ -30,7 +30,6 @@
         project_name: "{{ project_name }}"
         tag_names: "{{ input_validate_tags }}"
         module_utils_path: "{{ (role_path + '/../../../common/library/module_utils/') | ansible.builtin.realpath }}"
-        build_stream_enabled: "{{ hostvars['localhost']['build_stream_enabled'] | default(true) }}"
       register: validation_status
       when: (input_validate_tags | length) > 0
 
