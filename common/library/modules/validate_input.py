@@ -162,55 +162,55 @@ def main():
             logger.info(error_message)
             module.fail_json(msg=error_message)
 
-            input_file_path = input_file_dict.get(name)
+        input_file_path = input_file_dict.get(name)
 
-            if input_file_path is None:
-                error_message = (
-                    f"file not found in directory: {omnia_base_dir}/{project_name}"
-                )
-                logger.error(error_message)
-                module.fail_json(msg=error_message)
+        if input_file_path is None:
+            error_message = (
+                f"file not found in directory: {omnia_base_dir}/{project_name}"
+            )
+            logger.error(error_message)
+            module.fail_json(msg=error_message)
 
-            # Validate the schema of the input file (L1)
-            l1_errors = validate.schema({
-                                "input_file_path": input_file_path,
-                                "schema_file_path": schema_file_path,
-                                "passwords_set": passwords_set,
-                                "omnia_base_dir": omnia_base_dir,
-                                "project_name": project_name,
-                                "logger": logger,
-                                "module": module,
-                            })
-            if l1_errors:
-                error_bucket = error_bucket + l1_errors
-                schema_status = False
-            else:
-                schema_status = True
-
-            # Validate the logic of the input file (L2) if L1 is success
-            logic_status = True
-            if schema_status:
-                l2_errors = validate.logic({
+        # Validate the schema of the input file (L1)
+        l1_errors = validate.schema({
                             "input_file_path": input_file_path,
-                            "module_utils_base": module_utils_base,
+                            "schema_file_path": schema_file_path,
+                            "passwords_set": passwords_set,
                             "omnia_base_dir": omnia_base_dir,
                             "project_name": project_name,
                             "logger": logger,
                             "module": module,
                         })
-                if l2_errors:
-                    error_bucket = error_bucket + l2_errors
-                    logic_status = False
-                else:
-                    logic_status = True
-            # Append the validation status for the input file
-            if (schema_status and logic_status):
-                validation_status["Passed"].append(input_file_path)
-            else:
-                validation_status["Failed"].append(input_file_path)
+        if l1_errors:
+            error_bucket = error_bucket + l1_errors
+            schema_status = False
+        else:
+            schema_status = True
 
-            vstatus.append(schema_status)
-            vstatus.append(logic_status)
+        # Validate the logic of the input file (L2) if L1 is success
+        logic_status = True
+        if schema_status:
+            l2_errors = validate.logic({
+                        "input_file_path": input_file_path,
+                        "module_utils_base": module_utils_base,
+                        "omnia_base_dir": omnia_base_dir,
+                        "project_name": project_name,
+                        "logger": logger,
+                        "module": module,
+                    })
+            if l2_errors:
+                error_bucket = error_bucket + l2_errors
+                logic_status = False
+            else:
+                logic_status = True
+        # Append the validation status for the input file
+        if (schema_status and logic_status):
+            validation_status["Passed"].append(input_file_path)
+        else:
+            validation_status["Failed"].append(input_file_path)
+
+        vstatus.append(schema_status)
+        vstatus.append(logic_status)
 
     if not validation_status:
         message = "No validation has been performed. \
