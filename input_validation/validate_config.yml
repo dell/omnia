@@ -109,6 +109,29 @@
         tasks_from: configure_rhel_os_urls.yml
       when: "'local_repo' in (omnia_run_tags | default(ansible_run_tags) | default([])) or 'all' in (ansible_run_tags | default([]))"
 
+- name: Load build_stream_config to check if build_stream is enabled
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - always
+  tasks:
+    - name: Load build_stream_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+      failed_when: false
+      register: build_stream_config_load
+
+    - name: Set build_stream_enabled fact
+      ansible.builtin.set_fact:
+        build_stream_enabled: "{{ enable_build_stream | default(false) | bool }}"
+      when: build_stream_config_load is succeeded
+
+    - name: Set build_stream_enabled to false if config not found or failed to load
+      ansible.builtin.set_fact:
+        build_stream_enabled: false
+      when: build_stream_config_load is failed
+
 - name: Validate omnia input config
   hosts: localhost
   connection: local
