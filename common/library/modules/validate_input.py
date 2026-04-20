@@ -77,7 +77,8 @@ def main():
         "omnia_base_dir": {"type": "str", "required": True},
         "project_name": {"type": "str", "required": True},
         "tag_names": {"type": "list", "required": True},
-        "module_utils_path": {"type": "str"}
+        "module_utils_path": {"type": "str"},
+        "build_stream_enabled": {"type": "bool", "default": True, "required": False}
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -86,6 +87,7 @@ def main():
     omnia_base_dir = module.params["omnia_base_dir"]
     project_name = module.params["project_name"]
     tag_names = module.params["tag_names"]
+    build_stream_enabled = module.params["build_stream_enabled"]
 
     schema_base_file_path = os.path.join(module_utils_base,'input_validation','schema')
     input_dir_path = os.path.join(omnia_base_dir, project_name)
@@ -123,6 +125,12 @@ def main():
     error_bucket = []
     for tag_name in tag_names:
         for name in input_file_inventory.get(tag_name, []):
+            # Skip validation for gitlab_config.yml and build_stream_config.yml when build_stream is disabled
+            if not build_stream_enabled and name in ['gitlab_config.yml', 'build_stream_config.yml']:
+                logger.info(f"Skipping validation for {name} as build_stream is disabled")
+                validation_status["Passed"].append(name)
+                continue
+
             fname, _ = os.path.splitext(name)
 
             schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
