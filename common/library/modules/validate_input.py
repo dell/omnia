@@ -124,25 +124,33 @@ def main():
     # Or user only had tags and no extra var files.
     error_bucket = []
 
-    # Add build_stream files to validation if build_stream is enabled
+    # Build list of files to validate
+    files_to_validate = []
     build_stream_files = ['gitlab_config.yml', 'build_stream_config.yml']
-    if build_stream_enabled:
-        # Add build_stream files to the validation list
-        for tag_name in tag_names:
-            for bs_file in build_stream_files:
-                if bs_file not in input_file_inventory.get(tag_name, []):
-                    # Add file to the inventory for this tag
-                    input_file_inventory.setdefault(tag_name, []).append(bs_file)
-                    logger.info(f"Added {bs_file} to validation for tag {tag_name} as build_stream is enabled")
-    else:
-        # Remove build_stream files from validation if build_stream is disabled
-        for tag_name in tag_names:
-            input_file_inventory[tag_name] = [f for f in input_file_inventory.get(tag_name, []) if f not in build_stream_files]
-            logger.info(f"Removed build_stream files from validation for tag {tag_name} as build_stream is disabled")
 
+    # Collect files from inventory based on tags
     for tag_name in tag_names:
         for name in input_file_inventory.get(tag_name, []):
-            fname, _ = os.path.splitext(name)
+            # Skip build_stream files if build_stream is disabled
+            if not build_stream_enabled and name in build_stream_files:
+                logger.info(f"Skipping validation for {name} as build_stream is disabled")
+                validation_status["Passed"].append(name)
+                continue
+            files_to_validate.append(name)
+
+    # Add build_stream files if build_stream is enabled and not already in the list
+    if build_stream_enabled:
+        for bs_file in build_stream_files:
+            if bs_file not in files_to_validate:
+                files_to_validate.append(bs_file)
+                logger.info(f"Added {bs_file} to validation as build_stream is enabled")
+
+    # Remove duplicates while preserving order
+    seen = set()
+    files_to_validate = [x for x in files_to_validate if not (x in seen or seen.add(x))]
+
+    for name in files_to_validate:
+        fname, _ = os.path.splitext(name)
 
             schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
 
