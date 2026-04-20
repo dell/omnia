@@ -152,15 +152,15 @@ def main():
     for name in files_to_validate:
         fname, _ = os.path.splitext(name)
 
-            schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
+        schema_file_path = schema_base_file_path + "/" + fname + extensions['json']
 
-            if not verify.file_exists(schema_file_path, module, logger):
-                error_message = (
-                    f"The file schema: {fname}.json does not exist "
-                    f"in directory: {schema_base_file_path}."
-                )
-                logger.info(error_message)
-                module.fail_json(msg=error_message)
+        if not verify.file_exists(schema_file_path, module, logger):
+            error_message = (
+                f"The file schema: {fname}.json does not exist "
+                f"in directory: {schema_base_file_path}."
+            )
+            logger.info(error_message)
+            module.fail_json(msg=error_message)
 
             input_file_path = input_file_dict.get(name)
 
