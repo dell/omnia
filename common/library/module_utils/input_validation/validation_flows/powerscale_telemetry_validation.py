@@ -17,15 +17,15 @@ PowerScale telemetry validation module.
 Contains validation logic for PowerScale telemetry configuration in telemetry_config.yml.
 """
 
+import json
 import os
 import yaml
-import json
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
 from ansible.module_utils.input_validation.common_utils.validation_utils import create_error_msg
 
 
 def validate_powerscale_telemetry_config(
-    data, telemetry_collection_type, software_config_file_path, 
+    data, telemetry_collection_type, software_config_file_path,
     is_service_cluster_defined, input_dir, config_paths, logger, errors
 ):
     """
