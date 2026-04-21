@@ -291,7 +291,7 @@ def validate_powerscale_authorization(kluster, softwares, input_file_path, confi
         validate_csm_auth_image_versions(csm_auth_values_path.strip(), config_paths, logger, errors)
 
     # Validate tenants and roles
-    tenants = powerscale_auth.get("tenants", [])
+    tenants = powerscale_auth.get("tenants") or []
     if not tenants:
         errors.append(
             create_error_msg(
@@ -303,7 +303,7 @@ def validate_powerscale_authorization(kluster, softwares, input_file_path, confi
     else:
         for tenant in tenants:
             tenant_name = tenant.get("name", "")
-            roles = tenant.get("roles", [])
+            roles = tenant.get("roles") or []
 
             if not roles:
                 errors.append(
@@ -313,14 +313,14 @@ def validate_powerscale_authorization(kluster, softwares, input_file_path, confi
                         en_us_validation_msg.powerscale_auth_tenant_roles_required_msg(tenant_name)
                     )
                 )
-
-            for role in roles:
-                storage_pool = role.get("storage_pool", "")
-                # Log warning about storage pool path requirement
-                if storage_pool:
-                    logger.warning(
-                        f"PowerScale Authorization: Storage pool path '{storage_pool}' "
-                        f"for tenant '{tenant_name}', role '{role.get('name', '')}' "
-                        "must already exist on the PowerScale cluster. "
-                        "Omnia and CSI driver will NOT create this path automatically."
-                    )
+            else:
+                for role in roles:
+                    storage_pool = role.get("storage_pool", "")
+                    # Log warning about storage pool path requirement
+                    if storage_pool:
+                        logger.warning(
+                            f"PowerScale Authorization: Storage pool path '{storage_pool}' "
+                            f"for tenant '{tenant_name}', role '{role.get('name', '')}' "
+                            "must already exist on the PowerScale cluster. "
+                            "Omnia and CSI driver will NOT create this path automatically."
+                        )

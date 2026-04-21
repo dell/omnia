@@ -153,49 +153,48 @@
                 "pattern": "^(|/?([a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+\\.yaml)$"
               },
               "tenants": {
-                "type": "array",
+                "type": ["array", "null"],
                 "description": "List of tenant configurations.",
                 "items": {
                   "type": "object",
                   "properties": {
                     "name": {
-                      "type": "string",
+                      "type": ["string", "null"],
                       "minLength": 1,
                       "pattern": "^[a-zA-Z0-9_-]+$",
                       "description": "Tenant name (alphanumeric, hyphens, underscores only)."
                     },
                     "roles": {
-                      "type": "array",
+                      "type": ["array", "null"],
+                      "default": [],
                       "description": "List of roles for this tenant.",
                       "items": {
                         "type": "object",
                         "properties": {
                           "name": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "minLength": 1,
                             "pattern": "^[a-zA-Z0-9_-]+$",
                             "description": "Role name (alphanumeric, hyphens, underscores only)."
                           },
                           "storage_pool": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "minLength": 1,
                             "pattern": "^/ifs(/[a-zA-Z0-9._-]+)+$",
                             "description": "PowerScale storage pool path (must start with /ifs and exist on PowerScale)."
                           },
                           "quota_limit": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "pattern": "^[1-9][0-9]*(Gi|Ti|Mi)$",
                             "description": "Storage quota limit (e.g., 200Gi, 1Ti, 500Mi)."
                           }
                         },
                         "required": ["name", "storage_pool", "quota_limit"]
-                      },
-                      "minItems": 1
+                      }
                     }
                   },
-                  "required": ["name", "roles"]
-                },
-                "minItems": 1
+                  "required": ["name"]
+                }
               }
             },
             "required": ["enabled"]
