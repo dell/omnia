@@ -19,9 +19,9 @@
 
 set -e
 
-NAMESPACE="{{ hostvars['localhost']['telemetry_namespace'] }}"
-CSI_SECRET_PATH="{{ hostvars['localhost']['service_cluster_info'].csi_powerscale_driver_secret_file_path }}"
-K8S_MASTER_IP="{{ hostvars['localhost']['k8s_master_ip'] }}"
+NAMESPACE="{{ telemetry_namespace }}"
+CSI_SECRET_PATH="{{ csi_powerscale_driver_secret_file_path }}"
+K8S_MASTER_IP="{{ k8s_master_ip }}"
 
 echo "=========================================="
 echo "PowerScale Syslog Configuration"
@@ -66,6 +66,36 @@ echo ""
 SUCCESS_COUNT=0
 FAIL_COUNT=0
 
+# Check if syslog API endpoint exists on the first cluster
+if [ "$CLUSTER_COUNT" -gt 0 ]; then
+    FIRST_ENDPOINT=$(echo "$CLUSTERS" | jq -r ".[0].endpoint")
+    FIRST_USER=$(echo "$CLUSTERS" | jq -r ".[0].username")
+    FIRST_PASS=$(echo "$CLUSTERS" | jq -r ".[0].password")
+    
+    echo "Checking if syslog API endpoint is available..."
+    ENDPOINT_CHECK=$(curl -s -w "\n%{http_code}" -X GET \
+        "https://$FIRST_ENDPOINT:8080/platform/1/syslog/settings" \
+        -u "$FIRST_USER:$FIRST_PASS" \
+        -k 2>&1)
+    
+    HTTP_CODE=$(echo "$ENDPOINT_CHECK" | tail -n1)
+    
+    # Check if endpoint returns 404 (not found)
+    if echo "$ENDPOINT_CHECK" | grep -q "AEC_NOT_FOUND\|Path not found\|404"; then
+        echo "WARNING: Syslog configuration API endpoint not found on PowerScale cluster."
+        echo "This PowerScale version does not support syslog configuration via REST API."
+        echo "Please configure syslog manually on each PowerScale cluster."
+        echo ""
+        echo "Manual configuration steps:"
+        echo "1. SSH to each PowerScale cluster: ssh admin@<cluster-ip>"
+        echo "2. Configure syslog using the appropriate method for your OneFS version"
+        echo "3. Forward syslog to: $K8S_MASTER_IP:$NODEPORT"
+        echo ""
+        echo "Skipping automated syslog configuration."
+        exit 0
+    fi
+fi
+
 for i in $(seq 0 $(($CLUSTER_COUNT - 1))); do
     CLUSTER_NAME=$(echo "$CLUSTERS" | jq -r ".[$i].name")
     CLUSTER_ENDPOINT=$(echo "$CLUSTERS" | jq -r ".[$i].endpoint")
@@ -73,6 +103,32 @@ for i in $(seq 0 $(($CLUSTER_COUNT - 1))); do
     CLUSTER_PASS=$(echo "$CLUSTERS" | jq -r ".[$i].password")
     
     echo "Configuring cluster: $CLUSTER_NAME ($CLUSTER_ENDPOINT)"
+    
+    # Idempotency check: Get current syslog configuration
+    CURRENT_CONFIG=$(curl -s -X GET \
+        "https://$CLUSTER_ENDPOINT:8080/platform/1/syslog/settings" \
+        -u "$CLUSTER_USER:$CLUSTER_PASS" \
+        -k 2>&1)
+    
+    CURRENT_REMOTE_SERVER=$(echo "$CURRENT_CONFIG" | jq -r '.remote_servers[0]' 2>/dev/null || echo "")
+    CURRENT_ENABLED=$(echo "$CURRENT_CONFIG" | jq -r '.enabled' 2>/dev/null || echo "false")
+    
+    DESIRED_REMOTE_SERVER="$K8S_MASTER_IP:$NODEPORT"
+    DESIRED_ENABLED="true"
+    
+    # Check if configuration matches desired state
+    if [ "$CURRENT_REMOTE_SERVER" == "$DESIRED_REMOTE_SERVER" ] && [ "$CURRENT_ENABLED" == "$DESIRED_ENABLED" ]; then
+        echo "  ✓ Syslog already configured correctly (idempotent)"
+        echo "  Remote Server: $CURRENT_REMOTE_SERVER"
+        echo "  Enabled: $CURRENT_ENABLED"
+        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+        echo ""
+        continue
+    fi
+    
+    echo "  Current configuration differs from desired state"
+    echo "  Current: $CURRENT_REMOTE_SERVER (enabled: $CURRENT_ENABLED)"
+    echo "  Desired: $DESIRED_REMOTE_SERVER (enabled: $DESIRED_ENABLED)"
     
     # Configure syslog remote server
     RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT \

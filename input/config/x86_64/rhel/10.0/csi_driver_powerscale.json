@@ -100,7 +100,7 @@
       "type": "image"
      },
      {
-      "package": "openpolicyagent/kube-mgmt",
+      "package": "docker.io/openpolicyagent/kube-mgmt",
       "tag": "9.3.0",
       "type": "image"
      },
@@ -110,7 +110,7 @@
       "type": "image"
      },
      {
-      "package": "rediscommander/redis-commander",
+      "package": "docker.io/rediscommander/redis-commander",
       "tag": "latest",
       "type": "image"
      },
