@@ -96,18 +96,18 @@ SERVICE_K8S_ENTRY_MISSING_SOFTWARE_CONFIG_MSG = ("The role service_kube_control_
     "but the service_k8s package entry is missing in software_config.json. "
     "To deploy Kubernetes in the service_k8s cluster, the package must be added to software_config.json.")
 SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG = ("The 'service_node' role defined in roles_config.yml"
-    " is not currently supported and is reserved for future use. Please remove or update this role" 
+    " is not currently supported and is reserved for future use. Please remove or update this role"
     " to avoid configuration errors.")
 
 # Functional Groups Config Validation Messages
 
 EMPTY_OR_SYNTAX_ERROR_FUNCTIONAL_GROUPS_CONFIG_MSG = (
-    "The functional_groups_config.yml file is empty or has syntax errors." 
+    "The functional_groups_config.yml file is empty or has syntax errors."
     "It must contain a valid 'functional_groups' section with proper YAML formatting."
     "Check the file content and rerun the playbook."
 )
 MISSING_GROUPS_SECTION_MSG = (
-    "The functional_groups_config.yml file is empty or has syntax errors." 
+    "The functional_groups_config.yml file is empty or has syntax errors."
     "It must contain a valid 'groups' section with proper YAML formatting."
     "Check the file content and rerun the playbook."
 )
@@ -130,7 +130,7 @@ LOGIN_NODE_WITHOUT_SLURM_MSG = (
     "Please make sure cluster name is same for slurm cluster and login_node functional groups."
 )
 SLURM_NODE_PARENT_MISSING_MSG = (
-    "Functional group '{name}' must have a non-empty 'parent' field."    
+    "Functional group '{name}' must have a non-empty 'parent' field."
 )
 MISSING_FUNCTIONAL_GROUPS_SECTION_MSG = (
     "The 'functional_groups' section is missing or null. It must be a non-empty list."
@@ -535,7 +535,7 @@ BUILD_STREAM_PORT_RANGE_MSG = "build_stream_port must be an integer between 1 an
 BUILD_STREAM_PORT_INUSE_MSG = (
     "Port {port} is already in use and is not serving build_stream on {host_ip}. Please choose another free port."
 )
- 
+
 BUILD_STREAM_HOST_IP_REQUIRED_MSG = (
     "Field 'build_stream_host_ip' is mandatory in build_stream_config.yml. "
     "Please provide a valid IPv4 address (OIM admin IP or OIM public IP)."

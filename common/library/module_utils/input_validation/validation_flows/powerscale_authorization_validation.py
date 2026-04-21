@@ -26,7 +26,7 @@ from ansible.module_utils.input_validation.common_utils.validation_utils import 
 
 
 def check_is_service_cluster_functional_groups_defined(
-    errors, input_file_path, omnia_base_dir, project_name, logger, module
+    errors, input_file_path, logger
 ):
     """
     Checks if service_kube_node_* and service_kube_control_plane_*
@@ -35,10 +35,7 @@ def check_is_service_cluster_functional_groups_defined(
     Args:
         errors (list): A list to store error messages.
         input_file_path (str): The path to the input file.
-        omnia_base_dir (str): The base directory for Omnia.
-        project_name (str): The name of the project.
         logger (object): Logger object.
-        module (object): Module object.
 
     Returns:
         bool: True if service cluster functional groups are defined, False otherwise.
@@ -242,7 +239,7 @@ def validate_csm_auth_image_versions(csm_auth_values_path, config_paths, logger,
 
 
 def validate_powerscale_authorization(
-    kluster, softwares, input_file_path, config_paths, logger, module, errors
+    kluster, softwares, input_file_path, config_paths, logger, errors
 ):
     """
     Validates PowerScale CSM Authorization configuration.
@@ -253,7 +250,6 @@ def validate_powerscale_authorization(
         input_file_path (str): Path to omnia_config.yml.
         config_paths (dict): Dictionary containing resolved config file paths.
         logger (object): Logger object.
-        module (object): Module object.
         errors (list): List to store error messages.
     """
     powerscale_auth = kluster.get("powerscale_authorization", {})
@@ -272,8 +268,7 @@ def validate_powerscale_authorization(
 
     # Check if service nodes are defined in PXE mapping
     service_cluster_defined = check_is_service_cluster_functional_groups_defined(
-        errors, input_file_path, module.params.get('omnia_base_dir', '/opt/omnia'),
-        module.params.get('project_name', 'omnia'), logger, module
+        errors, input_file_path, logger
     )
     if not service_cluster_defined:
         errors.append(

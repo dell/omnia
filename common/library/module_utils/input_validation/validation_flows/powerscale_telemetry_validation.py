@@ -26,7 +26,7 @@ from ansible.module_utils.input_validation.common_utils.validation_utils import 
 
 def validate_powerscale_telemetry_config(
     data, telemetry_collection_type, software_config_file_path,
-    is_service_cluster_defined, input_dir, config_paths, logger, errors
+    is_service_cluster_defined, config_paths, logger, errors
 ):
     """
     Validates PowerScale telemetry configuration in telemetry_config.yml.
@@ -36,7 +36,6 @@ def validate_powerscale_telemetry_config(
         telemetry_collection_type (str): Telemetry collection type (e.g., "victoria,kafka").
         software_config_file_path (str): Path to software_config.json.
         is_service_cluster_defined (bool): Whether service cluster is defined.
-        input_dir (str): Input directory path.
         config_paths (dict): Dictionary containing resolved config file paths.
         logger (object): Logger object.
         errors (list): List to store error messages.
