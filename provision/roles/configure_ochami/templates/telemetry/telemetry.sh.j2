@@ -18,6 +18,19 @@ for i in {1..30}; do
 done
 {% endif %}
 kubectl apply -k {{ k8s_client_mount_path }}/telemetry/deployments/.
+
+# Wait for VLAgent to be ready before configuring PowerScale syslog
+{% if 'victoria' in hostvars['localhost']['telemetry_collection_type'].split(',') %}
+echo "Waiting for VLAgent to be ready..."
+kubectl wait --for=condition=available --timeout=300s deployment -l app.kubernetes.io/name=victoria-logs-cluster -n telemetry || true
+
+# Configure PowerScale syslog forwarding if enabled
+{% if hostvars['localhost']['powerscale_configurations']['powerscale_log_enabled'] | default(false) | bool %}
+echo "Configuring PowerScale syslog forwarding..."
+bash {{ k8s_client_mount_path }}/telemetry/deployments/configure_powerscale_syslog.sh
+{% endif %}
+{% endif %}
+
 {% if hostvars['localhost']['ldms_support'] %}
 kubectl create secret generic nersc-ldms-ovis-auth   --from-file=ldmsauth.conf={{ k8s_client_mount_path }}/telemetry/ldms/ldmsauth.conf   --dry-run=client -o yaml | kubectl apply -f  - -n telemetry
 kubectl create secret generic nersc-munge-key   --from-file=munge.key={{ k8s_client_mount_path }}/telemetry/ldms/munge.key   --dry-run=client -o yaml | kubectl apply -f - -n telemetry

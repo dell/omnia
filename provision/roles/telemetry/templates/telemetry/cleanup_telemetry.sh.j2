@@ -18,14 +18,16 @@
 # Telemetry Stack Cleanup Script
 # Removes Kafka, LDMS, iDRAC telemetry, and monitoring resources from the {{ telemetry_namespace }} namespace
 #
-# Usage: ./cleanup_telemetry.sh [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [all]
-#   kafka        - Delete Kafka cluster, users, and bridge
-#   ldms         - Delete LDMS aggregator and store
-#   idrac        - Delete iDRAC telemetry
-#   victoria     - Delete VictoriaMetrics monitoring (vmcluster, vmagent)
-#   victorialogs - Delete VictoriaLogs only (vlagent, vlcluster) without affecting VictoriaMetrics
-#   powerscale   - Delete PowerScale telemetry (karavi-observability Helm release, CSM Metrics, OTEL Collector)
-#   all          - Delete everything (default if no arguments)
+# Usage: ./cleanup_telemetry.sh [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [powerscale_metrics] [powerscale_logs] [all]
+#   kafka             - Delete Kafka cluster, users, and bridge
+#   ldms              - Delete LDMS aggregator and store
+#   idrac             - Delete iDRAC telemetry
+#   victoria          - Delete VictoriaMetrics monitoring (vmcluster, vmagent)
+#   victorialogs      - Delete VictoriaLogs only (vlagent, vlcluster) without affecting VictoriaMetrics
+#   powerscale        - Delete PowerScale telemetry (metrics + logs config)
+#   powerscale_metrics - Delete PowerScale metrics pipeline only (karavi-observability Helm release, CSM Metrics, OTEL Collector)
+#   powerscale_logs   - Note: PowerScale logs use shared VLAgent (no separate resources to delete)
+#   all               - Delete everything (default if no arguments)
 #
 
 set -e
@@ -39,6 +41,8 @@ CLEAN_IDRAC=false
 CLEAN_VICTORIA=false
 CLEAN_VICTORIALOGS=false
 CLEAN_POWERSCALE=false
+CLEAN_POWERSCALE_METRICS=false
+CLEAN_POWERSCALE_LOGS=false
 CLEAN_ALL=false
 
 if [ $# -eq 0 ]; then
@@ -64,20 +68,30 @@ else
             powerscale)
                 CLEAN_POWERSCALE=true
                 ;;
+            powerscale_metrics)
+                CLEAN_POWERSCALE_METRICS=true
+                ;;
+            powerscale_logs)
+                CLEAN_POWERSCALE_LOGS=true
+                ;;
             all)
                 CLEAN_ALL=true
                 ;;
             -h|--help)
-                echo "Usage: $0 [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [all]"
+                echo "Usage: $0 [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [powerscale_metrics] [all]"
                 echo ""
                 echo "Options:"
-                echo "  kafka        - Delete Kafka cluster, users, and bridge"
-                echo "  ldms         - Delete LDMS aggregator and store"
-                echo "  idrac        - Delete iDRAC telemetry"
-                echo "  victoria     - Delete VictoriaMetrics monitoring (vmcluster, vmagent)"
-                echo "  victorialogs - Delete VictoriaLogs only (vlagent, vlcluster) without affecting VictoriaMetrics"
-                echo "  powerscale   - Delete PowerScale telemetry (karavi-observability Helm release)"
-                echo "  all          - Delete everything (default if no arguments)"
+                echo "  kafka             - Delete Kafka cluster, users, and bridge"
+                echo "  ldms              - Delete LDMS aggregator and store"
+                echo "  idrac             - Delete iDRAC telemetry"
+                echo "  victoria          - Delete VictoriaMetrics monitoring (vmcluster, vmagent)"
+                echo "  victorialogs      - Delete VictoriaLogs only (vlagent, vlcluster) without affecting VictoriaMetrics"
+                echo "  powerscale        - Delete PowerScale telemetry (metrics pipeline)"
+                echo "  powerscale_metrics - Delete PowerScale metrics pipeline only (karavi-observability Helm release)"
+                echo "  all               - Delete everything (default if no arguments)"
+                echo ""
+                echo "Note: PowerScale logs use shared VLAgent. To disable PowerScale log collection,"
+                echo "      set powerscale_log_enabled: false in telemetry_config.yml and redeploy."
                 echo ""
                 echo "Examples:"
                 echo "  $0                    # Delete everything"
@@ -85,7 +99,8 @@ else
                 echo "  $0 kafka ldms         # Delete only Kafka and LDMS"
                 echo "  $0 idrac victoria     # Delete only iDRAC and VictoriaMetrics"
                 echo "  $0 victorialogs       # Delete only VictoriaLogs (keeps VictoriaMetrics running)"
-                echo "  $0 powerscale         # Delete only PowerScale telemetry"
+                echo "  $0 powerscale         # Delete PowerScale metrics pipeline"
+                echo "  $0 powerscale_metrics  # Delete PowerScale metrics pipeline only"
                 exit 0
                 ;;
             *)
@@ -105,6 +120,14 @@ if [ "$CLEAN_ALL" = true ]; then
     CLEAN_VICTORIA=true
     CLEAN_VICTORIALOGS=true
     CLEAN_POWERSCALE=true
+    CLEAN_POWERSCALE_METRICS=true
+    CLEAN_POWERSCALE_LOGS=true
+fi
+
+# If CLEAN_POWERSCALE is true, enable both metrics and logs
+if [ "$CLEAN_POWERSCALE" = true ]; then
+    CLEAN_POWERSCALE_METRICS=true
+    CLEAN_POWERSCALE_LOGS=true
 fi
 
 echo "=========================================="
@@ -112,13 +135,14 @@ echo "  Telemetry Stack Cleanup"
 echo "=========================================="
 echo ""
 echo "Components to clean:"
-echo "  Kafka Bridge:     $([ "$CLEAN_KAFKA" = true ] && echo "YES" || echo "NO")"
-echo "  Kafka Cluster:    $([ "$CLEAN_KAFKA" = true ] && echo "YES" || echo "NO")"
-echo "  LDMS:             $([ "$CLEAN_LDMS" = true ] && echo "YES" || echo "NO")"
-echo "  iDRAC Telemetry:  $([ "$CLEAN_IDRAC" = true ] && echo "YES" || echo "NO")"
-echo "  VictoriaMetrics:  $([ "$CLEAN_VICTORIA" = true ] && echo "YES" || echo "NO")"
-echo "  VictoriaLogs:     $([ "$CLEAN_VICTORIALOGS" = true ] && echo "YES" || echo "NO")"
-echo "  PowerScale Tel.:  $([ "$CLEAN_POWERSCALE" = true ] && echo "YES" || echo "NO")"
+echo "  Kafka Bridge:          $([ "$CLEAN_KAFKA" = true ] && echo "YES" || echo "NO")"
+echo "  Kafka Cluster:         $([ "$CLEAN_KAFKA" = true ] && echo "YES" || echo "NO")"
+echo "  LDMS:                  $([ "$CLEAN_LDMS" = true ] && echo "YES" || echo "NO")"
+echo "  iDRAC Telemetry:       $([ "$CLEAN_IDRAC" = true ] && echo "YES" || echo "NO")"
+echo "  VictoriaMetrics:       $([ "$CLEAN_VICTORIA" = true ] && echo "YES" || echo "NO")"
+echo "  VictoriaLogs:          $([ "$CLEAN_VICTORIALOGS" = true ] && echo "YES" || echo "NO")"
+echo "  PowerScale Metrics:    $([ "$CLEAN_POWERSCALE_METRICS" = true ] && echo "YES" || echo "NO")"
+echo "  PowerScale Logs:       $([ "$CLEAN_POWERSCALE_LOGS" = true ] && echo "YES" || echo "NO")"
 echo ""
 read -p "Continue? (y/N): " -n 1 -r
 echo
@@ -238,7 +262,7 @@ if [ "$CLEAN_KAFKA" = true ]; then
     echo ""
 fi
 
-if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = true ] || [ "$CLEAN_VICTORIA" = true ] || [ "$CLEAN_VICTORIALOGS" = true ] || [ "$CLEAN_POWERSCALE" = true ]; then
+if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = true ] || [ "$CLEAN_VICTORIA" = true ] || [ "$CLEAN_VICTORIALOGS" = true ] || [ "$CLEAN_POWERSCALE_METRICS" = true ] || [ "$CLEAN_POWERSCALE_LOGS" = true ]; then
     echo "Step 7: Delete Persistent Volume Claims"
     echo "----------------------------------------"
     if [ "$CLEAN_KAFKA" = true ]; then
@@ -269,11 +293,12 @@ if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = t
             delete_resource pvc vlagent-data-vlagent-vlagent-$i
         done
     fi
-    if [ "$CLEAN_POWERSCALE" = true ]; then
+    if [ "$CLEAN_POWERSCALE_METRICS" = true ]; then
         # Delete OTEL Collector PVC (created by cloud-init post-Helm-install)
         delete_resource pvc otel-collector-data
         delete_all pvc "app.kubernetes.io/name=otel-collector"
     fi
+    # Note: PowerScale logs use shared VLAgent PVC (not separate)
     sleep 2
     echo ""
 fi
@@ -309,7 +334,7 @@ if [ "$CLEAN_IDRAC" = true ]; then
     echo ""
 fi
 
-if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = true ] || [ "$CLEAN_VICTORIA" = true ] || [ "$CLEAN_VICTORIALOGS" = true ]; then
+if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = true ] || [ "$CLEAN_VICTORIA" = true ] || [ "$CLEAN_VICTORIALOGS" = true ] || [ "$CLEAN_POWERSCALE_METRICS" = true ] || [ "$CLEAN_POWERSCALE_LOGS" = true ]; then
     echo "Step 9: Delete ConfigMaps"
     echo "-------------------------"
     if [ "$CLEAN_KAFKA" = true ]; then
@@ -328,6 +353,7 @@ if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = t
     if [ "$CLEAN_VICTORIALOGS" = true ]; then
         delete_resource configmap vlagent-config
     fi
+    # Note: PowerScale logs use shared vlagent-config (not separate)
     sleep 2
     echo ""
 fi
@@ -455,9 +481,9 @@ if [ "$CLEAN_VICTORIA" = true ]; then
     echo ""
 fi
 
-if [ "$CLEAN_POWERSCALE" = true ]; then
-    echo "Step: Delete PowerScale Telemetry"
-    echo "----------------------------------"
+if [ "$CLEAN_POWERSCALE_METRICS" = true ]; then
+    echo "Step: Delete PowerScale Metrics Pipeline"
+    echo "----------------------------------------"
 
     # Uninstall karavi-observability Helm release (primary deployment method)
     echo "Uninstalling karavi-observability Helm release..."
@@ -503,6 +529,19 @@ if [ "$CLEAN_POWERSCALE" = true ]; then
     echo ""
 fi
 
+if [ "$CLEAN_POWERSCALE_LOGS" = true ]; then
+    echo "Step: Delete PowerScale Log Pipeline Configuration"
+    echo "---------------------------------------------------"
+
+    # Note: PowerScale logs use shared VLAgent (not a separate deployment)
+    # Cleanup only requires regenerating VLAgent config without PowerScale labels
+    echo "PowerScale log collection uses shared VLAgent."
+    echo "To disable: Set powerscale_log_enabled: false in telemetry_config.yml and redeploy."
+
+    sleep 2
+    echo ""
+fi
+
 echo ""
 echo "Step 14: Force Delete Any Remaining Component Pods"
 echo "---------------------------------------------------"
@@ -531,11 +570,12 @@ if [ "$CLEAN_VICTORIA" = true ]; then
     kubectl -n $NAMESPACE delete pod -l app=vmagent --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
     kubectl -n $NAMESPACE delete pod -l app=victoria-tls-test --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
 fi
-if [ "$CLEAN_POWERSCALE" = true ]; then
+if [ "$CLEAN_POWERSCALE_METRICS" = true ]; then
     kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/name=karavi-metrics-powerscale --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
     kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/name=otel-collector --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
     kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
 fi
+# Note: PowerScale logs use shared VLAgent (no separate pods to force-delete)
 sleep 5
 
 echo ""
@@ -580,14 +620,19 @@ if [ "$CLEAN_VICTORIA" = true ]; then
     kubectl -n $NAMESPACE get deployment,pod -l app=vmagent 2>/dev/null || echo "    None"
     echo ""
 fi
-if [ "$CLEAN_POWERSCALE" = true ]; then
-    echo "Remaining PowerScale telemetry resources:"
+if [ "$CLEAN_POWERSCALE_METRICS" = true ]; then
+    echo "Remaining PowerScale metrics resources:"
     echo "  CSM Metrics:"
     kubectl -n $NAMESPACE get deployment,pod -l app.kubernetes.io/name=karavi-metrics-powerscale 2>/dev/null || echo "    None"
     echo "  OTEL Collector:"
     kubectl -n $NAMESPACE get deployment,pod -l app.kubernetes.io/name=otel-collector 2>/dev/null || echo "    None"
     echo "  Helm release:"
     helm list -n $NAMESPACE --filter karavi-observability 2>/dev/null || echo "    None"
+    echo ""
+fi
+if [ "$CLEAN_POWERSCALE_LOGS" = true ]; then
+    echo "PowerScale log collection uses shared VLAgent."
+    echo "Check shared VLAgent status with: kubectl -n $NAMESPACE get vlagent"
     echo ""
 fi
 echo "Remaining PVCs:"

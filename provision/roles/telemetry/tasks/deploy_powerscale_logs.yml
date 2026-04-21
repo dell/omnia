@@ -1,0 +1,48 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Configure PowerScale syslog collection via shared VLAgent
+# Conditional: powerscale_log_enabled must be true
+# Note: CSI driver is NOT required for log collection (independent pipeline)
+#
+# Configuration:
+#   - Shared VLAgent (vlagent-config ConfigMap) is updated with PowerScale external labels
+#   - Shared VLAgent service already exposes syslog ports (514 TCP/UDP, 6514 TLS)
+#   - PowerScale OneFS should be configured to forward syslog to VLAgent service NodePort
+
+- name: Set PowerScale log configuration facts
+  ansible.builtin.set_fact:
+    ps_log_enabled: "{{ telemetry_config.powerscale_configurations.powerscale_log_enabled | default(false) | bool }}"
+
+- name: Display PowerScale log collection status
+  ansible.builtin.debug:
+    msg: "{% if ps_log_enabled | bool %}{{ ps_log_enabled_msg }}{% else %}{{ ps_log_disabled_msg }}{% endif %}"
+    verbosity: 2
+
+- name: Configure shared VLAgent for PowerScale syslog collection
+  when: ps_log_enabled | bool
+  block:
+    - name: Validate VictoriaLogs is in telemetry collection type
+      ansible.builtin.assert:
+        that:
+          - "'victoria' in hostvars['localhost']['telemetry_collection_type'].split(',')"
+        fail_msg: >-
+          PowerScale log collection requires VictoriaLogs (victoria in telemetry_collection_type).
+          Add 'victoria' to telemetry_collection_type in telemetry_config.yml.
+
+    - name: Display PowerScale log configuration status
+      ansible.builtin.debug:
+        msg: "{{ ps_log_deployed_msg }}"
+        verbosity: 2

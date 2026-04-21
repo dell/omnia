@@ -483,3 +483,19 @@ ps_dependency_fail_msg: >-
     - karavi-observability (git)
     - helm-charts (git)
     - {{ cert_manager_package | default('cert-manager') }} (tarball from Jetstack Helm repo)
+
+# ============================================================================
+# PowerScale Log Pipeline Configuration (Shared VLAgent)
+# ============================================================================
+# Usage: deploy_powerscale_logs.yml
+# PowerScale syslog collection uses shared VLAgent (not a separate instance)
+# Conditional: Configured only when powerscale_log_enabled: true
+# Note: CSI driver is NOT required for log collection (independent pipeline)
+# Usage: deploy_powerscale_logs.yml - messages
+ps_log_enabled_msg: "PowerScale log collection enabled (powerscale_log_enabled: true). Configuring shared VLAgent for PowerScale syslog."
+ps_log_disabled_msg: "PowerScale log collection disabled (powerscale_log_enabled: false). Shared VLAgent will not include PowerScale labels."
+ps_log_deployed_msg: >-
+  PowerScale log collection configured in shared VLAgent.
+  Shared VLAgent will receive PowerScale syslog on ports 514 (TCP/UDP) and 6514 (TLS).
+  External labels added: source=powerscale, pipeline=powerscale-syslog.
+  Configure PowerScale OneFS to forward syslog to VLAgent service NodePort.

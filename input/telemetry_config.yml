@@ -326,13 +326,15 @@ ldms_sampler_configurations:
 # └─────────────────────┴──────────────┴──────────────┴──────────────────┘
 
 powerscale_configurations:
-  # Enable or disable PowerScale telemetry support
+  # Enable or disable PowerScale telemetry support (METRICS pipeline)
+  # Deploys: CSM Metrics, OTEL Collector, vmagent scrape targets
   # Accepted values: true or false
   # Default: true
   powerscale_telemetry_support: true
 
   # Enable or disable PowerScale log collection (syslog → VictoriaLogs)
-  # Requires powerscale_telemetry_support: true
+  # Uses shared VLAgent (independent of metrics pipeline)
+  # Requires: 'victoria' in telemetry_collection_type (VictoriaLogs enabled)
   # Accepted values: true or false
   # Default: false
   powerscale_log_enabled: false

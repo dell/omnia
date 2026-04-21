@@ -253,6 +253,37 @@ def validate_powerscale_telemetry_config(
                         en_us_validation_msg.powerscale_csm_values_parse_error_msg(str(e))
                     ))
 
+            # Validate powerscale_log_enabled dependency
+            powerscale_log_enabled = powerscale_config.get(
+                "powerscale_log_enabled", False
+            )
+            if powerscale_log_enabled:
+                logger.info(
+                    "PowerScale log collection enabled, "
+                    "validating VictoriaLogs and CSI driver requirements"
+                )
+                if 'victoria' not in collection_types:
+                    errors.append(create_error_msg(
+                        "powerscale_configurations.powerscale_log_enabled",
+                        powerscale_log_enabled,
+                        en_us_validation_msg.POWERSCALE_LOG_VICTORIA_REQUIRED_MSG
+                    ))
+                
+                # Validate CSI driver secret is configured (required for syslog automation)
+                csi_secret_path = config_paths.get("csi_powerscale_driver_secret_file_path", "")
+                if not csi_secret_path or not isinstance(csi_secret_path, str) or csi_secret_path.strip() == "":
+                    errors.append(create_error_msg(
+                        "powerscale_configurations.powerscale_log_enabled",
+                        powerscale_log_enabled,
+                        en_us_validation_msg.POWERSCALE_LOG_CSI_SECRET_REQUIRED_MSG
+                    ))
+                elif not os.path.exists(csi_secret_path):
+                    errors.append(create_error_msg(
+                        "csi_powerscale_driver_secret_file_path",
+                        csi_secret_path,
+                        en_us_validation_msg.powerscale_log_csi_secret_not_found_msg(csi_secret_path)
+                    ))
+
             # Validate additional_remote_write_endpoints
             additional_endpoints = powerscale_config.get("additional_remote_write_endpoints", [])
             if additional_endpoints and isinstance(additional_endpoints, list):

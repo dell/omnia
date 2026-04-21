@@ -361,9 +361,30 @@ def powerscale_auth_image_version_mismatch_msg(image_name, values_version, csi_v
         f"Please ensure both files use the same version."
     )
 POWERSCALE_AUTH_CSI_JSON_NOT_FOUND_MSG = (
-    "csi_driver_powerscale.json not found. Cannot validate CSM Authorization image versions. "
-    "Please ensure the file exists at input/config/x86_64/rhel/10.0/csi_driver_powerscale.json."
+    "csi_driver_powerscale.json not found. "
+    "Cannot validate CSM Authorization image versions. "
+    "Please ensure the file exists at "
+    "input/config/x86_64/rhel/10.0/csi_driver_powerscale.json."
 )
+
+# PowerScale log pipeline (shared VLAgent) validation messages
+POWERSCALE_LOG_VICTORIA_REQUIRED_MSG = (
+    "powerscale_log_enabled requires VictoriaLogs to be enabled. "
+    "Add 'victoria' to telemetry_collection_type in telemetry_config.yml "
+    "to enable VictoriaLogs log storage."
+)
+POWERSCALE_LOG_CSI_SECRET_REQUIRED_MSG = (
+    "powerscale_log_enabled requires CSI PowerScale driver secret to be configured. "
+    "The secret file contains PowerScale cluster credentials needed for automated syslog configuration. "
+    "Set csi_powerscale_driver_secret_file_path in omnia_config.yml or disable powerscale_log_enabled."
+)
+def powerscale_log_csi_secret_not_found_msg(path):
+    """Returns error message when CSI PowerScale driver secret file is not found."""
+    return (
+        f"CSI PowerScale driver secret file not found at '{path}'. "
+        "This file is required for automated PowerScale syslog configuration. "
+        "Please verify the file path is correct."
+    )
 def boolean_fail_msg(value):
     """Returns a formatted message indicating boolean_fail_msg."""
     return f"{value} must be set to either true or false."
