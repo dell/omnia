@@ -141,16 +141,16 @@ victoria_metrics_configurations:
 # ┌─────────────────┬──────────────────┬─────────────────┬──────────────────┐
 # │ Component       │ Per-Pod Storage  │ Number of Pods  │ Total Storage    │
 # ├─────────────────┼──────────────────┼─────────────────┼──────────────────┤
-# │ vlstorage       │ storage_size     │ 2 pods          │ 2× storage       │
+# │ vlstorage       │ storage_size     │ 3 pods          │ 3× storage       │
 # ├─────────────────┼──────────────────┼─────────────────┼──────────────────┤
 # │ VLAgent buffer  │ 5Gi (fixed)      │ 1 pod           │ 5Gi              │
 # └─────────────────┴──────────────────┴─────────────────┴──────────────────┘
-# Example: 8Gi × 2 vlstorage = 16Gi + 5Gi VLAgent = 21Gi total
+# Example: 8Gi × 3 vlstorage = 24Gi + 5Gi VLAgent = 29Gi total
 victoria_logs_configurations:
   # Storage size per vlstorage replica PVC
-  # IMPORTANT: Total VictoriaLogs storage = storage_size × 2 vlstorage pods
+  # IMPORTANT: Total VictoriaLogs storage = storage_size × 3 vlstorage pods
   # Accepted values: in the form of "X[Ki|Mi|Gi|Ti|Pi|Ei]"
-  # Default: 8Gi (results in 16Gi total storage)
+  # Default: 8Gi (results in 24Gi total storage)
   storage_size: "8Gi"
 
   # Log retention period (duration format)

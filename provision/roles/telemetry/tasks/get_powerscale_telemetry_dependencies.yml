@@ -92,13 +92,10 @@
           {%- if csm_observability_values_file_path | default('') != '' -%}
           {%- set values_content = lookup('file', csm_observability_values_file_path, errors='ignore') -%}
           {%- if values_content is not none and 'cert-manager:' in values_content and 'enabled: false' in values_content -%}
-          true
+          true{%- else -%}
+          false{%- endif -%}
           {%- else -%}
-          false
-          {%- endif -%}
-          {%- else -%}
-          false
-          {%- endif -%}
+          false{%- endif -%}
 
     - name: Display cert-manager dependency status
       ansible.builtin.debug:

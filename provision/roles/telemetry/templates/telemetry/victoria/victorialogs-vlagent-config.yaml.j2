@@ -1,0 +1,155 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+# VLAgent Configuration ConfigMap
+# Mounted as vlagent.yml in the VLAgent pod
+# Defines syslog receivers and log forwarding pipeline to vlinsert
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vlagent-config
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: vlagent
+    component: victorialogs
+data:
+  vlagent.yml: |
+    # ============================================================================
+    # VLAgent Platform Base Configuration
+    # ============================================================================
+    # Source-neutral: no source-specific relabel rules or external labels
+    # Downstream capabilities extend this configuration for specific log sources
+    #
+    # Pipeline:
+    #   1. RECEIVE: Syslog messages on :514 (plaintext) and :6514 (TLS)
+    #   2. PARSE: Convert syslog to JSON Lines format
+    #   3. FORWARD: Send to vlinsert via HTTPS remoteWrite
+    #   4. BUFFER: PVC-backed persistence for retry during vlinsert unavailability
+
+    # ============================================================================
+    # SYSLOG RECEIVERS (Platform-provided scrape targets)
+    # ============================================================================
+    # Listens for incoming syslog messages from external sources
+    # Supports RFC 3164 (BSD) and RFC 5424 (structured) formats
+    #
+    # Plaintext receiver (:514):
+    #   - TCP and UDP support
+    #   - Standard syslog port
+    #   - Suitable for trusted internal networks
+    #
+    # TLS receiver (:6514):
+    #   - TCP only (RFC 5425)
+    #   - Encrypted syslog transport
+    #   - Requires server certificate from victoria-tls-certs secret
+    syslog:
+      # Plaintext syslog receiver (RFC 3164/5424)
+      # Listens on all interfaces, TCP and UDP
+      listenAddr: "0.0.0.0:514"
+
+      # TLS syslog receiver (RFC 5425)
+      # Listens on all interfaces, TCP only
+      tlsListenAddr: "0.0.0.0:6514"
+
+{% if victoria_logs_cluster.tls_enabled %}
+      # TLS certificate and key for syslog TLS receiver
+      # Sourced from shared victoria-tls-certs secret
+      tlsCertFile: "/etc/victoria/certs/server.crt"
+      tlsKeyFile: "/etc/victoria/certs/server.key"
+{% endif %}
+
+    # ============================================================================
+    # LOG FORWARDING PIPELINE (remoteWrite to vlinsert)
+    # ============================================================================
+    # Forwards parsed logs to vlinsert ingestion endpoint
+    # Format: JSON Lines (NDJSON) over HTTPS
+    # Stream identification: hostname and app_name fields for consistent-hash sharding
+    #
+    # Behavior:
+    #   - Batches logs and sends HTTP POST to vlinsert
+    #   - Batch size: ~1 MB or 10,000 entries (whichever comes first)
+    #   - Flush interval: 1 second (default)
+    #   - Retry: Exponential backoff (1s → 60s) on vlinsert errors
+    #   - Persistence: Unsent batches buffered to PVC on vlinsert unavailability
+    remoteWrite:
+      # vlinsert endpoint (in-cluster FQDN)
+      # Operator creates service as vlinsert-victoria-logs-cluster
+      # Port 9481: ingestion endpoint (HTTPS when tls_enabled, HTTP otherwise)
+      # Path: /insert/jsonline — primary VictoriaLogs ingestion format
+      # Query params:
+      #   _stream_fields=hostname,app_name — stream identification for sharding
+      url: "{{ 'https' if victoria_logs_cluster.tls_enabled else 'http' }}://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/insert/jsonline?_stream_fields=hostname,app_name"
+
+{% if victoria_logs_cluster.tls_enabled %}
+      # TLS configuration for remoteWrite client
+      # Validates vlinsert's server certificate using CA cert from victoria-tls-certs secret
+      tls_config:
+        ca_file: "/etc/victoria/certs/ca.crt"
+        insecure_skip_verify: false
+{% endif %}
+
+    # ============================================================================
+    # PERSISTENT QUEUE CONFIGURATION (Client-side buffering)
+    # ============================================================================
+    # Disk-backed write-ahead log (WAL) for log persistence
+    # Prevents log loss during vlinsert unavailability (pod restart, rolling update)
+    #
+    # Behavior:
+    #   - VLAgent writes incoming logs to disk before forwarding
+    #   - On vlinsert error: Batches persisted to PVC, retried with exponential backoff
+    #   - On VLAgent restart: Unsent batches read from PVC and retried
+    #   - On PVC full: Oldest buffered entries evicted (FIFO) to make room
+    #
+    # Sizing:
+    #   - Default: 5Gi (sufficient for ~24-48 hours of log accumulation)
+    #   - Configurable via victoria_logs_cluster.vlagent.pvc_size in vars/main.yml
+    persistentQueue:
+      # Mount path for PVC buffer storage
+      # Corresponds to storage.volumeClaimTemplate in VLAgent CR
+      dir: "/vlagent-data"
+
+      # Maximum buffer size before eviction
+      # Matches PVC size (5Gi default)
+      maxPendingBytes: "5GiB"
+
+    # ============================================================================
+    # EXTENSION POINTS FOR DOWNSTREAM CAPABILITIES
+    # ============================================================================
+    # This platform base configuration is source-neutral.
+    # Downstream capabilities (separate epics) extend this configuration with:
+    #
+    #   1. Source-specific relabel rules
+    #      Example: Add labels for PowerScale syslog sources
+    #      relabeling:
+    #        - source_labels: [hostname]
+    #          regex: "powerscale-.*"
+    #          target_label: source
+    #          replacement: powerscale
+    #
+    #   2. External labels for source identification
+    #      Example: Add cluster identifier
+    #      external_labels:
+    #        cluster: "production"
+    #        environment: "prod"
+    #
+    #   3. Additional remoteWrite destinations
+    #      Example: Dual-write to secondary vlinsert
+    #      remoteWrite:
+    #        - url: "https://secondary-vlinsert:9480/insert/jsonline"
+    #
+    #   4. Parsing and enrichment rules
+    #      Example: Extract fields from syslog message
+    #      parsing:
+    #        - type: json
+    #          field: message

@@ -24,6 +24,13 @@
 - name: Load service images from service_k8s.json
   ansible.builtin.include_tasks: load_service_images.yml
 
+- name: Check kube_vip reachability for validation
+  ansible.builtin.include_tasks: check_kube_vip_reachability.yml
+  when:
+    - "'victoria' in hostvars['localhost']['telemetry_collection_type'].split(',')"
+    - kube_vip is defined
+    - kube_vip | length > 0
+
 - name: Configure of k8s telemetry service
   when:
     - >-

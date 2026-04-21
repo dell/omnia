@@ -147,6 +147,17 @@ victoria_cluster:
         memory: "1Gi"
         cpu: "1000m"
 
+  vmagent:
+    replicas: 1
+    image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
 # ============================================================================
 # VictoriaLogs Cluster Configuration
 # ============================================================================
@@ -206,16 +217,18 @@ victoria_logs_cluster:
         memory: "512Mi"
         cpu: "250m"
 
-# VictoriaLogs ports (VM port + 1000 parity with VMCluster 8400-8482 range)
-victoria_logs_ports:
-  vlinsert_http: 9480        # Ingestion clients → vlinsert (HTTPS, LoadBalancer)
-  vlselect_http: 9481        # Query clients → vlselect (HTTPS, LoadBalancer)
-  vlstorage_http: 9482       # Health checks and admin API (internal)
-  vlstorage_insert: 9400     # vlinsert → vlstorage data sharding (HTTPS, internal)
-  vlstorage_select: 9401     # vlselect → vlstorage query fan-out (HTTPS, internal)
-  vlagent_syslog: 514        # Syslog receiver plaintext (TCP+UDP)
-  vlagent_syslog_tls: 6514   # Syslog receiver TLS (TCP, RFC 5425)
-  vlagent_http: 9429         # VLAgent health checks (distinct from vmagent 8429)
+# VictoriaLogs ports (operator v0.66.1 defaults)
+# Note: VictoriaMetrics operator uses these default ports and ignores custom port specifications
+# will uncomment after verify that victoria oprator does not takes default port
+# victoria_logs_ports:
+#   vlinsert_http: 9481        # Ingestion clients → vlinsert (HTTPS, LoadBalancer) - operator default
+#   vlselect_http: 9471        # Query clients → vlselect (HTTPS, LoadBalancer) - operator default
+#   vlstorage_http: 9491       # Health checks and admin API (internal) - operator default
+#   vlstorage_insert: 9400     # vlinsert → vlstorage data sharding (HTTPS, internal)
+#   vlstorage_select: 9401     # vlselect → vlstorage query fan-out (HTTPS, internal)
+#   vlagent_syslog: 514        # Syslog receiver plaintext (TCP+UDP)
+#   vlagent_syslog_tls: 6514   # Syslog receiver TLS (TCP, RFC 5425)
+#   vlagent_http: 9429         # VLAgent health checks (distinct from vmagent 8429)
 
 # Telemetry shared path configuration
 telemetry_share_path: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/telemetry"
@@ -247,7 +260,8 @@ vmagent:
   # Operator creates service as vminsert-victoria-cluster (not vminsert)
   # Protocol depends on tls_enabled: https when TLS is on, http otherwise
   remote_write_url_cluster: >-
-    {{ 'https' if victoria_cluster.tls_enabled else 'http' }}://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
+    {{ 'https' if victoria_cluster.tls_enabled else 'http' }}://vminsert-victoria-cluster.{{
+    telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
 
 strmzi_kafka_tarball_url: "{{ offline_tarball_path }}/{{ strimzi_kafka_pkg }}/{{ strimzi_kafka_pkg }}.tar.gz"
 

@@ -54,11 +54,11 @@ spec:
   # Resource limits
   resources:
     requests:
-      memory: "512Mi"
-      cpu: "250m"
+      memory: "{{ victoria_cluster.vmagent.resources.requests.memory}}"
+      cpu: "{{ victoria_cluster.vmagent.resources.requests.cpu}}"
     limits:
-      memory: "1Gi"
-      cpu: "1000m"
+      memory: "{{ victoria_cluster.vmagent.resources.limits.memory}}"
+      cpu: "{{ victoria_cluster.vmagent.resources.limits.cpu}}"
   
   # Service discovery configs - operator uses VMServiceScrape/VMPodScrape CRDs
   serviceScrapeNamespaceSelector: {}

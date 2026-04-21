@@ -20,6 +20,12 @@ resources:
   - victoria-operator-vmagent.yaml
   # VMPodScrape CR (native operator-based pod discovery)
   - victoria-operator-vmpodscrape.yaml
+  # VictoriaLogs Cluster Mode: VLCluster CR (operator manages vlstorage StatefulSet, vlinsert/vlselect Deployments)
+  # VLAgent CR (operator-managed log collection agent)
+  # VLAgent ConfigMap (syslog receiver and remoteWrite configuration)
+  - victorialogs-operator-vlcluster.yaml
+  - victorialogs-operator-vlagent.yaml
+  - victorialogs-vlagent-config.yaml
 {% endif %}
 {% if kafka_support %}
   - kafka.kafka.yaml

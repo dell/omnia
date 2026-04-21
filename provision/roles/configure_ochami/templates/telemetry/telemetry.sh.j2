@@ -6,6 +6,16 @@ helm -n telemetry install strimzi-cluster-operator {{ k8s_client_mount_path }}/t
 helm -n telemetry install victoria-metrics-operator {{ k8s_client_mount_path }}/telemetry/{{ victoria_operator_pkg }}.tar.gz
 echo "Waiting for victoria-metrics-operator to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment -l app.kubernetes.io/name=victoria-metrics-operator -n telemetry || true
+echo "Waiting for VictoriaLogs CRDs to be registered..."
+for i in {1..30}; do
+  if kubectl get crd vlclusters.operator.victoriametrics.com >/dev/null 2>&1 && \
+     kubectl get crd vlagents.operator.victoriametrics.com >/dev/null 2>&1; then
+    echo "VictoriaLogs CRDs are ready"
+    break
+  fi
+  echo "Waiting for VictoriaLogs CRDs... (attempt $i/30)"
+  sleep 2
+done
 {% endif %}
 kubectl apply -k {{ k8s_client_mount_path }}/telemetry/deployments/.
 {% if hostvars['localhost']['ldms_support'] %}

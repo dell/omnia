@@ -267,7 +267,7 @@
           "type": "string",
           "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
           "default": "8Gi",
-          "description": "Storage size per vlstorage replica PVC. Total = storage_size x 2 replicas.",
+          "description": "Storage size per vlstorage replica PVC. Total = storage_size x 3 replicas.",
           "errorMessage": "storage_size must be a valid Kubernetes PVC size (e.g., '8Gi', '50Gi', '1Ti')"
         },
         "retention_period": {

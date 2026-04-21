@@ -39,6 +39,16 @@
   #       - cluster mode: includes vmstorage, vminsert, vmselect templates
   #       - single-node mode: includes victoria-statefulset template
 
+- name: Populate VictoriaLogs deployment configs
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  loop: "{{ victorialogs_templates }}"
+  when: "'victoria' in hostvars['localhost']['telemetry_collection_type'].split(',')"
+  tags: telemetry_deployment
+  # NOTE: victorialogs_templates includes VLCluster CR, VLAgent CR, and VLAgent ConfigMap
+
 - name: Kafka configurations
   when: kafka_support
   block:
