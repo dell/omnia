@@ -46,6 +46,7 @@ from api.jobs.dependencies import (
     get_job_repo,
     get_stage_repo,
 )
+from api.dependencies import get_artifact_store, get_artifact_metadata_repo
 from api.jobs.schemas import (
     CreateJobRequest,
     CreateJobResponse,
@@ -644,12 +645,8 @@ async def download_artifact(
         ) from e
 
     try:
-        from core.jobs.value_objects import StageName  # pylint: disable=import-outside-toplevel
-        
-        # failed_nodes.json is always created by the restart stage
-        record = artifact_metadata_repo.find_by_job_stage_and_label(
+        record = artifact_metadata_repo.find_by_job_and_label(
             job_id=validated_job_id,
-            stage_name=StageName("restart"),
             label=filename,
         )
 

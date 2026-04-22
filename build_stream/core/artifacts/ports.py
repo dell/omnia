@@ -163,6 +163,26 @@ class ArtifactMetadataRepository(Protocol):
         """
         ...
 
+    def find_by_job_and_label(
+        self,
+        job_id: JobId,
+        label: str,
+    ) -> Optional[ArtifactRecord]:
+        """Find an artifact record by job and label (any stage).
+
+        Used when the caller does not know which stage produced the artifact
+        (e.g. downloading ``failed_nodes.json`` which is created by the
+        result poller, not by a specific playbook stage).
+
+        Args:
+            job_id: Parent job identifier.
+            label: Artifact label.
+
+        Returns:
+            ArtifactRecord if found, None otherwise.
+        """
+        ...
+
     def find_by_job(self, job_id: JobId) -> List[ArtifactRecord]:
         """Find all artifact records for a job.
 
