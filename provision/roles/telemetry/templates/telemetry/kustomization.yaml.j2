@@ -25,6 +25,7 @@ resources:
   # Syslog receivers configured via extraArgs in VLAgent CR (not via ConfigMap)
   - victorialogs-operator-vlcluster.yaml
   - victorialogs-operator-vlagent.yaml
+  - victorialogs-vlagent-config.yaml
 {% endif %}
 {% if kafka_support %}
   - kafka.kafka.yaml

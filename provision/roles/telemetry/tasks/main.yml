@@ -31,32 +31,41 @@
     - kube_vip is defined
     - kube_vip | length > 0
 
-- name: Configure of k8s telemetry service
+- name: Set NFS info fact
   when:
     - >-
       hostvars['localhost']['idrac_telemetry_support'] or
       hostvars['localhost']['ldms_support'] or
-      hostvars['localhost']['powerscale_configurations']['powerscale_telemetry_support'] | default(false) | bool
-  block:
-    - name: Set NFS info fact
-      ansible.builtin.set_fact:
-        oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
+      hostvars['localhost']['powerscale_configurations']['powerscale_telemetry_support'] | default(false) | bool or
+      hostvars['localhost']['powerscale_configurations']['powerscale_log_enabled'] | default(false) | bool
+  ansible.builtin.set_fact:
+    oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
 
-    - name: Service cluster prerequisite
-      ansible.builtin.include_tasks: telemetry_prereq.yml
+- name: Service cluster prerequisite (iDRAC/LDMS only - Kafka setup)
+  when:
+    - >-
+      hostvars['localhost']['idrac_telemetry_support'] or
+      hostvars['localhost']['ldms_support']
+  ansible.builtin.include_tasks: telemetry_prereq.yml
 
-    - name: Deploy PowerScale telemetry metrics
-      ansible.builtin.include_tasks: deploy_powerscale_metrics.yml
-      when:
-        - hostvars['localhost']['powerscale_configurations']['powerscale_telemetry_support'] | default(false) | bool
+- name: Deploy PowerScale telemetry metrics
+  when:
+    - hostvars['localhost']['powerscale_configurations']['powerscale_telemetry_support'] | default(false) | bool
+  ansible.builtin.include_tasks: deploy_powerscale_metrics.yml
 
-    - name: Deploy PowerScale syslog collection (shared VLAgent)
-      ansible.builtin.include_tasks: deploy_powerscale_logs.yml
-      when:
-        - hostvars['localhost']['powerscale_configurations']['powerscale_log_enabled'] | default(false) | bool
+#- name: Deploy PowerScale syslog collection (shared VLAgent)
+#  when:
+#    - hostvars['localhost']['powerscale_configurations']['powerscale_log_enabled'] | default(false) | bool
+#  ansible.builtin.include_tasks: deploy_powerscale_logs.yml
 
-    - name: Generate telemetry deployments
-      ansible.builtin.include_tasks: generate_telemetry_deployments.yml
+- name: Generate telemetry deployments
+  when:
+    - >-
+      hostvars['localhost']['idrac_telemetry_support'] or
+      hostvars['localhost']['ldms_support'] or
+      hostvars['localhost']['powerscale_configurations']['powerscale_telemetry_support'] | default(false) | bool or
+      hostvars['localhost']['powerscale_configurations']['powerscale_log_enabled'] | default(false) | bool
+  ansible.builtin.include_tasks: generate_telemetry_deployments.yml
 
 - name: Configure of k8s telemetry service
   when:

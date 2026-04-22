@@ -46,6 +46,12 @@ spec:
   # Single replica (DD-A1): Platform-managed log forwarding agent
   # HA provided by PVC buffer persistence and pod restart
   replicaCount: {{ victoria_logs_cluster.vlagent.replicas }}
+  
+  # ========================================
+  # Configuration Management
+  # ========================================
+  # ConfigMap containing VLAgent syslog receiver configuration
+  configSecret: vlagent-config
 
   # ========================================
   # Syslog Receiver Configuration (extraArgs)
@@ -56,17 +62,17 @@ spec:
   #   -syslog.listenAddr.tcp  → plaintext syslog TCP receiver
   #   -syslog.listenAddr.udp  → plaintext syslog UDP receiver
   #   -syslog.tlsListenAddr.tcp → TLS syslog receiver (RFC 5425)
-  extraArgs:
-    syslog.listenAddr.tcp: ":514"
-    syslog.listenAddr.udp: ":514"
-{% if victoria_logs_cluster.tls_enabled %}
-    syslog.tlsListenAddr.tcp: ":6514"
-    syslog.tls.certFile: "/etc/victoria/certs/server.crt"
-    syslog.tls.keyFile: "/etc/victoria/certs/server.key"
-{% endif %}
-{% if hostvars['localhost']['powerscale_configurations']['powerscale_log_enabled'] | default(false) | bool %}
-    remoteWrite.label: "source=powerscale,pipeline=powerscale-syslog"
-{% endif %}
+  #extraArgs:
+  #  syslog.listenAddr.tcp: ":514"
+  #  syslog.listenAddr.udp: ":514"
+#{% if victoria_logs_cluster.tls_enabled %}
+  #  syslog.tlsListenAddr.tcp: ":6514"
+  #  syslog.tls.certFile: "/etc/victoria/certs/server.crt"
+  #  syslog.tls.keyFile: "/etc/victoria/certs/server.key"
+#{% endif %}
+#{% if hostvars['localhost']['powerscale_configurations']['powerscale_log_enabled'] | default(false) | bool %}
+#    remoteWrite.label: "source=powerscale,pipeline=powerscale-syslog"
+#{% endif %}
 
   # ========================================
   # Remote Write Configuration
@@ -95,27 +101,27 @@ spec:
       memory: {{ victoria_logs_cluster.vlagent.resources.limits.memory }}
       cpu: {{ victoria_logs_cluster.vlagent.resources.limits.cpu }}
 
-  # ========================================
-  # Init Container: Stale Lock File Cleanup
-  # ========================================
-  # VLAgent uses flock for exclusive access to its persistent queue.
-  # On NFS-backed PVCs (e.g., PowerScale StorageClass), POSIX flock is
-  # not reliably released on pod termination. This causes the new pod
-  # to panic with "resource temporarily unavailable" on the lock file.
-  # The init container removes stale flock.lock files before vlagent starts.
-  initContainers:
-    - name: cleanup-stale-locks
-      image: {{ victoria_logs_cluster.vlagent.image }}
-      command:
-        - /bin/sh
-        - -c
-        - |
-          echo "Cleaning up stale flock files..."
-          find /vlagent-data -name "flock.lock" -delete 2>/dev/null || true
-          echo "Lock file cleanup complete"
-      volumeMounts:
-        - name: tmp-data
-          mountPath: /vlagent-data
+#  # ========================================
+#  # Init Container: Stale Lock File Cleanup
+#  # ========================================
+#  # VLAgent uses flock for exclusive access to its persistent queue.
+#  # On NFS-backed PVCs (e.g., PowerScale StorageClass), POSIX flock is
+#  # not reliably released on pod termination. This causes the new pod
+#  # to panic with "resource temporarily unavailable" on the lock file.
+#  # The init container removes stale flock.lock files before vlagent starts.
+#  initContainers:
+ #   - name: cleanup-stale-locks
+ #     image: {{ victoria_logs_cluster.vlagent.image }}
+ #     command:
+ #       - /bin/sh
+ #       - -c
+ #       - |
+ #         echo "Cleaning up stale flock files..."
+ #         find /vlagent-data -name "flock.lock" -delete 2>/dev/null || true
+ #         echo "Lock file cleanup complete"
+ #     volumeMounts:
+ #       - name: tmp-data
+ #         mountPath: /vlagent-data
 
   # ========================================
   # Persistent Storage Configuration

@@ -123,25 +123,25 @@ data:
       # Matches PVC size (5Gi default)
       maxPendingBytes: "5GiB"
 
-{% if hostvars['localhost']['powerscale_configurations']['powerscale_log_enabled'] | default(false) | bool %}
+#{% if hostvars['localhost']['powerscale_configurations']['powerscale_log_enabled'] | default(false) | bool %}
     # ============================================================================
     # POWERSCALE LOG COLLECTION CONFIGURATION
     # ============================================================================
     # External labels for PowerScale syslog source identification
     # Applied to all logs received via syslog when PowerScale log collection is enabled
-    external_labels:
-      source: powerscale
-      pipeline: powerscale-syslog
+#    external_labels:
+#      source: powerscale
+#      pipeline: powerscale-syslog
 
     # ============================================================================
     # RELABELING RULES (PowerScale-specific)
     # ============================================================================
     # Add source identification labels based on syslog hostname
-    relabeling:
-      - source_labels: [hostname]
-        target_label: source
-        replacement: powerscale
-{% endif %}
+#    relabeling:
+#      - source_labels: [hostname]
+#        target_label: source
+#        replacement: powerscale
+#{% endif %}
 
     # ============================================================================
     # EXTENSION POINTS FOR DOWNSTREAM CAPABILITIES
