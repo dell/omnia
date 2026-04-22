@@ -18,9 +18,9 @@
 # Note: CSI driver is NOT required for log collection (independent pipeline)
 #
 # Configuration:
-#   - Shared VLAgent (vlagent-config Secret) is updated with PowerScale external labels
-#   - Shared VLAgent service already exposes syslog ports (514 TCP/UDP, 6514 TLS)
-#   - PowerScale OneFS should be configured to forward syslog to VLAgent service NodePort
+#   - Shared VLAgent CR uses extraArgs for syslog CLI flags and PowerScale labels
+#   - Shared VLAgent service exposes syslog ports (514 TCP/UDP, 6514 TLS) via LoadBalancer or NodePort
+#   - PowerScale OneFS syslog forwarding configured by configure_powerscale_syslog.sh
 
 - name: Set PowerScale log configuration facts
   ansible.builtin.set_fact:

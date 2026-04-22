@@ -351,9 +351,10 @@ if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = t
         delete_resource configmap victoria-tls-test-script
     fi
     if [ "$CLEAN_VICTORIALOGS" = true ]; then
-        delete_resource secret vlagent-config
+        delete_resource configmap vlagent-config 2>/dev/null
+        delete_resource secret vlagent-config 2>/dev/null
     fi
-    # Note: PowerScale logs use shared vlagent-config Secret (not separate)
+    # Note: PowerScale logs use shared VLAgent (syslog configured via extraArgs)
     sleep 2
     echo ""
 fi
@@ -421,7 +422,8 @@ if [ "$CLEAN_VICTORIALOGS" = true ]; then
     
     # Delete VictoriaLogs shared resources
     echo "Deleting VictoriaLogs shared resources..."
-    delete_resource secret vlagent-config
+    delete_resource configmap vlagent-config 2>/dev/null
+    delete_resource secret vlagent-config 2>/dev/null
     # Note: victoria-tls-certs secret is shared with VictoriaMetrics - only delete if VictoriaMetrics is also being removed
     if [ "$CLEAN_VICTORIA" != true ]; then
         echo "  Keeping victoria-tls-certs secret (shared with VictoriaMetrics)"

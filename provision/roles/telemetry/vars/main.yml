@@ -344,8 +344,6 @@ victorialogs_templates:
     dest: 'victorialogs-operator-vlcluster.yaml'
   - src: 'telemetry/victoria/victorialogs-operator-vlagent.yaml.j2'
     dest: 'victorialogs-operator-vlagent.yaml'
-  - src: 'telemetry/victoria/victorialogs-vlagent-config.yaml.j2'
-    dest: 'victorialogs-vlagent-config.yaml'
 
 kafka_templates:
   - src: 'telemetry/kafka/kafka.kafka.yaml.j2'
