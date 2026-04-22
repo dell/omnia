@@ -320,6 +320,77 @@
           content: |
             SLURMD_OPTIONS="{{ conf_server }}"
 
+        - path: /usr/local/bin/configure_vast_installation.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            #!/bin/bash
+            LOGFILE="/var/log/configure_vast_installation.log"
+            exec > >(tee -a "$LOGFILE") 2>&1
+
+            echo "[INFO] ===== Starting VAST NFS client installation ====="
+            
+            echo "[INFO] Disabling GPG check for dnf package installation"
+            sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
+            if [ $? -eq 0 ]; then
+                echo "[SUCCESS] GPG check disabled in dnf.conf"
+            else
+                echo "[ERROR] Failed to disable GPG check in dnf.conf"
+                exit 1
+            fi
+
+            echo "[INFO] Installing vastnfs package with SSL verification disabled"
+            dnf install -y --setopt=sslverify=0 vastnfs
+            if [ $? -eq 0 ]; then
+                echo "[SUCCESS] vastnfs package installed successfully"
+            else
+                echo "[ERROR] vastnfs package installation failed"
+                exit 1
+            fi
+
+            echo "[INFO] Running depmod to update module dependencies"
+            depmod -a
+            if [ $? -eq 0 ]; then
+                echo "[SUCCESS] Module dependencies updated successfully"
+            else
+                echo "[ERROR] Failed to update module dependencies"
+                exit 1
+            fi
+
+            echo "[INFO] Stopping gssproxy and rpcbind services"
+            systemctl stop gssproxy 2>/dev/null && echo "[INFO] gssproxy stopped" || echo "[WARN] gssproxy was not running or failed to stop"
+            systemctl stop rpcbind 2>/dev/null && echo "[INFO] rpcbind stopped" || echo "[WARN] rpcbind was not running or failed to stop"
+
+            echo "[INFO] Unmounting RPC pipefs and removing NFS modules"
+            umount /var/lib/nfs/rpc_pipefs 2>/dev/null && echo "[INFO] RPC pipefs unmounted" || echo "[WARN] RPC pipefs was not mounted or failed to unmount"
+            rmmod compat_nfs_ssc 2>/dev/null && echo "[INFO] compat_nfs_ssc module removed" || echo "[WARN] compat_nfs_ssc module was not loaded or failed to remove"
+            rmmod sunrpc 2>/dev/null && echo "[INFO] sunrpc module removed" || echo "[WARN] sunrpc module was not loaded or failed to remove"
+
+            echo "[INFO] Loading sunrpc module and starting rpcbind service"
+            modprobe sunrpc
+            if [ $? -eq 0 ]; then
+                echo "[SUCCESS] sunrpc module loaded successfully"
+            else
+                echo "[ERROR] Failed to load sunrpc module"
+                exit 1
+            fi
+
+            systemctl start rpcbind
+            if [ $? -eq 0 ]; then
+                echo "[SUCCESS] rpcbind service started successfully"
+            else
+                echo "[ERROR] Failed to start rpcbind service"
+                exit 1
+            fi
+
+            echo "[INFO] Verifying vastnfs installation"
+            if lsmod | grep -q vastnfs; then
+                echo "[SUCCESS] vastnfs module is loaded"
+            else
+                echo "[WARN] vastnfs module not found in lsmod, may load on demand"
+            fi
+
+            echo "[INFO] ===== VAST NFS client installation completed successfully ====="
+
         - path: /usr/local/bin/configure_dirs_and_mounts.sh
           permissions: '{{ file_mode_755 }}'
           content: |
@@ -561,7 +632,7 @@
         - /usr/local/bin/setup_dcgm.sh
 {% endif %}
         # slurm user and group created in the users module
-
+        - /usr/local/bin/configure_vast_installation.sh
         - /usr/local/bin/configure_dirs_and_mounts.sh
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
