@@ -44,6 +44,8 @@ container.wire(modules=[
     "api.jobs.dependencies",
     "api.local_repo.routes",
     "api.local_repo.dependencies",
+    "api.restart.routes",
+    "api.restart.dependencies",
     "api.validate.routes",
     "api.validate.dependencies",
 ])
