@@ -50,7 +50,8 @@ spec:
   # ========================================
   # Configuration Management
   # ========================================
-  # ConfigMap containing VLAgent syslog receiver configuration
+  # Secret containing VLAgent syslog receiver configuration
+  # VictoriaMetrics operator requires Secret (not ConfigMap) for configSecret
   configSecret: vlagent-config
 
   # ========================================
@@ -130,38 +131,46 @@ spec:
     useAsDefault: true
     spec:
       type: LoadBalancer
+      ports:
+        - name: syslog
+          port: 514
+          targetPort: 514
+          protocol: TCP
+        - name: syslog-udp
+          port: 514
+          targetPort: 514
+          protocol: UDP
+        - name: syslog-tls
+          port: 6514
+          targetPort: 6514
+          protocol: TCP
+        - name: health
+          port: 9429
+          targetPort: 9429
+          protocol: TCP
 {% else %}
   serviceSpec:
     useAsDefault: true
     spec:
       type: NodePort
+      ports:
+        - name: syslog
+          port: 514
+          targetPort: 514
+          protocol: TCP
+        - name: syslog-udp
+          port: 514
+          targetPort: 514
+          protocol: UDP
+        - name: syslog-tls
+          port: 6514
+          targetPort: 6514
+          protocol: TCP
+        - name: health
+          port: 9429
+          targetPort: 9429
+          protocol: TCP
 {% endif %}
-
-  # ========================================
-  # Port Configuration
-  # ========================================
-  # Syslog receivers (platform-provided scrape targets)
-  # - :514 TCP+UDP — plaintext syslog (RFC 3164/5424)
-  # - :6514 TCP — TLS syslog (RFC 5425)
-  # Health check endpoint
-  # - :9429 — HTTP health checks (distinct from vmagent 8429)
-  ports:
-    - name: syslog
-      port: 514
-      targetPort: 514
-      protocol: TCP
-    - name: syslog-udp
-      port: 514
-      targetPort: 514
-      protocol: UDP
-    - name: syslog-tls
-      port: 6514
-      targetPort: 6514
-      protocol: TCP
-    - name: health
-      port: 9429
-      targetPort: 9429
-      protocol: TCP
 
   # ========================================
   # Health Probes

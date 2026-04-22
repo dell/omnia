@@ -18,7 +18,7 @@
 # Note: CSI driver is NOT required for log collection (independent pipeline)
 #
 # Configuration:
-#   - Shared VLAgent (vlagent-config ConfigMap) is updated with PowerScale external labels
+#   - Shared VLAgent (vlagent-config Secret) is updated with PowerScale external labels
 #   - Shared VLAgent service already exposes syslog ports (514 TCP/UDP, 6514 TLS)
 #   - PowerScale OneFS should be configured to forward syslog to VLAgent service NodePort
 
