@@ -452,16 +452,6 @@ def get_idempotency_key(
     return key
 
 
-def get_artifact_store():
-    """Provide artifact store instance."""
-    return _get_container().artifact_store()
-
-
-def get_artifact_metadata_repo():
-    """Provide artifact metadata repository instance."""
-    return _get_container().artifact_metadata_repository()
-
-
 def get_create_job_use_case(
     db_session: Session = Depends(get_db_session),
 ) -> CreateJobUseCase:
