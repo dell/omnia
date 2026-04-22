@@ -151,10 +151,14 @@ metadata:
   name: {{ tenant.name }}
   namespace: ${AUTHZ_NS}
 spec:
+{% if tenant.roles | default([]) %}
   roles:
-{% for role in tenant.roles | default([]) %}
+{% for role in tenant.roles %}
     - {{ role.name }}
 {% endfor %}
+{% else %}
+  roles: []
+{% endif %}
   revoke: false
 TENANT_CR_EOF
                   echo "  Tenant '{{ tenant.name }}' created"
