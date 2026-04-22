@@ -128,6 +128,11 @@
       "package": "docker.io/dellemc/csm-encryption",
       "tag": "v0.6.0",
       "type": "image"
+     },
+     {
+      "package": "dellctl",
+      "url": "https://github.com/dell/dellctl/releases/download/v1.7.0/dellctl-linux-amd64.tar.gz",
+      "type": "tarball"
      }
     ]
   }

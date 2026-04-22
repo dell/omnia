@@ -499,3 +499,44 @@ ps_log_deployed_msg: >-
   Shared VLAgent will receive PowerScale syslog on ports 514 (TCP/UDP) and 6514 (TLS).
   External labels added: source=powerscale, pipeline=powerscale-syslog.
   Configure PowerScale OneFS to forward syslog to VLAgent service NodePort.
+
+# ============================================================================
+# CSM Authorization Proxy Server Configuration
+# ============================================================================
+# Usage: deploy_powerscale_metrics.yml (file validation + NFS staging)
+# Usage: cloud-init template (Helm install + sidecar config)
+# Conditional: powerscale_authorization.enabled: true in omnia_config.yml
+
+# Namespace and Helm release constants
+csm_authorization_isilon_namespace: "isilon"
+csm_authz_proxy_namespace: "authorization"
+csm_authz_proxy_helm_release: "csm-authorization"
+csm_authz_proxy_helm_chart_path: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale/helm-charts/charts/csm-authorization-v2.0"
+csm_authz_nfs_dir: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csm-authorization"
+
+# Messages
+ps_authz_enabled_msg: "CSM Authorization module is ENABLED. Proxy server and sidecar will be deployed."
+ps_authz_disabled_msg: "CSM Authorization module is DISABLED. Skipping authorization configuration."
+ps_authz_values_missing_msg: >-
+  csm_authorization_values_file_path is required in omnia_config.yml
+  when powerscale_authorization.enabled is true.
+ps_authz_values_not_found_msg: >-
+  CSM Authorization values file not found at '{{ ps_authz_values_file | default('') }}'.
+  Download from https://github.com/dell/helm-charts/blob/main/charts/csm-authorization-v2.0/values.yaml
+  and set the path in omnia_config.yml (powerscale_authorization.csm_authorization_values_file_path).
+ps_authz_values_parse_fail_msg: >-
+  Failed to parse CSM Authorization values file at '{{ ps_authz_values_file | default('') }}'.
+  Please verify the file contains valid YAML.
+ps_authz_no_tenants_msg: >-
+  At least one tenant must be defined in powerscale_authorization.tenants
+  when powerscale_authorization.enabled is true.
+ps_authz_admin_name_missing_msg: >-
+  powerscale_authorization.admin_name is required when authorization is enabled.
+  This is the CSM Authorization proxy server admin username used for token generation.
+ps_authz_admin_secret_missing_msg: >-
+  powerscale_authorization.admin_secret is required when authorization is enabled.
+  This is the CSM Authorization proxy server admin secret/password used for token generation.
+ps_authz_staged_msg: >-
+  CSM Authorization files staged on NFS share at {{ csm_authz_nfs_dir }}.
+  Proxy server Helm chart: {{ csm_authz_proxy_helm_chart_path }}
+  Deployment will occur during cloud-init (PXE boot) on the control plane node.

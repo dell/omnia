@@ -892,6 +892,10 @@
                   fi
                 fi
 
+{% if hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool %}
+{% include 'powerscale/deploy_csm_authorization.sh.j2' %}
+{% endif %}
+
                 if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
                   echo "===== Deploying External Snapshotter CRDs ====="
                   if [ -d "/opt/omnia/csi-driver-powerscale/csi-powerscale/external-snapshotter/client/config/crd" ]; then

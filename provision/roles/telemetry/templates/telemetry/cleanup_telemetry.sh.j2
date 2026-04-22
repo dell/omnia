@@ -525,6 +525,34 @@ if [ "$CLEAN_POWERSCALE_METRICS" = true ]; then
     echo "Deleting PowerScale credentials..."
     delete_resource secret isilon-creds
 
+    # CSM Authorization Proxy Server cleanup
+    AUTHZ_NS="authorization"
+    echo "Checking for CSM Authorization Proxy Server..."
+    if helm list -n "${AUTHZ_NS}" --filter csm-authorization -q 2>/dev/null | grep -q csm-authorization; then
+        echo "Uninstalling CSM Authorization Proxy Server Helm release..."
+        helm uninstall csm-authorization -n "${AUTHZ_NS}" --wait --timeout 5m 2>/dev/null || true
+        echo "CSM Authorization Helm release uninstalled."
+        sleep 5
+    fi
+
+    # Delete all resources in authorization namespace
+    if kubectl get namespace "${AUTHZ_NS}" &>/dev/null; then
+        echo "Cleaning up authorization namespace resources..."
+        kubectl -n "${AUTHZ_NS}" delete deployment --all --ignore-not-found=true --wait=false 2>/dev/null || true
+        kubectl -n "${AUTHZ_NS}" delete statefulset --all --ignore-not-found=true --wait=false 2>/dev/null || true
+        kubectl -n "${AUTHZ_NS}" delete service --all --ignore-not-found=true --wait=false 2>/dev/null || true
+        kubectl -n "${AUTHZ_NS}" delete secret --all --ignore-not-found=true --wait=false 2>/dev/null || true
+        kubectl -n "${AUTHZ_NS}" delete configmap --all --ignore-not-found=true --wait=false 2>/dev/null || true
+        kubectl -n "${AUTHZ_NS}" delete pvc --all --ignore-not-found=true --wait=false 2>/dev/null || true
+        kubectl -n "${AUTHZ_NS}" delete pod --all --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    fi
+
+    # Delete authorization secrets from isilon namespace
+    echo "Deleting authorization secrets from isilon namespace..."
+    kubectl -n isilon delete secret karavi-authorization-config --ignore-not-found=true 2>/dev/null || true
+    kubectl -n isilon delete secret proxy-server-root-certificate --ignore-not-found=true 2>/dev/null || true
+    kubectl -n isilon delete secret proxy-authz-tokens --ignore-not-found=true 2>/dev/null || true
+
     sleep 2
     echo ""
 fi

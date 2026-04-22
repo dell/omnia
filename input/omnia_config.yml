@@ -228,6 +228,26 @@ service_k8s_cluster:
     powerscale_authorization:
       enabled: false
 #      csm_authorization_values_file_path: ""   # Required when enabled: true - "/path/to/your/updated/csm-authorization-values.yaml"
+#      
+#      # Admin credentials for CSM Authorization Proxy Server
+#      # These credentials are used by dellctl to generate tenant access tokens
+#      # 
+#      # HOW TO OBTAIN admin_secret:
+#      # 1. The admin_secret is set in the CSM Authorization proxy server values.yaml file
+#      #    under the 'authorization.adminSecret' field during initial deployment
+#      # 2. If you configured the proxy server values.yaml yourself:
+#      #    - Open your csm-authorization-values.yaml file
+#      #    - Find the 'authorization:' section
+#      #    - Look for 'adminSecret: <your-secret>' 
+#      #    - Use that SAME secret here
+#      # 3. If someone else deployed the proxy server:
+#      #    - Contact your CSM Authorization administrator to get the admin credentials
+#      # 4. Default admin_name is typically "admin" unless changed in values.yaml
+#      #
+#      admin_name: "admin"                      # Required when enabled: true - proxy server admin username
+#      admin_secret: ""                         # Required when enabled: true - proxy server admin secret/password (obtain from csm-authorization-values.yaml)
+#      access_token_expiration: "30m"           # Optional - access token lifetime (default: 30m)
+#      refresh_token_expiration: "720h"         # Optional - refresh token lifetime (default: 720h)
 #      tenants: # Required when enabled: true
 #        - name: "team-omnia"
 #          roles:
