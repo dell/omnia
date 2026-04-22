@@ -46,6 +46,7 @@ from api.jobs.dependencies import (
     get_job_repo,
     get_stage_repo,
 )
+from api.dependencies import get_artifact_store, get_artifact_metadata_repo
 from api.jobs.schemas import (
     CreateJobRequest,
     CreateJobResponse,
@@ -577,6 +578,117 @@ async def delete_job(
             "error",
             f"Delete job failed: job_id={job_id}, "
             f"reason=unexpected_error, status=500",
+            job_id=job_id,
+            exc_info=True,
+            end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_build_error_response(
+                "INTERNAL_ERROR",
+                "An unexpected error occurred",
+                correlation_id.value,
+            ).model_dump(),
+        ) from e
+
+
+@router.get(
+    "/{job_id}/artifacts/{filename}",
+    responses={
+        200: {"description": "Artifact file content"},
+        400: {"description": "Invalid job_id", "model": ErrorResponse},
+        401: {"description": "Unauthorized", "model": ErrorResponse},
+        404: {"description": "Artifact not found", "model": ErrorResponse},
+        500: {"description": "Internal error", "model": ErrorResponse},
+    },
+)
+async def download_artifact(
+    job_id: str,
+    filename: str,
+    token_data: Annotated[dict, Depends(verify_token)],
+    correlation_id: CorrelationId = Depends(get_correlation_id),
+    artifact_store=Depends(get_artifact_store),
+    artifact_metadata_repo=Depends(get_artifact_metadata_repo),
+) -> Response:
+    """Download a job-specific artifact file.
+
+    Retrieves artifacts (e.g. failed_nodes.json, node_results.json) from the
+    ArtifactStore and returns the raw file content.
+
+    Args:
+        job_id: Job identifier.
+        filename: Artifact filename.
+        token_data: Authenticated user token data.
+        correlation_id: Request correlation identifier.
+        artifact_store: Artifact store dependency.
+        artifact_metadata_repo: Artifact metadata repository.
+
+    Returns:
+        File content with appropriate content type.
+    """
+    log_secure_info(
+        "info",
+        f"Download artifact request: job_id={job_id}, filename={filename}",
+        job_id=job_id,
+    )
+
+    try:
+        validated_job_id = JobId(job_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_build_error_response(
+                "INVALID_JOB_ID",
+                f"Invalid job_id format: {job_id}",
+                correlation_id.value,
+            ).model_dump(),
+        ) from e
+
+    try:
+        record = artifact_metadata_repo.find_by_job_and_label(
+            job_id=validated_job_id,
+            label=filename,
+        )
+
+        if not record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=_build_error_response(
+                    "ARTIFACT_NOT_FOUND",
+                    f"Artifact '{filename}' not found for job {job_id}",
+                    correlation_id.value,
+                ).model_dump(),
+            )
+
+        from core.artifacts.value_objects import ArtifactKind  # pylint: disable=import-outside-toplevel
+        content = artifact_store.retrieve(
+            key=record.artifact_ref.key,
+            kind=ArtifactKind.FILE,
+        )
+
+        log_secure_info(
+            "info",
+            f"Download artifact success: job_id={job_id}, filename={filename}",
+            job_id=job_id,
+            end_section=True,
+        )
+
+        return Response(
+            content=content,
+            media_type=record.content_type or "application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            },
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        log_secure_info(
+            "error",
+            f"Download artifact failed: job_id={job_id}, filename={filename}, "
+            f"reason=unexpected_error",
             job_id=job_id,
             exc_info=True,
             end_section=True,

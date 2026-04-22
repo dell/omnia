@@ -60,6 +60,13 @@ ALLOWED_CONFIG_FILES = {
     "high_availability_config.yml",
     "omnia_config.yml",
     "build_stream_config.yml",
+    "failed_nodes.json",
+}
+
+# Files that need a custom destination instead of DEFAULT_PLAYBOOK_INPUT_DIR
+RESTART_STATE_DIR = "/opt/omnia/build_stream_root/restart_state/"
+CUSTOM_DESTINATION_FILES = {
+    "failed_nodes.json": RESTART_STATE_DIR,
 }
 
 
@@ -365,19 +372,25 @@ class UploadFilesUseCase:
     def _write_to_shared_input_directory(self, filename: str, content: bytes):
         """Write file to shared input directory.
 
+        Files listed in CUSTOM_DESTINATION_FILES are routed to their
+        specific directory (e.g. failed_nodes.json -> restart_state dir).
+        All other files go to DEFAULT_PLAYBOOK_INPUT_DIR.
+
         Args:
             filename: Filename.
             content: File content.
         """
-        # Use the standard Omnia playbook input directory
-        # This path matches NfsInputRepository.get_destination_input_repository_path()
-        playbook_input_dir = Path(DEFAULT_PLAYBOOK_INPUT_DIR)
-        playbook_input_dir.mkdir(parents=True, exist_ok=True)
+        if filename in CUSTOM_DESTINATION_FILES:
+            dest_dir = Path(CUSTOM_DESTINATION_FILES[filename])
+        else:
+            dest_dir = Path(DEFAULT_PLAYBOOK_INPUT_DIR)
 
-        target_file = playbook_input_dir / filename
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        target_file = dest_dir / filename
         target_file.write_bytes(content)
 
-        logger.debug("Wrote to shared input directory: %s", target_file)
+        logger.debug("Wrote to shared directory: %s", target_file)
 
     def _generate_id(self) -> str:
         """Generate unique identifier for artifact record.

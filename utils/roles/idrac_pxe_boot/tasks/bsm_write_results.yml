@@ -1,0 +1,148 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# -------------------------------------------------------------------------
+# [BSM] Write per-node results and update persistent state
+# This task file is included when enable_build_stream is true.
+# It writes node_results.json and updates restart_state.json with
+# merged booted-nodes state after PXE boot operations complete.
+# -------------------------------------------------------------------------
+
+- name: Build per-node results
+  ansible.builtin.set_fact:
+    pxe_node_results: >-
+      {{ pxe_node_results | default([]) + [{
+        'bmc_ip': item,
+        'hostname': (pxe_csv_node_map[item]['HOSTNAME'] | default(''))
+                    if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
+        'service_tag': (pxe_csv_node_map[item]['SERVICE_TAG'] | default(''))
+                       if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
+        'status': 'failed'
+                  if (hostvars[item]['reboot_failed'] | default(true))
+                  else 'success',
+        'message': hostvars[item]['reboot_status'] | default('No status available')
+      }] }}
+  loop: "{{ groups['bmc'] | default([]) }}"
+  when: groups['bmc'] is defined and (groups['bmc'] | length > 0)
+
+- name: Determine node results output directory from log path
+  ansible.builtin.set_fact:
+    node_results_dir: "{{ lookup('env', 'ANSIBLE_LOG_PATH') | dirname }}"
+  when: lookup('env', 'ANSIBLE_LOG_PATH') | length > 0
+
+- name: Fallback node results directory to artifacts path
+  ansible.builtin.set_fact:
+    job_id: "{{ job_id | default('unknown-job-id') }}"
+    node_results_dir: >-
+      /opt/omnia/build_stream_root/artifacts/{{ job_id | default('unknown-job-id') }}
+  when: node_results_dir is not defined or node_results_dir | length == 0
+
+- name: Ensure directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ node_results_dir }}"
+    - "{{ restart_state_dir }}"
+
+- name: Write node_results.json
+  ansible.builtin.copy:
+    content: "{{ node_results_report | to_nice_json }}"
+    dest: "{{ node_results_dir }}/node_results.json"
+    mode: "0644"
+  vars:
+    success_list: >-
+      {{ pxe_node_results | default([])
+         | selectattr('status', 'equalto', 'success') | list }}
+    failed_list: >-
+      {{ pxe_node_results | default([])
+         | selectattr('status', 'equalto', 'failed') | list }}
+    node_results_report:
+      job_id: "{{ job_id | default('unknown') }}"
+      stage_name: "restart"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      total_nodes: "{{ pxe_node_results | default([]) | length }}"
+      success_count: "{{ success_list | length }}"
+      failure_count: "{{ failed_list | length }}"
+      nodes: "{{ pxe_node_results | default([]) }}"
+
+- name: Load existing booted nodes from restart_state.json
+  ansible.builtin.set_fact:
+    existing_booted_ips: >-
+      {{ (restart_state | default({})).booted_nodes
+         | default([]) | map(attribute='bmc_ip') | list }}
+
+- name: Compute new booted IPs from this run
+  ansible.builtin.set_fact:
+    new_booted_ips: >-
+      {{ pxe_node_results | default([])
+         | selectattr('status', 'equalto', 'success')
+         | map(attribute='bmc_ip') | list }}
+
+- name: Merge and deduplicate booted nodes
+  ansible.builtin.set_fact:
+    merged_booted_ips: >-
+      {{ (existing_booted_ips | default([]) + new_booted_ips) | unique }}
+
+- name: Build booted_nodes list with hostname lookup
+  ansible.builtin.set_fact:
+    booted_nodes_list: >-
+      {{ booted_nodes_list | default([]) + [{
+        'bmc_ip': item,
+        'hostname': (pxe_csv_node_map[item]['HOSTNAME'] | default(''))
+                    if pxe_csv_node_map is defined and item in pxe_csv_node_map
+                    else '',
+        'booted_at': ansible_date_time.iso8601
+      }] }}
+  loop: "{{ merged_booted_ips | default([]) }}"
+
+- name: Build previous_inventory node list from CSV
+  ansible.builtin.set_fact:
+    prev_inv_nodes: >-
+      {{ current_inventory | default([])
+         | map('dict2items')
+         | map('selectattr', 'key', 'in', ['BMC_IP', 'HOSTNAME', 'SERVICE_TAG'])
+         | map('items2dict')
+         | list }}
+  when: current_inventory is defined
+
+- name: Normalize previous_inventory keys to lowercase
+  ansible.builtin.set_fact:
+    prev_inv_normalized: >-
+      {{ prev_inv_normalized | default([]) + [{
+        'bmc_ip': item.BMC_IP | default(''),
+        'hostname': item.HOSTNAME | default(''),
+        'service_tag': item.SERVICE_TAG | default('')
+      }] }}
+  loop: "{{ current_inventory | default([]) }}"
+  when: current_inventory is defined
+
+- name: Write updated restart_state.json
+  ansible.builtin.copy:
+    content: "{{ state_report | to_nice_json }}"
+    dest: "{{ restart_state_dir }}/restart_state.json"
+    mode: "0644"
+  vars:
+    state_report:
+      updated_at: "{{ ansible_date_time.iso8601 }}"
+      previous_inventory:
+        source: "pxe_mapping_file.csv"
+        nodes: "{{ prev_inv_normalized | default([]) }}"
+      booted_nodes: "{{ booted_nodes_list | default([]) }}"
+  when: current_inventory is defined
+
+- name: Report node results file location
+  ansible.builtin.debug:
+    msg: "[BSM] Node results written to {{ node_results_dir }}/node_results.json"
