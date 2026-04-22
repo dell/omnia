@@ -14,6 +14,7 @@
 
 """FastAPI routes for job lifecycle operations."""
 
+import os
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -37,11 +38,7 @@ from orchestrator.jobs.commands import CreateJobCommand
 from orchestrator.jobs.use_cases import CreateJobUseCase
 
 from api.logging_utils import create_job_log_file, log_secure_info, remove_job_logger
-from api.dependencies import (
-    verify_token,
-    get_artifact_store,
-    get_artifact_metadata_repo,
-)
+from api.dependencies import verify_token
 from api.logging_utils import create_job_log_file, log_secure_info, remove_job_logger
 from api.jobs.dependencies import (
     get_audit_repo,
@@ -62,6 +59,32 @@ from api.jobs.schemas import (
 )
 from api.catalog_roles.dependencies import get_catalog_roles_service
 from api.catalog_roles.service import CatalogRolesService
+from api.dependencies import get_db_session
+from container import get_container_class
+
+
+# ------------------------------------------------------------------
+# Local artifact dependency providers (only used by artifact download)
+# ------------------------------------------------------------------
+_ENV = os.getenv("ENV", "prod")
+
+
+def _get_container():
+    """Get the appropriate container instance based on ENV."""
+    return get_container_class()()
+
+
+def get_artifact_store():
+    """Provide artifact store instance."""
+    return _get_container().artifact_store()
+
+
+def get_artifact_metadata_repo(db_session = Depends(get_db_session)):
+    """Provide artifact metadata repository with shared session in prod."""
+    if _ENV == "prod":
+        from infra.db.repositories import SqlArtifactMetadataRepository  # pylint: disable=import-outside-toplevel
+        return SqlArtifactMetadataRepository(session=db_session)
+    return _get_container().artifact_metadata_repository()
 
 # Allowed artifact labels for download (whitelist)
 _DOWNLOADABLE_ARTIFACT_LABELS = {

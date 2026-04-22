@@ -382,22 +382,6 @@ def get_image_repo(db_session: Session = Depends(get_db_session)):
 
 
 # ------------------------------------------------------------------
-# Artifact Dependencies
-# ------------------------------------------------------------------
-def get_artifact_store():
-    """Provide artifact store instance."""
-    return _get_container().artifact_store()
-
-
-def get_artifact_metadata_repo(db_session: Session = Depends(get_db_session)):
-    """Provide artifact metadata repository with shared session in prod."""
-    if _ENV == "prod":
-        from infra.db.repositories import SqlArtifactMetadataRepository  # pylint: disable=import-outside-toplevel
-        return SqlArtifactMetadataRepository(session=db_session)
-    return _get_container().artifact_metadata_repository()
-
-
-# ------------------------------------------------------------------
 # Job-Specific Dependencies
 # ------------------------------------------------------------------
 from core.jobs.value_objects import ClientId, CorrelationId
