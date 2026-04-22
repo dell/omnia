@@ -43,9 +43,9 @@ router = APIRouter(prefix="/images", tags=["Images"])
 )
 def list_images(
     status_filter: Optional[str] = Query(
-        default="BUILT",
+        default=None,
         alias="status",
-        description="Filter by ImageGroup status",
+        description="Filter by ImageGroup status. Use 'BUILT' for exact match or leave empty for all post-BUILT states (BUILT+).",
     ),
     limit: int = Query(default=100, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
@@ -56,21 +56,27 @@ def list_images(
     """List available Image Groups with constituent images."""
     log_secure_info("info", "ListImages request received", token_data.get("client_id", ""))
 
-    # Validate status enum value
-    try:
-        parsed_status = ImageGroupStatus(status_filter)
-    except ValueError as exc:
-        allowed = [s.value for s in ImageGroupStatus]
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error_code": "INVALID_STATUS",
-                "message": (
-                    f"Invalid status filter value '{status_filter}'. "
-                    f"Allowed values: {', '.join(allowed)}"
-                ),
-            },
-        ) from exc
+    # Parse status filter - None means all post-BUILT states (cumulative)
+    # If status_filter is "BUILT", treat it as cumulative query (BUILT+)
+    parsed_status = None
+    if status_filter:
+        try:
+            parsed_status = ImageGroupStatus(status_filter)
+            # If querying for BUILT specifically, treat as cumulative query
+            if parsed_status == ImageGroupStatus.BUILT:
+                parsed_status = None
+        except ValueError as exc:
+            allowed = [s.value for s in ImageGroupStatus]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error_code": "INVALID_STATUS",
+                    "message": (
+                        f"Invalid status filter value '{status_filter}'. "
+                        f"Allowed values: {', '.join(allowed)}"
+                    ),
+                },
+            ) from exc
 
     try:
         result = use_case.execute(

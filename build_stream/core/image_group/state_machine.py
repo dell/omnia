@@ -27,8 +27,19 @@ from core.image_group.exceptions import (
 
 
 # Allowed status transitions per stage
+# deploy accepts BUILT plus all intermediate/failed states to support
+# retry and redeploy after a failed or interrupted pipeline run.
+# PASSED and CLEANED are excluded — those require a fresh build first.
 ALLOWED_TRANSITIONS = {
-    "deploy": {ImageGroupStatus.BUILT},
+    "deploy": {
+        ImageGroupStatus.BUILT,
+        ImageGroupStatus.DEPLOYING,
+        ImageGroupStatus.DEPLOYED,
+        ImageGroupStatus.RESTARTING,
+        ImageGroupStatus.RESTARTED,
+        ImageGroupStatus.VALIDATING,
+        ImageGroupStatus.FAILED,
+    },
     "restart": {ImageGroupStatus.DEPLOYED},
     "validate": {ImageGroupStatus.RESTARTED},
     "cleanup": {

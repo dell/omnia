@@ -332,7 +332,7 @@ class TestDeployUseCase:
             use_case.execute(command)
 
     def test_image_group_wrong_status(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
-        """Raises InvalidStateTransitionError when status is not BUILT."""
+        """Raises InvalidStateTransitionError when status is PASSED or CLEANED (requires fresh build)."""
         job_id = JobId(_uuid())
         client_id = ClientId("test-client")
         job = _make_job(job_id, client_id)
@@ -341,7 +341,7 @@ class TestDeployUseCase:
         build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
         stage_repo.save(build_stage)
 
-        ig = _make_image_group(job_id, status=ImageGroupStatus.DEPLOYING)
+        ig = _make_image_group(job_id, status=ImageGroupStatus.PASSED)
         ig_repo.save(ig)
 
         command = _make_command(job_id=job_id, client_id=client_id)
@@ -349,6 +349,30 @@ class TestDeployUseCase:
 
         with pytest.raises(IGInvalidStateTransitionError):
             use_case.execute(command)
+
+    def test_deploy_retry_with_failed_stage_succeeds(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
+        """Deploy stage in FAILED state should be reset and retried successfully."""
+        job_id = JobId(_uuid())
+        client_id = ClientId("test-client")
+        job = _make_job(job_id, client_id)
+        job_repo.save(job)
+
+        build_stage = _make_stage(job_id, StageType.BUILD_IMAGE_X86_64, StageState.COMPLETED)
+        stage_repo.save(build_stage)
+
+        deploy_stage = _make_stage(job_id, StageType.DEPLOY, StageState.FAILED)
+        stage_repo.save(deploy_stage)
+
+        ig = _make_image_group(job_id, status=ImageGroupStatus.FAILED)
+        ig_repo.save(ig)
+
+        command = _make_command(job_id=job_id, client_id=client_id)
+        use_case = _build_use_case(job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen)
+        use_case.execute(command)
+
+        saved_stage = stage_repo.find_by_job_and_name(job_id, StageName(StageType.DEPLOY.value))
+        assert saved_stage.stage_state == StageState.IN_PROGRESS
+        assert len(queue_service.submitted) == 1
 
     def test_transitions_image_group_to_deploying(self, job_repo, stage_repo, audit_repo, ig_repo, queue_service, uuid_gen):
         """ImageGroup status transitions to DEPLOYING on start."""

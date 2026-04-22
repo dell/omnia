@@ -112,6 +112,26 @@ class ImageGroupRepository(ABC):
         ...
 
     @abstractmethod
+    def list_post_built(
+        self,
+        limit: int,
+        offset: int,
+    ) -> Tuple[List[ImageGroup], int]:
+        """List ImageGroups in all post-BUILT states with pagination.
+
+        Returns image groups with status >= BUILT (BUILT, DEPLOYING, DEPLOYED,
+        RESTARTING, RESTARTED, VALIDATING, PASSED, FAILED).
+
+        Args:
+            limit: Maximum number of results.
+            offset: Number of results to skip.
+
+        Returns:
+            Tuple of (image_groups_with_images, total_count).
+        """
+        ...
+
+    @abstractmethod
     def exists(self, image_group_id: ImageGroupId) -> bool:
         """Check if an ImageGroup with the given ID exists.
 

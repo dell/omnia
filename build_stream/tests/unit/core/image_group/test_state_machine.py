@@ -51,9 +51,23 @@ def _make_ig(status: ImageGroupStatus, ig_id: str = "test-group") -> ImageGroup:
 class TestAllowedTransitions:
     """Tests for ALLOWED_TRANSITIONS mapping."""
 
-    def test_deploy_requires_built(self):
-        """Deploy stage should only accept BUILT status."""
-        assert ALLOWED_TRANSITIONS["deploy"] == {ImageGroupStatus.BUILT}
+    def test_deploy_accepts_all_retryable_statuses(self):
+        """Deploy stage accepts BUILT and all intermediate/failed statuses for retry."""
+        expected = {
+            ImageGroupStatus.BUILT,
+            ImageGroupStatus.DEPLOYING,
+            ImageGroupStatus.DEPLOYED,
+            ImageGroupStatus.RESTARTING,
+            ImageGroupStatus.RESTARTED,
+            ImageGroupStatus.VALIDATING,
+            ImageGroupStatus.FAILED,
+        }
+        assert ALLOWED_TRANSITIONS["deploy"] == expected
+
+    def test_deploy_excludes_passed_and_cleaned(self):
+        """Deploy stage must NOT accept PASSED or CLEANED (require fresh build)."""
+        assert ImageGroupStatus.PASSED not in ALLOWED_TRANSITIONS["deploy"]
+        assert ImageGroupStatus.CLEANED not in ALLOWED_TRANSITIONS["deploy"]
 
     def test_restart_requires_deployed(self):
         """Restart stage should only accept DEPLOYED status."""
@@ -120,11 +134,48 @@ class TestGuardCheck:
         assert exc_info.value.expected == "expected-id"
 
     def test_deploy_with_wrong_status_raises_invalid_transition(self):
-        """Deploy guard should raise InvalidStateTransitionError on wrong status."""
-        ig = _make_ig(ImageGroupStatus.DEPLOYED)
+        """Deploy guard should raise InvalidStateTransitionError for PASSED status."""
+        ig = _make_ig(ImageGroupStatus.PASSED)
         with pytest.raises(InvalidStateTransitionError) as exc_info:
             guard_check(ig, "deploy", requested_image_group_id=str(ig.id))
-        assert exc_info.value.current == "DEPLOYED"
+        assert exc_info.value.current == "PASSED"
+
+    def test_deploy_with_deploying_status_passes(self):
+        """Deploy guard should pass for DEPLOYING (retry interrupted deploy)."""
+        ig = _make_ig(ImageGroupStatus.DEPLOYING, ig_id="my-group")
+        guard_check(ig, "deploy", requested_image_group_id="my-group")
+
+    def test_deploy_with_deployed_status_passes(self):
+        """Deploy guard should pass for DEPLOYED (redeploy after successful deploy)."""
+        ig = _make_ig(ImageGroupStatus.DEPLOYED, ig_id="my-group")
+        guard_check(ig, "deploy", requested_image_group_id="my-group")
+
+    def test_deploy_with_failed_status_passes(self):
+        """Deploy guard should pass for FAILED (retry after failed pipeline)."""
+        ig = _make_ig(ImageGroupStatus.FAILED, ig_id="my-group")
+        guard_check(ig, "deploy", requested_image_group_id="my-group")
+
+    def test_deploy_with_restarting_status_passes(self):
+        """Deploy guard should pass for RESTARTING (retry interrupted restart)."""
+        ig = _make_ig(ImageGroupStatus.RESTARTING, ig_id="my-group")
+        guard_check(ig, "deploy", requested_image_group_id="my-group")
+
+    def test_deploy_with_restarted_status_passes(self):
+        """Deploy guard should pass for RESTARTED (full redeploy from restarted)."""
+        ig = _make_ig(ImageGroupStatus.RESTARTED, ig_id="my-group")
+        guard_check(ig, "deploy", requested_image_group_id="my-group")
+
+    def test_deploy_with_validating_status_passes(self):
+        """Deploy guard should pass for VALIDATING (redeploy while validating)."""
+        ig = _make_ig(ImageGroupStatus.VALIDATING, ig_id="my-group")
+        guard_check(ig, "deploy", requested_image_group_id="my-group")
+
+    def test_deploy_with_cleaned_status_raises(self):
+        """Deploy guard should raise for CLEANED (requires fresh build)."""
+        ig = _make_ig(ImageGroupStatus.CLEANED, ig_id="my-group")
+        with pytest.raises(InvalidStateTransitionError) as exc_info:
+            guard_check(ig, "deploy", requested_image_group_id="my-group")
+        assert exc_info.value.current == "CLEANED"
 
     def test_restart_with_deployed_status(self):
         """Restart guard should pass with DEPLOYED status."""

@@ -57,7 +57,12 @@ def _create_mock_upload_stage(job_id, state=StageState.PENDING):
     def mock_complete():
         stage.stage_state = StageState.COMPLETED
     stage.complete = Mock(side_effect=mock_complete)
-    
+
+    # Mock reset() to transition back to PENDING (for retry after FAILED/COMPLETED)
+    def mock_reset():
+        stage.stage_state = StageState.PENDING
+    stage.reset = Mock(side_effect=mock_reset)
+
     return stage
 
 
@@ -213,8 +218,8 @@ class TestUploadFilesJobValidation:
         result = use_case.execute(command)
         assert result is not None
 
-    def test_job_in_terminal_state_raises_error(self):
-        """Job in terminal state should raise TerminalStateViolationError."""
+    def test_job_in_completed_state_raises_error(self):
+        """Job in COMPLETED state should raise TerminalStateViolationError."""
         job = self._create_job(JobState.COMPLETED)
         use_case = self._create_use_case_with_job(job)
 
@@ -225,6 +230,32 @@ class TestUploadFilesJobValidation:
 
         with pytest.raises(TerminalStateViolationError):
             use_case.execute(command)
+
+    def test_job_in_cancelled_state_raises_error(self):
+        """Job in CANCELLED state should raise TerminalStateViolationError."""
+        job = self._create_job(JobState.CANCELLED)
+        use_case = self._create_use_case_with_job(job)
+
+        command = _create_upload_command(
+            job_id=job.id,
+            files=[("network_spec.yml", b"content")],
+        )
+
+        with pytest.raises(TerminalStateViolationError):
+            use_case.execute(command)
+
+    def test_job_in_failed_state_allows_upload(self):
+        """Job in FAILED state should allow upload to support resume/retry."""
+        job = self._create_job(JobState.FAILED)
+        use_case = self._create_use_case_with_job(job)
+
+        command = _create_upload_command(
+            job_id=job.id,
+            files=[("network_spec.yml", b"content")],
+        )
+
+        result = use_case.execute(command)
+        assert result is not None
 
     def _create_job(self, status: JobState):
         """Create mock job with given status."""
@@ -764,11 +795,11 @@ class TestUploadFilesAuditEvents:
         assert file_details[1]["size_bytes"] == 8
 
     def test_upload_allowed_when_stage_already_completed(self):
-        """Upload should succeed even when stage is already COMPLETED."""
+        """Upload should succeed even when stage is already COMPLETED (reset + redo)."""
         job = self._create_job()
         audit_repo = Mock()
 
-        # Create stage in COMPLETED state
+        # Create stage in COMPLETED state — will be reset() then start()/complete()
         stage = _create_mock_upload_stage(job.id, state=StageState.COMPLETED)
         stage_repo = Mock()
         stage_repo.find_by_job_and_name.return_value = stage
@@ -814,11 +845,12 @@ class TestUploadFilesAuditEvents:
         assert result.upload_summary.total_files == 1
         assert result.upload_summary.changed_files == 1
 
-        # Verify stage.complete() was NOT called (stage already completed)
-        stage.complete.assert_not_called()
+        # Verify stage.reset() was called (stage was COMPLETED, reset for retry)
+        stage.reset.assert_called_once()
 
-        # Verify stage.start() was NOT called (stage not PENDING)
-        stage.start.assert_not_called()
+        # Verify stage.start() and complete() were called after reset
+        stage.start.assert_called_once()
+        stage.complete.assert_called_once()
 
         # Verify STAGE_COMPLETED audit event was emitted
         completed_calls = [

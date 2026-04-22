@@ -566,6 +566,55 @@ class SqlImageGroupRepository(ImageGroupRepository):
 
         return [ImageGroupMapper.to_domain(m) for m in models], total_count
 
+    def list_post_built(
+        self, limit: int, offset: int
+    ) -> Tuple[List[ImageGroup], int]:
+        """List ImageGroups in all post-BUILT states with pagination.
+
+        Returns image groups with status >= BUILT (BUILT, DEPLOYING, DEPLOYED,
+        RESTARTING, RESTARTED, VALIDATING, PASSED, FAILED).
+
+        Args:
+            limit: Maximum number of results.
+            offset: Number of results to skip.
+
+        Returns:
+            Tuple of (image_groups_with_images, total_count).
+        """
+        # All post-BUILT states
+        post_built_states = [
+            ImageGroupStatus.BUILT.value,
+            ImageGroupStatus.DEPLOYING.value,
+            ImageGroupStatus.DEPLOYED.value,
+            ImageGroupStatus.RESTARTING.value,
+            ImageGroupStatus.RESTARTED.value,
+            ImageGroupStatus.VALIDATING.value,
+            ImageGroupStatus.PASSED.value,
+            ImageGroupStatus.FAILED.value,
+        ]
+
+        # Count query
+        count_stmt = (
+            select(func.count())
+            .select_from(ImageGroupModel)
+            .where(ImageGroupModel.status.in_(post_built_states))
+        )
+        total_count = self.session.execute(count_stmt).scalar()
+
+        # Data query with eager-loaded images
+        data_stmt = (
+            select(ImageGroupModel)
+            .where(ImageGroupModel.status.in_(post_built_states))
+            .options(selectinload(ImageGroupModel.images))
+            .order_by(ImageGroupModel.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = self.session.execute(data_stmt)
+        models = result.scalars().unique().all()
+
+        return [ImageGroupMapper.to_domain(m) for m in models], total_count
+
     def exists(self, image_group_id: ImageGroupId) -> bool:
         """Check if an ImageGroup with the given ID exists.
 

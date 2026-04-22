@@ -170,6 +170,41 @@ class InMemoryImageGroupRepository(ImageGroupRepository):
         page = filtered[offset:offset + limit]
         return page, total
 
+    def list_post_built(
+        self, limit: int, offset: int
+    ) -> Tuple[List[ImageGroup], int]:
+        """List ImageGroups in all post-BUILT states with pagination.
+
+        Returns image groups with status >= BUILT (BUILT, DEPLOYING, DEPLOYED,
+        RESTARTING, RESTARTED, VALIDATING, PASSED, FAILED).
+
+        Args:
+            limit: Maximum number of results.
+            offset: Number of results to skip.
+
+        Returns:
+            Tuple of (image_groups_with_images, total_count).
+        """
+        post_built_states = {
+            ImageGroupStatus.BUILT,
+            ImageGroupStatus.DEPLOYING,
+            ImageGroupStatus.DEPLOYED,
+            ImageGroupStatus.RESTARTING,
+            ImageGroupStatus.RESTARTED,
+            ImageGroupStatus.VALIDATING,
+            ImageGroupStatus.PASSED,
+            ImageGroupStatus.FAILED,
+        }
+
+        filtered = [
+            ig for ig in self._store.values()
+            if ig.status in post_built_states
+        ]
+        filtered.sort(key=lambda x: x.created_at, reverse=True)
+        total = len(filtered)
+        page = filtered[offset:offset + limit]
+        return page, total
+
     def exists(self, image_group_id: ImageGroupId) -> bool:
         """Check if an ImageGroup exists."""
         return str(image_group_id) in self._store

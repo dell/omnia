@@ -14,6 +14,8 @@
 
 """ListImages use case implementation."""
 
+from typing import Optional
+
 from core.image_group.repositories import ImageGroupRepository
 from core.image_group.value_objects import ImageGroupStatus
 from api.images.schemas import (
@@ -32,14 +34,30 @@ class ListImagesUseCase:
 
     def execute(
         self,
-        status: ImageGroupStatus,
+        status: Optional[ImageGroupStatus],
         limit: int,
         offset: int,
     ) -> ListImagesResponse:
-        """Query image_groups + images, assemble paginated response."""
-        image_groups, total_count = self._repo.list_by_status(
-            status=status, limit=limit, offset=offset
-        )
+        """Query image_groups + images, assemble paginated response.
+        
+        Args:
+            status: Filter by specific status, or None for all post-BUILT states.
+            limit: Maximum number of results.
+            offset: Number of results to skip.
+            
+        Returns:
+            Paginated list of image groups.
+        """
+        if status is None:
+            # Query all post-BUILT states (cumulative)
+            image_groups, total_count = self._repo.list_post_built(
+                limit=limit, offset=offset
+            )
+        else:
+            # Query specific status
+            image_groups, total_count = self._repo.list_by_status(
+                status=status, limit=limit, offset=offset
+            )
 
         group_responses = []
         for ig in image_groups:

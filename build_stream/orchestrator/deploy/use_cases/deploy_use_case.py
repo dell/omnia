@@ -60,8 +60,8 @@ class DeployUseCase:
     Orchestrates deployment with:
     - Job existence and ownership verification
     - Upstream build stage guard enforcement
-    - ImageGroup guard checks (exists, ID match, status == BUILT)
-    - ImageGroup status transition: BUILT -> DEPLOYING
+    - ImageGroup guard checks (exists, ID match, status in retryable set)
+    - ImageGroup status transition: any retryable status -> DEPLOYING
     - Stage record creation (IN_PROGRESS)
     - NFS queue submission for provision playbook
     - Audit trail emission
@@ -199,7 +199,7 @@ class DeployUseCase:
             )
 
     def _validate_stage(self, command: DeployCommand) -> Stage:
-        """Validate stage exists and is in PENDING state."""
+        """Validate stage exists; reset to PENDING if in a retryable terminal state."""
         stage_name = StageName(StageType.DEPLOY.value)
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
 
@@ -208,6 +208,10 @@ class DeployUseCase:
                 job_id=str(command.job_id),
                 correlation_id=str(command.correlation_id),
             )
+
+        if stage.stage_state in {StageState.FAILED, StageState.COMPLETED}:
+            stage.reset()
+            self._stage_repo.save(stage)
 
         if stage.stage_state != StageState.PENDING:
             raise InvalidStateTransitionError(

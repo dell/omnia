@@ -64,7 +64,8 @@ class TestListImagesRoute:
         )
         assert isinstance(result, ListImagesResponse)
         assert len(use_case.calls) == 1
-        assert use_case.calls[0]["status"] == ImageGroupStatus.BUILT
+        # status_filter="BUILT" now triggers cumulative query (status=None for all post-BUILT states)
+        assert use_case.calls[0]["status"] is None
 
     def test_invalid_status_returns_400(self):
         """Returns 400 for invalid status filter."""

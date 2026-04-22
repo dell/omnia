@@ -149,6 +149,29 @@ class Stage:
         self.stage_state = StageState.SKIPPED
         self._mark_ended()
 
+    def reset(self) -> None:
+        """Reset stage from FAILED or COMPLETED back to PENDING for retry.
+
+        Used when a job is being retried after a failure and the upload stage
+        needs to accept new files.
+
+        Raises:
+            InvalidStateTransitionError: If not in FAILED or COMPLETED state.
+        """
+        if self.stage_state not in {StageState.FAILED, StageState.COMPLETED}:
+            raise InvalidStateTransitionError(
+                entity_type="Stage",
+                entity_id=f"{self.job_id}/{self.stage_name}",
+                from_state=self.stage_state.value,
+                to_state=StageState.PENDING.value
+            )
+        self.stage_state = StageState.PENDING
+        self.started_at = None
+        self.ended_at = None
+        self.error_code = None
+        self.error_summary = None
+        self.version += 1
+
     def cancel(self) -> None:
         """Transition stage to CANCELLED state.
 

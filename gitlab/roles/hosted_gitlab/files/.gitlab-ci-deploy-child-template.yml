@@ -1,0 +1,551 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# BuildStream Deploy Child Pipeline -- Static Template
+#
+# This file is a TEMPLATE used by the deploy pipeline's list_images stage.
+# The Python generator prepends dynamic selection jobs and a variables/stages
+# header, then appends this file's contents to produce deploy_child.yml.
+#
+# The generated child pipeline is triggered via trigger:include:artifact.
+#
+# Dynamic content injected by Python generator:
+#   - variables: block (POLL_INTERVAL, MAX_POLL_ATTEMPTS, etc.)
+#   - stages: block (select_image, deploy, restart, validate, summary)
+#   - select_<image_group_id> jobs (one per BUILT image group)
+#
+# This file provides:
+#   - default:before_script with cert setup and auth/API helpers
+#   - deploy stage (manual confirm, upload + deploy API + poll)
+#   - restart stage (restart API + poll)
+#   - validate stage (stub — Molecule integration planned for Sprint 3)
+#   - summary stage (always runs, displays final status)
+#
+# Prerequisites:
+#   - JOB_ID and IMAGE_GROUP_ID set via dotenv from a select_* job
+#   - BSM_API_URL, BSM_API_CERT, BSM_CLIENT_ID, BSM_CLIENT_SECRET
+#     inherited as CI/CD project variables
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Default before_script -- certificate setup + auth/API helper functions
+# Applied to all jobs except those that override with before_script: []
+# ---------------------------------------------------------------------------
+default:
+  before_script:
+    - apk add --no-cache curl jq coreutils openssl
+    - |
+      if [ -z "${BSM_API_CERT:-}" ]; then
+        echo "ERROR: BSM_API_CERT variable is not set"
+        exit 1
+      fi
+      if [ -f "${BSM_API_CERT}" ]; then
+        cp "${BSM_API_CERT}" "${BSM_CERT_FILE}"
+      else
+        printf '%s\n' "${BSM_API_CERT}" | sed 's/\\n/\n/g' > "${BSM_CERT_FILE}"
+      fi
+      chmod 600 "${BSM_CERT_FILE}"
+      sed -i 's/\r//g' "${BSM_CERT_FILE}"
+      if ! grep -q "BEGIN CERTIFICATE" "${BSM_CERT_FILE}"; then
+        echo "ERROR: BSM_API_CERT missing BEGIN CERTIFICATE marker"
+        exit 1
+      fi
+      if ! grep -q "END CERTIFICATE" "${BSM_CERT_FILE}"; then
+        echo "ERROR: BSM_API_CERT missing END CERTIFICATE marker"
+        exit 1
+      fi
+      if ! openssl x509 -in "${BSM_CERT_FILE}" -noout 2>/dev/null; then
+        echo "ERROR: BSM_API_CERT is not a valid X.509 PEM certificate"
+        exit 1
+      fi
+
+      # Token refresh helper
+      refresh_token() {
+        if [ -z "${BSM_CLIENT_ID:-}" ] || [ -z "${BSM_CLIENT_SECRET:-}" ]; then
+          echo "  [TOKEN] ERROR: BSM_CLIENT_ID or BSM_CLIENT_SECRET not available" >&2
+          return 1
+        fi
+        TOKEN_HTTP_CODE=$(curl -s -o token_refresh_response.json -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -X POST "${BSM_API_URL}/api/v1/auth/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -d "grant_type=client_credentials&client_id=${BSM_CLIENT_ID}&client_secret=${BSM_CLIENT_SECRET}" \
+          --retry 2 --retry-delay 1 --cacert "${BSM_CERT_FILE}")
+        if [ "$TOKEN_HTTP_CODE" != "200" ]; then
+          echo "  [TOKEN] ERROR: Token refresh failed (HTTP ${TOKEN_HTTP_CODE})" >&2
+          return 1
+        fi
+        ACCESS_TOKEN=$(jq -r '.access_token' token_refresh_response.json)
+        if [ -z "${ACCESS_TOKEN}" ] || [ "${ACCESS_TOKEN}" = "null" ]; then
+          echo "  [TOKEN] ERROR: No access_token in response" >&2
+          return 1
+        fi
+        export ACCESS_TOKEN
+        echo "${ACCESS_TOKEN}" > /tmp/bsm_access_token
+        return 0
+      }
+
+      # API call wrapper with auto token refresh
+      api_call_with_retry() {
+        _RETRY_OUTPUT_FILE="$1"
+        shift
+        _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@") || {
+          _CURL_EXIT=$?
+          case "$_CURL_EXIT" in
+            7) echo "  ERROR: Connection refused" >&2 ;;
+            28) echo "  ERROR: Request timeout" >&2 ;;
+            6) echo "  ERROR: DNS resolution failed" >&2 ;;
+            60) echo "  ERROR: SSL certificate validation failed" >&2 ;;
+            *) echo "  ERROR: Curl failed with exit code ${_CURL_EXIT}" >&2 ;;
+          esac
+          echo "000"
+          return
+        }
+        if [ "$_RETRY_HTTP_CODE" = "401" ]; then
+          _RETRY_ERROR=$(jq -r '.detail.error // .error // ""' "${_RETRY_OUTPUT_FILE}" 2>/dev/null || echo "")
+          case "${_RETRY_ERROR}" in
+            token_expired|invalid_token|missing_token)
+              if refresh_token; then
+                _RETRY_HTTP_CODE=$(curl -s -o "${_RETRY_OUTPUT_FILE}" -w "%{http_code}" \
+                  --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+                  -H "Authorization: Bearer ${ACCESS_TOKEN}" "$@")
+              fi
+              ;;
+          esac
+        fi
+        echo "${_RETRY_HTTP_CODE}"
+      }
+
+# ---------------------------------------------------------------------------
+# Deploy stage -- upload config files, call deploy API, poll for completion
+# Manual trigger: user clicks deploy after selecting an image group
+# The dotenv artifact from the selected image group provides JOB_ID and
+# IMAGE_GROUP_ID variables.
+# ---------------------------------------------------------------------------
+deploy:
+  stage: deploy
+  when: manual
+  allow_failure: false
+  script:
+    - |
+      echo "============================================================"
+      echo "  DEPLOY STAGE"
+      echo "============================================================"
+      echo ""
+
+      if [ -z "${JOB_ID:-}" ] || [ -z "${IMAGE_GROUP_ID:-}" ]; then
+        echo "  ERROR: No image group selected."
+        echo "  Please click one of the select_* jobs first, then re-run this job."
+        exit 1
+      fi
+
+      echo "  Job ID:         ${JOB_ID}"
+      echo "  Image Group ID: ${IMAGE_GROUP_ID}"
+      echo ""
+
+      # Authenticate
+      refresh_token
+
+      # Step 1: Implicit Upload -- sync ALL whitelisted config files to NFS
+      echo "  Step 1/3: Upload configuration files..."
+      echo "  ------------------------------------------------------------"
+
+      UPLOAD_ARGS=""
+      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
+             storage_config.yml telemetry_config.yml security_config.yml \
+             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] ${FNAME}"
+        else
+          echo "    [-] ${FNAME} (not found, skipping)"
+        fi
+      done
+
+      if [ -n "${UPLOAD_ARGS}" ]; then
+        HTTP_CODE=$(eval api_call_with_retry upload_response.json \
+          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+          ${UPLOAD_ARGS} \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+          echo "  ERROR: Upload failed (HTTP ${HTTP_CODE})"
+          jq "." upload_response.json 2>/dev/null || cat upload_response.json
+          exit 1
+        fi
+        echo "  [OK] Configuration files uploaded"
+        jq '.upload_summary' upload_response.json 2>/dev/null || true
+      else
+        echo "  [SKIP] No configuration files found to upload"
+      fi
+      echo ""
+
+      # Step 2: Call Deploy API
+      echo "  Step 2/3: Trigger deployment..."
+      echo "  ------------------------------------------------------------"
+      echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/deploy"
+      echo ""
+
+      HTTP_CODE=$(api_call_with_retry deploy_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/deploy" \
+        -H "Content-Type: application/json" \
+        -d "{\"image_group_id\": \"${IMAGE_GROUP_ID}\"}" \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+      echo "  API Response Code: ${HTTP_CODE}"
+
+      if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+        echo "  ERROR: Deploy request failed"
+        jq "." deploy_response.json 2>/dev/null || cat deploy_response.json
+        exit 1
+      fi
+
+      jq "." deploy_response.json 2>/dev/null || cat deploy_response.json
+      echo ""
+      echo "  [OK] Deploy request accepted"
+      echo ""
+
+      # Step 3: Poll for deploy completion
+      echo "  Step 3/3: Waiting for deployment to complete..."
+      echo "  ------------------------------------------------------------"
+      echo "  Polling interval: ${POLL_INTERVAL}s"
+      echo "  Max attempts: ${MAX_POLL_ATTEMPTS}"
+      echo ""
+
+      STAGE_COMPLETED=false
+      ATTEMPT=1
+
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+        HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
+          ATTEMPT=$((ATTEMPT + 1))
+          sleep "${POLL_INTERVAL}"
+          continue
+        fi
+
+        DEPLOY_STATE=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .stage_state' status_response.json 2>/dev/null || echo "UNKNOWN")
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Deploy: ${DEPLOY_STATE}"
+
+        case "${DEPLOY_STATE}" in
+          COMPLETED|SUCCEEDED)
+            STAGE_COMPLETED=true
+            echo ""
+            echo "  [OK] Deployment completed successfully"
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: Deploy stage reached ${DEPLOY_STATE}"
+            DEPLOY_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .error_code // "N/A"' status_response.json 2>/dev/null)
+            DEPLOY_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .error_summary // "N/A"' status_response.json 2>/dev/null)
+            DEPLOY_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "deploy") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
+            echo "  ------------------------------------------------------------"
+            printf "  %-22s %s\n" "Error Code:"    "${DEPLOY_ERR_CODE}"
+            printf "  %-22s %s\n" "Error Summary:" "${DEPLOY_ERR_SUMMARY}"
+            printf "  %-22s %s\n" "Log File Path:" "${DEPLOY_LOG_PATH}"
+            echo "  ------------------------------------------------------------"
+            exit 1
+            ;;
+        esac
+
+
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+
+      if [ "$STAGE_COMPLETED" = "false" ]; then
+        echo "  ERROR: Deploy polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        exit 1
+      fi
+
+      echo ""
+      echo "  ============================================================"
+      echo "  Deploy Stage Result:"
+      echo "  ============================================================"
+      DEPLOY_RESULT=$(jq -r \
+        '(first(.stages[]? | select(.stage_name == "deploy") | .stage_state)) // "COMPLETED"' \
+        status_response.json 2>/dev/null || echo "COMPLETED")
+      JOB_STATE_DEPLOY=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+      printf "  %-22s %s\n" "Job ID:"         "${JOB_ID}"
+      printf "  %-22s %s\n" "Image Group ID:" "${IMAGE_GROUP_ID}"
+      printf "  %-22s %s\n" "Deploy State:"   "${DEPLOY_RESULT}"
+      printf "  %-22s %s\n" "Job State:"      "${JOB_STATE_DEPLOY}"
+      echo "  ============================================================"
+
+# ---------------------------------------------------------------------------
+# Restart stage -- call restart API, poll for completion
+# Runs automatically after deploy completes
+# ---------------------------------------------------------------------------
+restart:
+  stage: restart
+  needs:
+    - job: deploy
+      artifacts: true
+  script:
+    - |
+      echo "============================================================"
+      echo "  RESTART STAGE"
+      echo "============================================================"
+      echo ""
+      echo "  Job ID:         ${JOB_ID}"
+      echo "  Image Group ID: ${IMAGE_GROUP_ID}"
+      echo ""
+
+      # Authenticate
+      refresh_token
+
+      # Call Restart API
+      echo "  Step 1/2: Trigger PXE boot restart..."
+      echo "  ------------------------------------------------------------"
+      echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/restart"
+      echo ""
+
+      HTTP_CODE=$(api_call_with_retry restart_response.json \
+        -X POST "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/restart" \
+        -H "Content-Type: application/json" \
+        -d "{\"disable_pxe_boot\": false}" \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+      echo "  API Response Code: ${HTTP_CODE}"
+
+      if [ "$HTTP_CODE" != "202" ] && [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+        echo "  ERROR: Restart request failed"
+        jq "." restart_response.json 2>/dev/null || cat restart_response.json
+        exit 1
+      fi
+
+      jq "." restart_response.json 2>/dev/null || cat restart_response.json
+      echo ""
+      echo "  [OK] Restart request accepted"
+      echo ""
+
+      # Poll for restart completion
+      echo "  Step 2/2: Waiting for restart to complete..."
+      echo "  ------------------------------------------------------------"
+
+      STAGE_COMPLETED=false
+      ATTEMPT=1
+
+      while [ "$ATTEMPT" -le "$MAX_POLL_ATTEMPTS" ]; do
+        HTTP_CODE=$(api_call_with_retry status_response.json \
+          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+          --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+        if [ "$HTTP_CODE" != "200" ]; then
+          echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] HTTP ${HTTP_CODE} - retrying..."
+          ATTEMPT=$((ATTEMPT + 1))
+          sleep "${POLL_INTERVAL}"
+          continue
+        fi
+
+        RESTART_STATE=$(jq -r '.stages[]? | select(.stage_name == "restart") | .stage_state' status_response.json 2>/dev/null || echo "UNKNOWN")
+        JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+
+        echo "  [Poll ${ATTEMPT}/${MAX_POLL_ATTEMPTS}] Job: ${JOB_STATE} | Restart: ${RESTART_STATE}"
+
+        case "${RESTART_STATE}" in
+          COMPLETED|SUCCEEDED)
+            STAGE_COMPLETED=true
+            echo ""
+            echo "  [OK] Restart completed successfully"
+            break
+            ;;
+          FAILED|CANCELLED)
+            echo ""
+            echo "  ERROR: Restart stage reached ${RESTART_STATE}"
+            RESTART_ERR_CODE=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_code // "N/A"' status_response.json 2>/dev/null)
+            RESTART_ERR_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "restart") | .error_summary // "N/A"' status_response.json 2>/dev/null)
+            RESTART_LOG_PATH=$(jq -r '.stages[]? | select(.stage_name == "restart") | .log_file_path // "N/A"' status_response.json 2>/dev/null)
+            echo "  ------------------------------------------------------------"
+            printf "  %-22s %s\n" "Error Code:"    "${RESTART_ERR_CODE}"
+            printf "  %-22s %s\n" "Error Summary:" "${RESTART_ERR_SUMMARY}"
+            printf "  %-22s %s\n" "Log File Path:" "${RESTART_LOG_PATH}"
+            echo "  ------------------------------------------------------------"
+            exit 1
+            ;;
+        esac
+
+
+        ATTEMPT=$((ATTEMPT + 1))
+        sleep "${POLL_INTERVAL}"
+      done
+
+      if [ "$STAGE_COMPLETED" = "false" ]; then
+        echo "  ERROR: Restart polling timed out after ${MAX_POLL_ATTEMPTS} attempts"
+        exit 1
+      fi
+
+      echo ""
+      echo "  ============================================================"
+      echo "  Restart Stage Result:"
+      echo "  ============================================================"
+      RESTART_RESULT=$(jq -r \
+        '(first(.stages[]? | select(.stage_name == "restart") | .stage_state)) // "COMPLETED"' \
+        status_response.json 2>/dev/null || echo "COMPLETED")
+      JOB_STATE_RESTART=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
+      printf "  %-22s %s\n" "Job ID:"         "${JOB_ID}"
+      printf "  %-22s %s\n" "Image Group ID:" "${IMAGE_GROUP_ID}"
+      printf "  %-22s %s\n" "Restart State:"  "${RESTART_RESULT}"
+      printf "  %-22s %s\n" "Job State:"      "${JOB_STATE_RESTART}"
+      echo "  ============================================================"
+
+# ---------------------------------------------------------------------------
+# Validate stage -- stub (Molecule test framework planned for Sprint 3)
+# Runs automatically after restart completes
+# ---------------------------------------------------------------------------
+validate:
+  stage: validate
+  needs:
+    - job: restart
+      artifacts: true
+  script:
+    - |
+      echo "============================================================"
+      echo "  VALIDATE STAGE (Stub)"
+      echo "============================================================"
+      echo ""
+      echo "  Job ID:         ${JOB_ID}"
+      echo "  Image Group ID: ${IMAGE_GROUP_ID}"
+      echo ""
+      echo "  NOTE: Molecule test framework is not yet integrated."
+      echo "  This is a stub stage that performs no actual validation."
+      echo "  Actual Molecule framework integration is planned for Sprint 3."
+      echo ""
+      echo "  [OK] Validate stage completed (stub -- no tests executed)"
+
+      echo ""
+      echo "  ============================================================"
+      echo "  Validate Stage Result:"
+      echo "  ============================================================"
+      printf "  %-22s %s\n" "Job ID:"         "${JOB_ID}"
+      printf "  %-22s %s\n" "Image Group ID:" "${IMAGE_GROUP_ID}"
+      printf "  %-22s %s\n" "Validate State:" "COMPLETED (Stub)"
+      printf "  %-22s %s\n" "Note:"           "Molecule integration planned for Sprint 3"
+      echo "  ============================================================"
+
+# ---------------------------------------------------------------------------
+# Summary stage -- always runs, displays final pipeline status
+# ---------------------------------------------------------------------------
+summary:
+  stage: summary
+  when: always
+  script:
+    - |
+      echo "============================================================"
+      echo "  DEPLOY PIPELINE SUMMARY"
+      echo "============================================================"
+      echo ""
+
+      if [ -z "${JOB_ID:-}" ]; then
+        echo "  No image group was selected. Deploy pipeline did not run."
+        echo "============================================================"
+        exit 0
+      fi
+
+      echo "  Job ID:         ${JOB_ID}"
+      echo "  Image Group ID: ${IMAGE_GROUP_ID:-NOT SET}"
+      echo ""
+
+      # Authenticate and query current job state from API
+      refresh_token
+
+      HTTP_CODE=$(api_call_with_retry summary_response.json \
+        -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}" \
+        --cacert "${BSM_CERT_FILE}")
+      [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo "  [WARN] Could not fetch job status from API (HTTP ${HTTP_CODE})"
+        echo "  Check individual stage logs for results."
+        echo "============================================================"
+        exit 0
+      fi
+
+      JOB_STATE=$(jq -r '.job_state // "UNKNOWN"' summary_response.json)
+      DEPLOY_STATE=$(jq -r '(first(.stages[]? | select(.stage_name == "deploy") | .stage_state)) // "NOT_RUN"' summary_response.json 2>/dev/null)
+      RESTART_STATE=$(jq -r '(first(.stages[]? | select(.stage_name == "restart") | .stage_state)) // "NOT_RUN"' summary_response.json 2>/dev/null)
+      VALIDATE_STATE=$(jq -r '(first(.stages[]? | select(.stage_name == "validate") | .stage_state)) // "NOT_RUN"' summary_response.json 2>/dev/null)
+
+      [ -z "${DEPLOY_STATE}" ]   && DEPLOY_STATE="NOT_RUN"
+      [ -z "${RESTART_STATE}" ]  && RESTART_STATE="NOT_RUN"
+      [ -z "${VALIDATE_STATE}" ] && VALIDATE_STATE="NOT_RUN"
+
+      echo "  Stage Results:"
+      echo "  ------------------------------------------------------------"
+      printf "  %-24s %s\n" "Stage" "Status"
+      printf "  %-24s %s\n" "-----" "------"
+      printf "  %-24s %s\n" "deploy"   "${DEPLOY_STATE}"
+      printf "  %-24s %s\n" "restart"  "${RESTART_STATE}"
+      printf "  %-24s %s\n" "validate" "${VALIDATE_STATE}"
+      echo "  ------------------------------------------------------------"
+      printf "  %-24s %s\n" "Job State:" "${JOB_STATE}"
+      echo ""
+
+      # Determine pipeline result — check each stage for failure
+      PIPELINE_FAILED=false
+      FAILED_STAGE=""
+      FAILED_STATE=""
+
+      if [ "${DEPLOY_STATE}" = "FAILED" ] || [ "${DEPLOY_STATE}" = "CANCELLED" ]; then
+        PIPELINE_FAILED=true
+        FAILED_STAGE="deploy"
+        FAILED_STATE="${DEPLOY_STATE}"
+      elif [ "${RESTART_STATE}" = "FAILED" ] || [ "${RESTART_STATE}" = "CANCELLED" ]; then
+        PIPELINE_FAILED=true
+        FAILED_STAGE="restart"
+        FAILED_STATE="${RESTART_STATE}"
+      elif [ "${VALIDATE_STATE}" = "FAILED" ] || [ "${VALIDATE_STATE}" = "CANCELLED" ]; then
+        PIPELINE_FAILED=true
+        FAILED_STAGE="validate"
+        FAILED_STATE="${VALIDATE_STATE}"
+      fi
+
+      if [ "${PIPELINE_FAILED}" = "true" ]; then
+        echo "  RESULT:  FAILED"
+        echo "  Cause:   '${FAILED_STAGE}' stage reached state: ${FAILED_STATE}"
+        echo "  Review '${FAILED_STAGE}' stage logs for details."
+        echo "============================================================"
+        exit 1
+      fi
+
+      DEPLOY_OK=false
+      RESTART_OK=false
+      VALIDATE_OK=false
+      case "${DEPLOY_STATE}" in COMPLETED|SUCCEEDED) DEPLOY_OK=true ;; esac
+      case "${RESTART_STATE}" in COMPLETED|SUCCEEDED) RESTART_OK=true ;; esac
+      # validate NOT_RUN means stub ran (no API state) — treat as OK
+      case "${VALIDATE_STATE}" in COMPLETED|SUCCEEDED|NOT_RUN) VALIDATE_OK=true ;; esac
+
+      if [ "${DEPLOY_OK}" = "true" ] && [ "${RESTART_OK}" = "true" ] && [ "${VALIDATE_OK}" = "true" ]; then
+        echo "  RESULT:  PASSED"
+        echo "  All deploy pipeline stages completed successfully."
+      else
+        echo "  RESULT:  INCOMPLETE"
+        echo "  Not all stages completed. Check individual stage logs."
+      fi
+      echo "============================================================"

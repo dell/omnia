@@ -22,6 +22,7 @@ from typing import List
 
 from common.config import BuildStreamConfig
 from core.artifacts.entities import ArtifactRecord
+from core.artifacts.exceptions import ArtifactAlreadyExistsError
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
 from core.artifacts.value_objects import ArtifactKind, StoreHint
 from core.jobs.repositories import JobRepository, StageRepository, AuditEventRepository
@@ -130,8 +131,12 @@ class UploadFilesUseCase:
         # Validate all files before processing (fail-fast)
         self._validate_all_files(command.files)
 
-        # Mark stage as started (first upload transitions to IN_PROGRESS)
-        # Allow uploads even if stage is already COMPLETED
+        # Reset stage if in a terminal state (FAILED/COMPLETED) to allow retry
+        if stage.stage_state in {StageState.FAILED, StageState.COMPLETED}:
+            stage.reset()
+            self._stage_repo.save(stage)
+
+        # Mark stage as started (transitions PENDING -> IN_PROGRESS)
         if stage.stage_state == StageState.PENDING:
             # Collect filenames for audit event
             filenames = [filename for filename, _ in command.files]
@@ -155,7 +160,7 @@ class UploadFilesUseCase:
         if stage.stage_state != StageState.COMPLETED:
             # First upload: mark stage as completed
             self._mark_stage_completed(stage)
-        
+
         # Always emit audit event with file details (for all uploads)
         self._emit_upload_files_audit_event(command, uploaded_files)
 
@@ -199,7 +204,7 @@ class UploadFilesUseCase:
         if job is None:
             raise JobNotFoundError(f"Job not found: {job_id}")
 
-        if job.is_completed() or job.is_failed() or job.is_cancelled():
+        if job.is_completed() or job.is_cancelled():
             raise TerminalStateViolationError(
                 entity_type="Job",
                 entity_id=str(job_id),
@@ -317,33 +322,39 @@ class UploadFilesUseCase:
             tags={"job_id": str(job_id)},
         )
 
-        artifact_ref = self._artifact_store.store(
-            hint=hint,
-            kind=ArtifactKind.FILE,
-            content=content,
-            content_type="application/octet-stream",
-        )
+        try:
+            artifact_ref = self._artifact_store.store(
+                hint=hint,
+                kind=ArtifactKind.FILE,
+                content=content,
+                content_type="application/octet-stream",
+            )
 
-        # Save metadata
-        record = ArtifactRecord(
-            id=self._generate_id(),
-            job_id=job_id,
-            stage_name=StageName(StageType.UPLOAD.value),
-            label=filename,
-            artifact_ref=artifact_ref,
-            kind=ArtifactKind.FILE,
-            content_type="application/octet-stream",
-            tags={"filename": filename},
-            created_at=None,  # Will be set by repository
-        )
+            # Save metadata
+            record = ArtifactRecord(
+                id=self._generate_id(),
+                job_id=job_id,
+                stage_name=StageName(StageType.UPLOAD.value),
+                label=filename,
+                artifact_ref=artifact_ref,
+                kind=ArtifactKind.FILE,
+                content_type="application/octet-stream",
+                tags={"filename": filename},
+                created_at=None,  # Will be set by repository
+            )
 
-        self._artifact_metadata_repo.save(record)
+            self._artifact_metadata_repo.save(record)
 
-        logger.debug(
-            "Stored in ArtifactStore: %s (key: %s)",
-            filename,
-            artifact_ref.key,
-        )
+            logger.debug(
+                "Stored in ArtifactStore: %s (key: %s)",
+                filename,
+                artifact_ref.key,
+            )
+        except ArtifactAlreadyExistsError:
+            logger.debug(
+                "Artifact already exists in store: %s (skipping storage)",
+                filename,
+            )
 
     def _write_to_nfs_job_directory(self, job_id, filename: str, content: bytes):
         """Write file to job-scoped NFS directory.
@@ -480,7 +491,7 @@ class UploadFilesUseCase:
                 "unchanged_files": unchanged_count,
             }
         )
-        
+
         logger.info(
             "Files uploaded: job_id=%s, total=%d, changed=%d, unchanged=%d",
             command.job_id, len(uploaded_files), changed_count, unchanged_count
