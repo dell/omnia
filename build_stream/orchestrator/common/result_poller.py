@@ -35,8 +35,7 @@ from core.image_group.entities import Image, ImageGroup
 from core.image_group.repositories import ImageGroupRepository, ImageRepository
 from core.image_group.value_objects import ImageGroupId, ImageGroupStatus
 from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
-from core.artifacts.entities import ArtifactRecord
-from core.artifacts.value_objects import ArtifactKind, StoreHint
+from core.artifacts.value_objects import ArtifactKind
 from core.jobs.entities import AuditEvent
 from core.jobs.entities.stage import StageState
 from core.jobs.repositories import (
@@ -210,10 +209,6 @@ class ResultPoller:
                 # S1-6: On deploy success, transition ImageGroup DEPLOYING -> DEPLOYED
                 if result.stage_name == "deploy":
                     self._on_deploy_success(result)
-
-                # On restart completion, extract per-node results
-                if result.stage_name == "restart":
-                    self._on_restart_completed(result)
             else:
                 error_code = result.error_code or "PLAYBOOK_FAILED"
                 error_summary = result.error_summary or "Playbook execution failed"
@@ -224,10 +219,6 @@ class ResultPoller:
                     f"stage={result.stage_name}, error={error_code}",
                     job_id=str(result.job_id),
                 )
-
-                # On restart failure, still extract per-node results
-                if result.stage_name == "restart":
-                    self._on_restart_completed(result)
 
                 # Update job state to FAILED when stage fails
                 JobStateHelper.handle_stage_failure(
@@ -492,110 +483,6 @@ class ResultPoller:
                 "error",
                 "Failed to update ImageGroup status on deploy "
                 f"success for job={result.job_id}: {exc}",
-                job_id=str(result.job_id),
-                exc_info=True,
-            )
-
-    # ------------------------------------------------------------------
-    # Restart completion — per-node result extraction and failed_nodes.json
-    # ------------------------------------------------------------------
-
-    def _on_restart_completed(self, result: PlaybookResult) -> None:
-        """Extract failed nodes from node_results.json and write failed_nodes.json.
-
-        Runs on restart stage completion (success or failure) because even
-        a partially-failed restart produces node_results.json with mixed entries.
-
-        Args:
-            result: Playbook execution result from NFS queue.
-        """
-        node_results_path = result.node_results_file_path
-        if not node_results_path:
-            log_secure_info(
-                "info",
-                f"No node_results_file_path in restart result for job={result.job_id}; "
-                f"skipping failed-nodes extraction.",
-                job_id=str(result.job_id),
-            )
-            return
-
-        try:
-            from pathlib import Path
-            node_results_file = Path(node_results_path)
-            if not node_results_file.exists():
-                log_secure_info(
-                    "warning",
-                    f"Node results file not found: {node_results_path}",
-                    job_id=str(result.job_id),
-                )
-                return
-
-            with open(node_results_file, 'r', encoding='utf-8') as f:
-                node_results = json.load(f)
-
-            failed_nodes = [
-                node for node in node_results.get("nodes", [])
-                if node.get("status") == "failed"
-            ]
-
-            failed_nodes_report = {
-                "job_id": result.job_id,
-                "stage_name": "restart",
-                "timestamp": node_results.get("timestamp", ""),
-                "total_nodes": node_results.get("total_nodes", 0),
-                "failure_count": len(failed_nodes),
-                "failed_nodes": failed_nodes,
-            }
-
-            # Write to NFS for backward compatibility
-            failed_nodes_file = node_results_file.parent / "failed_nodes.json"
-            failed_nodes_content = json.dumps(
-                failed_nodes_report, indent=2
-            ).encode('utf-8')
-            with open(failed_nodes_file, 'wb') as f:
-                f.write(failed_nodes_content)
-
-            # Store in ArtifactStore for API access
-            if self._artifact_store and self._artifact_metadata_repo:
-                hint = StoreHint(
-                    namespace="restart-artifacts",
-                    label="failed_nodes.json",
-                    tags={"job_id": str(result.job_id)},
-                )
-
-                artifact_ref = self._artifact_store.store(
-                    hint=hint,
-                    kind=ArtifactKind.FILE,
-                    content=failed_nodes_content,
-                    content_type="application/json",
-                )
-
-                record = ArtifactRecord(
-                    id=str(uuid.uuid4()),
-                    job_id=JobId(str(result.job_id)),
-                    stage_name=StageName("restart"),
-                    label="failed_nodes.json",
-                    artifact_ref=artifact_ref,
-                    kind=ArtifactKind.FILE,
-                    content_type="application/json",
-                    tags={"filename": "failed_nodes.json"},
-                    created_at=None,
-                )
-
-                self._artifact_metadata_repo.save(record)
-
-            log_secure_info(
-                "info",
-                f"Wrote failed_nodes.json for job={result.job_id} "
-                f"({len(failed_nodes)} failed of "
-                f"{node_results.get('total_nodes', 0)} total)",
-                job_id=str(result.job_id),
-            )
-
-        except Exception as exc:  # pylint: disable=broad-except
-            log_secure_info(
-                "error",
-                f"Failed to extract failed nodes for job={result.job_id}: {exc}",
                 job_id=str(result.job_id),
                 exc_info=True,
             )

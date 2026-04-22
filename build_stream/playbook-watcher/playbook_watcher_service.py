@@ -854,12 +854,6 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             result_data["error_code"] = "PLAYBOOK_EXECUTION_FAILED"
             result_data["error_summary"] = f"Playbook exited with code {result.returncode}"
 
-        # Check for per-node results file (restart stage)
-        if stage_name == "restart":
-            node_results_path = host_log_file_path.parent / "node_results.json"
-            if node_results_path.exists():
-                result_data["node_results_file_path"] = str(node_results_path)
-
         return result_data
 
     except subprocess.TimeoutExpired:
