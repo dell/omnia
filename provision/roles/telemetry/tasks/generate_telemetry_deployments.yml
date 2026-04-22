@@ -147,7 +147,7 @@
   when: item.skip_when is not defined or not item.skip_when | bool
   tags: telemetry_deployment
 
-#- name: Populate PowerScale syslog configuration script
+# - name: Populate PowerScale syslog configuration script
 #  ansible.builtin.template:
 #    src: telemetry/configure_powerscale_syslog.sh.j2
 #    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/configure_powerscale_syslog.sh"

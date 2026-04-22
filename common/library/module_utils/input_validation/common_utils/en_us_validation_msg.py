@@ -88,16 +88,23 @@ EMPTY_OR_SYNTAX_ERROR_ROLES_CONFIG_MSG = ("File is either empty or contains synt
 DUPLICATE_GROUP_NAME_IN_LAYERS_MSG = ("The following groups are mapped to both frontend and "
                                      "compute layers, which is not allowed for group: [{0}] in "
                                      "frontend layer: [{1}] and compute layer: [{2}]")
-SERVICE_NODE_ENTRY_MISSING_ROLES_CONFIG_MSG = ("The role service_node defined in roles_config.yml,"
-    " but service_node entry missing in sofware_config.json, "
-    "Please rerun local repo with service_node entry in software_config.json "
-    "to deploy service nodes successfully")
-SERVICE_K8S_ENTRY_MISSING_SOFTWARE_CONFIG_MSG = ("The role service_kube_control_plane is defined in roles_config.yml, "
+SERVICE_NODE_ENTRY_MISSING_ROLES_CONFIG_MSG = (
+    "The role service_node defined in roles_config.yml, "
+    "but service_node entry missing in sofware_config.json. "
+    "Please rerun local repo with service_node entry in "
+    "software_config.json to deploy service nodes successfully"
+)
+SERVICE_K8S_ENTRY_MISSING_SOFTWARE_CONFIG_MSG = (
+    "The role service_kube_control_plane is defined in roles_config.yml, "
     "but the service_k8s package entry is missing in software_config.json. "
-    "To deploy Kubernetes in the service_k8s cluster, the package must be added to software_config.json.")
-SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG = ("The 'service_node' role defined in roles_config.yml"
-    " is not currently supported and is reserved for future use. Please remove or update this role"
-    " to avoid configuration errors.")
+    "To deploy Kubernetes in the service_k8s cluster, the package must be "
+    "added to software_config.json."
+)
+SERVICE_NODE_ENTRY_INVALID_ROLES_CONFIG_MSG = (
+    "The 'service_node' role defined in roles_config.yml "
+    "is not currently supported and is reserved for future use. "
+    "Please remove or update this role to avoid configuration errors."
+)
 
 # Functional Groups Config Validation Messages
 
@@ -112,7 +119,8 @@ MISSING_GROUPS_SECTION_MSG = (
     "Check the file content and rerun the playbook."
 )
 MISSING_FUNCTIONAL_GROUPS_SECTION_MSG = (
-    "The functional_groups_config.yml file must contain a valid 'functional_groups' section. It must be a non-empty list."
+    "The functional_groups_config.yml file must contain a valid "
+    "'functional_groups' section. It must be a non-empty list."
 )
 NON_EMPTY_CLUSTER_NAME_MSG = "Cluster name must not be empty for '{name}' functional group."
 FUNCTIONAL_GROUPS_NOT_LIST_MSG = (
@@ -131,9 +139,6 @@ LOGIN_NODE_WITHOUT_SLURM_MSG = (
 )
 SLURM_NODE_PARENT_MISSING_MSG = (
     "Functional group '{name}' must have a non-empty 'parent' field."
-)
-MISSING_FUNCTIONAL_GROUPS_SECTION_MSG = (
-    "The 'functional_groups' section is missing or null. It must be a non-empty list."
 )
 SLURM_NODE_WITHOUT_CONTROL_MSG = (
     "Slurm node defined for cluster '{cluster}' but no corresponding slurm_control_node exists. "
@@ -168,16 +173,21 @@ ENABLE_SWITCH_BASED_FAIL_MSG = "enable_switch_based must be set to either true o
 LANGUAGE_FAIL_MSG = "Only en_US.UTF-8 language supported"
 LANGUAGE_EMPTY_MSG = "Language setting cannot be empty"
 PUBLIC_NIC_FAIL_MSG = "public_nic is empty. Please provide a public_nic value."
-PXE_MAPPING_FILE_PATH_FAIL_MSG = ("File path is invalid. Please ensure the file path specified in "
-                                 "pxe_mapping_file_path exists and points to a valid file, "
-                                 "not a directory.")
-PXE_MAPPING_FILE_EXT_FAIL_MSG = ("File path is invalid. Please ensure that the file ends with "
-                                 ".csv extension")
-PXE_MAPPING_AARCH64_LOCAL_PATH_MSG = ("aarch64 nodes are present in pxe_mapping_file.csv but "
-                                      "local share path selected for omnia core container deployment. "
-                                      "aarch64 nodes require NFS share path. "
-                                      "Please redeploy omnia core container with NFS share path option or remove aarch64 nodes "
-                                      "from pxe_mapping_file.csv.")
+PXE_MAPPING_FILE_PATH_FAIL_MSG = (
+    "File path is invalid. Please ensure the file path specified in "
+    "pxe_mapping_file_path exists and points to a valid file, "
+    "not a directory."
+)
+PXE_MAPPING_FILE_EXT_FAIL_MSG = (
+    "File path is invalid. Please ensure that the file ends with .csv extension"
+)
+PXE_MAPPING_AARCH64_LOCAL_PATH_MSG = (
+    "aarch64 nodes are present in pxe_mapping_file.csv but "
+    "local share path selected for omnia core container deployment. "
+    "aarch64 nodes require NFS share path. "
+    "Please redeploy omnia core container with NFS share path option or "
+    "remove aarch64 nodes from pxe_mapping_file.csv."
+)
 CLUSTER_OS_FAIL_MSG = "Cluster OS must be 'rhel' for RHEL Omnia Infrastructure Manager"
 
 # local_repo.yml
@@ -248,22 +258,27 @@ SWITCH_SNMP3_PASSWORD_FAIL_MSG = ("switch_snmp3_password must be at least 3 char
 
 
 # telemetry_config.yml
-TELEMETRY_SERVICE_CLUSTER_ENTRY_MISSING_ROLES_CONFIG_MSG= ("requires service k8s roles(service_kube_control_plane and service_kube_node)"
-                                             " to be defined in 'pxe_mapping_file.csv'. Please either configure "
-                                             "service k8s roles in the mapping file "
-                                             "or disable idrac_telemetry_support in in telemetry_config.yml "
-                                             "and rerun the playbook.")
-TELEMETRY_SERVICE_CLUSTER_ENTRY_FOR_LDMS_MISSING_ROLES_CONFIG_MSG= ("requires service k8s roles(service_kube_control_plane "
-                                             "and service_kube_node) or slurm nodes(slurm_control_node_x86_64 and slurm_node) "
-                                             " to be defined in 'pxe_mapping_file.csv'. Please either configure "
-                                             "service k8s/slurm roles in the mapping file or remove ldms from "
-                                             "software_config.json and rerun the playbook.")
+TELEMETRY_SERVICE_CLUSTER_ENTRY_MISSING_ROLES_CONFIG_MSG = (
+    "requires service k8s roles(service_kube_control_plane and "
+    "service_kube_node) to be defined in 'pxe_mapping_file.csv'. "
+    "Please either configure service k8s roles in the mapping file or "
+    "disable idrac_telemetry_support in telemetry_config.yml and "
+    "rerun the playbook."
+)
+TELEMETRY_SERVICE_CLUSTER_ENTRY_FOR_LDMS_MISSING_ROLES_CONFIG_MSG = (
+    "requires service k8s roles(service_kube_control_plane and "
+    "service_kube_node) or slurm nodes(slurm_control_node_x86_64 and "
+    "slurm_node) to be defined in 'pxe_mapping_file.csv'. "
+    "Please either configure service k8s/slurm roles in the mapping file "
+    "or remove ldms from software_config.json and rerun the playbook."
+)
 
 # PowerScale telemetry validation messages
 POWERSCALE_VICTORIA_REQUIRED_MSG = (
     "PowerScale telemetry requires VictoriaMetrics to be deployed. "
-    "When powerscale_configurations.powerscale_telemetry_support is true, 'victoria' must be included in "
-    "telemetry_collection_type (e.g., 'victoria' or 'victoria,kafka')."
+    "When powerscale_configurations.powerscale_telemetry_support is true, "
+    "'victoria' must be included in telemetry_collection_type "
+    "(e.g., 'victoria' or 'victoria,kafka')."
 )
 POWERSCALE_CSI_DRIVER_MISSING_MSG = (
     "csi_driver_powerscale is not configured in software_config.json. "
@@ -280,12 +295,13 @@ POWERSCALE_OTEL_STORAGE_SIZE_INVALID_MSG = (
     "must be a non-empty string in format 'XGi' (e.g., '5Gi')"
 )
 POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
-    "csm_observability_values_file_path is required when powerscale_configurations.powerscale_telemetry_support is true. "
+    "csm_observability_values_file_path is required when "
+    "powerscale_configurations.powerscale_telemetry_support is true. "
     "Please provide the path to the CSM Observability values.yaml file."
 )
 POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG = (
-    "karaviMetricsPowerscale.authorization.proxyHost is required in the CSM Observability values file "
-    "when karaviMetricsPowerscale.authorization.enabled is true. "
+    "karaviMetricsPowerscale.authorization.proxyHost is required in the "
+    "CSM Observability values file when karaviMetricsPowerscale.authorization.enabled is true. "
     "Please provide the hostname or IP of the CSM Authorization Proxy server."
 )
 def powerscale_csm_values_not_found_msg(path):
@@ -330,8 +346,9 @@ POWERSCALE_AUTH_CSI_DRIVER_MISSING_MSG = (
     "PowerScale CSM Authorization requires 'csi_driver_powerscale' to be present in software_config.json."
 )
 POWERSCALE_AUTH_SERVICE_CLUSTER_MISSING_MSG = (
-    "PowerScale CSM Authorization requires service cluster nodes (service_kube_node_*, "
-    "service_kube_control_plane_*) to be defined in the PXE mapping file."
+    "PowerScale CSM Authorization requires service cluster nodes "
+    "(service_kube_node_*, service_kube_control_plane_*) to be defined "
+    "in the PXE mapping file."
 )
 POWERSCALE_AUTH_CSM_VALUES_PATH_REQUIRED_MSG = (
     "csm_authorization_values_file_path is required when powerscale_authorization.enabled is true."
@@ -361,40 +378,8 @@ def powerscale_auth_image_version_mismatch_msg(image_name, values_version, csi_v
         f"Please ensure both files use the same version."
     )
 POWERSCALE_AUTH_CSI_JSON_NOT_FOUND_MSG = (
-    "csi_driver_powerscale.json not found. Cannot validate CSM Authorization image versions. "
-    "Please ensure the file exists at input/config/x86_64/rhel/10.0/csi_driver_powerscale.json."
-)
-POWERSCALE_AUTH_CSM_VALUES_PATH_REQUIRED_MSG = (
-    "csm_authorization_values_file_path is required when powerscale_authorization.enabled is true."
-)
-def powerscale_auth_csm_values_not_found_msg(path):
-    """Returns error message when CSM Authorization values.yaml file is not found."""
-    return (
-        f"CSM Authorization values file does not exist at path: {path}. "
-        "Please verify the file path is correct."
-    )
-def powerscale_auth_csm_values_validation_error_msg(error):
-    """Returns error message when CSM Authorization values.yaml validation fails."""
-    return f"Error validating CSM Authorization image versions: {error}"
-POWERSCALE_AUTH_TENANTS_REQUIRED_MSG = (
-    "At least one tenant must be defined when powerscale_authorization.enabled is true."
-)
-def powerscale_auth_tenant_roles_required_msg(tenant_name):
-    """Returns error message when a tenant has no roles defined."""
-    return (
-        f"At least one role must be defined for tenant '{tenant_name}'."
-    )
-def powerscale_auth_image_version_mismatch_msg(image_name, values_version, csi_version):
-    """Returns error message when CSM Authorization image version doesn't match csi_driver_powerscale.json."""
-    return (
-        f"Image version for {image_name} in CSM Authorization values.yaml ({values_version}) "
-        f"does not match csi_driver_powerscale.json ({csi_version}). "
-        f"Please ensure both files use the same version."
-    )
-POWERSCALE_AUTH_CSI_JSON_NOT_FOUND_MSG = (
-    "csi_driver_powerscale.json not found. "
-    "Cannot validate CSM Authorization image versions. "
-    "Please ensure the file exists at "
+    "csi_driver_powerscale.json not found. Cannot validate CSM "
+    "Authorization image versions. Please ensure the file exists at "
     "input/config/x86_64/rhel/10.0/csi_driver_powerscale.json."
 )
 
@@ -405,9 +390,11 @@ POWERSCALE_LOG_VICTORIA_REQUIRED_MSG = (
     "to enable VictoriaLogs log storage."
 )
 POWERSCALE_LOG_CSI_SECRET_REQUIRED_MSG = (
-    "powerscale_log_enabled requires CSI PowerScale driver secret to be configured. "
-    "The secret file contains PowerScale cluster credentials needed for automated syslog configuration. "
-    "Set csi_powerscale_driver_secret_file_path in omnia_config.yml or disable powerscale_log_enabled."
+    "powerscale_log_enabled requires CSI PowerScale driver secret to be "
+    "configured. The secret file contains PowerScale cluster credentials "
+    "needed for automated syslog configuration. Set "
+    "csi_powerscale_driver_secret_file_path in omnia_config.yml or "
+    "disable powerscale_log_enabled."
 )
 def powerscale_log_csi_secret_not_found_msg(path):
     """Returns error message when CSI PowerScale driver secret file is not found."""
@@ -501,10 +488,12 @@ ADMIN_IP_HOSTNAME_COLUMN_MISSING_MSG = (
 )
 NETWORK_SPEC_FILE_NOT_FOUND_MSG = "network_spec.yml file not found in input folder."
 IB_NETMASK_BITS_MISMATCH_MSG = (
-    "netmask_bits configured for ib_network must match admin_network netmask_bits in network_spec.yml."
+    "netmask_bits configured for ib_network must match admin_network "
+    "netmask_bits in network_spec.yml."
 )
 IB_SUBNET_IN_ADMIN_RANGE_MSG = (
-    "ib_network subnet must be outside the admin network range derived from primary_oim_admin_ip/netmask_bits in network_spec.yml."
+    "ib_network subnet must be outside the admin network range derived "
+    "from primary_oim_admin_ip/netmask_bits in network_spec.yml."
 )
 
 # telemetry
@@ -518,43 +507,76 @@ def tls_ext_fail_msg(valid_extensions):
     return f"should have {extensions_list} extension"
 
 # storage
-BEEGFS_VERSION_FAIL_MSG = "Failed, Ensure version of beegfs is mentioned in software_config.json"
-CLIENT_MOUNT_OPTIONS_FAIL_MSG = "should only contain nosuid,rw,sync,hard as options"
-SLURM_SHARE_FAIL_MSG = "Exactly one entry should be present in nfs_client_params with slurm_share as true in storage_config.yml"
-K8S_SHARE_FAIL_MSG = "Exactly one entry should be present in nfs_client_params with k8s_share as true in storage_config.yml"
-BENCHMARK_TOOLS_FAIL_MSG = "Atleast one out of k8s_share or slurm_share in storage_config.yml should be true \
-  when ucx/openmpi mentioned in software_config.json."
-MULT_SHARE_FAIL_MSG = "Exactly one entry should be present in nfs_client_params with slurm_share as true or \
-    k8s_share as true in storage_config.yml"
-BEEGFS_UMOUNT_CLIENT_FAIL_MSG = "should be set to true since beegfs_mounts value has been changed"
+BEEGFS_VERSION_FAIL_MSG = (
+    "Failed, Ensure version of beegfs is mentioned in software_config.json"
+)
+CLIENT_MOUNT_OPTIONS_FAIL_MSG = (
+    "should only contain nosuid,rw,sync,hard as options"
+)
+SLURM_SHARE_FAIL_MSG = (
+    "Exactly one entry should be present in nfs_client_params with "
+    "slurm_share as true in storage_config.yml"
+)
+K8S_SHARE_FAIL_MSG = (
+    "Exactly one entry should be present in nfs_client_params with "
+    "k8s_share as true in storage_config.yml"
+)
+BENCHMARK_TOOLS_FAIL_MSG = (
+    "Atleast one out of k8s_share or slurm_share in storage_config.yml "
+    "should be true when ucx/openmpi mentioned in software_config.json."
+)
+MULT_SHARE_FAIL_MSG = (
+    "Exactly one entry should be present in nfs_client_params with "
+    "slurm_share as true or k8s_share as true in storage_config.yml"
+)
+BEEGFS_UMOUNT_CLIENT_FAIL_MSG = (
+    "should be set to true since beegfs_mounts value has been changed"
+)
 
-IP_OVERLAP_FAIL_MSG = ("admin network, bmc network and k8 network and IP ranges should "
-                       "not have any IP overlap. Check omnia_config.yml and network_spec.yml")
-TELEMETRY_IP_OVERLAP_FAIL_MSG = ("admin network, telemetry network and IP ranges should "
-                                 "not have any IP overlap. "
-                                 "Check telemetry_config.yml and network_spec.yml")
+IP_OVERLAP_FAIL_MSG = (
+    "admin network, bmc network and k8 network and IP ranges should "
+    "not have any IP overlap. Check omnia_config.yml and network_spec.yml"
+)
+TELEMETRY_IP_OVERLAP_FAIL_MSG = (
+    "admin network, telemetry network and IP ranges should "
+    "not have any IP overlap. Check telemetry_config.yml and network_spec.yml"
+)
 
 # high_availability
-VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = ("virtual ip address provided is not in admin subnet. "
-                                 "Check high_availability_config.yml and network_spec.yml")
-VIRTUAL_IP_NOT_VALID = ("should be outside the admin static and dynamic ranges. "
-                       "Check high_availability_config.yml and network_spec.yml")
-VIRTUAL_IP_NOT_POD_EXT = ("should be outside the pod_external_ip ranges. "
-                       "Check high_availability_config.yml and omnia_config.yml")
-BMC_VIRTUAL_IP_NOT_VALID = ("should be outside any bmc static and dynamic ranges. "
-                            "Check high_availability_config.yml, network_spec.yml, and "
-                            "roles_config.yml")
+VIRTUAL_IP_NOT_IN_ADMIN_SUBNET = (
+    "virtual ip address provided is not in admin subnet. "
+    "Check high_availability_config.yml and network_spec.yml"
+)
+VIRTUAL_IP_NOT_VALID = (
+    "should be outside the admin static and dynamic ranges. "
+    "Check high_availability_config.yml and network_spec.yml"
+)
+VIRTUAL_IP_NOT_POD_EXT = (
+    "should be outside the pod_external_ip ranges. "
+    "Check high_availability_config.yml and omnia_config.yml"
+)
+BMC_VIRTUAL_IP_NOT_VALID = (
+    "should be outside any bmc static and dynamic ranges. "
+    "Check high_availability_config.yml, network_spec.yml, and roles_config.yml"
+)
 FEILD_MUST_BE_EMPTY = "feild must be empty."
 DUPLICATE_VIRTUAL_IP = "is already used. Please give unique virtual ip address"
-VIRTUAL_IP_SAME_AS_PRIMARY_OIM_ADMIN_IP = ("virtual_ip_address provided in high_availability_config.yml must not be the same as primary_oim_admin_ip in network_spec.yml. "
-                                           "Please provide a different virtual IP address.")
+VIRTUAL_IP_SAME_AS_PRIMARY_OIM_ADMIN_IP = (
+    "virtual_ip_address provided in high_availability_config.yml must not "
+    "be the same as primary_oim_admin_ip in network_spec.yml. "
+    "Please provide a different virtual IP address."
+)
 INVALID_PASSIVE_NODE_SERVICE_TAG = "active node and passive node service tag cannot be same."
 GROUP_NOT_FOUND = "is not defined in the roles_config.yml. Please define the group in roles_config.yml"
 ROLE_NODE_FOUND = "is not defined in roles_config.yml. Please define the role in roles_config.yml"
-DUPLICATE_ACTIVE_NODE_SERVICE_TAG = ("the service tag configured for a active node is already "
-                                    "present elsewhere in the config file. ")
-DUPLICATE_PASSIVE_NODE_SERVICE_TAG = ("the service tag configured for a passive node is already "
-                                     "present elsewhere in the config file. ")
+DUPLICATE_ACTIVE_NODE_SERVICE_TAG = (
+    "the service tag configured for a active node is already "
+    "present elsewhere in the config file. "
+)
+DUPLICATE_PASSIVE_NODE_SERVICE_TAG = (
+    "the service tag configured for a passive node is already "
+    "present elsewhere in the config file. "
+)
 
 # build_stream_config.yml
 ENABLE_BUILD_STREAM_REQUIRED_MSG = "Field 'enable_build_stream' is required in build_stream_config.yml."
