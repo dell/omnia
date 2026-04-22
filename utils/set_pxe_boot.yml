@@ -38,6 +38,24 @@
         name: idrac_pxe_boot
         tasks_from: pre_checks
 
+- name: Compute restart state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    restart_state_dir: "/opt/omnia/build_stream_root/restart_state"
+  tasks:
+    - name: Ensure restart_state directory exists
+      ansible.builtin.file:
+        path: "{{ restart_state_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Remove stale node_results.json from previous run
+      ansible.builtin.file:
+        path: "{{ restart_state_dir }}/node_results.json"
+        state: absent
+
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
@@ -78,3 +96,40 @@
     - name: Show passed iDRACs
       ansible.builtin.debug:
         msg: "{{ inventory_hostname }}: {{ reboot_status }}"
+
+- name: Write node results to restart_state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    restart_state_dir: "/opt/omnia/build_stream_root/restart_state"
+  tasks:
+    - name: Build per-node results list
+      ansible.builtin.set_fact:
+        node_results_list: >-
+          {{
+            groups['bmc'] | default([]) | map('extract', hostvars) | list
+            | json_query('[].{
+                host: inventory_hostname,
+                failed: reboot_failed,
+                status: reboot_status
+              }')
+          }}
+
+    - name: Compute summary counts
+      ansible.builtin.set_fact:
+        total_nodes: "{{ node_results_list | length }}"
+        failed_nodes: "{{ node_results_list | selectattr('failed', 'equalto', true) | list | length }}"
+        succeeded_nodes: "{{ node_results_list | selectattr('failed', 'equalto', false) | list | length }}"
+
+    - name: Write node_results.json
+      ansible.builtin.copy:
+        content: |
+          {{ {
+            "total": total_nodes | int,
+            "succeeded": succeeded_nodes | int,
+            "failed": failed_nodes | int,
+            "nodes": node_results_list
+          } | to_nice_json }}
+        dest: "{{ restart_state_dir }}/node_results.json"
+        mode: "0644"

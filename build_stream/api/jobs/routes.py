@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.responses import JSONResponse
 
 from core.jobs.exceptions import (
     IdempotencyConflictError,
@@ -36,7 +37,11 @@ from orchestrator.jobs.commands import CreateJobCommand
 from orchestrator.jobs.use_cases import CreateJobUseCase
 
 from api.logging_utils import create_job_log_file, log_secure_info, remove_job_logger
-from api.dependencies import verify_token
+from api.dependencies import (
+    verify_token,
+    get_artifact_store,
+    get_artifact_metadata_repo,
+)
 from api.logging_utils import create_job_log_file, log_secure_info, remove_job_logger
 from api.jobs.dependencies import (
     get_audit_repo,
@@ -46,6 +51,7 @@ from api.jobs.dependencies import (
     get_job_repo,
     get_stage_repo,
 )
+from core.artifacts.value_objects import ArtifactKind
 from api.jobs.schemas import (
     CreateJobRequest,
     CreateJobResponse,
@@ -56,6 +62,12 @@ from api.jobs.schemas import (
 )
 from api.catalog_roles.dependencies import get_catalog_roles_service
 from api.catalog_roles.service import CatalogRolesService
+
+# Allowed artifact labels for download (whitelist)
+_DOWNLOADABLE_ARTIFACT_LABELS = {
+    "node-results",      # Per-node restart results (restart stage)
+    "catalog-metadata",  # Catalog metadata (parse-catalog stage)
+}
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -580,6 +592,150 @@ async def delete_job(
             job_id=job_id,
             exc_info=True,
             end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_build_error_response(
+                "INTERNAL_ERROR",
+                "An unexpected error occurred",
+                correlation_id.value,
+            ).model_dump(),
+        ) from e
+
+
+@router.get(
+    "/{job_id}/artifacts/{label}",
+    summary="Download a job artifact by label",
+    description=(
+        "Retrieve a stored artifact for the given job and label. "
+        "Currently supports 'node-results' (restart stage per-node results)."
+    ),
+    responses={
+        200: {"description": "Artifact content (JSON)"},
+        400: {"description": "Invalid job_id or label", "model": ErrorResponse},
+        401: {"description": "Unauthorized", "model": ErrorResponse},
+        404: {"description": "Artifact not found", "model": ErrorResponse},
+        500: {"description": "Internal error", "model": ErrorResponse},
+    },
+)
+async def get_artifact(
+    job_id: str,
+    label: str,
+    token_data: Annotated[dict, Depends(verify_token)],
+    correlation_id: CorrelationId = Depends(get_correlation_id),
+    job_repo=Depends(get_job_repo),
+    artifact_store=Depends(get_artifact_store),
+    artifact_metadata_repo=Depends(get_artifact_metadata_repo),
+) -> Response:
+    """Download an artifact by job_id and label.
+
+    The caller must own the job (client_id check). Only whitelisted
+    labels are downloadable.
+    """
+    client_id = ClientId(token_data["client_id"])
+
+    # Validate label whitelist
+    if label not in _DOWNLOADABLE_ARTIFACT_LABELS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_build_error_response(
+                "INVALID_LABEL",
+                f"Artifact label '{label}' is not downloadable",
+                correlation_id.value,
+            ).model_dump(),
+        )
+
+    # Validate job_id
+    try:
+        validated_job_id = JobId(job_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_build_error_response(
+                "INVALID_JOB_ID",
+                f"Invalid job_id format: {job_id}",
+                correlation_id.value,
+            ).model_dump(),
+        ) from e
+
+    # Ownership check
+    try:
+        job = job_repo.find_by_id(validated_job_id)
+        if job is None or job.tombstoned:
+            raise JobNotFoundError(job_id, correlation_id.value)
+        if job.client_id != client_id:
+            raise JobNotFoundError(job_id, correlation_id.value)
+    except JobNotFoundError:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_build_error_response(
+                "INTERNAL_ERROR",
+                "An unexpected error occurred",
+                correlation_id.value,
+            ).model_dump(),
+        ) from e
+
+    # Label -> stage mapping
+    _LABEL_TO_STAGE = {
+        "node-results": "restart",
+        "catalog-metadata": "parse-catalog",
+    }
+    stage_name = _LABEL_TO_STAGE.get(label)
+    if stage_name is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_build_error_response(
+                "INVALID_LABEL",
+                f"No stage mapping for label '{label}'",
+                correlation_id.value,
+            ).model_dump(),
+        )
+
+    try:
+        from core.jobs.value_objects import StageName  # pylint: disable=import-outside-toplevel
+        record = artifact_metadata_repo.find_by_job_stage_and_label(
+            job_id=validated_job_id,
+            stage_name=StageName(stage_name),
+            label=label,
+        )
+        if record is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=_build_error_response(
+                    "ARTIFACT_NOT_FOUND",
+                    f"No '{label}' artifact found for job {job_id}",
+                    correlation_id.value,
+                ).model_dump(),
+            )
+
+        raw = artifact_store.retrieve(record.artifact_ref.key, ArtifactKind.FILE)
+
+        log_secure_info(
+            "info",
+            f"Artifact downloaded: job_id={job_id}, label={label}, "
+            f"size={len(raw)} bytes",
+            job_id=job_id,
+        )
+
+        return Response(
+            content=raw,
+            media_type=record.content_type or "application/json",
+            headers={
+                "Content-Disposition": f'attachment; filename="{label}.json"',
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_secure_info(
+            "error",
+            f"Artifact download failed: job_id={job_id}, label={label}, "
+            f"error={e}",
+            job_id=job_id,
+            exc_info=True,
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -61,6 +61,7 @@ ALLOWED_CONFIG_FILES = {
     "high_availability_config.yml",
     "omnia_config.yml",
     "build_stream_config.yml",
+    "failed_nodes.json",
 }
 
 

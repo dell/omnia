@@ -854,6 +854,17 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             result_data["error_code"] = "PLAYBOOK_EXECUTION_FAILED"
             result_data["error_summary"] = f"Playbook exited with code {result.returncode}"
 
+        # For restart stage, include path to per-node results JSON if it exists
+        if stage_name == "restart":
+            node_results_path = NFS_SHARE_PATH / "omnia" / "build_stream_root" / "restart_state" / "node_results.json"
+            if node_results_path.exists():
+                result_data["node_results_file_path"] = str(node_results_path)
+                log_secure_info(
+                    "info",
+                    "Node results file found for restart stage",
+                    job_id
+                )
+
         return result_data
 
     except subprocess.TimeoutExpired:
