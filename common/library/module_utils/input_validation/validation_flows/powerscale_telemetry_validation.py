@@ -268,7 +268,7 @@ def validate_powerscale_telemetry_config(
                         powerscale_log_enabled,
                         en_us_validation_msg.POWERSCALE_LOG_VICTORIA_REQUIRED_MSG
                     ))
-                
+
                 # Validate CSI driver secret is configured (required for syslog automation)
                 csi_secret_path = config_paths.get("csi_powerscale_driver_secret_file_path", "")
                 if not csi_secret_path or not isinstance(csi_secret_path, str) or csi_secret_path.strip() == "":

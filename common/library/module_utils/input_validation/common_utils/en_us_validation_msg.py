@@ -591,8 +591,9 @@ AARCH64_INVENTORY_HOST_IP_INVALID_SUBNET_MSG = (
 )
 
 AARCH64_INVENTORY_HOST_IP_REQUIRED_MSG = (
-    "Field 'aarch64_inventory_host_ip' is required when PXE mapping file contains aarch64 functional groups. "
-    "Provide the admin IP of the aarch64 inventory host or remove aarch64 groups from PXE mapping."
+    "Field 'aarch64_inventory_host_ip' is required when PXE mapping file "
+    "contains aarch64 functional groups. Provide the admin IP of the "
+    "aarch64 inventory host or remove aarch64 groups from PXE mapping."
 )
 
 AARCH64_INVENTORY_HOST_IP_NOT_REACHABLE_MSG = (
@@ -607,7 +608,8 @@ AARCH64_INVENTORY_HOST_IP_REACHABILITY_CHECK_FAILED_MSG = (
 
 BUILD_STREAM_PORT_RANGE_MSG = "build_stream_port must be an integer between 1 and 65535."
 BUILD_STREAM_PORT_INUSE_MSG = (
-    "Port {port} is already in use and is not serving build_stream on {host_ip}. Please choose another free port."
+    "Port {port} is already in use and is not serving build_stream on "
+    "{host_ip}. Please choose another free port."
 )
 
 BUILD_STREAM_HOST_IP_REQUIRED_MSG = (
