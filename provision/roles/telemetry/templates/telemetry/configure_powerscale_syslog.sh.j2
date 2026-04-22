@@ -21,7 +21,7 @@ set -e
 
 NAMESPACE="{{ telemetry_namespace }}"
 CSI_SECRET_PATH="{{ csi_powerscale_driver_secret_file_path }}"
-K8S_MASTER_IP="{{ k8s_master_ip }}"
+K8S_MASTER_IP="{{ kube_vip }}"
 
 echo "=========================================="
 echo "PowerScale Syslog Configuration"
