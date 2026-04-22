@@ -231,14 +231,14 @@ service_k8s_cluster:
 #      
 #      # Admin credentials for CSM Authorization Proxy Server
 #      # These credentials are used by dellctl to generate tenant access tokens
-#      # 
+#      #
 #      # HOW TO OBTAIN admin_secret:
 #      # 1. The admin_secret is set in the CSM Authorization proxy server values.yaml file
 #      #    under the 'authorization.adminSecret' field during initial deployment
 #      # 2. If you configured the proxy server values.yaml yourself:
 #      #    - Open your csm-authorization-values.yaml file
 #      #    - Find the 'authorization:' section
-#      #    - Look for 'adminSecret: <your-secret>' 
+#      #    - Look for 'adminSecret: <your-secret>'
 #      #    - Use that SAME secret here
 #      # 3. If someone else deployed the proxy server:
 #      #    - Contact your CSM Authorization administrator to get the admin credentials

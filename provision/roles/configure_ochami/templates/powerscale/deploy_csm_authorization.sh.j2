@@ -34,6 +34,8 @@
 #}
 {% set authz_skip_cert = hostvars['localhost']['service_cluster_info'].powerscale_authorization.get('authorization_skip_certificate_validation', true) | default(true) %}
 {% set authz_tenants = hostvars['localhost']['service_cluster_info'].powerscale_authorization.tenants | default([]) %}
+{% set authz_admin_name = hostvars['localhost']['service_cluster_info'].powerscale_authorization.admin_name | default('') %}
+{% set authz_admin_secret = hostvars['localhost']['service_cluster_info'].powerscale_authorization.admin_secret | default('') %}
                 # ============================================================
                 # CSM Authorization Proxy Server Deployment (Steps P1-P3)
                 # ============================================================
@@ -225,7 +227,7 @@ TENANT_CR_EOF
                     [ -z "$AUTHZ_ADMIN_SECRET" ] && echo "WARNING: admin_secret not configured in omnia_config.yml."
                     echo "  Token generation skipped. Manual steps required after deployment:"
 {% for tenant in authz_tenants %}
-                    echo "    dellctl admin token generate --admin-name <admin> --admin-secret <secret> --tenant {{ tenant.name }} --access-token-expiration 30m --refresh-token-expiration 720h --addr <proxy-host> --insecure true --output /tmp/token.yaml"
+                    echo "    dellctl admin token generate --admin-name {{ authz_admin_name }} --admin-secret {{ authz_admin_secret }} --tenant {{ tenant.name }} --access-token-expiration 30m --refresh-token-expiration 720h --addr <proxy-host> --insecure true --output /tmp/token.yaml"
                     echo "    kubectl apply -f /tmp/token.yaml -n isilon"
 {% endfor %}
                   fi

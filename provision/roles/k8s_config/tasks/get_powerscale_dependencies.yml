@@ -174,23 +174,21 @@
 
     - name: Download dellctl binary from Pulp (for CSM Authorization token generation)
       ansible.builtin.get_url:
-        url: "{{ offline_tarball_path }}/dellctl/dellctl.tar.gz"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/dellctl.tar.gz"
-        mode: "0644"
+        url: "{{ offline_tarball_path }}/dellctl/dellctl"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/dellctl"
+        mode: "0755"
       register: dellctl_download
       ignore_errors: true
       when:
         - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
 
-    - name: Extract dellctl binary
-      ansible.builtin.unarchive:
-        src: "{{ k8s_client_mount_path }}/csi-driver-powerscale/dellctl.tar.gz"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/"
-        remote_src: true
+    - name: Download CSM Encryption sidecar image tarball from Pulp
+      ansible.builtin.get_url:
+        url: "{{ offline_tarball_path }}/dell-csi-replicator/dell-csi-replicator.tar.gz"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/dell-csi-replicator.tar.gz"
+        mode: "0644"
       when:
-        - dellctl_download is defined
-        - dellctl_download is succeeded
-      ignore_errors: true
+        - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
 
   rescue:
     - name: Handle dependency failure
