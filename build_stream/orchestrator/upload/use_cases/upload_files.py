@@ -183,7 +183,7 @@ class UploadFilesUseCase:
         return result
 
     def _validate_job(self, job_id):
-        """Validate job exists and is not in terminal state.
+        """Validate job exists and allows uploads.
 
         Args:
             job_id: Job identifier.
@@ -193,17 +193,19 @@ class UploadFilesUseCase:
 
         Raises:
             JobNotFoundError: If job does not exist.
-            TerminalStateViolationError: If job is in terminal state.
+            TerminalStateViolationError: If job is tombstoned (soft deleted).
         """
         job = self._job_repo.find_by_id(job_id)
         if job is None:
             raise JobNotFoundError(f"Job not found: {job_id}")
 
-        if job.is_completed() or job.is_failed() or job.is_cancelled():
+        # Only block if job is tombstoned (soft deleted)
+        # All other states (CREATED, IN_PROGRESS, FAILED, COMPLETED, CANCELLED) are allowed for retry
+        if job.tombstoned:
             raise TerminalStateViolationError(
                 entity_type="Job",
                 entity_id=str(job_id),
-                state=job.job_state.value
+                state="TOMBSTONED"
             )
 
         return job

@@ -213,9 +213,52 @@ class TestUploadFilesJobValidation:
         result = use_case.execute(command)
         assert result is not None
 
-    def test_job_in_terminal_state_raises_error(self):
-        """Job in terminal state should raise TerminalStateViolationError."""
+    def test_job_in_failed_state_allows_upload_for_retry(self):
+        """Job in FAILED state should allow upload for retry scenario."""
+        job = self._create_job(JobState.FAILED)
+        use_case = self._create_use_case_with_job(job)
+
+        command = _create_upload_command(
+            job_id=job.id,
+            files=[("network_spec.yml", b"content")],
+        )
+
+        # Should not raise - FAILED state is allowed for retry
+        result = use_case.execute(command)
+        assert result is not None
+
+    def test_job_in_completed_state_allows_upload_for_retry(self):
+        """Job in COMPLETED state should allow upload for retry scenario."""
         job = self._create_job(JobState.COMPLETED)
+        use_case = self._create_use_case_with_job(job)
+
+        command = _create_upload_command(
+            job_id=job.id,
+            files=[("network_spec.yml", b"content")],
+        )
+
+        # Should not raise - COMPLETED state is allowed for retry
+        result = use_case.execute(command)
+        assert result is not None
+
+    def test_job_in_cancelled_state_allows_upload_for_retry(self):
+        """Job in CANCELLED state should allow upload for retry scenario."""
+        job = self._create_job(JobState.CANCELLED)
+        use_case = self._create_use_case_with_job(job)
+
+        command = _create_upload_command(
+            job_id=job.id,
+            files=[("network_spec.yml", b"content")],
+        )
+
+        # Should not raise - CANCELLED state is allowed for retry
+        result = use_case.execute(command)
+        assert result is not None
+
+    def test_tombstoned_job_raises_error(self):
+        """Tombstoned (soft deleted) job should raise TerminalStateViolationError."""
+        job = self._create_job(JobState.CREATED)
+        job.tombstoned = True  # Mark as tombstoned
         use_case = self._create_use_case_with_job(job)
 
         command = _create_upload_command(
@@ -231,6 +274,7 @@ class TestUploadFilesJobValidation:
         job = Mock(spec=Job)
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = status
+        job.tombstoned = False  # Default to not tombstoned
 
         # Setup the mock methods to return the correct boolean based on status
         is_terminal = status in [JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED]
@@ -364,6 +408,7 @@ class TestUploadFilesChangeDetection:
         job = Mock(spec=Job)
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = JobState.CREATED
+        job.tombstoned = False
         job.is_in_terminal_state = Mock(return_value=False)
 
         job.is_completed = Mock(return_value=False)
@@ -494,6 +539,7 @@ class TestUploadFilesStorageIntegration:
         job = Mock(spec=Job)
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = JobState.CREATED
+        job.tombstoned = False
         job.is_in_terminal_state = Mock(return_value=False)
 
         job.is_completed = Mock(return_value=False)
@@ -636,6 +682,7 @@ class TestUploadFilesMultiFileUpload:
         job = Mock(spec=Job)
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = JobState.CREATED
+        job.tombstoned = False
         job.is_in_terminal_state = Mock(return_value=False)
 
         job.is_completed = Mock(return_value=False)
@@ -842,6 +889,7 @@ class TestUploadFilesAuditEvents:
         job = Mock(spec=Job)
         job.id = JobId("018f3c4b-7b5b-7a9d-b6c4-9f3b4f9b2c10")
         job.job_state = JobState.CREATED
+        job.tombstoned = False
         job.is_in_terminal_state = Mock(return_value=False)
 
         job.is_completed = Mock(return_value=False)
