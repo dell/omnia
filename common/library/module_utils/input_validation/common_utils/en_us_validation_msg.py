@@ -163,10 +163,14 @@ PXE_MAPPING_FILE_EMPTY_SLURM_CLUSTER_MSG = (
 )
 
 # provision_config.yml
-PRIMARY_ADMIN_BMC_IP_SAME_MSG = "primary_oim_admin_ip and primary_oim_bmc_ip should not be the same."
+PRIMARY_ADMIN_BMC_IP_SAME_MSG = (
+    "primary_oim_admin_ip and primary_oim_bmc_ip should not be the same."
+)
 PRIMARY_ADMIN_IP_INVALID_MSG = "primary_oim_admin_ip is not a valid IPv4 address."
 PRIMARY_BMC_IP_INVALID_MSG = "primary_oim_bmc_ip is not a valid IPv4 address."
-PRIMARY_ADMIN_IP_IN_DYNAMIC_RANGE_MSG = "primary_oim_admin_ip should not be within the dynamic_range."
+PRIMARY_ADMIN_IP_IN_DYNAMIC_RANGE_MSG = (
+    "primary_oim_admin_ip should not be within the dynamic_range."
+)
 PRIMARY_BMC_IP_IN_DYNAMIC_RANGE_MSG = "primary_oim_bmc_ip should not be within the dynamic_range."
 DEFAULT_LEASE_TIME_FAIL_MSG = "Please provide a valid default_lease_time."
 ENABLE_SWITCH_BASED_FAIL_MSG = "enable_switch_based must be set to either true or false."
@@ -199,7 +203,8 @@ LDMS_REQUIRES_SERVICE_K8S_MSG = (
     "requires service_k8s to be present in the 'softwares' list in software_config.json."
 )
 LDMS_REQUIRES_SLURM_MSG = (
-    "requires Slurm package 'slurm_custom' to be present in the 'softwares' list in software_config.json."
+    "requires Slurm package 'slurm_custom' to be present in the "
+    "'softwares' list in software_config.json."
 )
 USER_REPO_NAME_PREFIX_FAIL_MSG = (
     "Repository name '{repo_name}' in {repo_key} must start with '{expected_prefix}'. "
@@ -343,7 +348,8 @@ def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_
 
 # PowerScale CSM Authorization validation messages
 POWERSCALE_AUTH_CSI_DRIVER_MISSING_MSG = (
-    "PowerScale CSM Authorization requires 'csi_driver_powerscale' to be present in software_config.json."
+    "PowerScale CSM Authorization requires 'csi_driver_powerscale' to be "
+    "present in software_config.json."
 )
 POWERSCALE_AUTH_SERVICE_CLUSTER_MISSING_MSG = (
     "PowerScale CSM Authorization requires service cluster nodes "
@@ -370,8 +376,11 @@ def powerscale_auth_tenant_roles_required_msg(tenant_name):
     return (
         f"At least one role must be defined for tenant '{tenant_name}'."
     )
-def powerscale_auth_image_version_mismatch_msg(image_name, values_version, csi_version):
-    """Returns error message when CSM Authorization image version doesn't match csi_driver_powerscale.json."""
+def powerscale_auth_image_version_mismatch_msg(
+    image_name, values_version, csi_version
+):
+    """Returns error message when CSM Authorization image version
+    doesn't match csi_driver_powerscale.json."""
     return (
         f"Image version for {image_name} in CSM Authorization values.yaml ({values_version}) "
         f"does not match csi_driver_powerscale.json ({csi_version}). "
@@ -567,7 +576,10 @@ VIRTUAL_IP_SAME_AS_PRIMARY_OIM_ADMIN_IP = (
     "Please provide a different virtual IP address."
 )
 INVALID_PASSIVE_NODE_SERVICE_TAG = "active node and passive node service tag cannot be same."
-GROUP_NOT_FOUND = "is not defined in the roles_config.yml. Please define the group in roles_config.yml"
+GROUP_NOT_FOUND = (
+    "is not defined in the roles_config.yml. "
+    "Please define the group in roles_config.yml"
+)
 ROLE_NODE_FOUND = "is not defined in roles_config.yml. Please define the role in roles_config.yml"
 DUPLICATE_ACTIVE_NODE_SERVICE_TAG = (
     "the service tag configured for a active node is already "
@@ -579,7 +591,9 @@ DUPLICATE_PASSIVE_NODE_SERVICE_TAG = (
 )
 
 # build_stream_config.yml
-ENABLE_BUILD_STREAM_REQUIRED_MSG = "Field 'enable_build_stream' is required in build_stream_config.yml."
+ENABLE_BUILD_STREAM_REQUIRED_MSG = (
+    "Field 'enable_build_stream' is required in build_stream_config.yml."
+)
 ENABLE_BUILD_STREAM_BOOLEAN_MSG = "Field 'enable_build_stream' must be a boolean (true or false)."
 BUILD_STREAM_CONFIG_EMPTY_MSG = (
     "build_stream_config.yml file is empty or has syntax errors. "
@@ -663,8 +677,10 @@ GITLAB_PUMA_WORKERS_INVALID_MSG = ("Field 'gitlab_puma_workers' must be an integ
                                    "1 and 64. Default: 2")
 GITLAB_SIDEKIQ_CONCURRENCY_INVALID_MSG = ("Field 'gitlab_sidekiq_concurrency' must be an integer "
                                           "between 1 and 200. Default: 10")
-GITLAB_OIM_VERIFY_SSL_INVALID_MSG = ("Field 'oim_api_verify_ssl' must be a boolean (true or false). "
-                                     "Default: true")
+GITLAB_OIM_VERIFY_SSL_INVALID_MSG = (
+    "Field 'oim_api_verify_ssl' must be a boolean (true or false). "
+    "Default: true"
+)
 GITLAB_CONFIG_EMPTY_MSG = ("gitlab_config.yml is empty or has syntax errors. "
     "It must contain valid YAML with required fields: "
     "gitlab_host, gitlab_project_name, gitlab_project_visibility, "

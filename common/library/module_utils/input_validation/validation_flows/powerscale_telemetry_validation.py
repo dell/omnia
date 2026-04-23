@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+# pylint: disable=import-error,no-name-in-module,too-many-arguments,unused-argument
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements,too-many-lines
+# pylint: disable=too-many-positional-arguments,too-many-nested-blocks
 """
 PowerScale telemetry validation module.
 Contains validation logic for PowerScale telemetry configuration in telemetry_config.yml.
@@ -21,7 +23,9 @@ import json
 import os
 import yaml
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
-from ansible.module_utils.input_validation.common_utils.validation_utils import create_error_msg
+from ansible.module_utils.input_validation.common_utils.validation_utils import (
+    create_error_msg
+)
 
 
 def validate_powerscale_telemetry_config(
@@ -55,8 +59,11 @@ def validate_powerscale_telemetry_config(
             logger.info("PowerScale telemetry support is enabled, performing PowerScale validation")
 
             # Check victoria is in telemetry_collection_type
-            # PowerScale telemetry pipeline requires VictoriaMetrics (writes to vminsert via shared vmagent)
-            collection_types = [t.strip() for t in telemetry_collection_type.split(',')]
+            # PowerScale telemetry pipeline requires VictoriaMetrics
+            # (writes to vminsert via shared vmagent)
+            collection_types = [
+                t.strip() for t in telemetry_collection_type.split(',')
+            ]
             if 'victoria' not in collection_types:
                 errors.append(create_error_msg(
                     "telemetry_collection_type",
@@ -72,10 +79,14 @@ def validate_powerscale_telemetry_config(
                         software_config = json.load(f)
                         softwares = software_config.get("softwares", [])
                         csi_powerscale_found = any(
-                            software.get("name") == "csi_driver_powerscale" for software in softwares
+                            software.get("name") == "csi_driver_powerscale"
+                            for software in softwares
                         )
                 except (json.JSONDecodeError, IOError) as e:
-                    logger.warning(f"Could not load software_config.json for PowerScale validation: {e}")
+                    logger.warning(
+                        f"Could not load software_config.json for "
+                        f"PowerScale validation: {e}"
+                    )
 
             if not csi_powerscale_found:
                 errors.append(create_error_msg(
@@ -102,8 +113,11 @@ def validate_powerscale_telemetry_config(
                 ))
 
             # Validate csm_observability_values_file_path
-            csm_values_path = powerscale_config.get("csm_observability_values_file_path", "")
-            if not csm_values_path or not isinstance(csm_values_path, str) or csm_values_path.strip() == "":
+            csm_values_path = powerscale_config.get(
+                "csm_observability_values_file_path", ""
+            )
+            if (not csm_values_path or not isinstance(csm_values_path, str) or
+                    csm_values_path.strip() == ""):
                 errors.append(create_error_msg(
                     "powerscale_configurations.csm_observability_values_file_path",
                     csm_values_path,
@@ -141,7 +155,8 @@ def validate_powerscale_telemetry_config(
                                 errors.append(create_error_msg(
                                     "karaviMetricsPowerscale.image",
                                     "not defined",
-                                    en_us_validation_msg.POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG
+                                    en_us_validation_msg.
+                                    POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG
                                 ))
 
                         otel_config = csm_values.get("otelCollector", {})
@@ -153,19 +168,29 @@ def validate_powerscale_telemetry_config(
                             ))
 
                         # Validate Karavi Authorization config in Helm values
-                        karavi_auth = karavi_metrics.get("authorization", {}) if karavi_metrics else {}
+                        karavi_auth = (
+                            karavi_metrics.get("authorization", {})
+                            if karavi_metrics else {}
+                        )
                         if karavi_auth.get("enabled", False):
                             proxy_host = karavi_auth.get("proxyHost", "")
-                            if not proxy_host or not isinstance(proxy_host, str) or proxy_host.strip() == "":
+                            if (not proxy_host or not isinstance(proxy_host, str) or
+                                    proxy_host.strip() == ""):
                                 errors.append(create_error_msg(
                                     "karaviMetricsPowerscale.authorization.proxyHost",
                                     proxy_host,
-                                    en_us_validation_msg.POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG
+                                    en_us_validation_msg.
+                                    POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG
                                 ))
 
-                        # Cross-validate image versions between values.yaml and service_k8s.json
-                        service_k8s_json_path = config_paths.get("service_k8s_json_path", "")
-                        csi_driver_powerscale_json_path = config_paths.get("csi_driver_powerscale_json_path", "")
+                        # Cross-validate image versions between
+                        # values.yaml and service_k8s.json
+                        service_k8s_json_path = config_paths.get(
+                            "service_k8s_json_path", ""
+                        )
+                        csi_driver_powerscale_json_path = config_paths.get(
+                            "csi_driver_powerscale_json_path", ""
+                        )
 
                         if service_k8s_json_path and os.path.exists(service_k8s_json_path):
                             try:
@@ -174,76 +199,131 @@ def validate_powerscale_telemetry_config(
 
                                 # Build lookup: package -> tag from service_k8s.json
                                 sk8s_images = {}
-                                for entry in service_k8s_data.get("service_k8s", {}).get("cluster", []):
-                                    if entry.get("type") == "image" and "tag" in entry:
+                                for entry in service_k8s_data.get(
+                                    "service_k8s", {}
+                                ).get("cluster", []):
+                                    if (entry.get("type") == "image" and
+                                            "tag" in entry):
                                         sk8s_images[entry["package"]] = entry["tag"]
 
-                                # Images to cross-validate: (description, values.yaml image, service_k8s package key)
+                                # Images to cross-validate:
+                                # (description, values.yaml image, service_k8s package key)
                                 images_to_check = []
 
                                 if karavi_metrics and karavi_metrics.get("image"):
                                     images_to_check.append((
                                         "csm-metrics-powerscale",
                                         karavi_metrics["image"],
-                                        "quay.io/dell/container-storage-modules/csm-metrics-powerscale"
+                                        "quay.io/dell/container-storage-modules/"
+                                        "csm-metrics-powerscale"
                                     ))
                                 if otel_config and otel_config.get("image"):
                                     images_to_check.append((
                                         "opentelemetry-collector",
                                         otel_config["image"],
-                                        "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector"
+                                        "ghcr.io/open-telemetry/"
+                                        "opentelemetry-collector-releases/"
+                                        "opentelemetry-collector"
                                     ))
-                                karavi_auth = karavi_metrics.get("authorization", {}) if karavi_metrics else {}
+                                karavi_auth = (
+                                    karavi_metrics.get("authorization", {})
+                                    if karavi_metrics else {}
+                                )
                                 sidecar_proxy = karavi_auth.get("sidecarProxy", {})
                                 if sidecar_proxy and sidecar_proxy.get("image"):
-                                    # csm-authorization-sidecar is in csi_driver_powerscale.json, not service_k8s.json
-                                    if csi_driver_powerscale_json_path and os.path.exists(csi_driver_powerscale_json_path):
+                                    # csm-authorization-sidecar is in
+                                    # csi_driver_powerscale.json, not service_k8s.json
+                                    if (csi_driver_powerscale_json_path and
+                                            os.path.exists(
+                                                csi_driver_powerscale_json_path
+                                            )):
                                         try:
-                                            with open(csi_driver_powerscale_json_path, 'r', encoding='utf-8') as csi_f:
+                                            with open(
+                                                csi_driver_powerscale_json_path,
+                                                'r',
+                                                encoding='utf-8'
+                                            ) as csi_f:
                                                 csi_ps_data = json.load(csi_f)
-                                            for entry in csi_ps_data.get("csi_driver_powerscale", {}).get("cluster", []):
+                                            for entry in csi_ps_data.get(
+                                                "csi_driver_powerscale", {}
+                                            ).get("cluster", []):
                                                 if (entry.get("type") == "image" and
-                                                        entry.get("package") == "quay.io/dell/container-storage-modules/csm-authorization-sidecar"):
-                                                    sidecar_values_tag = sidecar_proxy["image"].split(":")[-1] if ":" in sidecar_proxy["image"] else ""
-                                                    if sidecar_values_tag and sidecar_values_tag != entry["tag"]:
+                                                        entry.get("package") ==
+                                                        "quay.io/dell/container-storage-modules/"
+                                                        "csm-authorization-sidecar"):
+                                                    sidecar_values_tag = (
+                                                        sidecar_proxy["image"].split(":")[-1]
+                                                        if ":" in sidecar_proxy["image"]
+                                                        else ""
+                                                    )
+                                                    if (sidecar_values_tag and
+                                                            sidecar_values_tag !=
+                                                            entry["tag"]):
                                                         errors.append(create_error_msg(
-                                                            "powerscale image: csm-authorization-sidecar",
+                                                            "powerscale image: "
+                                                            "csm-authorization-sidecar",
                                                             sidecar_proxy["image"],
-                                                            en_us_validation_msg.powerscale_image_version_mismatch_msg(
+                                                            en_us_validation_msg.
+                                                            powerscale_image_version_mismatch_msg(
                                                                 "csm-authorization-sidecar",
                                                                 sidecar_proxy["image"],
                                                                 f"{entry['package']}:{entry['tag']}"
                                                             )
                                                         ))
                                                     else:
-                                                        logger.info(f"Image version match for csm-authorization-sidecar: {sidecar_values_tag}")
+                                                        logger.info(
+                                                            f"Image version match for "
+                                                            f"csm-authorization-sidecar: "
+                                                            f"{sidecar_values_tag}"
+                                                        )
                                                     break
-                                        except (json.JSONDecodeError, IOError) as csi_err:
-                                            logger.warning(f"Could not read csi_driver_powerscale.json: {csi_err}")
+                                        except (json.JSONDecodeError,
+                                                IOError) as csi_err:
+                                            logger.warning(
+                                                f"Could not read "
+                                                f"csi_driver_powerscale.json: {csi_err}"
+                                            )
 
                                 for img_name, values_image, sk8s_key in images_to_check:
                                     if sk8s_key in sk8s_images:
-                                        # Extract tag from values.yaml image (format: registry/repo:tag)
-                                        values_tag = values_image.split(":")[-1] if ":" in values_image else ""
+                                        # Extract tag from values.yaml image
+                                        # (format: registry/repo:tag)
+                                        values_tag = (
+                                            values_image.split(":")[-1]
+                                            if ":" in values_image else ""
+                                        )
                                         sk8s_tag = sk8s_images[sk8s_key]
                                         if values_tag and values_tag != sk8s_tag:
                                             sk8s_full = f"{sk8s_key}:{sk8s_tag}"
                                             errors.append(create_error_msg(
                                                 f"powerscale image: {img_name}",
                                                 values_image,
-                                                en_us_validation_msg.powerscale_image_version_mismatch_msg(
+                                                en_us_validation_msg.
+                                                powerscale_image_version_mismatch_msg(
                                                     img_name, values_image, sk8s_full
                                                 )
                                             ))
                                         else:
-                                            logger.info(f"Image version match for {img_name}: {values_tag}")
+                                            logger.info(
+                                                f"Image version match for {img_name}: "
+                                                f"{values_tag}"
+                                            )
                                     else:
-                                        logger.warning(f"Image {sk8s_key} not found in service_k8s.json, skipping version check")
+                                        logger.warning(
+                                            f"Image {sk8s_key} not found in "
+                                            f"service_k8s.json, skipping version check"
+                                        )
 
                             except (json.JSONDecodeError, IOError) as sk8s_err:
-                                logger.warning(f"Could not read service_k8s.json for image version validation: {sk8s_err}")
+                                logger.warning(
+                                    f"Could not read service_k8s.json for "
+                                    f"image version validation: {sk8s_err}"
+                                )
                         else:
-                            logger.warning(f"service_k8s.json not found at {service_k8s_json_path}, skipping image version validation")
+                            logger.warning(
+                                f"service_k8s.json not found at "
+                                f"{service_k8s_json_path}, skipping image version validation"
+                            )
 
                         logger.info("CSM Observability values.yaml validation passed")
                 except (yaml.YAMLError, IOError) as e:
@@ -269,9 +349,13 @@ def validate_powerscale_telemetry_config(
                         en_us_validation_msg.POWERSCALE_LOG_VICTORIA_REQUIRED_MSG
                     ))
 
-                # Validate CSI driver secret is configured (required for syslog automation)
-                csi_secret_path = config_paths.get("csi_powerscale_driver_secret_file_path", "")
-                if not csi_secret_path or not isinstance(csi_secret_path, str) or csi_secret_path.strip() == "":
+                # Validate CSI driver secret is configured
+                # (required for syslog automation)
+                csi_secret_path = config_paths.get(
+                    "csi_powerscale_driver_secret_file_path", ""
+                )
+                if (not csi_secret_path or not isinstance(csi_secret_path, str) or
+                        csi_secret_path.strip() == ""):
                     errors.append(create_error_msg(
                         "powerscale_configurations.powerscale_log_enabled",
                         powerscale_log_enabled,
@@ -281,28 +365,37 @@ def validate_powerscale_telemetry_config(
                     errors.append(create_error_msg(
                         "csi_powerscale_driver_secret_file_path",
                         csi_secret_path,
-                        en_us_validation_msg.powerscale_log_csi_secret_not_found_msg(csi_secret_path)
+                        en_us_validation_msg.
+                        powerscale_log_csi_secret_not_found_msg(csi_secret_path)
                     ))
 
             # Validate additional_remote_write_endpoints
             additional_endpoints = powerscale_config.get("additional_remote_write_endpoints", [])
             if additional_endpoints and isinstance(additional_endpoints, list):
                 if len(additional_endpoints) > 5:
-                    logger.warning(f"More than 5 additional_remote_write_endpoints configured ({len(additional_endpoints)}). "
-                                "This may impact performance.")
+                    logger.warning(
+                        f"More than 5 additional_remote_write_endpoints "
+                        f"configured ({len(additional_endpoints)}). "
+                        "This may impact performance."
+                    )
                 for idx, endpoint in enumerate(additional_endpoints):
                     if not isinstance(endpoint, dict):
                         continue
                     url = endpoint.get("url", "")
                     if not url or not isinstance(url, str):
                         errors.append(create_error_msg(
-                            f"powerscale_configurations.additional_remote_write_endpoints[{idx}].url",
+                            f"powerscale_configurations."
+                            f"additional_remote_write_endpoints[{idx}].url",
                             url,
-                            en_us_validation_msg.POWERSCALE_ADDITIONAL_ENDPOINTS_URL_EMPTY_MSG
+                            en_us_validation_msg.
+                            POWERSCALE_ADDITIONAL_ENDPOINTS_URL_EMPTY_MSG
                         ))
-                    elif not url.startswith("http://") and not url.startswith("https://"):
+                    elif (not url.startswith("http://") and
+                            not url.startswith("https://")):
                         errors.append(create_error_msg(
-                            f"powerscale_configurations.additional_remote_write_endpoints[{idx}].url",
+                            f"powerscale_configurations."
+                            f"additional_remote_write_endpoints[{idx}].url",
                             url,
-                            en_us_validation_msg.POWERSCALE_ADDITIONAL_ENDPOINTS_URL_INVALID_MSG
+                            en_us_validation_msg.
+                            POWERSCALE_ADDITIONAL_ENDPOINTS_URL_INVALID_MSG
                         ))

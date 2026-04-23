@@ -21,9 +21,9 @@
      P2: Helm install/upgrade CSM Authorization Proxy Server
      P3: Wait for proxy server pods (max 5 min)
      P4: Extract original endpoint/systemID from secret.yaml
-     P5: Create Storage CR
-     P6: Create Role CRs (from omnia_config.yml tenants)
-     P7: Create Tenant CRs (from omnia_config.yml tenants)
+     P5: Apply Storage CR (from pre-rendered csm-storage-cr.yaml)
+     P6: Apply Role CRs (from pre-rendered csm-role-cr-*.yaml files)
+     P7: Apply Tenant CRs (from pre-rendered csm-tenant-cr-*.yaml files)
      P8: Generate token via dellctl
      P9: Apply token to isilon namespace
      A1: Create proxy-server-root-certificate secret
@@ -33,7 +33,6 @@
      A5: Modify CSI driver values.yaml (authorization.enabled: true)
 #}
 {% set authz_skip_cert = hostvars['localhost']['service_cluster_info'].powerscale_authorization.get('authorization_skip_certificate_validation', true) | default(true) %}
-{% set authz_tenants = hostvars['localhost']['service_cluster_info'].powerscale_authorization.tenants | default([]) %}
 {% set authz_admin_name = hostvars['localhost']['service_cluster_info'].powerscale_authorization.admin_name | default('') %}
 {% set authz_admin_secret = hostvars['localhost']['service_cluster_info'].powerscale_authorization.admin_secret | default('') %}
                 # ============================================================
@@ -108,61 +107,30 @@
 
                   # Step P5: Create Storage CR
                   echo "Creating Storage CR for PowerScale array..."
-                  cat <<STORAGE_CR_EOF | kubectl apply -f -
-apiVersion: csm-authorization.storage.dell.com/v1alpha1
-kind: Storage
-metadata:
-  name: powerscale-${CLUSTER_NAME}
-  namespace: ${AUTHZ_NS}
-spec:
-  type: isilon
-  endpoint: ${ORIGINAL_ENDPOINT}:${ORIGINAL_PORT}
-  systemID: ${CLUSTER_NAME}
-  skipCertificateValidation: true
-STORAGE_CR_EOF
+                  if [ -f "/opt/omnia/csi-driver-powerscale/csm-storage-cr.yaml" ]; then
+                    kubectl apply -f /opt/omnia/csi-driver-powerscale/csm-storage-cr.yaml
+                    echo "  Storage CR created"
+                  else
+                    echo "  WARNING: csm-storage-cr.yaml not found, skipping Storage CR creation"
+                  fi
 
-                  # Step P6: Create Role CRs (from omnia_config.yml tenants)
+                  # Step P6: Create Role CRs (from pre-rendered files)
                   echo "Creating Role CRs..."
-{% for tenant in authz_tenants %}
-{% for role in tenant.roles | default([]) %}
-                  cat <<ROLE_CR_EOF | kubectl apply -f -
-apiVersion: csm-authorization.storage.dell.com/v1alpha1
-kind: CSMRole
-metadata:
-  name: {{ role.name }}
-  namespace: ${AUTHZ_NS}
-spec:
-  systemID: ${CLUSTER_NAME}
-  systemType: isilon
-  pool: {{ role.storage_pool }}
-  quota: {{ role.quota_limit }}
-ROLE_CR_EOF
-                  echo "  Role '{{ role.name }}' created (pool: {{ role.storage_pool }}, quota: {{ role.quota_limit }})"
-{% endfor %}
-{% endfor %}
+                  for role_file in /opt/omnia/csi-driver-powerscale/csm-role-cr-*.yaml; do
+                    if [ -f "$role_file" ]; then
+                      kubectl apply -f "$role_file"
+                      echo "  Role CR applied from $(basename $role_file)"
+                    fi
+                  done
 
-                  # Step P7: Create Tenant CRs (from omnia_config.yml tenants)
+                  # Step P7: Create Tenant CRs (from pre-rendered files)
                   echo "Creating Tenant CRs..."
-{% for tenant in authz_tenants %}
-                  cat <<TENANT_CR_EOF | kubectl apply -f -
-apiVersion: csm-authorization.storage.dell.com/v1alpha1
-kind: CSMTenant
-metadata:
-  name: {{ tenant.name }}
-  namespace: ${AUTHZ_NS}
-spec:
-{% if tenant.roles | default([]) %}
-  roles:
-{% for role in tenant.roles %}
-    - {{ role.name }}
-{% endfor %}
-{% else %}
-  roles: []
-{% endif %}
-  revoke: false
-TENANT_CR_EOF
-                  echo "  Tenant '{{ tenant.name }}' created"
-{% endfor %}
+                  for tenant_file in /opt/omnia/csi-driver-powerscale/csm-tenant-cr-*.yaml; do
+                    if [ -f "$tenant_file" ]; then
+                      kubectl apply -f "$tenant_file"
+                      echo "  Tenant CR applied from $(basename $tenant_file)"
+                    fi
+                  done
 
                   # Wait for CRDs to be processed by authorization controller
                   echo "Waiting for CRs to be processed..."
@@ -282,7 +250,7 @@ TENANT_CR_EOF
 
                   # Step A2: Create karavi-authorization-config secret
                   echo "Building karavi-authorization-config from CSI driver secret..."
-                  cat > /tmp/karavi-authorization-config.json << AUTHZ_CONFIG_EOF
+                  cat > /tmp/karavi-authorization-config.json <<EOF
 {
   "storages": [
     {
@@ -296,7 +264,7 @@ TENANT_CR_EOF
     }
   ]
 }
-AUTHZ_CONFIG_EOF
+EOF
 
                   kubectl -n isilon create secret generic karavi-authorization-config \
                     --from-file=config=/tmp/karavi-authorization-config.json \
@@ -330,11 +298,11 @@ AUTHZ_CONFIG_EOF
                       s/^\([[:space:]]*\)enabled:.*/\1enabled: true/
                     }' "$VALUES_FILE"
                   else
-                    cat >> "$VALUES_FILE" << 'AUTHZ_VALUES_EOF'
+                    cat >> "$VALUES_FILE" <<EOF
 
 authorization:
   enabled: true
-AUTHZ_VALUES_EOF
+EOF
                   fi
 
                   if grep -q 'skipCertificateValidation:' "$VALUES_FILE"; then

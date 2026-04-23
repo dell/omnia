@@ -1059,7 +1059,6 @@
             yes | cp -i /etc/kubernetes/admin.conf /root/.kube/config
             kubectl get nodes -o wide || echo "Cluster not yet fully up"
             kubectl get pods --all-namespaces -o wide || echo "Pods may not be ready yet"
-            
             echo "Rollout and Restart coredns"
             kubectl rollout restart deployment coredns -n kube-system
             echo "Waiting for coredns pods to appear.."

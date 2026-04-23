@@ -132,7 +132,7 @@
     {
       "package": "dellctl",
       "url": "https://github.com/dell/csm/releases/download/v1.16.3/dellctl",
-      "type": "binary"
+      "type": "tarball"
     }
     ]
   }

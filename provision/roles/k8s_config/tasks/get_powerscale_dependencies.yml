@@ -137,6 +137,52 @@
         group: "{{ group_value }}"
         mode: "{{ permission_644 }}"
 
+    - name: Render CSM Storage CR template
+      ansible.builtin.template:
+        src: ../configure_ochami/templates/powerscale/csm_storage_cr.yaml.j2
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csm-storage-cr.yaml"
+        owner: "{{ owner_value }}"
+        group: "{{ group_value }}"
+        mode: "{{ permission_644 }}"
+      vars:
+        cluster_name: "{{ clusters.clusters[0].clusterName | default('cluster1') }}"
+        authz_namespace: "authorization"
+        endpoint: "{{ clusters.clusters[0].endpoint | regex_replace('https?://', '') | regex_replace(':[0-9]+.*', '') }}"
+        port: "{{ clusters.clusters[0].endpointPort | default('8080') }}"
+      when:
+        - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
+
+    - name: Render CSM Role CR templates for each tenant role
+      ansible.builtin.template:
+        src: ../configure_ochami/templates/powerscale/csm_role_cr.yaml.j2
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csm-role-cr-{{ item.name }}.yaml"
+        owner: "{{ owner_value }}"
+        group: "{{ group_value }}"
+        mode: "{{ permission_644 }}"
+      vars:
+        cluster_name: "{{ clusters.clusters[0].clusterName | default('cluster1') }}"
+        authz_namespace: "authorization"
+        role: "{{ item }}"
+      loop: "{{ hostvars['localhost']['service_cluster_info'].powerscale_authorization.tenants | default([]) | map(attribute='roles') | list | flatten }}"
+      when:
+        - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
+        - item is defined
+
+    - name: Render CSM Tenant CR templates for each tenant
+      ansible.builtin.template:
+        src: ../configure_ochami/templates/powerscale/csm_tenant_cr.yaml.j2
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csm-tenant-cr-{{ item.name }}.yaml"
+        owner: "{{ owner_value }}"
+        group: "{{ group_value }}"
+        mode: "{{ permission_644 }}"
+      vars:
+        cluster_name: "{{ clusters.clusters[0].clusterName | default('cluster1') }}"
+        authz_namespace: "authorization"
+        tenant: "{{ item }}"
+      loop: "{{ hostvars['localhost']['service_cluster_info'].powerscale_authorization.tenants | default([]) }}"
+      when:
+        - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
+
     - name: Copy PowerScale CSI secret file to target path
       ansible.builtin.copy:
         src: "{{ csi_powerscale_driver_secret_file_path }}"
@@ -172,13 +218,39 @@
         dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale"
         remote_src: true
 
-    - name: Download dellctl binary from Pulp (for CSM Authorization token generation)
+    - name: Download dellctl tarball from Pulp (for CSM Authorization token generation)
       ansible.builtin.get_url:
-        url: "{{ offline_tarball_path }}/dellctl/dellctl"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/dellctl"
-        mode: "0755"
+        url: "{{ offline_tarball_path }}/dellctl/dellctl.tar.gz"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/dellctl.tar.gz"
+        mode: "0644"
       register: dellctl_download
       ignore_errors: true
+      when:
+        - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
+
+    - name: Extract dellctl binary from tarball
+      ansible.builtin.unarchive:
+        src: "{{ k8s_client_mount_path }}/csi-driver-powerscale/dellctl.tar.gz"
+        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/"
+        remote_src: true
+      register: dellctl_extract
+      ignore_errors: true
+      when:
+        - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
+        - dellctl_download is succeeded
+
+    - name: Rename dellctl.tar.gz to dellctl if extraction failed
+      ansible.builtin.command:
+        cmd: mv "{{ k8s_client_mount_path }}/csi-driver-powerscale/dellctl.tar.gz" "{{ k8s_client_mount_path }}/csi-driver-powerscale/dellctl"
+      when:
+        - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
+        - dellctl_download is succeeded
+        - dellctl_extract is failed
+
+    - name: Set dellctl executable permissions
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/csi-driver-powerscale/dellctl"
+        mode: "0755"
       when:
         - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
 
@@ -187,6 +259,8 @@
         url: "{{ offline_tarball_path }}/dell-csi-replicator/dell-csi-replicator.tar.gz"
         dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/dell-csi-replicator.tar.gz"
         mode: "0644"
+      register: replicator_download
+      ignore_errors: true
       when:
         - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
 
