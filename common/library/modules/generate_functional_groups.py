@@ -23,37 +23,6 @@ DESCRIPTION_MAP = {
     "service_kube_node": "Kubernetes Worker Node"
 }
 
-def load_software_config(software_config_path, module):
-    """Load software_config.json and return software configuration."""
-    if not os.path.exists(software_config_path):
-        module.fail_json(msg=f"software_config.json not found: {software_config_path}")
-    
-    try:
-        import json
-        with open(software_config_path) as f:
-            return json.load(f)
-    except Exception as e:
-        module.fail_json(msg=f"Failed to load software_config.json: {str(e)}")
-
-
-def build_functional_group_name(project_name, cluster_os_type, cluster_os_version, base_fg_name):
-    """
-    Build functional group name with project_name_cluster_os_type_cluster_os_version PREFIX.
-    
-    Format: {project_name}_{cluster_os_type}_{cluster_os_version}_{base_fg_name}
-    
-    Args:
-        project_name (str): Project name from input_project_dir basename.
-        cluster_os_type (str): Cluster OS type (e.g., 'rhel').
-        cluster_os_version (str): Cluster OS version (e.g., '10.0').
-        base_fg_name (str): Base functional group name (e.g., 'slurm_control_node_x86_64').
-    
-    Returns:
-        str: New functional group name.
-    """
-    return f"{project_name}_{cluster_os_type}_{cluster_os_version}_{base_fg_name}"
-
-
 def load_omnia_config(omnia_config_path, module):
     """Load omnia_config.yml and return (kube_name, slurm_name)."""
     if not os.path.exists(omnia_config_path):
@@ -121,8 +90,7 @@ def parse_csv(filename, module):
         error_msg = f"Error parsing CSV file: {str(e)}"
         module.fail_json(msg=error_msg)
 
-def build_yaml(new_groups, new_func_groups, kube_cluster_name, slurm_cluster_name,
-               project_name, cluster_os_type, cluster_os_version):
+def build_yaml(new_groups, new_func_groups, kube_cluster_name, slurm_cluster_name):
     """Build YAML structure with groups and functional groups."""
     data = OrderedDict({"groups": OrderedDict(), "functional_groups": []})
 
@@ -144,13 +112,8 @@ def build_yaml(new_groups, new_func_groups, kube_cluster_name, slurm_cluster_nam
         desc_key = next((k for k in DESCRIPTION_MAP if func_group.startswith(k)), func_group)
         description = DESCRIPTION_MAP.get(desc_key, func_group)
 
-        # Build new functional group name with project_name_cluster_os_type_cluster_os_version prefix
-        new_fg_name = build_functional_group_name(
-            project_name, cluster_os_type, cluster_os_version, func_group
-        )
-
         new_entry = OrderedDict({
-            "name": new_fg_name,
+            "name": func_group,
             "cluster_name": cluster_name,
             "group": sorted(list(group_list)),
             "_comment": [
@@ -198,7 +161,6 @@ def main():
         "mapping_file_path": {"type": "str", "required": True},
         "functional_groups_file_path": {"type": "str", "required": True},
         "omnia_config_path": {"type": "str", "required": True},
-        "input_project_dir": {"type": "str", "required": True},
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -206,33 +168,16 @@ def main():
     mapping_file_path = module.params["mapping_file_path"]
     functional_groups_file_path = module.params["functional_groups_file_path"]
     omnia_config_path = module.params["omnia_config_path"]
-    input_project_dir = module.params["input_project_dir"]
 
     try:
         if not os.path.exists(mapping_file_path):
             module.fail_json(msg=f"CSV file not found: {mapping_file_path}")
 
-        # Load software_config.json to get cluster OS type and version
-        software_config_path = os.path.join(input_project_dir, "software_config.json")
-        software_config = load_software_config(software_config_path, module)
-        
-        cluster_os_type = software_config.get("cluster_os_type")
-        if not cluster_os_type:
-            module.fail_json(msg="cluster_os_type not found in software_config.json")
-        
-        cluster_os_version = software_config.get("cluster_os_version")
-        if not cluster_os_version:
-            module.fail_json(msg="cluster_os_version not found in software_config.json")
-        
-        # Extract project name from input_project_dir
-        project_name = os.path.basename(input_project_dir)
-
         kube_cluster_name, slurm_cluster_name = load_omnia_config(omnia_config_path, module)
         new_groups, new_func_groups = parse_csv(mapping_file_path, module)
 
-        # Always overwrite: build fresh YAML with new naming convention
-        yaml_data = build_yaml(new_groups, new_func_groups, kube_cluster_name, slurm_cluster_name,
-                               project_name, cluster_os_type, cluster_os_version)
+        # Always overwrite: build fresh YAML
+        yaml_data = build_yaml(new_groups, new_func_groups, kube_cluster_name, slurm_cluster_name)
         dump_yaml_with_comments(yaml_data, functional_groups_file_path)
 
         module.exit_json(

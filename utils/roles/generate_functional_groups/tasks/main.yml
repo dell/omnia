@@ -27,7 +27,6 @@
     mapping_file_path: "{{ pxe_mapping_file_path }}"
     functional_groups_file_path: "{{ functional_groups_config_path }}"
     omnia_config_path: "{{ input_project_dir }}/{{ omnia_config_file }}"
-    input_project_dir: "{{ input_project_dir }}"
 
 - name: Check the functional_groups_config.yml file is created in /opt/omnia/.data
   ansible.builtin.stat:

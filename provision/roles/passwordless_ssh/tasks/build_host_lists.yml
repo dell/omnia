@@ -40,13 +40,13 @@
     k8s_cluster_hostnames: >-
       {{
         (k8s_cluster_hostnames + [item.value.HOSTNAME])
-        if (k8s_functional_group_patterns | select('search', '^' ~ item.value.FUNCTIONAL_GROUP_NAME ~ '_') | list | length > 0)
+        if item.value.FUNCTIONAL_GROUP_NAME in k8s_functional_groups
         else k8s_cluster_hostnames
       }}
     slurm_cluster_hostnames: >-
       {{
         (slurm_cluster_hostnames + [item.value.HOSTNAME])
-        if (slurm_functional_group_patterns | select('search', '^' ~ item.value.FUNCTIONAL_GROUP_NAME ~ '_') | list | length > 0)
+        if item.value.FUNCTIONAL_GROUP_NAME in slurm_functional_groups
         else slurm_cluster_hostnames
       }}
     k8s_cluster_ip_patterns: >-
@@ -54,7 +54,7 @@
         (k8s_cluster_ip_patterns + [ (item.value.ADMIN_IP | regex_replace('\\.[0-9]+$', '.*')) ])
         if (
           item.value.ADMIN_IP | default('') | length > 0 and
-          (k8s_functional_group_patterns | select('search', '^' ~ item.value.FUNCTIONAL_GROUP_NAME ~ '_') | list | length > 0)
+          item.value.FUNCTIONAL_GROUP_NAME in k8s_functional_groups
         )
         else k8s_cluster_ip_patterns
       }}
@@ -63,7 +63,7 @@
         (slurm_cluster_ip_patterns + [ (item.value.ADMIN_IP | regex_replace('\\.[0-9]+$', '.*')) ])
         if (
           item.value.ADMIN_IP | default('') | length > 0 and
-          (slurm_functional_group_patterns | select('search', '^' ~ item.value.FUNCTIONAL_GROUP_NAME ~ '_') | list | length > 0)
+          item.value.FUNCTIONAL_GROUP_NAME in slurm_functional_groups
         )
         else slurm_cluster_ip_patterns
       }}
@@ -72,7 +72,8 @@
         (omnia_cluster_ip_patterns + [ (item.value.ADMIN_IP | regex_replace('\\.[0-9]+$', '.*')) ])
         if (
           item.value.ADMIN_IP | default('') | length > 0 and
-          ((k8s_functional_group_patterns + slurm_functional_group_patterns) | select('search', '^' ~ item.value.FUNCTIONAL_GROUP_NAME ~ '_') | list | length > 0)
+          (item.value.FUNCTIONAL_GROUP_NAME in k8s_functional_groups or
+           item.value.FUNCTIONAL_GROUP_NAME in slurm_functional_groups)
         )
         else omnia_cluster_ip_patterns
       }}

@@ -20,15 +20,6 @@
     image_key: "{{ image_key | default('') }}"
     compute_image_suffix: ""
 
-- name: Load software_config.json to get cluster OS details
-  ansible.builtin.include_vars:
-    file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
-    name: software_config
-
-- name: Set image_name_prefix with project_cluster_os_version
-  ansible.builtin.set_fact:
-    image_name_prefix: "{{ hostvars['localhost']['input_project_dir'] | basename }}_{{ software_config.cluster_os_type }}_{{ software_config.cluster_os_version }}_"
-
 - name: Set compute image suffix when build stream inputs present
   ansible.builtin.set_fact:
     compute_image_suffix: "_{{ build_stream_job_id }}-{{ image_key | default('') }}"
@@ -47,7 +38,7 @@
 
 - name: Create aarch64 compute image log files
   ansible.builtin.file:
-    path: "{{ openchami_log_dir }}/{{ image_name_prefix }}{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
+    path: "{{ openchami_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
     state: touch
     mode: "{{ dir_permissions_644 }}"
   loop: "{{ compute_images_dict | dict2items }}"
@@ -57,13 +48,13 @@
 - name: Render compute images templates
   ansible.builtin.template:
     src: "{{ openchami_compute_image_vars_template }}"
-    dest: "{{ openchami_dir }}/{{ image_name_prefix }}{{ item.key }}{{ compute_image_suffix }}_compute_images.yaml"
+    dest: "{{ openchami_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_images.yaml"
     mode: "{{ dir_permissions_644 }}"
   vars:
     functional_group: "{{ item.value.functional_group }}"
     packages: "{{ item.value.packages }}"
-    base_compute_image_name: "{{ image_name_prefix }}{{ item.key }}{{ compute_image_suffix }}"
-    rhel_base_compute_image_name: "rhel-{{ image_name_prefix }}{{ item.key }}{{ compute_image_suffix }}"
+    base_compute_image_name: "{{ item.key }}{{ compute_image_suffix }}"
+    rhel_base_compute_image_name: "rhel-{{ item.key }}{{ compute_image_suffix }}"
   loop: "{{ compute_images_dict | dict2items }}"
   loop_control:
     loop_var: item
@@ -73,9 +64,9 @@
     set -o pipefail
     ansible-playbook {{ openchami_clone_path }}/dell/podman-quadlets/image.yaml \
     -i {{ aarch64_inventory_file }} -v \
-      --extra-vars '@{{ openchami_dir }}/{{ image_name_prefix }}{{ item.key }}{{ compute_image_suffix }}_compute_images.yaml' \
+      --extra-vars '@{{ openchami_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_images.yaml' \
       --tags compute_image -v | \
-      /usr/bin/tee '{{ openchami_log_dir }}/{{ image_name_prefix }}{{ item.key }}{{ compute_image_suffix }}_compute_image.log'
+      /usr/bin/tee '{{ openchami_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log'
   async: 3600   # Set async timeout (e.g., 1 hour)
   poll: 0   # Non-blocking (continue the playbook without waiting for completion)
   loop: "{{ compute_images_dict | dict2items }}"
@@ -135,7 +126,7 @@
 
     - name: Add log file paths to message
       ansible.builtin.set_fact:
-        failure_msg_list: "{{ failure_msg_list + ['  - ' + openchami_log_dir + '/' + image_name_prefix + item + log_suffix + '_compute_image.log'] }}"
+        failure_msg_list: "{{ failure_msg_list + ['  - ' + openchami_log_dir + '/' + item + log_suffix + '_compute_image.log'] }}"
       vars:
         log_suffix: "{{ compute_image_suffix }}"
       loop: "{{ failed_images | default([]) }}"
@@ -151,7 +142,7 @@
   always:
     - name: Remove generated compute images templates
       ansible.builtin.file:
-        path: "{{ openchami_dir }}/{{ image_name_prefix }}{{ item.key }}{{ compute_image_suffix }}_compute_images.yaml"
+        path: "{{ openchami_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_images.yaml"
         state: absent
       loop: "{{ compute_images_dict | dict2items }}"
       loop_control:

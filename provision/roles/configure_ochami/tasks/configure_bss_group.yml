@@ -17,23 +17,13 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ item }}"
 
-- name: Load software_config.json to get cluster OS details
-  ansible.builtin.include_vars:
-    file: "{{ software_config_file_path }}"
-    name: software_config
-  delegate_to: localhost
-  run_once: true
-
-- name: Set image_name_prefix with project_cluster_os_version
-  ansible.builtin.set_fact:
-    image_name_prefix: "{{ hostvars['localhost']['input_project_dir'] | basename }}_{{ software_config.cluster_os_type }}_{{ software_config.cluster_os_version }}_"
-
 - name: Verify image, kernel and initramfs in S3 (build stream and image-key)
   ansible.builtin.shell: |
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
-    grep {{ image_name_prefix }}{{ functional_group_name }} | \
-    grep {{ compute_image_suffix }} | awk '{print $4}' | sed 's|s3://||'
+    grep {{ functional_group_name }} | \
+    grep {{ compute_image_suffix }} | \
+    grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false
   register: verify_s3_image_build_stream
@@ -45,7 +35,8 @@
   ansible.builtin.shell: |
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
-    grep {{ image_name_prefix }}{{ functional_group_name }} | awk '{print $4}' | sed 's|s3://||'
+    grep {{ functional_group_name }} | \
+    grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false
   register: verify_s3_image

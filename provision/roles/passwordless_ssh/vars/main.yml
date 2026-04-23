@@ -14,19 +14,14 @@
 ---
 # vars/main.yml
 
-# Note: Functional group names now include project_name_cluster_os_type_cluster_os_version suffix
-# Format: {base_functional_group}_{project_name}_{cluster_os_type}_{cluster_os_version}
-# Example: slurm_control_node_x86_64_project_default_rhel_10.0
-# We use pattern matching in build_host_lists.yml to identify K8s and Slurm groups by checking if name starts with pattern
-
-# K8s functional group patterns (match by suffix)
-k8s_functional_group_patterns:
+# K8s functional groups (x86_64 example; extend if you have aarch64 variants)
+k8s_functional_groups:
   - service_kube_control_plane_first_x86_64
   - service_kube_control_plane_x86_64
   - service_kube_node_x86_64
 
-# Slurm / login functional group patterns (match by suffix)
-slurm_functional_group_patterns:
+# Slurm / login functional groups
+slurm_functional_groups:
   - slurm_control_node_x86_64
   - slurm_node_x86_64
   - login_node_x86_64

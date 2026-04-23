@@ -5,14 +5,13 @@ initrd: "http://{{ cluster_boot_ip }}:9000/{{ initrd }}"
    if enable_build_stream | default(false)
    and (compute_image_suffix | default('')) != ''
    else "" %}
-{% set img_name = image_name_prefix + functional_group_name %}
 {% set root_image_path =
   "boot-images/%s/rhel-%s%s/rhel%s-rhel-%s%s-%s" % (
-    img_name,
-    img_name,
+    functional_group_name,
+    functional_group_name,
     bs_suffix,
     hostvars['localhost']['cluster_os_version'],
-    img_name,
+    functional_group_name,
     bs_suffix,
     hostvars['localhost']['cluster_os_version']
   )
