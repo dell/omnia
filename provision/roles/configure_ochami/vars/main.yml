@@ -110,7 +110,7 @@ cuda_runfile_aarch64: "{{ hostvars['oim']['cuda_runfile_aarch64'] | default('cud
 # NVIDIA DCGM (Data Center GPU Manager) configuration
 dcgm_service_name: "nvidia-dcgm"
 dcgm_health_check_retries: 3
-dcgm_support: "{{ hostvars['localhost']['telemetry_config']['telemetry_sources']['dcgm']['metrics_enabled'] | default(true) }}"
+dcgm_support: "{{ telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(true) }}"
 
 # Usage: fetch_additional_images.yml
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"

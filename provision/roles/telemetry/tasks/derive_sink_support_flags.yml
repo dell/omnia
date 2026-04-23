@@ -67,7 +67,8 @@
   ansible.builtin.set_fact:
     victoria_logs_support: true
   when: >-
-    'victoria_logs' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([]))
+    'victoria_logs' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([])) or
+    'victoria_logs' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))
 
 - name: Check if any source targets Kafka
   ansible.builtin.set_fact:
