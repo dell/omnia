@@ -69,23 +69,35 @@ DNS.20 = vmstorage-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
 DNS.21 = vmstorage-victoria-cluster-0.vmstorage-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
 DNS.22 = vmstorage-victoria-cluster-1.vmstorage-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
 DNS.23 = vmstorage-victoria-cluster-2.vmstorage-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local
+# VMAgent service (operator-managed)
+DNS.24 = vmagent-vmagent
+DNS.25 = vmagent-vmagent.{{ telemetry_namespace }}
+DNS.26 = vmagent-vmagent.{{ telemetry_namespace }}.svc
+DNS.27 = vmagent-vmagent.{{ telemetry_namespace }}.svc.cluster.local
 # VictoriaLogs cluster deployment names (operator-managed)
-DNS.24 = vlinsert-victoria-logs-cluster
-DNS.25 = vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}
-DNS.26 = vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc
-DNS.27 = vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
-DNS.28 = vlselect-victoria-logs-cluster
-DNS.29 = vlselect-victoria-logs-cluster.{{ telemetry_namespace }}
-DNS.30 = vlselect-victoria-logs-cluster.{{ telemetry_namespace }}.svc
-DNS.31 = vlselect-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
-DNS.32 = vlstorage-victoria-logs-cluster
-DNS.33 = vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}
-DNS.34 = vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc
-DNS.35 = vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.28 = vlinsert-victoria-logs-cluster
+DNS.29 = vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}
+DNS.30 = vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc
+DNS.31 = vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.32 = vlselect-victoria-logs-cluster
+DNS.33 = vlselect-victoria-logs-cluster.{{ telemetry_namespace }}
+DNS.34 = vlselect-victoria-logs-cluster.{{ telemetry_namespace }}.svc
+DNS.35 = vlselect-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.36 = vlstorage-victoria-logs-cluster
+DNS.37 = vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}
+DNS.38 = vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc
+DNS.39 = vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
 # vlstorage StatefulSet pod FQDNs (operator-managed, 3 replicas)
-DNS.36 = vlstorage-victoria-logs-cluster-0.vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
-DNS.37 = vlstorage-victoria-logs-cluster-1.vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
-DNS.38 = vlstorage-victoria-logs-cluster-2.vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.40 = vlstorage-victoria-logs-cluster-0.vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.41 = vlstorage-victoria-logs-cluster-1.vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
+DNS.42 = vlstorage-victoria-logs-cluster-2.vlstorage-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local
+# VLAgent service (operator-managed)
+DNS.43 = vlagent-vlagent
+DNS.44 = vlagent-vlagent.{{ telemetry_namespace }}
+DNS.45 = vlagent-vlagent.{{ telemetry_namespace }}.svc
+DNS.46 = vlagent-vlagent.{{ telemetry_namespace }}.svc.cluster.local
+# VLAgent StatefulSet pod FQDN (operator-managed, 1 replica)
+DNS.47 = vlagent-vlagent-0.vlagent-vlagent.{{ telemetry_namespace }}.svc.cluster.local
 IP.1 = 127.0.0.1
 EOF
 
@@ -93,11 +105,15 @@ EOF
 # If SANs are stale (missing operator-managed names), force server cert regeneration
 # CA is preserved so external clients do not need to re-import it
 if [ -f "$CERT_FILE" ]; then
-  REQUIRED_SAN="vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local"
+  REQUIRED_VM_SAN="vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local"
+  REQUIRED_VMAGENT_SAN="vmagent-vmagent.{{ telemetry_namespace }}.svc.cluster.local"
   REQUIRED_VL_SAN="vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local"
-  if ! openssl x509 -in "$CERT_FILE" -text -noout 2>/dev/null | grep -q "$REQUIRED_SAN" || \
-     ! openssl x509 -in "$CERT_FILE" -text -noout 2>/dev/null | grep -q "$REQUIRED_VL_SAN"; then
-    echo "Existing certificate missing required SAN: $REQUIRED_SAN"
+  REQUIRED_VLAGENT_SAN="vlagent-vlagent.{{ telemetry_namespace }}.svc.cluster.local"
+  if ! openssl x509 -in "$CERT_FILE" -text -noout 2>/dev/null | grep -q "$REQUIRED_VM_SAN" || \
+     ! openssl x509 -in "$CERT_FILE" -text -noout 2>/dev/null | grep -q "$REQUIRED_VMAGENT_SAN" || \
+     ! openssl x509 -in "$CERT_FILE" -text -noout 2>/dev/null | grep -q "$REQUIRED_VL_SAN" || \
+     ! openssl x509 -in "$CERT_FILE" -text -noout 2>/dev/null | grep -q "$REQUIRED_VLAGENT_SAN"; then
+    echo "Existing certificate missing required SANs (VictoriaMetrics/VMAgent/VictoriaLogs/VLAgent)"
     echo "Removing stale server cert/key/csr to force regeneration..."
     rm -f "$CERT_KEY" "$CSR_FILE" "$CERT_FILE"
   fi
