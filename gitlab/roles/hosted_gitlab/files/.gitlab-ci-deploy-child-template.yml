@@ -146,9 +146,11 @@ deploy:
       echo "============================================================"
       echo ""
 
+      # Guard check: Ensure JOB_ID and IMAGE_GROUP_ID are available
       if [ -z "${JOB_ID:-}" ] || [ -z "${IMAGE_GROUP_ID:-}" ]; then
-        echo "  ERROR: No image group selected."
+        echo "  ERROR: JOB_ID or IMAGE_GROUP_ID is not set."
         echo "  Please click one of the select_* jobs first, then re-run this job."
+        echo "  These variables should be inherited from the select_* job via dotenv artifact."
         exit 1
       fi
 
@@ -294,6 +296,18 @@ deploy:
       printf "  %-22s %s\n" "Deploy State:"   "${DEPLOY_RESULT}"
       printf "  %-22s %s\n" "Job State:"      "${JOB_STATE_DEPLOY}"
       echo "  ============================================================"
+      
+      # Save variables for downstream stages using dotenv artifact
+      echo "JOB_ID=${JOB_ID}" > deploy.env
+      echo "IMAGE_GROUP_ID=${IMAGE_GROUP_ID}" >> deploy.env
+      echo "  Variables saved to deploy.env for downstream stages"
+      
+  artifacts:
+    reports:
+      dotenv: deploy.env
+      junit: test-results.xml
+    paths:
+      - status_response.json
 
 # ---------------------------------------------------------------------------
 # Restart stage -- call restart API, poll for completion
@@ -313,6 +327,19 @@ restart:
       echo "  Job ID:         ${JOB_ID}"
       echo "  Image Group ID: ${IMAGE_GROUP_ID}"
       echo ""
+      
+      # Guard check: Ensure JOB_ID is available
+      if [ -z "${JOB_ID:-}" ]; then
+        echo "  ERROR: JOB_ID is not set. Cannot restart job."
+        echo "  This variable should be inherited from the deploy stage via dotenv artifact."
+        exit 1
+      fi
+      
+      if [ -z "${IMAGE_GROUP_ID:-}" ]; then
+        echo "  ERROR: IMAGE_GROUP_ID is not set. Cannot restart job."
+        echo "  This variable should be inherited from the deploy stage via dotenv artifact."
+        exit 1
+      fi
 
       # Authenticate
       refresh_token

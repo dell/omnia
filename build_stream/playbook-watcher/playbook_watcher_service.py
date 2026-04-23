@@ -856,7 +856,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
 
         # For restart stage, include path to per-node results JSON if it exists
         if stage_name == "restart":
-            node_results_path = NFS_SHARE_PATH / "omnia" / "build_stream_root" / "restart_state" / "node_results.json"
+            node_results_path = Path("/opt/omnia/build_stream_root/restart_state/node_results.json")
             if node_results_path.exists():
                 result_data["node_results_file_path"] = str(node_results_path)
                 log_secure_info(
