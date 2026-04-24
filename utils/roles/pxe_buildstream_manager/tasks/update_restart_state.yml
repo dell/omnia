@@ -18,11 +18,11 @@
 
 - name: Compute new booted IPs from this run
   ansible.builtin.set_fact:
-    new_booted_ips: "{{ pxe_node_results | default([]) | selectattr('status','equalto','success') | map(attribute='bmc_ip') | list }}"
+    new_booted_ips: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'success') | map(attribute='bmc_ip') | list }}"
 
 - name: Compute failed IPs from this run
   ansible.builtin.set_fact:
-    failed_ips_this_run: "{{ pxe_node_results | default([]) | selectattr('status','equalto','failed') | map(attribute='bmc_ip') | list }}"
+    failed_ips_this_run: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | map(attribute='bmc_ip') | list }}"
 
 - name: Merge and deduplicate booted IPs (add successes, remove failures)
   ansible.builtin.set_fact:

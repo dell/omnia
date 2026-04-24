@@ -298,12 +298,13 @@ class UploadFilesUseCase:
 
         # Always write to both NFS locations (job-scoped and shared)
         self._write_to_nfs_job_directory(job_id, filename, content)
-        self._write_to_shared_input_directory(filename, content)
 
-        # For failed_nodes.json, also copy to restart_state directory
-        # so the playbook Play 1.5 can read it for retry logic
+        # For failed_nodes.json, only write to restart_state directory
+        # (skip shared input directory to avoid duplication)
         if filename == "failed_nodes.json":
             self._write_to_restart_state_directory(filename, content)
+        else:
+            self._write_to_shared_input_directory(filename, content)
 
         return UploadedFileInfo(
             filename=filename,

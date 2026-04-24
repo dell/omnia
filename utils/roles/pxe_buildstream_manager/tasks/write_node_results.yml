@@ -54,8 +54,8 @@
     dest: "{{ node_results_dir }}/node_results.json"
     mode: "0644"
   vars:
-    success_list: "{{ pxe_node_results | default([]) | selectattr('status','equalto','success') | list }}"
-    failed_list: "{{ pxe_node_results | default([]) | selectattr('status','equalto','failed') | list }}"
+    success_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'success') | list }}"
+    failed_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | list }}"
     node_results_report:
       job_id: "{{ bsm_job_id }}"
       stage_name: "restart"
@@ -71,7 +71,7 @@
     dest: "{{ node_results_dir }}/failed_nodes.json"
     mode: "0644"
   vars:
-    failed_list: "{{ pxe_node_results | default([]) | selectattr('status','equalto','failed') | list }}"
+    failed_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | list }}"
     failed_nodes_report:
       job_id: "{{ bsm_job_id }}"
       stage_name: "restart"
