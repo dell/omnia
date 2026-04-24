@@ -226,6 +226,10 @@ class ResultPoller:
                     job_id=str(result.job_id),
                 )
 
+                # S12: On restart failure, still persist node_results.json
+                if result.stage_name == "restart":
+                    self._on_restart_completed(result)
+
                 # Update job state to FAILED when stage fails
                 JobStateHelper.handle_stage_failure(
                     job_repo=self._job_repo,
@@ -498,14 +502,11 @@ class ResultPoller:
     # ------------------------------------------------------------------
 
     def _on_restart_completed(self, result: PlaybookResult) -> None:
-        """Store node_results.json as an artifact on restart success.
+        """Store node_results.json and failed_nodes.json as artifacts on restart completion.
 
-        The playbook watcher populates result.node_results_file_path with
-        the NFS host path to the per-node results JSON written by the
-        set_pxe_boot.yml playbook.  This method reads the file, stores
-        it in the artifact store, and records metadata so downstream
-        consumers (GitLab CI summary stage, API download endpoint) can
-        retrieve it.
+        Both files are created by the playbook (Play 6 in set_pxe_boot.yml).
+        This method reads them from NFS and stores them in ArtifactStore
+        so they can be downloaded via the API by GitLab CI.
 
         Args:
             result: Playbook execution result from NFS queue.
@@ -514,7 +515,7 @@ class ResultPoller:
             log_secure_info(
                 "warning",
                 f"Artifact store/metadata repo not available; skipping "
-                f"node_results persistence for job={result.job_id}",
+                f"artifact persistence for job={result.job_id}",
                 job_id=str(result.job_id),
             )
             return
@@ -545,7 +546,7 @@ class ResultPoller:
             # Validate JSON
             json.loads(raw)
 
-            # Store in artifact store
+            # Store node_results.json in artifact store
             hint = StoreHint(
                 namespace=str(result.job_id),
                 label="node-results",
@@ -569,9 +570,6 @@ class ResultPoller:
             )
             self._artifact_metadata_repo.save(record)
 
-            if hasattr(self._artifact_metadata_repo, 'session'):
-                self._artifact_metadata_repo.session.commit()
-
             log_secure_info(
                 "info",
                 f"Restart node_results persisted as artifact for "
@@ -579,17 +577,67 @@ class ResultPoller:
                 job_id=str(result.job_id),
             )
 
+            # Store failed_nodes.json (written by the playbook alongside node_results.json)
+            failed_nodes_file = path.parent / "failed_nodes.json"
+            if failed_nodes_file.exists():
+                failed_raw = failed_nodes_file.read_bytes()
+
+                # Validate JSON
+                json.loads(failed_raw)
+
+                failed_hint = StoreHint(
+                    namespace=str(result.job_id),
+                    label="failed-nodes",
+                    tags={"job_id": str(result.job_id), "stage": "restart"},
+                )
+                failed_artifact_ref = self._artifact_store.store(
+                    hint=failed_hint,
+                    kind=ArtifactKind.FILE,
+                    content=failed_raw,
+                    content_type="application/json",
+                )
+
+                failed_record = ArtifactRecord(
+                    id=str(self._uuid_generator.generate()),
+                    job_id=JobId(str(result.job_id)),
+                    stage_name=StageName("restart"),
+                    label="failed-nodes",
+                    artifact_ref=failed_artifact_ref,
+                    kind=ArtifactKind.FILE,
+                    content_type="application/json",
+                )
+                self._artifact_metadata_repo.save(failed_record)
+
+                if hasattr(self._artifact_metadata_repo, 'session'):
+                    self._artifact_metadata_repo.session.commit()
+
+                failed_data = json.loads(failed_raw)
+                log_secure_info(
+                    "info",
+                    f"Stored failed_nodes.json as artifact for job={result.job_id} "
+                    f"({failed_data.get('failure_count', 0)} failed of "
+                    f"{failed_data.get('total_nodes', 0)} total)",
+                    job_id=str(result.job_id),
+                )
+            else:
+                log_secure_info(
+                    "info",
+                    f"No failed_nodes.json found alongside node_results for "
+                    f"job={result.job_id}; playbook may not have written it",
+                    job_id=str(result.job_id),
+                )
+
         except json.JSONDecodeError as jde:
             log_secure_info(
                 "error",
-                f"node_results.json is not valid JSON for "
+                f"JSON artifact is not valid for "
                 f"job={result.job_id}: {jde}",
                 job_id=str(result.job_id),
             )
         except Exception as exc:  # pylint: disable=broad-except
             log_secure_info(
                 "error",
-                f"Failed to persist node_results for "
+                f"Failed to persist restart artifacts for "
                 f"job={result.job_id}: {exc}",
                 job_id=str(result.job_id),
                 exc_info=True,

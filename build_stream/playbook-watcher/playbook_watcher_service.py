@@ -728,22 +728,24 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             inventory_file_path[:8]
         )
 
-    # Add extra_vars if present for build_image playbooks
-    if "extra_vars" in request_data:
-        import json
-        extra_vars = request_data["extra_vars"]
+    # Build extra_vars: always inject job_id so playbooks can reference it
+    import json
+    extra_vars = request_data.get("extra_vars", {})
+    if not isinstance(extra_vars, dict):
+        extra_vars = {}
 
-        # Convert extra_vars to a JSON string
-        extra_vars_json = json.dumps(extra_vars)
+    # Always inject job_id into extra_vars (playbook requires it for artifact paths)
+    extra_vars["job_id"] = job_id
 
-        # Add as a single --extra-vars parameter
-        cmd.extend(["--extra-vars", extra_vars_json])
+    # Pass extra_vars to ansible-playbook
+    extra_vars_json = json.dumps(extra_vars)
+    cmd.extend(["--extra-vars", extra_vars_json])
 
-        log_secure_info(
-            "info",
-            "Added extra_vars as JSON for build_image playbook",
-            job_id
-        )
+    log_secure_info(
+        "info",
+        "Added extra_vars with job_id for playbook",
+        job_id
+    )
 
     # Add verbosity flag
     cmd.append("-v")
@@ -855,8 +857,9 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             result_data["error_summary"] = f"Playbook exited with code {result.returncode}"
 
         # For restart stage, include path to per-node results JSON if it exists
+        # Per spec 12.4: node_results.json is at /opt/omnia/build_stream_root/artifacts/<job_id>/
         if stage_name == "restart":
-            node_results_path = Path("/opt/omnia/build_stream_root/restart_state/node_results.json")
+            node_results_path = Path(f"/opt/omnia/build_stream_root/artifacts/{job_id}/node_results.json")
             if node_results_path.exists():
                 result_data["node_results_file_path"] = str(node_results_path)
                 log_secure_info(

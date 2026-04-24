@@ -36,7 +36,6 @@ from core.jobs.value_objects import (
 from orchestrator.jobs.commands import CreateJobCommand
 from orchestrator.jobs.use_cases import CreateJobUseCase
 
-from api.logging_utils import create_job_log_file, log_secure_info, remove_job_logger
 from api.dependencies import verify_token
 from api.logging_utils import create_job_log_file, log_secure_info, remove_job_logger
 from api.jobs.dependencies import (
@@ -133,11 +132,6 @@ async def create_job(
             f"Create job executing: client_id={client_id.value}, "
             f"client_name={request.client_name}, idempotency_key={idempotency_key}",
         )
-        log_secure_info(
-            "debug",
-            f"Create job executing: client_id={client_id.value}, "
-            f"client_name={request.client_name}, idempotency_key={idempotency_key}",
-        )
         result = use_case.execute(command)
 
         if result.is_new:
@@ -150,24 +144,8 @@ async def create_job(
                 identifier=correlation_id.value,
                 job_id=result.job_id,
             )
-            log_path = create_job_log_file(result.job_id)
-            log_secure_info(
-                "info",
-                f"Job created: job_id={result.job_id}, "
-                f"client_name={request.client_name}, log_file={log_path}",
-                identifier=correlation_id.value,
-                job_id=result.job_id,
-            )
         else:
             response.status_code = status.HTTP_200_OK
-            log_secure_info(
-                "info",
-                f"Idempotent replay: job_id={result.job_id}, "
-                f"job_state={result.job_state}",
-                identifier=correlation_id.value,
-                job_id=result.job_id,
-            )
-
             log_secure_info(
                 "info",
                 f"Idempotent replay: job_id={result.job_id}, "
@@ -188,13 +166,6 @@ async def create_job(
             )
             for s in stages_entities
         ]
-        log_secure_info(
-            "info",
-            f"Create job response: job_id={result.job_id}, "
-            f"job_state={result.job_state}, status=201",
-            job_id=result.job_id,
-            end_section=True,
-        )
         log_secure_info(
             "info",
             f"Create job response: job_id={result.job_id}, "
@@ -287,11 +258,6 @@ async def get_job(
         ) from e
 
     try:
-        log_secure_info(
-            "debug",
-            f"Get job lookup: job_id={job_id}, client_id={client_id.value}",
-            job_id=job_id,
-        )
         log_secure_info(
             "debug",
             f"Get job lookup: job_id={job_id}, client_id={client_id.value}",
@@ -497,11 +463,6 @@ async def delete_job(
             f"Delete job lookup: job_id={job_id}, client_id={client_id.value}",
             job_id=job_id,
         )
-        log_secure_info(
-            "debug",
-            f"Delete job lookup: job_id={job_id}, client_id={client_id.value}",
-            job_id=job_id,
-        )
         job = job_repo.find_by_id(validated_job_id)  # pylint: disable=no-member
         if job is None:
             raise JobNotFoundError(job_id, correlation_id.value)
@@ -519,16 +480,6 @@ async def delete_job(
                 stage.cancel()
                 stage_repo.save(stage)  # pylint: disable=no-member
                 cancelled_count += 1
-
-        log_secure_info(
-            "info",
-            f"Delete job success: job_id={job_id}, "
-            f"stages_cancelled={cancelled_count}, status=204",
-            job_id=job_id,
-            end_section=True,
-        )
-        remove_job_logger(job_id)
-        cancelled_count += 1
 
         log_secure_info(
             "info",

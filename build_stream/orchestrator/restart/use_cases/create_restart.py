@@ -141,7 +141,13 @@ class CreateRestartUseCase:
         return job
 
     def _validate_stage(self, command: CreateRestartCommand) -> Stage:
-        """Validate stage exists and is in PENDING state."""
+        """Validate stage exists and prepare it for execution.
+
+        The restart stage supports re-runs: if the stage is in COMPLETED or
+        FAILED state it is reset back to PENDING so a fresh execution can
+        proceed.  IN_PROGRESS is rejected (already running).  CANCELLED is
+        rejected (job was deleted).
+        """
         stage_name = StageName(StageType.RESTART.value)
         stage = self._stage_repo.find_by_job_and_name(command.job_id, stage_name)
 
@@ -152,15 +158,7 @@ class CreateRestartUseCase:
                 correlation_id=str(command.correlation_id),
             )
 
-        if stage.stage_state.is_terminal():
-            raise TerminalStateViolationError(
-                entity_type="Stage",
-                entity_id=f"{command.job_id}/{StageType.RESTART.value}",
-                state=stage.stage_state.value,
-                correlation_id=str(command.correlation_id),
-            )
-
-        if stage.stage_state != StageState.PENDING:
+        if stage.stage_state == StageState.IN_PROGRESS:
             raise InvalidStateTransitionError(
                 entity_type="Stage",
                 entity_id=f"{command.job_id}/{StageType.RESTART.value}",
@@ -168,6 +166,24 @@ class CreateRestartUseCase:
                 to_state="IN_PROGRESS",
                 correlation_id=str(command.correlation_id),
             )
+
+        if stage.stage_state == StageState.CANCELLED:
+            raise TerminalStateViolationError(
+                entity_type="Stage",
+                entity_id=f"{command.job_id}/{StageType.RESTART.value}",
+                state=stage.stage_state.value,
+                correlation_id=str(command.correlation_id),
+            )
+
+        if stage.stage_state in {StageState.COMPLETED, StageState.FAILED}:
+            log_secure_info(
+                "info",
+                f"Resetting restart stage from {stage.stage_state.value} to PENDING "
+                f"for re-run: job_id={command.job_id}",
+                job_id=str(command.job_id),
+            )
+            stage.reset()
+            self._stage_repo.save(stage)
 
         return stage
 
@@ -187,7 +203,7 @@ class CreateRestartUseCase:
             job_id=str(command.job_id),
             stage_name=StageType.RESTART.value,
             playbook_path=playbook_path,
-            extra_vars=ExtraVars(values={}),
+            extra_vars=ExtraVars(values={"job_id": str(command.job_id)}),
             correlation_id=str(command.correlation_id),
             timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),
             submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),

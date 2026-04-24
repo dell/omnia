@@ -48,6 +48,9 @@ logger = logging.getLogger(__name__)
 # This matches the path used by NfsInputRepository and expected by Omnia playbooks
 DEFAULT_PLAYBOOK_INPUT_DIR = "/opt/omnia/input/project_default/"
 
+# Restart state directory where the playbook reads failed_nodes.json for retry logic
+RESTART_STATE_DIR = "/opt/omnia/build_stream_root/restart_state"
+
 # Whitelist of allowed configuration files
 ALLOWED_CONFIG_FILES = {
     "local_repo_config.yml",
@@ -303,6 +306,11 @@ class UploadFilesUseCase:
         self._write_to_nfs_job_directory(job_id, filename, content)
         self._write_to_shared_input_directory(filename, content)
 
+        # For failed_nodes.json, also copy to restart_state directory
+        # so the playbook Play 1.5 can read it for retry logic
+        if filename == "failed_nodes.json":
+            self._write_to_restart_state_directory(filename, content)
+
         return UploadedFileInfo(
             filename=filename,
             status=status,
@@ -390,6 +398,26 @@ class UploadFilesUseCase:
         target_file.write_bytes(content)
 
         logger.debug("Wrote to shared input directory: %s", target_file)
+
+    def _write_to_restart_state_directory(self, filename: str, content: bytes):
+        """Write file to restart_state directory for playbook consumption.
+
+        The set_pxe_boot.yml Play 1.5 reads failed_nodes.json from
+        /opt/omnia/build_stream_root/restart_state/ for the retry logic.
+        When the GitLab pipeline uploads failed_nodes.json via PUT /upload,
+        it must also land in this directory.
+
+        Args:
+            filename: Filename.
+            content: File content.
+        """
+        restart_state_path = Path(RESTART_STATE_DIR)
+        restart_state_path.mkdir(parents=True, exist_ok=True)
+
+        target_file = restart_state_path / filename
+        target_file.write_bytes(content)
+
+        logger.info("Wrote %s to restart_state directory: %s", filename, target_file)
 
     def _generate_id(self) -> str:
         """Generate unique identifier for artifact record.
