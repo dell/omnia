@@ -411,7 +411,7 @@ class UploadFilesUseCase:
         target_file = restart_state_path / filename
         target_file.write_bytes(content)
 
-        logger.info("Wrote %s to restart_state directory: %s", filename, target_file)
+        log_secure_info('debug', f"Wrote {filename} to restart_state directory: {target_file}")
 
     def _generate_id(self) -> str:
         """Generate unique identifier for artifact record.
