@@ -344,8 +344,31 @@ restart:
       # Authenticate
       refresh_token
 
-      # Call Restart API
-      echo "  Step 1/2: Trigger PXE boot restart..."
+      # Step 1: Upload failed_nodes.json from GitLab to OIM (if exists)
+      echo "  Step 1/3: Upload failed_nodes.json to OIM for retry logic..."
+      echo "  ------------------------------------------------------------"
+      
+      if [ -f "${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json" ]; then
+        echo "  [+] failed_nodes.json found in GitLab repository"
+        
+        HTTP_CODE=$(api_call_with_retry upload_failed_response.json \
+          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+          -F "files=@${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json" \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+        
+        if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+          echo "  [OK] failed_nodes.json uploaded to OIM for retry logic"
+        else
+          echo "  [WARN] Failed to upload failed_nodes.json (HTTP ${HTTP_CODE}), continuing anyway"
+        fi
+      else
+        echo "  [-] No failed_nodes.json in repository (expected for first run)"
+      fi
+      echo ""
+
+      # Step 2: Call Restart API
+      echo "  Step 2/3: Trigger PXE boot restart..."
       echo "  ------------------------------------------------------------"
       echo "  Endpoint: POST ${BSM_API_URL}/api/v1/jobs/${JOB_ID}/stages/restart"
       echo ""
@@ -370,8 +393,8 @@ restart:
       echo "  [OK] Restart request accepted"
       echo ""
 
-      # Poll for restart completion
-      echo "  Step 2/2: Waiting for restart to complete..."
+      # Step 3: Poll for restart completion
+      echo "  Step 3/3: Waiting for restart to complete..."
       echo "  ------------------------------------------------------------"
 
       STAGE_COMPLETED=false
