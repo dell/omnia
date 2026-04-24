@@ -14,9 +14,10 @@
 # limitations under the License.
 ---
 
-- name: Include GitLab configuration
-  ansible.builtin.include_vars: "{{ include_input_dir }}/gitlab_config.yml"
-
+- name: Load GitLab configuration inputs
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+  
 - name: Register GitLab SSH credentials
   ansible.builtin.add_host:
     name: "{{ gitlab_host }}"
