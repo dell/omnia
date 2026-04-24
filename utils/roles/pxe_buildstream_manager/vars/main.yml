@@ -28,6 +28,7 @@ gitlab_default_status_codes:
   runner_delete: [202, 204]
   project_search: [200]
   api_version: [200, 401]
+gitlab_root_token_expiry_days: 365
 
 # Messages
 bsm_job_id_missing_msg: >-
