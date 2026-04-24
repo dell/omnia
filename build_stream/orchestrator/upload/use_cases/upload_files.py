@@ -15,11 +15,11 @@
 """Upload files use case implementation."""
 
 import hashlib
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
+from api.logging_utils import log_secure_info
 from common.config import BuildStreamConfig
 from core.artifacts.entities import ArtifactRecord
 from core.artifacts.exceptions import ArtifactAlreadyExistsError
@@ -39,9 +39,6 @@ from orchestrator.upload.results.upload_files import (
     UploadSummary,
 )
 from orchestrator.upload.exceptions import InvalidFilenameError, FileSizeExceededError
-
-
-logger = logging.getLogger(__name__)
 
 
 # Shared input directory path for playbook consumption
@@ -124,7 +121,7 @@ class UploadFilesUseCase:
             InvalidFilenameError: If any filename is not in whitelist.
             FileSizeExceededError: If any file exceeds size limit.
         """
-        logger.info("Executing upload files for job_id=%s", command.job_id)
+        log_secure_info('info', f"Executing upload files for job_id={command.job_id}")
 
         # Validate job exists and is in valid state
         self._current_job = self._validate_job(command.job_id)
@@ -181,12 +178,9 @@ class UploadFilesUseCase:
             files=uploaded_files,
         )
 
-        logger.info(
-            "Upload completed: job_id=%s, total=%d, changed=%d, unchanged=%d",
-            command.job_id,
-            summary.total_files,
-            summary.changed_files,
-            summary.unchanged_files,
+        log_secure_info(
+            'info',
+            f"Upload completed: job_id={command.job_id}, total={summary.total_files}, changed={summary.changed_files}, unchanged={summary.unchanged_files}"
         )
 
         return result
@@ -294,10 +288,10 @@ class UploadFilesUseCase:
         # Determine change status
         if previous_record and previous_record.artifact_ref.digest.value == current_digest:
             status = FileChangeStatus.UNCHANGED
-            logger.debug("File unchanged: %s (digest: %s)", filename, current_digest[:12])
+            log_secure_info('debug', f"File unchanged: {filename} (digest: {current_digest[:12]})")
         else:
             status = FileChangeStatus.CHANGED
-            logger.debug("File changed: %s (digest: %s)", filename, current_digest[:12])
+            log_secure_info('debug', f"File changed: {filename} (digest: {current_digest[:12]})")
 
             # Store in ArtifactStore only for changed files
             self._store_in_artifact_store(job_id, filename, content)
@@ -354,15 +348,14 @@ class UploadFilesUseCase:
 
             self._artifact_metadata_repo.save(record)
 
-            logger.debug(
-                "Stored in ArtifactStore: %s (key: %s)",
-                filename,
-                artifact_ref.key,
+            log_secure_info(
+                'debug',
+                f"Stored in ArtifactStore: {filename} (key: {artifact_ref.key})"
             )
         except ArtifactAlreadyExistsError:
-            logger.debug(
-                "Artifact already exists in store: %s (skipping storage)",
-                filename,
+            log_secure_info(
+                'debug',
+                f"Artifact already exists in store: {filename} (skipping storage)"
             )
 
     def _write_to_nfs_job_directory(self, job_id, filename: str, content: bytes):
@@ -380,7 +373,7 @@ class UploadFilesUseCase:
         target_file = target_dir / filename
         target_file.write_bytes(content)
 
-        logger.debug("Wrote to NFS job directory: %s", target_file)
+        log_secure_info('debug', f"Wrote to NFS job directory: {target_file}")
 
     def _write_to_shared_input_directory(self, filename: str, content: bytes):
         """Write file to shared input directory.
@@ -397,7 +390,7 @@ class UploadFilesUseCase:
         target_file = playbook_input_dir / filename
         target_file.write_bytes(content)
 
-        logger.debug("Wrote to shared input directory: %s", target_file)
+        log_secure_info('debug', f"Wrote to shared input directory: {target_file}")
 
     def _write_to_restart_state_directory(self, filename: str, content: bytes):
         """Write file to restart_state directory for playbook consumption.
@@ -472,7 +465,7 @@ class UploadFilesUseCase:
                 "file_count": len(filenames),
             }
         )
-        logger.info("Upload stage started: job_id=%s, files=%s", stage.job_id, filenames)
+        log_secure_info('info', f"Upload stage started: job_id={stage.job_id}, files={filenames}")
 
     def _mark_stage_completed(self, stage):
         """Transition stage to COMPLETED.
@@ -482,7 +475,7 @@ class UploadFilesUseCase:
         """
         stage.complete()
         self._stage_repo.save(stage)
-        logger.info("Upload stage marked as completed: job_id=%s", stage.job_id)
+        log_secure_info('info', f"Upload stage marked as completed: job_id={stage.job_id}")
 
     def _emit_upload_files_audit_event(
         self,
@@ -521,9 +514,9 @@ class UploadFilesUseCase:
             }
         )
 
-        logger.info(
-            "Files uploaded: job_id=%s, total=%d, changed=%d, unchanged=%d",
-            command.job_id, len(uploaded_files), changed_count, unchanged_count
+        log_secure_info(
+            'info',
+            f"Files uploaded: job_id={command.job_id}, total={len(uploaded_files)}, changed={changed_count}, unchanged={unchanged_count}"
         )
 
     def _emit_audit_event(

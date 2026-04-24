@@ -26,6 +26,7 @@ import logging
 import sys
 from jsonschema import ValidationError
 
+from api.logging_utils import log_secure_info
 from .parser import ParseCatalog
 from .models import Catalog
 from .generator import (
@@ -42,8 +43,6 @@ from .generator import (
     _validate_catalog_and_schema_paths,
 )
 from .utils import _configure_logging
-
-logger = logging.getLogger(__name__)
 
 _BASE_DIR = os.path.dirname(__file__)
 _DEFAULT_SCHEMA_PATH = os.path.join(_BASE_DIR, "resources", "CatalogSchema.json")
@@ -83,7 +82,7 @@ def build_default_packages_config(base_os: FeatureList) -> Dict:
         raise ValueError("Base OS feature not found in base_os FeatureList")
 
     cluster = [_package_to_dict(pkg) for pkg in feature.packages]
-    logger.info("Built default_packages config with %d package(s)", len(cluster))
+    log_secure_info('info', f"Built default_packages config with {len(cluster)} package(s)")
     return {"default_packages": {"cluster": cluster}}
 
 
@@ -106,11 +105,11 @@ def _build_subconfig_from_base_os(
         if any(sub in pkg.package.lower() for sub in lowered)
     ]
     if not selected:
-        logger.info("No %s packages found in Base OS for substrings %s", name, list(substrings))
+        log_secure_info('info', f"No {name} packages found in Base OS for substrings {list(substrings)}")
         return None
 
     cluster = [_package_to_dict(pkg) for pkg in selected]
-    logger.info("Built %s config with %d package(s)", name, len(cluster))
+    log_secure_info('info', f"Built {name} config with {len(cluster)} package(s)")
     return {name: {"cluster": cluster}}
 
 
@@ -164,11 +163,9 @@ def build_service_k8s_config(functional: FeatureList) -> Dict:
             seen_common.add(k)
             common_pkgs.append(pkg)
 
-    logger.info(
-        "Built service_k8s config: %d controller pkg(s), %d worker pkg(s), %d common pkg(s)",
-        len(ctrl_pkgs),
-        len(node_pkgs),
-        len(common_pkgs),
+    log_secure_info(
+        'info',
+        f"Built service_k8s config: {len(ctrl_pkgs)} controller pkg(s), {len(node_pkgs)} worker pkg(s), {len(common_pkgs)} common pkg(s)"
     )
 
     return {
@@ -245,10 +242,9 @@ def build_slurm_custom_config(functional: FeatureList) -> Dict:
 
     output["slurm_custom"] = {"cluster": common_pkg_dicts}
 
-    logger.info(
-        "Built slurm_custom config with %d node cluster(s) and %d common package(s)",
-        len(node_features),
-        len(common_pkg_dicts),
+    log_secure_info(
+        'info',
+        f"Built slurm_custom config with {len(node_features)} node cluster(s) and {len(common_pkg_dicts)} common package(s)"
     )
 
     return output
@@ -279,7 +275,7 @@ def build_infra_configs(infra: FeatureList) -> Dict[str, Dict]:
         cluster = [_package_to_dict(pkg) for pkg in feature.packages]
         configs[file_name] = {top_key: {"cluster": cluster}}
 
-    logger.info("Built %d infrastructure config file(s)", len(configs))
+    log_secure_info('info', f"Built {len(configs)} infrastructure config file(s)")
 
     return configs
 
@@ -294,10 +290,10 @@ def write_config_files(configs: Dict[str, Dict], output_dir: str) -> None:
     - output_dir: directory under which files will be written
     """
     os.makedirs(output_dir, exist_ok=True)
-    logger.info("Writing %d config file(s) to %s", len(configs), output_dir)
+    log_secure_info('info', f"Writing {len(configs)} config file(s) to {output_dir}")
     for filename, data in configs.items():
         path = os.path.join(output_dir, filename)
-        logger.debug("Writing config file %s", path)
+        log_secure_info('debug', f"Writing config file {path}")
         with open(path, "w", encoding="utf-8") as out_file:
             # Expect shape: { top_key: { "cluster": [pkg_dicts...] } }
             out_file.write("{\n")
@@ -351,15 +347,16 @@ def generate_all_configs(
     """
 
     combos = _discover_arch_os_version_from_catalog(catalog)
-    logger.info("Generating adapter configs for %d combination(s)", len(combos))
+    log_secure_info('info', f"Generating adapter configs for {len(combos)} combination(s)")
     for arch, os_name, version in combos:
         functional_arch = _filter_featurelist_for_arch(functional, arch)
         base_os_arch = _filter_featurelist_for_arch(base_os, arch)
         infra_arch = _filter_featurelist_for_arch(infra, arch)
         misc_arch = _filter_featurelist_for_arch(misc, arch)
 
-        logger.info(
-            "Building configs for arch=%s os=%s version=%s", arch, os_name, version
+        log_secure_info(
+            'info',
+            f"Building configs for arch={arch} os={os_name} version={version}"
         )
 
         configs: Dict[str, Dict] = {}
@@ -442,7 +439,7 @@ if __name__ == "__main__":
 
     _configure_logging(log_file=args.log_file, log_level=logging.INFO)
 
-    logger.info("Adapter config generation started for %s", args.catalog)
+    log_secure_info('info', f"Adapter config generation started for {args.catalog}")
 
     try:
         generate_omnia_json_from_catalog(
@@ -451,12 +448,12 @@ if __name__ == "__main__":
             output_root="out/adapter/input/config",
         )
 
-        logger.info("Adapter config generation completed for %s", args.catalog)
+        log_secure_info('info', f"Adapter config generation completed for {args.catalog}")
     except FileNotFoundError:
-        logger.error("File not found during processing")
+        log_secure_info('error', "File not found during processing")
         sys.exit(ERROR_CODE_INPUT_NOT_FOUND)
     except ValidationError:
         sys.exit(ERROR_CODE_PROCESSING_ERROR)
     except Exception:
-        logger.exception("Unexpected error while generating adapter configs")
+        log_secure_info('error', "Unexpected error while generating adapter configs", exc_info=True)
         sys.exit(ERROR_CODE_PROCESSING_ERROR)

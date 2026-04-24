@@ -42,7 +42,12 @@ from threading import Thread, Semaphore
 from typing import Dict, Optional, Any, List
 
 # Implicit logging utilities for secure logging
-def log_secure_info(level: str, message: str, identifier: Optional[str] = None) -> None:
+def log_secure_info(
+    level: str,
+    message: str,
+    identifier: Optional[str] = None,
+    exc_info: bool = False,
+) -> None:
     """Log information securely with optional identifier truncation.
 
     This function provides consistent secure logging across all modules.
@@ -53,6 +58,7 @@ def log_secure_info(level: str, message: str, identifier: Optional[str] = None) 
         level: Log level ('info', 'warning', 'error', 'debug', 'critical')
         message: Log message template
         identifier: Optional identifier (job_id, request_id, etc.) - first 8 chars logged
+        exc_info: If True, append current exception traceback (replaces logger.exception())
     """
     logger = logging.getLogger(__name__)
 
@@ -64,7 +70,7 @@ def log_secure_info(level: str, message: str, identifier: Optional[str] = None) 
         log_message = message
 
     log_func = getattr(logger, level)
-    log_func(log_message)
+    log_func(log_message, exc_info=exc_info)
 
 # Configuration
 QUEUE_BASE = Path(os.getenv("PLAYBOOK_QUEUE_BASE", ""))
@@ -102,8 +108,6 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
-logger = logging.getLogger("playbook_watcher")
-
 # Global state
 SHUTDOWN_REQUESTED = False
 job_semaphore = Semaphore(MAX_CONCURRENT_JOBS)
@@ -455,10 +459,7 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
         missing_fields = [field for field in required_fields if field not in request_data]
 
         if missing_fields:
-            logger.error(
-                "Request file missing required fields: %s",
-                ', '.join(missing_fields)
-            )
+            log_secure_info('error', f"Request file missing required fields: {', '.join(missing_fields)}")
             return None
 
         # Validate inputs to prevent injection
@@ -901,10 +902,7 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         completed_at = datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
 
-        logger.exception(
-            "Unexpected error executing playbook for job %s",
-            job_id
-        )
+        log_secure_info('error', f"Unexpected error executing playbook for job {job_id}", exc_info=True)
 
         return {
             "job_id": job_id,
@@ -1167,10 +1165,7 @@ def run_watcher_loop():
                 )
 
         except RuntimeError as e:
-            logger.exception(
-                "Unexpected error in watcher loop iteration %d",
-                iteration
-            )
+            log_secure_info('error', f"Unexpected error in watcher loop iteration {iteration}", exc_info=True)
 
         # Sleep before next poll
         time.sleep(POLL_INTERVAL_SECONDS)

@@ -14,7 +14,7 @@
 
 """Upload API routes."""
 
-import logging
+from api.logging_utils import log_secure_info
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -29,7 +29,6 @@ from orchestrator.upload.commands.upload_files import UploadFilesCommand
 from orchestrator.upload.exceptions import InvalidFilenameError, FileSizeExceededError
 from orchestrator.upload.use_cases.upload_files import UploadFilesUseCase
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["upload"])
 
@@ -93,7 +92,7 @@ async def upload_files(
         return UploadFilesResponse.from_result(result)
 
     except InvalidFilenameError as e:
-        logger.warning("Invalid filename in upload: %s", str(e))
+        log_secure_info('warning', f"Invalid filename in upload: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -103,7 +102,7 @@ async def upload_files(
         ) from e
 
     except FileSizeExceededError as e:
-        logger.warning("File size exceeded: %s", str(e))
+        log_secure_info('warning', f"File size exceeded: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -114,7 +113,7 @@ async def upload_files(
 
     except ValueError as e:
         # Invalid JobId format
-        logger.warning("Invalid job_id format: %s", job_id)
+        log_secure_info('warning', f"Invalid job_id format: {job_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -124,7 +123,7 @@ async def upload_files(
         ) from e
 
     except JobNotFoundError as e:
-        logger.warning("Job not found: %s", job_id)
+        log_secure_info('warning', f"Job not found: {job_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -134,7 +133,7 @@ async def upload_files(
         ) from e
 
     except TerminalStateViolationError as e:
-        logger.warning("Job in terminal state: %s", job_id)
+        log_secure_info('warning', f"Job in terminal state: {job_id}")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
@@ -144,7 +143,7 @@ async def upload_files(
         ) from e
 
     except Exception as e:
-        logger.error("Unexpected error in upload: %s", str(e), exc_info=True)
+        log_secure_info('error', f"Unexpected error in upload: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={

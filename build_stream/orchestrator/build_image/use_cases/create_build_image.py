@@ -14,7 +14,6 @@
 
 """CreateBuildImage use case implementation."""
 
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -72,7 +71,6 @@ from core.jobs.value_objects import (
 from orchestrator.build_image.commands import CreateBuildImageCommand
 from orchestrator.build_image.dtos import BuildImageResponse
 
-logger = logging.getLogger(__name__)
 
 PLAYBOOK_PATHS = {
     "x86_64": "/omnia/build_image_x86_64/build_image_x86_64.yml",
@@ -378,11 +376,7 @@ class CreateBuildImageUseCase:
                 inventory_host=inventory_host,
                 job_id=str(command.job_id),
             )
-            logger.info(
-                "Created inventory file for job %s at %s",
-                command.job_id,
-                inventory_file_path,
-            )
+            log_secure_info('info', f"Created inventory file for job {command.job_id} at {inventory_file_path}")
             return inventory_file_path
         except IOError as exc:
             # Refresh stage from database to avoid OptimisticLockError
@@ -489,14 +483,8 @@ class CreateBuildImageUseCase:
 
         # Use architecture-specific stage type for logging
         stage_type = StageType.BUILD_IMAGE_X86_64 if architecture.is_x86_64 else StageType.BUILD_IMAGE_AARCH64
-        logger.info(
-            "Build image request submitted to queue for job %s, stage=%s, "
-            "arch=%s, correlation_id=%s",
-            command.job_id,
-            stage_type.value,
-            str(architecture),
-            command.correlation_id,
-        )
+        log_secure_info('info', f"Build image request submitted to queue for job {command.job_id}, stage={stage_type.value}, "
+            "arch={str(architecture)}, correlation_id={command.correlation_id}")
 
     def _emit_stage_started_event(
         self,

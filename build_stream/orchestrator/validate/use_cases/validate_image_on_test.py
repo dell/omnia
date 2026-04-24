@@ -14,7 +14,6 @@
 
 """ValidateImageOnTest use case implementation."""
 
-import logging
 from datetime import datetime, timezone
 
 from api.logging_utils import log_secure_info
@@ -52,7 +51,6 @@ from core.validate.services import ValidateQueueService
 from orchestrator.validate.commands import ValidateImageOnTestCommand
 from orchestrator.validate.dtos import ValidateImageOnTestResponse
 
-logger = logging.getLogger(__name__)
 
 DISCOVERY_PLAYBOOK_NAME = "discovery.yml"
 DEFAULT_TIMEOUT_MINUTES = 60
@@ -283,12 +281,8 @@ class ValidateImageOnTestUseCase:
                 correlation_id=str(command.correlation_id),
             ) from exc
 
-        logger.info(
-            "Validate-image-on-test request submitted to queue for job %s, "
-            "correlation_id=%s",
-            command.job_id,
-            command.correlation_id,
-        )
+        log_secure_info('info', f"Validate-image-on-test request submitted to queue for job {command.job_id}, "
+            "correlation_id={command.correlation_id}")
 
     def _emit_stage_started_event(
         self,

@@ -16,7 +16,7 @@
 
 """GenerateInputFiles use case implementation."""
 
-import logging
+from api.logging_utils import log_secure_info
 import os
 import tempfile
 from datetime import datetime, timezone
@@ -58,7 +58,6 @@ from core.jobs.value_objects import JobId, StageName, StageType, StageState, Job
 from orchestrator.catalog.commands.generate_input_files import GenerateInputFilesCommand
 from orchestrator.catalog.dtos import GenerateInputFilesResult
 
-logger = logging.getLogger(__name__)
 
 
 class GenerateInputFilesUseCase:
@@ -300,11 +299,7 @@ class GenerateInputFilesUseCase:
             label="omnia-configs",
         )
         if existing_record is not None:
-            logger.info(
-                "Artifact already exists for job %s, returning existing record: %s",
-                command.job_id,
-                existing_record.artifact_ref.key.value,
-            )
+            log_secure_info('info', f"Artifact already exists for job {command.job_id}, returning existing record: {existing_record.artifact_ref.key.value}")
             return existing_record.artifact_ref, existing_record
 
         hint = StoreHint(
@@ -367,10 +362,7 @@ class GenerateInputFilesUseCase:
             elif item.is_dir():
                 shutil.copytree(item, target_dir / item.name, dirs_exist_ok=True)
         
-        logger.info(
-            "Copied generated configs to artifacts input directory: %s",
-            target_dir
-        )
+        log_secure_info('info', f"Copied generated configs to artifacts input directory: {target_dir}")
 
     # ------------------------------------------------------------------
     # State transitions

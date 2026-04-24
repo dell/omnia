@@ -163,12 +163,12 @@ list_images:
       echo "  Available Image Groups:"
       echo "  ------------------------------------------------------------"
       jq -r '.image_groups[] |
-        "  - Image Group: \(.image_group_id)\n" +
-        "    Job ID: \(.job_id)\n" +
-        "    Status: \(.status)\n" +
-        "    Created: \(.created_at)\n" +
-        "    Roles: \([.images[]?.role] | join(", "))\n" \
-        images_response.json 2>/dev/null
+        "  - Image Group: " + .image_group_id + "\n" +
+        "    Job ID: " + .job_id + "\n" +
+        "    Status: " + .status + "\n" +
+        "    Created: " + .created_at + "\n" +
+        "    Roles: " + ([.images[]?.role] | join(", ")) + "\n"' \
+        images_response.json 2>/dev/null || true
       echo ""
 
       # --- Generate Dynamic Child Pipeline ---

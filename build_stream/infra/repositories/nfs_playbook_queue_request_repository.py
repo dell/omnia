@@ -15,7 +15,6 @@
 """NFS-based implementation of PlaybookQueueRequestRepository."""
 
 import json
-import logging
 import os
 import stat
 from pathlib import Path
@@ -28,7 +27,6 @@ from api.logging_utils import log_secure_info
 from core.localrepo.entities import PlaybookRequest
 from core.localrepo.exceptions import QueueUnavailableError
 
-logger = logging.getLogger(__name__)
 
 DEFAULT_QUEUE_BASE = "/opt/omnia/playbook_queue"
 REQUEST_DIR_NAME = "requests"
@@ -109,4 +107,4 @@ class NfsPlaybookQueueRequestRepository:
     def ensure_directories(self) -> None:
         """Create queue directories if they do not exist."""
         self._requests_dir.mkdir(parents=True, exist_ok=True)
-        logger.info("Request queue directory ensured: %s", self._requests_dir)
+        log_secure_info('info', f"Request queue directory ensured: {self._requests_dir}")

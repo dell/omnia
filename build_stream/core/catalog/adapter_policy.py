@@ -30,10 +30,9 @@ import yaml
 
 from jsonschema import ValidationError, validate
 
+from api.logging_utils import log_secure_info
 from .utils import _configure_logging, load_json_file
 from . import adapter_policy_schema_consts as schema
-
-logger = logging.getLogger(__name__)
 
 _BASE_DIR = os.path.dirname(__file__)
 _DEFAULT_POLICY_PATH = os.path.join(_BASE_DIR, "resources", "adapter_policy_default.json")
@@ -49,13 +48,13 @@ def _validate_input_policy_and_schema_paths(
     schema_path: str,
 ) -> None:
     if not os.path.isdir(input_dir):
-        logger.error("Input directory not found: %s", input_dir)
+        log_secure_info('error', f"Input directory not found: {input_dir}")
         raise FileNotFoundError(input_dir)
     if not os.path.isfile(policy_path):
-        logger.error("Adapter policy file not found: %s", policy_path)
+        log_secure_info('error', f"Adapter policy file not found: {policy_path}")
         raise FileNotFoundError(policy_path)
     if not os.path.isfile(schema_path):
-        logger.error("Adapter policy schema file not found: %s", schema_path)
+        log_secure_info('error', f"Adapter policy schema file not found: {schema_path}")
         raise FileNotFoundError(schema_path)
 
 
@@ -271,7 +270,7 @@ def generate_software_config(
         
         f.write("\n\n}\n")
 
-    logger.info("Generated software_config.json at: %s", output_path)
+    log_secure_info('info', f"Generated software_config.json at: {output_path}")
 
 
 def _package_key(pkg: Dict) -> Tuple[str, str, str]:
@@ -535,7 +534,7 @@ def apply_filter(
     if filter_type == schema.ANY_OF_FILTER:
         return apply_any_of_filter(packages, _source_data, _source_key, filter_config)
 
-    logger.warning("Unknown/unsupported filter type in v2: %s", filter_type)
+    log_secure_info('warning', f"Unknown/unsupported filter type in v2: {filter_type}")
     return packages
 
 
@@ -636,7 +635,7 @@ def process_target_spec(
     """Build a single target file config using v2 target-centric spec."""
     conditions = target_spec.get(schema.CONDITIONS)
     if not check_conditions(conditions, arch, os_family, os_version):
-        logger.debug("Skipping target %s (conditions not met)", target_file)
+        log_secure_info('debug', f"Skipping target {target_file} (conditions not met)")
         return
 
     target_level_transform = target_spec.get(schema.TRANSFORM)
@@ -646,7 +645,7 @@ def process_target_spec(
     for source_spec in target_spec.get(schema.SOURCES, []):
         source_file = source_spec.get(schema.SOURCE_FILE)
         if not source_file or source_file not in source_files:
-            logger.debug("Source file %s not loaded/available", source_file)
+            log_secure_info('debug', f"Source file {source_file} not loaded/available")
             continue
 
         source_data = source_files[source_file]
@@ -654,7 +653,7 @@ def process_target_spec(
         for pull in source_spec.get(schema.PULLS, []):
             source_key = pull.get(schema.SOURCE_KEY)
             if not source_key or source_key not in source_data:
-                logger.debug("Source key '%s' not found in %s", source_key, source_file)
+                log_secure_info('debug', f"Source key '{source_key}' not found in {source_file}")
                 continue
 
             target_key = pull.get(schema.TARGET_KEY) or source_key
@@ -675,7 +674,7 @@ def process_target_spec(
         operation = derived.get(schema.OPERATION, {})
         op_type = operation.get(schema.TYPE)
         if op_type != schema.EXTRACT_COMMON_OPERATION:
-            logger.warning("Unsupported derived operation type: %s", op_type)
+            log_secure_info('warning', f"Unsupported derived operation type: {op_type}")
             continue
 
         from_keys = operation.get(schema.FROM_KEYS, [])
@@ -709,7 +708,7 @@ def process_target_spec(
             
             # Skip generation only for UCX/OpenMPI if main package missing
             if not main_package_found:
-                logger.debug("Skipping %s: main package '%s' not found", target_file, target_file_name)
+                log_secure_info('debug', f"Skipping {target_file}: main package '{target_file_name}' not found")
                 should_generate = False
         
         # Generate target config only if validation passes
@@ -781,16 +780,16 @@ def generate_configs_from_policy(
     validate_policy_config(policy_config, schema_config, policy_path=policy_path, schema_path=schema_path)
     targets = policy_config.get(schema.TARGETS, {})
 
-    logger.info("Loaded %d target(s) from %s", len(targets), policy_path)
+    log_secure_info('info', f"Loaded {len(targets)} target(s) from {policy_path}")
 
     # Discover architectures
     architectures = discover_architectures(input_dir)
     
     if not architectures:
-        logger.warning("No architectures discovered under input directory: %s", input_dir)
+        log_secure_info('warning', f"No architectures discovered under input directory: {input_dir}")
         return
         
-    logger.info("Discovered architectures: %s", architectures)
+    log_secure_info('info', f"Discovered architectures: {architectures}")
 
     all_arch_target_configs: Dict[str, Dict[str, Dict]] = {}
     resolved_os_family: Optional[str] = None
@@ -800,7 +799,7 @@ def generate_configs_from_policy(
         os_versions = discover_os_versions(input_dir, arch)
 
         for os_family, version in os_versions:
-            logger.info("Processing: arch=%s, os=%s, version=%s", arch, os_family, version)
+            log_secure_info('info', f"Processing: arch={arch}, os={os_family}, version={version}")
 
             if resolved_os_family is None:
                 resolved_os_family = os_family
@@ -810,7 +809,7 @@ def generate_configs_from_policy(
             target_dir = os.path.join(output_dir, "input", "config", arch, os_family, version)
 
             if not os.path.isdir(source_dir):
-                logger.warning("Source directory not found, skipping: %s", source_dir)
+                log_secure_info('warning', f"Source directory not found, skipping: {source_dir}")
                 continue
 
             source_files: Dict[str, Dict] = {}
@@ -818,7 +817,7 @@ def generate_configs_from_policy(
                 if filename.endswith(".json"):
                     file_path = os.path.join(source_dir, filename)
                     source_files[filename] = load_json_file(file_path)
-                    logger.debug("Loaded source file: %s", filename)
+                    log_secure_info('debug', f"Loaded source file: {filename}")
 
             target_configs: Dict[str, Dict] = {}
 
@@ -837,7 +836,7 @@ def generate_configs_from_policy(
                 if data:
                     file_path = os.path.join(target_dir, target_file)
                     write_config_file(file_path, data)
-                    logger.info("Written: %s", file_path)
+                    log_secure_info('info', f"Written: {file_path}")
 
             all_arch_target_configs[arch] = target_configs
 
@@ -894,10 +893,10 @@ def main():
         log_level=getattr(logging, args.log_level),
     )
 
-    logger.info("Starting adapter policy generation")
-    logger.info("Input directory: %s", args.input_dir)
-    logger.info("Output directory: %s", args.output_dir)
-    logger.info("Policy file: %s", args.policy)
+    log_secure_info('info', "Starting adapter policy generation")
+    log_secure_info('info', f"Input directory: {args.input_dir}")
+    log_secure_info('info', f"Output directory: {args.output_dir}")
+    log_secure_info('info', f"Policy file: {args.policy}")
 
     generate_configs_from_policy(
         input_dir=args.input_dir,
@@ -907,7 +906,7 @@ def main():
         configure_logging=False,
     )
 
-    logger.info("Adapter config generation completed")
+    log_secure_info('info', "Adapter config generation completed")
 
 
 if __name__ == "__main__":

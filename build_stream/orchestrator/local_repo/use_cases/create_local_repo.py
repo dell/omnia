@@ -14,7 +14,6 @@
 
 """CreateLocalRepo use case implementation."""
 
-import logging
 from datetime import datetime, timezone
 
 from api.logging_utils import log_secure_info
@@ -56,7 +55,6 @@ from core.localrepo.value_objects import (
 from orchestrator.local_repo.commands import CreateLocalRepoCommand
 from orchestrator.local_repo.dtos import LocalRepoResponse
 
-logger = logging.getLogger(__name__)
 
 DEFAULT_PLAYBOOK_NAME = "local_repo.yml"
 
@@ -313,12 +311,7 @@ class CreateLocalRepoUseCase:
             correlation_id=str(command.correlation_id),
         )
 
-        logger.info(
-            "Playbook request submitted to queue for job %s, stage=%s, correlation_id=%s",
-            command.job_id,
-            StageType.CREATE_LOCAL_REPOSITORY.value,
-            command.correlation_id,
-        )
+        log_secure_info('info', f"Playbook request submitted to queue for job {command.job_id}, stage={StageType.CREATE_LOCAL_REPOSITORY.value}, correlation_id={command.correlation_id}")
 
 
     def _emit_stage_started_event(

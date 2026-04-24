@@ -14,12 +14,11 @@
 
 """Domain services for Deploy module."""
 
-import logging
+from api.logging_utils import log_secure_info
 
 from core.jobs.value_objects import CorrelationId
 from core.deploy.entities import DeployPlaybookRequest
 
-logger = logging.getLogger(__name__)
 
 
 class DeployQueueService:
@@ -51,17 +50,8 @@ class DeployQueueService:
         Raises:
             QueueUnavailableError: If queue is not accessible.
         """
-        logger.info(
-            "Submitting deploy request to queue: "
-            "job_id=%s, correlation_id=%s",
-            request.job_id,
-            correlation_id,
-        )
+        log_secure_info('info', f"Submitting deploy request to queue: "
+            "job_id={request.job_id}, correlation_id={correlation_id}")
         self._queue_repo.write_request(request)
-        logger.info(
-            "Deploy request submitted successfully: "
-            "job_id=%s, request_id=%s, correlation_id=%s",
-            request.job_id,
-            request.request_id,
-            correlation_id,
-        )
+        log_secure_info('info', f"Deploy request submitted successfully: "
+            "job_id={request.job_id}, request_id={request.request_id}, correlation_id={correlation_id}")

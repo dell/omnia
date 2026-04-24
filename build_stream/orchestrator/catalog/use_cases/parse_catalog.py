@@ -24,7 +24,7 @@ Enhanced (S1-4 Part A):
 """
 
 import json
-import logging
+from api.logging_utils import log_secure_info
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -73,7 +73,6 @@ from core.jobs.value_objects import (
 from orchestrator.catalog.commands.parse_catalog import ParseCatalogCommand
 from orchestrator.catalog.dtos import ParseCatalogResult
 
-logger = logging.getLogger(__name__)
 
 
 class ParseCatalogUseCase:  # pylint: disable=too-few-public-methods
@@ -301,7 +300,8 @@ class ParseCatalogUseCase:  # pylint: disable=too-few-public-methods
                 already exists in the database. Maps to HTTP 409 Conflict.
         """
         if self._image_group_repo is None:
-            logger.debug(
+            log_secure_info(
+                'debug',
                 "ImageGroup repo not available; skipping uniqueness check"
             )
             return
@@ -400,12 +400,11 @@ class ParseCatalogUseCase:  # pylint: disable=too-few-public-methods
         )
         self._artifact_metadata_repo.save(record)
 
-        logger.info(
-            "Stored catalog metadata artifact: job_id=%s, "
-            "image_group_id=%s, roles=%s",
-            command.job_id,
-            catalog_metadata.get("image_group_id"),
-            catalog_metadata.get("roles"),
+        log_secure_info(
+            'info',
+            f"Stored catalog metadata artifact: job_id={command.job_id}, "
+            f"image_group_id={catalog_metadata.get('image_group_id')}, "
+            f"roles={catalog_metadata.get('roles')}"
         )
 
         return metadata_ref

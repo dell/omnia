@@ -14,7 +14,6 @@
 
 """FastAPI routes for validate-image-on-test stage operations."""
 
-import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -44,7 +43,6 @@ from core.validate.exceptions import (
 from orchestrator.validate.commands import ValidateImageOnTestCommand
 from orchestrator.validate.use_cases import ValidateImageOnTestUseCase
 
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/jobs", tags=["Validate Image On Test"])
 
@@ -94,13 +92,7 @@ def create_validate_image_on_test(
     # Extract client_id from token_data
     client_id = ClientId(token_data["client_id"])
     
-    logger.info(
-        "Validate image on test request: job_id=%s, client_id=%s, correlation_id=%s, image_key=%s",
-        job_id,
-        client_id.value,
-        correlation_id.value,
-        request_body.image_key,
-    )
+    log_secure_info('info', f"Validate image on test request: job_id={job_id}, client_id={client_id.value}, correlation_id={correlation_id.value}, image_key={request_body.image_key}")
 
     try:
         validated_job_id = JobId(job_id)
@@ -132,7 +124,7 @@ def create_validate_image_on_test(
         )
 
     except JobNotFoundError as exc:
-        logger.warning("Job not found: %s", job_id)
+        log_secure_info('warning', f"Job not found: {job_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=_build_error_response(
@@ -218,7 +210,7 @@ def create_validate_image_on_test(
         ) from exc
 
     except Exception as exc:
-        logger.exception("Unexpected error creating validate-image-on-test stage")
+        log_secure_info('error', "Unexpected error creating validate-image-on-test stage", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=_build_error_response(

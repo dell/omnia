@@ -18,7 +18,6 @@ This module provides all FastAPI dependencies including authentication,
 authorization, database sessions, repositories, and domain-specific use cases.
 """
 
-import logging
 import os
 from typing import Annotated, Generator
 
@@ -34,7 +33,6 @@ from api.auth.jwt_handler import (
 )
 from api.logging_utils import log_secure_info
 
-logger = logging.getLogger(__name__)
 
 # Environment configuration
 _ENV = os.getenv("ENV", "prod")
@@ -79,7 +77,7 @@ def verify_token(
         HTTPException: If token is missing, invalid, or expired.
     """
     if credentials is None:
-        logger.warning("Request missing Authorization header")
+        log_secure_info('warning', "Request missing Authorization header")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -101,7 +99,7 @@ def verify_token(
         }
 
     except JWTExpiredError:
-        logger.warning("Token validation failed - token expired")
+        log_secure_info('warning', "Token validation failed - token expired")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -112,7 +110,7 @@ def verify_token(
         ) from None
 
     except JWTInvalidSignatureError:
-        logger.warning("Token validation failed - invalid signature")
+        log_secure_info('warning', "Token validation failed - invalid signature")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -123,7 +121,7 @@ def verify_token(
         ) from None
 
     except JWTValidationError:
-        logger.warning("Token validation failed: Invalid token format or content")
+        log_secure_info('warning', "Token validation failed: Invalid token format or content")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={
@@ -158,11 +156,7 @@ def require_scope(required_scope: str):
             HTTPException: If required scope is not present.
         """
         if required_scope not in token_data["scopes"]:
-            logger.warning(
-                "Access denied - missing required scope: %s (client: %s)",
-                required_scope,
-                token_data["client_id"][:8] + "..."
-            )
+            log_secure_info('warning', f"Access denied - missing required scope: {required_scope} (client: {token_data["client_id"][:8] + "..."})")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
@@ -171,11 +165,7 @@ def require_scope(required_scope: str):
                 },
             )
 
-        logger.info(
-            "Scope validation passed for client: %s, scope: %s",
-            token_data["client_id"][:8] + "...",
-            required_scope
-        )
+        log_secure_info('info', f"Scope validation passed for client: {token_data["client_id"][:8] + "..."}, scope: {required_scope}")
         return token_data
 
     return scope_dependency
