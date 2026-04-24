@@ -55,7 +55,7 @@
 
 - name: Compute diff nodes (newly added BMC IPs)
   ansible.builtin.set_fact:
-    diff_bmc_ips: "{{ current_bmc_ips | difference(previous_bmc_ips) }}"
+    diff_bmc_ips: "{{ current_bmc_ips | difference(booted_bmc_ips) }}"
 
 - name: Check if failed_nodes.json was uploaded from GitLab
   ansible.builtin.stat:
