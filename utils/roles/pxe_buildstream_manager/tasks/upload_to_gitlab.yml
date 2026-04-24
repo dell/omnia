@@ -95,9 +95,22 @@
     gitlab_project_url: "{{ new_project.json.web_url if not project_exists else project_search.json[0].web_url }}"
     gitlab_project_http_url: "{{ new_project.json.http_url_to_repo if not project_exists else project_search.json[0].http_url_to_repo }}"
 
-- name: Read failed_nodes.json from artifacts directory
-  ansible.builtin.slurp:
+- name: Set node results directory from job_id
+  ansible.builtin.set_fact:
+    bsm_job_id: "{{ job_id }}"
+    node_results_dir: "/opt/omnia/build_stream_root/artifacts/{{ job_id }}"
+
+- name: Copy failed_nodes.json to gitlab root folder
+  ansible.builtin.copy:
     src: "{{ node_results_dir }}/failed_nodes.json"
+    dest: "/root/{{ gitlab_failed_nodes_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+  
+- name: Read failed_nodes.json from gitlab root directory
+  ansible.builtin.slurp:
+    src: "/root/{{ gitlab_failed_nodes_file }}"
   register: failed_nodes_content
 
 - name: Check if failed_nodes.json already exists in GitLab repository
