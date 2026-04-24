@@ -1,0 +1,117 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Ensure restart_state directory exists
+  ansible.builtin.file:
+    path: "{{ restart_state_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Read PXE mapping file for diffing
+  ansible.builtin.read_csv:
+    path: "{{ input_dir }}/pxe_mapping_file.csv"
+  register: pxe_csv_data
+
+- name: Build current inventory from CSV
+  ansible.builtin.set_fact:
+    current_inventory: "{{ pxe_csv_data.list }}"
+    current_bmc_ips: "{{ pxe_csv_data.list | map(attribute='BMC_IP') | list }}"
+
+- name: Check if restart_state.json exists
+  ansible.builtin.stat:
+    path: "{{ restart_state_dir }}/restart_state.json"
+  register: state_file_stat
+
+- name: Load restart state
+  when: state_file_stat.stat.exists
+  block:
+    - name: Read restart state file
+      ansible.builtin.slurp:
+        src: "{{ restart_state_dir }}/restart_state.json"
+      register: state_raw
+    - name: Parse restart state
+      ansible.builtin.set_fact:
+        restart_state: "{{ state_raw.content | b64decode | from_json }}"
+        previous_bmc_ips: "{{ (state_raw.content | b64decode | from_json).previous_inventory.nodes | map(attribute='bmc_ip') | list }}"
+        booted_bmc_ips: "{{ (state_raw.content | b64decode | from_json).booted_nodes | default([]) | map(attribute='bmc_ip') | list }}"
+
+- name: Default previous IPs to empty if first run
+  ansible.builtin.set_fact:
+    previous_bmc_ips: []
+    booted_bmc_ips: []
+    restart_state: {}
+  when: not state_file_stat.stat.exists
+
+- name: Compute diff nodes (newly added BMC IPs)
+  ansible.builtin.set_fact:
+    diff_bmc_ips: "{{ current_bmc_ips | difference(previous_bmc_ips) }}"
+
+- name: Check if failed_nodes.json was uploaded from GitLab
+  ansible.builtin.stat:
+    path: "{{ restart_state_dir }}/failed_nodes.json"
+  register: failed_nodes_stat
+
+- name: Load failed nodes from GitLab
+  when: failed_nodes_stat.stat.exists
+  block:
+    - name: Read failed nodes file
+      ansible.builtin.slurp:
+        src: "{{ restart_state_dir }}/failed_nodes.json"
+      register: failed_raw
+    - name: Parse failed nodes
+      ansible.builtin.set_fact:
+        gitlab_failed_ips: "{{ (failed_raw.content | b64decode | from_json).failed_nodes | map(attribute='bmc_ip') | list }}"
+
+- name: Default failed IPs to empty
+  ansible.builtin.set_fact:
+    gitlab_failed_ips: []
+  when: not failed_nodes_stat.stat.exists
+
+- name: Compute effective BMC IPs (diff + failed retry - already booted, deduplicated)
+  ansible.builtin.set_fact:
+    effective_bmc_ips: "{{ ((diff_bmc_ips + gitlab_failed_ips) | unique) | difference(booted_bmc_ips) }}"
+
+- name: Report effective inventory
+  ansible.builtin.debug:
+    msg: "{{ bsm_inventory_report_msg }}"
+
+- name: Mark hosts for PXE boot based on effective inventory
+  block:
+    - name: Mark all bmc hosts to skip by default
+      ansible.builtin.set_fact:
+        bsm_skip_this_host: true
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      loop: "{{ groups['bmc'] | default([]) }}"
+
+    - name: Mark only effective hosts to NOT skip
+      ansible.builtin.set_fact:
+        bsm_skip_this_host: false
+      delegate_to: "{{ item }}"
+      delegate_facts: true
+      loop: "{{ effective_bmc_ips }}"
+      when: effective_bmc_ips | length > 0
+
+- name: Store CSV node metadata for reporting
+  ansible.builtin.set_fact:
+    pxe_csv_node_map: "{{ dict(pxe_csv_data.list | map(attribute='BMC_IP') | zip(pxe_csv_data.list)) }}"
+
+- name: Skip PXE boot when effective inventory is empty
+  ansible.builtin.debug:
+    msg: "{{ bsm_empty_inventory_msg }}"
+  when: effective_bmc_ips | length == 0
+
+- name: Set skip flag for empty inventory
+  ansible.builtin.set_fact:
+    bsm_skip_pxe: "{{ effective_bmc_ips | length == 0 }}"

@@ -63,131 +63,12 @@
   hosts: localhost
   connection: local
   gather_facts: true
-  vars:
-    restart_state_dir: "/opt/omnia/build_stream_root/restart_state"
-    input_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
-    bsm_enabled: "{{ enable_build_stream | default(false) | bool }}"
   tasks:
-    - name: Ensure restart_state directory exists
-      ansible.builtin.file:
-        path: "{{ restart_state_dir }}"
-        state: directory
-        mode: "0755"
-      when: bsm_enabled
-
-    - name: Read PXE mapping file for diffing
-      ansible.builtin.read_csv:
-        path: "{{ input_dir }}/pxe_mapping_file.csv"
-      register: pxe_csv_data
-      when: bsm_enabled
-
-    - name: Build current inventory from CSV
-      ansible.builtin.set_fact:
-        current_inventory: "{{ pxe_csv_data.list }}"
-        current_bmc_ips: "{{ pxe_csv_data.list | map(attribute='BMC_IP') | list }}"
-      when: bsm_enabled
-
-    - name: Check if restart_state.json exists
-      ansible.builtin.stat:
-        path: "{{ restart_state_dir }}/restart_state.json"
-      register: state_file_stat
-      when: bsm_enabled
-
-    - name: Load restart state
-      when: bsm_enabled and state_file_stat.stat.exists
-      block:
-        - name: Read restart state file
-          ansible.builtin.slurp:
-            src: "{{ restart_state_dir }}/restart_state.json"
-          register: state_raw
-        - name: Parse restart state
-          ansible.builtin.set_fact:
-            restart_state: "{{ state_raw.content | b64decode | from_json }}"
-            previous_bmc_ips: "{{ (state_raw.content | b64decode | from_json).previous_inventory.nodes | map(attribute='bmc_ip') | list }}"
-            booted_bmc_ips: "{{ (state_raw.content | b64decode | from_json).booted_nodes | default([]) | map(attribute='bmc_ip') | list }}"
-
-    - name: Default previous IPs to empty if first run
-      ansible.builtin.set_fact:
-        previous_bmc_ips: []
-        booted_bmc_ips: []
-        restart_state: {}
-      when: bsm_enabled and (not state_file_stat.stat.exists)
-
-    - name: Compute diff nodes (newly added BMC IPs)
-      ansible.builtin.set_fact:
-        diff_bmc_ips: "{{ current_bmc_ips | difference(previous_bmc_ips) }}"
-      when: bsm_enabled
-
-    - name: Check if failed_nodes.json was uploaded from GitLab
-      ansible.builtin.stat:
-        path: "{{ restart_state_dir }}/failed_nodes.json"
-      register: failed_nodes_stat
-      when: bsm_enabled
-
-    - name: Load failed nodes from GitLab
-      when: bsm_enabled and failed_nodes_stat.stat.exists
-      block:
-        - name: Read failed nodes file
-          ansible.builtin.slurp:
-            src: "{{ restart_state_dir }}/failed_nodes.json"
-          register: failed_raw
-        - name: Parse failed nodes
-          ansible.builtin.set_fact:
-            gitlab_failed_ips: "{{ (failed_raw.content | b64decode | from_json).failed_nodes | map(attribute='bmc_ip') | list }}"
-
-    - name: Default failed IPs to empty
-      ansible.builtin.set_fact:
-        gitlab_failed_ips: []
-      when: bsm_enabled and (not failed_nodes_stat.stat.exists)
-
-    - name: Compute effective BMC IPs (diff + failed retry - already booted, deduplicated)
-      ansible.builtin.set_fact:
-        effective_bmc_ips: "{{ ((diff_bmc_ips + gitlab_failed_ips) | unique) | difference(booted_bmc_ips) }}"
-      when: bsm_enabled
-
-    - name: Report effective inventory
-      ansible.builtin.debug:
-        msg: >-
-          [BSM] Inventory diff: {{ current_bmc_ips | length }} total in CSV,
-          {{ previous_bmc_ips | length }} in previous run,
-          {{ diff_bmc_ips | length }} newly added,
-          {{ gitlab_failed_ips | length }} from failed retry,
-          {{ booted_bmc_ips | length }} already booted (excluded),
-          {{ effective_bmc_ips | length }} effective targets
-      when: bsm_enabled
-
-    - name: Mark hosts for PXE boot based on effective inventory
-      when: bsm_enabled
-      block:
-        - name: Mark all bmc hosts to skip by default
-          ansible.builtin.set_fact:
-            bsm_skip_this_host: true
-          delegate_to: "{{ item }}"
-          delegate_facts: true
-          loop: "{{ groups['bmc'] | default([]) }}"
-
-        - name: Mark only effective hosts to NOT skip
-          ansible.builtin.set_fact:
-            bsm_skip_this_host: false
-          delegate_to: "{{ item }}"
-          delegate_facts: true
-          loop: "{{ effective_bmc_ips }}"
-          when: effective_bmc_ips | length > 0
-
-    - name: Store CSV node metadata for reporting
-      ansible.builtin.set_fact:
-        pxe_csv_node_map: "{{ dict(pxe_csv_data.list | map(attribute='BMC_IP') | zip(pxe_csv_data.list)) }}"
-      when: bsm_enabled
-
-    - name: Skip PXE boot when effective inventory is empty
-      ansible.builtin.debug:
-        msg: "[BSM] Effective inventory is empty -- no nodes to PXE boot. Skipping."
-      when: bsm_enabled and (effective_bmc_ips | length == 0)
-
-    - name: Set skip flag for empty inventory
-      ansible.builtin.set_fact:
-        bsm_skip_pxe: "{{ effective_bmc_ips | length == 0 }}"
-      when: bsm_enabled
+    - name: Compute effective restart inventory
+      ansible.builtin.include_role:
+        name: pxe_buildstream_manager
+        tasks_from: compute_effective_inventory
+      when: enable_build_stream | default(false) | bool
 
 # Play 3-4: PXE Boot execution
 # This configures Dell iDRAC BMCs to boot a host from PXE (network) and optionally reboots the server.
@@ -218,150 +99,24 @@
       ansible.builtin.debug:
         msg: "{{ inventory_hostname }}: {{ reboot_status }}"
 
-# Play 6: [BSM] Write per-node results and update persistent state
-- name: "[BSM] Write per-node results and update persistent state"
+# Play 6: [BSM] Write per-node results, update persistent state, and upload to GitLab
+- name: "[BSM] Write per-node results, update persistent state, and upload to GitLab"
   hosts: localhost
   connection: local
   gather_facts: true
-  vars:
-    restart_state_dir: "/opt/omnia/build_stream_root/restart_state"
-    bsm_enabled: "{{ enable_build_stream | default(false) | bool }}"
   tasks:
-    - name: Fail if job_id is not provided
-      ansible.builtin.fail:
-        msg: >-
-          [BSM] job_id is mandatory but was not provided as an extra variable.
-          The playbook watcher must pass job_id via --extra-vars.
-          Cannot write node_results.json without a valid job_id.
-      when: bsm_enabled and (job_id is not defined or job_id | length == 0)
+    - name: Execute BuildStream Manager post-processing
+      ansible.builtin.include_role:
+        name: pxe_buildstream_manager
+      when: enable_build_stream | default(false) | bool
 
-    - name: Set node results directory from job_id
-      ansible.builtin.set_fact:
-        bsm_job_id: "{{ job_id }}"
-        node_results_dir: "/opt/omnia/build_stream_root/artifacts/{{ job_id }}"
-      when: bsm_enabled
-
-    - name: Build per-node results (only hosts that were actually PXE booted, not BSM-skipped)
-      ansible.builtin.set_fact:
-        pxe_node_results: >-
-          {{ pxe_node_results | default([]) + [{
-            'bmc_ip': item,
-            'hostname': (pxe_csv_node_map[item]['HOSTNAME'] | default(''))
-                        if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
-            'service_tag': (pxe_csv_node_map[item]['SERVICE_TAG'] | default(''))
-                           if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
-            'status': 'failed' if (hostvars[item]['reboot_failed'] | default(true)) else 'success',
-            'message': hostvars[item]['reboot_status'] | default('No status available')
-          }] }}
-      loop: "{{ groups['bmc'] | default([]) }}"
-      when: >
-        bsm_enabled and groups['bmc'] is defined and (groups['bmc'] | length > 0)
-        and not (hostvars[item]['bsm_skip_this_host'] | default(false))
-
-    - name: Ensure directories exist
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        mode: "0755"
-      loop:
-        - "{{ node_results_dir }}"
-        - "{{ restart_state_dir }}"
-      when: bsm_enabled
-
-    - name: Write node_results.json
-      ansible.builtin.copy:
-        content: "{{ node_results_report | to_nice_json }}"
-        dest: "{{ node_results_dir }}/node_results.json"
-        mode: "0644"
-      vars:
-        success_list: "{{ pxe_node_results | default([]) | selectattr('status','equalto','success') | list }}"
-        failed_list: "{{ pxe_node_results | default([]) | selectattr('status','equalto','failed') | list }}"
-        node_results_report:
-          job_id: "{{ bsm_job_id }}"
-          stage_name: "restart"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
-          total_nodes: "{{ pxe_node_results | default([]) | length }}"
-          success_count: "{{ success_list | length }}"
-          failure_count: "{{ failed_list | length }}"
-          nodes: "{{ pxe_node_results | default([]) }}"
-      when: bsm_enabled
-
-    - name: Write failed_nodes.json to artifacts directory
-      ansible.builtin.copy:
-        content: "{{ failed_nodes_report | to_nice_json }}"
-        dest: "{{ node_results_dir }}/failed_nodes.json"
-        mode: "0644"
-      vars:
-        failed_list: "{{ pxe_node_results | default([]) | selectattr('status','equalto','failed') | list }}"
-        failed_nodes_report:
-          job_id: "{{ bsm_job_id }}"
-          stage_name: "restart"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
-          total_nodes: "{{ pxe_node_results | default([]) | length }}"
-          failure_count: "{{ failed_list | length }}"
-          failed_nodes: "{{ failed_list }}"
-      when: bsm_enabled
-
-    - name: Copy failed_nodes.json to restart_state directory for next run consumption
-      ansible.builtin.copy:
-        src: "{{ node_results_dir }}/failed_nodes.json"
-        dest: "{{ restart_state_dir }}/failed_nodes.json"
-        mode: "0644"
-        remote_src: true
-      when: bsm_enabled
-
-    - name: Load existing booted nodes from restart_state.json
-      ansible.builtin.set_fact:
-        existing_booted_ips: "{{ (restart_state | default({})).get('booted_nodes', []) | map(attribute='bmc_ip') | list }}"
-      when: bsm_enabled
-
-    - name: Compute new booted IPs from this run
-      ansible.builtin.set_fact:
-        new_booted_ips: "{{ pxe_node_results | default([]) | selectattr('status','equalto','success') | map(attribute='bmc_ip') | list }}"
-      when: bsm_enabled
-
-    - name: Compute failed IPs from this run
-      ansible.builtin.set_fact:
-        failed_ips_this_run: "{{ pxe_node_results | default([]) | selectattr('status','equalto','failed') | map(attribute='bmc_ip') | list }}"
-      when: bsm_enabled
-
-    - name: Merge and deduplicate booted IPs (add successes, remove failures)
-      ansible.builtin.set_fact:
-        merged_booted_ips: "{{ ((existing_booted_ips | default([]) + new_booted_ips) | unique) | difference(failed_ips_this_run) }}"
-      when: bsm_enabled
-
-    - name: Build booted nodes list with metadata
-      ansible.builtin.set_fact:
-        booted_nodes_list: >-
-          {{ booted_nodes_list | default([]) + [{
-            'bmc_ip': item,
-            'hostname': (pxe_csv_node_map[item]['HOSTNAME'] | default(''))
-                        if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
-            'booted_at': ansible_date_time.iso8601
-          }] }}
-      loop: "{{ merged_booted_ips }}"
-      when: bsm_enabled
-
-    - name: Write updated restart_state.json
-      ansible.builtin.copy:
-        content: "{{ state_report | to_nice_json }}"
-        dest: "{{ restart_state_dir }}/restart_state.json"
-        mode: "0644"
-      vars:
-        state_report:
-          updated_at: "{{ ansible_date_time.iso8601 }}"
-          previous_inventory:
-            source: "pxe_mapping_file.csv"
-            nodes: "{{ current_inventory | default([]) | json_query('[].{bmc_ip: BMC_IP, hostname: HOSTNAME, service_tag: SERVICE_TAG}') }}"
-          booted_nodes: "{{ booted_nodes_list | default([]) }}"
-      when: bsm_enabled and current_inventory is defined
-
-    - name: Report BSM artifact paths
-      ansible.builtin.debug:
-        msg: >-
-          [BSM] Artifact paths for job_id={{ bsm_job_id }}:
-          node_results.json  = {{ node_results_dir }}/node_results.json |
-          failed_nodes.json  = {{ node_results_dir }}/failed_nodes.json |
-          restart_state.json = {{ restart_state_dir }}/restart_state.json |
-          failed_nodes.json (restart_state copy) = {{ restart_state_dir }}/failed_nodes.json
-      when: bsm_enabled
+- name: Upload failed_nodes to gitlab
+  hosts: gitlab_server
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Upload failed_nodes to gitlab
+      ansible.builtin.include_role:
+        name: pxe_buildstream_manager
+        tasks_from: upload_to_gitlab
+      when: enable_build_stream | default(false) | bool
