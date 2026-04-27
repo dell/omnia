@@ -405,6 +405,9 @@ class UploadFilesUseCase:
         - New job_id = fresh start (no previous state)
         - Same job_id re-run = uses previous failed_nodes.json for retry
 
+        For failed_nodes.json: Detect nodes removed by user and add them to booted_nodes
+        in restart_state.json (user manually fixed them).
+
         Args:
             job_id: Job identifier.
             filename: Filename.
@@ -413,10 +416,83 @@ class UploadFilesUseCase:
         restart_state_path = Path(RESTART_STATE_DIR) / job_id
         restart_state_path.mkdir(parents=True, exist_ok=True)
 
-        target_file = restart_state_path / filename
-        target_file.write_bytes(content)
+        # For failed_nodes.json: detect removed nodes and mark as booted
+        if filename == "failed_nodes.json":
+            self._handle_failed_nodes_update(restart_state_path, content)
+        else:
+            target_file = restart_state_path / filename
+            target_file.write_bytes(content)
+            log_secure_info('debug', f"Wrote {filename} to job-specific restart_state directory: {target_file}")
 
-        log_secure_info('debug', f"Wrote {filename} to job-specific restart_state directory: {target_file}")
+    def _handle_failed_nodes_update(self, restart_state_path: Path, new_content: bytes):
+        """Handle failed_nodes.json update and detect manually booted nodes.
+
+        When user removes nodes from failed_nodes.json in GitLab, it means they
+        manually fixed those nodes. Add them to booted_nodes in restart_state.json.
+
+        Args:
+            restart_state_path: Path to job-specific restart_state directory.
+            new_content: New failed_nodes.json content from user.
+        """
+        import json
+        from datetime import datetime, timezone
+
+        failed_nodes_file = restart_state_path / "failed_nodes.json"
+        restart_state_file = restart_state_path / "restart_state.json"
+
+        # Parse new failed nodes from user
+        new_failed_data = json.loads(new_content)
+        new_failed_ips = {node['bmc_ip'] for node in new_failed_data.get('failed_nodes', [])}
+
+        # Read previous failed nodes if exists
+        previous_failed_ips = set()
+        if failed_nodes_file.exists():
+            try:
+                old_failed_data = json.loads(failed_nodes_file.read_bytes())
+                previous_failed_ips = {node['bmc_ip'] for node in old_failed_data.get('failed_nodes', [])}
+            except Exception as e:
+                log_secure_info('warning', f"Could not read previous failed_nodes.json: {e}")
+
+        # Detect removed nodes (manually booted by user)
+        manually_booted_ips = previous_failed_ips - new_failed_ips
+
+        if manually_booted_ips:
+            log_secure_info('info', f"Detected {len(manually_booted_ips)} manually booted nodes (removed from failed_nodes.json): {manually_booted_ips}")
+
+            # Update restart_state.json to add manually booted nodes
+            if restart_state_file.exists():
+                try:
+                    restart_state = json.loads(restart_state_file.read_bytes())
+                    booted_nodes = restart_state.get('booted_nodes', [])
+                    existing_booted_ips = {node['bmc_ip'] for node in booted_nodes}
+
+                    # Add manually booted nodes to booted_nodes list
+                    for bmc_ip in manually_booted_ips:
+                        if bmc_ip not in existing_booted_ips:
+                            # Find hostname from new_failed_data if available
+                            hostname = ''
+                            for node in new_failed_data.get('failed_nodes', []) + old_failed_data.get('failed_nodes', []):
+                                if node.get('bmc_ip') == bmc_ip:
+                                    hostname = node.get('hostname', '')
+                                    break
+
+                            booted_nodes.append({
+                                'bmc_ip': bmc_ip,
+                                'hostname': hostname,
+                                'booted_at': datetime.now(timezone.utc).isoformat()
+                            })
+                            log_secure_info('info', f"Added manually booted node to restart_state.json: {bmc_ip}")
+
+                    restart_state['booted_nodes'] = booted_nodes
+                    restart_state['updated_at'] = datetime.now(timezone.utc).isoformat()
+                    restart_state_file.write_text(json.dumps(restart_state, indent=2))
+
+                except Exception as e:
+                    log_secure_info('error', f"Failed to update restart_state.json with manually booted nodes: {e}")
+
+        # Write new failed_nodes.json
+        failed_nodes_file.write_bytes(new_content)
+        log_secure_info('debug', f"Wrote failed_nodes.json to restart_state directory: {failed_nodes_file}")
 
     def _generate_id(self) -> str:
         """Generate unique identifier for artifact record.
