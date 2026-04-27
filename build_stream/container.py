@@ -54,7 +54,7 @@ from orchestrator.local_repo.use_cases import CreateLocalRepoUseCase
 from orchestrator.common.result_poller import ResultPoller
 from orchestrator.build_image.use_cases import CreateBuildImageUseCase
 from orchestrator.restart.use_cases import CreateRestartUseCase
-from orchestrator.validate.use_cases import ValidateImageOnTestUseCase
+from orchestrator.validate.use_cases import ValidateUseCase
 from orchestrator.images.use_cases.list_images_use_case import ListImagesUseCase
 from orchestrator.deploy.use_cases.deploy_use_case import DeployUseCase
 from orchestrator.upload.use_cases.upload_files import UploadFilesUseCase
@@ -315,8 +315,8 @@ class DevContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
-    validate_image_on_test_use_case = providers.Factory(
-        ValidateImageOnTestUseCase,
+    validate_use_case = providers.Factory(
+        ValidateUseCase,
         job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,
@@ -535,8 +535,8 @@ class ProdContainer(containers.DeclarativeContainer):  # pylint: disable=R0903
         uuid_generator=uuid_generator,
     )
 
-    validate_image_on_test_use_case = providers.Factory(
-        ValidateImageOnTestUseCase,
+    validate_use_case = providers.Factory(
+        ValidateUseCase,
         job_repo=job_repository,
         stage_repo=stage_repository,
         audit_repo=audit_repository,

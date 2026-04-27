@@ -12,28 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ValidateImageOnTest command DTO."""
+"""Validate response DTO."""
 
 from dataclasses import dataclass
 
-from core.jobs.value_objects import ClientId, CorrelationId, JobId
-
 
 @dataclass(frozen=True)
-class ValidateImageOnTestCommand:
-    """Command to trigger validate-image-on-test stage.
-
-    Immutable command object representing the intent to execute
-    the validate-image-on-test stage for a given job.
+class ValidateResponse:
+    """Response DTO for validate stage acceptance (202 Accepted).
 
     Attributes:
-        job_id: Job identifier from URL path.
-        client_id: Client who owns this job (from auth).
-        correlation_id: Request correlation identifier for tracing.
-        image_key: Image key for the build to validate.
+        job_id: Job identifier.
+        stage_name: Stage identifier ('validate').
+        status: Acceptance status ('QUEUED').
+        submitted_at: Submission timestamp (ISO 8601).
+        correlation_id: Correlation identifier.
+        attempt_number: Attempt number for this validate run.
     """
 
-    job_id: JobId
-    client_id: ClientId
-    correlation_id: CorrelationId
-    image_key: str
+    job_id: str
+    stage_name: str
+    status: str
+    submitted_at: str
+    correlation_id: str
+    attempt_number: int = 1

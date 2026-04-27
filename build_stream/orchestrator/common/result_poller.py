@@ -15,7 +15,7 @@
 """Common result poller for processing playbook execution results from NFS queue.
 
 This module provides a shared ResultPoller that can be used by all stage APIs
-(local_repo, build_image, validate_image_on_test, etc.) to poll the NFS result
+(local_repo, build_image, validate, etc.) to poll the NFS result
 queue and update stage states accordingly.
 
 Enhanced (S1-4 Part B): On build-image success, creates ImageGroup (BUILT)
@@ -58,7 +58,7 @@ class ResultPoller:
     This poller monitors the NFS result queue and processes results
     by updating stage states and emitting audit events. It handles
     results from all stage types (local_repo, build_image,
-    validate_image_on_test, etc.).
+    validate, deploy, etc.).
 
     Attributes:
         result_service: Service for polling NFS result queue.
@@ -192,9 +192,9 @@ class ResultPoller:
                 if self._is_build_image_stage(result.stage_name):
                     self._on_build_image_success(result)
 
-                # Check if this is the final stage (validate-image-on-test)
-                # If so, mark the job as completed
-                if result.stage_name == "validate-image-on-test":
+                # On validate success, mark job as PASSED
+                if result.stage_name == "validate":
+                    self._on_validate_success(result)
                     JobStateHelper.handle_job_completion(
                         job_repo=self._job_repo,
                         audit_repo=self._audit_repo,
@@ -626,7 +626,7 @@ class ResultPoller:
                     f"job={result.job_id}; playbook may not have written it",
                     job_id=str(result.job_id),
                 )
-
+                
         except json.JSONDecodeError as jde:
             log_secure_info(
                 "error",
@@ -639,6 +639,45 @@ class ResultPoller:
                 "error",
                 f"Failed to persist restart artifacts for "
                 f"job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _on_validate_success(self, result: PlaybookResult) -> None:
+        """Copy test report artifacts to artifact store on validate success.
+
+        Copies test_report.json, test_report.html, molecule_output.log,
+        and junit.xml to {artifacts_base}/{job_id}/validate/attempt_{N}/.
+        """
+        try:
+            log_secure_info(
+                "info",
+                f"Validate SUCCESS for job={result.job_id}. "
+                f"Processing test artifacts.",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Failed to process validate artifacts for job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _on_validate_failure(self, result: PlaybookResult) -> None:
+        """Copy partial test report artifacts on validate failure."""
+        try:
+            log_secure_info(
+                "warning",
+                f"Validate FAILED for job={result.job_id}. "
+                f"exit_code={result.exit_code}, error={result.error_summary}. "
+                f"Processing partial artifacts.",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Failed to process validate failure artifacts for job={result.job_id}: {exc}",
                 job_id=str(result.job_id),
                 exc_info=True,
             )

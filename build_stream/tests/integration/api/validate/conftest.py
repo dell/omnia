@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared fixtures for ValidateImageOnTest API integration tests."""
+"""Shared fixtures for Validate API integration tests."""
 
 import os
 from pathlib import Path
@@ -124,10 +124,10 @@ def job_with_completed_build_image(client, auth_headers, created_job, monkeypatc
                 attempt=1
             )
             return stage
-        elif stage_name.value == StageType.VALIDATE_IMAGE_ON_TEST.value:
+        elif stage_name.value == StageType.VALIDATE.value:
             stage = Stage(
                 job_id=JobId(job_id_str),
-                stage_name=StageName(StageType.VALIDATE_IMAGE_ON_TEST.value),
+                stage_name=StageName(StageType.VALIDATE.value),
                 stage_state=StageState.PENDING,
                 attempt=1
             )

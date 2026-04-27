@@ -175,7 +175,7 @@ class TestResultPoller:
         job_id = JobId(str(uuid.uuid4()))
         stage = Stage(
             job_id=job_id,
-            stage_name=StageName("validate-image-on-test"),
+            stage_name=StageName("validate"),
             stage_state=StageState.IN_PROGRESS,
             attempt=1,
         )
@@ -183,7 +183,7 @@ class TestResultPoller:
 
         result = PlaybookResult(
             job_id=str(job_id),
-            stage_name="validate-image-on-test",
+            stage_name="validate",
             request_id=str(uuid.uuid4()),
             status="success",
             exit_code=0,
@@ -193,7 +193,7 @@ class TestResultPoller:
         result_poller._on_result_received(result)
 
         saved = mock_stage_repo.find_by_job_and_name(
-            str(job_id), StageName("validate-image-on-test")
+            str(job_id), StageName("validate")
         )
         assert saved.stage_state == StageState.COMPLETED
         assert len(mock_audit_repo._events) == 1
@@ -206,7 +206,7 @@ class TestResultPoller:
         job_id = JobId(str(uuid.uuid4()))
         stage = Stage(
             job_id=job_id,
-            stage_name=StageName("validate-image-on-test"),
+            stage_name=StageName("validate"),
             stage_state=StageState.IN_PROGRESS,
             attempt=1,
         )
@@ -214,7 +214,7 @@ class TestResultPoller:
 
         result = PlaybookResult(
             job_id=str(job_id),
-            stage_name="validate-image-on-test",
+            stage_name="validate",
             request_id=str(uuid.uuid4()),
             status="failed",
             exit_code=1,
@@ -225,7 +225,7 @@ class TestResultPoller:
         result_poller._on_result_received(result)
 
         saved = mock_stage_repo.find_by_job_and_name(
-            str(job_id), StageName("validate-image-on-test")
+            str(job_id), StageName("validate")
         )
         assert saved.stage_state == StageState.FAILED
         assert len(mock_audit_repo._events) == 1
@@ -237,7 +237,7 @@ class TestResultPoller:
         """Missing stage should be handled gracefully (no crash)."""
         result = PlaybookResult(
             job_id=str(uuid.uuid4()),
-            stage_name="validate-image-on-test",
+            stage_name="validate",
             request_id=str(uuid.uuid4()),
             status="success",
             exit_code=0,
