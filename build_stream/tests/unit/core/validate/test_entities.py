@@ -112,7 +112,7 @@ class TestValidateRequest:
             assert key in result, f"Missing required NFS field: {key}"
 
     def test_generate_filename(self):
-        """generate_filename should follow validate_{job_id}_{timestamp}.json convention."""
+        """generate_filename should follow {job_id}_{stage_type}_{timestamp}.json convention."""
         job_id = "test-job-id"
         request = _make_request(job_id=job_id)
 
@@ -122,7 +122,7 @@ class TestValidateRequest:
             mock_dt.timezone = timezone
             filename = request.generate_filename()
 
-        assert filename.startswith("validate_test-job-id_")
+        assert filename.startswith("test-job-id_validate_")
         assert filename.endswith(".json")
 
     def test_default_scenario_names(self):

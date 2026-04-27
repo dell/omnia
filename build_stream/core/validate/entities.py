@@ -75,7 +75,7 @@ class ValidateRequest:
         """Generate request file name following naming convention.
 
         Returns:
-            Filename: validate_{job_id}_{timestamp}.json
+            Filename: {job_id}_{stage_type}_{timestamp}.json
         """
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        return f"validate_{self.job_id}_{timestamp}.json"
+        return f"{self.job_id}_{self.stage_type}_{timestamp}.json"
