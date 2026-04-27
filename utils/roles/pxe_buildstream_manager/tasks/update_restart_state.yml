@@ -14,6 +14,7 @@
 ---
 - name: Load existing booted nodes from restart_state.json
   ansible.builtin.set_fact:
+    existing_booted_nodes: "{{ (restart_state | default({})).get('booted_nodes', []) }}"
     existing_booted_ips: "{{ (restart_state | default({})).get('booted_nodes', []) | map(attribute='bmc_ip') | list }}"
 
 - name: Compute new booted IPs from this run
@@ -24,11 +25,11 @@
   ansible.builtin.set_fact:
     failed_ips_this_run: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | map(attribute='bmc_ip') | list }}"
 
-- name: Merge and deduplicate booted IPs (add successes, remove failures)
+- name: Remove failed nodes from existing booted list
   ansible.builtin.set_fact:
-    merged_booted_ips: "{{ ((existing_booted_ips | default([]) + new_booted_ips) | unique) | difference(failed_ips_this_run) }}"
+    booted_nodes_list: "{{ existing_booted_nodes | rejectattr('bmc_ip', 'in', failed_ips_this_run) | list }}"
 
-- name: Build booted nodes list with metadata
+- name: Add newly booted nodes to list with metadata
   ansible.builtin.set_fact:
     booted_nodes_list: >-
       {{ booted_nodes_list | default([]) + [{
@@ -37,12 +38,14 @@
                     if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
         'booted_at': ansible_date_time.iso8601
       }] }}
-  loop: "{{ merged_booted_ips }}"
+  loop: "{{ new_booted_ips }}"
+  when: item not in existing_booted_ips
 
 - name: Build previous failed nodes list for next run comparison
   ansible.builtin.set_fact:
-    previous_failed_nodes_list: >-
-      {{ failed_ips_this_run | map('regex_replace', '^(.*)$', '{"bmc_ip": "\\1"}') | map('from_json') | list }}
+    previous_failed_nodes_list: "{{ previous_failed_nodes_list | default([]) + [{'bmc_ip': item}] }}"
+  loop: "{{ failed_ips_this_run }}"
+  when: failed_ips_this_run | length > 0
 
 - name: Write updated restart_state.json for this job_id
   ansible.builtin.copy:
