@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# SINGLE SOURCE OF TRUTH: GitLab failed_nodes.json
+# This task normalizes state from GitLab JSON and rebuilds all internal state from scratch.
+# No previous state is merged - GitLab JSON is the only truth.
 - name: Ensure job-specific restart_state directory exists
   ansible.builtin.file:
     path: "{{ restart_state_dir }}/{{ job_id }}"
     state: directory
     mode: "0755"
 
-- name: Read PXE mapping file for diffing
+- name: Read PXE mapping file for current inventory
   ansible.builtin.read_csv:
     path: "{{ input_dir }}/pxe_mapping_file.csv"
   register: pxe_csv_data
@@ -28,106 +31,108 @@
     current_inventory: "{{ pxe_csv_data.list }}"
     current_bmc_ips: "{{ pxe_csv_data.list | map(attribute='BMC_IP') | list }}"
 
-- name: Check if restart_state.json exists for this job_id
-  ansible.builtin.stat:
-    path: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
-  register: state_file_stat
-
-- name: Load restart state
-  when: state_file_stat.stat.exists
-  block:
-    - name: Read restart state file for this job_id
-      ansible.builtin.slurp:
-        src: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
-      register: state_raw
-    - name: Parse restart state
-      ansible.builtin.set_fact:
-        restart_state: "{{ state_raw.content | b64decode | from_json }}"
-        previous_bmc_ips: "{{ (state_raw.content | b64decode | from_json).previous_inventory.nodes | map(attribute='bmc_ip') | list }}"
-        booted_bmc_ips: "{{ (state_raw.content | b64decode | from_json).booted_nodes | default([]) | map(attribute='bmc_ip') | list }}"
-
-- name: Default previous IPs to empty if first run for this job_id
-  ansible.builtin.set_fact:
-    previous_bmc_ips: []
-    booted_bmc_ips: []
-    restart_state: {}
-  when: not state_file_stat.stat.exists
-
-- name: Compute diff nodes (newly added BMC IPs)
-  ansible.builtin.set_fact:
-    diff_bmc_ips: "{{ current_bmc_ips | difference(booted_bmc_ips) }}"
-
-- name: Check if failed_nodes.json was uploaded from GitLab for this job_id
+- name: Check if failed_nodes.json exists (uploaded from GitLab via upload API)
   ansible.builtin.stat:
     path: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
   register: failed_nodes_stat
 
-- name: Load failed nodes from GitLab
+- name: Normalize state from GitLab failed_nodes.json (single source of truth)
   when: failed_nodes_stat.stat.exists
   block:
-    - name: Read failed nodes file for this job_id
+    - name: Read failed nodes file
       ansible.builtin.slurp:
         src: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
       register: failed_raw
-    - name: Parse all failed nodes from file
-      ansible.builtin.set_fact:
-        all_failed_nodes: "{{ (failed_raw.content | b64decode | from_json).failed_nodes | default([]) }}"
-    - name: Extract only nodes still with status 'failed' for retry
-      ansible.builtin.set_fact:
-        gitlab_failed_ips: "{{ all_failed_nodes | selectattr('status', 'equalto', 'failed') | map(attribute='bmc_ip') | list }}"
-    - name: Extract nodes user marked as 'success' (manually booted)
-      ansible.builtin.set_fact:
-        manually_booted_nodes: "{{ all_failed_nodes | selectattr('status', 'equalto', 'success') | list }}"
-        manually_booted_ips: "{{ all_failed_nodes | selectattr('status', 'equalto', 'success') | map(attribute='bmc_ip') | list }}"
 
-- name: Default failed IPs and manually booted to empty
+    - name: Parse failed nodes JSON
+      ansible.builtin.set_fact:
+        gitlab_nodes: "{{ (failed_raw.content | b64decode | from_json).failed_nodes | default([]) }}"
+
+    - name: Normalize - Extract nodes with status='failed' (eligible for retry)
+      ansible.builtin.set_fact:
+        retry_nodes: "{{ gitlab_nodes | selectattr('status', 'equalto', 'failed') | list }}"
+        retry_ips: "{{ gitlab_nodes | selectattr('status', 'equalto', 'failed') | map(attribute='bmc_ip') | list }}"
+
+    - name: Normalize - Extract nodes with status='success' (manually booted)
+      ansible.builtin.set_fact:
+        manually_booted_nodes: "{{ gitlab_nodes | selectattr('status', 'equalto', 'success') | list }}"
+        manually_booted_ips: "{{ gitlab_nodes | selectattr('status', 'equalto', 'success') | map(attribute='bmc_ip') | list }}"
+
+    - name: Log normalization results
+      ansible.builtin.debug:
+        msg: "[BSM] Normalized from GitLab: {{ retry_ips | length }} retry nodes (status=failed), {{ manually_booted_ips | length }} booted nodes (status=success)"
+
+- name: Default to empty lists if no failed_nodes.json (first run)
+  when: not failed_nodes_stat.stat.exists
   ansible.builtin.set_fact:
-    gitlab_failed_ips: []
+    retry_nodes: []
+    retry_ips: []
     manually_booted_nodes: []
     manually_booted_ips: []
-  when: not failed_nodes_stat.stat.exists
 
-- name: Add manually booted nodes to booted list and update restart_state.json
-  when: manually_booted_ips | length > 0
+- name: Load existing restart_state.json to get previously booted nodes (not from GitLab)
+  ansible.builtin.stat:
+    path: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+  register: state_file_stat
+
+- name: Get previously booted nodes from restart_state.json
+  when: state_file_stat.stat.exists
   block:
-    - name: Log manually booted nodes detected
-      ansible.builtin.debug:
-        msg: "[BSM] Detected {{ manually_booted_ips | length }} manually booted nodes (status=success): {{ manually_booted_ips }}"
-
-    - name: Merge manually booted IPs into booted_bmc_ips
+    - name: Read restart state file
+      ansible.builtin.slurp:
+        src: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+      register: state_raw
+    - name: Extract previously booted IPs
       ansible.builtin.set_fact:
-        booted_bmc_ips: "{{ (booted_bmc_ips + manually_booted_ips) | unique }}"
+        previously_booted_ips: "{{ (state_raw.content | b64decode | from_json).booted_nodes | default([]) | map(attribute='bmc_ip') | list }}"
 
-    - name: Build manually booted entries for restart_state.json
+- name: Default previously booted IPs to empty if first run
+  when: not state_file_stat.stat.exists
+  ansible.builtin.set_fact:
+    previously_booted_ips: []
+
+- name: Merge manually booteds + previously booteds into total booted list
+  ansible.builtin.set_fact:
+    total_booted_ips: "{{ (manually_booted_ips + previously_booted_ips) | unique }}"
+
+- name: Update restart_state.json with manually booted nodes from GitLab
+  when: manually_booted_nodes | length > 0
+  block:
+    - name: Build new booted entries for GitLab manual booteds
       ansible.builtin.set_fact:
-        new_manual_booted_entries: >-
-          {{ new_manual_booted_entries | default([]) + [{
+        new_booted_entries: >-
+          {{ new_booted_entries | default([]) + [{
             'bmc_ip': item.bmc_ip,
             'hostname': item.hostname | default(''),
             'booted_at': ansible_date_time.iso8601,
             'manually_booted': true
           }] }}
       loop: "{{ manually_booted_nodes }}"
-      when: item.bmc_ip not in (existing_booted_ips | default([]))
-      vars:
-        existing_booted_ips: "{{ (restart_state | default({})).get('booted_nodes', []) | map(attribute='bmc_ip') | list }}"
+      when: item.bmc_ip not in previously_booted_ips
 
-    - name: Merge manual entries into restart_state and write
+    - name: Read existing restart_state.json
+      ansible.builtin.slurp:
+        src: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+      register: existing_state_raw
+      when: state_file_stat.stat.exists
+
+    - name: Merge new booteds into restart_state.json and write
       ansible.builtin.copy:
         content: "{{ updated_state | to_nice_json }}"
         dest: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
         mode: "0644"
       vars:
-        existing_booted: "{{ (restart_state | default({})).get('booted_nodes', []) }}"
+        existing_state: "{{ existing_state_raw.content | b64decode | from_json if state_file_stat.stat.exists else {} }}"
+        existing_booted: "{{ existing_state.get('booted_nodes', []) }}"
         updated_state:
           updated_at: "{{ ansible_date_time.iso8601 }}"
-          previous_inventory: "{{ (restart_state | default({})).get('previous_inventory', {'source': 'pxe_mapping_file.csv', 'nodes': []}) }}"
-          booted_nodes: "{{ existing_booted + (new_manual_booted_entries | default([])) }}"
-      when: new_manual_booted_entries | default([]) | length > 0
+          previous_inventory: "{{ existing_state.get('previous_inventory', {'source': 'pxe_mapping_file.csv', 'nodes': []}) }}"
+          booted_nodes: "{{ existing_booted + (new_booted_entries | default([])) }}"
+      when: new_booted_entries | default([]) | length > 0
 
-- name: Compute effective BMC IPs (diff + failed retry - already booted, deduplicated, only nodes in current inventory)
+- name: Compute effective BMC IPs (retry nodes - total booted, only in current inventory)
   ansible.builtin.set_fact:
-    effective_bmc_ips: "{{ ((diff_bmc_ips + gitlab_failed_ips) | unique | intersect(current_bmc_ips)) | difference(booted_bmc_ips) }}"
+    effective_bmc_ips: "{{ (retry_ips | intersect(current_bmc_ips)) | difference(total_booted_ips) }}"
 
 - name: Report effective inventory
   ansible.builtin.debug:
