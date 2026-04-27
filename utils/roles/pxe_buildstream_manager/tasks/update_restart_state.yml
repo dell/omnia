@@ -39,6 +39,11 @@
       }] }}
   loop: "{{ merged_booted_ips }}"
 
+- name: Build previous failed nodes list for next run comparison
+  ansible.builtin.set_fact:
+    previous_failed_nodes_list: >-
+      {{ failed_ips_this_run | map('regex_replace', '^(.*)$', '{"bmc_ip": "\\1"}') | map('from_json') | list }}
+
 - name: Write updated restart_state.json for this job_id
   ansible.builtin.copy:
     content: "{{ state_report | to_nice_json }}"
@@ -51,6 +56,7 @@
         source: "pxe_mapping_file.csv"
         nodes: "{{ current_inventory | default([]) | json_query('[].{bmc_ip: BMC_IP, hostname: HOSTNAME, service_tag: SERVICE_TAG}') }}"
       booted_nodes: "{{ booted_nodes_list | default([]) }}"
+      previous_failed_nodes: "{{ previous_failed_nodes_list | default([]) }}"
   when: current_inventory is defined
 
 - name: Report BSM artifact paths

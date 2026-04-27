@@ -302,7 +302,7 @@ class UploadFilesUseCase:
         # For failed_nodes.json, only write to job-specific restart_state directory
         # (skip shared input directory to avoid duplication)
         if filename == "failed_nodes.json":
-            self._write_to_restart_state_directory(job_id, filename, content)
+            self._write_to_restart_state_directory(str(job_id), filename, content)
         else:
             self._write_to_shared_input_directory(filename, content)
 
