@@ -439,48 +439,76 @@ class UploadFilesUseCase:
         failed_nodes_file = restart_state_path / "failed_nodes.json"
         restart_state_file = restart_state_path / "restart_state.json"
 
-        # Parse uploaded failed_nodes.json
-        uploaded_data = json.loads(new_content)
-        all_nodes = uploaded_data.get('failed_nodes', [])
+        log_secure_info('info', f"[BSM] _handle_failed_nodes_update called. "
+                        f"restart_state_path={restart_state_path}, "
+                        f"failed_nodes_file={failed_nodes_file}, "
+                        f"restart_state_file={restart_state_file}, "
+                        f"failed_nodes_file_exists={failed_nodes_file.exists()}, "
+                        f"restart_state_file_exists={restart_state_file.exists()}, "
+                        f"new_content_length={len(new_content)}")
 
-        # Find nodes where user changed status to "success"
+        # Step 1: Write the uploaded failed_nodes.json FIRST (always)
+        try:
+            failed_nodes_file.write_bytes(new_content)
+            log_secure_info('info', f"[BSM] Successfully wrote failed_nodes.json ({len(new_content)} bytes) to {failed_nodes_file}")
+        except Exception as e:
+            log_secure_info('error', f"[BSM] FAILED to write failed_nodes.json to {failed_nodes_file}: {e}")
+            return
+
+        # Step 2: Parse uploaded content and detect manually booted nodes
+        try:
+            uploaded_data = json.loads(new_content)
+            all_nodes = uploaded_data.get('failed_nodes', [])
+            log_secure_info('info', f"[BSM] Parsed failed_nodes.json: {len(all_nodes)} nodes, "
+                            f"statuses: {[(n.get('bmc_ip'), n.get('status')) for n in all_nodes]}")
+        except Exception as e:
+            log_secure_info('error', f"[BSM] Failed to parse uploaded failed_nodes.json: {e}")
+            return
+
+        # Step 3: Find nodes where user changed status to "success"
         manually_booted_nodes = [node for node in all_nodes if node.get('status') == 'success']
 
-        if manually_booted_nodes:
-            log_secure_info(
-                'info',
-                f"Detected {len(manually_booted_nodes)} manually booted nodes "
-                f"(status changed to success): {[n['bmc_ip'] for n in manually_booted_nodes]}"
-            )
+        if not manually_booted_nodes:
+            log_secure_info('info', "[BSM] No manually booted nodes detected (no nodes with status=success)")
+            return
 
-            # Update restart_state.json to add manually booted nodes
-            if restart_state_file.exists():
-                try:
-                    restart_state = json.loads(restart_state_file.read_bytes())
-                    booted_nodes = restart_state.get('booted_nodes', [])
-                    existing_booted_ips = {node['bmc_ip'] for node in booted_nodes}
+        log_secure_info(
+            'info',
+            f"[BSM] Detected {len(manually_booted_nodes)} manually booted nodes "
+            f"(status=success): {[n['bmc_ip'] for n in manually_booted_nodes]}"
+        )
 
-                    for node in manually_booted_nodes:
-                        bmc_ip = node['bmc_ip']
-                        if bmc_ip not in existing_booted_ips:
-                            booted_nodes.append({
-                                'bmc_ip': bmc_ip,
-                                'hostname': node.get('hostname', ''),
-                                'booted_at': datetime.now(timezone.utc).isoformat(),
-                                'manually_booted': True
-                            })
-                            log_secure_info('info', f"Added manually booted node to restart_state.json: {bmc_ip}")
+        # Step 4: Update restart_state.json to add manually booted nodes
+        if not restart_state_file.exists():
+            log_secure_info('warning', f"[BSM] restart_state.json does not exist at {restart_state_file}, cannot update booted_nodes")
+            return
 
-                    restart_state['booted_nodes'] = booted_nodes
-                    restart_state['updated_at'] = datetime.now(timezone.utc).isoformat()
-                    restart_state_file.write_text(json.dumps(restart_state, indent=2))
+        try:
+            restart_state = json.loads(restart_state_file.read_bytes())
+            booted_nodes = restart_state.get('booted_nodes', [])
+            existing_booted_ips = {node['bmc_ip'] for node in booted_nodes}
+            log_secure_info('info', f"[BSM] Current booted_nodes in restart_state.json: {existing_booted_ips}")
 
-                except Exception as e:
-                    log_secure_info('error', f"Failed to update restart_state.json with manually booted nodes: {e}")
+            for node in manually_booted_nodes:
+                bmc_ip = node['bmc_ip']
+                if bmc_ip not in existing_booted_ips:
+                    booted_nodes.append({
+                        'bmc_ip': bmc_ip,
+                        'hostname': node.get('hostname', ''),
+                        'booted_at': datetime.now(timezone.utc).isoformat(),
+                        'manually_booted': True
+                    })
+                    log_secure_info('info', f"[BSM] Added manually booted node: {bmc_ip}")
+                else:
+                    log_secure_info('info', f"[BSM] Node {bmc_ip} already in booted_nodes, skipping")
 
-        # Write new failed_nodes.json
-        failed_nodes_file.write_bytes(new_content)
-        log_secure_info('debug', f"Wrote failed_nodes.json to restart_state directory: {failed_nodes_file}")
+            restart_state['booted_nodes'] = booted_nodes
+            restart_state['updated_at'] = datetime.now(timezone.utc).isoformat()
+            restart_state_file.write_text(json.dumps(restart_state, indent=2))
+            log_secure_info('info', f"[BSM] Successfully updated restart_state.json with {len(booted_nodes)} booted_nodes")
+
+        except Exception as e:
+            log_secure_info('error', f"[BSM] Failed to update restart_state.json: {e}")
 
     def _generate_id(self) -> str:
         """Generate unique identifier for artifact record.
