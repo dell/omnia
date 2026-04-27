@@ -52,7 +52,7 @@ class ValidateResponseSchema(BaseModel):
     status: str = Field(..., description="Stage status ('QUEUED')")
     submitted_at: str = Field(..., description="Submission timestamp (ISO 8601)")
     correlation_id: str = Field(..., description="Correlation identifier")
-    attempt_number: int = Field(default=1, description="Attempt number for this validate run")
+    attempt: int = Field(default=1, description="Attempt number for this validate run")
 
 
 class ValidateErrorResponse(BaseModel):

@@ -38,7 +38,7 @@ class ValidateRequest:
         config_path: Path to omnia_test_config.yml.
         correlation_id: Request tracing identifier.
         submitted_at: Request submission timestamp (ISO 8601).
-        attempt_number: Attempt number for this validate stage.
+        attempt: Attempt number for this validate stage.
     """
 
     request_id: str
@@ -52,7 +52,7 @@ class ValidateRequest:
     config_path: str = "/opt/omnia/automation/omnia_test_config.yml"
     correlation_id: str = ""
     submitted_at: str = ""
-    attempt_number: int = 1
+    attempt: int = 1
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize request to dictionary for JSON file writing."""
@@ -68,7 +68,7 @@ class ValidateRequest:
             "config_path": self.config_path,
             "correlation_id": self.correlation_id,
             "submitted_at": self.submitted_at,
-            "attempt_number": self.attempt_number,
+            "attempt": self.attempt,
         }
 
     def generate_filename(self) -> str:

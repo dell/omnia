@@ -134,7 +134,7 @@ def create_validate(
             status=result.status,
             submitted_at=result.submitted_at,
             correlation_id=result.correlation_id,
-            attempt_number=result.attempt_number,
+            attempt=result.attempt,
         )
 
     except JobNotFoundError as exc:

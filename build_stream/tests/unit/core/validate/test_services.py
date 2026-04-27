@@ -49,7 +49,7 @@ def _make_request():
         config_path="/opt/omnia/automation/omnia_test_config.yml",
         correlation_id=str(uuid.uuid4()),
         submitted_at="2026-02-17T10:30:00Z",
-        attempt_number=1,
+        attempt=1,
     )
 
 

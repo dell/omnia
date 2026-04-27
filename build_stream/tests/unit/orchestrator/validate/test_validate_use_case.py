@@ -232,7 +232,7 @@ class TestValidateUseCaseSuccess:
         assert result.job_id == str(job_id)
         assert result.stage_name == "validate"
         assert result.status == "QUEUED"
-        assert result.attempt_number == 1
+        assert result.attempt == 1
         assert result.submitted_at.endswith("Z")
         assert result.correlation_id == str(command.correlation_id)
 

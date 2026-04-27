@@ -22,7 +22,7 @@ class TestValidateSuccess:
     """Happy-path validate stage tests — AC-3.1."""
 
     def test_returns_202_with_valid_request(
-        self, client, auth_headers, job_with_completed_build_image, nfs_queue_dir
+        self, client, auth_headers, job_with_completed_restart, nfs_queue_dir
     ):
         """Test successful validate request returns 202 with QUEUED status."""
         with patch(
@@ -35,7 +35,7 @@ class TestValidateSuccess:
             return_value=nfs_queue_dir / "requests" / "test.json",
         ):
             response = client.post(
-                f"/api/v1/jobs/{job_with_completed_build_image}/stages/validate",
+                f"/api/v1/jobs/{job_with_completed_restart}/stages/validate",
                 headers=auth_headers,
                 json={
                     "scenario_names": ["discovery"],
@@ -46,15 +46,15 @@ class TestValidateSuccess:
 
         assert response.status_code == 202
         data = response.json()
-        assert data["job_id"] == job_with_completed_build_image
+        assert data["job_id"] == job_with_completed_restart
         assert data["stage"] == "validate"
         assert data["status"] == "QUEUED"
         assert "submitted_at" in data
         assert "correlation_id" in data
-        assert "attempt_number" in data
+        assert "attempt" in data
 
     def test_returns_correlation_id(
-        self, client, job_with_completed_build_image, unique_correlation_id,
+        self, client, job_with_completed_restart, unique_correlation_id,
         nfs_queue_dir
     ):
         """Test that correlation ID is returned in response."""
@@ -74,7 +74,7 @@ class TestValidateSuccess:
             return_value=nfs_queue_dir / "requests" / "test.json",
         ):
             response = client.post(
-                f"/api/v1/jobs/{job_with_completed_build_image}/stages/validate",
+                f"/api/v1/jobs/{job_with_completed_restart}/stages/validate",
                 headers=headers,
                 json={"scenario_names": ["all"]},
             )
@@ -84,7 +84,7 @@ class TestValidateSuccess:
         assert data["correlation_id"] == unique_correlation_id
 
     def test_default_request_body(
-        self, client, auth_headers, job_with_completed_build_image, nfs_queue_dir
+        self, client, auth_headers, job_with_completed_restart, nfs_queue_dir
     ):
         """Test validate with empty body uses defaults."""
         with patch(
@@ -97,7 +97,7 @@ class TestValidateSuccess:
             return_value=nfs_queue_dir / "requests" / "test.json",
         ):
             response = client.post(
-                f"/api/v1/jobs/{job_with_completed_build_image}/stages/validate",
+                f"/api/v1/jobs/{job_with_completed_restart}/stages/validate",
                 headers=auth_headers,
                 json={},
             )
@@ -105,7 +105,7 @@ class TestValidateSuccess:
         assert response.status_code == 202
 
     def test_queue_submission_has_molecule_command_type(
-        self, client, auth_headers, job_with_completed_build_image, nfs_queue_dir, monkeypatch
+        self, client, auth_headers, job_with_completed_restart, nfs_queue_dir, monkeypatch
     ):
         """AC-3.2: Validate request submitted with command_type='molecule'."""
         mock_submissions = []
@@ -126,7 +126,7 @@ class TestValidateSuccess:
         )
 
         response = client.post(
-            f"/api/v1/jobs/{job_with_completed_build_image}/stages/validate",
+            f"/api/v1/jobs/{job_with_completed_restart}/stages/validate",
             headers=auth_headers,
             json={
                 "scenario_names": ["discovery", "slurm"],
@@ -143,7 +143,7 @@ class TestValidateSuccess:
         assert submitted.scenario_names == ["discovery", "slurm"]
         assert submitted.test_suite == "smoke"
         assert submitted.timeout_minutes == 60
-        assert submitted.job_id == job_with_completed_build_image
+        assert submitted.job_id == job_with_completed_restart
 
 
 class TestValidateValidation:
@@ -190,21 +190,21 @@ class TestValidateAuthentication:
     """Authentication header tests."""
 
     def test_missing_authorization_returns_error(
-        self, client, job_with_completed_build_image
+        self, client, job_with_completed_restart
     ):
         """Test validate without authorization header."""
         headers = {
             "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
         }
         response = client.post(
-            f"/api/v1/jobs/{job_with_completed_build_image}/stages/validate",
+            f"/api/v1/jobs/{job_with_completed_restart}/stages/validate",
             headers=headers,
             json={"scenario_names": ["all"]},
         )
         assert response.status_code in (202, 401, 422)
 
     def test_invalid_authorization_format_returns_error(
-        self, client, job_with_completed_build_image
+        self, client, job_with_completed_restart
     ):
         """Test validate with invalid authorization format."""
         headers = {
@@ -212,14 +212,14 @@ class TestValidateAuthentication:
             "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
         }
         response = client.post(
-            f"/api/v1/jobs/{job_with_completed_build_image}/stages/validate",
+            f"/api/v1/jobs/{job_with_completed_restart}/stages/validate",
             headers=headers,
             json={"scenario_names": ["all"]},
         )
         assert response.status_code in (202, 401)
 
     def test_empty_bearer_token_returns_error(
-        self, client, job_with_completed_build_image
+        self, client, job_with_completed_restart
     ):
         """Test validate with empty bearer token."""
         headers = {
@@ -227,7 +227,7 @@ class TestValidateAuthentication:
             "X-Correlation-Id": "019bf590-1234-7890-abcd-ef1234567890",
         }
         response = client.post(
-            f"/api/v1/jobs/{job_with_completed_build_image}/stages/validate",
+            f"/api/v1/jobs/{job_with_completed_restart}/stages/validate",
             headers=headers,
             json={"scenario_names": ["all"]},
         )
@@ -238,7 +238,7 @@ class TestValidateErrorHandling:
     """Error handling tests."""
 
     def test_queue_unavailable_returns_500(
-        self, client, auth_headers, job_with_completed_build_image, monkeypatch
+        self, client, auth_headers, job_with_completed_restart, monkeypatch
     ):
         """Test validate when queue is unavailable."""
         monkeypatch.setattr(
@@ -248,7 +248,7 @@ class TestValidateErrorHandling:
         )
 
         response = client.post(
-            f"/api/v1/jobs/{job_with_completed_build_image}/stages/validate",
+            f"/api/v1/jobs/{job_with_completed_restart}/stages/validate",
             headers=auth_headers,
             json={"scenario_names": ["all"]},
         )

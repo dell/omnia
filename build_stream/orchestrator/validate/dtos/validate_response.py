@@ -27,7 +27,7 @@ class ValidateResponse:
         status: Acceptance status ('QUEUED').
         submitted_at: Submission timestamp (ISO 8601).
         correlation_id: Correlation identifier.
-        attempt_number: Attempt number for this validate run.
+        attempt: Attempt number for this validate run.
     """
 
     job_id: str
@@ -35,4 +35,4 @@ class ValidateResponse:
     status: str
     submitted_at: str
     correlation_id: str
-    attempt_number: int = 1
+    attempt: int = 1

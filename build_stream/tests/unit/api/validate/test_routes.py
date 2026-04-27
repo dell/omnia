@@ -58,7 +58,7 @@ class MockValidateUseCase:
             status="QUEUED",
             submitted_at="2026-02-17T10:30:00Z",
             correlation_id=str(command.correlation_id),
-            attempt_number=1,
+            attempt=1,
         )
 
 
@@ -101,9 +101,8 @@ class TestCreateValidate:
         assert response.job_id == job_id
         assert response.stage == "validate"
         assert response.status == "QUEUED"
-        assert response.correlation_id == corr_id
-        assert response.attempt_number == 1
-        assert "submitted_at" in response.model_dump()
+        assert response.attempt == 1
+        assert "correlation_id" in response.model_dump()
 
     def test_command_receives_scenario_names(self):
         """AC-3.9: scenario_names propagated from request to command."""

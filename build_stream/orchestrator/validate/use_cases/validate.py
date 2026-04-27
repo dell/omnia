@@ -101,14 +101,14 @@ class ValidateUseCase:
         Flow per spec §7.3:
         1. Load job by ID → 404 if missing
         2. Guard check → restart completed, no active validate stage
-        3. Create job_stages row: stage_name='validate', status='QUEUED', attempt_number incremented
+        3. Create job_stages row: stage_name='validate', status='QUEUED', attempt incremented
         4. Update job status → VALIDATING
-        5. Build NFS queue request JSON with command_type: 'molecule'
+        5. Build NFS queue request JSON with command_type: 'test_automation'
         6. Write to /playbook_queue/requests/validate_{job_id}_{timestamp}.json
         7. Return 202
 
         Args:
-            command: ValidateCommand with job details and molecule config.
+            command: ValidateCommand with job details and test automation config.
 
         Returns:
             ValidateResponse DTO with acceptance details.
@@ -121,15 +121,15 @@ class ValidateUseCase:
         """
         job = self._validate_job(command)
         self._enforce_stage_guard(command)
-        attempt_number = self._get_next_attempt_number(command)
-        stage = self._create_stage(command, attempt_number)
+        attempt = self._get_next_attempt_number(command)
+        stage = self._create_stage(command, attempt)
         self._transition_job_to_validating(command)
 
-        request = self._create_request(command, attempt_number)
+        request = self._create_request(command, attempt)
         self._submit_to_queue(command, request, stage)
         self._emit_stage_started_event(command)
 
-        return self._to_response(command, request, attempt_number)
+        return self._to_response(command, request, attempt)
 
     def _validate_job(self, command: ValidateCommand):
         """Validate job exists and belongs to the requesting client."""
@@ -199,13 +199,13 @@ class ValidateUseCase:
             return existing_stage.attempt + 1
         return 1
 
-    def _create_stage(self, command: ValidateCommand, attempt_number: int) -> Stage:
+    def _create_stage(self, command: ValidateCommand, attempt: int) -> Stage:
         """Create a new job_stages record with status QUEUED."""
         stage = Stage(
             job_id=command.job_id,
             stage_name=StageName(StageType.VALIDATE.value),
             stage_state=StageState.PENDING,
-            attempt=attempt_number,
+            attempt=attempt,
         )
         self._stage_repo.save(stage)
         return stage
@@ -227,14 +227,14 @@ class ValidateUseCase:
     def _create_request(
         self,
         command: ValidateCommand,
-        attempt_number: int,
+        attempt: int,
     ) -> ValidateRequest:
-        """Create ValidateRequest entity with molecule-specific fields per spec §7.4."""
+        """Create ValidateRequest entity with test_automation-specific fields per spec §7.4."""
         now = datetime.now(timezone.utc)
         timestamp_str = now.strftime("%Y%m%d_%H%M%S")
         request_id = f"validate_{command.job_id}_{timestamp_str}"
         artifact_dir = (
-            f"{ARTIFACTS_BASE}/{command.job_id}/validate/attempt_{attempt_number}"
+            f"{ARTIFACTS_BASE}/{command.job_id}/validate/attempt_{attempt}"
         )
 
         return ValidateRequest(
@@ -249,7 +249,7 @@ class ValidateUseCase:
             config_path=CONFIG_PATH,
             correlation_id=str(command.correlation_id),
             submitted_at=now.isoformat().replace("+00:00", "Z"),
-            attempt_number=attempt_number,
+            attempt=attempt,
         )
 
     def _submit_to_queue(
@@ -343,7 +343,7 @@ class ValidateUseCase:
         self,
         command: ValidateCommand,
         request: ValidateRequest,
-        attempt_number: int,
+        attempt: int,
     ) -> ValidateResponse:
         """Map to response DTO."""
         return ValidateResponse(
@@ -352,5 +352,5 @@ class ValidateUseCase:
             status="QUEUED",
             submitted_at=request.submitted_at,
             correlation_id=str(command.correlation_id),
-            attempt_number=attempt_number,
+            attempt=attempt,
         )
