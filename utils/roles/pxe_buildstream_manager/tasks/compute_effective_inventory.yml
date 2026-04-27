@@ -48,15 +48,24 @@
       ansible.builtin.set_fact:
         gitlab_nodes: "{{ (failed_raw.content | b64decode | from_json).failed_nodes | default([]) }}"
 
+    - name: Filter GitLab nodes to only include nodes in current inventory (remove stale nodes)
+      ansible.builtin.set_fact:
+        gitlab_nodes_filtered: "{{ gitlab_nodes | selectattr('bmc_ip', 'in', current_bmc_ips) | list }}"
+
+    - name: Log stale nodes filtered out
+      ansible.builtin.debug:
+        msg: "[BSM] Filtered {{ gitlab_nodes | length - gitlab_nodes_filtered | length }} stale nodes from GitLab JSON (not in current inventory)"
+      when: gitlab_nodes | length > gitlab_nodes_filtered | length
+
     - name: Normalize - Extract nodes with status='failed' (eligible for retry)
       ansible.builtin.set_fact:
-        retry_nodes: "{{ gitlab_nodes | selectattr('status', 'equalto', 'failed') | list }}"
-        retry_ips: "{{ gitlab_nodes | selectattr('status', 'equalto', 'failed') | map(attribute='bmc_ip') | list }}"
+        retry_nodes: "{{ gitlab_nodes_filtered | selectattr('status', 'equalto', 'failed') | list }}"
+        retry_ips: "{{ gitlab_nodes_filtered | selectattr('status', 'equalto', 'failed') | map(attribute='bmc_ip') | list }}"
 
     - name: Normalize - Extract nodes with status='success' (manually booted)
       ansible.builtin.set_fact:
-        manually_booted_nodes: "{{ gitlab_nodes | selectattr('status', 'equalto', 'success') | list }}"
-        manually_booted_ips: "{{ gitlab_nodes | selectattr('status', 'equalto', 'success') | map(attribute='bmc_ip') | list }}"
+        manually_booted_nodes: "{{ gitlab_nodes_filtered | selectattr('status', 'equalto', 'success') | list }}"
+        manually_booted_ips: "{{ gitlab_nodes_filtered | selectattr('status', 'equalto', 'success') | map(attribute='bmc_ip') | list }}"
 
     - name: Log normalization results
       ansible.builtin.debug:
