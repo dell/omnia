@@ -80,9 +80,9 @@
       failure_count: "{{ failed_list | length }}"
       failed_nodes: "{{ failed_list }}"
 
-- name: Copy failed_nodes.json to restart_state directory for next run consumption
+- name: Copy failed_nodes.json to job-specific restart_state directory for next run consumption
   ansible.builtin.copy:
     src: "{{ node_results_dir }}/failed_nodes.json"
-    dest: "{{ restart_state_dir }}/failed_nodes.json"
+    dest: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
     mode: "0644"
     remote_src: true
