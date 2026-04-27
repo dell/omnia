@@ -78,28 +78,6 @@
     gitlab_failed_ips: []
   when: not failed_nodes_stat.stat.exists
 
-- name: Detect manually booted nodes (removed from failed_nodes.json by user)
-  when: restart_state is defined and restart_state.get('booted_nodes') is defined
-  block:
-    - name: Get previously failed nodes from last run
-      ansible.builtin.set_fact:
-        previous_failed_ips: "{{ (restart_state.get('previous_failed_nodes', []) | map(attribute='bmc_ip') | list) if restart_state.get('previous_failed_nodes') else [] }}"
-
-    - name: Compute manually booted nodes (were in previous failed list, but removed by user)
-      ansible.builtin.set_fact:
-        manually_booted_ips: "{{ previous_failed_ips | difference(gitlab_failed_ips) }}"
-      when: previous_failed_ips | length > 0
-
-    - name: Add manually booted nodes to booted list
-      ansible.builtin.set_fact:
-        booted_bmc_ips: "{{ (booted_bmc_ips + manually_booted_ips) | unique }}"
-      when: manually_booted_ips is defined and manually_booted_ips | length > 0
-
-    - name: Report manually booted nodes
-      ansible.builtin.debug:
-        msg: "[BSM] Detected {{ manually_booted_ips | length }} manually booted nodes (removed from failed_nodes.json by user): {{ manually_booted_ips }}"
-      when: manually_booted_ips is defined and manually_booted_ips | length > 0
-
 - name: Compute effective BMC IPs (diff + failed retry - already booted, deduplicated)
   ansible.builtin.set_fact:
     effective_bmc_ips: "{{ ((diff_bmc_ips + gitlab_failed_ips) | unique) | difference(booted_bmc_ips) }}"
