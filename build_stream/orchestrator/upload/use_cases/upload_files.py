@@ -428,8 +428,9 @@ class UploadFilesUseCase:
     def _handle_failed_nodes_update(self, restart_state_path: Path, new_content: bytes):
         """Handle failed_nodes.json update and detect manually booted nodes.
 
-        When user removes nodes from failed_nodes.json in GitLab, it means they
-        manually fixed those nodes. Add them to booted_nodes in restart_state.json.
+        User edits failed_nodes.json in GitLab and changes a node's status
+        from "failed" to "success". Any node with status "success" is treated
+        as manually booted and added to booted_nodes in restart_state.json.
 
         Args:
             restart_state_path: Path to job-specific restart_state directory.
@@ -438,24 +439,19 @@ class UploadFilesUseCase:
         failed_nodes_file = restart_state_path / "failed_nodes.json"
         restart_state_file = restart_state_path / "restart_state.json"
 
-        # Parse new failed nodes from user
-        new_failed_data = json.loads(new_content)
-        new_failed_ips = {node['bmc_ip'] for node in new_failed_data.get('failed_nodes', [])}
+        # Parse uploaded failed_nodes.json
+        uploaded_data = json.loads(new_content)
+        all_nodes = uploaded_data.get('failed_nodes', [])
 
-        # Read previous failed nodes if exists
-        previous_failed_ips = set()
-        if failed_nodes_file.exists():
-            try:
-                old_failed_data = json.loads(failed_nodes_file.read_bytes())
-                previous_failed_ips = {node['bmc_ip'] for node in old_failed_data.get('failed_nodes', [])}
-            except Exception as e:
-                log_secure_info('warning', f"Could not read previous failed_nodes.json: {e}")
+        # Find nodes where user changed status to "success"
+        manually_booted_nodes = [node for node in all_nodes if node.get('status') == 'success']
 
-        # Detect removed nodes (manually booted by user)
-        manually_booted_ips = previous_failed_ips - new_failed_ips
-
-        if manually_booted_ips:
-            log_secure_info('info', f"Detected {len(manually_booted_ips)} manually booted nodes (removed from failed_nodes.json): {manually_booted_ips}")
+        if manually_booted_nodes:
+            log_secure_info(
+                'info',
+                f"Detected {len(manually_booted_nodes)} manually booted nodes "
+                f"(status changed to success): {[n['bmc_ip'] for n in manually_booted_nodes]}"
+            )
 
             # Update restart_state.json to add manually booted nodes
             if restart_state_file.exists():
@@ -464,19 +460,12 @@ class UploadFilesUseCase:
                     booted_nodes = restart_state.get('booted_nodes', [])
                     existing_booted_ips = {node['bmc_ip'] for node in booted_nodes}
 
-                    # Add manually booted nodes to booted_nodes list
-                    for bmc_ip in manually_booted_ips:
+                    for node in manually_booted_nodes:
+                        bmc_ip = node['bmc_ip']
                         if bmc_ip not in existing_booted_ips:
-                            # Find hostname from new_failed_data if available
-                            hostname = ''
-                            for node in new_failed_data.get('failed_nodes', []) + old_failed_data.get('failed_nodes', []):
-                                if node.get('bmc_ip') == bmc_ip:
-                                    hostname = node.get('hostname', '')
-                                    break
-
                             booted_nodes.append({
                                 'bmc_ip': bmc_ip,
-                                'hostname': hostname,
+                                'hostname': node.get('hostname', ''),
                                 'booted_at': datetime.now(timezone.utc).isoformat(),
                                 'manually_booted': True
                             })

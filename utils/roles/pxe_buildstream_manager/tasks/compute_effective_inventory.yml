@@ -69,9 +69,9 @@
       ansible.builtin.slurp:
         src: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
       register: failed_raw
-    - name: Parse failed nodes
+    - name: Parse failed nodes (only nodes still with status 'failed', not user-marked 'success')
       ansible.builtin.set_fact:
-        gitlab_failed_ips: "{{ (failed_raw.content | b64decode | from_json).failed_nodes | map(attribute='bmc_ip') | list }}"
+        gitlab_failed_ips: "{{ (failed_raw.content | b64decode | from_json).failed_nodes | selectattr('status', 'equalto', 'failed') | map(attribute='bmc_ip') | list }}"
 
 - name: Default failed IPs to empty
   ansible.builtin.set_fact:
