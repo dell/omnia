@@ -74,3 +74,11 @@ openchami_images:
 
 # Usage: verify_openchami.yml
 cluster_env_key: "{{ oim_node_name | upper }}_ACCESS_TOKEN"
+
+# Usage: update_ipxe_config.yml
+ipxe_tar_source: "{{ role_path }}/files/ipxe.tar.gz"
+ipxe_tar_dest: /tmp/ipxe.tar.gz
+tftpboot_path: /tftpboot
+coresmd_container_path: /etc/containers/systemd/coresmd.container
+coresmd_service_name: coresmd.service
+ipxe_skip_msg: "iPXE update skipped - /tftpboot already configured in coresmd.container and service is running"

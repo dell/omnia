@@ -1,0 +1,80 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Check if coresmd container file already has /tftpboot volume
+  ansible.builtin.shell:
+    cmd: grep -q '/tftpboot' {{ coresmd_container_path }} 2>/dev/null && echo "true" || echo "false"
+  register: coresmd_tftpboot_check
+  changed_when: false
+  failed_when: false
+
+- name: Check if coresmd service is running
+  ansible.builtin.systemd_service:
+    name: "{{ coresmd_service_name }}"
+  register: coresmd_service_check
+  changed_when: false
+  failed_when: false
+
+- name: Set ipxe_update_required flag
+  ansible.builtin.set_fact:
+    ipxe_update_required: >-
+      {{ not (coresmd_tftpboot_check.stdout | trim == 'true' and
+              coresmd_service_check.status.ActiveState == 'active') }}
+
+- name: Update iPXE binaries and coresmd container
+  when: ipxe_update_required
+  block:
+    - name: Copy ipxe.tar.gz to /tmp on OIM
+      ansible.builtin.copy:
+        src: "{{ ipxe_tar_source }}"
+        dest: "{{ ipxe_tar_dest }}"
+        mode: "{{ file_permissions_644 }}"
+
+    - name: Create /tftpboot directory
+      ansible.builtin.file:
+        path: "{{ tftpboot_path }}"
+        state: directory
+        mode: "{{ dir_permissions_755 }}"
+
+    - name: Unarchive ipxe.tar.gz to /tftpboot
+      ansible.builtin.unarchive:
+        src: "{{ ipxe_tar_dest }}"
+        dest: "{{ tftpboot_path }}"
+        remote_src: true
+
+    - name: Remove ipxe.tar.gz from /tmp
+      ansible.builtin.file:
+        path: "{{ ipxe_tar_dest }}"
+        state: absent
+
+    - name: Deploy coresmd container template
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/coresmd.container.j2"
+        dest: "{{ coresmd_container_path }}"
+        mode: "{{ file_permissions_644 }}"
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Restart coresmd service
+      ansible.builtin.systemd:
+        name: "{{ coresmd_service_name }}"
+        state: restarted
+
+- name: Skip iPXE update (already configured)
+  ansible.builtin.debug:
+    msg: "{{ ipxe_skip_msg }}"
+  when: not ipxe_update_required

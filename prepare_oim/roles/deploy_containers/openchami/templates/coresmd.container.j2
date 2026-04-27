@@ -1,0 +1,30 @@
+[Unit]
+Description=The coresmd container
+Wants=haproxy.service
+After=haproxy.service
+PartOf=openchami.target
+
+[Container]
+ContainerName=coresmd
+
+HostName=coresmd
+Image=ghcr.io/openchami/coredhcp:v0.3.0
+
+#Capabilities
+AddCapability=NET_ADMIN
+AddCapability=NET_RAW
+
+# Volumes
+Volume=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem:/root_ca/root_ca.crt:ro,Z
+Volume=/etc/openchami/configs/coredhcp.yaml:/etc/coredhcp/config.yaml:ro,Z
+Volume=/tftpboot:/tftpboot:ro,Z
+
+# Networks for the Container to use
+Network=host
+
+# Unsupported by generator options
+# Proxy settings
+PodmanArgs=--http-proxy=false
+
+[Service]
+Restart=always

@@ -202,6 +202,17 @@
     - role: deploy_containers/openchami  # noqa:role-name[path]
       tags: openchami
 
+- name: Update iPXE configuration in tftpboot
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tags: openchami
+  tasks:
+    - name: Update iPXE configuration in tftpboot
+      ansible.builtin.include_role:
+        name: deploy_containers/openchami  # noqa:role-name[path]
+        tasks_from: update_ipxe_config.yml
+
 - name: Configure Pulp container
   hosts: localhost
   connection: local
