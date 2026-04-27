@@ -477,7 +477,8 @@ class UploadFilesUseCase:
                             booted_nodes.append({
                                 'bmc_ip': bmc_ip,
                                 'hostname': hostname,
-                                'booted_at': datetime.now(timezone.utc).isoformat()
+                                'booted_at': datetime.now(timezone.utc).isoformat(),
+                                'manually_booted': True
                             })
                             log_secure_info('info', f"Added manually booted node to restart_state.json: {bmc_ip}")
 

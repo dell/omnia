@@ -78,9 +78,9 @@
     gitlab_failed_ips: []
   when: not failed_nodes_stat.stat.exists
 
-- name: Compute effective BMC IPs (diff + failed retry - already booted, deduplicated)
+- name: Compute effective BMC IPs (diff + failed retry - already booted, deduplicated, only nodes in current inventory)
   ansible.builtin.set_fact:
-    effective_bmc_ips: "{{ ((diff_bmc_ips + gitlab_failed_ips) | unique) | difference(booted_bmc_ips) }}"
+    effective_bmc_ips: "{{ ((diff_bmc_ips + gitlab_failed_ips) | unique | intersect(current_bmc_ips)) | difference(booted_bmc_ips) }}"
 
 - name: Report effective inventory
   ansible.builtin.debug:
