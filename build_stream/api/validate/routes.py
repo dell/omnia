@@ -151,13 +151,13 @@ def create_validate(
     except InvalidStateTransitionError as exc:
         log_secure_info(
             "warning",
-            f"Stage already active for job {job_id}",
+            f"Invalid state transition for job {job_id}",
             str(correlation_id.value),
         )
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=_build_error_response(
-                "STAGE_ALREADY_ACTIVE",
+                "INVALID_STATE_TRANSITION",
                 exc.message,
                 correlation_id.value,
             ).model_dump(),
@@ -166,11 +166,11 @@ def create_validate(
     except UpstreamStageNotCompletedError as exc:
         log_secure_info(
             "warning",
-            f"Validate failed: job_id={job_id}, reason=upstream_stage_not_completed",
+            f"Invalid state transition for job {job_id}",
             str(correlation_id.value),
         )
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail=_build_error_response(
                 "UPSTREAM_STAGE_NOT_COMPLETED",
                 exc.message,
@@ -181,11 +181,11 @@ def create_validate(
     except StageGuardViolationError as exc:
         log_secure_info(
             "warning",
-            f"Stage guard violation for job {job_id}",
+            f"Invalid state transition for job {job_id}",
             str(correlation_id.value),
         )
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail=_build_error_response(
                 "STAGE_GUARD_VIOLATION",
                 exc.message,

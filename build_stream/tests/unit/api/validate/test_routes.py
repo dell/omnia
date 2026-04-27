@@ -190,12 +190,12 @@ class TestCreateValidate:
         assert exc_info.value.detail["error"] == "JOB_NOT_FOUND"
 
     def test_stage_already_active_returns_409(self):
-        """AC-3.5: Duplicate call returns 409 STAGE_ALREADY_ACTIVE."""
+        """AC-3.5: Duplicate call returns 409 INVALID_STATE_TRANSITION."""
         use_case = MockValidateUseCase(
             error_to_raise=InvalidStateTransitionError(
                 entity_type="Stage",
-                entity_id="test/validate",
-                from_state="IN_PROGRESS",
+                entity_id="test-id",
+                from_state="QUEUED",
                 to_state="QUEUED",
             )
         )
@@ -211,16 +211,15 @@ class TestCreateValidate:
                 _=None,
             )
         assert exc_info.value.status_code == 409
-        assert exc_info.value.detail["error"] == "STAGE_ALREADY_ACTIVE"
+        assert exc_info.value.detail["error"] == "INVALID_STATE_TRANSITION"
 
-    def test_upstream_stage_not_completed_returns_409(self):
-        """AC-3.6: Job without completed restart returns 409."""
+    def test_upstream_stage_not_completed_returns_412(self):
+        """AC-3.6: Job without completed restart returns 412."""
         use_case = MockValidateUseCase(
             error_to_raise=UpstreamStageNotCompletedError(
-                job_id="test-job-id",
+                job_id=_uuid(),
                 required_stage="restart",
                 actual_state="PENDING",
-                correlation_id="corr-123",
             )
         )
         corr_id = _uuid()
@@ -234,14 +233,15 @@ class TestCreateValidate:
                 correlation_id=CorrelationId(corr_id),
                 _=None,
             )
-        assert exc_info.value.status_code == 409
+        assert exc_info.value.status_code == 412
         assert exc_info.value.detail["error"] == "UPSTREAM_STAGE_NOT_COMPLETED"
 
-    def test_stage_guard_violation_returns_409(self):
-        """StageGuardViolationError should raise 409."""
+    def test_stage_guard_violation_returns_412(self):
+        """StageGuardViolationError should raise 412."""
         use_case = MockValidateUseCase(
             error_to_raise=StageGuardViolationError(
-                "Guard violation", "corr-123"
+                message="Restart stage not completed",
+                correlation_id=_uuid(),
             )
         )
         corr_id = _uuid()
@@ -255,7 +255,7 @@ class TestCreateValidate:
                 correlation_id=CorrelationId(corr_id),
                 _=None,
             )
-        assert exc_info.value.status_code == 409
+        assert exc_info.value.status_code == 412
         assert exc_info.value.detail["error"] == "STAGE_GUARD_VIOLATION"
 
     def test_validation_execution_error_returns_500(self):

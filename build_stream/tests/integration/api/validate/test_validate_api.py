@@ -172,16 +172,16 @@ class TestValidateValidation:
         detail = response.json()["detail"]
         assert detail["error"] == "JOB_NOT_FOUND"
 
-    def test_stage_guard_violation_returns_409(
+    def test_stage_guard_violation_returns_412(
         self, client, auth_headers, created_job
     ):
-        """AC-3.6: Job without completed restart returns 409."""
+        """AC-3.6: Job without completed restart returns 412."""
         response = client.post(
             f"/api/v1/jobs/{created_job}/stages/validate",
             headers=auth_headers,
             json={"scenario_names": ["all"]},
         )
-        assert response.status_code == 409
+        assert response.status_code == 412
         detail = response.json()["detail"]
         assert detail["error"] in ("STAGE_GUARD_VIOLATION", "UPSTREAM_STAGE_NOT_COMPLETED")
 
