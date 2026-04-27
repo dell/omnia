@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Ensure restart_state directory exists
+- name: Ensure job-specific restart_state directory exists
   ansible.builtin.file:
-    path: "{{ restart_state_dir }}"
+    path: "{{ restart_state_dir }}/{{ job_id }}"
     state: directory
     mode: "0755"
 
@@ -28,17 +28,17 @@
     current_inventory: "{{ pxe_csv_data.list }}"
     current_bmc_ips: "{{ pxe_csv_data.list | map(attribute='BMC_IP') | list }}"
 
-- name: Check if restart_state.json exists
+- name: Check if restart_state.json exists for this job_id
   ansible.builtin.stat:
-    path: "{{ restart_state_dir }}/restart_state.json"
+    path: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
   register: state_file_stat
 
 - name: Load restart state
   when: state_file_stat.stat.exists
   block:
-    - name: Read restart state file
+    - name: Read restart state file for this job_id
       ansible.builtin.slurp:
-        src: "{{ restart_state_dir }}/restart_state.json"
+        src: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
       register: state_raw
     - name: Parse restart state
       ansible.builtin.set_fact:
@@ -46,7 +46,7 @@
         previous_bmc_ips: "{{ (state_raw.content | b64decode | from_json).previous_inventory.nodes | map(attribute='bmc_ip') | list }}"
         booted_bmc_ips: "{{ (state_raw.content | b64decode | from_json).booted_nodes | default([]) | map(attribute='bmc_ip') | list }}"
 
-- name: Default previous IPs to empty if first run
+- name: Default previous IPs to empty if first run for this job_id
   ansible.builtin.set_fact:
     previous_bmc_ips: []
     booted_bmc_ips: []
@@ -57,17 +57,17 @@
   ansible.builtin.set_fact:
     diff_bmc_ips: "{{ current_bmc_ips | difference(booted_bmc_ips) }}"
 
-- name: Check if failed_nodes.json was uploaded from GitLab
+- name: Check if failed_nodes.json was uploaded from GitLab for this job_id
   ansible.builtin.stat:
-    path: "{{ restart_state_dir }}/failed_nodes.json"
+    path: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
   register: failed_nodes_stat
 
 - name: Load failed nodes from GitLab
   when: failed_nodes_stat.stat.exists
   block:
-    - name: Read failed nodes file
+    - name: Read failed nodes file for this job_id
       ansible.builtin.slurp:
-        src: "{{ restart_state_dir }}/failed_nodes.json"
+        src: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
       register: failed_raw
     - name: Parse failed nodes
       ansible.builtin.set_fact:
