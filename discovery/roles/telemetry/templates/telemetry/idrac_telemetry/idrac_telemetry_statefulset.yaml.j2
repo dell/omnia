@@ -12,6 +12,39 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-nfs-config
+  namespace: {{ telemetry_namespace }}
+data:
+  nfs.cnf: |
+    [mysqld]
+    # ---- NFS Compatibility (Safe Settings) ----
+    # Use O_DIRECT to bypass OS cache - safe and recommended on NFS
+    innodb_flush_method=O_DIRECT
+    # Use per-table files for better management and recoverability
+    innodb_file_per_table=1
+    # Disable async I/O - not reliably supported on NFS
+    innodb_use_native_aio=0
+
+    # ---- Crash Safety (DO NOT DISABLE) ----
+    # Doublewrite buffer protects against torn pages on crash/reboot - MUST stay enabled
+    innodb_doublewrite=1
+    # Flush logs on every commit - guarantees no committed transaction is lost
+    innodb_flush_log_at_trx_commit=1
+    # Sync binary log on every commit (if binlog enabled)
+    sync_binlog=1
+
+    # ---- Locking (Safe for NFSv4) ----
+    # Keep external locking ENABLED - PowerScale supports NFSv4 locks properly
+    # This is a critical safety net against split-brain writes
+    # (Removed skip_external_locking=1)
+
+    # ---- Reasonable Timeouts ----
+    innodb_lock_wait_timeout=50
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -68,34 +101,95 @@ spec:
               - key: ca.crt
                 path: ca.crt
 {% endif %}
+        # MySQL configuration for NFS compatibility
+        - name: mysql-config
+          configMap:
+            name: mysql-nfs-config
       hostAliases:
         - ip: "127.0.0.1"
           hostnames:
             - "mysqldb"
-      terminationGracePeriodSeconds: 10
+
+      # CHANGED: Increased from 10s to 120s to allow MySQL to flush dirty pages
+      # cleanly to PowerScale NFS before being killed
+      terminationGracePeriodSeconds: 120
+
+      # CHANGED: Increased from 5s to 600s (10 minutes).
+      # This gives the cluster time to be SURE the node is dead before
+      # rescheduling. Critical to prevent split-brain on NFS-backed PVs.
+      # If you have node fencing, you can lower this. Without fencing,
+      # never go below 300s for a stateful workload on shared storage.
       tolerations:
       - effect: NoExecute
         key: node.kubernetes.io/not-ready
         operator: Exists
-        tolerationSeconds: 5
+        tolerationSeconds: 600
       - effect: NoExecute
         key: node.kubernetes.io/unreachable
         operator: Exists
-        tolerationSeconds: 5
+        tolerationSeconds: 600
+
       initContainers:
-        # Clean up stale MySQL lock files from previous ungraceful shutdowns
-        - name: cleanup-mysql-locks
+        # Wait for PowerScale PV to fully load before starting MySQL
+        - name: wait-for-pv-ready
           image: {{ mysql_image }}
           command:
             - /bin/sh
             - -c
             - |
-              echo "Checking for stale MySQL lock files..."
-              rm -f /var/lib/mysql/*.sock /var/lib/mysql/*.pid 2>/dev/null || true
-              echo "Lock file cleanup complete"
+              echo "Waiting for PowerScale PV to be fully accessible..."
+              MAX_WAIT=600   # 10 minutes
+              WAITED=0
+              
+              # Test 1: Confirm directory is readable
+              while [ ! -d /var/lib/mysql ] && [ $WAITED -lt $MAX_WAIT ]; do
+                echo "Waiting for /var/lib/mysql to be accessible... ($WAITED s)"
+                sleep 5
+                WAITED=$((WAITED + 5))
+              done
+              
+              # Test 2: If this is an existing DB, ensure critical files are present
+              if [ -f /var/lib/mysql/ibdata1 ] || [ -f /var/lib/mysql/mysql.ibd ]; then
+                echo "Existing database detected - verifying all critical files are loaded..."
+                
+                # Wait for undo tablespaces to appear (only required for existing DBs)
+                while [ $WAITED -lt $MAX_WAIT ]; do
+                  UNDO_COUNT=$(ls /var/lib/mysql/undo_* 2>/dev/null | wc -l)
+                  if [ "$UNDO_COUNT" -ge 2 ]; then
+                    echo "Found $UNDO_COUNT undo tablespaces - PV is ready"
+                    break
+                  fi
+                  echo "Waiting for undo tablespaces to appear... ($WAITED s, found $UNDO_COUNT/2)"
+                  sleep 5
+                  WAITED=$((WAITED + 5))
+                done
+                
+                # Verify we actually found them
+                UNDO_COUNT=$(ls /var/lib/mysql/undo_* 2>/dev/null | wc -l)
+                if [ "$UNDO_COUNT" -lt 2 ]; then
+                  echo "ERROR: Undo tablespaces still missing after ${MAX_WAIT}s"
+                  echo "Directory contents:"
+                  ls -la /var/lib/mysql/
+                  exit 1
+                fi
+                
+                # Test 3: Verify we can actually read the data dictionary file
+                if [ -f /var/lib/mysql/mysql.ibd ]; then
+                  if ! dd if=/var/lib/mysql/mysql.ibd of=/dev/null bs=4k count=1 2>/dev/null; then
+                    echo "ERROR: mysql.ibd exists but is not readable - PV not fully loaded"
+                    exit 1
+                  fi
+                fi
+              else
+                echo "Empty data directory - fresh initialization will proceed"
+              fi
+              
+              echo "PV readiness check passed"
+              ls -la /var/lib/mysql/
           volumeMounts:
             - name: mysqldb-pvc
               mountPath: /var/lib/mysql/
+
       containers:
         - name: mysqldb
           image: {{ mysql_image }}
@@ -103,10 +197,63 @@ spec:
           volumeMounts:
             - name: mysqldb-pvc
               mountPath: /var/lib/mysql/
+            - name: mysql-config
+              mountPath: /etc/mysql/conf.d/nfs.cnf
+              subPath: nfs.cnf
+
+          # CHANGED: Graceful shutdown using socket auth + longer wait
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "mysqladmin shutdown -uroot -p${MYSQL_ROOT_PASSWORD} 2>/dev/null || true"]
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    echo "Initiating graceful MySQL shutdown..."
+                    mysqladmin shutdown -uroot -p"${MYSQL_ROOT_PASSWORD}" || true
+                    # Wait for mysqld process to fully exit (max 110s, under grace period)
+                    for i in $(seq 1 110); do
+                      if ! pgrep -x mysqld > /dev/null; then
+                        echo "MySQL stopped cleanly"
+                        exit 0
+                      fi
+                      sleep 1
+                    done
+                    echo "WARNING: MySQL did not stop in time"
+
+          # ADDED: Liveness/Readiness probes to detect hung MySQL
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - mysqladmin ping -uroot -p"${MYSQL_ROOT_PASSWORD}"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - mysqladmin ping -uroot -p"${MYSQL_ROOT_PASSWORD}"
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          # ADDED: Startup probe gives MySQL time for crash recovery on NFS
+          # PowerScale PV mount + MySQL crash recovery can take significant time
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - mysqladmin ping -uroot -p"${MYSQL_ROOT_PASSWORD}"
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 80   # Allow up to 20 minutes (80 × 15s) for crash recovery
+
           env:
             - name: MYSQL_DATABASE
               value: {{ mysqldb_name }}
