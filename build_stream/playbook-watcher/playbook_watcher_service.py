@@ -84,6 +84,10 @@ NFS_SHARE_PATH = Path(os.getenv("NFS_SHARE_PATH", ""))
 HOST_LOG_BASE_DIR = NFS_SHARE_PATH / "omnia" / "log" / "build_stream"
 CONTAINER_LOG_BASE_DIR = Path("/opt/omnia/log/build_stream")
 
+# Build Stream artifacts directory (configurable via environment variable)
+BUILD_STREAM_ROOT = Path(os.getenv("BUILD_STREAM_ROOT", "/opt/omnia/build_stream_root"))
+ARTIFACTS_DIR = BUILD_STREAM_ROOT / "artifacts"
+
 POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "2"))
 MAX_CONCURRENT_JOBS = int(os.getenv("MAX_CONCURRENT_JOBS", "1"))
 DEFAULT_TIMEOUT_MINUTES = int(os.getenv("DEFAULT_TIMEOUT_MINUTES", "30"))
@@ -858,9 +862,9 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             result_data["error_summary"] = f"Playbook exited with code {result.returncode}"
 
         # For restart stage, include path to per-node results JSON if it exists
-        # Per spec 12.4: node_results.json is at /opt/omnia/build_stream_root/artifacts/<job_id>/
+        # Per spec 12.4: node_results.json is at BUILD_STREAM_ROOT/artifacts/<job_id>/
         if stage_name == "restart":
-            node_results_path = Path(f"/opt/omnia/build_stream_root/artifacts/{job_id}/node_results.json")
+            node_results_path = ARTIFACTS_DIR / job_id / "node_results.json"
             if node_results_path.exists():
                 result_data["node_results_file_path"] = str(node_results_path)
                 log_secure_info(
