@@ -15,6 +15,7 @@
 """Upload files use case implementation."""
 
 import hashlib
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
@@ -434,9 +435,6 @@ class UploadFilesUseCase:
             restart_state_path: Path to job-specific restart_state directory.
             new_content: New failed_nodes.json content from user.
         """
-        import json
-        from datetime import datetime, timezone
-
         failed_nodes_file = restart_state_path / "failed_nodes.json"
         restart_state_file = restart_state_path / "restart_state.json"
 
