@@ -39,11 +39,9 @@ bsm_job_id_missing_msg: >-
 bsm_empty_inventory_msg: "[BSM] Effective inventory is empty -- no nodes to PXE boot. Skipping."
 
 bsm_inventory_report_msg: >-
-  [BSM] Inventory: {{ current_bmc_ips | length }} total in CSV,
-  {{ previously_booted_ips | length }} previously booted,
-  {{ manually_booted_ips | length }} manually booted (GitLab status=success),
-  {{ retry_ips | length }} retry nodes (GitLab status=failed),
-  {{ total_booted_ips | length }} total booted (excluded),
+  [BSM] Inventory: {{ current_bmc_ips | length }} in CSV,
+  {{ booted_ips | length }} booted (excluded),
+  {{ manually_booted_ips | length }} manually booted (from failed_nodes.json),
   {{ effective_bmc_ips | length }} effective targets
 
 bsm_artifact_paths_msg: >-
