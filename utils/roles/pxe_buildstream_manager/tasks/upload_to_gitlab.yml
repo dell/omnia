@@ -98,61 +98,20 @@
 - name: Set node results directory from job_id
   ansible.builtin.set_fact:
     bsm_job_id: "{{ job_id }}"
-    node_results_dir: "/opt/omnia/build_stream_root/restart_state/{{ job_id }}"
+    restart_state_dir_job_id: "/opt/omnia/build_stream_root/restart_state/{{ job_id }}"
 
-- name: Read failed_nodes.json from restart_state
+- name: Copy failed_nodes.json to gitlab root folder
+  ansible.builtin.copy:
+    src: "{{ restart_state_dir_job_id }}/failed_nodes.json"
+    dest: "/root/{{ gitlab_failed_nodes_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Read failed_nodes.json from gitlab root directory
   ansible.builtin.slurp:
-    src: "{{ node_results_dir }}/failed_nodes.json"
-  register: failed_nodes_raw
-  when: false  # Skip if file doesn't exist
-
-- name: Check if failed_nodes.json exists in restart_state
-  ansible.builtin.stat:
-    path: "{{ node_results_dir }}/failed_nodes.json"
-  register: failed_nodes_stat
-
-- name: Process failed_nodes.json and filter out manually booted nodes
-  when: failed_nodes_stat.stat.exists
-  block:
-    - name: Read failed_nodes.json from restart_state
-      ansible.builtin.slurp:
-        src: "{{ node_results_dir }}/failed_nodes.json"
-      register: failed_nodes_raw
-
-    - name: Parse failed_nodes.json
-      ansible.builtin.set_fact:
-        failed_nodes_data: "{{ failed_nodes_raw.content | b64decode | from_json }}"
-
-    - name: Filter out manually booted nodes (keep only status=failed)
-      ansible.builtin.set_fact:
-        filtered_failed_nodes: "{{ failed_nodes_data.failed_nodes | selectattr('status', 'equalto', 'failed') | list }}"
-
-    - name: Build updated failed_nodes.json (without manually booted nodes)
-      ansible.builtin.set_fact:
-        updated_failed_nodes:
-          job_id: "{{ failed_nodes_data.job_id }}"
-          stage_name: "{{ failed_nodes_data.stage_name }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
-          total_nodes: "{{ filtered_failed_nodes | length }}"
-          failure_count: "{{ filtered_failed_nodes | length }}"
-          failed_nodes: "{{ filtered_failed_nodes }}"
-
-    - name: Write filtered failed_nodes.json back to restart_state (remove manually booted nodes)
-      ansible.builtin.copy:
-        content: "{{ updated_failed_nodes | to_nice_json }}"
-        dest: "{{ node_results_dir }}/failed_nodes.json"
-        mode: '0644'
-
-    - name: Write filtered failed_nodes.json to temp location for GitLab upload
-      ansible.builtin.copy:
-        content: "{{ updated_failed_nodes | to_nice_json }}"
-        dest: "/root/{{ gitlab_failed_nodes_file }}"
-        mode: '0644'
-
-    - name: Read filtered failed_nodes.json for GitLab upload
-      ansible.builtin.slurp:
-        src: "/root/{{ gitlab_failed_nodes_file }}"
-      register: failed_nodes_content
+    src: "/root/{{ gitlab_failed_nodes_file }}"
+  register: failed_nodes_content
 
 - name: Check if failed_nodes.json already exists in GitLab repository
   ansible.builtin.uri:
