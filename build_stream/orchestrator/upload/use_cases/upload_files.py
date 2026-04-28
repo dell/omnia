@@ -15,7 +15,6 @@
 """Upload files use case implementation."""
 
 import hashlib
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
@@ -297,14 +296,14 @@ class UploadFilesUseCase:
             # Store in ArtifactStore only for changed files
             self._store_in_artifact_store(job_id, filename, content)
 
-        # For failed_nodes.json, ONLY write to job-specific restart_state directory
-        # DO NOT write to artifacts directory (that's where playbook writes its output)
-        # DO NOT write to shared input directory (not needed for this file)
+        # Always write to both NFS locations (job-scoped and shared)
+        self._write_to_nfs_job_directory(job_id, filename, content)
+
+        # For failed_nodes.json, only write to restart_state directory
+        # (skip shared input directory to avoid duplication)
         if filename == "failed_nodes.json":
-            self._write_to_restart_state_directory(str(job_id), filename, content)
+            self._write_to_restart_state_directory(filename, content)
         else:
-            # For all other files: write to both NFS locations (job-scoped and shared)
-            self._write_to_nfs_job_directory(job_id, filename, content)
             self._write_to_shared_input_directory(filename, content)
 
         return UploadedFileInfo(
@@ -394,121 +393,25 @@ class UploadFilesUseCase:
 
         log_secure_info('debug', f"Wrote to shared input directory: {target_file}")
 
-    def _write_to_restart_state_directory(self, job_id: str, filename: str, content: bytes):
-        """Write file to job-specific restart_state directory for playbook consumption.
+    def _write_to_restart_state_directory(self, filename: str, content: bytes):
+        """Write file to restart_state directory for playbook consumption.
 
         The set_pxe_boot.yml Play 1.5 reads failed_nodes.json from
-        /opt/omnia/build_stream_root/restart_state/{job_id}/ for the retry logic.
+        /opt/omnia/build_stream_root/restart_state/ for the retry logic.
         When the GitLab pipeline uploads failed_nodes.json via PUT /upload,
-        it must also land in this job-specific directory.
-
-        This ensures:
-        - New job_id = fresh start (no previous state)
-        - Same job_id re-run = uses previous failed_nodes.json for retry
-
-        For failed_nodes.json: Detect nodes removed by user and add them to booted_nodes
-        in restart_state.json (user manually fixed them).
+        it must also land in this directory.
 
         Args:
-            job_id: Job identifier.
             filename: Filename.
             content: File content.
         """
-        restart_state_path = Path(RESTART_STATE_DIR) / job_id
+        restart_state_path = Path(RESTART_STATE_DIR)
         restart_state_path.mkdir(parents=True, exist_ok=True)
 
-        # For failed_nodes.json: detect removed nodes and mark as booted
-        if filename == "failed_nodes.json":
-            self._handle_failed_nodes_update(restart_state_path, content)
-        else:
-            target_file = restart_state_path / filename
-            target_file.write_bytes(content)
-            log_secure_info('debug', f"Wrote {filename} to job-specific restart_state directory: {target_file}")
+        target_file = restart_state_path / filename
+        target_file.write_bytes(content)
 
-    def _handle_failed_nodes_update(self, restart_state_path: Path, new_content: bytes):
-        """Handle failed_nodes.json update and detect manually booted nodes.
-
-        User edits failed_nodes.json in GitLab and changes a node's status
-        from "failed" to "success". Any node with status "success" is treated
-        as manually booted and added to booted_nodes in restart_state.json.
-
-        Args:
-            restart_state_path: Path to job-specific restart_state directory.
-            new_content: New failed_nodes.json content from user.
-        """
-        failed_nodes_file = restart_state_path / "failed_nodes.json"
-        restart_state_file = restart_state_path / "restart_state.json"
-
-        log_secure_info('info', f"[BSM] _handle_failed_nodes_update called. "
-                        f"restart_state_path={restart_state_path}, "
-                        f"failed_nodes_file={failed_nodes_file}, "
-                        f"restart_state_file={restart_state_file}, "
-                        f"failed_nodes_file_exists={failed_nodes_file.exists()}, "
-                        f"restart_state_file_exists={restart_state_file.exists()}, "
-                        f"new_content_length={len(new_content)}")
-
-        # Step 1: Write the uploaded failed_nodes.json FIRST (always)
-        try:
-            failed_nodes_file.write_bytes(new_content)
-            log_secure_info('info', f"[BSM] Successfully wrote failed_nodes.json ({len(new_content)} bytes) to {failed_nodes_file}")
-        except Exception as e:
-            log_secure_info('error', f"[BSM] FAILED to write failed_nodes.json to {failed_nodes_file}: {e}")
-            return
-
-        # Step 2: Parse uploaded content and detect manually booted nodes
-        try:
-            uploaded_data = json.loads(new_content)
-            all_nodes = uploaded_data.get('failed_nodes', [])
-            log_secure_info('info', f"[BSM] Parsed failed_nodes.json: {len(all_nodes)} nodes, "
-                            f"statuses: {[(n.get('bmc_ip'), n.get('status')) for n in all_nodes]}")
-        except Exception as e:
-            log_secure_info('error', f"[BSM] Failed to parse uploaded failed_nodes.json: {e}")
-            return
-
-        # Step 3: Find nodes where user changed status to "success"
-        manually_booted_nodes = [node for node in all_nodes if node.get('status') == 'success']
-
-        if not manually_booted_nodes:
-            log_secure_info('info', "[BSM] No manually booted nodes detected (no nodes with status=success)")
-            return
-
-        log_secure_info(
-            'info',
-            f"[BSM] Detected {len(manually_booted_nodes)} manually booted nodes "
-            f"(status=success): {[n['bmc_ip'] for n in manually_booted_nodes]}"
-        )
-
-        # Step 4: Update restart_state.json to add manually booted nodes
-        if not restart_state_file.exists():
-            log_secure_info('warning', f"[BSM] restart_state.json does not exist at {restart_state_file}, cannot update booted_nodes")
-            return
-
-        try:
-            restart_state = json.loads(restart_state_file.read_bytes())
-            booted_nodes = restart_state.get('booted_nodes', [])
-            existing_booted_ips = {node['bmc_ip'] for node in booted_nodes}
-            log_secure_info('info', f"[BSM] Current booted_nodes in restart_state.json: {existing_booted_ips}")
-
-            for node in manually_booted_nodes:
-                bmc_ip = node['bmc_ip']
-                if bmc_ip not in existing_booted_ips:
-                    booted_nodes.append({
-                        'bmc_ip': bmc_ip,
-                        'hostname': node.get('hostname', ''),
-                        'booted_at': datetime.now(timezone.utc).isoformat(),
-                        'manually_booted': True
-                    })
-                    log_secure_info('info', f"[BSM] Added manually booted node: {bmc_ip}")
-                else:
-                    log_secure_info('info', f"[BSM] Node {bmc_ip} already in booted_nodes, skipping")
-
-            restart_state['booted_nodes'] = booted_nodes
-            restart_state['updated_at'] = datetime.now(timezone.utc).isoformat()
-            restart_state_file.write_text(json.dumps(restart_state, indent=2))
-            log_secure_info('info', f"[BSM] Successfully updated restart_state.json with {len(booted_nodes)} booted_nodes")
-
-        except Exception as e:
-            log_secure_info('error', f"[BSM] Failed to update restart_state.json: {e}")
+        log_secure_info('debug', f"Wrote {filename} to restart_state directory: {target_file}")
 
     def _generate_id(self) -> str:
         """Generate unique identifier for artifact record.
