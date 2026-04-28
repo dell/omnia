@@ -64,25 +64,3 @@
       success_count: "{{ success_list | length }}"
       failure_count: "{{ failed_list | length }}"
       nodes: "{{ pxe_node_results | default([]) }}"
-
-- name: Write failed_nodes.json to artifacts directory
-  ansible.builtin.copy:
-    content: "{{ failed_nodes_report | to_nice_json }}"
-    dest: "{{ node_results_dir }}/failed_nodes.json"
-    mode: "0644"
-  vars:
-    failed_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | list }}"
-    failed_nodes_report:
-      job_id: "{{ bsm_job_id }}"
-      stage_name: "restart"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
-      total_nodes: "{{ pxe_node_results | default([]) | length }}"
-      failure_count: "{{ failed_list | length }}"
-      failed_nodes: "{{ failed_list }}"
-
-- name: Copy failed_nodes.json to restart_state directory for next run consumption
-  ansible.builtin.copy:
-    src: "{{ node_results_dir }}/failed_nodes.json"
-    dest: "{{ restart_state_dir }}/failed_nodes.json"
-    mode: "0644"
-    remote_src: true

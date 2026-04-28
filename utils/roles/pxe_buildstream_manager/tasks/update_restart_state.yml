@@ -12,10 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Load existing booted nodes from restart_state.json
+- name: Load current restart_state.json (may have manually booted nodes from compute_effective_inventory.yml)
+  ansible.builtin.stat:
+    path: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+  register: current_restart_state_stat
+
+- name: Read current restart_state.json if exists
+  when: current_restart_state_stat.stat.exists
+  block:
+    - name: Read restart_state.json
+      ansible.builtin.slurp:
+        src: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
+      register: current_restart_state_raw
+
+    - name: Parse current restart_state.json
+      ansible.builtin.set_fact:
+        current_restart_state: "{{ current_restart_state_raw.content | b64decode | from_json }}"
+
+- name: Load existing booted nodes from current restart_state.json
   ansible.builtin.set_fact:
-    existing_booted_nodes: "{{ (restart_state | default({})).get('booted_nodes', []) }}"
-    existing_booted_ips: "{{ (restart_state | default({})).get('booted_nodes', []) | map(attribute='bmc_ip') | list }}"
+    existing_booted_nodes: "{{ (current_restart_state | default({})).get('booted_nodes', []) }}"
+    existing_booted_ips: "{{ (current_restart_state | default({})).get('booted_nodes', []) | map(attribute='bmc_ip') | list }}"
 
 - name: Compute new booted IPs from this run
   ansible.builtin.set_fact:
@@ -56,6 +73,21 @@
         nodes: "{{ current_inventory | default([]) | json_query('[].{bmc_ip: BMC_IP, hostname: HOSTNAME, service_tag: SERVICE_TAG}') }}"
       booted_nodes: "{{ booted_nodes_list | default([]) }}"
   when: current_inventory is defined
+
+- name: Write current run failed_nodes.json to restart_state
+  ansible.builtin.copy:
+    content: "{{ failed_nodes_report | to_nice_json }}"
+    dest: "{{ restart_state_dir }}/{{ job_id }}/failed_nodes.json"
+    mode: "0644"
+  vars:
+    failed_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | list }}"
+    failed_nodes_report:
+      job_id: "{{ job_id }}"
+      stage_name: "restart"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      total_nodes: "{{ failed_list | length }}"
+      failure_count: "{{ failed_list | length }}"
+      failed_nodes: "{{ failed_list }}"
 
 - name: Update failed_nodes.json to remove manually booted nodes
   block:
