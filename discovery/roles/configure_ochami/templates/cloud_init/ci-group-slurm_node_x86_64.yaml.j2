@@ -167,15 +167,7 @@
             EOF
                 grep -q "bashrc.cuda" /etc/bashrc || echo "source /etc/bashrc.cuda" >> /etc/bashrc
 
-                # Slurm prolog for job environment
-                mkdir -p /etc/slurm/prolog.d
-                cat > /etc/slurm/prolog.d/cuda.sh << 'EOF'
-            #!/bin/bash
-            export PATH=/usr/local/cuda/bin:$PATH
-            export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-            export CUDA_HOME=/usr/local/cuda
-            EOF
-                chmod +x /etc/slurm/prolog.d/cuda.sh
+                
 
                 # Apply immediately for current session
                 export PATH=/usr/local/cuda/bin:$PATH
@@ -262,7 +254,7 @@
             # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
             mkdir -p {{ client_mount_path }}/slurm/ssh
             echo "[INFO] Creating base directories for Pulp cert, Slurm and Munge"
-            mkdir -pv {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} {% for d in slurm_prolog_dirs_all %}{{ d }} {% endfor %}/etc/munge /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
+            mkdir -pv {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
 
             echo "[INFO] Updating /etc/fstab with NFS entries for Pulp cert, Slurm and Munge paths"
             echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -318,17 +310,7 @@
               chmod {{ file_mode_755 }} "{{ epath }}"
             fi
 {% endfor %}
-{% for ppath in slurm_prolog_custom_paths %}
 
-            echo "[INFO] Checking custom prolog script: {{ ppath }}"
-            if [ ! -f "{{ ppath }}" ]; then
-              echo "[INFO] Creating stub prolog script at {{ ppath }}"
-              mkdir -p "$(dirname '{{ ppath }}')"
-              printf '#!/bin/bash\n# Custom prolog script placeholder\n# Add your prolog commands here\n' > "{{ ppath }}"
-              chown {{ slurm_user }}:{{ slurm_user }} "{{ ppath }}"
-              chmod {{ file_mode_755 }} "{{ ppath }}"
-            fi
-{% endfor %}
 
             echo "[INFO] Creating and configuring slurmd spool directory"
             mkdir -p {{ slurm_slurmd_spool_dir_effective }}
