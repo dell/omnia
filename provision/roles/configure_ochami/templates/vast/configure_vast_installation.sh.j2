@@ -21,6 +21,16 @@ exec > >(tee -a "$LOGFILE") 2>&1
 
 echo "[INFO] ===== Starting VAST NFS client installation ====="
 
+echo "[INFO] Checking for Mellanox/InfiniBand hardware..."
+
+if ! lspci | grep -i 'mellanox'; then
+    echo "[INFO] No Mellanox RDMA hardware detected. Skipping VAST installation."
+    echo "[INFO] VAST client requires InfiniBand hardware for optimal performance."
+    exit 0
+fi
+
+echo "[INFO] Mellanox RDMA hardware detected. Proceeding with VAST installation."
+
 echo "[INFO] Disabling GPG check for dnf package installation"
 sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
 if [ $? -eq 0 ]; then

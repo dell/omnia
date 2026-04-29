@@ -29,31 +29,10 @@ IB_IP="${IB_IP_MAP[$ADMIN_NIC_IP]:-}"
 if [ -n "$IB_IP" ]; then
   echo "Using explicit IB IP : $IB_IP/$NETMASK_BITS"
 else
-  IB_NETWORK_SUBNET="{{ hostvars['localhost']['ib_network_subnet'] }}"
-
-  ip_to_int() {
-    local IFS=.
-    read -r a b c d <<< "$1"
-    echo $(( (a << 24) + (b << 16) + (c << 8) + d ))
-  }
-
-  int_to_ip() {
-    local ip=$1
-    echo "$(( (ip >> 24) & 255 )).$(( (ip >> 16) & 255 )).$(( (ip >> 8) & 255 )).$(( ip & 255 ))"
-  }
-
-  ADMIN_IP_INT=$(ip_to_int "$ADMIN_NIC_IP")
-  IB_NET_INT=$(ip_to_int "$IB_NETWORK_SUBNET")
-
-  HOST_BITS=$(( 32 - NETMASK_BITS ))
-  HOST_MASK=$(( (1 << HOST_BITS) - 1 ))
-
-  HOST_OFFSET=$(( ADMIN_IP_INT & HOST_MASK ))
-  IB_IP_INT=$(( IB_NET_INT + HOST_OFFSET ))
-
-  IB_IP=$(int_to_ip "$IB_IP_INT")
-
-  echo "Derived IB IP : $IB_IP/$NETMASK_BITS"
+  echo "INFO: No explicit IB IP found in mapping file for node with ADMIN_IP: $ADMIN_NIC_IP"
+  echo "INFO: Skipping IB IP assignment. If IB networking is required for this node, please add IB_IP to the PXE mapping file."
+  echo "INFO: IB network interface will remain unconfigured."
+  exit 0
 fi
 
 MAX_WAIT=120        # total wait time in seconds (2 minutes)
@@ -95,4 +74,3 @@ else
 fi
 
 echo "SUCCESS: Assigned $IB_IP/$NETMASK_BITS to $IB_NIC"
- 
