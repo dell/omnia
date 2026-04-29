@@ -39,19 +39,17 @@ bsm_job_id_missing_msg: >-
 bsm_empty_inventory_msg: "[BSM] Effective inventory is empty -- no nodes to PXE boot. Skipping."
 
 bsm_inventory_report_msg: >-
-  [BSM] Inventory diff: {{ current_bmc_ips | length }} total in CSV,
-  {{ previous_bmc_ips | length }} in previous run,
-  {{ diff_bmc_ips | length }} newly added,
-  {{ gitlab_failed_ips | length }} from failed retry,
-  {{ booted_bmc_ips | length }} already booted (excluded),
+  [BSM] Inventory: {{ current_bmc_ips | length }} in CSV,
+  {{ booted_ips | length }} booted (excluded),
+  {{ manually_booted_ips | length }} manually booted (from failed_nodes.json),
   {{ effective_bmc_ips | length }} effective targets
 
 bsm_artifact_paths_msg: >-
   [BSM] Artifact paths for job_id={{ bsm_job_id }}:
   node_results.json  = {{ node_results_dir }}/node_results.json |
   failed_nodes.json  = {{ node_results_dir }}/failed_nodes.json |
-  restart_state.json = {{ restart_state_dir }}/restart_state.json |
-  failed_nodes.json (restart_state copy) = {{ restart_state_dir }}/failed_nodes.json
+  restart_state.json = {{ restart_state_dir }}/{{ bsm_job_id }}/restart_state.json |
+  failed_nodes.json (restart_state copy) = {{ restart_state_dir }}/{{ bsm_job_id }}/failed_nodes.json
 
 gitlab_upload_success_msg: "[BSM] Successfully uploaded failed_nodes.json to GitLab repository at {{ gitlab_miscellaneous_dir }}/{{ gitlab_failed_nodes_file }}"
 

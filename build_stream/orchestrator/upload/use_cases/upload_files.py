@@ -299,10 +299,10 @@ class UploadFilesUseCase:
         # Always write to both NFS locations (job-scoped and shared)
         self._write_to_nfs_job_directory(job_id, filename, content)
 
-        # For failed_nodes.json, only write to restart_state directory
-        # (skip shared input directory to avoid duplication)
+        # For failed_nodes.json, ONLY write to job-specific restart_state directory
+        # DO NOT write to shared input directory (not needed for this file)
         if filename == "failed_nodes.json":
-            self._write_to_restart_state_directory(filename, content)
+            self._write_to_restart_state_directory(str(job_id), filename, content)
         else:
             self._write_to_shared_input_directory(filename, content)
 
@@ -393,25 +393,30 @@ class UploadFilesUseCase:
 
         log_secure_info('debug', f"Wrote to shared input directory: {target_file}")
 
-    def _write_to_restart_state_directory(self, filename: str, content: bytes):
-        """Write file to restart_state directory for playbook consumption.
+    def _write_to_restart_state_directory(self, job_id: str, filename: str, content: bytes):
+        """Write file to job-specific restart_state directory for playbook consumption.
 
         The set_pxe_boot.yml Play 1.5 reads failed_nodes.json from
-        /opt/omnia/build_stream_root/restart_state/ for the retry logic.
+        /opt/omnia/build_stream_root/restart_state/{job_id}/ for the retry logic.
         When the GitLab pipeline uploads failed_nodes.json via PUT /upload,
-        it must also land in this directory.
+        it must also land in this job-specific directory.
+
+        This ensures:
+        - New job_id = fresh start (no previous state)
+        - Same job_id re-run = uses previous failed_nodes.json for retry
 
         Args:
+            job_id: Job identifier.
             filename: Filename.
             content: File content.
         """
-        restart_state_path = Path(RESTART_STATE_DIR)
+        restart_state_path = Path(RESTART_STATE_DIR) / job_id
         restart_state_path.mkdir(parents=True, exist_ok=True)
 
         target_file = restart_state_path / filename
         target_file.write_bytes(content)
 
-        log_secure_info('debug', f"Wrote {filename} to restart_state directory: {target_file}")
+        log_secure_info('debug', f"Wrote {filename} to job-specific restart_state directory: {target_file}")
 
     def _generate_id(self) -> str:
         """Generate unique identifier for artifact record.
@@ -543,3 +548,5 @@ class UploadFilesUseCase:
             details=details,
         )
         self._audit_repo.save(event)
+     
+    
