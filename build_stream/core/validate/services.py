@@ -12,20 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Domain services for Validate module."""
+"""Domain services for ValidateImageOnTest module."""
 
 from api.logging_utils import log_secure_info
 
-from core.validate.entities import ValidateRequest
+from core.jobs.value_objects import CorrelationId
+from core.validate.entities import ValidateImageOnTestRequest
 
 
 
 class ValidateQueueService:
-    """Service for validate stage queue operations.
-
-    Submits test_automation-based validate requests to the NFS queue
-    for consumption by the Playbook Watcher.
-    """
+    """Service for validate-image-on-test queue operations."""
 
     def __init__(self, queue_repo) -> None:
         """Initialize service with PlaybookQueueRequestRepository.
@@ -37,33 +34,20 @@ class ValidateQueueService:
 
     def submit_request(
         self,
-        request: ValidateRequest,
-        correlation_id: str,
+        request: ValidateImageOnTestRequest,
+        correlation_id: CorrelationId,
     ) -> None:
-        """Submit validate request to NFS queue.
+        """Submit validate-image-on-test request to queue.
 
         Args:
-            request: ValidateRequest entity to submit.
+            request: ValidateImageOnTestRequest to submit.
             correlation_id: Correlation ID for tracing.
 
         Raises:
             QueueUnavailableError: If queue is not accessible.
         """
-        log_secure_info(
-            "info",
-            f"Submitting validate request to queue: "
-            f"job_id={request.job_id}, "
-            f"command_type={request.command_type}, "
-            f"scenarios={request.scenario_names}, "
-            f"correlation_id={correlation_id}",
-            correlation_id,
-        )
+        log_secure_info('info', f"Submitting validate-image-on-test request to queue: "
+            "job_id={request.job_id}, correlation_id={correlation_id}")
         self._queue_repo.write_request(request)
-        log_secure_info(
-            "info",
-            f"Validate request submitted successfully: "
-            f"job_id={request.job_id}, "
-            f"request_id={request.request_id}, "
-            f"correlation_id={correlation_id}",
-            correlation_id,
-        )
+        log_secure_info('info', f"Validate-image-on-test request submitted successfully: "
+            "job_id={request.job_id}, request_id={request.request_id}, correlation_id={correlation_id}")

@@ -36,7 +36,6 @@
 # ---------------------------------------------------------------------------
 workflow:
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "parent_pipeline"'
     - changes:
         - input/pxe_mapping_file.csv
     - if: '$CI_PIPELINE_SOURCE == "web"'

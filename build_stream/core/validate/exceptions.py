@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Validate stage domain exceptions."""
+"""ValidateImageOnTest domain exceptions."""
 
 
 class ValidateDomainError(Exception):
-    """Base exception for validate stage domain errors."""
+    """Base exception for validate-image-on-test domain errors."""
 
     def __init__(self, message: str, correlation_id: str = ""):
         """Initialize domain error.

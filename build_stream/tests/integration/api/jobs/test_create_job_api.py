@@ -72,7 +72,7 @@ class TestCreateJobSuccess:
             "create-local-repository",
             "build-image-x86_64",
             "build-image-aarch64",
-            "validate",
+            "validate-image-on-test",
         ]
 
         stage_names = sorted([s["stage_name"] for s in stages])

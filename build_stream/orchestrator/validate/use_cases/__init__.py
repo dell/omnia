@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Validate use cases."""
+"""ValidateImageOnTest use cases."""
 
-from orchestrator.validate.use_cases.validate import ValidateUseCase
+from orchestrator.validate.use_cases.validate_image_on_test import ValidateImageOnTestUseCase
 
-__all__ = ["ValidateUseCase"]
+__all__ = ["ValidateImageOnTestUseCase"]

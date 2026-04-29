@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Validate orchestration module."""
+"""ValidateImageOnTest orchestration module."""
 
-from orchestrator.validate.commands import ValidateCommand
-from orchestrator.validate.dtos import ValidateResponse
-from orchestrator.validate.use_cases import ValidateUseCase
+from orchestrator.validate.commands import ValidateImageOnTestCommand
+from orchestrator.validate.dtos import ValidateImageOnTestResponse
+from orchestrator.validate.use_cases import ValidateImageOnTestUseCase
 
 __all__ = [
-    "ValidateCommand",
-    "ValidateResponse",
-    "ValidateUseCase",
+    "ValidateImageOnTestCommand",
+    "ValidateImageOnTestResponse",
+    "ValidateImageOnTestUseCase",
 ]

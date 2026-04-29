@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Integration tests for Validate API."""
+"""Integration tests for ValidateImageOnTest API."""

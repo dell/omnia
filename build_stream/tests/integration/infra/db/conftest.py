@@ -79,7 +79,7 @@ def sample_stage_names() -> list[StageName]:
         StageName("build-image-x86_64"),
         StageName("build-image-aarch64"),
         StageName("validate-image"),
-        StageName("validate"),
+        StageName("validate-image-on-test"),
         StageName("promote"),
     ]
 

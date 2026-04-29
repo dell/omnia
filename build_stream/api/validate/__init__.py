@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Validate API module."""
+"""ValidateImageOnTest API module."""
 
 __all__ = []

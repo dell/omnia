@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Command DTO for the CleanUp Job use case."""
+"""ValidateImageOnTest command DTO."""
 
 from dataclasses import dataclass
 
@@ -20,15 +20,20 @@ from core.jobs.value_objects import ClientId, CorrelationId, JobId
 
 
 @dataclass(frozen=True)
-class CleanupJobCommand:
-    """Command for triggering hard delete (cleanup) of a Job.
+class ValidateImageOnTestCommand:
+    """Command to trigger validate-image-on-test stage.
+
+    Immutable command object representing the intent to execute
+    the validate-image-on-test stage for a given job.
 
     Attributes:
         job_id: Job identifier from URL path.
-        client_id: Authenticated client (from JWT token).
-        correlation_id: Request tracing identifier.
+        client_id: Client who owns this job (from auth).
+        correlation_id: Request correlation identifier for tracing.
+        image_key: Image key for the build to validate.
     """
 
     job_id: JobId
     client_id: ClientId
     correlation_id: CorrelationId
+    image_key: str

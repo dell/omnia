@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for Validate stage domain exceptions."""
+"""Unit tests for ValidateImageOnTest domain exceptions."""
 
 from core.validate.exceptions import (
     StageGuardViolationError,
