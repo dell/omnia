@@ -630,6 +630,36 @@ class SqlImageGroupRepository(ImageGroupRepository):
         result = self.session.execute(stmt).first()
         return result is not None
 
+    def count_non_cleaned(self) -> int:
+        """Count ImageGroups whose status is not CLEANED.
+
+        Used by the build-image stage guard to enforce the retention
+        limit.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(ImageGroupModel)
+            .where(
+                ImageGroupModel.status
+                != ImageGroupStatus.CLEANED.value
+            )
+        )
+        return self.session.execute(stmt).scalar() or 0
+
+    def list_by_status_all(
+        self, status: ImageGroupStatus
+    ) -> List[ImageGroup]:
+        """List all ImageGroups with the given status (no pagination)."""
+        stmt = (
+            select(ImageGroupModel)
+            .where(ImageGroupModel.status == status.value)
+            .options(selectinload(ImageGroupModel.images))
+            .order_by(ImageGroupModel.created_at.asc())
+        )
+        result = self.session.execute(stmt)
+        models = result.scalars().unique().all()
+        return [ImageGroupMapper.to_domain(m) for m in models]
+
 
 class SqlImageRepository(ImageRepository):
     """SQL implementation of ImageRepository."""

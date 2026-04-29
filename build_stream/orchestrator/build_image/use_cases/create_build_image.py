@@ -14,6 +14,8 @@
 
 """CreateBuildImage use case implementation."""
 
+import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -27,6 +29,8 @@ from core.build_image.exceptions import (
     InvalidFunctionalGroupsError,
     InventoryHostMissingError,
 )
+from core.cleanup.exceptions import RetentionLimitExceededError
+from core.image_group.repositories import ImageGroupRepository
 from core.build_image.repositories import (
     BuildStreamConfigRepository,
     BuildImageInventoryRepository,
@@ -111,6 +115,8 @@ class CreateBuildImageUseCase:
         queue_service: BuildImageQueueService,
         inventory_repo: NfsInputRepository,
         uuid_generator: UUIDGenerator,
+        image_group_repo: Optional[ImageGroupRepository] = None,
+        retention_limit: Optional[int] = None,
     ) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments
         """Initialize use case with repository and service dependencies.
 
@@ -122,6 +128,12 @@ class CreateBuildImageUseCase:
             queue_service: Build image queue service.
             inventory_repo: Build image inventory repository.
             uuid_generator: UUID generator for identifiers.
+            image_group_repo: Optional ImageGroup repository (used for
+                the image-retention-limit guard). When omitted the
+                guard is silently skipped (e.g. dev/test profiles).
+            retention_limit: Maximum allowed number of non-CLEANED
+                ImageGroups (default: read from
+                ``IMAGE_RETENTION_LIMIT`` env var or 50).
         """
         self._job_repo = job_repo
         self._stage_repo = stage_repo
@@ -130,6 +142,16 @@ class CreateBuildImageUseCase:
         self._queue_service = queue_service
         self._inventory_repo = inventory_repo
         self._uuid_generator = uuid_generator
+        self._image_group_repo = image_group_repo
+        if retention_limit is not None:
+            self._retention_limit = retention_limit
+        else:
+            try:
+                self._retention_limit = int(
+                    os.environ.get("IMAGE_RETENTION_LIMIT", "50")
+                )
+            except (TypeError, ValueError):
+                self._retention_limit = 50
 
     def execute(self, command: CreateBuildImageCommand) -> BuildImageResponse:
         """Execute the build-image stage.
@@ -155,6 +177,18 @@ class CreateBuildImageUseCase:
         image_key = self._validate_image_key(command)
         functional_groups = self._validate_functional_groups(command)
 
+        # Enforce image retention limit before kicking off a new build.
+        self._enforce_retention_limit(command)
+
+        # Persist build-image metadata so the result poller can construct
+        # complete S3 image paths once the build completes.
+        self._persist_build_image_metadata(
+            job_id=str(command.job_id),
+            image_key=str(image_key),
+            architecture=str(architecture),
+            functional_groups=functional_groups.to_list(),
+        )
+
         inventory_host = self._get_inventory_host(command, architecture, stage)
         
         # Create inventory file for aarch64 builds
@@ -176,6 +210,78 @@ class CreateBuildImageUseCase:
         self._emit_stage_started_event(command, architecture, image_key)
 
         return self._to_response(command, request, architecture, image_key)
+
+    def _enforce_retention_limit(
+        self, command: CreateBuildImageCommand
+    ) -> None:
+        """Block new builds when the image retention limit is reached."""
+        if self._image_group_repo is None:
+            return
+        try:
+            current_count = self._image_group_repo.count_non_cleaned()
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "warning",
+                f"Retention limit check skipped due to error: {exc}",
+                job_id=str(command.job_id),
+            )
+            return
+
+        if current_count >= self._retention_limit:
+            log_secure_info(
+                "warning",
+                f"Build aborted: retention limit reached "
+                f"({current_count}/{self._retention_limit}) for "
+                f"job_id={command.job_id}",
+                job_id=str(command.job_id),
+            )
+            raise RetentionLimitExceededError(
+                current_count=current_count,
+                limit=self._retention_limit,
+            )
+
+    def _persist_build_image_metadata(
+        self,
+        job_id: str,
+        image_key: str,
+        architecture: str,
+        functional_groups: list,
+    ) -> None:
+        """Persist build-image metadata to NFS for the result poller.
+
+        The metadata is written to ``<artifact_base>/artifacts/<job_id>/build_image_meta.json``
+        so the result poller can reconstruct complete S3 image paths
+        once the build completes.
+        """
+        try:
+            base = os.environ.get(
+                "NFS_ARTIFACT_BASE", "/opt/omnia/build_stream_root"
+            )
+            job_dir = Path(base) / "artifacts" / job_id
+            job_dir.mkdir(parents=True, exist_ok=True)
+            meta_path = job_dir / "build_image_meta.json"
+            payload = {
+                "image_key": image_key,
+                "architecture": architecture,
+                "functional_groups": functional_groups,
+                "written_at": datetime.now(timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z"),
+            }
+            meta_path.write_text(json.dumps(payload), encoding="utf-8")
+            log_secure_info(
+                "info",
+                f"Persisted build_image_meta to {meta_path}",
+                job_id=job_id,
+            )
+        except OSError as exc:
+            # Non-fatal: result poller will fall back to legacy naming.
+            log_secure_info(
+                "warning",
+                f"Could not persist build_image_meta for job={job_id}: "
+                f"{exc}",
+                job_id=job_id,
+            )
 
     def _validate_job(self, command: CreateBuildImageCommand):
         """Validate job exists and belongs to the requesting client."""

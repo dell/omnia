@@ -12,25 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ValidateImageOnTest response DTO."""
+"""Result DTO for the CleanUp Job use case."""
 
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class ValidateImageOnTestResponse:
-    """Response DTO for validate-image-on-test stage acceptance.
+class CleanupResult:
+    """Outcome of a cleanup operation.
 
     Attributes:
-        job_id: Job identifier.
-        stage_name: Stage identifier.
-        status: Acceptance status.
-        submitted_at: Submission timestamp (ISO 8601).
-        correlation_id: Correlation identifier.
+        job_id: Job identifier (string).
+        image_group_id: Image Group identifier (string).
+        status: Final status (always ``CLEANED`` on success).
+        cleanup_type: ``manual`` for API-initiated, ``auto`` for cron.
+        s3_objects_deleted: Total S3 objects removed across all images.
+        nfs_files_deleted: Total NFS artifact files removed.
+        cleaned_at: ISO 8601 UTC timestamp.
     """
 
     job_id: str
-    stage_name: str
+    image_group_id: str
     status: str
-    submitted_at: str
-    correlation_id: str
+    cleanup_type: str
+    s3_objects_deleted: int
+    nfs_files_deleted: int
+    cleaned_at: str

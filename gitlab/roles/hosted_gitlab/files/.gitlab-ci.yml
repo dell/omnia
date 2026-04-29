@@ -15,45 +15,108 @@
 # BuildStream CI/CD Pipeline Entry Point
 #
 # This file is the main CI configuration that routes to the appropriate
-# pipeline based on the PIPELINE_TYPE variable or file changes.
+# child pipeline.  Each pipeline is independently invokable.
 #
-# Usage:
-#   - Auto-triggered by file changes (catalog_rhel.json -> build, pxe_mapping_file.csv -> deploy)
-#   - Manual trigger: Set PIPELINE_TYPE variable to "build" or "deploy"
-#   - API trigger: Set PIPELINE_TYPE variable to "build" or "deploy"
+# Trigger behaviour:
+#   Auto-trigger : catalog_rhel.json change   -> build pipeline only
+#                  pxe_mapping_file.csv change -> deploy pipeline only
+#   Web UI       : Three manual play-buttons appear (Build, Deploy, Cleanup).
+#                  Click exactly one to run that pipeline independently.
+#   API trigger  : Set PIPELINE_TYPE to "build", "deploy", or "cleanup".
+#
+# Constraint: no two child pipelines run in the same parent execution.
 # ---------------------------------------------------------------------------
 
 workflow:
   rules:
-    - if: '$PIPELINE_TYPE == "build"'
-    - if: '$PIPELINE_TYPE == "deploy"'
-    - changes:
+    - if: '$PIPELINE_TYPE'                                    # API/trigger with explicit type
+    - changes:                                                # Auto-trigger on file changes
         - catalog_rhel.json
         - input/pxe_mapping_file.csv
+    - if: '$CI_PIPELINE_SOURCE == "web"'                      # Manual button click (no variable)
 
 stages:
   - pipeline_selection
 
-# Build Pipeline Selection
+# ---------------------------------------------------------------------------
+# Build Pipeline
+# ---------------------------------------------------------------------------
 build_pipeline:
   stage: pipeline_selection
   trigger:
     include: .gitlab-ci-build.yml
     strategy: depend
   rules:
+    # Explicit selection via PIPELINE_TYPE
     - if: '$PIPELINE_TYPE == "build"'
+      when: on_success
+    # Block when another type is explicitly requested
+    - if: '$PIPELINE_TYPE'
+      when: never
+    # Auto-trigger on catalog change
     - changes:
         - catalog_rhel.json
-    - when: never
+      when: on_success
+    # Block auto-trigger meant for deploy
+    - changes:
+        - input/pxe_mapping_file.csv
+      when: never
+    # Manual button fallback (web source, no PIPELINE_TYPE)
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+      allow_failure: true
 
-# Deploy Pipeline Selection
+# ---------------------------------------------------------------------------
+# Deploy Pipeline
+# ---------------------------------------------------------------------------
 deploy_pipeline:
   stage: pipeline_selection
   trigger:
     include: .gitlab-ci-deploy.yml
     strategy: depend
   rules:
+    # Explicit selection via PIPELINE_TYPE
     - if: '$PIPELINE_TYPE == "deploy"'
+      when: on_success
+    # Block when another type is explicitly requested
+    - if: '$PIPELINE_TYPE'
+      when: never
+    # Auto-trigger on PXE mapping change
     - changes:
         - input/pxe_mapping_file.csv
-    - when: never
+      when: on_success
+    # Block auto-trigger meant for build
+    - changes:
+        - catalog_rhel.json
+      when: never
+    # Manual button fallback (web source, no PIPELINE_TYPE)
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+      allow_failure: true
+
+# ---------------------------------------------------------------------------
+# Cleanup Pipeline  (manual / API only -- no auto-trigger)
+# ---------------------------------------------------------------------------
+cleanup_pipeline:
+  stage: pipeline_selection
+  trigger:
+    include: .gitlab-ci-cleanup.yml
+    strategy: depend
+  rules:
+    # Explicit selection via PIPELINE_TYPE
+    - if: '$PIPELINE_TYPE == "cleanup"'
+      when: on_success
+    # Block when another type is explicitly requested
+    - if: '$PIPELINE_TYPE'
+      when: never
+    # Block file-change auto-triggers (cleanup is never automatic)
+    - changes:
+        - catalog_rhel.json
+      when: never
+    - changes:
+        - input/pxe_mapping_file.csv
+      when: never
+    # Manual button fallback (web source, no PIPELINE_TYPE)
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+      allow_failure: true

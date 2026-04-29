@@ -15,7 +15,7 @@
 """Backward-compatible alias for the common ResultPoller.
 
 The result poller has been promoted to orchestrator.common.result_poller
-so that all stage APIs (local_repo, build_image, validate_image_on_test)
+so that all stage APIs (local_repo, build_image, validate)
 share a single poller instance. This module re-exports the class under
 its original name for backward compatibility.
 """

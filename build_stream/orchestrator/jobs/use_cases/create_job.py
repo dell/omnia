@@ -220,8 +220,8 @@ class CreateJobUseCase:
         - CREATE_IMAGE_REPOSITORY
         - BUILD_IMAGE
         - VALIDATE_IMAGE
-        - VALIDATE_IMAGE_ON_TEST
-        - PROMOTE
+        - VALIDATE
+        - RESTART
 
         Returns:
             List of Stage entities in PENDING state.

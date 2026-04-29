@@ -105,7 +105,7 @@ class StageType(str, Enum):
     #CREATE_IMAGE_REPOSITORY = "create-image-repository"
     BUILD_IMAGE_X86_64 = "build-image-x86_64"
     BUILD_IMAGE_AARCH64 = "build-image-aarch64"
-    VALIDATE_IMAGE_ON_TEST = "validate-image-on-test"
+    VALIDATE = "validate"
     RESTART = "restart"
     #PROMOTE = "promote"
 
@@ -113,7 +113,6 @@ class StageType(str, Enum):
     UPLOAD = "upload"
     DEPLOY = "deploy"
     PXE_BOOT = "pxe_boot"
-    VALIDATE = "validate"
 
 
 @dataclass(frozen=True)

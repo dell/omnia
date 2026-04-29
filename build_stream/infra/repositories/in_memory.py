@@ -209,6 +209,24 @@ class InMemoryImageGroupRepository(ImageGroupRepository):
         """Check if an ImageGroup exists."""
         return str(image_group_id) in self._store
 
+    def count_non_cleaned(self) -> int:
+        """Count ImageGroups whose status is not CLEANED."""
+        return sum(
+            1
+            for ig in self._store.values()
+            if ig.status != ImageGroupStatus.CLEANED
+        )
+
+    def list_by_status_all(
+        self, status: ImageGroupStatus
+    ) -> List[ImageGroup]:
+        """List all ImageGroups with the given status (no pagination)."""
+        filtered = [
+            ig for ig in self._store.values() if ig.status == status
+        ]
+        filtered.sort(key=lambda x: x.created_at)
+        return filtered
+
 
 class InMemoryImageRepository(ImageRepository):
     """In-memory implementation of ImageRepository for development/testing."""
