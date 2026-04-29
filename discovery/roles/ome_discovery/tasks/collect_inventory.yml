@@ -14,20 +14,11 @@
 ---
 
 - name: Verify OME is reachable
-  block:
-    - name: Wait for OME HTTPS port
-      ansible.builtin.wait_for:
-        host: "{{ ome_ip }}"
-        port: 443
-        timeout: 30
-      register: ome_reachability
-  rescue:
-    - name: Fail with actionable message when OME is unreachable
-      ansible.builtin.fail:
-        msg: >-
-          Unable to reach OME at {{ ome_ip }}:443 within 30 seconds.
-          Please verify that ome_ip in {{ input_project_dir | default('input') }}/discovery_config.yml
-          is correct and that the OME appliance is powered on and network-accessible.
+  ansible.builtin.wait_for:
+    host: "{{ ome_ip }}"
+    port: 443
+    timeout: 30
+  register: ome_reachability
 
 - name: Collect OME server inventory
   ome_server_inventory:

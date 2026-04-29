@@ -174,15 +174,8 @@ class OMEClient:
         all groups whose ParentId matches that container's Id.
         Fallback: skip well-known OME system/container group names and use any group
         that has at least one device.
-
-        Returns (device_group_map, conflicts, debug):
-            device_group_map: dict mapping device_id -> first group_name
-            conflicts: dict mapping device_id -> list of all group_names (only for
-                       devices found in more than one static group)
-            debug: diagnostic info dict
         """
         device_group_map = {}
-        device_all_groups = {}
 
         all_groups_url = f"{self.base_url}/api/GroupService/Groups"
         all_groups = self.get_paginated(all_groups_url)
@@ -228,18 +221,8 @@ class OMEClient:
             group_devices = self.get_paginated(devices_url)
             for gd in group_devices:
                 dev_id = gd.get("Id")
-                if not dev_id:
-                    continue
-                device_all_groups.setdefault(dev_id, []).append(group_name)
-                if dev_id not in device_group_map:
+                if dev_id and dev_id not in device_group_map:
                     device_group_map[dev_id] = group_name
-
-        # Detect devices present in multiple static groups
-        conflicts = {
-            dev_id: groups
-            for dev_id, groups in device_all_groups.items()
-            if len(groups) > 1
-        }
 
         empty_groups = [g.get("Name") for g in target_groups
                          if g.get("Name") not in [device_group_map.get(d) for d in device_group_map]]
@@ -251,9 +234,8 @@ class OMEClient:
             "target_group_names": [g.get("Name") for g in target_groups],
             "device_ids_mapped": list(device_group_map.keys()),
             "empty_groups": empty_groups,
-            "conflicting_device_count": len(conflicts),
         }
-        return device_group_map, conflicts, debug
+        return device_group_map, debug
 
 
 def extract_server_info(client, device, device_group_map=None):
@@ -378,14 +360,10 @@ def main():
 
     try:
         if not client.authenticate():
-            module.fail_json(msg=(
-                f"Failed to authenticate with OME at {ome_ip}. "
-                "Please verify the ome_username and ome_password provided in "
-                "omnia_config_credentials.yml (managed via prepare_oim.yml) and rerun the playbook."
-            ))
+            module.fail_json(msg=f"Failed to authenticate with OME at {ome_ip}")
 
         devices = client.get_all_devices(device_type)
-        device_group_map, conflicts, group_debug = client.build_device_group_map()
+        device_group_map, group_debug = client.build_device_group_map()
 
         if not group_debug["static_container_found"]:
             module.warn("OME: 'Static Groups' container not found under Custom Groups. "
@@ -397,23 +375,6 @@ def main():
             for grp in group_debug["empty_groups"]:
                 module.warn(f"OME: Static group '{grp}' exists but has no devices assigned. "
                             f"Devices in this group will fall back to the default functional group.")
-
-        # Fail if any device belongs to multiple static groups
-        if conflicts:
-            # Build a human-readable summary keyed by service tag
-            svc_tag_map = {d.get("Id"): d.get("Identifier") or d.get("DeviceServiceTag", str(d.get("Id")))
-                           for d in devices}
-            conflict_lines = []
-            for dev_id, groups in conflicts.items():
-                tag = svc_tag_map.get(dev_id, str(dev_id))
-                conflict_lines.append(f"  Device {tag}: member of groups [{', '.join(groups)}]")
-            module.fail_json(msg=(
-                "Conflicting OME static group assignments detected. "
-                "Each server must belong to exactly one static group. "
-                "The following devices are assigned to multiple groups:\n"
-                + "\n".join(conflict_lines)
-                + "\nPlease fix the group assignments in OME and rerun discovery."
-            ))
 
         server_info_list = []
         for device in devices:
