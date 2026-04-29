@@ -9,6 +9,7 @@ DOCA_FIREWALL_PORTS=(
   "18515/udp"
 )
 
+
 echo "Checking for Mellanox / ConnectX / InfiniBand card..."
 
 if ! lspci | grep -i 'mellanox'; then
@@ -72,6 +73,92 @@ modprobe rdma_ucm || true
 modprobe xpmem || true
 modprobe knem || true
 modprobe ib_ipoib || true
+modprobe knem || true
+
+echo "Setting up DKMS for NVIDIA modules..."
+if command -v dkms &>/dev/null; then
+    echo "DKMS is available, setting up NVIDIA modules..."
+    NVIDIA_VERSION=$(modinfo nvidia 2>/dev/null | grep "^version:" | awk '{print $2}')
+    if [ -z "$NVIDIA_VERSION" ]; then
+        echo "NVIDIA driver not detected, skipping DKMS setup."
+    else
+        echo "Detected NVIDIA driver version: $NVIDIA_VERSION"
+        
+        # Check DKMS status
+        echo "Checking DKMS status..."
+        dkms status
+        
+        # Add NVIDIA module to DKMS if source exists
+        if [ -d "/usr/src/nvidia-$NVIDIA_VERSION" ]; then
+            if ! dkms status | grep -q "nvidia.*$NVIDIA_VERSION"; then
+                echo "Adding NVIDIA module to DKMS..."
+                dkms add -m nvidia -v $NVIDIA_VERSION 2>/dev/null || echo "NVIDIA module may already be added to DKMS"
+            fi
+            
+            echo "Building NVIDIA module with DKMS..."
+            dkms build -m nvidia -v $NVIDIA_VERSION -k $(uname -r) --force
+            if [ $? -eq 0 ]; then
+                echo "SUCCESS: DKMS build completed successfully."
+            else
+                echo "WARNING: DKMS build encountered issues."
+            fi
+            
+            echo "Installing NVIDIA module with DKMS..."
+            dkms install -m nvidia -v $NVIDIA_VERSION -k $(uname -r) --force
+            if [ $? -eq 0 ]; then
+                echo "SUCCESS: DKMS install completed successfully."
+            else
+                echo "WARNING: DKMS install encountered issues."
+            fi
+        else
+            echo "NVIDIA DKMS source not found at /usr/src/nvidia-$NVIDIA_VERSION, skipping DKMS setup."
+        fi
+    fi
+else
+    echo "DKMS not available, skipping NVIDIA DKMS setup."
+fi
+
+echo "Setting up nvidia-peermem module for GPUDirect RDMA support..."
+if modinfo nvidia-peermem &>/dev/null; then
+    echo "nvidia-peermem module found, setting up GPUDirect RDMA..."
+    
+    # Ensure base NVIDIA modules are loaded first
+    echo "Loading base NVIDIA modules..."
+    modprobe nvidia 2>/dev/null || echo "nvidia module not available or failed to load"
+    modprobe nvidia-uvm 2>/dev/null || echo "nvidia-uvm module not available or failed to load"
+    modprobe nvidia-modeset 2>/dev/null || echo "nvidia-modeset module not available or failed to load"
+    modprobe nvidia-drm 2>/dev/null || echo "nvidia-drm module not available or failed to load"
+    
+    # Load nvidia-peermem module
+    echo "Loading nvidia-peermem module..."
+    modprobe nvidia-peermem
+    if [ $? -eq 0 ]; then
+        echo "SUCCESS: nvidia-peermem module loaded successfully."
+        lsmod | grep nvidia_peermem
+    else
+        echo "WARNING: Failed to load nvidia-peermem module. GPUDirect RDMA may not be available."
+        echo "INFO: This may indicate NVIDIA driver is not installed or incompatible."
+    fi
+    
+    # Configure nvidia-peermem to load on boot
+    if ! grep -q "nvidia-peermem" /etc/modules-load.d/nvidia.conf 2>/dev/null; then
+        echo "Configuring nvidia-peermem to load on boot..."
+        mkdir -p /etc/modules-load.d
+        echo "nvidia-peermem" >> /etc/modules-load.d/nvidia.conf
+    fi
+    
+    # Verify nvidia-peermem status
+    echo "Verifying nvidia-peermem status..."
+    if lsmod | grep -q nvidia_peermem; then
+        echo "SUCCESS: nvidia-peermem is loaded and active for GPUDirect RDMA."
+    else
+        echo "INFO: nvidia-peermem is not currently loaded."
+    fi
+    dmesg | grep -i peermem | tail -5 || echo "INFO: No peermem messages in dmesg."
+else
+    echo "INFO: nvidia-peermem module not available. NVIDIA driver may not be installed."
+    echo "INFO: GPUDirect RDMA support will not be available."
+fi
 
 if command -v firewall-cmd &>/dev/null; then
     echo "Adding firewall ports..."
