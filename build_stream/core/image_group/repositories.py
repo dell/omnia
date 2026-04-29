@@ -143,6 +143,35 @@ class ImageGroupRepository(ABC):
         """
         ...
 
+    @abstractmethod
+    def count_non_cleaned(self) -> int:
+        """Count Image Groups that are not in CLEANED status.
+
+        Used by the build-image stage guard to enforce the image
+        retention limit.
+
+        Returns:
+            Number of Image Groups whose status is not ``CLEANED``.
+        """
+        ...
+
+    @abstractmethod
+    def list_by_status_all(
+        self, status: ImageGroupStatus
+    ) -> List[ImageGroup]:
+        """List all Image Groups with the given status (no pagination).
+
+        Used by the automated cleanup cron to iterate over every
+        ``FAILED`` Image Group.
+
+        Args:
+            status: Filter by this status.
+
+        Returns:
+            List of ImageGroup entities (with ``images`` eager-loaded).
+        """
+        ...
+
 
 class ImageRepository(ABC):
     """Abstract repository for Image persistence."""

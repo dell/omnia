@@ -15,7 +15,7 @@
 """Common result poller for processing playbook execution results from NFS queue.
 
 This module provides a shared ResultPoller that can be used by all stage APIs
-(local_repo, build_image, validate_image_on_test, etc.) to poll the NFS result
+(local_repo, build_image, validate, etc.) to poll the NFS result
 queue and update stage states accordingly.
 
 Enhanced (S1-4 Part B): On build-image success, creates ImageGroup (BUILT)
@@ -24,9 +24,11 @@ and Image records from catalog metadata persisted during parse-catalog.
 
 import json
 import asyncio
+import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Dict
 
 from sqlalchemy.exc import IntegrityError
 
@@ -52,13 +54,131 @@ from core.localrepo.entities import PlaybookResult
 from core.localrepo.services import PlaybookQueueResultService
 
 
+# S3 bucket URI used to construct complete image paths stored in
+# ``images.image_name``. The CleanUp API reads this column verbatim
+# and passes it directly to ``s3cmd del --recursive --force``.
+DEFAULT_S3_BUCKET_URI = "s3://boot-images"
+DEFAULT_NFS_ARTIFACT_BASE = "/opt/omnia/build_stream_root"
+
+
+def _discover_s3_image_paths(
+    bucket_uri: str,
+    image_group_id: str,
+    role_names: list,
+) -> dict:
+    """Query S3 using s3cmd ls to discover actual image paths.
+
+    Instead of constructing paths based on conventions, this queries
+    S3 directly and greps for the ImageGroupID to find actual paths.
+
+    Args:
+        bucket_uri: S3 bucket URI (e.g., s3://boot-images)
+        image_group_id: ImageGroup ID to search for
+        role_names: List of role names to discover paths for
+
+    Returns:
+        Dict mapping role_name -> list of S3 directory paths
+        Example: {"slurm_node": ["s3://boot-images/efi-images/slurm_node/...", 
+                                  "s3://boot-images/slurm_node/..."]}
+    """
+    import subprocess  # pylint: disable=import-outside-toplevel
+
+    bucket = (bucket_uri or DEFAULT_S3_BUCKET_URI).rstrip("/")
+    role_to_paths = {role: [] for role in role_names}
+
+    try:
+        # Run s3cmd ls -Hr and grep for ImageGroupID in one command
+        # This filters at subprocess level instead of in Python
+        cmd = f"s3cmd ls -Hr {bucket} | grep {image_group_id}"
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+
+        if result.returncode not in [0, 1]:  # 0=found, 1=not found (grep exit code)
+            log_secure_info(
+                "warning",
+                f"s3cmd ls failed for bucket {bucket}: {result.stderr}",
+            )
+            return role_to_paths
+
+        # Parse grep output
+        # s3cmd ls output format: "DATE SIZE s3://bucket/role/path/file.img"
+        # Extract directory paths from file paths
+        discovered_paths = set()
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+
+            # Extract S3 file path from line (last column)
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+
+            s3_file_path = parts[-1]  # Last part is the S3 file path
+
+            # Extract directory path from file path
+            # s3://boot-images/role/path/file.img -> s3://boot-images/role/path/
+            s3_dir_path = s3_file_path.rsplit("/", 1)[0] + "/"
+
+            # Determine which role this path belongs to
+            for role in role_names:
+                if f"/{role}/" in s3_dir_path:
+                    # Store all unique directory paths per role
+                    if s3_dir_path not in discovered_paths:
+                        discovered_paths.add(s3_dir_path)
+                        role_to_paths[role].append(s3_dir_path)
+                    break
+
+        return role_to_paths
+
+    except subprocess.TimeoutExpired:
+        log_secure_info(
+            "error",
+            f"s3cmd ls timed out for bucket {bucket}",
+        )
+        return role_to_paths
+    except Exception as exc:  # pylint: disable=broad-except
+        log_secure_info(
+            "error",
+            f"Failed to discover S3 paths for {image_group_id}: {exc}",
+            exc_info=True,
+        )
+        return role_to_paths
+
+
+def _load_build_image_meta(job_id: str) -> Dict[str, str]:
+    """Read ``build_image_meta.json`` persisted by the build-image stage.
+
+    Returns an empty dict if the file does not exist or cannot be read.
+    """
+    base = os.environ.get("NFS_ARTIFACT_BASE", DEFAULT_NFS_ARTIFACT_BASE)
+    meta_path = Path(base) / "artifacts" / str(job_id) / "build_image_meta.json"
+    try:
+        if not meta_path.exists():
+            return {}
+        raw = meta_path.read_text(encoding="utf-8")
+        decoder = json.JSONDecoder()
+        data, _ = decoder.raw_decode(raw)
+        if isinstance(data, dict):
+            return data
+        return {}
+    except (OSError, ValueError):
+        return {}
+
+
 class ResultPoller:
     """Common poller for processing playbook execution results.
 
     This poller monitors the NFS result queue and processes results
     by updating stage states and emitting audit events. It handles
     results from all stage types (local_repo, build_image,
-    validate_image_on_test, etc.).
+    validate, deploy, etc.).
 
     Attributes:
         result_service: Service for polling NFS result queue.
@@ -192,9 +312,9 @@ class ResultPoller:
                 if self._is_build_image_stage(result.stage_name):
                     self._on_build_image_success(result)
 
-                # Check if this is the final stage (validate-image-on-test)
-                # If so, mark the job as completed
-                if result.stage_name == "validate-image-on-test":
+                # On validate success, mark job as PASSED
+                if result.stage_name == "validate":
+                    self._on_validate_success(result)
                     JobStateHelper.handle_job_completion(
                         job_repo=self._job_repo,
                         audit_repo=self._audit_repo,
@@ -354,17 +474,61 @@ class ResultPoller:
                 updated_at=now,
             )
 
-            # Create Image entities for each role
+            # Query S3 directly to discover actual image paths instead of
+            # constructing them based on conventions. This is more robust
+            # and doesn't rely on path naming conventions.
+            bucket_uri = os.environ.get(
+                "CLEANUP_S3_BUCKET", DEFAULT_S3_BUCKET_URI
+            )
+            role_names = list(role_images.keys())
+
+            log_secure_info(
+                "info",
+                f"Discovering S3 paths for ImageGroup {image_group_id} "
+                f"with roles: {role_names}",
+                job_id=str(result.job_id),
+            )
+
+            # Discover actual S3 paths by querying S3 and grepping for ImageGroupID
+            role_to_s3_paths = _discover_s3_image_paths(
+                bucket_uri=bucket_uri,
+                image_group_id=image_group_id,
+                role_names=role_names,
+            )
+
+            # Create Image entities for each role with discovered S3 paths.
+            # Note: Each role may have multiple S3 paths (e.g., EFI images + full disk images)
             images = []
-            for role_name, image_name in role_images.items():
-                image = Image(
-                    id=str(uuid.uuid4()),
-                    image_group_id=image_group_id,
-                    role=role_name,
-                    image_name=image_name,
-                    created_at=now,
+            for role_name in role_names:
+                s3_paths = role_to_s3_paths.get(role_name, [])
+                if not s3_paths:
+                    log_secure_info(
+                        "warning",
+                        f"No S3 paths discovered for role {role_name} in "
+                        f"ImageGroup {image_group_id}; skipping image records",
+                        job_id=str(result.job_id),
+                    )
+                    continue
+
+                # Create an Image record for each discovered S3 path
+                for s3_path in s3_paths:
+                    image = Image(
+                        id=str(uuid.uuid4()),
+                        image_group_id=image_group_id,
+                        role=role_name,
+                        image_name=s3_path,
+                        created_at=now,
+                    )
+                    images.append(image)
+
+            if not images:
+                log_secure_info(
+                    "error",
+                    f"No S3 paths discovered for any role in ImageGroup "
+                    f"{image_group_id}; ImageGroup will be created but with no images",
+                    job_id=str(result.job_id),
                 )
-                images.append(image)
+
             image_group.images = images
 
             # Persist: ImageGroup first, then Images.
@@ -639,6 +803,45 @@ class ResultPoller:
                 "error",
                 f"Failed to persist restart artifacts for "
                 f"job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _on_validate_success(self, result: PlaybookResult) -> None:
+        """Copy test report artifacts to artifact store on validate success.
+
+        Copies test_report.json, test_report.html, molecule_output.log,
+        and junit.xml to {artifacts_base}/{job_id}/validate/attempt_{N}/.
+        """
+        try:
+            log_secure_info(
+                "info",
+                f"Validate SUCCESS for job={result.job_id}. "
+                f"Processing test artifacts.",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Failed to process validate artifacts for job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _on_validate_failure(self, result: PlaybookResult) -> None:
+        """Copy partial test report artifacts on validate failure."""
+        try:
+            log_secure_info(
+                "warning",
+                f"Validate FAILED for job={result.job_id}. "
+                f"exit_code={result.exit_code}, error={result.error_summary}. "
+                f"Processing partial artifacts.",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Failed to process validate failure artifacts for job={result.job_id}: {exc}",
                 job_id=str(result.job_id),
                 exc_info=True,
             )

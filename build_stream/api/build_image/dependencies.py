@@ -24,6 +24,7 @@ from api.dependencies import (
     _create_sql_job_repo,
     _create_sql_stage_repo,
     _create_sql_audit_repo,
+    _create_sql_image_group_repo,
     _get_container,
     _ENV,
 )
@@ -51,6 +52,7 @@ def get_create_build_image_use_case(
             queue_service=container.playbook_queue_request_service(),
             inventory_repo=container.input_repository(),
             uuid_generator=container.uuid_generator(),
+            image_group_repo=_create_sql_image_group_repo(db_session),
         )
     return _get_container().create_build_image_use_case()
 

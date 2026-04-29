@@ -326,9 +326,8 @@ class ImageModel(Base):
     __table_args__ = (
         Index("idx_images_image_group_id", "image_group_id"),
         Index(
-            "uq_images_image_group_id_role",
+            "idx_images_image_group_id_role",
             "image_group_id",
             "role",
-            unique=True,
         ),
     )
