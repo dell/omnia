@@ -138,7 +138,66 @@
             "description": "File path for the values.yaml file.",
             "type": "string",
             "pattern": "^(|/?([a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+\\.yaml)$"
-
+          },
+          "powerscale_authorization": {
+            "type": "object",
+            "description": "PowerScale CSM Authorization configuration for multi-tenancy.",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "description": "Enable PowerScale CSM Authorization for multi-tenant storage."
+              },
+              "csm_authorization_values_file_path": {
+                "description": "Absolute file path for the CSM Authorization values.yaml file.",
+                "type": "string",
+                "pattern": "^(|/?([a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+\\.yaml)$"
+              },
+              "tenants": {
+                "type": ["array", "null"],
+                "description": "List of tenant configurations.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": ["string", "null"],
+                      "minLength": 1,
+                      "pattern": "^[a-zA-Z0-9_-]+$",
+                      "description": "Tenant name (alphanumeric, hyphens, underscores only)."
+                    },
+                    "roles": {
+                      "type": ["array", "null"],
+                      "default": [],
+                      "description": "List of roles for this tenant.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": ["string", "null"],
+                            "minLength": 1,
+                            "pattern": "^[a-zA-Z0-9_-]+$",
+                            "description": "Role name (alphanumeric, hyphens, underscores only)."
+                          },
+                          "storage_pool": {
+                            "type": ["string", "null"],
+                            "minLength": 1,
+                            "pattern": "^/ifs(/[a-zA-Z0-9._-]+)+$",
+                            "description": "PowerScale storage pool path (must start with /ifs and exist on PowerScale)."
+                          },
+                          "quota_limit": {
+                            "type": ["string", "null"],
+                            "pattern": "^[1-9][0-9]*(Gi|Ti|Mi)$",
+                            "description": "Storage quota limit (e.g., 200Gi, 1Ti, 500Mi)."
+                          }
+                        },
+                        "required": ["name", "storage_pool", "quota_limit"]
+                      }
+                    }
+                  },
+                  "required": ["name"]
+                }
+              }
+            },
+            "required": ["enabled"]
           },
           "k8s_crio_storage_size": {
             "description": "Storage size for CRI-O in Gigabytes only (example: 10G, 15G, 100G)",
@@ -165,6 +224,33 @@
           },
           "then": {
             "required": ["csi_powerscale_driver_values_file_path"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "powerscale_authorization": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": ["enabled"]
+              }
+            },
+            "required": ["powerscale_authorization"]
+          },
+          "then": {
+            "required": [
+              "csi_powerscale_driver_secret_file_path",
+              "csi_powerscale_driver_values_file_path"
+            ],
+            "properties": {
+              "powerscale_authorization": {
+                "required": ["csm_authorization_values_file_path", "tenants"]
+              }
+            }
           }
         }
       ]

@@ -21,6 +21,7 @@ sys.path.append("module_utils/validation_flows")
 
 from ansible.module_utils.input_validation.validation_flows import provision_validation
 from ansible.module_utils.input_validation.validation_flows import common_validation
+from ansible.module_utils.input_validation.validation_flows import telemetry_validation
 from ansible.module_utils.input_validation.validation_flows import high_availability_validation
 from ansible.module_utils.input_validation.validation_flows import local_repo_validation
 from ansible.module_utils.input_validation.validation_flows import build_stream_validation
@@ -61,7 +62,7 @@ def validate_input_logic(
         "network_spec.yml": provision_validation.validate_network_spec,
         "omnia_config.yml": common_validation.validate_omnia_config,
         "local_repo_config.yml": local_repo_validation.validate_local_repo_config,
-        "telemetry_config.yml": common_validation.validate_telemetry_config,
+        "telemetry_config.yml": telemetry_validation.validate_telemetry_config,
         "security_config.yml": common_validation.validate_security_config,
         "storage_config.yml": common_validation.validate_storage_config,
         "high_availability_config.yml":

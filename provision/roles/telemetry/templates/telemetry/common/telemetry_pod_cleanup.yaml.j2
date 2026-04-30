@@ -33,14 +33,20 @@ spec:
               apk add --no-cache coreutils
               set -e
 
+              echo "=== Checking for stuck pods ==="
+
               # Get all terminating pods
               terminating=$(kubectl get pods -n telemetry -o jsonpath='{range .items[?(@.metadata.deletionTimestamp)]}{.metadata.name}{"\n"}{end}')
 
-              if [ -z "$terminating" ]; then
-                echo "No terminating pods found"
-              else
-              now=$(date +%s)
+              # Get all CrashLoopBackOff pods
+              crashloop=$(kubectl get pods -n telemetry -o jsonpath='{range .items[?(@.status.containerStatuses[*].state.waiting.reason=="CrashLoopBackOff")]}{.metadata.name}{"\n"}{end}')
 
+              now=$(date +%s)
+              processed=0
+
+              # Process terminating pods
+              if [ -n "$terminating" ]; then
+                echo "→ Found terminating pods: $terminating"
                 for pod in $terminating; do
                   deletion_ts=$(kubectl get pod "$pod" -n telemetry -o jsonpath='{.metadata.deletionTimestamp}' 2>/dev/null)
                   if [ -z "$deletion_ts" ]; then
@@ -89,13 +95,72 @@ spec:
                       done
                       echo "  Cleaned PVCs for $pod"
                     fi
-              else
+                    processed=$((processed + 1))
+                  else
                     echo "Pod $pod terminating for $age seconds (threshold: ${threshold}s). Skipping."
                   fi
                 done
+              else
+                echo "No terminating pods found"
               fi
 
-              echo "Cleanup complete"
+              # Process CrashLoopBackOff pods
+              if [ -n "$crashloop" ]; then
+                echo "→ Found CrashLoopBackOff pods: $crashloop"
+                for pod in $crashloop; do
+                  restart_count=$(kubectl get pod "$pod" -n telemetry -o jsonpath='{.status.containerStatuses[0].restartCount}' 2>/dev/null || echo 0)
+                  
+                  # Only process if restart count >= 5 (persistent crash loop)
+                  if [ $restart_count -ge 5 ]; then
+                    echo "→ Pod $pod in CrashLoopBackOff ($restart_count restarts). Processing..."
+
+                    # Check for tablespace corruption - skip cleanup if detected
+                    if echo "$pod" | grep -q "idrac-telemetry"; then
+                      pod_logs=$(kubectl logs "$pod" -n telemetry -c mysqldb --tail=50 2>/dev/null || echo "")
+                      if echo "$pod_logs" | grep -q "space=4294967294\|nonexisting or being-dropped tablespace\|no existing undo tablespaces\|Data Dictionary initialization failed"; then
+                        echo "  → Tablespace corruption detected. Skipping cleanup - PVC recreation required."
+                        processed=$((processed + 1))
+                        continue
+                      fi
+                    fi
+
+                    # Get PVCs
+                    pvcs=$(kubectl get pod "$pod" -n telemetry -o jsonpath='{.spec.volumes[*].persistentVolumeClaim.claimName}' 2>/dev/null)
+
+                    # Clean PVCs if any
+                    if [ -n "$pvcs" ]; then
+                      for pvc in $pvcs; do
+                        echo "  → Cleaning $pvc..."
+                        cleanup_pod="pvc-clean-$RANDOM"
+
+                        # Create cleanup pod - remove lock files (including MySQL-specific files)
+                        kubectl run $cleanup_pod --image=busybox:1.36 -n telemetry --restart=Never \
+                          --overrides="{\"spec\":{\"containers\":[{\"name\":\"cleanup\",\"image\":\"busybox:1.36\",\"command\":[\"sh\",\"-c\",\"echo 'Cleaning lock files in /data...'; find /data -type f \\\\( -name '.lock' -o -name '*.lock' -o -name '*.sock' -o -name '*.pid' -o -name 'ib_buffer_pool' -o -name 'ibtmp1' \\\\) -exec rm -fv {} \\\\; 2>/dev/null || true; echo 'Done'\"],\"volumeMounts\":[{\"name\":\"data\",\"mountPath\":\"/data\"}]}],\"volumes\":[{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"$pvc\"}}]}}" \
+                          2>/dev/null || echo " Failed to create $cleanup_pod"
+
+                        # Wait for it to complete (max 20s), then show logs and delete
+                        if kubectl wait --for=condition=Ready pod/$cleanup_pod -n telemetry --timeout=20s 2>/dev/null; then
+                          kubectl logs $cleanup_pod -n telemetry 2>/dev/null | head -20
+                        else
+                          echo "$cleanup_pod timed out (PVC may be in use)"
+                        fi
+                        kubectl delete pod $cleanup_pod -n telemetry 2>/dev/null || true
+                      done
+                      echo "  Cleaned PVCs for $pod"
+                    fi
+
+                    # Delete pod to trigger restart with clean state
+                    kubectl delete pod "$pod" -n telemetry --grace-period=0 --force 2>/dev/null || true
+                    processed=$((processed + 1))
+                  else
+                    echo "Pod $pod in CrashLoopBackOff but only $restart_count restarts (threshold: 5). Skipping."
+                  fi
+                done
+              else
+                echo "No CrashLoopBackOff pods found"
+              fi
+
+              echo "=== Cleanup complete (processed $processed pods) ==="
 
               exit 0
           restartPolicy: Never
