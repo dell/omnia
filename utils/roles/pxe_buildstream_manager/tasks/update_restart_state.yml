@@ -46,7 +46,11 @@
   ansible.builtin.set_fact:
     booted_nodes_list: >-
       {{ existing_booted_nodes | rejectattr('bmc_ip', 'in', failed_ips_this_run) | list
-         + (existing_booted_nodes | selectattr('manually_booted', 'defined') | selectattr('manually_booted', 'equalto', true) | selectattr('bmc_ip', 'in', failed_ips_this_run) | list) }}
+         + (existing_booted_nodes
+            | selectattr('manually_booted', 'defined')
+            | selectattr('manually_booted', 'equalto', true)
+            | selectattr('bmc_ip', 'in', failed_ips_this_run)
+            | list) }}
 
 - name: Add newly booted nodes to list with metadata
   ansible.builtin.set_fact:

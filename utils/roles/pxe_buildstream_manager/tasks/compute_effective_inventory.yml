@@ -116,11 +116,12 @@
             dest: "{{ restart_state_dir }}/{{ job_id }}/restart_state.json"
             mode: "0644"
           vars:
-            existing_booted: "{{ restart_state.booted_nodes | default([]) }}"
+            existing_booted: "{{ restart_state.booted_nodes | default([]) | list }}"
+            new_entries: "{{ new_booted_entries | default([]) | list }}"
             updated_state:
               updated_at: "{{ ansible_date_time.iso8601 }}"
               previous_inventory: "{{ restart_state.previous_inventory | default({'source': 'pxe_mapping_file.csv', 'nodes': []}) }}"
-              booted_nodes: "{{ existing_booted + (new_booted_entries | default([])) }}"
+              booted_nodes: "{{ existing_booted + new_entries }}"
           when: new_booted_entries | default([]) | length > 0
 
         - name: Update booted_ips with manually booted
