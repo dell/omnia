@@ -54,3 +54,9 @@ bsm_artifact_paths_msg: >-
 gitlab_upload_success_msg: "[BSM] Successfully uploaded failed_nodes.json to GitLab repository at {{ gitlab_miscellaneous_dir }}/{{ gitlab_failed_nodes_file }}"
 
 gitlab_upload_fail_msg: "[BSM] Failed to upload failed_nodes.json to GitLab repository. Check GitLab connectivity and credentials."
+
+phone_home_retries: 120
+
+phone_home_delay: 15
+
+phone_home_initial_pause: 5

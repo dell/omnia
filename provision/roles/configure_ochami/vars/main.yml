@@ -33,6 +33,7 @@ openchami_groups_common_template: "{{ role_path }}/templates/nodes/groups_common
 common_cloud_init_groups:
   - ssh
   - chrony
+  - phone_home
 
 # Usage: configure_bss_group.yml, configure_bss_cloud_init.yml
 bss_template: bss/bss.yaml.j2

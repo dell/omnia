@@ -1,0 +1,97 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ─────────────────────────────────────────────────────────────────────────
+# Task: cloudinit_phone_home.yml
+# Purpose: Wait for all PXE-booted nodes to complete cloud-init
+#          and send phone-home callback to cloud-init-server.
+# Called from: set_pxe_boot.yml (Play 7)
+# Condition: Only runs when enable_build_stream is true
+# ─────────────────────────────────────────────────────────────────────────
+
+# Step 1: Assert required facts exist before polling begins
+- name: "[Phone-Home] Assert required facts are available"
+  ansible.builtin.assert:
+    that:
+      - pxe_start_epoch is defined
+      - pxe_start_epoch | string | length > 0
+      - target_node_admin_ips is defined
+      - target_node_admin_ips | length > 0
+    fail_msg: |
+      FATAL: Required facts missing for phone-home verification.
+      pxe_start_epoch = {{ pxe_start_epoch | default('UNDEFINED') }}
+      target_node_admin_ips = {{ target_node_admin_ips | default('UNDEFINED') }}
+      Ensure Play 3 ran with gather_facts: true and set_fact cacheable: true.
+    success_msg: >
+      [Phone-Home] Facts confirmed.
+      epoch={{ pxe_start_epoch }}
+      nodes={{ target_node_admin_ips }}
+
+# Step 2: Pause 5 minutes — nodes need time to boot before we poll
+- name: "[Phone-Home] Wait 5 minutes for nodes to begin cloud-init"
+  ansible.builtin.pause:
+    minutes: 5
+    prompt: >
+      Waiting 5 minutes for nodes to boot and begin
+      cloud-init before starting phone-home polling...
+
+# Step 3: Poll journalctl for phone-home from ALL nodes in single bash loop
+# Single shell command checks every IP per retry — no sequential blocking
+# rc=0 only when ALL nodes have phoned home — triggers retry otherwise
+- name: "[Phone-Home] Wait for cloud-init phone-home from all nodes"
+  ansible.builtin.shell: |
+    set -o pipefail
+    MISSING_NODES=0
+    OUTPUT=""
+
+    # Pull ALL phone-home journal entries ONCE per retry cycle
+    JOURNAL_OUT=$(journalctl -u cloud-init-server \
+      --since "@{{ pxe_start_epoch }}" \
+      --no-pager 2>/dev/null)
+
+    # Check every node IP in the same retry pass
+    for ip in {{ target_node_admin_ips | join(' ') }}; do
+      if echo "$JOURNAL_OUT" | grep -w "Phone home request from $ip" > /dev/null 2>&1; then
+        OUTPUT="${OUTPUT}✅ Phone-home confirmed: $ip\n"
+      else
+        OUTPUT="${OUTPUT}⏳ Still waiting for phone-home: $ip\n"
+        MISSING_NODES=1
+      fi
+    done
+
+    echo -e "$OUTPUT"
+
+    # Exit 1 if any node is missing — triggers Ansible until retry
+    exit $MISSING_NODES
+  args:
+    executable: /bin/bash
+  register: phone_home_poll_result
+  until: phone_home_poll_result.rc == 0
+  retries: "{{ phone_home_retries | default(120) }}"
+  delay: "{{ phone_home_delay | default(15) }}"
+  changed_when: false
+  become: true
+
+# Step 4: Print per-node phone-home status from final successful poll
+- name: "[Phone-Home] Display phone-home status per node"
+  ansible.builtin.debug:
+    msg: "{{ phone_home_poll_result.stdout_lines }}"
+
+# Step 5: Final success message
+- name: "[Phone-Home] All nodes completed cloud-init successfully"
+  ansible.builtin.debug:
+    msg: >
+      [Phone-Home] ✅ All {{ target_node_admin_ips | length }}
+      nodes completed cloud-init and phoned home successfully.
+      Proceeding with BuildStream post-processing.
