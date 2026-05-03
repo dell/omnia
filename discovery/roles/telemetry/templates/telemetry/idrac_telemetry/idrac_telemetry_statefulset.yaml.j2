@@ -118,23 +118,6 @@ spec:
               # MySQL Startup (cleanup handled by CronJob)
               echo "=== MySQL Startup ==="
               
-              # Wait for CSI driver pods to be ready (runs on every startup including after node reboots)
-              echo "Waiting for CSI driver pods to be ready..."
-              timeout=300
-              elapsed=0
-              while [ $elapsed -lt $timeout ]; do
-                if kubectl get pods -n isilon 2>/dev/null | grep -q "isilon-node.*Running"; then
-                  echo "CSI driver pods are ready"
-                  break
-                fi
-                echo "CSI driver pods not yet ready, waiting... ($elapsed/$timeout)"
-                sleep 5
-                elapsed=$((elapsed + 5))
-              done
-              if [ $elapsed -ge $timeout ]; then
-                echo "WARNING: CSI driver pods not ready after $timeout seconds, proceeding anyway"
-              fi
-              
               if [ ! -d /var/lib/mysql ]; then
                 mkdir -p /var/lib/mysql || true
               fi
