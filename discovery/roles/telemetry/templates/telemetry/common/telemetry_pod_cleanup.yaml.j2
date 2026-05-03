@@ -5,13 +5,12 @@ metadata:
   name: pod-cleanup
   namespace: telemetry
 spec:
-  schedule: "*/3 * * * *" # Every 3 minutes
+  schedule: "*/5 * * * *" # Every 5 minutes
   successfulJobsHistoryLimit: 1   # Keep only 1 successful job
   failedJobsHistoryLimit: 1       # Keep only 1 failed job
   jobTemplate:
     spec:
-      ttlSecondsAfterFinished: 60 # Auto-delete job and pod after 60s
-      activeDeadlineSeconds: 180 # Kill job if it runs longer than 3 minutes
+      activeDeadlineSeconds: 360 # Kill job if it runs longer than 6 minutes
       template:
         spec:
           tolerations:
@@ -30,24 +29,36 @@ spec:
             - /bin/sh
             - -c
             - |
-              apk add --no-cache coreutils
-              set -e
+              # Get all terminating pods (skip cleanup pods themselves)
+              terminating=$(kubectl get pods -n telemetry -o jsonpath='{range .items[?(@.metadata.deletionTimestamp)]}{.metadata.name}{"\n"}{end}' | grep -v "lock-cleanup" || true)
 
-              # Get all terminating pods
-              terminating=$(kubectl get pods -n telemetry -o jsonpath='{range .items[?(@.metadata.deletionTimestamp)]}{.metadata.name}{"\n"}{end}')
+              # Get all CrashLoopBackOff pods (check all containers, not just first)
+              crashloop=""
+              echo "Checking pods for CrashLoopBackOff..."
+              for pod in $(kubectl get pods -n telemetry -o jsonpath='{.items[*].metadata.name}'); do
+                # Skip cleanup pods
+                echo "$pod" | grep -q "lock-cleanup" && continue
+                # Check if any container in pod is in CrashLoopBackOff
+                reasons=$(kubectl get pod "$pod" -n telemetry -o jsonpath='{range .status.containerStatuses[*]}{.state.waiting.reason}{"\n"}{end}' 2>/dev/null || echo "")
+                echo "Pod $pod container reasons: $reasons"
+                if echo "$reasons" | grep -q "CrashLoopBackOff"; then
+                  echo "  -> Found CrashLoopBackOff in $pod"
+                  crashloop="$crashloop $pod"
+                fi
+              done
+              echo "CrashLoopBackOff pods detected: $crashloop"
 
-              if [ -z "$terminating" ]; then
-                echo "No terminating pods found"
-              else
-              now=$(date +%s)
-
+              if [ -n "$terminating" ]; then
+                echo "Processing terminating pods..."
+                now=$(date +%s)
                 for pod in $terminating; do
                   deletion_ts=$(kubectl get pod "$pod" -n telemetry -o jsonpath='{.metadata.deletionTimestamp}' 2>/dev/null)
                   if [ -z "$deletion_ts" ]; then
                     continue
                   fi
 
-                  deletion_time=$(date -d "$deletion_ts" +%s || echo 0)
+                  # Convert ISO timestamp to epoch (busybox compatible)
+                  deletion_time=$(echo "$deletion_ts" | sed 's/T/ /' | sed 's/Z//' | awk '{print $1" "$2}' | xargs -I {} date -d "{}" +%s 2>/dev/null || echo 0)
                   age=$((now - deletion_time))
 
                   # Check age threshold (300s for Kafka, 60s for others)
@@ -62,37 +73,129 @@ spec:
                     # Get PVCs BEFORE deleting pod
                     pvcs=$(kubectl get pod "$pod" -n telemetry -o jsonpath='{.spec.volumes[*].persistentVolumeClaim.claimName}' 2>/dev/null)
 
-                    # Delete pod
+                    # Delete pod FIRST to release PVC mount
                     if ! echo "$pod" | grep -q "kafka"; then
                       kubectl patch pod "$pod" -n telemetry -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
                     fi
                     kubectl delete pod "$pod" -n telemetry --grace-period=0 --force 2>/dev/null || true
 
-                    # Clean PVCs if any
+                    # Wait for pod to be fully deleted (max 10s)
+                    for i in $(seq 1 10); do
+                      if ! kubectl get pod "$pod" -n telemetry >/dev/null 2>&1; then
+                        break
+                      fi
+                      sleep 1
+                    done
+
+                    # Additional wait for NFS PVC unmount
+                    sleep 3
+
+                    # Clean PVCs AFTER pod deletion to avoid mount conflicts
                     if [ -n "$pvcs" ]; then
                       for pvc in $pvcs; do
-                        echo "  → Cleaning $pvc..."
-                        cleanup_pod="pvc-clean-$RANDOM"
+                        echo "  → Cleaning lock files from $pvc..."
+                        cleanup_pod="lock-cleanup-$RANDOM"
 
-                        # Create cleanup pod - remove lock files recursively
-                        kubectl run $cleanup_pod --image=busybox:1.36 -n telemetry --restart=Never \
-                          --overrides="{\"spec\":{\"containers\":[{\"name\":\"cleanup\",\"image\":\"busybox:1.36\",\"command\":[\"sh\",\"-c\",\"echo 'Cleaning lock files in /data...'; find /data -type f \\\\( -name '.lock' -o -name '*.lock' -o -name '*.sock' -o -name '*.pid' \\\\) -exec rm -fv {} \\\\; 2>/dev/null || true; echo 'Done'\"],\"volumeMounts\":[{\"name\":\"data\",\"mountPath\":\"/data\"}]}],\"volumes\":[{\"name\":\"data\",\"persistentVolumeClaim\":{\"claimName\":\"$pvc\"}}]}}" \
+                        # Create cleanup pod - remove lock files recursively from /data
+                        kubectl run $cleanup_pod \
+                          --image=busybox:1.36 \
+                          -n telemetry \
+                          --restart=Never \
+                          --labels=app=lock-cleanup \
+                          --overrides='{"spec":{"containers":[{"name":"cleanup","image":"busybox:1.36","command":["sh","-c","find /data -type f \\( -name .lock -o -name *.lock -o -name *.sock -o -name *.pid \\) -print -delete 2>/dev/null; find /data -type f \\( -name __cluster_metadata-0 -o -name .kafka_cleanshutdown \\) -print -delete 2>/dev/null; echo Done"],"volumeMounts":[{"name":"data","mountPath":"/data"}]}],"volumes":[{"name":"data","persistentVolumeClaim":{"claimName":"'"$pvc"'"}}]}}' \
                           2>/dev/null || echo " Failed to create $cleanup_pod"
 
-                        # Wait for it to complete (max 20s), then show logs and delete
-                        if kubectl wait --for=condition=Ready pod/$cleanup_pod -n telemetry --timeout=20s 2>/dev/null; then
-                          kubectl logs $cleanup_pod -n telemetry 2>/dev/null | head -20
-                        else
-                          echo "$cleanup_pod timed out (PVC may be in use)"
-                        fi
+                        # Wait for it to complete (max 30s), then show logs and delete
+                        kubectl wait --for=condition=complete pod/$cleanup_pod -n telemetry --timeout=30s 2>/dev/null || kubectl wait --for=condition=failed pod/$cleanup_pod -n telemetry --timeout=30s 2>/dev/null || echo "$cleanup_pod did not complete within timeout"
+                        kubectl logs $cleanup_pod -n telemetry 2>/dev/null || true
                         kubectl delete pod $cleanup_pod -n telemetry 2>/dev/null || true
                       done
-                      echo "  Cleaned PVCs for $pod"
+                      echo "  Cleaned lock files from PVCs for $pod (new pod will start without locks)"
                     fi
-              else
+                  else
                     echo "Pod $pod terminating for $age seconds (threshold: ${threshold}s). Skipping."
                   fi
                 done
+              elif [ -n "$crashloop" ]; then
+                echo "Processing CrashLoopBackOff pods..."
+                for pod in $crashloop; do
+                  echo "→ Pod $pod in CrashLoopBackOff. Checking restart count..."
+
+                  # Get maximum restart count across all containers
+                  restart_count=$(kubectl get pod "$pod" -n telemetry -o jsonpath='{range .status.containerStatuses[*]}{.restartCount}{"\n"}{end}' 2>/dev/null | sort -rn | head -1 || echo 0)
+
+                  # Set threshold based on pod type
+                  threshold=3
+                  if echo "$pod" | grep -q "kafka"; then
+                    threshold=1  # Clean Kafka immediately on first crash
+                  fi
+                  if [ "$restart_count" -lt $threshold ]; then
+                    echo "→ Pod $pod in CrashLoopBackOff (restartCount: $restart_count). Skipping (threshold: $threshold)."
+                    continue
+                  fi
+
+                  echo "→ Pod $pod in CrashLoopBackOff (restartCount: $restart_count). Deleting pod first to release NFS locks..."
+
+                  # Delete pod FIRST to release NFS locks (NFSv3 locks held by client)
+                  kubectl delete pod "$pod" -n telemetry --force --grace-period=0 2>/dev/null || true
+
+                  # Wait for pod to be fully deleted (max 5s)
+                  for i in $(seq 1 5); do
+                    if ! kubectl get pod "$pod" -n telemetry >/dev/null 2>&1; then
+                      break
+                    fi
+                    sleep 1
+                  done
+
+                  # Additional wait for NFS lock release
+                  echo "  Waiting for NFS locks to release..."
+                  sleep 3
+
+                  # Get PVCs AFTER pod deletion
+                  pvcs=$(kubectl get pod "$pod" -n telemetry -o jsonpath='{.spec.volumes[*].persistentVolumeClaim.claimName}' 2>/dev/null)
+
+                  # Clean PVCs if any, then delete pod to prevent lock recreation
+                  if [ -n "$pvcs" ]; then
+                    for pvc in $pvcs; do
+                      echo "  → Cleaning lock files from $pvc..."
+                      cleanup_pod="lock-cleanup-$RANDOM"
+
+                        # Create cleanup pod - remove lock files (Kafka only)
+                      if echo "$pod" | grep -q "kafka"; then
+                        # Kafka cleanup - also clean __cluster_metadata-0 which may be corrupted
+                        kubectl run $cleanup_pod \
+                          --image=busybox:1.36 \
+                          -n telemetry \
+                          --restart=Never \
+                          --overrides='{"spec":{"containers":[{"name":"cleanup","image":"busybox:1.36","command":["sh","-c","find /var/lib/kafka -type f \\( -name .lock -o -name *.lock -o -name *.sock -o -name *.pid \\) -print -delete 2>/dev/null; find /var/lib/kafka -type f \\( -name __cluster_metadata-0 -o -name .kafka_cleanshutdown \\) -print -delete 2>/dev/null; echo Done"],"volumeMounts":[{"name":"data","mountPath":"/var/lib/kafka"}]}],"volumes":[{"name":"data","persistentVolumeClaim":{"claimName":"'"$pvc"'"}}]}}' \
+                          2>/dev/null || echo " Failed to create $cleanup_pod"
+                      elif echo "$pod" | grep -q "idrac-telemetry"; then
+                        # iDRAC telemetry MySQL - clean ONLY lock files, NOT data files
+                        echo "  → Cleaning MySQL lock files..."
+                        kubectl run $cleanup_pod \
+                          --image=busybox:1.36 \
+                          -n telemetry \
+                          --restart=Never \
+                          --overrides='{"spec":{"containers":[{"name":"cleanup","image":"busybox:1.36","command":["sh","-c","echo \"Cleaning MySQL lock files...\"; rm -f /var/lib/mysql/*.sock /var/lib/mysql/*.pid 2>/dev/null || true; rm -f /var/lib/mysql/*.lock 2>/dev/null || true; rm -f /var/lib/mysql/ibdata1.lock 2>/dev/null || true; rm -f /var/lib/mysql/ib_logfile*.lock 2>/dev/null || true; echo \"Lock cleanup complete\""],"volumeMounts":[{"name":"data","mountPath":"/var/lib/mysql"}]}],"volumes":[{"name":"data","persistentVolumeClaim":{"claimName":"'"$pvc"'"}}]}}' \
+                          2>/dev/null || echo " Failed to create $cleanup_pod"
+                      else
+                        echo "  Skipping non-Kafka/non-iDRAC pod"
+                        continue
+                      fi
+
+                      # Wait for it to complete (max 30s), then show logs and delete
+                      kubectl wait --for=condition=complete pod/$cleanup_pod -n telemetry --timeout=30s 2>/dev/null || kubectl wait --for=condition=failed pod/$cleanup_pod -n telemetry --timeout=30s 2>/dev/null || echo "$cleanup_pod did not complete within timeout"
+                      kubectl logs $cleanup_pod -n telemetry 2>/dev/null || true
+                      kubectl delete pod $cleanup_pod -n telemetry 2>/dev/null || true
+                    done
+                    echo "  Cleaned lock files from PVCs for $pod"
+                    
+                    # Pod already deleted above - will restart automatically with clean data
+                    echo "  Pod $pod will restart automatically with clean storage"
+                  fi
+                done
+              else
+                echo "No terminating or CrashLoopBackOff pods found"
               fi
 
               echo "Cleanup complete"

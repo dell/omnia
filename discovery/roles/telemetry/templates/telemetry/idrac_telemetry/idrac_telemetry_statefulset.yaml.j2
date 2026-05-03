@@ -72,7 +72,7 @@ spec:
         - ip: "127.0.0.1"
           hostnames:
             - "mysqldb"
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 30
       tolerations:
       - effect: NoExecute
         key: node.kubernetes.io/not-ready
@@ -82,27 +82,13 @@ spec:
         key: node.kubernetes.io/unreachable
         operator: Exists
         tolerationSeconds: 5
-      initContainers:
-        # Clean up stale MySQL lock files from previous ungraceful shutdowns
-        - name: cleanup-mysql-locks
-          image: {{ mysql_image }}
-          command:
-            - /bin/sh
-            - -c
-            - |
-              echo "Checking for stale MySQL lock files..."
-              rm -f /var/lib/mysql/*.sock /var/lib/mysql/*.pid 2>/dev/null || true
-              echo "Lock file cleanup complete"
-          volumeMounts:
-            - name: mysqldb-pvc
-              mountPath: /var/lib/mysql/
       containers:
         - name: mysqldb
           image: {{ mysql_image }}
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: mysqldb-pvc
-              mountPath: /var/lib/mysql/
+              mountPath: /var/lib/mysql
           lifecycle:
             preStop:
               exec:
@@ -125,6 +111,61 @@ spec:
                 secretKeyRef:
                   name: {{ mysqldb_secrets_name }}
                   key: mysqldb_root_password
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # MySQL Startup (cleanup handled by CronJob)
+              echo "=== MySQL Startup ==="
+              
+              # Wait for CSI driver pods to be ready (runs on every startup including after node reboots)
+              echo "Waiting for CSI driver pods to be ready..."
+              timeout=300
+              elapsed=0
+              while [ $elapsed -lt $timeout ]; do
+                if kubectl get pods -n isilon 2>/dev/null | grep -q "isilon-node.*Running"; then
+                  echo "CSI driver pods are ready"
+                  break
+                fi
+                echo "CSI driver pods not yet ready, waiting... ($elapsed/$timeout)"
+                sleep 5
+                elapsed=$((elapsed + 5))
+              done
+              if [ $elapsed -ge $timeout ]; then
+                echo "WARNING: CSI driver pods not ready after $timeout seconds, proceeding anyway"
+              fi
+              
+              if [ ! -d /var/lib/mysql ]; then
+                mkdir -p /var/lib/mysql || true
+              fi
+              
+              # Ensure proper ownership
+              chown -R 999:999 /var/lib/mysql 2>/dev/null || echo "Note: chown failed (expected on NFS)"
+              chmod 750 /var/lib/mysql 2>/dev/null || true
+              
+              # Wait for PV to be accessible (handles CSI driver delays)
+              echo "Waiting for PV to be accessible..."
+              timeout=60
+              elapsed=0
+              while [ $elapsed -lt $timeout ]; do
+                if touch /var/lib/mysql/.test 2>/dev/null && rm -f /var/lib/mysql/.test 2>/dev/null; then
+                  echo "PV is accessible"
+                  break
+                fi
+                echo "PV not yet accessible, waiting... ($elapsed/$timeout)"
+                sleep 2
+                elapsed=$((elapsed + 2))
+              done
+              if [ $elapsed -ge $timeout ]; then
+                echo "WARNING: PV not accessible after $timeout seconds, proceeding anyway"
+              fi
+              
+              # Start MySQL with proper locking (sync writes via mount options)
+              exec docker-entrypoint.sh mysqld \
+                --innodb-flush-method=fsync \
+                --innodb-use-fdatasync=0 \
+                --innodb-doublewrite=0 \
+                --innodb-file-per-table=1
           ports:
             - containerPort: {{ mysqldb_container_port1 }}
             - containerPort: {{ mysqldb_container_port2 }}
