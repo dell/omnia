@@ -35,6 +35,12 @@ network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml
 provision_config: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
 provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
 
+# vars passed to openchami installation
+openchami_work_dir: "{{ oim_shared_path }}/omnia/openchami/workdir"
+data_oci_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/oci"
+data_s3_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/s3"
+s3_work_dir: "{{ oim_shared_path }}/omnia/openchami/s3"
+
 # Usage: deploy_openchami.yml - pull openchami images
 pull_image_retries: 5
 pull_image_delay: 10
