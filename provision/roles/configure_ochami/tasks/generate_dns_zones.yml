@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Load dns_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/dns_config.yml"
+  delegate_to: localhost
+  run_once: true
+  register: dns_config_load
+  failed_when: false
+
+- name: Set dns_enabled fact
+  ansible.builtin.set_fact:
+    dns_enabled: "{{ dns_config.dns_enabled | default(false) | bool }}"
+  when: dns_config_load is not failed and dns_config is defined
+
+- name: Set dns_enabled to false when config unavailable
+  ansible.builtin.set_fact:
+    dns_enabled: false
+  when: dns_config_load is failed or dns_config is not defined
+
+- name: Generate CoreDNS zone files
+  when: dns_enabled | bool
+  delegate_to: oim
+  block:
+    - name: Set DNS rendering facts
+      ansible.builtin.set_fact:
+        dns_domain: "{{ dns_config.dns_domain | default('hpc.cluster') }}"
+        dns_ttl: "{{ dns_config.dns_ttl | default(300) }}"
+        dns_reverse_enabled: "{{ dns_config.dns_reverse_enabled | default(true) }}"
+        dns_cache_ttl: "{{ dns_config.dns_cache_ttl | default(60) }}"
+        dns_fabric_suffixes: "{{ dns_config.dns_fabric_suffixes | default([]) }}"
+        dns_soa_refresh: "{{ dns_config.dns_soa.refresh | default(3600) }}"
+        dns_soa_retry: "{{ dns_config.dns_soa.retry | default(600) }}"
+        dns_soa_expire: "{{ dns_config.dns_soa.expire | default(86400) }}"
+        coredns_zone_dir: "/etc/coredns/zones"
+
+    - name: Generate SOA serial (YYYYMMDDNN)
+      ansible.builtin.set_fact:
+        dns_soa_serial: "{{ lookup('pipe', 'date +%Y%m%d')}}01"
+
+    - name: Initialize fabric_ip_map as empty
+      ansible.builtin.set_fact:
+        fabric_ip_map: {}
+
+    - name: Ensure zone directory exists
+      ansible.builtin.file:
+        path: "{{ coredns_zone_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Generate forward zone file
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/dns/forward_zone.j2"
+        dest: "{{ coredns_zone_dir }}/db.{{ dns_domain }}"
+        mode: "0644"
+
+    - name: Build reverse zone entries for admin subnet
+      ansible.builtin.set_fact:
+        admin_reverse_zone: "{{ hostvars['localhost']['admin_nic_ip'] | regex_replace('^(\\d+)\\.(\\d+)\\.(\\d+)\\.\\d+$', '\\3.\\2.\\1') }}"
+
+    - name: Build reverse entries for admin subnet
+      ansible.builtin.set_fact:
+        reverse_entries: >-
+          [{% for hostname in ip_name_map | sort %}{"host_octet": "{{ ip_name_map[hostname].split('.')[-1] }}", "hostname": "{{ hostname }}"}{% if not loop.last %}, {% endif %}{% endfor %}]
+
+    - name: Generate reverse zone file for admin subnet
+      ansible.builtin.template:
+        src: "{{ role_path }}/templates/dns/reverse_zone.j2"
+        dest: "{{ coredns_zone_dir }}/db.{{ admin_reverse_zone }}.in-addr.arpa"
+        mode: "0644"
+      vars:
+        reverse_zone_name: "{{ admin_reverse_zone }}"
+      when: dns_reverse_enabled | bool
+
+    - name: Generate reverse zones for additional subnets
+      ansible.builtin.include_tasks: generate_reverse_zone_additional.yml
+      loop: "{{ network_data.admin_network.additional_subnets | default([]) }}"
+      loop_control:
+        loop_var: additional_subnet
+      when:
+        - dns_reverse_enabled | bool
+        - network_data.admin_network.additional_subnets is defined
+        - network_data.admin_network.additional_subnets | length > 0
+
+    - name: DNS zone generation summary
+      ansible.builtin.debug:
+        msg: >-
+          DNS zones generated: forward zone db.{{ dns_domain }},
+          {{ (ip_name_map | length) }} A records,
+          reverse zone(s) for {{ admin_reverse_zone }}
+          {% if network_data.admin_network.additional_subnets | default([]) | length > 0 %}
+          + {{ network_data.admin_network.additional_subnets | length }} additional subnet(s)
+          {% endif %}

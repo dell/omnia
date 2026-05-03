@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+# This file configures authoritative CoreDNS for Slurm/MPI hostname resolution.
+# When enabled, CoreDNS replaces /etc/hosts as the primary name resolution
+# mechanism for all cluster compute nodes.
+#
+# DNS records are generated automatically from OpenCHAMI SMD/HSM inventory.
+# No per-node DNS entries are required.
+#
+# 'dns_enabled': Master toggle for CoreDNS-based resolution.
+#   - true:  CoreDNS serves authoritative DNS; /etc/hosts peer entries are removed.
+#   - false: Traditional /etc/hosts-based resolution is used (default).
+#
+# 'dns_domain': Internal DNS domain for the cluster.
+#   All node hostnames are registered under this domain
+#   (e.g., nid0001.hpc.cluster). Must be a valid DNS domain name (RFC 1035).
+#   Must NOT overlap with public TLDs or Kubernetes 'cluster.local'.
+#
+# 'dns_ttl': Default Time-To-Live (seconds) for A and PTR records.
+#   Lower values enable faster propagation on node changes.
+#   Valid range: 60–86400. Default: 300.
+#
+# 'dns_reverse_enabled': Whether to generate reverse (PTR) DNS zones.
+#   Required for MPI and Slurm security validation. Default: true.
+#
+# 'dns_fabric_suffixes': Optional hostname suffixes for multi-fabric networks.
+#   When set, additional A records are created for each fabric IP.
+#   Example: ["-ib"] creates nid0001-ib.hpc.cluster pointing to InfiniBand IP.
+#   Each suffix must begin with a hyphen and contain only lowercase alphanumeric
+#   characters and hyphens.
+#
+# 'dns_cache_ttl': CoreDNS in-memory cache TTL (seconds).
+#   Controls how long resolved answers are cached before re-querying zone files.
+#   Must be <= dns_ttl. Valid range: 10–3600. Default: 60.
+#
+# 'dns_soa': SOA (Start of Authority) record parameters for generated zone files.
+#   - refresh: How often secondary DNS servers should check for updates (seconds).
+#   - retry:   Retry interval after a failed refresh (seconds).
+#   - expire:  When to stop serving zone data if primary is unreachable (seconds).
+
+dns_config:
+  dns_enabled: false
+  dns_domain: "hpc.cluster"
+  dns_ttl: 300
+  dns_reverse_enabled: true
+  dns_fabric_suffixes: []
+  dns_cache_ttl: 60
+  dns_soa:
+    refresh: 3600
+    retry: 600
+    expire: 86400

@@ -32,6 +32,11 @@ openchami_coredhcp_template: "{{ role_path }}/templates/coredhcp.yaml.j2"
 openchami_coredhcp_target: "{{ openchami_clone_path }}/dell/podman-quadlets/roles/configs/templates/coredhcp/coredhcp.yaml.j2"
 openchami_install_fail_msg: "Failed to install OpenCHAMI. Please check the logs at {{ openchami_configs_log_path }}"
 
+# CoreDNS for authoritative cluster DNS (Slurm/MPI)
+coredns_image: "docker.io/coredns/coredns:1.12.1"
+coredns_config_dir: "/etc/coredns"
+coredns_zone_dir: "/etc/coredns/zones"
+
 # vars passed to openchami installation
 openchami_work_dir: "{{ oim_shared_path }}/omnia/openchami/workdir"
 data_oci_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/oci"

@@ -111,3 +111,6 @@
     - name: Configure the hostname
       ansible.builtin.command: /usr/bin/ochami cloud-init node set -f yaml -d @"{{ openchami_hostname_vars_path }}"
       changed_when: true
+
+    - name: Update DNS zones after node provisioning
+      ansible.builtin.include_tasks: update_dns_zones.yml

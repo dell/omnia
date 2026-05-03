@@ -455,6 +455,40 @@ ADDITIONAL_SUBNET_RANGE_OVERLAP_MSG = (
     "another additional subnet's dynamic_range."
 )
 
+# dns_config
+DNS_DOMAIN_INVALID_MSG = (
+    "dns_domain must be a valid DNS domain name (RFC 1035). "
+    "Use lowercase alphanumeric characters, hyphens, and dots only. "
+    "Example: hpc.cluster"
+)
+DNS_DOMAIN_RESERVED_MSG = (
+    "dns_domain must not use a reserved domain. "
+    "The following are not permitted: cluster.local, localhost, "
+    "com, net, org, edu, gov, io."
+)
+DNS_TTL_RANGE_MSG = (
+    "dns_ttl must be an integer between 60 and 86400 (seconds)."
+)
+DNS_CACHE_TTL_RANGE_MSG = (
+    "dns_cache_ttl must be an integer between 10 and 3600 (seconds)."
+)
+DNS_CACHE_TTL_EXCEEDS_TTL_MSG = (
+    "dns_cache_ttl must be less than or equal to dns_ttl. "
+    "Cache TTL cannot exceed the record TTL."
+)
+DNS_FABRIC_SUFFIX_FORMAT_MSG = (
+    "each dns_fabric_suffix must begin with a hyphen and contain "
+    "only lowercase alphanumeric characters and hyphens. "
+    "Example: -ib, -stor"
+)
+DNS_SOA_POSITIVE_INT_MSG = (
+    "dns_soa values (refresh, retry, expire) must be positive integers."
+)
+DNS_REVERSE_DISABLED_WARNING_MSG = (
+    "dns_reverse_enabled is false. MPI and Slurm may require "
+    "reverse DNS (PTR records) for security validation."
+)
+
 # telemetry
 MANDATORY_FIELD_FAIL_MSG = "must not be empty"
 MYSQLDB_USER_FAIL_MSG = "username should not be kept 'root'."

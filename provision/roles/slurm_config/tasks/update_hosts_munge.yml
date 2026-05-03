@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Edit /etc/hosts file till DNS
+- name: Edit /etc/hosts file (skipped when CoreDNS is enabled)
   ignore_unreachable: true
   delegate_to: "{{ slurmhost_ip }}"
+  when: not (dns_enabled | default(false) | bool)
   block:
     - name: Remove deleted nodes if any hostname exists in /etc/hosts
       ansible.builtin.lineinfile:
