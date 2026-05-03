@@ -605,6 +605,32 @@
             # Patch: append nameservers after /etc/resolv.conf using Jinja list "dns"
             sed -i 's|/etc/resolv.conf|/etc/resolv.conf{% for ns in dns %} {{ ns }}{% endfor %}|' "$cfg"
 
+{% if dns_enabled | default(false) | bool %}
+            # Forward cluster-internal DNS domain to OIM CoreDNS
+            # This allows K8s pods to resolve Slurm/MPI hostnames via CoreDNS
+            python3 - "$cfg" << 'PYEOF'
+import sys, yaml
+cfg_path = sys.argv[1]
+with open(cfg_path) as f:
+    doc = yaml.safe_load(f)
+corefile = doc['data']['Corefile']
+fwd_block = """{{ dns_domain }}:53 {
+    errors
+    cache 30
+    forward . {{ admin_nic_ip }}
+}
+"""
+if '{{ dns_domain }}:53' not in corefile:
+    corefile = fwd_block + corefile
+    doc['data']['Corefile'] = corefile
+    with open(cfg_path, 'w') as f:
+        yaml.dump(doc, f, default_flow_style=False)
+    print("Added {{ dns_domain }} forward zone to K8s CoreDNS")
+else:
+    print("{{ dns_domain }} forward zone already present in K8s CoreDNS")
+PYEOF
+{% endif %}
+
             # Apply the patched ConfigMap
             kubectl apply -f "$cfg"
 

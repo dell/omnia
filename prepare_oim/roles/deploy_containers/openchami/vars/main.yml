@@ -35,6 +35,11 @@ network_spec_syntax_fail_msg: "Failed. Syntax errors present in network_spec.yml
 provision_config: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
 provision_config_syntax_fail_msg: "Failed. Syntax errors present in provision_config.yml. Fix errors and re-run playbook again."
 
+# CoreDNS for authoritative cluster DNS (Slurm/MPI)
+coredns_image: "docker.io/coredns/coredns:1.12.1"
+coredns_config_dir: "/etc/coredns"
+coredns_zone_dir: "/etc/coredns/zones"
+
 # vars passed to openchami installation
 openchami_work_dir: "{{ oim_shared_path }}/omnia/openchami/workdir"
 data_oci_dir: "{{ oim_shared_path }}/omnia/openchami/s3/data/oci"

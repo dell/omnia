@@ -148,12 +148,22 @@
 {% endif %}
 {% endif %}
 
+{% if dns_enabled | default(false) | bool %}
+        - path: /etc/resolv.conf
+          owner: root:root
+          permissions: '0644'
+          content: |
+            search {{ domain_name }}
+            nameserver {{ admin_nic_ip }}
+            options timeout:1 attempts:2
+{% else %}
         - path: /etc/hosts
           append: true
           content: |
 {% for key in ip_name_map | sort %}
             {{ ip_name_map[key] }} {{ key }}
 {% endfor %}
+{% endif %}
         - path: /etc/sysconfig/slurmd
           owner: root:root
           permissions: '0644'
