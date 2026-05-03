@@ -5,11 +5,12 @@ metadata:
   name: pod-cleanup
   namespace: telemetry
 spec:
-  schedule: "*/5 * * * *" # Every 5 minutes
+  schedule: "*/6 * * * *" # Every 6 minutes
   successfulJobsHistoryLimit: 1   # Keep only 1 successful job
   failedJobsHistoryLimit: 1       # Keep only 1 failed job
   jobTemplate:
     spec:
+      ttlSecondsAfterFinished: 120 # Auto-delete job and pod after 120s
       activeDeadlineSeconds: 360 # Kill job if it runs longer than 6 minutes
       template:
         spec:
@@ -116,7 +117,9 @@ spec:
                     echo "Pod $pod terminating for $age seconds (threshold: ${threshold}s). Skipping."
                   fi
                 done
-              elif [ -n "$crashloop" ]; then
+              fi
+
+              if [ -n "$crashloop" ]; then
                 echo "Processing CrashLoopBackOff pods..."
                 for pod in $crashloop; do
                   echo "→ Pod $pod in CrashLoopBackOff. Checking restart count..."
@@ -126,9 +129,6 @@ spec:
 
                   # Set threshold based on pod type
                   threshold=3
-                  if echo "$pod" | grep -q "kafka"; then
-                    threshold=1  # Clean Kafka immediately on first crash
-                  fi
                   if [ "$restart_count" -lt $threshold ]; then
                     echo "→ Pod $pod in CrashLoopBackOff (restartCount: $restart_count). Skipping (threshold: $threshold)."
                     continue
