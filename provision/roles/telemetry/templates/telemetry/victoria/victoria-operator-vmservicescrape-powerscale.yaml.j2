@@ -30,7 +30,7 @@ spec:
       - {{ telemetry_namespace }}
   
   # Service metrics endpoints
-  serviceEndpoints:
+  endpoints:
     - port: prometheus
       interval: {{ vmagent.global.scrape_interval }}
       honorLabels: true
