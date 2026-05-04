@@ -55,7 +55,6 @@ gitlab_upload_success_msg: "[BSM] Successfully uploaded failed_nodes.json to Git
 
 gitlab_upload_fail_msg: "[BSM] Failed to upload failed_nodes.json to GitLab repository. Check GitLab connectivity and credentials."
 
----
 # ──────────────────────────────────────────────────────────────
 # Phone-Home Retry & Timing Configuration
 # ──────────────────────────────────────────────────────────────
