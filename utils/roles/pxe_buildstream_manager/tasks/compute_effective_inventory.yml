@@ -176,3 +176,25 @@
 - name: Set skip flag for empty inventory
   ansible.builtin.set_fact:
     bsm_skip_pxe: "{{ effective_bmc_ips | length == 0 }}"
+
+# Epoch captured here — survives all play boundaries via cacheable
+- name: Capture PXE boot start epoch for phone-home time-gating
+  ansible.builtin.set_fact:
+    pxe_start_epoch: "{{ ansible_date_time.epoch }}"
+    cacheable: true
+
+- name: Read PXE mapping file for admin IPs
+  community.general.read_csv:
+    path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/pxe_mapping_file.csv"
+  register: pxe_csv_for_phone_home
+  when: groups['bmc'] is defined and groups['bmc'] | length > 0
+
+- name: Build list of target node admin IPs for phone-home verification
+  ansible.builtin.set_fact:
+    target_node_admin_ips: "{{ pxe_csv_for_phone_home.list | map(attribute='ADMIN_IP') | list }}"
+    cacheable: true
+  when:
+    - groups['bmc'] is defined
+    - groups['bmc'] | length > 0
+    - pxe_csv_for_phone_home is defined
+    - pxe_csv_for_phone_home.list is defined

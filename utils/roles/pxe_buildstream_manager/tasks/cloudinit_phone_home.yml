@@ -19,8 +19,8 @@
 # Called from: set_pxe_boot.yml (Play 7)
 # Condition: Only runs when enable_build_stream is true
 # ─────────────────────────────────────────────────────────────────────────
-
-# Step 1: Assert required facts exist before polling begins
+---
+# Step 1: Assert required facts are available
 - name: "[Phone-Home] Assert required facts are available"
   ansible.builtin.assert:
     that:
@@ -28,27 +28,16 @@
       - pxe_start_epoch | string | length > 0
       - target_node_admin_ips is defined
       - target_node_admin_ips | length > 0
-    fail_msg: |
-      FATAL: Required facts missing for phone-home verification.
-      pxe_start_epoch = {{ pxe_start_epoch | default('UNDEFINED') }}
-      target_node_admin_ips = {{ target_node_admin_ips | default('UNDEFINED') }}
-      Ensure Play 3 ran with gather_facts: true and set_fact cacheable: true.
-    success_msg: >
-      [Phone-Home] Facts confirmed.
-      epoch={{ pxe_start_epoch }}
-      nodes={{ target_node_admin_ips }}
+    fail_msg: "{{ phone_home_fail_msg }}"
+    success_msg: "{{ phone_home_success_msg }}"
 
-# Step 2: Pause 5 minutes — nodes need time to boot before we poll
-- name: "[Phone-Home] Wait 5 minutes for nodes to begin cloud-init"
+# Step 2: Pause before polling
+- name: "[Phone-Home] Wait for nodes to begin cloud-init"
   ansible.builtin.pause:
-    minutes: 5
-    prompt: >
-      Waiting 5 minutes for nodes to boot and begin
-      cloud-init before starting phone-home polling...
+    minutes: "{{ phone_home_pause_minutes }}"
+    prompt: "{{ phone_home_pause_prompt }}"
 
 # Step 3: Poll journalctl for phone-home from ALL nodes in single bash loop
-# Single shell command checks every IP per retry — no sequential blocking
-# rc=0 only when ALL nodes have phoned home — triggers retry otherwise
 - name: "[Phone-Home] Wait for cloud-init phone-home from all nodes"
   ansible.builtin.shell: |
     set -o pipefail
@@ -62,24 +51,23 @@
 
     # Check every node IP in the same retry pass
     for ip in {{ target_node_admin_ips | join(' ') }}; do
-      if echo "$JOURNAL_OUT" | grep -w "Phone home request from $ip" > /dev/null 2>&1; then
-        OUTPUT="${OUTPUT}✅ Phone-home confirmed: $ip\n"
+      if echo "$JOURNAL_OUT" | grep -w "{{ phone_home_log_pattern }} $ip" > /dev/null 2>&1; then
+        OUTPUT="${OUTPUT}{{ phone_home_status_ok }} $ip\n"
       else
-        OUTPUT="${OUTPUT}⏳ Still waiting for phone-home: $ip\n"
+        OUTPUT="${OUTPUT}{{ phone_home_status_wait }} $ip\n"
         MISSING_NODES=1
       fi
     done
 
     echo -e "$OUTPUT"
-
     # Exit 1 if any node is missing — triggers Ansible until retry
     exit $MISSING_NODES
   args:
     executable: /bin/bash
   register: phone_home_poll_result
   until: phone_home_poll_result.rc == 0
-  retries: "{{ phone_home_retries | default(120) }}"
-  delay: "{{ phone_home_delay | default(15) }}"
+  retries: "{{ phone_home_retries }}"
+  delay: "{{ phone_home_delay }}"
   changed_when: false
   become: true
 
@@ -91,7 +79,4 @@
 # Step 5: Final success message
 - name: "[Phone-Home] All nodes completed cloud-init successfully"
   ansible.builtin.debug:
-    msg: >
-      [Phone-Home] ✅ All {{ target_node_admin_ips | length }}
-      nodes completed cloud-init and phoned home successfully.
-      Proceeding with BuildStream post-processing.
+    msg: "{{ phone_home_final_success_msg }}"

@@ -55,8 +55,40 @@ gitlab_upload_success_msg: "[BSM] Successfully uploaded failed_nodes.json to Git
 
 gitlab_upload_fail_msg: "[BSM] Failed to upload failed_nodes.json to GitLab repository. Check GitLab connectivity and credentials."
 
+---
+# ──────────────────────────────────────────────────────────────
+# Phone-Home Retry & Timing Configuration
+# ──────────────────────────────────────────────────────────────
+phone_home_pause_minutes: 5
 phone_home_retries: 120
-
 phone_home_delay: 15
 
-phone_home_initial_pause: 5
+# ──────────────────────────────────────────────────────────────
+# Phone-Home Shell Script Patterns & Status Labels
+# ──────────────────────────────────────────────────────────────
+phone_home_log_pattern: "Phone home request from"
+phone_home_status_ok: "✅ Phone-home confirmed:"
+phone_home_status_wait: "⏳ Still waiting for phone-home:"
+
+# ──────────────────────────────────────────────────────────────
+# Phone-Home Playbook Messages
+# ──────────────────────────────────────────────────────────────
+phone_home_fail_msg: |
+  FATAL: Required facts missing for phone-home verification.
+  pxe_start_epoch = {{ pxe_start_epoch | default('UNDEFINED') }}
+  target_node_admin_ips = {{ target_node_admin_ips | default('UNDEFINED') }}
+  Ensure Play 3 ran with gather_facts: true and set_fact cacheable: true.
+
+phone_home_success_msg: >
+  [Phone-Home] Facts confirmed.
+  epoch={{ pxe_start_epoch }}
+  nodes={{ target_node_admin_ips }}
+
+phone_home_pause_prompt: >
+  Waiting {{ phone_home_pause_minutes }} minutes for nodes to boot and begin
+  cloud-init before starting phone-home polling...
+
+phone_home_final_success_msg: >
+  [Phone-Home] ✅ All {{ target_node_admin_ips | length }}
+  nodes completed cloud-init and phoned home successfully.
+  Proceeding with BuildStream post-processing.
