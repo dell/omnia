@@ -67,8 +67,11 @@ prepare_oim_completion_msg_build_stream: |
 login_cmd: "podman login docker.io -u {{ docker_username }} -p {{ docker_password }}"
 retry_count: "5"
 delay_time: "10"
-podman_login_fail_msg: "Podman login failed. Please ensure the podman login credentials in the input/omnia_config_credentials.yml are valid.
- If they are, this error can occur due to a pull limit issue or multiple requests. Please try running the playbook again after waiting for a while."
+podman_login_fail_msg: >
+  Podman login failed. Please ensure the podman login credentials in the
+  {{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml are valid.
+  If they are, this error can occur due to a pull limit issue or multiple requests.
+  Please try running the playbook again after waiting for a while.
 
 # Usage: add_known_hosts.yml
 ssh_config: "/root/.ssh/config"

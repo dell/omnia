@@ -424,7 +424,8 @@
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
-        - bash /usr/local/bin/doca-install.sh && bash /usr/local/bin/configure-ib-network.sh
+        - bash /usr/local/bin/doca-install.sh || true
+        - bash /usr/local/bin/configure-ib-network.sh
         - mkdir -p /etc/containers/registries.conf.d
         - mv /tmp/crio.conf /etc/containers/registries.conf.d/crio.conf
         - systemctl start crio.service

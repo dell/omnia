@@ -18,7 +18,11 @@
 # SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
 # ***********************************************************************
 
-#### OME Discovery
+#### BMC Discovery
+# Set to true to enable BMC discovery via OME.
+# When false, OME credentials will not be prompted during prepare_oim.
+enable_bmc_discovery: false
+
 # IP address of the Dell OpenManage Enterprise (OME) instance used for
 # server discovery and inventory collection.
 # Credentials (ome_username, ome_password) are managed separately via

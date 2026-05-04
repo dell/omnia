@@ -230,8 +230,10 @@ gitlab_disable_grafana: true
 retry_count: "5"
 delay_time: "10"
 podman_login_fail_msg: >
-  Podman login failed. Please ensure the podman login credentials in the input/omnia_config_credentials.yml are valid.
-  If they are, this error can occur due to a pull limit issue or multiple requests. Please try running the playbook again after waiting for a while.
+  Podman login failed. Please ensure the podman login credentials in the
+  {{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml are valid.
+  If they are, this error can occur due to a pull limit issue or multiple requests.
+  Please try running the playbook again after waiting for a while.
 
 # Image pull configuration
 gitlab_image_pull_retries: 5
