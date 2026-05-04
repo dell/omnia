@@ -29,6 +29,17 @@
       ansible.builtin.set_fact:
         enable_build_stream: false
 
+- name: Load discovery_config.yml to check if BMC discovery is enabled
+  block:
+    - name: Include discovery_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/discovery_config.yml"
+      register: include_discovery_config
+  rescue:
+    - name: Set enable_bmc_discovery to false if config not found
+      ansible.builtin.set_fact:
+        enable_bmc_discovery: false
+
 - name: Validate credential files
   ansible.builtin.include_tasks: validate_cred_file.yml
   loop: "{{ credential_files }}"
