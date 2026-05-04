@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ from collections import Counter
 import yaml
 import ansible.module_utils.input_validation.common_utils.data_fetch as fetch
 from ansible.module_utils.input_validation.validation_flows import csi_driver_validation
+from ansible.module_utils.input_validation.validation_flows import powerscale_authorization_validation
 import ansible.module_utils.input_validation.common_utils.data_validation as validate
 from ansible.module_utils.input_validation.common_utils import (
     config,
@@ -321,7 +322,7 @@ def validate_software_config(
                 "Please resolve the issues first before proceeding.",
             )
         )
-    
+
     if additional_packages_warnings:
         logger.info(
             "[INFO] Additional packages validation completed with warnings. "
@@ -914,8 +915,8 @@ def is_ip_in_range(ip_str, ip_range_str):
         return False
 
 
-def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors, 
-                 st_config, module, input_file_path):
+def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors,
+                 st_config, module, input_file_path, logger):
     """
     Validates Kubernetes cluster configurations.
 
@@ -924,6 +925,7 @@ def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors,
         admin_networks (dict): A dictionary containing admin network information.
         softwares (list): A list of software name sin software_config.
         errors (list): A list to store error messages.
+        logger (object): Logger object for logging.
     """
     admin_dynamic_range = admin_networks["admin_network"]["dynamic_range"]
     primary_oim_admin_ip = admin_networks["admin_network"]["primary_oim_admin_ip"]
@@ -1018,7 +1020,7 @@ def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors,
 
                     csi_secret_file_path = kluster.get("csi_powerscale_driver_secret_file_path")
                     csi_values_file_path = kluster.get("csi_powerscale_driver_values_file_path")
-                    
+
                     # Validate secret file path
                     if not csi_secret_file_path or \
                     not csi_secret_file_path.strip() or \
@@ -1043,6 +1045,15 @@ def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors,
                                 )
                             )
                         csi_driver_validation.validate_powerscale_secret_and_values_file(csi_secret_file_path,csi_values_file_path, errors, input_file_path)
+
+                # PowerScale Authorization validation
+                input_dir = os.path.dirname(input_file_path)
+                software_config_file_path = os.path.join(input_dir, "software_config.json")
+                config_paths = get_config_file_paths(input_dir, data, software_config_file_path)
+
+                powerscale_authorization_validation.validate_powerscale_authorization(
+                    kluster, softwares, input_file_path, config_paths, logger, errors
+                )
 
 def validate_omnia_config(
         input_file_path,
@@ -1102,9 +1113,9 @@ def validate_omnia_config(
         for k in ["service_k8s_cluster_ha"]:
             ha_config[k] = [xha["cluster_name"] for xha in ha_config.get(k, [])]
         validate_k8s(data, admin_networks, sw_list, ha_config, tag_names,
-                        errors, st_config, module, input_file_path)
+                        errors, st_config, module, input_file_path, logger)
     # slurm L2
-    if (("slurm" in sw_list or "slurm_custom" in sw_list) and "slurm" in tag_names):     
+    if (("slurm" in sw_list or "slurm_custom" in sw_list) and "slurm" in tag_names):
         slurm_nfs = [clst.get('nfs_storage_name') for clst in data.get('slurm_cluster')]
         nfs_names = [st.get('nfs_name') for st in st_config.get('nfs_client_params')]
 
@@ -1116,16 +1127,16 @@ def validate_omnia_config(
                     "slurm NFS not provided",
                     f"NFS name {', '.join(diff_set)} required for slurm is not defined in {storage_config}"
                     ))
-        
+
         # Validate node_hardware_defaults requires node_discovery_mode=homogeneous
         for clst in data.get('slurm_cluster', []):
             node_hardware_defaults = clst.get('node_hardware_defaults')
             node_discovery_mode = clst.get('node_discovery_mode')
-            
+
             # Normalize mode to lowercase for case-insensitive comparison
             if node_discovery_mode and isinstance(node_discovery_mode, str):
                 node_discovery_mode = node_discovery_mode.lower()
-            
+
             if node_hardware_defaults and len(node_hardware_defaults) > 0:
                 if not node_discovery_mode or node_discovery_mode != 'homogeneous':
                     group_names = list(node_hardware_defaults.keys())
@@ -1138,7 +1149,7 @@ def validate_omnia_config(
                             f"Either set 'node_discovery_mode: \"homogeneous\"' to use the hardware specifications, "
                             f"or remove 'node_hardware_defaults' to use heterogeneous discovery."
                         ))
-        
+
         cnfg_src = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
         skip_conf_validation = os.path.exists("/opt/omnia/input/.skip_slurm_conf_validation")
         cnfg_src = [clst.get('config_sources', {}) for clst in data.get('slurm_cluster')]
@@ -1192,7 +1203,7 @@ def check_is_service_cluster_functional_groups_defined(
     # Get the directory containing the input file
     input_dir = os.path.dirname(input_file_path)
     provision_config_path = os.path.join(input_dir, "provision_config.yml")
-    
+
     # Check if provision_config.yml exists
     if not os.path.exists(provision_config_path):
         errors.append(
@@ -1203,14 +1214,14 @@ def check_is_service_cluster_functional_groups_defined(
             )
         )
         return False
-    
+
     try:
         # Load provision_config.yml to get pxe_mapping_file_path
         with open(provision_config_path, 'r', encoding='utf-8') as f:
             provision_config = yaml.safe_load(f)
-        
+
         pxe_mapping_file_path = provision_config.get('pxe_mapping_file_path', '')
-        
+
         if not pxe_mapping_file_path or not os.path.exists(pxe_mapping_file_path):
             errors.append(
                 create_error_msg(
@@ -1220,14 +1231,14 @@ def check_is_service_cluster_functional_groups_defined(
                 )
             )
             return False
-        
+
         # Read the mapping file and check for service_kube_node functional groups
         with open(pxe_mapping_file_path, 'r', encoding='utf-8') as fh:
             raw_lines = fh.readlines()
-        
+
         # Remove blank lines
         non_comment_lines = [ln for ln in raw_lines if ln.strip()]
-        
+
         if not non_comment_lines:
             errors.append(
                 create_error_msg(
@@ -1237,15 +1248,15 @@ def check_is_service_cluster_functional_groups_defined(
                 )
             )
             return False
-        
+
         # Use csv.DictReader to parse the mapping file
         reader = csv.DictReader(non_comment_lines)
-        
+
         # Check if all required service cluster functional groups are present
         # Required: service_kube_node_, service_kube_control_plane_
         has_kube_node = False
         has_control_plane = False
-        
+
         for row in reader:
             functional_group = row.get('FUNCTIONAL_GROUP_NAME', '').strip()
             if functional_group.startswith('service_kube_node_'):
@@ -1254,10 +1265,10 @@ def check_is_service_cluster_functional_groups_defined(
             elif functional_group.startswith('service_kube_control_plane_'):
                 has_control_plane = True
                 logger.info(f"Service cluster functional group found: {functional_group}")
-        
+
         # Both must be present for a complete service cluster
         service_cluster_found = has_kube_node and has_control_plane
-        
+
         if not service_cluster_found:
             missing = []
             if not has_kube_node:
@@ -1265,9 +1276,9 @@ def check_is_service_cluster_functional_groups_defined(
             if not has_control_plane:
                 missing.append('service_kube_control_plane_*')
             logger.info(f"Service cluster incomplete. Missing functional groups: {', '.join(missing)}")
-        
+
         return service_cluster_found
-        
+
     except (yaml.YAMLError, IOError, csv.Error) as e:
         errors.append(
             create_error_msg(
@@ -1277,6 +1288,42 @@ def check_is_service_cluster_functional_groups_defined(
             )
         )
         return False
+
+def get_config_file_paths(input_dir, data, software_config_file_path):
+    """
+    Dynamically resolves config file paths based on cluster OS type and version.
+
+    Args:
+        input_dir (str): Input directory path.
+        data (dict): Configuration data (may contain cluster_os_type, cluster_os_version).
+        software_config_file_path (str): Path to software_config.json.
+
+    Returns:
+        dict: Dictionary containing resolved file paths:
+              - service_k8s_json_path: Path to service_k8s.json
+              - csi_driver_powerscale_json_path: Path to csi_driver_powerscale.json
+    """
+    # Try reading cluster_os_type/version from data first, then from software_config.json
+    cluster_os_type = data.get("cluster_os_type", "rhel")
+    cluster_os_version = data.get("cluster_os_version", "10.0")
+
+    if os.path.exists(software_config_file_path):
+        try:
+            with open(software_config_file_path, 'r', encoding='utf-8') as scf:
+                sc_data = json.load(scf)
+                cluster_os_type = sc_data.get("cluster_os_type", cluster_os_type)
+                cluster_os_version = sc_data.get("cluster_os_version", cluster_os_version)
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    config_base_path = os.path.join(input_dir, "config", "x86_64", cluster_os_type, cluster_os_version)
+    service_k8s_json_path = os.path.join(config_base_path, "service_k8s.json")
+    csi_driver_powerscale_json_path = os.path.join(config_base_path, "csi_driver_powerscale.json")
+
+    return {
+        "service_k8s_json_path": service_k8s_json_path,
+        "csi_driver_powerscale_json_path": csi_driver_powerscale_json_path
+    }
 
 def check_is_slurm_cluster_functional_groups_defined(
     errors, input_file_path, omnia_base_dir, project_name, logger, module
@@ -1298,7 +1345,7 @@ def check_is_slurm_cluster_functional_groups_defined(
     # Get the directory containing the input file
     input_dir = os.path.dirname(input_file_path)
     provision_config_path = os.path.join(input_dir, "provision_config.yml")
-    
+
     # Check if provision_config.yml exists
     if not os.path.exists(provision_config_path):
         errors.append(
@@ -1309,14 +1356,14 @@ def check_is_slurm_cluster_functional_groups_defined(
             )
         )
         return False
-    
+
     try:
         # Load provision_config.yml to get pxe_mapping_file_path
         with open(provision_config_path, 'r', encoding='utf-8') as f:
             provision_config = yaml.safe_load(f)
-        
+
         pxe_mapping_file_path = provision_config.get('pxe_mapping_file_path', '')
-        
+
         if not pxe_mapping_file_path or not os.path.exists(pxe_mapping_file_path):
             errors.append(
                 create_error_msg(
@@ -1326,14 +1373,14 @@ def check_is_slurm_cluster_functional_groups_defined(
                 )
             )
             return False
-        
+
         # Read the mapping file and check for slurm functional groups
         with open(pxe_mapping_file_path, 'r', encoding='utf-8') as fh:
             raw_lines = fh.readlines()
-        
+
         # Remove blank lines
         non_comment_lines = [ln for ln in raw_lines if ln.strip()]
-        
+
         if not non_comment_lines:
             errors.append(
                 create_error_msg(
@@ -1343,15 +1390,15 @@ def check_is_slurm_cluster_functional_groups_defined(
                 )
             )
             return False
-        
+
         # Use csv.DictReader to parse the mapping file
         reader = csv.DictReader(non_comment_lines)
-        
+
         # Check if all required slurm cluster functional groups are present
         # Required: slurm_control_node_, slurm_node
         has_slurm_control = False
         has_slurm_node = False
-        
+
         for row in reader:
             functional_group = row.get('FUNCTIONAL_GROUP_NAME', '').strip()
             if functional_group.startswith('slurm_control_node_'):
@@ -1360,10 +1407,10 @@ def check_is_slurm_cluster_functional_groups_defined(
             elif functional_group.startswith('slurm_node_'):
                 has_slurm_node = True
                 logger.info(f"Slurm cluster functional group found: {functional_group}")
-        
+
         # Both must be present for a complete slurm cluster
         slurm_cluster_found = has_slurm_control and has_slurm_node
-        
+
         if not slurm_cluster_found:
             missing = []
             if not has_slurm_control:
@@ -1371,9 +1418,9 @@ def check_is_slurm_cluster_functional_groups_defined(
             if not has_slurm_node:
                 missing.append('slurm_node_')
             logger.info(f"Slurm cluster incomplete. Missing functional groups: {', '.join(missing)}")
-        
+
         return slurm_cluster_found
-        
+
     except (yaml.YAMLError, IOError, csv.Error) as e:
         errors.append(
             create_error_msg(
@@ -1384,221 +1431,6 @@ def check_is_slurm_cluster_functional_groups_defined(
         )
         return False
 
-def validate_telemetry_config(
-    input_file_path,
-    data,
-    logger,
-    module,
-    omnia_base_dir,
-    _module_utils_base,
-    project_name
-):
-
-    """
-    Validates the telemetry configuration data.
-
-    This function checks the telemetry configuration data for validity and consistency.
-    It verifies that the iDRAC telemetry support and federated iDRAC telemetry collection
-    settings are correctly configured.
-
-    Args:
-        input_file_path (str): The path to the input file.
-        data (dict): The telemetry configuration data.
-        logger (object): The logger object.
-        module (object): The module object.
-        omnia_base_dir (str): The base directory of the Omnia project.
-        _module_utils_base (str): The base directory of the module utilities.
-        project_name (str): The name of the project.
-
-    Returns:
-        None
-
-    Raises:
-        None
-
-    """
-    errors = []
-
-    idrac_telemetry_support = data.get("idrac_telemetry_support")
-    is_service_cluster_defined = check_is_service_cluster_functional_groups_defined(errors,
-                                input_file_path,
-                                omnia_base_dir,
-                                project_name,
-                                logger,
-                                module)
-    if idrac_telemetry_support and not is_service_cluster_defined:
-        errors.append(create_error_msg(
-            "idrac_telemetry_support can be",
-            idrac_telemetry_support,
-            en_us_validation_msg.TELEMETRY_SERVICE_CLUSTER_ENTRY_MISSING_ROLES_CONFIG_MSG
-            )    
-        )
-
-    is_slurm_cluster_defined = check_is_slurm_cluster_functional_groups_defined(errors,
-                                input_file_path,
-                                omnia_base_dir,
-                                project_name,
-                                logger,
-                                module)
-    
-    # Determine LDMS support from software_config.json
-    # software_config.json is in the same directory as telemetry_config.yml
-    ldms_support_from_software_config = False
-    input_dir = os.path.dirname(input_file_path)
-    software_config_file_path = os.path.join(input_dir, "software_config.json")
-    
-    logger.info(f"Checking for LDMS software in: {software_config_file_path}")
-    
-    if os.path.exists(software_config_file_path):
-        try:
-            with open(software_config_file_path, 'r', encoding='utf-8') as f:
-                software_config = json.load(f)
-                softwares = software_config.get("softwares", [])
-                ldms_support_from_software_config = any(
-                    software.get("name") == "ldms" for software in softwares
-                )
-                logger.info(f"LDMS software detected in software_config.json: {ldms_support_from_software_config}")
-                if ldms_support_from_software_config:
-                    logger.info("LDMS software found - 'ldms' topic will be required in kafka_configurations.topic_partitions")
-        except (json.JSONDecodeError, IOError) as e:
-            logger.warn(f"Could not load software_config.json: {e}")
-    else:
-        logger.info(f"software_config.json not found at: {software_config_file_path}")
-
-    if ldms_support_from_software_config and not (is_service_cluster_defined and is_slurm_cluster_defined):
-        errors.append(create_error_msg(
-            "LDMS entry in software_config.json set to ",
-            ldms_support_from_software_config,
-            en_us_validation_msg.TELEMETRY_SERVICE_CLUSTER_ENTRY_FOR_LDMS_MISSING_ROLES_CONFIG_MSG
-            )
-        )
-    
-    # Validate topic_partitions configuration
-    kafka_config = data.get("kafka_configurations", {})
-    topic_partitions = kafka_config.get("topic_partitions", [])
-    idrac_telemetry_collection_type = data.get("idrac_telemetry_collection_type", "")
-    
-    # Check if LDMS software is configured but kafka_configurations is missing entirely
-    if ldms_support_from_software_config and not kafka_config:
-        errors.append(create_error_msg(
-            "kafka_configurations",
-            "not defined",
-            "LDMS software is configured in software_config.json, but kafka_configurations section is missing in telemetry_config.yml. "
-            "Please define kafka_configurations with at least the 'ldms' topic in topic_partitions."
-        ))
-    
-    # Check if LDMS software is configured but no topics are defined
-    if ldms_support_from_software_config and kafka_config and not topic_partitions:
-        errors.append(create_error_msg(
-            "kafka_configurations.topic_partitions",
-            "not defined",
-            "LDMS software is configured in software_config.json, but kafka_configurations.topic_partitions is not defined. "
-            "Please define at least the 'ldms' topic in topic_partitions."
-        ))
-    
-    if topic_partitions:
-        # Ensure at least one topic is defined
-        if len(topic_partitions) < 1:
-            errors.append(create_error_msg(
-                "kafka_configurations.topic_partitions",
-                "is empty",
-                "At least one Kafka topic must be defined"
-            ))
-        
-        # Collect topic names and validate each one
-        topic_names = []
-        allowed_topics = {"idrac", "ldms"}
-        
-        for idx, topic in enumerate(topic_partitions):
-            if "name" not in topic:
-                errors.append(create_error_msg(
-                    f"kafka_configurations.topic_partitions[{idx}]",
-                    "missing 'name' field",
-                    "Each topic must have a 'name' field"
-                ))
-                continue
-            
-            topic_name = topic.get("name")
-            topic_names.append(topic_name)
-            
-            # Validate each topic name individually
-            if topic_name not in allowed_topics:
-                errors.append(create_error_msg(
-                    f"kafka_configurations.topic_partitions[{idx}].name",
-                    topic_name,
-                    f"Invalid topic name '{topic_name}'. Only 'idrac' and 'ldms' are allowed as Kafka topic names. Custom topic names are not supported."
-                ))
-        
-        present_topics = set(topic_names)
-        
-        # Debug logging
-        logger.info(f"Telemetry validation - Present topics: {present_topics}")
-        logger.info(f"Telemetry validation - Allowed topics: {allowed_topics}")
-        
-        # Validate required topics based on feature flags
-        # If iDRAC telemetry is enabled with Kafka, idrac topic is required
-        if idrac_telemetry_support and 'kafka' in idrac_telemetry_collection_type.split(','):
-            if 'idrac' not in present_topics:
-                errors.append(create_error_msg(
-                    "kafka_configurations.topic_partitions",
-                    "missing 'idrac' topic",
-                    "idrac topic is required when idrac_telemetry_support is true and 'kafka' is in idrac_telemetry_collection_type"
-                ))
-
-        # If LDMS software is configured in software_config.json, ldms topic is required
-        logger.info(f"Checking LDMS topic requirement - ldms_support_from_software_config: {ldms_support_from_software_config}")
-        if ldms_support_from_software_config and 'ldms' not in present_topics:
-            logger.error(f"LDMS topic validation FAILED - 'ldms' topic is missing from present_topics: {present_topics}")
-            errors.append(create_error_msg(
-                "kafka_configurations.topic_partitions",
-                "missing 'ldms' topic",
-                "ldms topic is required when LDMS software is configured in software_config.json"
-            ))
-        elif ldms_support_from_software_config:
-            logger.info(f"LDMS topic validation PASSED - 'ldms' found in present_topics: {present_topics}")
-        
-        # Check for duplicate topic names
-        if len(topic_names) != len(set(topic_names)):
-            duplicates = [name for name in topic_names if topic_names.count(name) > 1]
-            errors.append(create_error_msg(
-                "kafka_configurations.topic_partitions",
-                f"duplicate topics: {', '.join(set(duplicates))}",
-                "Each topic must be defined only once"
-            ))
-
-    # Validate ldms_sampler_configurations - fail if it's None or empty array
-    ldms_sampler_configurations = data.get("ldms_sampler_configurations")
-
-    # Fail if ldms_sampler_configurations is None
-    if ldms_sampler_configurations is None:
-        errors.append(create_error_msg(
-            "ldms_sampler_configurations",
-            "null/None",
-            "ldms_sampler_configurations is required and cannot be null. Please provide valid sampler configurations with plugin names."
-        ))
-    # Fail if ldms_sampler_configurations is an empty array
-    elif isinstance(ldms_sampler_configurations, list):
-        if len(ldms_sampler_configurations) == 0:
-            errors.append(create_error_msg(
-                "ldms_sampler_configurations",
-                "empty array []",
-                "ldms_sampler_configurations cannot be an empty array. Please provide at least one valid sampler configuration with plugin names."
-            ))
-        else:
-            # Validate each sampler configuration for empty plugin_name
-            for idx, config in enumerate(ldms_sampler_configurations):
-                if not isinstance(config, dict):
-                    continue
-
-                plugin_name = config.get("plugin_name", "")
-                if not plugin_name or (isinstance(plugin_name, str) and plugin_name.strip() == ""):
-                    errors.append(create_error_msg(
-                        f"ldms_sampler_configurations[{idx}].plugin_name",
-                        f"'{plugin_name}'",
-                        "plugin_name cannot be empty. Must be one of: meminfo, procstat2, vmstat, loadavg, slurm_sampler, procnetdev2"
-                    ))
-    
-    return errors
 
 def validate_additional_software(
     input_file_path, data, logger, module, omnia_base_dir, module_utils_base, project_name

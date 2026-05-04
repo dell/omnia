@@ -1,0 +1,52 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+
+- name: Check kube_vip reachability
+  when:
+    - kube_vip is defined
+    - kube_vip | length > 0
+  tags: telemetry_deployment
+  block:
+    - name: Set kube_vip reachability fact to false initially
+      ansible.builtin.set_fact:
+        kube_vip_reachable: false
+
+    - name: Test SSH connectivity to kube_vip
+      ansible.builtin.wait_for:
+        host: "{{ kube_vip }}"
+        port: 22
+        timeout: 5
+        state: started
+      register: kube_vip_ssh_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Set kube_vip reachable fact if SSH successful
+      ansible.builtin.set_fact:
+        kube_vip_reachable: true
+      when:
+        - kube_vip_ssh_check is defined
+        - kube_vip_ssh_check.state is defined
+        - kube_vip_ssh_check.state == 'started'
+
+    - name: Log kube_vip reachability status
+      ansible.builtin.debug:
+        msg: |
+          kube_vip Reachability Check:
+          - Host: {{ kube_vip }}
+          - Port: 22
+          - Reachable: {{ kube_vip_reachable }}
+          - Status: {% if kube_vip_reachable %}✅ REACHABLE{% else %}❌ NOT REACHABLE{% endif %}
+      tags: telemetry_deployment

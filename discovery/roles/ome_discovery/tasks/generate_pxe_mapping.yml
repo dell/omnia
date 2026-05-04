@@ -26,6 +26,14 @@
   ansible.builtin.set_fact:
     ib_subnet: "{{ (network_spec_data.Networks | selectattr('ib_network', 'defined') | first).ib_network.subnet | default('') }}"
 
+- name: Set timestamp for PXE mapping file
+  ansible.builtin.set_fact:
+    pxe_mapping_timestamp: "{{ ansible_date_time.iso8601_basic_short | default(lookup('pipe', 'date +%Y%m%dT%H%M%S')) }}"
+
+- name: Set timestamped PXE mapping output file path
+  ansible.builtin.set_fact:
+    pxe_mapping_output_file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/bmc_pxe_mapping_file_{{ pxe_mapping_timestamp }}.csv"
+
 - name: Ensure input directory exists
   ansible.builtin.file:
     path: "{{ pxe_mapping_output_file | dirname }}"
@@ -47,8 +55,22 @@
 
 - name: Display discovery completion message
   ansible.builtin.debug:
-    msg: "{{ discovery_complete_msg }}"
-
-- name: Display generated BMC PXE mapping file path
-  ansible.builtin.debug:
-    msg: "BMC PXE mapping file saved to: {{ pxe_mapping_output_file }}"
+    msg:
+      - "============================================================"
+      - "OME Discovery Complete"
+      - "============================================================"
+      - "BMC PXE mapping file generated: {{ pxe_mapping_output_file }}"
+      - "Total servers discovered: {{ discovered_servers | length }}"
+      - ""
+      - "Next Steps:"
+      - "1. Review and edit the generated PXE mapping file:"
+      - "     {{ pxe_mapping_output_file }}"
+      - ""
+      - "2. Update HOSTNAME, FUNCTIONAL_GROUP_NAME, GROUP_NAME as needed."
+      - ""
+      - "3. Update the following parameter in provision_config.yml:"
+      - "     pxe_mapping_file_path: {{ pxe_mapping_output_file }}"
+      - ""
+      - "4. Run:"
+      - "     ansible-playbook provision/provision.yml"
+      - "============================================================"

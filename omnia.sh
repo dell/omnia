@@ -105,7 +105,7 @@ get_metadata_version() {
     fi
 }
 
-omnia_release=2.1.0.0
+omnia_release=2.2.0.0
 
 core_container_status=false
 omnia_path=""
@@ -128,7 +128,7 @@ is_local_ip() {
 }
 
 # Version configuration variables
-OMNIA_CORE_CONTAINER_TAG="2.1"  # Default container tag
+OMNIA_CORE_CONTAINER_TAG="2.2"  # Default container tag
 OMNIA_VERSION=""  # Will be read from metadata
 TARGET_OMNIA_VERSION=""  # Target version for upgrade
 TARGET_CONTAINER_TAG=""  # Target container tag for upgrade
@@ -136,10 +136,8 @@ TARGET_CONTAINER_TAG=""  # Target container tag for upgrade
 # Centralized version list (in chronological order)
 # Note: Include RC milestones so upgrades from RC to RC/GA appear
 ALL_OMNIA_VERSIONS=(
-    "2.0.0.0"
-    "2.1.0.0-rc1"
-    "2.1.0.0-rc2"
     "2.1.0.0"
+    "2.2.0.0"
 )
 
 # Container-side paths (used inside podman exec commands)
@@ -315,13 +313,13 @@ validate_container_image() {
         echo -e "${BLUE}Build the required image using the following commands:${NC}"
         echo ""
         echo -e "git clone https://github.com/dell/omnia-artifactory.git -b omnia-container-<version>"
-        echo -e "${YELLOW}Note: Replace <version> with the target Omnia version (e.g., v2.1.0.0)${NC}"
+        echo -e "${YELLOW}Note: Replace <version> with the target Omnia version (e.g., v2.2.0.0)${NC}"
         echo ""
         echo -e "cd omnia-artifactory"
         echo ""
         echo -e "./build_images.sh core core_tag=<tag> omnia_branch=<branch>"
-        echo -e "${YELLOW}Note: Replace <branch> with the target Omnia branch (e.g., v2.1.0.0)${NC}"
-        echo -e "${YELLOW}Note: core_tag <tag> will be the first 2 digits of the target Omnia version (e.g., 2.1 for v2.1.0.0)${NC}"
+        echo -e "${YELLOW}Note: Replace <branch> with the target Omnia branch (e.g., v2.2.0.0)${NC}"
+        echo -e "${YELLOW}Note: core_tag <tag> will be the first 2 digits of the target Omnia version (e.g., 2.2 for v2.2.0.0)${NC}"
         echo ""
         echo -e "${BLUE}After the image is built successfully, re-run:${NC}"
         echo -e "./omnia.sh --$operation"
@@ -338,18 +336,15 @@ validate_container_image() {
 get_container_tag_from_version() {
     local version="$1"
 
-    # Explicit mapping: 2.1.0.0-rc1 stays on pre-GA tag 1.0
-    if [[ "$version" == "2.1.0.0-rc1" ]]; then
-        echo "1.0"
-        return
-    fi
-
     case "$version" in
-        2.0.*)
-            echo "1.0"
+        2.1.*)
+            echo "2.1"
+            ;;
+        2.2.*)
+            echo "2.2"
             ;;
         *)
-            # All other versions (including rc2/GA) use major.minor as tag
+            # All other versions use major.minor as tag
             echo "$(echo "$version" | awk -F. '{print $1"."$2}')"
             ;;
     esac
@@ -1167,7 +1162,7 @@ Description=${container_name^} Container
 [Container]
 ContainerName=${container_name}
 HostName=${container_name}
-Image=${container_name}:2.1
+Image=${container_name}:${OMNIA_CORE_CONTAINER_TAG}
 Network=host
 
 # Capabilities
@@ -1384,19 +1379,19 @@ show_help() {
 }
 
 install_omnia_core() {
-    # Detect existing Omnia 2.0 installation
+    # Check for existing installation
     if podman ps --format '{{.Names}}' | grep -qw "omnia_core"; then
         # Read version from metadata inside container
         current_version=$(podman exec -u root omnia_core grep '^omnia_version:' /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d':' -f2 | tr -d ' \t\n\r')
-        if [ "$current_version" = "2.0.0.0" ]; then
-            echo -e "${RED}ERROR: Existing Omnia 2.0 installation detected.${NC}"
+        if [ "$current_version" = "2.1.0.0" ]; then
+            echo -e "${RED}ERROR: Existing Omnia 2.1 installation detected.${NC}"
             echo -e "${YELLOW}To upgrade, run: $0 --upgrade${NC}"
             echo -e "${YELLOW}For a fresh install, first run: $0 --uninstall${NC}"
             exit 1
         fi
     fi
     
-    local omnia_core_tag="2.1"
+    local omnia_core_tag="$OMNIA_CORE_CONTAINER_TAG"
     local omnia_core_registry=""
     
     # Check if local omnia_core image exists using validate function

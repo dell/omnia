@@ -171,16 +171,6 @@ parallel_copy_max_workers: 4
 
 parallel_copy_candidates:
 
-  # CUDA Runfile (aarch64 repo path)
-  - name: cuda_runfile_aarch64
-    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/aarch64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso/cuda-run/"
-    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
-
-  # CUDA Runfile (x86_64 repo path)
-  - name: cuda_runfile_x86_64
-    src: "{{ oim_shared_path }}/omnia/offline_repo/cluster/x86_64/rhel/{{ hostvars['localhost']['cluster_os_version'] }}/iso/cuda-run/"
-    dest: "{{ slurm_config_path }}/hpc_tools/runfile/"
-
   # NVIDIA HPC SDK (x86_64 tarball extracted dir)
   - name: nvhpc_sdk_x86_64
     src: "{{ oim_shared_path }}/omnia/{{ nvhpc_tarball_x86_64_relpath | dirname }}/"

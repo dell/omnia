@@ -1,0 +1,90 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# =============================================================================
+# DERIVE SINK SUPPORT FLAGS AND LEGACY VARIABLE MAPPINGS
+# =============================================================================
+# This task analyzes all telemetry sources and their collection_targets to
+# determine which sinks (victoria_metrics, victoria_logs, Kafka) are in use.
+# Also maps new telemetry_config structure to legacy variables for backward compatibility.
+#
+# LEGACY VARIABLE MAPPINGS:
+#   ldms_support = telemetry_config.telemetry_sources.ldms.metrics_enabled
+#   idrac_telemetry_support = telemetry_config.telemetry_sources.idrac.metrics_enabled
+#   dcgm_support = telemetry_config.telemetry_sources.dcgm.metrics_enabled
+#   powerscale_configurations = merged dict of powerscale source flags + detailed config
+#
+# SINK SUPPORT FLAGS:
+#   victoria_metrics_support = true if ANY source has 'victoria_metrics' in collection_targets
+#   victoria_logs_support = true if ANY source has 'victoria_logs' in collection_targets
+#   kafka_support = true if ANY source has 'kafka' in collection_targets
+# =============================================================================
+
+- name: Initialize sink support flags
+  ansible.builtin.set_fact:
+    victoria_metrics_support: false
+    victoria_logs_support: false
+    kafka_support: false
+
+- name: Set ldms_support based on telemetry_config.yml
+  ansible.builtin.set_fact:
+    ldms_support: "{{ telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool }}"
+
+- name: Map telemetry_sources to legacy feature flags
+  ansible.builtin.set_fact:
+    idrac_telemetry_support: "{{ telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
+    powerscale_metrics_enabled: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}"
+    powerscale_log_enabled: "{{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
+    dcgm_support: "{{ telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(true) | bool }}"
+
+- name: Map powerscale source + configurations to legacy powerscale_configurations
+  ansible.builtin.set_fact:
+    powerscale_configurations:
+      powerscale_telemetry_support: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(true) | bool }}"
+      powerscale_log_enabled: "{{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
+      syslog_source_ips: "{{ telemetry_config.powerscale_configurations.syslog_source_ips | default([]) }}"
+      otel_collector_storage_size: "{{ telemetry_config.powerscale_configurations.otel_collector_storage_size | default('5Gi') }}"
+      csm_observability_values_file_path: "{{ telemetry_config.powerscale_configurations.csm_observability_values_file_path | default('') }}"
+      additional_remote_write_endpoints: "{{ telemetry_config.powerscale_configurations.additional_remote_write_endpoints | default([]) }}"
+  when: telemetry_config.powerscale_configurations is defined
+
+- name: Check if any source targets victoria_metrics
+  ansible.builtin.set_fact:
+    victoria_metrics_support: true
+  when: >-
+    'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) or
+    'victoria_metrics' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([]))
+
+- name: Check if any source targets victoria_logs
+  ansible.builtin.set_fact:
+    victoria_logs_support: true
+  when: >-
+    'victoria_logs' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([])) or
+    'victoria_logs' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))
+
+- name: Check if any source targets Kafka
+  ansible.builtin.set_fact:
+    kafka_support: true
+  when: >-
+    'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) or
+    'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([]))
+
+- name: Log derived sink support flags
+  ansible.builtin.debug:
+    msg: >
+      Sink support flags derived —
+      victoria_metrics_support={{ victoria_metrics_support }},
+      victoria_logs_support={{ victoria_logs_support }},
+      kafka_support={{ kafka_support }}
+    verbosity: 1

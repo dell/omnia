@@ -42,6 +42,7 @@
     admin_nic: "{{ network_data.admin_network.oim_nic_name }}"
     admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
     ib_network_subnet: "{{ network_data.ib_network.subnet }}"
+    ib_network_dns: "{{ network_data.ib_network.dns | default([]) }}"
     dns: "{{ network_data.admin_network.dns }}"
 
 - name: Initialise variables
@@ -84,11 +85,3 @@
 - name: Check if openmpi support is true
   ansible.builtin.set_fact:
     openmpi_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'openmpi') | list | length > 0 }}"
-
-- name: Initialise ldms support variables
-  ansible.builtin.set_fact:
-    ldms_support: false
-
-- name: Check if ldms support is true
-  ansible.builtin.set_fact:
-    ldms_support: "{{ software_config.softwares | selectattr('name', 'in', 'ldms') | list | length > 0 }}"

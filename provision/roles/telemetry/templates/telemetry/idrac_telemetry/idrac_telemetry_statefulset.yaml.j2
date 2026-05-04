@@ -47,7 +47,7 @@ spec:
         app: {{ idrac_telemetry_k8s_name }}
     spec:
       volumes:
-{% set types = hostvars['localhost']['idrac_telemetry_collection_type'].split(',') %}
+{% set types = telemetry_config.telemetry_sources.idrac.collection_targets | default([]) %}
 {% if 'kafka' in types %}
         # Mount Kafka cluster CA certificate for TLS verification
         - name: kafka-cluster-ca-cert

@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -172,6 +172,42 @@ slurm_cluster:
 # csi_powerscale_driver_values_file_path: User need to download values.yaml file and fill required data in values.yaml file. Provided the path of the values.yaml file here.
 # mention configurable values
 
+# ----------------------------PowerScale CSM Authorization------------------------------------
+# PowerScale CSM Authorization enables multi-tenant storage access control for CSI PowerScale driver.
+# This feature is optional and requires CSI PowerScale driver to be installed.
+# When enabled, tenants can be provisioned with specific storage pools and quota limits.
+# The following fields are mandatory only if powerscale_authorization.enabled is set to true:
+#
+# powerscale_authorization: Configuration for PowerScale multi-tenant authorization.
+#   enabled: Set to true to enable PowerScale CSM Authorization (default: false).
+#   csm_authorization_values_file_path: Absolute file path for the CSM Authorization values.yaml file.
+#                                   Required when enabled is true.
+#   tenants: List of tenant configurations (at least one tenant required when enabled).
+#     name: Tenant name (alphanumeric, hyphens, underscores only, e.g., "team-omnia").
+#     roles: List of roles for this tenant (at least one role required).
+#       name: Role name (alphanumeric, hyphens, underscores only, e.g., "role-omnia").
+#       storage_pool: PowerScale storage pool path (must start with /ifs, e.g., "/ifs/data/csi/team-omnia").
+#                     IMPORTANT: This path must already exist on the PowerScale cluster.
+#                     Omnia and CSI driver will NOT create this path automatically.
+#       quota_limit: Storage quota limit for this role (e.g., "200Gi", "1Ti", "500Mi").
+#
+# Prerequisites for enabling PowerScale Authorization:
+#   1. csi_driver_powerscale must be present in software_config.json
+#   2. Service cluster nodes (service_kube_node_*, service_kube_control_plane_*) must be defined in PXE mapping
+#   3. All three file paths must be provided and files must exist:
+#      - csi_powerscale_driver_secret_file_path
+#      - csi_powerscale_driver_values_file_path
+#      - csm_authorization_values_file_path
+#   4. Image versions in csm_authorization_values_file_path must match the versions in input/config/x86_64/rhel/10.0/csi_driver_powerscale.json
+#      The following CSM Authorization images are validated:
+#      - quay.io/dell/container-storage-modules/csm-authorization-proxy
+#      - quay.io/dell/container-storage-modules/csm-authorization-tenant
+#      - quay.io/dell/container-storage-modules/csm-authorization-role
+#      - quay.io/dell/container-storage-modules/csm-authorization-storage
+#      - quay.io/dell/container-storage-modules/csm-authorization-controller
+#      - quay.io/dell/container-storage-modules/csm-authorization-sidecar
+#      Note: These images are already included in csi_driver_powerscale.json
+
 # - k8s_crio_storage_size: Specifies the disk size allocated for CRI-O container storage.
 # This storage is used to store container images, writable layers, and runtime data.
 # Acceptable formats: "10G", "15G", "50G" (Only positive values in Gigabytes are allowed)
@@ -186,6 +222,15 @@ service_k8s_cluster:
     k8s_service_addresses: "10.233.0.0/18"
     k8s_pod_network_cidr: "10.233.64.0/18"
     nfs_storage_name: "nfs_k8s"
+    k8s_crio_storage_size: "20G"
     csi_powerscale_driver_secret_file_path: ""
     csi_powerscale_driver_values_file_path: ""
-    k8s_crio_storage_size: "20G"
+    powerscale_authorization:
+      enabled: false
+#      csm_authorization_values_file_path: ""   # Required when enabled: true - "/path/to/your/updated/csm-authorization-values.yaml"
+#      tenants: # Required when enabled: true
+#        - name: "team-omnia"
+#          roles:
+#            - name: "role-omnia"
+#              storage_pool: "/ifs/data/csi/team-omnia"
+#              quota_limit: "200Gi"

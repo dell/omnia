@@ -59,7 +59,7 @@ spec:
           - Describe
         host: "*"
 
-{% if hostvars['localhost']['idrac_telemetry_support'] and 'kafka' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',') %}
+{% if telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) and 'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) %}
       # Producer and consumer permissions for idrac topic
       - resource:
           type: topic
@@ -80,7 +80,7 @@ spec:
           - Read
         host: "*"
 {% endif %}
-{% if hostvars['localhost']['ldms_support'] %}
+{% if ldms_support %}
       # Producer and consumer permissions for ldms topic
       - resource:
           type: topic

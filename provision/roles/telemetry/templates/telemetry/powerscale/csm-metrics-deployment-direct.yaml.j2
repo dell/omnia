@@ -1,0 +1,82 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: csm-metrics-powerscale-cluster{{ cluster_index }}
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: csm-metrics-powerscale
+    cluster-index: "{{ cluster_index }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csm-metrics-powerscale
+      cluster-index: "{{ cluster_index }}"
+  template:
+    metadata:
+      labels:
+        app: csm-metrics-powerscale
+        cluster-index: "{{ cluster_index }}"
+    spec:
+      containers:
+        - name: csm-metrics-powerscale
+          image: {{ csm_metrics_powerscale_image }}
+          envFrom:
+            - configMapRef:
+                name: csm-metrics-powerscale-config-cluster{{ cluster_index }}
+          env:
+            - name: POWERSCALE_CLUSTER_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: isilon-creds
+                  key: endpoint
+            - name: POWERSCALE_CLUSTER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: isilon-creds
+                  key: username
+            - name: POWERSCALE_CLUSTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: isilon-creds
+                  key: password
+            - name: POWERSCALE_CLUSTER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: isilon-creds
+                  key: clusterName
+          resources:
+            requests:
+              cpu: {{ csm_metrics_powerscale_resources.requests.cpu }}
+              memory: {{ csm_metrics_powerscale_resources.requests.memory }}
+            limits:
+              cpu: {{ csm_metrics_powerscale_resources.limits.cpu }}
+              memory: {{ csm_metrics_powerscale_resources.limits.memory }}
+          volumeMounts:
+            - name: isilon-creds
+              mountPath: /etc/isilon-creds
+              readOnly: true
+            - name: csm-metrics-config
+              mountPath: /etc/config/karavi-metrics-powerscale.yaml
+              subPath: karavi-metrics-powerscale.yaml
+      volumes:
+        - name: isilon-creds
+          secret:
+            secretName: isilon-creds
+        - name: csm-metrics-config
+          configMap:
+            name: csm-metrics-powerscale-config-cluster{{ cluster_index }}

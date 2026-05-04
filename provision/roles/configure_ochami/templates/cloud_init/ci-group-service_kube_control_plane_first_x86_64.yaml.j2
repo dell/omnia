@@ -332,7 +332,7 @@
               ipAddressPools:
               - first-pool
 
-{% if hostvars['localhost']['idrac_telemetry_support'] or hostvars['localhost']['ldms_support'] %}
+{% if idrac_telemetry_support or ldms_support %}
         - path: /root/telemetry.sh
           owner: root:root
           permissions: '0755'
@@ -424,7 +424,8 @@
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
-        - bash /usr/local/bin/doca-install.sh && bash /usr/local/bin/configure-ib-network.sh
+        - bash /usr/local/bin/doca-install.sh || true
+        - bash /usr/local/bin/configure-ib-network.sh
         - mkdir -p /etc/containers/registries.conf.d
         - mv /tmp/crio.conf /etc/containers/registries.conf.d/crio.conf
         - systemctl start crio.service
@@ -1041,10 +1042,27 @@
             systemctl restart nfs-client.target
             systemctl restart rpcbind
 
-{% if hostvars['localhost']['idrac_telemetry_support'] or hostvars['localhost']['ldms_support'] %}
+{% if powerscale_metrics_enabled | default(false) | bool %}
+{% include 'powerscale/deploy_powerscale_telemetry.sh.j2' %}
+{% endif %}
+
+{% if idrac_telemetry_support or ldms_support %}
             echo "Applying Telemetry Kubernetes deployments"
             /root/telemetry.sh
 {% endif %}
+
+{% if powerscale_log_enabled | default(false) | bool %}
+            echo "===== Configuring PowerScale Syslog Forwarding ====="
+            if [ -f "{{ k8s_client_mount_path }}/telemetry/deployments/configure_powerscale_syslog.sh" ]; then
+              echo "Running PowerScale syslog configuration script..."
+              bash "{{ k8s_client_mount_path }}/telemetry/deployments/configure_powerscale_syslog.sh" 2>&1
+              echo "PowerScale syslog configuration completed (exit code: $?)"
+            else
+              echo "WARNING: PowerScale syslog configuration script not found."
+              echo "Ensure deploy_powerscale_logs.yml ran successfully during provisioning."
+            fi
+{% endif %}
+
             echo "Rollout and Restart coredns"
             kubectl rollout restart deployment coredns -n kube-system
             sleep 30

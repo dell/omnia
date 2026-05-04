@@ -63,11 +63,11 @@ image_missing_fail_msg: |
 
 # Usage: validate_telemetry.yml
 warning_idrac_telemetry_support_false: |
-  "[WARNING] idrac_telemetry_support is set to false in telemetry_config.yml. This means iDRAC telemetry will not be activated.
-  To use telemetry, set idrac_telemetry_support to true in telemetry_config.yml."
+  "[WARNING] telemetry_sources.idrac.metrics_enabled is set to false in telemetry_config.yml. This means iDRAC telemetry will not be activated.
+  To use telemetry, set telemetry_sources.idrac.metrics_enabled to true in telemetry_config.yml."
 
 warning_idrac_telemetry_support_true: |
-  "[WARNING] idrac_telemetry_support is set to true in telemetry_config.yml.
+  "[WARNING] telemetry_sources.idrac.metrics_enabled is set to true in telemetry_config.yml.
   iDRAC telemetry will be activated for all BMC IPs listed in mapping file.
   Confirm that all BMC IPs are reachable from the respective service cluster nodes for telemetry to function properly.
   Make sure that Redfish is enabled and the iDRAC has a datacenter license.

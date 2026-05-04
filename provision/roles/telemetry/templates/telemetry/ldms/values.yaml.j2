@@ -7,7 +7,7 @@ aggs:
 - conf: /ldms_conf/ldmsd.nersc-ldms-aggr.slurm-cluster-0.conf
   env: /ldms_conf/ldms-env.nersc-ldms-aggr.slurm-cluster-0.sh
   name: slurm-cluster-0
-  port: {{ telemetry_config.ldms_agg_port }}
+  port: {{ telemetry_config.ldms_configurations.agg_port }}
 authVolMountOption:
 - mountPath: /nersc-munge-key
   name: nersc-munge-key
@@ -35,7 +35,7 @@ statefulSet:
   - name: slurm-cluster
     replicas: 1
 store:
-  port: {{ telemetry_config.ldms_store_port }}
+  port: {{ telemetry_config.ldms_configurations.store_port }}
   resources:
     limits:
       cpu: 1

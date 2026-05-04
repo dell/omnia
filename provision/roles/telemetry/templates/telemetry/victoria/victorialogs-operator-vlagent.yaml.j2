@@ -1,0 +1,215 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+# VLAgent - VictoriaLogs log collection agent via operator
+# Managed by victoria-metrics-operator (>= v0.59.0)
+# 
+# Purpose: Platform-managed log forwarding agent providing:
+#   - Syslog reception (RFC 3164/5424) on ports 514 (plaintext) and 6514 (TLS)
+#   - JSON Lines forwarding to vlinsert ingestion endpoint
+#   - Client-side buffering with PVC-backed persistence for retry during vlinsert unavailability
+#
+# Design: Source-neutral base configuration with no source-specific relabel rules.
+# Downstream capabilities extend this configuration for specific log sources.
+
+apiVersion: operator.victoriametrics.com/v1
+kind: VLAgent
+metadata:
+  name: vlagent
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: vlagent
+    component: victorialogs
+spec:
+  # ========================================
+  # Container Image Configuration
+  # ========================================
+  image:
+    repository: {{ victoria_logs_cluster.vlagent.image.split(':')[0] }}
+    tag: {{ victoria_logs_cluster.vlagent.image.split(':')[1] }}
+    pullPolicy: IfNotPresent
+
+  # ========================================
+  # Replica Configuration
+  # ========================================
+  # Single replica (DD-A1): Platform-managed log forwarding agent
+  # HA provided by PVC buffer persistence and pod restart
+  replicaCount: {{ victoria_logs_cluster.vlagent.replicas }}
+
+  # ========================================
+  # Configuration Management
+  # ========================================
+  # The VictoriaMetrics operator does NOT translate configSecret into
+  # syslog CLI flags. Syslog listeners MUST be enabled via extraArgs.
+  # These map directly to VLAgent CLI flags:
+  #   -syslog.listenAddr.tcp  → plaintext syslog TCP receiver (rsyslog relay forwards here)
+  #   -syslog.listenAddr.udp  → plaintext syslog UDP receiver
+  # Pipeline:
+  #   UDP mode: PowerScale → K8s node rsyslog (UDP:514) → VLAgent (TCP:514) → VictoriaLogs
+  extraArgs:
+    syslog.listenAddr.tcp: ":514"
+    syslog.listenAddr.udp: ":514"
+{% if victoria_logs_cluster.tls_enabled %}
+    remoteWrite.tlsCAFile: "/etc/victoria/certs/ca.crt"
+{% endif %}
+
+  # ========================================
+  # Remote Write Configuration
+  # ========================================
+  # Forward logs to VictoriaLogs vlinsert endpoint
+  # Supports JSON Lines format with optional TLS
+  remoteWrite:
+{% if victoria_logs_cluster.tls_enabled %}
+    - url: https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert
+{% else %}
+    - url: http://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert
+{% endif %}
+
+  # ========================================
+  # Resource Allocation
+  # ========================================
+  # CPU: 50m request, 250m limit (I/O-bound, low CPU usage)
+  # Memory: 128Mi request, 512Mi limit (in-memory batch buffers + disk-backed WAL)
+  resources:
+    requests:
+      memory: {{ victoria_logs_cluster.vlagent.resources.requests.memory }}
+      cpu: {{ victoria_logs_cluster.vlagent.resources.requests.cpu }}
+    limits:
+      memory: {{ victoria_logs_cluster.vlagent.resources.limits.memory }}
+      cpu: {{ victoria_logs_cluster.vlagent.resources.limits.cpu }}
+
+  # ========================================
+  # Init Container: Stale Lock File Cleanup
+  # ========================================
+  # VLAgent uses flock for exclusive access to its persistent queue.
+  # On NFS-backed PVCs (e.g., PowerScale StorageClass), POSIX flock is
+  # not reliably released on pod termination. This causes the new pod
+  # to panic with "resource temporarily unavailable" on the lock file.
+  # The init container removes stale flock.lock files before vlagent starts.
+  initContainers:
+    - name: cleanup-stale-locks
+      image: {{ victoria_logs_cluster.vlagent.image.split(':')[0] }}:{{ victoria_logs_cluster.vlagent.image.split(':')[1] }}
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Cleaning up stale flock files..."
+          find /tmp-data -name "flock.lock" -delete 2>/dev/null || true
+          echo "Lock file cleanup complete"
+      volumeMounts:
+        - name: tmp-data
+          mountPath: /tmp-data
+
+  # ========================================
+  # Persistent Storage Configuration
+  # ========================================
+  # PVC buffer for client-side log persistence and retry during vlinsert unavailability
+  # Default: 5Gi (sufficient for ~24-48 hours of log accumulation at typical syslog rates)
+  # Configurable via victoria_logs_cluster.vlagent.pvc_size in vars/main.yml
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ victoria_logs_cluster.vlagent.pvc_size | default('5Gi') }}
+
+  # ========================================
+  # TLS Certificate Configuration
+  # ========================================
+  # Volume mounts for TLS certificates:
+  #   - victoria-tls-certs: remoteWrite to vlinsert (CA certificate validation)
+{% if victoria_logs_cluster.tls_enabled %}
+  volumes:
+    - name: victoria-tls-certs
+      secret:
+        secretName: victoria-tls-certs
+        items:
+          - key: tls.crt
+            path: server.crt
+          - key: tls.key
+            path: server.key
+          - key: ca.crt
+            path: ca.crt
+
+  volumeMounts:
+    - name: victoria-tls-certs
+      mountPath: /etc/victoria/certs
+      readOnly: true
+{% endif %}
+
+  # ========================================
+  # Service Exposure Configuration
+  # ========================================
+  # Service type: LoadBalancer (MetalLB for external access)
+  # Provides single external IP for all log sources (OME, SFM, PowerScale)
+  # PowerScale syslog flows: PowerScale → VLAgent (LoadBalancer IP:514) → VictoriaLogs
+  serviceSpec:
+    useAsDefault: true
+    spec:
+      type: LoadBalancer
+      ports:
+        - name: syslog
+          port: 514
+          targetPort: 514
+          protocol: TCP
+        - name: syslog-udp
+          port: 514
+          targetPort: 514
+          protocol: UDP
+
+  # ========================================
+  # Health Probes
+  # ========================================
+  # Liveness probe: Restart pod if health check fails
+  # Readiness probe: Route traffic only to ready pods
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 9429
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 9429
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # ========================================
+  # Pod Scheduling and Affinity
+  # ========================================
+  # No pod anti-affinity required (single replica)
+  # Tolerations allow scheduling on nodes with taints
+  tolerations:
+    - effect: NoExecute
+      key: node.kubernetes.io/not-ready
+      operator: Exists
+      tolerationSeconds: 5
+    - effect: NoExecute
+      key: node.kubernetes.io/unreachable
+      operator: Exists
+      tolerationSeconds: 5
+
+  # ========================================
+  # Termination Grace Period
+  # ========================================
+  # Allow time for graceful shutdown and buffer flush
+  terminationGracePeriodSeconds: 30

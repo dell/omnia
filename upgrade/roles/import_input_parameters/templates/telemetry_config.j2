@@ -82,40 +82,17 @@ idrac_telemetry_support: {{ telemetry_idrac_telemetry_support | default(true) | 
 #   - "kafka"           : Store in Kafka only
 #   - "victoria,kafka"  : Store in both (recommended)
 # Default: "victoria,kafka"
-idrac_telemetry_collection_type: {{ telemetry_idrac_telemetry_collection_type | default('victoria,kafka') | to_json }}
+telemetry_collection_type: {{ telemetry_telemetry_collection_type | default('victoria,kafka') | to_json }}
 
 # ============================================================================
 # VICTORIAMETRICS CONFIGURATION
 # ============================================================================
 # VictoriaMetrics is a time-series database for storing telemetry metrics.
-# Used for iDRAC telemetry when 'victoria' is enabled in idrac_telemetry_collection_type.
+# Used for iDRAC telemetry when 'victoria' is enabled in telemetry_collection_type.
 #
-# DEPLOYMENT MODES:
-#   - single-node: Simple deployment with one pod (suitable for small deployments)
-#   - cluster: High-availability deployment with multiple components
-#               (recommended for production and large-scale deployments)
-victoria_configurations:
-  # VictoriaMetrics deployment mode
-  # Supported values:
-  #   - "single-node" : Simple deployment (1 pod, suitable for dev/test)
-  #   - "cluster"     : High-availability deployment (7 pods, recommended for production)
-  # Default: "cluster"
-  #
-  # Cluster Mode Benefits:
-  #   - High availability (no single point of failure)
-  #   - Horizontal scalability (scale components independently)
-  #   - Better performance (4x ingestion, 2x query speed)
-  #   - Production-ready architecture
-  #
-  # Single-Node Benefits:
-  #   - Simple setup (fewer resources)
-  #   - Suitable for small deployments (<10 nodes)
-  #   - Lower resource usage (~4Gi memory vs ~10Gi for cluster)
-  deployment_mode: {{ telemetry_victoria_deployment_mode | default('cluster') | to_json }}
-
+victoria_metrics_configurations:
   # The amount of storage allocated for EACH VictoriaMetrics persistent volume.
   # IMPORTANT: Total VictoriaMetrics storage depends on deployment mode:
-  #   - Single-node mode: Total storage = persistence_size × 1 pod
   #   - Cluster mode: Total storage = persistence_size × 3 vmstorage pods
   #   - Example (cluster): 8Gi × 3 = 24Gi total VictoriaMetrics storage
   # Accepted values: in the form of "X[Ki|Mi|Gi|Ti|Pi|Ei]"
@@ -130,7 +107,7 @@ victoria_configurations:
 # KAFKA CONFIGURATION
 # ============================================================================
 # Apache Kafka is a distributed streaming platform for storing telemetry data.
-# Used for iDRAC telemetry when 'kafka' is enabled in idrac_telemetry_collection_type.
+# Used for iDRAC telemetry when 'kafka' is enabled in telemetry_collection_type.
 # Also used for LDMS telemetry when LDMS software is configured.
 #
 # NOTE: Kafka topics are auto-generated based on enabled features:

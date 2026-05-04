@@ -1,0 +1,50 @@
+#!/bin/bash
+# Slurm-node entry point. Decides toolkit path based on login_compiler_node_present.
+# GPU detection gate ensures CUDA operations only run on nodes with NVIDIA hardware.
+
+set -euo pipefail
+
+LOGIN_COMPILER_PRESENT="{{ login_compiler_node_present | lower }}"
+SLURM_NODE_PRESENT="{{ slurm_node_present | lower }}"
+
+[ "$SLURM_NODE_PRESENT" = "true" ] || { echo "[INFO] Not a Slurm node."; exit 0; }
+
+# GPU detection gate - if no GPU present, skip CUDA toolkit and driver installation
+if ! lspci | grep -qi nvidia; then
+    echo "[INFO] No NVIDIA GPU detected. Skipping CUDA toolkit and driver installation."
+    exit 0
+fi
+
+if [ "$LOGIN_COMPILER_PRESENT" = "true" ]; then
+    echo "[INFO] Login/compiler nodes present → mounting shared toolkit from NFS."
+    # Mount shared toolkit at /usr/local/cuda
+    mkdir -p /usr/local/cuda
+    CUDA_NFS="{{ cloud_init_nfs_path }}/hpc_tools/cuda"
+    if ! mountpoint -q /usr/local/cuda; then
+        mount -t nfs "$CUDA_NFS" /usr/local/cuda || true
+    fi
+    grep -q "$CUDA_NFS /usr/local/cuda" /etc/fstab || \
+        echo "$CUDA_NFS /usr/local/cuda nfs defaults,_netdev 0 0" >> /etc/fstab
+    # Export CUDA environment variables
+    cat > /etc/profile.d/cuda.sh <<'EOF'
+export PATH=/usr/local/cuda/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+export CUDA_HOME=/usr/local/cuda
+EOF
+    chmod +x /etc/profile.d/cuda.sh
+    echo "[INFO] CUDA environment configured from shared NFS toolkit."
+else
+    echo "[INFO] No login/compiler nodes → participating in lock."
+    # install_cuda_toolkit.sh is lock-aware:
+    #   - if this node wins the lock, it runs the install and publishes .done_cuda
+    #   - if this node loses the lock, it returns immediately without waiting
+    if ! /usr/local/bin/install_cuda_toolkit.sh; then
+        echo "[ERROR] install_cuda_toolkit.sh returned non-zero."
+        exit 1
+    fi
+    echo "[INFO] CUDA toolkit installation handled by another node or completed by this node."
+    echo "[INFO] Proceeding with driver, DCGM, and nvidia-peermem installation."
+fi
+
+echo "[SUCCESS] CUDA coordinator completed."
+exit 0

@@ -17,7 +17,7 @@
   when:
     - kube_vip is defined
     - kube_vip | length > 0
-    - hostvars['localhost']['idrac_telemetry_support'] | default(false) | bool
+    - idrac_telemetry_support | default(false) | bool
   block:
     - name: Check if telemetry deployment file exists
       ansible.builtin.stat:
@@ -91,20 +91,20 @@
       register: idrac_telemetry_receiver_ready
       failed_when: false
       when:
-        - hostvars['localhost']['idrac_telemetry_support'] | default(false) | bool
+        - idrac_telemetry_support | default(false) | bool
 
     - name: Display idrac telemetry receiver ready status
       ansible.builtin.debug:
         msg: "{{ idrac_telemetry_receiver_ready }}"
       when:
-        - hostvars['localhost']['idrac_telemetry_support'] | default(false) | bool
+        - idrac_telemetry_support | default(false) | bool
         - idrac_telemetry_receiver_ready is defined
 
 - name: Apply LDMS configurations for upgrade
   when:
     - kube_vip is defined
     - kube_vip | length > 0
-    - hostvars['localhost']['ldms_support'] | default(false) | bool
+    - ldms_support | default(false) | bool
   block:
     - name: Check if LDMS aggregator is running on service k8s cluster
       kubernetes.core.k8s_info:

@@ -14,7 +14,7 @@ spec:
     volumes:
       - id: 0
         type: persistent-claim
-        size: "{{ hostvars['localhost']['kafka_configurations']['persistence_size'] }}"
+        size: "{{ telemetry_config.telemetry_sinks.kafka.persistence_size }}"
         kraftMetadata: shared
         deleteClaim: false
 ---
@@ -35,7 +35,7 @@ spec:
     volumes:
       - id: 0
         type: persistent-claim
-        size: "{{ hostvars['localhost']['kafka_configurations']['persistence_size'] }}"
+        size: "{{ telemetry_config.telemetry_sinks.kafka.persistence_size }}"
         kraftMetadata: shared
         deleteClaim: false
 ---
@@ -79,9 +79,9 @@ spec:
       transaction.state.log.min.isr: 2
       default.replication.factor: 3
       min.insync.replicas: 2
-      log.retention.hours: {{ hostvars['localhost']['kafka_configurations']['log_retention_hours'] }}
-      log.segment.bytes: {{ hostvars['localhost']['kafka_configurations']['log_segment_bytes'] }}
-      log.retention.bytes: {{ hostvars['localhost']['kafka_configurations']['log_retention_bytes'] }}
+      log.retention.hours: {{ kafka_log_retention_hours }}
+      log.segment.bytes: {{ kafka_log_segment_bytes }}
+      log.retention.bytes: {{ kafka_log_retention_bytes }}
       log.retention.check.interval.ms: 300000
       # Enable topic auto-creation for external clients
       auto.create.topics.enable: true

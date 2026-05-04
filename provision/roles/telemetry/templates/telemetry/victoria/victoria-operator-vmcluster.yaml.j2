@@ -1,0 +1,241 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+# VMCluster - victoria_metrics cluster deployment via operator
+# Managed by victoria-metrics-operator
+
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMCluster
+metadata:
+  name: victoria-cluster
+  namespace: {{ telemetry_namespace }}
+spec:
+  # Retention period from telemetry_config.yml
+  retentionPeriod: "{{ telemetry_config.telemetry_sinks.victoria_metrics.retention_period }}h"
+  
+  # VMStorage configuration
+  vmstorage:
+    replicaCount: {{ victoria_cluster.vmstorage.replicas }}
+    image:
+      repository: {{ victoria_cluster.vmstorage.image.split(':')[0] }}
+      tag: {{ victoria_cluster.vmstorage.image.split(':')[1] }}
+      pullPolicy: IfNotPresent
+    
+    # Storage configuration per pod
+    storageDataPath: /vmstorage-data
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: {{ telemetry_config.telemetry_sinks.victoria_metrics.persistence_size }}
+    
+    # Resource limits
+    resources:
+      requests:
+        memory: {{ victoria_cluster.vmstorage.resources.requests.memory }}
+        cpu: {{ victoria_cluster.vmstorage.resources.requests.cpu }}
+      limits:
+        memory: {{ victoria_cluster.vmstorage.resources.limits.memory }}
+        cpu: {{ victoria_cluster.vmstorage.resources.limits.cpu }}
+    
+    # Pod anti-affinity
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - vmstorage
+              topologyKey: "kubernetes.io/hostname"
+    
+    # Tolerations
+    tolerations:
+      - effect: NoExecute
+        key: node.kubernetes.io/not-ready
+        operator: Exists
+        tolerationSeconds: 5
+      - effect: NoExecute
+        key: node.kubernetes.io/unreachable
+        operator: Exists
+        tolerationSeconds: 5
+{% if victoria_cluster.vmstorage.dedup_min_scrape_interval or victoria_cluster.tls_enabled %}
+    
+    extraArgs:
+{% if victoria_cluster.vmstorage.dedup_min_scrape_interval %}
+      dedup.minScrapeInterval: {{ victoria_cluster.vmstorage.dedup_min_scrape_interval }}
+{% endif %}
+{% if victoria_cluster.tls_enabled %}
+      tls: "true"
+      tlsCertFile: "/etc/victoria/certs/server.crt"
+      tlsKeyFile: "/etc/victoria/certs/server.key"
+{% endif %}
+{% endif %}
+{% if victoria_cluster.tls_enabled %}
+    
+    volumes:
+      - name: victoria-tls-certs
+        secret:
+          secretName: victoria-tls-certs
+          items:
+            - key: tls.crt
+              path: server.crt
+            - key: tls.key
+              path: server.key
+    volumeMounts:
+      - name: victoria-tls-certs
+        mountPath: /etc/victoria/certs
+        readOnly: true
+{% endif %}
+  
+  # VMSelect configuration
+  vmselect:
+    replicaCount: {{ victoria_cluster.vmselect.replicas }}
+    image:
+      repository: {{ victoria_cluster.vmselect.image.split(':')[0] }}
+      tag: {{ victoria_cluster.vmselect.image.split(':')[1] }}
+      pullPolicy: IfNotPresent
+
+    # External access via LoadBalancer (useAsDefault merges into the main service)
+    serviceSpec:
+      useAsDefault: true
+      spec:
+        type: LoadBalancer
+    
+    # Resource limits
+    resources:
+      requests:
+        memory: {{ victoria_cluster.vmselect.resources.requests.memory }}
+        cpu: {{ victoria_cluster.vmselect.resources.requests.cpu }}
+      limits:
+        memory: {{ victoria_cluster.vmselect.resources.limits.memory }}
+        cpu: {{ victoria_cluster.vmselect.resources.limits.cpu }}
+    
+    # Pod anti-affinity
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - vmselect
+              topologyKey: "kubernetes.io/hostname"
+    
+    # Extra args for query optimization
+    extraArgs:
+{% if victoria_cluster.vmselect.max_query_duration %}
+      search.maxQueryDuration: {{ victoria_cluster.vmselect.max_query_duration }}
+{% endif %}
+{% if victoria_cluster.vmselect.max_concurrent_requests %}
+      search.maxConcurrentRequests: "{{ victoria_cluster.vmselect.max_concurrent_requests }}"
+{% endif %}
+{% if victoria_cluster.vmselect.cache_data_path %}
+      cacheDataPath: /cache
+{% endif %}
+{% if victoria_cluster.tls_enabled %}
+      tls: "true"
+      tlsCertFile: "/etc/victoria/certs/server.crt"
+      tlsKeyFile: "/etc/victoria/certs/server.key"
+{% endif %}
+{% if victoria_cluster.tls_enabled %}
+    
+    volumes:
+      - name: victoria-tls-certs
+        secret:
+          secretName: victoria-tls-certs
+          items:
+            - key: tls.crt
+              path: server.crt
+            - key: tls.key
+              path: server.key
+            - key: ca.crt
+              path: ca.crt
+    volumeMounts:
+      - name: victoria-tls-certs
+        mountPath: /etc/victoria/certs
+        readOnly: true
+{% endif %}
+  
+  # VMInsert configuration
+  vminsert:
+    replicaCount: {{ victoria_cluster.vminsert.replicas }}
+    image:
+      repository: {{ victoria_cluster.vminsert.image.split(':')[0] }}
+      tag: {{ victoria_cluster.vminsert.image.split(':')[1] }}
+      pullPolicy: IfNotPresent
+    
+    # Resource limits
+    resources:
+      requests:
+        memory: {{ victoria_cluster.vminsert.resources.requests.memory }}
+        cpu: {{ victoria_cluster.vminsert.resources.requests.cpu }}
+      limits:
+        memory: {{ victoria_cluster.vminsert.resources.limits.memory }}
+        cpu: {{ victoria_cluster.vminsert.resources.limits.cpu }}
+    
+    # Pod anti-affinity
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: app.kubernetes.io/name
+                    operator: In
+                    values:
+                      - vminsert
+              topologyKey: "kubernetes.io/hostname"
+{% if victoria_cluster.tls_enabled %}
+    
+    extraArgs:
+      tls: "true"
+      tlsCertFile: "/etc/victoria/certs/server.crt"
+      tlsKeyFile: "/etc/victoria/certs/server.key"
+      maxLabelsPerTimeseries: "60"
+    
+    volumes:
+      - name: victoria-tls-certs
+        secret:
+          secretName: victoria-tls-certs
+          items:
+            - key: tls.crt
+              path: server.crt
+            - key: tls.key
+              path: server.key
+            - key: ca.crt
+              path: ca.crt
+    volumeMounts:
+      - name: victoria-tls-certs
+        mountPath: /etc/victoria/certs
+        readOnly: true
+{% endif %}
+{% if victoria_cluster.vminsert.external_access %}
+    
+    # External access via LoadBalancer (useAsDefault merges into the main service)
+    serviceSpec:
+      useAsDefault: true
+      spec:
+        type: LoadBalancer
+{% endif %}

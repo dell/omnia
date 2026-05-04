@@ -15,7 +15,7 @@
 
 - name: Pre-requisites for service_cluster k8s
   when:
-    - hostvars['localhost']['idrac_telemetry_support']
+    - idrac_telemetry_support
   block:
     - name: Include service_cluster metadata if already exists
       ansible.builtin.include_vars: "{{ service_cluster_metadata_path }}"

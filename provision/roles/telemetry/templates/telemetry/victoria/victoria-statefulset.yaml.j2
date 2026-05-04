@@ -99,7 +99,7 @@ spec:
           args:
             - "--selfScrapeInterval=5s"
             - "--storageDataPath=/victoria-metrics-data"
-            - "--retentionPeriod={{ hostvars['localhost']['victoria_configurations']['retention_period'] }}"
+            - "--retentionPeriod={{ telemetry_config.telemetry_sinks.victoriametrics.retention_period }}"
             - "--httpListenAddr=:8443"
             - "-tls"
             - "-tlsCertFile=/etc/victoria/certs/server.crt"
@@ -121,4 +121,4 @@ spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: "{{ hostvars['localhost']['victoria_configurations']['persistence_size'] }}"
+            storage: "{{ telemetry_config.telemetry_sinks.victoriametrics.persistence_size }}"

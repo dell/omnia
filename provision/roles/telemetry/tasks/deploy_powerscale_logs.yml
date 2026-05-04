@@ -1,0 +1,49 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Configure PowerScale syslog collection via rsyslog relay + shared VLAgent
+# Gated by: telemetry_sources.powerscale.logs_enabled
+#
+# DATA PIPELINE (UDP mode only):
+#   PowerScale (UDP:514) → K8s node rsyslog → VLAgent LB (TCP:514) → VictoriaLogs
+#
+# What Omnia does:
+#   - Uses syslog_source_ips from user config (syslog source != CSI endpoint)
+#   - Configures rsyslog on ALL K8s nodes (UDP listener, filter by PS IP, forward to VLAgent)
+#   - Opens firewall ports 514/udp and 514/tcp on all K8s nodes
+#   - VLAgent listens on TCP:514 (rsyslog relay)
+#
+# What Omnia does NOT do:
+#   - Omnia does NOT configure PowerScale directly
+#   - User must configure PowerScale to send UDP syslog to K8s node IPs
+
+- name: Configure PowerScale syslog collection
+  when: powerscale_log_enabled | default(false) | bool
+  block:
+    - name: Validate VictoriaLogs is in collection_targets
+      ansible.builtin.assert:
+        that:
+          - "'victoria_logs' in telemetry_config.telemetry_sources.powerscale.collection_targets | default([])"
+        fail_msg: "{{ powerscale_victoria_logs_validation_fail_msg }}"
+
+    - name: Set PowerScale syslog source IPs
+      ansible.builtin.set_fact:
+        powerscale_management_ips: "{{ telemetry_config.powerscale_configurations.syslog_source_ips | default([]) }}"
+
+    - name: Populate PowerScale syslog configuration script
+      ansible.builtin.template:
+        src: "{{ configure_ps_syslog_template }}"
+        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/configure_powerscale_syslog.sh"
+        mode: "{{ hostvars['localhost']['file_permissions_755'] }}"

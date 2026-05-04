@@ -24,7 +24,8 @@ omnia_config_credentials_vault_key: "{{ input_project_dir | default(playbook_dir
 
 # Output file configuration
 pxe_mapping_output_file: "{{ input_project_dir | default(playbook_dir + '/../input') }}/bmc_pxe_mapping_file.csv"
-pxe_mapping_headers: "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,BMC_HOSTNAME,IB_MAC,IB_IP"
+pxe_mapping_headers:  # yamllint disable-line rule:line-length
+  "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,BMC_HOSTNAME,IB_MAC,IB_IP,GPU_VENDOR,GPU_TYPE"
 
 # Messages
 ome_credentials_prompt_msg: |
@@ -42,12 +43,16 @@ discovery_complete_msg:
   - "Total servers discovered: {{ discovered_servers | length }}"
   - ""
   - "Next Steps:"
-  - "1. Review and edit the generated file:"
+  - "1. Review and edit the generated PXE mapping file:"
   - "     {{ pxe_mapping_output_file }}"
+  - ""
   - "2. Update HOSTNAME, FUNCTIONAL_GROUP_NAME, GROUP_NAME as needed."
-  - "3. Rename or copy the file to:"
-  - "     input/pxe_mapping_file.csv"
-  - "4. Run: ansible-playbook provision/provision.yml"
+  - ""
+  - "3. Update the following parameter in provision_config.yml:"
+  - "     pxe_mapping_file_path: {{ pxe_mapping_output_file }}"
+  - ""
+  - "4. Run:"
+  - "     ansible-playbook provision/provision.yml"
   - "============================================================"
 
 no_servers_found_msg: |

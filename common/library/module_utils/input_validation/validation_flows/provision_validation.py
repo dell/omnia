@@ -30,6 +30,7 @@ from ansible.module_utils.input_validation.validation_flows import common_valida
 file_names = config.files
 create_error_msg = validation_utils.create_error_msg
 create_file_path = validation_utils.create_file_path
+ib_mac_re = re.compile(r"^([0-9A-Fa-f]{2}:){7}[0-9A-Fa-f]{2}$")
 
 # Expected header columns (case-insensitive)
 required_headers = [
@@ -271,6 +272,52 @@ def validate_duplicate_admin_ips_in_mapping_file(pxe_mapping_file_path):
         raise ValueError(f"Duplicate ADMIN_IP found in PXE mapping file: {'; '.join(duplicates)}")
 
 
+def validate_duplicate_ib_ips_in_mapping_file(pxe_mapping_file_path):
+    """Validates that IB_IP values in the mapping file are unique."""
+    if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
+        raise ValueError(f"PXE mapping file not found: {pxe_mapping_file_path}")
+
+    with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.readlines()
+
+    non_comment_lines = [ln for ln in raw_lines if ln.strip()]
+    reader = csv.DictReader(non_comment_lines)
+
+    fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+    ib_ip_col = fieldname_map.get("IB_IP")
+    hostname_col = fieldname_map.get("HOSTNAME")
+
+    if not ib_ip_col:
+        return
+
+    seen_ib_ips = {}
+    duplicates = []
+
+    for row_idx, row in enumerate(reader, start=2):
+        ib_ip = row.get(ib_ip_col, "").strip() if row.get(ib_ip_col) else ""
+        hostname = ""
+        if hostname_col:
+            hostname = row.get(hostname_col, "").strip() if row.get(hostname_col) else ""
+
+        if not ib_ip:
+            continue
+
+        if ib_ip in seen_ib_ips:
+            first_row = seen_ib_ips[ib_ip]["row"]
+            first_host = seen_ib_ips[ib_ip]["hostname"]
+            dup_host = hostname or "<empty>"
+            first_host_disp = first_host or "<empty>"
+            duplicates.append(
+                f"'{ib_ip}' at CSV rows {first_row} ({first_host_disp}) and {row_idx} ({dup_host})"
+            )
+            continue
+
+        seen_ib_ips[ib_ip] = {"row": row_idx, "hostname": hostname}
+
+    if duplicates:
+        raise ValueError(f"Duplicate IB_IP found in PXE mapping file: {'; '.join(duplicates)}")
+
+
 def validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path):
     """Validates that GROUP_NAME has a consistent PARENT_SERVICE_TAG across the mapping file."""
     if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
@@ -420,6 +467,25 @@ def validate_mapping_file_entries(mapping_file_path):
             raise ValueError(f"Invalid ADMIN_IP: '{admin_ip}' at CSV row {row_idx} in mapping file.")
         if bmc_ip and not validation_utils.validate_ipv4(bmc_ip):
             raise ValueError(f"Invalid BMC_IP: '{bmc_ip}' at CSV row {row_idx} in mapping file.")
+
+        ib_mac_col = fieldname_map.get("IB_MAC")
+        ib_ip_col = fieldname_map.get("IB_IP")
+        ib_mac = row.get(ib_mac_col, "").strip() if ib_mac_col and row.get(ib_mac_col) else ""
+        ib_ip = row.get(ib_ip_col, "").strip() if ib_ip_col and row.get(ib_ip_col) else ""
+
+        if bool(ib_mac) != bool(ib_ip):
+            raise ValueError(
+                f"IB_MAC and IB_IP must both be provided or both be empty at CSV row {row_idx} in mapping file."
+            )
+
+        if ib_mac and not ib_mac_re.match(ib_mac):
+            raise ValueError(
+                f"Invalid IB_MAC: '{ib_mac}' at CSV row {row_idx} in mapping file. "
+                "Expected format: xx:xx:xx:xx:xx:xx:xx:xx."
+            )
+
+        if ib_ip and not validation_utils.validate_ipv4(ib_ip):
+            raise ValueError(f"Invalid IB_IP: '{ib_ip}' at CSV row {row_idx} in mapping file.")
 
     if not row_seen:
         raise ValueError("Please provide details in mapping file.")
@@ -859,6 +925,7 @@ def validate_provision_config(
             validate_duplicate_service_tags_in_mapping_file(pxe_mapping_file_path)
             validate_duplicate_hostnames_in_mapping_file(pxe_mapping_file_path)
             validate_duplicate_admin_ips_in_mapping_file(pxe_mapping_file_path)
+            validate_duplicate_ib_ips_in_mapping_file(pxe_mapping_file_path)
             validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path)
             validate_functional_groups_separation(pxe_mapping_file_path)
             validate_parent_service_tag_hierarchy(pxe_mapping_file_path)

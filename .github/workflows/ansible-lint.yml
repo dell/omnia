@@ -8,6 +8,7 @@ on:
       - release_1.7.1
       - pub/build_stream
       - pub/q2_dev
+      - pub/telemetry
 
 jobs:
   build:

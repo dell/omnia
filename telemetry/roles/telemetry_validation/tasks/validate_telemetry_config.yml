@@ -40,18 +40,18 @@
   register: include_metadata
   no_log: true
 
-- name: Set support values
+- name: Map telemetry_sources to legacy feature flags
   ansible.builtin.set_fact:
-    idrac_telemetry_support: "{{ idrac_telemetry_support | lower }}"
+    idrac_telemetry_support: "{{ telemetry_sources.idrac.metrics_enabled | default(false) | bool }}"
 
-- name: Warning for idrac_telemetry_support is currently set to false
+- name: Warning for iDRAC telemetry is currently disabled
   ansible.builtin.pause:
     seconds: "{{ pause_time_15 }}"
     prompt: "{{ warning_idrac_telemetry_support_false }}"
-  when: not idrac_telemetry_support
+  when: not (idrac_telemetry_support | bool)
 
-- name: Warning for idrac_telemetry_support is currently set to true
+- name: Warning for iDRAC telemetry is currently enabled
   ansible.builtin.pause:
     seconds: "{{ pause_time_15 }}"
     prompt: "{{ warning_idrac_telemetry_support_true }}"
-  when: idrac_telemetry_support
+  when: idrac_telemetry_support | bool

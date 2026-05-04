@@ -44,6 +44,14 @@ spec:
           - -remoteWrite.tlsCAFile=/etc/victoria/certs/ca.crt
           - -remoteWrite.tlsInsecureSkipVerify=false
 {% endif %}
+{% if hostvars['localhost']['telemetry_config']['telemetry_sources']['powerscale']['metrics_enabled'] | default(false) | bool %}
+{% for endpoint in telemetry_config.powerscale_configurations.additional_remote_write_endpoints | default([]) %}
+          - -remoteWrite.url={{ endpoint.url }}
+{% if endpoint.tls_insecure_skip_verify | default(false) %}
+          - -remoteWrite.tlsInsecureSkipVerify=true
+{% endif %}
+{% endfor %}
+{% endif %}
         volumeMounts:
           - name: scrape-config
             mountPath: "/etc/vmagent"

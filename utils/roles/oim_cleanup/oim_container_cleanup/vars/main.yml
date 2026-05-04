@@ -59,6 +59,8 @@ openchami_containers:
   - cloud-init-server
   - haproxy
   - coresmd
+  - coresmd-coredhcp
+  - coresmd-coredns
 
 openchami_volumes:
   - haproxy-certs
@@ -78,6 +80,7 @@ openchami_secrets:
   - bss_postgres_password
 
 tcp_ports:
+  - 53
   - 9000
   - 9001
   - 5000
@@ -88,6 +91,7 @@ tcp_ports:
   - 8443
 
 udp_ports:
+  - 53
   - 69
   - 67
   - 68

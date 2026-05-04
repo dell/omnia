@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,30 +33,31 @@
     dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   loop: "{{ victoria_templates }}"
-  when: "'victoria' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')"
+  when: victoria_metrics_support | default(false) | bool
   tags: telemetry_deployment
-  # NOTE: victoria_templates is automatically set based on deployment_mode in telemetry_config.yml
-  #       - cluster mode: includes vmstorage, vminsert, vmselect templates
-  #       - single-node mode: includes victoria-statefulset template
 
+- name: Populate victoria_logs deployment configs
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  loop: "{{ victorialogs_templates }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  when: victoria_logs_support | default(false) | bool
+  tags: telemetry_deployment
 - name: Kafka configurations
   when: kafka_support
   block:
     - name: Set Kafka configuration variables from telemetry_config
       ansible.builtin.set_fact:
-        kafka_log_retention_hours: "{{ telemetry_config.kafka_configurations.log_retention_hours }}"
-        kafka_log_retention_bytes: "{{ telemetry_config.kafka_configurations.log_retention_bytes }}"
-        kafka_log_segment_bytes: "{{ telemetry_config.kafka_configurations.log_segment_bytes }}"
+        kafka_log_retention_hours: "{{ telemetry_config.telemetry_sinks.kafka.log_retention_hours | default(168) }}"
+        kafka_log_retention_bytes: "{{ telemetry_config.telemetry_sinks.kafka.log_retention_bytes | default(-1) }}"
+        kafka_log_segment_bytes: "{{ telemetry_config.telemetry_sinks.kafka.log_segment_bytes | default(1073741824) }}"
 
     - name: Create kafka_topic_partitions dictionary from telemetry_config
       ansible.builtin.set_fact:
-        kafka_topic_partitions: >-
-          {{
-            dict(
-              telemetry_config.kafka_configurations.topic_partitions | map(attribute='name')
-              | zip(telemetry_config.kafka_configurations.topic_partitions | map(attribute='partitions'))
-            )
-          }}
+        kafka_topic_partitions: "{{ telemetry_config.telemetry_sinks.kafka.topic_partitions | default({}) }}"
 
     - name: Build list of Kafka topics to create
       ansible.builtin.set_fact:
@@ -71,8 +72,8 @@
             'filename': 'kafka.topic_idrac.yaml'
           }] }}
       when:
-        - hostvars['localhost']['idrac_telemetry_support']
-        - "'kafka' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',')"
+        - telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
+        - "'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))"
         - "kafka.topics.idrac.name in kafka_topic_partitions"
 
     - name: Add ldms topic if enabled
@@ -84,7 +85,7 @@
             'filename': 'kafka.topic_ldms.yaml'
           }] }}
       when:
-        - hostvars['localhost']['ldms_support']
+        - ldms_support
         - "kafka.topics.ldms.name in kafka_topic_partitions"
 
 
@@ -115,6 +116,19 @@
         dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/{{ strimzi_kafka_pkg }}.tar.gz"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
 
+- name: Victoria Metrics operator configuration
+  when: victoria_metrics_support | default(false) | bool
+  block:
+    - name: Extract and set facts for tarball URLs for victoria metrics operator
+      ansible.builtin.set_fact:
+        victoria_operator_pkg: "{{ k8s_packages_json['service_k8s']['cluster'] | selectattr('type', 'equalto', 'tarball') | selectattr('package', 'search', 'victoria-metrics-operator') | map(attribute='package') | join }}" # noqa: yaml[line-length]
+
+    - name: Download victoria metrics operator tarball
+      ansible.builtin.get_url:
+        url: "{{ victoria_operator_tarball_url }}"
+        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/{{ victoria_operator_pkg }}.tar.gz"
+        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+
 - name: Populate common telemetry deployment configs
   ansible.builtin.template:
     src: "{{ item.src }}"
@@ -129,7 +143,7 @@
     src: 'telemetry/idrac_telemetry/idrac_telemetry_statefulset.yaml.j2'
     dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/idrac_telemetry_statefulset.yaml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
-  when: hostvars['localhost']['idrac_telemetry_support']
+  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
   tags: telemetry_deployment
 
 - name: Deploy telemetry cleanup script

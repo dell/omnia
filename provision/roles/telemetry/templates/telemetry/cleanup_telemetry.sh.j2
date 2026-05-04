@@ -18,12 +18,14 @@
 # Telemetry Stack Cleanup Script
 # Removes Kafka, LDMS, iDRAC telemetry, and monitoring resources from the {{ telemetry_namespace }} namespace
 #
-# Usage: ./cleanup_telemetry.sh [kafka] [ldms] [idrac] [victoria] [all]
-#   kafka    - Delete Kafka cluster, users, and bridge
-#   ldms     - Delete LDMS aggregator and store
-#   idrac    - Delete iDRAC telemetry
-#   victoria - Delete VictoriaMetrics monitoring
-#   all      - Delete everything (default if no arguments)
+# Usage: ./cleanup_telemetry.sh [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [all]
+#   kafka        - Delete Kafka cluster, users, and bridge
+#   ldms         - Delete LDMS aggregator and store
+#   idrac        - Delete iDRAC telemetry
+#   victoria     - Delete VictoriaMetrics monitoring (vmcluster, vmagent)
+#   victorialogs - Delete VictoriaLogs only (vlagent, vlcluster) without affecting VictoriaMetrics
+#   powerscale   - Delete PowerScale telemetry (karavi-observability Helm release, CSM Metrics, OTEL Collector)
+#   all          - Delete everything (default if no arguments)
 #
 
 set -e
@@ -35,6 +37,8 @@ CLEAN_KAFKA=false
 CLEAN_LDMS=false
 CLEAN_IDRAC=false
 CLEAN_VICTORIA=false
+CLEAN_VICTORIALOGS=false
+CLEAN_POWERSCALE=false
 CLEAN_ALL=false
 
 if [ $# -eq 0 ]; then
@@ -54,24 +58,34 @@ else
             victoria)
                 CLEAN_VICTORIA=true
                 ;;
+            victorialogs)
+                CLEAN_VICTORIALOGS=true
+                ;;
+            powerscale)
+                CLEAN_POWERSCALE=true
+                ;;
             all)
                 CLEAN_ALL=true
                 ;;
             -h|--help)
-                echo "Usage: $0 [kafka] [ldms] [idrac] [victoria] [all]"
+                echo "Usage: $0 [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [all]"
                 echo ""
                 echo "Options:"
-                echo "  kafka    - Delete Kafka cluster, users, and bridge"
-                echo "  ldms     - Delete LDMS aggregator and store"
-                echo "  idrac    - Delete iDRAC telemetry"
-                echo "  victoria - Delete VictoriaMetrics monitoring"
-                echo "  all      - Delete everything (default if no arguments)"
+                echo "  kafka        - Delete Kafka cluster, users, and bridge"
+                echo "  ldms         - Delete LDMS aggregator and store"
+                echo "  idrac        - Delete iDRAC telemetry"
+                echo "  victoria     - Delete VictoriaMetrics monitoring (vmcluster, vmagent)"
+                echo "  victorialogs - Delete VictoriaLogs only (vlagent, vlcluster) without affecting VictoriaMetrics"
+                echo "  powerscale   - Delete PowerScale telemetry (karavi-observability Helm release)"
+                echo "  all          - Delete everything (default if no arguments)"
                 echo ""
                 echo "Examples:"
                 echo "  $0                    # Delete everything"
                 echo "  $0 all                # Delete everything"
                 echo "  $0 kafka ldms         # Delete only Kafka and LDMS"
-                echo "  $0 idrac victoria     # Delete only iDRAC and Victoria"
+                echo "  $0 idrac victoria     # Delete only iDRAC and VictoriaMetrics"
+                echo "  $0 victorialogs       # Delete only VictoriaLogs (keeps VictoriaMetrics running)"
+                echo "  $0 powerscale         # Delete only PowerScale telemetry"
                 exit 0
                 ;;
             *)
@@ -89,6 +103,8 @@ if [ "$CLEAN_ALL" = true ]; then
     CLEAN_LDMS=true
     CLEAN_IDRAC=true
     CLEAN_VICTORIA=true
+    CLEAN_VICTORIALOGS=true
+    CLEAN_POWERSCALE=true
 fi
 
 echo "=========================================="
@@ -96,11 +112,13 @@ echo "  Telemetry Stack Cleanup"
 echo "=========================================="
 echo ""
 echo "Components to clean:"
-echo "  Kafka Bridge:    $([ "$CLEAN_KAFKA" = true ] && echo "YES" || echo "NO")"
-echo "  Kafka Cluster:   $([ "$CLEAN_KAFKA" = true ] && echo "YES" || echo "NO")"
-echo "  LDMS:            $([ "$CLEAN_LDMS" = true ] && echo "YES" || echo "NO")"
-echo "  iDRAC Telemetry: $([ "$CLEAN_IDRAC" = true ] && echo "YES" || echo "NO")"
-echo "  Victoria Metrics:$([ "$CLEAN_VICTORIA" = true ] && echo "YES" || echo "NO")"
+echo "  Kafka Bridge:     $([ "$CLEAN_KAFKA" = true ] && echo "YES" || echo "NO")"
+echo "  Kafka Cluster:    $([ "$CLEAN_KAFKA" = true ] && echo "YES" || echo "NO")"
+echo "  LDMS:             $([ "$CLEAN_LDMS" = true ] && echo "YES" || echo "NO")"
+echo "  iDRAC Telemetry:  $([ "$CLEAN_IDRAC" = true ] && echo "YES" || echo "NO")"
+echo "  VictoriaMetrics:  $([ "$CLEAN_VICTORIA" = true ] && echo "YES" || echo "NO")"
+echo "  VictoriaLogs:     $([ "$CLEAN_VICTORIALOGS" = true ] && echo "YES" || echo "NO")"
+echo "  PowerScale Tel.:  $([ "$CLEAN_POWERSCALE" = true ] && echo "YES" || echo "NO")"
 echo ""
 read -p "Continue? (y/N): " -n 1 -r
 echo
@@ -220,7 +238,7 @@ if [ "$CLEAN_KAFKA" = true ]; then
     echo ""
 fi
 
-if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = true ] || [ "$CLEAN_VICTORIA" = true ]; then
+if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = true ] || [ "$CLEAN_VICTORIA" = true ] || [ "$CLEAN_VICTORIALOGS" = true ] || [ "$CLEAN_POWERSCALE" = true ]; then
     echo "Step 7: Delete Persistent Volume Claims"
     echo "----------------------------------------"
     if [ "$CLEAN_KAFKA" = true ]; then
@@ -236,11 +254,25 @@ if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = t
         # Delete single-node PVCs
         delete_all pvc "app=victoria-metric"
         delete_resource pvc victoria-metrics-pvc-victoria-metric-0
-        # Delete cluster mode PVCs (vmstorage StatefulSet PVCs)
-        delete_all pvc "app=vmstorage"
+        # Delete cluster mode PVCs (operator-managed vmstorage StatefulSet PVCs)
+        delete_all pvc "app.kubernetes.io/instance=victoria-cluster"
         for i in {0..9}; do
-            delete_resource pvc vmstorage-data-vmstorage-$i
+            delete_resource pvc vmstorage-data-vmstorage-victoria-cluster-$i
         done
+    fi
+    if [ "$CLEAN_VICTORIALOGS" = true ]; then
+        # Delete VictoriaLogs PVCs (vlstorage StatefulSet PVCs + vlagent PVC)
+        delete_all pvc "app.kubernetes.io/name=vlstorage"
+        delete_all pvc "app.kubernetes.io/name=vlagent"
+        for i in {0..9}; do
+            delete_resource pvc vlstorage-data-vlstorage-victoria-logs-cluster-$i
+            delete_resource pvc vlagent-data-vlagent-vlagent-$i
+        done
+    fi
+    if [ "$CLEAN_POWERSCALE" = true ]; then
+        # Delete OTEL Collector PVC (created by cloud-init post-Helm-install)
+        delete_resource pvc otel-collector-data
+        delete_all pvc "app.kubernetes.io/name=otel-collector"
     fi
     sleep 2
     echo ""
@@ -277,7 +309,7 @@ if [ "$CLEAN_IDRAC" = true ]; then
     echo ""
 fi
 
-if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = true ] || [ "$CLEAN_VICTORIA" = true ]; then
+if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = true ] || [ "$CLEAN_VICTORIA" = true ] || [ "$CLEAN_VICTORIALOGS" = true ]; then
     echo "Step 9: Delete ConfigMaps"
     echo "-------------------------"
     if [ "$CLEAN_KAFKA" = true ]; then
@@ -292,6 +324,9 @@ if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_LDMS" = true ] || [ "$CLEAN_IDRAC" = t
     fi
     if [ "$CLEAN_VICTORIA" = true ]; then
         delete_resource configmap victoria-tls-test-script
+    fi
+    if [ "$CLEAN_VICTORIALOGS" = true ]; then
+        delete_resource configmap vlagent-config
     fi
     sleep 2
     echo ""
@@ -320,30 +355,77 @@ if [ "$CLEAN_KAFKA" = true ] || [ "$CLEAN_VICTORIA" = true ]; then
     fi
     if [ "$CLEAN_VICTORIA" = true ]; then
         delete_resource service victoria-metric
-        delete_resource service vmselect
-        delete_resource service vminsert
-        delete_resource service vmstorage
-        delete_resource service vmagent
+        # Operator-managed cluster services
+        delete_resource service vmselect-victoria-cluster
+        delete_resource service vminsert-victoria-cluster
+        delete_resource service vmstorage-victoria-cluster
+        delete_resource service vmagent-victoria-cluster
     fi
     sleep 2
     echo ""
 fi
 
-if [ "$CLEAN_VICTORIA" = true ]; then
-    echo "Step 12: Delete Monitoring Resources"
-    echo "-------------------------------------"
+if [ "$CLEAN_VICTORIALOGS" = true ]; then
+    echo "Step 12: Delete VictoriaLogs Resources"
+    echo "---------------------------------------"
     
-    # Delete VictoriaMetrics cluster components (if cluster mode is deployed)
+    # Delete VictoriaLogs operator CRD resources (operator cascades deletion)
+    echo "Deleting VictoriaLogs operator CRD resources..."
+    kubectl -n $NAMESPACE delete vlcluster victoria-logs-cluster --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete vlagent --all --ignore-not-found=true 2>/dev/null || true
+    sleep 5
+
+    # Delete VictoriaLogs cluster components (operator-managed)
+    echo "Deleting VictoriaLogs cluster components..."
+    delete_resource deployment vlinsert-victoria-logs-cluster
+    delete_resource deployment vlselect-victoria-logs-cluster
+    delete_resource statefulset vlstorage-victoria-logs-cluster
+    delete_resource service vlinsert-victoria-logs-cluster
+    delete_resource service vlselect-victoria-logs-cluster
+    delete_resource service vlstorage-victoria-logs-cluster
+    delete_all pod "app.kubernetes.io/component=vlinsert"
+    delete_all pod "app.kubernetes.io/component=vlselect"
+    delete_all pod "app.kubernetes.io/component=vlstorage"
+    
+    # Delete VLAgent components
+    echo "Deleting VLAgent..."
+    delete_resource statefulset vlagent-vlagent
+    delete_resource service vlagent-vlagent
+    delete_all pod "app.kubernetes.io/name=vlagent"
+    
+    # Delete VictoriaLogs shared resources
+    echo "Deleting VictoriaLogs shared resources..."
+    delete_resource configmap vlagent-config
+    # Note: victoria-tls-certs secret is shared with VictoriaMetrics - only delete if VictoriaMetrics is also being removed
+    if [ "$CLEAN_VICTORIA" != true ]; then
+        echo "  Keeping victoria-tls-certs secret (shared with VictoriaMetrics)"
+    fi
+    
+    sleep 2
+    echo ""
+fi
+
+if [ "$CLEAN_VICTORIA" = true ]; then
+    echo "Step 13: Delete VictoriaMetrics Resources"
+    echo "------------------------------------------"
+    
+    # Delete VictoriaMetrics operator CRD resources (operator cascades deletion)
+    echo "Deleting VictoriaMetrics operator CRD resources..."
+    kubectl -n $NAMESPACE delete vmcluster victoria-cluster --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete vmagent --all --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete vmpodscrape --all --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete vmsingle --all --ignore-not-found=true 2>/dev/null || true
+    sleep 5
+
+    # Delete any remaining operator-managed cluster components
     echo "Deleting VictoriaMetrics cluster components..."
-    delete_resource deployment vmselect
-    delete_resource deployment vminsert
-    delete_resource statefulset vmstorage
-    delete_resource service vmselect
-    delete_resource service vminsert
-    delete_resource service vmstorage
-    delete_all pod "app=vmselect"
-    delete_all pod "app=vminsert"
-    delete_all pod "app=vmstorage"
+    delete_resource deployment vmselect-victoria-cluster
+    delete_resource deployment vminsert-victoria-cluster
+    delete_resource statefulset vmstorage-victoria-cluster
+    delete_resource service vmselect-victoria-cluster
+    delete_resource service vminsert-victoria-cluster
+    delete_resource service vmstorage-victoria-cluster
+    delete_all pod "app.kubernetes.io/instance=victoria-cluster"
     
     # Delete VictoriaMetrics single-node components (if single-node mode is deployed)
     echo "Deleting VictoriaMetrics single-node components..."
@@ -357,6 +439,7 @@ if [ "$CLEAN_VICTORIA" = true ]; then
     delete_resource deployment vmagent
     delete_resource service vmagent
     delete_all pod "app=vmagent"
+    delete_all pod "app.kubernetes.io/name=vmagent"
     
     # Delete shared resources
     echo "Deleting VictoriaMetrics shared resources..."
@@ -372,8 +455,56 @@ if [ "$CLEAN_VICTORIA" = true ]; then
     echo ""
 fi
 
+if [ "$CLEAN_POWERSCALE" = true ]; then
+    echo "Step: Delete PowerScale Telemetry"
+    echo "----------------------------------"
+
+    # Uninstall karavi-observability Helm release (primary deployment method)
+    echo "Uninstalling karavi-observability Helm release..."
+    if helm list -n $NAMESPACE --filter karavi-observability -q 2>/dev/null | grep -q karavi-observability; then
+        helm uninstall karavi-observability -n $NAMESPACE --wait --timeout 5m 2>/dev/null || true
+        echo "Helm release karavi-observability uninstalled."
+        sleep 5
+    else
+        echo "No karavi-observability Helm release found."
+    fi
+
+    # Delete Helm-managed resources by label (karavi-observability Helm chart)
+    echo "Deleting CSM Metrics PowerScale (Helm-managed)..."
+    delete_all deployment "app.kubernetes.io/name=karavi-metrics-powerscale"
+    delete_all service "app.kubernetes.io/name=karavi-metrics-powerscale"
+    delete_all configmap "app.kubernetes.io/name=karavi-metrics-powerscale"
+    delete_all pod "app.kubernetes.io/name=karavi-metrics-powerscale"
+
+    echo "Deleting OTEL Collector (Helm-managed)..."
+    delete_all deployment "app.kubernetes.io/name=otel-collector"
+    delete_all service "app.kubernetes.io/name=otel-collector"
+    delete_all configmap "app.kubernetes.io/name=otel-collector"
+    delete_all pod "app.kubernetes.io/name=otel-collector"
+
+    # Delete cert-manager resources deployed by karavi-observability sub-chart
+    echo "Deleting cert-manager resources (Helm sub-chart)..."
+    delete_all deployment "app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager"
+    delete_all pod "app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager"
+
+    # Note: vmagent is shared with iDRAC telemetry - not deleted here.
+    # PowerScale scrape targets are removed from vmagent config on next deployment.
+
+    # Delete Karavi-specific resources (if deployed)
+    echo "Deleting Karavi Authorization resources..."
+    delete_resource configmap karavi-authorization-config
+    delete_resource secret karavi-authorization-ca-cert
+
+    # Delete PowerScale credentials
+    echo "Deleting PowerScale credentials..."
+    delete_resource secret isilon-creds
+
+    sleep 2
+    echo ""
+fi
+
 echo ""
-echo "Step 13: Force Delete Any Remaining Component Pods"
+echo "Step 14: Force Delete Any Remaining Component Pods"
 echo "---------------------------------------------------"
 # Only force delete pods from components being cleaned
 if [ "$CLEAN_KAFKA" = true ]; then
@@ -387,18 +518,28 @@ fi
 if [ "$CLEAN_IDRAC" = true ]; then
     kubectl -n $NAMESPACE delete pod -l app=idrac-telemetry --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
 fi
+if [ "$CLEAN_VICTORIALOGS" = true ]; then
+    kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/component=vlinsert --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/component=vlselect --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/component=vlstorage --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/name=vlagent --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+fi
 if [ "$CLEAN_VICTORIA" = true ]; then
     kubectl -n $NAMESPACE delete pod -l app=victoria-metric --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
-    kubectl -n $NAMESPACE delete pod -l app=vmselect --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
-    kubectl -n $NAMESPACE delete pod -l app=vminsert --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
-    kubectl -n $NAMESPACE delete pod -l app=vmstorage --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/instance=victoria-cluster --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/name=vmagent --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
     kubectl -n $NAMESPACE delete pod -l app=vmagent --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
     kubectl -n $NAMESPACE delete pod -l app=victoria-tls-test --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+fi
+if [ "$CLEAN_POWERSCALE" = true ]; then
+    kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/name=karavi-metrics-powerscale --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/name=otel-collector --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
 fi
 sleep 5
 
 echo ""
-echo "Step 14: Check for Remaining Resources"
+echo "Step 15: Check for Remaining Resources"
 echo "---------------------------------------"
 if [ "$CLEAN_KAFKA" = true ]; then
     echo "Remaining Kafka resources:"
@@ -415,18 +556,38 @@ if [ "$CLEAN_IDRAC" = true ]; then
     kubectl -n $NAMESPACE get statefulset,pod,configmap -l app=idrac-telemetry 2>/dev/null || echo "  None"
     echo ""
 fi
+if [ "$CLEAN_VICTORIALOGS" = true ]; then
+    echo "Remaining VictoriaLogs resources:"
+    echo "  VLCluster CR:"
+    kubectl -n $NAMESPACE get vlcluster 2>/dev/null || echo "    None"
+    echo "  VLAgent CR:"
+    kubectl -n $NAMESPACE get vlagent 2>/dev/null || echo "    None"
+    echo "  Pods:"
+    kubectl -n $NAMESPACE get pod -l app.kubernetes.io/component=vlinsert 2>/dev/null || echo "    None"
+    kubectl -n $NAMESPACE get pod -l app.kubernetes.io/component=vlselect 2>/dev/null || echo "    None"
+    kubectl -n $NAMESPACE get pod -l app.kubernetes.io/component=vlstorage 2>/dev/null || echo "    None"
+    kubectl -n $NAMESPACE get pod -l app.kubernetes.io/name=vlagent 2>/dev/null || echo "    None"
+    echo ""
+fi
 if [ "$CLEAN_VICTORIA" = true ]; then
-    echo "Remaining Victoria Metrics resources:"
+    echo "Remaining VictoriaMetrics resources:"
     echo "  Single-node:"
     kubectl -n $NAMESPACE get statefulset,deployment,pod,configmap -l app=victoria-metric 2>/dev/null || echo "    None"
-    echo "  Cluster (vmselect):"
-    kubectl -n $NAMESPACE get deployment,pod -l app=vmselect 2>/dev/null || echo "    None"
-    echo "  Cluster (vminsert):"
-    kubectl -n $NAMESPACE get deployment,pod -l app=vminsert 2>/dev/null || echo "    None"
-    echo "  Cluster (vmstorage):"
-    kubectl -n $NAMESPACE get statefulset,pod -l app=vmstorage 2>/dev/null || echo "    None"
+    echo "  Operator-managed cluster:"
+    kubectl -n $NAMESPACE get vmcluster,deployment,statefulset,pod -l app.kubernetes.io/instance=victoria-cluster 2>/dev/null || echo "    None"
     echo "  vmagent:"
+    kubectl -n $NAMESPACE get deployment,pod -l app.kubernetes.io/name=vmagent 2>/dev/null || echo "    None"
     kubectl -n $NAMESPACE get deployment,pod -l app=vmagent 2>/dev/null || echo "    None"
+    echo ""
+fi
+if [ "$CLEAN_POWERSCALE" = true ]; then
+    echo "Remaining PowerScale telemetry resources:"
+    echo "  CSM Metrics:"
+    kubectl -n $NAMESPACE get deployment,pod -l app.kubernetes.io/name=karavi-metrics-powerscale 2>/dev/null || echo "    None"
+    echo "  OTEL Collector:"
+    kubectl -n $NAMESPACE get deployment,pod -l app.kubernetes.io/name=otel-collector 2>/dev/null || echo "    None"
+    echo "  Helm release:"
+    helm list -n $NAMESPACE --filter karavi-observability 2>/dev/null || echo "    None"
     echo ""
 fi
 echo "Remaining PVCs:"

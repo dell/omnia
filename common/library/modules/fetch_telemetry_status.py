@@ -67,7 +67,9 @@ def main():
 
     telemetry_status_list = []
 
-    if telemetry_config_data["idrac_telemetry_support"]:
+    telemetry_sources = telemetry_config_data.get("telemetry_sources", {})
+
+    if telemetry_sources.get("idrac", {}).get("metrics_enabled", False):
         telemetry_status_list.append("idrac_telemetry")
 
     module.exit_json(

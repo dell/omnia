@@ -2,8 +2,8 @@
   "sys_opts": {
     "system" : "dell",
     "namespace": "telemetry",
-    "agg_port": {{ telemetry_config.ldms_agg_port }},
-    "store_port": {{ telemetry_config.ldms_store_port }},
+    "agg_port": {{ telemetry_config.ldms_configurations.agg_port }},
+    "store_port": {{ telemetry_config.ldms_configurations.store_port }},
     "imagePullSecretsOption": {
       "imagePullSecrets": [
       ]
@@ -17,7 +17,7 @@
       "store_split": 999999,
       "sampler": {
         "name": "nersc",
-        "port": {{ telemetry_config.ldms_sampler_port }},
+        "port": {{ telemetry_config.ldms_configurations.sampler_port }},
         "auth_type": "ovis",
         "auth_secret": "nersc-ldms-ovis-auth",
         "auth_secret_file": "ldmsauth.conf"

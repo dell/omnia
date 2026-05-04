@@ -60,3 +60,18 @@ data:
           # Add Pod IP label
           - source_labels: [__meta_kubernetes_pod_ip]
             target_label: pod_ip
+{% if hostvars['localhost']['telemetry_config']['telemetry_sources']['powerscale']['metrics_enabled'] | default(false) | bool %}
+
+      # PowerScale OTEL Collector scrape targets (per cluster)
+{% for cluster in ps_clusters %}
+      - job_name: "otel-collector-powerscale-cluster{{ loop.index0 }}"
+        honor_labels: true
+        scrape_interval: {{ vmagent.global.scrape_interval }}
+        static_configs:
+          - targets: ['otel-collector.{{ telemetry_namespace }}.svc.cluster.local:8889']
+            labels:
+              source: powerscale
+              cluster: "{{ cluster.clusterName }}"
+              cluster_endpoint: "{{ cluster.endpoint }}"
+{% endfor %}
+{% endif %}

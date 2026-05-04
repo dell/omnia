@@ -1,0 +1,308 @@
+#!/bin/bash
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# PowerScale Syslog Collection — rsyslog relay + VLAgent
+#
+# DATA PIPELINE:
+#   PowerScale (UDP/TCP:514) -> rsyslog on K8s nodes (KUBE_VIP:514) -> VLAgent (LoadBalancer IP:514) -> VictoriaLogs
+
+set -euo pipefail
+
+NAMESPACE="{{ telemetry_namespace }}"
+KUBE_VIP="{{ kube_vip }}"
+
+POWERSCALE_IPS=(
+{% for ip in powerscale_management_ips %}
+    "{{ ip }}"
+{% endfor %}
+)
+
+echo "=========================================="
+echo "PowerScale Syslog Collection Setup"
+echo "=========================================="
+echo "Pipeline: PowerScale (UDP/TCP:514) -> rsyslog (KUBE_VIP:514) -> VLAgent (ClusterIP:514) -> VictoriaLogs"
+{% raw %}
+echo "PowerScale Syslog Source IPs: ${POWERSCALE_IPS[*]}"
+{% endraw %}
+echo ""
+
+# ============================================================================
+# Phase 1: Get VLAgent ClusterIP for internal forwarding
+# ============================================================================
+echo "===== Phase 1: Getting VLAgent ClusterIP ====="
+
+VLAGENT_SERVICE=$(kubectl get svc vlagent-vlagent -n "$NAMESPACE" -o json 2>/dev/null) || {
+    echo "ERROR: VLAgent service not found in namespace $NAMESPACE"
+    exit 0
+}
+
+SERVICE_TYPE=$(echo "$VLAGENT_SERVICE" | jq -r '.spec.type')
+echo "VLAgent service type: $SERVICE_TYPE"
+
+# rsyslog runs in host network - use ClusterIP for internal access
+VLAGENT_CLUSTERIP=$(echo "$VLAGENT_SERVICE" | jq -r '.spec.clusterIP')
+
+if [ -z "$VLAGENT_CLUSTERIP" ] || [ "$VLAGENT_CLUSTERIP" == "null" ]; then
+    echo "ERROR: Could not determine VLAgent ClusterIP."
+    echo "Ensure VLAgent service has a ClusterIP assigned."
+    exit 0
+fi
+
+# Use ClusterIP for rsyslog forwarding
+VLAGENT_IP="$VLAGENT_CLUSTERIP"
+VLAGENT_PORT=514
+
+echo "VLAgent forwarding target: ${VLAGENT_IP}:${VLAGENT_PORT}"
+echo ""
+
+# ============================================================================
+# Phase 2: Generate rsyslog configuration
+# ============================================================================
+echo "===== Phase 2: Generating rsyslog Configuration ====="
+
+RSYSLOG_CONF="/etc/rsyslog.d/60-omnia-powerscale-syslog.conf"
+
+generate_rsyslog_config() {
+    # Static templates — QUOTED heredoc (no Bash interpretation)
+    cat <<'RSYSLOG_STATIC'
+# Omnia PowerScale Syslog Relay Configuration
+# Auto-generated — DO NOT EDIT manually
+# Pipeline: PowerScale (UDP/TCP:514) -> rsyslog on K8s nodes -> VLAgent (ClusterIP:514) -> VictoriaLogs
+
+# === UDP/TCP Listeners on port 514 ===
+$ModLoad imudp
+input(type="imudp" port="514")
+
+$ModLoad imtcp
+input(type="imtcp" port="514")
+
+# === JSON template for VLAgent ===
+template(name="VLAgentJSON" type="list") {
+    constant(value="{\"_time\":\"")
+    property(name="timereported" dateFormat="rfc3339")
+    constant(value="\",\"host\":\"")
+    property(name="hostname")
+    constant(value="\",\"app\":\"")
+    property(name="programname")
+    constant(value="\",\"facility\":\"")
+    property(name="syslogfacility")
+    constant(value="\",\"severity\":\"")
+    property(name="syslogseverity")
+    constant(value="\",\"msg\":\"")
+    property(name="msg" format="json")
+    constant(value="\"}\n")
+}
+RSYSLOG_STATIC
+
+{% raw %}
+    if [ ${#POWERSCALE_IPS[@]} -eq 0 ]; then
+{% endraw %}
+        # Action block — UNQUOTED heredoc (Bash expands ${VLAGENT_IP} etc.)
+        cat <<RSYSLOG_NOFILTER
+
+# No PowerScale IPs configured — accepting all syslog on port 514
+*.* action(type="omfwd"
+        target="${VLAGENT_IP}"
+        port="${VLAGENT_PORT}"
+        protocol="tcp"
+        template="VLAgentJSON"
+        queue.type="linkedList"
+        queue.size="10000"
+        queue.filename="fwd_vlagent_all"
+        queue.saveonshutdown="on"
+        action.resumeRetryCount="-1"
+        action.resumeInterval="10")
+RSYSLOG_NOFILTER
+    else
+{% raw %}
+        for PS_IP in "${POWERSCALE_IPS[@]}"; do
+            SAFE_IP="${PS_IP//\./_}"
+{% endraw %}
+            cat <<RSYSLOG_FILTER
+
+# PowerScale source: ${PS_IP}
+if \$fromhost-ip == "${PS_IP}" then {
+    action(type="omfwd"
+        target="${VLAGENT_IP}"
+        port="${VLAGENT_PORT}"
+        protocol="tcp"
+        template="VLAgentJSON"
+        queue.type="linkedList"
+        queue.size="10000"
+        queue.filename="fwd_vlagent_${SAFE_IP}"
+        queue.saveonshutdown="on"
+        action.resumeRetryCount="-1"
+        action.resumeInterval="10")
+    stop
+}
+RSYSLOG_FILTER
+        done
+    fi
+}
+
+RSYSLOG_CONFIG=$(generate_rsyslog_config)
+echo "  rsyslog config generated"
+echo "  Forward target: ${VLAGENT_IP}:${VLAGENT_PORT} (TCP)"
+echo ""
+
+# ============================================================================
+# Phase 3: Apply rsyslog configuration on local node
+# ============================================================================
+echo "===== Phase 3: Configuring rsyslog on Local Node ====="
+
+configure_rsyslog_on_node() {
+    local NODE_IP="$1"
+    local IS_LOCAL="$2"
+
+    if [ "$IS_LOCAL" == "true" ]; then
+        echo "  Configuring local node..."
+
+        # Write new config
+        echo "$RSYSLOG_CONFIG" > "$RSYSLOG_CONF"
+
+        # Open firewall ports
+        if command -v firewall-cmd &>/dev/null; then
+            firewall-cmd --add-port=514/udp --permanent 2>/dev/null || true
+            firewall-cmd --add-port=514/tcp --permanent 2>/dev/null || true
+            firewall-cmd --reload 2>/dev/null || true
+            echo "  Firewall: ports 514/udp and 514/tcp opened"
+        fi
+
+        # Validate config — capture output for diagnostics
+        VALIDATION_OUTPUT=$(rsyslogd -N 1 2>&1) || {
+            echo "  ERROR: rsyslog config validation failed!"
+            echo "  --- rsyslogd -N 1 output ---"
+            echo "$VALIDATION_OUTPUT"
+            echo "  --- end output ---"
+            return 1
+        }
+        echo "  rsyslog config validation passed"
+
+        systemctl restart rsyslog 2>/dev/null || {
+            echo "  WARNING: Failed to restart rsyslog on local node"
+            return 1
+        }
+        echo "  rsyslog restarted successfully on local node"
+    else
+        echo "  Configuring remote node: ${NODE_IP}..."
+
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$NODE_IP" \
+            "cat > $RSYSLOG_CONF" <<< "$RSYSLOG_CONFIG" 2>/dev/null || {
+            echo "  WARNING: Failed to write rsyslog config on ${NODE_IP}"
+            return 1
+        }
+
+        # Setup log file, firewall, validate, restart
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$NODE_IP" " \
+             if command -v firewall-cmd &>/dev/null; then \
+                 firewall-cmd --add-port=514/udp --permanent 2>/dev/null || true && \
+                 firewall-cmd --add-port=514/tcp --permanent 2>/dev/null || true && \
+                 firewall-cmd --reload 2>/dev/null || true; \
+             fi && \
+             rsyslogd -N 1 2>/dev/null && \
+             systemctl restart rsyslog" 2>/dev/null || {
+            echo "  WARNING: Failed to configure rsyslog on ${NODE_IP}"
+            return 1
+        }
+        echo "  rsyslog configured on ${NODE_IP}"
+    fi
+    return 0
+}
+
+configure_rsyslog_on_node "localhost" "true"
+
+# ============================================================================
+# Phase 4: Configure rsyslog on all other K8s nodes
+# ============================================================================
+echo ""
+echo "===== Phase 4: Configuring rsyslog on Other K8s Nodes ====="
+
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+NODE_IPS=$(kubectl get nodes -o wide --no-headers 2>/dev/null | awk '{print $6}')
+REMOTE_SUCCESS=0
+REMOTE_FAIL=0
+
+for NODE_IP in $NODE_IPS; do
+    if [ "$NODE_IP" == "$LOCAL_IP" ] || [ "$NODE_IP" == "$KUBE_VIP" ]; then
+        continue
+    fi
+    if configure_rsyslog_on_node "$NODE_IP" "false"; then
+        REMOTE_SUCCESS=$((REMOTE_SUCCESS + 1))
+    else
+        REMOTE_FAIL=$((REMOTE_FAIL + 1))
+    fi
+done
+
+TOTAL=$((REMOTE_SUCCESS + 1))
+echo ""
+echo "rsyslog configured on ${TOTAL} node(s) total (1 local + ${REMOTE_SUCCESS} remote), ${REMOTE_FAIL} failure(s)"
+
+# ============================================================================
+# Phase 5: Verification
+# ============================================================================
+echo ""
+echo "===== Phase 5: Verification ====="
+
+VLAGENT_PODS=$(kubectl get pods -n "$NAMESPACE" -l app=vlagent --no-headers 2>/dev/null | wc -l)
+echo "VLAgent pods running: $VLAGENT_PODS"
+
+echo "Checking rsyslog status on local node..."
+systemctl is-active rsyslog && echo "  rsyslog is active" || echo "  WARNING: rsyslog is not active"
+echo "  Config file: $RSYSLOG_CONF"
+
+# ============================================================================
+# Phase 6: PowerScale Configuration Instructions
+# ============================================================================
+echo ""
+echo "=========================================="
+echo "NEXT STEPS: Configure PowerScale OneFS"
+echo "=========================================="
+
+echo "Configure PowerScale to send syslog to: ${KUBE_VIP}:514"
+echo "Kubernetes kube-vIP: ${KUBE_VIP}"
+echo "Syslog Port: 514 (UDP/TCP)"
+echo ""
+echo "Steps for each PowerScale cluster:"
+echo ""
+echo "1. SSH to PowerScale:"
+echo "   ssh <admin_user>@<powerscale_mgmt_ip>"
+echo ""
+echo "2. Enable audit syslog forwarding:"
+echo ""
+echo "   # For protocol events (file access):"
+echo "   isi audit settings global modify \\"
+echo "     --protocol-syslog-enabled=1 \\"
+echo "     --protocol-syslog-servers=${KUBE_VIP}:514 \\"
+echo "     --protocol-syslog-tls-enabled=0"
+echo ""
+echo "   # For config events:"
+echo "   isi audit settings global modify \\"
+echo "     --config-syslog-enabled=1 \\"
+echo "     --config-syslog-servers=${KUBE_VIP}:514 \\"
+echo "     --config-syslog-tls-enabled=0"
+echo ""
+echo "   # For system events:"
+echo "   isi audit settings global modify \\"
+echo "     --system-syslog-enabled=1 \\"
+echo "     --system-syslog-servers=${KUBE_VIP}:514 \\"
+echo "     --system-syslog-tls-enabled=0"
+echo ""
+echo "3. Verify configuration:"
+echo "   isi audit settings global view"
+echo ""
+echo "=========================================="
+echo "PowerScale syslog collection setup completed!"
+echo "=========================================="
+exit 0

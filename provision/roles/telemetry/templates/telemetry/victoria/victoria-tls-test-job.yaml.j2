@@ -26,18 +26,18 @@ data:
     echo "=========================================="
     echo "   VictoriaMetrics TLS Connection Test"
     echo "=========================================="
-{% if hostvars['localhost']['victoria_configurations']['deployment_mode'] == 'cluster' %}
+{% if victoria_deployment_mode == 'cluster' %}
     echo "Deployment Mode: Cluster"
 {% if victoria_cluster.tls_enabled %}
-    echo "VictoriaMetrics URL: https://vmselect:8481"
+    echo "VictoriaMetrics URL: https://vmselect-victoria-cluster:8481"
     echo "Testing with CA certificate verification"
-    VICTORIA_URL="https://vmselect:8481"
+    VICTORIA_URL="https://vmselect-victoria-cluster:8481"
     CA_CERT="/etc/victoria/certs/ca.crt"
     USE_TLS="true"
 {% else %}
-    echo "VictoriaMetrics URL: http://vmselect:8481"
+    echo "VictoriaMetrics URL: http://vmselect-victoria-cluster:8481"
     echo "Testing cluster without TLS (HTTP)"
-    VICTORIA_URL="http://vmselect:8481"
+    VICTORIA_URL="http://vmselect-victoria-cluster:8481"
     CA_CERT=""
     USE_TLS="false"
 {% endif %}
@@ -125,7 +125,7 @@ data:
     echo ""
     
     # Test 5: Test API query endpoint
-{% if hostvars['localhost']['victoria_configurations']['deployment_mode'] == 'cluster' %}
+{% if victoria_deployment_mode == 'cluster' %}
     echo "Step 5: Testing /select/0/prometheus/api/v1/query endpoint..."
     if [ "$USE_TLS" = "true" ]; then
       QUERY_RESPONSE=$(curl -s --max-time 30 --cacert "$CA_CERT" "${VICTORIA_URL}/select/0/prometheus/api/v1/query?query=up" || echo "failed")
@@ -316,8 +316,8 @@ data:
     if [ "$USE_TLS" = "true" ]; then
       echo "Step 7: Checking server certificate details..."
       if command -v openssl > /dev/null 2>&1; then
-{% if hostvars['localhost']['victoria_configurations']['deployment_mode'] == 'cluster' %}
-        echo | openssl s_client -connect vmselect:8481 -CAfile "$CA_CERT" 2>/dev/null | \
+{% if victoria_deployment_mode == 'cluster' %}
+        echo | openssl s_client -connect vmselect-victoria-cluster:8481 -CAfile "$CA_CERT" 2>/dev/null | \
           openssl x509 -noout -subject -issuer -dates 2>/dev/null | sed 's/^/  /' || \
           echo "  ⚠ Could not retrieve server certificate details"
 {% else %}
@@ -374,7 +374,7 @@ spec:
     spec:
       restartPolicy: Never
       volumes:
-{% if hostvars['localhost']['victoria_configurations']['deployment_mode'] == 'single-node' or victoria_cluster.tls_enabled %}
+{% if victoria_deployment_mode == 'single-node' or victoria_cluster.tls_enabled %}
         - name: victoria-tls-certs
           secret:
             secretName: victoria-tls-certs
@@ -388,7 +388,7 @@ spec:
           image: curlimages/curl:8.17.0
           imagePullPolicy: IfNotPresent
           volumeMounts:
-{% if hostvars['localhost']['victoria_configurations']['deployment_mode'] == 'single-node' or victoria_cluster.tls_enabled %}
+{% if victoria_deployment_mode == 'single-node' or victoria_cluster.tls_enabled %}
             - mountPath: /etc/victoria/certs
               name: victoria-tls-certs
               readOnly: true

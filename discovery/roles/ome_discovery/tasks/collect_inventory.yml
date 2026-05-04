@@ -14,11 +14,20 @@
 ---
 
 - name: Verify OME is reachable
-  ansible.builtin.wait_for:
-    host: "{{ ome_ip }}"
-    port: 443
-    timeout: 30
-  register: ome_reachability
+  block:
+    - name: Wait for OME HTTPS port
+      ansible.builtin.wait_for:
+        host: "{{ ome_ip }}"
+        port: 443
+        timeout: 30
+      register: ome_reachability
+  rescue:
+    - name: Fail with actionable message when OME is unreachable
+      ansible.builtin.fail:
+        msg: >-
+          Unable to reach OME at {{ ome_ip }}:443 within 30 seconds.
+          Please verify that ome_ip in {{ input_project_dir | default('input') }}/discovery_config.yml
+          is correct and that the OME appliance is powered on and network-accessible.
 
 - name: Collect OME server inventory
   ome_server_inventory:
@@ -26,7 +35,22 @@
     ome_username: "{{ ome_username }}"
     ome_password: "{{ ome_password }}"
     device_type: "{{ ome_server_device_type }}"
+    page_size: "{{ ome_page_size }}"
   register: ome_inventory_result
+
+- name: Display OME pagination summary
+  ansible.builtin.debug:
+    msg:
+      - "OME Pagination Summary:"
+      - "  Total devices in OME:    {{ ome_inventory_result.pagination.total_devices_in_ome }}"
+      - "  Page size:               {{ ome_inventory_result.pagination.page_size }}"
+      - "  Total pages:             {{ ome_inventory_result.pagination.total_pages }}"
+      - "  Pages fetched:           {{ ome_inventory_result.pagination.pages_fetched }}"
+      - "  Devices retrieved:       {{ ome_inventory_result.pagination.devices_retrieved }}"
+      - >-
+        Devices after filtering:
+        {{ ome_inventory_result.pagination.devices_after_type_filter
+        | default(ome_inventory_result.pagination.devices_retrieved) }}
 
 - name: Display connection status
   ansible.builtin.debug:

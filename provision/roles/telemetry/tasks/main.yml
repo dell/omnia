@@ -1,4 +1,4 @@
-#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -21,12 +21,26 @@
 - name: Read telemetry packages from software config
   ansible.builtin.include_tasks: read_software_config.yml
 
+- name: Derive sink support flags from collection_targets
+  ansible.builtin.include_tasks: derive_sink_support_flags.yml
+
 - name: Load service images from service_k8s.json
   ansible.builtin.include_tasks: load_service_images.yml
 
-- name: Configure of k8s telemetry service
+- name: Check kube_vip reachability for validation
+  ansible.builtin.include_tasks: check_kube_vip_reachability.yml
   when:
-    - hostvars['localhost']['idrac_telemetry_support'] or hostvars['localhost']['ldms_support']
+    - victoria_metrics_support | default(false) | bool
+    - kube_vip is defined
+    - kube_vip | length > 0
+
+- name: Configure of k8s telemetry service prerequisites
+  when:
+    - >-
+      (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
+      (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
+      (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
+      ldms_support | default(false) | bool
   block:
     - name: Set NFS info fact
       ansible.builtin.set_fact:
@@ -35,12 +49,28 @@
     - name: Service cluster prerequisite
       ansible.builtin.include_tasks: telemetry_prereq.yml
 
-    - name: Generate telemetry deployments
-      ansible.builtin.include_tasks: generate_telemetry_deployments.yml
+- name: Deploy PowerScale telemetry metrics
+  when:
+    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+  ansible.builtin.include_tasks: deploy_powerscale_metrics.yml
+
+- name: Deploy PowerScale syslog log collection
+  when:
+    - telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool
+  ansible.builtin.include_tasks: deploy_powerscale_logs.yml
+
+- name: Generate telemetry deployments (idrac/ldms/powerscale)
+  when:
+    - >-
+      (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
+      (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
+      (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
+      ldms_support | default(false) | bool
+  ansible.builtin.include_tasks: generate_telemetry_deployments.yml
 
 - name: Configure of k8s telemetry service
   when:
-    - hostvars['localhost']['idrac_telemetry_support']
+    - telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
   block:
     - name: Validate idrac telemetry config
       ansible.builtin.include_tasks: validate_idrac_inventory.yml
@@ -50,20 +80,20 @@
 
 - name: Include update_ldms_sampler.yml
   ansible.builtin.include_tasks: update_ldms_sampler.yml
-  when: hostvars['localhost']['ldms_support']
+  when: ldms_support
 
 - name: Update ldms agg configuration
   ansible.builtin.include_tasks: update_ldms_agg_config.yml
-  when: hostvars['localhost']['ldms_support']
+  when: ldms_support
 
 - name: Check if PXE mapping has changed since last run
   ansible.builtin.include_tasks: check_pxe_changes.yml
-  when: hostvars['localhost']['ldms_support']
+  when: ldms_support
 
 - name: Restart LDMS configs for node addition and deletion
   ansible.builtin.include_tasks: restart_ldms_configs.yml
   when:
-    - hostvars['localhost']['ldms_support']
+    - ldms_support
     - pxe_changed | default(false) | bool
 
 - name: Apply telemetry configurations on upgrade

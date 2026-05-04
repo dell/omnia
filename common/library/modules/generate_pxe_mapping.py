@@ -103,6 +103,29 @@ server_count:
 DEFAULT_FUNCTIONAL_GROUP = "slurm_node_aarch64"
 SERVICE_CONTROL_PLANE_GROUP = "service_kube_control_plane_x86_64"
 
+# Omnia-supported functional group names.
+# Only servers whose OME static group matches one of these will be
+# included in the PXE mapping file.
+SUPPORTED_FUNCTIONAL_GROUPS = {
+    "service_kube_control_plane_x86_64",
+    "service_kube_node_x86_64",
+    "login_node_x86_64",
+    "login_node_aarch64",
+    "login_compiler_node_x86_64",
+    "login_compiler_node_aarch64",
+    "slurm_control_node_x86_64",
+    "slurm_node_x86_64",
+    "slurm_node_aarch64",
+    "os_x86_64",
+    "os_aarch64",
+}
+
+# Roles that have a parent-child relationship with the control plane.
+# Only these roles should receive PARENT_SERVICE_TAG.
+CHILD_ROLES_OF_CONTROL_PLANE = {
+    "service_kube_node_x86_64",
+}
+
 
 def extract_su_from_hostname(bmc_hostname):
     """
@@ -111,7 +134,7 @@ def extract_su_from_hostname(bmc_hostname):
       idrac-SUA99R999OU30C2  ->  SUA99
       SU1R2OU1C5             ->  SU1
       idrac-JCGT033          ->  '' (service tag pattern, not an SU hostname)
-    The lookahead (?=R\d+) ensures only genuine SU hostnames match;
+    The lookahead (?=R\\d+) ensures only genuine SU hostnames match;
     service-tag-only hostnames like idrac-JCGT033 are ignored.
     Returns empty string when no SU pattern is found; caller defaults to grp0.
     """
@@ -202,7 +225,9 @@ def main():
         "BMC_MAC",
         "BMC_IP",
         "IB_MAC",
-        "IB_IP"
+        "IB_IP",
+        "GPU_VENDOR",
+        "GPU_TYPE"
     ]
 
     if module.check_mode:
@@ -227,10 +252,24 @@ def main():
 
             # Use group_name from OME if available, else fall back to module param default
             server_group = server.get('group_name', '').strip()
+
+            # Skip servers whose OME group is not a supported Omnia functional group
+            if server_group and server_group not in SUPPORTED_FUNCTIONAL_GROUPS:
+                svc_tag = server.get('service_tag', 'unknown')
+                module.warn(
+                    f"Skipping device {svc_tag}: OME static group '{server_group}' "
+                    f"is not a supported Omnia functional group. "
+                    f"Supported groups: {', '.join(sorted(SUPPORTED_FUNCTIONAL_GROUPS))}"
+                )
+                continue
+
             resolved_functional_group = server_group if server_group else functional_group
 
-            # Derive GROUP_NAME from SU extracted from BMC hostname
+            # Derive GROUP_NAME: try SU from BMC hostname first,
+            # then from OME group name, then fall back to module default (grp0)
             su_name = extract_su_from_hostname(bmc_hostname)
+            if not su_name:
+                su_name = extract_su_from_hostname(server_group)
             resolved_group_name = su_name if su_name else group_name
 
             row = {
@@ -244,7 +283,9 @@ def main():
                 "BMC_MAC": server.get('idrac_mac', ''),
                 "BMC_IP": bmc_ip,
                 "IB_MAC": ib_mac,
-                "IB_IP": ib_ip
+                "IB_IP": ib_ip,
+                "GPU_VENDOR": server.get('gpu_vendor', ''),
+                "GPU_TYPE": server.get('gpu_type', '')
             }
             rows.append(row)
 
@@ -256,8 +297,11 @@ def main():
                 if su and su not in su_control_plane_map:
                     su_control_plane_map[su] = row["SERVICE_TAG"]
 
-        # Assign PARENT_SERVICE_TAG from control plane node of the same SU
+        # Assign PARENT_SERVICE_TAG only to child roles of the control plane
+        # within the same GROUP_NAME
         for row in rows:
+            if row["FUNCTIONAL_GROUP_NAME"] not in CHILD_ROLES_OF_CONTROL_PLANE:
+                continue
             su = row["GROUP_NAME"]
             if su in su_control_plane_map:
                 row["PARENT_SERVICE_TAG"] = su_control_plane_map[su]

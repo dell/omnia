@@ -1,0 +1,178 @@
+{#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#}
+{# PowerScale Telemetry - CSM Observability Helm Deployment (cloud-init fragment)
+   This template is included by ci-group-service_kube_control_plane_first_x86_64.yaml.j2
+   when powerscale_telemetry_support is enabled.
+#}
+{% set csm_ns = hostvars['localhost']['csm_observability_namespace'] | default('telemetry') %}
+            # ===== PowerScale Telemetry - CSM Observability Helm Deployment =====
+            echo "===== Starting PowerScale Telemetry (CSM Observability) deployment ====="
+            PS_TEL_FAILED=0
+            CSM_NS="{{ csm_ns }}"
+
+            # Step 1: Ensure namespace exists (shared with iDRAC telemetry)
+            echo "Ensuring ${CSM_NS} namespace exists..."
+            if kubectl get namespace "${CSM_NS}" >/dev/null 2>&1; then
+              echo "${CSM_NS} namespace already exists."
+            else
+              kubectl create namespace "${CSM_NS}" || {
+                echo "ERROR: Failed to create ${CSM_NS} namespace."
+                PS_TEL_FAILED=1
+              }
+            fi
+
+            # Step 2: Apply cert-manager CRDs (required before Helm install per official guide)
+            if [ "$PS_TEL_FAILED" -eq 0 ]; then
+              HELM_CHART_PATH="{{ k8s_client_mount_path }}/karavi-observability/helm-charts/charts/karavi-observability"
+              CRDS_FILE="${HELM_CHART_PATH}/crds/cert-manager.crds.yaml"
+              if [ -f "$CRDS_FILE" ]; then
+                echo "Applying cert-manager CRDs from chart crds/ directory..."
+                kubectl apply --validate=false -f "$CRDS_FILE" || {
+                  echo "WARNING: Failed to apply cert-manager CRDs from crds/ directory."
+                }
+              else
+                echo "No cert-manager CRDs file found at ${CRDS_FILE}, Helm will handle CRDs."
+              fi
+            fi
+
+            # Step 3: Copy isilon-creds secret from CSI driver namespace to ${CSM_NS} namespace
+            if [ "$PS_TEL_FAILED" -eq 0 ]; then
+              echo "Copying isilon-creds secret to ${CSM_NS} namespace..."
+              kubectl delete secret isilon-creds -n "${CSM_NS}" --ignore-not-found=true 2>/dev/null
+              kubectl get secret isilon-creds -n isilon -o json \
+                | jq 'del(.metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.annotations,.metadata.managedFields)' \
+                | jq ".metadata.namespace = \"${CSM_NS}\"" \
+                | kubectl create -f - || {
+                echo "ERROR: Failed to copy isilon-creds secret to ${CSM_NS} namespace."
+                PS_TEL_FAILED=1
+              }
+            fi
+
+            # Step 4: Copy Karavi Authorization resources (if authorization enabled in Helm values)
+            if [ "$PS_TEL_FAILED" -eq 0 ]; then
+              HELM_VALUES_FILE="{{ k8s_client_mount_path }}/karavi-observability/csm_metrics_values.yaml"
+              KARAVI_AUTH_ENABLED="false"
+              if [ -f "$HELM_VALUES_FILE" ]; then
+                # Parse authorization.enabled from the Helm values YAML
+                KARAVI_AUTH_ENABLED=$(grep -A5 'authorization:' "$HELM_VALUES_FILE" | grep 'enabled:' | head -1 | awk '{print $2}' | tr -d ' "')
+              fi
+              if [ "$KARAVI_AUTH_ENABLED" = "true" ]; then
+                echo "Karavi Authorization enabled (Mode B) - copying authorization resources..."
+                kubectl get configmap isilon-config-params -n isilon -o yaml \
+                  | sed "s/namespace: isilon/namespace: ${CSM_NS}/" \
+                  | kubectl apply -f - || echo "WARNING: Failed to copy isilon-config-params."
+
+                kubectl get secret proxy-server-root-certificate proxy-authz-tokens -n isilon -o yaml \
+                  | sed "s/namespace: isilon/namespace: ${CSM_NS}/" \
+                  | sed 's/name: proxy-server-root-certificate/name: isilon-proxy-server-root-certificate/' \
+                  | sed 's/name: proxy-authz-tokens/name: isilon-proxy-authz-tokens/' \
+                  | kubectl apply -f - || echo "WARNING: Failed to copy proxy secrets."
+              else
+                echo "Direct Authentication (Mode A) - skipping Karavi authorization resources."
+              fi
+            fi
+
+            # Step 5: Install karavi-observability Helm chart directly from NFS share
+            if [ "$PS_TEL_FAILED" -eq 0 ]; then
+              HELM_CHART_PATH="{{ k8s_client_mount_path }}/karavi-observability/helm-charts/charts/karavi-observability"
+              HELM_VALUES_FILE="{{ k8s_client_mount_path }}/karavi-observability/csm_metrics_values.yaml"
+
+              # Verify cert-manager subchart is available (directory or archive)
+              if [ -d "${HELM_CHART_PATH}/charts/cert-manager" ]; then
+                echo "cert-manager subchart found as directory in charts/."
+              elif ls "${HELM_CHART_PATH}/charts/cert-manager"*.tgz 1>/dev/null 2>&1 || \
+                   ls "${HELM_CHART_PATH}/charts/cert-manager"*.tar.gz 1>/dev/null 2>&1; then
+                echo "cert-manager subchart found as archive in charts/."
+              else
+                echo "WARNING: cert-manager subchart not found in ${HELM_CHART_PATH}/charts/."
+              fi
+
+              if [ -d "$HELM_CHART_PATH" ] && [ -f "$HELM_VALUES_FILE" ]; then
+                echo "Installing karavi-observability Helm chart from NFS share..."
+                if helm list -n "${CSM_NS}" --filter karavi-observability -q 2>/dev/null | grep -q karavi-observability; then
+                  echo "Upgrading existing karavi-observability release..."
+                  helm upgrade karavi-observability "$HELM_CHART_PATH" \
+                    -n "${CSM_NS}" \
+                    -f "$HELM_VALUES_FILE" \
+                    --wait --timeout 10m || {
+                    echo "ERROR: Helm upgrade failed."
+                    PS_TEL_FAILED=1
+                  }
+                else
+                  echo "Fresh install of karavi-observability..."
+                  helm install karavi-observability "$HELM_CHART_PATH" \
+                    -n "${CSM_NS}" \
+                    -f "$HELM_VALUES_FILE" \
+                    --wait --timeout 10m || {
+                    echo "ERROR: Helm install failed."
+                    PS_TEL_FAILED=1
+                  }
+                fi
+              else
+                echo "ERROR: Helm chart or values file not found on NFS share."
+                echo "  Chart path: $HELM_CHART_PATH"
+                echo "  Values file: $HELM_VALUES_FILE"
+                PS_TEL_FAILED=1
+              fi
+            fi
+
+            if [ "$PS_TEL_FAILED" -eq 0 ]; then
+              echo "===== PowerScale Telemetry (CSM Observability) deployed successfully ====="
+
+              # Step 6: Patch OTEL Collector service to expose Prometheus metrics port
+              echo "Patching OTEL Collector service to expose port 8889 for Prometheus metrics..."
+              kubectl patch svc otel-collector -n "${CSM_NS}" --patch '{"spec":{"ports":[{"name":"prometheus","port":8889,"targetPort":8889,"protocol":"TCP"}]}}' || {
+                echo "WARNING: Failed to patch OTEL Collector service for Prometheus metrics."
+              }
+
+              # Step 7: Create PVC for OTEL Collector persistent buffering
+              OTEL_PVC_SIZE="{{ hostvars['localhost']['telemetry_config']['powerscale_configurations']['otel_collector_storage_size'] | default('5Gi') }}"
+              echo "Creating OTEL Collector PVC (${OTEL_PVC_SIZE}) for metric buffering..."
+              OTEL_PVC_FILE=$(mktemp /tmp/otel-pvc-XXXXXX.yaml)
+              echo "apiVersion: v1" > "$OTEL_PVC_FILE"
+              echo "kind: PersistentVolumeClaim" >> "$OTEL_PVC_FILE"
+              echo "metadata:" >> "$OTEL_PVC_FILE"
+              echo "  name: otel-collector-data" >> "$OTEL_PVC_FILE"
+              echo "  namespace: ${CSM_NS}" >> "$OTEL_PVC_FILE"
+              echo "  labels:" >> "$OTEL_PVC_FILE"
+              echo "    app.kubernetes.io/name: otel-collector" >> "$OTEL_PVC_FILE"
+              echo "    app.kubernetes.io/instance: karavi-observability" >> "$OTEL_PVC_FILE"
+              echo "spec:" >> "$OTEL_PVC_FILE"
+              echo "  accessModes:" >> "$OTEL_PVC_FILE"
+              echo "    - ReadWriteOnce" >> "$OTEL_PVC_FILE"
+              echo "  resources:" >> "$OTEL_PVC_FILE"
+              echo "    requests:" >> "$OTEL_PVC_FILE"
+              echo "      storage: ${OTEL_PVC_SIZE}" >> "$OTEL_PVC_FILE"
+              kubectl apply -f "$OTEL_PVC_FILE"
+              rm -f "$OTEL_PVC_FILE"
+
+              echo "Waiting for OTEL Collector PVC to be bound..."
+              kubectl wait --for=jsonpath='{.status.phase}'=Bound pvc/otel-collector-data -n "${CSM_NS}" --timeout=120s || {
+                echo "WARNING: OTEL Collector PVC not bound yet. Continuing..."
+              }
+
+              # Step 8: Patch OTEL Collector deployment to mount the PVC
+              echo "Patching OTEL Collector deployment with persistent volume..."
+              kubectl patch deployment otel-collector -n "${CSM_NS}" --type='json' -p='[{"op":"add","path":"/spec/template/spec/volumes/-","value":{"name":"otel-collector-data","persistentVolumeClaim":{"claimName":"otel-collector-data"}}},{"op":"add","path":"/spec/template/spec/containers/0/volumeMounts/-","value":{"name":"otel-collector-data","mountPath":"/data"}}]' || {
+                echo "WARNING: Failed to patch OTEL Collector with PVC. Metrics will use in-memory only."
+              }
+
+              echo "Waiting for OTEL Collector rollout..."
+              kubectl rollout status deployment/otel-collector -n "${CSM_NS}" --timeout=120s || {
+                echo "WARNING: OTEL Collector rollout not complete yet."
+              }
+            else
+              echo "===== PowerScale Telemetry deployment had errors (see above) ====="
+            fi

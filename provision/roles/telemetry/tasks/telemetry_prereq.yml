@@ -13,10 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Initialize kafka_support
-  ansible.builtin.set_fact:
-    kafka_support: false
-
 - name: Count entries with FUNCTIONAL_GROUP_NAME containing 'service_kube_node'
   ansible.builtin.set_fact:
     kube_node_count: >-
@@ -66,11 +62,6 @@
       ansible.builtin.fail:
         msg: "{{ idrac_telemetry_scripting_copy_fail_msg.splitlines() | join(' ') }}"
 
-- name: Set kafka_support to true
-  ansible.builtin.set_fact:
-    kafka_support: true
-  when: "'kafka' in hostvars['localhost']['idrac_telemetry_collection_type'].split(',') or hostvars['localhost']['ldms_support']"
-
 - name: Configure TLS certificate and secrets for kafka
   when: kafka_support
   block:
@@ -99,39 +90,41 @@
       no_log: true
       when: not cluster_id_present | default(false)
 
-- name: Configure TLS certificate for VictoriaMetrics
-  when: "'victoria' in hostvars['localhost']['idrac_telemetry_collection_type']"
+- name: Configure TLS certificate for victoria_metrics
+  when:
+    - victoria_metrics_support | default(false) | bool
+    - victoria_cluster.tls_enabled | default(false) | bool
   block:
-    - name: Create VictoriaMetrics certificate directory
+    - name: Create victoria_metrics certificate directory
       ansible.builtin.file:
         path: "{{ victoria_cert_dir }}"
         state: directory
         mode: "{{ dir_permissions_755 }}"
 
-    - name: Deploy VictoriaMetrics certificate generation script
+    - name: Deploy victoria_metrics certificate generation script
       ansible.builtin.template:
         src: telemetry/victoria/gen_victoria_certs.sh.j2
         dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/gen_victoria_certs.sh"
         mode: "{{ hostvars['localhost']['file_permissions_755'] }}"
 
-    - name: Generate VictoriaMetrics TLS certificates
+    - name: Generate victoria_metrics TLS certificates
       ansible.builtin.command:
         cmd: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/gen_victoria_certs.sh"
       changed_when: false
 
-    - name: Read VictoriaMetrics server certificate
+    - name: Read victoria_metrics server certificate
       ansible.builtin.slurp:
         src: "{{ victoria_cert_dir }}/server.crt"
       register: victoria_server_cert
       no_log: true
 
-    - name: Read VictoriaMetrics server key
+    - name: Read victoria_metrics server key
       ansible.builtin.slurp:
         src: "{{ victoria_cert_dir }}/server.key"
       register: victoria_server_key
       no_log: true
 
-    - name: Read VictoriaMetrics CA certificate
+    - name: Read victoria_metrics CA certificate
       ansible.builtin.slurp:
         src: "{{ victoria_cert_dir }}/ca.crt"
       register: victoria_ca_cert
@@ -144,7 +137,7 @@
         victoria_ca_cert_b64: "{{ victoria_ca_cert.content }}"
       no_log: true
 
-    - name: Create VictoriaMetrics TLS secret manifest with actual certificates
+    - name: Create victoria_metrics TLS secret manifest with actual certificates
       ansible.builtin.template:
         src: telemetry/victoria/victoria-tls-secret.yaml.j2
         dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/victoria-tls-secret.yaml"

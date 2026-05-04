@@ -33,8 +33,8 @@
   ansible.builtin.command: >-
     kubectl get svc {{ item }} -n {{ victoria_namespace }} -o name
   loop:
-    - vminsert
-    - vmselect
+    - "{{ victoria_vminsert_svc }}"
+    - "{{ victoria_vmselect_svc }}"
   register: victoria_cluster_svcs
   changed_when: false
   failed_when: false
@@ -63,7 +63,7 @@
 - name: Get Victoria pods status
   ansible.builtin.command: >-
     kubectl get pods -n {{ victoria_namespace }}
-    -l "app in (vminsert,vmselect,vmstorage,victoriametrics)"
+    -l "app.kubernetes.io/instance=victoria-cluster"
     -o wide
   register: victoria_pods_wide
   changed_when: false
@@ -111,7 +111,7 @@
 
 - name: Get vminsert service LoadBalancer IP
   ansible.builtin.command: >-
-    kubectl get svc vminsert -n {{ victoria_namespace }}
+    kubectl get svc {{ victoria_vminsert_svc }} -n {{ victoria_namespace }}
     -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
   register: vminsert_lb_ip
   changed_when: false
@@ -119,7 +119,7 @@
 
 - name: Get vminsert service LoadBalancer hostname
   ansible.builtin.command: >-
-    kubectl get svc vminsert -n {{ victoria_namespace }}
+    kubectl get svc  {{ victoria_vminsert_svc }} -n {{ victoria_namespace }}
     -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
   register: vminsert_lb_hostname
   changed_when: false
@@ -127,7 +127,7 @@
 
 - name: Get vminsert service external port
   ansible.builtin.command: >-
-    kubectl get svc vminsert -n {{ victoria_namespace }}
+    kubectl get svc {{ victoria_vminsert_svc }} -n {{ victoria_namespace }}
     -o jsonpath='{.spec.ports[0].port}'
   register: vminsert_lb_port
   changed_when: false
@@ -135,7 +135,7 @@
 
 - name: Get vmselect service LoadBalancer IP
   ansible.builtin.command: >-
-    kubectl get svc vmselect -n {{ victoria_namespace }}
+    kubectl get svc {{ victoria_vmselect_svc }} -n {{ victoria_namespace }}
     -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
   register: vmselect_lb_ip
   changed_when: false
@@ -143,7 +143,7 @@
 
 - name: Get vmselect service LoadBalancer hostname
   ansible.builtin.command: >-
-    kubectl get svc vmselect -n {{ victoria_namespace }}
+    kubectl get svc {{ victoria_vmselect_svc }} -n {{ victoria_namespace }}
     -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
   register: vmselect_lb_hostname
   changed_when: false
@@ -151,7 +151,7 @@
 
 - name: Get vmselect service external port
   ansible.builtin.command: >-
-    kubectl get svc vmselect -n {{ victoria_namespace }}
+    kubectl get svc {{ victoria_vmselect_svc }} -n {{ victoria_namespace }}
     -o jsonpath='{.spec.ports[0].port}'
   register: vmselect_lb_port
   changed_when: false
@@ -185,7 +185,7 @@
   ansible.builtin.set_fact:
     victoria_sfm_hosts_entry: >-
       {{
-        'echo ' ~ (vminsert_lb_ip.stdout | trim) ~ ' vminsert.' ~ victoria_namespace ~ '.svc.cluster.local >> /etc/hosts'
+        'echo ' ~ (vminsert_lb_ip.stdout | trim) ~ ' ' ~ victoria_vminsert_svc ~ '.' ~ victoria_namespace ~ '.svc.cluster.local >> /etc/hosts'
         if (vminsert_lb_ip.stdout | trim | length) > 0
         else ''
       }}
@@ -194,7 +194,7 @@
   ansible.builtin.set_fact:
     victoria_sfm_hosts_entry_vmselect: >-
       {{
-        'echo ' ~ (vmselect_lb_ip.stdout | trim) ~ ' vmselect.' ~ victoria_namespace ~ '.svc.cluster.local >> /etc/hosts'
+        'echo ' ~ (vmselect_lb_ip.stdout | trim) ~ ' ' ~ victoria_vmselect_svc ~ '.' ~ victoria_namespace ~ '.svc.cluster.local >> /etc/hosts'
         if (vmselect_lb_ip.stdout | trim | length) > 0
         else ''
       }}
@@ -202,11 +202,11 @@
 - name: Set endpoint urls and SFM note strings
   ansible.builtin.set_fact:
     victoria_vminsert_write_url: >-
-      https://vminsert.{{ victoria_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
+      {{ victoria_url_scheme }}://{{ victoria_vminsert_svc }}.{{ victoria_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
     victoria_vmselect_query_url: >-
-      https://vmselect.{{ victoria_namespace }}.svc.cluster.local:8481/select/0/prometheus/api/v1/query
+      {{ victoria_url_scheme }}://{{ victoria_vmselect_svc }}.{{ victoria_namespace }}.svc.cluster.local:8481/select/0/prometheus/api/v1/query
     victoria_vmselect_ui_url: >-
-      https://vmselect.{{ victoria_namespace }}.svc.cluster.local:8481/select/0/vmui
+      {{ victoria_url_scheme }}://{{ victoria_vmselect_svc }}.{{ victoria_namespace }}.svc.cluster.local:8481/select/0/vmui
     victoria_sfm_hosts_entry_vminsert_display: >-
       {{
         victoria_sfm_hosts_entry
@@ -234,7 +234,7 @@
         namespace: "{{ victoria_namespace }}"
         deployment_mode: "{{ victoria_deployment_mode }}"
         pod_status: "{{ victoria_pods_wide.stdout }}"
-        base_url: "https://{{ vminsert_host }}:{{ vminsert_port }}"
+        base_url: "{{ victoria_url_scheme }}://{{ vminsert_host }}:{{ vminsert_port }}"
         endpoints:
           vminsert:
             host: "{{ vminsert_host }}"
@@ -243,8 +243,8 @@
           vmselect:
             host: "{{ vmselect_host }}"
             port: "{{ vmselect_port | int }}"
-            query_endpoint: "https://{{ vmselect_host }}:{{ vmselect_port }}/select/0/prometheus/api/v1/query"
-            ui_url: "https://{{ vmselect_host }}:{{ vmselect_port }}/select/0/vmui"
+            query_endpoint: "{{ victoria_url_scheme }}://{{ vmselect_host }}:{{ vmselect_port }}/select/0/prometheus/api/v1/query"
+            ui_url: "{{ victoria_url_scheme }}://{{ vmselect_host }}:{{ vmselect_port }}/select/0/vmui"
         tls:
           ca_crt: "{{ victoria_tls_ca }}"
         notes:

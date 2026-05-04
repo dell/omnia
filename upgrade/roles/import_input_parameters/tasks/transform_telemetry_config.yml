@@ -50,12 +50,11 @@
 - name: Normalize telemetry_config.yml values
   ansible.builtin.set_fact:
     telemetry_idrac_telemetry_support: "{{ backup_telemetry_config.idrac_telemetry_support | default(true) }}"
-    telemetry_idrac_telemetry_collection_type: >-
+    telemetry_telemetry_collection_type: >-
       {{
-        backup_telemetry_config.idrac_telemetry_collection_type
+        backup_telemetry_config.telemetry_collection_type
         | default('victoria,kafka')
       }}
-    telemetry_victoria_deployment_mode: "{{ backup_telemetry_victoria_config.deployment_mode | default('cluster') }}"
     telemetry_victoria_persistence_size: "{{ backup_telemetry_victoria_config.persistence_size | default('8Gi') }}"
     telemetry_victoria_retention_period: "{{ backup_telemetry_victoria_config.retention_period | default(168) }}"
     telemetry_kafka_persistence_size: "{{ backup_telemetry_kafka_config.persistence_size | default('8Gi') }}"
@@ -112,8 +111,7 @@
     mode: "{{ default_file_mode }}"
   vars:
     telemetry_idrac_telemetry_support: "{{ telemetry_idrac_telemetry_support }}"
-    telemetry_idrac_telemetry_collection_type: "{{ telemetry_idrac_telemetry_collection_type }}"
-    telemetry_victoria_deployment_mode: "{{ telemetry_victoria_deployment_mode }}"
+    telemetry_telemetry_collection_type: "{{ telemetry_telemetry_collection_type }}"
     telemetry_victoria_persistence_size: "{{ telemetry_victoria_persistence_size }}"
     telemetry_victoria_retention_period: "{{ telemetry_victoria_retention_period }}"
     telemetry_kafka_persistence_size: "{{ telemetry_kafka_persistence_size }}"

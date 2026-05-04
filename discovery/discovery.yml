@@ -21,6 +21,19 @@
   when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
 
+- name: Set discovery validation tags
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Set dynamic run tags for discovery validation
+      ansible.builtin.set_fact:
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['discovery']) | unique }}"
+        cacheable: true
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations with discovery tag
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+  tags: always
+
 - name: Load discovery configuration
   hosts: localhost
   connection: local
@@ -44,14 +57,14 @@
     - name: Display usage information when no discovery_mechanism is specified
       when: discovery_mechanism == ""
       block:
-        - name: Show usage prompt
-          ansible.builtin.debug:
+        - name: Fail when no discovery_mechanism specified
+          ansible.builtin.fail:
             msg:
               - "============================================================"
+              - "ERROR: discovery_mechanism is required but not provided."
+              - ""
               - "Usage: ansible-playbook discovery.yml"
               - "       -e discovery_mechanism=<mechanism>"
-              - ""
-              - "Please specify a discovery_mechanism parameter."
               - ""
               - "Supported discovery mechanisms:"
               - "  - ome      : Dell OpenManage Enterprise (OME)"
@@ -61,9 +74,6 @@
               - "  ansible-playbook discovery.yml -e discovery_mechanism=ome"
               - "  ansible-playbook discovery.yml -e discovery_mechanism=magellan"
               - "============================================================"
-
-        - name: End play when no discovery_mechanism specified
-          ansible.builtin.meta: end_play
 
     - name: Validate discovery_mechanism parameter
       ansible.builtin.fail:
@@ -89,9 +99,17 @@
         - name: End play for magellan
           ansible.builtin.meta: end_play
 
-    - name: Handle OME discovery mechanism
+    - name: Validate OME inputs before discovery
       when: discovery_mechanism == 'ome'
       block:
+        - name: Fail when ome_ip is not configured
+          ansible.builtin.fail:
+            msg: >-
+              ome_ip must be provided in discovery_config.yml when using OME discovery.
+              Please set 'enable_bmc_discovery: true' and provide a valid 'ome_ip' in
+              {{ input_project_dir }}/discovery_config.yml.
+          when: ome_ip | default('') | length == 0
+
         - name: Include OME discovery role
           ansible.builtin.include_role:
             name: ome_discovery
