@@ -33,7 +33,7 @@
       { "package": "quay.io/strimzi/kafka", "tag": "0.48.0-kafka-4.1.0", "type": "image" },
       { "package": "docker.io/dellhpcomniaaisolution/ubuntu-ldms", "tag": "1.0", "type": "image" },
       { "package": "quay.io/dell/container-storage-modules/csm-metrics-powerscale", "tag": "v1.11.0", "type": "image" },
-      { "package": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector", "tag": "0.148.0", "type": "image" },
+      { "package": "ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector", "tag": "0.143.1", "type": "image" },
       { "package": "docker.io/nginxinc/nginx-unprivileged", "tag": "1.29", "type": "image" },
       { "package": "karavi-observability", "type": "git", "url": "https://github.com/dell/karavi-observability.git", "version": "v1.12.0" },
       { "package": "helm-charts", "type": "git", "url": "https://github.com/dell/helm-charts.git", "version": "container-storage-modules-1.9.2" },

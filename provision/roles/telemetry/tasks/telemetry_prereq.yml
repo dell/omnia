@@ -62,7 +62,6 @@
       ansible.builtin.fail:
         msg: "{{ idrac_telemetry_scripting_copy_fail_msg.splitlines() | join(' ') }}"
 
-
 - name: Configure TLS certificate and secrets for kafka
   when: kafka_support
   block:

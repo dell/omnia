@@ -11,25 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-
-# Default functional group name for discovered nodes (used when OME group name is absent)
-default_functional_group: "slurm_node_aarch64"
-
-# Default group name prefix
-default_group_name: "grp0"
-
-# Hostname prefix for discovered nodes
-hostname_prefix: "nid"
-
-# Starting hostname number
-hostname_start_number: 1
-
-# Hostname padding (e.g., 5 digits = nid00001)
-hostname_padding: 5
-
-# OME device type for servers
-ome_server_device_type: 1000
-
-# Number of devices per OData page when querying OME (1–1000)
-ome_page_size: 200

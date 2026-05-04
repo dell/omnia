@@ -102,11 +102,11 @@ k8s_control_ssh_patterns: "{{ hostvars['oim']['k8s_ssh_patterns'] | default('*')
 # Passwordless SSH mode flag derived from nodes.yaml (set on OIM by passwordless_ssh role)
 all_group_names_present: "{{ hostvars['oim']['all_group_names_present'] | default(false) }}"
 
-# CUDA/NVIDIA runfile names (extracted from slurm_custom.json in slurm_config role)
-cuda_runfile_x86_64: "{{ hostvars['oim']['cuda_runfile_x86_64'] | default('cuda_13.0.2_580.95.05_linux.run') }}"
-cuda_runfile_aarch64: "{{ hostvars['oim']['cuda_runfile_aarch64'] | default('cuda_13.0.2_580.95.05_linux_sbsa.run') }}"
-
+# Login/compiler node presence flag (set by slurm_config role)
+login_compiler_node_present: "{{ hostvars['oim']['login_compiler_node_present'] | default(false) }}"
+slurm_node_present: "{{ hostvars['oim']['slurm_node_present'] | default(false) }}"
 # Usage: ci-group-slurm_node_x86_64.yaml.j2, ci-group-slurm_node_aarch64.yaml.j2
+dcgm_support: "{{ hostvars['localhost'].get('telemetry_sources', {}).get('dcgm', {}).get('metrics_enabled', true) | bool }}"
 # NVIDIA DCGM (Data Center GPU Manager) configuration
 dcgm_service_name: "nvidia-dcgm"
 dcgm_health_check_retries: 3

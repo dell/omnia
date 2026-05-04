@@ -92,3 +92,11 @@
   ansible.builtin.set_fact:
     controller_ip: "{{ ip_name_map[ctld_list | first] }}"
   when: ctld_list | length > 0
+
+- name: Set login_compiler_node_present flag
+  ansible.builtin.set_fact:
+    login_compiler_node_present: "{{ compiler_login_list | length > 0 }}"
+
+- name: Set slurm_node_present flag
+  ansible.builtin.set_fact:
+    slurm_node_present: "{{ cmpt_list | length > 0 }}"

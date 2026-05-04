@@ -26,7 +26,22 @@
     ome_username: "{{ ome_username }}"
     ome_password: "{{ ome_password }}"
     device_type: "{{ ome_server_device_type }}"
+    page_size: "{{ ome_page_size }}"
   register: ome_inventory_result
+
+- name: Display OME pagination summary
+  ansible.builtin.debug:
+    msg:
+      - "OME Pagination Summary:"
+      - "  Total devices in OME:    {{ ome_inventory_result.pagination.total_devices_in_ome }}"
+      - "  Page size:               {{ ome_inventory_result.pagination.page_size }}"
+      - "  Total pages:             {{ ome_inventory_result.pagination.total_pages }}"
+      - "  Pages fetched:           {{ ome_inventory_result.pagination.pages_fetched }}"
+      - "  Devices retrieved:       {{ ome_inventory_result.pagination.devices_retrieved }}"
+      - >-
+        Devices after filtering:
+        {{ ome_inventory_result.pagination.devices_after_type_filter
+        | default(ome_inventory_result.pagination.devices_retrieved) }}
 
 - name: Display connection status
   ansible.builtin.debug:
