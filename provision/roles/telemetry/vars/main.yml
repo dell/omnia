@@ -323,6 +323,8 @@ victoria_templates_operator_single:
     dest: 'victoria-operator-vmagent.yaml'
   - src: 'telemetry/victoria/victoria-operator-vmpodscrape.yaml.j2'
     dest: 'victoria-operator-vmpodscrape.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmservicescrape-powerscale.yaml.j2'
+    dest: 'victoria-operator-vmservicescrape-powerscale.yaml'
 
 # Cluster operator template (used when victoria_cluster.enabled: true)
 victoria_templates_operator_cluster:
@@ -332,6 +334,8 @@ victoria_templates_operator_cluster:
     dest: 'victoria-operator-vmagent.yaml'
   - src: 'telemetry/victoria/victoria-operator-vmpodscrape.yaml.j2'
     dest: 'victoria-operator-vmpodscrape.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmservicescrape-powerscale.yaml.j2'
+    dest: 'victoria-operator-vmservicescrape-powerscale.yaml'
 
 # Legacy manual deployment templates (removed - use operator-based templates above)
 # Raw victoria-cluster-vminsert/vmselect/vmstorage.yaml.j2 files have been removed
