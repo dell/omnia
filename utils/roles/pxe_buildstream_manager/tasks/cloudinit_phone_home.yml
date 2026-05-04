@@ -19,7 +19,7 @@
 # Called from: set_pxe_boot.yml (Play 7)
 # Condition: Only runs when enable_build_stream is true
 # ─────────────────────────────────────────────────────────────────────────
----
+
 # Step 1: Assert required facts are available
 - name: "[Phone-Home] Assert required facts are available"
   ansible.builtin.assert:
@@ -80,3 +80,4 @@
 - name: "[Phone-Home] All nodes completed cloud-init successfully"
   ansible.builtin.debug:
     msg: "{{ phone_home_final_success_msg }}"
+
