@@ -80,4 +80,3 @@
 - name: "[Phone-Home] All nodes completed cloud-init successfully"
   ansible.builtin.debug:
     msg: "{{ phone_home_final_success_msg }}"
-
