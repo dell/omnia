@@ -41,7 +41,8 @@
 Networks:
 - admin_network:
     oim_nic_name: "{{ admin_network.oim_nic_name | default('') }}"
-    netmask_bits: "{{ admin_network.netmask_bits | default('24') }}"
+    subnet: "{{ admin_network.subnet | default(network_default_subnet) }}"
+    netmask_bits: "{{ admin_network.netmask_bits | default(network_default_netmask_bits) }}"
     primary_oim_admin_ip: "{{ admin_network.primary_oim_admin_ip | default('') }}"
     primary_oim_bmc_ip: "{{ admin_network.primary_oim_bmc_ip | default('') }}"
     dynamic_range: "{{ admin_network.dynamic_range | default('') }}"
@@ -49,5 +50,5 @@ Networks:
     ntp_servers: {{ admin_network.ntp_servers | default([]) }}
 
 - ib_network:
-    subnet: "{{ ib_network.subnet | default('192.168.0.0') }}"
-    netmask_bits: "{{ ib_network.netmask_bits | default(admin_network_netmask_bits | default('24')) }}"
+    subnet: "{{ ib_network.subnet | default('') }}"
+    netmask_bits: "{{ ib_network.netmask_bits | default(admin_network_netmask_bits | default(network_default_netmask_bits)) }}"

@@ -28,6 +28,7 @@
 #   2. VictoriaMetrics    : Time-series database for metric storage
 #   3. Kafka              : Distributed streaming platform for telemetry data
 #   4. LDMS               : Lightweight Distributed Metric Service for compute nodes
+#   5. DCGM               : NVIDIA Data Center GPU Manager for GPU telemetry
 #
 # ============================================================================
 # STORAGE REQUIREMENTS SUMMARY
@@ -36,8 +37,6 @@
 # VICTORIAMETRICS STORAGE:
 # ┌─────────────────┬──────────────────┬─────────────────┬──────────────────┐
 # │ Deployment Mode │ Per-Pod Storage  │ Number of Pods  │ Total Storage    │
-# ├─────────────────┼──────────────────┼─────────────────┼──────────────────┤
-# │ Single-node     │ persistence_size │ 1 pod           │ 1× storage       │
 # ├─────────────────┼──────────────────┼─────────────────┼──────────────────┤
 # │ Cluster         │ persistence_size │ 3 vmstorage     │ 3× storage       │
 # └─────────────────┴──────────────────┴─────────────────┴──────────────────┘
@@ -57,7 +56,6 @@
 #
 # COMBINED STORAGE EXAMPLES:
 #   Default (8Gi each): VictoriaMetrics Cluster (24Gi) + Kafka (48Gi) = 72Gi total
-#   Single-node mode:   VictoriaMetrics Single (8Gi) + Kafka (48Gi) = 56Gi total
 #
 # STORAGE OPTIONS:
 #   - VictoriaMetrics: Store iDRAC telemetry in time-series database
@@ -74,7 +72,7 @@
 # Enable or disable iDRAC telemetry support
 # Accepted values: true or false
 # Default: true
-idrac_telemetry_support: {{ telemetry_idrac_telemetry_support | default(true) | bool | ternary('true', 'false') }}
+idrac_telemetry_support: {{ telemetry_idrac_telemetry_support | default(telemetry_default_idrac_support) | bool | ternary('true', 'false') }}
 
 # Specify where to store iDRAC telemetry data
 # Supported values:
@@ -82,7 +80,29 @@ idrac_telemetry_support: {{ telemetry_idrac_telemetry_support | default(true) | 
 #   - "kafka"           : Store in Kafka only
 #   - "victoria,kafka"  : Store in both (recommended)
 # Default: "victoria,kafka"
-telemetry_collection_type: {{ telemetry_telemetry_collection_type | default('victoria,kafka') | to_json }}
+telemetry_collection_type: {{ telemetry_telemetry_collection_type | default(telemetry_default_collection_type) | to_json }}
+
+# ============================================================================
+# NVIDIA DCGM (Data Center GPU Manager) CONFIGURATION
+# ============================================================================
+# DCGM monitors NVIDIA GPU health and collects GPU telemetry metrics from
+# compute nodes equipped with NVIDIA GPUs.
+#
+# When enabled, the DCGM daemon (nvidia-dcgm.service) is started on GPU nodes
+# during cloud-init provisioning. It validates the NVIDIA driver, enumerates
+# GPUs via dcgmi discovery, and exposes GPU health data.
+#
+# PREREQUISITE: NVIDIA GPU driver must be installed on the target nodes.
+#   The driver is installed automatically via the CUDA runfile during
+#   cloud-init when an NVIDIA GPU is detected via lspci.
+#
+# NOTE: DCGM exporter deployment (dcgm-exporter on port 9400) and Prometheus
+#   scrape configuration are planned for a future release.
+
+# Enable or disable NVIDIA DCGM support on GPU compute nodes
+# Accepted values: true or false
+# Default: true
+dcgm_support: {{ telemetry_dcgm_support | default(telemetry_default_dcgm_support) | bool | ternary('true', 'false') }}
 
 # ============================================================================
 # VICTORIAMETRICS CONFIGURATION
@@ -90,6 +110,9 @@ telemetry_collection_type: {{ telemetry_telemetry_collection_type | default('vic
 # VictoriaMetrics is a time-series database for storing telemetry metrics.
 # Used for iDRAC telemetry when 'victoria' is enabled in telemetry_collection_type.
 #
+# DEPLOYMENT MODES:
+#   - cluster: High-availability deployment with multiple components
+#               (recommended for production and large-scale deployments)
 victoria_metrics_configurations:
   # The amount of storage allocated for EACH VictoriaMetrics persistent volume.
   # IMPORTANT: Total VictoriaMetrics storage depends on deployment mode:
@@ -97,11 +120,43 @@ victoria_metrics_configurations:
   #   - Example (cluster): 8Gi × 3 = 24Gi total VictoriaMetrics storage
   # Accepted values: in the form of "X[Ki|Mi|Gi|Ti|Pi|Ei]"
   # Default: 8Gi (results in 24Gi total storage for cluster mode)
-  persistence_size: {{ telemetry_victoria_persistence_size | default('8Gi') | to_json }}
+  persistence_size: {{ telemetry_victoria_persistence_size | default(telemetry_default_victoria_persistence_size) | to_json }}
 
   # Duration (in hours) to retain victoria logs before they are deleted.
   # Default: 168 (7 days)
-  retention_period: {{ telemetry_victoria_retention_period | default(168) }}
+  retention_period: {{ telemetry_victoria_retention_period | default(telemetry_default_victoria_retention_period) }}
+
+# ============================================================================
+# VICTORIALOGS CONFIGURATION
+# ============================================================================
+# VictoriaLogs provides centralized log storage and querying (cluster mode only).
+# Deployed alongside VictoriaMetrics when 'victoria' is in telemetry_collection_type.
+#
+# DEPLOYMENT:
+#   - Always cluster mode (vlstorage, vlinsert, vlselect, VLAgent)
+#   - Co-deployed with VictoriaMetrics — same deployment gate
+#   - Shares TLS infrastructure with VictoriaMetrics
+#
+# STORAGE REQUIREMENTS:
+# ┌─────────────────┬──────────────────┬─────────────────┬──────────────────┐
+# │ Component       │ Per-Pod Storage  │ Number of Pods  │ Total Storage    │
+# ├─────────────────┼──────────────────┼─────────────────┼──────────────────┤
+# │ vlstorage       │ storage_size     │ 3 pods          │ 3× storage       │
+# ├─────────────────┼──────────────────┼─────────────────┼──────────────────┤
+# │ VLAgent buffer  │ 5Gi (fixed)      │ 1 pod           │ 5Gi              │
+# └─────────────────┴──────────────────┴─────────────────┴──────────────────┘
+# Example: 8Gi × 3 vlstorage = 24Gi + 5Gi VLAgent = 29Gi total
+victoria_logs_configurations:
+  # Storage size per vlstorage replica PVC
+  # IMPORTANT: Total VictoriaLogs storage = storage_size × 3 vlstorage pods
+  # Accepted values: in the form of "X[Ki|Mi|Gi|Ti|Pi|Ei]"
+  # Default: 8Gi (results in 24Gi total storage)
+  storage_size: {{ telemetry_victoria_logs_storage_size | default(telemetry_default_victoria_logs_storage_size) | to_json }}
+
+  # Log retention period (duration format)
+  # Logs older than this period are automatically purged by vlstorage.
+  # Default: 168 (7 days)
+  retention_period: {{ telemetry_victoria_logs_retention_period | default(telemetry_default_victoria_logs_retention_period) }}
 
 # ============================================================================
 # KAFKA CONFIGURATION
@@ -121,19 +176,19 @@ kafka_configurations:
   #   - Example: 8Gi × 6 = 48Gi total Kafka storage
   # Accepted values: in the form of "X[Ki|Mi|Gi|Ti|Pi|Ei]"
   # Default: 8Gi (results in 48Gi total Kafka storage)
-  persistence_size: {{ telemetry_kafka_persistence_size | default('8Gi') | to_json }}
+  persistence_size: {{ telemetry_kafka_persistence_size | default(telemetry_default_kafka_persistence_size) | to_json }}
 
   # The number of hours to retain Kafka logs before they are deleted.
   # Default: 168 (7 days)
-  log_retention_hours: {{ telemetry_kafka_log_retention_hours | default(168) }}
+  log_retention_hours: {{ telemetry_kafka_log_retention_hours | default(telemetry_default_kafka_log_retention_hours) }}
 
   # The maximum size of Kafka logs (in bytes) before they are deleted.
   # Default: -1 (unlimited)
-  log_retention_bytes: {{ telemetry_kafka_log_retention_bytes | default(-1) }}
+  log_retention_bytes: {{ telemetry_kafka_log_retention_bytes | default(telemetry_default_kafka_log_retention_bytes) }}
 
   # The maximum size of Kafka log segments (in bytes) before they are deleted.
   # Default: 1073741824 (1 GB)
-  log_segment_bytes: {{ telemetry_kafka_log_segment_bytes | default(1073741824) }}
+  log_segment_bytes: {{ telemetry_kafka_log_segment_bytes | default(telemetry_default_kafka_log_segment_bytes) }}
 
   # Kafka Topic Partitions Configuration
   # ----------------------------------------------------------------------------
@@ -175,18 +230,18 @@ kafka_configurations:
 # Aggregator port on service k8s cluster
 # Valid range: 6001-6100
 # Default: 6001
-ldms_agg_port: {{ telemetry_ldms_agg_port | default(6001) }}
+ldms_agg_port: {{ telemetry_ldms_agg_port | default(telemetry_default_ldms_agg_port) }}
 
 # Store daemon port on service k8s cluster
 # Can be the same as ldms_agg_port
 # Valid range: 6001-6100
 # Default: 6001
-ldms_store_port: {{ telemetry_ldms_store_port | default(6001) }}
+ldms_store_port: {{ telemetry_ldms_store_port | default(telemetry_default_ldms_store_port) }}
 
 # Sampler port on compute nodes
 # Valid range: 10001-10100
 # Default: 10001
-ldms_sampler_port: {{ telemetry_ldms_sampler_port | default(10001) }}
+ldms_sampler_port: {{ telemetry_ldms_sampler_port | default(telemetry_default_ldms_sampler_port) }}
 
 # LDMS Sampler Plugin Configurations
 # ----------------------------------------------------------------------------
@@ -217,3 +272,61 @@ ldms_sampler_configurations:
     activation_parameters: {{ _plugin.activation_parameters | default('interval=1000000') | to_json }}
 {% endfor %}
 {% endif %}
+
+# ============================================================================
+# POWERSCALE TELEMETRY CONFIGURATION
+# ============================================================================
+# PowerScale telemetry collects storage metrics from Dell PowerScale (OneFS)
+# clusters using the CSM (Container Storage Modules) Metrics PowerScale exporter.
+#
+# DATA PIPELINE:
+#   CSM Metrics PowerScale → OTEL Collector → vmagent-powerscale → VictoriaMetrics
+#
+# PREREQUISITES:
+#   - csi_driver_powerscale must be configured in software_config.json
+#   - Service cluster must be defined in functional_groups_config.yml
+#   - VictoriaMetrics must be enabled: 'victoria' must be included in
+#     telemetry_collection_type (e.g., "victoria" or "victoria,kafka")
+#   - CSI driver secret.yaml with valid isilonClusters credentials
+#   - CSM Observability values.yaml must be provided
+#
+# STORAGE REQUIREMENTS:
+# ┌─────────────────────┬──────────────┬──────────────┬──────────────────┐
+# │ Component           │ Per-Pod PVC  │ Pods         │ Total Storage    │
+# ├─────────────────────┼──────────────┼──────────────┼──────────────────┤
+# │ OTEL Collector      │ 5Gi          │ 1 per cluster│ 5Gi per cluster  │
+# └─────────────────────┴──────────────┴──────────────┴──────────────────┘
+
+powerscale_configurations:
+  # Enable or disable PowerScale telemetry support
+  # Accepted values: true or false
+  # Default: true
+  powerscale_telemetry_support: {{ telemetry_powerscale_telemetry_support | default(telemetry_default_powerscale_support) | bool | ternary('true', 'false') }}
+
+  # Enable or disable PowerScale log collection (syslog → VictoriaLogs)
+  # Requires powerscale_telemetry_support: true
+  # Accepted values: true or false
+  # Default: false
+  powerscale_log_enabled: {{ telemetry_powerscale_log_enabled | default(telemetry_default_powerscale_log_enabled) | bool | ternary('true', 'false') }}
+
+  # PVC size for OTEL Collector metric batching and buffering.
+  # Adjust based on cluster scale and metric volume.
+  # Accepted values: in the form of "X[Ki|Mi|Gi|Ti|Pi|Ei]"
+  # Default: "5Gi"
+  otel_collector_storage_size: {{ telemetry_otel_collector_storage_size | default(telemetry_default_otel_collector_storage_size) | to_json }}
+
+  # Path to the CSM Observability (Karavi Observability) values.yaml file.
+  # Required when powerscale_configurations.powerscale_telemetry_support: true
+  # Reference: https://github.com/dell/helm-charts/blob/main/charts/karavi-observability/values.yaml
+  csm_observability_values_file_path: "{{ telemetry_csm_observability_values_file_path | default(telemetry_default_csm_observability_values_file_path) }}"
+
+  # Additional VictoriaMetrics remote_write endpoints (optional)
+  # vmagent will write the same PowerScale metrics to ALL configured endpoints.
+  # Each endpoint receives an identical copy of all metrics.
+  # The primary Omnia VictoriaMetrics endpoint (vminsert) is always included automatically.
+  # Default: [] (empty — only the primary Omnia VictoriaMetrics endpoint is used)
+  # Example:
+  #   additional_remote_write_endpoints:
+  #     - url: "https://external-victoria.example.com:8480/insert/0/prometheus/api/v1/write"
+  #       tls_insecure_skip_verify: true
+  additional_remote_write_endpoints: {{ telemetry_additional_remote_write_endpoints | default([]) | to_json }}

@@ -19,26 +19,32 @@
 - name: Validate backup location for upgrade input processing
   ansible.builtin.include_tasks: precheck_backup_location.yml
 
-- name: Transform network_spec.yml from Omnia 2.0 to 2.1
+- name: Transform network_spec.yml from Omnia 2.1 to 2.2
   ansible.builtin.include_tasks: transform_network_spec.yml
 
-- name: Transform high_availability_config.yml from Omnia 2.0 to 2.1
+- name: Transform high_availability_config.yml from Omnia 2.1 to 2.2
   ansible.builtin.include_tasks: transform_high_availability_config.yml
 
-- name: Transform local_repo_config.yml from Omnia 2.0 to 2.1
+- name: Transform local_repo_config.yml from Omnia 2.1 to 2.2
   ansible.builtin.include_tasks: transform_local_repo_config.yml
 
-- name: Transform provision_config.yml from Omnia 2.0 to 2.1
+- name: Transform provision_config.yml from Omnia 2.1 to 2.2
   ansible.builtin.include_tasks: transform_provision_config.yml
 
-- name: Transform storage_config.yml from Omnia 2.0 to 2.1
+- name: Transform storage_config.yml from Omnia 2.1 to 2.2
   ansible.builtin.include_tasks: transform_storage_config.yml
 
-- name: Transform omnia_config.yml from Omnia 2.0 to 2.1
+- name: Transform omnia_config.yml from Omnia 2.1 to 2.2
   ansible.builtin.include_tasks: transform_omnia_config.yml
 
-- name: Transform telemetry_config.yml from Omnia 2.0 to 2.1
+- name: Transform telemetry_config.yml from Omnia 2.1 to 2.2
   ansible.builtin.include_tasks: transform_telemetry_config.yml
+
+- name: Generate build_stream_config.yml for Omnia 2.2
+  ansible.builtin.include_tasks: transform_build_stream_config.yml
+
+- name: Generate gitlab_config.yml for Omnia 2.2
+  ansible.builtin.include_tasks: transform_gitlab_config.yml
 
 - name: Restore input files from backup
   ansible.builtin.include_tasks: restore_input_files.yml

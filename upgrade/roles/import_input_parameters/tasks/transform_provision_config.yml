@@ -44,16 +44,16 @@
 
 - name: Normalize provision_config.yml values
   ansible.builtin.set_fact:
-    provision_pxe_mapping_file_path: "{{ backup_provision_config.pxe_mapping_file_path | default('pxe_mapping_file.csv') }}"
-    provision_language: "{{ backup_provision_config.language | default('en_US.UTF-8') }}"
-    provision_default_lease_time: "{{ backup_provision_config.default_lease_time | default('86400') }}"
+    provision_pxe_mapping_file_path: "{{ backup_provision_config.pxe_mapping_file_path | default(provision_default_pxe_mapping_file_path) }}"
+    provision_language: "{{ backup_provision_config.language | default(provision_default_language) }}"
+    provision_default_lease_time: "{{ backup_provision_config.default_lease_time | default(provision_default_lease_time) }}"
 
 - name: Fail if pxe_mapping_file_path is missing
   ansible.builtin.fail:
     msg: "{{ msg_pxe_mapping_file_path_missing }}"
   when: (provision_pxe_mapping_file_path | string | trim) == ''
 
-- name: Write provision_config.yml in Omnia 2.1 format
+- name: Write provision_config.yml in Omnia 2.2 format
   ansible.builtin.template:
     src: provision_config.j2
     dest: "{{ input_project_dir }}/provision_config.yml"

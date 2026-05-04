@@ -61,7 +61,7 @@
     (storage_nfs_client_params | selectattr('client_share_path', 'undefined') | list | length) > 0 or
     (storage_nfs_client_params | selectattr('client_mount_options', 'undefined') | list | length) > 0
 
-- name: Write storage_config.yml in Omnia 2.1 format
+- name: Write storage_config.yml in Omnia 2.2 format
   ansible.builtin.template:
     src: storage_config.j2
     dest: "{{ input_project_dir }}/storage_config.yml"
