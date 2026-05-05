@@ -601,7 +601,7 @@ vector:
     image: "{{ telemetry_images['victoriametrics/vmagent'] | default('docker.io/victoriametrics/vmagent:v1.128.0') }}"
     replicas: 2
     pvc_size: "5Gi"  # Disk WAL buffer
-    remote_write_url: "http://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write"
+    remote_write_url: "https://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write"
     tmp_data_path: "/vmagent-buffer"
     resources:
       requests:
@@ -621,7 +621,7 @@ vector:
     image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
     replicas: 2
     pvc_size: "5Gi"  # Disk buffer
-    remote_write_url: "http://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9428/internal/insert"
+    remote_write_url: "https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9428/internal/insert"
     tmp_data_path: "/vlagent-buffer"
     resources:
       requests:

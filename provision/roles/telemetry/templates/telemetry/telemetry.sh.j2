@@ -1,25 +1,103 @@
-kubectl apply -f {{ k8s_client_mount_path }}/telemetry/deployments/telemetry_namespace_creation.yaml
+#!/bin/bash
+set -euo pipefail
+
+DEPLOY_DIR="{{ k8s_client_mount_path }}/telemetry"
+
+echo "===== Telemetry Stack Deployment ====="
+
+# Step 1: Create telemetry namespace
+echo "[1/5] Creating telemetry namespace..."
+kubectl apply -f "${DEPLOY_DIR}/deployments/telemetry_namespace_creation.yaml"
+
 {% if kafka_support %}
-helm -n telemetry install strimzi-cluster-operator {{ k8s_client_mount_path }}/telemetry/{{ strimzi_kafka_pkg }}.tar.gz
-{% endif %}
-{% if victoria_metrics_support or victoria_logs_support %}
-helm -n telemetry install victoria-metrics-operator {{ k8s_client_mount_path }}/telemetry/{{ victoria_operator_pkg }}.tar.gz
-echo "Waiting for victoria-metrics-operator to be ready..."
-kubectl wait --for=condition=available --timeout=300s deployment -l app.kubernetes.io/name=victoria-metrics-operator -n telemetry || true
-echo "Waiting for victoria_logs CRDs to be registered..."
-for i in {1..30}; do
-  if kubectl get crd vlclusters.operator.victoriametrics.com >/dev/null 2>&1 && \
-     kubectl get crd vlagents.operator.victoriametrics.com >/dev/null 2>&1; then
-    echo "victoria_logs CRDs are ready"
+# Step 2: Install Strimzi Kafka operator
+echo "[2/5] Installing Strimzi Kafka operator..."
+if helm status strimzi-cluster-operator -n telemetry >/dev/null 2>&1; then
+  echo "  Strimzi operator already installed, upgrading..."
+  helm -n telemetry upgrade strimzi-cluster-operator "${DEPLOY_DIR}/{{ strimzi_kafka_pkg }}.tar.gz"
+else
+  helm -n telemetry install strimzi-cluster-operator "${DEPLOY_DIR}/{{ strimzi_kafka_pkg }}.tar.gz"
+fi
+
+# Wait for Strimzi operator to be ready
+echo "  Waiting for Strimzi operator deployment..."
+kubectl wait --for=condition=available --timeout=300s deployment/strimzi-cluster-operator -n telemetry
+
+# Wait for Strimzi CRDs (required before kubectl apply -k can create Kafka resources)
+echo "  Waiting for Strimzi CRDs..."
+for i in $(seq 1 60); do
+  if kubectl get crd kafkas.kafka.strimzi.io >/dev/null 2>&1 && \
+     kubectl get crd kafkatopics.kafka.strimzi.io >/dev/null 2>&1 && \
+     kubectl get crd kafkausers.kafka.strimzi.io >/dev/null 2>&1 && \
+     kubectl get crd kafkanodepools.kafka.strimzi.io >/dev/null 2>&1; then
+    echo "  Strimzi CRDs are ready"
     break
   fi
-  echo "Waiting for victoria_logs CRDs... (attempt $i/30)"
+  if [ "$i" -eq 60 ]; then
+    echo "ERROR: Strimzi CRDs not ready after 120s" >&2
+    exit 1
+  fi
   sleep 2
 done
 {% endif %}
-kubectl apply -k {{ k8s_client_mount_path }}/telemetry/deployments/.
-{% if ldms_support %}
-kubectl create secret generic nersc-ldms-ovis-auth   --from-file=ldmsauth.conf={{ k8s_client_mount_path }}/telemetry/ldms/ldmsauth.conf   --dry-run=client -o yaml | kubectl apply -f  - -n telemetry
-kubectl create secret generic nersc-munge-key   --from-file=munge.key={{ k8s_client_mount_path }}/telemetry/ldms/munge.key   --dry-run=client -o yaml | kubectl apply -f - -n telemetry
-cd {{ k8s_client_mount_path }}/telemetry/ldms/nersc-ldms-aggr && helm install -n telemetry nersc-ldms-aggr nersc-ldms-aggr --values values.yaml
+
+{% if victoria_metrics_support or victoria_logs_support %}
+# Step 3: Install VictoriaMetrics operator
+echo "[3/5] Installing VictoriaMetrics operator..."
+if helm status victoria-metrics-operator -n telemetry >/dev/null 2>&1; then
+  echo "  VictoriaMetrics operator already installed, upgrading..."
+  helm -n telemetry upgrade victoria-metrics-operator "${DEPLOY_DIR}/{{ victoria_operator_pkg }}.tar.gz"
+else
+  helm -n telemetry install victoria-metrics-operator "${DEPLOY_DIR}/{{ victoria_operator_pkg }}.tar.gz"
+fi
+
+echo "  Waiting for VictoriaMetrics operator deployment..."
+kubectl wait --for=condition=available --timeout=300s deployment/victoria-metrics-operator -n telemetry
+
+# Wait for ALL required VictoriaMetrics CRDs
+echo "  Waiting for VictoriaMetrics CRDs..."
+for i in $(seq 1 60); do
+  CRDS_READY=true
+{% if victoria_metrics_support %}
+  kubectl get crd vmclusters.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
+  kubectl get crd vmagents.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
+  kubectl get crd vmpodscrapes.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
 {% endif %}
+{% if victoria_logs_support %}
+  kubectl get crd vlclusters.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
+  kubectl get crd vlagents.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
+{% endif %}
+  if [ "$CRDS_READY" = "true" ]; then
+    echo "  VictoriaMetrics CRDs are ready"
+    break
+  fi
+  if [ "$i" -eq 60 ]; then
+    echo "ERROR: VictoriaMetrics CRDs not ready after 120s" >&2
+    exit 1
+  fi
+  sleep 2
+done
+{% endif %}
+
+# Step 4: Apply all Kustomize resources
+echo "[4/5] Applying Kustomize deployments..."
+kubectl apply -k "${DEPLOY_DIR}/deployments/."
+
+{% if ldms_support %}
+# Step 5: Create LDMS secrets and install LDMS aggregator
+echo "[5/5] Deploying LDMS resources..."
+kubectl create secret generic nersc-ldms-ovis-auth \
+  --from-file=ldmsauth.conf="${DEPLOY_DIR}/ldms/ldmsauth.conf" \
+  --dry-run=client -o yaml | kubectl apply -f - -n telemetry
+kubectl create secret generic nersc-munge-key \
+  --from-file=munge.key="${DEPLOY_DIR}/ldms/munge.key" \
+  --dry-run=client -o yaml | kubectl apply -f - -n telemetry
+if helm status nersc-ldms-aggr -n telemetry >/dev/null 2>&1; then
+  echo "  LDMS aggregator already installed, upgrading..."
+  cd "${DEPLOY_DIR}/ldms/nersc-ldms-aggr" && helm upgrade -n telemetry nersc-ldms-aggr nersc-ldms-aggr --values values.yaml
+else
+  cd "${DEPLOY_DIR}/ldms/nersc-ldms-aggr" && helm install -n telemetry nersc-ldms-aggr nersc-ldms-aggr --values values.yaml
+fi
+{% endif %}
+
+echo "===== Telemetry Stack Deployment Complete ====="
