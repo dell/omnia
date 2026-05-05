@@ -24,11 +24,6 @@
             {"package": "slurm-pam_slurm", "type": "rpm", "repo_name": "slurm_custom"},
             {"package": "kernel-devel", "type": "rpm", "repo_name": "appstream"},
             {"package": "kernel-headers", "type": "rpm", "repo_name": "appstream"},
-            {"package": "datacenter-gpu-manager-4-core", "type": "rpm", "repo_name": "cuda"},
-            {"package": "cuda-run",
-             "type": "iso",
-             "url": "https://developer.download.nvidia.com/compute/cuda/13.0.2/local_installers/cuda_13.0.2_580.95.05_linux_sbsa.run"
-            },
             {
             "package": "nvhpc_2025_2511_Linux_aarch64_cuda_13.0",
             "type": "tarball",

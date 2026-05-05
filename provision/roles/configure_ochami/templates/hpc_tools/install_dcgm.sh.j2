@@ -1,0 +1,98 @@
+#!/bin/bash
+LOGFILE="/var/log/dcgm_setup.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+echo "===== Starting NVIDIA DCGM setup ====="
+
+# GPU detection gate - DCGM requires NVIDIA GPU hardware
+if ! lspci | grep -qi nvidia; then
+    echo "[INFO] No NVIDIA GPU detected. Skipping DCGM setup."
+    exit 0
+fi
+
+# CUDA prerequisite gate
+echo "[INFO] Validating NVIDIA driver prerequisite..."
+if ! command -v nvidia-smi &>/dev/null; then
+    echo "[WARN] nvidia-smi not found. NVIDIA driver not installed. Skipping DCGM setup."
+    exit 0
+fi
+
+if ! nvidia-smi &>/dev/null; then
+    echo "[WARN] nvidia-smi failed to communicate with the driver. Skipping DCGM setup."
+    exit 0
+fi
+echo "[INFO] NVIDIA driver prerequisite satisfied."
+
+# Display nvidia-smi output for verification
+echo "========== NVIDIA Driver & GPU Information =========="
+nvidia-smi 2>&1
+echo "====================================================="
+
+# Detect CUDA major version for DCGM package selection
+echo "[INFO] Detecting CUDA version for DCGM package compatibility..."
+# Try to get CUDA version from nvidia-smi
+CUDA_VERSION=$(nvidia-smi | grep "CUDA Version" | awk '{print $9}' | cut -d'.' -f1)
+
+# Fallback: Try to get CUDA version from nvcc if available
+if [ -z "$CUDA_VERSION" ]; then
+    if command -v nvcc &>/dev/null; then
+        CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $5}' | cut -d',' -f1 | cut -d'.' -f1)
+        echo "[INFO] CUDA version detected from nvcc: $CUDA_VERSION"
+    else
+        echo "[ERROR] Could not detect CUDA version from nvidia-smi or nvcc."
+        echo "[ERROR] CUDA toolkit is required for DCGM package version detection. Skipping DCGM setup."
+        exit 1
+    fi
+else
+    echo "[INFO] CUDA major version detected from nvidia-smi: $CUDA_VERSION"
+fi
+
+# Install datacenter-gpu-manager-4-cuda${CUDA_VERSION} via dnf with weak dependencies
+echo "[INFO] Installing datacenter-gpu-manager-4-cuda${CUDA_VERSION} package..."
+if ! dnf install -y --setopt=install_weak_deps=True datacenter-gpu-manager-4-cuda${CUDA_VERSION}; then
+    echo "[ERROR] Failed to install datacenter-gpu-manager-4-cuda${CUDA_VERSION}. Skipping DCGM setup."
+    exit 1
+fi
+echo "[INFO] datacenter-gpu-manager-4-cuda${CUDA_VERSION} installed successfully."
+
+# Enable and start DCGM daemon (SB-003)
+echo "[INFO] Enabling and starting {{ dcgm_service_name }}.service..."
+systemctl enable {{ dcgm_service_name }}
+
+RETRIES={{ dcgm_health_check_retries }}
+ATTEMPT=0
+DCGM_STARTED=false
+
+while [ $ATTEMPT -lt $RETRIES ]; do
+    ATTEMPT=$((ATTEMPT + 1))
+    echo "[INFO] Starting {{ dcgm_service_name }} (attempt $ATTEMPT/$RETRIES)..."
+    systemctl start {{ dcgm_service_name }}
+    sleep 3
+
+    if systemctl is-active --quiet {{ dcgm_service_name }}; then
+        DCGM_STARTED=true
+        echo "[SUCCESS] {{ dcgm_service_name }}.service is active."
+        break
+    else
+        echo "[WARN] {{ dcgm_service_name }} failed to start on attempt $ATTEMPT."
+    fi
+done
+
+if [ "$DCGM_STARTED" != "true" ]; then
+    echo "[ERROR] {{ dcgm_service_name }} failed to start after $RETRIES attempts. Service will stay down (BL-002)."
+    exit 1
+fi
+
+# GPU discovery (SB-004)
+echo "[INFO] Enumerating GPUs via dcgmi discovery..."
+if command -v dcgmi &>/dev/null; then
+    echo "========== GPU Discovery Output =========="
+    dcgmi discovery -l 2>&1
+    GPU_COUNT=$(dcgmi discovery -l 2>/dev/null | grep -c "GPU")
+    echo "=========================================="
+    echo "[SUCCESS] GPU discovery completed. Found $GPU_COUNT GPU(s)."
+else
+    echo "[WARN] dcgmi command not found. Skipping GPU enumeration."
+fi
+
+echo "===== NVIDIA DCGM setup completed ====="

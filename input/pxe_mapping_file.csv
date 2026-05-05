@@ -11,4 +11,3 @@ service_kube_node_x86_64,grp5,ABFL82,,service-kube-node1,aa:bb:cc:dd:ee:jj,172.1
 service_kube_node_x86_64,grp5,ABKD88,,service-kube-node2,aa:bb:cc:dd:ee:kk,172.16.107.57,xx:yy:zz:aa:bb:ff,172.17.107.57,,
 os_x86_64,grp6,ABEF56,,os-node1,xx:yy:zz:aa:bb:ff,172.16.107.60,xx:yy:zz:aa:bb:ee,172.17.107.60,,
 os_aarch64,grp7,ABEF78,,os-node2,xx:yy:zz:aa:bb:ab,172.16.107.61,xx:yy:zz:aa:bb:ac,172.17.107.61,,
-

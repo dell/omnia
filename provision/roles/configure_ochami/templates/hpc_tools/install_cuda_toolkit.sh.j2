@@ -1,0 +1,166 @@
+#!/bin/bash
+# Lock-aware CUDA toolkit installer. Publishes to /hpc_tools/cuda on NFS.
+# Exits 0 if toolkit is already present (.done_cuda), if this node installed it,
+set -euo pipefail
+
+LOGFILE="/var/log/cuda_toolkit_install.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+LOCK_ROOT="/hpc_tools/cuda"
+DONE_FILE="$LOCK_ROOT/.done_cuda"
+LOCK_MGR="/usr/local/bin/cuda_lock_manager.sh"
+HOSTNAME_FILE="/var/run/cuda_install_hostname"
+
+# Function to set up CUDA environment variables
+setup_cuda_env() {
+    echo "[INFO] Setting up CUDA environment variables for shared location..."
+    cat > /etc/profile.d/cuda.sh <<'EOF'
+export PATH=/hpc_tools/cuda/bin:$PATH
+export LD_LIBRARY_PATH=/hpc_tools/cuda/lib64:$LD_LIBRARY_PATH
+export CUDA_HOME=/hpc_tools/cuda
+EOF
+    chmod +x /etc/profile.d/cuda.sh
+    echo "[INFO] CUDA environment configured successfully"
+}
+
+# Generate hostname for lock ownership (idempotent)
+/usr/local/bin/generate_install_uuid.sh
+
+# Fast-path: already done
+[ -f "$DONE_FILE" ] && {
+    echo "[INFO] CUDA toolkit already installed on shared storage by another node."
+    echo "[INFO] This node will use the existing CUDA installation."
+    setup_cuda_env
+    echo "[INFO] CUDA environment configured successfully."
+    exit 0
+}
+
+# Check if running in manual mode (not cloud-init)
+MANUAL_MODE="${CUDA_INSTALL_MANUAL:-false}"
+if [ "$MANUAL_MODE" = "true" ]; then
+    echo "[INFO] Running in manual mode - will force acquire lock if held"
+    FORCE_LOCK=true
+else
+    echo "[INFO] Running in cloud-init mode - will proceed without waiting if lock held"
+    FORCE_LOCK=false
+fi
+
+# Attempt lock acquisition
+set +e; "$LOCK_MGR" acquire; rc=$?; set -e
+
+# In manual mode, if lock is held, release it explicitly then acquire again
+if [ "$FORCE_LOCK" = "true" ] && [ "$rc" = "1" ]; then
+    echo "[WARN] Lock is held by another node. In manual mode, releasing lock first..."
+    "$LOCK_MGR" release
+    echo "[INFO] Lock released. Now acquiring lock..."
+    set +e; "$LOCK_MGR" acquire; rc=$?; set -e
+fi
+case $rc in
+    0)   # installer
+        echo "[INFO] Acquired lock. Installing toolkit..."
+        mkdir -p /shared-cuda-toolkit
+        mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/cuda/ /shared-cuda-toolkit
+
+        if [ $? -ne 0 ]; then
+            echo "[ERROR] Failed to mount NFS cuda share."
+            echo "[ERROR] CUDA toolkit installation failed on this node."
+            echo "[INFO] To manually install CUDA toolkit, run: CUDA_INSTALL_MANUAL=true /usr/local/bin/install_cuda_toolkit.sh"
+            "$LOCK_MGR" release
+            exit 1
+        fi
+
+        # Check if CUDA toolkit is already installed on NFS
+        if [ -f "/shared-cuda-toolkit/bin/nvcc" ]; then
+            echo "[INFO] CUDA toolkit already installed on NFS. Exiting."
+            "$LOCK_MGR" release
+            exit 0
+        fi
+
+        # Install CUDA toolkit to local location using dnf
+        echo "[INFO] Installing CUDA toolkit to local location using dnf..."
+        mkdir -p /cuda
+        # Copy host repository configuration to installroot (only for manual mode)
+        if [ "$MANUAL_MODE" = "true" ]; then
+            mkdir -p /cuda/etc/yum.repos.d
+            cp -r /etc/yum.repos.d/* /cuda/etc/yum.repos.d/ 2>/dev/null || true
+        fi
+        if timeout "${INSTALL_TIMEOUT:-1800}" dnf install -y --installroot=/cuda --releasever=10 --setopt=install_weak_deps=False cuda-toolkit; then
+            echo "[SUCCESS] CUDA toolkit installed successfully."
+
+            # Clean up repository configuration from installroot (if copied for manual mode)
+            if [ "$MANUAL_MODE" = "true" ]; then
+                rm -rf /cuda/etc/yum.repos.d
+            fi
+
+            # Copy CUDA toolkit to shared location
+            echo "[INFO] Copying CUDA toolkit to shared location..."
+            CUDA_SRC_DIR=$(find /cuda/usr/local/ -maxdepth 1 -type d -name "cuda-*" | head -n1)
+            if [ -z "$CUDA_SRC_DIR" ]; then
+                echo "[ERROR] Could not find CUDA installation directory in /cuda/usr/local/"
+                echo "[ERROR] CUDA toolkit installation failed on this node."
+                echo "[INFO] To manually install CUDA toolkit, run: CUDA_INSTALL_MANUAL=true /usr/local/bin/install_cuda_toolkit.sh"
+                "$LOCK_MGR" release
+                exit 1
+            fi
+
+            echo "[INFO] Found CUDA at: $CUDA_SRC_DIR"
+            echo "[INFO] Copying contents directly to /shared-cuda-toolkit..."
+            cp -r "$CUDA_SRC_DIR"/* /shared-cuda-toolkit/ 2>/dev/null || true
+
+            # Verify CUDA toolkit installation
+            echo "[INFO] Verifying CUDA toolkit installation..."
+            if [ -f "/shared-cuda-toolkit/bin/nvcc" ]; then
+                echo "[SUCCESS] CUDA toolkit verified."
+            else
+                echo "[ERROR] CUDA toolkit (nvcc) not found after installation."
+                echo "[ERROR] CUDA toolkit installation failed on this node."
+                echo "[INFO] To manually install CUDA toolkit, run: CUDA_INSTALL_MANUAL=true /usr/local/bin/install_cuda_toolkit.sh"
+                "$LOCK_MGR" release
+                exit 1
+            fi
+
+            # Atomic publish of .done_cuda (see §4.4). Never use `touch`.
+            TMP="$LOCK_ROOT/.done_cuda.tmp.$(cat $HOSTNAME_FILE)"
+            printf 'installed_by=%s\nts=%s\n' \
+                "$(hostname -s)" "$(date -Iseconds)" > "$TMP"
+            sync -f "$TMP" 2>/dev/null || sync
+            mv -f -- "$TMP" "$DONE_FILE"
+            "$LOCK_MGR" release
+            # log pass
+            printf '%s  %s  %s  installer  pass\n' \
+                "$(date '+%Y-%m-%d %H:%M:%S')" "$(hostname -s)" \
+                "$(cat $HOSTNAME_FILE)" \
+                >> "$LOCK_ROOT/.cuda_install_status.log"
+            
+            setup_cuda_env
+            
+            umount /shared-cuda-toolkit 2>/dev/null
+            exit 0
+        else
+            result=$?
+            "$LOCK_MGR" release
+            [ "$result" = "124" ] && st="timeout_killed" || st="fail"
+            printf '%s  %s  %s  installer  %s\n' \
+                "$(date '+%Y-%m-%d %H:%M:%S')" "$(hostname -s)" \
+                "$(cat $HOSTNAME_FILE)" "$st" \
+                >> "$LOCK_ROOT/.cuda_install_status.log"
+            echo "[ERROR] CUDA toolkit installation failed on this node."
+            echo "[INFO] To manually install CUDA toolkit, run: CUDA_INSTALL_MANUAL=true /usr/local/bin/install_cuda_toolkit.sh"
+            exit 1
+        fi
+        ;;
+    1)   # waiter - another node is installing
+        echo "[INFO] Another node is installing CUDA toolkit. Proceeding with cloud-init without waiting."
+        echo "[INFO] This node will use the shared CUDA toolkit once installation completes."
+        setup_cuda_env
+        echo "[INFO] CUDA environment configured (will work once installation completes)"
+        
+        exit 0
+        ;;
+    2)  # already done
+        echo "[INFO] CUDA toolkit already installed on shared storage."
+        setup_cuda_env
+        exit 0
+        ;;
+    *)  echo "[ERROR] acquire rc=$rc"; exit 1 ;;
+esac

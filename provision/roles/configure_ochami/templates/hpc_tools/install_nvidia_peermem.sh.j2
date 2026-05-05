@@ -1,0 +1,141 @@
+#!/bin/bash
+# NVIDIA Peer Memory (nvidia-peermem) DKMS installation for GPUDirect RDMA support.
+# SHALL be installed on all compute nodes where GPU hardware is detected.
+# Required on RDMA-capable GPU nodes only.
+# Idempotent: skips installation if module is already loaded.
+set -euo pipefail
+
+LOGFILE="/var/log/nvidia_peermem_install.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+echo "===== Starting NVIDIA Peer Memory (nvidia-peermem) setup ====="
+
+# GPU detection gate - only proceed if NVIDIA GPU is present
+echo "[INFO] Checking for NVIDIA GPU hardware..."
+if ! lspci | grep -qi nvidia; then
+    echo "[INFO] No NVIDIA GPU detected. Skipping nvidia-peermem installation."
+    exit 0
+fi
+
+# NVIDIA driver prerequisite gate
+echo "[INFO] Validating NVIDIA driver prerequisite..."
+if ! command -v nvidia-smi &>/dev/null; then
+    echo "[WARN] nvidia-smi not found. NVIDIA driver not installed. Skipping nvidia-peermem."
+    exit 0
+fi
+
+if ! nvidia-smi &>/dev/null; then
+    echo "[WARN] nvidia-smi failed to communicate with the driver. Skipping nvidia-peermem."
+    exit 0
+fi
+echo "[INFO] NVIDIA driver prerequisite satisfied."
+
+# Check if nvidia-peermem module is already loaded
+echo "[INFO] Checking if nvidia-peermem module is already loaded..."
+if lsmod | grep -qE 'nv_peer_mem|nvidia_peermem'; then
+    echo "[INFO] nvidia-peermem module is already loaded. Skipping installation."
+    # Verify module metadata
+    if modinfo nvidia-peermem &>/dev/null; then
+        echo "[INFO] nvidia-peermem module metadata verified."
+    else
+        echo "[WARN] nvidia-peermem module loaded but modinfo failed. This may indicate a corrupted module."
+    fi
+    exit 0
+fi
+
+# Check running kernel
+KERNEL_VERSION=$(uname -r)
+echo "[INFO] Running kernel version: $KERNEL_VERSION"
+
+# Check if kernel headers are available (required for DKMS)
+if [ ! -d "/lib/modules/$KERNEL_VERSION/build" ]; then
+    echo "[ERROR] Kernel headers not found for kernel $KERNEL_VERSION."
+    echo "[ERROR] Required for DKMS build. Please install kernel-devel package."
+    exit 1
+fi
+
+# Get NVIDIA driver version from nvidia-smi
+NVIDIA_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -n1 | tr -d ' ')
+if [ -z "$NVIDIA_VERSION" ]; then
+    echo "[ERROR] Could not determine NVIDIA driver version from nvidia-smi."
+    exit 1
+fi
+echo "[INFO] NVIDIA driver version: $NVIDIA_VERSION"
+
+# Check current DKMS status
+echo "[INFO] Checking current DKMS status..."
+dkms status || true
+
+# Add NVIDIA driver to DKMS if not already added
+if ! dkms status | grep -q "nvidia/$NVIDIA_VERSION"; then
+    echo "[INFO] Adding NVIDIA driver $NVIDIA_VERSION to DKMS..."
+    if ! dkms add -m nvidia -v "$NVIDIA_VERSION"; then
+        echo "[ERROR] Failed to add NVIDIA driver to DKMS."
+        exit 1
+    fi
+    echo "[INFO] NVIDIA driver added to DKMS successfully."
+else
+    echo "[INFO] NVIDIA driver $NVIDIA_VERSION already in DKMS."
+fi
+
+# Build NVIDIA module for the running kernel
+echo "[INFO] Building NVIDIA module for kernel $KERNEL_VERSION..."
+if ! dkms build -m nvidia -v "$NVIDIA_VERSION" -k "$KERNEL_VERSION" --force; then
+    echo "[ERROR] Failed to build NVIDIA module for kernel $KERNEL_VERSION."
+    echo "[ERROR] Check kernel logs for build errors."
+    exit 1
+fi
+echo "[INFO] NVIDIA module built successfully."
+
+# Install the built module
+echo "[INFO] Installing NVIDIA module for kernel $KERNEL_VERSION..."
+if ! dkms install -m nvidia -v "$NVIDIA_VERSION" -k "$KERNEL_VERSION" --force; then
+    echo "[ERROR] Failed to install NVIDIA module for kernel $KERNEL_VERSION."
+    exit 1
+fi
+echo "[INFO] NVIDIA module installed successfully."
+
+# Verify nvidia-peermem module metadata
+echo "[INFO] Verifying nvidia-peermem module metadata..."
+if modinfo nvidia-peermem &>/dev/null; then
+    echo "[INFO] nvidia-peermem module metadata verified."
+    modinfo nvidia-peermem
+else
+    echo "[ERROR] nvidia-peermem module metadata not found after DKMS install."
+    echo "[ERROR] This may indicate the module was not built or installed correctly."
+    exit 1
+fi
+
+# Ensure base NVIDIA modules are loaded first
+    echo "Loading base NVIDIA modules..."
+    modprobe nvidia 2>/dev/null || echo "nvidia module not available or failed to load"
+    modprobe nvidia-uvm 2>/dev/null || echo "nvidia-uvm module not available or failed to load"
+    modprobe nvidia-modeset 2>/dev/null || echo "nvidia-modeset module not available or failed to load"
+    modprobe nvidia-drm 2>/dev/null || echo "nvidia-drm module not available or failed to load"
+
+# Load the nvidia-peermem module
+echo "[INFO] Loading nvidia-peermem module..."
+if modprobe nvidia-peermem; then
+    echo "[SUCCESS] nvidia-peermem module loaded successfully."
+else
+    echo "[WARN] Failed to load nvidia-peermem module with modprobe."
+    echo "[WARN] This may not be critical if RDMA is not required on this node."
+    echo "[WARN] Check kernel logs for detailed error information."
+    dmesg | grep -i peermem || true
+    # Continue with warning unless RDMA dependency exists
+    # (RDMA dependency check would be environment-specific)
+fi
+
+# Confirm module is loaded
+if lsmod | grep -q nvidia_peermem; then
+    echo "[SUCCESS] nvidia_peermem is loaded in kernel."
+else
+    echo "[WARN] nvidia_peermem not found in lsmod output."
+    echo "[WARN] Module may have failed to load or may not be required for this configuration."
+fi
+
+# Check kernel logs for peer memory messages or errors
+echo "[INFO] Checking kernel logs for peer memory messages..."
+dmesg | grep -i peermem || echo "[INFO] No peermem messages found in recent kernel logs."
+
+echo "===== NVIDIA Peer Memory (nvidia-peermem) setup completed ====="

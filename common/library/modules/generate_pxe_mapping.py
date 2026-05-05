@@ -101,7 +101,7 @@ server_count:
 
 
 DEFAULT_FUNCTIONAL_GROUP = "slurm_node_aarch64"
-SERVICE_CONTROL_PLANE_GROUP = "service_kube_control_plane_x86_64"
+PARENT_TAG_SOURCE_GROUP = "service_kube_node_x86_64"
 
 # Omnia-supported functional group names.
 # Only servers whose OME static group matches one of these will be
@@ -120,10 +120,11 @@ SUPPORTED_FUNCTIONAL_GROUPS = {
     "os_aarch64",
 }
 
-# Roles that have a parent-child relationship with the control plane.
-# Only these roles should receive PARENT_SERVICE_TAG.
-CHILD_ROLES_OF_CONTROL_PLANE = {
-    "service_kube_node_x86_64",
+# Roles that receive PARENT_SERVICE_TAG (set to a service_kube_node_x86_64
+# service tag from the same Scalable Unit).
+CHILD_ROLES_WITH_PARENT_TAG = {
+    "slurm_node_aarch64",
+    "slurm_node_x86_64",
 }
 
 
@@ -289,22 +290,22 @@ def main():
             }
             rows.append(row)
 
-        # Build SU -> control plane service tag map
-        su_control_plane_map = {}
+        # Build SU -> service_kube_node service tag map
+        su_kube_node_map = {}
         for row in rows:
-            if row["FUNCTIONAL_GROUP_NAME"] == SERVICE_CONTROL_PLANE_GROUP:
+            if row["FUNCTIONAL_GROUP_NAME"] == PARENT_TAG_SOURCE_GROUP:
                 su = row["GROUP_NAME"]
-                if su and su not in su_control_plane_map:
-                    su_control_plane_map[su] = row["SERVICE_TAG"]
+                if su and su not in su_kube_node_map:
+                    su_kube_node_map[su] = row["SERVICE_TAG"]
 
-        # Assign PARENT_SERVICE_TAG only to child roles of the control plane
-        # within the same GROUP_NAME
+        # Assign PARENT_SERVICE_TAG only to slurm_node roles,
+        # using a service_kube_node_x86_64 service tag from the same GROUP_NAME
         for row in rows:
-            if row["FUNCTIONAL_GROUP_NAME"] not in CHILD_ROLES_OF_CONTROL_PLANE:
+            if row["FUNCTIONAL_GROUP_NAME"] not in CHILD_ROLES_WITH_PARENT_TAG:
                 continue
             su = row["GROUP_NAME"]
-            if su in su_control_plane_map:
-                row["PARENT_SERVICE_TAG"] = su_control_plane_map[su]
+            if su in su_kube_node_map:
+                row["PARENT_SERVICE_TAG"] = su_kube_node_map[su]
 
         # Write CSV file
         with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
