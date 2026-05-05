@@ -23,8 +23,9 @@ functional_groups_file_path: "{{ hostvars['localhost']['functional_groups_config
 software_config_file_path: "{{ input_project_dir }}/software_config.json"
 x86_64_build_image_completion_msg: |
   The playbook build_image_x86_64.yml has been completed successfully.
-  To boot x86_64 nodes execute discovery/discovery.yml playbook.
   To build image for aarch64 nodes execute build_image_aarch64/build_image_aarch64.yml playbook.
+  To boot x86_64 nodes execute provision/provision.yml playbook.
+
 functional_group_absent_msg: |
   Failure: No x86_64 functional groups found in functional_group_config.yml input file.
   Please make sure x86_64 functional_group should be present in input file functional_group_config.yml

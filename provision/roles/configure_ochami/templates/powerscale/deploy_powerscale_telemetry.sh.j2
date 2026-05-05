@@ -131,10 +131,16 @@
             if [ "$PS_TEL_FAILED" -eq 0 ]; then
               echo "===== PowerScale Telemetry (CSM Observability) deployed successfully ====="
 
-              # Step 6: Patch OTEL Collector service to expose Prometheus metrics port
+              # Step 6: Patch OTEL Collector service to expose Prometheus metrics port and add labels for vmagent discovery
               echo "Patching OTEL Collector service to expose port 8889 for Prometheus metrics..."
               kubectl patch svc otel-collector -n "${CSM_NS}" --patch '{"spec":{"ports":[{"name":"prometheus","port":8889,"targetPort":8889,"protocol":"TCP"}]}}' || {
                 echo "WARNING: Failed to patch OTEL Collector service for Prometheus metrics."
+              }
+              
+              # Step 6b: Add labels to OTEL Collector service for VMServiceScrape discovery
+              echo "Adding labels to OTEL Collector service for vmagent discovery..."
+              kubectl label svc otel-collector -n "${CSM_NS}" app.kubernetes.io/name=otel-collector app.kubernetes.io/component=collector --overwrite || {
+                echo "WARNING: Failed to add labels to OTEL Collector service."
               }
 
               # Step 7: Create PVC for OTEL Collector persistent buffering

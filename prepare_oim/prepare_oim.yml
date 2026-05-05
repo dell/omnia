@@ -89,7 +89,7 @@
                 name: telemetry_config
               when: telemetry_config_stat.stat.exists
 
-            - name: Add telemetry tag if idrac_telemetry_support is enabled
+            - name: Add telemetry tag if any telemetry source is enabled
               ansible.builtin.set_fact:
                 omnia_run_tags: >-
                   {{
@@ -97,7 +97,12 @@
                   }}
               when:
                 - telemetry_config_stat.stat.exists
-                - telemetry_config.idrac_telemetry_support | default(false) | bool
+                - >-
+                  (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
+                  (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
+                  (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
+                  (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) or
+                  (telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(false) | bool)
 
         - name: Check discovery configuration for OME
           block:

@@ -482,6 +482,10 @@ if [ "$CLEAN_POWERSCALE" = true ]; then
     delete_all configmap "app.kubernetes.io/name=otel-collector"
     delete_all pod "app.kubernetes.io/name=otel-collector"
 
+    # Delete VMServiceScrape for PowerScale OTEL Collector
+    echo "Deleting VMServiceScrape for PowerScale OTEL Collector..."
+    delete_resource vmservicescrape otel-collector-powerscale-scrape
+
     # Delete cert-manager resources deployed by karavi-observability sub-chart
     echo "Deleting cert-manager resources (Helm sub-chart)..."
     delete_all deployment "app.kubernetes.io/instance=karavi-observability,app.kubernetes.io/name=cert-manager"
