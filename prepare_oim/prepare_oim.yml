@@ -99,6 +99,7 @@
                 - telemetry_config_stat.stat.exists
                 - >-
                   (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
+                  (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
                   (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
                   (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) or
                   (telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(false) | bool)
