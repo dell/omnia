@@ -24,14 +24,7 @@ software_config_file_path: "{{ input_project_dir }}/software_config.json"
 x86_64_build_image_completion_msg: |
   The playbook build_image_x86_64.yml has been completed successfully.
   To build image for aarch64 nodes execute build_image_aarch64/build_image_aarch64.yml playbook.
-  To boot x86_64 nodes execute discovery/discovery.yml playbook with discovery_mechanism parameter.
-
-  Usage: ansible-playbook discovery.yml -e discovery_mechanism=<mechanism>
-  Supported discovery mechanisms:
-    - ome      : Dell OpenManage Enterprise (OME)
-    - magellan : Magellan
-
-  Otherwise, provide PXE mapping and execute provision/provision.yml.
+  To boot x86_64 nodes execute provision/provision.yml playbook.
 
 functional_group_absent_msg: |
   Failure: No x86_64 functional groups found in functional_group_config.yml input file.
