@@ -42,6 +42,7 @@
     admin_nic: "{{ network_data.admin_network.oim_nic_name }}"
     admin_netmask_bits: "{{ network_data.admin_network.netmask_bits }}"
     ib_network_subnet: "{{ network_data.ib_network.subnet }}"
+    ib_network_dns: "{{ network_data.ib_network.dns | default([]) }}"
     dns: "{{ network_data.admin_network.dns }}"
 
 - name: Initialise variables

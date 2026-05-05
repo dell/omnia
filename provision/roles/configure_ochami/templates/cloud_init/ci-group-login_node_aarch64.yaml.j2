@@ -121,6 +121,12 @@
           content: |
             {{ lookup('template', 'templates/slurm/check_slurm_controller_status.sh.j2') | indent(12) }}
 
+        - path: /usr/local/bin/configure_vast_installation.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/vast/configure_vast_installation.sh.j2') | indent(12) }}
+
         - path: /tmp/apptainer_mirror.conf
           permissions: '0644'
           content: |
@@ -142,10 +148,12 @@
         - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
-        - mount -a
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
-        - bash /usr/local/bin/doca-install.sh && bash /usr/local/bin/configure-ib-network.sh
+        - /usr/local/bin/configure_vast_installation.sh
+        - mount -a
+        - bash /usr/local/bin/doca-install.sh || true
+        - bash /usr/local/bin/configure-ib-network.sh
         - /usr/local/bin/check_slurm_controller_status.sh
         - chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_log_dir_effective }}
         - chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_pid_dir_effective }}

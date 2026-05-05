@@ -7,34 +7,33 @@ if ! lspci | grep -i 'mellanox'; then
     exit 0
 fi
 
+# Ensure IPoIB + Mellanox IB kernel modules are loaded before interface detection.
+# This avoids boot-time races where the IB device exists (lspci) but no ib* link is present yet.
+modprobe mlx5_ib || true
+modprobe ib_ipoib || true
+modprobe ib_umad || true
+modprobe ib_uverbs || true
+
 ADMIN_NIC_IP="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
 NETMASK_BITS="{{ hostvars['localhost']['admin_netmask_bits'] }}"
-IB_NETWORK_SUBNET="{{ hostvars['localhost']['ib_network_subnet'] }}"
+declare -A IB_IP_MAP=(
+{% for mac, node in hostvars['localhost']['read_mapping_file']['dict'].items() -%}
+{% if node.IB_IP is defined and node.IB_IP | trim | length > 0 %}
+  ["{{ node.ADMIN_IP }}"]="{{ node.IB_IP }}"
+{%- endif %}
+{%- endfor %}
+)
 
-ip_to_int() {
-  local IFS=.
-  read -r a b c d <<< "$1"
-  echo $(( (a << 24) + (b << 16) + (c << 8) + d ))
-}
+IB_IP="${IB_IP_MAP[$ADMIN_NIC_IP]:-}"
 
-int_to_ip() {
-  local ip=$1
-  echo "$(( (ip >> 24) & 255 )).$(( (ip >> 16) & 255 )).$(( (ip >> 8) & 255 )).$(( ip & 255 ))"
-}
-
-
-ADMIN_IP_INT=$(ip_to_int "$ADMIN_NIC_IP")
-IB_NET_INT=$(ip_to_int "$IB_NETWORK_SUBNET")
-
-HOST_BITS=$(( 32 - NETMASK_BITS ))
-HOST_MASK=$(( (1 << HOST_BITS) - 1 ))
-
-HOST_OFFSET=$(( ADMIN_IP_INT & HOST_MASK ))
-IB_IP_INT=$(( IB_NET_INT + HOST_OFFSET ))
-
-IB_IP=$(int_to_ip "$IB_IP_INT")
-
-echo "Derived IB IP : $IB_IP/$NETMASK_BITS"
+if [ -n "$IB_IP" ]; then
+  echo "Using explicit IB IP : $IB_IP/$NETMASK_BITS"
+else
+  echo "INFO: No explicit IB IP found in mapping file for node with ADMIN_IP: $ADMIN_NIC_IP"
+  echo "INFO: Skipping IB IP assignment. If IB networking is required for this node, please add IB_IP to the PXE mapping file."
+  echo "INFO: IB network interface will remain unconfigured."
+  exit 0
+fi
 
 MAX_WAIT=120        # total wait time in seconds (2 minutes)
 INTERVAL=10         # check every 10 seconds
@@ -75,4 +74,16 @@ else
 fi
 
 echo "SUCCESS: Assigned $IB_IP/$NETMASK_BITS to $IB_NIC"
+
+# Configure DNS for InfiniBand network
+if [ -n "$IB_IP" ]; then
+    echo "Configuring DNS for InfiniBand interface"
+    
+    # Add VAST DNS servers (completely safe - handles empty arrays)
+    {% for dns_server in hostvars['localhost']['ib_network_dns'] %}
+    echo "nameserver {{ dns_server }}" >> /etc/resolv.conf
+    {% endfor %}
+    
+    echo "SUCCESS: DNS configured for IB network"
+fi
  

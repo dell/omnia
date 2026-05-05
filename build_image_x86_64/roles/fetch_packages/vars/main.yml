@@ -30,10 +30,7 @@ x86_64_build_image_completion_msg: |
   
   Supported discovery mechanisms:
     - ome      : Dell OpenManage Enterprise (OME)
-    - magellan : Magellan (upcoming, not yet supported)
-  
-  Examples:
-    ansible-playbook discovery.yml -e discovery_mechanism=ome
+    - magellan : Magellan
   
   Otherwise, provide PXE mapping and execute provision/provision.yml.
   

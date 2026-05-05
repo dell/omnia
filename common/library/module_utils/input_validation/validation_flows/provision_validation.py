@@ -271,6 +271,7 @@ def validate_duplicate_admin_ips_in_mapping_file(pxe_mapping_file_path):
     if duplicates:
         raise ValueError(f"Duplicate ADMIN_IP found in PXE mapping file: {'; '.join(duplicates)}")
 
+
 def validate_duplicate_ib_ips_in_mapping_file(pxe_mapping_file_path):
     """Validates that IB_IP values in the mapping file are unique."""
     if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
@@ -312,7 +313,6 @@ def validate_duplicate_ib_ips_in_mapping_file(pxe_mapping_file_path):
             continue
 
         seen_ib_ips[ib_ip] = {"row": row_idx, "hostname": hostname}
-
 
     if duplicates:
         raise ValueError(f"Duplicate IB_IP found in PXE mapping file: {'; '.join(duplicates)}")
