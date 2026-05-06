@@ -374,15 +374,6 @@
             "required": ["url"]
           },
           "description": "Additional victoria_metrics remote_write endpoints."
-        },
-        "syslog_source_ips": {
-          "type": "array",
-          "default": [],
-          "items": {
-            "type": "string",
-            "format": "ipv4"
-          },
-          "description": "PowerScale IP address(es) from which syslog packets arrive. Optional: if empty, rsyslog accepts syslog from any source IP. If provided, rsyslog filters by these IPs for security."
         }
       },
       "required": ["otel_collector_storage_size", "csm_observability_values_file_path"]

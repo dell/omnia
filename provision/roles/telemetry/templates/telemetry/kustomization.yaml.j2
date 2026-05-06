@@ -3,6 +3,7 @@ resources:
 {% if victoria_metrics_support | default(false) %}
 # victoria_metrics Resources (Metrics Only)
   - victoria-vmagent-rbac.yaml
+  - vmagent-scrape-config.yaml
 {% if victoria_cluster.tls_enabled | default(false) %}
   # TLS secret for Victoria components (shared by metrics and logs)
   - victoria-tls-secret.yaml
@@ -19,9 +20,6 @@ resources:
   - victoria-operator-vmagent.yaml
   # VMPodScrape CR (native operator-based pod discovery for metrics)
   - victoria-operator-vmpodscrape.yaml
-{% if telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
-  # VMServiceScrape CR for PowerScale OTEL Collector
-  - victoria-operator-vmservicescrape-powerscale.yaml
 {% endif %}
 {% endif %}
 {% if victoria_logs_support | default(false) %}

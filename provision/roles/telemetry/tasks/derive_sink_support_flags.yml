@@ -53,7 +53,6 @@
     powerscale_configurations:
       powerscale_telemetry_support: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(true) | bool }}"
       powerscale_log_enabled: "{{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
-      syslog_source_ips: "{{ telemetry_config.powerscale_configurations.syslog_source_ips | default([]) }}"
       otel_collector_storage_size: "{{ telemetry_config.powerscale_configurations.otel_collector_storage_size | default('5Gi') }}"
       csm_observability_values_file_path: "{{ telemetry_config.powerscale_configurations.csm_observability_values_file_path | default('') }}"
       additional_remote_write_endpoints: "{{ telemetry_config.powerscale_configurations.additional_remote_write_endpoints | default([]) }}"

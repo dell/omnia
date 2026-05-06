@@ -60,7 +60,7 @@ data:
           # Add Pod IP label
           - source_labels: [__meta_kubernetes_pod_ip]
             target_label: pod_ip
-{% if hostvars['localhost']['telemetry_config']['telemetry_sources']['powerscale']['metrics_enabled'] | default(false) | bool %}
+{% if telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool %}
 
       # PowerScale OTEL Collector scrape targets (per cluster)
 {% for cluster in ps_clusters %}
@@ -74,4 +74,44 @@ data:
               cluster: "{{ cluster.clusterName }}"
               cluster_endpoint: "{{ cluster.endpoint }}"
 {% endfor %}
+
+      # CSI PowerScale Health Monitor scrape targets
+      - job_name: "csi-powerscale-health-monitor"
+        honor_labels: true
+        scrape_interval: {{ vmagent.global.scrape_interval }}
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - isilon
+        relabel_configs:
+          # Keep only CSI PowerScale pods
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: csi-isilon
+            action: keep
+          # Keep only health monitor container
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            regex: csi-health-monitor
+            action: keep
+          # Set scrape address to health monitor port (9445)
+          - source_labels: [__meta_kubernetes_pod_ip]
+            target_label: __address__
+            replacement: "$1:9445"
+          # Add labels
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+            action: replace
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node
+            action: replace
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+            action: replace
+          # Add custom labels
+          - target_label: source
+            replacement: powerscale
+            action: replace
+          - target_label: component
+            replacement: health-monitor
+            action: replace
 {% endif %}

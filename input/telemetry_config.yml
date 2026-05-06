@@ -331,24 +331,3 @@ powerscale_configurations:
   # Additional victoria_metrics remote_write endpoints (optional)
   # Default: [] (empty — only the primary Omnia victoria_metrics endpoint is used)
   additional_remote_write_endpoints: []
-
-  # --------------------------------------------------------------------------
-  # PowerScale Syslog Log Collection
-  # --------------------------------------------------------------------------
-  # When telemetry_sources.powerscale.logs_enabled is true, Omnia configures
-  # rsyslog on all K8s nodes to receive and relay PowerScale audit syslog.
-  #
-  # IMPORTANT: The syslog source IP is the IP address PowerScale uses to SEND
-  # syslog packets. This is NOT necessarily the CSI driver endpoint (management IP).
-  # Check OneFS Network Configuration → External Network → Pool IPs to find
-  # which pool/interface PowerScale will route syslog traffic from.
-  #
-  # Example: OneFS management IP = 192.168.55.2 (pool0, mgmt-1 interface)
-  #          OneFS data/NFS IP    = 192.168.55.11 (pool1, 40gige-1 interface)
-  #          Syslog may be sent from 192.168.55.11, NOT 192.168.55.2
-  #
-  # Example:
-  #   syslog_source_ips:
-  #     - "192.168.55.11"        # cluster1 data pool IP
-  #     - "192.168.55.20"           # cluster2 data pool IP
-  syslog_source_ips: []

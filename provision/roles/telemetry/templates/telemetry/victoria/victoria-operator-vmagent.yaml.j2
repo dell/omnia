@@ -60,11 +60,10 @@ spec:
       memory: "{{ victoria_cluster.vmagent.resources.limits.memory}}"
       cpu: "{{ victoria_cluster.vmagent.resources.limits.cpu}}"
   
-  # Service discovery configs - operator uses VMServiceScrape/VMPodScrape CRDs
-  serviceScrapeNamespaceSelector: {}
-  serviceScrapeSelector: {}
-  podScrapeNamespaceSelector: {}
-  podScrapeSelector: {}
+  # ConfigMap-based scrape configuration
+  configSecret:
+    name: {{ vmagent.configmap_name }}
+    key: prometheus.yml
   
   # Extra args
   extraArgs:
