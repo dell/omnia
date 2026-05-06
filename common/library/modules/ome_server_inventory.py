@@ -388,7 +388,7 @@ def extract_server_info(client, device, device_group_map=None):
 
     info = {
         "service_tag": device.get("Identifier") or device.get("DeviceServiceTag", ""),
-        "idrac_hostname": "",
+        "idrac_hostname": device.get("DeviceName", ""),
         "model": device.get("Model", ""),
         "idrac_ip": "",
         "idrac_mac": "",
@@ -408,11 +408,13 @@ def extract_server_info(client, device, device_group_map=None):
             if mgmt.get("ManagementType") == 2:  # iDRAC management
                 info["idrac_ip"] = mgmt.get("NetworkAddress", "")
                 info["idrac_mac"] = mgmt.get("MacAddress", "")
-                info["idrac_hostname"] = (
+                mgmt_hostname = (
                     mgmt.get("InstrumentationName") or
                     mgmt.get("DnsName") or
                     ""
                 )
+                if mgmt_hostname:
+                    info["idrac_hostname"] = mgmt_hostname
                 break
 
     # If not found in device info, try DeviceManagement endpoint
@@ -422,11 +424,13 @@ def extract_server_info(client, device, device_group_map=None):
             if mgmt.get("ManagementType") == 2:
                 info["idrac_ip"] = mgmt.get("NetworkAddress", "")
                 info["idrac_mac"] = mgmt.get("MacAddress", "")
-                info["idrac_hostname"] = (
+                mgmt_hostname = (
                     mgmt.get("InstrumentationName") or
                     mgmt.get("DnsName") or
                     ""
                 )
+                if mgmt_hostname:
+                    info["idrac_hostname"] = mgmt_hostname
                 break
 
     # Get network interface inventory for first NIC

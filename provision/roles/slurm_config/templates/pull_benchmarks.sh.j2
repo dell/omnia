@@ -1,0 +1,164 @@
+#!/bin/bash
+# HPC benchmark tarball pull script (Pulp only)
+# Deployed via NFS share for all nodes
+# Reads benchmark tool names from benchmark_tools.list file and downloads tarballs from Pulp
+# Downloads from Pulp mirror only (no internet fallback)
+# Usage: pull_benchmarks.sh
+
+LOGFILE="/var/log/pull_benchmarks.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BENCHMARK_TOOLS_LIST="${SCRIPT_DIR}/benchmark_tools.list"
+HPC_TOOLS_DIR="/hpc_tools"
+ARCH="$(uname -m)"
+OS_VERSION="{{ hostvars['localhost']['cluster_os_version'] }}"
+PULP_SERVER="{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+PULP_CONTENT_BASE="https://${PULP_SERVER}/pulp/content{{ hostvars['localhost']['oim_shared_path'] }}/omnia/offline_repo/cluster"
+
+echo "===== Starting Benchmark Tarball Pull Script (Pulp Only) ====="
+echo "[INFO] Timestamp: $(date)"
+echo "[INFO] Architecture: $ARCH"
+echo "[INFO] Pulp mirror: $PULP_SERVER"
+
+# Check prerequisites
+if [[ "$ARCH" != "x86_64" && "$ARCH" != "aarch64" ]]; then
+    echo "[ERROR] Unsupported architecture: $ARCH"
+    exit 1
+fi
+
+if [ ! -f "$BENCHMARK_TOOLS_LIST" ]; then
+    echo "[ERROR] Benchmark tools list not found: $BENCHMARK_TOOLS_LIST"
+    echo "[INFO] Please create the file with one tool name per line."
+    echo "[INFO] Expected location: ${SCRIPT_DIR}/benchmark_tools.list"
+    exit 1
+fi
+
+if [ ! -d "$HPC_TOOLS_DIR" ]; then
+    echo "[ERROR] /hpc_tools is not mounted or does not exist"
+    exit 1
+fi
+
+# Function to download all files from a Pulp content directory into a local directory.
+# Uses wget (preferred) or curl as fallback.
+# Arguments: $1 = Pulp directory URL, $2 = local destination directory
+pull_from_pulp() {
+    local url="$1"
+    local dest="$2"
+
+    if command -v wget &>/dev/null; then
+        wget -q -r -np -nd -R "index.html*" --no-check-certificate \
+            -P "$dest" "${url}/" 2>&1
+        return $?
+    elif command -v curl &>/dev/null; then
+        local page
+        page="$(curl -ksfL "${url}/" 2>/dev/null)" || return 1
+        local -a files
+        local files_count
+        mapfile -t files < <(echo "$page" \
+            | grep -oP 'href="\K[^"]+' \
+            | grep -vE '^\.\.?/?$|index\.html')
+        files_count=0
+        for _file in "${files[@]}"; do
+            [ -n "$_file" ] && ((files_count++))
+        done
+        [ "$files_count" -eq 0 ] && return 1
+        local rc=0
+        for f in "${files[@]}"; do
+            f="${f%/}"
+            [ -z "$f" ] && continue
+            curl -ksfL "${url}/${f}" -o "${dest}/${f}" || rc=1
+        done
+        return $rc
+    else
+        echo "[ERROR] Neither wget nor curl is available."
+        return 1
+    fi
+}
+
+echo "[INFO] Reading benchmark tools from: $BENCHMARK_TOOLS_LIST"
+
+TOTAL=0
+SUCCESS_COUNT=0
+FAILED_COUNT=0
+SKIPPED_COUNT=0
+FAILED_TOOLS=""
+
+while IFS= read -r tool || [ -n "$tool" ]; do
+    # Skip empty lines and comments
+    [[ -z "$tool" || "$tool" =~ ^[[:space:]]*# ]] && continue
+
+    # Trim whitespace
+    tool=$(echo "$tool" | xargs)
+    [[ -z "$tool" ]] && continue
+
+    ((TOTAL++))
+
+    echo ""
+    echo "===== Processing Tool $TOTAL: $tool ====="
+
+    # Architecture-specific skip
+    if [[ "$tool" == "msr-safe" && "$ARCH" != "x86_64" ]]; then
+        echo "[WARN] $tool is x86_64 only. Skipping on $ARCH."
+        ((SKIPPED_COUNT++))
+        continue
+    fi
+
+    PULP_URL="${PULP_CONTENT_BASE}/${ARCH}/rhel/${OS_VERSION}/tarball/${tool}"
+    DEST_DIR="${HPC_TOOLS_DIR}/${tool}"
+
+    echo "[INFO] Pulp URL: $PULP_URL"
+    echo "[INFO] Destination: $DEST_DIR"
+
+    # Skip if already staged
+    if [ -d "$DEST_DIR" ] && [ -n "$(ls -A "$DEST_DIR" 2>/dev/null)" ]; then
+        echo "[WARN] $tool already present at $DEST_DIR. Skipping."
+        echo "[INFO] Remove the directory to re-download."
+        ((SKIPPED_COUNT++))
+        continue
+    fi
+
+    mkdir -p "$DEST_DIR"
+
+    echo "[INFO] Pulling from Pulp mirror..."
+
+    if pull_from_pulp "$PULP_URL" "$DEST_DIR"; then
+        if [ -n "$(ls -A "$DEST_DIR" 2>/dev/null)" ]; then
+            echo "[SUCCESS] $tool staged at $DEST_DIR"
+            echo "[SOURCE] Downloaded from: PULP MIRROR ($PULP_SERVER)"
+            ls -lh "$DEST_DIR"
+            ((SUCCESS_COUNT++))
+        else
+            echo "[ERROR] Pull returned success but no files found for $tool"
+            rmdir "$DEST_DIR" 2>/dev/null
+            ((FAILED_COUNT++))
+            FAILED_TOOLS="${FAILED_TOOLS}\n  - ${tool} (no files downloaded)"
+        fi
+    else
+        echo "[ERROR] Failed to pull $tool from Pulp mirror."
+        echo "[INFO] Tool may not be available in Pulp or download was interrupted."
+        rmdir "$DEST_DIR" 2>/dev/null
+        ((FAILED_COUNT++))
+        FAILED_TOOLS="${FAILED_TOOLS}\n  - ${tool}"
+    fi
+
+done < "$BENCHMARK_TOOLS_LIST"
+
+echo ""
+echo "===== Benchmark Pull Summary ====="
+echo "[INFO] Total tools processed: $TOTAL"
+echo "[INFO] Successful: $SUCCESS_COUNT"
+echo "[INFO] Skipped: $SKIPPED_COUNT"
+echo "[INFO] Failed: $FAILED_COUNT"
+
+if [ $FAILED_COUNT -gt 0 ]; then
+    echo -e "[ERROR] Failed tools:$FAILED_TOOLS"
+    EXIT_CODE=1
+else
+    EXIT_CODE=0
+fi
+
+echo ""
+echo "===== Benchmark Pull Completed ====="
+exit ${EXIT_CODE:-0}
