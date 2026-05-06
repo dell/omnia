@@ -36,6 +36,18 @@ spec:
       tag: {{ victoria_logs_cluster.vlstorage.image.split(':')[1] }}
       pullPolicy: IfNotPresent
 
+    # Graceful shutdown - gives storage engine time to flush data and clean up lock files
+    terminationGracePeriodSeconds: 120
+
+    # Init container to remove stale lock files after node reboot
+    initContainers:
+      - name: remove-stale-locks
+        image: busybox:1.35
+        command: ["sh", "-c", "rm -f /vlstorage-data/flock.lock || true"]
+        volumeMounts:
+          - name: vlstorage-db
+            mountPath: /vlstorage-data
+
     # Ports are managed by operator defaults (9491, 9400, 9401)
 
     storageDataPath: /vlstorage-data
@@ -48,6 +60,7 @@ spec:
             requests:
               storage: {{ telemetry_config.telemetry_sinks.victoria_logs.storage_size }}
 
+    # Resource limits - Guaranteed QoS to prevent OOM on reconnection
     resources:
       requests:
         memory: {{ victoria_logs_cluster.vlstorage.resources.requests.memory }}
@@ -55,6 +68,36 @@ spec:
       limits:
         memory: {{ victoria_logs_cluster.vlstorage.resources.limits.memory }}
         cpu: {{ victoria_logs_cluster.vlstorage.resources.limits.cpu }}
+
+    # Startup probe - gives pod up to 300s to initialize (30 x 10s)
+    startupProbe:
+      httpGet:
+        path: /health
+        port: 9491
+        scheme: HTTPS
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 30
+      timeoutSeconds: 5
+{% if victoria_logs_cluster.tls_enabled %}
+      tlsConfig:
+        insecureSkipVerify: true
+{% endif %}
+
+    # Readiness probe - increased tolerance for WAL replay
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 9491
+        scheme: HTTPS
+      initialDelaySeconds: 15
+      periodSeconds: 5
+      failureThreshold: 10
+      timeoutSeconds: 5
+{% if victoria_logs_cluster.tls_enabled %}
+      tlsConfig:
+        insecureSkipVerify: true
+{% endif %}
 
     affinity:
       podAntiAffinity:
