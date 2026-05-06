@@ -37,12 +37,12 @@ spec:
       pullPolicy: IfNotPresent
 
     # Graceful shutdown - gives storage engine time to flush data and clean up lock files
-    terminationGracePeriodSeconds: 120
+    terminationGracePeriodSeconds: {{ victoria_logs_cluster.vlstorage.termination_grace_period }}
 
     # Init container to remove stale lock files after node reboot
     initContainers:
       - name: remove-stale-locks
-        image: busybox:1.35
+        image: "{{ telemetry_images['docker.io/library/busybox'] | default('docker.io/library/busybox:1.36') }}"
         command: ["sh", "-c", "rm -f /vlstorage-data/flock.lock || true"]
         volumeMounts:
           - name: vlstorage-db
@@ -75,10 +75,10 @@ spec:
         path: /health
         port: 9491
         scheme: HTTPS
-      initialDelaySeconds: 30
-      periodSeconds: 10
-      failureThreshold: 30
-      timeoutSeconds: 5
+      initialDelaySeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.initial_delay }}
+      periodSeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.period }}
+      failureThreshold: {{ victoria_logs_cluster.vlstorage.startup_probe.failure_threshold }}
+      timeoutSeconds: {{ victoria_logs_cluster.vlstorage.startup_probe.timeout }}
 {% if victoria_logs_cluster.tls_enabled %}
       tlsConfig:
         insecureSkipVerify: true
@@ -90,10 +90,10 @@ spec:
         path: /health
         port: 9491
         scheme: HTTPS
-      initialDelaySeconds: 15
-      periodSeconds: 5
-      failureThreshold: 10
-      timeoutSeconds: 5
+      initialDelaySeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.initial_delay }}
+      periodSeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.period }}
+      failureThreshold: {{ victoria_logs_cluster.vlstorage.readiness_probe.failure_threshold }}
+      timeoutSeconds: {{ victoria_logs_cluster.vlstorage.readiness_probe.timeout }}
 {% if victoria_logs_cluster.tls_enabled %}
       tlsConfig:
         insecureSkipVerify: true
@@ -116,11 +116,11 @@ spec:
       - effect: NoExecute
         key: node.kubernetes.io/not-ready
         operator: Exists
-        tolerationSeconds: 5
+        tolerationSeconds: {{ victoria_logs_cluster.vlstorage.toleration_seconds }}
       - effect: NoExecute
         key: node.kubernetes.io/unreachable
         operator: Exists
-        tolerationSeconds: 5
+        tolerationSeconds: {{ victoria_logs_cluster.vlstorage.toleration_seconds }}
 
     extraArgs:
       retentionPeriod: "{{ telemetry_config.telemetry_sinks.victoria_logs.retention_period }}h"
