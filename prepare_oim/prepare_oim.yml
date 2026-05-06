@@ -123,6 +123,12 @@
                 ome_discovery_enabled: "{{ discovery_config_stat.stat.exists and (discovery_config.enable_bmc_discovery | default(false) | bool) }}"
                 cacheable: true
 
+            - name: Set enable_bmc_discovery at top level for credential utility
+              ansible.builtin.set_fact:
+                enable_bmc_discovery: "{{ discovery_config.enable_bmc_discovery | default(false) | bool }}"
+                cacheable: true
+              when: discovery_config_stat.stat.exists
+
 - name: Invoke validate_config.yml to perform L1 and L2 validations with prepare_oim tag
   ansible.builtin.import_playbook: ../input_validation/validate_config.yml
   tags: always

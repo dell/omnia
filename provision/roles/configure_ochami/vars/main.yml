@@ -115,3 +115,33 @@ dcgm_health_check_retries: 3
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 software_config_file_path: "{{ input_project_dir }}/software_config.json"
 local_repo_config_path: "{{ input_project_dir }}/local_repo_config.yml"
+
+# Usage: provision_mapping_nodes.yml
+service_retries: 12 # 2 minutes
+service_retry_interval: 10 # seconds
+cloud_init_failed_msg: |
+  cloud-init-server is not running after {{ service_retries }} retries.
+  Next steps:
+  1. Check service status: systemctl status cloud-init-server
+  2. View logs: journalctl -u cloud-init-server -n 50
+  3. Restart service: systemctl restart cloud-init-server
+  4. Rerun provision.yml: ansible-playbook provision/provision.yml
+
+openchami_target_failed_msg: |
+  openchami.target is not up after {{ service_retries }} retries.
+  Next steps:
+  1. Check target status: systemctl status openchami.target
+  2. View logs: journalctl -u openchami.target -n 50
+  3. Check individual services: systemctl status smd bss cloud-init
+  4. Restart target: systemctl restart openchami.target
+  5. Rerun provision.yml: ansible-playbook provision/provision.yml
+
+ochami_discovery_failed_msg: |
+  Failed to discover ochami nodes after retries.
+  Next steps:
+  1. Verify nodes.yaml is valid: cat {{ openchami_nodes_vars_path }}
+  2. Check SMD connectivity
+  3. View SMD logs
+  4. Check ochami CLI: /usr/bin/ochami smd service status
+  5. Restart openchami.target: systemctl restart openchami.target
+  6. Rerun provision.yml: ansible-playbook provision/provision.yml
