@@ -1,0 +1,42 @@
+#!/bin/bash
+# Local NVIDIA driver install. Always runs on Slurm nodes. Idempotent.
+# Never touches NFS lock artifacts. Never touches /hpc_tools/cuda contents.
+set -euo pipefail
+
+LOGFILE="/var/log/nvidia_install.log"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+echo "===== NVIDIA driver install ====="
+
+if ! lspci | grep -qi nvidia; then
+    echo "[INFO] No NVIDIA GPU detected. Exiting."
+    exit 0
+fi
+
+if command -v nvidia-smi >/dev/null 2>&1; then
+    echo "[INFO] NVIDIA driver already installed. Skipping."
+else
+    echo "[INFO] Installing NVIDIA driver via dnf..."
+    dnf install -y cuda-drivers
+    command -v nvidia-smi >/dev/null 2>&1 || { echo "[ERROR] Driver install failed."; exit 1; }
+fi
+
+nvidia-smi -pm 1 || true
+
+# Mount shared toolkit at /usr/local/cuda (harmless if already mounted)
+mkdir -p /usr/local/cuda
+CUDA_NFS="{{ cloud_init_nfs_path }}/hpc_tools/cuda"
+if ! mountpoint -q /usr/local/cuda; then
+    mount -t nfs "$CUDA_NFS" /usr/local/cuda || true
+fi
+grep -q "$CUDA_NFS /usr/local/cuda" /etc/fstab || \
+    echo "$CUDA_NFS /usr/local/cuda nfs defaults,_netdev 0 0" >> /etc/fstab
+
+cat > /etc/profile.d/cuda.sh <<'EOF'
+export PATH=/usr/local/cuda/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+export CUDA_HOME=/usr/local/cuda
+EOF
+chmod +x /etc/profile.d/cuda.sh
+
+echo "===== NVIDIA driver install completed ====="

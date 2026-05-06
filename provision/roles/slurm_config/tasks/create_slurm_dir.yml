@@ -30,22 +30,6 @@
     name: slurm_custom_aarch64
   failed_when: false
 
-- name: Extract CUDA runfile name for x86_64 from slurm_custom.json
-  ansible.builtin.set_fact:
-    cuda_runfile_x86_64: "{{ (slurm_custom_x86_64.slurm_node.cluster | selectattr('package', 'equalto', 'cuda-run') | first).url | basename }}"
-  when:
-    - slurm_custom_x86_64 is defined
-    - slurm_custom_x86_64.slurm_node is defined
-    - slurm_custom_x86_64.slurm_node.cluster | selectattr('package', 'equalto', 'cuda-run') | list | length > 0
-
-- name: Extract CUDA runfile name for aarch64 from slurm_custom.json
-  ansible.builtin.set_fact:
-    cuda_runfile_aarch64: "{{ (slurm_custom_aarch64.slurm_node.cluster | selectattr('package', 'equalto', 'cuda-run') | first).url | basename }}"
-  when:
-    - slurm_custom_aarch64 is defined
-    - slurm_custom_aarch64.slurm_node is defined
-    - slurm_custom_aarch64.slurm_node.cluster | selectattr('package', 'equalto', 'cuda-run') | list | length > 0
-
 - name: Set facts for slurm
   ansible.builtin.set_fact:
     nfs_storage_name: "{{ slurm_cluster[0].nfs_storage_name }}"

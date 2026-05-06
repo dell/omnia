@@ -205,7 +205,7 @@ configure_rsyslog_on_node() {
         }
 
         # Setup log file, firewall, validate, restart
-        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$NODE_IP" \
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$NODE_IP" " \
              if command -v firewall-cmd &>/dev/null; then \
                  firewall-cmd --add-port=514/udp --permanent 2>/dev/null || true && \
                  firewall-cmd --add-port=514/tcp --permanent 2>/dev/null || true && \

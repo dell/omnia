@@ -22,7 +22,6 @@
     mode: "{{ common_mode }}"
   loop:
     - cuda
-    - runfile
     - scripts
     - container_images
     - nvidia_sdk
@@ -39,6 +38,22 @@
   ansible.builtin.template:
     src: "container_image.list.j2"
     dest: "{{ container_image_list_path }}"
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "0644"
+
+- name: Deploy pull_benchmarks.sh to NFS share
+  ansible.builtin.template:
+    src: "pull_benchmarks.sh.j2"
+    dest: "{{ pull_benchmarks_script_path }}"
+    owner: "{{ root_user }}"
+    group: "{{ root_group }}"
+    mode: "0755"
+
+- name: Deploy benchmark_tools.list to NFS share
+  ansible.builtin.template:
+    src: "benchmark_tools.list.j2"
+    dest: "{{ benchmark_tools_list_path }}"
     owner: "{{ root_user }}"
     group: "{{ root_group }}"
     mode: "0644"

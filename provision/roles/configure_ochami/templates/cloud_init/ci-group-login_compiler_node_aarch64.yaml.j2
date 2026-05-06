@@ -77,96 +77,25 @@
                 IdentityFile {{ client_mount_path }}/slurm/ssh/oim_rsa
                 IdentitiesOnly yes
 
-        - path: /usr/local/bin/install_cuda_toolkit.sh
-          permissions: '0755'
+{% if login_compiler_node_present %}
+        - path: /usr/local/bin/generate_install_uuid.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
           content: |
-            #!/bin/bash
-            LOGFILE="/var/log/cuda_toolkit_install.log"
-            exec > >(tee -a "$LOGFILE") 2>&1
+            {{ lookup('template', 'templates/hpc_tools/generate_install_uuid.sh.j2') | indent(12) }}
 
-            echo "===== Starting CUDA Toolkit installation ====="
+        - path: /usr/local/bin/cuda_lock_manager.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/cuda_lock_manager.sh.j2') | indent(12) }}
 
-            # Check if CUDA toolkit is already installed
-            if command -v nvcc &>/dev/null; then
-                CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $6}' | sed 's/,//')
-                echo "[INFO] CUDA toolkit already installed (version: ${CUDA_VERSION}). Exiting."
-                exit 0
-            fi
-
-            echo "[INFO] Mounting NFS runfile directory for CUDA toolkit..."
-            mkdir -p /cuda-runfile
-            mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/runfile /cuda-runfile
-
-            if [ $? -ne 0 ]; then
-                echo "[ERROR] Failed to mount NFS runfile share. Exiting."
-                exit 1
-            fi
-
-            echo "[INFO] Setting up shared CUDA directory..."
-            # Create and mount shared directory for compute nodes
-            mkdir -p /shared-cuda-toolkit
-            mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/cuda/ /shared-cuda-toolkit
-
-            if [ $? -ne 0 ]; then
-                echo "[ERROR] Failed to mount NFS cuda share. Exiting."
-                umount /cuda-runfile 2>/dev/null
-                exit 1
-            fi
-
-            echo "[INFO] Installing CUDA toolkit directly to shared NFS location..."
-            if [ -f "/cuda-runfile/{{ cuda_runfile_aarch64 }}" ]; then
-                mkdir -p /shared-cuda-toolkit/tmp
-                # Install toolkit directly to the NFS-mounted shared location
-                bash /cuda-runfile/{{ cuda_runfile_aarch64 }} --silent --toolkit --tmpdir=/shared-cuda-toolkit/tmp --toolkitpath=/shared-cuda-toolkit --override
-
-                if [ $? -eq 0 ]; then
-                    echo "[SUCCESS] CUDA toolkit installed successfully to shared location."
-
-                    # Set up environment variables pointing to shared location
-                    cat > /etc/profile.d/cuda.sh << 'ENDOFFILE'
-            export PATH=/shared-cuda-toolkit/bin:$PATH
-            export LD_LIBRARY_PATH=/shared-cuda-toolkit/lib64:$LD_LIBRARY_PATH
-            export CUDA_HOME=/shared-cuda-toolkit
-            ENDOFFILE
-
-                    # Apply environment variables for current session
-                    export PATH=/shared-cuda-toolkit/bin:$PATH
-                    export LD_LIBRARY_PATH=/shared-cuda-toolkit/lib64:$LD_LIBRARY_PATH
-                    export CUDA_HOME=/shared-cuda-toolkit
-
-                    echo "[INFO] CUDA environment configured"
-                else
-                    echo "[ERROR] CUDA toolkit installation failed."
-                fi
-            else
-                echo "[ERROR] CUDA toolkit runfile not found in /cuda-runfile/"
-            fi
-
-            echo "[INFO] Verifying CUDA toolkit installation..."
-            if command -v nvcc &>/dev/null; then
-                CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $6}' | sed 's/,//')
-                echo "[SUCCESS] CUDA toolkit verified: version $CUDA_VERSION"
-                echo "[INFO] CUDA installation path: $(which nvcc)"
-            else
-                echo "[ERROR] CUDA toolkit (nvcc) not found after installation."
-            fi
-
-            echo "[INFO] Setting up shared CUDA directory for compute nodes..."
-            # Create shared directory for compute nodes to mount
-            mkdir -p /shared-cuda-toolkit
-            # Mount the shared NFS location where compute nodes will access the toolkit
-            mount -t nfs {{ cloud_init_nfs_path }}/hpc_tools/cuda/ /shared-cuda-toolkit
-
-            echo "[INFO] Copying CUDA toolkit to shared location..."
-            # Copy the installed CUDA toolkit to the shared location for compute nodes
-            #rsync -av /usr/local/cuda/ /shared-cuda-toolkit/ --exclude='*.a' --exclude='doc/'
-            cp -r /usr/local/cuda/* /shared-cuda-toolkit/ 2>/dev/null || true
-
-            echo "[INFO] Cleaning up temporary mounts..."
-            umount /cuda-runfile 2>/dev/null
-            rmdir /cuda-runfile 2>/dev/null
-
-            echo "===== CUDA Toolkit installation completed ====="
+        - path: /usr/local/bin/install_cuda_toolkit.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/hpc_tools/install_cuda_toolkit.sh.j2') | indent(12) }}
+{% endif %}
 
 {% if hostvars['localhost']['openldap_support'] %}
         - path: /etc/sssd/sssd.conf
@@ -182,7 +111,7 @@
             {{ lookup('template', 'templates/openldap/update_ldap_conf.sh.j2') | indent(12) }}
 {% endif %}
 
-{% if hostvars['localhost']['ldms_support'] %}
+{% if ldms_support %}
         - path: /root/ldms_sampler.sh
           owner: root:root
           permissions: '0755'
@@ -246,7 +175,6 @@
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-        - /usr/local/bin/install_cuda_toolkit.sh
         # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
         - mkdir -p {{ client_mount_path }}/slurm/ssh
         - mkdir -p {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} {% for d in slurm_prolog_dirs_all %}{{ d }} {% endfor %}/etc/munge /cert /var/log/track /var/lib/packages /hpc_tools
@@ -265,7 +193,14 @@
         - /usr/local/bin/configure_vast_installation.sh
         - mount -a
 
-{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] or hostvars['localhost']['ldms_support'] %}
+
+{% if login_compiler_node_present %}
+        - /usr/local/bin/generate_install_uuid.sh
+        - /usr/local/bin/install_cuda_toolkit.sh
+{% endif %}
+
+{% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] or ldms_support %}
+
         # Add NFS entry and mount
         - mkdir -p {{ client_mount_path }}
         - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -291,7 +226,7 @@
         # - echo "NFS must be mounted at {{ client_mount_path }} before running."
 {% endif %}
 
-{% if hostvars['localhost']['ldms_support'] %}
+{% if ldms_support %}
         - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
         - /root/ldms_sampler.sh
 {% endif %}

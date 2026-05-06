@@ -1,0 +1,78 @@
+#!/bin/bash
+# Distributed lock manager for CUDA toolkit install on shared NFS.
+# Backed by atomic mkdir on /hpc_tools/cuda/.nfs_lock_cuda.
+# Exposes: acquire | release | wait | is_stale
+set -euo pipefail
+
+LOCK_ROOT="/hpc_tools/cuda"
+LOCK_DIR="$LOCK_ROOT/.nfs_lock_cuda"
+OWNER_FILE="$LOCK_DIR/owner.txt"
+DONE_FILE="$LOCK_ROOT/.done_cuda"
+STATUS_LOG="$LOCK_ROOT/.cuda_install_status.log"
+HOSTNAME_FILE="/var/run/cuda_install_hostname"
+
+INSTALL_TIMEOUT="${INSTALL_TIMEOUT:-1800}"
+POLL_INTERVAL="${POLL_INTERVAL:-5}"
+TAKEOVER_MIN="${TAKEOVER_MIN:-5}"
+TAKEOVER_MAX="${TAKEOVER_MAX:-15}"
+GLOBAL_WAIT_TIMEOUT="${GLOBAL_WAIT_TIMEOUT:-$((INSTALL_TIMEOUT * 2))}"
+
+log_status() {
+    # ts  host  hostname  role  result
+    printf '%s  %s  %s  %s  %s\n' \
+        "$(date '+%Y-%m-%d %H:%M:%S')" "$(hostname -s)" \
+        "$(cat "$HOSTNAME_FILE" 2>/dev/null || echo UNKNOWN)" \
+        "$1" "$2" >> "$STATUS_LOG"
+}
+
+acquire() {
+    # Fast path: already done
+    [ -f "$DONE_FILE" ] && { log_status waiter skip_done; return 2; }
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+        cat "$HOSTNAME_FILE" > "$OWNER_FILE"
+        log_status installer lock_acquired
+        return 0   # we are installer
+    fi
+    return 1       # we are waiter
+}
+
+release() { rm -rf "$LOCK_DIR"; }
+
+is_stale() {
+    # Owner hostname → hostname from status log → ping
+    local owner_hostname host
+    owner_hostname=$(cat "$OWNER_FILE" 2>/dev/null || echo "")
+    [ -z "$owner_hostname" ] && return 1
+    host=$(awk -v h="$owner_hostname" '$3==h {print $2; exit}' "$STATUS_LOG")
+    [ -z "$host" ] && return 1
+    ping -c1 -W2 "$host" >/dev/null 2>&1 && return 1
+    return 0       # host unreachable → stale
+}
+
+wait_for_done_or_takeover() {
+    local started; started=$(date +%s)
+    while true; do
+        [ -f "$DONE_FILE" ] && { log_status waiter skip_done; return 0; }
+        if [ ! -d "$LOCK_DIR" ]; then
+            sleep $(( RANDOM % (TAKEOVER_MAX - TAKEOVER_MIN + 1) + TAKEOVER_MIN ))
+            return 10   # caller should retry acquire
+        fi
+        if is_stale; then
+            log_status waiter crash_detected
+            release
+            continue
+        fi
+        (( $(date +%s) - started > GLOBAL_WAIT_TIMEOUT )) && {
+            log_status timeout_waiter fail; return 1;
+        }
+        sleep "$POLL_INTERVAL"
+    done
+}
+
+case "${1:-}" in
+    acquire) acquire ;;
+    release) release ;;
+    wait)    wait_for_done_or_takeover ;;
+    is_stale) is_stale ;;
+    *) echo "usage: $0 {acquire|release|wait|is_stale}" >&2; exit 64 ;;
+esac

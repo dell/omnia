@@ -56,37 +56,96 @@
     - name: Delete smd configuration
       ansible.builtin.include_tasks: delete_smd_config.yml
 
-    - name: Restart the cloud-init service to clear node instance data
+    - name: Restart the cloud-init service to refresh node instance data
       ansible.builtin.service:
         name: cloud-init-server
         state: restarted
+
+    - name: Check if cloud-init-server is running
+      ansible.builtin.service:
+        name: cloud-init-server
+        state: started
+      register: cloud_init_server_status
+      retries: "{{ service_retries }}"
+      delay: "{{ service_retry_interval }}"
+      until: cloud_init_server_status is success
+
+    - name: Wait for cloud-init-server to be ready
+      ansible.builtin.command: /usr/bin/ochami cloud-init service status
+      register: cloud_init_status
+      retries: "{{ service_retries }}"
+      delay: "{{ service_retry_interval }}"
+      until: cloud_init_status.rc == 0
+      changed_when: false
+
+    - name: Fail if cloud-init-server is not running
+      ansible.builtin.fail:
+        msg: "{{ cloud_init_failed_msg }}"
+      when:
+        - cloud_init_server_status is defined
+        - cloud_init_server_status is not success
 
     - name: Check whether openchami.target is up
       ansible.builtin.service:
         name: openchami.target
         state: started
       register: openchami_target_status
-      retries: 4
-      delay: 5
+      retries: "{{ service_retries }}"
+      delay: "{{ service_retry_interval }}"
       until: openchami_target_status is success
 
     - name: Fail if openchami.target is not up
       ansible.builtin.fail:
-        msg: "openchami.target is not up"
+        msg: "{{ openchami_target_failed_msg }}"
       when:
         - openchami_target_status is defined
         - openchami_target_status is not success
 
-    - name: Provision ochami nodes
+    - name: Discover ochami nodes with retries
       block:
-        - name: Provision ochami nodes
+        - name: Discover ochami nodes
           ansible.builtin.command: /usr/bin/ochami discover static -f yaml -d @"{{ openchami_nodes_vars_path }}" --overwrite
-          changed_when: true
           register: openchami_provision
+          changed_when: openchami_provision.rc == 0
+          failed_when: openchami_provision.rc != 0
       rescue:
-        - name: Failed to provision nodes
-          ansible.builtin.debug:
-            msg: "{{ provision_fail_msg }}. Error: {{ openchami_provision.stderr_lines }}"
+        - name: Check if smd service is running
+          ansible.builtin.service:
+            name: smd
+            state: started
+          register: smd_service_status
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: smd_service_status is success
+
+        - name: Fail if smd service is not running
+          ansible.builtin.fail:
+            msg: "smd service is not running"
+          when:
+            - smd_service_status is defined
+            - smd_service_status is not success
+
+        - name: Wait for SMD API to be ready
+          ansible.builtin.command: /usr/bin/ochami smd service status
+          register: smd_api_ready
+          retries: "{{ service_retries }}"
+          delay: "{{ service_retry_interval }}"
+          until: smd_api_ready.rc == 0
+          changed_when: false
+
+        - name: Retry discover ochami nodes
+          ansible.builtin.command: /usr/bin/ochami discover static -f yaml -d @"{{ openchami_nodes_vars_path }}" --overwrite
+          register: openchami_provision
+          changed_when: openchami_provision.rc == 0
+          failed_when: openchami_provision.rc != 0
+          retries: 2
+          delay: "{{ service_retry_interval }}"
+          until: openchami_provision.rc == 0
+
+        - name: Fail if ochami discovery still unsuccessful
+          ansible.builtin.fail:
+            msg: "{{ ochami_discovery_failed_msg }}"
+          when: openchami_provision.rc != 0
 
     - name: Verify node created in smd
       ansible.builtin.shell: |

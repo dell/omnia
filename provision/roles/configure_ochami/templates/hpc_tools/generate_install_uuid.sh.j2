@@ -1,0 +1,10 @@
+#!/bin/bash
+# Generate hostname for lock ownership identity.
+# Idempotent: uses hostname directly.
+set -euo pipefail
+
+HOSTNAME_FILE="/var/run/cuda_install_hostname"
+
+hostname > "$HOSTNAME_FILE"
+
+echo "[INFO] CUDA install hostname for this node: $(cat "$HOSTNAME_FILE")"
