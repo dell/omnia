@@ -162,6 +162,10 @@ nvhpc_tarball_aarch64_relpath: "offline_repo/cluster/aarch64/rhel/{{ hostvars['l
 
 nvhpc_nfs_rel_dir: "hpc_tools/nvidia_sdk"
 
+# Benchmark pull script path
+pull_benchmarks_script_path: "{{ slurm_config_path }}/hpc_tools/scripts/pull_benchmarks.sh"
+benchmark_tools_list_path: "{{ slurm_config_path }}/hpc_tools/scripts/benchmark_tools.list"
+
 # parallel file copy
 parallel_copy_max_workers: 4
 
