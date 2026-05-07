@@ -298,9 +298,8 @@ powerscale_victoria_logs_validation_fail_msg: >-
   PowerScale log collection requires 'victoria_logs' in
   telemetry_sources.powerscale.collection_targets.
 
-# Usage: vmagent-scrape-config.yaml
+# Usage: victoria-operator-vmagent.yaml.j2 (operator-native)
 vmagent:
-  configmap_name: "vmagent-scrape-config"
   global:
     scrape_interval: "10s"
   job_name: "idrac-telemetry"
@@ -314,7 +313,6 @@ vmagent:
   app_name: "vmagent"
   container_name: "vmagent"
   image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
-  scrape_config_path: "/etc/vmagent/prometheus.yml"
   # Single-node URL
   remote_write_url: "https://victoria-loadbalancer.telemetry.svc.cluster.local:8443/api/v1/write"
   # Cluster URL (used when victoria_cluster.enabled: true)
@@ -348,8 +346,6 @@ common_mode: "0755"
 victoria_templates_common:
   - src: 'telemetry/victoria/victoria-vmagent-rbac.yaml.j2'
     dest: 'victoria-vmagent-rbac.yaml'
-  - src: 'telemetry/victoria/vmagent-scrape-config.yaml.j2'
-    dest: 'vmagent-scrape-config.yaml'
 
 # Operator-based templates (new default)
 # Single-node operator template (used when victoria_cluster.enabled: false)
@@ -358,8 +354,8 @@ victoria_templates_operator_single:
     dest: 'victoria-operator-vmsingle.yaml'
   - src: 'telemetry/victoria/victoria-operator-vmagent.yaml.j2'
     dest: 'victoria-operator-vmagent.yaml'
-  - src: 'telemetry/victoria/victoria-operator-vmpodscrape.yaml.j2'
-    dest: 'victoria-operator-vmpodscrape.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmscrape.yaml.j2'
+    dest: 'victoria-operator-vmscrape.yaml'
 
 # Cluster operator template (used when victoria_cluster.enabled: true)
 victoria_templates_operator_cluster:
@@ -367,8 +363,8 @@ victoria_templates_operator_cluster:
     dest: 'victoria-operator-vmcluster.yaml'
   - src: 'telemetry/victoria/victoria-operator-vmagent.yaml.j2'
     dest: 'victoria-operator-vmagent.yaml'
-  - src: 'telemetry/victoria/victoria-operator-vmpodscrape.yaml.j2'
-    dest: 'victoria-operator-vmpodscrape.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmscrape.yaml.j2'
+    dest: 'victoria-operator-vmscrape.yaml'
 
 # Legacy manual deployment templates (removed - use operator-based templates above)
 # Raw victoria-cluster-vminsert/vmselect/vmstorage.yaml.j2 files have been removed

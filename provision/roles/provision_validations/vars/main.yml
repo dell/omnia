@@ -73,11 +73,6 @@ warning_idrac_telemetry_support_true: |
   Make sure that Redfish is enabled and the iDRAC has a datacenter license.
   Also, ensure that the firmware version is greater than 4 for iDRAC9 or greater than 1 for iDRAC10."
 
-warning_powerscale_health_monitor_disabled: |
-  "[WARNING] telemetry_sources.powerscale.metrics_enabled is set to true in telemetry_config.yml,
-  but CSI driver health monitor is disabled (controller.healthMonitor.enabled=false in CSI values.yaml).
-  Health monitor metrics will not be stored in VictoriaMetrics.
-  To enable health monitor metrics, set controller.healthMonitor.enabled=true in CSI values.yaml."
 
 pause_time_15: 15
 bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"

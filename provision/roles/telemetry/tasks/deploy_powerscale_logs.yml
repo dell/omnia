@@ -54,6 +54,11 @@
         ps_clusters: "{{ csi_powerscale_secret.isilonClusters | default([]) }}"
       when: csi_powerscale_secret.skipped is not defined
 
+    - name: Set empty ps_clusters if secret not available
+      ansible.builtin.set_fact:
+        ps_clusters: []
+      when: csi_powerscale_secret.skipped is defined
+
     - name: Populate PowerScale syslog configuration script
       ansible.builtin.template:
         src: "{{ configure_ps_syslog_template }}"

@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+{% if telemetry_sources.idrac.metrics_enabled | default(false) %}
 # VMPodScrape - Native operator-based pod discovery for idrac-telemetry
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMPodScrape
@@ -44,3 +45,40 @@ spec:
         # Add pod IP label
         - sourceLabels: [__meta_kubernetes_pod_ip]
           targetLabel: pod_ip
+{% endif %}
+
+---
+{% if telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
+# VMServiceScrape for PowerScale OTEL Collector
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: otel-collector-powerscale
+  namespace: {{ telemetry_namespace }}
+spec:
+  # Target OTEL collector service
+  selector:
+    matchLabels:
+      app: otel-collector
+  
+  # Service metrics endpoints
+  endpoints:
+    - port: "8889"
+      interval: {{ vmagent.global.scrape_interval }}
+      path: /metrics
+  
+  # Relabel configs
+  relabelConfigs:
+{% for cluster in ps_clusters %}
+    - sourceLabels: [__address__]
+      targetLabel: cluster
+      replacement: "{{ cluster.clusterName }}"
+    - sourceLabels: [__address__]
+      targetLabel: cluster_endpoint
+      replacement: "{{ cluster.endpoint }}"
+{% endfor %}
+    - targetLabel: source
+      replacement: powerscale
+    - targetLabel: component
+      replacement: otel-collector
+{% endif %}

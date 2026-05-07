@@ -44,12 +44,14 @@
     mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
 - name: Ensure iDRAC Telemetry scripting destination exists
+  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
   ansible.builtin.file:
     path: "{{ idrac_telemetry_scripting_git_clone_path }}"
     state: directory
     mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
 - name: Copy iDRAC Telemetry Scripting to NFS share
+  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
   block:
     - name: Copy pre-cloned iDRAC Telemetry Scripting directory
       ansible.builtin.copy:
