@@ -54,3 +54,5 @@
 
 - name: Validate telemetry config
   ansible.builtin.include_tasks: validate_telemetry_config.yml
+  when:
+    - service_k8s_support
