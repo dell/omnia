@@ -55,6 +55,4 @@
 - name: Validate telemetry config
   ansible.builtin.include_tasks: validate_telemetry_config.yml
   when:
-    - (telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
-      (telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
-      (ldms_support | default(false) | bool)
+    - service_k8s_support
