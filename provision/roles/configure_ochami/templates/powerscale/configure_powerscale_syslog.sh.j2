@@ -22,17 +22,6 @@ set -euo pipefail
 
 NAMESPACE="{{ telemetry_namespace }}"
 
-# Read PowerScale credentials from CSI secret.yaml
-SECRET_FILE="{{ hostvars['localhost']['k8s_client_share_path'] }}/csi-driver-powerscale/secret.yaml"
-if [ -f "$SECRET_FILE" ]; then
-    echo "Reading credentials from CSI secret.yaml"
-    CSI_USERNAME=$(grep -v '^[[:space:]]*#' "$SECRET_FILE" | grep 'username:' | head -1 | awk -F':' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}' | base64 --decode 2>/dev/null)
-    CSI_PASSWORD=$(grep -v '^[[:space:]]*#' "$SECRET_FILE" | grep 'password:' | head -1 | awk -F':' '{gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); print $2}' | base64 --decode 2>/dev/null)
-else
-    echo "ERROR: CSI secret file not found: $SECRET_FILE"
-    exit 1
-fi
-
 echo "=========================================="
 echo "PowerScale Syslog Collection Setup"
 echo "=========================================="
@@ -102,7 +91,7 @@ if [ -n "$CLUSTER_ENDPOINT" ]; then
     # Extract management IP from endpoint (remove protocol and path)
     CLUSTER_IP=$(echo "$CLUSTER_ENDPOINT" | sed -e 's|https\?://||' -e 's|/.*||')
     echo "For PowerScale cluster: $CLUSTER_NAME ($CLUSTER_IP)"
-    echo "  1. SSH to PowerScale: ssh $CSI_USERNAME@$CLUSTER_IP"
+    echo "  1. SSH to PowerScale: ssh <admin_user>@$CLUSTER_IP"
     echo "  2. Enable audit syslog forwarding:"
     echo "     isi audit settings global modify --protocol-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} --protocol-syslog-tls-enabled=0"
     echo "     isi audit settings global modify --config-syslog-enabled=1 --config-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} --config-syslog-tls-enabled=0"

@@ -32,7 +32,7 @@
   when:
     - telemetry_sources.powerscale.metrics_enabled | default(false) | bool
     - csi_powerscale_driver_values_file_path is defined
-    - csi_values.controller.healthMonitor.enabled | default(false) == false
+    - not (csi_values.controller.healthMonitor.enabled | default(false) | bool)
   vars:
     csi_values: "{{ lookup('file', csi_powerscale_driver_values_file_path) | from_yaml }}"
   failed_when: false
