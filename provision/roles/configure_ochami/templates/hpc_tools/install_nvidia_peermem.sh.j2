@@ -67,7 +67,7 @@ echo "[INFO] Checking current DKMS status..."
 dkms status || true
 
 # Add NVIDIA driver to DKMS if not already added
-if ! dkms status | grep -q "nvidia/$NVIDIA_VERSION"; then
+if ! dkms status | grep "nvidia/$NVIDIA_VERSION"; then
     echo "[INFO] Adding NVIDIA driver $NVIDIA_VERSION to DKMS..."
     if ! dkms add -m nvidia -v "$NVIDIA_VERSION"; then
         echo "[ERROR] Failed to add NVIDIA driver to DKMS."
@@ -127,7 +127,7 @@ else
 fi
 
 # Confirm module is loaded
-if lsmod | grep -q nvidia_peermem; then
+if lsmod | grep nvidia_peermem; then
     echo "[SUCCESS] nvidia_peermem is loaded in kernel."
 else
     echo "[WARN] nvidia_peermem not found in lsmod output."

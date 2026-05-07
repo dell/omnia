@@ -1,0 +1,228 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Process mount
+  block:
+    - name: Initialize structure for individual mount
+      ansible.builtin.set_fact:
+        single_mnt_runcmd: []
+
+    - name: Resolve mount_params profile if specified
+      ansible.builtin.set_fact:
+        resolved_mount_profile: "{{ mount_params[mount_item.mount_params] | default({}) }}"
+      when: mount_item.mount_params is defined and mount_item.mount_params in mount_params
+
+    - name: Set default empty profile if not using mount_params
+      ansible.builtin.set_fact:
+        resolved_mount_profile: {}
+      when: mount_item.mount_params is not defined or mount_item.mount_params not in mount_params
+
+    - name: Build cloud-init mount array with explicit values taking priority
+      ansible.builtin.set_fact:
+        cloud_init_mount_array:
+          - "{{ mount_item.source }}"
+          - "{{ mount_item.mount_point }}"
+          - "{{ mount_item.fs_type | default(resolved_mount_profile.fs_type | default('auto')) }}"
+          - "{{ mount_item.mnt_opts | default(resolved_mount_profile.mnt_opts | default('defaults')) }}"
+          - "{{ mount_item.dump_freq | default(resolved_mount_profile.dump_freq | default('0')) }}"
+          - "{{ mount_item.fsck_pass | default(resolved_mount_profile.fsck_pass | default('0')) }}"
+
+    - name: Add runcmd entries for this mount from cloud_init_mount_array
+      ansible.builtin.set_fact:
+        single_mnt_runcmd: >-
+          {{ single_mnt_runcmd + ['mkdir -pv ' + mount_item.mount_point] + ['echo "' + cloud_init_mount_array | join('
+          ') + '" >> /etc/fstab'] }}
+
+    - name: Add permission runcmd entries if permissions specified
+      when: mount_item.permissions is defined
+      block:
+        - name: Set permission defaults
+          ansible.builtin.set_fact:
+            perm_owner: "{{ mount_item.permissions.owner | default('root') }}"
+            perm_group: "{{ mount_item.permissions.group | default('root') }}"
+            perm_mode: "{{ mount_item.permissions.mode | default('0644') }}"
+
+        - name: Build permission runcmd commands
+          ansible.builtin.set_fact:
+            permission_runcmds:
+              - "{{ ('mkdir -pv ' ~ mount_item.mount_point) }}"
+              - "{{ ('chown ' ~ perm_owner ~ ':' ~ perm_group ~ ' ' ~ mount_item.mount_point) }}"
+              - "{{ ('chmod ' ~ perm_mode ~ ' ' ~ mount_item.mount_point) }}"
+
+        - name: Add permissions to runcmd
+          ansible.builtin.set_fact:
+            single_mnt_runcmd: "{{ single_mnt_runcmd + permission_runcmds }}"
+
+    # Has to be mounted before submounts
+    - name: Add mount -av to runcmd # TODO minimize calls to mount -av
+      ansible.builtin.set_fact:
+        single_mnt_runcmd: "{{ single_mnt_runcmd + ['mount -av'] }}"
+
+    - name: Add node_key bind mount runcmd entries if node_key specified
+      when: mount_item.node_key is defined and mount_item.node_mount_point is defined
+      block:
+        - name: Map node_key to cloud-init metadata variable
+          ansible.builtin.set_fact:
+            # ci_data_var: "{{ '{% raw %}{{ ' + mount_item.node_key + ' }}{% endraw %}' }}"
+            ci_data_var: "$(cloud-init query {{ mount_item.node_key }})"
+
+        - name: Normalize node_mount_point to list
+          ansible.builtin.set_fact:
+            node_bind_mount_points: >-
+              {{
+                mount_item.node_mount_point
+                if (mount_item.node_mount_point is iterable and not (mount_item.node_mount_point is string))
+                else [mount_item.node_mount_point]
+              }}
+
+        - name: Build bind mount runcmd entries (fstab + mount) per node mount point
+          ansible.builtin.set_fact:
+            bind_fstab_runcmds: >-
+              {{
+                ((bind_fstab_runcmds | default([])) + [
+                  (('mkdir -pv ' ~ mount_item.mount_point ~ '/' ~ ci_data_var ~ item)),
+                  (('mkdir -pv ' ~ item)),
+                  (('echo "' ~ mount_item.mount_point ~ '/' ~ ci_data_var ~ item ~ ' ' ~ item ~ ' none bind,_netdev 0 0" >> /etc/fstab')),
+                  (('mount -av'))
+                ])
+              }}
+          loop: "{{ node_bind_mount_points }}"
+
+        - name: Add bind_fstab_runcmds to single_mnt_runcmd
+          ansible.builtin.set_fact:
+            single_mnt_runcmd: "{{ single_mnt_runcmd + bind_fstab_runcmds }}"
+            bind_fstab_runcmds: []
+
+    - name: Determine target functional groups
+      ansible.builtin.include_tasks: determine_target_groups.yml
+      vars:
+        config_item: "{{ mount_item }}"
+
+    - name: Add bind fstab commands to each target functional group (runcmd)
+      ansible.builtin.set_fact:
+        cloud_init_groups_dict: >-
+          {{ cloud_init_groups_dict | combine({
+                item: (cloud_init_groups_dict[item] | default({}) | combine({
+                  'runcmd': (cloud_init_groups_dict[item].runcmd | default([])) + single_mnt_runcmd
+                }, recursive=True))
+              }, recursive=True) }}
+      loop: "{{ target_functional_groups }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Add mount to host-specific map if groups field specified
+      when: mount_item.groups is defined and mount_item.groups | length > 0 and group_host_map | length > 0
+      block:
+        - name: Resolve target hostnames from groups
+          ansible.builtin.set_fact:
+            target_hostnames: >-
+              {{
+                mount_item.groups | map('extract', group_host_map, []) | flatten | unique | list
+              }}
+
+        - name: Add mount to host_mount_map for each target hostname
+          ansible.builtin.set_fact:
+            host_mount_map: >-
+              {{
+                host_mount_map | combine({
+                  item: (host_mount_map[item] | default({}) | combine({
+                    'mounts': (host_mount_map[item].mounts | default([])) + [cloud_init_mount_array]
+                  }, recursive=True))
+                })
+              }}
+          loop: "{{ target_hostnames }}"
+          loop_control:
+            label: "{{ item }}"
+
+        - name: Add permission runcmd entries to host_mount_map if permissions specified
+          when: mount_item.permissions is defined
+          block:
+            - name: Build permission runcmd commands for host-specific mounts
+              ansible.builtin.set_fact:
+                host_perm_owner: "{{ mount_item.permissions.owner | default('root') }}"
+                host_perm_group: "{{ mount_item.permissions.group | default('root') }}"
+                host_perm_mode: "{{ mount_item.permissions.mode | default('0644') }}"
+
+            - name: Build permission commands
+              ansible.builtin.set_fact:
+                host_permission_runcmds:
+                  - "{{ ('mkdir -pv ' ~ mount_item.mount_point) }}"
+                  - "{{ ('chown ' ~ host_perm_owner ~ ':' ~ host_perm_group ~ ' ' ~ mount_item.mount_point) }}"
+                  - "{{ ('chmod ' ~ host_perm_mode ~ ' ' ~ mount_item.mount_point)}}"
+
+            - name: Add permission commands to host_mount_map
+              ansible.builtin.set_fact:
+                host_mount_map: >-
+                  {{
+                    host_mount_map | combine({
+                      item: (host_mount_map[item] | default({}) | combine({
+                        'runcmd': (host_mount_map[item].runcmd | default([])) + host_permission_runcmds
+                      }, recursive=True, list_merge='append'))
+                    })
+                  }}
+              loop: "{{ target_hostnames }}"
+              loop_control:
+                label: "{{ item }}"
+
+        - name: Add node_key runcmd entries to host_mount_map if node_key specified
+          when: mount_item.node_key is defined and mount_item.node_mount_point is defined
+          block:
+            - name: Map node_key to cloud-init metadata variable
+              ansible.builtin.set_fact:
+                # host_cloud_init_node_var: "{{ '{% raw %}{{ ' + mount_item.node_key + ' }}{% endraw %}' }}"
+                host_cloud_init_node_var: "$(cloud-init query {{ mount_item.node_key }})"
+
+            - name: Concat the mount point with the node variable
+              ansible.builtin.set_fact:
+                host_cloud_init_node_mount_point: "{{ mount_item.mount_point }}/{{ host_cloud_init_node_var }}"
+
+            - name: Build runcmd to create node-specific subdirectory and mount points
+              ansible.builtin.set_fact:
+                host_node_mount_runcmds: >-
+                  {{
+                    [
+                      ('mkdir -pv ' ~ host_cloud_init_node_mount_point)
+                    ] +
+                    (
+                      mount_item.node_mount_point | map('regex_replace', '^/(.*)$',
+                        'mkdir -pv ' ~ host_cloud_init_node_mount_point ~ '/\1'
+                      ) | list
+                      +
+                      (
+                        mount_item.node_mount_point | map('regex_replace', '^/(.*)$',
+                          'mkdir -pv /\1'
+                        ) | list
+                      )
+                      +
+                      (
+                        mount_item.node_mount_point | map('regex_replace', '^/(.*)$',
+                          'echo "' ~ host_cloud_init_node_mount_point ~ '/\1 /\1 none bind,_netdev 0 0" >> /etc/fstab'
+                        ) | list
+                      )
+                    )
+                  }}
+
+            - name: Add node mount point commands to host_mount_map
+              ansible.builtin.set_fact:
+                host_mount_map: >-
+                  {{
+                    host_mount_map | combine({
+                      item: (host_mount_map[item] | default({}) | combine({
+                        'runcmd': (host_mount_map[item].runcmd | default([])) + host_node_mount_runcmds
+                      }, recursive=True, list_merge='append'))
+                    })
+                  }}
+              loop: "{{ target_hostnames }}"
+              loop_control:
+                label: "{{ item }}"

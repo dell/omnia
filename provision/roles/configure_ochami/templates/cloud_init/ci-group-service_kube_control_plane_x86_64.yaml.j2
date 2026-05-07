@@ -89,16 +89,6 @@
             vm.overcommit_memory=1
             kernel.panic=10
           permissions: '0644'
-        - path: /etc/fstab
-          content: |
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}   {{ k8s_client_mount_path }}        nfs    noatime,nolock     0 0
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/etcd      /var/lib/etcd        nfs noatime,nolock 0 0
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0
-            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0
-            tmpfs   /tmp/crio-storage   tmpfs   size={{ k8s_crio_storage_size }},noatime,nodev,nosuid   0 0
-          permissions: '0644'
         - path: /etc/containers/storage.conf
           content: |
             [storage]
@@ -246,6 +236,12 @@
             # Optional: Set up bash completion
             /usr/local/bin/helm completion bash > /etc/bash_completion.d/helm.sh
             chmod 0755 /etc/bash_completion.d/helm.sh
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+        - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ pv_entry.content | indent(12) }}
+{% endfor %}
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
@@ -253,6 +249,40 @@
         - "systemctl restart chronyd"
         - "chronyc sources"
         - "chronyc -a makestep"
+{# Mount-specific runcmd entries #}
+{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
+{% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
+        - {{ cmd }}
+{% endfor %}
+{% endif %}
+{% raw %}
+      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
+      {% set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) %}
+      {% if mymounts %}
+      {% for mount in mymounts.get("mounts", []) %}
+        - mkdir -pv {{ mount[1] }}
+        - echo "{{ mount | join(' ') }}" >> /etc/fstab
+      {% endfor %}
+        - mount -av
+      {% for decoded_cmd in mymounts.get("runcmd", []) %}
+        - {{ decoded_cmd }}
+      {% endfor %}
+      {% else %}
+        - echo "No mount entries found for this host"
+      {% endif %}
+      {% endif %}
+{% endraw %}
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %} 
+        - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+{% endfor %}
+        # K8s NFS mount entries
+        - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }} /var/lib/etcd  /var/lib/kubelet /etc/kubernetes /var/log/pods /var/lib/packages
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/etcd      /var/lib/etcd        nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0" >> /etc/fstab
+        - echo "{{ k8s_nfs_server_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0" >> /etc/fstab
+        - echo "tmpfs   /tmp/crio-storage   tmpfs   size={{ k8s_crio_storage_size }},noatime,nodev,nosuid   0 0" >> /etc/fstab
         - sudo swapoff -a
         - sudo sed -i '/ swap / s/^/#/' /etc/fstab
         - sudo setenforce 0 || true
@@ -306,7 +336,6 @@
         - sudo modprobe nf_conntrack || true
         - sudo modprobe vxlan || true
         - sysctl --system
-        - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }} /var/lib/etcd  /var/lib/kubelet /etc/kubernetes /var/log/pods /var/lib/packages
         - |
           tmpfile=$(mktemp)
 
@@ -328,7 +357,7 @@
           if command -v chattr >/dev/null 2>&1; then
             chattr +i /etc/resolv.conf || true
           fi
-        - mount -a
+        - mount -av
         - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
         - update-ca-trust extract
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf

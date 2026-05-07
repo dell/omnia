@@ -11,7 +11,6 @@
         settings: [append]
       - name: dict
         settings: [no_replace, recurse_list]
-
       users:
         - name: root
           ssh_authorized_keys: "{{ read_ssh_key.stdout }}"
@@ -77,200 +76,13 @@
             Host {{ slurm_control_ssh_patterns }}
                 IdentityFile {{ client_mount_path }}/slurm/ssh/oim_rsa
                 IdentitiesOnly yes
-
-{% if powervault_config is defined %}
-        - path: /usr/local/bin/setup_iscsi_storage.sh
+{% if cloud_init_groups_dict[functional_group_name].powervault_scripts is defined %}
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+        - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
           permissions: '{{ file_mode_755 }}'
           content: |
-            #!/bin/bash
-            set -euo pipefail
-
-            LOGFILE="/var/log/omnia_iscsi_setup.log"
-            exec > >(tee -a "$LOGFILE") 2>&1
-
-            log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
-
-            PORTALS=({% for ip in powervault_config.ip %}"{{ ip }}" {% endfor %})
-            PORT="{{ powervault_config.port | default(3260) }}"
-            INITIATOR_IQN="{{ powervault_config.iscsi_initiator | default('') }}"
-            VOLUME_ID="{{ powervault_config.volume_id | default('') }}"
-            FS_TYPE="{{ powervault_config.fs_type | default('xfs') }}"
-            MOUNT_OPTS="{{ powervault_config.mount_options | default('defaults,_netdev,noatime') }}"
-
-            PERSIST_MOUNT="/mnt/slurm-persist"
-            MYSQL_SUBDIR="${PERSIST_MOUNT}/mysql"
-            SPOOL_SUBDIR="${PERSIST_MOUNT}/spool"
-
-            log "Enabling iSCSI daemon"
-            systemctl enable --now iscsid
-            /sbin/mpathconf --enable || true
-
-            if [[ -n "${INITIATOR_IQN}" ]]; then
-              log "Setting InitiatorName to ${INITIATOR_IQN}"
-              if [[ -f /etc/iscsi/initiatorname.iscsi ]] && grep -q "^InitiatorName=${INITIATOR_IQN}$" /etc/iscsi/initiatorname.iscsi; then
-                log "InitiatorName already set; not changing"
-              else
-                printf "InitiatorName=%s\n" "${INITIATOR_IQN}" > /etc/iscsi/initiatorname.iscsi
-                log "Restarting iscsid after InitiatorName change"
-                systemctl restart iscsid
-              fi
-            else
-              log "INITIATOR_IQN not set; leaving /etc/iscsi/initiatorname.iscsi unchanged"
-            fi
-
-            log "Current initiatorname:"
-            cat /etc/iscsi/initiatorname.iscsi || true
-
-            log "Discovering iSCSI targets from all portals"
-            TARGET_IQN=""
-
-            for ip in "${PORTALS[@]}"; do
-              log "Trying discovery on ${ip}:${PORT}"
-              OUT=$(iscsiadm -m discovery -t sendtargets -p "${ip}:${PORT}" 2>/dev/null || true)
-              echo "$OUT"
-              if [[ -z "${TARGET_IQN}" ]]; then
-                CANDIDATE_IQN=$(echo "$OUT" | awk '{print $2}' | head -1)
-                if [[ -n "${CANDIDATE_IQN}" ]]; then
-                  TARGET_IQN="${CANDIDATE_IQN}"
-                fi
-              fi
-            done
-
-            if [[ -z "${TARGET_IQN}" ]]; then
-              log "ERROR: Unable to determine target IQN from discovery output"
-              exit 1
-            fi
-            log "Discovered TARGET_IQN=${TARGET_IQN}"
-
-            log "Logging in to ALL discovered iSCSI targets"
-            iscsiadm -m node --login || true
-
-            log "Setting automatic startup for all nodes"
-            iscsiadm -m node --op update -n node.startup -v automatic || true
-
-            log "Waiting for devices to settle..."
-            sleep 5
-
-            log "Enabling multipathd"
-            systemctl enable --now multipathd || true
-
-            log "Rescanning iSCSI sessions"
-            iscsiadm -m session --rescan || true
-
-            log "Reloading multipath configuration"
-            multipath -r || true
-
-            sleep 3
-
-            log "Verifying disks"
-            lsblk || true
-            lsscsi -s 2>/dev/null | grep -iE "ME|DELL" || true
-
-            log "Multipath devices:"
-            multipath -ll || true
-
-            LATEST_MPATH=""
-
-            if [[ -n "${VOLUME_ID}" ]]; then
-              log "Selecting multipath using VOLUME_ID match: ${VOLUME_ID}"
-              LATEST_MPATH=$(multipath -ll 2>/dev/null | grep -iF "${VOLUME_ID}" | awk '{print $1}' | head -1 || true)
-            fi
-
-            if [[ -z "${LATEST_MPATH}" ]]; then
-              log "Selecting multipath using vendor match DellEMC,ME5"
-              LATEST_MPATH=$(multipath -ll 2>/dev/null | grep -i "DellEMC,ME5" | awk '{print $1}' | head -1 || true)
-            fi
-
-            if [[ -z "${LATEST_MPATH}" ]]; then
-              log "Selecting multipath using vendor match DellEMC,ME4"
-              LATEST_MPATH=$(multipath -ll 2>/dev/null | grep -i "DellEMC,ME4" | awk '{print $1}' | head -1 || true)
-            fi
-
-            if [[ -z "${LATEST_MPATH}" ]]; then
-              log "Selecting multipath using latest dm-* fallback"
-              LATEST=$(multipath -ll 2>/dev/null | grep -oP 'dm-\d+' | sort -t- -k2 -n | tail -1 || true)
-              if [[ -z "${LATEST}" ]]; then
-                log "ERROR: No multipath dm-* devices detected"
-                exit 1
-              fi
-              LATEST_MPATH=$(multipath -ll 2>/dev/null | grep "${LATEST}" | awk '{print $1}' | head -1 || true)
-            fi
-
-            if [[ -z "${LATEST_MPATH}" ]]; then
-              log "ERROR: Unable to determine multipath device"
-              exit 1
-            fi
-
-            MPATH_DEV="/dev/mapper/${LATEST_MPATH}"
-            log "Using multipath device: ${MPATH_DEV}"
-
-            PART_DEV="/dev/mapper/${LATEST_MPATH}1"
-
-            if [[ ! -e "${PART_DEV}" ]]; then
-              log "Creating GPT label and partition on ${MPATH_DEV}"
-              parted -s "${MPATH_DEV}" mklabel gpt
-              parted -s "${MPATH_DEV}" mkpart primary "${FS_TYPE}" 0% 100%
-              sleep 2
-              partprobe "${MPATH_DEV}" || true
-              kpartx -av "${MPATH_DEV}" || true
-              sleep 2
-            fi
-
-            log "Using partition device: ${PART_DEV}"
-
-            if ! blkid -s TYPE -o value "${PART_DEV}" 2>/dev/null | grep -q .; then
-              log "Formatting ${PART_DEV} with ${FS_TYPE}"
-              mkfs."${FS_TYPE}" -f "${PART_DEV}"
-            else
-              log "Filesystem already exists on ${PART_DEV}; skipping format"
-            fi
-
-            mkdir -p "${PERSIST_MOUNT}"
-
-            UUID=$(blkid -s UUID -o value "${PART_DEV}" 2>/dev/null || true)
-
-            if [[ -n "${UUID}" ]]; then
-              log "Using UUID=${UUID} for fstab"
-              FSTAB_ENTRY="UUID=${UUID}"
-              FSTAB_MATCH="^UUID=${UUID}\\s"
-            else
-              log "UUID not available, using device path ${PART_DEV} for fstab"
-              FSTAB_ENTRY="${PART_DEV}"
-              FSTAB_MATCH="^${PART_DEV}\\s"
-            fi
-
-            if ! grep -qE "${FSTAB_MATCH}" /etc/fstab; then
-              log "Adding persistent mount to /etc/fstab"
-              echo "${FSTAB_ENTRY} ${PERSIST_MOUNT} ${FS_TYPE} ${MOUNT_OPTS} 0 0" >> /etc/fstab
-            fi
-
-            if ! mountpoint -q "${PERSIST_MOUNT}"; then
-              log "Mounting ${PERSIST_MOUNT}"
-              mount "${PART_DEV}" "${PERSIST_MOUNT}"
-            fi
-
-            df -h "${PERSIST_MOUNT}" || true
-
-            mkdir -p "${MYSQL_SUBDIR}" "${SPOOL_SUBDIR}" /var/lib/mysql /var/spool
-
-            grep -qE "\s+/var/lib/mysql\s+none\s+bind" /etc/fstab || echo "${MYSQL_SUBDIR} /var/lib/mysql none bind 0 0" >> /etc/fstab
-            grep -qE "\s+/var/spool\s+none\s+bind" /etc/fstab || echo "${SPOOL_SUBDIR} /var/spool none bind 0 0" >> /etc/fstab
-
-            mount /var/lib/mysql || true
-            mount /var/spool || true
-
-            chown -R {{ mysql_user }}:{{ mysql_group }} /var/lib/mysql
-
-            log "Final mount summary:"
-            mount | grep -E "/mnt/slurm-persist|/var/lib/mysql|/var/spool" || true
-
-            log "iSCSI sessions:"
-            iscsiadm -m session || true
-
-            log "Multipath status:"
-            multipath -ll || true
-
-            log "iSCSI/multipath setup complete. Log saved to ${LOGFILE}"
+            {{ pv_entry.content | indent(12) }}
+{% endfor %}
 {% endif %}
 
 {% if hostvars['localhost']['openldap_support'] %}
@@ -463,102 +275,119 @@
             {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
 
       runcmd:
-         - /usr/local/bin/set-ssh.sh
-
-         
+        - /usr/local/bin/set-ssh.sh
+{# Mount-specific runcmd entries #}
+{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
+{% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
+        - {{ cmd }}
+{% endfor %}
+{% endif %}
+{% raw %}
+      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
+      {% set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) %}
+      {% if mymounts %}
+      {% for mount in mymounts.get("mounts", []) %}
+        - mkdir -pv {{ mount[1] }}
+        - echo "{{ mount | join(' ') }}" >> /etc/fstab
+      {% endfor %}
+        - mount -av
+      {% for decoded_cmd in mymounts.get("runcmd", []) %}
+        - {{ decoded_cmd }}
+      {% endfor %}
+      {% else %}
+        - echo "No mount entries found for this host"
+      {% endif %}
+      {% endif %}
+{% endraw %}
+{% set fg_swap = cloud_init_groups_dict.get(functional_group_name, {}).get('swap', {}) %}
+{% include 'configure_swap.yaml.j2' %}
+        - mount -av
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %} 
+        - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+{% endfor %}
          # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
-         - mkdir -p {{ client_mount_path }}/slurm/ssh
-
-        # slurm user and group created in the users module
-        # Create directories for nfs and mount all
-         - mkdir -p {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }} {{ slurm_ctld_pid_dir_effective }} {{ slurmdbd_pid_dir_effective }} {{ slurm_state_save_location_effective }} {% if slurm_sched_log_dir_effective %}{{ slurm_sched_log_dir_effective }} {% endif %}/etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
-         - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm      /etc/slurm       nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/my.cnf.d   /etc/my.cnf.d    nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/mariadb /var/log/mariadb nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_ctld_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - mkdir -p {{ client_mount_path }}/slurm/ssh
+         # Create directories for nfs and mount all
+        - mkdir -p {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }} {{ slurm_ctld_pid_dir_effective }} {{ slurmdbd_pid_dir_effective }} {{ slurm_state_save_location_effective }} {% if slurm_sched_log_dir_effective %}{{ slurm_sched_log_dir_effective }} {% endif %}/etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
+        - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm      /etc/slurm       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/my.cnf.d   /etc/my.cnf.d    nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/mariadb /var/log/mariadb nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_ctld_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
 {% if slurmdbd_log_dir_effective != slurm_ctld_log_dir_effective %}
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurmdbd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurmdbd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
 {% endif %}
-{% if powervault_config is not defined %}
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/lib/mysql  /var/lib/mysql   nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmctld     {{ slurm_state_save_location_effective }}      nfs defaults,_netdev 0 0" >> /etc/fstab
-{% endif %}
-         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path}}/hpc_tools/container_images  /hpc_tools/container_images   nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path}}/hpc_tools/scripts  /hpc_tools/scripts   nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
-         - chmod {{ file_mode }} /etc/fstab
-         - mount -a
-         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
-         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
-         - bash /usr/local/bin/doca-install.sh || true
-         - bash /usr/local/bin/configure-ib-network.sh
-{% if powervault_config is defined %}
-         - /usr/local/bin/setup_iscsi_storage.sh
-{% endif %}
+        - if ! mountpoint -q /var/lib/mysql; then echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/lib/mysql /var/lib/mysql nfs defaults,_netdev 0 0" >> /etc/fstab; fi
+        - if ! mountpoint -q {{ slurm_state_save_location_effective }}; then echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmctld {{ slurm_state_save_location_effective }} nfs defaults,_netdev 0 0" >> /etc/fstab; fi
+        - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path}}/hpc_tools/container_images  /hpc_tools/container_images   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path}}/hpc_tools/scripts  /hpc_tools/scripts   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
+        - chmod {{ file_mode }} /etc/fstab
+        - mount -av
+        - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
+        - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
 
-         - chown -R {{ slurm_user }}:{{ slurm_user }} {{ home_dir }}
-         - chmod {{ file_mode_755 }} {{ home_dir }}
+        - bash /usr/local/bin/doca-install.sh || true
+        - bash /usr/local/bin/configure-ib-network.sh
+        - chown -R {{ slurm_user }}:{{ slurm_user }} {{ home_dir }}
+        - chmod {{ file_mode_755 }} {{ home_dir }}
+        - chown -R {{ slurm_user }}:{{ slurm_user }} /etc/slurm
+        - chmod {{ file_mode_755 }} /etc/slurm
+        - chmod {{ file_mode }} /etc/slurm/slurm.conf
+        - setenforce 0
+        - ['bash', '/root/omnia_slurm_scripts/00_munge_setup.sh']
+        - ['bash', '/root/omnia_slurm_scripts/01_mariadb_setup.sh']
+        - ['bash', '/root/omnia_slurm_scripts/02_slurmdbd_setup.sh']
+        - ['bash', '/root/omnia_slurm_scripts/03_slurmctld_setup.sh']
+        - ['bash', '/root/omnia_slurm_scripts/04_track_file.sh']
 
-         - chown -R {{ slurm_user }}:{{ slurm_user }} /etc/slurm
-         - chmod {{ file_mode_755 }} /etc/slurm
-         - chmod {{ file_mode }} /etc/slurm/slurm.conf
+        - sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/50-cloud-init.conf
+        - firewall-cmd --permanent --add-service=ssh
+        - firewall-cmd --reload
+        - systemctl enable sshd
+        - systemctl start sshd
 
-         - setenforce 0
-
-         - ['bash', '/root/omnia_slurm_scripts/00_munge_setup.sh']
-         - ['bash', '/root/omnia_slurm_scripts/01_mariadb_setup.sh']
-         - ['bash', '/root/omnia_slurm_scripts/02_slurmdbd_setup.sh']
-         - ['bash', '/root/omnia_slurm_scripts/03_slurmctld_setup.sh']
-         - ['bash', '/root/omnia_slurm_scripts/04_track_file.sh']
-
-         - sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/50-cloud-init.conf
-         - firewall-cmd --permanent --add-service=ssh
-         - firewall-cmd --reload
-         - systemctl enable sshd
-         - systemctl start sshd
-
-         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
-         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
-         - mkdir -p /etc/containers/registries.conf.d
-         - mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
+        - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
+        - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
+        - mkdir -p /etc/containers/registries.conf.d
+        - mv /tmp/apptainer_mirror.conf /etc/containers/registries.conf.d/apptainer_mirror.conf
 
 {% if hostvars['localhost']['openldap_support'] %}
-         - /usr/local/bin/update_ldap_conf.sh
-         - mkdir /ldapcerts
-         - echo "{{ cloud_init_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
-         - echo "{{ cloud_init_nfs_path_openldap }}/ldapuser             /home            nfs defaults,_netdev 0 0" >> /etc/fstab
-         - chmod {{ file_mode }} /etc/fstab
-         - mount -a
-         - yes | cp /ldapcerts/* /etc/openldap/certs
-         - umount /ldapcerts
+        - /usr/local/bin/update_ldap_conf.sh
+        - mkdir /ldapcerts
+        - echo "{{ cloud_init_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
+        - if ! mountpoint -q /home; then echo "{{ cloud_init_nfs_path_openldap }}/ldapuser /home nfs defaults,_netdev 0 0" >> /etc/fstab; fi
+        - chmod {{ file_mode }} /etc/fstab
+        - mount -a
+        - yes | cp /ldapcerts/* /etc/openldap/certs
+        - umount /ldapcerts
 
-         - firewall-cmd --permanent --add-port={{ ldap_starttls_port }}/tcp
-         - firewall-cmd --permanent --add-port={{ ldap_ssl_port }}/tcp
-         - firewall-cmd --reload
+        - firewall-cmd --permanent --add-port={{ ldap_starttls_port }}/tcp
+        - firewall-cmd --permanent --add-port={{ ldap_ssl_port }}/tcp
+        - firewall-cmd --reload
 
-         - authselect select sssd with-mkhomedir --force
-         - sudo systemctl enable --now oddjobd.service
-         - sudo systemctl enable --now sssd
-         - setsebool -P authlogin_nsswitch_use_ldap on
-         - setsebool -P authlogin_yubikey on
-         - sudo systemctl restart sssd
-         - systemctl restart sshd
+        - authselect select sssd with-mkhomedir --force
+        - sudo systemctl enable --now oddjobd.service
+        - sudo systemctl enable --now sssd
+        - setsebool -P authlogin_nsswitch_use_ldap on
+        - setsebool -P authlogin_yubikey on
+        - sudo systemctl restart sssd
+        - systemctl restart sshd
 {% endif %}
 
 {% if ldms_support %}
          - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
 
-         # Add NFS entry and mount
-         - mkdir -p {{ client_mount_path }}
-         - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
-         - mount -a
+        # Add NFS entry and mount
+        - mkdir -p {{ client_mount_path }}
+        - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
+        - mount -a
 
-         - /root/ldms_sampler.sh
+        - /root/ldms_sampler.sh
 {% endif %}
-         - systemctl restart slurmdbd
-         - systemctl restart slurmctld
-         - echo "Cloud-Init has completed successfully."
+        - systemctl restart slurmdbd
+        - systemctl restart slurmctld
+        - echo "Cloud-Init has completed successfully."
