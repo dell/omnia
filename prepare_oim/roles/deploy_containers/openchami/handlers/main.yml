@@ -13,12 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Verify OpenCHAMI
-  ansible.builtin.include_tasks: verify_openchami.yml
-
-- name: Deployment prereq
-  ansible.builtin.include_tasks: deployment_prereq.yml
-
-- name: Deploy openchami
-  ansible.builtin.include_tasks: deploy_openchami.yml
-  when: not hostvars['oim']['openchami_install_status']
+- name: Reload systemd
+  ansible.builtin.systemd_service:
+    daemon_reload: true
