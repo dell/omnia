@@ -13,12 +13,13 @@
 # limitations under the License.
 ---
 
-- name: Verify OpenCHAMI
-  ansible.builtin.include_tasks: verify_openchami.yml
+- name: Install ochami dependent packages
+  ansible.builtin.dnf:
+    name: "{{ ochami_package_dependencies }}"
+    state: present
 
-- name: Deployment prereq
-  ansible.builtin.include_tasks: deployment_prereq.yml
-
-- name: Deploy openchami
-  ansible.builtin.include_tasks: deploy_openchami.yml
-  when: not hostvars['oim']['openchami_install_status']
+- name: Install pip packages
+  ansible.builtin.pip:
+    name: "{{ ochami_pip_packages }}"
+    state: present
+    executable: pip3

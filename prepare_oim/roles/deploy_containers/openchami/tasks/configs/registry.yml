@@ -13,12 +13,18 @@
 # limitations under the License.
 ---
 
-- name: Verify OpenCHAMI
-  ansible.builtin.include_tasks: verify_openchami.yml
+- name: Drop registry Quadlet files
+  ansible.builtin.template:
+    src: registry/registry.service.j2
+    dest: /etc/containers/systemd/registry.container
+    owner: root
+    group: root
+    mode: "{{ file_perm_rw }}"
+  notify: Reload systemd
 
-- name: Deployment prereq
-  ansible.builtin.include_tasks: deployment_prereq.yml
-
-- name: Deploy openchami
-  ansible.builtin.include_tasks: deploy_openchami.yml
-  when: not hostvars['oim']['openchami_install_status']
+- name: Start registry service
+  ansible.builtin.service:
+    name: registry.service
+    state: started
+    enabled: true
+    daemon_reload: true

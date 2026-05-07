@@ -13,21 +13,22 @@
 # limitations under the License.
 ---
 
-- name: Set NFS info fact
-  ansible.builtin.set_fact:
-    oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
+- name: Generate access token # noqa: command-instead-of-shell
+  ansible.builtin.shell: sudo bash -lc 'gen_access_token'
+  register: access_token_result
+  changed_when: false
 
-- name: Initialize openchami_install_status
+- name: Set ochami_env
   ansible.builtin.set_fact:
-    openchami_install_status: false
-
-- name: Openchami cluster authentication
-  ansible.builtin.include_tasks: "{{ role_path }}/../../../../common/tasks/common/openchami_auth.yml"
+    ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
 
 - name: Verify ochami installation
   environment: "{{ ochami_env }}"
-  when: access_token_result.rc == 0
   block:
+    - name: Wait for seconds - {{ wait_time }}
+      ansible.builtin.wait_for:
+        timeout: "{{ wait_time }}"
+
     - name: Verify ochami dependencies # noqa: command-instead-of-module
       ansible.builtin.command:
         systemctl list-dependencies openchami.target
@@ -37,43 +38,29 @@
     - name: Openchami dependencies output
       ansible.builtin.debug:
         msg: "{{ openchami_dependencies.stdout_lines }}"
-        verbosity: 2
 
     - name: Verify ochami bss status
       ansible.builtin.command:
         ochami bss service status
       register: openchami_bss_status
+      until: openchami_bss_status.rc == 0
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
       changed_when: false
-      failed_when: false
 
     - name: Openchami bss status output
       ansible.builtin.debug:
         msg: "{{ openchami_bss_status.stdout_lines }}"
-        verbosity: 2
 
     - name: Verify ochami smd status
       ansible.builtin.command:
         ochami smd service status
       register: openchami_smd_status
+      until: openchami_smd_status.rc == 0
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
       changed_when: false
-      failed_when: false
 
     - name: Openchami smd status output
       ansible.builtin.debug:
         msg: "{{ openchami_smd_status.stdout_lines }}"
-        verbosity: 2
-
-    - name: Verify s3 bucket
-      ansible.builtin.command: s3cmd ls
-      changed_when: false
-      register: s3_bucket_output
-      failed_when: false
-
-    - name: Set openchami_install_status
-      ansible.builtin.set_fact:
-        openchami_install_status: true
-      when:
-        - openchami_bss_status.rc == 0
-        - openchami_smd_status.rc == 0
-        - s3_bucket_output.rc == 0
-        - '"s3://boot-images" in s3_bucket_output.stdout'

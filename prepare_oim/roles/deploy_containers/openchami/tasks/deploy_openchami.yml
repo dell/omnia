@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,19 +13,51 @@
 # limitations under the License.
 ---
 
+- name: Include provision_config.yml
+  block:
+    - name: Include provision_config.yml file
+      ansible.builtin.include_vars: "{{ provision_config }}"
+      register: include_provision_config
+      no_log: true
+      tags: init
+  rescue:
+    - name: Failed to include provision_config.yml
+      ansible.builtin.fail:
+        msg: "{{ provision_config_syntax_fail_msg }} Error: {{ include_provision_config.message }}"
+
+- name: Include network_spec.yml
+  block:
+    - name: Include network_spec file
+      ansible.builtin.include_vars: "{{ network_spec }}"
+      register: include_network_spec
+      no_log: true
+  rescue:
+    - name: Failed to include network_spec.yml
+      ansible.builtin.fail:
+        msg: "{{ network_spec_syntax_fail_msg }} Error: {{ include_network_spec.message }}"
+
+- name: Parse network_spec data
+  ansible.builtin.set_fact:
+    network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
+  with_dict: "{{ Networks }}"
+
 - name: Create openchami directory
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     mode: "{{ dir_permissions_755 }}"
   with_items:
-    - "{{ openchami_clone_path }}"
+    - "{{ openchami_share_dir }}"
     - "{{ openchami_log_dir }}"
+  delegate_to: localhost
+  connection: local
 
 - name: Verify the openchami clone status
   ansible.builtin.stat:
     path: "{{ openchami_clone_path }}/dell/podman-quadlets"
   register: clone_status
+  delegate_to: localhost
+  connection: local
 
 - name: Clone the openchami repository
   ansible.builtin.git:
@@ -37,43 +69,53 @@
   retries: "{{ clone_retry }}"
   delay: "{{ clone_delay }}"
   when: not clone_status.stat.exists
+  delegate_to: localhost
+  connection: local
 
 - name: Load the openchami configs vars
   ansible.builtin.template:
     src: "{{ openchami_config_vars_template }}"
     dest: "{{ openchami_config_vars_path }}"
     mode: "{{ file_permissions_644 }}"
+  delegate_to: localhost
+  connection: local
 
 - name: Load the openchami inventory
   ansible.builtin.template:
     src: "{{ openchami_inventory_template }}"
     dest: "{{ openchami_inventory_file }}"
     mode: "{{ file_permissions_644 }}"
+  delegate_to: localhost
+  connection: local
 
-- name: Deploy openchami containers
-  ansible.builtin.shell: |
-    set -o pipefail
-    ansible-playbook {{ openchami_clone_path }}/dell/podman-quadlets/configs.yaml \
-    -i {{ openchami_clone_path }}/dell/podman-quadlets/inventory -v \
-    -e "minio_s3_username={{ minio_s3_username }}" \
-    -e "minio_s3_password={{ minio_s3_password }}" \
-    --extra-vars "@{{ openchami_config_vars_path }}" -v | \
-    /usr/bin/tee {{ openchami_configs_log_path }}
-  async: 3600  # Set async timeout (e.g., 1 hour)
-  poll: 0  # Non-blocking (continue the playbook without waiting for completion)
-  register: openchami_deploy  # Register the result to capture job ID
-  changed_when: true
+- name: Set openchami cluster configuration facts
+  ansible.builtin.set_fact:
+    cluster_name: "{{ oim_node_name }}"
+    cluster_domain: "{{ domain_name }}"
+    cluster_boot_ip: "{{ admin_nic_ip }}"
+    cluster_boot_interface: "{{ admin_nic }}"
+    cluster_shortname: "nid"
+    cluster_nidlength: 3
 
-- name: Wait for openchami installation
+- name: Set openchami network configuration facts
+  ansible.builtin.set_fact:
+    coredhcp_dhcp_pool: >-
+      {{ network_data.admin_network.dynamic_range | split('-') | first }}
+      {{ network_data.admin_network.dynamic_range | split('-') | last }}
+    coredhcp_netmask: >-
+      {{ (admin_nic_ip + '/' + network_data.admin_network.netmask_bits) | ansible.utils.ipaddr('netmask') }}
+    coredhcp_lease_duration: "{{ default_lease_time }}s"
+
+- name: Set minio_username and minio_password
+  ansible.builtin.set_fact:
+    minio_s3_username: "{{ hostvars['localhost']['minio_s3_username'] }}"
+    minio_s3_password: "{{ hostvars['localhost']['minio_s3_password'] }}"
+  no_log: true
+
+- name: Deploy openchami configs
   block:
-    - name: Wait for the openchami installation to finish. Logs can be checked at {{ openchami_configs_log_path }}
-      ansible.builtin.async_status:
-        jid: "{{ openchami_deploy.ansible_job_id }}"  # Job ID from the previous task
-      register: job_result
-      until: job_result.finished
-      retries: "{{ job_retry }}"  # Retry the task {{ job_retry }} times
-      delay: "{{ job_delay }}"   # Wait {{ job_delay }} seconds between retries
-      no_log: true
+    - name: Install and configure openchami
+      ansible.builtin.include_tasks: configs/main.yml
   rescue:
     - name: Openchami installation failed
       ansible.builtin.fail:
