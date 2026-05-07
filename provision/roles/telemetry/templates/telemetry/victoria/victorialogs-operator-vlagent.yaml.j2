@@ -69,11 +69,12 @@ spec:
   # ========================================
   # Forward logs to VictoriaLogs vlinsert endpoint
   # Supports JSON Lines format with optional TLS
+  # Using short service name (same namespace) to avoid DNS resolution issues
   remoteWrite:
 {% if victoria_logs_cluster.tls_enabled %}
-    - url: https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert
+    - url: https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc:9481/internal/insert
 {% else %}
-    - url: http://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert
+    - url: http://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc:9481/internal/insert
 {% endif %}
 
   # ========================================

@@ -85,87 +85,38 @@ if [ "$VLAGENT_PODS" -eq 0 ]; then
 fi
 
 # ============================================================================
-# Phase 3: Configure PowerScale Syslog via SSH
+# Phase 3: Manual Configuration Instructions
 # ============================================================================
 echo ""
-echo "===== Phase 3: Configuring PowerScale Syslog ====="
-
-# Validate credentials
-if [ -z "$CSI_USERNAME" ] || [ -z "$CSI_PASSWORD" ]; then
-    echo "WARNING: CSI credentials not available. Skipping automatic PowerScale configuration."
-    echo ""
-    echo "Manual configuration steps:"
-    echo "1. SSH to PowerScale: ssh <admin_user>@<powerscale_mgmt_ip>"
-    echo "2. Enable audit syslog forwarding:"
-    echo "   isi audit settings global modify --protocol-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} --protocol-syslog-tls-enabled=0"
-    echo "   isi audit settings global modify --config-syslog-enabled=1 --config-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} --config-syslog-tls-enabled=0"
-    echo "   isi audit settings global modify --system-syslog-enabled=1 --system-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} --system-syslog-tls-enabled=0"
-    echo "3. Verify: isi audit settings global view"
-    echo ""
-    echo "=========================================="
-    echo "PowerScale syslog collection setup completed!"
-    echo "=========================================="
-    exit 0
-fi
-
-# PowerScale clusters from CSI secret
+echo "===== Phase 3: Manual Configuration Instructions ====="
+echo ""
+echo "PowerScale syslog requires manual configuration."
+echo ""
+echo "Manual configuration steps:"
+echo ""
 {% for cluster in ps_clusters | default([]) %}
 CLUSTER_ENDPOINT="{{ cluster.endpoint | default('') }}"
 CLUSTER_NAME="{{ cluster.clusterName | default('') }}"
 
 if [ -n "$CLUSTER_ENDPOINT" ]; then
-    echo "Configuring PowerScale cluster: $CLUSTER_NAME ($CLUSTER_ENDPOINT)"
-    
     # Extract management IP from endpoint (remove protocol and path)
     CLUSTER_IP=$(echo "$CLUSTER_ENDPOINT" | sed -e 's|https\?://||' -e 's|/.*||')
-    
-    echo "SSH to PowerScale: $CSI_USERNAME@$CLUSTER_IP"
-    
-    # Configure syslog forwarding via SSH
-    sshpass -p "$CSI_PASSWORD" ssh -o StrictHostKeyChecking=no "$CSI_USERNAME@$CLUSTER_IP" << 'EOF'
-        set -e
-        
-        echo "Enabling audit syslog forwarding..."
-        
-        # Enable protocol events (file access)
-        isi audit settings global modify \
-            --protocol-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} \
-            --protocol-syslog-tls-enabled=0
-        
-        # Enable config events
-        isi audit settings global modify \
-            --config-syslog-enabled=1 \
-            --config-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} \
-            --config-syslog-tls-enabled=0
-        
-        # Enable system events
-        isi audit settings global modify \
-            --system-syslog-enabled=1 \
-            --system-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} \
-            --system-syslog-tls-enabled=0
-        
-        echo "Verifying configuration..."
-        isi audit settings global view
-        
-        echo "Testing connectivity to VLAgent..."
-        ping -c 3 ${SYSLOG_ENDPOINT}
-        
-        echo "PowerScale syslog configuration completed successfully!"
-EOF
-    
-    if [ $? -eq 0 ]; then
-        echo "✓ Successfully configured PowerScale cluster: $CLUSTER_NAME"
-    else
-        echo "✗ Failed to configure PowerScale cluster: $CLUSTER_NAME"
-    fi
+    echo "For PowerScale cluster: $CLUSTER_NAME ($CLUSTER_IP)"
+    echo "  1. SSH to PowerScale: ssh $CSI_USERNAME@$CLUSTER_IP"
+    echo "  2. Enable audit syslog forwarding:"
+    echo "     isi audit settings global modify --protocol-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} --protocol-syslog-tls-enabled=0"
+    echo "     isi audit settings global modify --config-syslog-enabled=1 --config-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} --config-syslog-tls-enabled=0"
+    echo "     isi audit settings global modify --system-syslog-enabled=1 --system-syslog-servers=${SYSLOG_ENDPOINT}:${SYSLOG_PORT} --system-syslog-tls-enabled=0"
+    echo "  3. Verify: isi audit settings global view"
     echo ""
 else
     echo "WARNING: Empty endpoint for cluster $CLUSTER_NAME, skipping..."
+    echo ""
 fi
 {% endfor %}
-
+echo "Ensure firewall allows UDP/TCP:514 from PowerScale data pool IPs to ${SYSLOG_ENDPOINT}:${SYSLOG_PORT}"
 echo ""
 echo "=========================================="
-echo "PowerScale syslog collection setup completed!"
+echo "PowerScale syslog collection setup instructions completed!"
 echo "=========================================="
 exit 0
