@@ -36,9 +36,9 @@
 
 - name: Read the slurm mount point
   ansible.builtin.set_fact:
-    share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).client_share_path }}"
-    nfs_server_ip: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_ip }}"
-    nfs_server_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
+    share_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).mount_point }}"
+    # nfs_server_ip: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).server_ip }}"
+    nfs_server_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source }}"
 
 - name: Set facts for slurm
   ansible.builtin.set_fact:
@@ -187,21 +187,21 @@
 
 - name: NFS path for cloud init
   ansible.builtin.set_fact:
-    cloud_init_nfs_path: "{{ nfs_server_ip }}:{{ nfs_server_path }}/slurm"
+    cloud_init_nfs_path: "{{ nfs_server_path }}/slurm"
 
 - name: NFS path for controller trackfile
   ansible.builtin.set_fact:
-    trackfile_nfs_path: "{{ nfs_server_ip }}:{{ nfs_server_path }}/ctld_track"
+    trackfile_nfs_path: "{{ nfs_server_path }}/ctld_track"
 
 - name: NFS path for cloud init
   ansible.builtin.set_fact:
-    cloud_init_nfs_path_openldap: "{{ nfs_server_ip }}:{{ nfs_server_path }}/openldap"
+    cloud_init_nfs_path_openldap: "{{ nfs_server_path }}/openldap"
   when: hostvars['localhost']['openldap_support']
 
 # This will be mounted for ucx, openmpi and ldms configurations on slurm nodes
 - name: NFS path for ucx, openmpi and ldms cloud init
   ansible.builtin.set_fact:
-    cloud_init_slurm_nfs_path: "{{ nfs_server_ip }}:{{ nfs_server_path }}"
+    cloud_init_slurm_nfs_path: "{{ nfs_server_path }}"
     client_mount_path: "{{ share_path }}"
 
 - name: Ensure SSH key directory exists on Slurm share

@@ -12,63 +12,183 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 ---
-# ***********************************************************************
-# DO NOT REMOVE OR COMMENT OUT ANY LINES IN THIS FILE.
-# SIMPLY APPEND THE REQUIRED VALUES AGAINST THE PARAMETER OF YOUR CHOICE.
-# ***********************************************************************
+# -------------------------------------- Mounts------------------------------------------------
+# mounts
+# Configure mount points compatible with cloud-init mounts module.
+# Source must be known at boot time (NFS paths, UUIDs, local devices).
+# For runtime-discovered sources (iSCSI/multipath), use powervault_config above.
+#
+# Each mount entry contains the following fields (matching /etc/fstab format):
+#   - name: Unique identifier for this mount entry. Required
+#   - source: Device or network path (e.g., /dev/sdc, UUID=xxx, 192.168.1.100:/share). Required
+#   - mount_point: Mount point path (e.g., /mnt, /opt/data). Required
+#   - fs_type: Filesystem type (e.g., ext4, xfs, nfs, nfs4, cifs, auto). Optional
+#       - If specified, takes PRIORITY over mount_params profile
+#   - mnt_opts: Mount options (e.g., defaults,noexec,nofail). Optional
+#       - If specified, takes PRIORITY over mount_params profile
+#   - dump_freq: Dump frequency (usually "0"). Optional
+#       - If specified, takes PRIORITY over mount_params profile
+#   - fsck_pass: Fsck pass number (usually "0" or "2"). Optional
+#       - If specified, takes PRIORITY over mount_params profile
+#   - mount_params: Name of a profile in mount_params section. Optional
+#       - Used ONLY for fields not explicitly specified in the mount entry
+#   - permissions: Directory ownership and mode for the mount point. Optional
+#       - owner: User owner (name or numeric UID, e.g., "root", "slurm", "1001"). Default: "root"
+#       - group: Group owner (name or numeric GID, e.g., "root", "slurm", "1001"). Default: "root"
+#       - mode: Octal permission string (e.g., "0755", "1777"). Default: "0755"
+#       - Applied via cloud-init runcmd (chown + chmod) after mount
+#   - node_key: cloud-init datasource variable accessible via 'cloud-init query <var_name>' (e.g., "local_hostname", "ds.meta_data.instance_data.local_ipv4"). Optional
+#       - When present, implies per-node bind mount where source path is constructed using the queried variable value
+#       - The variable chosen must be unique per host to ensure isolation between nodes
+#       - fs_type forced to "none", mnt_opts forced to "bind" (automatic)
+#       - Source becomes: <source>/<ds.meta_data.node_key>/<mount_point_stripped_leading_slash>
+#   - node_mount_point: List of bind mount targets. Required when node_key is set
+#       - Each target gets: <source>/<node_key_value>/<target_stripped_slash> -> <target>
+#   - functional_group_prefix: List of functional group prefixes. Optional
+#       - All nodes whose role starts with any prefix get this mount
+#       - e.g., ["slurm"] matches slurm_control_node, slurm_node, etc.
+#       - If omitted (and no group), mount applies to all nodes
+#       - Mutually exclusive with group
+#   - groups: List of GROUP_NAME values from pxe_mapping_file.csv. Optional
+#       - Mutually exclusive with functional_group_prefix
+#       - e.g., groups: ["grp1", "grp2"] targets only nodes in those groups
+#
+
+# Example: static mount with all explicit params (no profile)
+# mounts:
+# Example: static mount using profile
+#   - name: "vast_home"
+#     source: "192.168.1.100:/home"
+#     mount_point: "/home"
+#     mount_params: "vast_nfs"
+#     functional_group_prefix: ["slurm"]
+#     permissions:
+#       owner: "root"
+#       group: "root"
+#       mode: "0755"
+#
+# Example: per-node bind mount (node_key triggers bind behavior)
+#   - name: "scratch_isolation"
+#     source: "/mnt/scratch"
+#     mount_point: "/mnted/scratch"
+#     node_key: "local_hostname"
+#     node_mount_point:
+#       - /scratch
+#       - /tmp
+
+#     functional_group_prefix: ["slurm_node"]
+#   # On node001 generates fstab:
+#   #   /mnted/scratch/node001/scratch  /scratch  none  bind  0  0
+#   #   /mnted/scratch/node001/tmp      /tmp      none  bind  0  0
+#   # slurm.conf: SlurmdSpoolDir=/scratch,/tmp
+
+# /mnt/scratch /mnted/sctratch nfs4 defaults,nofail,_netdev,x-systemd.after=cloud-init-network.service 0 0
+
+# /mnted/scratch/node001/var/loig/state  /var/loig/state  none  bind  0  0
+mounts:
+  - name: "nfs_slurm"
+    source: "172.16.107.168:/mnt/share/omnia"
+    mount_point: "/share_omnia"
+    fs_type: "nfs"
+    mnt_opts: "nosuid,rw,sync,hard,intr"
+    mount_on_oim: true
+    functional_group_prefix: ["slurm", "login"]
+
+  - name: "nfs_k8s"
+    source: "172.16.107.121:/mnt/share/omnia_k8s"
+    mount_point: "/opt/omnia/k8s_mount"
+    fs_type: "nfs"
+    mnt_opts: "nosuid,rw,sync,hard,intr"
+    mount_on_oim: true
+    functional_group_prefix: ["service_kube"]
+
+# -----------------------------Mount Params (Profiles)-------------------------------
+# Named default profiles for mount configurations.
+# Apart from fs_type, mnt_opts, dump_freq, fsck_pass, additional custom fields
+# can be defined and used in mount templates (e.g., vast_nfs_ip).
+
+mount_params:
+  # Default NFS mount - standard NFS4.1 with high-performance options
+  nfs_default:
+    fs_type: "nfs"
+    mnt_opts: "nosuid,rw,sync,hard,intr"
+    dump_freq: "0"
+    fsck_pass: "0"
+
+  vast_nfs:
+    fs_type: "nfs"
+    mnt_opts: "nosuid,rw,sync,hard,intr"
+
+  # VAST NFS storage - standard configuration
+  vast_rdma:
+    fs_type: "nfs"
+    mnt_opts: "proto=rdma,port=20049,nconnect=8,timeo=600,retrans=2,rsize=1048576,wsize=1048576,hard,intr,localaddr=192.168.0.23"
 
 # -----------------------------Powervault-------------------------------------------
 # powervault_config
-# Mandatory when using PowerVault for persistent storage.
-# Below parameters are mandatory when powervault_config is defined
-    # ip: A list of PowerVault controller ipv4 addresses used for iSCSI target discovery and login.
-    # iscsi_initiator: Specifies the InitiatorName used by the host when connecting to the iSCSI target. This IQN uniquely identifies the host to the storage array.
-    # volume_id: This is the unique WWN/identifier for the specific volume that should be used for persistent storage. This value is used for multipath scanning to select the correct mapped device.
+# Processed entirely via runcmd script (setup_iscsi_storage.sh).
+# The device path (/dev/mapper/XXX) is only known after iSCSI login + multipath scan,
+# so powervault mounts CANNOT use the cloud-init mounts module.
+# The runcmd script handles: iscsid enable, initiator name, discovery, login,
+# multipathd, volume_id matching, partitioning, formatting, mount, and bind mounts.
+#
+# Mandatory parameters:
+#   - name: Unique identifier for this powervault entry. Required
+#   - ip: List of PowerVault controller IPv4 addresses for iSCSI target discovery. Required
+#   - iscsi_initiator: InitiatorName IQN for the host. Required
+#   - volume_id: WWN/identifier for the volume (used for multipath device matching). Required
+#   - mount_point: Where the discovered device gets mounted. Required
 
-# Below are the optional parameters when powervault_config is defined
-    # port: Defines the TCP port for the iSCSI target service. When port is not specified, default port used will be 3260
+# Optional parameters:
+#   - port: TCP port for iSCSI target service. Default: 3260
+#   - mount_params: Named profile for fs_type/mnt_opts (read by the runcmd script). Optional
+#   - node_key: ds.meta_data key for per-node bind mounts (e.g., "local_hostname", "ds.meta_data.instance_data.local_ipv4"). Optional
+#       - When present, implies bind mount: <mount_point>/<node_key_value>/<subdir> -> <target>
+#       - fs_type forced to "none", mnt_opts forced to "bind" (automatic)
+#   - node_mount_point: List of bind mount targets. Required when node_key is set
+#       - Pattern: <mount_point>/<node_key_value>/<target_stripped_leading_slash> -> <target>
+#   - functional_group_prefix: List of functional group prefixes for node targeting. Mutually exclusive with group.
+#   - permissions: Directory ownership and mode for the mount point. Optional
+#       - owner: User owner (name or UID). Default: "root"
+#       - group: Group owner (name or GID). Default: "root"
+#       - mode: Octal permission string (e.g., "0755"). Default: "0755"
 
-# Below is an example on how to configure powervault_config
-# In this configuration, a single controller portal is provided.
+# powervault_config:
+#   # This mounts the whole powervault volume with <volume_id> to /mnt/slurm
+#   # followed by bind creation of dir <node_key> under /mnt/slurm
+#   # node_key is the key in cloud-init so that its unique per host
 
-#powervault_config:
-#  ip:
-#    - 172.1.2.3
-#  port: 3260
-#  iscsi_initiator: iqn.2025-01.com.dell:scontrol-node
-#  volume_id: 00c0ff4343f1f1f1001c8c4e6901000000
+#   - name: powervault1
+#     ip:
+#       - 172.1.2.3
+#     port: 3260
+#     iscsi_initiator: iqn.2025-01.com.dell:scontrol-node
+#     volume_id: 00c0ff4343f1f1f1001c8c4e6901000000
+#     # mount params
+#     mount_point: "/mnt/slurm"
+#     mount_params: "powervault_iscsi"
+#     node_key: "local_hostname" # per_node_id,node_subdir_key
+#     node_mount_point: # bind_paths, sub_mounts
+#       - "/var/lib/mysql" # /mnt/slurm/<local_hostname>/var/lib/mysql
+#       - "/var/spool/slurm" # /mnt/slurm/<local_hostname>/var/spool/slurm
+#     functional_group_prefix: ["slurm_control_node"]
+#     permissions:
+#       owner: "slurm"
+#       group: "slurm"
+#       mode: "0750"
 
+# -----------------------------Swap-------------------------------------------------
+# swap: Swap file configuration (list of swap configurations)
+# Each swap entry contains:
+#   - name: Unique identifier. Required
+#   - filename: Path to the swap file (e.g., /swapfile). Required
+#   - size: Size in bytes, 'auto', or human-readable (e.g., "2G", "512M"). Required
+#   - maxsize: Max size (used with size: auto). Optional
+#   - functional_group_prefix: List of functional group prefixes.
 
-# -----------------------------NFS------------------------------------------------
-
-# This variable is used for mounting NFS share on slurm_control_node, slurm_node, login_node
-# This takes a list of dicts with possible keys server_ip, server_share_path, client_share_path, client_mount_options
-# In both the cases, the USER must manually update 'server_ip' and 'server_share_path' below with the correct values.
-# If mount_option values are empty, NFS client will be mounted with these values "nosuid,rw,sync,hard,intr"
-# Its mandatory to provide atleast one entry in nfs_client_params
-# Example for single mount file system:
-# nfs_client_params:
-# nfs_name : str ,Name of the NFS storage resource. The default is "nfs_storage_default".
-#     The user can assign any custom string to specify a different NFS storage resource.
-# - { server_ip: 10.5.0.101, server_share_path: "/mnt/share", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard"}
-# Example for supporting multiple mount points:
-# nfs_client_params:
-# - { server_ip: 198.168.0.1,server_share_path: "/mnt/share1", client_share_path: "/home", client_mount_options: "nosuid,rw,sync,hard"}
-# - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard"}
-# Example for multiple mount file system:
-# nfs_client_params:
-# - { server_ip: 198.168.0.1, server_share_path: "/mnt/share1", client_share_path: "/mnt/mount1", client_mount_options: "nosuid,rw,sync,hard"}
-# - { server_ip: 198.168.0.2, server_share_path: "/mnt/share2", client_share_path: "/mnt/mount2", client_mount_options: "nosuid,rw,sync,hard"}
-nfs_client_params:
-  - server_ip: "172.16.107.168" # Provide the IP of the NFS server
-    server_share_path: "/mnt/share/omnia" # Provide server share path of the NFS Server
-    client_share_path: /share_omnia
-    client_mount_options: "nosuid,rw,sync,hard,intr"
-    nfs_name: nfs_slurm
-
-  - server_ip: "172.16.107.121" # Provide the IP of the NFS server
-    server_share_path: "/mnt/share/omnia_k8s" # Provide server share path of the NFS Server
-    client_share_path: /share_omnia_k8s
-    client_mount_options: "nosuid,rw,sync,hard,intr"
-    nfs_name: nfs_k8s
-    
+# swap:
+#   - name: "compute_swap"
+#     filename: "/swapfile"
+#     size: "2G"
+#     maxsize: "4G"
+#     functional_group_prefix: ["slurm_node"]

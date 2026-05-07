@@ -40,4 +40,4 @@
 
 - name: NFS path for cloud init
   ansible.builtin.set_fact:
-    cloud_init_nfs_path_openldap: "{{ nfs_server_ip }}:{{ nfs_server_path }}/openldap"
+    cloud_init_nfs_path_openldap: "{{ nfs_server_path }}/openldap"

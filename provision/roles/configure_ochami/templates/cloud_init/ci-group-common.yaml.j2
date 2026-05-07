@@ -1,5 +1,7 @@
 - name: ssh
   description: "ssh config"
+  meta-data:
+    host_mount_map: {{ host_mount_map }}
   file:
     encoding: plain
     content: |

@@ -36,6 +36,7 @@
     victoria_metrics_support: false
     victoria_logs_support: false
     kafka_support: false
+    telemetry_enabled: false
 
 - name: Set ldms_support based on telemetry_config.yml
   ansible.builtin.set_fact:
@@ -88,3 +89,15 @@
       victoria_logs_support={{ victoria_logs_support }},
       kafka_support={{ kafka_support }}
     verbosity: 1
+
+- name: Set global variable for telemetry_enabled
+  ansible.builtin.set_fact:
+    telemetry_enabled: true
+  when: >
+    idrac_telemetry_support or
+    powerscale_metrics_enabled or
+    powerscale_log_enabled or
+    victoria_metrics_support or
+    victoria_logs_support or
+    ldms_support or
+    kafka_support

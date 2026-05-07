@@ -26,7 +26,7 @@
 
 - name: Mount NFS share (force NFSv3)
   ansible.posix.mount:
-    src: "{{ hostvars['localhost']['k8s_server_ip'] }}:{{ hostvars['localhost']['k8s_server_share_path'] }}"
+    src: "{{ hostvars['localhost']['k8s_nfs_server_path'] }}"
     path: "{{ hostvars['localhost']['k8s_client_share_path'] }}"
     fstype: nfs
     opts: "{{ hostvars['localhost']['k8s_mount_options'] }},vers=3"

@@ -62,10 +62,11 @@ ps_azserviceip: "{{ clusters.isilonClusters[0].endpoint | regex_replace('https?:
 
 nfs_export_help_msg: |
   Failed to create required subdirectories at '{{ k8s_client_mount_path }}'.
-  Please check that the NFS server ({{ k8s_nfs_server_ip }}) is exporting the directory with correct permissions.
+  Please check that the NFS server ({{ k8s_nfs_server_path.split(':')[0] }})
+  is exporting the directory ({{ k8s_nfs_server_path.split(':')[1] }}) with correct permissions.
   Example /etc/exports line on your NFS server:
 
-    {{ k8s_server_share_path }} *(rw,sync,no_root_squash,no_subtree_check)
+    {{ k8s_nfs_server_path.split(':')[1] }} *(rw,sync,no_root_squash,no_subtree_check)
 
   After updating /etc/exports
   1) Run 'exportfs -ra' on the NFS server and verify permissions/mounts
