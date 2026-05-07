@@ -21,7 +21,6 @@ resources:
   # VMPodScrape CR (native operator-based pod discovery for metrics)
   - victoria-operator-vmpodscrape.yaml
 {% endif %}
-{% endif %}
 {% if victoria_logs_support | default(false) %}
 # victoria_logs Resources (Logs Only)
 {% if victoria_cluster.tls_enabled | default(false) and not victoria_metrics_support | default(false) %}
