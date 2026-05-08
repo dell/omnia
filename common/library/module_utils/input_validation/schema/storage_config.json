@@ -3,88 +3,337 @@
     "title": "Configuration Schema",
     "type": "object",
     "properties": {
-      "nfs_client_params": {
+      "powervault_config": {
         "type": "array",
+        "description": "List of PowerVault iSCSI volume connection definitions. Processed via runcmd script because device path is only known after iSCSI login + multipath scan.",
         "items": {
           "type": "object",
           "properties": {
-            "nfs_name": {
+            "name": {
               "type": "string",
-              "description": "The unique NFS server name"
+              "description": "Unique identifier for this PowerVault volume",
+              "pattern": "^[a-zA-Z0-9_-]+$",
+              "minLength": 1,
+              "maxLength": 64
             },
-            "server_ip": {
+            "ip": {
+              "description": "List of target controller IP addresses for iSCSI discovery",
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "format": "ipv4"
+              },
+              "uniqueItems": true
+            },
+            "port": {
+              "description": "TCP port for iSCSI target (default 3260)",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "iscsi_initiator": {
+              "description": "iSCSI initiator IQN",
               "type": "string",
-              "anyOf": [
-                {
-                  "allOf": [
-                    { "pattern": ".*[A-Za-z].*" },
-                    { "format": "idn-hostname" }
-                  ]
+              "pattern": "^iqn\\.[a-zA-Z0-9.-]+(?::[a-zA-Z0-9._:-]+)?$"
+            },
+            "volume_id": {
+              "description": "Volume identifier (hex string / WWN) for multipath device matching",
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]+$"
+            },
+            "mount_point": {
+              "type": "string",
+              "description": "Where the discovered device gets mounted",
+              "pattern": "^/[a-zA-Z0-9/_.-]*$"
+            },
+             "fs_type": {
+              "type": "string",
+              "description": "Filesystem type. Overrides mount_params profile when specified.",
+              "enum": ["xfs", "ext4", "ext3", "ext2", "nfs", "nfs4", "cifs", "ntfs", "auto"],
+              "default": "xfs"
+            },
+            "mnt_opts": {
+              "type": "string",
+              "description": "Mount options. Overrides mount_params profile when specified.",
+              "pattern": "^[a-zA-Z0-9,=._@/-]+$"
+            },
+            "dump_freq": {
+              "type": "string",
+              "description": "Dump frequency (usually 0). Overrides mount_params profile when specified.",
+              "pattern": "^[0-2]$",
+              "default": "0"
+            },
+            "fsck_pass": {
+              "type": "string",
+              "description": "Fsck pass number (usually 0 or 2). Overrides mount_params profile when specified.",
+              "pattern": "^[0-9]$",
+              "default": "0"
+            },
+            "mount_params": {
+              "type": "string",
+              "description": "Named profile key from mount_params section. Must reference an existing profile defined in mount_params.",
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            },
+            "node_key": {
+              "type": "string",
+              "description": "cloud_init variable for per-node bind mounts (e.g., local_hostname, ds.meta_data.instance_data.local_ipv4). When present, generates bind mounts under mount_point/<node_key_value>/"
+            },
+            "node_mount_point": {
+              "type": "array",
+              "description": "List of bind mount target paths. Required when node_key is set. Each gets: mount_point/<node_key_value>/<target_stripped_slash> -> <target>",
+              "items": {
+                "type": "string",
+                "pattern": "^/[a-zA-Z0-9/_.-]*$"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "functional_group_prefix": {
+              "type": "array",
+              "description": "List of functional group prefixes for node targeting. Mutually exclusive with group.",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "uniqueItems": true
+            },
+            "permissions": {
+              "type": "object",
+              "description": "Directory ownership and mode applied to mount_point after mount (chown + chmod via runcmd)",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "User owner of the mount point (name or numeric UID)",
+                  "pattern": "^[a-zA-Z0-9_-]+$",
+                  "default": "root"
                 },
-                {
-                  "allOf": [
-                    { "pattern": "^[0-9.]+$" },
-                    { "format": "ipv4" }
-                  ]
+                "group": {
+                  "type": "string",
+                  "description": "Group owner of the mount point (name or numeric GID)",
+                  "pattern": "^[a-zA-Z0-9_-]+$",
+                  "default": "root"
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "Octal permission mode (e.g., 0755, 1777)",
+                  "pattern": "^[0-7]{3,4}$",
+                  "default": "0644"
                 }
-              ]
-            },
-            "server_share_path": {
-              "type": "string",
-              "pattern": "^/(?:[^/]+(?:/[^/]+)*)?/?$"
-            },
-            "client_share_path": {
-              "type": "string",
-              "pattern": "^/(?:[^/]+(?:/[^/]+)*)?/?$"
-            },
-            "client_mount_options": {
-              "type": "string"
+              },
+              "additionalProperties": false
             }
           },
-          "required": [
-            "server_ip",
-            "server_share_path",
-            "client_share_path",
-            "client_mount_options"
-          ]
-        },
-        "minItems": 1
+          "required": ["name", "ip", "iscsi_initiator", "volume_id", "mount_point", "functional_group_prefix"],
+          "oneOf": [
+            { "required": ["node_key", "node_mount_point"] },
+            { "not": { "required": ["node_key"] } }
+          ],
+          "additionalProperties": false
+        }
       },
-      "powervault_config": {
-        "type": "object",
-        "required": ["ip", "iscsi_initiator", "volume_id"],
-        "properties": {
-          "ip": {
-            "description": "List of target controller IP addresses",
-            "type": "array",
-            "minItems": 1,
-            "items": {
+      "mounts": {
+        "type": "array",
+        "description": "Cloud-init compatible mount configurations. Source must be known at boot time.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
               "type": "string",
-              "format": "ipv4"
+              "description": "Unique identifier for this mount entry",
+              "pattern": "^[a-zA-Z0-9_-]+$",
+              "minLength": 1,
+              "maxLength": 64
             },
-            "uniqueItems": true
+            "source": {
+              "type": "string",
+              "description": "Device name or network path (e.g., /dev/sdc, UUID=xxx, 192.168.1.100:/export/share, powervault:<name>)",
+              "minLength": 1
+            },
+            "mount_point": {
+              "type": "string",
+              "description": "Mount point path",
+              "pattern": "^/[a-zA-Z0-9/_.-]*$"
+            },
+            "fs_type": {
+              "type": "string",
+              "description": "Filesystem type. Overrides mount_params profile when specified.",
+              "enum": ["auto", "ext2", "ext3", "ext4", "xfs", "nfs", "nfs4", "cifs", "tmpfs", "cephfs", "vfat", "ntfs", "none", "fuse.s3fs"],
+              "default": "auto"
+            },
+            "mnt_opts": {
+              "type": "string",
+              "description": "Mount options. Overrides mount_params profile when specified.",
+              "pattern": "^[a-zA-Z0-9,=._@/-]+$"
+            },
+            "dump_freq": {
+              "type": "string",
+              "description": "Dump frequency (usually 0). Overrides mount_params profile when specified.",
+              "pattern": "^[0-2]$",
+              "default": "0"
+            },
+            "fsck_pass": {
+              "type": "string",
+              "description": "Fsck pass number (usually 0 or 2). Overrides mount_params profile when specified.",
+              "pattern": "^[0-9]$",
+              "default": "0"
+            },
+            "mount_params": {
+              "type": "string",
+              "description": "Named profile key from mount_params section. Must reference an existing profile defined in mount_params.",
+              "pattern": "^[a-zA-Z0-9_-]+$"
+            },
+            "mount_on_oim": {
+              "type": "boolean",
+              "description": "Whether to mount this filesystem on the OIM node. Default: false. Ensure the storage system is accessible to OIM",
+              "default": false
+            },
+            "node_key": {
+              "type": "string",
+              "description": "Directory name to be created under mount_point. cloud-init datasource variable accessible via 'cloud-init query <var_name>' (e.g., local_hostname, ds.meta_data.instance_data.local_ipv4). Optional"
+            },
+            "node_mount_point": {
+              "type": "array",
+              "description": "List of bind mount target paths. Required when node_key is set.",
+              "items": {
+                "type": "string",
+                "pattern": "^/[a-zA-Z0-9/_.-]*$"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "functional_group_prefix": {
+              "type": "array",
+              "description": "List of oChaMI functional group prefixes to apply this mount to. Mutually exclusive with group.",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "uniqueItems": true
+            },
+            "groups": {
+              "type": "array",
+              "description": "List of GROUP_NAME values from pxe_mapping_file.csv. Mutually exclusive with functional_group_prefix.",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "uniqueItems": true
+            },
+            "permissions": {
+              "type": "object",
+              "description": "Directory ownership and mode applied to mount_point after mount (chown + chmod via runcmd)",
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "description": "User owner of the mount point (name or numeric UID)",
+                  "pattern": "^[a-zA-Z0-9_-]+$",
+                  "default": "root"
+                },
+                "group": {
+                  "type": "string",
+                  "description": "Group owner of the mount point (name or numeric GID)",
+                  "pattern": "^[a-zA-Z0-9_-]+$",
+                  "default": "root"
+                },
+                "mode": {
+                  "type": "string",
+                  "description": "Octal permission mode (e.g., 0755, 1777)",
+                  "pattern": "^[0-7]{3,4}$",
+                  "default": "0755"
+                }
+              },
+              "additionalProperties": false
+            }
           },
-
-          "port": {
-            "description": "TCP port for iSCSI (default 3260)",
-            "type": "integer"
-          },
-
-          "iscsi_initiator": {
-            "description": "iSCSI initiator IQN",
-            "type": "string",
-            "pattern": "^iqn\\.[a-zA-Z0-9.-]+(?::[a-zA-Z0-9._:-]+)?$"
-          },
-
-          "volume_id": {
-            "description": "Volume identifier (hex string)",
-            "type": "string",
-            "pattern": "^[a-fA-F0-9]+$"
+          "required": ["name", "source", "mount_point"],
+          "allOf": [
+            {
+              "oneOf": [
+                { "required": ["functional_group_prefix"] },
+                { "required": ["groups"] }
+              ]
+            },
+            {
+              "oneOf": [
+                { "required": ["node_key", "node_mount_point"] },
+                { "not": { "required": ["node_key"] } }
+              ]
+            }
+          ],
+          "additionalProperties": false
+        }
+      },
+      "mount_params": {
+        "type": "object",
+        "description": "Named mount parameter profiles. Each profile provides defaults for fs_type, mnt_opts, dump_freq, fsck_pass. Custom fields are allowed for backend-specific metadata.",
+        "patternProperties": {
+          "^[a-zA-Z0-9_-]+$": {
+            "type": "object",
+            "properties": {
+              "fs_type": {
+                "type": "string",
+                "description": "Default filesystem type",
+                "enum": ["auto", "ext2", "ext3", "ext4", "xfs", "nfs", "nfs4", "cifs", "tmpfs", "cephfs", "vfat", "ntfs", "none", "fuse.s3fs"]
+              },
+              "mnt_opts": {
+                "type": "string",
+                "description": "Default mount options",
+                "pattern": "^[a-zA-Z0-9,=._@/-]+$"
+              },
+              "dump_freq": {
+                "type": "string",
+                "description": "Default dump frequency",
+                "pattern": "^[0-2]$"
+              },
+              "fsck_pass": {
+                "type": "string",
+                "description": "Default fsck pass number",
+                "pattern": "^[0-9]$"
+              }
+            },
+            "required": ["fs_type", "mnt_opts"],
+            "additionalProperties": true
           }
+        },
+        "additionalProperties": false
+      },
+      "swap": {
+        "type": "array",
+        "description": "Swap file configurations",
+        "items": {
+          "type": "object",
+          "properties": {
+            "filename": {
+              "type": "string",
+              "description": "Path to the swap file to create",
+              "pattern": "^/[a-zA-Z0-9/_.-]+$"
+            },
+            "size": {
+              "type": "string",
+              "description": "Size in bytes, 'auto', or human-readable format (e.g., 2G, 512M)",
+              "pattern": "^(auto|[0-9]+[BKMGT]?)$"
+            },
+            "maxsize": {
+              "type": "string",
+              "description": "Maximum size (used with size: auto)",
+              "pattern": "^[0-9]+[BKMGT]?$"
+            },
+            "functional_group_prefix": {
+              "type": "array",
+              "description": "List of oChaMI functional group prefixes to apply this swap to. Mutually exclusive with group.",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_-]+$"
+              },
+              "uniqueItems": true
+            }
+          },
+          "required": ["filename", "size", "functional_group_prefix"],
+          "additionalProperties": false
         }
       }
     },
-    "required": [
-      "nfs_client_params"
-    ]
+    "required": [],
+    "additionalProperties": false
   }

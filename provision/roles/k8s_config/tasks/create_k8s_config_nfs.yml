@@ -35,9 +35,10 @@
 
 - name: Read the service_k8s mount point
   ansible.builtin.set_fact:
-    k8s_client_mount_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).client_share_path }}"
-    k8s_nfs_server_ip: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_ip }}"
-    k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
+    k8s_client_mount_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).mount_point }}"
+    k8s_nfs_server_ip: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source.split(':')[0] }}"
+    # k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
+    k8s_nfs_server_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source }}"
 
 - name: Ensure SSH key directory exists on K8s share
   ansible.builtin.file:

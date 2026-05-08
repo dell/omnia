@@ -1,0 +1,33 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# Determine which functional groups should receive this mount or swap entry
+# Based on functional_group_prefix, or apply to all
+# Expected input: config_item (either mount_item or swap_item)
+
+- name: Initialize target_functional_groups
+  ansible.builtin.set_fact:
+    target_functional_groups: []
+
+- name: Match functional groups by prefix
+  when: config_item.functional_group_prefix is defined and config_item.functional_group_prefix | length > 0
+  block:
+    - name: Find all functional groups matching any prefix
+      ansible.builtin.set_fact:
+        target_functional_groups: >-
+          {{
+            cloud_init_groups_dict.keys() | list |
+            select('match', '^(' + (config_item.functional_group_prefix | join('|')) + ')') |
+            list
+          }}

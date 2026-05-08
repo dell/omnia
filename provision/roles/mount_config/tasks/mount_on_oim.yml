@@ -1,0 +1,71 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+## Mount an entry on the OIM node.
+- name: Initialize client mount path (new schema)
+  ansible.builtin.set_fact:
+    client_mount_path: "{{ item.mount_point }}"
+
+- name: Derive NFS src for new schema (localhost remap)
+  block:
+    - name: Derive NFS source path component
+      ansible.builtin.set_fact:
+        nfs_src_path: "{{ (item.source.split(':') | last) | trim }}"
+
+    - name: Build NFS src (replace localhost with admin_nic_ip)
+      ansible.builtin.set_fact:
+        nfs_src: "{{ hostvars['127.0.0.1']['admin_nic_ip'] + ':' + nfs_src_path }}"
+      when: item.source is match('^localhost:')
+
+    - name: Use source as-is when server is not localhost
+      ansible.builtin.set_fact:
+        nfs_src: "{{ item.source }}"
+      when: item.source is not match('^localhost:')
+
+- name: Create the directory for mounting on OIM
+  ansible.builtin.file:
+    path: "{{ client_mount_path }}"
+    state: directory
+    mode: "{{ mounted_dir_perm }}"
+  register: dir_check
+  ignore_errors: true
+
+- name: Mount NFS share on OIM with fstab entry
+  block:
+    - name: Add/ensure fstab entry via mount module
+      ansible.posix.mount:
+        src: "{{ nfs_src }}"
+        path: "{{ client_mount_path }}"
+        opts: "{{ (item.mnt_opts | default(omit)) | default(item.client_mount_options | default(default_oim_mount_options)) }}"
+        state: mounted
+        fstype: "{{ (item.fs_type | default(omit)) | default('nfs') }}"
+
+    - name: Mount current share explicitly for immediate availability # noqa: command-instead-of-module
+      ansible.builtin.command: >
+        mount -t {{ (item.fs_type | default(omit)) | default('nfs') }}
+        -o {{ (item.mnt_opts | default(omit)) | default(item.client_mount_options | default(default_oim_mount_options)) }}
+        {{ nfs_src }} {{ client_mount_path }}
+      register: oim_mount_result
+      changed_when: oim_mount_result.rc == 0
+      failed_when: oim_mount_result.rc != 0
+
+  rescue:
+    - name: Remove from fstab on failure
+      ansible.posix.mount:
+        path: "{{ client_mount_path }}"
+        state: absent_from_fstab
+
+    - name: Fail if OIM mount failed
+      ansible.builtin.fail:
+        msg: "{{ oim_nfs_fail_msg }}"

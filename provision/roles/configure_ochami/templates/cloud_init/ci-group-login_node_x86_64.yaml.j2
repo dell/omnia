@@ -11,7 +11,6 @@
         settings: [append]
       - name: dict
         settings: [no_replace, recurse_list]
-
       users:
         - name: root
           ssh_authorized_keys: "{{ read_ssh_key.stdout }}"
@@ -130,31 +129,62 @@
           permissions: '0644'
           content: |
             {{ lookup('template', 'templates/nodes/apptainer_mirror.conf.j2') | indent(12) }}
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+        - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ pv_entry.content | indent(12) }}
+{% endfor %}
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
+        - /usr/local/bin/configure_vast_installation.sh
+{# Mount-specific runcmd entries #}
+{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
+{% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
+        - {{ cmd }}
+{% endfor %}
+{% endif %}
+{% raw %}
+      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
+      {% set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) %}
+      {% if mymounts %}
+      {% for mount in mymounts.get("mounts", []) %}
+        - mkdir -pv {{ mount[1] }}
+        - echo "{{ mount | join(' ') }}" >> /etc/fstab
+      {% endfor %}
+        - mount -av
+      {% for decoded_cmd in mymounts.get("runcmd", []) %}
+        - {{ decoded_cmd }}
+      {% endfor %}
+      {% else %}
+         - echo "No mount entries found for this host"
+      {% endif %}
+      {% endif %}
+{% endraw %}
+{% set fg_swap = cloud_init_groups_dict.get(functional_group_name, {}).get('swap', {}) %}
+{% include 'configure_swap.yaml.j2' %}
+        - mount -av
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+        - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+{% endfor %}
         # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
         - mkdir -p {{ client_mount_path }}/slurm/ssh
-        - mkdir -p {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} {% for d in slurm_prolog_dirs_all %}{{ d }} {% endfor %}/etc/munge /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
+        - mkdir -p {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages /hpc_tools
         - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ cloud_init_nfs_path}}/hpc_tools/container_images  /hpc_tools/container_images   nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ cloud_init_nfs_path}}/hpc_tools/scripts  /hpc_tools/scripts   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path}}/hpc_tools  /hpc_tools   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
-
         - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
 
         - chmod {{ file_mode }} /etc/fstab
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
-        - /usr/local/bin/configure_vast_installation.sh
-        - mount -a
         - bash /usr/local/bin/doca-install.sh || true
         - bash /usr/local/bin/configure-ib-network.sh
         - /usr/local/bin/check_slurm_controller_status.sh
@@ -169,9 +199,7 @@
 {% for epath in slurm_epilog_custom_paths %}
         - bash -c 'if [ ! -f "{{ epath }}" ]; then mkdir -p "$(dirname "{{ epath }}")"; printf "#!/bin/bash\n# Custom epilog script placeholder\n# Add your epilog commands here\n" > "{{ epath }}"; chown {{ slurm_user }}:{{ slurm_user }} "{{ epath }}"; chmod {{ file_mode_755 }} "{{ epath }}"; fi'
 {% endfor %}
-{% for ppath in slurm_prolog_custom_paths %}
-        - bash -c 'if [ ! -f "{{ ppath }}" ]; then mkdir -p "$(dirname "{{ ppath }}")"; printf "#!/bin/bash\n# Custom prolog script placeholder\n# Add your prolog commands here\n" > "{{ ppath }}"; chown {{ slurm_user }}:{{ slurm_user }} "{{ ppath }}"; chmod {{ file_mode_755 }} "{{ ppath }}"; fi'
-{% endfor %}
+
         - mkdir -p {{ slurm_slurmd_spool_dir_effective }}
         - chmod {{ file_mode_755 }} {{ slurm_slurmd_spool_dir_effective }}
         - chown -R {{ slurm_user }}:{{ slurm_user }} {{ slurm_slurmd_spool_dir_effective }}
@@ -233,7 +261,7 @@
         - /usr/local/bin/update_ldap_conf.sh
         - mkdir /ldapcerts
         - echo "{{ cloud_init_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ cloud_init_nfs_path_openldap }}/ldapuser             /home            nfs defaults,_netdev 0 0" >> /etc/fstab
+        - if ! mountpoint -q /home; then echo "{{ cloud_init_nfs_path_openldap }}/ldapuser /home nfs defaults,_netdev 0 0" >> /etc/fstab; fi
         - chmod {{ file_mode }} /etc/fstab
         - mount -a
         - yes | cp /ldapcerts/* /etc/openldap/certs
