@@ -1079,18 +1079,6 @@
             /root/telemetry.sh
 {% endif %}
 
-{% if powerscale_log_enabled | default(false) | bool %}
-            echo "===== Configuring PowerScale Syslog Forwarding ====="
-            if [ -f "{{ k8s_client_mount_path }}/telemetry/deployments/configure_powerscale_syslog.sh" ]; then
-              echo "Running PowerScale syslog configuration script..."
-              bash "{{ k8s_client_mount_path }}/telemetry/deployments/configure_powerscale_syslog.sh" 2>&1
-              echo "PowerScale syslog configuration completed (exit code: $?)"
-            else
-              echo "WARNING: PowerScale syslog configuration script not found."
-              echo "Ensure deploy_powerscale_logs.yml ran successfully during provisioning."
-            fi
-{% endif %}
-
             echo "Rollout and Restart coredns"
             kubectl rollout restart deployment coredns -n kube-system
             sleep 30
