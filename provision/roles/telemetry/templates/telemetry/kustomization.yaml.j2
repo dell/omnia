@@ -20,7 +20,6 @@ resources:
   # VMScrape CR (native operator-based service/pod discovery for metrics)
   - victoria-operator-vmscrape.yaml
 {% endif %}
-{% endif %}
 {% if victoria_logs_support | default(false) %}
 # victoria_logs Resources (Logs Only)
 {% if victoria_cluster.tls_enabled | default(false) and not victoria_metrics_support | default(false) %}
