@@ -58,9 +58,3 @@
       ansible.builtin.set_fact:
         ps_clusters: []
       when: csi_powerscale_secret.skipped is defined
-
-    - name: Populate PowerScale syslog configuration script
-      ansible.builtin.template:
-        src: "{{ configure_ps_syslog_template }}"
-        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/configure_powerscale_syslog.sh"
-        mode: "{{ hostvars['localhost']['file_permissions_755'] }}"

@@ -286,13 +286,6 @@ victoria_tls_cert_days: 3650
 victoria_cert_dir: "{{ telemetry_share_path }}/victoria-certs"
 syslog_tls_cert_dir: "{{ telemetry_share_path }}/syslog-tls-certs"
 
-# PowerScale log configuration status message
-powerscale_log_config_status_msg: >-
-  PowerScale syslog configuration script staged on NFS share.
-  During cloud-init, VLAgent LoadBalancer IP will be retrieved and
-  PowerScale configuration instructions will be provided.
-  PowerScale sends syslog directly to VLAgent LoadBalancer IP:514 (UDP/TCP).
-
 # PowerScale VictoriaLogs validation fail message
 powerscale_victoria_logs_validation_fail_msg: >-
   PowerScale log collection requires 'victoria_logs' in
@@ -550,18 +543,8 @@ ps_dependency_fail_msg: >-
 # Usage: deploy_powerscale_logs.yml
 # Gated by: telemetry_sources.powerscale.logs_enabled
 # Pipeline: PowerScale (UDP/TCP:514) → VLAgent LoadBalancer IP:514 → VictoriaLogs
-configure_ps_syslog_template: "{{ role_path }}/../configure_ochami/templates/powerscale/configure_powerscale_syslog.sh.j2"
-ps_log_enabled_msg: >-
-  PowerScale log collection enabled (telemetry_sources.powerscale.logs_enabled: true).
-  VLAgent will be deployed with LoadBalancer service to receive PowerScale syslog.
-  PowerScale sends syslog directly to VLAgent LoadBalancer IP:514 (UDP/TCP).
-ps_log_disabled_msg: >-
-  PowerScale log collection disabled (telemetry_sources.powerscale.logs_enabled: false).
-  VLAgent will not be configured for PowerScale syslog collection.
-ps_log_deployed_msg: >-
-  PowerScale syslog configuration script staged on NFS share.
-  During cloud-init, VLAgent LoadBalancer IP will be retrieved and
-  PowerScale configuration instructions will be provided.
+# Note: configure_powerscale_syslog.sh.j2 template removed - syslog configuration now manual
+
 # Vector Kafka-to-Victoria Ingestion Pipeline Configuration
 # ============================================================================
 # Usage: deploy_vector_ldms.yml, deploy_vector_ome.yml
