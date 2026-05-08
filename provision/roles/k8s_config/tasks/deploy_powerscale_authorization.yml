@@ -58,6 +58,55 @@
       - ps_authz_tenants | length > 0
     fail_msg: "{{ ps_authz_no_tenants_msg }}"
 
+- name: Check if PowerScale telemetry is enabled
+  ansible.builtin.set_fact:
+    ps_telemetry_enabled: false
+  when: hostvars['localhost']['telemetry_config'] is not defined
+
+- name: Determine PowerScale telemetry status
+  ansible.builtin.set_fact:
+    ps_telemetry_enabled: >-
+      {{ hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.telemetry_enabled | default(false) | bool }}
+  when: hostvars['localhost']['telemetry_config'] is defined
+
+- name: Auto-generate OTLP address if PowerScale telemetry is enabled
+  block:
+    - name: Get PowerScale cluster name from telemetry config
+      ansible.builtin.set_fact:
+        ps_cluster_name: >-
+          {{ hostvars['localhost']['telemetry_config'].telemetry_sources.powerscale.configurations[0].cluster_name | default('powerscale') }}
+
+    - name: Construct OTLP collector address
+      ansible.builtin.set_fact:
+        otlp_collector_address: "otel-collector.{{ ps_cluster_name }}-observability.svc.cluster.local:4317"
+
+    - name: Display auto-generated OTLP address
+      ansible.builtin.debug:
+        msg: "PowerScale telemetry enabled. Auto-configuring OTLP address: {{ otlp_collector_address }}"
+        verbosity: 1
+
+    - name: Inject OTLP address into CSM Authorization values file
+      ansible.builtin.replace:
+        path: "{{ ps_authz_values_file }}"
+        regexp: 'openTelemetryCollectorAddress:\s*""'
+        replace: 'openTelemetryCollectorAddress: "{{ otlp_collector_address }}"'
+        backup: yes
+
+    - name: Inject OTLP address (alternative format - with null)
+      ansible.builtin.replace:
+        path: "{{ ps_authz_values_file }}"
+        regexp: 'openTelemetryCollectorAddress:\s*null'
+        replace: 'openTelemetryCollectorAddress: "{{ otlp_collector_address }}"'
+      when: ansible_check_mode is not defined
+
+  when: ps_telemetry_enabled | default(false) | bool
+
+- name: Display message when telemetry is not enabled
+  ansible.builtin.debug:
+    msg: "PowerScale telemetry is not enabled. OTLP address will remain empty in values.yaml."
+    verbosity: 1
+  when: not ps_telemetry_enabled | default(false) | bool
+
 - name: Create CSM Authorization directory on NFS share
   ansible.builtin.file:
     path: "{{ csm_authz_nfs_dir }}"

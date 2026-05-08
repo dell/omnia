@@ -146,10 +146,9 @@
                     AUTHZ_JWT_SECRET=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
                   fi
 
-                  # Create config.yaml for karavi-config-secret
-                  cat > /tmp/karavi-config.yaml <<EOF
-web:
-  jwtsigningsecret: ${AUTHZ_JWT_SECRET}
+                  # Step P8: Create karavi-config-secret with JWT signing secret
+                  cat > /tmp/karavi-config.yaml <<'EOF'
+{% include 'powerscale/karavi_config.yaml.j2' %}
 EOF
                   kubectl create secret generic karavi-config-secret -n "${AUTHZ_NS}" \
                     --from-file=config.yaml=/tmp/karavi-config.yaml \
@@ -256,19 +255,9 @@ EOF
 
                   # Step A2: Create karavi-authorization-config secret
                   echo "Building karavi-authorization-config from CSI driver secret..."
-                  printf '%s\n' '{' > /tmp/karavi-authorization-config.json
-                  printf '%s\n' '  "storages": [' >> /tmp/karavi-authorization-config.json
-                  printf '%s\n' '    {' >> /tmp/karavi-authorization-config.json
-                  printf '%s\n' '      "username": "ignored",' >> /tmp/karavi-authorization-config.json
-                  printf '%s\n' '      "password": "ignored",' >> /tmp/karavi-authorization-config.json
-                  printf '      "intendedEndpoint": "%s:%s"\n' "${ORIGINAL_ENDPOINT}" "${ORIGINAL_PORT}" >> /tmp/karavi-authorization-config.json
-                  printf '%s\n' '      "endpoint": "https://localhost:9400",' >> /tmp/karavi-authorization-config.json
-                  printf '      "systemID": "%s"\n' "${CLUSTER_NAME}" >> /tmp/karavi-authorization-config.json
-                  printf '%s\n' '      "skipCertificateValidation": true,' >> /tmp/karavi-authorization-config.json
-                  printf '%s\n' '      "isDefault": true' >> /tmp/karavi-authorization-config.json
-                  printf '%s\n' '    }' >> /tmp/karavi-authorization-config.json
-                  printf '%s\n' '  ]' >> /tmp/karavi-authorization-config.json
-                  printf '%s\n' '}' >> /tmp/karavi-authorization-config.json
+                  cat > /tmp/karavi-authorization-config.json <<'EOF'
+{% include 'powerscale/karavi_auth_config.yaml.j2' %}
+EOF
 
                   kubectl -n isilon create secret generic karavi-authorization-config \
                     --from-file=config=/tmp/karavi-authorization-config.json \
