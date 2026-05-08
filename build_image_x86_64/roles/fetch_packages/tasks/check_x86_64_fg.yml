@@ -13,40 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Validate PXE mapping CSV structure before functional groups check
-  ansible.builtin.shell: |
-    set -o pipefail
-
-    # Check if CSV file exists
-    if [ ! -f "{{ pxe_mapping_file_path }}" ]; then
-      echo "ERROR: PXE mapping file not found: {{ pxe_mapping_file_path }}"
-      exit 1
-    fi
-
-    # Count header columns
-    header_columns=$(head -1 "{{ pxe_mapping_file_path }}" | tr ',' '\n' | wc -l)
-
-    # Validate each row has same column count as header
-    line_num=2
-    while IFS= read -r line; do
-      [ -z "$line" ] && continue
-      row_columns=$(echo "$line" | tr ',' '\n' | wc -l)
-
-      if [ "$row_columns" -ne "$header_columns" ]; then
-        echo "CSV ERROR: Line $line_num has $row_columns columns, expected $header_columns"
-        echo "For IB_MAC and IB_IP fields: provide values or keep blank with ,, "
-        echo "Problem row: $line"
-        exit 1
-      fi
-
-      line_num=$((line_num + 1))
-    done < <(tail -n +2 "{{ pxe_mapping_file_path }}")
-
-    echo "CSV validation passed - $((line_num - 2)) rows validated"
-  register: csv_validation
-  changed_when: false
-  failed_when: csv_validation.rc != 0
-
 - name: Load functional_group_config.yml
   ansible.builtin.include_vars:
     file: "{{ functional_groups_config_path }}"

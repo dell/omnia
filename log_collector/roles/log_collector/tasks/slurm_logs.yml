@@ -1,0 +1,359 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Collect slurm controller logs
+  when: stage == 'slurm_ctl'
+  block:
+    - name: Stat slurm controller log directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: slurm_ctl_dir_stat
+      with_items: "{{ hostvars['localhost'].slurm_ctl_log_dirs | default(slurm_ctl_log_dirs, true) }}"
+
+    - name: Record missing slurm controller log directories
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: slurm_controller
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log directory '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ slurm_ctl_dir_stat.results }}"
+      when: not (item.stat.isdir | default(false))
+
+    - name: Find files under existing slurm controller log directories
+      ansible.builtin.find:
+        paths: "{{ item.item }}"
+        file_type: file
+        recurse: true
+      register: slurm_ctl_found_files
+      when: item.stat.isdir | default(false)
+      with_items: "{{ slurm_ctl_dir_stat.results }}"
+
+    - name: Fetch files from slurm controller log directories
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+      loop: "{{ slurm_ctl_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
+      when: slurm_ctl_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
+
+    - name: Stat slurm controller log files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: slurm_ctl_files
+      with_items: "{{ hostvars['localhost'].slurm_ctl_log_files | default(slurm_ctl_log_files, true) }}"
+
+    - name: Record missing slurm controller log files
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: slurm_controller
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log file '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ slurm_ctl_files.results }}"
+      when: not (item.stat.isreg | default(false))
+
+    - name: Fetch slurm controller log files
+      ansible.builtin.fetch:
+        src: "{{ item.item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+      when: item.stat.isreg | default(false)
+      with_items: "{{ slurm_ctl_files.results }}"
+
+- name: Collect slurm node logs
+  when: stage == 'slurm_node'
+  block:
+    - name: Stat slurm node log directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: slurm_node_dir_stat
+      with_items: "{{ hostvars['localhost'].slurm_node_log_dirs | default(slurm_node_log_dirs, true) }}"
+
+    - name: Record missing slurm node log directories
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: slurm_node
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log directory '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ slurm_node_dir_stat.results }}"
+      when: not (item.stat.isdir | default(false))
+
+    - name: Find files under existing slurm node log directories
+      ansible.builtin.find:
+        paths: "{{ item.item }}"
+        file_type: file
+        recurse: true
+      register: slurm_node_found_files
+      when: item.stat.isdir | default(false)
+      with_items: "{{ slurm_node_dir_stat.results }}"
+
+    - name: Fetch files from slurm node log directories
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+      loop: "{{ slurm_node_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
+      when: slurm_node_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
+
+    - name: Stat slurm node log files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: slurm_node_files
+      with_items: "{{ hostvars['localhost'].slurm_node_log_files | default(slurm_node_log_files, true) }}"
+
+    - name: Record missing slurm node log files
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: slurm_node
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log file '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ slurm_node_files.results }}"
+      when: not (item.stat.isreg | default(false))
+
+    - name: Fetch slurm node log files
+      ansible.builtin.fetch:
+        src: "{{ item.item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+      when: item.stat.isreg | default(false)
+      with_items: "{{ slurm_node_files.results }}"
+
+- name: Collect login node logs
+  when: stage == 'login_node'
+  block:
+    - name: Stat login node log directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: login_node_dir_stat
+      with_items: "{{ hostvars['localhost'].login_node_log_dirs | default(login_node_log_dirs, true) }}"
+
+    - name: Record missing login node log directories
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: login_node
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log directory '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ login_node_dir_stat.results }}"
+      when: not (item.stat.isdir | default(false))
+
+    - name: Find files under existing login node log directories
+      ansible.builtin.find:
+        paths: "{{ item.item }}"
+        file_type: file
+        recurse: true
+      register: login_node_found_files
+      when: item.stat.isdir | default(false)
+      with_items: "{{ login_node_dir_stat.results }}"
+
+    - name: Fetch files from login node log directories
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+      loop: "{{ login_node_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
+      when: login_node_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
+
+    - name: Stat login node log files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: login_node_files
+      with_items: "{{ hostvars['localhost'].login_node_log_files | default(login_node_log_files, true) }}"
+
+    - name: Record missing login node log files
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: login_node
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log file '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ login_node_files.results }}"
+      when: not (item.stat.isreg | default(false))
+
+    - name: Fetch login node log files
+      ansible.builtin.fetch:
+        src: "{{ item.item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+      when: item.stat.isreg | default(false)
+      with_items: "{{ login_node_files.results }}"
+
+- name: Collect login compiler node logs
+  when: stage == 'login_compiler_node'
+  block:
+    - name: Stat login compiler node log directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: login_compiler_dir_stat
+      with_items: "{{ hostvars['localhost'].login_compiler_log_dirs | default(login_compiler_log_dirs, true) }}"
+
+    - name: Record missing login compiler node log directories
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: login_compiler_node
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log directory '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ login_compiler_dir_stat.results }}"
+      when: not (item.stat.isdir | default(false))
+
+    - name: Find files under existing login compiler node log directories
+      ansible.builtin.find:
+        paths: "{{ item.item }}"
+        file_type: file
+        recurse: true
+      register: login_compiler_found_files
+      when: item.stat.isdir | default(false)
+      with_items: "{{ login_compiler_dir_stat.results }}"
+
+    - name: Fetch files from login compiler node log directories
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+      loop: "{{ login_compiler_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
+      when: login_compiler_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
+
+    - name: Stat login compiler node log files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: login_compiler_files
+      with_items: "{{ hostvars['localhost'].login_compiler_log_files | default(login_compiler_log_files, true) }}"
+
+    - name: Record missing login compiler node log files
+      ansible.builtin.set_fact:
+        missing_source_warnings_host: "{{ (missing_source_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        warning_payload:
+          source: login_compiler_node
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: missing_source
+          message: >-
+            {{
+              'Expected log file '
+              + item.item
+              + ' missing on node '
+              + inventory_hostname
+              + ' ('
+              + (ansible_host | default('unknown'))
+              + '); continuing collection.'
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+      loop: "{{ login_compiler_files.results }}"
+      when: not (item.stat.isreg | default(false))
+
+    - name: Fetch login compiler node log files
+      ansible.builtin.fetch:
+        src: "{{ item.item }}"
+        dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
+        flat: false
+      when: item.stat.isreg | default(false)
+      with_items: "{{ login_compiler_files.results }}"

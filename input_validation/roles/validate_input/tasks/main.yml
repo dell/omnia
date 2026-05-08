@@ -30,8 +30,9 @@
         project_name: "{{ project_name }}"
         tag_names: "{{ input_validate_tags }}"
         module_utils_path: "{{ (role_path + '/../../../common/library/module_utils/') | ansible.builtin.realpath }}"
+        csv_file_path: "{{ csv_file_path }}"
       register: validation_status
-      when: (input_validate_tags | length) > 0
+      when: (input_validate_tags | length) > 0 or csv_file_path is defined
 
     - name: Debug validation status
       ansible.builtin.debug:
