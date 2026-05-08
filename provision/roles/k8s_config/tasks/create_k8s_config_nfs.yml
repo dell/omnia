@@ -287,9 +287,3 @@
 - name: Get CSI PowerScale driver dependencies
   when: hostvars['localhost']['csi_driver_powerscale_support']
   ansible.builtin.include_tasks: get_powerscale_dependencies.yml
-
-- name: Deploy CSM Authorization Proxy Server (file validation + NFS staging)
-  when:
-    - hostvars['localhost']['csi_driver_powerscale_support'] | default(false) | bool
-    - hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool
-  ansible.builtin.include_tasks: deploy_powerscale_authorization.yml
