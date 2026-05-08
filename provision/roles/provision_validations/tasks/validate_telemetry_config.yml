@@ -40,15 +40,21 @@
     k8s_nfs_storage_name: "{{ service_cluster_info.nfs_storage_name }}"
     cacheable: true
 
-- name: Find matching NFS client param
+- name: Find matching NFS mount
   ansible.builtin.set_fact:
-    k8s_nfs_storage_details: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', k8s_nfs_storage_name) | list | first) | default({}) }}"
+    k8s_nfs_storage_details: "{{ (storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | list | first) | default({}) }}"
     cacheable: true
 
-- name: Set share_path from service_k8s_cluster client_share_path
+- name: Parse NFS source to extract server and path
   ansible.builtin.set_fact:
-    k8s_client_share_path: "{{ k8s_nfs_storage_details.client_share_path }}"
-    k8s_server_share_path: "{{ k8s_nfs_storage_details.server_share_path }}"
-    k8s_server_ip: "{{ k8s_nfs_storage_details.server_ip }}"
-    k8s_mount_options: "{{ k8s_nfs_storage_details.client_mount_options }}"
+    k8s_nfs_source_parts: "{{ k8s_nfs_storage_details.source.split(':') }}"
+  when: k8s_nfs_storage_details.source is defined
+
+- name: Set share_path from service_k8s_cluster mount configuration
+  ansible.builtin.set_fact:
+    k8s_client_share_path: "{{ k8s_nfs_storage_details.mount_point }}"
+    k8s_server_share_path: "{{ k8s_nfs_source_parts[1] if k8s_nfs_source_parts | length > 1 else '' }}"
+    k8s_server_ip: "{{ k8s_nfs_source_parts[0] if k8s_nfs_source_parts | length > 0 else '' }}"
+    k8s_mount_options: "{{ k8s_nfs_storage_details.mnt_opts }}"
     cacheable: true
+  when: k8s_nfs_storage_details.source is defined
