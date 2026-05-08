@@ -82,3 +82,35 @@ spec:
     - targetLabel: component
       replacement: otel-collector
 {% endif %}
+
+---
+{% if hostvars['localhost']['powerscale_volume_health_enabled'] | default(false) %}
+# VMNodeScrape for Kubelet Volume Health Monitoring metrics
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMNodeScrape
+metadata:
+  name: kubelet-volume-health
+  namespace: {{ telemetry_namespace }}
+spec:
+  # Scrape interval
+  interval: {{ vmagent.global.scrape_interval }}
+  
+  # Kubelet HTTPS endpoint
+  scheme: https
+  
+  # TLS configuration with proper CA verification
+  tlsConfig:
+    caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+  
+  # Bearer token for authentication
+  bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+  
+  # Relabel configs
+  relabelConfigs:
+    - sourceLabels: [__meta_kubernetes_node_name]
+      targetLabel: node
+    - targetLabel: source
+      replacement: powerscale
+    - targetLabel: component
+      replacement: volume-health
+{% endif %}

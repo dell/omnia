@@ -73,6 +73,10 @@ warning_idrac_telemetry_support_true: |
   Make sure that Redfish is enabled and the iDRAC has a datacenter license.
   Also, ensure that the firmware version is greater than 4 for iDRAC9 or greater than 1 for iDRAC10."
 
+warning_powerscale_volume_health_disabled: |
+  WARNING: PowerScale metrics collection is enabled, but Volume Health Monitoring is disabled in CSI driver.
+  To enable Volume Health Monitoring, set node.healthMonitor.enabled: true in CSI driver values.yaml.
+  Volume Health Monitoring exposes capacity metrics (used/free capacity, used/free inodes) via Kubernetes metrics API.
 
 pause_time_15: 15
 bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
