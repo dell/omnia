@@ -40,6 +40,11 @@
     k8s_nfs_storage_name: "{{ service_cluster_info.nfs_storage_name }}"
     cacheable: true
 
+- name: Load storage_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
+    name: storage_config
+
 - name: Find matching NFS mount
   ansible.builtin.set_fact:
     k8s_nfs_storage_details: "{{ (storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | list | first) | default({}) }}"
