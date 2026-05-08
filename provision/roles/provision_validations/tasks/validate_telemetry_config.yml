@@ -61,5 +61,6 @@
     k8s_server_share_path: "{{ k8s_nfs_source_parts[1] if k8s_nfs_source_parts | length > 1 else '' }}"
     k8s_server_ip: "{{ k8s_nfs_source_parts[0] if k8s_nfs_source_parts | length > 0 else '' }}"
     k8s_mount_options: "{{ k8s_nfs_storage_details.mnt_opts }}"
+    k8s_nfs_server_path: "{{ k8s_nfs_storage_details.source }}"
     cacheable: true
   when: k8s_nfs_storage_details.source is defined
