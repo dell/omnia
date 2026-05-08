@@ -976,6 +976,14 @@
                 echo "Done updating poll rate."
 
 
+{% if hostvars['localhost']['service_cluster_info'].powerscale_authorization.enabled | default(false) | bool %}
+{% include 'powerscale/deploy_csm_authorization.sh.j2' %}
+{% else %}
+                echo "INFO: CSM Authorization is DISABLED. CSI PowerScale will be deployed in direct mode (no multi-tenant RBAC)."
+                echo "  To enable authorization, set powerscale_authorization.enabled: true in omnia_config.yml"
+                echo "  and configure tenants, roles, storage pools, and quota limits."
+{% endif %}
+
                 if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
                   echo "===== Running CSI PowerScale installation script ====="
                   INSTALL_SCRIPT="/opt/omnia/csi-driver-powerscale/csi-powerscale/dell-csi-helm-installer/csi-install.sh"

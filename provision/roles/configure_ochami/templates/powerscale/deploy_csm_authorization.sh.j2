@@ -1,0 +1,317 @@
+{#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#}
+{# CSM Authorization Proxy Server + CRs + Token + Sidecar (cloud-init fragment)
+   This template is included by ci-group-service_kube_control_plane_first_x86_64.yaml.j2
+   when powerscale_authorization.enabled is true.
+
+   Deployment order (must run BEFORE csi-install.sh):
+     P1: Create authorization namespace
+     P2: Helm install/upgrade CSM Authorization Proxy Server
+     P3: Wait for proxy server pods (max 5 min)
+     P4: Extract original endpoint/systemID from secret.yaml
+     P5: Apply Storage CR (from pre-rendered csm-storage-cr.yaml)
+     P6: Apply Role CRs (from pre-rendered csm-role-cr-*.yaml files)
+     P7: Apply Tenant CRs (from pre-rendered csm-tenant-cr-*.yaml files)
+     P8: Generate token via dellctl
+     P9: Apply token to isilon namespace
+     A1: Create proxy-server-root-certificate secret
+     A2: Build + create karavi-authorization-config secret
+     A3: Modify secret.yaml (endpoint → localhost:9400, add mountEndpoint)
+     A4: Re-create isilon-creds secret with sidecar configuration
+     A5: Modify CSI driver values.yaml (authorization.enabled: true)
+#}
+{% set authz_skip_cert = hostvars['localhost']['service_cluster_info'].powerscale_authorization.get('authorization_skip_certificate_validation', true) | default(true) %}
+{% set authz_tenants = hostvars['localhost']['service_cluster_info'].powerscale_authorization.tenants | default([]) %}
+                # ============================================================
+                # CSM Authorization Proxy Server Deployment (Steps P1-P3)
+                # ============================================================
+                if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
+                  echo "===== CSM Authorization: Deploying Proxy Server ====="
+                  AUTHZ_NS="authorization"
+                  AUTHZ_CHART_PATH="/opt/omnia/csi-driver-powerscale/csi-powerscale/helm-charts/charts/csm-authorization-v2.0"
+                  AUTHZ_VALUES_FILE="/opt/omnia/csi-driver-powerscale/csm-authorization/csm-authorization-values.yaml"
+
+                  # Step P1: Create authorization namespace
+                  kubectl create namespace "${AUTHZ_NS}" --dry-run=client -o yaml | kubectl apply -f - || {
+                    echo "WARNING: Failed to create authorization namespace."
+                  }
+
+                  # Step P2: Helm install/upgrade CSM Authorization Proxy Server
+                  if [ -d "$AUTHZ_CHART_PATH" ] && [ -f "$AUTHZ_VALUES_FILE" ]; then
+                    if helm list -n "${AUTHZ_NS}" --filter csm-authorization -q 2>/dev/null | grep -q csm-authorization; then
+                      echo "Upgrading existing CSM Authorization release..."
+                      helm upgrade csm-authorization "$AUTHZ_CHART_PATH" \
+                        -n "${AUTHZ_NS}" -f "$AUTHZ_VALUES_FILE" --wait --timeout 10m || {
+                        echo "ERROR: Helm upgrade for CSM Authorization failed."
+                        POWERSCALE_DEPLOYMENT_FAILED=1
+                      }
+                    else
+                      echo "Fresh install of CSM Authorization Proxy Server..."
+                      helm install csm-authorization "$AUTHZ_CHART_PATH" \
+                        -n "${AUTHZ_NS}" -f "$AUTHZ_VALUES_FILE" --wait --timeout 10m || {
+                        echo "ERROR: Helm install for CSM Authorization failed."
+                        POWERSCALE_DEPLOYMENT_FAILED=1
+                      }
+                    fi
+                  else
+                    echo "ERROR: CSM Authorization Helm chart or values file not found."
+                    echo "  Chart path: $AUTHZ_CHART_PATH"
+                    echo "  Values file: $AUTHZ_VALUES_FILE"
+                    POWERSCALE_DEPLOYMENT_FAILED=1
+                  fi
+
+                  # Step P3: Wait for proxy server pods (max 5 min)
+                  if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
+                    echo "Waiting for CSM Authorization Proxy Server pods..."
+                    MAX_ATTEMPTS=30; WAIT_TIME=10
+                    for ((i=1; i<=MAX_ATTEMPTS; i++)); do
+                      NOT_READY=$(kubectl get pods -n "${AUTHZ_NS}" --no-headers 2>/dev/null | grep -vE 'Running|Completed' | wc -l)
+                      TOTAL=$(kubectl get pods -n "${AUTHZ_NS}" --no-headers 2>/dev/null | wc -l)
+                      if [ "$NOT_READY" -eq 0 ] && [ "$TOTAL" -gt 0 ]; then
+                        echo "All CSM Authorization Proxy Server pods are running."
+                        break
+                      fi
+                      echo "[$i/$MAX_ATTEMPTS] Waiting... (${NOT_READY} not ready)"
+                      sleep $WAIT_TIME
+                    done
+                  fi
+                fi
+
+                # ============================================================
+                # CSM Authorization CRs + Token Generation (Steps P4-P9)
+                # ============================================================
+                if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
+                  echo "===== CSM Authorization: Creating CRs and Generating Token ====="
+                  SECRET_FILE="/opt/omnia/csi-driver-powerscale/secret.yaml"
+
+                  # Step P4: Extract original endpoint/systemID from secret.yaml (before modification)
+                  ORIGINAL_ENDPOINT=$(grep -v '^[[:space:]]*#' "$SECRET_FILE" | grep 'endpoint:' | head -1 | awk -F'"' '{print $2}')
+                  ORIGINAL_PORT=$(grep -v '^[[:space:]]*#' "$SECRET_FILE" | grep 'endpointPort:' | head -1 | awk '{print $2}')
+                  CLUSTER_NAME=$(grep -v '^[[:space:]]*#' "$SECRET_FILE" | grep 'clusterName:' | head -1 | awk -F'"' '{print $2}')
+                  [ -z "$ORIGINAL_PORT" ] && ORIGINAL_PORT="8080"
+                  [ -z "$CLUSTER_NAME" ] && CLUSTER_NAME="cluster1"
+                  echo "PowerScale endpoint: ${ORIGINAL_ENDPOINT}:${ORIGINAL_PORT}, systemID: ${CLUSTER_NAME}"
+
+                  # Step P5: Create Storage CR
+                  echo "Creating Storage CR for PowerScale array..."
+                  if [ -f "/opt/omnia/csi-driver-powerscale/csm-storage-cr.yaml" ]; then
+                    kubectl apply -f /opt/omnia/csi-driver-powerscale/csm-storage-cr.yaml
+                    echo "  Storage CR created"
+                  else
+                    echo "  WARNING: csm-storage-cr.yaml not found, skipping Storage CR creation"
+                  fi
+
+                  # Step P6: Create Role CRs (from pre-rendered files)
+                  echo "Creating Role CRs..."
+                  for role_file in /opt/omnia/csi-driver-powerscale/csm-role-cr-*.yaml; do
+                    if [ -f "$role_file" ]; then
+                      kubectl apply -f "$role_file"
+                      echo "  Role CR applied from $(basename $role_file)"
+                    fi
+                  done
+
+                  # Step P7: Create Tenant CRs (from pre-rendered files)
+                  echo "Creating Tenant CRs..."
+                  for tenant_file in /opt/omnia/csi-driver-powerscale/csm-tenant-cr-*.yaml; do
+                    if [ -f "$tenant_file" ]; then
+                      kubectl apply -f "$tenant_file"
+                      echo "  Tenant CR applied from $(basename $tenant_file)"
+                    fi
+                  done
+
+                  # Wait for CRDs to be processed by authorization controller
+                  echo "Waiting for CRs to be processed..."
+                  sleep 15
+
+                  # Step P8: Create karavi-config-secret with JWT signing secret
+                  JWT_SECRET_FILE="/opt/omnia/csi-driver-powerscale/csm-authorization/authz_jwt_secret.env"
+                  AUTHZ_JWT_SECRET=""
+                  if [ -f "$JWT_SECRET_FILE" ]; then
+                    source "$JWT_SECRET_FILE"
+                    echo "JWT signing secret loaded."
+                  else
+                    echo "WARNING: JWT secret file not found. Generating random secret..."
+                    AUTHZ_JWT_SECRET=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
+                  fi
+
+                  # Create config.yaml for karavi-config-secret
+                  cat > /tmp/karavi-config.yaml <<EOF
+web:
+  jwtsigningsecret: ${AUTHZ_JWT_SECRET}
+EOF
+                  kubectl create secret generic karavi-config-secret -n "${AUTHZ_NS}" \
+                    --from-file=config.yaml=/tmp/karavi-config.yaml \
+                    -o yaml --dry-run=client | kubectl apply -f -
+                  rm -f /tmp/karavi-config.yaml
+                  echo "karavi-config-secret created with auto-generated JWT signing secret."
+
+                  # Step P9: Generate token via dellctl
+                  DELLCTL_BIN="/opt/omnia/csi-driver-powerscale/dellctl"
+                  TOKEN_FILE="/tmp/proxy-authz-token.yaml"
+                  TOKEN_GENERATED=0
+
+                  if [ -f "$DELLCTL_BIN" ] && [ -n "$AUTHZ_JWT_SECRET" ]; then
+                    chmod +x "$DELLCTL_BIN"
+
+                    # Find proxy server service for port-forward
+                    PROXY_SVC=$(kubectl get svc -n "${AUTHZ_NS}" -o name 2>/dev/null | grep -i proxy | head -1)
+                    if [ -z "$PROXY_SVC" ]; then
+                      PROXY_SVC=$(kubectl get svc -n "${AUTHZ_NS}" -o name 2>/dev/null | head -1)
+                    fi
+
+                    if [ -n "$PROXY_SVC" ]; then
+                      echo "Starting port-forward to proxy server..."
+                      kubectl port-forward -n "${AUTHZ_NS}" "${PROXY_SVC}" 9443:443 &>/dev/null &
+                      PF_PID=$!
+                      sleep 5
+
+{% for tenant in authz_tenants %}
+                      echo "Generating token for tenant '{{ tenant.name }}'..."
+                      "$DELLCTL_BIN" admin token generate \
+                        --admin-name "admin" \
+                        --jwt-signing-secret "$AUTHZ_JWT_SECRET" \
+                        --tenant {{ tenant.name }} \
+                        --access-token-expiration 30m \
+                        --refresh-token-expiration 720h \
+                        --addr "localhost:9443" \
+                        --insecure true \
+                        --output "${TOKEN_FILE}" 2>/dev/null && {
+                        TOKEN_GENERATED=1
+                        echo "  Token generated for tenant '{{ tenant.name }}'."
+                      } || {
+                        echo "  WARNING: dellctl token generation failed for tenant '{{ tenant.name }}'."
+                      }
+{% endfor %}
+
+                      # Kill port-forward
+                      kill $PF_PID 2>/dev/null || true
+                      wait $PF_PID 2>/dev/null || true
+                    else
+                      echo "WARNING: No proxy server service found for port-forward."
+                    fi
+                  else
+                    [ ! -f "$DELLCTL_BIN" ] && echo "WARNING: dellctl binary not found at ${DELLCTL_BIN}."
+                    echo "  Token generation skipped. Manual steps required after deployment:"
+{% for tenant in authz_tenants %}
+                    echo "    dellctl admin token generate --admin-name admin --jwt-signing-secret <jwt-secret> --tenant {{ tenant.name }} --access-token-expiration 30m --refresh-token-expiration 720h --addr <proxy-host> --insecure true --output /tmp/token.yaml"
+                    echo "    kubectl apply -f /tmp/token.yaml -n isilon"
+{% endfor %}
+                  fi
+
+                  # Step P10: Apply token to isilon namespace
+                  if [ "$TOKEN_GENERATED" -eq 1 ] && [ -f "$TOKEN_FILE" ]; then
+                    echo "Applying authorization token to isilon namespace..."
+                    kubectl apply -f "$TOKEN_FILE" -n isilon || {
+                      echo "WARNING: Failed to apply token. Manual step required:"
+                      echo "  kubectl apply -f ${TOKEN_FILE} -n isilon"
+                    }
+                    rm -f "$TOKEN_FILE"
+                  fi
+
+                  # Cleanup: remove JWT secret from NFS (sensitive)
+                  rm -f "$JWT_SECRET_FILE"
+                fi
+
+                # ============================================================
+                # CSM Authorization Sidecar Configuration (Steps A1-A5)
+                # ============================================================
+                if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
+                  echo "===== CSM Authorization: Configuring Sidecar ====="
+                  AUTHZ_DIR="/opt/omnia/csi-driver-powerscale/csm-authorization"
+                  SECRET_FILE="/opt/omnia/csi-driver-powerscale/secret.yaml"
+                  VALUES_FILE="/opt/omnia/csi-driver-powerscale/values.yaml"
+
+                  # Re-read original values (P4 already extracted these but re-extract for safety)
+                  ORIGINAL_ENDPOINT=$(grep -v '^[[:space:]]*#' "$SECRET_FILE" | grep 'endpoint:' | head -1 | awk -F'"' '{print $2}')
+                  ORIGINAL_PORT=$(grep -v '^[[:space:]]*#' "$SECRET_FILE" | grep 'endpointPort:' | head -1 | awk '{print $2}')
+                  CLUSTER_NAME=$(grep -v '^[[:space:]]*#' "$SECRET_FILE" | grep 'clusterName:' | head -1 | awk -F'"' '{print $2}')
+                  [ -z "$ORIGINAL_PORT" ] && ORIGINAL_PORT="8080"
+                  [ -z "$CLUSTER_NAME" ] && CLUSTER_NAME="cluster1"
+
+                  # Step A1: Create proxy-server-root-certificate secret
+                  ROOT_CERT_FILE="${AUTHZ_DIR}/rootCertificate.pem"
+                  if [ -f "$ROOT_CERT_FILE" ] && [ -s "$ROOT_CERT_FILE" ]; then
+                    echo "Creating proxy-server-root-certificate secret (secure mode)..."
+                    kubectl -n isilon create secret generic proxy-server-root-certificate \
+                      --from-file=rootCertificate.pem="$ROOT_CERT_FILE" \
+                      -o yaml --dry-run=client | kubectl apply -f -
+                  else
+                    echo "Creating proxy-server-root-certificate secret (insecure mode - empty cert)..."
+                    kubectl -n isilon create secret generic proxy-server-root-certificate \
+                      --from-literal=rootCertificate.pem= \
+                      -o yaml --dry-run=client | kubectl apply -f -
+                  fi
+
+                  # Step A2: Create karavi-authorization-config secret
+                  echo "Building karavi-authorization-config from CSI driver secret..."
+                  printf '%s\n' '{' > /tmp/karavi-authorization-config.json
+                  printf '%s\n' '  "storages": [' >> /tmp/karavi-authorization-config.json
+                  printf '%s\n' '    {' >> /tmp/karavi-authorization-config.json
+                  printf '%s\n' '      "username": "ignored",' >> /tmp/karavi-authorization-config.json
+                  printf '%s\n' '      "password": "ignored",' >> /tmp/karavi-authorization-config.json
+                  printf '      "intendedEndpoint": "%s:%s"\n' "${ORIGINAL_ENDPOINT}" "${ORIGINAL_PORT}" >> /tmp/karavi-authorization-config.json
+                  printf '%s\n' '      "endpoint": "https://localhost:9400",' >> /tmp/karavi-authorization-config.json
+                  printf '      "systemID": "%s"\n' "${CLUSTER_NAME}" >> /tmp/karavi-authorization-config.json
+                  printf '%s\n' '      "skipCertificateValidation": true,' >> /tmp/karavi-authorization-config.json
+                  printf '%s\n' '      "isDefault": true' >> /tmp/karavi-authorization-config.json
+                  printf '%s\n' '    }' >> /tmp/karavi-authorization-config.json
+                  printf '%s\n' '  ]' >> /tmp/karavi-authorization-config.json
+                  printf '%s\n' '}' >> /tmp/karavi-authorization-config.json
+
+                  kubectl -n isilon create secret generic karavi-authorization-config \
+                    --from-file=config=/tmp/karavi-authorization-config.json \
+                    -o yaml --dry-run=client | kubectl apply -f -
+                  rm -f /tmp/karavi-authorization-config.json
+
+                  # Step A3: Modify secret.yaml for sidecar communication
+                  echo "Modifying CSI driver secret for authorization sidecar..."
+                  ORIGINAL_HOST=$(echo "$ORIGINAL_ENDPOINT" | sed -E 's#https?://##' | sed -E 's#:[0-9]+.*##' | sed -E 's#/.*##')
+
+                  sed -i 's/^\([[:space:]]*\)endpoint:.*/\1endpoint: "https:\/\/localhost"/' "$SECRET_FILE"
+                  sed -i 's/^\([[:space:]]*\)endpointPort:.*/\1endpointPort: 9400/' "$SECRET_FILE"
+
+                  if ! grep -q 'mountEndpoint:' "$SECRET_FILE"; then
+                    sed -i "/endpointPort:/a\\    mountEndpoint: ${ORIGINAL_HOST}" "$SECRET_FILE"
+                  else
+                    sed -i "s/^\([[:space:]]*\)mountEndpoint:.*/\1mountEndpoint: ${ORIGINAL_HOST}/" "$SECRET_FILE"
+                  fi
+
+                  sed -i 's/^\([[:space:]]*\)skipCertificateValidation:.*/\1skipCertificateValidation: true/' "$SECRET_FILE"
+
+                  # Step A4: Re-create isilon-creds secret
+                  kubectl delete secret isilon-creds -n isilon 2>/dev/null || true
+                  kubectl create secret generic isilon-creds -n isilon --from-file=config="$SECRET_FILE"
+                  echo "isilon-creds secret re-created with sidecar configuration."
+
+                  # Step A5: Modify CSI driver values.yaml to enable authorization
+                  echo "Enabling authorization in CSI driver values.yaml..."
+                  if grep -q 'authorization:' "$VALUES_FILE"; then
+                    sed -i '/^authorization:/,/^[^ ]/ {
+                      s/^\([[:space:]]*\)enabled:.*/\1enabled: true/
+                    }' "$VALUES_FILE"
+                  else
+                    echo "" >> "$VALUES_FILE"
+                    echo "authorization:" >> "$VALUES_FILE"
+                    echo "  enabled: true" >> "$VALUES_FILE"
+                  fi
+
+                  if grep -q 'skipCertificateValidation:' "$VALUES_FILE"; then
+                    sed -i '/^authorization:/,/^[^ ]/ {
+                      s/^\([[:space:]]*\)skipCertificateValidation:.*/\1skipCertificateValidation: {{ authz_skip_cert | lower }}/
+                    }' "$VALUES_FILE"
+                  fi
+
+                  echo "CSM Authorization sidecar configuration complete."
+                fi
