@@ -21,21 +21,22 @@
   tags: telemetry_deployment
 
 - name: Read CSI PowerScale driver values.yaml to detect Volume Health Monitoring
-  when: hostvars['localhost']['csi_driver_powerscale_support'] | default(false) | bool
   block:
     - name: Check if CSI PowerScale values file exists
       ansible.builtin.stat:
-        path: "{{ service_cluster_info.csi_powerscale_driver_values_file_path }}"
+        path: "{{ csi_powerscale_driver_values_file_path }}"
       register: csi_values_file_stat
-      when: service_cluster_info.csi_powerscale_driver_values_file_path is defined
+      when: csi_powerscale_driver_values_file_path is defined
+      delegate_to: localhost
 
     - name: Load CSI PowerScale values.yaml
       ansible.builtin.include_vars:
-        file: "{{ service_cluster_info.csi_powerscale_driver_values_file_path }}"
+        file: "{{ csi_powerscale_driver_values_file_path }}"
         name: csi_powerscale_values
       when:
-        - service_cluster_info.csi_powerscale_driver_values_file_path is defined
+        - csi_powerscale_driver_values_file_path is defined
         - csi_values_file_stat.stat.exists | default(false)
+      delegate_to: localhost
 
     - name: Set Volume Health Monitoring status from CSI driver values
       ansible.builtin.set_fact:
