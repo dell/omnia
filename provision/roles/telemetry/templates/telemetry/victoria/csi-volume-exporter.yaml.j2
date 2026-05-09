@@ -78,27 +78,17 @@ spec:
         component: volume-status
     spec:
       serviceAccountName: {{ csi_volume_exporter.service_account_name }}
-      initContainers:
-        - name: install-deps
-          image: {{ csi_volume_exporter.image }}
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              pip install --no-index --find-links=/packages \
-                prometheus_client kubernetes || \
-              pip install prometheus_client kubernetes
-          volumeMounts:
-            - name: python-packages
-              mountPath: /packages
-            - name: app-dir
-              mountPath: /usr/local/lib/python3.11/site-packages-shared
       containers:
         - name: exporter
           image: {{ csi_volume_exporter.image }}
           command: ["/bin/sh", "-c"]
           args:
             - |
-              cp -r /usr/local/lib/python3.11/site-packages-shared/* /usr/local/lib/python3.11/site-packages/ 2>/dev/null || true
+              pip3 install prometheus_client==0.20.0 kubernetes==33.1.0 \
+                --find-links="{{ offline_pip_module_path }}/prometheus_client==0.20.0/" \
+                --trusted-host "{{ pulp_server_ip }}" \
+                --no-index || \
+              pip3 install prometheus_client kubernetes
               mkdir -p /app
               cat > /app/exporter.py <<'PYEOF'
               from prometheus_client import start_http_server, Gauge, Counter, Info
@@ -351,16 +341,6 @@ spec:
             limits:
               cpu: {{ csi_volume_exporter.resources.limits.cpu }}
               memory: {{ csi_volume_exporter.resources.limits.memory }}
-          volumeMounts:
-            - name: app-dir
-              mountPath: /usr/local/lib/python3.11/site-packages-shared
-      volumes:
-        - name: python-packages
-          hostPath:
-            path: {{ hostvars['localhost']['k8s_client_mount_path'] }}/telemetry/python-packages
-            type: DirectoryOrCreate
-        - name: app-dir
-          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

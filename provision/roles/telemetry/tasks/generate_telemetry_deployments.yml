@@ -129,34 +129,6 @@
         dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/{{ victoria_operator_pkg }}.tar.gz"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
 
-- name: CSI Volume Exporter Python packages configuration
-  when:
-    - victoria_metrics_support | default(false) | bool
-    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
-  block:
-    - name: Create python-packages directory
-      ansible.builtin.file:
-        path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/python-packages"
-        state: directory
-        mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
-
-    - name: Extract Python package names from service_k8s.json (pip_module type)
-      ansible.builtin.set_fact:
-        csi_pip_modules: >-
-          {{ k8s_packages_json['service_k8s']['cluster']
-             | selectattr('type', 'equalto', 'pip_module')
-             | selectattr('package', 'search', 'prometheus_client|kubernetes')
-             | map(attribute='package')
-             | list }}
-
-    - name: Download Python pip_modules from Pulp
-      ansible.builtin.get_url:
-        url: "{{ offline_tarball_path }}/{{ item }}/{{ item }}"
-        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/python-packages/{{ item }}"
-        mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
-      loop: "{{ csi_pip_modules }}"
-      when: csi_pip_modules | length > 0
-
 - name: Populate common telemetry deployment configs
   ansible.builtin.template:
     src: "{{ item.src }}"
