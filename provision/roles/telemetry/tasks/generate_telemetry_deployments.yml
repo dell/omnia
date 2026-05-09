@@ -142,7 +142,12 @@
 
     - name: Extract Python package names from service_k8s.json (pip_module type)
       ansible.builtin.set_fact:
-        csi_pip_modules: "{{ k8s_packages_json['service_k8s']['cluster'] | selectattr('type', 'equalto', 'pip_module') | selectattr('package', 'search', 'prometheus_client|kubernetes') | map(attribute='package') | list }}"
+        csi_pip_modules: >-
+          {{ k8s_packages_json['service_k8s']['cluster']
+             | selectattr('type', 'equalto', 'pip_module')
+             | selectattr('package', 'search', 'prometheus_client|kubernetes')
+             | map(attribute='package')
+             | list }}
 
     - name: Download Python pip_modules from Pulp
       ansible.builtin.get_url:
@@ -167,6 +172,16 @@
     dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/idrac_telemetry_statefulset.yaml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
+  tags: telemetry_deployment
+
+- name: Populate CSI volume exporter deployment
+  ansible.builtin.template:
+    src: 'telemetry/victoria/csi-volume-exporter.yaml.j2'
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/csi-volume-exporter.yaml"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  when:
+    - powerscale_volume_health_enabled | default(false) | bool
+    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
   tags: telemetry_deployment
 
 - name: Deploy telemetry cleanup script

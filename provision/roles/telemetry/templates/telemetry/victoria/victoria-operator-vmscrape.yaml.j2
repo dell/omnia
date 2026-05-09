@@ -84,7 +84,7 @@ spec:
 {% endif %}
 
 ---
-{% if telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
+{% if powerscale_volume_health_enabled | default(false) and telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
 # VMServiceScrape for CSI Volume Exporter - PowerScale PV status metrics
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceScrape
