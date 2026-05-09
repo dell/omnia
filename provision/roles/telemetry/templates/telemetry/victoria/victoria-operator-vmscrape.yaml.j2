@@ -84,6 +84,34 @@ spec:
 {% endif %}
 
 ---
+{% if telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
+# VMServiceScrape for CSI PowerScale Controller Health Monitor
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: csi-powerscale-health-monitor
+  namespace: {{ telemetry_namespace }}
+spec:
+  # Target CSI PowerScale controller service
+  selector:
+    matchLabels:
+      app: isilon
+  
+  # Service metrics endpoints
+  endpoints:
+    - port: health-monitor
+      interval: {{ vmagent.global.scrape_interval }}
+      path: /metrics
+  
+  # Relabel configs
+  relabelConfigs:
+    - targetLabel: source
+      replacement: powerscale
+    - targetLabel: component
+      replacement: csi-health-monitor
+{% endif %}
+
+---
 {% if hostvars['localhost']['powerscale_volume_health_enabled'] | default(false) %}
 # VMNodeScrape for Kubelet Volume Health Monitoring metrics
 apiVersion: operator.victoriametrics.com/v1beta1
