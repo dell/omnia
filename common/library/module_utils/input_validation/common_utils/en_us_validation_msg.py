@@ -362,10 +362,16 @@ POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG = (
 POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
     "OTEL Collector image is required in CSM Observability values.yaml."
 )
-POWERSCALE_ADDITIONAL_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_remote_write_endpoint must have a non-empty 'url' field."
+ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG = (
+    "Each additional_metric_remote_write_endpoint must have a non-empty 'url' field."
 )
-POWERSCALE_ADDITIONAL_ENDPOINTS_URL_INVALID_MSG = (
+ADDITIONAL_METRIC_ENDPOINTS_URL_INVALID_MSG = (
+    "URL must start with 'http://' or 'https://'."
+)
+ADDITIONAL_LOG_ENDPOINTS_URL_EMPTY_MSG = (
+    "Each additional_log_write_endpoint must have a non-empty 'url' field."
+)
+ADDITIONAL_LOG_ENDPOINTS_URL_INVALID_MSG = (
     "URL must start with 'http://' or 'https://'."
 )
 def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
