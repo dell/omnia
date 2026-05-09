@@ -84,7 +84,9 @@
 
     - name: Set Volume Health Monitoring status from CSI driver values
       ansible.builtin.set_fact:
-        powerscale_volume_health_enabled: "{{ csi_powerscale_values.node.healthMonitor.enabled | default(false) | bool }}"
+        powerscale_volume_health_enabled: >-
+          {{ (csi_powerscale_values.node.healthMonitor.enabled | default(false) | bool)
+             or (csi_powerscale_values.controller.healthMonitor.enabled | default(false) | bool) }}
         cacheable: true
       when:
         - csi_powerscale_values is defined
