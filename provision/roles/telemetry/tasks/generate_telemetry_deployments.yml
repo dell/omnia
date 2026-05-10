@@ -21,6 +21,7 @@
   tags: telemetry_deployment
 
 - name: Read CSI PowerScale driver values.yaml to detect Volume Health Monitoring
+  tags: telemetry_deployment
   block:
     - name: Check if CSI PowerScale values file exists
       ansible.builtin.stat:
@@ -52,7 +53,6 @@
         powerscale_volume_health_enabled: false
         cacheable: true
       when: powerscale_volume_health_enabled is not defined
-  tags: telemetry_deployment
 
 - name: Create test directory for TLS test jobs
   ansible.builtin.file:
