@@ -291,7 +291,7 @@ csi_volume_exporter:
   cluster_role_name: "csi-volume-exporter"
   cluster_role_binding_name: "csi-volume-exporter"
   image: "{{ telemetry_images['library/python'] | default('docker.io/library/python:3.11-slim') }}"
-  metrics_port: 8080
+  metrics_port: 9090
   scrape_interval: "30s"
   scrape_interval_seconds: 30
   resources:
