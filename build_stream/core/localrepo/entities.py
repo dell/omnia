@@ -111,6 +111,9 @@ class PlaybookResult:
     timestamp: str = ""
     log_file_path: Optional[str] = None
     node_results_file_path: Optional[str] = None
+    correlation_id: Optional[str] = None
+    test_summary: Optional[Dict[str, Any]] = None
+    artifact_dir: Optional[str] = None
 
     @property
     def is_success(self) -> bool:
@@ -152,6 +155,9 @@ class PlaybookResult:
             timestamp=data.get("timestamp", ""),
             log_file_path=data.get("log_file_path"),
             node_results_file_path=data.get("node_results_file_path"),
+            correlation_id=data.get("correlation_id"),
+            test_summary=data.get("test_summary"),
+            artifact_dir=data.get("artifact_dir"),
         )
 
 

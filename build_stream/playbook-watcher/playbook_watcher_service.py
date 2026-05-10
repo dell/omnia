@@ -989,12 +989,12 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         log_secure_info("error", "Failed to create artifact directory", job_id)
         return {
             "job_id": job_id,
-            "stage_type": stage_type,
+            "stage_name": stage_type,
             "request_id": request_data.get("request_id", job_id),
             "correlation_id": correlation_id,
-            "status": "FAILED",
+            "status": "failed",
             "exit_code": 2,
-            "error_message": f"Failed to create artifact directory: {e}",
+            "error_summary": f"Failed to create artifact directory: {e}",
             "started_at": started_at.isoformat(),
             "completed_at": started_at.isoformat(),
             "duration_seconds": 0,
@@ -1046,50 +1046,84 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         except OSError:
             log_secure_info("warning", "Failed to write molecule output log", job_id)
         
-        # Determine status based on exit code
-        if result.returncode == 0:
-            status = "COMPLETED"
-        elif result.returncode == 124:  # Timeout
-            status = "FAILED"
-        else:
-            status = "FAILED"
-        
-        # Parse test_report.json if available for test summary
+        # Parse test summary from molecule_output.log (avoids stale reports from shared directory)
         test_summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0}
-        test_report_path = os.path.join(artifact_dir, "test_report.json")
-        if os.path.exists(test_report_path):
+        
+        if os.path.exists(log_file_path):
             try:
-                with open(test_report_path, 'r') as f:
-                    test_report = json.load(f)
-                    # Extract test counts from report
-                    if "summary" in test_report:
-                        test_summary.update(test_report["summary"])
-            except (json.JSONDecodeError, OSError):
-                log_secure_info("warning", "Failed to parse test_report.json", job_id)
+                import re
+                with open(log_file_path, 'r') as f:
+                    log_content = f.read()
+                    # Parse summary line: "Results:       10 passed, 1 failed, 11 skipped"
+                    results_match = re.search(r'Results:\s+(\d+)\s+passed,\s+(\d+)\s+failed,\s+(\d+)\s+skipped', log_content)
+                    if results_match:
+                        passed = int(results_match.group(1))
+                        failed = int(results_match.group(2))
+                        skipped = int(results_match.group(3))
+                        test_summary = {
+                            "total": passed + failed + skipped,
+                            "passed": passed,
+                            "failed": failed,
+                            "skipped": skipped,
+                            "errors": 0,
+                        }
+                    else:
+                        # Fallback: try parsing pytest summary line: "1 failed, 10 passed, 11 skipped"
+                        pytest_match = re.search(r'(\d+)\s+failed,\s+(\d+)\s+passed,\s+(\d+)\s+skipped', log_content)
+                        if pytest_match:
+                            failed = int(pytest_match.group(1))
+                            passed = int(pytest_match.group(2))
+                            skipped = int(pytest_match.group(3))
+                            test_summary = {
+                                "total": passed + failed + skipped,
+                                "passed": passed,
+                                "failed": failed,
+                                "skipped": skipped,
+                                "errors": 0,
+                            }
+            except (OSError, IOError, ValueError) as e:
+                log_secure_info("warning", f"Failed to parse molecule_output.log: {e}", job_id)
+        
+        # Determine status: if any test failed, mark as failed regardless of exit code
+        if test_summary["failed"] > 0 or test_summary["errors"] > 0:
+            status = "failed"
+            exit_code = 1  # Override exit code
+        elif result.returncode == 0:
+            status = "success"
+            exit_code = 0
+        elif result.returncode == 124:  # Timeout
+            status = "failed"
+            exit_code = 124
+        else:
+            status = "failed"
+            exit_code = result.returncode
         
         log_secure_info("info", "Molecule execution completed for job", job_id)
         log_secure_info("debug", "Execution status", status)
         
         result_data = {
             "job_id": job_id,
-            "stage_type": stage_type,
+            "stage_name": stage_type,  # Use stage_name not stage_type
             "request_id": request_data.get("request_id", job_id),
             "correlation_id": correlation_id,
-            "status": status,
-            "exit_code": result.returncode,
+            "status": status,  # success or failed
+            "exit_code": exit_code,
             "duration_seconds": int(duration_seconds),
             "test_summary": test_summary,
+            "artifact_dir": artifact_dir,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "timestamp": completed_at.isoformat(),
         }
         
         # Add error details if failed
-        if status == "FAILED":
-            if result.returncode == 124:
-                result_data["error_message"] = f"Molecule execution timed out after {timeout_minutes} minutes"
+        if status == "failed":
+            if exit_code == 124:
+                result_data["error_summary"] = f"Molecule execution timed out after {timeout_minutes} minutes"
+            elif test_summary["failed"] > 0:
+                result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed, {test_summary['errors']} errors"
             else:
-                result_data["error_message"] = f"Molecule exited with code {result.returncode}"
+                result_data["error_summary"] = f"Molecule exited with code {exit_code}"
         
         return result_data
         
@@ -1101,12 +1135,13 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         
         return {
             "job_id": job_id,
-            "stage_type": stage_type,
+            "stage_name": stage_type,
             "request_id": request_data.get("request_id", job_id),
             "correlation_id": correlation_id,
-            "status": "FAILED",
+            "status": "failed",
             "exit_code": 124,
-            "error_message": f"Molecule execution timed out after {timeout_minutes} minutes",
+            "error_summary": f"Molecule execution timed out after {timeout_minutes} minutes",
+            "artifact_dir": artifact_dir,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),
@@ -1121,12 +1156,13 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         
         return {
             "job_id": job_id,
-            "stage_type": stage_type,
+            "stage_name": stage_type,
             "request_id": request_data.get("request_id", job_id),
             "correlation_id": correlation_id,
-            "status": "FAILED",
+            "status": "failed",
             "exit_code": -1,
-            "error_message": f"System error during molecule execution: {str(e)}",
+            "error_summary": f"System error during molecule execution: {str(e)}",
+            "artifact_dir": artifact_dir,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),

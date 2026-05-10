@@ -301,6 +301,12 @@ class ResultPoller:
                 return
 
             if result.status == "success":
+                # For validate stage, populate result_detail BEFORE complete() to avoid version conflict
+                if result.stage_name == "validate":
+                    stage.result_detail = self._build_validate_result_detail(
+                        result, outcome="PASSED"
+                    )
+
                 stage.complete()
                 log_secure_info(
                     "info",
@@ -312,7 +318,7 @@ class ResultPoller:
                 if self._is_build_image_stage(result.stage_name):
                     self._on_build_image_success(result)
 
-                # On validate success, mark job as PASSED
+                # On validate success, mark ImageGroup PASSED
                 if result.stage_name == "validate":
                     self._on_validate_success(result)
                     JobStateHelper.handle_job_completion(
@@ -321,9 +327,9 @@ class ResultPoller:
                         uuid_generator=self._uuid_generator,
                         job_id=JobId(result.job_id),
                         correlation_id=(
-                            result.request_id.value
-                            if hasattr(result.request_id, 'value')
-                            else str(result.request_id)
+                            str(result.correlation_id)
+                            if getattr(result, "correlation_id", None)
+                            else str(self._uuid_generator.generate())
                         ),
                         client_id=str(result.job_id),
                     )
@@ -338,6 +344,13 @@ class ResultPoller:
             else:
                 error_code = result.error_code or "PLAYBOOK_FAILED"
                 error_summary = result.error_summary or "Playbook execution failed"
+
+                # For validate stage, populate result_detail BEFORE fail() to avoid version conflict
+                if result.stage_name == "validate":
+                    stage.result_detail = self._build_validate_result_detail(
+                        result, outcome="FAILED"
+                    )
+
                 stage.fail(error_code=error_code, error_summary=error_summary)
                 log_secure_info(
                     "warning",
@@ -350,6 +363,10 @@ class ResultPoller:
                 if result.stage_name == "restart":
                     self._on_restart_completed(result)
 
+                # On validate failure, mark ImageGroup FAILED
+                if result.stage_name == "validate":
+                    self._on_validate_failure(result)
+
                 # Update job state to FAILED when stage fails
                 JobStateHelper.handle_stage_failure(
                     job_repo=self._job_repo,
@@ -360,9 +377,9 @@ class ResultPoller:
                     error_code=error_code,
                     error_summary=error_summary,
                     correlation_id=(
-                        result.request_id.value
-                        if hasattr(result.request_id, 'value')
-                        else str(result.request_id)
+                        str(result.correlation_id)
+                        if getattr(result, "correlation_id", None)
+                        else str(self._uuid_generator.generate())
                     ),
                     client_id=str(result.job_id),
                 )
@@ -376,15 +393,21 @@ class ResultPoller:
                     job_id=str(result.job_id),
                 )
 
-            # Save updated stage
+            # Save updated stage and commit immediately to avoid stale API responses
             self._stage_repo.save(stage)
+            if hasattr(self._stage_repo, 'session'):
+                self._stage_repo.session.commit()
 
             # Emit audit event
             event = AuditEvent(
                 event_id=str(self._uuid_generator.generate()),
                 job_id=result.job_id,
                 event_type="STAGE_COMPLETED" if result.status == "success" else "STAGE_FAILED",
-                correlation_id=result.request_id,
+                correlation_id=(
+                    str(result.correlation_id)
+                    if getattr(result, "correlation_id", None)
+                    else str(self._uuid_generator.generate())
+                ),
                 client_id=result.job_id,  # Using job_id as client_id placeholder
                 timestamp=datetime.now(timezone.utc),
                 details={
@@ -396,10 +419,7 @@ class ResultPoller:
             )
             self._audit_repo.save(event)
 
-            # Commit both repositories if using SQL
-            # Note: Each repository may have its own session, so commit both
-            if hasattr(self._stage_repo, 'session'):
-                self._stage_repo.session.commit()
+            # Commit audit event if using SQL
             if hasattr(self._audit_repo, 'session'):
                 self._audit_repo.session.commit()
 
@@ -813,41 +833,111 @@ class ResultPoller:
                 exc_info=True,
             )
 
-    def _on_validate_success(self, result: PlaybookResult) -> None:
-        """Copy test report artifacts to artifact store on validate success.
+    def _build_validate_result_detail(self, result: PlaybookResult, outcome: str) -> dict:
+        """Build result_detail JSONB for validate stage per spec §9.3."""
+        artifact_dir = result.artifact_dir or ""
+        detail = {
+            "outcome": outcome,
+            "exit_code": result.exit_code,
+            "test_summary": result.test_summary or {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0},
+            "duration_seconds": result.duration_seconds,
+            "artifact_dir": artifact_dir,
+            "report_path": str(Path(artifact_dir) / "test_report.html") if artifact_dir else "",
+            "correlation_id": str(result.request_id),
+        }
+        if outcome == "FAILED":
+            detail["error_message"] = (
+                result.error_summary
+                or f"Molecule exited with code {result.exit_code}"
+            )
+        return detail
 
-        Copies test_report.json, test_report.html, molecule_output.log,
-        and junit.xml to {artifacts_base}/{job_id}/validate/attempt_{N}/.
-        """
+    def _on_validate_success(self, result: PlaybookResult) -> None:
+        """Transition ImageGroup to PASSED on validate success."""
+        if self._image_group_repo is None:
+            log_secure_info(
+                "warning",
+                f"ImageGroup repo not available; skipping validate status "
+                f"update for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
         try:
+            image_group = self._image_group_repo.find_by_job_id(
+                JobId(str(result.job_id))
+            )
+            if image_group is None:
+                log_secure_info(
+                    "warning",
+                    f"Validate success: No ImageGroup found for job={result.job_id}",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            self._image_group_repo.update_status(
+                image_group_id=image_group.id,
+                new_status=ImageGroupStatus.PASSED,
+            )
+            if hasattr(self._image_group_repo, 'session'):
+                self._image_group_repo.session.commit()
+
             log_secure_info(
                 "info",
                 f"Validate SUCCESS for job={result.job_id}. "
-                f"Processing test artifacts.",
+                f"ImageGroup '{image_group.id}' -> PASSED. "
+                f"test_summary={result.test_summary}",
                 job_id=str(result.job_id),
             )
         except Exception as exc:  # pylint: disable=broad-except
             log_secure_info(
                 "error",
-                f"Failed to process validate artifacts for job={result.job_id}: {exc}",
+                f"Failed to update ImageGroup to PASSED for job={result.job_id}: {exc}",
                 job_id=str(result.job_id),
                 exc_info=True,
             )
 
     def _on_validate_failure(self, result: PlaybookResult) -> None:
-        """Copy partial test report artifacts on validate failure."""
+        """Transition ImageGroup to FAILED on validate failure."""
+        if self._image_group_repo is None:
+            log_secure_info(
+                "warning",
+                f"ImageGroup repo not available; skipping validate failure "
+                f"update for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
         try:
+            image_group = self._image_group_repo.find_by_job_id(
+                JobId(str(result.job_id))
+            )
+            if image_group is None:
+                log_secure_info(
+                    "warning",
+                    f"Validate failure: No ImageGroup found for job={result.job_id}",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            self._image_group_repo.update_status(
+                image_group_id=image_group.id,
+                new_status=ImageGroupStatus.FAILED,
+            )
+            if hasattr(self._image_group_repo, 'session'):
+                self._image_group_repo.session.commit()
+
             log_secure_info(
                 "warning",
                 f"Validate FAILED for job={result.job_id}. "
-                f"exit_code={result.exit_code}, error={result.error_summary}. "
-                f"Processing partial artifacts.",
+                f"ImageGroup '{image_group.id}' -> FAILED. "
+                f"exit_code={result.exit_code}, error={result.error_summary}",
                 job_id=str(result.job_id),
             )
         except Exception as exc:  # pylint: disable=broad-except
             log_secure_info(
                 "error",
-                f"Failed to process validate failure artifacts for job={result.job_id}: {exc}",
+                f"Failed to update ImageGroup to FAILED for job={result.job_id}: {exc}",
                 job_id=str(result.job_id),
                 exc_info=True,
             )

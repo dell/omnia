@@ -186,6 +186,7 @@ class SqlStageRepository:
             existing.error_code = stage.error_code
             existing.error_summary = stage.error_summary
             existing.log_file_path = stage.log_file_path
+            existing.result_detail = stage.result_detail
             existing.version = stage.version
         else:
             stage_model = StageMapper.to_orm(stage)

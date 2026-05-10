@@ -209,7 +209,13 @@ class ValidateUseCase:
             existing_stage.stage_state = StageState.PENDING
             existing_stage.attempt = attempt
             existing_stage.version = existing_stage.version + 1  # Increment version for optimistic locking
+            existing_stage.error_code = None  # Clear error fields from previous attempt
+            existing_stage.error_summary = None
+            existing_stage.ended_at = None  # Clear ended_at from previous attempt
+            existing_stage.result_detail = None  # Clear result_detail from previous attempt
             self._stage_repo.save(existing_stage)
+            if hasattr(self._stage_repo, 'session'):
+                self._stage_repo.session.commit()
             return existing_stage
         else:
             # Create new stage if none exists
@@ -220,6 +226,8 @@ class ValidateUseCase:
                 attempt=attempt,
             )
             self._stage_repo.save(stage)
+            if hasattr(self._stage_repo, 'session'):
+                self._stage_repo.session.commit()
             return stage
 
     def _transition_job_to_validating(self, command: ValidateCommand) -> None:
@@ -274,6 +282,8 @@ class ValidateUseCase:
         try:
             stage.start()
             self._stage_repo.save(stage)
+            if hasattr(self._stage_repo, 'session'):
+                self._stage_repo.session.commit()
         except Exception as save_exc:
             log_secure_info(
                 "warning",

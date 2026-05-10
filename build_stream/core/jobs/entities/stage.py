@@ -14,9 +14,9 @@
 
 """Stage entity within Job aggregate."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from ..exceptions import InvalidStateTransitionError, TerminalStateViolationError
 from ..value_objects import JobId, StageName, StageState
@@ -51,6 +51,7 @@ class Stage:
     error_code: Optional[str] = None
     error_summary: Optional[str] = None
     log_file_path: Optional[str] = None
+    result_detail: Optional[Dict[str, Any]] = None
     version: int = 1
 
     def _initialize_timestamps(self) -> None:
