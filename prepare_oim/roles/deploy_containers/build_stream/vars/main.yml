@@ -21,6 +21,9 @@ build_stream_container_name: "omnia_build_stream"
 # Build Stream source code location (in omnia_core container)
 build_stream_source_path: "/omnia/build_stream"
 
+# Build Stream root directory for artifacts and shared data
+build_stream_root_dir: "/opt/omnia/build_stream_root"
+
 # Rsync configuration for source code deployment
 bs_rsync_options: "-av --checksum"
 bs_rsync_source: "{{ role_path }}/../../../../build_stream/"

@@ -458,8 +458,14 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             )
             return None
 
-        # Validate required fields
-        required_fields = ["job_id", "stage_name", "playbook_path"]
+        # Validate required fields - different for molecule vs ansible-playbook
+        command_type = request_data.get("command_type", "ansible-playbook")
+        
+        if command_type == "test_automation":
+            required_fields = ["job_id", "stage_type", "command_type", "scenario_names", "artifact_dir", "config_path"]
+        else:
+            required_fields = ["job_id", "stage_name", "playbook_path"]
+            
         missing_fields = [field for field in required_fields if field not in request_data]
 
         if missing_fields:
@@ -468,23 +474,59 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
 
         # Validate inputs to prevent injection
         job_id = str(request_data["job_id"])
-        stage_name = str(request_data["stage_name"])
-        playbook_name = str(request_data["playbook_path"])  # This is actually the playbook name
-
+        
         if not validate_job_id(job_id):
             log_secure_info("error", "Invalid job_id format in request", job_id[:8])
             return None
 
-        if not validate_stage_name(stage_name):
-            log_secure_info("error", "Invalid stage_name format in request", stage_name[:8])
-            return None
+        if command_type == "test_automation":
+            # Validate molecule-specific fields
+            stage_type = str(request_data["stage_type"])
+            scenario_names = request_data["scenario_names"]
+            artifact_dir = str(request_data["artifact_dir"])
+            config_path = str(request_data["config_path"])
+            
+            if not validate_stage_name(stage_type):
+                log_secure_info("error", "Invalid stage_type format in request", stage_type[:8])
+                return None
+                
+            # Validate scenario names
+            if not isinstance(scenario_names, list) or not scenario_names:
+                log_secure_info("error", "scenario_names must be a non-empty list", job_id[:8])
+                return None
+                
+            for scenario in scenario_names:
+                if not isinstance(scenario, str) or not validate_stage_name(scenario):
+                    log_secure_info("error", "Invalid scenario name format", str(scenario)[:8])
+                    return None
+                    
+            # Validate paths are within /opt/omnia/
+            if not artifact_dir.startswith("/opt/omnia/") or ".." in artifact_dir:
+                log_secure_info("error", "Invalid artifact_dir path", artifact_dir[:8])
+                return None
+                
+            if not config_path.startswith("/opt/omnia/") or ".." in config_path:
+                log_secure_info("error", "Invalid config_path", config_path[:8])
+                return None
+        else:
+            # Original ansible-playbook validation
+            stage_name = str(request_data["stage_name"])
+            playbook_name = str(request_data["playbook_path"])  # This is actually the playbook name
 
-        # Map the playbook name to its full path
-        # This returns the full path or None if validation fails
-        full_playbook_path = map_playbook_name_to_path(playbook_name)
-        if full_playbook_path is None:
-            log_secure_info("error", "Invalid or unknown playbook name in request", playbook_name[:8])
-            return None
+            if not validate_stage_name(stage_name):
+                log_secure_info("error", "Invalid stage_name format in request", stage_name[:8])
+                return None
+
+            # Map the playbook name to its full path
+            # This returns the full path or None if validation fails
+            full_playbook_path = map_playbook_name_to_path(playbook_name)
+            if full_playbook_path is None:
+                log_secure_info("error", "Invalid or unknown playbook name in request", playbook_name[:8])
+                return None
+                
+            # Store both the original playbook name and the mapped full path
+            request_data["playbook_name"] = playbook_name
+            request_data["full_playbook_path"] = full_playbook_path
 
         # Set defaults
         request_data.setdefault("correlation_id", job_id)
@@ -529,20 +571,10 @@ def parse_request_file(request_path: Path) -> Optional[Dict[str, Any]]:
             # Remove extra_args from request_data
             del request_data["extra_args"]
 
-        # Store both the original playbook name and the mapped full path
-        # The full path will be used for command execution
-        request_data["playbook_name"] = playbook_name
-        request_data["full_playbook_path"] = full_playbook_path
-
         log_secure_info(
             "info",
             "Parsed request for job",
             job_id
-        )
-        log_secure_info(
-            "debug",
-            "Stage name",
-            stage_name
         )
 
         return request_data
@@ -925,6 +957,183 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "timestamp": completed_at.isoformat(),
         }
 
+
+def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute Molecule test automation and capture results.
+    
+    Args:
+        request_data: Parsed request dictionary with molecule-specific fields
+        
+    Returns:
+        Result dictionary with execution details
+    """
+    job_id = request_data["job_id"]
+    stage_type = request_data["stage_type"]
+    scenario_names = request_data["scenario_names"]
+    artifact_dir = request_data["artifact_dir"]
+    config_path = request_data["config_path"]
+    test_suite = request_data.get("test_suite", "")
+    timeout_minutes = request_data.get("timeout_minutes", 120)
+    correlation_id = request_data.get("correlation_id", job_id)
+    
+    log_secure_info("info", "Executing molecule for job", job_id)
+    log_secure_info("debug", "Stage type", stage_type)
+    log_secure_info("debug", "Scenarios", str(scenario_names))
+    
+    started_at = datetime.now(timezone.utc)
+    
+    # Ensure artifact directory exists
+    try:
+        os.makedirs(artifact_dir, exist_ok=True)
+    except OSError as e:
+        log_secure_info("error", "Failed to create artifact directory", job_id)
+        return {
+            "job_id": job_id,
+            "stage_type": stage_type,
+            "request_id": request_data.get("request_id", job_id),
+            "correlation_id": correlation_id,
+            "status": "FAILED",
+            "exit_code": 2,
+            "error_message": f"Failed to create artifact directory: {e}",
+            "started_at": started_at.isoformat(),
+            "completed_at": started_at.isoformat(),
+            "duration_seconds": 0,
+            "timestamp": started_at.isoformat(),
+        }
+    
+    # Build molecule command - execute directly on OIM host, not via podman exec
+    # run_molecule.sh format: run_molecule.sh <scenario> <command> [--suite <suite>] [--marker <marker>]
+    cmd = [
+        "bash", "/opt/omnia/automation/run_molecule.sh",
+        scenario_names[0],  # First scenario
+        "verify"  # Use verify command for validation stage
+    ]
+    
+    # Add test suite if specified
+    if test_suite:
+        cmd.extend(["--suite", test_suite])
+    
+    # Set environment variables
+    env = os.environ.copy()
+    env["ANSIBLE_HOST_KEY_CHECKING"] = "False"
+    env["MOLECULE_REPORT_DIR"] = artifact_dir
+    
+    log_secure_info("info", "Executing molecule command for job", job_id)
+    
+    try:
+        timeout_seconds = timeout_minutes * 60
+        
+        # Execute molecule directly on OIM host
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            timeout=timeout_seconds,
+            check=False,
+            shell=False,
+            text=True,
+            env=env,
+            start_new_session=True
+        )
+        
+        completed_at = datetime.now(timezone.utc)
+        duration_seconds = (completed_at - started_at).total_seconds()
+        
+        # Write molecule output to log file
+        log_file_path = os.path.join(artifact_dir, "molecule_output.log")
+        try:
+            with open(log_file_path, 'w') as f:
+                f.write(f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}\n")
+        except OSError:
+            log_secure_info("warning", "Failed to write molecule output log", job_id)
+        
+        # Determine status based on exit code
+        if result.returncode == 0:
+            status = "COMPLETED"
+        elif result.returncode == 124:  # Timeout
+            status = "FAILED"
+        else:
+            status = "FAILED"
+        
+        # Parse test_report.json if available for test summary
+        test_summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0}
+        test_report_path = os.path.join(artifact_dir, "test_report.json")
+        if os.path.exists(test_report_path):
+            try:
+                with open(test_report_path, 'r') as f:
+                    test_report = json.load(f)
+                    # Extract test counts from report
+                    if "summary" in test_report:
+                        test_summary.update(test_report["summary"])
+            except (json.JSONDecodeError, OSError):
+                log_secure_info("warning", "Failed to parse test_report.json", job_id)
+        
+        log_secure_info("info", "Molecule execution completed for job", job_id)
+        log_secure_info("debug", "Execution status", status)
+        
+        result_data = {
+            "job_id": job_id,
+            "stage_type": stage_type,
+            "request_id": request_data.get("request_id", job_id),
+            "correlation_id": correlation_id,
+            "status": status,
+            "exit_code": result.returncode,
+            "duration_seconds": int(duration_seconds),
+            "test_summary": test_summary,
+            "started_at": started_at.isoformat(),
+            "completed_at": completed_at.isoformat(),
+            "timestamp": completed_at.isoformat(),
+        }
+        
+        # Add error details if failed
+        if status == "FAILED":
+            if result.returncode == 124:
+                result_data["error_message"] = f"Molecule execution timed out after {timeout_minutes} minutes"
+            else:
+                result_data["error_message"] = f"Molecule exited with code {result.returncode}"
+        
+        return result_data
+        
+    except subprocess.TimeoutExpired:
+        completed_at = datetime.now(timezone.utc)
+        duration_seconds = (completed_at - started_at).total_seconds()
+        
+        log_secure_info("error", "Molecule execution timed out for job", job_id)
+        
+        return {
+            "job_id": job_id,
+            "stage_type": stage_type,
+            "request_id": request_data.get("request_id", job_id),
+            "correlation_id": correlation_id,
+            "status": "FAILED",
+            "exit_code": 124,
+            "error_message": f"Molecule execution timed out after {timeout_minutes} minutes",
+            "started_at": started_at.isoformat(),
+            "completed_at": completed_at.isoformat(),
+            "duration_seconds": int(duration_seconds),
+            "timestamp": completed_at.isoformat(),
+        }
+        
+    except (OSError, subprocess.SubprocessError) as e:
+        completed_at = datetime.now(timezone.utc)
+        duration_seconds = (completed_at - started_at).total_seconds()
+        
+        log_secure_info("error", "Unexpected error executing molecule for job", job_id, exc_info=True)
+        
+        return {
+            "job_id": job_id,
+            "stage_type": stage_type,
+            "request_id": request_data.get("request_id", job_id),
+            "correlation_id": correlation_id,
+            "status": "FAILED",
+            "exit_code": -1,
+            "error_message": f"System error during molecule execution: {str(e)}",
+            "started_at": started_at.isoformat(),
+            "completed_at": completed_at.isoformat(),
+            "duration_seconds": int(duration_seconds),
+            "timestamp": completed_at.isoformat(),
+        }
+
+
 def write_result_file(result_data: Dict[str, Any], original_filename: str) -> bool:
     """Write result file to results directory.
 
@@ -1039,8 +1248,12 @@ def process_request(request_path: Path) -> None:
                 archive_request_file(processing_path)
                 return
 
-            # Execute playbook
-            result_data = execute_playbook(request_data)
+            # Execute based on command type
+            command_type = request_data.get("command_type", "ansible-playbook")
+            if command_type == "test_automation":
+                result_data = execute_molecule(request_data)
+            else:
+                result_data = execute_playbook(request_data)
 
             # Write result
             write_result_file(result_data, request_filename)
