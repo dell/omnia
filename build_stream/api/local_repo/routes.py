@@ -29,6 +29,7 @@ from api.logging_utils import log_secure_info
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,
+    StageAlreadyCompletedError,
     TerminalStateViolationError,
     UpstreamStageNotCompletedError,
 )
@@ -176,6 +177,22 @@ def create_local_repository(
             status_code=status.HTTP_409_CONFLICT,
             detail=_build_error_response(
                 "INVALID_STATE_TRANSITION",
+                exc.message,
+                correlation_id.value,
+            ).model_dump(),
+        ) from exc
+
+    except StageAlreadyCompletedError as exc:
+        log_secure_info(
+            "warning",
+            f"Local repo failed: job_id={job_id}, reason=stage_already_completed, status=409",
+            job_id=job_id,
+            end_section=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=_build_error_response(
+                "STAGE_ALREADY_COMPLETED",
                 exc.message,
                 correlation_id.value,
             ).model_dump(),
