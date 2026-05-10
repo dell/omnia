@@ -169,20 +169,18 @@ class ValidateUseCase:
                 correlation_id=str(command.correlation_id),
             )
 
-        # Check no active validate stage (QUEUED or IN_PROGRESS)
+        # Check no active validate stage (IN_PROGRESS only)
+        # PENDING is allowed since it means nothing is running
         validate_stage_name = StageName(StageType.VALIDATE.value)
         validate_stage = self._stage_repo.find_by_job_and_name(
             command.job_id, validate_stage_name
         )
-        if validate_stage is not None and validate_stage.stage_state in (
-            StageState.PENDING,
-            StageState.IN_PROGRESS,
-        ):
+        if validate_stage is not None and validate_stage.stage_state == StageState.IN_PROGRESS:
             raise InvalidStateTransitionError(
                 entity_type="Stage",
                 entity_id=f"{command.job_id}/validate",
                 from_state=validate_stage.stage_state.value,
-                to_state="QUEUED",
+                to_state=StageState.IN_PROGRESS.value,
                 correlation_id=str(command.correlation_id),
             )
 
@@ -363,7 +361,7 @@ class ValidateUseCase:
         return ValidateResponse(
             job_id=str(command.job_id),
             stage_name=StageType.VALIDATE.value,
-            status="QUEUED",
+            status="accepted",
             submitted_at=request.submitted_at,
             correlation_id=str(command.correlation_id),
             attempt=attempt,
