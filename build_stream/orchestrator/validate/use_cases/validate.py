@@ -200,15 +200,29 @@ class ValidateUseCase:
         return 1
 
     def _create_stage(self, command: ValidateCommand, attempt: int) -> Stage:
-        """Create a new job_stages record with status QUEUED."""
-        stage = Stage(
-            job_id=command.job_id,
-            stage_name=StageName(StageType.VALIDATE.value),
-            stage_state=StageState.PENDING,
-            attempt=attempt,
+        """Create or update a job_stages record with status QUEUED."""
+        validate_stage_name = StageName(StageType.VALIDATE.value)
+        existing_stage = self._stage_repo.find_by_job_and_name(
+            command.job_id, validate_stage_name
         )
-        self._stage_repo.save(stage)
-        return stage
+        
+        if existing_stage is not None:
+            # Update existing stage instead of creating duplicate
+            existing_stage.stage_state = StageState.PENDING
+            existing_stage.attempt = attempt
+            existing_stage.version = existing_stage.version + 1  # Increment version for optimistic locking
+            self._stage_repo.save(existing_stage)
+            return existing_stage
+        else:
+            # Create new stage if none exists
+            stage = Stage(
+                job_id=command.job_id,
+                stage_name=validate_stage_name,
+                stage_state=StageState.PENDING,
+                attempt=attempt,
+            )
+            self._stage_repo.save(stage)
+            return stage
 
     def _transition_job_to_validating(self, command: ValidateCommand) -> None:
         """Update job status to VALIDATING (IN_PROGRESS)."""
