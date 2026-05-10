@@ -39,9 +39,6 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["nodes/proxy"]
-    verbs: ["get", "list"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["storageclasses", "csinodes"]
     verbs: ["get", "list", "watch"]
@@ -135,22 +132,6 @@ spec:
                   'Total PowerScale PVCs by phase',
                   ['phase'])
 
-              # ── Volume usage metrics (from kubelet) ──
-              volume_used_bytes = Gauge('powerscale_volume_used_bytes',
-                  'Actual bytes used on the volume mount point',
-                  ['pv_name', 'node'])
-              volume_available_bytes = Gauge('powerscale_volume_available_bytes',
-                  'Actual bytes available on the volume mount point',
-                  ['pv_name', 'node'])
-              volume_inodes = Gauge('powerscale_volume_inodes',
-                  'Total inodes available on the volume',
-                  ['pv_name', 'node'])
-              volume_inodes_used = Gauge('powerscale_volume_inodes_used',
-                  'Inodes currently used on the volume',
-                  ['pv_name', 'node'])
-              volume_inodes_free = Gauge('powerscale_volume_inodes_free',
-                  'Remaining inodes on the volume',
-                  ['pv_name', 'node'])
 
               # ── Health event metrics (from CSI external-health-monitor-controller) ──
               volume_condition_abnormal = Gauge(
@@ -334,73 +315,6 @@ spec:
                               sc.allow_volume_expansion or False).lower()
                       ).set(1)
 
-              def collect_volume_stats(pv_to_pvc):
-                  # Query kubelet volume stats from each node
-                  nodes = v1.list_node()
-                  pv_name_to_handle = {}
-                  # Build mapping of PV name to volume handle
-                  pvs = v1.list_persistent_volume()
-                  for pv in pvs.items:
-                      ann = pv.metadata.annotations or {}
-                      prov = ann.get('pv.kubernetes.io/provisioned-by', '')
-                      if PROVISIONER not in prov:
-                          continue
-                      vol_handle = ''
-                      if pv.spec.csi and pv.spec.csi.volume_handle:
-                          vol_handle = pv.spec.csi.volume_handle
-                      pv_name_to_handle[pv.metadata.name] = vol_handle
-
-                  for node in nodes.items:
-                      node_name = node.metadata.name
-                      try:
-                          # Query kubelet volume stats via node proxy API
-                          path = f"/api/v1/nodes/{node_name}/proxy/metrics/volume_stats"
-                          response = v1.connect_get_namespaced_pod_proxy_with_path(
-                              namespace="", name="", path=path, _preload_content=False)
-                          if response.status != 200:
-                              print(f"Failed to get volume stats from node {node_name}: {response.status}")
-                              continue
-                          metrics_text = response.data.decode('utf-8')
-                          
-                          # Parse Prometheus metrics format
-                          # Expected format: kubelet_volume_stats_*{volume_name="..."} value
-                          stats = {}
-                          for line in metrics_text.split('\n'):
-                              line = line.strip()
-                              if not line or line.startswith('#'):
-                                  continue
-                              # Parse: metric_name{labels} value
-                              match = re.match(r'(\w+)\{(.+)\}\s+(\d+)', line)
-                              if match:
-                                  metric_name = match.group(1)
-                                  labels_str = match.group(2)
-                                  value = int(match.group(3))
-                                  # Extract volume_name from labels
-                                  vol_name_match = re.search(r'volume_name="([^"]+)"', labels_str)
-                                  if vol_name_match:
-                                      vol_name = vol_name_match.group(1)
-                                      if vol_name not in stats:
-                                          stats[vol_name] = {}
-                                      stats[vol_name][metric_name] = value
-                          
-                          # Match volume stats to PVs and update metrics
-                          for pv_name, vol_handle in pv_name_to_handle.items():
-                              # Try to match by volume handle (which is the volume name in stats)
-                              if vol_handle in stats:
-                                  s = stats[vol_handle]
-                                  used = s.get('kubelet_volume_stats_used_bytes', 0)
-                                  avail = s.get('kubelet_volume_stats_available_bytes', 0)
-                                  inodes = s.get('kubelet_volume_stats_inodes', 0)
-                                  inodes_used = s.get('kubelet_volume_stats_inodes_used', 0)
-                                  inodes_free = s.get('kubelet_volume_stats_inodes_free', 0)
-                                  
-                                  volume_used_bytes.labels(pv_name=pv_name, node=node_name).set(used)
-                                  volume_available_bytes.labels(pv_name=pv_name, node=node_name).set(avail)
-                                  volume_inodes.labels(pv_name=pv_name, node=node_name).set(inodes)
-                                  volume_inodes_used.labels(pv_name=pv_name, node=node_name).set(inodes_used)
-                                  volume_inodes_free.labels(pv_name=pv_name, node=node_name).set(inodes_free)
-                      except Exception as e:
-                          print(f"Error collecting volume stats from node {node_name}: {e}")
 
               def collect_all():
                   try:
@@ -409,7 +323,6 @@ spec:
                       collect_health_events(pv_to_pvc)
                       collect_node_metrics()
                       collect_storageclass_metrics()
-                      collect_volume_stats(pv_to_pvc)
                   except Exception as e:
                       print(f"Error in collection cycle: {e}")
 
