@@ -234,12 +234,22 @@
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
+    - name: Check if coresmd-coredns quadlet exists
+      ansible.builtin.stat:
+        path: "/etc/containers/systemd/coresmd-coredns.container"
+      register: coresmd_coredns_quadlet
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
     - name: Verify all post-upgrade critical containers are running
       ansible.builtin.command: podman ps --filter "name={{ item }}" --format '{% raw %}{{.Names}}{% endraw %}'
       loop: "{{ openchami_post_upgrade_critical_containers }}"
       register: verify_running
       changed_when: false
-      failed_when: verify_running.stdout | length == 0
+      failed_when: |
+        verify_running.stdout | length == 0 and
+        (item != 'coresmd-coredns' or coresmd_coredns_quadlet.stat.exists | default(false))
       delegate_to: oim
       delegate_facts: true
       connection: ssh
