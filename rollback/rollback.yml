@@ -12,8 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# ============================================================================
+# rollback.yml — User-Facing Rollback Orchestrator
+# ============================================================================
+#
+# VERSION POLICY:
+#   oim_metadata.yml is read-only. Rollback manifest fields are derived
+#   directly from it:
+#     omnia_version           →  source_version (currently installed)
+#     omnia_previous_version  →  target_version (rolling back to)
+#     upgrade_backup_dir      →  backup_dir
+#
+# LOCK POLICY:
+#   - rollback_in_progress.lock may be pre-created by omnia.sh --rollback.
+#     If present, the playbook proceeds (does NOT fail).
+#   - upgrade_in_progress.lock signals an upgrade is active. Rollback MUST
+#     fail if this lock exists.
+#   - If no rollback lock exists, the playbook creates it.
+# ============================================================================
+
 # ──────────────────────────────────────────────────────────────────────
-# Play 0: Pre-flight — read upgrade_manifest, initialize rollback_manifest
+# Play 0: Pre-flight — read oim_metadata, initialize rollback_manifest
 # ──────────────────────────────────────────────────────────────────────
 - name: Pre-flight — initialize rollback manifest and validate state
   hosts: localhost
@@ -21,35 +40,37 @@
   gather_facts: false
   tags: always
   vars:
+    metadata_path: /opt/omnia/.data/oim_metadata.yml
     upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
-    lock_path: /opt/omnia/.data/upgrade_in_progress.lock
+    upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
+    rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
     all_rollback_components: [slurm, cloud_init_bss, telemetry, k8s, oim]
   tasks:
-    # ─── Mutex lock: prevent concurrent upgrade/rollback runs ───
-    - name: Check for existing upgrade/rollback lock
+    # ─── Lock check: fail ONLY on upgrade lock; ignore rollback lock ───
+    - name: Check for active upgrade lock
       ansible.builtin.stat:
-        path: "{{ lock_path }}"
+        path: "{{ upgrade_lock_path }}"
       register: upgrade_lock_stat
 
-    - name: Read existing lock contents (if any)
+    - name: Read upgrade lock contents (if any)
       ansible.builtin.slurp:
-        src: "{{ lock_path }}"
-      register: existing_lock_raw
+        src: "{{ upgrade_lock_path }}"
+      register: upgrade_lock_raw
       when: upgrade_lock_stat.stat.exists
-      ignore_errors: true
+      failed_when: false
 
-    - name: Abort if another upgrade/rollback is in progress
+    - name: Abort if an upgrade is in progress
       ansible.builtin.fail:
         msg: |
-          Another upgrade or rollback is already in progress.
-          Lock file: {{ lock_path }}
+          An upgrade is currently in progress. Cannot start a rollback.
+          Lock file: {{ upgrade_lock_path }}
           Lock contents:
-          {{ (existing_lock_raw.content | b64decode) if (existing_lock_raw.content is defined) else '(unreadable)' }}
+          {{ (upgrade_lock_raw.content | b64decode) if (upgrade_lock_raw.content is defined) else '(unreadable)' }}
 
-          If no process is actually running (e.g., previous run crashed),
-          manually remove the lock file and re-run:
-            rm {{ lock_path }}
+          Wait for the upgrade to finish, or if no process is actually
+          running (e.g., previous run crashed), manually remove the lock:
+            rm {{ upgrade_lock_path }}
       when: upgrade_lock_stat.stat.exists
 
     - name: Ensure .data directory exists
@@ -58,36 +79,66 @@
         state: directory
         mode: '0755'
 
-    - name: Create rollback lock file
+    # ─── Create rollback lock only if it doesn't already exist ───
+    # (omnia.sh --rollback may have already created it; that's expected.)
+    - name: Check for existing rollback lock
+      ansible.builtin.stat:
+        path: "{{ rollback_lock_path }}"
+      register: rollback_lock_stat
+
+    - name: Create rollback lock file (only if absent)
       ansible.builtin.copy:
         content: |
           operation: rollback
           pid: {{ ansible_pid | default('unknown') }}
           started_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
           host: "{{ inventory_hostname }}"
-        dest: "{{ lock_path }}"
+          created_by: ansible-playbook
+        dest: "{{ rollback_lock_path }}"
         mode: '0644'
+      when: not rollback_lock_stat.stat.exists
     # ─────────────────────────────────────────────────────────────
+
+    # ─── Read oim_metadata.yml to derive version fields ───
+    - name: Read oim_metadata.yml
+      ansible.builtin.slurp:
+        src: "{{ metadata_path }}"
+      register: raw_metadata
+
+    - name: Parse oim_metadata.yml
+      ansible.builtin.set_fact:
+        oim_metadata: "{{ raw_metadata.content | b64decode | from_yaml }}"
+
+    # ─── Read upgrade_manifest.yml (for triggered_from_upgrade_id linkage) ───
+    - name: Check for upgrade_manifest.yml
+      ansible.builtin.stat:
+        path: "{{ upgrade_manifest_path }}"
+      register: upgrade_manifest_pre_stat
 
     - name: Read upgrade_manifest.yml
       ansible.builtin.slurp:
         src: "{{ upgrade_manifest_path }}"
       register: raw_upgrade_manifest
+      when: upgrade_manifest_pre_stat.stat.exists
+
     - name: Parse upgrade manifest
       ansible.builtin.set_fact:
         upgrade_manifest: "{{ raw_upgrade_manifest.content | b64decode | from_yaml }}"
+      when: upgrade_manifest_pre_stat.stat.exists
+
     - name: Resolve requested tags (handle Ansible 'all' default)
       ansible.builtin.set_fact:
         requested_tags: >-
           {{ all_rollback_components
              if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
              else ansible_run_tags }}
+
     - name: Check for existing rollback_manifest.yml
       ansible.builtin.stat:
         path: "{{ rollback_manifest_path }}"
       register: existing_rollback
 
-    # NEW: If a previous rollback completed successfully, archive the stale
+    # If a previous rollback completed successfully, archive the stale
     # rollback manifest so this run starts fresh.
     - name: Read existing rollback manifest to check status (if present)
       ansible.builtin.slurp:
@@ -122,15 +173,17 @@
       ansible.builtin.stat:
         path: "{{ rollback_manifest_path }}"
       register: existing_rollback
+
+    # ─── Initialize rollback_manifest.yml using oim_metadata as source-of-truth ───
     - name: Initialize rollback_manifest.yml (first invocation)
       ansible.builtin.copy:
         content: |
           rollback_id: "rollback-{{ 9999 | random }}"
           triggered_from_upgrade_id: "{{ upgrade_manifest.upgrade_id | default('unknown') }}"
-          source_version: "{{ upgrade_manifest.target_version | default('2.2.0.0') }}"
-          target_version: "{{ upgrade_manifest.source_version | default('2.1.0.0') }}"
+          source_version: "{{ oim_metadata.omnia_version }}"
+          target_version: "{{ oim_metadata.omnia_previous_version }}"
           rollback_status: "in-progress"
-          backup_dir: "{{ upgrade_manifest.backup_dir | default('/opt/omnia/backups') }}"
+          backup_dir: "{{ oim_metadata.upgrade_backup_dir }}"
           component_status:
             slurm: "pending"
             cloud_init_bss: "pending"
@@ -140,13 +193,16 @@
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
       when: not existing_rollback.stat.exists
+
     - name: Read rollback_manifest.yml
       ansible.builtin.slurp:
         src: "{{ rollback_manifest_path }}"
       register: raw_rollback_manifest
+
     - name: Parse rollback manifest
       ansible.builtin.set_fact:
         rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
+
     - name: Report already-rolled-back components (will be skipped)
       ansible.builtin.debug:
         msg: "Component '{{ item }}' already rolled back — will be skipped."
@@ -154,6 +210,7 @@
       when:
         - rollback_manifest.component_status[item] is defined
         - rollback_manifest.component_status[item] == 'completed'
+
 # ──────────────────────────────────────────────────────────────────────
 # Rollback sub-flows (reverse order; each reads rollback_manifest
 # and skips if its component_status is already 'completed')
@@ -161,20 +218,26 @@
 - name: Rollback Slurm cluster (rolled back first — depends on K8s/OIM)
   ansible.builtin.import_playbook: playbooks/rollback_slurm.yml
   tags: [slurm]
+
 - name: Rollback Cloud-Init and BSS parameters
   ansible.builtin.import_playbook: playbooks/rollback_cloud_init_bss.yml
   tags: [cloud_init_bss]
+
 - name: Rollback Telemetry components
   ansible.builtin.import_playbook: playbooks/rollback_telemetry.yml
   tags: [telemetry]
+
 - name: Rollback Kubernetes cluster
   ansible.builtin.import_playbook: playbooks/rollback_k8s.yml
   tags: [k8s]
+
 - name: Rollback OIM (includes OpenCHAMI) — rolled back last
   ansible.builtin.import_playbook: playbooks/rollback_oim.yml
   tags: [oim]
+
 # ──────────────────────────────────────────────────────────────────────
-# Post-rollback: finalize rollback_manifest.yml
+# Post-rollback: finalize rollback_manifest.yml + clear rollback lock
+# (oim_metadata.yml is intentionally NOT modified)
 # ──────────────────────────────────────────────────────────────────────
 - name: Finalize rollback state
   hosts: localhost
@@ -184,13 +247,14 @@
   vars:
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
-    lock_path: /opt/omnia/.data/upgrade_in_progress.lock
+    rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
     all_rollback_components: [slurm, cloud_init_bss, telemetry, k8s, oim]
   tasks:
     - name: Read rollback_manifest.yml
       ansible.builtin.slurp:
         src: "{{ rollback_manifest_path }}"
       register: raw_rollback_manifest
+
     - name: Parse rollback manifest
       ansible.builtin.set_fact:
         rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
@@ -255,9 +319,13 @@
         - new_status == 'completed'
         - upgrade_manifest_stat.stat.exists
 
+    # NOTE: oim_metadata.yml is intentionally NOT modified by upgrade or
+    # rollback flows. It is read-only and reflects the cluster's installed
+    # version baseline only.
+
     - name: Remove rollback guard lock (always release at end)
       ansible.builtin.file:
-        path: "{{ lock_path }}"
+        path: "{{ rollback_lock_path }}"
         state: absent
     # ─────────────────────────────────────────────────────────────────────────
 
