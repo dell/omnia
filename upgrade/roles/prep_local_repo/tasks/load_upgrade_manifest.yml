@@ -9,22 +9,22 @@
 # skips redundant loading.
 # ============================================================================
 
-- name: "load_config — Check if upgrade_config already loaded"
+- name: "Load config — Check if upgrade_config already loaded"
   ansible.builtin.set_fact:
     _config_already_loaded: "{{ upgrade_config is defined and upgrade_config.components is defined }}"
 
-- name: "load_config — Skip loading if already available"
+- name: "Load config — Skip loading if already available"
   ansible.builtin.debug:
     msg: "Upgrade config already loaded from manage_upgrade_inputs, skipping reload"
   when: _config_already_loaded | bool
 
-- name: "load_config — Check if upgrade_manifest.yml exists"
+- name: "Load config — Check if upgrade_manifest.yml exists"
   ansible.builtin.stat:
     path: "{{ role_path }}/../../upgrade_manifest.yml"
   register: _upgrade_config_stat
   when: not (_config_already_loaded | bool)
 
-- name: "load_config — Fail if upgrade_manifest.yml not found"
+- name: "Load config — Fail if upgrade_manifest.yml not found"
   ansible.builtin.fail:
     msg: |
       upgrade_manifest.yml not found at {{ role_path }}/../../upgrade_manifest.yml
@@ -34,48 +34,48 @@
     - not (_config_already_loaded | bool)
     - not _upgrade_config_stat.stat.exists
 
-- name: "load_config — Load upgrade_manifest.yml"
+- name: "Load config — Load upgrade_manifest.yml"
   ansible.builtin.include_vars:
     file: "{{ role_path }}/../../upgrade_manifest.yml"
     name: upgrade_config
   when: not (_config_already_loaded | bool)
 
-- name: "load_config — Validate upgrade_config structure"
+- name: "Load config — Validate upgrade_config structure"
   ansible.builtin.assert:
     that:
       - upgrade_config.components is defined
     fail_msg: "upgrade_manifest.yml is missing required sections (components)"
   when: not (_config_already_loaded | bool)
 
-- name: "load_config — Check if oim_metadata.yml exists"
+- name: "Load config — Check if oim_metadata.yml exists"
   ansible.builtin.stat:
     path: "/opt/omnia/.data/oim_metadata.yml"
   register: _oim_metadata_stat
 
-- name: "load_config — Fail if oim_metadata.yml not found"
+- name: "Load config — Fail if oim_metadata.yml not found"
   ansible.builtin.fail:
     msg: |
       oim_metadata.yml not found at /opt/omnia/.data/oim_metadata.yml
       This file contains Omnia version information after omnia_core execution.
   when: not _oim_metadata_stat.stat.exists
 
-- name: "load_config — Load oim_metadata.yml"
+- name: "Load config — Load oim_metadata.yml"
   ansible.builtin.include_vars:
     file: "/opt/omnia/.data/oim_metadata.yml"
     name: oim_metadata
 
-- name: "load_config — Extract enabled components"
+- name: "Load config — Extract enabled components"
   ansible.builtin.set_fact:
     _enabled_components: >-
-      {{ upgrade_config.components | dict2items 
-         | selectattr('value.enabled', 'equalto', true) 
+      {{ upgrade_config.components | dict2items
+         | selectattr('value.enabled', 'equalto', true)
          | list }}
 
-- name: "load_config — Set upgrade target version from oim_metadata.yml"
+- name: "Load config — Set upgrade target version from oim_metadata.yml"
   ansible.builtin.set_fact:
     upgrade_target_version: "{{ oim_metadata.omnia_version }}"
 
-- name: "load_config — Display upgrade configuration"
+- name: "Load config — Display upgrade configuration"
   ansible.builtin.debug:
     msg:
       - "=========================================="

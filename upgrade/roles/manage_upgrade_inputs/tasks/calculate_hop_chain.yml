@@ -1,7 +1,7 @@
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 ---
 
-- name: "calculate_hops — Calculate hop chain from upgrade paths"
+- name: "Calculate hops — Calculate hop chain from upgrade paths"
   calculate_upgrade_hops:
     upgrade_config: "{{ upgrade_config }}"
     current_software_config: "{{ current_software_config }}"
@@ -9,16 +9,21 @@
     target_omnia_version: "{{ upgrade_target_version }}"
   register: _hop_calculation
 
-- name: "calculate_hops — Parse hop chain result"
+- name: "Calculate hops — Parse hop chain result"
   ansible.builtin.set_fact:
     calculated_hop_chains: "{{ _hop_calculation.hop_chains }}"
     total_upgrade_hops: "{{ _hop_calculation.total_hops }}"
     upgrade_mode: "{{ _hop_calculation.upgrade_mode }}"
 
-- name: "calculate_hops — Display calculated hop chain"
+- name: "Calculate hops — Display calculated hop chain"
   ansible.builtin.debug:
     msg:
       - "Calculated Hop Chain:"
       - "  Mode: {{ upgrade_mode }}"
       - "  Total hops: {{ total_upgrade_hops }}"
-      - "{% for hop in calculated_hop_chains %}  - {{ hop.software }}/{{ hop.hop_id }}: {{ hop.from_version }} → {{ hop.to_version }} (Omnia {{ hop.from_omnia_version }} → {{ hop.to_omnia_version }}){% endfor %}"
+      - >-
+        {% for hop in calculated_hop_chains %}
+        - {{ hop.software }}/{{ hop.hop_id }}: {{ hop.from_version }} →
+        {{ hop.to_version }} (Omnia {{ hop.from_omnia_version }} →
+        {{ hop.to_omnia_version }})
+        {% endfor %}

@@ -20,7 +20,7 @@
 # that support versioned repositories (like slurm_custom).
 # ============================================================================
 
-- name: "json_repos - Update component JSON files with version-specific repo names"
+- name: "JSON repos — Update component JSON files with version-specific repo names"
   update_component_json_repos:
     input_dir: "{{ input_project_dir }}"
     calculated_hop_chains: "{{ calculated_hop_chains | default([]) }}"
@@ -30,11 +30,11 @@
       # Add other components here that support versioned repositories
   register: _json_repo_update_result
 
-- name: "json_repos - Parse update result"
+- name: "JSON repos — Parse update result"
   ansible.builtin.set_fact:
     _json_repo_update_summary: "{{ _json_repo_update_result }}"
 
-- name: "json_repos - Display update summary"
+- name: "JSON repos — Display update summary"
   ansible.builtin.debug:
     msg:
       - "=========================================="

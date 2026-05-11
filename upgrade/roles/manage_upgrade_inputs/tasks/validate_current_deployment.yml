@@ -1,34 +1,34 @@
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 ---
 
-- name: "validate — Load current software_config.json"
+- name: "Validate — Load current software_config.json"
   ansible.builtin.slurp:
     path: "{{ input_project_dir }}/software_config.json"
   register: _sw_config_content
 
-- name: "validate — Parse software_config.json"
+- name: "Validate — Parse software_config.json"
   ansible.builtin.set_fact:
     current_software_config: "{{ _sw_config_content.content | b64decode | from_json }}"
 
-- name: "validate — Extract current versions"
+- name: "Validate — Extract current versions"
   ansible.builtin.set_fact:
     current_versions: >-
-      {{ current_software_config.softwares 
+      {{ current_software_config.softwares
          | selectattr('version', 'defined')
          | items2dict(key_name='name', value_name='version') }}
 
-- name: "validate — Check oim_metadata for deployment info"
+- name: "Validate — Check oim_metadata for deployment info"
   ansible.builtin.slurp:
     path: /opt/omnia/.data/oim_metadata.yml
   register: _oim_metadata_content
   failed_when: false
 
-- name: "validate — Parse oim_metadata"
+- name: "Validate — Parse oim_metadata"
   ansible.builtin.set_fact:
     oim_metadata: "{{ _oim_metadata_content.content | b64decode | from_yaml }}"
   when: _oim_metadata_content is succeeded
 
-- name: "validate - Verify current versions exist for enabled components"
+- name: "Validate — Verify current versions exist for enabled components"
   ansible.builtin.assert:
     that:
       - current_versions[item.key] is defined
@@ -41,7 +41,7 @@
   loop_control:
     label: "{{ item.key }}"
 
-- name: "validate - Check Omnia upgrade paths exist for current version"
+- name: "Validate — Check Omnia upgrade paths exist for current version"
   ansible.builtin.assert:
     that:
       - upgrade_config.omnia_upgrade_paths[upgrade_source_version] is defined
@@ -52,16 +52,20 @@
   when: upgrade_source_version is defined
   run_once: true
 
-- name: "validate - Check JSON files exist for current version"
+- name: "Validate — Check JSON files exist for current version"
   ansible.builtin.stat:
-    path: "{{ input_project_dir }}/config/{{ item.1 }}/{{ current_software_config.cluster_os_type }}/{{ current_software_config.cluster_os_version }}/{{ item.0.key }}_v{{ current_versions[item.0.key] }}.json"
+    path: >-
+      {{ input_project_dir }}/config/{{ item.1 }}/{{
+      current_software_config.cluster_os_type }}/{{
+      current_software_config.cluster_os_version }}/{{
+      item.0.key }}_v{{ current_versions[item.0.key] }}.json
   register: _json_exists
   loop: "{{ enabled_components | product(upgrade_active_architectures) | list }}"
   loop_control:
     label: "{{ item.0.key }}/{{ item.1 }}"
   when: current_versions[item.0.key] is defined
 
-- name: "validate - Fail if JSON files missing"
+- name: "Validate — Fail if JSON files missing"
   ansible.builtin.fail:
     msg: |
       JSON file not found for {{ item.item.0.key }} version {{ current_versions[item.item.0.key] }}: {{ item.invocation.module_args.path }}
@@ -70,11 +74,11 @@
   loop: "{{ _json_exists.results }}"
   loop_control:
     label: "{{ item.item.0.key }}"
-  when: 
+  when:
     - item.stat is defined
     - not item.stat.exists
 
-- name: "validate — Display validation results"
+- name: "Validate — Display validation results"
   ansible.builtin.debug:
     msg:
       - "  Current deployment validated"

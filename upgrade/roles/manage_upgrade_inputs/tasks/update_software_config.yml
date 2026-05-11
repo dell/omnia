@@ -1,18 +1,18 @@
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 ---
 
-- name: "update — Update software_config.json with target versions"
+- name: "Update — Update software_config.json with target versions"
   update_software_config:
     input_file: "{{ input_project_dir }}/software_config.json"
     hop_chains: "{{ calculated_hop_chains }}"
     upgrade_mode: "{{ upgrade_mode }}"
   register: _update_result
 
-- name: "update — Parse update result"
+- name: "Update — Parse update result"
   ansible.builtin.set_fact:
     _update_summary: "{{ _update_result }}"
 
-- name: "update — Display update results"
+- name: "Update — Display update results"
   ansible.builtin.debug:
     msg:
       - "✓ software_config.json updated"

@@ -18,17 +18,17 @@
 # unnecessary re-syncing.
 # ============================================================================
 
-- name: "staging — Create staging directory"
+- name: "Staging — Create staging directory"
   ansible.builtin.tempfile:
     state: directory
     prefix: "upgrade_local_repo_"
   register: _staging_dir
 
-- name: "staging — Set staging path fact"
+- name: "Staging — Set staging path fact"
   ansible.builtin.set_fact:
     upgrade_staging_dir: "{{ _staging_dir.path }}"
 
-- name: "staging — Extract architectures from software_config.json"
+- name: "Staging — Extract architectures from software_config.json"
   ansible.builtin.set_fact:
     _all_architectures: >-
       {{
@@ -40,17 +40,17 @@
         | list
       }}
 
-- name: "staging — Set upgrade_active_architectures from software_config.json"
+- name: "Staging — Set upgrade_active_architectures from software_config.json"
   ansible.builtin.set_fact:
     upgrade_active_architectures: "{{ _all_architectures }}"
 
-- name: "staging — Display detected architectures"
+- name: "Staging — Display detected architectures"
   ansible.builtin.debug:
     msg:
       - "Architectures detected from software_config.json: {{ _all_architectures | join(', ') }}"
       - "Will process all detected architectures for upgrade"
 
-- name: "staging — Create staging with modified configs"
+- name: "Staging — Create staging with modified configs"
   create_upgrade_staging:
     staging_dir: "{{ _staging_dir.path }}"
     input_dir: "{{ input_project_dir }}"
@@ -62,11 +62,11 @@
     calculated_hop_chains: "{{ calculated_hop_chains | default([]) }}"
   register: _staging_result
 
-- name: "staging — Parse staging result"
+- name: "Staging — Parse staging result"
   ansible.builtin.set_fact:
     _staging_summary: "{{ _staging_result }}"
 
-- name: "staging — Display staging summary"
+- name: "Staging — Display staging summary"
   ansible.builtin.debug:
     msg:
       - "=========================================="

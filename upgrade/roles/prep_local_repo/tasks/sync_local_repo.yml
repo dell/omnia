@@ -12,12 +12,12 @@
 # We initialise those variables here so the role works standalone.
 # ============================================================================
 
-- name: "sync — Set input_project_dir to staging for local_repo roles"
+- name: "Sync — Set input_project_dir to staging for local_repo roles"
   ansible.builtin.set_fact:
     _original_input_project_dir: "{{ input_project_dir }}"
     input_project_dir: "{{ upgrade_staging_dir }}"
 
-- name: "sync — Set variables for local_repo roles"
+- name: "Sync — Set variables for local_repo roles"
   ansible.builtin.set_fact:
     sw_config_json_path: "{{ upgrade_staging_dir }}/software_config.json"
     local_repo_config_file: "{{ upgrade_staging_dir }}/local_repo_config.yml"
@@ -28,35 +28,35 @@
     playbook_start_time: "{{ ansible_date_time.epoch }}"
 
 # Initialise sub_final_repo_urls (normally set by validate_subscription role)
-- name: "sync — Initialise subscription repo URLs"
+- name: "Sync — Initialise subscription repo URLs"
   ansible.builtin.set_fact:
     sub_final_repo_urls: "{{ sub_final_repo_urls | default({}) }}"
 
 # Get actual Pulp URL from pulp status command (same as pulp_validation role)
-- name: "sync — Get Pulp status"
+- name: "Sync — Get Pulp status"
   ansible.builtin.command: /usr/local/bin/pulp status
   delegate_to: localhost
   changed_when: false
   register: _pulp_status_output
 
-- name: "sync — Set Pulp connection variables from pulp status"
+- name: "Sync — Set Pulp connection variables from pulp status"
   ansible.builtin.set_fact:
     pulp_content_origin: "{{ (_pulp_status_output.stdout | from_json).content_settings.content_origin }}"
 
-- name: "sync — Parse Pulp connection details"
+- name: "Sync — Parse Pulp connection details"
   ansible.builtin.set_fact:
     pulp_protocol: "{{ pulp_content_origin | urlsplit('scheme') | lower }}"
     pulp_server_ip: "{{ pulp_content_origin | urlsplit('hostname') }}"
     pulp_server_port: "{{ pulp_content_origin | urlsplit('port') }}"
 
-- name: "sync — Add oim host to inventory"
+- name: "Sync — Add oim host to inventory"
   ansible.builtin.add_host:
     name: oim
     pulp_protocol: "{{ pulp_protocol }}"
     pulp_server_port: "{{ pulp_server_port }}"
     ansible_connection: local
 
-- name: "sync — Display sync configuration"
+- name: "Sync — Display sync configuration"
   ansible.builtin.debug:
     msg:
       - "Starting local repo sync..."
@@ -64,19 +64,19 @@
       - "Softwares: {{ software_names | join(', ') }}"
       - "Pulp: {{ pulp_content_origin }}"
 
-- name: "sync — Run validation role"
+- name: "Sync — Run validation role"
   ansible.builtin.include_role:
     name: "{{ role_path }}/../../../local_repo/roles/validation"
 
-- name: "sync — Run parse_and_download role"
+- name: "Sync — Run parse_and_download role"
   ansible.builtin.include_role:
     name: "{{ role_path }}/../../../local_repo/roles/parse_and_download"
 
-- name: "sync — Restore original input_project_dir"
+- name: "Sync — Restore original input_project_dir"
   ansible.builtin.set_fact:
     input_project_dir: "{{ _original_input_project_dir }}"
 
-- name: "sync — Display sync completion"
+- name: "Sync — Display sync completion"
   ansible.builtin.debug:
     msg:
       - "=========================================="

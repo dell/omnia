@@ -1,7 +1,7 @@
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 ---
 
-- name: "validate_hops - Process hop chains for multi-hop upgrades"
+- name: "Validate hops — Process hop chains for multi-hop upgrades"
   ansible.builtin.set_fact:
     _processed_hops: >-
       {%- set hops = [] -%}
@@ -21,13 +21,17 @@
       {%- endfor -%}
       {{ hops }}
 
-- name: "validate_hops - Display processed hops"
+- name: "Validate hops — Display processed hops"
   ansible.builtin.debug:
     msg:
       - "Processed {{ _processed_hops | length }} hop(s):"
-      - "{% for hop in _processed_hops %}  - {{ hop.software }}/{{ hop.hop_id }}: {{ hop.from_version }} -> {{ hop.to_version }} (Omnia {{ hop.omnia_version }}){% endfor %}"
+      - >-
+        {% for hop in _processed_hops %}
+        - {{ hop.software }}/{{ hop.hop_id }}: {{ hop.from_version }} ->
+        {{ hop.to_version }} (Omnia {{ hop.omnia_version }})
+        {% endfor %}
 
-- name: "validate_hops - Validate hop chain sequence"
+- name: "Validate hops — Validate hop chain sequence"
   ansible.builtin.assert:
     that:
       - item.from_version == current_versions.get(item.software, 'not_found')
@@ -41,15 +45,19 @@
     label: "{{ item.software }}/{{ item.hop_id }}"
   when: upgrade_mode == 'multi_hop'
 
-- name: "validate_hops - Check JSON files exist for all hop targets"
+- name: "Validate hops — Check JSON files exist for all hop targets"
   ansible.builtin.stat:
-    path: "{{ input_project_dir }}/config/{{ item.1 }}/{{ current_software_config.cluster_os_type }}/{{ current_software_config.cluster_os_version }}/{{ item.0.json_file }}"
+    path: >-
+      {{ input_project_dir }}/config/{{ item.1 }}/{{
+      current_software_config.cluster_os_type }}/{{
+      current_software_config.cluster_os_version }}/{{
+      item.0.json_file }}
   register: _hop_json_check
   loop: "{{ _processed_hops | product(upgrade_active_architectures) | list }}"
   loop_control:
     label: "{{ item.0.software }}/{{ item.0.hop_id }}/{{ item.1 }}"
 
-- name: "validate_hops - Fail if hop JSON files missing"
+- name: "Validate hops — Fail if hop JSON files missing"
   ansible.builtin.fail:
     msg: |
       JSON file not found for hop {{ item.0.software }}/{{ item.0.hop_id }}: {{ item.invocation.module_args.path }}
@@ -57,12 +65,12 @@
   loop: "{{ _hop_json_check.results }}"
   loop_control:
     label: "{{ item.0.software }}/{{ item.0.hop_id }}"
-  when: 
+  when:
     - item.stat is defined
     - not item.stat.exists
     - upgrade_mode == 'multi_hop'
 
-- name: "validate_hops - Set hop chain facts for downstream roles"
+- name: "Validate hops — Set hop chain facts for downstream roles"
   ansible.builtin.set_fact:
     upgrade_hop_chain: "{{ _processed_hops }}"
     total_upgrade_hops: "{{ _processed_hops | length }}"

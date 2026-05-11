@@ -1,7 +1,7 @@
 # Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 ---
 
-- name: "summary — Display upgrade input summary"
+- name: "Summary — Display upgrade input summary"
   ansible.builtin.debug:
     msg:
       - "=========================================="
@@ -11,14 +11,24 @@
       - "Mode: {{ upgrade_mode | default('single_hop') }}"
       - "Omnia: {{ upgrade_source_version }} → {{ upgrade_target_version }}"
       - ""
-      - "{% if upgrade_mode == 'multi_hop' %}Multi-Hop Upgrade Path:{% else %}Upgrade Path:{% endif %}"
-      - "{% for hop in calculated_hop_chains %}  - {{ hop.software }}/{{ hop.hop_id }}: {{ hop.from_version }} → {{ hop.to_version }} (Omnia {{ hop.from_omnia_version }} → {{ hop.to_omnia_version }}){% endfor %}"
+      - >-
+        {% if upgrade_mode == 'multi_hop' %}
+        Multi-Hop Upgrade Path:
+        {% else %}
+        Upgrade Path:
+        {% endif %}
+      - >-
+        {% for hop in calculated_hop_chains %}
+        - {{ hop.software }}/{{ hop.hop_id }}: {{ hop.from_version }} →
+        {{ hop.to_version }} (Omnia {{ hop.from_omnia_version }} →
+        {{ hop.to_omnia_version }})
+        {% endfor %}
       - ""
       - "Total Hops: {{ total_upgrade_hops }}"
       - "Backup: {{ upgrade_backup_dir }}"
       - "=========================================="
 
-- name: "summary — Set upgrade facts for downstream roles"
+- name: "Summary — Set upgrade facts for downstream roles"
   ansible.builtin.set_fact:
     upgrade_inputs_complete: true
     upgrade_backup_location: "{{ upgrade_backup_dir }}"

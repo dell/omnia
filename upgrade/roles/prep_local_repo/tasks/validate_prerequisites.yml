@@ -7,34 +7,34 @@
 # Reuses current_software_config from manage_upgrade_inputs if available.
 # ============================================================================
 
-- name: "validate — Check if software config already loaded"
+- name: "Validate — Check if software config already loaded"
   ansible.builtin.set_fact:
     _sw_config_already_loaded: "{{ current_software_config is defined and current_software_config.softwares is defined }}"
 
-- name: "validate — Reuse existing software config"
+- name: "Validate — Reuse existing software config"
   ansible.builtin.set_fact:
     _current_software_config: "{{ current_software_config }}"
   when: _sw_config_already_loaded | bool
 
-- name: "validate — Load current software_config.json"
+- name: "Validate — Load current software_config.json"
   ansible.builtin.slurp:
     path: "{{ input_project_dir }}/software_config.json"
   register: _current_sw_config
   when: not (_sw_config_already_loaded | bool)
 
-- name: "validate — Parse software_config.json"
+- name: "Validate — Parse software_config.json"
   ansible.builtin.set_fact:
     _current_software_config: "{{ _current_sw_config.content | b64decode | from_json }}"
   when: not (_sw_config_already_loaded | bool)
 
-- name: "validate - Extract current versions for enabled components"
+- name: "Validate — Extract current versions for enabled components"
   ansible.builtin.set_fact:
     _current_versions: >-
-      {{ _current_software_config.softwares 
+      {{ _current_software_config.softwares
          | selectattr('name', 'in', _enabled_components | map(attribute='key') | list)
          | items2dict(key_name='name', value_name='version') }}
 
-- name: "validate - Verify current versions exist for enabled components"
+- name: "Validate — Verify current versions exist for enabled components"
   ansible.builtin.assert:
     that:
       - _current_versions[item.key] is defined
@@ -47,16 +47,20 @@
   loop_control:
     label: "{{ item.key }}"
 
-- name: "validate - Check current version JSON files exist in input directory"
+- name: "Validate — Check current version JSON files exist in input directory"
   ansible.builtin.stat:
-    path: "{{ input_project_dir }}/config/{{ item.1 }}/{{ _current_software_config.cluster_os_type }}/{{ _current_software_config.cluster_os_version }}/{{ item.0.key }}_v{{ _current_versions[item.0.key] }}.json"
+    path: >-
+      {{ input_project_dir }}/config/{{ item.1 }}/{{
+      _current_software_config.cluster_os_type }}/{{
+      _current_software_config.cluster_os_version }}/{{
+      item.0.key }}_v{{ _current_versions[item.0.key] }}.json
   register: _json_file_check
   loop: "{{ _enabled_components | product(upgrade_active_architectures) | list }}"
   loop_control:
     label: "{{ item.0.key }} ({{ item.1 }})"
   when: _current_versions[item.0.key] is defined
 
-- name: "validate - Verify JSON files exist"
+- name: "Validate — Verify JSON files exist"
   ansible.builtin.assert:
     that:
       - item.stat.exists
@@ -69,17 +73,17 @@
     label: "{{ item.invocation.module_args.path | basename }}"
   when: item.stat is defined
 
-- name: "validate — Check repos.yml exists"
+- name: "Validate — Check repos.yml exists"
   ansible.builtin.stat:
     path: "{{ role_path }}/../../artifacts/repos.yml"
   register: _repos_yml_stat
 
-- name: "validate — Warn if repos.yml not found"
+- name: "Validate — Warn if repos.yml not found"
   ansible.builtin.debug:
     msg: "Warning: repos.yml not found at {{ role_path }}/../../artifacts/repos.yml - upgrade repos may not be available"
   when: not _repos_yml_stat.stat.exists
 
-- name: "validate - Display validation summary"
+- name: "Validate — Display validation summary"
   ansible.builtin.debug:
     msg:
       - "  Prerequisites validated"
