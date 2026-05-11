@@ -248,6 +248,12 @@ if [ "$CLEAN_VECTOR_LDMS" = true ]; then
     # Delete Vector-LDMS pods
     delete_all pod "app={{ vector.ldms.app_name }}"
     
+    # vmagent-vector write-buffer (deployed alongside Vector-LDMS)
+    echo "Deleting vmagent-vector write-buffer..."
+    delete_resource deployment vmagent-vector
+    delete_resource service vmagent-vector
+    delete_all pod "app=vmagent-vector"
+    
     echo "Note: kafkapump KafkaUser secret is shared with LDMS store_avro_kafka"
     echo "      and is NOT deleted during Vector-LDMS cleanup."
     
@@ -272,6 +278,12 @@ if [ "$CLEAN_VECTOR_OME" = true ]; then
     
     # Delete Vector-OME KafkaUser (dedicated, not shared)
     delete_resource kafkauser {{ vector.ome.kafka_user }}
+    
+    # vlagent-vector log write-buffer (deployed alongside Vector-OME logs)
+    echo "Deleting vlagent-vector log write-buffer..."
+    delete_resource deployment vlagent-vector
+    delete_resource service vlagent-vector
+    delete_all pod "app=vlagent-vector"
     
     echo "Note: Vector-OME KafkaUser '{{ vector.ome.kafka_user }}' is dedicated and has been deleted."
     
@@ -581,9 +593,11 @@ if [ "$CLEAN_LDMS" = true ]; then
 fi
 if [ "$CLEAN_VECTOR_LDMS" = true ]; then
     kubectl -n $NAMESPACE delete pod -l app={{ vector.ldms.app_name }} --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app=vmagent-vector --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
 fi
 if [ "$CLEAN_VECTOR_OME" = true ]; then
     kubectl -n $NAMESPACE delete pod -l app={{ vector.ome.app_name }} --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app=vlagent-vector --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
 fi
 if [ "$CLEAN_IDRAC" = true ]; then
     kubectl -n $NAMESPACE delete pod -l app=idrac-telemetry --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true

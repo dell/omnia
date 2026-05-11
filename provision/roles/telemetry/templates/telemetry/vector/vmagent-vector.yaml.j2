@@ -29,7 +29,7 @@ metadata:
     managed-by: omnia
 spec:
   # Replica count: 1 (stateless, can scale if needed)
-  replicaCount: 1
+  replicaCount: {{ vector.vmagent_vector.replicas }}
 
   # Image configuration
   image:
