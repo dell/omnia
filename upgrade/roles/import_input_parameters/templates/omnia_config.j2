@@ -231,8 +231,8 @@ service_k8s_cluster:
     k8s_service_addresses: "{{ _cluster.k8s_service_addresses | default('') }}"
     k8s_pod_network_cidr: "{{ _cluster.k8s_pod_network_cidr | default('') }}"
     nfs_storage_name: "{{ _cluster.nfs_storage_name | default('') }}"
+    k8s_crio_storage_size: "{{ _cluster.k8s_crio_storage_size | default('20G') }}"
     csi_powerscale_driver_secret_file_path: "{{ _cluster.csi_powerscale_driver_secret_file_path | default('') }}"
     csi_powerscale_driver_values_file_path: "{{ _cluster.csi_powerscale_driver_values_file_path | default('') }}"
-    k8s_crio_storage_size: {{ _cluster.k8s_crio_storage_size | default('20G') }}
 {% endfor %}
 {% endif %}

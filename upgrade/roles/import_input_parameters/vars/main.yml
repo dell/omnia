@@ -226,6 +226,8 @@ msg_network_spec_transform_summary: |
   Backup preserved at: {{ backup_location }}/network_spec.yml
   Changes:
   - Added subnet field under admin_network
+  - Added additional_subnets field under admin_network (default: empty)
+  - Added dns field under ib_network (default: empty)
   - Preserved ib_network configuration
   - Aligned ib_network.netmask_bits with admin_network.netmask_bits
 
@@ -275,18 +277,22 @@ msg_omnia_config_transform_summary: |
 
 # Restore summary message for telemetry config transformation
 msg_telemetry_config_transform_summary: |
-  telemetry_config.yml upgraded to 2.2 format with enhanced field mapping.
+  telemetry_config.yml upgraded to 2.2 format with restructured architecture.
   Backup preserved at: {{ backup_location }}/telemetry_config.yml
   Changes:
-  - Preserved existing iDRAC, VictoriaMetrics, Kafka, LDMS settings from 2.1 backup
-  - Enhanced field mapping: idrac_telemetry_collection_type → telemetry_collection_type
-  - Enhanced field mapping: victoria_configurations → victoria_metrics_configurations
-  - Added DCGM (GPU telemetry) section with default dcgm_support=true
-  - Added VictoriaLogs section with default storage and retention settings
-  - Added PowerScale telemetry configuration section
-  - Removed single-node VM deployment mode references
-  - Added validation for telemetry_collection_type values
-  - Corrected LDMS sampler intervals to 30-second intervals
+  - Restructured to telemetry_sources / telemetry_bridges / telemetry_sinks architecture
+  - Mapped idrac_telemetry_support → telemetry_sources.idrac.metrics_enabled
+  - Mapped idrac_telemetry_collection_type → telemetry_sources.idrac.collection_targets
+  - Mapped victoria_configurations → telemetry_sinks.victoria_metrics
+  - Mapped kafka_configurations → telemetry_sinks.kafka (topic_partitions list → dict)
+  - Mapped ldms_* ports and sampler configs → ldms_configurations section
+  - Added telemetry_sources.ldms (metrics_enabled, collection_targets) with defaults
+  - Added telemetry_sources.dcgm with default metrics_enabled=true
+  - Added telemetry_sources.powerscale with default metrics and logs enabled
+  - Added telemetry_bridges section (vector_ldms, vector_ome) with defaults
+  - Added telemetry_sinks.victoria_logs with default storage and retention
+  - Removed single-node VM deployment mode (always cluster in 2.2)
+  - Updated powerscale_configurations (removed source-level fields, kept otel/csm settings)
 
 # Restore summary message for software config transformation
 msg_software_config_transform_summary: |
@@ -342,7 +348,7 @@ telemetry_default_dcgm_support: true
 telemetry_default_victoria_logs_storage_size: "8Gi"
 telemetry_default_victoria_logs_retention_period: 168
 telemetry_default_powerscale_support: true
-telemetry_default_powerscale_log_enabled: false
+telemetry_default_powerscale_log_enabled: true
 telemetry_default_otel_collector_storage_size: "5Gi"
 telemetry_default_csm_observability_values_file_path: ""
 
