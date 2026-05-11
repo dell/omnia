@@ -95,7 +95,9 @@
       - gitlab_min_storage_gb | int >= 20
       - gitlab_min_memory_gb | int >= 4
       - gitlab_min_cpu_cores | int >= 2
-    fail_msg: "GitLab minimum requirements not met: storage={{ gitlab_min_storage_gb }}GB (min 20GB), memory={{ gitlab_min_memory_gb }}GB (min 4GB), CPU={{ gitlab_min_cpu_cores }} cores (min 2)"
+    fail_msg: >-
+      GitLab minimum requirements not met: storage={{ gitlab_min_storage_gb }}GB (min 20GB),
+      memory={{ gitlab_min_memory_gb }}GB (min 4GB), CPU={{ gitlab_min_cpu_cores }} cores (min 2)
     success_msg: "GitLab minimum requirements validated"
 
 - name: Write gitlab_config.yml with Omnia 2.2 defaults
@@ -131,7 +133,7 @@
   ansible.builtin.debug:
     msg: |
       {{ msg_gitlab_config_transform_summary }}
-      
+
       Values migrated from backup:
       - gitlab_host: {{ gitlab_host | default('empty') }}
       - gitlab_project_name: {{ gitlab_project_name }}
@@ -139,7 +141,7 @@
       - gitlab_default_branch: {{ gitlab_default_branch }}
       - gitlab_https_port: {{ gitlab_https_port }}
       - Minimum requirements: {{ gitlab_min_storage_gb }}GB storage, {{ gitlab_min_memory_gb }}GB RAM, {{ gitlab_min_cpu_cores }} CPU cores
-      
+
       Note: Configuration migrated from backup and validated successfully.
 
 - name: Display backup path (no-op when skipped)

@@ -104,13 +104,13 @@
   ansible.builtin.debug:
     msg: |
       {{ msg_build_stream_config_transform_summary }}
-      
+
       Values migrated from backup:
       - enable_build_stream: {{ build_stream_enable }}
       - build_stream_host_ip: {{ build_stream_host_ip | default('empty') }}
       - build_stream_port: {{ build_stream_port }}
       - aarch64_inventory_host_ip: {{ build_stream_aarch64_ip | default('empty') }}
-      
+
       Note: Configuration migrated from backup and validated successfully.
 
 - name: Display backup path (no-op when skipped)
