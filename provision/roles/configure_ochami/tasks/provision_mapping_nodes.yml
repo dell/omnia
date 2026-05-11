@@ -170,3 +170,8 @@
     - name: Configure the hostname
       ansible.builtin.command: /usr/bin/ochami cloud-init node set -f yaml -d @"{{ openchami_hostname_vars_path }}"
       changed_when: true
+
+    - name: Create cloud-init groups dict
+      ansible.builtin.set_fact:
+        cloud_init_groups_dict: "{{ cloud_init_groups_dict | default({}) | combine({item: {}}) }}"
+      with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"

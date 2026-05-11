@@ -11,7 +11,6 @@
         settings: [append]
       - name: dict
         settings: [no_replace, recurse_list]
-
       users:
         - name: root
           ssh_authorized_keys: "{{ read_ssh_key.stdout }}"
@@ -78,233 +77,6 @@
             Host {{ slurm_control_ssh_patterns }}
                 IdentityFile {{ client_mount_path }}/slurm/ssh/oim_rsa
                 IdentitiesOnly yes
-
-        - path: /usr/local/bin/install_nvidia_driver.sh
-          permissions: '0755'
-          content: |
-            #!/bin/bash
-            LOGFILE="/var/log/nvidia_install.log"
-            exec > >(tee -a "$LOGFILE") 2>&1
-
-            echo "===== Starting NVIDIA GPU detection and driver installation ====="
-
-            # Check for NVIDIA GPU presence
-            echo "[INFO] Checking for NVIDIA GPU..."
-            if ! lspci | grep -i nvidia &>/dev/null; then
-                echo "[INFO] No NVIDIA GPU detected. Exiting."
-                exit 0
-            fi
-
-            echo "[INFO] NVIDIA GPU detected. Proceeding with setup and CUDA installation."
-
-            # Check if NVIDIA driver is already installed
-            if command -v nvidia-smi &>/dev/null; then
-                echo "[INFO] NVIDIA driver already installed. Skipping driver installation."
-            else
-                echo "[INFO] Installing NVIDIA driver (proprietary kernel module)..."
-                dnf install -y cuda-drivers
-                if [ $? -eq 0 ] && command -v nvidia-smi &>/dev/null; then
-                    echo "[SUCCESS] NVIDIA driver installed successfully."
-                    nvidia-smi -pm 1
-                else
-                    echo "[ERROR] NVIDIA driver installation failed."
-                    exit 1
-                fi
-            fi
-
-            echo "[INFO] Setting up CUDA toolkit mount..."
-            # Unmount first if already mounted
-            umount /usr/local/cuda 2>/dev/null
-
-            # Create mount point
-            mkdir -p /usr/local/cuda
-
-            cuda_nfs_share="{{ cloud_init_nfs_path }}/hpc_tools/cuda"
-
-            echo "[INFO] Mounting CUDA toolkit from NFS: $cuda_nfs_share"
-            mount -t nfs "$cuda_nfs_share" /usr/local/cuda
-
-            if [ $? -eq 0 ]; then
-                echo "[SUCCESS] CUDA toolkit NFS mount successful"
-                
-                # Add to fstab for persistence
-                grep -q "$cuda_nfs_share" /etc/fstab || echo "$cuda_nfs_share /usr/local/cuda nfs defaults,_netdev 0 0" >> /etc/fstab
-                
-                echo "[INFO] Configuring persistent CUDA environment..."
-                
-                # System-wide profile for login shells
-                cat > /etc/profile.d/cuda.sh << 'EOF'
-            export PATH=/usr/local/cuda/bin:$PATH
-            export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-            export CUDA_HOME=/usr/local/cuda
-            EOF
-                chmod +x /etc/profile.d/cuda.sh
-                
-                # Bashrc for non-login shells
-                cat > /etc/bashrc.cuda << 'EOF'
-            if [ -d "/usr/local/cuda/bin" ]; then
-                export PATH="/usr/local/cuda/bin:$PATH"
-                export LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
-                export CUDA_HOME="/usr/local/cuda"
-            fi
-            EOF
-                grep -q "bashrc.cuda" /etc/bashrc || echo "source /etc/bashrc.cuda" >> /etc/bashrc
-                
-                # Slurm prolog for job environment
-                mkdir -p /etc/slurm/prolog.d
-                cat > /etc/slurm/prolog.d/cuda.sh << 'EOF'
-            #!/bin/bash
-            export PATH=/usr/local/cuda/bin:$PATH
-            export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-            export CUDA_HOME=/usr/local/cuda
-            EOF
-                chmod +x /etc/slurm/prolog.d/cuda.sh
-                
-                # Apply immediately for current session
-                export PATH=/usr/local/cuda/bin:$PATH
-                export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-                export CUDA_HOME=/usr/local/cuda
-                
-                echo "[SUCCESS] Persistent CUDA environment configured"
-            else
-                echo "[ERROR] Failed to mount CUDA toolkit NFS share"
-                # Clean up failed mount
-                rmdir /usr/local/cuda 2>/dev/null
-                exit 1
-            fi
-
-            echo "[INFO] Verifying installation..."
-            if command -v nvidia-smi &>/dev/null; then
-                nvidia_version=$(nvidia-smi --version | head -n1)
-                echo "[SUCCESS] NVIDIA driver: $nvidia_version"
-            else
-                echo "[ERROR] NVIDIA driver not found."
-            fi
-
-            if command -v nvcc &>/dev/null; then
-                cuda_version=$(nvcc --version | grep "release" | awk '{print $6}' | sed 's/,//')
-                echo "[SUCCESS] CUDA toolkit: version $cuda_version"
-            else
-                echo "[ERROR] CUDA toolkit (nvcc) not found."
-            fi
-
-            echo "[INFO] Testing persistence in new shell..."
-            bash -c 'nvcc --version > /dev/null 2>&1'
-            if [ $? -eq 0 ]; then
-                echo "[SUCCESS] CUDA persistence test passed"
-            else
-                echo "[WARNING] CUDA persistence test failed - manual PATH setup may be needed"
-            fi
-
-            echo "===== NVIDIA GPU setup completed ====="
-
-        - path: /usr/local/bin/setup_dcgm.sh
-          permissions: '0755'
-          content: |
-            #!/bin/bash
-            LOGFILE="/var/log/dcgm_setup.log"
-            exec > >(tee -a "$LOGFILE") 2>&1
-
-            echo "===== Starting NVIDIA DCGM setup ====="
-
-            # CUDA prerequisite gate (BL-001)
-            echo "[INFO] Validating NVIDIA driver prerequisite..."
-            if ! command -v nvidia-smi &>/dev/null; then
-                echo "[WARN] nvidia-smi not found. NVIDIA driver not installed. Skipping DCGM setup."
-                exit 0
-            fi
-
-            if ! nvidia-smi &>/dev/null; then
-                echo "[WARN] nvidia-smi failed to communicate with the driver. Skipping DCGM setup."
-                exit 0
-            fi
-            echo "[INFO] NVIDIA driver prerequisite satisfied."
-            
-            # Display nvidia-smi output for verification
-            echo "========== NVIDIA Driver & GPU Information =========="
-            nvidia-smi 2>&1
-            echo "====================================================="
-
-            # Detect CUDA major version for DCGM package selection
-            echo "[INFO] Detecting CUDA version for DCGM package compatibility..."
-            # Try to get CUDA version from nvidia-smi
-            CUDA_VERSION=$(nvidia-smi | grep "CUDA Version" | awk '{print $9}' | cut -d'.' -f1)
-
-            # Fallback: Try to get CUDA version from nvcc if available
-            if [ -z "$CUDA_VERSION" ]; then
-                if command -v nvcc &>/dev/null; then
-                    CUDA_VERSION=$(nvcc --version | grep "release" | awk '{print $5}' | cut -d',' -f1 | cut -d'.' -f1)
-                    echo "[INFO] CUDA version detected from nvcc: $CUDA_VERSION"
-                else
-                    echo "[ERROR] Could not detect CUDA version from nvidia-smi or nvcc."
-                    echo "[ERROR] CUDA toolkit is required for DCGM package version detection. Skipping DCGM setup."
-                    exit 1
-                fi
-            else
-                echo "[INFO] CUDA major version detected from nvidia-smi: $CUDA_VERSION"
-            fi
-
-            # Install datacenter-gpu-manager-4-cuda${CUDA_VERSION} via dnf with weak dependencies
-            echo "[INFO] Installing datacenter-gpu-manager-4-cuda${CUDA_VERSION} package..."
-            if ! dnf install -y --setopt=install_weak_deps=True datacenter-gpu-manager-4-cuda${CUDA_VERSION}; then
-                echo "[ERROR] Failed to install datacenter-gpu-manager-4-cuda${CUDA_VERSION}. Skipping DCGM setup."
-                exit 1
-            fi
-            echo "[INFO] datacenter-gpu-manager-4-cuda${CUDA_VERSION} installed successfully."
-
-            # Install multinode diagnostic plugin for CUDA 12+ (optional but recommended for HPC)
-            if [ "$CUDA_VERSION" -ge "12" ]; then
-                echo "[INFO] Installing DCGM multinode diagnostic plugin for HPC cluster support..."
-                if dnf install -y --nogpgcheck datacenter-gpu-manager-4-multinode-cuda${CUDA_VERSION}; then
-                    echo "[INFO] DCGM multinode plugin installed successfully."
-                else
-                    echo "[WARN] Failed to install multinode plugin. Continuing without it."
-                fi
-            else
-                echo "[INFO] Multinode plugin requires CUDA 12+. Current version: $CUDA_VERSION. Skipping."
-            fi
-
-            # Enable and start DCGM daemon (SB-003)
-            echo "[INFO] Enabling and starting {{ dcgm_service_name }}.service..."
-            systemctl enable {{ dcgm_service_name }}
-
-            RETRIES={{ dcgm_health_check_retries }}
-            ATTEMPT=0
-            DCGM_STARTED=false
-
-            while [ $ATTEMPT -lt $RETRIES ]; do
-                ATTEMPT=$((ATTEMPT + 1))
-                echo "[INFO] Starting {{ dcgm_service_name }} (attempt $ATTEMPT/$RETRIES)..."
-                systemctl start {{ dcgm_service_name }}
-                sleep 3
-
-                if systemctl is-active --quiet {{ dcgm_service_name }}; then
-                    DCGM_STARTED=true
-                    echo "[SUCCESS] {{ dcgm_service_name }}.service is active."
-                    break
-                else
-                    echo "[WARN] {{ dcgm_service_name }} failed to start on attempt $ATTEMPT."
-                fi
-            done
-
-            if [ "$DCGM_STARTED" != "true" ]; then
-                echo "[ERROR] {{ dcgm_service_name }} failed to start after $RETRIES attempts. Service will stay down (BL-002)."
-                exit 1
-            fi
-
-            # GPU discovery (SB-004)
-            echo "[INFO] Enumerating GPUs via dcgmi discovery..."
-            if command -v dcgmi &>/dev/null; then
-                echo "========== GPU Discovery Output =========="
-                dcgmi discovery -l 2>&1
-                GPU_COUNT=$(dcgmi discovery -l 2>/dev/null | grep -c "GPU")
-                echo "=========================================="
-                echo "[SUCCESS] GPU discovery completed. Found $GPU_COUNT GPU(s)."
-            else
-                echo "[WARN] dcgmi command not found. Skipping GPU enumeration."
-            fi
-
-            echo "===== NVIDIA DCGM setup completed ====="
 
 {% if hostvars['localhost']['openldap_support'] %}
         - path: /etc/sssd/sssd.conf
@@ -390,7 +162,7 @@
             echo "[INFO] ===== Starting directory creation and NFS mounts for Pulp cert, Slurm and Munge (aarch64) ====="
             mkdir -p {{ client_mount_path }}/slurm/ssh
             echo "[INFO] Creating base directories for Slurm and Munge"
-            mkdir -pv {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} {% for d in slurm_prolog_dirs_all %}{{ d }} {% endfor %}/etc/munge /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts /hpc_tools/cuda
+            mkdir -pv {{ slurm_slurmd_log_dir_effective }} {{ slurm_slurmd_pid_dir_effective }} {{ slurm_slurmd_spool_dir_effective }} {{ slurm_epilog_dirs_all | join(' ') }} /etc/munge /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
 
             echo "[INFO] Updating /etc/fstab with NFS entries for Pulp cert, Slurm and Munge paths"
             echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -398,10 +170,7 @@
             echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/slurm/epilog.d     /etc/slurm/epilog.d      nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/$(hostname -s)/etc/munge      /etc/munge       nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ trackfile_nfs_path }}    /var/log/track       nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ cloud_init_nfs_path}}/hpc_tools/container_images  /hpc_tools/container_images   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ cloud_init_nfs_path}}/hpc_tools/scripts  /hpc_tools/scripts   nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ cloud_init_nfs_path}}/hpc_tools/cuda  /hpc_tools/cuda   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path}}/hpc_tools/  /hpc_tools nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
@@ -449,17 +218,7 @@
               chmod {{ file_mode_755 }} "{{ epath }}"
             fi
 {% endfor %}
-{% for ppath in slurm_prolog_custom_paths %}
 
-            echo "[INFO] Checking custom prolog script: {{ ppath }}"
-            if [ ! -f "{{ ppath }}" ]; then
-              echo "[INFO] Creating stub prolog script at {{ ppath }}"
-              mkdir -p "$(dirname '{{ ppath }}')"
-              printf '#!/bin/bash\n# Custom prolog script placeholder\n# Add your prolog commands here\n' > "{{ ppath }}"
-              chown {{ slurm_user }}:{{ slurm_user }} "{{ ppath }}"
-              chmod {{ file_mode_755 }} "{{ ppath }}"
-            fi
-{% endfor %}
 
             echo "[INFO] Creating and configuring slurmd spool directory"
             mkdir -p {{ slurm_slurmd_spool_dir_effective }}
@@ -625,29 +384,74 @@
           permissions: '{{ file_mode_755 }}'
           content: |
             {{ lookup('template', 'templates/hpc_tools/export_nvhpc_env.sh.j2') | indent(12) }}
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+        - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ pv_entry.content | indent(12) }}
+{% endfor %}
 
       runcmd:
-        - rm -rf /var/lib/cloud/instance
         - /usr/local/bin/set-ssh.sh
-        # slurm user and group created in the users module
-
         - /usr/local/bin/configure_vast_installation.sh
+{# Mount-specific runcmd entries #}
+{%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
+{% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
+        - {{ cmd }}
+{% endfor %}
+{% endif %}
+{% raw %}
+      {% if ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map %}
+      {% set mymounts = ds.meta_data.instance_data.v1.vendor_data.groups.ssh.host_mount_map.get(local_hostname, {}) %}
+      {% if mymounts %}
+      {% for mount in mymounts.get("mounts", []) %}
+        - mkdir -pv {{ mount[1] }}
+        - echo "{{ mount | join(' ') }}" >> /etc/fstab
+      {% endfor %}
+        - mount -av
+      {% for decoded_cmd in mymounts.get("runcmd", []) %}
+        - {{ decoded_cmd }}
+      {% endfor %}
+      {% else %}
+         - echo "No mount entries found for this host"
+      {% endif %}
+      {% endif %}
+{% endraw %}
+{% set fg_swap = cloud_init_groups_dict.get(functional_group_name, {}).get('swap', {}) %}
+{% include 'configure_swap.yaml.j2' %}
+        - mount -av
+{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
+        - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
+{% endfor %}
+        - /usr/local/bin/install_nvidia_driver.sh
+{% if dcgm_support %}
+        - /usr/local/bin/setup_dcgm.sh
+{% endif %}
         - /usr/local/bin/configure_dirs_and_mounts.sh
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
         - bash /usr/local/bin/doca-install.sh || true
         - bash /usr/local/bin/configure-ib-network.sh
+{% if slurm_node_present %}
+        - |
+          set -e
+          /usr/local/bin/slurm_cuda_coordinator.sh
+          /usr/local/bin/install_cuda_driver.sh
+{% if dcgm_support %}
+          /usr/local/bin/install_dcgm.sh
+{% endif %}
+          /usr/local/bin/install_nvidia_peermem.sh
+{% endif %}
         - /usr/local/bin/configure_slurmd_setup.sh
         - /usr/local/bin/configure_munge_and_pam.sh
 
-        - setenforce 0
         - /usr/local/bin/configure_firewall_and_services.sh
 
 {% if hostvars['localhost']['openldap_support'] %}
         - /usr/local/bin/update_ldap_conf.sh
         - mkdir /ldapcerts
         - echo "{{ cloud_init_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - echo "{{ cloud_init_nfs_path_openldap }}/ldapuser             /home            nfs defaults,_netdev 0 0" >> /etc/fstab
+        - if ! mountpoint -q /home; then echo "{{ cloud_init_nfs_path_openldap }}/ldapuser /home nfs defaults,_netdev 0 0" >> /etc/fstab; fi
         - chmod {{ file_mode }} /etc/fstab
         - mount -a
         - yes | cp /ldapcerts/* /etc/openldap/certs
@@ -657,7 +461,6 @@
         - firewall-cmd --permanent --add-port={{ ldap_ssl_port }}/tcp
         - firewall-cmd --reload
 
-        - setenforce 0
         - authselect select sssd with-mkhomedir --force
         - sudo systemctl enable --now oddjobd.service
         - sudo systemctl enable --now sssd
@@ -670,35 +473,22 @@
 
 {% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] or ldms_support %}
         # Add NFS entry and mount
-        - mkdir -p {{ client_mount_path }}
+        - mkdir -pv {{ client_mount_path }}
         - echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
-        - mount -a
+        - mount -av
 {% endif %}
 
 {% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] %}
         - echo "One or more shared components (UCX / OpenMPI / LDMS) are enabled."
         - /usr/local/bin/configure_ucx_openmpi_env.sh
-
 {% endif %}
 
 {% if ldms_support %}
         - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
-
         - /root/ldms_sampler.sh
 {% endif %}
-
         - /usr/local/bin/setup_nvhpc_sdk.sh
         - /usr/local/bin/export_nvhpc_env.sh
-{% if slurm_node_present %}
-        - |
-          set -e
-          /usr/local/bin/slurm_cuda_coordinator.sh
-          /usr/local/bin/install_cuda_driver.sh
-{% if dcgm_support %}
-          /usr/local/bin/install_dcgm.sh
-{% endif %}
-          /usr/local/bin/install_nvidia_peermem.sh
-{% endif %}
-        - systemctl restart slurmd
 
+        - systemctl restart slurmd
         - echo "Cloud-Init has completed successfully."

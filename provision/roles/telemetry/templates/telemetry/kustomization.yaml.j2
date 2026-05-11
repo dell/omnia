@@ -17,12 +17,8 @@ resources:
 {% endif %}
   # VMAgent CR (operator-managed scraper for metrics)
   - victoria-operator-vmagent.yaml
-  # VMPodScrape CR (native operator-based pod discovery for metrics)
-  - victoria-operator-vmpodscrape.yaml
-{% if telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
-  # VMServiceScrape CR for PowerScale OTEL Collector
-  - victoria-operator-vmservicescrape-powerscale.yaml
-{% endif %}
+  # VMScrape CR (native operator-based service/pod discovery for metrics)
+  - victoria-operator-vmscrape.yaml
 {% endif %}
 {% if victoria_logs_support | default(false) %}
 # victoria_logs Resources (Logs Only)

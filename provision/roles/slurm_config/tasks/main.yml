@@ -17,9 +17,16 @@
     file: "{{ software_config_file }}"
     name: software_config
 
-- name: Check if slurm support is true
+- name: Initialize slurm_support fact
   ansible.builtin.set_fact:
-    slurm_support: "{{ software_config.softwares | selectattr('name', 'in', ['slurm', 'slurm_custom']) | list | length > 0 }}"
+    slurm_support: false
+
+- name: Check if slurm support is true and if not slurm nodes in 'functional_groups'
+  ansible.builtin.set_fact:
+    slurm_support: true
+  when:
+    - (software_config.softwares | selectattr('name', 'in', ['slurm_custom']) | list | length) > 0
+    - "'slurm_control_node_x86_64' in (hostvars['localhost']['functional_groups'] | map(attribute='name') | list)"
 
 - name: Get the slurm hostnames
   ansible.builtin.include_tasks: read_slurm_hostnames.yml

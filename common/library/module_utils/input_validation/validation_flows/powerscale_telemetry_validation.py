@@ -341,49 +341,5 @@ def validate_powerscale_telemetry_config(
                 powerscale_collection_targets,
                 en_us_validation_msg.POWERSCALE_VICTORIA_LOGS_REQUIRED_MSG
             ))
-        # Validate syslog_source_ips when logs_enabled (optional field)
-        # If empty, rsyslog will accept from any source IP
-        syslog_source_ips = powerscale_config.get(
-            "syslog_source_ips", []
-        )
-        # Only validate IP format if provided (not required)
-        if syslog_source_ips and len(syslog_source_ips) > 0:
-            for idx, ip_str in enumerate(syslog_source_ips):
-                try:
-                    ipaddress.ip_address(str(ip_str).strip())
-                except ValueError:
-                    errors.append(create_error_msg(
-                        f"powerscale_configurations.syslog_source_ips[{idx}]",
-                        ip_str,
-                        en_us_validation_msg.POWERSCALE_SYSLOG_SOURCE_IP_INVALID_MSG
-                    ))
 
-    # Validate additional_remote_write_endpoints
-    # (applies to metrics deployment)
-    additional_endpoints = powerscale_config.get(
-        "additional_remote_write_endpoints", []
-    )
-    if additional_endpoints and isinstance(additional_endpoints, list):
-        if len(additional_endpoints) > 5:
-            logger.warning(
-                f"More than 5 additional_remote_write_endpoints "
-                f"configured ({len(additional_endpoints)}). "
-                "This may impact performance."
-            )
-        for idx, endpoint in enumerate(additional_endpoints):
-            if not isinstance(endpoint, dict):
-                continue
-            url = endpoint.get("url", "")
-            if not url or not isinstance(url, str):
-                errors.append(create_error_msg(
-                    f"powerscale_configurations.additional_remote_write_endpoints[{idx}].url",
-                    url,
-                    en_us_validation_msg.POWERSCALE_ADDITIONAL_ENDPOINTS_URL_EMPTY_MSG
-                ))
-            elif (not url.startswith("http://") and
-                  not url.startswith("https://")):
-                errors.append(create_error_msg(
-                    f"powerscale_configurations.additional_remote_write_endpoints[{idx}].url",
-                    url,
-                    en_us_validation_msg.POWERSCALE_ADDITIONAL_ENDPOINTS_URL_INVALID_MSG
-                ))
+    

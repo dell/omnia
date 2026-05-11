@@ -1,0 +1,66 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Generate access token # noqa: command-instead-of-shell
+  ansible.builtin.shell: sudo bash -lc 'gen_access_token'
+  register: access_token_result
+  changed_when: false
+
+- name: Set ochami_env
+  ansible.builtin.set_fact:
+    ochami_env: "{{ {cluster_env_key: access_token_result.stdout} }}"
+
+- name: Verify ochami installation
+  environment: "{{ ochami_env }}"
+  block:
+    - name: Wait for seconds - {{ wait_time }}
+      ansible.builtin.wait_for:
+        timeout: "{{ wait_time }}"
+
+    - name: Verify ochami dependencies # noqa: command-instead-of-module
+      ansible.builtin.command:
+        systemctl list-dependencies openchami.target
+      register: openchami_dependencies
+      changed_when: false
+
+    - name: Openchami dependencies output
+      ansible.builtin.debug:
+        msg: "{{ openchami_dependencies.stdout_lines }}"
+
+    - name: Verify ochami bss status
+      ansible.builtin.command:
+        ochami bss service status
+      register: openchami_bss_status
+      until: openchami_bss_status.rc == 0
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
+      changed_when: false
+
+    - name: Openchami bss status output
+      ansible.builtin.debug:
+        msg: "{{ openchami_bss_status.stdout_lines }}"
+
+    - name: Verify ochami smd status
+      ansible.builtin.command:
+        ochami smd service status
+      register: openchami_smd_status
+      until: openchami_smd_status.rc == 0
+      retries: "{{ max_retries }}"
+      delay: "{{ max_delay }}"
+      changed_when: false
+
+    - name: Openchami smd status output
+      ansible.builtin.debug:
+        msg: "{{ openchami_smd_status.stdout_lines }}"

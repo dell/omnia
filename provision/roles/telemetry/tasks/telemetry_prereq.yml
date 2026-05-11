@@ -26,7 +26,7 @@
 
 - name: Mount NFS share (force NFSv3)
   ansible.posix.mount:
-    src: "{{ hostvars['localhost']['k8s_server_ip'] }}:{{ hostvars['localhost']['k8s_server_share_path'] }}"
+    src: "{{ hostvars['localhost']['k8s_nfs_server_path'] }}"
     path: "{{ hostvars['localhost']['k8s_client_share_path'] }}"
     fstype: nfs
     opts: "{{ hostvars['localhost']['k8s_mount_options'] }},vers=3"
@@ -44,12 +44,14 @@
     mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
 - name: Ensure iDRAC Telemetry scripting destination exists
+  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
   ansible.builtin.file:
     path: "{{ idrac_telemetry_scripting_git_clone_path }}"
     state: directory
     mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
 - name: Copy iDRAC Telemetry Scripting to NFS share
+  when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
   block:
     - name: Copy pre-cloned iDRAC Telemetry Scripting directory
       ansible.builtin.copy:

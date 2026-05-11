@@ -1,0 +1,144 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+- name: Load role variables
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/main.yml"
+  run_once: true
+
+- name: Initialize globals and timestamp
+  ansible.builtin.include_tasks: setup.yml
+  when: stage == 'setup'
+
+- name: Parse node inventory and prepare workspace
+  ansible.builtin.include_tasks: prepare.yml
+  when: stage == 'prepare'
+
+- name: Collect k8s node logs
+  when: stage in ['k8s_master', 'k8s_worker']
+  block:
+    - name: Include k8s collection tasks
+      ansible.builtin.include_tasks: k8s_logs.yml
+  rescue:
+    - name: Record k8s collection execution failure
+      ansible.builtin.set_fact:
+        collection_error_warnings_host: "{{ (collection_error_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        unreachable_results: "{{ (ansible_failed_result.results | default([])) | selectattr('unreachable', 'defined') | selectattr('unreachable') | list }}"
+        failure_reason: >-
+          {{
+            'unreachable'
+            if (
+              (ansible_failed_result.unreachable | default(false))
+              or (unreachable_results | length > 0)
+              or ('Failed to connect to the host via ssh' in (ansible_failed_result.msg | default('')))
+            )
+            else 'collection_error'
+          }}
+        failure_detail: "{{ (unreachable_results | map(attribute='msg') | list | first) | default(ansible_failed_result.msg | default('unknown error')) }}"
+        warning_payload:
+          source: "{{ stage }}"
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: "{{ failure_reason }}"
+          message: >-
+            {{
+              (
+                'Node '
+                + inventory_hostname
+                + ' ('
+                + (ansible_host | default('unknown'))
+                + ') not reachable via SSH during stage '
+                + stage
+                + ': '
+                + failure_detail
+                + '. Continuing bundle generation.'
+              )
+              if failure_reason == 'unreachable'
+              else
+              (
+                'Collection task failed for stage '
+                + stage
+                + ' on node '
+                + inventory_hostname
+                + ' ('
+                + (ansible_host | default('unknown'))
+                + '): '
+                + failure_detail
+                + '. Continuing bundle generation.'
+              )
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+
+- name: Collect slurm node logs
+  when: stage in ['slurm_ctl', 'slurm_node', 'login_node', 'login_compiler_node']
+  block:
+    - name: Include slurm collection tasks
+      ansible.builtin.include_tasks: slurm_logs.yml
+  rescue:
+    - name: Record slurm collection execution failure
+      ansible.builtin.set_fact:
+        collection_error_warnings_host: "{{ (collection_error_warnings_host | default([])) + [warning_payload] }}"
+      vars:
+        unreachable_results: "{{ (ansible_failed_result.results | default([])) | selectattr('unreachable', 'defined') | selectattr('unreachable') | list }}"
+        failure_reason: >-
+          {{
+            'unreachable'
+            if (
+              (ansible_failed_result.unreachable | default(false))
+              or (unreachable_results | length > 0)
+              or ('Failed to connect to the host via ssh' in (ansible_failed_result.msg | default('')))
+            )
+            else 'collection_error'
+          }}
+        failure_detail: "{{ (unreachable_results | map(attribute='msg') | list | first) | default(ansible_failed_result.msg | default('unknown error')) }}"
+        warning_payload:
+          source: "{{ stage }}"
+          node_name: "{{ inventory_hostname }}"
+          node_ip: "{{ ansible_host | default('unknown') }}"
+          reason: "{{ failure_reason }}"
+          message: >-
+            {{
+              (
+                'Node '
+                + inventory_hostname
+                + ' ('
+                + (ansible_host | default('unknown'))
+                + ') not reachable via SSH during stage '
+                + stage
+                + ': '
+                + failure_detail
+                + '. Continuing bundle generation.'
+              )
+              if failure_reason == 'unreachable'
+              else
+              (
+                'Collection task failed for stage '
+                + stage
+                + ' on node '
+                + inventory_hostname
+                + ' ('
+                + (ansible_host | default('unknown'))
+                + '): '
+                + failure_detail
+                + '. Continuing bundle generation.'
+              )
+            }}
+          timestamp: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+
+- name: Bundle logs and publish summary
+  ansible.builtin.include_tasks: bundle.yml
+  when: stage == 'bundle'

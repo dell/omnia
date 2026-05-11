@@ -24,3 +24,10 @@ slurm_nfs_fail_msg: "Failed to mount NFS share. Please check if the NFS server i
 
 omnia_config_vars: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
 omnia_run_tags: "{{ hostvars['localhost']['omnia_run_tags'] }}"
+
+# Usage: build_host_mount_map.yml
+# pxe_mapping_file_path  = omnia shared path + strip prefix /opt from hostvars['localhost']['pxe_mapping_file_path']
+omnia_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
+pxe_mapping_file_path: "{{ omnia_shared_path }}/{{ hostvars['localhost']['pxe_mapping_file_path'] | regex_replace('^/opt', '') }}"
+group_host_map: {}
+host_mount_map: {}

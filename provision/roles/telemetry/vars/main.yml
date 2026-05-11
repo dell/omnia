@@ -107,6 +107,19 @@ victoria_cluster:
   # true = cluster mode, false = single-node mode
   enabled: "{{ true if victoria_deployment_mode == 'cluster' else false }}"
   tls_enabled: true   # Set to true to enable TLS for cluster components
+  # Health probe and timing configuration
+  termination_grace_period: 120
+  startup_probe:
+    initial_delay: 30
+    period: 10
+    failure_threshold: 30
+    timeout: 5
+  readiness_probe:
+    initial_delay: 15
+    period: 5
+    failure_threshold: 10
+    timeout: 5
+  toleration_seconds: 5
   # VMStorage: Stores raw data and returns query results
   vmstorage:
     replicas: 3
@@ -178,6 +191,18 @@ victoria_logs_cluster:
       limits:
         memory: "2Gi"
         cpu: "1000m"
+    termination_grace_period: 120
+    startup_probe:
+      initial_delay: 30
+      period: 10
+      failure_threshold: 30
+      timeout: 5
+    readiness_probe:
+      initial_delay: 15
+      period: 5
+      failure_threshold: 10
+      timeout: 5
+    toleration_seconds: 5
 
   # vlinsert: Log ingestion gateway (Deployment managed by operator via VLCluster CR)
   vlinsert:
@@ -191,6 +216,17 @@ victoria_logs_cluster:
       limits:
         memory: "1Gi"
         cpu: "1000m"
+    liveness_probe:
+      initial_delay: 30
+      period: 30
+      failure_threshold: 3
+      timeout: 5
+    readiness_probe:
+      initial_delay: 5
+      period: 10
+      failure_threshold: 3
+      timeout: 5
+    termination_grace_period: 30
 
   # vlselect: Log query gateway (Deployment managed by operator via VLCluster CR)
   vlselect:
@@ -209,6 +245,18 @@ victoria_logs_cluster:
     replicas: 1
     image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
     pvc_size: "5Gi"   # Buffer storage for retry during vlinsert unavailability
+    termination_grace_period: 30
+    liveness_probe:
+      initial_delay: 30
+      period: 30
+      failure_threshold: 3
+      timeout: 5
+    readiness_probe:
+      initial_delay: 5
+      period: 10
+      failure_threshold: 3
+      timeout: 5
+    toleration_seconds: 5
     resources:
       requests:
         memory: "128Mi"
@@ -216,19 +264,6 @@ victoria_logs_cluster:
       limits:
         memory: "512Mi"
         cpu: "250m"
-
-# VictoriaLogs ports (operator v0.66.1 defaults)
-# Note: VictoriaMetrics operator uses these default ports and ignores custom port specifications
-# will uncomment after verify that victoria oprator does not takes default port
-# victoria_logs_ports:
-#   vlinsert_http: 9481        # Ingestion clients → vlinsert (HTTPS, LoadBalancer) - operator default
-#   vlselect_http: 9471        # Query clients → vlselect (HTTPS, LoadBalancer) - operator default
-#   vlstorage_http: 9491       # Health checks and admin API (internal) - operator default
-#   vlstorage_insert: 9400     # vlinsert → vlstorage data sharding (HTTPS, internal)
-#   vlstorage_select: 9401     # vlselect → vlstorage query fan-out (HTTPS, internal)
-#   vlagent_syslog: 514        # Syslog receiver plaintext (TCP+UDP)
-#   vlagent_syslog_tls: 6514   # Syslog receiver TLS (TCP, RFC 5425)
-#   vlagent_http: 9429         # VLAgent health checks (distinct from vmagent 8429)
 
 # Telemetry shared path configuration
 telemetry_share_path: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/telemetry"
@@ -238,34 +273,13 @@ victoria_tls_cert_days: 3650
 victoria_cert_dir: "{{ telemetry_share_path }}/victoria-certs"
 syslog_tls_cert_dir: "{{ telemetry_share_path }}/syslog-tls-certs"
 
-# PowerScale syslog source IPs requirement message
-powerscale_syslog_source_ips_msg: >-
-  powerscale_configurations.syslog_source_ips is required when logs_enabled is true.
-  Provide the IP(s) from which PowerScale sends syslog.
-  This is often the data pool IP (e.g., 40gige-1 interface), NOT the CSI management IP.
-  Check OneFS Network Configuration → External Network → Pool IPs.
-
-# PowerScale syslog source IPs display message
-powerscale_syslog_source_ips_display_msg: >-
-  PowerScale syslog source IP(s): {{ powerscale_management_ips | join(', ') }}.
-  rsyslog $fromhost-ip filter will match these IPs and forward to VLAgent.
-
-# PowerScale log configuration status message
-powerscale_log_config_status_msg: >-
-  PowerScale syslog configuration script staged on NFS share.
-  During cloud-init, the script will configure rsyslog on all K8s nodes,
-  open firewall port 514/udp, and forward PowerScale syslog to VLAgent.
-  For complete PowerScale syslog configuration details, including manual
-  PowerScale setup steps, refer to Omnia documentation.
-
 # PowerScale VictoriaLogs validation fail message
 powerscale_victoria_logs_validation_fail_msg: >-
   PowerScale log collection requires 'victoria_logs' in
   telemetry_sources.powerscale.collection_targets.
 
-# Usage: vmagent-scrape-config.yaml
+# Usage: victoria-operator-vmagent.yaml.j2 (operator-native)
 vmagent:
-  configmap_name: "vmagent-scrape-config"
   global:
     scrape_interval: "10s"
   job_name: "idrac-telemetry"
@@ -279,15 +293,14 @@ vmagent:
   app_name: "vmagent"
   container_name: "vmagent"
   image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
-  scrape_config_path: "/etc/vmagent/prometheus.yml"
   # Single-node URL
   remote_write_url: "https://victoria-loadbalancer.telemetry.svc.cluster.local:8443/api/v1/write"
   # Cluster URL (used when victoria_cluster.enabled: true)
   # Operator creates service as vminsert-victoria-cluster (not vminsert)
   # Protocol depends on tls_enabled: https when TLS is on, http otherwise
+  # Use service name only since vmagent and vminsert are in same namespace
   remote_write_url_cluster: >-
-    {{ 'https' if victoria_cluster.tls_enabled else 'http' }}://vminsert-victoria-cluster.{{
-    telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
+    {{ 'https' if victoria_cluster.tls_enabled else 'http' }}://vminsert-victoria-cluster:8480/insert/0/prometheus/api/v1/write
 
 strmzi_kafka_tarball_url: "{{ offline_tarball_path }}/{{ strimzi_kafka_pkg }}/{{ strimzi_kafka_pkg }}.tar.gz"
 
@@ -321,10 +334,8 @@ victoria_templates_operator_single:
     dest: 'victoria-operator-vmsingle.yaml'
   - src: 'telemetry/victoria/victoria-operator-vmagent.yaml.j2'
     dest: 'victoria-operator-vmagent.yaml'
-  - src: 'telemetry/victoria/victoria-operator-vmpodscrape.yaml.j2'
-    dest: 'victoria-operator-vmpodscrape.yaml'
-  - src: 'telemetry/victoria/victoria-operator-vmservicescrape-powerscale.yaml.j2'
-    dest: 'victoria-operator-vmservicescrape-powerscale.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmscrape.yaml.j2'
+    dest: 'victoria-operator-vmscrape.yaml'
 
 # Cluster operator template (used when victoria_cluster.enabled: true)
 victoria_templates_operator_cluster:
@@ -332,10 +343,8 @@ victoria_templates_operator_cluster:
     dest: 'victoria-operator-vmcluster.yaml'
   - src: 'telemetry/victoria/victoria-operator-vmagent.yaml.j2'
     dest: 'victoria-operator-vmagent.yaml'
-  - src: 'telemetry/victoria/victoria-operator-vmpodscrape.yaml.j2'
-    dest: 'victoria-operator-vmpodscrape.yaml'
-  - src: 'telemetry/victoria/victoria-operator-vmservicescrape-powerscale.yaml.j2'
-    dest: 'victoria-operator-vmservicescrape-powerscale.yaml'
+  - src: 'telemetry/victoria/victoria-operator-vmscrape.yaml.j2'
+    dest: 'victoria-operator-vmscrape.yaml'
 
 # Legacy manual deployment templates (removed - use operator-based templates above)
 # Raw victoria-cluster-vminsert/vmselect/vmstorage.yaml.j2 files have been removed
@@ -520,23 +529,9 @@ ps_dependency_fail_msg: >-
 # ============================================================================
 # Usage: deploy_powerscale_logs.yml
 # Gated by: telemetry_sources.powerscale.logs_enabled
-# Pipeline: PowerScale (UDP:514) → K8s rsyslog → VLAgent LB (TCP:514) → VictoriaLogs
-# PS syslog source IPs from user config (powerscale_configurations.syslog_source_ips)
-# NOTE: Syslog source IP != CSI endpoint (mgmt IP). Often the data pool IP (40gige-1).
-configure_ps_syslog_template: "{{ role_path }}/../configure_ochami/templates/powerscale/configure_powerscale_syslog.sh.j2"
-ps_log_enabled_msg: >-
-  PowerScale log collection enabled (telemetry_sources.powerscale.logs_enabled: true).
-  rsyslog will be configured on all K8s nodes to relay PowerScale audit syslog to VLAgent.
-  Syslog source IPs from powerscale_configurations.syslog_source_ips.
-ps_log_disabled_msg: >-
-  PowerScale log collection disabled (telemetry_sources.powerscale.logs_enabled: false).
-  rsyslog relay will not be configured. VLAgent will not include PowerScale labels.
-ps_log_deployed_msg: >-
-  PowerScale syslog configuration script staged on NFS share.
-  During cloud-init, the script will configure rsyslog on all K8s nodes,
-  open firewall port 514/udp, and forward PowerScale syslog to VLAgent.
-  For complete PowerScale syslog configuration details, including manual
-  PowerScale setup steps, refer to Omnia documentation.
+# Pipeline: PowerScale (UDP/TCP:514) → VLAgent LoadBalancer IP:514 → VictoriaLogs
+# Note: configure_powerscale_syslog.sh.j2 template removed - syslog configuration now manual
+
 # Vector Kafka-to-Victoria Ingestion Pipeline Configuration
 # ============================================================================
 # Usage: deploy_vector_ldms.yml, deploy_vector_ome.yml

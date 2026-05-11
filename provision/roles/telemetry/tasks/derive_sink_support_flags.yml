@@ -36,6 +36,7 @@
     victoria_metrics_support: false
     victoria_logs_support: false
     kafka_support: false
+    telemetry_enabled: false
 
 - name: Set ldms_support based on telemetry_config.yml
   ansible.builtin.set_fact:
@@ -53,7 +54,6 @@
     powerscale_configurations:
       powerscale_telemetry_support: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(true) | bool }}"
       powerscale_log_enabled: "{{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
-      syslog_source_ips: "{{ telemetry_config.powerscale_configurations.syslog_source_ips | default([]) }}"
       otel_collector_storage_size: "{{ telemetry_config.powerscale_configurations.otel_collector_storage_size | default('5Gi') }}"
       csm_observability_values_file_path: "{{ telemetry_config.powerscale_configurations.csm_observability_values_file_path | default('') }}"
       additional_remote_write_endpoints: "{{ telemetry_config.powerscale_configurations.additional_remote_write_endpoints | default([]) }}"
@@ -88,3 +88,15 @@
       victoria_logs_support={{ victoria_logs_support }},
       kafka_support={{ kafka_support }}
     verbosity: 1
+
+- name: Set global variable for telemetry_enabled
+  ansible.builtin.set_fact:
+    telemetry_enabled: true
+  when: >
+    idrac_telemetry_support or
+    powerscale_metrics_enabled or
+    powerscale_log_enabled or
+    victoria_metrics_support or
+    victoria_logs_support or
+    ldms_support or
+    kafka_support

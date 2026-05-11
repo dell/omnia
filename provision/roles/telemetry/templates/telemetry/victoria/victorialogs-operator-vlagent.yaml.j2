@@ -53,10 +53,10 @@ spec:
   # The VictoriaMetrics operator does NOT translate configSecret into
   # syslog CLI flags. Syslog listeners MUST be enabled via extraArgs.
   # These map directly to VLAgent CLI flags:
-  #   -syslog.listenAddr.tcp  → plaintext syslog TCP receiver (rsyslog relay forwards here)
+  #   -syslog.listenAddr.tcp  → plaintext syslog TCP receiver
   #   -syslog.listenAddr.udp  → plaintext syslog UDP receiver
   # Pipeline:
-  #   UDP mode: PowerScale → K8s node rsyslog (UDP:514) → VLAgent (TCP:514) → VictoriaLogs
+  #   PowerScale → VLAgent LoadBalancer (UDP/TCP:514) → VictoriaLogs
   extraArgs:
     syslog.listenAddr.tcp: ":514"
     syslog.listenAddr.udp: ":514"
@@ -69,12 +69,16 @@ spec:
   # ========================================
   # Forward logs to VictoriaLogs vlinsert endpoint
   # Supports JSON Lines format with optional TLS
+  # Using full FQDN for DNS resolution
   remoteWrite:
 {% if victoria_logs_cluster.tls_enabled %}
     - url: https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert
 {% else %}
     - url: http://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert
 {% endif %}
+{% for endpoint in telemetry_config.telemetry_sinks.victoria_logs.additional_log_write_endpoints | default([]) %}
+    - url: {{ endpoint.url }}
+{% endfor %}
 
   # ========================================
   # Resource Allocation
@@ -155,7 +159,7 @@ spec:
   # ========================================
   # Service type: LoadBalancer (MetalLB for external access)
   # Provides single external IP for all log sources (OME, SFM, PowerScale)
-  # PowerScale syslog flows: PowerScale → VLAgent (LoadBalancer IP:514) → VictoriaLogs
+  # PowerScale sends syslog directly to VLAgent LoadBalancer IP:514 (UDP/TCP)
   serviceSpec:
     useAsDefault: true
     spec:
@@ -165,10 +169,12 @@ spec:
           port: 514
           targetPort: 514
           protocol: TCP
+          nodePort: 32399
         - name: syslog-udp
           port: 514
           targetPort: 514
           protocol: UDP
+          nodePort: 32400
 
   # ========================================
   # Health Probes
@@ -179,19 +185,19 @@ spec:
     httpGet:
       path: /health
       port: 9429
-    initialDelaySeconds: 30
-    periodSeconds: 30
-    timeoutSeconds: 5
-    failureThreshold: 3
+    initialDelaySeconds: {{ victoria_logs_cluster.vlagent.liveness_probe.initial_delay }}
+    periodSeconds: {{ victoria_logs_cluster.vlagent.liveness_probe.period }}
+    timeoutSeconds: {{ victoria_logs_cluster.vlagent.liveness_probe.timeout }}
+    failureThreshold: {{ victoria_logs_cluster.vlagent.liveness_probe.failure_threshold }}
 
   readinessProbe:
     httpGet:
       path: /health
       port: 9429
-    initialDelaySeconds: 5
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 3
+    initialDelaySeconds: {{ victoria_logs_cluster.vlagent.readiness_probe.initial_delay }}
+    periodSeconds: {{ victoria_logs_cluster.vlagent.readiness_probe.period }}
+    timeoutSeconds: {{ victoria_logs_cluster.vlagent.readiness_probe.timeout }}
+    failureThreshold: {{ victoria_logs_cluster.vlagent.readiness_probe.failure_threshold }}
 
   # ========================================
   # Pod Scheduling and Affinity
@@ -202,14 +208,14 @@ spec:
     - effect: NoExecute
       key: node.kubernetes.io/not-ready
       operator: Exists
-      tolerationSeconds: 5
+      tolerationSeconds: {{ victoria_logs_cluster.vlagent.toleration_seconds }}
     - effect: NoExecute
       key: node.kubernetes.io/unreachable
       operator: Exists
-      tolerationSeconds: 5
+      tolerationSeconds: {{ victoria_logs_cluster.vlagent.toleration_seconds }}
 
   # ========================================
   # Termination Grace Period
   # ========================================
   # Allow time for graceful shutdown and buffer flush
-  terminationGracePeriodSeconds: 30
+  terminationGracePeriodSeconds: {{ victoria_logs_cluster.vlagent.termination_grace_period }}

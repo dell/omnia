@@ -15,7 +15,7 @@ HPC_TOOLS_DIR="/hpc_tools"
 ARCH="$(uname -m)"
 OS_VERSION="{{ hostvars['localhost']['cluster_os_version'] }}"
 PULP_SERVER="{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
-PULP_CONTENT_BASE="https://${PULP_SERVER}/pulp/content{{ hostvars['localhost']['oim_shared_path'] }}/omnia/offline_repo/cluster"
+PULP_CONTENT_BASE="https://${PULP_SERVER}/pulp/content/opt/omnia/offline_repo/cluster"
 
 echo "===== Starting Benchmark Tarball Pull Script (Pulp Only) ====="
 echo "[INFO] Timestamp: $(date)"

@@ -1,0 +1,110 @@
+---
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Stage globals
+  hosts: localhost
+  gather_facts: false
+  tags:
+    - setup
+    - always
+  roles:
+    - role: log_collector
+      stage: setup
+
+- name: Prepare targets and inventory
+  hosts: localhost
+  gather_facts: false
+  tags:
+    - prepare
+    - always
+  roles:
+    - role: log_collector
+      stage: prepare
+
+- name: Collect k8s master logs
+  hosts: k8s_masters
+  gather_facts: false
+  ignore_unreachable: true
+  tags:
+    - k8s
+    - always
+  roles:
+    - role: log_collector
+      stage: k8s_master
+
+- name: Collect k8s worker logs
+  hosts: k8s_workers
+  gather_facts: false
+  ignore_unreachable: true
+  tags:
+    - k8s
+    - always
+  roles:
+    - role: log_collector
+      stage: k8s_worker
+
+- name: Collect slurm controller logs
+  hosts: slurm_controllers
+  gather_facts: false
+  ignore_unreachable: true
+  tags:
+    - slurm
+    - always
+  roles:
+    - role: log_collector
+      stage: slurm_ctl
+
+- name: Collect slurm node logs
+  hosts: slurm_nodes
+  gather_facts: false
+  ignore_unreachable: true
+  tags:
+    - slurm
+    - always
+  roles:
+    - role: log_collector
+      stage: slurm_node
+
+- name: Collect login node logs
+  hosts: login_nodes
+  gather_facts: false
+  ignore_unreachable: true
+  tags:
+    - slurm
+    - always
+  roles:
+    - role: log_collector
+      stage: login_node
+
+- name: Collect login compiler node logs
+  hosts: login_compiler_nodes
+  gather_facts: false
+  ignore_unreachable: true
+  tags:
+    - slurm
+    - always
+  roles:
+    - role: log_collector
+      stage: login_compiler_node
+
+- name: Bundle collected logs and publish summary
+  hosts: localhost
+  gather_facts: false
+  tags:
+    - bundle
+    - always
+  roles:
+    - role: log_collector
+      stage: bundle

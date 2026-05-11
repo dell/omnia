@@ -50,6 +50,11 @@ spec:
       tlsConfig:
         insecureSkipVerify: true
 {% endif %}
+{% for endpoint in telemetry_config.telemetry_sinks.victoria_metrics.additional_metric_remote_write_endpoints | default([]) %}
+    - url: {{ endpoint.url }}
+      tlsConfig:
+        insecureSkipVerify: {{ endpoint.tls_insecure_skip_verify | default(false) | lower }}
+{% endfor %}
   
   # Resource limits
   resources:
@@ -60,11 +65,13 @@ spec:
       memory: "{{ victoria_cluster.vmagent.resources.limits.memory}}"
       cpu: "{{ victoria_cluster.vmagent.resources.limits.cpu}}"
   
-  # Service discovery configs - operator uses VMServiceScrape/VMPodScrape CRDs
+  # Service discovery configs - operator uses VMServiceScrape/VMPodScrape/VMNodeScrape CRDs
   serviceScrapeNamespaceSelector: {}
   serviceScrapeSelector: {}
   podScrapeNamespaceSelector: {}
   podScrapeSelector: {}
+  nodeScrapeNamespaceSelector: {}
+  nodeScrapeSelector: {}
   
   # Extra args
   extraArgs:

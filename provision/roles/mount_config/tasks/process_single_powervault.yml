@@ -1,0 +1,41 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+- name: Process PowerVault iSCSI entry
+  block:
+    - name: Determine target functional groups for PowerVault entry
+      ansible.builtin.include_tasks: determine_target_groups.yml
+      vars:
+        config_item: "{{ pv_item }}"
+
+    - name: Render iSCSI setup script content for this PowerVault entry
+      ansible.builtin.set_fact:
+        pv_rendered_script: "{{ lookup('template', pv_script_template_path) }}"
+      vars:
+        pv_entry: "{{ pv_item }}"
+
+    - name: Add PowerVault rendered script to each target functional group
+      ansible.builtin.set_fact:
+        cloud_init_groups_dict: >-
+          {{ cloud_init_groups_dict | combine({
+            item: (cloud_init_groups_dict[item] | default({}) | combine({
+              'powervault_scripts': (cloud_init_groups_dict[item].powervault_scripts | default([])) + [{
+                'name': pv_item.name,
+                'content': pv_rendered_script
+              }]
+            }, recursive=true))
+          }, recursive=true) }}
+      loop: "{{ target_functional_groups }}"
+      loop_control:
+        label: "{{ item }}"

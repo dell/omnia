@@ -49,7 +49,11 @@
       { "package": "victoria-metrics-operator-0.59.3", "type": "tarball", "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz" },
       { "package": "docker.io/timberio/vector", "tag": "0.54.0-alpine", "type": "image" },
       { "package": "apptainer", "type": "rpm", "repo_name": "epel" },
-      { "package": "doca-ofed", "type": "rpm_repo", "repo_name": "doca" }
+      { "package": "doca-ofed", "type": "rpm_repo", "repo_name": "doca" },
+      { "package": "iscsi-initiator-utils", "type": "rpm", "repo_name": "baseos" },
+      { "package": "device-mapper-multipath", "type": "rpm", "repo_name": "baseos" },
+      { "package": "sg3_utils", "type": "rpm", "repo_name": "baseos" },
+      { "package": "lsscsi", "type": "rpm", "repo_name": "baseos" }
     ]
   },
   "service_kube_control_plane": {

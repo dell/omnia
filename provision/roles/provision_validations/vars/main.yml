@@ -72,6 +72,8 @@ warning_idrac_telemetry_support_true: |
   Confirm that all BMC IPs are reachable from the respective service cluster nodes for telemetry to function properly.
   Make sure that Redfish is enabled and the iDRAC has a datacenter license.
   Also, ensure that the firmware version is greater than 4 for iDRAC9 or greater than 1 for iDRAC10."
+
+
 pause_time_15: 15
 bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
 

@@ -82,7 +82,7 @@ slurm_db_host: "{{ hostvars['localhost']['slurm_db_host'] | default(false) }}"
 slurm_db_port: "{{ hostvars['localhost']['slurm_db_port'] | default(3306) }}"
 slurm_db_type: "{{ hostvars['localhost']['slurm_db_type'] | default('mariadb') }}"
 # share_path: "{{ hostvars['localhost']['share_path'] }}" # TODO: direct load vars omnia_config.yml
-slurm_support: "{{ hostvars['localhost']['slurm_support'] }}"
+# slurm_support: "{{ hostvars['localhost']['slurm_support'] | default(false) }}"
 slurm_share_prefix: "/"
 slurm_config_dir: etc/slurm
 slurm_dir_name: "slurm"

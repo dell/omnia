@@ -1,4 +1,4 @@
-# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
+- name: Set NFS info fact
+  ansible.builtin.set_fact:
+    oim_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
 
 - name: Initialize openchami_install_status
   ansible.builtin.set_fact:

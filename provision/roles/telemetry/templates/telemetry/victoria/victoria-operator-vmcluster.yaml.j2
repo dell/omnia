@@ -31,7 +31,20 @@ spec:
       repository: {{ victoria_cluster.vmstorage.image.split(':')[0] }}
       tag: {{ victoria_cluster.vmstorage.image.split(':')[1] }}
       pullPolicy: IfNotPresent
-    
+
+    # Graceful shutdown - gives VMStorage time to flush data and clean up lock files
+    terminationGracePeriodSeconds: {{ victoria_cluster.termination_grace_period }}
+
+    # Init container to remove stale VMStorage lock files after node reboot
+    # Required because POSIX flock is not reliably released on NFS-backed PVCs
+    initContainers:
+      - name: remove-stale-locks
+        image: "{{ telemetry_images['docker.io/library/busybox'] | default('docker.io/library/busybox:1.36') }}"
+        command: ["sh", "-c", "rm -f /vmstorage-data/flock.lock || true"]
+        volumeMounts:
+          - name: vmstorage-db
+            mountPath: /vmstorage-data
+
     # Storage configuration per pod
     storageDataPath: /vmstorage-data
     storage:
@@ -43,7 +56,7 @@ spec:
             requests:
               storage: {{ telemetry_config.telemetry_sinks.victoria_metrics.persistence_size }}
     
-    # Resource limits
+    # Resource limits - Guaranteed QoS to prevent OOM on reconnection
     resources:
       requests:
         memory: {{ victoria_cluster.vmstorage.resources.requests.memory }}
@@ -51,7 +64,37 @@ spec:
       limits:
         memory: {{ victoria_cluster.vmstorage.resources.limits.memory }}
         cpu: {{ victoria_cluster.vmstorage.resources.limits.cpu }}
-    
+
+    # Startup probe - gives pod up to 300s to initialize (30 x 10s)
+    startupProbe:
+      httpGet:
+        path: /health
+        port: 8482
+        scheme: HTTPS
+      initialDelaySeconds: {{ victoria_cluster.startup_probe.initial_delay }}
+      periodSeconds: {{ victoria_cluster.startup_probe.period }}
+      failureThreshold: {{ victoria_cluster.startup_probe.failure_threshold }}
+      timeoutSeconds: {{ victoria_cluster.startup_probe.timeout }}
+{% if victoria_cluster.tls_enabled %}
+      tlsConfig:
+        insecureSkipVerify: true
+{% endif %}
+
+    # Readiness probe - increased tolerance for WAL replay
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8482
+        scheme: HTTPS
+      initialDelaySeconds: {{ victoria_cluster.readiness_probe.initial_delay }}
+      periodSeconds: {{ victoria_cluster.readiness_probe.period }}
+      failureThreshold: {{ victoria_cluster.readiness_probe.failure_threshold }}
+      timeoutSeconds: {{ victoria_cluster.readiness_probe.timeout }}
+{% if victoria_cluster.tls_enabled %}
+      tlsConfig:
+        insecureSkipVerify: true
+{% endif %}
+
     # Pod anti-affinity
     affinity:
       podAntiAffinity:
@@ -71,11 +114,11 @@ spec:
       - effect: NoExecute
         key: node.kubernetes.io/not-ready
         operator: Exists
-        tolerationSeconds: 5
+        tolerationSeconds: {{ victoria_cluster.toleration_seconds }}
       - effect: NoExecute
         key: node.kubernetes.io/unreachable
         operator: Exists
-        tolerationSeconds: 5
+        tolerationSeconds: {{ victoria_cluster.toleration_seconds }}
 {% if victoria_cluster.vmstorage.dedup_min_scrape_interval or victoria_cluster.tls_enabled %}
     
     extraArgs:

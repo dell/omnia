@@ -149,7 +149,7 @@
         name: passwordless_ssh
         tasks_from: read_nodes_yaml.yml
   roles:
-    - nfs_client
+    - mount_config
     - k8s_config
     - slurm_config
     - openldap

@@ -24,10 +24,12 @@ Functions:
     validate_input
     get_data
     verify
+    validate_csv_structure
 """
 
 import logging
 import os
+import csv
 
 # pylint: disable=no-name-in-module,E0401
 import ansible.module_utils.input_validation.common_utils.data_fetch as fetch
@@ -36,6 +38,65 @@ import ansible.module_utils.input_validation.common_utils.data_verification as v
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.input_validation.common_utils import config
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
+
+def validate_csv_structure(csv_file_path, logger=None):
+    """
+    Validate CSV structure for PXE mapping files.
+    
+    Args:
+        csv_file_path (str): Path to the CSV file to validate
+        logger (logging.Logger): Logger instance for logging
+        
+    Returns:
+        bool: True if validation passes, False otherwise
+        
+    Raises:
+        ValueError: If CSV structure validation fails
+    """
+    try:
+        if not os.path.exists(csv_file_path):
+            error_msg = f"CSV ERROR: File not found - {csv_file_path}"
+            if logger:
+                logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        with open(csv_file_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            try:
+                header = next(reader)
+            except StopIteration:
+                error_msg = f"CSV ERROR: Empty file - {csv_file_path}"
+                if logger:
+                    logger.error(error_msg)
+                raise ValueError(error_msg)
+                
+            expected_columns = len(header)
+            
+            line_num = 2
+            for row in reader:
+                if len(row) != expected_columns:
+                    error_msg = (
+                        f"CSV ERROR: Line {line_num} has {len(row)} columns, expected {expected_columns}. "
+                        f"Missing values in CSV row. Ensure each row has the correct number of values separated by commas."
+                    )
+                    if logger:
+                        logger.error(error_msg)
+                        logger.error(f"Problem row: {','.join(row)}")
+                    raise ValueError(error_msg)
+                line_num += 1
+                
+        success_msg = f"CSV validation passed - {line_num - 2} rows validated"
+        if logger:
+            logger.info(success_msg)
+        print(success_msg)
+        return True
+        
+    except Exception as e:
+        error_msg = f"CSV validation error: {str(e)}"
+        if logger:
+            logger.error(error_msg)
+        raise ValueError(error_msg)
+
 
 def createlogger(project_name, tag_name=None):
     """
@@ -77,7 +138,8 @@ def main():
         "omnia_base_dir": {"type": "str", "required": True},
         "project_name": {"type": "str", "required": True},
         "tag_names": {"type": "list", "required": True},
-        "module_utils_path": {"type": "str"}
+        "module_utils_path": {"type": "str"},
+        "csv_file_path": {"type": "str", "required": False},
     }
 
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
@@ -86,6 +148,7 @@ def main():
     omnia_base_dir = module.params["omnia_base_dir"]
     project_name = module.params["project_name"]
     tag_names = module.params["tag_names"]
+    csv_file_path = module.params.get("csv_file_path", "")
 
     schema_base_file_path = os.path.join(module_utils_base,'input_validation','schema')
     input_dir_path = os.path.join(omnia_base_dir, project_name)
@@ -184,6 +247,16 @@ def main():
 
             vstatus.append(schema_status)
             vstatus.append(logic_status)
+
+    # Optional CSV validation
+    if csv_file_path:
+        try:
+            validate_csv_structure(csv_file_path, logger)
+            validation_status["tag"].append("csv_structure")
+            vstatus.append(True)
+        except ValueError as csv_error:
+            error_bucket = error_bucket + [str(csv_error)]
+            vstatus.append(False)
 
     if not validation_status:
         message = "No validation has been performed. \

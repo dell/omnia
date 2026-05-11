@@ -13,21 +13,21 @@
 # limitations under the License.
 ---
 
-# Configure PowerScale syslog collection via rsyslog relay + shared VLAgent
+# Configure PowerScale syslog collection via direct VLAgent LoadBalancer
 # Gated by: telemetry_sources.powerscale.logs_enabled
 #
-# DATA PIPELINE (UDP mode only):
-#   PowerScale (UDP:514) → K8s node rsyslog → VLAgent LB (TCP:514) → VictoriaLogs
+# DATA PIPELINE:
+#   PowerScale (UDP/TCP:514) → VLAgent LoadBalancer IP:514 → VictoriaLogs
 #
 # What Omnia does:
-#   - Uses syslog_source_ips from user config (syslog source != CSI endpoint)
-#   - Configures rsyslog on ALL K8s nodes (UDP listener, filter by PS IP, forward to VLAgent)
-#   - Opens firewall ports 514/udp and 514/tcp on all K8s nodes
-#   - VLAgent listens on TCP:514 (rsyslog relay)
+#   - Deploys VLAgent with LoadBalancer service (MetalLB assigns external IP)
+#   - VLAgent listens on UDP:514 and TCP:514 for syslog messages
+#   - Automatically configures PowerScale syslog forwarding via SSH (if CSI credentials available)
+#   - Falls back to manual configuration instructions if credentials unavailable
 #
 # What Omnia does NOT do:
-#   - Omnia does NOT configure PowerScale directly
-#   - User must configure PowerScale to send UDP syslog to K8s node IPs
+#   - Omnia does NOT configure PowerScale directly if CSI credentials are unavailable
+#   - User must manually configure PowerScale to send syslog to VLAgent LoadBalancer IP
 
 - name: Configure PowerScale syslog collection
   when: powerscale_log_enabled | default(false) | bool
@@ -38,12 +38,23 @@
           - "'victoria_logs' in telemetry_config.telemetry_sources.powerscale.collection_targets | default([])"
         fail_msg: "{{ powerscale_victoria_logs_validation_fail_msg }}"
 
-    - name: Set PowerScale syslog source IPs
-      ansible.builtin.set_fact:
-        powerscale_management_ips: "{{ telemetry_config.powerscale_configurations.syslog_source_ips | default([]) }}"
+    - name: Read CSI PowerScale secret for cluster information
+      ansible.builtin.slurp:
+        src: "{{ hostvars['localhost']['k8s_client_share_path'] }}/csi-driver-powerscale/secret.yaml"
+      register: csi_powerscale_secret_content
+      ignore_errors: true
 
-    - name: Populate PowerScale syslog configuration script
-      ansible.builtin.template:
-        src: "{{ configure_ps_syslog_template }}"
-        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/configure_powerscale_syslog.sh"
-        mode: "{{ hostvars['localhost']['file_permissions_755'] }}"
+    - name: Parse CSI PowerScale secret
+      ansible.builtin.set_fact:
+        csi_powerscale_secret: "{{ csi_powerscale_secret_content.content | b64decode | from_yaml }}"
+      when: csi_powerscale_secret_content.skipped is not defined
+
+    - name: Extract PowerScale clusters
+      ansible.builtin.set_fact:
+        ps_clusters: "{{ csi_powerscale_secret.isilonClusters | default([]) }}"
+      when: csi_powerscale_secret.skipped is not defined
+
+    - name: Set empty ps_clusters if secret not available
+      ansible.builtin.set_fact:
+        ps_clusters: []
+      when: csi_powerscale_secret.skipped is defined
