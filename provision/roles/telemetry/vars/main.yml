@@ -584,11 +584,7 @@ vector:
     image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
     replicas: 2
     pvc_size: "5Gi"  # Disk buffer
-<<<<<<< HEAD
     remote_write_url: "https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9428/internal/insert"
-=======
-    remote_write_url: "https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert"
->>>>>>> 51f2f6812 (vector-ome deployment changes)
     tmp_data_path: "/vlagent-buffer"
     resources:
       requests:
