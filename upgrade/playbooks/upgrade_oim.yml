@@ -91,9 +91,9 @@
     # ── Phase 1: OpenCHAMI Container Upgrade (ESpec §4.4) ──────────────
     - name: "Phase 1 — OpenCHAMI Container Upgrade"
       block:
-        # Step 1: Verify OpenCHAMI container 
+        # Step 1: Verify OpenCHAMI container
         # TODO: Implement Verify OpenCHAMI container checks
-        - name: Verify OpenCHAMI container 
+        - name: Verify OpenCHAMI container
           ansible.builtin.debug:
             msg: "TODO: Verify OpenCHAMI container"
 
