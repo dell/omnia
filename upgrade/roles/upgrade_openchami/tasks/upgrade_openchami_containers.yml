@@ -105,6 +105,29 @@
       delegate_facts: true
       connection: ssh
 
+    # --- Deploy new coresmd split containers (coresmd -> coresmd-coredhcp + coresmd-coredns) ---
+    - name: Deploy coresmd-coredhcp quadlet file
+      ansible.builtin.template:
+        src: coresmd-coredhcp.container.j2
+        dest: /etc/containers/systemd/coresmd-coredhcp.container
+        owner: root
+        group: root
+        mode: "{{ file_permissions_644 }}"
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Deploy coresmd-coredns quadlet file
+      ansible.builtin.template:
+        src: coresmd-coredns.container.j2
+        dest: /etc/containers/systemd/coresmd-coredns.container
+        owner: root
+        group: root
+        mode: "{{ file_permissions_644 }}"
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
     # --- Upgrade OpenCHAMI and ochami RPMs ---
     - name: Create work directory for RPM downloads
       ansible.builtin.file:
@@ -213,6 +236,16 @@
       delegate_facts: true
       connection: ssh
 
+    - name: Update openchami.target to replace coresmd.service with split services
+      ansible.builtin.replace:
+        path: /etc/systemd/system/openchami.target
+        regexp: 'coresmd\.service'
+        replace: 'coresmd-coredhcp.service coresmd-coredns.service'
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
     # --- Reload and restart with new images ---
     - name: Reload systemd daemon
       ansible.builtin.systemd:
@@ -234,22 +267,12 @@
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
-    - name: Check if coresmd-coredns quadlet exists
-      ansible.builtin.stat:
-        path: "/etc/containers/systemd/coresmd-coredns.container"
-      register: coresmd_coredns_quadlet
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
     - name: Verify all post-upgrade critical containers are running
       ansible.builtin.command: podman ps --filter "name={{ item }}" --format '{% raw %}{{.Names}}{% endraw %}'
       loop: "{{ openchami_post_upgrade_critical_containers }}"
       register: verify_running
       changed_when: false
-      failed_when: |
-        verify_running.stdout | length == 0 and
-        (item != 'coresmd-coredns' or coresmd_coredns_quadlet.stat.exists | default(false))
+      failed_when: verify_running.stdout | length == 0
       delegate_to: oim
       delegate_facts: true
       connection: ssh
