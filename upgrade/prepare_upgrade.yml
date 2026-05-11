@@ -41,4 +41,3 @@
     - role: ../utils/roles/include_input_dir
     - role: import_input_parameters
     - role: manage_upgrade_inputs
-    - role: prep_local_repo
