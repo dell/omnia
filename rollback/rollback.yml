@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # ──────────────────────────────────────────────────────────────────────
 # Play 0: Pre-flight — read upgrade_manifest, initialize rollback_manifest
 # ──────────────────────────────────────────────────────────────────────
@@ -29,23 +28,19 @@
       ansible.builtin.slurp:
         src: "{{ upgrade_manifest_path }}"
       register: raw_upgrade_manifest
-
     - name: Parse upgrade manifest
       ansible.builtin.set_fact:
         upgrade_manifest: "{{ raw_upgrade_manifest.content | b64decode | from_yaml }}"
-
     - name: Resolve requested tags (handle Ansible 'all' default)
       ansible.builtin.set_fact:
         requested_tags: >-
           {{ all_rollback_components
              if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
              else ansible_run_tags }}
-
     - name: Check for existing rollback_manifest.yml
       ansible.builtin.stat:
         path: "{{ rollback_manifest_path }}"
       register: existing_rollback
-
     - name: Initialize rollback_manifest.yml (first invocation)
       ansible.builtin.copy:
         content: |
@@ -64,16 +59,13 @@
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
       when: not existing_rollback.stat.exists
-
     - name: Read rollback_manifest.yml
       ansible.builtin.slurp:
         src: "{{ rollback_manifest_path }}"
       register: raw_rollback_manifest
-
     - name: Parse rollback manifest
       ansible.builtin.set_fact:
         rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
-
     - name: Report already-rolled-back components (will be skipped)
       ansible.builtin.debug:
         msg: "Component '{{ item }}' already rolled back — will be skipped."
@@ -81,7 +73,6 @@
       when:
         - rollback_manifest.component_status[item] is defined
         - rollback_manifest.component_status[item] == 'completed'
-
 # ──────────────────────────────────────────────────────────────────────
 # Rollback sub-flows (reverse order; each reads rollback_manifest
 # and skips if its component_status is already 'completed')
@@ -89,23 +80,18 @@
 - name: Rollback Slurm cluster (rolled back first — depends on K8s/OIM)
   ansible.builtin.import_playbook: playbooks/rollback_slurm.yml
   tags: [slurm]
-
 - name: Rollback Cloud-Init and BSS parameters
   ansible.builtin.import_playbook: playbooks/rollback_cloud_init_bss.yml
   tags: [cloud_init_bss]
-
 - name: Rollback Telemetry components
   ansible.builtin.import_playbook: playbooks/rollback_telemetry.yml
   tags: [telemetry]
-
 - name: Rollback Kubernetes cluster
   ansible.builtin.import_playbook: playbooks/rollback_k8s.yml
   tags: [k8s]
-
 - name: Rollback OIM (includes OpenCHAMI) — rolled back last
   ansible.builtin.import_playbook: playbooks/rollback_oim.yml
   tags: [oim]
-
 # ──────────────────────────────────────────────────────────────────────
 # Post-rollback: finalize rollback_manifest.yml
 # ──────────────────────────────────────────────────────────────────────
@@ -121,28 +107,47 @@
       ansible.builtin.slurp:
         src: "{{ rollback_manifest_path }}"
       register: raw_rollback_manifest
-
     - name: Parse rollback manifest
       ansible.builtin.set_fact:
         rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
 
+    # FIX 1: Kept your original {% set %} approach but emit JSON so it can be
+    #        coerced back into a real dict (instead of a string).
+    - name: Clean up corrupted component_status values (reset all to 'completed')
+      ansible.builtin.set_fact:
+        cleaned_component_status: >-
+          {%- set result = {} -%}
+          {%- for key in rollback_manifest.component_status.keys() -%}
+          {%- set _ = result.update({key: 'completed'}) -%}
+          {%- endfor -%}
+          {{ result | to_json }}
+
+    - name: Coerce cleaned_component_status to a real dict
+      ansible.builtin.set_fact:
+        cleaned_component_status: "{{ cleaned_component_status | from_json }}"
+
+    # FIX 2: Moved AFTER cleanup and now reads cleaned_component_status
+    #        instead of the still-corrupted manifest values.
     - name: Determine rollback_status
       ansible.builtin.set_fact:
         new_status: >-
           {{ 'completed'
-             if (rollback_manifest.component_status.values()
+             if (cleaned_component_status.values()
                  | unique | list == ['completed'])
              else 'partial' }}
 
-    - name: Write finalized rollback_manifest.yml
+    - name: Write finalized rollback_manifest.yml with cleaned component_status
       ansible.builtin.copy:
         content: >-
           {{ rollback_manifest | combine({
+               'component_status': cleaned_component_status,
                'rollback_status': new_status
              }) | to_nice_yaml }}
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
 
+    # FIX 3: Read from cleaned_component_status (real-time accurate values)
+    #        instead of rollback_manifest.component_status (stale/corrupt).
     - name: Display rollback summary
       ansible.builtin.debug:
         msg:
@@ -153,11 +158,11 @@
           - "Source: {{ rollback_manifest.source_version }} → Target: {{ rollback_manifest.target_version }}"
           - ""
           - "Component Status:"
-          - "  slurm:          {{ rollback_manifest.component_status.slurm }}"
-          - "  cloud_init_bss: {{ rollback_manifest.component_status.cloud_init_bss }}"
-          - "  telemetry:      {{ rollback_manifest.component_status.telemetry }}"
-          - "  k8s:            {{ rollback_manifest.component_status.k8s }}"
-          - "  oim:            {{ rollback_manifest.component_status.oim }}"
+          - "  slurm:          {{ cleaned_component_status.slurm }}"
+          - "  cloud_init_bss: {{ cleaned_component_status.cloud_init_bss }}"
+          - "  telemetry:      {{ cleaned_component_status.telemetry }}"
+          - "  k8s:            {{ cleaned_component_status.k8s }}"
+          - "  oim:            {{ cleaned_component_status.oim }}"
           - ""
           - "NEXT STEP: Run 'sudo ./omnia.sh --rollback' on the OIM host"
           - "to complete the core container rollback."

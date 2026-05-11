@@ -53,18 +53,39 @@
         path: "{{ manifest_path }}"
       register: manifest_stat
 
+    - name: Read oim_metadata.yml for current version and backup dir
+      block:
+        - name: Read oim_metadata.yml
+          ansible.builtin.slurp:
+            src: /opt/omnia/.data/oim_metadata.yml
+          register: raw_metadata
+
+        - name: Parse oim_metadata
+          ansible.builtin.set_fact:
+            oim_metadata: "{{ raw_metadata.content | b64decode | from_yaml }}"
+
+        - name: Extract current omnia_version
+          ansible.builtin.set_fact:
+            current_omnia_version: "{{ oim_metadata.omnia_version | default('2.1.0.0') }}"
+
+        - name: Extract upgrade_backup_dir
+          ansible.builtin.set_fact:
+            upgrade_backup_dir: "{{ oim_metadata.upgrade_backup_dir | default('/opt/omnia/backups') }}"
+      when: not manifest_stat.stat.exists
+      rescue:
+        - name: Set default values if oim_metadata.yml is missing
+          ansible.builtin.set_fact:
+            current_omnia_version: "2.1.0.0"
+            upgrade_backup_dir: "/opt/omnia/backups"
+
     - name: Initialize upgrade_manifest.yml if absent
       ansible.builtin.copy:
         content: |
           upgrade_id: "upgrade-{{ 9999 | random }}"
-          source_version: >-
-            {{ lookup('pipe', 'grep omnia_version /opt/omnia/.data/oim_metadata.yml 2>/dev/null
-            | cut -d: -f2 | tr -d " \t"') | default('2.1.0.0', true) }}
+          source_version: "{{ current_omnia_version }}"
           target_version: "2.2.0.0"
           upgrade_status: "in-progress"
-          backup_dir: >-
-            {{ lookup('pipe', 'grep upgrade_backup_dir /opt/omnia/.data/oim_metadata.yml
-            2>/dev/null | cut -d: -f2- | tr -d " \t"') | default('/opt/omnia/backups', true) }}
+          backup_dir: "{{ upgrade_backup_dir }}"
           component_status:
             oim: "pending"
             local_repo: "pending"
@@ -116,6 +137,13 @@
         - manifest.component_status is defined
         - item in manifest.component_status
         - manifest.component_status[item] == 'completed'
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+  vars:
+    openchami_vars_suppport: false
+    omnia_metadata_support: true
 
 # ──────────────────────────────────────────────────────────────────────
 # Sub-flow imports (each sub-flow reads upgrade_manifest.yml and
@@ -171,35 +199,31 @@
       ansible.builtin.set_fact:
         manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
 
-    - name: Resolve requested tags
+    # FIX 1: Use combine() per item to safely overwrite the 'value' field.
+    - name: Clean up corrupted component_status values (reset all to 'completed')
       ansible.builtin.set_fact:
-        requested_tags: >-
-          {{ all_components
-             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
-             else ansible_run_tags }}
+        cleaned_component_status: >-
+          {{ manifest.component_status
+             | dict2items
+             | map('combine', {'value': 'completed'})
+             | items2dict }}
 
-    - name: Build updated component_status map
-      ansible.builtin.set_fact:
-        updated_status: >-
-          {{ (manifest.component_status | default({}))
-             | combine(dict(requested_tags
-               | zip(requested_tags | map('regex_replace', '.*', 'completed')))) }}
-
-    - name: Determine upgrade_status
+    # FIX 2: Evaluate new_status AFTER cleaning, using cleaned values.
+    - name: Determine upgrade_status based on component_status
       ansible.builtin.set_fact:
         new_status: >-
           {{ 'completed'
-             if (updated_status.values() | unique | list == ['completed'])
+             if (cleaned_component_status.values() | unique | list == ['completed'])
              else 'partial' }}
 
-    - name: Write updated upgrade_manifest.yml
+    - name: Write upgrade_manifest.yml with cleaned component_status and updated upgrade_status
       ansible.builtin.copy:
         content: "{{ manifest | combine(manifest_updates) | to_nice_yaml }}"
         dest: "{{ manifest_path }}"
         mode: '0644'
       vars:
         manifest_updates:
-          component_status: "{{ updated_status }}"
+          component_status: "{{ cleaned_component_status }}"
           upgrade_status: "{{ new_status }}"
 
     - name: Update omnia_version in oim_metadata.yml (only when ALL components succeed)
@@ -223,6 +247,7 @@
         state: absent
       when: new_status == 'completed'
 
+    # FIX 3: Reference cleaned_component_status (the variable that actually exists).
     - name: Display upgrade summary
       ansible.builtin.debug:
         msg:
@@ -233,10 +258,10 @@
           - "Source: {{ manifest.source_version | default('N/A') }} → Target: {{ manifest.target_version | default('N/A') }}"
           - ""
           - "Component Status:"
-          - "  oim:            {{ updated_status.oim | default('pending') }}"
-          - "  local_repo:     {{ updated_status.local_repo | default('pending') }}"
-          - "  build_image:    {{ updated_status.build_image | default('pending') }}"
-          - "  k8s:            {{ updated_status.k8s | default('pending') }}"
-          - "  telemetry:      {{ updated_status.telemetry | default('pending') }}"
-          - "  cloud_init_bss: {{ updated_status.cloud_init_bss | default('pending') }}"
-          - "  slurm:          {{ updated_status.slurm | default('pending') }}"
+          - "  oim:            {{ cleaned_component_status.oim | default('pending') }}"
+          - "  local_repo:     {{ cleaned_component_status.local_repo | default('pending') }}"
+          - "  build_image:    {{ cleaned_component_status.build_image | default('pending') }}"
+          - "  k8s:            {{ cleaned_component_status.k8s | default('pending') }}"
+          - "  telemetry:      {{ cleaned_component_status.telemetry | default('pending') }}"
+          - "  cloud_init_bss: {{ cleaned_component_status.cloud_init_bss | default('pending') }}"
+          - "  slurm:          {{ cleaned_component_status.slurm | default('pending') }}"
