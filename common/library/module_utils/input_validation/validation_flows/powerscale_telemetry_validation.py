@@ -342,6 +342,23 @@ def validate_powerscale_telemetry_config(
                 en_us_validation_msg.POWERSCALE_VICTORIA_LOGS_REQUIRED_MSG
             ))
 
-    # NOTE: additional_remote_write_endpoints and additional_log_write_endpoints
-    # have been moved to telemetry_sinks.victoria_metrics and
-    # telemetry_sinks.victoria_logs. Validation is now handled in telemetry_validation.py
+        # Check CSI PowerScale secret.yaml file presence (optional/warning)
+        # Secret is used for automatic PowerScale syslog configuration via SSH
+        # Deployment handles missing secret gracefully with manual instructions
+        k8s_client_share_path = config_paths.get("k8s_client_share_path", "")
+        if k8s_client_share_path:
+            secret_file_path = os.path.join(
+                k8s_client_share_path,
+                "csi-driver-powerscale",
+                "secret.yaml"
+            )
+            if not os.path.exists(secret_file_path):
+                logger.warning(
+                    en_us_validation_msg.POWERSCALE_CSI_SECRET_FILE_MISSING_MSG.format(
+                        secret_path=secret_file_path
+                    )
+                )
+
+        # Note: CSI driver check removed for logs
+        # Logs use syslog (no credentials) and deployment handles missing CSI secret gracefully
+        # by falling back to manual configuration instructions

@@ -324,6 +324,11 @@ POWERSCALE_CSI_DRIVER_MISSING_MSG = (
     "csi_driver_powerscale is not configured in software_config.json. "
     "PowerScale telemetry requires the CSI driver for PowerScale to be configured."
 )
+POWERSCALE_CSI_SECRET_FILE_MISSING_MSG = (
+    "CSI PowerScale secret.yaml file not found at {secret_path}. "
+    "PowerScale logs deployment will proceed with manual configuration instructions. "
+    "For automatic PowerScale syslog configuration, ensure CSI driver is deployed and secret.yaml exists."
+)
 POWERSCALE_SERVICE_CLUSTER_MISSING_MSG = (
     "service cluster is not defined in functional_groups_config.yml. "
     "PowerScale telemetry requires a service cluster."
