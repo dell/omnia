@@ -42,7 +42,7 @@
   ansible.builtin.include_role:
     name: prep_local_repo
 
-# Phase 4: Execute OIM upgrade (this would be the actual OIM upgrade tasks)
-- name: "Phase 4 - Execute OIM Upgrade Tasks"
-  ansible.builtin.debug:
-    msg: "OIM upgrade tasks would be executed here"
+# Phase 4: Upgrade OpenCHAMI containers and services
+- name: "Phase 4 - Upgrade OpenCHAMI"
+  ansible.builtin.include_role:
+    name: upgrade_openchami

@@ -1,0 +1,96 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Post-upgrade health check
+  block:
+    - name: Wait for service initialization
+      ansible.builtin.pause:
+        seconds: 60
+
+    - name: Verify all post-upgrade OpenCHAMI containers are running
+      ansible.builtin.command: podman ps --filter "name={{ item }}" --format '{% raw %}{{.Names}}{% endraw %}'
+      loop: "{{ openchami_post_upgrade_critical_containers }}"
+      register: container_check
+      changed_when: false
+      failed_when: container_check.stdout | length == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Check postgres database connectivity
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres pg_isready
+      register: postgres_check
+      changed_when: false
+      failed_when: postgres_check.rc != 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Verify container image versions
+      ansible.builtin.shell: |
+        set -o pipefail
+        if ! podman ps -a --format '{% raw %}{{.Names}}{% endraw %}' | grep -q "^{{ item.container }}$"; then
+          echo "Container {{ item.container }} does not exist"
+          exit 0
+        fi
+        IMAGE_ID=$(podman inspect {{ item.container }} --format '{% raw %}{{.Image}}{% endraw %}')
+        podman inspect $IMAGE_ID --format '{% raw %}{{index .RepoTags 0}}{% endraw %}'
+      loop: "{{ openchami_containers }}"
+      register: version_check
+      changed_when: false
+      failed_when: >-
+        version_check.stdout != "" and
+        version_check.stdout != ("Container " ~ item.container ~ " does not exist") and
+        version_check.stdout != item.expected_image
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Verify legacy coresmd container is no longer running
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman ps --filter "name=^coresmd$" --format '{% raw %}{{.Names}}{% endraw %}' | grep -w "^coresmd$" || true
+      register: legacy_coresmd_check
+      changed_when: false
+      failed_when: legacy_coresmd_check.stdout | length > 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Verify post-upgrade node count matches baseline
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres psql -d hmsds -t -c "SELECT COUNT(*) FROM smd.xname;" 2>/dev/null || echo "0"
+      register: post_upgrade_node_count
+      changed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Compare node counts
+      ansible.builtin.debug:
+        msg: "Node count - Pre-upgrade: {{ pre_upgrade_node_count.stdout | default('unknown') | trim }}, Post-upgrade: {{ post_upgrade_node_count.stdout | trim }}"
+      when: pre_upgrade_node_count is defined
+
+    - name: Display post-upgrade health check success
+      ansible.builtin.debug:
+        msg: "{{ upgrade_messages.health_check.post_check_success }}"
+
+  rescue:
+    - name: Post-upgrade health check failed
+      ansible.builtin.fail:
+        msg: "{{ upgrade_messages.health_check.post_check_failure }}\n{{ upgrade_messages.troubleshooting.post_check_diagnosis }}"
