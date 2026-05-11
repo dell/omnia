@@ -77,6 +77,8 @@
     src: "{{ openchami_coredhcp_template }}"
     dest: "{{ openchami_coredhcp_target }}"
     mode: "{{ file_permissions_644 }}"
+  delegate_to: localhost
+  connection: local
 
 - name: Load the openchami configs vars
   ansible.builtin.template:
