@@ -20,6 +20,40 @@
     mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
   tags: telemetry_deployment
 
+- name: Read CSI PowerScale driver values.yaml to detect Volume Health Monitoring
+  tags: telemetry_deployment
+  block:
+    - name: Check if CSI PowerScale values file exists
+      ansible.builtin.stat:
+        path: "{{ csi_powerscale_driver_values_file_path }}"
+      register: csi_values_file_stat
+      when: csi_powerscale_driver_values_file_path is defined
+      delegate_to: localhost
+
+    - name: Load CSI PowerScale values.yaml
+      ansible.builtin.include_vars:
+        file: "{{ csi_powerscale_driver_values_file_path }}"
+        name: csi_powerscale_values
+      when:
+        - csi_powerscale_driver_values_file_path is defined
+        - csi_values_file_stat.stat.exists | default(false)
+      delegate_to: localhost
+
+    - name: Set Volume Health Monitoring status from CSI driver values
+      ansible.builtin.set_fact:
+        powerscale_volume_health_enabled: >-
+          {{ (csi_powerscale_values.node.healthMonitor.enabled | default(false) | bool)
+             or (csi_powerscale_values.controller.healthMonitor.enabled | default(false) | bool) }}
+        cacheable: true
+      when:
+        - csi_powerscale_values is defined
+
+    - name: Set Volume Health Monitoring to false if not configured
+      ansible.builtin.set_fact:
+        powerscale_volume_health_enabled: false
+        cacheable: true
+      when: powerscale_volume_health_enabled is not defined
+
 - name: Create test directory for TLS test jobs
   ansible.builtin.file:
     path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/test"
@@ -144,6 +178,16 @@
     dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/idrac_telemetry_statefulset.yaml"
     mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   when: telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool
+  tags: telemetry_deployment
+
+- name: Populate CSI volume exporter deployment
+  ansible.builtin.template:
+    src: 'telemetry/victoria/csi-volume-exporter.yaml.j2'
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/csi-volume-exporter.yaml"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  when:
+    - powerscale_volume_health_enabled | default(false) | bool
+    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
   tags: telemetry_deployment
 
 - name: Deploy telemetry cleanup script

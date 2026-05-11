@@ -82,3 +82,26 @@ spec:
     - targetLabel: component
       replacement: otel-collector
 {% endif %}
+
+---
+{% if powerscale_volume_health_enabled | default(false) and telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
+# VMServiceScrape for CSI Volume Exporter - PowerScale PV status metrics
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: {{ csi_volume_exporter.app_name }}
+  namespace: {{ telemetry_namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ csi_volume_exporter.app_name }}
+  endpoints:
+    - port: "{{ csi_volume_exporter.metrics_port }}"
+      path: /metrics
+      interval: {{ csi_volume_exporter.scrape_interval }}
+  relabelConfigs:
+    - targetLabel: source
+      replacement: powerscale
+    - targetLabel: component
+      replacement: volume-status
+{% endif %}
