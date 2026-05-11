@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # ============================================================================
 # upgrade.yml — User-Facing Playbook #2
 # ============================================================================
@@ -29,7 +28,6 @@
 # rollback/, and playbooks/ folders. Internal playbooks are imported via
 # relative paths (e.g., playbooks/upgrade_oim.yml).
 # ============================================================================
-
 # ──────────────────────────────────────────────────────────────────────
 # Play 0: Pre-flight — tag dependency validation + idempotency check
 #   Reads upgrade_manifest.yml (created by omnia.sh --upgrade)
@@ -104,15 +102,12 @@
           ansible.builtin.slurp:
             src: /opt/omnia/.data/oim_metadata.yml
           register: raw_metadata
-
         - name: Parse oim_metadata
           ansible.builtin.set_fact:
             oim_metadata: "{{ raw_metadata.content | b64decode | from_yaml }}"
-
         - name: Extract current omnia_version
           ansible.builtin.set_fact:
             current_omnia_version: "{{ oim_metadata.omnia_version | default('2.1.0.0') }}"
-
         - name: Extract upgrade_backup_dir
           ansible.builtin.set_fact:
             upgrade_backup_dir: "{{ oim_metadata.upgrade_backup_dir | default('/opt/omnia/backups') }}"
@@ -183,9 +178,12 @@
         - item in manifest.component_status
         - manifest.component_status[item] == 'completed'
 
+# Note: import_playbook does NOT honor play-level when:; the conditional
+# must be inside the imported playbook itself. tags: always ensures it
+# runs even with --tags <component>.
 - name: Include input project directory
-  when: not project_dir_status | default(false) | bool
   ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+  tags: always
   vars:
     openchami_vars_suppport: false
     omnia_metadata_support: true
