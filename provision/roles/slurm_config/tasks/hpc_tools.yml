@@ -22,7 +22,6 @@
     mode: "{{ common_mode }}"
   loop:
     - cuda
-    - runfile
     - scripts
     - container_images
     - nvidia_sdk
