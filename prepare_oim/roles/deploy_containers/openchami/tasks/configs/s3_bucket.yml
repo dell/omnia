@@ -116,6 +116,8 @@
     replace: "\\1'{{ openchami_s3.endpoint_url }}'\\2"
     backup: true
   when: storage_backend | default('nfs') == 's3'
+  delegate_to: localhost
+  connection: local
 
 - name: Ensure OpenCHAMI configs directory exists
   ansible.builtin.file:
