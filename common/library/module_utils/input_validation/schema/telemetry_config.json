@@ -159,6 +159,27 @@
               "minimum": 24,
               "default": 168,
               "description": "Metric retention period in hours. Default: 168 (7 days)."
+            },
+            "additional_metric_remote_write_endpoints": {
+              "type": "array",
+              "default": [],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "pattern": "^https?://",
+                    "description": "Metrics remote_write endpoint URL."
+                  },
+                  "tls_insecure_skip_verify": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip TLS certificate verification for this endpoint."
+                  }
+                },
+                "required": ["url"]
+              },
+              "description": "Additional metrics remote_write endpoints. Metrics are sent to Omnia VictoriaMetrics AND these endpoints."
             }
           },
           "required": ["persistence_size", "retention_period"]
@@ -179,6 +200,27 @@
               "minimum": 24,
               "default": 168,
               "description": "Log retention period in hours. Default: 168 (7 days)."
+            },
+            "additional_log_write_endpoints": {
+              "type": "array",
+              "default": [],
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "pattern": "^https?://",
+                    "description": "Logs remote_write endpoint URL."
+                  },
+                  "tls_insecure_skip_verify": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip TLS certificate verification for this endpoint."
+                  }
+                },
+                "required": ["url"]
+              },
+              "description": "Additional log remote_write endpoints. Logs are sent to Omnia VictoriaLogs AND these endpoints."
             }
           },
           "required": ["storage_size", "retention_period"]
@@ -353,27 +395,6 @@
         "csm_observability_values_file_path": {
           "type": "string",
           "description": "Path to the CSM Observability (Karavi) values.yaml file."
-        },
-        "additional_remote_write_endpoints": {
-          "type": "array",
-          "default": [],
-          "items": {
-            "type": "object",
-            "properties": {
-              "url": {
-                "type": "string",
-                "pattern": "^https?://",
-                "description": "victoria_metrics remote_write endpoint URL."
-              },
-              "tls_insecure_skip_verify": {
-                "type": "boolean",
-                "default": false,
-                "description": "Skip TLS certificate verification for this endpoint."
-              }
-            },
-            "required": ["url"]
-          },
-          "description": "Additional victoria_metrics remote_write endpoints."
         }
       },
       "required": ["otel_collector_storage_size", "csm_observability_values_file_path"]

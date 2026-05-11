@@ -265,19 +265,6 @@ victoria_logs_cluster:
         memory: "512Mi"
         cpu: "250m"
 
-# VictoriaLogs ports (operator v0.66.1 defaults)
-# Note: VictoriaMetrics operator uses these default ports and ignores custom port specifications
-# will uncomment after verify that victoria oprator does not takes default port
-# victoria_logs_ports:
-#   vlinsert_http: 9481        # Ingestion clients → vlinsert (HTTPS, LoadBalancer) - operator default
-#   vlselect_http: 9471        # Query clients → vlselect (HTTPS, LoadBalancer) - operator default
-#   vlstorage_http: 9491       # Health checks and admin API (internal) - operator default
-#   vlstorage_insert: 9400     # vlinsert → vlstorage data sharding (HTTPS, internal)
-#   vlstorage_select: 9401     # vlselect → vlstorage query fan-out (HTTPS, internal)
-#   vlagent_syslog: 514        # Syslog receiver plaintext (TCP+UDP)
-#   vlagent_syslog_tls: 6514   # Syslog receiver TLS (TCP, RFC 5425)
-#   vlagent_http: 9429         # VLAgent health checks (distinct from vmagent 8429)
-
 # Telemetry shared path configuration
 telemetry_share_path: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/telemetry"
 
@@ -311,9 +298,9 @@ vmagent:
   # Cluster URL (used when victoria_cluster.enabled: true)
   # Operator creates service as vminsert-victoria-cluster (not vminsert)
   # Protocol depends on tls_enabled: https when TLS is on, http otherwise
+  # Use service name only since vmagent and vminsert are in same namespace
   remote_write_url_cluster: >-
-    {{ 'https' if victoria_cluster.tls_enabled else 'http' }}://vminsert-victoria-cluster.{{
-    telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write
+    {{ 'https' if victoria_cluster.tls_enabled else 'http' }}://vminsert-victoria-cluster:8480/insert/0/prometheus/api/v1/write
 
 strmzi_kafka_tarball_url: "{{ offline_tarball_path }}/{{ strimzi_kafka_pkg }}/{{ strimzi_kafka_pkg }}.tar.gz"
 

@@ -59,11 +59,11 @@ spec:
   # Target OTEL collector service
   selector:
     matchLabels:
-      app: otel-collector
+      app.kubernetes.io/name: otel-collector
   
   # Service metrics endpoints
   endpoints:
-    - port: "8889"
+    - port: prometheus
       interval: {{ vmagent.global.scrape_interval }}
       path: /metrics
   

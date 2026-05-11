@@ -69,13 +69,16 @@ spec:
   # ========================================
   # Forward logs to VictoriaLogs vlinsert endpoint
   # Supports JSON Lines format with optional TLS
-  # Using short service name (same namespace) to avoid DNS resolution issues
+  # Using full FQDN for DNS resolution
   remoteWrite:
 {% if victoria_logs_cluster.tls_enabled %}
-    - url: https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc:9481/internal/insert
+    - url: https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert
 {% else %}
-    - url: http://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc:9481/internal/insert
+    - url: http://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert
 {% endif %}
+{% for endpoint in telemetry_config.telemetry_sinks.victoria_logs.additional_log_write_endpoints | default([]) %}
+    - url: {{ endpoint.url }}
+{% endfor %}
 
   # ========================================
   # Resource Allocation
@@ -166,10 +169,12 @@ spec:
           port: 514
           targetPort: 514
           protocol: TCP
+          nodePort: 32399
         - name: syslog-udp
           port: 514
           targetPort: 514
           protocol: UDP
+          nodePort: 32400
 
   # ========================================
   # Health Probes

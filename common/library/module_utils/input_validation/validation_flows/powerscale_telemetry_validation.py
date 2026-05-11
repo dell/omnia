@@ -342,32 +342,4 @@ def validate_powerscale_telemetry_config(
                 en_us_validation_msg.POWERSCALE_VICTORIA_LOGS_REQUIRED_MSG
             ))
 
-    # Validate additional_remote_write_endpoints
-    # (applies to metrics deployment)
-    additional_endpoints = powerscale_config.get(
-        "additional_remote_write_endpoints", []
-    )
-    if additional_endpoints and isinstance(additional_endpoints, list):
-        if len(additional_endpoints) > 5:
-            logger.warning(
-                f"More than 5 additional_remote_write_endpoints "
-                f"configured ({len(additional_endpoints)}). "
-                "This may impact performance."
-            )
-        for idx, endpoint in enumerate(additional_endpoints):
-            if not isinstance(endpoint, dict):
-                continue
-            url = endpoint.get("url", "")
-            if not url or not isinstance(url, str):
-                errors.append(create_error_msg(
-                    f"powerscale_configurations.additional_remote_write_endpoints[{idx}].url",
-                    url,
-                    en_us_validation_msg.POWERSCALE_ADDITIONAL_ENDPOINTS_URL_EMPTY_MSG
-                ))
-            elif (not url.startswith("http://") and
-                  not url.startswith("https://")):
-                errors.append(create_error_msg(
-                    f"powerscale_configurations.additional_remote_write_endpoints[{idx}].url",
-                    url,
-                    en_us_validation_msg.POWERSCALE_ADDITIONAL_ENDPOINTS_URL_INVALID_MSG
-                ))
+    

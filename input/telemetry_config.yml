@@ -214,6 +214,17 @@ telemetry_sinks:
     # Default: 168 (7 days)
     retention_period: 168
 
+    # Additional remote write endpoints for metrics (optional)
+    # Metrics will be sent to the Omnia-managed VictoriaMetrics AND to these endpoints.
+    # Each entry requires a 'url' field (must start with http:// or https://).
+    # Set tls_insecure_skip_verify: true to skip TLS certificate verification.
+    # Default: [] (only Omnia VictoriaMetrics receives metrics)
+    # Example:
+    #   additional_metric_remote_write_endpoints:
+    #     - url: https://external-metrics-server:8480/insert/0/prometheus/api/v1/write
+    #       tls_insecure_skip_verify: false
+    additional_metric_remote_write_endpoints: []
+
   # --------------------------------------------------------------------------
   # victoria_logs — Centralized log storage and querying
   # --------------------------------------------------------------------------
@@ -229,6 +240,17 @@ telemetry_sinks:
     # Log retention period in hours
     # Default: 168 (7 days)
     retention_period: 168
+
+    # Additional remote write endpoints for logs (optional)
+    # Logs will be sent to the Omnia-managed VictoriaLogs AND to these endpoints.
+    # Each entry requires a 'url' field (must start with http:// or https://).
+    # Set tls_insecure_skip_verify: true to skip TLS certificate verification.
+    # Default: [] (only Omnia VictoriaLogs receives logs)
+    # Example:
+    #   additional_log_write_endpoints:
+    #     - url: https://external-logs-server:9481/internal/insert
+    #       tls_insecure_skip_verify: false
+    additional_log_write_endpoints: []
 
   # --------------------------------------------------------------------------
   # Kafka — Distributed streaming platform
@@ -327,7 +349,3 @@ powerscale_configurations:
   # Required when powerscale_configurations.powerscale_telemetry_support: true
   # Reference: https://raw.githubusercontent.com/dell/helm-charts/refs/heads/release-v1.16.3/charts/karavi-observability/values.yaml
   csm_observability_values_file_path: ""
-
-  # Additional victoria_metrics remote_write endpoints (optional)
-  # Default: [] (empty — only the primary Omnia victoria_metrics endpoint is used)
-  additional_remote_write_endpoints: []

@@ -341,12 +341,6 @@ POWERSCALE_CSM_VALUES_PATH_REQUIRED_MSG = (
     "telemetry_sources.powerscale.metrics_enabled is true. "
     "Please provide the path to the CSM Observability values.yaml file."
 )
-POWERSCALE_AUTH_PROXY_HOST_MISSING_MSG = (
-    "karaviMetricsPowerscale.authorization.proxyHost is required in the "
-    "CSM Observability values file when "
-    "karaviMetricsPowerscale.authorization.enabled is true. "
-    "Please provide the hostname or IP of the CSM Authorization Proxy server."
-)
 def powerscale_csm_values_not_found_msg(path):
     """Returns error message when CSM Observability values.yaml file is not found."""
     return (
@@ -368,10 +362,16 @@ POWERSCALE_CSM_METRICS_IMAGE_MISSING_MSG = (
 POWERSCALE_OTEL_COLLECTOR_IMAGE_MISSING_MSG = (
     "OTEL Collector image is required in CSM Observability values.yaml."
 )
-POWERSCALE_ADDITIONAL_ENDPOINTS_URL_EMPTY_MSG = (
-    "Each additional_remote_write_endpoint must have a non-empty 'url' field."
+ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG = (
+    "Each additional_metric_remote_write_endpoint must have a non-empty 'url' field."
 )
-POWERSCALE_ADDITIONAL_ENDPOINTS_URL_INVALID_MSG = (
+ADDITIONAL_METRIC_ENDPOINTS_URL_INVALID_MSG = (
+    "URL must start with 'http://' or 'https://'."
+)
+ADDITIONAL_LOG_ENDPOINTS_URL_EMPTY_MSG = (
+    "Each additional_log_write_endpoint must have a non-empty 'url' field."
+)
+ADDITIONAL_LOG_ENDPOINTS_URL_INVALID_MSG = (
     "URL must start with 'http://' or 'https://'."
 )
 def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_image):
@@ -383,50 +383,6 @@ def powerscale_image_version_mismatch_msg(image_name, values_image, service_k8s_
         f"Please update service_k8s.json to match the values.yaml version "
         f"and re-run local_repo.yml to mirror the correct image to Pulp."
     )
-
-# PowerScale CSM Authorization validation messages
-POWERSCALE_AUTH_CSI_DRIVER_MISSING_MSG = (
-    "PowerScale CSM Authorization requires 'csi_driver_powerscale' to be present in software_config.json."
-)
-POWERSCALE_AUTH_SERVICE_CLUSTER_MISSING_MSG = (
-    "PowerScale CSM Authorization requires service cluster nodes "
-    "(service_kube_node_*, service_kube_control_plane_*) to be defined "
-    "in the PXE mapping file."
-)
-POWERSCALE_AUTH_CSM_VALUES_PATH_REQUIRED_MSG = (
-    "csm_authorization_values_file_path is required when powerscale_authorization.enabled is true."
-)
-def powerscale_auth_csm_values_not_found_msg(path):
-    """Returns error message when CSM Authorization values.yaml file is not found."""
-    return (
-        f"CSM Authorization values file does not exist at path: {path}. "
-        "Please verify the file path is correct."
-    )
-def powerscale_auth_csm_values_validation_error_msg(error):
-    """Returns error message when CSM Authorization values.yaml validation fails."""
-    return f"Error validating CSM Authorization image versions: {error}"
-POWERSCALE_AUTH_TENANTS_REQUIRED_MSG = (
-    "At least one tenant must be defined when powerscale_authorization.enabled is true."
-)
-def powerscale_auth_tenant_roles_required_msg(tenant_name):
-    """Returns error message when a tenant has no roles defined."""
-    return (
-        f"At least one role must be defined for tenant '{tenant_name}'."
-    )
-def powerscale_auth_image_version_mismatch_msg(
-        image_name, values_version, csi_version
-):
-    """Returns error message when CSM Authorization image version doesn't match csi_driver_powerscale.json."""
-    return (
-        f"Image version for {image_name} in CSM Authorization values.yaml "
-        f"({values_version}) does not match csi_driver_powerscale.json "
-        f"({csi_version}). Please ensure both files use the same version."
-    )
-POWERSCALE_AUTH_CSI_JSON_NOT_FOUND_MSG = (
-    "csi_driver_powerscale.json not found. Cannot validate CSM Authorization "
-    "image versions. Please ensure the file exists at "
-    "input/config/x86_64/rhel/10.0/csi_driver_powerscale.json."
-)
 # pylint: enable=invalid-name
 
 def boolean_fail_msg(value):
