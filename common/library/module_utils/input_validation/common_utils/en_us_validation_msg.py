@@ -474,8 +474,31 @@ IB_NETMASK_BITS_MISMATCH_MSG = (
     "netmask_bits in network_spec.yml."
 )
 IB_SUBNET_IN_ADMIN_RANGE_MSG = (
-    "ib_network subnet must be outside the admin network range derived "
-    "from primary_oim_admin_ip/netmask_bits in network_spec.yml."
+    "ib_network subnet must be outside the admin network range derived from "
+    "primary_oim_admin_ip/netmask_bits in network_spec.yml."
+)
+
+# additional_subnets (multi-subnet / multi-RAC support)
+ADDITIONAL_SUBNET_ROUTER_INVALID_MSG = (
+    "router must be a valid IPv4 address within the subnet."
+)
+ADDITIONAL_SUBNET_RANGE_OUTSIDE_MSG = (
+    "dynamic_range must fall entirely within the subnet/netmask_bits."
+)
+ADDITIONAL_SUBNET_OVERLAP_ADMIN_MSG = (
+    "additional subnet overlaps with admin network range. "
+    "Each additional subnet must be a distinct network."
+)
+ADDITIONAL_SUBNET_OVERLAP_EACH_OTHER_MSG = (
+    "additional subnet overlaps with another additional subnet. "
+    "Each additional subnet must be a distinct network."
+)
+ADDITIONAL_SUBNET_ROUTER_NOT_IN_SUBNET_MSG = (
+    "router IP is not within the additional subnet."
+)
+ADDITIONAL_SUBNET_RANGE_OVERLAP_MSG = (
+    "dynamic_range overlaps with admin network dynamic_range or "
+    "another additional subnet's dynamic_range."
 )
 
 # telemetry
