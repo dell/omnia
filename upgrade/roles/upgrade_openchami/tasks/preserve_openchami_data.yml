@@ -24,26 +24,6 @@
       delegate_facts: true
       connection: ssh
 
-    - name: Dump PostgreSQL database
-      ansible.builtin.shell: |
-        set -o pipefail
-        podman exec postgres pg_dump hmsds > {{ openchami_snapshot_dir }}/postgres_dump.sql
-      register: pg_dump
-      changed_when: true
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Capture SMD inventory snapshot from database
-      ansible.builtin.shell: |
-        set -o pipefail
-        podman exec postgres psql -d hmsds -t -c "SELECT * FROM smd.xname;" > {{ openchami_snapshot_dir }}/smd_inventory.txt 2>/dev/null || echo "No data"
-      register: smd_snapshot
-      changed_when: true
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
     - name: List MinIO buckets
       ansible.builtin.shell: |
         set -o pipefail
