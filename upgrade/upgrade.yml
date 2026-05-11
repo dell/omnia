@@ -57,10 +57,14 @@
       ansible.builtin.copy:
         content: |
           upgrade_id: "upgrade-{{ 9999 | random }}"
-          source_version: "{{ lookup('pipe', 'grep omnia_version /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d: -f2 | tr -d \" \\t\"') | default('2.1.0.0', true) }}"
+          source_version: >-
+            {{ lookup('pipe', 'grep omnia_version /opt/omnia/.data/oim_metadata.yml 2>/dev/null
+            | cut -d: -f2 | tr -d " \t"') | default('2.1.0.0', true) }}
           target_version: "2.2.0.0"
           upgrade_status: "in-progress"
-          backup_dir: "{{ lookup('pipe', 'grep upgrade_backup_dir /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d: -f2- | tr -d \" \\t\"') | default('/opt/omnia/backups', true) }}"
+          backup_dir: >-
+            {{ lookup('pipe', 'grep upgrade_backup_dir /opt/omnia/.data/oim_metadata.yml
+            2>/dev/null | cut -d: -f2- | tr -d " \t"') | default('/opt/omnia/backups', true) }}
           component_status:
             oim: "pending"
             local_repo: "pending"
