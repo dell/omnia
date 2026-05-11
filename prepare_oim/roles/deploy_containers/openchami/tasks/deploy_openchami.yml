@@ -36,6 +36,17 @@
       ansible.builtin.fail:
         msg: "{{ network_spec_syntax_fail_msg }} Error: {{ include_network_spec.message }}"
 
+- name: Include storage_config.yml
+  block:
+    - name: Include storage_config.yml file
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
+      no_log: true
+  rescue:
+    - name: Set default storage backend if storage_config.yml not found
+      ansible.builtin.set_fact:
+        openchami_storage_backend: "nfs"
+
 - name: Parse network_spec data
   ansible.builtin.set_fact:
     network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
@@ -108,9 +119,13 @@
 
 - name: Set minio_username and minio_password
   ansible.builtin.set_fact:
-    minio_s3_username: "{{ hostvars['localhost']['minio_s3_username'] }}"
+    minio_s3_username: "{{ hostvars['localhost']['minio_s3_username'] | default('admin', true) }}"
     minio_s3_password: "{{ hostvars['localhost']['minio_s3_password'] }}"
   no_log: true
+
+- name: Set storage backend fact
+  ansible.builtin.set_fact:
+    storage_backend: "{{ openchami_storage_backend | default('nfs') | lower }}"
 
 - name: Deploy openchami configs
   block:

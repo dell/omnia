@@ -75,6 +75,9 @@ omnia_credentials:
       - { password: pulp_password }
       - { password: minio_s3_password }
     conditional_mandatory:
+      # PowerScale S3 Access Key -- only prompted when storage backend is 's3'
+      - username: minio_s3_username
+        condition: "{{ openchami_storage_backend | default('nfs') == 's3' }}"
       - username: build_stream_auth_username
         password: build_stream_auth_password
         condition: "{{ enable_build_stream | default(false) | bool }}"

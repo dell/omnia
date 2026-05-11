@@ -332,6 +332,25 @@
           "required": ["filename", "size", "functional_group_prefix"],
           "additionalProperties": false
         }
+      },
+      "openchami_storage_backend": {
+        "type": "string",
+        "description": "OpenCHAMI image repository backend: 'nfs' (default, MinIO) or 's3' (Dell PowerScale)",
+        "enum": ["nfs", "s3"],
+        "default": "nfs"
+      },
+      "openchami_s3": {
+        "type": "object",
+        "description": "Dell PowerScale S3 configuration. Required when openchami_storage_backend is 's3'.",
+        "properties": {
+          "endpoint_url": {
+            "type": "string",
+            "description": "PowerScale S3 endpoint URL (e.g., https://10.43.1.11:9021)",
+            "pattern": "^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/.*)?$"
+          }
+        },
+        "required": ["endpoint_url"],
+        "additionalProperties": false
       }
     },
     "required": [],

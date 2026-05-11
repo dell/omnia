@@ -192,3 +192,12 @@ mount_params:
 #     size: "2G"
 #     maxsize: "4G"
 #     functional_group_prefix: ["slurm_node"]
+
+# ============================================================
+# OpenCHAMI Image Repository Backend Selector
+# ============================================================
+openchami_storage_backend: "nfs"
+
+# Required ONLY if openchami_storage_backend: "s3"
+openchami_s3:
+  endpoint_url: "https://10.43.1.11:9021"
