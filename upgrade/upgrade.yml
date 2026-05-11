@@ -38,8 +38,10 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: always
   vars:
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    lock_path: /opt/omnia/.data/upgrade_in_progress.lock
     all_components: [oim, local_repo, build_image, k8s, telemetry, cloud_init_bss, slurm]
     tag_dependencies:
       build_image: [oim]
@@ -48,6 +50,49 @@
       cloud_init_bss: [oim]
       slurm: [oim, k8s]
   tasks:
+    # ─── Mutex lock: prevent concurrent upgrade/rollback runs ───
+    - name: Check for existing upgrade/rollback lock
+      ansible.builtin.stat:
+        path: "{{ lock_path }}"
+      register: upgrade_lock_stat
+
+    - name: Read existing lock contents (if any)
+      ansible.builtin.slurp:
+        src: "{{ lock_path }}"
+      register: existing_lock_raw
+      when: upgrade_lock_stat.stat.exists
+      failed_when: false
+
+    - name: Abort if another upgrade/rollback is in progress
+      ansible.builtin.fail:
+        msg: |
+          Another upgrade or rollback is already in progress.
+          Lock file: {{ lock_path }}
+          Lock contents:
+          {{ (existing_lock_raw.content | b64decode) if (existing_lock_raw.content is defined) else '(unreadable)' }}
+
+          If no process is actually running (e.g., previous run crashed),
+          manually remove the lock file and re-run:
+            rm {{ lock_path }}
+      when: upgrade_lock_stat.stat.exists
+
+    - name: Ensure .data directory exists
+      ansible.builtin.file:
+        path: /opt/omnia/.data
+        state: directory
+        mode: '0755'
+
+    - name: Create upgrade lock file
+      ansible.builtin.copy:
+        content: |
+          operation: upgrade
+          pid: {{ ansible_pid | default('unknown') }}
+          started_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+          host: "{{ inventory_hostname }}"
+        dest: "{{ lock_path }}"
+        mode: '0644'
+    # ─────────────────────────────────────────────────────────────
+
     - name: Check for upgrade_manifest.yml
       ansible.builtin.stat:
         path: "{{ manifest_path }}"
@@ -185,9 +230,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: always
   vars:
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     metadata_path: /opt/omnia/.data/oim_metadata.yml
+    lock_path: /opt/omnia/.data/upgrade_in_progress.lock
     all_components: [oim, local_repo, build_image, k8s, telemetry, cloud_init_bss, slurm]
   tasks:
     - name: Read current upgrade_manifest.yml
@@ -241,11 +288,10 @@
             dest: "{{ metadata_path }}"
             mode: '0644'
 
-    - name: Remove upgrade guard lock (only when fully completed)
+    - name: Remove upgrade guard lock (always release at end)
       ansible.builtin.file:
-        path: /opt/omnia/.data/upgrade_in_progress.lock
+        path: "{{ lock_path }}"
         state: absent
-      when: new_status == 'completed'
 
     # FIX 3: Reference cleaned_component_status (the variable that actually exists).
     - name: Display upgrade summary

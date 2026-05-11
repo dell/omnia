@@ -19,11 +19,56 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: always
   vars:
     upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    lock_path: /opt/omnia/.data/upgrade_in_progress.lock
     all_rollback_components: [slurm, cloud_init_bss, telemetry, k8s, oim]
   tasks:
+    # ─── Mutex lock: prevent concurrent upgrade/rollback runs ───
+    - name: Check for existing upgrade/rollback lock
+      ansible.builtin.stat:
+        path: "{{ lock_path }}"
+      register: upgrade_lock_stat
+
+    - name: Read existing lock contents (if any)
+      ansible.builtin.slurp:
+        src: "{{ lock_path }}"
+      register: existing_lock_raw
+      when: upgrade_lock_stat.stat.exists
+      ignore_errors: true
+
+    - name: Abort if another upgrade/rollback is in progress
+      ansible.builtin.fail:
+        msg: |
+          Another upgrade or rollback is already in progress.
+          Lock file: {{ lock_path }}
+          Lock contents:
+          {{ (existing_lock_raw.content | b64decode) if (existing_lock_raw.content is defined) else '(unreadable)' }}
+
+          If no process is actually running (e.g., previous run crashed),
+          manually remove the lock file and re-run:
+            rm {{ lock_path }}
+      when: upgrade_lock_stat.stat.exists
+
+    - name: Ensure .data directory exists
+      ansible.builtin.file:
+        path: /opt/omnia/.data
+        state: directory
+        mode: '0755'
+
+    - name: Create rollback lock file
+      ansible.builtin.copy:
+        content: |
+          operation: rollback
+          pid: {{ ansible_pid | default('unknown') }}
+          started_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+          host: "{{ inventory_hostname }}"
+        dest: "{{ lock_path }}"
+        mode: '0644'
+    # ─────────────────────────────────────────────────────────────
+
     - name: Read upgrade_manifest.yml
       ansible.builtin.slurp:
         src: "{{ upgrade_manifest_path }}"
@@ -38,6 +83,42 @@
              if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
              else ansible_run_tags }}
     - name: Check for existing rollback_manifest.yml
+      ansible.builtin.stat:
+        path: "{{ rollback_manifest_path }}"
+      register: existing_rollback
+
+    # NEW: If a previous rollback completed successfully, archive the stale
+    # rollback manifest so this run starts fresh.
+    - name: Read existing rollback manifest to check status (if present)
+      ansible.builtin.slurp:
+        src: "{{ rollback_manifest_path }}"
+      register: prior_rollback_raw
+      when: existing_rollback.stat.exists
+
+    - name: Parse prior rollback manifest
+      ansible.builtin.set_fact:
+        prior_rollback: "{{ prior_rollback_raw.content | b64decode | from_yaml }}"
+      when: existing_rollback.stat.exists
+
+    - name: Archive stale completed rollback_manifest.yml
+      ansible.builtin.copy:
+        src: "{{ rollback_manifest_path }}"
+        dest: "{{ rollback_manifest_path }}.{{ prior_rollback.rollback_id | default('prev') }}"
+        remote_src: true
+        mode: '0644'
+      when:
+        - existing_rollback.stat.exists
+        - prior_rollback.rollback_status | default('') == 'completed'
+
+    - name: Remove stale completed rollback_manifest.yml
+      ansible.builtin.file:
+        path: "{{ rollback_manifest_path }}"
+        state: absent
+      when:
+        - existing_rollback.stat.exists
+        - prior_rollback.rollback_status | default('') == 'completed'
+
+    - name: Re-check rollback_manifest.yml after possible cleanup
       ansible.builtin.stat:
         path: "{{ rollback_manifest_path }}"
       register: existing_rollback
@@ -99,8 +180,11 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  tags: always
   vars:
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    lock_path: /opt/omnia/.data/upgrade_in_progress.lock
     all_rollback_components: [slurm, cloud_init_bss, telemetry, k8s, oim]
   tasks:
     - name: Read rollback_manifest.yml
@@ -146,6 +230,37 @@
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
 
+    # ─── Invalidate the upgrade manifest so next upgrade starts fresh ───
+    - name: Check if upgrade_manifest.yml exists
+      ansible.builtin.stat:
+        path: "{{ upgrade_manifest_path }}"
+      register: upgrade_manifest_stat
+      when: new_status == 'completed'
+
+    - name: Archive the stale upgrade_manifest.yml (only on full rollback)
+      ansible.builtin.copy:
+        src: "{{ upgrade_manifest_path }}"
+        dest: "{{ upgrade_manifest_path }}.rolledback-{{ rollback_manifest.rollback_id }}"
+        remote_src: true
+        mode: '0644'
+      when:
+        - new_status == 'completed'
+        - upgrade_manifest_stat.stat.exists
+
+    - name: Remove the stale upgrade_manifest.yml so next upgrade starts fresh
+      ansible.builtin.file:
+        path: "{{ upgrade_manifest_path }}"
+        state: absent
+      when:
+        - new_status == 'completed'
+        - upgrade_manifest_stat.stat.exists
+
+    - name: Remove rollback guard lock (always release at end)
+      ansible.builtin.file:
+        path: "{{ lock_path }}"
+        state: absent
+    # ─────────────────────────────────────────────────────────────────────────
+
     # FIX 3: Read from cleaned_component_status (real-time accurate values)
     #        instead of rollback_manifest.component_status (stale/corrupt).
     - name: Display rollback summary
@@ -163,6 +278,8 @@
           - "  telemetry:      {{ cleaned_component_status.telemetry }}"
           - "  k8s:            {{ cleaned_component_status.k8s }}"
           - "  oim:            {{ cleaned_component_status.oim }}"
+          - ""
+          - "Upgrade manifest archived; next upgrade run will start fresh."
           - ""
           - "NEXT STEP: Run 'sudo ./omnia.sh --rollback' on the OIM host"
           - "to complete the core container rollback."
