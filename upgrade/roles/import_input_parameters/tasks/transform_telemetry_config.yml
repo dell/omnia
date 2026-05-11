@@ -258,7 +258,7 @@
   ansible.builtin.debug:
     msg: |
       {{ msg_telemetry_config_transform_summary }}
-      
+
       Field mappings applied:
       - idrac_telemetry_support → telemetry_sources.idrac.metrics_enabled
       - idrac_telemetry_collection_type → telemetry_sources.idrac.collection_targets: {{ telemetry_idrac_collection_targets }}
@@ -266,5 +266,5 @@
       - kafka_configurations → telemetry_sinks.kafka (topic_partitions converted to dict)
       - ldms_* ports/samplers → ldms_configurations
       - Added new sections: telemetry_sources (ldms, dcgm, powerscale), telemetry_bridges, telemetry_sinks.victoria_logs
-      
+
       Configuration validated and migrated successfully.
