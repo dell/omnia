@@ -1,0 +1,238 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# upgrade.yml — User-Facing Playbook #2
+# ============================================================================
+# Tag-based upgrade orchestrator per ESpec §4.3.2.
+# Supports --tags for selective execution of upgrade sub-flows.
+#
+# Usage:
+#   ansible-playbook upgrade/upgrade.yml                     # Full upgrade
+#   ansible-playbook upgrade/upgrade.yml --tags oim          # OIM only
+#   ansible-playbook upgrade/upgrade.yml --tags k8s          # K8s only
+#   ansible-playbook upgrade/upgrade.yml --tags "k8s,telemetry"
+#
+# IMPORTANT: Must be invoked from the parent directory containing upgrade/,
+# rollback/, and playbooks/ folders. Internal playbooks are imported via
+# relative paths (e.g., playbooks/upgrade_oim.yml).
+# ============================================================================
+
+# ──────────────────────────────────────────────────────────────────────
+# Play 0: Pre-flight — tag dependency validation + idempotency check
+#   Reads upgrade_manifest.yml (created by omnia.sh --upgrade)
+# ──────────────────────────────────────────────────────────────────────
+- name: Pre-flight — validate tag dependencies and component state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    all_components: [oim, local_repo, build_image, k8s, telemetry, cloud_init_bss, slurm]
+    tag_dependencies:
+      build_image: [oim]
+      k8s: [oim]
+      telemetry: [oim, k8s]
+      cloud_init_bss: [oim]
+      slurm: [oim, k8s]
+  tasks:
+    - name: Check for upgrade_manifest.yml
+      ansible.builtin.stat:
+        path: "{{ manifest_path }}"
+      register: manifest_stat
+
+    - name: Initialize upgrade_manifest.yml if absent
+      ansible.builtin.copy:
+        content: |
+          upgrade_id: "upgrade-{{ 9999 | random }}"
+          source_version: "{{ lookup('pipe', 'grep omnia_version /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d: -f2 | tr -d \" \\t\"') | default('2.1.0.0', true) }}"
+          target_version: "2.2.0.0"
+          upgrade_status: "in-progress"
+          backup_dir: "{{ lookup('pipe', 'grep upgrade_backup_dir /opt/omnia/.data/oim_metadata.yml 2>/dev/null | cut -d: -f2- | tr -d \" \\t\"') | default('/opt/omnia/backups', true) }}"
+          component_status:
+            oim: "pending"
+            local_repo: "pending"
+            build_image: "pending"
+            k8s: "pending"
+            telemetry: "pending"
+            cloud_init_bss: "pending"
+            slurm: "pending"
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when: not manifest_stat.stat.exists
+
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Resolve requested tags (handle Ansible 'all' default)
+      ansible.builtin.set_fact:
+        requested_tags: >-
+          {{ all_components
+             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
+             else ansible_run_tags }}
+
+    - name: Validate tag dependency order
+      ansible.builtin.fail:
+        msg: >
+          Tag '{{ item }}' requires {{ tag_dependencies[item] | join(', ') }}
+          to have been completed first.
+      loop: "{{ requested_tags }}"
+      when:
+        - item in tag_dependencies
+        - tag_dependencies[item] | difference(requested_tags) | length > 0
+        - tag_dependencies[item] | reject('in',
+            (manifest.component_status | default({}))
+            | dict2items | selectattr('value', 'equalto', 'completed')
+            | map(attribute='key') | list
+          ) | list | length > 0
+
+    - name: Report already-upgraded components (will be skipped)
+      ansible.builtin.debug:
+        msg: "Component '{{ item }}' already completed — will be skipped."
+      loop: "{{ requested_tags }}"
+      when:
+        - manifest.component_status is defined
+        - item in manifest.component_status
+        - manifest.component_status[item] == 'completed'
+
+# ──────────────────────────────────────────────────────────────────────
+# Sub-flow imports (each sub-flow reads upgrade_manifest.yml and
+# skips if its component_status is already 'completed')
+# ──────────────────────────────────────────────────────────────────────
+- name: Upgrade OIM tasks (includes OpenCHAMI)
+  ansible.builtin.import_playbook: playbooks/upgrade_oim.yml
+  tags: [oim]
+
+- name: Local repo staging
+  ansible.builtin.import_playbook: playbooks/upgrade_local_repo.yml
+  tags: [local_repo]
+
+- name: Build images
+  ansible.builtin.import_playbook: playbooks/upgrade_build_image.yml
+  tags: [build_image]
+
+- name: Upgrade Kubernetes cluster
+  ansible.builtin.import_playbook: playbooks/upgrade_k8s.yml
+  tags: [k8s]
+
+- name: Upgrade Telemetry components
+  ansible.builtin.import_playbook: playbooks/upgrade_telemetry.yml
+  tags: [telemetry]
+
+- name: Update Cloud-Init and BSS boot parameters
+  ansible.builtin.import_playbook: playbooks/upgrade_cloud_init_bss.yml
+  tags: [cloud_init_bss]
+
+- name: Upgrade Slurm cluster
+  ansible.builtin.import_playbook: playbooks/upgrade_slurm.yml
+  tags: [slurm]
+
+# ──────────────────────────────────────────────────────────────────────
+# Post-upgrade: update upgrade_manifest.yml + conditionally update
+# oim_metadata.yml omnia_version + clear guard lock
+# ──────────────────────────────────────────────────────────────────────
+- name: Finalize upgrade state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    metadata_path: /opt/omnia/.data/oim_metadata.yml
+    all_components: [oim, local_repo, build_image, k8s, telemetry, cloud_init_bss, slurm]
+  tasks:
+    - name: Read current upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Resolve requested tags
+      ansible.builtin.set_fact:
+        requested_tags: >-
+          {{ all_components
+             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
+             else ansible_run_tags }}
+
+    - name: Build updated component_status map
+      ansible.builtin.set_fact:
+        updated_status: >-
+          {{ (manifest.component_status | default({}))
+             | combine(dict(requested_tags
+               | zip(requested_tags | map('regex_replace', '.*', 'completed')))) }}
+
+    - name: Determine upgrade_status
+      ansible.builtin.set_fact:
+        new_status: >-
+          {{ 'completed'
+             if (updated_status.values() | unique | list == ['completed'])
+             else 'partial' }}
+
+    - name: Write updated upgrade_manifest.yml
+      ansible.builtin.copy:
+        content: "{{ manifest | combine(manifest_updates) | to_nice_yaml }}"
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      vars:
+        manifest_updates:
+          component_status: "{{ updated_status }}"
+          upgrade_status: "{{ new_status }}"
+
+    - name: Update omnia_version in oim_metadata.yml (only when ALL components succeed)
+      when: new_status == 'completed'
+      block:
+        - name: Read oim_metadata.yml
+          ansible.builtin.slurp:
+            src: "{{ metadata_path }}"
+          register: raw_metadata
+        - name: Write omnia_version to oim_metadata.yml
+          ansible.builtin.copy:
+            content: >-
+              {{ (raw_metadata.content | b64decode | from_yaml)
+                 | combine({'omnia_version': manifest.target_version}) | to_nice_yaml }}
+            dest: "{{ metadata_path }}"
+            mode: '0644'
+
+    - name: Remove upgrade guard lock (only when fully completed)
+      ansible.builtin.file:
+        path: /opt/omnia/.data/upgrade_in_progress.lock
+        state: absent
+      when: new_status == 'completed'
+
+    - name: Display upgrade summary
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "       UPGRADE {{ new_status | upper }}"
+          - "========================================="
+          - "Upgrade ID: {{ manifest.upgrade_id | default('N/A') }}"
+          - "Source: {{ manifest.source_version | default('N/A') }} → Target: {{ manifest.target_version | default('N/A') }}"
+          - ""
+          - "Component Status:"
+          - "  oim:            {{ updated_status.oim | default('pending') }}"
+          - "  local_repo:     {{ updated_status.local_repo | default('pending') }}"
+          - "  build_image:    {{ updated_status.build_image | default('pending') }}"
+          - "  k8s:            {{ updated_status.k8s | default('pending') }}"
+          - "  telemetry:      {{ updated_status.telemetry | default('pending') }}"
+          - "  cloud_init_bss: {{ updated_status.cloud_init_bss | default('pending') }}"
+          - "  slurm:          {{ updated_status.slurm | default('pending') }}"

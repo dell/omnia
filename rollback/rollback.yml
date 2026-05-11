@@ -1,0 +1,163 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ──────────────────────────────────────────────────────────────────────
+# Play 0: Pre-flight — read upgrade_manifest, initialize rollback_manifest
+# ──────────────────────────────────────────────────────────────────────
+- name: Pre-flight — initialize rollback manifest and validate state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    all_rollback_components: [slurm, cloud_init_bss, telemetry, k8s, oim]
+  tasks:
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ upgrade_manifest_path }}"
+      register: raw_upgrade_manifest
+
+    - name: Parse upgrade manifest
+      ansible.builtin.set_fact:
+        upgrade_manifest: "{{ raw_upgrade_manifest.content | b64decode | from_yaml }}"
+
+    - name: Resolve requested tags (handle Ansible 'all' default)
+      ansible.builtin.set_fact:
+        requested_tags: >-
+          {{ all_rollback_components
+             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
+             else ansible_run_tags }}
+
+    - name: Check for existing rollback_manifest.yml
+      ansible.builtin.stat:
+        path: "{{ rollback_manifest_path }}"
+      register: existing_rollback
+
+    - name: Initialize rollback_manifest.yml (first invocation)
+      ansible.builtin.copy:
+        content: |
+          rollback_id: "rollback-{{ 9999 | random }}"
+          triggered_from_upgrade_id: "{{ upgrade_manifest.upgrade_id | default('unknown') }}"
+          source_version: "{{ upgrade_manifest.target_version | default('2.2.0.0') }}"
+          target_version: "{{ upgrade_manifest.source_version | default('2.1.0.0') }}"
+          rollback_status: "in-progress"
+          backup_dir: "{{ upgrade_manifest.backup_dir | default('/opt/omnia/backups') }}"
+          component_status:
+            slurm: "pending"
+            cloud_init_bss: "pending"
+            telemetry: "pending"
+            k8s: "pending"
+            oim: "pending"
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'
+      when: not existing_rollback.stat.exists
+
+    - name: Read rollback_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ rollback_manifest_path }}"
+      register: raw_rollback_manifest
+
+    - name: Parse rollback manifest
+      ansible.builtin.set_fact:
+        rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
+
+    - name: Report already-rolled-back components (will be skipped)
+      ansible.builtin.debug:
+        msg: "Component '{{ item }}' already rolled back — will be skipped."
+      loop: "{{ requested_tags }}"
+      when:
+        - rollback_manifest.component_status[item] is defined
+        - rollback_manifest.component_status[item] == 'completed'
+
+# ──────────────────────────────────────────────────────────────────────
+# Rollback sub-flows (reverse order; each reads rollback_manifest
+# and skips if its component_status is already 'completed')
+# ──────────────────────────────────────────────────────────────────────
+- name: Rollback Slurm cluster (rolled back first — depends on K8s/OIM)
+  ansible.builtin.import_playbook: playbooks/rollback_slurm.yml
+  tags: [slurm]
+
+- name: Rollback Cloud-Init and BSS parameters
+  ansible.builtin.import_playbook: playbooks/rollback_cloud_init_bss.yml
+  tags: [cloud_init_bss]
+
+- name: Rollback Telemetry components
+  ansible.builtin.import_playbook: playbooks/rollback_telemetry.yml
+  tags: [telemetry]
+
+- name: Rollback Kubernetes cluster
+  ansible.builtin.import_playbook: playbooks/rollback_k8s.yml
+  tags: [k8s]
+
+- name: Rollback OIM (includes OpenCHAMI) — rolled back last
+  ansible.builtin.import_playbook: playbooks/rollback_oim.yml
+  tags: [oim]
+
+# ──────────────────────────────────────────────────────────────────────
+# Post-rollback: finalize rollback_manifest.yml
+# ──────────────────────────────────────────────────────────────────────
+- name: Finalize rollback state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    all_rollback_components: [slurm, cloud_init_bss, telemetry, k8s, oim]
+  tasks:
+    - name: Read rollback_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ rollback_manifest_path }}"
+      register: raw_rollback_manifest
+
+    - name: Parse rollback manifest
+      ansible.builtin.set_fact:
+        rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
+
+    - name: Determine rollback_status
+      ansible.builtin.set_fact:
+        new_status: >-
+          {{ 'completed'
+             if (rollback_manifest.component_status.values()
+                 | unique | list == ['completed'])
+             else 'partial' }}
+
+    - name: Write finalized rollback_manifest.yml
+      ansible.builtin.copy:
+        content: >-
+          {{ rollback_manifest | combine({
+               'rollback_status': new_status
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'
+
+    - name: Display rollback summary
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "       ROLLBACK {{ new_status | upper }}"
+          - "========================================="
+          - "Rollback ID: {{ rollback_manifest.rollback_id }}"
+          - "Source: {{ rollback_manifest.source_version }} → Target: {{ rollback_manifest.target_version }}"
+          - ""
+          - "Component Status:"
+          - "  slurm:          {{ rollback_manifest.component_status.slurm }}"
+          - "  cloud_init_bss: {{ rollback_manifest.component_status.cloud_init_bss }}"
+          - "  telemetry:      {{ rollback_manifest.component_status.telemetry }}"
+          - "  k8s:            {{ rollback_manifest.component_status.k8s }}"
+          - "  oim:            {{ rollback_manifest.component_status.oim }}"
+          - ""
+          - "NEXT STEP: Run 'sudo ./omnia.sh --rollback' on the OIM host"
+          - "to complete the core container rollback."
