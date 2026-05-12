@@ -27,11 +27,12 @@
 #   2. Download and install updated RPMs (brings new quadlet files)
 #   3. Update image tags in all quadlet files
 #   4. Load cluster config and deploy CoreDNS/CoreDHCP configs
-#   5. Stop openchami.target and minio.service
-#   6. Remove old containers (volumes preserved)
-#   7. Remove legacy coresmd container/quadlet from omnia-2.1
-#   8. Reload systemd and start services
-#   9. Verify all critical containers are running
+#   5. Remove legacy coresmd quadlet and update openchami.target
+#   6. Reload systemd daemon (apply all quadlet/target changes BEFORE restart)
+#   7. Stop openchami.target, minio.service, and registry.service
+#   8. Remove old containers (volumes preserved)
+#   9. Start services and recover any failed services
+#  10. Verify all critical containers are running
 # ===========================================================================
 
 - name: Upgrade OpenCHAMI containers
@@ -206,60 +207,9 @@
       delegate_facts: true
       connection: ssh
 
-    # --- 5. Stop services ---
-    - name: Stop OpenCHAMI services
-      ansible.builtin.systemd:
-        name: openchami.target
-        state: stopped
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-      failed_when: false
-
-    - name: Stop MinIO service for image upgrade
-      ansible.builtin.systemd:
-        name: minio.service
-        state: stopped
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-      failed_when: false
-
-    - name: Wait for containers to stop
-      ansible.builtin.pause:
-        seconds: 10
-
-    # --- 6. Remove old containers (preserve volumes) ---
-    - name: Remove current OpenCHAMI containers (preserve volumes)
-      ansible.builtin.command: podman rm -f {{ item.container }}
-      loop: "{{ openchami_containers }}"
-      register: remove_result
-      changed_when: true
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Remove MinIO container for image upgrade
-      ansible.builtin.command: podman rm -f minio-server
-      changed_when: true
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    # --- 7. Remove legacy coresmd from omnia-2.1 ---
-    - name: Remove legacy coresmd container from omnia-2.1
-      ansible.builtin.command: podman rm -f {{ item }}
-      loop: "{{ openchami_legacy_containers }}"
-      register: remove_legacy
-      changed_when: true
-      failed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Remove legacy quadlet files from omnia-2.1
+    # --- 5. Remove legacy coresmd quadlet and update openchami.target ---
+    # Done BEFORE daemon-reload so systemd picks up the target changes
+    - name: Remove legacy coresmd quadlet file from omnia-2.1
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
@@ -278,14 +228,82 @@
       connection: ssh
       failed_when: false
 
-    # --- 8. Reload systemd and start services ---
-    - name: Reload systemd daemon
+    # --- 6. Reload systemd daemon ---
+    # MUST happen BEFORE stop/remove/start so systemd uses the NEW quadlet
+    # definitions (updated image tags, new coresmd split containers, etc.).
+    # Without this, systemd auto-restarts killed containers using stale
+    # cached unit definitions with old image tags.
+    - name: Reload systemd daemon to apply all quadlet and target changes
       ansible.builtin.systemd:
         daemon_reload: true
       delegate_to: oim
       delegate_facts: true
       connection: ssh
 
+    # --- 7. Stop services ---
+    # registry.service and minio.service run under omnia.target (not
+    # openchami.target), so they must be stopped explicitly.
+    - name: Stop OpenCHAMI services
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Stop MinIO service for image upgrade
+      ansible.builtin.systemd:
+        name: minio.service
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Stop registry service for image upgrade
+      ansible.builtin.systemd:
+        name: registry.service
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Wait for containers to stop
+      ansible.builtin.pause:
+        seconds: 10
+
+    # --- 8. Remove old containers (preserve volumes) ---
+    - name: Remove current OpenCHAMI containers (preserve volumes)
+      ansible.builtin.command: podman rm -f {{ item.container }}
+      loop: "{{ openchami_containers }}"
+      register: remove_result
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Remove MinIO container for image upgrade
+      ansible.builtin.command: podman rm -f minio-server
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Remove legacy coresmd container from omnia-2.1
+      ansible.builtin.command: podman rm -f {{ item }}
+      loop: "{{ openchami_legacy_containers }}"
+      register: remove_legacy
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # --- 9. Start services and recover any failed services ---
     - name: Start OpenCHAMI services with new images
       ansible.builtin.systemd:
         name: openchami.target
@@ -304,11 +322,44 @@
       delegate_facts: true
       connection: ssh
 
+    - name: Start registry service with new image
+      ansible.builtin.systemd:
+        name: registry.service
+        state: started
+        enabled: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
     - name: Wait for services to stabilize
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
-    # --- 9. Verify all critical containers are running ---
+    # Recover any openchami services that failed initial startup
+    # (e.g. coresmd-coredns may fail if haproxy wasn't ready yet)
+    - name: Reset any failed openchami services
+      ansible.builtin.command: systemctl reset-failed
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Restart openchami.target to recover failed services
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: restarted
+        enabled: true
+        daemon_reload: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for restarted services to stabilize
+      ansible.builtin.pause:
+        seconds: "{{ wait_time }}"
+
+    # --- 10. Verify all critical containers are running ---
     - name: Verify all post-upgrade critical containers are running
       ansible.builtin.command: podman ps --filter "name=^{{ item }}$" --format '{% raw %}{{.Names}}{% endraw %}'
       loop: "{{ openchami_post_upgrade_critical_containers }}"
@@ -324,6 +375,15 @@
       register: verify_minio
       changed_when: false
       failed_when: verify_minio.stdout | length == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Verify registry container is running with updated image
+      ansible.builtin.command: podman ps --filter "name=^registry$" --format '{% raw %}{{.Names}}{% endraw %}'
+      register: verify_registry
+      changed_when: false
+      failed_when: verify_registry.stdout | length == 0
       delegate_to: oim
       delegate_facts: true
       connection: ssh

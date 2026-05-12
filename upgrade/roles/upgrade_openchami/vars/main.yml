@@ -41,6 +41,7 @@ openchami_post_upgrade_critical_containers:
   - haproxy
   - coresmd-coredhcp
   - coresmd-coredns
+  - registry
 
 # Legacy containers from omnia-2.1 that must be removed during upgrade
 # coresmd was a single container in 2.1, replaced by coresmd-coredhcp + coresmd-coredns in 2.2
