@@ -77,7 +77,7 @@ omnia_credentials:
     conditional_mandatory:
       # PowerScale S3 Access Key -- only prompted when storage provider is 'powerscale'
       - username: s3_access_id
-        condition: "{{ s3_configurations.provider  == 'powerscale' }}"
+        condition: "{{ s3_configurations.provider == 'powerscale' }}"
       - username: build_stream_auth_username
         password: build_stream_auth_password
         condition: "{{ enable_build_stream | default(false) | bool }}"
