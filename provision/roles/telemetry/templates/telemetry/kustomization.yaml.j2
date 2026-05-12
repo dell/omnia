@@ -19,6 +19,10 @@ resources:
   - victoria-operator-vmagent.yaml
   # VMScrape CR (native operator-based service/pod discovery for metrics)
   - victoria-operator-vmscrape.yaml
+{% if powerscale_volume_health_enabled | default(false) and telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) %}
+  # CSI Volume Exporter - PowerScale PV status metrics
+  - csi-volume-exporter.yaml
+{% endif %}
 {% endif %}
 {% if victoria_logs_support | default(false) %}
 # victoria_logs Resources (Logs Only)

@@ -278,6 +278,30 @@ powerscale_victoria_logs_validation_fail_msg: >-
   PowerScale log collection requires 'victoria_logs' in
   telemetry_sources.powerscale.collection_targets.
 
+# ============================================================================
+# CSI Volume Exporter Configuration
+# ============================================================================
+# Usage: csi-volume-exporter.yaml.j2, victoria-operator-vmscrape.yaml.j2
+# Deployed when telemetry_sources.powerscale.metrics_enabled: true
+# Exposes PowerScale PersistentVolume status as Prometheus metrics
+csi_volume_exporter:
+  app_name: "csi-volume-exporter"
+  service_name: "csi-volume-exporter"
+  service_account_name: "csi-volume-exporter"
+  cluster_role_name: "csi-volume-exporter"
+  cluster_role_binding_name: "csi-volume-exporter"
+  image: "{{ telemetry_images['library/python'] | default('docker.io/library/python:3.11-slim') }}"
+  metrics_port: 9090
+  scrape_interval: "30s"
+  scrape_interval_seconds: 30
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+
 # Usage: victoria-operator-vmagent.yaml.j2 (operator-native)
 vmagent:
   global:
