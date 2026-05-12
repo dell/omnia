@@ -59,12 +59,14 @@
     - telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool
   ansible.builtin.include_tasks: deploy_powerscale_logs.yml
 
-- name: Generate telemetry deployments (idrac/ldms/powerscale)
+- name: Generate telemetry deployments (idrac/ldms/powerscale/vector)
   when:
     - >-
       (telemetry_config.telemetry_sources.idrac.metrics_enabled | default(false) | bool) or
       (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
       (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
+      (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool) or
+      (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool) or
       ldms_support | default(false) | bool
   ansible.builtin.include_tasks: generate_telemetry_deployments.yml
 
@@ -77,15 +79,15 @@
     - telemetry_deployment
     - vector_ldms
 
-# - name: Deploy Vector-OME bridge (Kafka-to-Victoria pipeline for OME data)
-#   ansible.builtin.include_tasks: deploy_vector_ome.yml
-#   when:
-#     - telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
-#       telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
-#     - kafka_support | default(false) | bool
-#   tags:
-#     - telemetry_deployment
-#     - vector_ome
+- name: Deploy Vector-OME bridge (Kafka-to-Victoria pipeline for OME data)
+  ansible.builtin.include_tasks: deploy_vector_ome.yml
+  when:
+    - telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
+      telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
+    - kafka_support | default(false) | bool
+  tags:
+    - telemetry_deployment
+    - vector_ome
 
 - name: Configure of k8s telemetry service
   when:

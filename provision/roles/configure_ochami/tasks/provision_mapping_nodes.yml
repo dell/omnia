@@ -71,7 +71,7 @@
       until: cloud_init_server_status is success
 
     - name: Wait for cloud-init-server to be ready
-      ansible.builtin.command: /usr/bin/ochami cloud-init status
+      ansible.builtin.command: /usr/bin/ochami cloud-init service status
       register: cloud_init_status
       retries: "{{ service_retries }}"
       delay: "{{ service_retry_interval }}"

@@ -110,3 +110,23 @@ data:
           - source_labels: [__meta_kubernetes_namespace]
             target_label: namespace
 {% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool %}
+
+      # Vector-OME internal metrics (port {{ vector.ome.metrics_port }})
+      - job_name: 'vector-ome'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ['{{ telemetry_namespace }}']
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            regex: {{ vector.ome.app_name }}
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: "{{ vector.ome.metrics_port }}"
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: instance
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+{% endif %}
