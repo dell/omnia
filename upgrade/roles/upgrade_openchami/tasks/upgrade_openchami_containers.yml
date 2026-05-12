@@ -89,7 +89,7 @@
       connection: ssh
 
     - name: Download updated OpenCHAMI RPM
-      ansible.builtin.command: curl -L -o {{ openchami_work_dir }}/{{ openchami_rpm_name }} {{ openchami_rpm_url }}
+      ansible.builtin.command: curl -L -o {{ openchami_work_dir }}/{{ openchami_rpm_name }} {{ openchami_rpm_url }}  # noqa: command-instead-of-module
       register: download_openchami
       retries: "{{ max_retries }}"
       delay: "{{ max_delay }}"
@@ -117,7 +117,7 @@
       connection: ssh
 
     - name: Download updated ochami CLI RPM
-      ansible.builtin.command: curl -L -o {{ openchami_work_dir }}/{{ ochami_client_rpm_name }} {{ ochami_client_rpm_url }}
+      ansible.builtin.command: curl -L -o {{ openchami_work_dir }}/{{ ochami_client_rpm_name }} {{ ochami_client_rpm_url }}  # noqa: command-instead-of-module
       register: download_ochami
       retries: "{{ max_retries }}"
       delay: "{{ max_delay }}"
@@ -274,7 +274,7 @@
               cluster_boot_ip: "{{ network_data.admin_network.primary_oim_admin_ip | default(ansible_default_ipv4.address) }}"
               cluster_boot_interface: "{{ network_data.admin_network.oim_nic_name | default(ansible_default_ipv4.interface) }}"
               coredhcp_dhcp_pool: "{{ network_data.admin_network.dynamic_range | default('') | regex_replace('-', ' ') }}"
-              coredhcp_netmask: "{{ (network_data.admin_network.primary_oim_admin_ip | default('0.0.0.0') + '/' + (network_data.admin_network.netmask_bits | default('24') | string)) | ansible.utils.ipaddr('netmask') }}"
+              coredhcp_netmask: "{{ (network_data.admin_network.primary_oim_admin_ip | default('0.0.0.0') + '/' + (network_data.admin_network.netmask_bits | default('24') | string)) | ansible.utils.ipaddr('netmask') }}"  # yaml[line-length]
               coredhcp_lease_duration: "{{ default_lease_time | default('86400') }}s"
               cluster_shortname: "nid"
               cluster_nidlength: 3

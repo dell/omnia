@@ -83,7 +83,9 @@
 
     - name: Compare node counts
       ansible.builtin.debug:
-        msg: "Node count - Pre-upgrade: {{ pre_upgrade_node_count.stdout | default('unknown') | trim }}, Post-upgrade: {{ post_upgrade_node_count.stdout | trim }}"
+        msg: >-
+          Node count - Pre-upgrade: {{ pre_upgrade_node_count.stdout | default('unknown') | trim }},
+          Post-upgrade: {{ post_upgrade_node_count.stdout | trim }}
       when: pre_upgrade_node_count is defined
 
     - name: Display post-upgrade health check success
