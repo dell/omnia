@@ -162,6 +162,11 @@ openchami_config_vars_path: "/opt/omnia/openchami/configs_vars.yaml"
 openchami_work_dir: "/opt/omnia/openchami/workdir"
 ochami_dir: "/etc/ochami"
 
+# Source-of-truth paths for regenerating configs_vars.yaml when missing
+oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
+network_spec_path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/network_spec.yml"
+provision_config_path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/provision_config.yml"
+
 # OpenCHAMI RPM packages (Omnia 2.2 target)
 openchami_rpm_url: "https://github.com/OpenCHAMI/release/releases/download/v0.1.5/openchami-0.1.5.rpm"
 openchami_rpm_name: "openchami-0.1.5.rpm"

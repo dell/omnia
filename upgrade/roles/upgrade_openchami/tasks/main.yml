@@ -23,9 +23,6 @@
         - openchami_deployed | default(false) | bool
         - upgrade_needed | default(true) | bool
       block:
-        - name: Preserve OpenCHAMI data
-          ansible.builtin.include_tasks: preserve_openchami_data.yml
-
         - name: Upgrade OpenCHAMI containers
           ansible.builtin.include_tasks: upgrade_openchami_containers.yml
 
