@@ -13,9 +13,30 @@
 # limitations under the License.
 ---
 
+# ===========================================================================
+# Upgrade OpenCHAMI containers
+#
+# Mirrors the prepare_oim/roles/deploy_containers/openchami pattern:
+#   - The openchami RPM is the single source of truth for quadlet files
+#     (coresmd-coredns.container, coresmd-coredhcp.container, etc.)
+#   - Ansible only deploys configuration files (Corefile, coredhcp.yaml)
+#     using prepare_oim templates
+#
+# Flow:
+#   1. Pull all target images
+#   2. Download and install updated RPMs (brings new quadlet files)
+#   3. Update image tags in all quadlet files
+#   4. Load cluster config and deploy CoreDNS/CoreDHCP configs
+#   5. Stop openchami.target and minio.service
+#   6. Remove old containers (volumes preserved)
+#   7. Remove legacy coresmd container/quadlet from omnia-2.1
+#   8. Reload systemd and start services
+#   9. Verify all critical containers are running
+# ===========================================================================
+
 - name: Upgrade OpenCHAMI containers
   block:
-    # --- Pull new container images ---
+    # --- 1. Pull all target images ---
     - name: Pull new OpenCHAMI container images
       ansible.builtin.command: podman pull {{ item }}
       loop: "{{ openchami_target_images }}"
@@ -28,107 +49,9 @@
       delegate_facts: true
       connection: ssh
 
-    # --- Update quadlet Image= lines for existing quadlet files ---
-    - name: Update image tags in systemd quadlet files
-      ansible.builtin.lineinfile:
-        path: "/etc/containers/systemd/{{ item.file }}"
-        regexp: '^Image=.*'
-        line: "Image={{ item.image }}"
-        state: present
-      loop: "{{ openchami_quadlet_updates }}"
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-      failed_when: false
-
-    # --- Load cluster-specific config vars for template rendering ---
-    - name: Check if configs_vars.yaml exists
-      ansible.builtin.stat:
-        path: "{{ openchami_config_vars_path }}"
-      register: config_vars_stat
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Load cluster-specific config variables
-      ansible.builtin.slurp:
-        src: "{{ openchami_config_vars_path }}"
-      register: config_vars_raw
-      when: config_vars_stat.stat.exists
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Parse cluster config variables
-      ansible.builtin.set_fact:
-        cluster_config: "{{ config_vars_raw.content | b64decode | from_yaml }}"
-      when: config_vars_stat.stat.exists
-
-    - name: Set cluster variables from config
-      ansible.builtin.set_fact:
-        cluster_name: "{{ cluster_config.cluster_name | default('openchami') }}"
-        cluster_domain: "{{ cluster_config.cluster_domain | default('cluster.local') }}"
-        cluster_boot_ip: "{{ cluster_config.cluster_boot_ip | default('') }}"
-        cluster_boot_interface: "{{ cluster_config.cluster_boot_interface | default('') }}"
-        cluster_shortname: "{{ cluster_config.cluster_shortname | default('node') }}"
-        cluster_nidlength: "{{ cluster_config.cluster_nidlength | default('3') }}"
-        ochami_base_url: "https://{{ cluster_config.cluster_name | default('openchami') }}.{{ cluster_config.cluster_domain | default('cluster.local') }}:8443"
-        coredhcp_netmask: "{{ cluster_config.coredhcp_netmask | default('255.255.255.0') }}"
-        coredhcp_lease_duration: "{{ cluster_config.coredhcp_lease_duration | default('24h') }}"
-        coredhcp_dhcp_pool: "{{ cluster_config.coredhcp_dhcp_pool | default('') }}"
-      when: config_vars_stat.stat.exists
-
-    # --- Deploy new CoreDNS and CoreDHCP configs (new in 2.2) ---
-    - name: Deploy updated CoreDNS Corefile
-      ansible.builtin.template:
-        src: "{{ prepare_oim_templates_path }}/coredns/Corefile.j2"
-        dest: "{{ openchami_config_dir }}/Corefile"
-        owner: root
-        group: root
-        mode: "{{ file_permissions_644 }}"
-      when: config_vars_stat.stat.exists
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Deploy updated CoreDHCP config
-      ansible.builtin.template:
-        src: "{{ prepare_oim_templates_path }}/coredhcp/coredhcp.yaml.j2"
-        dest: "{{ openchami_config_dir }}/coredhcp.yaml"
-        owner: root
-        group: root
-        mode: "{{ file_permissions_644 }}"
-      when:
-        - config_vars_stat.stat.exists
-        - cluster_boot_interface | default('') | length > 0
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    # --- Deploy new coresmd split containers (coresmd -> coresmd-coredhcp + coresmd-coredns) ---
-    - name: Deploy coresmd-coredhcp quadlet file
-      ansible.builtin.template:
-        src: coresmd-coredhcp.container.j2
-        dest: /etc/containers/systemd/coresmd-coredhcp.container
-        owner: root
-        group: root
-        mode: "{{ file_permissions_644 }}"
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    - name: Deploy coresmd-coredns quadlet file
-      ansible.builtin.template:
-        src: coresmd-coredns.container.j2
-        dest: /etc/containers/systemd/coresmd-coredns.container
-        owner: root
-        group: root
-        mode: "{{ file_permissions_644 }}"
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    # --- Upgrade OpenCHAMI and ochami RPMs ---
+    # --- 2. Download and install updated RPMs ---
+    # The openchami RPM ships all quadlet files (coresmd-coredns.container,
+    # coresmd-coredhcp.container, etc.) - no Ansible templates needed.
     - name: Create work directory for RPM downloads
       ansible.builtin.file:
         path: "{{ openchami_work_dir }}"
@@ -194,7 +117,96 @@
       delegate_facts: true
       connection: ssh
 
-    # --- Stop services, remove old containers, handle coresmd split ---
+    # --- 3. Update image tags in all quadlet files (override RPM defaults) ---
+    - name: Update image tags in systemd quadlet files
+      ansible.builtin.lineinfile:
+        path: "/etc/containers/systemd/{{ item.file }}"
+        regexp: '^Image=.*'
+        line: "Image={{ item.image }}"
+        state: present
+      loop: "{{ openchami_quadlet_updates }}"
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    # --- 4. Load cluster config and deploy service configs ---
+    # Follows prepare_oim pattern: only deploy configuration files,
+    # reusing templates from prepare_oim/roles/deploy_containers/openchami/templates
+    - name: Ensure OpenCHAMI config directory exists
+      ansible.builtin.file:
+        path: "{{ openchami_config_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "{{ dir_permissions_755 }}"
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Check if configs_vars.yaml exists
+      ansible.builtin.stat:
+        path: "{{ openchami_config_vars_path }}"
+      register: config_vars_stat
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Load cluster-specific config variables
+      ansible.builtin.slurp:
+        src: "{{ openchami_config_vars_path }}"
+      register: config_vars_raw
+      when: config_vars_stat.stat.exists
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Parse cluster config variables
+      ansible.builtin.set_fact:
+        cluster_config: "{{ config_vars_raw.content | b64decode | from_yaml }}"
+      when: config_vars_stat.stat.exists
+
+    - name: Set cluster variables from config
+      ansible.builtin.set_fact:
+        cluster_name: "{{ cluster_config.cluster_name | default('openchami') }}"
+        cluster_domain: "{{ cluster_config.cluster_domain | default('cluster.local') }}"
+        cluster_boot_ip: "{{ cluster_config.cluster_boot_ip | default('') }}"
+        cluster_boot_interface: "{{ cluster_config.cluster_boot_interface | default('') }}"
+        cluster_shortname: "{{ cluster_config.cluster_shortname | default('node') }}"
+        cluster_nidlength: "{{ cluster_config.cluster_nidlength | default('3') }}"
+        ochami_base_url: "https://{{ cluster_config.cluster_name | default('openchami') }}.{{ cluster_config.cluster_domain | default('cluster.local') }}:8443"
+        coredhcp_netmask: "{{ cluster_config.coredhcp_netmask | default('255.255.255.0') }}"
+        coredhcp_lease_duration: "{{ cluster_config.coredhcp_lease_duration | default('24h') }}"
+        coredhcp_dhcp_pool: "{{ cluster_config.coredhcp_dhcp_pool | default('') }}"
+      when: config_vars_stat.stat.exists
+
+    - name: Deploy updated CoreDNS Corefile
+      ansible.builtin.template:
+        src: "{{ prepare_oim_templates_path }}/coredns/Corefile.j2"
+        dest: "{{ openchami_config_dir }}/Corefile"
+        owner: root
+        group: root
+        mode: "{{ file_permissions_644 }}"
+      when: config_vars_stat.stat.exists
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Deploy updated CoreDHCP config
+      ansible.builtin.template:
+        src: "{{ prepare_oim_templates_path }}/coredhcp/coredhcp.yaml.j2"
+        dest: "{{ openchami_config_dir }}/coredhcp.yaml"
+        owner: root
+        group: root
+        mode: "{{ file_permissions_644 }}"
+      when:
+        - config_vars_stat.stat.exists
+        - cluster_boot_interface | default('') | length > 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # --- 5. Stop services ---
     - name: Stop OpenCHAMI services
       ansible.builtin.systemd:
         name: openchami.target
@@ -202,11 +214,22 @@
       delegate_to: oim
       delegate_facts: true
       connection: ssh
+      failed_when: false
+
+    - name: Stop MinIO service for image upgrade
+      ansible.builtin.systemd:
+        name: minio.service
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
 
     - name: Wait for containers to stop
       ansible.builtin.pause:
         seconds: 10
 
+    # --- 6. Remove old containers (preserve volumes) ---
     - name: Remove current OpenCHAMI containers (preserve volumes)
       ansible.builtin.command: podman rm -f {{ item.container }}
       loop: "{{ openchami_containers }}"
@@ -217,7 +240,16 @@
       delegate_facts: true
       connection: ssh
 
-    - name: Remove legacy OpenCHAMI containers from omnia-2.1 (coresmd -> coresmd-coredhcp + coresmd-coredns)
+    - name: Remove MinIO container for image upgrade
+      ansible.builtin.command: podman rm -f minio-server
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # --- 7. Remove legacy coresmd from omnia-2.1 ---
+    - name: Remove legacy coresmd container from omnia-2.1
       ansible.builtin.command: podman rm -f {{ item }}
       loop: "{{ openchami_legacy_containers }}"
       register: remove_legacy
@@ -227,7 +259,7 @@
       delegate_facts: true
       connection: ssh
 
-    - name: Remove legacy quadlet files from omnia-2.1 (coresmd.container replaced by split containers)
+    - name: Remove legacy quadlet files from omnia-2.1
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
@@ -246,7 +278,7 @@
       connection: ssh
       failed_when: false
 
-    # --- Reload and restart with new images ---
+    # --- 8. Reload systemd and start services ---
     - name: Reload systemd daemon
       ansible.builtin.systemd:
         daemon_reload: true
@@ -263,16 +295,35 @@
       delegate_facts: true
       connection: ssh
 
+    - name: Start MinIO service with new image
+      ansible.builtin.systemd:
+        name: minio.service
+        state: started
+        enabled: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
     - name: Wait for services to stabilize
       ansible.builtin.pause:
         seconds: "{{ wait_time }}"
 
+    # --- 9. Verify all critical containers are running ---
     - name: Verify all post-upgrade critical containers are running
-      ansible.builtin.command: podman ps --filter "name={{ item }}" --format '{% raw %}{{.Names}}{% endraw %}'
+      ansible.builtin.command: podman ps --filter "name=^{{ item }}$" --format '{% raw %}{{.Names}}{% endraw %}'
       loop: "{{ openchami_post_upgrade_critical_containers }}"
       register: verify_running
       changed_when: false
       failed_when: verify_running.stdout | length == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Verify MinIO container is running with updated image
+      ansible.builtin.command: podman ps --filter "name=^minio-server$" --format '{% raw %}{{.Names}}{% endraw %}'
+      register: verify_minio
+      changed_when: false
+      failed_when: verify_minio.stdout | length == 0
       delegate_to: oim
       delegate_facts: true
       connection: ssh
