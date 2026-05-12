@@ -274,7 +274,10 @@
               cluster_boot_ip: "{{ network_data.admin_network.primary_oim_admin_ip | default(ansible_default_ipv4.address) }}"
               cluster_boot_interface: "{{ network_data.admin_network.oim_nic_name | default(ansible_default_ipv4.interface) }}"
               coredhcp_dhcp_pool: "{{ network_data.admin_network.dynamic_range | default('') | regex_replace('-', ' ') }}"
-              coredhcp_netmask: "{{ (network_data.admin_network.primary_oim_admin_ip | default('0.0.0.0') + '/' + (network_data.admin_network.netmask_bits | default('24') | string)) | ansible.utils.ipaddr('netmask') }}"  # yaml[line-length]
+              coredhcp_netmask: >-
+                {{ (network_data.admin_network.primary_oim_admin_ip | default('0.0.0.0')
+                + '/' + (network_data.admin_network.netmask_bits | default('24') | string))
+                | ansible.utils.ipaddr('netmask') }}
               coredhcp_lease_duration: "{{ default_lease_time | default('86400') }}s"
               cluster_shortname: "nid"
               cluster_nidlength: 3
