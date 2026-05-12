@@ -42,9 +42,7 @@
 
 - name: Fail if PowerScale unreachable
   ansible.builtin.fail:
-    msg: |
-      Cannot reach PowerScale S3 endpoint: {{ openchami_s3.endpoint_url }}
-      Check: network connectivity, S3 service enabled, firewall rules
+    msg: "{{ powerscale_unreachable_msg }}"
   when:
     - storage_backend | default('nfs') == 's3'
     - ps_endpoint_check.status is not defined or ps_endpoint_check.status not in [200, 403, 404, 405]

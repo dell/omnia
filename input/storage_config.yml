@@ -196,8 +196,19 @@ mount_params:
 # ============================================================
 # OpenCHAMI Image Repository Backend Selector
 # ============================================================
+# Selects the storage backend for OpenCHAMI image repository.
+# Valid options:
+#   - "nfs": Use NFS share for image storage (default, requires MinIO service)
+#   - "s3": Use external S3-compatible storage (e.g., Dell PowerScale)
+#
+# When using "s3" backend:
+#   - MinIO service is not required and will be excluded from omnia.target
+#   - Images are stored directly on the external S3 endpoint
+#   - Requires openchami_s3.endpoint_url to be configured
+#   - Requires minio_s3_username and minio_s3_password (S3 Access Key/Secret Key)
 openchami_storage_backend: "nfs"
 
 # Required ONLY if openchami_storage_backend: "s3"
+# Configuration for external S3-compatible storage (e.g., Dell PowerScale)
 openchami_s3:
-  endpoint_url: "https://10.43.1.11:9021"
+  endpoint_url: ""

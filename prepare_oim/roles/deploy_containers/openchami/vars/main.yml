@@ -166,3 +166,8 @@ coredhcp_tmp_lease_duration: "5m"
 coredhcp_cache_validity: "30s"
 coredhcp_custom_ipxe: "default"
 coredhcp_tftp_single_port_mode: true
+
+# PowerScale S3 endpoint error messages
+powerscale_unreachable_msg: |
+  Cannot reach PowerScale S3 endpoint: {{ openchami_s3.endpoint_url }}
+  Check: network connectivity, S3 service enabled, firewall rules
