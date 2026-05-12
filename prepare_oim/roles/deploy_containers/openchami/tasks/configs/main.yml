@@ -15,7 +15,7 @@
 
 - name: Display selected storage backend
   ansible.builtin.debug:
-    msg: "OpenCHAMI image repository backend: {{ storage_backend | default('nfs') | upper }}"
+    msg: "OpenCHAMI image repository backend: {{ storage_backend  | upper }}"
 
 - name: Import packages task
   ansible.builtin.import_tasks: packages.yml
@@ -26,9 +26,9 @@
 - name: Import hosts task
   ansible.builtin.import_tasks: hosts.yml
 
-- name: Import minio task (NFS backend only)
+- name: Import minio task (MinIO backend only)
   ansible.builtin.include_tasks: minio.yml
-  when: storage_backend | default('nfs') == 'nfs'
+  when: storage_backend  == 'minio'
 
 - name: Import registry task
   ansible.builtin.import_tasks: registry.yml

@@ -31,7 +31,7 @@
     --host={{ cluster_boot_ip }}:9000
     --host-bucket={{ cluster_boot_ip }}:9000
   changed_when: true
-  when: storage_backend | default('nfs') == 'nfs'
+  when: storage_backend  == 'minio'
 
 - name: Update the efi policy (NFS/MinIO)
   ansible.builtin.command: >
@@ -39,16 +39,16 @@
     --host={{ cluster_boot_ip }}:9000
     --host-bucket={{ cluster_boot_ip }}:9000
   changed_when: true
-  when: storage_backend | default('nfs') == 'nfs'
+  when: storage_backend | default(' powerscale') == 'minio'
 
 - name: Update the boot policy (S3/PowerScale)
   ansible.builtin.command: >
     s3cmd setpolicy {{ s3_work_dir }}/s3-public-read-boot.json s3://boot-images
   changed_when: true
-  when: storage_backend | default('nfs') == 's3'
+  when: storage_backend  == 'powerscale'
 
 - name: Update the efi policy (S3/PowerScale)
   ansible.builtin.command: >
     s3cmd setpolicy {{ s3_work_dir }}/s3-public-read-efi.json s3://efi
   changed_when: true
-  when: storage_backend | default('nfs') == 's3'
+  when: storage_backend  == 'powerscale'

@@ -1,10 +1,10 @@
 [default]
-access_key = {{ minio_s3_username }}
-secret_key = {{ minio_s3_password }}
-{% if storage_backend | default('nfs') == 's3' %}
-host_base = {{ openchami_s3.endpoint_url | regex_replace('^https?://', '') }}
-host_bucket = {{ openchami_s3.endpoint_url | regex_replace('^https?://', '') }}
-use_https = {{ 'True' if openchami_s3.endpoint_url.startswith('https') else 'False' }}
+access_key = {{ s3_access_id }}
+secret_key = {{ s3_secret_key }}
+{% if storage_backend  == 'powerscale' %}
+host_base = {{ s3_configurations.endpoint_url | regex_replace('^https?://', '') }}
+host_bucket = {{ s3_configurations.endpoint_url | regex_replace('^https?://', '') }}
+use_https = {{ 'True' if s3_configurations.endpoint_url.startswith('https') else 'False' }}
 check_ssl_certificate = False
 check_ssl_hostname = False
 {% else %}
