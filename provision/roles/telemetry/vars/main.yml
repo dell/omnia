@@ -84,6 +84,19 @@ kafka:
     ldms:
       name: "ldms"
       consumer_group: "ldms-consumer-group"
+    # # OME topics (provisioned when Vector-OME bridge is enabled)
+    # ome_events:
+    #   name: "{{ ome_identifier }}.events"
+    #   partitions: 3
+    # ome_alerts:
+    #   name: "{{ ome_identifier }}.alerts"
+    #   partitions: 2
+    # ome_inventory:
+    #   name: "{{ ome_identifier }}.inventory"
+    #   partitions: 2
+    # ome_logs:
+    #   name: "{{ ome_identifier }}.logs"
+    #   partitions: 2
 
 # Dynamic image configuration from service_k8s.json
 # Images and versions are read dynamically from input/config/x86_64/rhel/10.0/service_k8s.json
@@ -97,6 +110,8 @@ victoria:
   service_name: "victoria-loadbalancer"
   container_port: 8443
   image: "{{ telemetry_images['victoriametrics/victoria-metrics'] | default('victoriametrics/victoria-metrics:v1.128.0') }}"
+  vmsingle:
+    replicas: 2
 
 # VictoriaMetrics Cluster Configuration
 # Deployment mode is controlled by victoria_deployment_mode variable (default: cluster)
@@ -161,7 +176,7 @@ victoria_cluster:
         cpu: "1000m"
 
   vmagent:
-    replicas: 1
+    replicas: 2
     image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
     resources:
       requests:
@@ -242,7 +257,7 @@ victoria_logs_cluster:
 
   # VLAgent: Platform-managed log forwarding agent (Deployment managed by operator via VLAgent CR)
   vlagent:
-    replicas: 1
+    replicas: 2
     image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
     pvc_size: "5Gi"   # Buffer storage for retry during vlinsert unavailability
     termination_grace_period: 30
@@ -402,7 +417,6 @@ victoria_templates: >
 # ============================================================================
 # VictoriaLogs operator CR templates (used when 'victoria' in telemetry_collection_type)
 # These are applied alongside VictoriaMetrics templates in the same kustomize deployment.
-# NOTE: PowerScale syslog is deployed in UDP relay mode only.
 victorialogs_templates:
   - src: 'telemetry/victoria/victorialogs-operator-vlcluster.yaml.j2'
     dest: 'victorialogs-operator-vlcluster.yaml'
@@ -549,13 +563,6 @@ ps_dependency_fail_msg: >-
     - {{ cert_manager_package | default('cert-manager') }} (tarball from Jetstack Helm repo)
 
 # ============================================================================
-# PowerScale Log Pipeline Configuration (rsyslog relay + Shared VLAgent)
-# ============================================================================
-# Usage: deploy_powerscale_logs.yml
-# Gated by: telemetry_sources.powerscale.logs_enabled
-# Pipeline: PowerScale (UDP/TCP:514) → VLAgent LoadBalancer IP:514 → VictoriaLogs
-# Note: configure_powerscale_syslog.sh.j2 template removed - syslog configuration now manual
-
 # Vector Kafka-to-Victoria Ingestion Pipeline Configuration
 # ============================================================================
 # Usage: deploy_vector_ldms.yml, deploy_vector_ome.yml
@@ -567,18 +574,19 @@ ps_dependency_fail_msg: >-
 # Vector image (shared by all Vector pods: vector-ldms, vector-ome)
 # Registered in service_k8s.json
 vector:
-  image: "{{ telemetry_images['timberio/vector'] | default('docker.io/timberio/vector:0.54.0-alpine') }}"
+  image: "{{ telemetry_images['timberio/vector'] | default('docker.io/timberio/vector:0.54.0-debian') }}"
 
   # Vector-LDMS configuration
   ldms:
     app_name: "vector-ldms"
     service_name: "vector-ldms"
+    container_name: "vector-ldms"
     kafka_topic: "ldms"
     consumer_group: "vector-ldms-group"
     kafka_user: "kafkapump"  # Shared with LDMS store_avro_kafka
     health_port: 8687
     metrics_port: 9599
-    replicas: 1
+    replicas: 2
     resources:
       requests:
         cpu: "100m"
@@ -591,6 +599,7 @@ vector:
   ome:
     app_name: "vector-ome"
     service_name: "vector-ome"
+    container_name: "vector-ome"
     # Dynamic pattern based on ome_identifier from telemetry_config.yml
     # Example: if ome_identifier="ome", pattern="^ome\\..*$" (matches ome.events, ome.alerts, etc.)
     # Example: if ome_identifier="dell_ome", pattern="^dell_ome\\..*$" (matches dell_ome.events, etc.)
@@ -599,7 +608,7 @@ vector:
     kafka_user: "vector-ome-user"  # Dedicated KafkaUser for OME
     health_port: 8688
     metrics_port: 9600
-    replicas: 1
+    replicas: 2
     resources:
       requests:
         cpu: "250m"
@@ -616,9 +625,9 @@ vector:
     port: 8429  # prometheus_remote_write receiver
     metrics_port: 8429  # vmagent self-metrics
     image: "{{ telemetry_images['victoriametrics/vmagent'] | default('docker.io/victoriametrics/vmagent:v1.128.0') }}"
-    replicas: 1
+    replicas: 2
     pvc_size: "5Gi"  # Disk WAL buffer
-    remote_write_url: "http://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write"
+    remote_write_url: "https://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write"
     tmp_data_path: "/vmagent-buffer"
     resources:
       requests:
@@ -636,9 +645,9 @@ vector:
     port: 9427  # JSON Lines receiver
     metrics_port: 9427  # vlagent self-metrics
     image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
-    replicas: 1
+    replicas: 2
     pvc_size: "5Gi"  # Disk buffer
-    remote_write_url: "http://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9428/internal/insert"
+    remote_write_url: "https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9428/internal/insert"
     tmp_data_path: "/vlagent-buffer"
     resources:
       requests:

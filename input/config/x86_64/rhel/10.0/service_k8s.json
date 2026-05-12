@@ -50,7 +50,7 @@
       { "package": "docker.io/victoriametrics/operator", "tag": "v0.68.3", "type": "image" },
       { "package": "docker.io/victoriametrics/operator", "tag": "config-reloader-v0.68.3", "type": "image" },
       { "package": "victoria-metrics-operator-0.59.3", "type": "tarball", "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz" },
-      { "package": "docker.io/timberio/vector", "tag": "0.54.0-alpine", "type": "image" },
+      { "package": "docker.io/timberio/vector", "tag": "0.54.0-debian", "type": "image" },
       { "package": "apptainer", "type": "rpm", "repo_name": "epel" },
       { "package": "doca-ofed", "type": "rpm_repo", "repo_name": "doca" },
       { "package": "iscsi-initiator-utils", "type": "rpm", "repo_name": "baseos" },

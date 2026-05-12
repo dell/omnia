@@ -559,8 +559,11 @@ def validate_telemetry_config(
     # =========================================================================
     # Vector-LDMS bridge can only be enabled when LDMS source is enabled
     vector_ldms_enabled = vector_ldms.get("metrics_enabled", False)
+    vector_ome_metrics_enabled = vector_ome.get("metrics_enabled", False)
+    vector_ome_logs_enabled = vector_ome.get("logs_enabled", False)
     ldms_source_enabled = ldms_source.get("metrics_enabled", False)
     
+    # Validation 1: Vector-LDMS requires LDMS source to be enabled
     if vector_ldms_enabled and not ldms_source_enabled:
         errors.append(create_error_msg(
             "telemetry_bridges.vector_ldms.metrics_enabled",
@@ -577,6 +580,44 @@ def validate_telemetry_config(
             "Vector-LDMS bridge prerequisite validation PASSED: "
             f"vector_ldms.metrics_enabled={vector_ldms_enabled}, "
             f"ldms_source.metrics_enabled={ldms_source_enabled}"
+        )
+    
+    # Validation 2: If LDMS source is enabled, Vector-LDMS bridge must also be enabled
+    # (LDMS only supports Kafka collection, requires Vector bridge to reach VictoriaMetrics)
+    if ldms_source_enabled and not vector_ldms_enabled:
+        errors.append(create_error_msg(
+            "telemetry_sources.ldms.metrics_enabled",
+            "true",
+            "LDMS source is enabled but Vector-LDMS bridge is disabled. "
+            "LDMS metrics can only reach VictoriaMetrics via the Vector-LDMS bridge. "
+            "If you want to check LDMS Metrics on VicotriaMetircs then:"
+            "Set telemetry_bridges.vector_ldms.metrics_enabled to true in telemetry_config.yml"
+        ))
+        logger.error(
+            "LDMS source enabled without Vector-LDMS bridge: "
+            f"ldms_source.metrics_enabled={ldms_source_enabled}, "
+            f"vector_ldms.metrics_enabled={vector_ldms_enabled}"
+        )
+    
+    # # Validation 3: Verify Kafka collection target for LDMS
+    # ldms_collection_targets = ldms_source.get("collection_targets", [])
+    # if ldms_source_enabled and 'kafka' not in ldms_collection_targets:
+    #     errors.append(create_error_msg(
+    #         "telemetry_sources.ldms.collection_targets",
+    #         str(ldms_collection_targets),
+    #         "LDMS source requires 'kafka' in collection_targets. "
+    #         "LDMS only supports Kafka-based collection."
+    #     ))
+    #     logger.error(
+    #         f"LDMS collection_targets missing 'kafka': {ldms_collection_targets}"
+    #     )
+    
+    # Validation 3: Log Vector-OME bridge status
+    if vector_ome_metrics_enabled or vector_ome_logs_enabled:
+        logger.info(
+            "Vector-OME bridge validation: "
+            f"metrics_enabled={vector_ome_metrics_enabled}, "
+            f"logs_enabled={vector_ome_logs_enabled}"
         )
     
     # =========================================================================
