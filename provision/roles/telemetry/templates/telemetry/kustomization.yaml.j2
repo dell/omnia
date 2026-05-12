@@ -71,6 +71,11 @@ resources:
   - vector/vlagent-vector-deployment.yaml
   - vector/vlagent-vector-service.yaml
 {% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) and victoria_metrics_support | default(false) and not (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) and ldms_support | default(false) and kafka_support | default(false) and victoria_metrics_support | default(false)) %}
+# vmagent-vector: Metric write-buffer for Vector-OME (Kafka-to-VictoriaMetrics pipeline)
+  - vector/vmagent-vector-deployment.yaml
+  - vector/vmagent-vector-service.yaml
+{% endif %}
 {% if (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) or telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false)) and kafka_support | default(false) %}
 # Vector-OME Bridge Resources (Kafka-to-Victoria pipeline for OME data)
   - vector/vector-ome-kafkauser.yaml

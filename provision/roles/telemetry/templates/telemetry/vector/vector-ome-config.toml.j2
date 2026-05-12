@@ -87,14 +87,14 @@ source = '''
       id_replaced = replace!(metric.MetricId, ".", "_")
       parts = split(id_replaced, "_")
       part_count = length(parts)
-      sliced, err = slice(parts, 1, (part_count - 2))
-      metric_name, err = join(sliced, "_")
+      sliced, _ = slice(parts, 1, (part_count - 2))
+      metric_name, _ = join(sliced, "_")
       componentId = if exists(metric.ComponentId) && metric.ComponentId != null {
               metric.ComponentId
           } else {
               "System"
           }
-      parsed_metric, err = [{
+      parsed_metric, _ = [{
         "MetricName": metric_name,
         "MetricValue": to_float(metric.MetricValue[0]),
         "ComponentId": componentId,
@@ -149,12 +149,26 @@ type = "remap"
 inputs = ["ome_topic_router.logs"]
 source = '''
   ._msg = encode_json(.)
-  ._time = to_string(.Timestamp) ?? to_string(now())
+  raw_ts = to_string(.Timestamp) ?? ""
+  parsed_ts, parse_err = parse_timestamp(raw_ts, "%Y%m%dT%H%M%SZ")
+  if parse_err == null {
+    ._time = format_timestamp!(parsed_ts, "%Y-%m-%dT%H:%M:%SZ")
+  } else {
+    ._time = to_string(now())
+  }
   ._msg_source = "ome"
   ._msg_topic = to_string(.source_topic) ?? "ome"
   .severity = to_string(.Severity) ?? "info"
 '''
 {% endif %}
+
+# ============================================================================
+# SINK: Drop unmatched topics (suppresses _unmatched warning)
+# ============================================================================
+# Topics not matching metrics or logs routes (e.g. ome.health) are dropped
+[sinks.drop_unmatched]
+type = "blackhole"
+inputs = ["ome_topic_router._unmatched"]
 
 # ============================================================================
 # SINKS
