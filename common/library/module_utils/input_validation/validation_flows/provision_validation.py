@@ -394,6 +394,11 @@ def validate_mapping_file_entries(mapping_file_path):
     if not reader.fieldnames:
         raise ValueError("CSV header not found in mapping file.")
 
+    # Check for leading/trailing whitespace in header names
+    for fn in reader.fieldnames:
+        if fn != fn.strip():
+            raise ValueError(f"Header '{fn}' has leading or trailing whitespace. Please remove all whitespace from header names in mapping file.")
+
     # Map header names case-insensitively to original names
     fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
 
@@ -411,6 +416,12 @@ def validate_mapping_file_entries(mapping_file_path):
     row_seen = False
     for row_idx, row in enumerate(reader, start=2):  # start=2 approximates CSV row number
         row_seen = True
+        
+        # Check for leading/trailing whitespace in all field values
+        for col, val in row.items():
+            if val is not None and val != val.strip():
+                raise ValueError(f"Field '{col}' at CSV row {row_idx} has leading or trailing whitespace. Please remove all whitespace from field values in mapping file.")
+        
         # Check presence and non-empty for all required headers
         for hdr in required_headers:
             col = fieldname_map[hdr]
