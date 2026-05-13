@@ -138,6 +138,7 @@ victoria_cluster:
   # VMStorage: Stores raw data and returns query results
   vmstorage:
     replicas: 3
+    replication_factor: 2  # Data redundancy: each metric written to 2 of 3 nodes
     image: "{{ telemetry_images['victoriametrics/vmstorage'] | default('victoriametrics/vmstorage:v1.128.0-cluster') }}"
     dedup_min_scrape_interval: "1m"  # Deduplication interval
     resources:
