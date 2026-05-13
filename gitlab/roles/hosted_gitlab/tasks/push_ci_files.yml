@@ -232,6 +232,88 @@
         validate_certs: false
       no_log: true
 
+- name: Check if .gitlab-ci-cleanup.yml exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup.yml?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: ci_cleanup_file_check
+  no_log: true
+
+- name: Create .gitlab-ci-cleanup.yml when missing
+  when: ci_cleanup_file_check.status == 404
+  block:
+    - name: Copy .gitlab-ci-cleanup.yml to GitLab host
+      ansible.builtin.copy:
+        src: "{{ role_path }}/files/.gitlab-ci-cleanup.yml"
+        dest: "{{ gitlab_hosted_payload_dir }}/.gitlab-ci-cleanup.yml"
+        mode: '0644'
+
+    - name: Read .gitlab-ci-cleanup.yml from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_payload_dir }}/.gitlab-ci-cleanup.yml"
+      register: hosted_ci_cleanup_file_content
+
+    - name: Create .gitlab-ci-cleanup.yml in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup.yml"  # noqa: yaml[line-length]
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_cleanup_file_content.content }}"
+          commit_message: "Add Cleanup Pipeline configuration"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
+- name: Check if .gitlab-ci-cleanup-child-template.yml exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup-child-template.yml?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: ci_cleanup_child_template_check
+  no_log: true
+
+- name: Create .gitlab-ci-cleanup-child-template.yml when missing
+  when: ci_cleanup_child_template_check.status == 404
+  block:
+    - name: Copy .gitlab-ci-cleanup-child-template.yml to GitLab host
+      ansible.builtin.copy:
+        src: "{{ role_path }}/files/.gitlab-ci-cleanup-child-template.yml"
+        dest: "{{ gitlab_hosted_payload_dir }}/.gitlab-ci-cleanup-child-template.yml"
+        mode: '0644'
+
+    - name: Read .gitlab-ci-cleanup-child-template.yml from GitLab host
+      ansible.builtin.slurp:
+        src: "{{ gitlab_hosted_payload_dir }}/.gitlab-ci-cleanup-child-template.yml"
+      register: hosted_ci_cleanup_child_template_content
+
+    - name: Create .gitlab-ci-cleanup-child-template.yml in repository
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/.gitlab-ci-cleanup-child-template.yml"  # noqa: yaml[line-length]
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          branch: "{{ gitlab_default_branch }}"
+          encoding: base64
+          content: "{{ hosted_ci_cleanup_child_template_content.content }}"
+          commit_message: "Add Cleanup Child Pipeline template"
+        status_code: [200, 201]
+        validate_certs: false
+      no_log: true
+
 - name: Ensure input directory exists on GitLab host
   ansible.builtin.file:
     path: "{{ gitlab_hosted_payload_dir }}/{{ gitlab_input_repo_dir }}"
