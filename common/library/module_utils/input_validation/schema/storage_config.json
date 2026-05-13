@@ -350,6 +350,21 @@
           }
         },
         "required": ["provider"],
+        "if": {
+          "properties": {
+            "provider": {
+              "const": "powerscale"
+            }
+          }
+        },
+        "then": {
+          "required": ["endpoint_url"],
+          "properties": {
+            "endpoint_url": {
+              "pattern": "^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/.*)?$"
+            }
+          }
+        },
         "additionalProperties": false
       }
     },
