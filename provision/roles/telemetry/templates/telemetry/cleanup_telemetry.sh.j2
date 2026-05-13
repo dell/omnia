@@ -18,13 +18,15 @@
 # Telemetry Stack Cleanup Script
 # Removes Kafka, LDMS, iDRAC telemetry, and monitoring resources from the {{ telemetry_namespace }} namespace
 #
-# Usage: ./cleanup_telemetry.sh [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [all]
+# Usage: ./cleanup_telemetry.sh [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [vector-ldms] [vector-ome] [all]
 #   kafka        - Delete Kafka cluster, users, and bridge
 #   ldms         - Delete LDMS aggregator and store
 #   idrac        - Delete iDRAC telemetry
 #   victoria     - Delete VictoriaMetrics monitoring (vmcluster, vmagent)
 #   victorialogs - Delete VictoriaLogs only (vlagent, vlcluster) without affecting VictoriaMetrics
 #   powerscale   - Delete PowerScale telemetry (karavi-observability Helm release, CSM Metrics, OTEL Collector)
+#   vector-ldms  - Delete Vector-LDMS bridge (Kafka-to-VictoriaMetrics pipeline)
+#   vector-ome   - Delete Vector-OME bridge (Kafka-to-Victoria pipeline for OME data)
 #   all          - Delete everything (default if no arguments)
 #
 
@@ -39,6 +41,8 @@ CLEAN_IDRAC=false
 CLEAN_VICTORIA=false
 CLEAN_VICTORIALOGS=false
 CLEAN_POWERSCALE=false
+CLEAN_VECTOR_LDMS=false
+CLEAN_VECTOR_OME=false
 CLEAN_ALL=false
 
 if [ $# -eq 0 ]; then
@@ -64,11 +68,17 @@ else
             powerscale)
                 CLEAN_POWERSCALE=true
                 ;;
+            vector-ldms)
+                CLEAN_VECTOR_LDMS=true
+                ;;
+            vector-ome)
+                CLEAN_VECTOR_OME=true
+                ;;
             all)
                 CLEAN_ALL=true
                 ;;
             -h|--help)
-                echo "Usage: $0 [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [all]"
+                echo "Usage: $0 [kafka] [ldms] [idrac] [victoria] [victorialogs] [powerscale] [vector-ldms] [vector-ome] [all]"
                 echo ""
                 echo "Options:"
                 echo "  kafka        - Delete Kafka cluster, users, and bridge"
@@ -77,6 +87,8 @@ else
                 echo "  victoria     - Delete VictoriaMetrics monitoring (vmcluster, vmagent)"
                 echo "  victorialogs - Delete VictoriaLogs only (vlagent, vlcluster) without affecting VictoriaMetrics"
                 echo "  powerscale   - Delete PowerScale telemetry (karavi-observability Helm release)"
+                echo "  vector-ldms  - Delete Vector-LDMS bridge (Kafka-to-VictoriaMetrics pipeline)"
+                echo "  vector-ome   - Delete Vector-OME bridge (Kafka-to-Victoria pipeline for OME data)"
                 echo "  all          - Delete everything (default if no arguments)"
                 echo ""
                 echo "Examples:"
@@ -86,6 +98,8 @@ else
                 echo "  $0 idrac victoria     # Delete only iDRAC and VictoriaMetrics"
                 echo "  $0 victorialogs       # Delete only VictoriaLogs (keeps VictoriaMetrics running)"
                 echo "  $0 powerscale         # Delete only PowerScale telemetry"
+                echo "  $0 vector-ldms        # Delete only Vector-LDMS bridge"
+                echo "  $0 vector-ome         # Delete only Vector-OME bridge"
                 exit 0
                 ;;
             *)
@@ -105,6 +119,8 @@ if [ "$CLEAN_ALL" = true ]; then
     CLEAN_VICTORIA=true
     CLEAN_VICTORIALOGS=true
     CLEAN_POWERSCALE=true
+    CLEAN_VECTOR_LDMS=true
+    CLEAN_VECTOR_OME=true
 fi
 
 echo "=========================================="
@@ -119,6 +135,8 @@ echo "  iDRAC Telemetry:  $([ "$CLEAN_IDRAC" = true ] && echo "YES" || echo "NO"
 echo "  VictoriaMetrics:  $([ "$CLEAN_VICTORIA" = true ] && echo "YES" || echo "NO")"
 echo "  VictoriaLogs:     $([ "$CLEAN_VICTORIALOGS" = true ] && echo "YES" || echo "NO")"
 echo "  PowerScale Tel.:  $([ "$CLEAN_POWERSCALE" = true ] && echo "YES" || echo "NO")"
+echo "  Vector-LDMS:      $([ "$CLEAN_VECTOR_LDMS" = true ] && echo "YES" || echo "NO")"
+echo "  Vector-OME:       $([ "$CLEAN_VECTOR_OME" = true ] && echo "YES" || echo "NO")"
 echo ""
 read -p "Continue? (y/N): " -n 1 -r
 echo
@@ -211,6 +229,64 @@ if [ "$CLEAN_LDMS" = true ]; then
     delete_all pod "app=nersc-ldms"
     
 
+    sleep 2
+    echo ""
+fi
+
+if [ "$CLEAN_VECTOR_LDMS" = true ]; then
+    echo "Step 3a: Delete Vector-LDMS Bridge"
+    echo "-----------------------------------"
+    # Vector-LDMS Deployment
+    delete_resource deployment {{ vector.ldms.app_name }}
+    
+    # Vector-LDMS Service
+    delete_resource service {{ vector.ldms.service_name }}
+    
+    # Vector-LDMS ConfigMap
+    delete_resource configmap {{ vector.ldms.app_name }}-config
+    
+    # Delete Vector-LDMS pods
+    delete_all pod "app={{ vector.ldms.app_name }}"
+    
+    # vmagent-vector write-buffer (deployed alongside Vector-LDMS)
+    echo "Deleting vmagent-vector write-buffer..."
+    delete_resource deployment vmagent-vector
+    delete_resource service vmagent-vector
+    delete_all pod "app=vmagent-vector"
+    
+    echo "Note: kafkapump KafkaUser secret is shared with LDMS store_avro_kafka"
+    echo "      and is NOT deleted during Vector-LDMS cleanup."
+    
+    sleep 2
+    echo ""
+fi
+
+if [ "$CLEAN_VECTOR_OME" = true ]; then
+    echo "Step 3b: Delete Vector-OME Bridge"
+    echo "----------------------------------"
+    # Vector-OME Deployment
+    delete_resource deployment {{ vector.ome.app_name }}
+    
+    # Vector-OME Service
+    delete_resource service {{ vector.ome.service_name }}
+    
+    # Vector-OME ConfigMap
+    delete_resource configmap {{ vector.ome.app_name }}-config
+    
+    # Delete Vector-OME pods
+    delete_all pod "app={{ vector.ome.app_name }}"
+    
+    # Delete Vector-OME KafkaUser (dedicated, not shared)
+    delete_resource kafkauser {{ vector.ome.kafka_user }}
+    
+    # vlagent-vector log write-buffer (deployed alongside Vector-OME logs)
+    echo "Deleting vlagent-vector log write-buffer..."
+    delete_resource deployment vlagent-vector
+    delete_resource service vlagent-vector
+    delete_all pod "app=vlagent-vector"
+    
+    echo "Note: Vector-OME KafkaUser '{{ vector.ome.kafka_user }}' is dedicated and has been deleted."
+    
     sleep 2
     echo ""
 fi
@@ -519,6 +595,14 @@ fi
 if [ "$CLEAN_LDMS" = true ]; then
     kubectl -n $NAMESPACE delete pod -l app=nersc-ldms --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
 fi
+if [ "$CLEAN_VECTOR_LDMS" = true ]; then
+    kubectl -n $NAMESPACE delete pod -l app={{ vector.ldms.app_name }} --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app=vmagent-vector --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+fi
+if [ "$CLEAN_VECTOR_OME" = true ]; then
+    kubectl -n $NAMESPACE delete pod -l app={{ vector.ome.app_name }} --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+    kubectl -n $NAMESPACE delete pod -l app=vlagent-vector --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
+fi
 if [ "$CLEAN_IDRAC" = true ]; then
     kubectl -n $NAMESPACE delete pod -l app=idrac-telemetry --grace-period=0 --force --ignore-not-found=true 2>/dev/null || true
 fi
@@ -553,6 +637,16 @@ fi
 if [ "$CLEAN_LDMS" = true ]; then
     echo "Remaining LDMS resources:"
     kubectl -n $NAMESPACE get statefulset,pod,configmap -l app=nersc-ldms 2>/dev/null || echo "  None"
+    echo ""
+fi
+if [ "$CLEAN_VECTOR_LDMS" = true ]; then
+    echo "Remaining Vector-LDMS resources:"
+    kubectl -n $NAMESPACE get deployment,service,configmap,pod -l app={{ vector.ldms.app_name }} 2>/dev/null || echo "  None"
+    echo ""
+fi
+if [ "$CLEAN_VECTOR_OME" = true ]; then
+    echo "Remaining Vector-OME resources:"
+    kubectl -n $NAMESPACE get deployment,service,configmap,pod -l app={{ vector.ome.app_name }} 2>/dev/null || echo "  None"
     echo ""
 fi
 if [ "$CLEAN_IDRAC" = true ]; then

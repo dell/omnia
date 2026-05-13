@@ -144,3 +144,15 @@
         src: telemetry/victoria/victoria-tls-secret.yaml.j2
         dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/victoria-tls-secret.yaml"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+
+# Create Vector deployment subdirectory
+- name: Create Vector deployment subdirectory
+  ansible.builtin.file:
+    path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/vector"
+    state: directory
+    mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
+  when:
+    - telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) | bool or
+      telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool or
+      telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool
+  tags: telemetry_deployment

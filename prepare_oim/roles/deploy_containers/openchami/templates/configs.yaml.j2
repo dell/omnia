@@ -11,3 +11,24 @@ data_s3_dir: "{{ data_s3_dir }}"
 s3_work_dir: "{{ s3_work_dir }}"
 cluster_shortname: "nid"
 cluster_nidlength: 3
+
+{% set additional = network_data.admin_network.additional_subnets | default([]) %}
+{% if additional | length > 0 %}
+# Multi-subnet support (coresmd subnet= directives)
+coredhcp_subnets:
+{% for s in additional %}
+  - cidr: "{{ s.subnet }}/{{ s.netmask_bits }}"
+    router: "{{ s.router }}"
+{% endfor %}
+
+# Multi-subnet bootloop pools (bootloop subnet_pool= directives)
+coredhcp_subnet_pools:
+{% for s in additional %}
+  - cidr: "{{ s.subnet }}/{{ s.netmask_bits }}"
+    start: "{{ s.dynamic_range | split('-') | first }}"
+    end: "{{ s.dynamic_range | split('-') | last }}"
+{% endfor %}
+{% else %}
+coredhcp_subnets: []
+coredhcp_subnet_pools: []
+{% endif %}

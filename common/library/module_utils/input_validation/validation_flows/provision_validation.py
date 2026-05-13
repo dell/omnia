@@ -1043,6 +1043,16 @@ def validate_network_spec(
     for network in data["Networks"]:
         errors.extend(_validate_admin_network(network))
 
+    # Validate additional_subnets if present
+    for network in data["Networks"]:
+        if "admin_network" in network and isinstance(network["admin_network"], dict):
+            admin_net = network["admin_network"]
+            additional = admin_net.get("additional_subnets", [])
+            if additional:
+                errors.extend(_validate_additional_subnets(
+                    additional, admin_net
+                ))
+
     return errors
 
 
@@ -1243,3 +1253,192 @@ def _validate_ip_ranges(dynamic_range, network_type, netmask_bits):
         )
 
     return errors
+
+
+def _validate_additional_subnets(additional_subnets, admin_net):
+    """
+    Validates additional_subnets entries for multi-subnet / multi-RAC DHCP support.
+
+    Checks:
+        - Each subnet/netmask_bits forms a valid CIDR network.
+        - Router IP is a valid IPv4 address within the subnet.
+        - dynamic_range is valid and falls within the subnet.
+        - Additional subnets do not overlap with the admin network.
+        - Additional subnets do not overlap with each other.
+        - dynamic_ranges do not overlap with admin dynamic_range or each other.
+
+    Args:
+        additional_subnets (list): List of additional subnet dicts.
+        admin_net (dict): The admin_network configuration dict.
+
+    Returns:
+        list: Validation error messages.
+    """
+    errors = []
+    admin_ip = admin_net.get("primary_oim_admin_ip", "")
+    admin_netmask = admin_net.get("netmask_bits", "")
+    admin_dynamic = admin_net.get("dynamic_range", "")
+
+    # Build admin network object for overlap checks
+    try:
+        admin_network_obj = ipaddress.IPv4Network(
+            f"{admin_ip}/{admin_netmask}", strict=False
+        )
+    except (ValueError, TypeError):
+        admin_network_obj = None
+
+    seen_networks = []
+    all_ranges = []
+
+    # Collect admin dynamic_range for overlap checking
+    if admin_dynamic and "-" in admin_dynamic:
+        all_ranges.append(("admin_network.dynamic_range", admin_dynamic))
+
+    for idx, entry in enumerate(additional_subnets):
+        prefix = f"additional_subnets[{idx}]"
+        subnet_str = entry.get("subnet", "")
+        netmask_bits = entry.get("netmask_bits", "")
+        router = entry.get("router", "")
+        dynamic_range = entry.get("dynamic_range", "")
+
+        # Validate netmask_bits
+        if not validation_utils.validate_netmask_bits(netmask_bits):
+            errors.append(
+                create_error_msg(
+                    f"{prefix}.netmask_bits",
+                    netmask_bits,
+                    en_us_validation_msg.NETMASK_BITS_FAIL_MSG,
+                )
+            )
+            continue
+
+        # Build subnet network object
+        try:
+            subnet_network = ipaddress.IPv4Network(
+                f"{subnet_str}/{netmask_bits}", strict=False
+            )
+        except (ValueError, TypeError):
+            errors.append(
+                create_error_msg(
+                    f"{prefix}.subnet",
+                    subnet_str,
+                    "Invalid subnet address.",
+                )
+            )
+            continue
+
+        # Validate router is within subnet
+        try:
+            router_ip = ipaddress.IPv4Address(router)
+            if router_ip not in subnet_network:
+                errors.append(
+                    create_error_msg(
+                        f"{prefix}.router",
+                        router,
+                        en_us_validation_msg.ADDITIONAL_SUBNET_ROUTER_NOT_IN_SUBNET_MSG,
+                    )
+                )
+        except (ValueError, TypeError):
+            errors.append(
+                create_error_msg(
+                    f"{prefix}.router",
+                    router,
+                    en_us_validation_msg.ADDITIONAL_SUBNET_ROUTER_INVALID_MSG,
+                )
+            )
+
+        # Validate dynamic_range format
+        if not validation_utils.validate_ipv4_range(dynamic_range):
+            errors.append(
+                create_error_msg(
+                    f"{prefix}.dynamic_range",
+                    dynamic_range,
+                    en_us_validation_msg.RANGE_IP_CHECK_FAIL_MSG,
+                )
+            )
+        else:
+            # Validate dynamic_range is within subnet
+            if not validation_utils.is_range_within_subnet(
+                dynamic_range, subnet_str, netmask_bits
+            ):
+                errors.append(
+                    create_error_msg(
+                        f"{prefix}.dynamic_range",
+                        dynamic_range,
+                        en_us_validation_msg.ADDITIONAL_SUBNET_RANGE_OUTSIDE_MSG,
+                    )
+                )
+
+        # Check overlap with admin network
+        if admin_network_obj:
+            if subnet_network.overlaps(admin_network_obj):
+                errors.append(
+                    create_error_msg(
+                        f"{prefix}.subnet",
+                        str(subnet_network),
+                        en_us_validation_msg.ADDITIONAL_SUBNET_OVERLAP_ADMIN_MSG,
+                    )
+                )
+
+        # Check overlap with previously seen additional subnets
+        for prev_idx, prev_net in seen_networks:
+            if subnet_network.overlaps(prev_net):
+                errors.append(
+                    create_error_msg(
+                        f"{prefix}.subnet",
+                        str(subnet_network),
+                        (
+                            f"{en_us_validation_msg.ADDITIONAL_SUBNET_OVERLAP_EACH_OTHER_MSG}"
+                            f" Overlaps with additional_subnets[{prev_idx}]."
+                        ),
+                    )
+                )
+
+        seen_networks.append((idx, subnet_network))
+
+        # Collect dynamic_range for cross-range overlap checks
+        if dynamic_range and "-" in dynamic_range:
+            all_ranges.append((f"{prefix}.dynamic_range", dynamic_range))
+
+    # Cross-check all dynamic ranges for overlap
+    for i in range(len(all_ranges)):
+        for j in range(i + 1, len(all_ranges)):
+            name_i, range_i = all_ranges[i]
+            name_j, range_j = all_ranges[j]
+            if _ranges_overlap(range_i, range_j):
+                errors.append(
+                    create_error_msg(
+                        name_j,
+                        range_j,
+                        (
+                            f"dynamic_range overlaps with {name_i}. "
+                            "DHCP pools must not overlap."
+                        ),
+                    )
+                )
+
+    return errors
+
+
+def _ranges_overlap(range_a, range_b):
+    """Check if two IP ranges in 'start-end' format overlap.
+
+    Args:
+        range_a (str): First range, e.g. '10.0.0.1-10.0.0.50'.
+        range_b (str): Second range.
+
+    Returns:
+        bool: True if the ranges overlap, False otherwise.
+    """
+    try:
+        a_parts = range_a.split("-")
+        b_parts = range_b.split("-")
+        if len(a_parts) != 2 or len(b_parts) != 2:
+            return False
+        a_start = ipaddress.IPv4Address(a_parts[0].strip())
+        a_end = ipaddress.IPv4Address(a_parts[1].strip())
+        b_start = ipaddress.IPv4Address(b_parts[0].strip())
+        b_end = ipaddress.IPv4Address(b_parts[1].strip())
+        return a_start <= b_end and b_start <= a_end
+    except (ValueError, TypeError):
+        return False
