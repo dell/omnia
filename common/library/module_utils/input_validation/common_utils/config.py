@@ -99,6 +99,7 @@ input_file_inventory = {
     "prepare_oim": [
         files["network_spec"],
         files["software_config"],
+        files["storage_config"],
         files["build_stream_config"]
     ],
     # "high_availability": [files["high_availability_config"]],

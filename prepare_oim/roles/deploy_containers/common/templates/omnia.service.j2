@@ -14,7 +14,7 @@
 
 [Unit]
 Description=Top-level target for Omnia Core and OpenCHAMI
-Requires=omnia_core.service openchami.target pulp.service registry.service minio.service {{ auth_service }} {{ build_stream_service }} {{ playbook_watcher_service }} {{ omnia_postgres_service }}
+Requires=omnia_core.service openchami.target pulp.service registry.service{% if hostvars['localhost']['s3_configurations']['provider']  != 'powerscale' %} minio.service{% endif %} {{ auth_service }} {{ build_stream_service }} {{ playbook_watcher_service }} {{ omnia_postgres_service }}
 After=network.target
 Wants=network-online.target
 
