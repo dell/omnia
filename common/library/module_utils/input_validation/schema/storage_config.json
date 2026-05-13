@@ -332,6 +332,25 @@
           "required": ["filename", "size", "functional_group_prefix"],
           "additionalProperties": false
         }
+      },
+      "s3_configurations": {
+        "type": "object",
+        "description": "S3-compatible storage configuration for OpenCHAMI image repository.",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "S3 storage provider: 'powerscale' (Dell PowerScale) or 'minio' (local MinIO container)",
+            "enum": ["powerscale", "minio"],
+            "default": "powerscale"
+          },
+          "endpoint_url": {
+            "type": "string",
+            "description": "S3 endpoint URL. Required for powerscale (e.g., https://10.43.1.11:9021). Leave empty for minio.",
+            "pattern": "^https?://[a-zA-Z0-9.-]+(:[0-9]+)?(/.*)?$|^$"
+          }
+        },
+        "required": ["provider"],
+        "additionalProperties": false
       }
     },
     "required": [],

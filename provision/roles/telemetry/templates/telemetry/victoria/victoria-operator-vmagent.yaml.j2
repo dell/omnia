@@ -72,7 +72,21 @@ spec:
   podScrapeSelector: {}
   nodeScrapeNamespaceSelector: {}
   nodeScrapeSelector: {}
-  
+
+  # Pod anti-affinity for high availability (spread replicas across nodes)
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - vmagent
+            topologyKey: "kubernetes.io/hostname"
+
   # Extra args
   extraArgs:
     promscrape.streamParse: "true"

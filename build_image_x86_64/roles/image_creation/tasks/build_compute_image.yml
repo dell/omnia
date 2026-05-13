@@ -133,13 +133,6 @@
         msg: "x86_64 compute image build failed. See details above."
 
   always:
-    - name: Remove generated compute images templates
-      ansible.builtin.file:
-        path: "{{ openchami_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_images.yaml"
-        state: absent
-      loop: "{{ compute_images_dict | dict2items }}"
-      loop_control:
-        loop_var: item
 
     - name: Set openchami SELinux context
       ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ oim_shared_path }}/omnia/openchami"
