@@ -16,7 +16,7 @@
 
 from datetime import datetime, timezone
 
-from api.logging_utils import log_secure_info
+from api.logging_utils import create_stage_log_file, log_secure_info
 
 from core.image_group.repositories import ImageGroupRepository
 from core.image_group.state_machine import STATUS_FLOW, guard_check
@@ -138,8 +138,16 @@ class DeployUseCase:
         # [5] Validate stage record
         stage = self._validate_stage(command)
 
+        # [5a] Create per-attempt log file and set on stage
+        log_path = create_stage_log_file(
+            str(command.job_id), StageType.DEPLOY.value, stage.attempt
+        )
+        if log_path:
+            stage.log_file_path = str(log_path)
+            # Note: Don't save here - will be saved in _submit_to_queue after stage.start()
+
         # [6] Create deploy request and submit to queue
-        request = self._create_request(command)
+        request = self._create_request(command, stage)
         self._submit_to_queue(command, request, stage)
 
         # [7] Emit audit event
@@ -210,8 +218,16 @@ class DeployUseCase:
             )
 
         if stage.stage_state in {StageState.FAILED, StageState.COMPLETED}:
+            prev_state = stage.stage_state.value
             stage.reset()
             self._stage_repo.save(stage)
+            log_secure_info(
+                "info",
+                f"Resetting deploy stage from {prev_state} to PENDING "
+                f"for retry/re-run (attempt {stage.attempt}): "
+                f"job_id={command.job_id}",
+                job_id=str(command.job_id),
+            )
 
         if stage.stage_state != StageState.PENDING:
             raise InvalidStateTransitionError(
@@ -224,7 +240,7 @@ class DeployUseCase:
 
         return stage
 
-    def _create_request(self, command: DeployCommand) -> DeployPlaybookRequest:
+    def _create_request(self, command: DeployCommand, stage: Stage) -> DeployPlaybookRequest:
         """Create deploy playbook request entity."""
         playbook_path = PlaybookPath(PROVISION_PLAYBOOK_NAME)
 
@@ -232,6 +248,7 @@ class DeployUseCase:
             "job_id": str(command.job_id),
             "image_key": str(command.image_group_id),
             "image_group_id": str(command.image_group_id),
+            "attempt": stage.attempt,
         }
         extra_vars = ExtraVars(extra_vars_dict)
 

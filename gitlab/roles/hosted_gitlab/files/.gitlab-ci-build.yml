@@ -531,6 +531,36 @@ parse-catalog:
       echo "============================================================"
       echo ""
 
+      # Common Init -- re-authenticate and re-upload config files (retry support)
+      echo "  Common Init -- Upload configuration files..."
+      echo "  ------------------------------------------------------------"
+      refresh_token
+
+      UPLOAD_ARGS=""
+      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
+             storage_config.yml telemetry_config.yml security_config.yml \
+             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] ${FNAME}"
+        fi
+      done
+
+      if [ -n "${UPLOAD_ARGS}" ]; then
+        HTTP_CODE=$(eval api_call_with_retry upload_init_response.json \
+          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+          ${UPLOAD_ARGS} \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+          echo "  [WARN] Config upload returned HTTP ${HTTP_CODE}, continuing anyway"
+        else
+          echo "  [OK] Configuration files uploaded"
+        fi
+      fi
+      echo ""
+
       # Locate catalog file relative to this CI file
       CATALOG_PATH="${CI_PROJECT_DIR}/${CATALOG_FILE}"
 
@@ -589,6 +619,36 @@ generate-input-files:
       echo "============================================================"
       echo ""
 
+      # Common Init -- re-authenticate and re-upload config files (retry support)
+      echo "  Common Init -- Upload configuration files..."
+      echo "  ------------------------------------------------------------"
+      refresh_token
+
+      UPLOAD_ARGS=""
+      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
+             storage_config.yml telemetry_config.yml security_config.yml \
+             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] ${FNAME}"
+        fi
+      done
+
+      if [ -n "${UPLOAD_ARGS}" ]; then
+        HTTP_CODE=$(eval api_call_with_retry upload_init_response.json \
+          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+          ${UPLOAD_ARGS} \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+          echo "  [WARN] Config upload returned HTTP ${HTTP_CODE}, continuing anyway"
+        else
+          echo "  [OK] Configuration files uploaded"
+        fi
+      fi
+      echo ""
+
       echo "  Generating configuration files from parsed catalog..."
       echo "  ------------------------------------------------------------"
       echo ""
@@ -631,6 +691,36 @@ configure-local-repository:
       echo "============================================================"
       echo "  [${JOB_ID}] STAGE 4: Configure Local Repository"
       echo "============================================================"
+      echo ""
+
+      # Common Init -- re-authenticate and re-upload config files (retry support)
+      echo "  Common Init -- Upload configuration files..."
+      echo "  ------------------------------------------------------------"
+      refresh_token
+
+      UPLOAD_ARGS=""
+      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
+             storage_config.yml telemetry_config.yml security_config.yml \
+             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] ${FNAME}"
+        fi
+      done
+
+      if [ -n "${UPLOAD_ARGS}" ]; then
+        HTTP_CODE=$(eval api_call_with_retry upload_init_response.json \
+          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+          ${UPLOAD_ARGS} \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+          echo "  [WARN] Config upload returned HTTP ${HTTP_CODE}, continuing anyway"
+        else
+          echo "  [OK] Configuration files uploaded"
+        fi
+      fi
       echo ""
 
       echo "  Step 1/2: Trigger repository creation..."
@@ -740,6 +830,36 @@ build-images:
       echo "============================================================"
       echo "  [${JOB_ID}] STAGE 5: Build Images"
       echo "============================================================"
+      echo ""
+
+      # Common Init -- re-authenticate and re-upload config files (retry support)
+      echo "  Common Init -- Upload configuration files..."
+      echo "  ------------------------------------------------------------"
+      refresh_token
+
+      UPLOAD_ARGS=""
+      for FNAME in local_repo_config.yml network_spec.yml provision_config.yml pxe_mapping_file.csv \
+             storage_config.yml telemetry_config.yml security_config.yml \
+             high_availability_config.yml omnia_config.yml build_stream_config.yml; do
+        FPATH="${CI_PROJECT_DIR}/input/${FNAME}"
+        if [ -f "${FPATH}" ]; then
+          UPLOAD_ARGS="${UPLOAD_ARGS} -F files=@${FPATH}"
+          echo "    [+] ${FNAME}"
+        fi
+      done
+
+      if [ -n "${UPLOAD_ARGS}" ]; then
+        HTTP_CODE=$(eval api_call_with_retry upload_init_response.json \
+          -X PUT "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/upload" \
+          ${UPLOAD_ARGS} \
+          --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
+        if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+          echo "  [WARN] Config upload returned HTTP ${HTTP_CODE}, continuing anyway"
+        else
+          echo "  [OK] Configuration files uploaded"
+        fi
+      fi
       echo ""
 
       echo "  Step 1/2: Retrieve catalog roles and image metadata..."

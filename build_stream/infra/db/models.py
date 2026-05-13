@@ -116,6 +116,7 @@ class StageModel(Base):
     # Timestamps
     started_at = Column(DateTime(timezone=True), nullable=True)
     ended_at = Column(DateTime(timezone=True), nullable=True)
+    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
 
     # Error tracking
     error_code = Column(String(50), nullable=True)

@@ -88,6 +88,38 @@ def create_job_log_file(job_id: str) -> Optional[Path]:
         return None
 
 
+def create_stage_log_file(
+    job_id: str, stage_name: str, attempt: int
+) -> Optional[Path]:
+    """Create a per-attempt log file for a stage.
+
+    Path: ``<LOG_BASE>/<job_id>/<stage_name>_<job_id>_attempt<attempt>.log``
+
+    Each stage execution gets its own log file so that retry attempts
+    preserve the logs from previous runs.
+
+    Args:
+        job_id: Parent job identifier.
+        stage_name: Stage identifier (e.g. ``deploy``, ``restart``).
+        attempt: Current attempt number (1-indexed).
+
+    Returns:
+        Path to the created log file, or ``None`` on failure.
+    """
+    job_log_dir = _LOG_BASE / job_id
+    try:
+        job_log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = job_log_dir / f"{stage_name}_{job_id}_attempt{attempt}.log"
+        log_file.touch(exist_ok=True)
+        return log_file
+    except OSError:
+        logging.getLogger(__name__).warning(
+            "Failed to create stage log file for job: %s, stage: %s, attempt: %d",
+            job_id, stage_name, attempt,
+        )
+        return None
+
+
 def remove_job_logger(job_id: str) -> None:
     """Flush, close, and remove the cached logger for *job_id*."""
     job_logger = _job_loggers.pop(job_id, None)

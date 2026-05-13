@@ -327,10 +327,10 @@ class TestCreateRestartUseCase:
         with pytest.raises(StageNotFoundError):
             use_case.execute(command)
 
-    def test_execute_stage_already_completed(
+    def test_execute_stage_already_completed_allows_rerun(
         self, mock_job, job_id, client_id, correlation_id, completed_restart_stage,
     ):
-        """Test execution when stage is in terminal COMPLETED state."""
+        """Test that COMPLETED stage is reset for re-run (attempt incremented)."""
         stages = {
             StageType.RESTART.value: completed_restart_stage,
         }
@@ -348,8 +348,9 @@ class TestCreateRestartUseCase:
             correlation_id=correlation_id,
         )
 
-        with pytest.raises(TerminalStateViolationError):
-            use_case.execute(command)
+        result = use_case.execute(command)
+        assert result.status == "accepted"
+        assert result.stage_name == StageType.RESTART.value
 
     def test_execute_stage_already_in_progress(
         self, mock_job, job_id, client_id, correlation_id, in_progress_restart_stage,
@@ -406,7 +407,8 @@ class TestCreateRestartUseCase:
         assert request.job_id == str(job_id)
         assert request.stage_name == StageType.RESTART.value
         assert request.playbook_path.value == "set_pxe_boot.yml"
-        assert request.extra_vars.values == {}
+        assert request.extra_vars.values["job_id"] == str(job_id)
+        assert request.extra_vars.values["attempt"] == 1
         assert request.timeout.minutes == 30
         assert corr_id == str(correlation_id)
 

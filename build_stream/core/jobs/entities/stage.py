@@ -36,6 +36,7 @@ class Stage:
         attempt: Execution attempt number (1-indexed).
         started_at: Stage start timestamp.
         ended_at: Stage end timestamp.
+        last_attempt_at: Timestamp of last retry/re-run attempt.
         error_code: Error code if failed.
         error_summary: Error description if failed.
         log_file_path: Ansible log file path on OIM host (NFS share).
@@ -48,6 +49,7 @@ class Stage:
     attempt: int = 1
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
+    last_attempt_at: Optional[datetime] = None
     error_code: Optional[str] = None
     error_summary: Optional[str] = None
     log_file_path: Optional[str] = None
@@ -153,8 +155,9 @@ class Stage:
     def reset(self) -> None:
         """Reset stage from FAILED or COMPLETED back to PENDING for retry.
 
-        Used when a job is being retried after a failure and the upload stage
-        needs to accept new files.
+        Increments the attempt counter and records the retry timestamp.
+        Clears error fields and log_file_path so the new attempt starts
+        fresh while preserving the attempt history.
 
         Raises:
             InvalidStateTransitionError: If not in FAILED or COMPLETED state.
@@ -166,11 +169,14 @@ class Stage:
                 from_state=self.stage_state.value,
                 to_state=StageState.PENDING.value
             )
+        self.attempt += 1
+        self.last_attempt_at = datetime.now(timezone.utc)
         self.stage_state = StageState.PENDING
         self.started_at = None
         self.ended_at = None
         self.error_code = None
         self.error_summary = None
+        self.log_file_path = None
         self.version += 1
 
     def cancel(self) -> None:

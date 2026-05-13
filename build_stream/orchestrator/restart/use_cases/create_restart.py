@@ -16,7 +16,7 @@
 
 from datetime import datetime, timezone
 
-from api.logging_utils import log_secure_info
+from api.logging_utils import create_stage_log_file, log_secure_info
 
 from core.localrepo.entities import PlaybookRequest
 from core.localrepo.value_objects import (
@@ -114,7 +114,15 @@ class CreateRestartUseCase:
         stage = self._validate_stage(command)
         image_group_id = self._get_image_group_id(job)
 
-        request = self._build_playbook_request(command)
+        # Create per-attempt log file and set on stage
+        log_path = create_stage_log_file(
+            str(command.job_id), StageType.RESTART.value, stage.attempt
+        )
+        if log_path:
+            stage.log_file_path = str(log_path)
+            # Note: Don't save here - will be saved in _submit_to_queue after stage.start()
+
+        request = self._build_playbook_request(command, stage)
         self._submit_to_queue(command, request, stage)
 
         self._emit_stage_started_event(command)
@@ -174,14 +182,16 @@ class CreateRestartUseCase:
             )
 
         if stage.stage_state in {StageState.COMPLETED, StageState.FAILED}:
-            log_secure_info(
-                "info",
-                f"Resetting restart stage from {stage.stage_state.value} to PENDING "
-                f"for re-run: job_id={command.job_id}",
-                job_id=str(command.job_id),
-            )
+            prev_state = stage.stage_state.value
             stage.reset()
             self._stage_repo.save(stage)
+            log_secure_info(
+                "info",
+                f"Resetting restart stage from {prev_state} to PENDING "
+                f"for retry/re-run (attempt {stage.attempt}): "
+                f"job_id={command.job_id}",
+                job_id=str(command.job_id),
+            )
 
         return stage
 
@@ -193,6 +203,7 @@ class CreateRestartUseCase:
     def _build_playbook_request(
         self,
         command: CreateRestartCommand,
+        stage: Stage,
     ) -> PlaybookRequest:
         """Create PlaybookRequest entity for the restart stage."""
         playbook_path = PlaybookPath(PLAYBOOK_NAME)
@@ -201,7 +212,10 @@ class CreateRestartUseCase:
             job_id=str(command.job_id),
             stage_name=StageType.RESTART.value,
             playbook_path=playbook_path,
-            extra_vars=ExtraVars(values={"job_id": str(command.job_id)}),
+            extra_vars=ExtraVars(values={
+                "job_id": str(command.job_id),
+                "attempt": stage.attempt,
+            }),
             correlation_id=str(command.correlation_id),
             timeout=ExecutionTimeout(DEFAULT_TIMEOUT_MINUTES),
             submitted_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),

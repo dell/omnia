@@ -21,9 +21,6 @@ build_stream_container_name: "omnia_build_stream"
 # Build Stream source code location (in omnia_core container)
 build_stream_source_path: "/omnia/build_stream"
 
-# Build Stream root directory for artifacts and shared data
-build_stream_root_dir: "/opt/omnia/build_stream_root"
-
 # Rsync configuration for source code deployment
 bs_rsync_options: "-av --checksum"
 bs_rsync_source: "{{ role_path }}/../../../../build_stream/"
@@ -130,7 +127,7 @@ build_stream_container_failure_msg: |
 # Automation Framework Configuration (Phase 2 - Component 5 Validate Module Spec)
 # Repository and branch configuration
 automation_repo_url: "https://github.com/dell/omnia-artifactory.git"
-automation_repo_branch: "automation-v2.1.0.0"
+automation_repo_branch: "automation-v2.2.0.0"
 automation_base_dir: "/opt/omnia/automation"
 automation_venv_dir: "{{ automation_base_dir }}/.venv"
 automation_config_file: "{{ automation_base_dir }}/omnia_test_config.yml"
