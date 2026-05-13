@@ -341,5 +341,3 @@ def validate_powerscale_telemetry_config(
                 powerscale_collection_targets,
                 en_us_validation_msg.POWERSCALE_VICTORIA_LOGS_REQUIRED_MSG
             ))
-
-    
