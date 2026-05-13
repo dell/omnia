@@ -8,7 +8,7 @@
 
 ![All contributors](https://img.shields.io/github/all-contributors/dell/omnia) ![GitHub forks](https://img.shields.io/github/forks/dell/omnia) ![GitHub Repo stars](https://img.shields.io/github/stars/dell/omnia) ![GitHub all releases](https://img.shields.io/github/downloads/dell/omnia/total)
 
-![GitHub issues](https://img.shields.io/github/issues-raw/dell/omnia) ![GitHub Discussions](https://img.shields.io/github/discussions/dell/omnia)[<img src="https://img.shields.io/badge/slack-dell-blue.svg?logo=slack">](https://app.slack.com/client/TH80K68HY/C018L5109PW)
+![GitHub issues](https://img.shields.io/github/issues-raw/dell/omnia)
 
 #### Ansible playbook-based deployment of Slurm and Kubernetes on servers running on Linux OS.
 
