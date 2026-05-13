@@ -169,7 +169,8 @@ deploy:
         echo ""
         echo "  NOTE: Restart stage requires image_groups.status to be DEPLOYED."
         echo "  If needed, run this on the OIM host to set status to DEPLOYED:"
-        echo "    podman exec omnia_postgres psql -U admin -d build_stream_db -c \"UPDATE image_groups SET status = 'DEPLOYED', updated_at = NOW() WHERE id = '${IMAGE_GROUP_ID}' AND job_id = '${JOB_ID}';\""
+        echo "    podman exec omnia_postgres psql -U admin -d build_stream_db -c \\"
+        echo "    \"UPDATE image_groups SET status = 'DEPLOYED', updated_at = NOW() WHERE id = '${IMAGE_GROUP_ID}' AND job_id = '${JOB_ID}';\""
         echo ""
         echo "  Skipping further deploy actions."
         exit 0
@@ -591,7 +592,7 @@ validate:
       echo "  Job ID:         ${JOB_ID}"
       echo "  Image Group ID: ${IMAGE_GROUP_ID}"
       echo ""
-      
+
       # Guard check: Ensure JOB_ID is available
       if [ -z "${JOB_ID:-}" ]; then
         echo "  ERROR: JOB_ID is not set. Cannot validate job."
@@ -650,7 +651,7 @@ validate:
         echo "  Proceeding with validate stage..."
         echo ""
       fi
-      
+
       # Authenticate
       refresh_token
 
@@ -763,7 +764,7 @@ validate:
             printf "  %-22s %s\n" "Error Summary:" "${VALIDATE_ERR_SUMMARY}"
             printf "  %-22s %s\n" "Log File Path:" "${VALIDATE_LOG_PATH}"
             echo "  ------------------------------------------------------------"
-            
+
             # Extract test summary from result_detail if available
             TEST_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
             if [ -n "${TEST_SUMMARY}" ]; then
@@ -795,12 +796,12 @@ validate:
         '(first(.stages[]? | select(.stage_name == "validate") | .stage_state)) // "COMPLETED"' \
         status_response.json 2>/dev/null || echo "COMPLETED")
       JOB_STATE_VALIDATE=$(jq -r '.job_state // "UNKNOWN"' status_response.json)
-      
+
       printf "  %-22s %s\n" "Job ID:"         "${JOB_ID}"
       printf "  %-22s %s\n" "Image Group ID:" "${IMAGE_GROUP_ID}"
       printf "  %-22s %s\n" "Validate State:" "${VALIDATE_RESULT}"
       printf "  %-22s %s\n" "Job State:"      "${JOB_STATE_VALIDATE}"
-      
+
       # Extract and display test summary
       TEST_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
       if [ -n "${TEST_SUMMARY}" ]; then
@@ -817,14 +818,14 @@ validate:
         printf "  %-22s %s\n" "Skipped:"        "${SKIPPED}"
         printf "  %-22s %s\n" "Errors:"         "${ERRORS}"
       fi
-      
+
       # Display artifact directory if available
       ARTIFACT_DIR=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.artifact_dir // empty' status_response.json 2>/dev/null)
       if [ -n "${ARTIFACT_DIR}" ]; then
         echo "  ------------------------------------------------------------"
         printf "  %-22s %s\n" "Artifact Directory:" "${ARTIFACT_DIR}"
       fi
-      
+
       echo "  ============================================================"
 
 # ---------------------------------------------------------------------------
