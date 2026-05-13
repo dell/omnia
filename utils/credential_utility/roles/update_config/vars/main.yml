@@ -58,7 +58,7 @@ docker_hub_warning: |
   Proceed to enter your Docker credentials if you want to avoid pull rate limits.
   Press Enter.
 
-omnia_credentials:
+omnia_credentials_schema:
   provision:
     mandatory:
       - { password: provision_password }

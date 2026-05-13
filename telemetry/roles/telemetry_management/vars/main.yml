@@ -20,8 +20,6 @@
 # Error messages
 tags_required_msg: "ERROR: No tags provided. Please specify --tags to select which telemetry source to manage. Valid tags: powerscale"
 
-kube_vip_unreachable_msg: "ERROR: Kube VIP {{ kube_vip }} is not reachable via SSH"
-
 # Success messages
 powerscale_metrics_scaled_down_msg: "PowerScale metric collection disabled. Scaled down: otel-collector, karavi-metrics-powerscale in {{ csm_namespace }} namespace. To re-enable: ansible-playbook telemetry/enable_telemetry.yml --tags powerscale"
 

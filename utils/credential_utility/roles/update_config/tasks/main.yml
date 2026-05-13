@@ -42,7 +42,7 @@
 
 - name: Fetch credentials
   ansible.builtin.include_tasks: fetch_credentials.yml
-  loop: "{{ omnia_credentials | dict2items }}"
+  loop: "{{ omnia_credentials_schema | dict2items }}"
   loop_control:
     loop_var: service
 
