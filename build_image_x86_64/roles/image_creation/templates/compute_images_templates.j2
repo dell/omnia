@@ -9,11 +9,11 @@ s3_dir_name: "rhel-{{ item.key }}"
 cluster_name: "{{ oim_node_name }}"
 cluster_domain: "{{ domain_name }}"
 group_name: "{{ item.key }}"
-rhel_base_compute_mounts: --user 0 --privileged -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z -v {{ openchami_work_dir }}/images/{{ rhel_base_compute_image_name }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
+rhel_base_compute_mounts: -e AWS_REQUEST_CHECKSUM_CALCULATION=when_required -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required --user 0 --privileged -v {{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z -v {{ openchami_work_dir }}/images/{{ rhel_base_compute_image_name }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z
 image_build_name: {{ ochami_x86_64_image | join (' ') }}
 rhel_base_compute_command_options: {{ ochami_base_command | join (' ') }}
-minio_s3_username: "{{ minio_s3_username }}"
-minio_s3_password: "{{ minio_s3_password }}"
+minio_s3_username: "{{ s3_access_id | default('admin', true) }}"
+minio_s3_password: "{{ s3_secret_key }}"
 {% set s3_prefix_suffix = '' %}
 s3_prefix_suffix: "{{ s3_prefix_suffix }}"
 # Override OpenCHAMI defaults to ensure correct mount path

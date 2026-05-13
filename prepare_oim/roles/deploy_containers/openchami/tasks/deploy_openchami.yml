@@ -36,6 +36,19 @@
       ansible.builtin.fail:
         msg: "{{ network_spec_syntax_fail_msg }} Error: {{ include_network_spec.message }}"
 
+- name: Include storage_config.yml
+  block:
+    - name: Include storage_config.yml file
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
+      no_log: true
+  rescue:
+    - name: Set default storage backend if storage_config.yml not found
+      ansible.builtin.set_fact:
+        s3_configurations:
+          provider: "powerscale"
+          endpoint_url: ""
+
 - name: Parse network_spec data
   ansible.builtin.set_fact:
     network_data: "{{ network_data | default({}) | combine({item.key: item.value}) }}"
@@ -114,11 +127,15 @@
       {{ (admin_nic_ip + '/' + network_data.admin_network.netmask_bits) | ansible.utils.ipaddr('netmask') }}
     coredhcp_lease_duration: "{{ default_lease_time }}s"
 
-- name: Set minio_username and minio_password
+- name: Set s3_access_id and s3_secret_key
   ansible.builtin.set_fact:
-    minio_s3_username: "{{ hostvars['localhost']['minio_s3_username'] }}"
-    minio_s3_password: "{{ hostvars['localhost']['minio_s3_password'] }}"
+    s3_access_id: "{{ hostvars['localhost']['s3_access_id'] | default('admin', true) }}"
+    s3_secret_key: "{{ hostvars['localhost']['s3_secret_key'] }}"
   no_log: true
+
+- name: Set storage backend fact
+  ansible.builtin.set_fact:
+    storage_backend: "{{ s3_configurations.provider | lower }}"
 
 - name: Deploy openchami configs
   block:
