@@ -55,11 +55,6 @@
     - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
   ansible.builtin.include_tasks: deploy_powerscale_metrics.yml
 
-- name: Deploy PowerScale syslog log collection
-  when:
-    - telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool
-  ansible.builtin.include_tasks: deploy_powerscale_logs.yml
-
 - name: Generate telemetry deployments (idrac/ldms/powerscale/vector)
   when:
     - >-
