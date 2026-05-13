@@ -78,7 +78,6 @@
       { "package": "prettytable==3.14.0", "type": "pip_module" },
       { "package": "python3-3.12.9", "type": "rpm", "repo_name": "baseos" },
       { "package": "git", "type": "rpm", "repo_name": "appstream"},
-      { "package": "kubernetes==33.1.0", "type": "pip_module" },
       { "package": "PyMySQL==1.1.2", "type": "pip_module" }
     ]
   },
@@ -105,7 +104,6 @@
       { "package": "prettytable==3.14.0", "type": "pip_module" },
       { "package": "python3-3.12.9", "type": "rpm", "repo_name": "baseos" },
       { "package": "git", "type": "rpm", "repo_name": "appstream"},
-      { "package": "kubernetes==33.1.0", "type": "pip_module" },
       { "package": "PyMySQL==1.1.2", "type": "pip_module" }
     ]
   },

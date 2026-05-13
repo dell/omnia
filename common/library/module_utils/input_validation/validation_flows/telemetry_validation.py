@@ -685,6 +685,70 @@ def validate_telemetry_config(
                 ))
 
     # =========================================================================
+    # Validate additional_metric_remote_write_endpoints (victoria_metrics)
+    # =========================================================================
+    victoria_metrics_sink = telemetry_sinks.get("victoria_metrics", {})
+    additional_metric_endpoints = victoria_metrics_sink.get(
+        "additional_metric_remote_write_endpoints", []
+    )
+    if additional_metric_endpoints and isinstance(additional_metric_endpoints, list):
+        if len(additional_metric_endpoints) > 5:
+            logger.warning(
+                f"More than 5 additional_metric_remote_write_endpoints "
+                f"configured ({len(additional_metric_endpoints)}). "
+                "This may impact performance."
+            )
+        for idx, endpoint in enumerate(additional_metric_endpoints):
+            if not isinstance(endpoint, dict):
+                continue
+            url = endpoint.get("url", "")
+            if not url or not isinstance(url, str):
+                errors.append(create_error_msg(
+                    f"telemetry_sinks.victoria_metrics.additional_metric_remote_write_endpoints[{idx}].url",
+                    url,
+                    en_us_validation_msg.ADDITIONAL_METRIC_ENDPOINTS_URL_EMPTY_MSG
+                ))
+            elif (not url.startswith("http://") and
+                  not url.startswith("https://")):
+                errors.append(create_error_msg(
+                    f"telemetry_sinks.victoria_metrics.additional_metric_remote_write_endpoints[{idx}].url",
+                    url,
+                    en_us_validation_msg.ADDITIONAL_METRIC_ENDPOINTS_URL_INVALID_MSG
+                ))
+
+    # =========================================================================
+    # Validate additional_log_write_endpoints (victoria_logs)
+    # =========================================================================
+    victoria_logs_sink = telemetry_sinks.get("victoria_logs", {})
+    additional_log_endpoints = victoria_logs_sink.get(
+        "additional_log_write_endpoints", []
+    )
+    if additional_log_endpoints and isinstance(additional_log_endpoints, list):
+        if len(additional_log_endpoints) > 5:
+            logger.warning(
+                f"More than 5 additional_log_write_endpoints "
+                f"configured ({len(additional_log_endpoints)}). "
+                "This may impact performance."
+            )
+        for idx, endpoint in enumerate(additional_log_endpoints):
+            if not isinstance(endpoint, dict):
+                continue
+            url = endpoint.get("url", "")
+            if not url or not isinstance(url, str):
+                errors.append(create_error_msg(
+                    f"telemetry_sinks.victoria_logs.additional_log_write_endpoints[{idx}].url",
+                    url,
+                    en_us_validation_msg.ADDITIONAL_LOG_ENDPOINTS_URL_EMPTY_MSG
+                ))
+            elif (not url.startswith("http://") and
+                  not url.startswith("https://")):
+                errors.append(create_error_msg(
+                    f"telemetry_sinks.victoria_logs.additional_log_write_endpoints[{idx}].url",
+                    url,
+                    en_us_validation_msg.ADDITIONAL_LOG_ENDPOINTS_URL_INVALID_MSG
+                ))
+
+    # =========================================================================
     # Validate PowerScale telemetry configuration
     # =========================================================================
     powerscale_enabled = powerscale_source.get("metrics_enabled", False)

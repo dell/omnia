@@ -17,14 +17,12 @@
 - name: Set log identifier (hostname fallback when not provided)
   ansible.builtin.set_fact:
     log_identifier: "{{ identifier | default(inventory_hostname) }}"
-    collection_mode: "full"
+    collection_mode: "complete logs"
 
 - name: Override collection mode to curated_support when tag is active
-  tags:
-    - curated_support
-    - never
   ansible.builtin.set_fact:
     collection_mode: "curated_support"
+  when: "'curated_support' in ansible_run_tags"
 
 - name: Set ISO-8601 warning timestamp for this run
   ansible.builtin.set_fact:
@@ -250,9 +248,8 @@
 - name: Gather OIM host context for metadata
   ansible.builtin.shell: |
     set -o pipefail
-    printf '%s|%s|%s' \
+    printf '%s|%s' \
       "$(whoami)" \
-      "$(hostname -f)" \
       "$(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-unknown}")"
   register: oim_context_raw
   changed_when: false
@@ -269,8 +266,7 @@
     meta_file_name: "metadata.json"
     meta_rel_path: "omnia_logs_{{ bundle_ts }}/metadata.json"
     meta_user: "{{ oim_context_raw.stdout.split('|')[0] }}"
-    meta_hostname: "{{ oim_context_raw.stdout.split('|')[1] }}"
-    meta_os: "{{ oim_context_raw.stdout.split('|')[2] }}"
+    meta_os: "{{ oim_context_raw.stdout.split('|')[1] }}"
 
 - name: Ensure per-run bundle directory exists
   ansible.builtin.file:
@@ -279,25 +275,22 @@
     mode: "0755"
 
 - name: Write metadata.json for current run
-  ansible.builtin.copy:
+  ansible.builtin.template:
+    src: metadata.json.j2
     dest: "{{ log_root }}/{{ meta_rel_path }}"
-    content: "{{ metadata_payload | to_nice_json }}"
     mode: "0644"
   vars:
-    metadata_payload:
-      bundle_name: "{{ bundle_name }}"
-      tar_relative_path: "{{ bundle_name }}"
-      tar_sha256: ""
-      bundle_generated_at_utc: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
-      bundle_generated_at_local: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
-      trigger_user: "{{ meta_user }}"
-      host_name: "{{ meta_hostname }}"
-      host_os: "{{ meta_os }}"
-      identifier: "{{ log_identifier }}"
-      collection_mode: "{{ collection_mode }}"
-      exclusions_applied: "{{ exclude_patterns if collection_mode == 'curated_support' else [] }}"
-      warning_count: "{{ warnings_list | length }}"
-      warnings: "{{ warnings_list }}"
+    bundle_name: "{{ bundle_name }}"
+    tar_sha256: ""
+    bundle_generated_at_utc: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+    bundle_generated_at_local: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+    trigger_user: "{{ meta_user }}"
+    oim_host_os: "{{ meta_os }}"
+    identifier: "{{ log_identifier }}"
+    collection_mode: "{{ collection_mode }}"
+    exclusions_applied: "{{ exclude_patterns if collection_mode == 'curated_support' else [] }}"
+    warning_count: "{{ warnings_list | length }}"
+    warnings: "{{ warnings_list }}"
 
 - name: Move collected k8s/slurm folders into current run folder
   ansible.builtin.shell: |
@@ -338,25 +331,22 @@
   changed_when: false
 
 - name: Update metadata.json with tar SHA256
-  ansible.builtin.copy:
+  ansible.builtin.template:
+    src: metadata.json.j2
     dest: "{{ log_root }}/{{ meta_rel_path }}"
-    content: "{{ metadata_payload_with_sha | to_nice_json }}"
     mode: "0644"
   vars:
-    metadata_payload_with_sha:
-      bundle_name: "{{ bundle_name }}"
-      tar_relative_path: "{{ bundle_name }}"
-      tar_sha256: "{{ bundle_sha256.stat.checksum }}"
-      bundle_generated_at_utc: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
-      bundle_generated_at_local: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
-      trigger_user: "{{ meta_user }}"
-      host_name: "{{ meta_hostname }}"
-      host_os: "{{ meta_os }}"
-      identifier: "{{ log_identifier }}"
-      collection_mode: "{{ collection_mode }}"
-      exclusions_applied: "{{ exclude_patterns if collection_mode == 'curated_support' else [] }}"
-      warning_count: "{{ warnings_list | length }}"
-      warnings: "{{ warnings_list }}"
+    bundle_name: "{{ bundle_name }}"
+    tar_sha256: "{{ bundle_sha256.stat.checksum }}"
+    bundle_generated_at_utc: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+    bundle_generated_at_local: "{{ lookup('pipe', 'TZ=Asia/Kolkata date +%Y-%m-%dT%H:%M:%S+05:30') }}"
+    trigger_user: "{{ meta_user }}"
+    oim_host_os: "{{ meta_os }}"
+    identifier: "{{ log_identifier }}"
+    collection_mode: "{{ collection_mode }}"
+    exclusions_applied: "{{ exclude_patterns if collection_mode == 'curated_support' else [] }}"
+    warning_count: "{{ warnings_list | length }}"
+    warnings: "{{ warnings_list }}"
 
 - name: Remove k8s/slurm folders from run folder after bundling
   ansible.builtin.file:
@@ -374,19 +364,24 @@
     - "{{ log_root }}/k8s"
     - "{{ log_root }}/slurm"
 
-- name: Print completion summary
+- name: Completion summary
+  ansible.builtin.shell: |
+    echo "============================================================"
+    echo "OMNIA LOG COLLECTION COMPLETE"
+    echo "============================================================"
+    echo "Collected Workspace : {{ log_root }}"
+    echo "Run Folder          : {{ log_root }}/{{ bundle_dir_name }}"
+    echo "Bundle Path         : {{ log_root }}/{{ bundle_rel_path }}"
+    echo "Metadata Path       : {{ log_root }}/{{ meta_rel_path }}"
+    echo "SHA256              : {{ bundle_sha256.stat.checksum }}"
+    echo "Collection Mode     : {{ collection_mode }}"
+    echo "Warnings            : {{ warnings_list | length }}"
+    echo "============================================================"
+  args:
+    executable: /bin/bash
+  register: completion_output
+  changed_when: false
+
+- name: Display completion summary
   ansible.builtin.debug:
-    msg: |-
-      ============================================================
-      OMNIA LOG COLLECTION COMPLETE
-      ============================================================
-      Collected Workspace : {{ log_root }}
-      Run Folder          : {{ log_root }}/{{ bundle_dir_name }}
-      Bundle Path         : {{ log_root }}/{{ bundle_rel_path }}
-      Metadata Path       : {{ log_root }}/{{ meta_rel_path }}
-      SHA256              : {{ bundle_sha256.stat.checksum }}
-      Collection Mode     : {{ collection_mode }}
-      Warnings ({{ warnings_list | length }}) :
-      {% if warnings_list | length == 0 %}  None
-      {% else %}{% for w in warnings_list %}  [WARN] {{ w.message }}
-      {% endfor %}{% endif %}============================================================
+    var: completion_output.stdout_lines

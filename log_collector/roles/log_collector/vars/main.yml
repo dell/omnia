@@ -14,7 +14,7 @@
 ---
 
 # Log collection workspace root on OIM
-log_root: /opt/omnia/logs
+log_root: /opt/omnia/collector_logs
 
 # PXE mapping file used to build dynamic node inventory
 pxe_mapping_file_path: "/opt/omnia/input/project_default/pxe_mapping_file.csv"
