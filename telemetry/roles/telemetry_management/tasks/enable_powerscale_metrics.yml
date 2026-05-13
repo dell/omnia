@@ -1,0 +1,82 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Load original replica counts from backup file
+  ansible.builtin.slurp:
+    src: /tmp/powerscale_replicas_backup.yml
+  delegate_to: "{{ kube_vip }}"
+  register: replicas_backup
+  ignore_errors: true
+
+- name: Parse replica counts from backup
+  ansible.builtin.set_fact:
+    original_replicas: "{{ replicas_backup.content | b64decode | from_yaml | default({}) }}"
+  ignore_errors: true
+
+- name: Scale up OTEL Collector to original replica count
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: otel-collector
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: "{{ original_replicas['otel-collector'] | default(1) }}"
+  delegate_to: "{{ kube_vip }}"
+  ignore_errors: true
+
+- name: Scale up karavi-metrics-powerscale to original replica count
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: karavi-metrics-powerscale
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: "{{ original_replicas['karavi-metrics-powerscale'] | default(1) }}"
+  delegate_to: "{{ kube_vip }}"
+  ignore_errors: true
+
+- name: Scale up csi-volume-exporter to original replica count
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: csi-volume-exporter
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: "{{ original_replicas['csi-volume-exporter'] | default(1) }}"
+  delegate_to: "{{ kube_vip }}"
+  ignore_errors: true
+
+- name: Wait for OTEL Collector to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: otel-collector
+    namespace: "{{ telemetry_namespace }}"
+  register: otel_deployment
+  until: >
+    otel_deployment.resources | length > 0 and
+    (otel_deployment.resources[0].status.readyReplicas | default(0)) >= 1
+  retries: 30
+  delay: 10
+  delegate_to: "{{ kube_vip }}"
+  ignore_errors: true
+
+- name: Display PowerScale metric workloads scaled up
+  ansible.builtin.debug:
+    msg: "{{ powerscale_metrics_scaled_up_msg }}"
+
