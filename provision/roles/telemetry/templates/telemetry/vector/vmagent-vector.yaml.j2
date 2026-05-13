@@ -1,0 +1,127 @@
+#  Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+---
+# vmagent-vector: Dedicated VMAgent for Vector-LDMS/Vector-OME write buffering
+# Purpose: Acts as a write buffer between Vector pods and VictoriaMetrics cluster
+# Architecture: Vector pods → vmagent-vector:8429 → vminsert:8480 → VictoriaMetrics
+# Q2 Status: Active — Omnia-deployed
+# Spec Reference: Vector HLD Engineering Spec (ESPEC-VECTOR-2026-001) §4.1.3.3
+
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
+metadata:
+  name: vmagent-vector
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: vmagent-vector
+    component: telemetry
+    managed-by: omnia
+spec:
+  # Replica count: 1 (stateless, can scale if needed)
+  replicaCount: {{ vector.vmagent_vector.replicas }}
+
+  # Image configuration
+  image:
+    repository: {{ victoria_cluster.vmagent.image.split(':')[0] }}
+    tag: {{ victoria_cluster.vmagent.image.split(':')[1] }}
+    pullPolicy: IfNotPresent
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  # Remote write configuration to VictoriaMetrics cluster
+  remoteWrite:
+{% if victoria_deployment_mode == 'cluster' %}
+    - url: "{{ victoria_url_scheme }}://vminsert-victoria-cluster.{{ telemetry_namespace }}.svc.cluster.local:8480/insert/0/prometheus/api/v1/write"
+{% else %}
+    - url: "{{ victoria_url_scheme }}://victoria-metric-0.{{ telemetry_namespace }}.svc.cluster.local:8428/api/v1/write"
+{% endif %}
+{% if victoria_cluster.tls_enabled | default(false) %}
+      tlsConfig:
+        ca:
+          secret:
+            name: victoria-tls-certs
+            key: ca.crt
+        cert:
+          secret:
+            name: victoria-tls-certs
+            key: tls.crt
+        keySecret:
+          name: victoria-tls-certs
+          key: tls.key
+{% endif %}
+      queueConfig:
+        maxSamplesPerSend: 10000
+        maxShards: 10
+        capacity: 100000
+
+  # Service configuration for prometheus_remote_write receiver
+  serviceSpec:
+    metadata:
+      name: vmagent-vector
+    spec:
+      type: ClusterIP
+      ports:
+        - name: http
+          port: 8429
+          targetPort: 8429
+          protocol: TCP
+
+  # Extra arguments for vmagent
+  extraArgs:
+    # Enable prometheus remote write receiver on port 8429
+    promscrape.config: ""
+    remoteWrite.tmpDataPath: "/tmp/vmagent-remotewrite-data"
+    # Disable scraping (vmagent-vector only receives from Vector, doesn't scrape)
+    promscrape.config.strictParse: "false"
+
+  # Pod anti-affinity for high availability (optional, single replica for now)
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - vmagent-vector
+            topologyKey: "kubernetes.io/hostname"
+
+{% if victoria_cluster.tls_enabled | default(false) %}
+  # Mount TLS certificates
+  volumes:
+    - name: victoria-tls-certs
+      secret:
+        secretName: victoria-tls-certs
+        items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+          - key: ca.crt
+            path: ca.crt
+
+  volumeMounts:
+    - name: victoria-tls-certs
+      mountPath: /etc/victoria/certs
+      readOnly: true
+{% endif %}

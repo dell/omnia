@@ -21,8 +21,8 @@ metadata:
   name: victoria-single
   namespace: {{ telemetry_namespace }}
 spec:
-  # Replica count for single-node (always 1)
-  replicaCount: 1
+  # Replica count for single-node (configurable via victoria.vmsingle.replicas)
+  replicaCount: {{ victoria.vmsingle.replicas }}
   
   # Retention period from telemetry_config.yml
   retentionPeriod: "{{ telemetry_config.telemetry_sinks.victoriametrics.retention_period }}h"

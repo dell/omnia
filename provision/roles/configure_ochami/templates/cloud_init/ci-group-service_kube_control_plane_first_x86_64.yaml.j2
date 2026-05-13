@@ -321,20 +321,6 @@
               ipAddressPools:
               - first-pool
 
-{% if telemetry_enabled %}
-        - path: /root/telemetry.sh
-          owner: root:root
-          permissions: '0755'
-          content: |
-            {{ lookup('template', 'templates/telemetry/telemetry.sh.j2') | indent(12) }}
-{% endif %}
-{% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
-        - path: /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
-          permissions: '{{ file_mode_755 }}'
-          content: |
-            {{ pv_entry.content | indent(12) }}
-{% endfor %}
-
       runcmd:
         - /usr/local/bin/set-ssh.sh
         - "systemctl enable chronyd"
@@ -975,7 +961,6 @@
 
                 echo "Done updating poll rate."
 
-
                 if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
                   echo "===== Running CSI PowerScale installation script ====="
                   INSTALL_SCRIPT="/opt/omnia/csi-driver-powerscale/csi-powerscale/dell-csi-helm-installer/csi-install.sh"
@@ -1076,7 +1061,7 @@
 
 {% if telemetry_enabled %}
             echo "Applying Telemetry Kubernetes deployments"
-            /root/telemetry.sh
+            {{ k8s_client_mount_path }}/telemetry/telemetry.sh
 {% endif %}
 
             echo "Rollout and Restart coredns"

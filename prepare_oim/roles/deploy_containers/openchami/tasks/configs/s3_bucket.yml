@@ -13,6 +13,37 @@
 # limitations under the License.
 ---
 
+# === PowerScale endpoint validation (S3 backend only) ===
+- name: Validate PowerScale S3 endpoint configuration
+  ansible.builtin.assert:
+    that:
+      - s3_configurations is defined
+      - s3_configurations.endpoint_url is defined
+      - s3_access_id is defined
+      - s3_access_id | length > 0
+      - s3_secret_key is defined
+    fail_msg: "{{ powerscale_validation_fail_msg }}"
+  when: storage_backend == 'powerscale'
+
+- name: Test PowerScale endpoint reachability
+  ansible.builtin.uri:
+    url: "{{ s3_configurations.endpoint_url }}"
+    method: GET
+    validate_certs: false
+    status_code: [200, 403, 404, 405]
+    timeout: 10
+  register: ps_endpoint_check
+  failed_when: false
+  when: storage_backend == 'powerscale'
+
+- name: Fail if PowerScale unreachable
+  ansible.builtin.fail:
+    msg: "{{ powerscale_unreachable_msg }}"
+  when:
+    - storage_backend == 'powerscale'
+    - ps_endpoint_check.status is not defined or ps_endpoint_check.status not in [200, 403, 404, 405]
+
+# === EXISTING TASKS (UNCHANGED -- work for both backends via ~/.s3cfg) ===
 - name: Import EPEL GPG key
   ansible.builtin.rpm_key:
     key: "{{ epel10_gpg_key }}"
@@ -70,3 +101,14 @@
 - name: Verify s3 bucket output
   ansible.builtin.debug:
     msg: "{{ s3_bucket_output_final.stdout_lines }}"
+
+# === PowerScale-specific post-creation tasks (S3 backend only) ===
+- name: Update publish_s3 in rhel-base-compute.yaml.j2 to PowerScale endpoint
+  ansible.builtin.replace:
+    path: /opt/omnia/openchami/deployment-recipes/dell/podman-quadlets/roles/image/templates/images/rhel-base-compute.yaml.j2
+    regexp: "^(\\s*publish_s3:\\s*)'http://\\{\\{\\s*cluster_name\\s*\\}\\}\\.\\{\\{\\s*cluster_domain\\s*\\}\\}:9000'(.*)$"
+    replace: "\\1'{{ s3_configurations.endpoint_url }}'\\2"
+    backup: true
+  when: storage_backend == 'powerscale'
+  delegate_to: localhost
+  connection: local

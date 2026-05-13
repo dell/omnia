@@ -64,3 +64,42 @@
     k8s_nfs_server_path: "{{ k8s_nfs_storage_details.source }}"
     cacheable: true
   when: k8s_nfs_storage_details.source is defined
+
+- name: Read CSI PowerScale driver values.yaml to detect Volume Health Monitoring
+  when: hostvars['localhost']['csi_driver_powerscale_support'] | default(false) | bool
+  block:
+    - name: Check if CSI PowerScale values file exists
+      ansible.builtin.stat:
+        path: "{{ service_cluster_info.csi_powerscale_driver_values_file_path }}"
+      register: csi_values_file_stat
+      when: service_cluster_info.csi_powerscale_driver_values_file_path is defined
+
+    - name: Load CSI PowerScale values.yaml
+      ansible.builtin.include_vars:
+        file: "{{ service_cluster_info.csi_powerscale_driver_values_file_path }}"
+        name: csi_powerscale_values
+      when:
+        - service_cluster_info.csi_powerscale_driver_values_file_path is defined
+        - csi_values_file_stat.stat.exists | default(false)
+
+    - name: Set Volume Health Monitoring status from CSI driver values
+      ansible.builtin.set_fact:
+        powerscale_volume_health_enabled: >-
+          {{ (csi_powerscale_values.node.healthMonitor.enabled | default(false) | bool)
+             or (csi_powerscale_values.controller.healthMonitor.enabled | default(false) | bool) }}
+        cacheable: true
+      when:
+        - csi_powerscale_values is defined
+
+    - name: Set Volume Health Monitoring to false if not configured
+      ansible.builtin.set_fact:
+        powerscale_volume_health_enabled: false
+        cacheable: true
+      when: powerscale_volume_health_enabled is not defined
+
+    - name: Warn if PowerScale metrics enabled but Volume Health Monitoring is disabled
+      when:
+        - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool
+        - not powerscale_volume_health_enabled | default(false) | bool
+      ansible.builtin.debug:
+        msg: "{{ warning_powerscale_volume_health_disabled }}"

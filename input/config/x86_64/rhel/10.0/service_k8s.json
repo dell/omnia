@@ -23,12 +23,15 @@
       { "package": "docker.io/curlimages/curl", "type": "image", "tag": "8.17.0" },
       { "package": "docker.io/rmohr/activemq", "type": "image", "tag": "5.15.9" },
       { "package": "docker.io/library/mysql", "type": "image", "tag": "9.3.0" },
+      { "package": "docker.io/library/python", "type": "image", "tag": "3.11-slim" },
       { "package": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver", "type": "image", "tag": "1.2" },
       { "package": "docker.io/dellhpcomniaaisolution/kafkapump", "type": "image", "tag": "1.2" },
       { "package": "docker.io/dellhpcomniaaisolution/victoriapump", "type": "image", "tag": "1.2" },
       { "package": "cryptography==45.0.7", "type": "pip_module" },
       { "package": "omsdk==1.2.518", "type": "pip_module" },
       { "package": "cffi==1.17.1", "type": "pip_module" },
+      { "package": "prometheus_client==0.20.0", "type": "pip_module" },
+      { "package": "kubernetes==33.1.0", "type": "pip_module" },
       { "package": "quay.io/strimzi/operator", "tag": "0.48.0", "type": "image" },
       { "package": "quay.io/strimzi/kafka", "tag": "0.48.0-kafka-4.1.0", "type": "image" },
       { "package": "docker.io/dellhpcomniaaisolution/ubuntu-ldms", "tag": "1.0", "type": "image" },
@@ -47,7 +50,7 @@
       { "package": "docker.io/victoriametrics/operator", "tag": "v0.68.3", "type": "image" },
       { "package": "docker.io/victoriametrics/operator", "tag": "config-reloader-v0.68.3", "type": "image" },
       { "package": "victoria-metrics-operator-0.59.3", "type": "tarball", "url": "https://github.com/VictoriaMetrics/helm-charts/releases/download/victoria-metrics-operator-0.59.3/victoria-metrics-operator-0.59.3.tgz" },
-      { "package": "docker.io/timberio/vector", "tag": "0.54.0-alpine", "type": "image" },
+      { "package": "docker.io/timberio/vector", "tag": "0.54.0-debian", "type": "image" },
       { "package": "apptainer", "type": "rpm", "repo_name": "epel" },
       { "package": "doca-ofed", "type": "rpm_repo", "repo_name": "doca" },
       { "package": "iscsi-initiator-utils", "type": "rpm", "repo_name": "baseos" },
@@ -75,7 +78,6 @@
       { "package": "prettytable==3.14.0", "type": "pip_module" },
       { "package": "python3-3.12.9", "type": "rpm", "repo_name": "baseos" },
       { "package": "git", "type": "rpm", "repo_name": "appstream"},
-      { "package": "kubernetes==33.1.0", "type": "pip_module" },
       { "package": "PyMySQL==1.1.2", "type": "pip_module" }
     ]
   },
@@ -102,7 +104,6 @@
       { "package": "prettytable==3.14.0", "type": "pip_module" },
       { "package": "python3-3.12.9", "type": "rpm", "repo_name": "baseos" },
       { "package": "git", "type": "rpm", "repo_name": "appstream"},
-      { "package": "kubernetes==33.1.0", "type": "pip_module" },
       { "package": "PyMySQL==1.1.2", "type": "pip_module" }
     ]
   },

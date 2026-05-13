@@ -29,6 +29,12 @@
       ansible.builtin.set_fact:
         enable_build_stream: false
 
+- name: Load storage_config.yml for backend-aware credential prompts
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/storage_config.yml"
+  failed_when: false
+  no_log: true
+
 - name: Validate credential files
   ansible.builtin.include_tasks: validate_cred_file.yml
   loop: "{{ credential_files }}"

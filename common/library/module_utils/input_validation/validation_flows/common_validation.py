@@ -725,6 +725,28 @@ def validate_storage_config(
     # Validate duplicate mount points per functional group and group across mounts and powervault_config
     errors.extend(_validate_duplicate_mount_points(data))
     
+    # Validate s3_configurations: endpoint_url is required when provider is "powerscale", must be empty when provider is "minio"
+    if "s3_configurations" in data:
+        s3_config = data["s3_configurations"]
+        provider = s3_config.get("provider", "")
+        endpoint_url = s3_config.get("endpoint_url", "")
+        if provider == "powerscale" and not endpoint_url:
+            errors.append(
+                create_error_msg(
+                    "storage_config",
+                    "s3_configurations.endpoint_url",
+                    "endpoint_url is required when provider is 'powerscale'. Please provide a valid S3 endpoint URL (e.g., https://10.43.1.11:9021)."
+                )
+            )
+        elif provider == "minio" and endpoint_url:
+            errors.append(
+                create_error_msg(
+                    "storage_config",
+                    "s3_configurations.endpoint_url",
+                    "endpoint_url must be empty when provider is 'minio'. The MinIO endpoint is auto-configured locally."
+                )
+            )
+    
     return errors
 
 

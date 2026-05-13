@@ -1,0 +1,361 @@
+#  Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+# CSI Volume Exporter - Exposes PowerScale volume health metrics as Prometheus metrics
+# Deployed when powerscale metrics are enabled
+# Covers all CSI external-health-monitor metrics: PV status, PVC binding, capacity,
+# volume health events, node failure, storage class info, and aggregate counts
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ csi_volume_exporter.service_account_name }}
+  namespace: {{ telemetry_namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ csi_volume_exporter.cluster_role_name }}
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "csinodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ csi_volume_exporter.cluster_role_binding_name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ csi_volume_exporter.cluster_role_name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ csi_volume_exporter.service_account_name }}
+    namespace: {{ telemetry_namespace }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ csi_volume_exporter.app_name }}
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: {{ csi_volume_exporter.app_name }}
+    source: powerscale
+    component: volume-status
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ csi_volume_exporter.app_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ csi_volume_exporter.app_name }}
+        source: powerscale
+        component: volume-status
+    spec:
+      serviceAccountName: {{ csi_volume_exporter.service_account_name }}
+      containers:
+        - name: exporter
+          image: {{ csi_volume_exporter.image }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              pip3 install prometheus_client==0.20.0 kubernetes==33.1.0 \
+                --find-links="{{ offline_pip_module_path }}/prometheus_client==0.20.0/" \
+                --trusted-host "{{ pulp_server_ip }}" \
+                --no-index || \
+              pip3 install prometheus_client kubernetes
+              mkdir -p /app
+              cat > /app/exporter.py <<'PYEOF'
+              from prometheus_client import start_http_server, Gauge, Counter, Info
+              from kubernetes import client, config
+              import time
+              import datetime
+              import re
+
+              PROVISIONER = 'csi-isilon.dellemc.com'
+
+              config.load_incluster_config()
+              v1 = client.CoreV1Api()
+              storage_v1 = client.StorageV1Api()
+
+              # ── PV metrics ──
+              pv_status = Gauge('powerscale_volume_status',
+                  'PV phase (1=Bound, 0=Other)',
+                  ['pv_name', 'phase'])
+              pv_count = Gauge('powerscale_volume_count',
+                  'Total PowerScale PVs by phase',
+                  ['phase'])
+              pv_capacity_bytes = Gauge('powerscale_volume_capacity_bytes',
+                  'PV capacity in bytes',
+                  ['pv_name'])
+              pv_info = Gauge('powerscale_volume_info',
+                  'PV metadata (always 1)',
+                  ['pv_name', 'phase', 'storage_class', 'reclaim_policy',
+                   'access_modes', 'volume_handle', 'pvc_name', 'pvc_namespace'])
+              pv_age_seconds = Gauge('powerscale_volume_age_seconds',
+                  'Seconds since PV creation',
+                  ['pv_name'])
+
+              # ── PVC metrics ──
+              pvc_status = Gauge('powerscale_pvc_status_phase',
+                  'PVC phase (1=Bound, 0=Other)',
+                  ['pvc_name', 'pvc_namespace', 'phase'])
+              pvc_requested_bytes = Gauge('powerscale_pvc_requested_bytes',
+                  'PVC requested storage in bytes',
+                  ['pvc_name', 'pvc_namespace'])
+              pvc_count = Gauge('powerscale_pvc_count',
+                  'Total PowerScale PVCs by phase',
+                  ['phase'])
+
+
+              # ── Health event metrics (from CSI external-health-monitor-controller) ──
+              volume_condition_abnormal = Gauge(
+                  'powerscale_volume_health_abnormal',
+                  'Volume condition abnormal (1=abnormal, 0=healthy)',
+                  ['pvc_name', 'pvc_namespace', 'pv_name'])
+              volume_abnormal_events_total = Gauge(
+                  'powerscale_volume_abnormal_events_total',
+                  'Total VolumeConditionAbnormal events for PVC',
+                  ['pvc_name', 'pvc_namespace'])
+              node_failure_events_total = Gauge(
+                  'powerscale_node_failure_events_total',
+                  'Total node failure events affecting PowerScale PVCs',
+                  ['node'])
+
+              # ── Node metrics ──
+              node_condition_ready = Gauge(
+                  'powerscale_node_ready',
+                  'Node Ready condition (1=True, 0=False)',
+                  ['node'])
+
+              # ── Storage class metrics ──
+              sc_info = Gauge('powerscale_storageclass_info',
+                  'StorageClass metadata (always 1)',
+                  ['storageclass', 'provisioner', 'reclaim_policy',
+                   'volume_binding_mode', 'allow_volume_expansion'])
+
+              # ── Aggregate summary ──
+              total_capacity_bytes = Gauge(
+                  'powerscale_total_capacity_bytes',
+                  'Total capacity of all PowerScale PVs in bytes')
+
+              def parse_k8s_quantity(q):
+                  if q is None:
+                      return 0
+                  suffixes = {'Ki': 2**10, 'Mi': 2**20, 'Gi': 2**30, 'Ti': 2**40,
+                              'Pi': 2**50, 'k': 10**3, 'M': 10**6, 'G': 10**9,
+                              'T': 10**12, 'P': 10**15}
+                  for s, mul in suffixes.items():
+                      if q.endswith(s):
+                          return int(float(q[:-len(s)]) * mul)
+                  return int(q)
+
+              def collect_pv_metrics():
+                  pvs = v1.list_persistent_volume()
+                  pv_phases = {}
+                  total_cap = 0
+                  pv_to_pvc = {}
+                  now = datetime.datetime.now(datetime.timezone.utc)
+                  for pv in pvs.items:
+                      ann = pv.metadata.annotations or {}
+                      prov = ann.get('pv.kubernetes.io/provisioned-by', '')
+                      if PROVISIONER not in prov:
+                          continue
+                      name = pv.metadata.name
+                      phase = pv.status.phase or 'Unknown'
+                      sc = pv.spec.storage_class_name or ''
+                      reclaim = pv.spec.persistent_volume_reclaim_policy or ''
+                      access = ','.join(pv.spec.access_modes or [])
+                      vol_handle = ''
+                      if pv.spec.csi and pv.spec.csi.volume_handle:
+                          vol_handle = pv.spec.csi.volume_handle
+                      pvc_name = ''
+                      pvc_ns = ''
+                      if pv.spec.claim_ref:
+                          pvc_name = pv.spec.claim_ref.name or ''
+                          pvc_ns = pv.spec.claim_ref.namespace or ''
+                      pv_to_pvc[name] = (pvc_name, pvc_ns)
+                      cap = parse_k8s_quantity(
+                          pv.spec.capacity.get('storage', '0') if pv.spec.capacity else '0')
+                      total_cap += cap
+                      pv_status.labels(pv_name=name, phase=phase).set(
+                          1 if phase == 'Bound' else 0)
+                      pv_capacity_bytes.labels(pv_name=name).set(cap)
+                      pv_info.labels(pv_name=name, phase=phase, storage_class=sc,
+                          reclaim_policy=reclaim, access_modes=access,
+                          volume_handle=vol_handle, pvc_name=pvc_name,
+                          pvc_namespace=pvc_ns).set(1)
+                      if pv.metadata.creation_timestamp:
+                          age = (now - pv.metadata.creation_timestamp).total_seconds()
+                          pv_age_seconds.labels(pv_name=name).set(age)
+                      pv_phases[phase] = pv_phases.get(phase, 0) + 1
+                  for phase, count in pv_phases.items():
+                      pv_count.labels(phase=phase).set(count)
+                  total_capacity_bytes.set(total_cap)
+                  return pv_to_pvc
+
+              def collect_pvc_metrics(pv_to_pvc):
+                  pvcs = v1.list_persistent_volume_claim_for_all_namespaces()
+                  pvc_phases = {}
+                  pvc_set = set((v[0], v[1]) for v in pv_to_pvc.values() if v[0])
+                  for pvc in pvcs.items:
+                      key = (pvc.metadata.name, pvc.metadata.namespace)
+                      if key not in pvc_set:
+                          ann = pvc.metadata.annotations or {}
+                          prov = ann.get('volume.kubernetes.io/storage-provisioner', '')
+                          if PROVISIONER not in prov:
+                              continue
+                      name = pvc.metadata.name
+                      ns = pvc.metadata.namespace
+                      phase = pvc.status.phase or 'Unknown'
+                      pvc_status.labels(pvc_name=name, pvc_namespace=ns,
+                          phase=phase).set(1 if phase == 'Bound' else 0)
+                      req = '0'
+                      if pvc.spec.resources and pvc.spec.resources.requests:
+                          req = pvc.spec.resources.requests.get('storage', '0')
+                      pvc_requested_bytes.labels(pvc_name=name,
+                          pvc_namespace=ns).set(parse_k8s_quantity(req))
+                      pvc_phases[phase] = pvc_phases.get(phase, 0) + 1
+                  for phase, count in pvc_phases.items():
+                      pvc_count.labels(phase=phase).set(count)
+
+              def collect_health_events(pv_to_pvc):
+                  pvc_set = set((v[0], v[1]) for v in pv_to_pvc.values() if v[0])
+                  abnormal_counts = {}
+                  node_fail_counts = {}
+                  healthy_pvcs = set(pvc_set)
+                  try:
+                      events = v1.list_event_for_all_namespaces(
+                          field_selector='reason=VolumeConditionAbnormal')
+                      for ev in events.items:
+                          if ev.involved_object.kind != 'PersistentVolumeClaim':
+                              continue
+                          pvc_name = ev.involved_object.name
+                          pvc_ns = ev.involved_object.namespace or ''
+                          key = (pvc_name, pvc_ns)
+                          if key in pvc_set:
+                              cnt = ev.count or 1
+                              abnormal_counts[key] = abnormal_counts.get(key, 0) + cnt
+                              healthy_pvcs.discard(key)
+                  except Exception as e:
+                      print(f"Error fetching VolumeConditionAbnormal events: {e}")
+                  try:
+                      events = v1.list_event_for_all_namespaces(
+                          field_selector='reason=NodeFailure')
+                      for ev in events.items:
+                          node = ev.involved_object.name or ''
+                          cnt = ev.count or 1
+                          node_fail_counts[node] = node_fail_counts.get(node, 0) + cnt
+                  except Exception as e:
+                      print(f"Error fetching NodeFailure events: {e}")
+                  pvc_to_pv = {}
+                  for pv_name, (pvc_name, pvc_ns) in pv_to_pvc.items():
+                      if pvc_name:
+                          pvc_to_pv[(pvc_name, pvc_ns)] = pv_name
+                  for key, cnt in abnormal_counts.items():
+                      pv_name = pvc_to_pv.get(key, '')
+                      volume_condition_abnormal.labels(pvc_name=key[0],
+                          pvc_namespace=key[1], pv_name=pv_name).set(1)
+                      volume_abnormal_events_total.labels(pvc_name=key[0],
+                          pvc_namespace=key[1]).set(cnt)
+                  for key in healthy_pvcs:
+                      pv_name = pvc_to_pv.get(key, '')
+                      volume_condition_abnormal.labels(pvc_name=key[0],
+                          pvc_namespace=key[1], pv_name=pv_name).set(0)
+                  for node, cnt in node_fail_counts.items():
+                      node_failure_events_total.labels(node=node).set(cnt)
+
+              def collect_node_metrics():
+                  nodes = v1.list_node()
+                  for n in nodes.items:
+                      name = n.metadata.name
+                      ready = 0
+                      for cond in (n.status.conditions or []):
+                          if cond.type == 'Ready':
+                              ready = 1 if cond.status == 'True' else 0
+                              break
+                      node_condition_ready.labels(node=name).set(ready)
+
+              def collect_storageclass_metrics():
+                  scs = storage_v1.list_storage_class()
+                  for sc in scs.items:
+                      if PROVISIONER not in (sc.provisioner or ''):
+                          continue
+                      sc_info.labels(
+                          storageclass=sc.metadata.name,
+                          provisioner=sc.provisioner or '',
+                          reclaim_policy=sc.reclaim_policy or '',
+                          volume_binding_mode=sc.volume_binding_mode or '',
+                          allow_volume_expansion=str(
+                              sc.allow_volume_expansion or False).lower()
+                      ).set(1)
+
+
+              def collect_all():
+                  try:
+                      pv_to_pvc = collect_pv_metrics()
+                      collect_pvc_metrics(pv_to_pvc)
+                      collect_health_events(pv_to_pvc)
+                      collect_node_metrics()
+                      collect_storageclass_metrics()
+                  except Exception as e:
+                      print(f"Error in collection cycle: {e}")
+
+              if __name__ == '__main__':
+                  start_http_server({{ csi_volume_exporter.metrics_port }})
+                  print("CSI Volume Exporter started on port {{ csi_volume_exporter.metrics_port }}")
+                  collect_all()
+                  while True:
+                      time.sleep({{ csi_volume_exporter.scrape_interval_seconds }})
+                      collect_all()
+              PYEOF
+              python /app/exporter.py
+          ports:
+            - containerPort: {{ csi_volume_exporter.metrics_port }}
+          resources:
+            requests:
+              cpu: {{ csi_volume_exporter.resources.requests.cpu }}
+              memory: {{ csi_volume_exporter.resources.requests.memory }}
+            limits:
+              cpu: {{ csi_volume_exporter.resources.limits.cpu }}
+              memory: {{ csi_volume_exporter.resources.limits.memory }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ csi_volume_exporter.service_name }}
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: {{ csi_volume_exporter.app_name }}
+spec:
+  selector:
+    app: {{ csi_volume_exporter.app_name }}
+  ports:
+    - name: "{{ csi_volume_exporter.metrics_port }}"
+      port: {{ csi_volume_exporter.metrics_port }}
+      targetPort: {{ csi_volume_exporter.metrics_port }}

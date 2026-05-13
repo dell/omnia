@@ -45,3 +45,35 @@ roleRef:
   kind: Role
   name: "{{ vmagent.role_name }}"
   apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRole for vmagent service discovery across namespaces
+# Required by VictoriaMetrics operator for VMServiceScrape/VMPodScrape/VMNodeScrape
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: "{{ vmagent.service_account_name }}"
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods"]
+    verbs: ["list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["list"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: "{{ vmagent.service_account_name }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: "{{ vmagent.service_account_name }}"
+subjects:
+  - kind: ServiceAccount
+    name: "{{ vmagent.service_account_name }}"
+    namespace: "{{ telemetry_namespace }}"

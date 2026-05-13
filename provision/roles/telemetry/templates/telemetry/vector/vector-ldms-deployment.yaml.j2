@@ -1,0 +1,170 @@
+---
+# Vector-LDMS Deployment
+# Purpose: Kafka-to-VictoriaMetrics ingestion pipeline for LDMS metrics
+# Architecture: Kafka 'ldms' topic → Vector-LDMS → vmagent-vector:8429 → vminsert:8480
+# Q2 Status: Active — Omnia-deployed
+# Spec Reference: Vector HLD Engineering Spec (ESPEC-VECTOR-2026-001) §4.1.1
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ vector.ldms.app_name }}
+  namespace: {{ telemetry_namespace }}
+  labels:
+    app: {{ vector.ldms.app_name }}
+    component: telemetry-bridge
+    subsystem: ldms
+    managed-by: omnia
+spec:
+  replicas: {{ vector.ldms.replicas }}
+  selector:
+    matchLabels:
+      app: {{ vector.ldms.app_name }}
+  template:
+    metadata:
+      labels:
+        app: {{ vector.ldms.app_name }}
+        component: telemetry-bridge
+        subsystem: ldms
+      annotations:
+        # Force pod restart on config change (Ansible deployment timestamp)
+        deployment.omnia/timestamp: "{{ ansible_date_time.iso8601 }}"
+    spec:
+      # Security context for non-root execution
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+      - name: {{ vector.ldms.container_name }}
+        image: {{ vector.image }}
+        imagePullPolicy: IfNotPresent
+        
+        # Command: Vector with TOML config validation
+        command:
+          - "/usr/bin/vector"
+        args:
+          - "--config"
+          - "/etc/vector/vector.toml"
+        
+        # Resource limits from vars/main.yml
+        resources:
+          requests:
+            memory: {{ vector.ldms.resources.requests.memory }}
+            cpu: {{ vector.ldms.resources.requests.cpu }}
+          limits:
+            memory: {{ vector.ldms.resources.limits.memory }}
+            cpu: {{ vector.ldms.resources.limits.cpu }}
+        
+        # Ports: health check and metrics
+        ports:
+        - name: health
+          containerPort: {{ vector.ldms.health_port }}
+          protocol: TCP
+        - name: metrics
+          containerPort: {{ vector.ldms.metrics_port }}
+          protocol: TCP
+        
+        # Liveness probe: Vector health endpoint
+        # Vector serves /health and /metrics on the same API port (metrics_port)
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ vector.ldms.metrics_port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness probe: Vector health endpoint
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ vector.ldms.metrics_port }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        
+        # Volume mounts
+        volumeMounts:
+        # Vector TOML configuration
+        - name: vector-config
+          mountPath: /etc/vector
+          readOnly: true
+        
+        # Kafka mTLS certificates (kafkapump secret)
+        # Spec Reference: §4.1.3.3 Kubernetes Secrets
+        - name: kafka-certs
+          mountPath: /etc/vector/kafka-certs
+          readOnly: true
+        
+        # Kafka cluster CA certificate
+        - name: kafka-cluster-ca
+          mountPath: /etc/vector/kafka-ca
+          readOnly: true
+        
+        # Vector data directory (for internal state)
+        - name: vector-data
+          mountPath: /var/lib/vector
+        
+        # Environment variables
+        env:
+        - name: VECTOR_LOG
+          value: "info"
+        - name: VECTOR_THREADS
+          value: "2"
+        
+        # Security context for container
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+              - ALL
+      
+      # Volumes
+      volumes:
+      # Vector TOML configuration from ConfigMap
+      - name: vector-config
+        configMap:
+          name: {{ vector.ldms.app_name }}-config
+          items:
+          - key: vector.toml
+            path: vector.toml
+      
+      # Kafka mTLS certificates from kafkapump secret
+      # Spec Reference: §4.1.1 Vector-LDMS reuses existing kafkapump KafkaUser
+      - name: kafka-certs
+        secret:
+          secretName: {{ vector.ldms.kafka_user }}
+          items:
+          - key: user.crt
+            path: user.crt
+          - key: user.key
+            path: user.key
+          - key: ca.crt
+            path: ca.crt
+      
+      # Kafka cluster CA certificate
+      - name: kafka-cluster-ca
+        secret:
+          secretName: kafka-cluster-ca-cert
+          items:
+          - key: ca.crt
+            path: ca.crt
+      
+      # Vector data directory (emptyDir for ephemeral state)
+      - name: vector-data
+        emptyDir: {}
+      
+      # Restart policy
+      restartPolicy: Always
+      
+      # DNS policy for Kubernetes service discovery
+      dnsPolicy: ClusterFirst

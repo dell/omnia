@@ -202,7 +202,19 @@ spec:
   # ========================================
   # Pod Scheduling and Affinity
   # ========================================
-  # No pod anti-affinity required (single replica)
+  # Pod anti-affinity for high availability (spread replicas across nodes)
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - vlagent
+            topologyKey: "kubernetes.io/hostname"
   # Tolerations allow scheduling on nodes with taints
   tolerations:
     - effect: NoExecute

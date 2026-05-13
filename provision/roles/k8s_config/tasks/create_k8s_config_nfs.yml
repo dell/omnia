@@ -284,6 +284,6 @@
     mode: "{{ file_mode }}"
   become: true
 
-- name: Include PowerScale CSI dependency tasks
+- name: Get CSI PowerScale driver dependencies
+  when: hostvars['localhost']['csi_driver_powerscale_support']
   ansible.builtin.include_tasks: get_powerscale_dependencies.yml
-  when: hostvars['localhost']['csi_driver_powerscale_support'] | bool

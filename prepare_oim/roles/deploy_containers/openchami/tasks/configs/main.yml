@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Display selected storage backend
+  ansible.builtin.debug:
+    msg: "OpenCHAMI image repository backend: {{ storage_backend | upper }}"
+
 - name: Import packages task
   ansible.builtin.import_tasks: packages.yml
 
@@ -22,8 +26,9 @@
 - name: Import hosts task
   ansible.builtin.import_tasks: hosts.yml
 
-- name: Import minio task
-  ansible.builtin.import_tasks: minio.yml
+- name: Import minio task (MinIO backend only)
+  ansible.builtin.include_tasks: minio.yml
+  when: storage_backend == 'minio'
 
 - name: Import registry task
   ansible.builtin.import_tasks: registry.yml
@@ -44,4 +49,4 @@
   ansible.builtin.import_tasks: s3_bucket.yml
 
 - name: Import policy update tasks
-  ansible.builtin.import_tasks: policy_update.yml
+  ansible.builtin.include_tasks: policy_update.yml
