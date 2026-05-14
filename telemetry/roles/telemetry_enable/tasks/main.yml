@@ -13,26 +13,26 @@
 # limitations under the License.
 ---
 
-- name: Load high_availability_config.yml
-  ansible.builtin.include_vars:
-    file: "{{ ha_config_file }}"
-  register: ha_config_loaded
-  ignore_errors: true
+- name: Fail if no tags provided
+  ansible.builtin.fail:
+    msg: "{{ tags_required_msg }}"
+  when: ansible_run_tags | default(['all']) | length == 1 and 'all' in ansible_run_tags | default(['all'])
 
-- name: Set kube_vip fact
-  ansible.builtin.set_fact:
-    kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
-  when: ha_config_loaded is succeeded
+- name: Load telemetry configuration
+  ansible.builtin.include_vars:
+    file: "{{ telemetry_config_file }}"
+
+- name: Load HA configuration
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/telemetry/load_ha_config.yml"
 
 - name: Debug kube_vip value
   ansible.builtin.debug:
     msg: "kube_vip is set to: {{ kube_vip | default('NOT SET') }}"
-  when: ha_config_loaded is succeeded
 
-- name: Fail if kube_vip is empty
-  ansible.builtin.fail:
-    msg: "kube_vip is not set in high_availability_config.yml. Please configure service_k8s_cluster_ha[0].virtual_ip_address"
-  when:
-    - ha_config_loaded is succeeded
-    - kube_vip is defined
-    - kube_vip | length == 0
+- name: Check kube_vip reachability
+  ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/telemetry/check_kube_vip_reachability.yml"
+
+- name: Enable PowerScale metrics
+  ansible.builtin.include_tasks: enable_powerscale_metrics.yml
+  tags:
+    - powerscale

@@ -13,43 +13,16 @@
 # limitations under the License.
 ---
 
-- name: Scale down OTEL Collector
-  kubernetes.core.k8s:
-    api_version: apps/v1
-    kind: Deployment
-    name: otel-collector
-    namespace: "{{ telemetry_namespace }}"
-    definition:
-      spec:
-        replicas: 0
-  delegate_to: "{{ kube_vip }}"
-  failed_when: false
+- name: Add kube_vip to inventory
+  ansible.builtin.add_host:
+    name: "{{ kube_vip }}"
+    ansible_host: "{{ kube_vip }}"
+    ansible_user: "{{ ansible_user | default('root') }}"
+    ansible_ssh_private_key_file: "{{ ansible_ssh_private_key_file | default(omit) }}"
+    groups: kube_vip_group
+  when: kube_vip is defined and kube_vip | length > 0
 
-- name: Scale down karavi-metrics-powerscale
-  kubernetes.core.k8s:
-    api_version: apps/v1
-    kind: Deployment
-    name: karavi-metrics-powerscale
-    namespace: "{{ telemetry_namespace }}"
-    definition:
-      spec:
-        replicas: 0
-  delegate_to: "{{ kube_vip }}"
-  failed_when: false
-
-- name: Scale down csi-volume-exporter
-  kubernetes.core.k8s:
-    api_version: apps/v1
-    kind: Deployment
-    name: csi-volume-exporter
-    namespace: "{{ telemetry_namespace }}"
-    definition:
-      spec:
-        replicas: 0
-  delegate_to: "{{ kube_vip }}"
-  failed_when: false
-
-- name: Scale down karavi-observability-cert-manager
+- name: Scale up karavi-observability-cert-manager to replica count 1
   kubernetes.core.k8s:
     api_version: apps/v1
     kind: Deployment
@@ -57,11 +30,10 @@
     namespace: "{{ telemetry_namespace }}"
     definition:
       spec:
-        replicas: 0
-  delegate_to: "{{ kube_vip }}"
+        replicas: 1
   failed_when: false
 
-- name: Scale down karavi-observability-cert-manager-cainjector
+- name: Scale up karavi-observability-cert-manager-cainjector to replica count 1
   kubernetes.core.k8s:
     api_version: apps/v1
     kind: Deployment
@@ -69,11 +41,10 @@
     namespace: "{{ telemetry_namespace }}"
     definition:
       spec:
-        replicas: 0
-  delegate_to: "{{ kube_vip }}"
+        replicas: 1
   failed_when: false
 
-- name: Scale down karavi-observability-cert-manager-webhook
+- name: Scale up karavi-observability-cert-manager-webhook to replica count 1
   kubernetes.core.k8s:
     api_version: apps/v1
     kind: Deployment
@@ -81,11 +52,57 @@
     namespace: "{{ telemetry_namespace }}"
     definition:
       spec:
-        replicas: 0
+        replicas: 1
+  failed_when: false
+
+- name: Scale up karavi-metrics-powerscale to replica count 1
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: karavi-metrics-powerscale
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: 1
+  failed_when: false
+
+- name: Scale up csi-volume-exporter to replica count 1
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: csi-volume-exporter
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: 1
+  failed_when: false
+
+- name: Scale up OTEL Collector to replica count 1
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: otel-collector
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: 1
+  failed_when: false
+
+- name: Wait for OTEL Collector to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: otel-collector
+    namespace: "{{ telemetry_namespace }}"
+  register: otel_deployment
+  until: >
+    otel_deployment.resources | length > 0 and
+    (otel_deployment.resources[0].status.readyReplicas | default(0)) >= 1
+  retries: 30
+  delay: 10
   delegate_to: "{{ kube_vip }}"
   failed_when: false
 
-- name: Display PowerScale metric workloads scaled down
+- name: Display PowerScale metric workloads scaled up
   ansible.builtin.debug:
-    msg: "{{ powerscale_metrics_scaled_down_msg }}"
-
+    msg: "{{ powerscale_metrics_scaled_up_msg }}"

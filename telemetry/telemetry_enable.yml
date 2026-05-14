@@ -43,4 +43,4 @@
     telemetry_namespace: telemetry
     telemetry_operation: enable
   roles:
-    - telemetry_management
+    - telemetry_enable

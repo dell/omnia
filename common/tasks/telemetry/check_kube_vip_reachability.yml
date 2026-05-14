@@ -17,7 +17,6 @@
   when:
     - kube_vip is defined
     - kube_vip | length > 0
-  tags: telemetry_deployment
   block:
     - name: Set kube_vip reachability fact to false initially
       ansible.builtin.set_fact:
