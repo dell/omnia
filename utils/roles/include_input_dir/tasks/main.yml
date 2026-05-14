@@ -14,6 +14,7 @@
 ---
 
 - name: Fetch omnia project configs
+  tags: always
   block:
     - name: Include omnia project config file
       ansible.builtin.include_vars: "{{ omnia_input_config_file }}"
@@ -26,24 +27,31 @@
 - name: Set input_project_dir
   ansible.builtin.set_fact:
     input_project_dir: "{{ omnia_input_dir }}/{{ project_name }}"
+    cacheable: true
+  tags: always
 
 - name: Verify the project directory exists
   ansible.builtin.stat:
     path: "{{ input_project_dir }}"
   register: verify_project_dir
+  tags: always
 
 - name: Fail if project directory does not exist
   ansible.builtin.fail:
     msg: "{{ project_dir_not_exist_fail_msg }}"
   when: not verify_project_dir.stat
+  tags: always
 
 - name: Include common vars
   ansible.builtin.include_vars: "{{ role_path }}/../../../common/vars/common_vars.yml"
+  tags: always
 
 - name: Include openchami vars
   ansible.builtin.include_vars: "{{ role_path }}/../../../common/vars/openchami_vars.yml"
   when: openchami_vars_suppport | default(false)
+  tags: always
 
 - name: Include oim metadata vars
   ansible.builtin.include_vars: "{{ omnia_metadata_file_path }}"
   when: omnia_metadata_support | default(false)
+  tags: always

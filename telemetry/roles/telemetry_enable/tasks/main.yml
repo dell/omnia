@@ -31,6 +31,7 @@
 - name: Enable PowerScale metrics
   tags:
     - powerscale
+  when: kube_vip is defined and kube_vip | length > 0
   block:
     - name: Enable PowerScale metrics
       ansible.builtin.include_tasks: enable_powerscale_metrics.yml

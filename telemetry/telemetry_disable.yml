@@ -33,18 +33,27 @@
 #   isi audit settings modify --config-syslog-enabled=0
 # ============================================================================
 
-- name: Include input directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
-
 - name: Disable telemetry collection
   hosts: localhost
-  connection: local
+  connection: ssh
   gather_facts: false
-  vars:
-    telemetry_config_file: "{{ input_project_dir }}/telemetry_config.yml"
-    ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
-    telemetry_namespace: telemetry
-    telemetry_operation: disable
-  roles:
-    - telemetry_disable
+  tasks:
+    - name: Include input directory
+      ansible.builtin.include_role:
+        name: ../utils/roles/include_input_dir
+      tags: always
+
+    - name: Set config file paths
+      ansible.builtin.set_fact:
+        telemetry_config_file: "{{ input_project_dir }}/telemetry_config.yml"
+        ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
+        telemetry_namespace: telemetry
+        telemetry_operation: disable
+        cacheable: true
+      tags: always
+
+    - name: Disable telemetry collection
+      ansible.builtin.include_role:
+        name: telemetry_disable
+      tags:
+        - powerscale

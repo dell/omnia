@@ -13,98 +13,48 @@
 # limitations under the License.
 ---
 
-- name: Load role variables
-  ansible.builtin.include_vars:
-    file: vars/main.yml
-
-- name: Add kube_vip to inventory
-  ansible.builtin.add_host:
-    name: "{{ kube_vip }}"
-    ansible_host: "{{ kube_vip }}"
-    ansible_user: "{{ ansible_user | default('root') }}"
-    ansible_ssh_private_key_file: "{{ ansible_ssh_private_key_file | default(omit) }}"
-    groups: kube_vip_group
-  when: kube_vip is defined and kube_vip | length > 0
-
 - name: Scale down OTEL Collector
-  kubernetes.core.k8s:
-    api_version: apps/v1
-    kind: Deployment
-    name: otel-collector
-    namespace: "{{ telemetry_namespace }}"
-    definition:
-      spec:
-        replicas: 0
+  ansible.builtin.command:
+    kubectl scale deployment --replicas=0 -n {{ telemetry_namespace }} otel-collector
   delegate_to: "{{ kube_vip }}"
   failed_when: false
-  when: kube_vip is defined and kube_vip | length > 0
+  changed_when: false
 
 - name: Scale down karavi-metrics-powerscale
-  kubernetes.core.k8s:
-    api_version: apps/v1
-    kind: Deployment
-    name: karavi-metrics-powerscale
-    namespace: "{{ telemetry_namespace }}"
-    definition:
-      spec:
-        replicas: 0
+  ansible.builtin.command:
+    kubectl scale deployment --replicas=0 -n {{ telemetry_namespace }} karavi-metrics-powerscale
   delegate_to: "{{ kube_vip }}"
   failed_when: false
-  when: kube_vip is defined and kube_vip | length > 0
+  changed_when: false
 
 - name: Scale down csi-volume-exporter
-  kubernetes.core.k8s:
-    api_version: apps/v1
-    kind: Deployment
-    name: csi-volume-exporter
-    namespace: "{{ telemetry_namespace }}"
-    definition:
-      spec:
-        replicas: 0
+  ansible.builtin.command:
+    kubectl scale deployment --replicas=0 -n {{ telemetry_namespace }} csi-volume-exporter
   delegate_to: "{{ kube_vip }}"
   failed_when: false
-  when: kube_vip is defined and kube_vip | length > 0
+  changed_when: false
 
 - name: Scale down karavi-observability-cert-manager
-  kubernetes.core.k8s:
-    api_version: apps/v1
-    kind: Deployment
-    name: karavi-observability-cert-manager
-    namespace: "{{ telemetry_namespace }}"
-    definition:
-      spec:
-        replicas: 0
+  ansible.builtin.command:
+    kubectl scale deployment --replicas=0 -n {{ telemetry_namespace }} karavi-observability-cert-manager
   delegate_to: "{{ kube_vip }}"
   failed_when: false
-  when: kube_vip is defined and kube_vip | length > 0
+  changed_when: false
 
 - name: Scale down karavi-observability-cert-manager-cainjector
-  kubernetes.core.k8s:
-    api_version: apps/v1
-    kind: Deployment
-    name: karavi-observability-cert-manager-cainjector
-    namespace: "{{ telemetry_namespace }}"
-    definition:
-      spec:
-        replicas: 0
+  ansible.builtin.command:
+    kubectl scale deployment --replicas=0 -n {{ telemetry_namespace }} karavi-observability-cert-manager-cainjector
   delegate_to: "{{ kube_vip }}"
   failed_when: false
-  when: kube_vip is defined and kube_vip | length > 0
+  changed_when: false
 
 - name: Scale down karavi-observability-cert-manager-webhook
-  kubernetes.core.k8s:
-    api_version: apps/v1
-    kind: Deployment
-    name: karavi-observability-cert-manager-webhook
-    namespace: "{{ telemetry_namespace }}"
-    definition:
-      spec:
-        replicas: 0
+  ansible.builtin.command:
+    kubectl scale deployment --replicas=0 -n {{ telemetry_namespace }} karavi-observability-cert-manager-webhook
   delegate_to: "{{ kube_vip }}"
   failed_when: false
-  when: kube_vip is defined and kube_vip | length > 0
+  changed_when: false
 
 - name: Display PowerScale metric workloads scaled down
   ansible.builtin.debug:
     msg: "{{ powerscale_metrics_scaled_down_msg }}"
-
