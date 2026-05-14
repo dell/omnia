@@ -1,0 +1,45 @@
+---
+# Vector-OME KafkaUser CR
+# Purpose: Dedicated Strimzi KafkaUser for Vector-OME Kafka consumer
+# Security: mTLS authentication with least-privilege ACLs
+# Spec Reference: Vector HLD Engineering Spec (ESPEC-VECTOR-2026-001) §4.1.4, CD-03
+#
+# Note: Only Vector-OME requires a new KafkaUser. Vector-iDRAC and Vector-LDMS
+#       reuse the existing kafkapump KafkaUser (broad wildcard ACLs cover consumer access).
+#       OME is an external producer with a different security domain, so it gets a
+#       dedicated, least-privilege KafkaUser.
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: {{ vector.ome.kafka_user }}
+  namespace: {{ telemetry_namespace }}
+  labels:
+    strimzi.io/cluster: "kafka"
+    app: {{ vector.ome.app_name }}
+    component: telemetry-bridge
+    subsystem: ome
+    managed-by: omnia
+spec:
+  authentication:
+    type: tls
+  authorization:
+    type: simple
+    acls:
+      # Read access to all ome.* topics (prefix-based ACL)
+      - resource:
+          type: topic
+          name: "{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') }}."
+          patternType: prefix
+        operations:
+          - Read
+          - Describe
+        host: "*"
+      # Consumer group access for vector-ome-group
+      - resource:
+          type: group
+          name: "{{ vector.ome.consumer_group }}"
+          patternType: literal
+        operations:
+          - Read
+        host: "*"

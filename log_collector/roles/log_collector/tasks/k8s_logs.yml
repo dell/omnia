@@ -60,6 +60,7 @@
         src: "{{ item }}"
         dest: "{{ hostvars['localhost'].log_root }}/k8s/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       loop: "{{ k8s_master_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
       when: k8s_master_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
 
@@ -97,6 +98,7 @@
         src: "{{ item.item }}"
         dest: "{{ hostvars['localhost'].log_root }}/k8s/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item.item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       when: item.stat.isreg | default(false)
       with_items: "{{ k8s_master_files.results }}"
 
@@ -137,5 +139,6 @@
         src: "{{ item.item }}"
         dest: "{{ hostvars['localhost'].log_root }}/k8s/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item.item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       when: item.stat.isreg | default(false)
       with_items: "{{ k8s_worker_files.results }}"

@@ -53,6 +53,7 @@
         functional_groups: "{{ functional_group_list }}"
         software_config_file: "{{ software_config_file_path }}"
         input_project_dir: "{{ input_project_dir }}"
+        additional_json_path: "{{ additional_json_path }}"
       register: compute_images_output
 
     - name: Save packages for aarch64 keys in compute_images_dict
