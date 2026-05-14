@@ -84,8 +84,9 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              pip3 install prometheus_client==0.20.0 kubernetes==33.1.0 \
-                --find-links="{{ offline_pip_module_path }}/prometheus_client==0.20.0/" \
+              pip3 install \
+                "{{ offline_pip_module_path }}/prometheus_client==0.20.0/prometheus_client-0.20.0-py3-none-any.whl" \
+                "{{ offline_pip_module_path }}/kubernetes==33.1.0/kubernetes-33.1.0-py2.py3-none-any.whl" \
                 --trusted-host "{{ pulp_server_ip }}" \
                 --no-index || \
               pip3 install prometheus_client kubernetes
@@ -131,7 +132,6 @@ spec:
               pvc_count = Gauge('powerscale_pvc_count',
                   'Total PowerScale PVCs by phase',
                   ['phase'])
-
 
               # ── Health event metrics (from CSI external-health-monitor-controller) ──
               volume_condition_abnormal = Gauge(
