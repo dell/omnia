@@ -1,0 +1,14 @@
+{
+  "bundle_name": "{{ bundle_name }}",
+  "tar_relative_path": "{{ bundle_name }}",
+  "tar_sha256": "{{ tar_sha256 | default('') }}",
+  "bundle_generated_at_utc": "{{ bundle_generated_at_utc }}",
+  "bundle_generated_at_local": "{{ bundle_generated_at_local }}",
+  "trigger_user": "{{ trigger_user }}",
+  "oim_host_os": "{{ oim_host_os }}",
+  "identifier": "{{ identifier }}",
+  "collection_mode": "{{ collection_mode }}",
+  "exclusions_applied": {{ exclusions_applied | to_json }},
+  "warning_count": {{ warning_count }},
+  "warnings": {{ warnings | to_json }}
+}

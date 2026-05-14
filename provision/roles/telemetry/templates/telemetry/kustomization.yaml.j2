@@ -58,3 +58,34 @@ resources:
   - telemetry_cleaner_rbac.yaml
   - telemetry_pod_cleanup.yaml
 {% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) and ldms_support | default(false) and kafka_support | default(false) and victoria_metrics_support | default(false) %}
+# Vector-LDMS Bridge Resources (Kafka-to-VictoriaMetrics pipeline)
+  - vector/vmagent-vector-deployment.yaml
+  - vector/vmagent-vector-service.yaml
+  - vector/vector-ldms-configmap.yaml
+  - vector/vector-ldms-deployment.yaml
+  - vector/vector-ldms-service.yaml
+{% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) and victoria_logs_support | default(false) %}
+# vlagent-vector: Log write-buffer for Vector-OME (Kafka-to-VictoriaLogs pipeline)
+  - vector/vlagent-vector-deployment.yaml
+  - vector/vlagent-vector-service.yaml
+{% endif %}
+{% if telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) and victoria_metrics_support | default(false) and not (telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) and ldms_support | default(false) and kafka_support | default(false) and victoria_metrics_support | default(false)) %}
+# vmagent-vector: Metric write-buffer for Vector-OME (Kafka-to-VictoriaMetrics pipeline)
+  - vector/vmagent-vector-deployment.yaml
+  - vector/vmagent-vector-service.yaml
+{% endif %}
+{% if (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) or telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false)) and kafka_support | default(false) %}
+# Vector-OME Bridge Resources (Kafka-to-Victoria pipeline for OME data)
+  - vector/vector-ome-kafkauser.yaml
+  - vector/vector-ome-configmap.yaml
+  - vector/vector-ome-deployment.yaml
+  - vector/vector-ome-service.yaml
+# OME KafkaTopic CRs (5 topics for OME telemetry)
+  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_events.yaml
+  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_alerts.yaml
+  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_inventory.yaml
+  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_logs.yaml
+  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_telemetry.yaml
+{% endif %}

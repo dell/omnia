@@ -27,6 +27,7 @@ spec:
   # VMStorage configuration
   vmstorage:
     replicaCount: {{ victoria_cluster.vmstorage.replicas }}
+    replicationFactor: {{ victoria_cluster.vmstorage.replication_factor | default(1) }}
     image:
       repository: {{ victoria_cluster.vmstorage.image.split(':')[0] }}
       tag: {{ victoria_cluster.vmstorage.image.split(':')[1] }}

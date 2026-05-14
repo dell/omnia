@@ -6,7 +6,11 @@ metadata:
   labels:
     strimzi.io/cluster: "kafka"
 spec:
+{% if topic_partitions is defined %}
+  partitions: {{ topic_partitions }}
+{% else %}
   partitions: {{ kafka_topic_partitions[topic_key] }}
+{% endif %}
   replicas: 2
   config:
     cleanup.policy: delete
