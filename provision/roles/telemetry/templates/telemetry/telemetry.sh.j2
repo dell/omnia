@@ -100,4 +100,50 @@ else
 fi
 {% endif %}
 
+{% if victoria_logs_support %}
+# Check reachability of additional log write endpoints
+{% if telemetry_config.telemetry_sinks.victoria_logs.additional_log_write_endpoints | default([]) %}
+echo "Checking reachability of additional log write endpoints..."
+# Wait for VLAgent to be ready before checking endpoint reachability
+echo "  Waiting for VLAgent to be ready..."
+kubectl wait --for=condition=ready --timeout=300s statefulset/vlagent -n telemetry || echo "  WARNING: VLAgent not ready within timeout"
+
+VLAGENT_POD=$(kubectl get pod -n telemetry -l app.kubernetes.io/name=vlagent -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -n "$VLAGENT_POD" ]; then
+  {% for endpoint in telemetry_config.telemetry_sinks.victoria_logs.additional_log_write_endpoints %}
+  echo "  Testing connectivity to: {{ endpoint.url }}"
+  # Test connectivity using wget (more reliable than curl in minimal containers)
+  kubectl exec -n telemetry "$VLAGENT_POD" -- wget -T 5 -q --spider "{{ endpoint.url }}" 2>/dev/null && \
+    echo "    ✓ Endpoint reachable" || \
+    echo "    WARNING: Endpoint unreachable - logs may not be forwarded to {{ endpoint.url }}"
+  {% endfor %}
+else
+  echo "  WARNING: Could not find VLAgent pod to check endpoint reachability"
+fi
+{% endif %}
+{% endif %}
+
+{% if victoria_metrics_support %}
+# Check reachability of additional metric remote write endpoints
+{% if telemetry_config.telemetry_sinks.victoria_metrics.additional_metric_remote_write_endpoints | default([]) %}
+echo "Checking reachability of additional metric remote write endpoints..."
+# Wait for vmagent to be ready before checking endpoint reachability
+echo "  Waiting for vmagent to be ready..."
+kubectl wait --for=condition=ready --timeout=300s deployment/vmagent -n telemetry || echo "  WARNING: vmagent not ready within timeout"
+
+VMAGENT_POD=$(kubectl get pod -n telemetry -l app.kubernetes.io/name=vmagent -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -n "$VMAGENT_POD" ]; then
+  {% for endpoint in telemetry_config.telemetry_sinks.victoria_metrics.additional_metric_remote_write_endpoints %}
+  echo "  Testing connectivity to: {{ endpoint.url }}"
+  # Test connectivity using wget (more reliable than curl in minimal containers)
+  kubectl exec -n telemetry "$VMAGENT_POD" -- wget -T 5 -q --spider "{{ endpoint.url }}" 2>/dev/null && \
+    echo "    ✓ Endpoint reachable" || \
+    echo "    WARNING: Endpoint unreachable - metrics may not be forwarded to {{ endpoint.url }}"
+  {% endfor %}
+else
+  echo "  WARNING: Could not find vmagent pod to check endpoint reachability"
+fi
+{% endif %}
+{% endif %}
+
 echo "===== Telemetry Stack Deployment Complete ====="

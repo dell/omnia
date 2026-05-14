@@ -13,40 +13,6 @@
 # limitations under the License.
 ---
 
-- name: Get current replica counts for PowerScale deployments
-  kubernetes.core.k8s_info:
-    api_version: apps/v1
-    kind: Deployment
-    namespace: "{{ telemetry_namespace }}"
-    label_selectors:
-      - "app.kubernetes.io/name=karavi-metrics-powerscale"
-      - "app.kubernetes.io/name=otel-collector"
-      - "app=csi-volume-exporter"
-  delegate_to: "{{ kube_vip }}"
-  register: powerscale_deployments
-  ignore_errors: true
-
-- name: Save original replica counts
-  ansible.builtin.set_fact:
-    original_replicas: {}
-  ignore_errors: true
-
-- name: Store original replica counts
-  ansible.builtin.set_fact:
-    original_replicas: "{{ original_replicas | combine({item.metadata.name: item.spec.replicas | default(1)}) }}"
-  loop: "{{ powerscale_deployments.resources }}"
-  loop_control:
-    label: "{{ item.metadata.name }}"
-  ignore_errors: true
-
-- name: Save original replica counts to file
-  ansible.builtin.copy:
-    content: "{{ original_replicas | to_nice_yaml }}"
-    dest: /tmp/powerscale_replicas_backup.yml
-    mode: '0644'
-  delegate_to: "{{ kube_vip }}"
-  ignore_errors: true
-
 - name: Scale down OTEL Collector
   kubernetes.core.k8s:
     api_version: apps/v1
@@ -57,7 +23,7 @@
       spec:
         replicas: 0
   delegate_to: "{{ kube_vip }}"
-  ignore_errors: true
+  failed_when: false
 
 - name: Scale down karavi-metrics-powerscale
   kubernetes.core.k8s:
@@ -69,7 +35,7 @@
       spec:
         replicas: 0
   delegate_to: "{{ kube_vip }}"
-  ignore_errors: true
+  failed_when: false
 
 - name: Scale down csi-volume-exporter
   kubernetes.core.k8s:
@@ -81,7 +47,43 @@
       spec:
         replicas: 0
   delegate_to: "{{ kube_vip }}"
-  ignore_errors: true
+  failed_when: false
+
+- name: Scale down karavi-observability-cert-manager
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: karavi-observability-cert-manager
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: 0
+  delegate_to: "{{ kube_vip }}"
+  failed_when: false
+
+- name: Scale down karavi-observability-cert-manager-cainjector
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: karavi-observability-cert-manager-cainjector
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: 0
+  delegate_to: "{{ kube_vip }}"
+  failed_when: false
+
+- name: Scale down karavi-observability-cert-manager-webhook
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: karavi-observability-cert-manager-webhook
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: 0
+  delegate_to: "{{ kube_vip }}"
+  failed_when: false
 
 - name: Display PowerScale metric workloads scaled down
   ansible.builtin.debug:

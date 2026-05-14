@@ -40,9 +40,13 @@
         build_stream_auth_password_hash: "{{ auth_registration.password_hash | default('') }}"
       no_log: true
 
+- name: Load update_config role vars (credential schema)
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/vars/main.yml"
+
 - name: Fetch credentials
   ansible.builtin.include_tasks: fetch_credentials.yml
-  loop: "{{ omnia_credentials_schema | dict2items }}"
+  loop: "{{ (omnia_credentials_schema | default({})) | dict2items }}"
   loop_control:
     loop_var: service
 

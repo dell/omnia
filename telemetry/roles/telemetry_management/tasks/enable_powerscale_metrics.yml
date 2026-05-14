@@ -13,31 +13,43 @@
 # limitations under the License.
 ---
 
-- name: Load original replica counts from backup file
-  ansible.builtin.slurp:
-    src: /tmp/powerscale_replicas_backup.yml
-  delegate_to: "{{ kube_vip }}"
-  register: replicas_backup
-  ignore_errors: true
-
-- name: Parse replica counts from backup
-  ansible.builtin.set_fact:
-    original_replicas: "{{ replicas_backup.content | b64decode | from_yaml | default({}) }}"
-  ignore_errors: true
-
-- name: Scale up OTEL Collector to original replica count
+- name: Scale up karavi-observability-cert-manager to replica count 1
   kubernetes.core.k8s:
     api_version: apps/v1
     kind: Deployment
-    name: otel-collector
+    name: karavi-observability-cert-manager
     namespace: "{{ telemetry_namespace }}"
     definition:
       spec:
-        replicas: "{{ original_replicas['otel-collector'] | default(1) }}"
+        replicas: 1
   delegate_to: "{{ kube_vip }}"
-  ignore_errors: true
+  failed_when: false
 
-- name: Scale up karavi-metrics-powerscale to original replica count
+- name: Scale up karavi-observability-cert-manager-cainjector to replica count 1
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: karavi-observability-cert-manager-cainjector
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: 1
+  delegate_to: "{{ kube_vip }}"
+  failed_when: false
+
+- name: Scale up karavi-observability-cert-manager-webhook to replica count 1
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: karavi-observability-cert-manager-webhook
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: 1
+  delegate_to: "{{ kube_vip }}"
+  failed_when: false
+
+- name: Scale up karavi-metrics-powerscale to replica count 1
   kubernetes.core.k8s:
     api_version: apps/v1
     kind: Deployment
@@ -45,11 +57,11 @@
     namespace: "{{ telemetry_namespace }}"
     definition:
       spec:
-        replicas: "{{ original_replicas['karavi-metrics-powerscale'] | default(1) }}"
+        replicas: 1
   delegate_to: "{{ kube_vip }}"
-  ignore_errors: true
+  failed_when: false
 
-- name: Scale up csi-volume-exporter to original replica count
+- name: Scale up csi-volume-exporter to replica count 1
   kubernetes.core.k8s:
     api_version: apps/v1
     kind: Deployment
@@ -57,9 +69,21 @@
     namespace: "{{ telemetry_namespace }}"
     definition:
       spec:
-        replicas: "{{ original_replicas['csi-volume-exporter'] | default(1) }}"
+        replicas: 1
   delegate_to: "{{ kube_vip }}"
-  ignore_errors: true
+  failed_when: false
+
+- name: Scale up OTEL Collector to replica count 1
+  kubernetes.core.k8s:
+    api_version: apps/v1
+    kind: Deployment
+    name: otel-collector
+    namespace: "{{ telemetry_namespace }}"
+    definition:
+      spec:
+        replicas: 1
+  delegate_to: "{{ kube_vip }}"
+  failed_when: false
 
 - name: Wait for OTEL Collector to be ready
   kubernetes.core.k8s_info:
@@ -74,7 +98,7 @@
   retries: 30
   delay: 10
   delegate_to: "{{ kube_vip }}"
-  ignore_errors: true
+  failed_when: false
 
 - name: Display PowerScale metric workloads scaled up
   ansible.builtin.debug:
