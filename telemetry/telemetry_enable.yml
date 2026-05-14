@@ -33,13 +33,17 @@
 #   isi audit settings modify --config-syslog-servers=<VLAgent_LoadBalancer_IP>:514
 # ============================================================================
 
+- name: Include input directory
+  ansible.builtin.include_role:
+    name: include_input_dir
+
 - name: Enable telemetry collection
   hosts: localhost
   connection: local
   gather_facts: false
   vars:
-    telemetry_config_file: "{{ playbook_dir }}/../input/telemetry_config.yml"
-    ha_config_file: "{{ playbook_dir }}/../input/high_availability_config.yml"
+    telemetry_config_file: "{{ input_project_dir }}/telemetry_config.yml"
+    ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
     telemetry_namespace: telemetry
     telemetry_operation: enable
   roles:
