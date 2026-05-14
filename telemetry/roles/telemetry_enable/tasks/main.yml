@@ -13,26 +13,24 @@
 # limitations under the License.
 ---
 
-- name: Fail if no tags provided
-  ansible.builtin.fail:
-    msg: "{{ tags_required_msg }}"
-  when: ansible_run_tags | default(['all']) | length == 1 and 'all' in ansible_run_tags | default(['all'])
+- name: Prerequisite setup
+  tags: always
+  block:
+    - name: Fail if no tags provided
+      ansible.builtin.fail:
+        msg: "{{ tags_required_msg }}"
+      when: ansible_run_tags | default(['all']) | length == 1 and 'all' in ansible_run_tags | default(['all'])
 
-- name: Load telemetry configuration
-  ansible.builtin.include_vars:
-    file: "{{ telemetry_config_file }}"
+    - name: Load telemetry configuration
+      ansible.builtin.include_vars:
+        file: "{{ telemetry_config_file }}"
 
-- name: Load HA configuration
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/telemetry/load_ha_config.yml"
-
-- name: Debug kube_vip value
-  ansible.builtin.debug:
-    msg: "kube_vip is set to: {{ kube_vip | default('NOT SET') }}"
-
-- name: Check kube_vip reachability
-  ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/telemetry/check_kube_vip_reachability.yml"
+    - name: Load HA configuration
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/common/load_ha_config.yml"
 
 - name: Enable PowerScale metrics
-  ansible.builtin.include_tasks: enable_powerscale_metrics.yml
   tags:
     - powerscale
+  block:
+    - name: Enable PowerScale metrics
+      ansible.builtin.include_tasks: enable_powerscale_metrics.yml

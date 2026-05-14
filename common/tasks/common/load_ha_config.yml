@@ -21,12 +21,7 @@
 
 - name: Set kube_vip fact
   ansible.builtin.set_fact:
-    kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
-  when: ha_config_loaded is succeeded
-
-- name: Debug kube_vip value
-  ansible.builtin.debug:
-    msg: "kube_vip is set to: {{ kube_vip | default('NOT SET') }}"
+    kube_vip: "{{ service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
   when: ha_config_loaded is succeeded
 
 - name: Fail if kube_vip is empty

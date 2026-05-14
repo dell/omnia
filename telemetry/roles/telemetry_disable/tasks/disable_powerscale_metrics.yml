@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Load role variables
+  ansible.builtin.include_vars:
+    file: vars/main.yml
+
 - name: Add kube_vip to inventory
   ansible.builtin.add_host:
     name: "{{ kube_vip }}"
@@ -33,6 +37,7 @@
         replicas: 0
   delegate_to: "{{ kube_vip }}"
   failed_when: false
+  when: kube_vip is defined and kube_vip | length > 0
 
 - name: Scale down karavi-metrics-powerscale
   kubernetes.core.k8s:
@@ -45,6 +50,7 @@
         replicas: 0
   delegate_to: "{{ kube_vip }}"
   failed_when: false
+  when: kube_vip is defined and kube_vip | length > 0
 
 - name: Scale down csi-volume-exporter
   kubernetes.core.k8s:
@@ -57,6 +63,7 @@
         replicas: 0
   delegate_to: "{{ kube_vip }}"
   failed_when: false
+  when: kube_vip is defined and kube_vip | length > 0
 
 - name: Scale down karavi-observability-cert-manager
   kubernetes.core.k8s:
@@ -69,6 +76,7 @@
         replicas: 0
   delegate_to: "{{ kube_vip }}"
   failed_when: false
+  when: kube_vip is defined and kube_vip | length > 0
 
 - name: Scale down karavi-observability-cert-manager-cainjector
   kubernetes.core.k8s:
@@ -80,7 +88,8 @@
       spec:
         replicas: 0
   delegate_to: "{{ kube_vip }}"
-  failed_when: false  
+  failed_when: false
+  when: kube_vip is defined and kube_vip | length > 0
 
 - name: Scale down karavi-observability-cert-manager-webhook
   kubernetes.core.k8s:
@@ -93,6 +102,7 @@
         replicas: 0
   delegate_to: "{{ kube_vip }}"
   failed_when: false
+  when: kube_vip is defined and kube_vip | length > 0
 
 - name: Display PowerScale metric workloads scaled down
   ansible.builtin.debug:

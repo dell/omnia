@@ -13,6 +13,10 @@
 # limitations under the License.
 ---
 
+- name: Load role variables
+  ansible.builtin.include_vars:
+    file: vars/main.yml
+
 - name: Add kube_vip to inventory
   ansible.builtin.add_host:
     name: "{{ kube_vip }}"
