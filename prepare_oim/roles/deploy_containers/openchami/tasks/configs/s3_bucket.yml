@@ -13,42 +13,6 @@
 # limitations under the License.
 ---
 
-# === PowerScale endpoint validation (S3 backend only) ===
-
-- name: Validate PowerScale S3 endpoint configuration
-  ansible.builtin.assert:
-    that:
-      - s3_configurations is defined
-      - s3_configurations.endpoint_url is defined
-      - s3_configurations.endpoint_url | length > 0
-      - s3_access_id is defined
-      - s3_access_id | length > 0
-      - s3_secret_key is defined
-      - s3_secret_key | length > 0
-    fail_msg: "{{ powerscale_validation_fail_msg }}"
-  when: storage_backend == 'powerscale'
-
-- name: Test PowerScale endpoint reachability
-  ansible.builtin.uri:
-    url: "{{ s3_configurations.endpoint_url }}"
-    method: GET
-    validate_certs: false
-    status_code: [200, 403, 404, 405]
-    timeout: 10
-  register: ps_endpoint_check
-  failed_when: false
-  ignore_errors: true
-  when: storage_backend == 'powerscale'
-
-- name: Fail if PowerScale unreachable
-  ansible.builtin.fail:
-    msg: "{{ powerscale_unreachable_msg }}"
-  when:
-    - storage_backend == 'powerscale'
-    - ps_endpoint_check is defined
-    - ps_endpoint_check.status is not defined or
-      ps_endpoint_check.status | int not in [200, 403, 404, 405]
-
 # === EPEL & s3cmd Setup (works for both backends via ~/.s3cfg) ===
 
 - name: Import EPEL GPG key
@@ -137,3 +101,5 @@
   when: storage_backend == 'powerscale'
   delegate_to: localhost
   connection: local
+
+curl -o /dev/null -s -w "%{http_code}\n"   https://10.43.1.11:9021/boot-images/efi-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64/initramfs-6.12.0-55.9.1.el10_0.x86_64.img
