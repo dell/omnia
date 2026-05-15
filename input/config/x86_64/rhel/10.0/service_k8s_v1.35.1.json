@@ -23,7 +23,7 @@
       { "package": "docker.io/curlimages/curl", "type": "image", "tag": "8.17.0" },
       { "package": "docker.io/rmohr/activemq", "type": "image", "tag": "5.15.9" },
       { "package": "docker.io/library/mysql", "type": "image", "tag": "9.3.0" },
-      { "package": "docker.io/library/python", "type": "image", "tag": "3.11-slim" },
+      { "package": "docker.io/library/python", "type": "image", "tag": "3.12-slim" },
       { "package": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver", "type": "image", "tag": "1.2" },
       { "package": "docker.io/dellhpcomniaaisolution/kafkapump", "type": "image", "tag": "1.2" },
       { "package": "docker.io/dellhpcomniaaisolution/victoriapump", "type": "image", "tag": "1.2" },
