@@ -1,0 +1,66 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Include omnia_config
+  ansible.builtin.include_vars:
+    file: "{{ slurm_2_1_omnia_config_path }}"
+    name: omnia_config
+
+- name: include storage_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ slurm_2_1_storage_config_path }}"
+    name: storage_config
+
+- name: Set facts for slurm
+  ansible.builtin.set_fact:
+    filter_slurm_nfs: "{{ omnia_config.slurm_cluster | map(attribute='nfs_storage_name') | list }}"
+
+- name: Select the nfs client parameters for slurm
+  ansible.builtin.set_fact:
+    slurm_nfs: "{{ storage_config.nfs_client_params | selectattr('nfs_name', 'in', filter_slurm_nfs) | list }}"
+
+- name: Install NFS client with bolt-on support
+  ansible.builtin.include_tasks: nfs_client.yml
+  with_items: "{{ slurm_nfs }}"
+# MOUNTED and READY
+
+# Copy NFS data
+- name: Include oim_metadata.yml
+  ansible.builtin.include_vars:
+    file: "{{ oim_metadata }}"
+    name: oim_metadata
+
+- name: Set oim_shared_path fact
+  ansible.builtin.set_fact:
+    oim_shared_path: "{{ oim_metadata.oim_shared_path | trim }}"
+
+- name: Create backup directory
+  ansible.builtin.file:
+    path: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy slurm data
+  ansible.builtin.copy:
+    src: "{{ slurm_nfs[0].client_share_path }}/slurm"
+    dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups" # remove the /opt prefix with {{ oim_shared_path }}
+    remote_src: true
+    mode: preserve
+
+# - name: Synchronize slurm data
+#   ansible.builtin.synchronize:
+#     src: "{{ slurm_nfs[0].client_share_path }}/slurm"
+#     dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups"
