@@ -21,6 +21,8 @@ software_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/software
 mounted_dir_perm: "0755"
 default_client_mount_options: "nosuid,rw,sync,hard,intr"
 slurm_nfs_fail_msg: "Failed to mount NFS share. Please check if the NFS server is reachable or NFS is configured properly."
+oim_nfs_fail_msg: "Failed to mount NFS share on OIM node. Verify NFS server connectivity, mount options, and fstab configuration."
+default_oim_mount_options: "nosuid,rw,sync,hard,intr"
 
 omnia_config_vars: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
 omnia_run_tags: "{{ hostvars['localhost']['omnia_run_tags'] }}"
