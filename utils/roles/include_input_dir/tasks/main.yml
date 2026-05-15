@@ -26,6 +26,7 @@
 - name: Set input_project_dir
   ansible.builtin.set_fact:
     input_project_dir: "{{ omnia_input_dir }}/{{ project_name }}"
+    cacheable: true
 
 - name: Verify the project directory exists
   ansible.builtin.stat:
