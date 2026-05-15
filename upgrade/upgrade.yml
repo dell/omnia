@@ -295,7 +295,7 @@
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/build_stream_config.yml"
         name: build_stream_config
-      ignore_errors: true
+      failed_when: false
 
     - name: Determine BuildStream terminal gate
       ansible.builtin.set_fact:
