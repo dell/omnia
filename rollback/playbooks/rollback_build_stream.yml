@@ -1,0 +1,124 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# rollback_build_stream.yml — BuildStream Rollback
+# ============================================================================
+# Per ESpec §4.6.4 Rollback:
+#   PATH A Rollback (upgrade → restore): Restore quadlets, Postgres, GitLab
+#          from backup to pre-upgrade state.
+#   PATH B Rollback (fresh install → remove): Stop and remove all containers
+#          and quadlets that were freshly installed.
+#
+# The rollback path is determined from metadata stored during upgrade at:
+#   {{ backup_dir }}/metadata/buildstream_upgrade_path.yml
+#
+# STATUS: Framework only — debug statements outline the rollback flow.
+#         Actual implementation to be added when BuildStream rollback is ready.
+# ============================================================================
+
+- name: Rollback BuildStream upgrade / enablement
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    component_name: build_stream
+  tasks:
+    # ── Manifest read & idempotency guard ──
+    - name: Read rollback_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ rollback_manifest_path }}"
+      register: raw_rollback_manifest
+
+    - name: Parse rollback manifest
+      ansible.builtin.set_fact:
+        rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
+        backup_dir: "{{ (raw_rollback_manifest.content | b64decode | from_yaml).backup_dir }}"
+
+    - name: Skip if build_stream rollback already completed
+      ansible.builtin.meta: end_play
+      when:
+        - rollback_manifest.component_status[component_name] | default('pending') == 'completed'
+
+    # ── Determine which path was used during upgrade ──
+    - name: Check for upgrade path metadata
+      ansible.builtin.stat:
+        path: "{{ backup_dir }}/metadata/buildstream_upgrade_path.yml"
+      register: path_metadata_stat
+
+    - name: Skip if BuildStream was never upgraded (no metadata)
+      ansible.builtin.meta: end_play
+      when: not path_metadata_stat.stat.exists
+
+    # ── Framework: Debug statements outlining the rollback flow ──
+    - name: "[FRAMEWORK] BuildStream rollback flow outline"
+      ansible.builtin.debug:
+        msg:
+          - "============================================================"
+          - "  BuildStream Rollback — Framework (ESpec §4.6.4)"
+          - "============================================================"
+          - ""
+          - "Component: {{ component_name }}"
+          - "Rollback manifest: {{ rollback_manifest_path }}"
+          - "Backup dir: {{ backup_dir }}"
+          - "Upgrade path metadata: {{ backup_dir }}/metadata/buildstream_upgrade_path.yml"
+          - ""
+          - "--- Rollback path detection ---"
+          - "  Read {{ backup_dir }}/metadata/buildstream_upgrade_path.yml"
+          - "  Determine: PATH_A (restore from backup) or PATH_B (remove fresh install)"
+          - ""
+          - "--- PATH A Rollback: Upgrade → Restore from backup ---"
+          - "  Step 1: Restore BuildStream quadlet from backup"
+          - "  Step 2: Reload systemd daemon"
+          - "  Step 3: Restart all BuildStream services (postgres, buildstream, gitlab)"
+          - "  Step 4: Wait for Postgres ready (pg_isready)"
+          - "  Step 5: Restore Postgres data from pg_dump backup"
+          - "  Step 6: Restore GitLab config from backup (gitlab.rb, secrets)"
+          - "  Step 7: gitlab-ctl reconfigure"
+          - "  Step 8: Restore build_stream_config.yml from backup"
+          - "  Step 9: Validate services at previous version"
+          - ""
+          - "--- PATH B Rollback: Fresh install → Remove everything ---"
+          - "  Step 1: Stop all BuildStream containers"
+          - "  Step 2: Remove BuildStream quadlets"
+          - "  Step 3: Reload systemd daemon"
+          - "  Step 4: Remove container images (optional cleanup)"
+          - ""
+          - "--- Post-rollback ---"
+          - "  Mark build_stream rollback as completed in manifest"
+          - "============================================================"
+
+    # ── Mark completed ──
+    - name: "[FRAMEWORK] Re-read rollback manifest"
+      ansible.builtin.slurp:
+        src: "{{ rollback_manifest_path }}"
+      register: raw_rollback_final
+
+    - name: "[FRAMEWORK] Mark build_stream rollback as completed"
+      ansible.builtin.copy:
+        content: >-
+          {{ (raw_rollback_final.content | b64decode | from_yaml) | combine({
+               'component_status': (raw_rollback_final.content | b64decode | from_yaml).component_status | combine({
+                 component_name: 'completed'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'
+
+    - name: "[FRAMEWORK] Display rollback summary"
+      ansible.builtin.debug:
+        msg:
+          - "BuildStream rollback completed (FRAMEWORK MODE)."
+          - "Actual rollback logic to be implemented."

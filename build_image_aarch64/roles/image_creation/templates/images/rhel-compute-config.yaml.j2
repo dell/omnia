@@ -1,0 +1,41 @@
+options:
+  layer_type: base
+  name: '{{ rhel_base_compute_image_name }}'
+  publish_tags: '{{ rhel_tag }}'
+  pkg_manager: dnf
+  parent: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}/{{ rhel_aarch64_base_image_name }}:{{ rhel_tag }}'
+  registry_opts_pull:
+    - '--tls-verify=false'
+  publish_s3: '{{ s3_endpoint }}'
+  s3_prefix: '{{ group_name }}/{{ rhel_base_compute_image_name }}/'
+  s3_bucket: 'boot-images'
+  publish_registry: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}'
+  registry_opts_push:
+    - '--tls-verify=false'
+
+repos:
+{% for repo in rhel_aarch64_repos %}
+{% if repo.base_url | length > 1 %}
+  - alias: '{{ repo.name }}'
+    url: '{{ repo.base_url }}'
+{% endif %}
+{% if repo.gpg | length > 1 %}
+    gpg: '{{ repo.gpg }}'
+{% endif %}
+{% endfor %}
+
+packages:
+{% for pkg in compute_packages %}
+  - {{ pkg }}
+{% endfor %}
+
+{% set command_var = functional_group + '_compute_commands' %}
+{% set commands_list = lookup('vars', command_var, default=[]) %}
+cmds:
+{% if commands_list | length > 0 %}
+{% for cmd in commands_list %}
+  - cmd: "{{ cmd }}"
+{% endfor %}
+{% else %}
+  []
+{% endif %}
