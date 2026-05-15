@@ -101,5 +101,3 @@
   when: storage_backend == 'powerscale'
   delegate_to: localhost
   connection: local
-
-curl -o /dev/null -s -w "%{http_code}\n"   https://10.43.1.11:9021/boot-images/efi-images/slurm_control_node_x86_64/rhel-slurm_control_node_x86_64/initramfs-6.12.0-55.9.1.el10_0.x86_64.img

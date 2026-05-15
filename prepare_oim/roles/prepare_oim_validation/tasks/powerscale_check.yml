@@ -15,6 +15,10 @@
 
 # === PowerScale endpoint validation (S3 backend only) ===
 
+- name: Set storage backend fact
+  ansible.builtin.set_fact:
+    storage_backend: "{{ s3_configurations.provider | lower }}"
+
 - name: Validate PowerScale S3 endpoint configuration
   ansible.builtin.assert:
     that:
