@@ -84,11 +84,10 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              pip3 install prometheus_client==0.20.0 kubernetes==33.1.0 \
-                --find-links="{{ offline_pip_module_path }}/prometheus_client==0.20.0/" \
-                --trusted-host "{{ pulp_server_ip }}" \
-                --no-index || \
-              pip3 install prometheus_client kubernetes
+              pip3 install --no-index --find-links "{{ offline_pip_module_path }}/kubernetes==33.1.0" kubernetes==33.1.0 \
+                "{{ offline_pip_module_path }}/prometheus_client==0.20.0/prometheus_client-0.20.0-py3-none-any.whl" \
+                --trusted-host "{{ pulp_server_ip }}" || \
+              pip3 install kubernetes prometheus_client
               mkdir -p /app
               cat > /app/exporter.py <<'PYEOF'
               from prometheus_client import start_http_server, Gauge, Counter, Info
