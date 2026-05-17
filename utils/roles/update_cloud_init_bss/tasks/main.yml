@@ -1,0 +1,57 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# update_cloud_init_bss role — Entry point
+# ============================================================================
+# Updates BSS boot parameters and/or cloud-init group configuration
+# for a given functional group using pre-rendered YAML files.
+#
+# Required variables:
+#   functional_group_name  — Name of the functional group (e.g., slurm_node_x86_64)
+#
+# Optional variables:
+#   bss_file_path          — Path to pre-rendered BSS YAML file on target host
+#   cloud_init_file_path   — Path to pre-rendered cloud-init group YAML on target host
+#   update_bss             — Whether to update BSS boot parameters (default: true)
+#   update_cloud_init      — Whether to update cloud-init group config (default: true)
+# ============================================================================
+
+- name: Validate functional_group_name is provided
+  ansible.builtin.assert:
+    that:
+      - functional_group_name is defined
+      - functional_group_name | length > 0
+    fail_msg: "{{ functional_group_missing_msg }}"
+
+- name: Validate at least one file path is provided
+  ansible.builtin.assert:
+    that:
+      - (bss_file_path is defined and bss_file_path | length > 0) or
+        (cloud_init_file_path is defined and cloud_init_file_path | length > 0)
+    fail_msg: "{{ no_input_files_msg }}"
+
+- name: Update BSS boot parameters - {{ functional_group_name }}
+  ansible.builtin.include_tasks: update_bss.yml
+  when:
+    - update_bss | bool
+    - bss_file_path is defined
+    - bss_file_path | length > 0
+
+- name: Update cloud-init group configuration - {{ functional_group_name }}
+  ansible.builtin.include_tasks: update_cloud_init.yml
+  when:
+    - update_cloud_init | bool
+    - cloud_init_file_path is defined
+    - cloud_init_file_path | length > 0

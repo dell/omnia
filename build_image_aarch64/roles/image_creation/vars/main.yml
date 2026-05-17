@@ -39,7 +39,7 @@ ochami_base_command:
 
 # Usage: build_base_image.yml
 openchami_log_dir: "{{ oim_shared_path }}/omnia/log/openchami"
-openchami_aarch64_base_image_log_path: "{{ openchami_log_dir }}/aarch64_base_image.log"
+openchami_aarch64_base_image_log_path: "{{ oim_shared_path }}/omnia/log/openchami/x86_64_base_image.log"
 # build_base_image.yml - image-build config template
 openchami_base_image_config_template: "{{ role_path }}/templates/images/rhel-base-config.yaml.j2"
 base_image_failure_msg: |

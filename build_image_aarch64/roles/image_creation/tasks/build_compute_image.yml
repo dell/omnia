@@ -23,13 +23,13 @@
 
 - name: Ensure log directory exists
   ansible.builtin.file:
-    path: "{{ openchami_log_dir }}"
+    path: "{{ oim_shared_path }}/omnia/log/openchami"
     state: directory
     mode: "{{ dir_permissions_755 }}"
 
 - name: Create aarch64 compute image log files
   ansible.builtin.file:
-    path: "{{ openchami_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
+    path: "{{ oim_shared_path }}/omnia/log/openchami/{{ item.key }}{{ compute_image_suffix }}_compute_image.log"
     state: touch
     mode: "{{ dir_permissions_644 }}"
   loop: "{{ compute_images_dict | dict2items }}"
@@ -65,7 +65,7 @@
         -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z \
         {{ ochami_aarch64_image | join(' ') }} \
         {{ ochami_base_command | join(' ') }} \
-        > '{{ openchami_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1
+        > '{{ oim_shared_path }}/omnia/log/openchami/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1
   async: 3600
   poll: 0
   loop: "{{ compute_images_dict | dict2items }}"
@@ -126,7 +126,7 @@
       ansible.builtin.set_fact:
         failure_msg_list:
           - "aarch64 compute image build job did not complete successfully."
-          - "Check logs at {{ openchami_log_dir }} for respective functional group for more details."
+          - "Check logs at {{ oim_shared_path }}/omnia/log/openchami for respective functional group for more details."
           - ""
           - "Failed images:"
 
@@ -155,9 +155,18 @@
         msg: "aarch64 compute image build failed. See details above."
 
   always:
-    - name: Set openchami SELinux context
+    - name: Set openchami SELinux context for Local flow
       ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ oim_shared_path }}/omnia/openchami"
       changed_when: true
       delegate_to: oim
       connection: ssh
       failed_when: false
+      when: omnia_share_option == 'Local'
+
+    - name: Set openchami SELinux context for NFS internal flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ nfs_server_share_path }}/omnia/openchami"
+      changed_when: true
+      delegate_to: oim
+      connection: ssh
+      failed_when: false
+      when: omnia_share_option == 'NFS' and nfs_type | default('') == 'internal'
