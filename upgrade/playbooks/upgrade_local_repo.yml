@@ -42,18 +42,18 @@
           ══════════════════════════════════════════════════════════════
                     LOCAL_REPO UPGRADE - DEPENDENCY NOT MET
           ══════════════════════════════════════════════════════════════
-          
+
           The local_repo upgrade requires OIM to be completed first.
-          
+
           Current OIM status: {{ manifest.component_status.oim | default('pending') }}
           Required status   : completed
-          
+
           Please run the OIM upgrade first:
             ansible-playbook upgrade.yml --tags oim
-          
+
           Then retry the local_repo upgrade:
             ansible-playbook upgrade.yml --tags local_repo
-          
+
           ══════════════════════════════════════════════════════════════
       when:
         - manifest.component_status.oim | default('pending') != 'completed'

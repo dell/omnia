@@ -37,8 +37,12 @@ omnia_versions:
   # --------------------------------------------------------------------------
   "2.2.0.0":
     omnia_repo_url_rhel_x86_64:
-      - { url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "kubernetes-v1-35" }
-      - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "cri-o-v1-35" }
+      - url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/"
+        gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key"
+        name: "kubernetes-v1-35"
+      - url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/"
+        gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key"
+        name: "cri-o-v1-35"
 
   # --------------------------------------------------------------------------
   # Omnia 2.3.0.0 — K8s v1.37.1 (target), with auto-generated intermediate 1.36.1
@@ -50,11 +54,19 @@ omnia_versions:
   # "2.3.0.0":
   #   omnia_repo_url_rhel_x86_64:
   #     # Intermediate auto-generated hop: K8s 1.35.1 → 1.36.1
-  #     - { url: "https://pkgs.k8s.io/core:/stable:/v1.36/rpm/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.36/rpm/repodata/repomd.xml.key", name: "kubernetes-v1-36" }
-  #     - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.36/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.36/rpm/repodata/repomd.xml.key", name: "cri-o-v1-36" }
+  #     - url: "https://pkgs.k8s.io/core:/stable:/v1.36/rpm/"
+  #       gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.36/rpm/repodata/repomd.xml.key"
+  #       name: "kubernetes-v1-36"
+  #     - url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.36/rpm/"
+  #       gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.36/rpm/repodata/repomd.xml.key"
+  #       name: "cri-o-v1-36"
   #     # Final hop: K8s 1.36.1 → 1.37.1
-  #     - { url: "https://pkgs.k8s.io/core:/stable:/v1.37/rpm/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.37/rpm/repodata/repomd.xml.key", name: "kubernetes-v1-37" }
-  #     - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.37/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.37/rpm/repodata/repomd.xml.key", name: "cri-o-v1-37" }
+  #     - url: "https://pkgs.k8s.io/core:/stable:/v1.37/rpm/"
+  #       gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.37/rpm/repodata/repomd.xml.key"
+  #       name: "kubernetes-v1-37"
+  #     - url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.37/rpm/"
+  #       gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.37/rpm/repodata/repomd.xml.key"
+  #       name: "cri-o-v1-37"
 
     # User-defined repositories for custom components (placeholder for future use)
     # user_repo_url_x86_64:
