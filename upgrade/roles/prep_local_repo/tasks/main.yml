@@ -26,9 +26,6 @@
 # Key difference from reference: NO JSON artifacts - reads from input directly
 # ============================================================================
 
-- name: Load upgrade configuration
-  ansible.builtin.include_tasks: load_upgrade_manifest.yml
-
 - name: Validate upgrade prerequisites
   ansible.builtin.include_tasks: validate_prerequisites.yml
 

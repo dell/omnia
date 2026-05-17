@@ -35,14 +35,19 @@ def create_staging(
     calculated_hop_chains
 ):
     """
-    Create staging directory with modified configs for upgrade.
+    Create staging directory with delta-updated configs for upgrade.
+
+    Reads software_config.json and local_repo_config.yml from input_dir as the
+    base and applies only the changes required by the hop chain. All original
+    content is preserved; only the fields that need updating are changed.
+    Files in input_dir are never modified.
 
     Args:
         staging_dir: Path to staging directory
-        input_dir: Path to input project directory
+        input_dir: Path to input project directory (/opt/omnia/input/project_default)
         repos_file: Path to repos.yml file
         enabled_components: List of enabled components
-        current_sw_config: Current software_config.json content
+        current_sw_config: Current software_config.json content (base, read-only)
         architectures: List of architectures to process
         target_omnia_version: Target Omnia version
         calculated_hop_chains: List of calculated hop chains
@@ -50,228 +55,194 @@ def create_staging(
     Returns:
         Dictionary containing staging summary
     """
-    # --- 1. Create software_config.json with all hop versions for multi-hop support ---
-    sw_config = current_sw_config.copy()
-    
-    # For multi-hop upgrades, add all hop versions to software_config.json
-    # This ensures local_repo downloads packages for all intermediate versions
-    # Only include upgrade components and essential shared components
-    essential_components = {'default_packages', 'additional_packages', 'admin_debug_packages'}
-    
+    # --- 1. Determine final target version per component from hop chains ---
+    # For multi-hop chains each component may appear multiple times;
+    # we want the to_version of the last hop (highest hop_id) per component.
+    component_final_versions = {}
     if calculated_hop_chains:
-        print(f"Multi-hop upgrade detected with {len(calculated_hop_chains)} hops")
-        
-        # Collect unique component versions from all hops
-        component_versions = {}
+        component_hops = {}
         for hop in calculated_hop_chains:
-            component_name = hop.get('software')
-            to_version = hop.get('to_version')
-            if component_name and to_version:
-                if component_name not in component_versions:
-                    component_versions[component_name] = set()
-                component_versions[component_name].add(to_version)
-        
-        # Update software_config.json to include only upgrade components + essentials
-        updated_softwares = []
-        for sw in sw_config.get('softwares', []):
-            component_name = sw.get('name')
-            
-            # Check if this component is in hop chains OR is essential
-            if component_name in component_versions:
-                # Add entries for all versions of this component
-                for version in component_versions[component_name]:
-                    new_entry = sw.copy()
-                    new_entry['version'] = version
-                    updated_softwares.append(new_entry)
-                    print(f"Added {component_name} version {version} to software_config.json")
-            elif component_name in essential_components:
-                # Keep essential components (may have dependencies)
-                updated_softwares.append(sw)
-                print(f"Kept essential component: {component_name}")
+            cname = hop.get('software')
+            if cname:
+                component_hops.setdefault(cname, []).append(hop)
+
+        for cname, hops in component_hops.items():
+            final_hop = max(
+                hops,
+                key=lambda h: int(h.get('hop_id', 'hop_0').split('_')[1])
+            )
+            component_final_versions[cname] = final_hop.get('to_version')
+            print(f"Final target for {cname}: {component_final_versions[cname]}")
+
+    # --- 2. Create staging software_config.json (base + delta version updates) ---
+    # Deep-copy the base config so input_dir is never touched.
+    sw_config = json.loads(json.dumps(current_sw_config))
+
+    sw_delta_count = 0
+    for sw in sw_config.get('softwares', []):
+        name = sw.get('name')
+        if name in component_final_versions:
+            target_ver = component_final_versions[name]
+            current_ver = sw.get('version', '')
+            if current_ver != target_ver:
+                sw['version'] = target_ver
+                sw_delta_count += 1
+                print(f"Delta update: {name} {current_ver} -> {target_ver}")
             else:
-                # Skip non-essential, non-upgrade components
-                print(f"Skipped non-essential component: {component_name}")
-        
-        sw_config['softwares'] = updated_softwares
-    else:
-        # Single-hop: use target version (already updated by manage_upgrade_inputs)
-        # Still filter to only include upgrade components + essentials
-        print("Single-hop upgrade: using target version from software_config.json")
-        
-        # Get upgrade components from hop chains (single hop)
-        upgrade_components = set()
-        if calculated_hop_chains and len(calculated_hop_chains) > 0:
-            for hop in calculated_hop_chains:
-                upgrade_components.add(hop.get('software'))
-        
-        # Filter software_config.json
-        updated_softwares = []
-        for sw in sw_config.get('softwares', []):
-            component_name = sw.get('name')
-            
-            # Keep upgrade components and essential components
-            if component_name in upgrade_components or component_name in essential_components:
-                updated_softwares.append(sw)
-                print(f"Kept component: {component_name}")
-            else:
-                print(f"Skipped non-essential component: {component_name}")
-        
-        sw_config['softwares'] = updated_softwares
-    
-    # Write software_config.json to staging
+                print(f"Already at target version: {name} {target_ver} (no change needed)")
+        else:
+            print(f"Preserved unchanged: {name}")
+
     with open(os.path.join(staging_dir, 'software_config.json'), 'w') as f:
         json.dump(sw_config, f, indent=4)
-    
-    # --- 2. Create local_repo_config.yml with only repos from repos.yml ---
-    # Base repos (docker-ce, epel, doca, cuda) are already synced from initial
-    # installation and are not included to avoid unnecessary re-syncing.
-    # Staging only contains upgrade-specific repos from repos.yml.
-    
-    # Initialize empty lists (no base config merge)
-    merged_x86 = []
-    merged_aarch64 = []
-    seen_x86 = set()
-    seen_aarch64 = set()
-    base_config = {}  # Empty base config - only repos from repos.yml will be added
-    
-    # Load repos from repos.yml (upgrade-specific repos only)
+    print(f"software_config.json written to staging ({sw_delta_count} version(s) updated)")
+
+    # --- 3. Create staging local_repo_config.yml (base + delta repo additions) ---
+    # Load base from input_dir; keep all existing repos intact.
+    local_repo_config_path = os.path.join(input_dir, 'local_repo_config.yml')
+    base_config = {}
+    if os.path.exists(local_repo_config_path):
+        with open(local_repo_config_path) as f:
+            base_config = yaml.safe_load(f) or {}
+        print(f"Loaded base local_repo_config.yml from {local_repo_config_path}")
+    else:
+        print(f"Warning: local_repo_config.yml not found at {local_repo_config_path}, starting with empty config")
+
+    # Build deduplication sets from existing repos in the base config.
+    seen_x86 = {
+        entry.get('name', '')
+        for entry in base_config.get('omnia_repo_url_rhel_x86_64', [])
+        if entry.get('name')
+    }
+    seen_aarch64 = {
+        entry.get('name', '')
+        for entry in base_config.get('omnia_repo_url_rhel_aarch64', [])
+        if entry.get('name')
+    }
+
+    repos_added = 0
+
     if os.path.exists(repos_file):
         with open(repos_file) as f:
             repos = yaml.safe_load(f) or {}
-        
-        print(f"Target Omnia version: {target_omnia_version}")
-        
-        # Check for new Omnia version-specific structure
+
+        # Collect Omnia versions whose repos need to be merged.
+        omnia_versions_to_merge = set()
+        if calculated_hop_chains:
+            for hop in calculated_hop_chains:
+                hop_omnia_version = hop.get('omnia_version')
+                if hop_omnia_version:
+                    omnia_versions_to_merge.add(hop_omnia_version)
+                    print(f"Will merge repos for Omnia version: {hop_omnia_version}")
+        else:
+            omnia_versions_to_merge.add(target_omnia_version)
+
         if 'omnia_versions' in repos:
-            print("Using Omnia version-specific repository structure (upgrade-specific repos only)")
-            
-            # For multi-hop upgrades, collect Omnia versions from all hops
-            omnia_versions_to_merge = set()
-            if calculated_hop_chains:
-                for hop in calculated_hop_chains:
-                    hop_omnia_version = hop.get('omnia_version')
-                    if hop_omnia_version:
-                        omnia_versions_to_merge.add(hop_omnia_version)
-                        print(f"Adding repositories for Omnia version: {hop_omnia_version}")
-            else:
-                # Single-hop: use target version only
-                omnia_versions_to_merge.add(target_omnia_version)
-            
-            # Process ALL repository sections for each Omnia version
+            print("Using Omnia version-specific repository structure")
             for omnia_version in omnia_versions_to_merge:
                 target_repos = repos['omnia_versions'].get(omnia_version, {})
-                
                 for repo_section_name, repo_entries in target_repos.items():
-                    if isinstance(repo_entries, list):
-                        # Determine architecture based on section name
-                        if 'x86_64' in repo_section_name.lower():
-                            # Process x86_64 repositories
-                            for entry in repo_entries:
-                                if entry.get('name', '') not in seen_x86:
-                                    seen_x86.add(entry.get('name', ''))
-                                    merged_x86.append(entry)
-                                    print(f"Added x86_64 repo from {repo_section_name} for Omnia {omnia_version}: {entry.get('name', '')}")
-                        elif 'aarch64' in repo_section_name.lower():
-                            # Process aarch64 repositories
-                            for entry in repo_entries:
-                                if entry.get('name', '') not in seen_aarch64:
-                                    seen_aarch64.add(entry.get('name', ''))
-                                    merged_aarch64.append(entry)
-                                    print(f"Added aarch64 repo from {repo_section_name} for Omnia {omnia_version}: {entry.get('name', '')}")
-        
+                    if not isinstance(repo_entries, list):
+                        continue
+                    if 'x86_64' in repo_section_name.lower():
+                        for entry in repo_entries:
+                            rname = entry.get('name', '')
+                            if rname and rname not in seen_x86:
+                                seen_x86.add(rname)
+                                base_config.setdefault('omnia_repo_url_rhel_x86_64', []).append(entry)
+                                repos_added += 1
+                                print(f"Added x86_64 repo: {rname} (Omnia {omnia_version})")
+                            elif rname:
+                                print(f"Skipped duplicate x86_64 repo: {rname}")
+                    elif 'aarch64' in repo_section_name.lower():
+                        for entry in repo_entries:
+                            rname = entry.get('name', '')
+                            if rname and rname not in seen_aarch64:
+                                seen_aarch64.add(rname)
+                                base_config.setdefault('omnia_repo_url_rhel_aarch64', []).append(entry)
+                                repos_added += 1
+                                print(f"Added aarch64 repo: {rname} (Omnia {omnia_version})")
+                            elif rname:
+                                print(f"Skipped duplicate aarch64 repo: {rname}")
         else:
             # Fallback to legacy flat structure for backward compatibility
-            print("Using legacy flat repository structure (upgrade-specific repos only)")
-            
+            print("Using legacy flat repository structure")
             for entry in (repos.get('omnia_repo_url_rhel_x86_64') or []):
-                if entry.get('name', '') not in seen_x86:
-                    seen_x86.add(entry.get('name', ''))
-                    merged_x86.append(entry)
-                    print(f"Added x86_64 repo (legacy): {entry.get('name', '')}")
-            
+                rname = entry.get('name', '')
+                if rname and rname not in seen_x86:
+                    seen_x86.add(rname)
+                    base_config.setdefault('omnia_repo_url_rhel_x86_64', []).append(entry)
+                    repos_added += 1
+                    print(f"Added x86_64 repo (legacy): {rname}")
             for entry in (repos.get('omnia_repo_url_rhel_aarch64') or []):
-                if entry.get('name', '') not in seen_aarch64:
-                    seen_aarch64.add(entry.get('name', ''))
-                    merged_aarch64.append(entry)
-                    print(f"Added aarch64 repo (legacy): {entry.get('name', '')}")
-    
-    base_config['omnia_repo_url_rhel_x86_64'] = merged_x86
-    base_config['omnia_repo_url_rhel_aarch64'] = merged_aarch64
-    
-    # Write merged local_repo_config.yml to staging
+                rname = entry.get('name', '')
+                if rname and rname not in seen_aarch64:
+                    seen_aarch64.add(rname)
+                    base_config.setdefault('omnia_repo_url_rhel_aarch64', []).append(entry)
+                    repos_added += 1
+                    print(f"Added aarch64 repo (legacy): {rname}")
+    else:
+        print(f"Warning: repos.yml not found at {repos_file}, no upgrade repos added to base config")
+
+    print(f"local_repo_config.yml: {repos_added} repo(s) added from repos.yml to base config")
+
     with open(os.path.join(staging_dir, 'local_repo_config.yml'), 'w') as f:
         yaml.dump(base_config, f, default_flow_style=False, sort_keys=False)
-    
-    # --- 2.5. Copy vault credentials files if they exist ---
+
+    # --- 4. Copy vault credentials files if they exist ---
     vault_key_file = os.path.join(input_dir, '.omnia_config_credentials_key')
     vault_creds_file = os.path.join(input_dir, 'omnia_config_credentials.yml')
-    
-    # Copy vault key file
+
     if os.path.exists(vault_key_file):
-        staging_vault_key = os.path.join(staging_dir, '.omnia_config_credentials_key')
-        shutil.copy2(vault_key_file, staging_vault_key)
-        print(f"Copied vault credentials key: .omnia_config_credentials_key")
+        shutil.copy2(vault_key_file, os.path.join(staging_dir, '.omnia_config_credentials_key'))
+        print("Copied vault credentials key: .omnia_config_credentials_key")
     else:
         print("No vault credentials key found in input directory")
-    
-    # Copy vault credentials file (encrypted)
+
     if os.path.exists(vault_creds_file):
-        staging_vault_creds = os.path.join(staging_dir, 'omnia_config_credentials.yml')
-        shutil.copy2(vault_creds_file, staging_vault_creds)
-        print(f"Copied vault credentials file: omnia_config_credentials.yml")
+        shutil.copy2(vault_creds_file, os.path.join(staging_dir, 'omnia_config_credentials.yml'))
+        print("Copied vault credentials file: omnia_config_credentials.yml")
     else:
         print("No vault credentials file found in input directory")
-    
-    # --- 3. Copy JSON files from input directory for enabled upgrades ---
+
+    # --- 5. Copy JSON config files from input_dir to staging ---
     os_type = sw_config.get('cluster_os_type', 'rhel')
     os_version = sw_config.get('cluster_os_version', '10.0')
-    
+
     json_files_copied = []
-    available_architectures = []
-    
+
     for arch in architectures:
         src_config_dir = os.path.join(input_dir, 'config', arch, os_type, os_version)
         dst_config_dir = os.path.join(staging_dir, 'config', arch, os_type, os_version)
-        
+
         if not os.path.exists(src_config_dir):
             print(f"Skipping architecture {arch}: source config dir not found: {src_config_dir}")
             continue
-        
+
         os.makedirs(dst_config_dir, exist_ok=True)
-        available_architectures.append(arch)
-        
-        # Copy ALL JSON files from source config directory to staging
-        # This ensures all component JSON files (including default_packages, admin_debug_packages, etc.)
-        # are available for the local_repo sync
-        if os.path.exists(src_config_dir):
-            for json_file in os.listdir(src_config_dir):
-                if json_file.endswith('.json'):
-                    src_json = os.path.join(src_config_dir, json_file)
-                    dst_json = os.path.join(dst_config_dir, json_file)
-                    
-                    if os.path.exists(src_json) and not os.path.exists(dst_json):
-                        shutil.copy2(src_json, dst_json)
-                        json_files_copied.append(f"{arch}/{os_type}/{os_version}/{json_file}")
-                        print(f"Copied: {json_file} ({arch})")
-    
-    # Keep original software_config.json intact - don't filter architectures
-    
-    # Check if vault credentials were copied
+
+        for json_file in os.listdir(src_config_dir):
+            if json_file.endswith('.json'):
+                src_json = os.path.join(src_config_dir, json_file)
+                dst_json = os.path.join(dst_config_dir, json_file)
+
+                if not os.path.exists(dst_json):
+                    shutil.copy2(src_json, dst_json)
+                    json_files_copied.append(f"{arch}/{os_type}/{os_version}/{json_file}")
+                    print(f"Copied: {json_file} ({arch})")
+
     vault_key_copied = os.path.exists(os.path.join(staging_dir, '.omnia_config_credentials_key'))
     vault_creds_copied = os.path.exists(os.path.join(staging_dir, 'omnia_config_credentials.yml'))
-    
-    # Output summary
-    result = {
+
+    return {
         'staging_dir': staging_dir,
-        'software_config_updated': True,
-        'repos_merged': len(merged_x86) + len(merged_aarch64),
+        'software_config_updated': sw_delta_count > 0,
+        'repos_merged': repos_added,
         'json_files_copied': json_files_copied,
         'vault_key_copied': vault_key_copied,
         'vault_credentials_copied': vault_creds_copied,
         'enabled_components': [c.get('key') for c in enabled_components]
     }
-    
-    return result
 
 
 def run_module():
