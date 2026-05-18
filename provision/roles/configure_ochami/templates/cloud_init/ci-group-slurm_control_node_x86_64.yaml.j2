@@ -276,7 +276,17 @@
 
       runcmd:
         - /usr/local/bin/set-ssh.sh
-{# Mount-specific runcmd entries #}
+        # DOCA prerequisites - moved early to ensure RDMA is ready before vendor_data mounts
+        - mkdir -p {{ client_mount_path }}/slurm/ssh
+        - mkdir -p {{ slurm_ctld_log_dir_effective }} {{ slurmdbd_log_dir_effective }} {{ slurm_ctld_pid_dir_effective }} {{ slurmdbd_pid_dir_effective }} {{ slurm_state_save_location_effective }} {% if slurm_sched_log_dir_effective %}{{ slurm_sched_log_dir_effective }} {% endif %}/etc/slurm {{ home_dir }} /etc/my.cnf.d /etc/munge /var/lib/mysql /var/log/mariadb /cert /var/log/track /var/lib/packages /hpc_tools/container_images /hpc_tools/scripts
+        - echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
+        - mount -av
+        - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
+        - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
+        # DOCA and IB configuration - now ready before vendor_data mounts
+        - bash /usr/local/bin/doca-install.sh || true
+        - bash /usr/local/bin/configure-ib-network.sh
+{# Mount-specific runcmd entries - moved after DOCA to ensure RDMA is available #}
 {%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
 {% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
         - {{ cmd }}
@@ -327,11 +337,6 @@
         - echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
         - mount -av
-        - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
-        - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
-
-        - bash /usr/local/bin/doca-install.sh || true
-        - bash /usr/local/bin/configure-ib-network.sh
         - chown -R {{ slurm_user }}:{{ slurm_user }} {{ home_dir }}
         - chmod {{ file_mode_755 }} {{ home_dir }}
         - chown -R {{ slurm_user }}:{{ slurm_user }} /etc/slurm
