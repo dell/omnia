@@ -134,7 +134,7 @@
         mode: '0644'
       when: proceed_build_image | bool
 
-    - name: "Display {{ component_name }} upgrade status — in-progress"
+    - name: "Display upgrade status in-progress — {{ component_name }}"
       ansible.builtin.debug:
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
       when: proceed_build_image | bool
@@ -184,6 +184,6 @@
         dest: "{{ manifest_path }}"
         mode: '0644'
 
-    - name: "Display {{ component_name }} upgrade status — completed"
+    - name: "Display upgrade status completed — {{ component_name }}"
       ansible.builtin.debug:
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"

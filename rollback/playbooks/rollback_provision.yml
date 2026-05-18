@@ -71,7 +71,7 @@
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
 
-    - name: "Display {{ component_name }} rollback status — in-progress"
+    - name: "Display rollback status in-progress — {{ component_name }}"
       ansible.builtin.debug:
         msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
 
@@ -91,6 +91,6 @@
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
 
-    - name: "Display {{ component_name }} rollback status — completed"
+    - name: "Display rollback status completed — {{ component_name }}"
       ansible.builtin.debug:
         msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: completed"
