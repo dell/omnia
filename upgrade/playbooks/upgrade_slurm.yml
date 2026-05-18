@@ -77,6 +77,11 @@
         mode: '0644'
       when: not slurm_skip
 
+    - name: "Display {{ component_name }} upgrade status — in-progress"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
+      when: not slurm_skip
+
 # ============================================================================
 # Create OIM host group (needed for cloud-init/BSS update on OIM)
 # ============================================================================
@@ -166,3 +171,7 @@
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
         mode: '0644'
+
+    - name: "Display {{ component_name }} upgrade status — completed"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"

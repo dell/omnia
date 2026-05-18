@@ -46,6 +46,10 @@
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
 
+    - name: "Display {{ component_name }} rollback status — in-progress"
+      ansible.builtin.debug:
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
+
     # TODO: Implement OIM rollback steps per ESpec §4.11.3:
     # 1. Stop BuildStream container (systemctl stop buildstream)
     # 2. Restore buildstream.container quadlet from backup
@@ -74,3 +78,7 @@
              }) | to_nice_yaml }}
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
+
+    - name: "Display {{ component_name }} rollback status — completed"
+      ansible.builtin.debug:
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: completed"

@@ -89,6 +89,10 @@
         dest: "{{ manifest_path }}"
         mode: '0644'
 
+    - name: "Display {{ component_name }} upgrade status — in-progress"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
+
     # ── Local Repository Upgrade ───────────────────────────────────────
     - name: "Local Repository Upgrade"
       block:
@@ -128,3 +132,7 @@
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
         mode: '0644'
+
+    - name: "Display {{ component_name }} upgrade status — completed"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"

@@ -90,6 +90,10 @@
         dest: "{{ manifest_path }}"
         mode: '0644'
 
+    - name: "Display {{ component_name }} upgrade status — in-progress"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
+
     # ── Phase 1: OpenCHAMI Container Upgrade (ESpec §4.4) ──────────────
     - name: "Phase 1 — OpenCHAMI Container Upgrade"
       block:
@@ -251,11 +255,6 @@
         dest: "{{ manifest_path }}"
         mode: '0644'
 
-    - name: Display OIM upgrade completion
+    - name: "Display {{ component_name }} upgrade status — completed"
       ansible.builtin.debug:
-        msg:
-          - "═══════════════════════════════════════"
-          - "  OIM UPGRADE COMPLETED SUCCESSFULLY"
-          - "═══════════════════════════════════════"
-          - "OpenCHAMI: upgraded to {{ manifest.target_version | default('2.2.0.0') }}"
-          - "BuildStream: {{ 'upgraded' if (buildstream_enabled | default(false) | bool) else 'skipped (disabled)' }}"
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"

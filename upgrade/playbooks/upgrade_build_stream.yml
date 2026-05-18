@@ -86,6 +86,21 @@
         msg: "BuildStream requires OIM upgrade to be completed first. Current OIM status: {{ manifest.component_status.oim | default('pending') }}"
       when: manifest.component_status.oim | default('pending') != 'completed'
 
+    - name: Set build_stream upgrade status to in-progress
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'in-progress'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+
+    - name: "Display {{ component_name }} upgrade status — in-progress"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
+
     # ── Framework: Debug statements outlining the upgrade flow ──
     - name: "[FRAMEWORK] BuildStream upgrade flow outline"
       ansible.builtin.debug:
@@ -146,6 +161,10 @@
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
         mode: '0644'
+
+    - name: "Display {{ component_name }} upgrade status — completed"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"
 
     - name: "[FRAMEWORK] Post-upgrade instruction banner (BS-05, C-27)"
       ansible.builtin.debug:

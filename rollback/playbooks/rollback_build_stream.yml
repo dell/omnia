@@ -74,6 +74,21 @@
       ansible.builtin.meta: end_play
       when: not path_metadata_stat.stat.exists
 
+    - name: Set build_stream rollback status to in-progress
+      ansible.builtin.copy:
+        content: >-
+          {{ rollback_manifest | combine({
+               'component_status': rollback_manifest.component_status | combine({
+                 component_name: 'in-progress'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'
+
+    - name: "Display {{ component_name }} rollback status — in-progress"
+      ansible.builtin.debug:
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
+
     # ── Framework: Debug statements outlining the rollback flow ──
     - name: "[FRAMEWORK] BuildStream rollback flow outline"
       ansible.builtin.debug:
@@ -128,6 +143,10 @@
              }) | to_nice_yaml }}
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
+
+    - name: "Display {{ component_name }} rollback status — completed"
+      ansible.builtin.debug:
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: completed"
 
     - name: "[FRAMEWORK] Display rollback summary"
       ansible.builtin.debug:
