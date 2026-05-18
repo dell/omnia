@@ -57,6 +57,7 @@
           ══════════════════════════════════════════════════════════════
       when:
         - manifest.component_status.oim | default('pending') != 'completed'
+
     - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
       ansible.builtin.copy:
         content: >-
