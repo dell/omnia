@@ -50,10 +50,17 @@
   connection: ssh
   gather_facts: false
   tasks:
-    - name: Set SELinux context
+    - name: Set SELinux context for Local flow
       ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/"
       changed_when: true
       failed_when: false
+      when: hostvars['localhost']['omnia_share_option'] == 'Local'
+
+    - name: Set SELinux context for NFS internal flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/"
+      changed_when: true
+      failed_when: false
+      when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations for local repo
   ansible.builtin.import_playbook: ../input_validation/validate_config.yml

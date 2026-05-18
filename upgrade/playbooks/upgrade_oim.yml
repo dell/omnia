@@ -54,6 +54,7 @@
         - manifest.component_status[component_name] | default('pending') == 'completed'
 
     # ── User approval before proceeding ─────────────────────────────────
+    # Bypass with: -e skip_approval=true (for CI/CD automation)
     - name: Display OIM upgrade summary and request approval
       ansible.builtin.pause:
         prompt: |2
@@ -74,6 +75,7 @@
 
           Press ENTER to proceed or Ctrl+C to abort.
           ══════════════════════════════════════════════════════════════
+      when: not (skip_approval | default(false) | bool)
 
     - name: Set OIM upgrade status to in-progress
       ansible.builtin.copy:

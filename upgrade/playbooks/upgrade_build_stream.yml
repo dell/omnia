@@ -1,0 +1,156 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# upgrade_build_stream.yml — BuildStream Upgrade / Enablement (Terminal Gate)
+# ============================================================================
+# Per ESpec §4.6.4: Handles both PATH A (upgrade existing BuildStream) and
+# PATH B (fresh install BuildStream on cluster where it was not enabled in 2.1).
+#
+# When enable_build_stream=true and this completes successfully, downstream
+# tags (local_repo, build_image, k8s, cloud_init_bss, slurm) are SKIPPED
+# because the BuildStream GitLab pipeline handles those responsibilities.
+#
+# Constraints: BS-01 through BS-08
+#
+# STATUS: Framework only — debug statements outline the upgrade flow.
+#         Actual implementation to be added when BuildStream upgrade is ready.
+# ============================================================================
+
+- name: BuildStream upgrade / enablement (terminal gate)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    metadata_path: /opt/omnia/.data/oim_metadata.yml
+    component_name: build_stream
+  tasks:
+    # ── Manifest read & idempotency guard ──
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+        backup_dir: "{{ (raw_manifest.content | b64decode | from_yaml).backup_dir }}"
+
+    - name: Skip if build_stream already completed
+      ansible.builtin.meta: end_play
+      when:
+        - manifest.component_status[component_name] | default('pending') == 'completed'
+
+    # ── Pre-flight: Read build_stream_config.yml ──
+    - name: Read build_stream_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+        name: build_stream_config
+      failed_when: false
+
+    - name: Determine if BuildStream is enabled
+      ansible.builtin.set_fact:
+        enable_build_stream: "{{ build_stream_config.enable_build_stream | default(false) | bool }}"
+
+    - name: Skip if BuildStream is not enabled (no-op)
+      ansible.builtin.meta: end_play
+      when: not enable_build_stream | bool
+
+    # ── BS-01: Verify OIM upgrade complete ──
+    - name: Validate OIM upgrade is complete (BS-01)
+      ansible.builtin.fail:
+        msg: "BuildStream requires OIM upgrade to be completed first. Current OIM status: {{ manifest.component_status.oim | default('pending') }}"
+      when: manifest.component_status.oim | default('pending') != 'completed'
+
+    # ── Framework: Debug statements outlining the upgrade flow ──
+    - name: "[FRAMEWORK] BuildStream upgrade flow outline"
+      ansible.builtin.debug:
+        msg:
+          - "============================================================"
+          - "  BuildStream Upgrade / Enablement — Framework (ESpec §4.6.4)"
+          - "============================================================"
+          - ""
+          - "Component: {{ component_name }}"
+          - "Manifest path: {{ manifest_path }}"
+          - "Backup dir: {{ backup_dir }}"
+          - "enable_build_stream: {{ enable_build_stream }}"
+          - ""
+          - "--- Pre-flight checks ---"
+          - "  [BS-01] OIM upgrade complete: {{ manifest.component_status.oim | default('pending') }}"
+          - "  [BS-02] Verify target container images available:"
+          - "    - BuildStream: {{ build_stream_config.buildstream_image | default('localhost/omnia_build_stream:<version>') }}"
+          - "    - Postgres: {{ build_stream_config.postgres_image | default('docker.io/library/postgres:16') }}"
+          - "    - GitLab: {{ build_stream_config.gitlab_image | default('docker.io/gitlab/gitlab-ce:latest') }}"
+          - "  [BS-03] Detect 2.1 state: check quadlet /etc/containers/systemd/buildstream.container"
+          - ""
+          - "--- PATH A: Upgrade existing BuildStream (if was enabled in 2.1) ---"
+          - "  Step 1: Backup (pg_dump, GitLab config, quadlet, build_stream_config.yml)"
+          - "  Step 2: Upgrade BuildStream container (update quadlet Image=, daemon-reload, restart)"
+          - "  Step 3: Postgres data migration (stop, update quadlet, start, run schema migration)"
+          - "  Step 4: Update GitLab config (update image, restart, re-register runner BS-08)"
+          - ""
+          - "--- PATH B: Fresh install BuildStream (if was NOT enabled in 2.1) ---"
+          - "  Step 1: NFS share cleanup guidance (C-26) — display instructions, prompt operator"
+          - "  Step 2: Fresh install Postgres (create quadlet, start, init schema)"
+          - "  Step 3: Fresh install BuildStream (create quadlet, start, health check)"
+          - "  Step 4: Fresh install GitLab (create quadlet, start, register runner BS-08)"
+          - ""
+          - "--- Post-completion (both paths) ---"
+          - "  Validate all three containers healthy"
+          - "  Store upgrade path metadata for rollback"
+          - "  Mark build_stream completed in manifest"
+          - "  Set build_stream_terminal = true"
+          - "  Display post-upgrade instruction banner (BS-05, C-27)"
+          - "============================================================"
+
+    - name: "[FRAMEWORK] Mark build_stream as completed and set terminal gate"
+      ansible.builtin.set_fact:
+        build_stream_terminal: true
+
+    - name: "[FRAMEWORK] Re-read manifest"
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest_final
+
+    - name: "[FRAMEWORK] Write build_stream completed to manifest"
+      ansible.builtin.copy:
+        content: >-
+          {{ (raw_manifest_final.content | b64decode | from_yaml) | combine({
+               'component_status': (raw_manifest_final.content | b64decode | from_yaml).component_status | combine({
+                 component_name: 'completed'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+
+    - name: "[FRAMEWORK] Post-upgrade instruction banner (BS-05, C-27)"
+      ansible.builtin.debug:
+        msg:
+          - "============================================================"
+          - "  BuildStream upgrade/enablement complete (FRAMEWORK MODE)."
+          - ""
+          - "  NEXT STEP: Trigger the GitLab pipeline manually (BS-05):"
+          - "    1. Navigate to GitLab UI → Project → CI/CD → Pipelines"
+          - "    2. Click 'Run Pipeline' (always runs as fresh install)"
+          - ""
+          - "  The pipeline will handle:"
+          - "    - Local repo sync"
+          - "    - OS image building"
+          - "    - BSS/cloud-init configuration"
+          - "    - K8s and Slurm cluster deployment"
+          - ""
+          - "  Tags local_repo, build_image, k8s, cloud_init_bss,"
+          - "  and slurm have been SKIPPED in this upgrade run."
+          - "============================================================"

@@ -13,13 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Normalize build stream inputs
-  ansible.builtin.set_fact:
-    enable_build_stream: "{{ enable_build_stream | default(false) | bool }}"
-    build_stream_job_id: "{{ build_stream_job_id | default('') }}"
-    image_key: "{{ image_key | default('') }}"
-    compute_image_suffix: ""
-
 - name: Set compute image suffix when build stream inputs present
   ansible.builtin.set_fact:
     compute_image_suffix: "_{{ build_stream_job_id }}-{{ image_key | default('') }}"
@@ -27,6 +20,12 @@
     - enable_build_stream | bool
     - (build_stream_job_id | default('') | length) > 0
     - (image_key | default('') | length) > 0
+
+- name: Ensure log directory exists
+  ansible.builtin.file:
+    path: "{{ openchami_log_dir }}"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
 
 - name: Create x86_64 compute image log files
   ansible.builtin.file:
@@ -37,38 +36,41 @@
   loop_control:
     loop_var: item
 
-- name: Render compute images templates
+- name: Render compute image build configs
   ansible.builtin.template:
-    src: "{{ openchami_compute_image_vars_template }}"
-    dest: "{{ openchami_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_images.yaml"
+    src: "{{ role_path }}/templates/images/rhel-compute-config.yaml.j2"
+    dest: "{{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml"
     mode: "{{ dir_permissions_644 }}"
   vars:
-    functional_group: "{{ item.value.functional_group }}"
-    packages: "{{ item.value.packages }}"
-    # Pre-compute image names to avoid undefined errors inside template
-    base_compute_image_name: "{{ item.key }}{{ compute_image_suffix }}"
     rhel_base_compute_image_name: "rhel-{{ item.key }}{{ compute_image_suffix }}"
+    group_name: "{{ item.key }}"
+    compute_packages: "{{ item.value.packages }}"
+    functional_group: "{{ item.value.functional_group }}"
   loop: "{{ compute_images_dict | dict2items }}"
   loop_control:
     loop_var: item
 
-- name: Invoking OpenCHAMI playbooks asynchronously for x86_64 compute image_build
-  ansible.builtin.shell: |
-    set -o pipefail
-    ansible-playbook {{ openchami_clone_path }}/dell/podman-quadlets/image.yaml \
-      -i {{ openchami_clone_path }}/dell/podman-quadlets/inventory -v \
-      --extra-vars '@{{ openchami_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_images.yaml' \
-      --tags compute_image -v | \
-      /usr/bin/tee '{{ openchami_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log'
-  async: 3600   # Set async timeout (e.g., 1 hour)
-  poll: 0   # Non-blocking (continue the playbook without waiting for completion)
+- name: Build x86_64 compute osimages in parallel
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      podman run --rm --device /dev/fuse --network host \
+        -e S3_ACCESS={{ s3_access }} -e S3_SECRET={{ s3_secret }} \
+        -e AWS_REQUEST_CHECKSUM_CALCULATION=when_required -e AWS_RESPONSE_CHECKSUM_VALIDATION=when_required --user 0 --privileged \
+        -v {{ pulp_cert_host_path }}:/etc/pki/ca-trust/source/anchors/pulp_webserver.crt:z \
+        -v {{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml:/home/builder/config.yaml:z \
+        {{ ochami_x86_64_image | join(' ') }} \
+        {{ ochami_base_command | join(' ') }} \
+        > '{{ openchami_log_dir }}/{{ item.key }}{{ compute_image_suffix }}_compute_image.log' 2>&1
+  async: 3600
+  poll: 0
   loop: "{{ compute_images_dict | dict2items }}"
   loop_control:
     loop_var: item
   register: compute_image_build_job
   changed_when: true
 
-- name: Wait for all OpenCHAMI jobs to finish and remove generated compute images templates
+- name: Wait for all compute image builds to finish
   block:
     - name: Display image build jobs status
       ansible.builtin.debug:
@@ -77,7 +79,7 @@
       loop_control:
         label: "{{ item.item.key }}"
 
-    - name: Wait for all OpenCHAMI jobs to finish
+    - name: Wait for all compute image builds to complete
       ansible.builtin.async_status:
         jid: "{{ item.ansible_job_id }}"
       register: job_result
@@ -88,6 +90,16 @@
       loop: "{{ compute_image_build_job.results }}"
       loop_control:
         label: "Building: {{ item.item.key }}"
+
+    - name: Verify x86_64 compute osimages in registry
+      ansible.builtin.command:
+        cmd: "regctl repo ls {{ oim_node_name }}.{{ domain_name }}:5000"
+      changed_when: false
+      register: verify_compute_osimages
+
+    - name: Verify x86_64 compute osimages output
+      ansible.builtin.debug:
+        msg: "{{ verify_compute_osimages.stdout_lines }}"
 
   rescue:
     - name: Identify failed image builds
@@ -133,10 +145,18 @@
         msg: "x86_64 compute image build failed. See details above."
 
   always:
-
-    - name: Set openchami SELinux context
-      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ oim_shared_path }}/omnia/openchami"
+    - name: Set openchami SELinux context for Local flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
       changed_when: true
       delegate_to: oim
       connection: ssh
       failed_when: false
+      when: hostvars['localhost']['omnia_share_option'] == 'Local'
+
+    - name: Set openchami SELinux context for NFS internal flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
+      changed_when: true
+      delegate_to: oim
+      connection: ssh
+      failed_when: false
+      when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')

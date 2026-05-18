@@ -45,9 +45,13 @@
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
     rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
-    all_rollback_components: [slurm, cloud_init_bss, telemetry, k8s, oim]
+    all_rollback_components: [slurm, cloud_init_bss, telemetry, build_stream, k8s, oim]
   tasks:
-    # ─── Lock check: fail ONLY on upgrade lock; ignore rollback lock ───
+    # ═══════════════════════════════════════════════════════════════
+    # PHASE 1: READ-ONLY GUARDS (no state mutation allowed here)
+    # ═══════════════════════════════════════════════════════════════
+
+    # ─── Guard 1: Upgrade lock check ───
     - name: Check for active upgrade lock
       ansible.builtin.stat:
         path: "{{ upgrade_lock_path }}"
@@ -67,11 +71,75 @@
           Lock file: {{ upgrade_lock_path }}
           Lock contents:
           {{ (upgrade_lock_raw.content | b64decode) if (upgrade_lock_raw.content is defined) else '(unreadable)' }}
-
           Wait for the upgrade to finish, or if no process is actually
           running (e.g., previous run crashed), manually remove the lock:
             rm {{ upgrade_lock_path }}
       when: upgrade_lock_stat.stat.exists
+
+    # ─── Guard 2: Read upgrade_manifest.yml + completed-upgrade check ───
+    - name: Check for upgrade_manifest.yml
+      ansible.builtin.stat:
+        path: "{{ upgrade_manifest_path }}"
+      register: upgrade_manifest_pre_stat
+
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ upgrade_manifest_path }}"
+      register: raw_upgrade_manifest
+      when: upgrade_manifest_pre_stat.stat.exists
+
+    - name: Parse upgrade manifest
+      ansible.builtin.set_fact:
+        upgrade_manifest: "{{ raw_upgrade_manifest.content | b64decode | from_yaml }}"
+      when: upgrade_manifest_pre_stat.stat.exists
+
+    - name: Abort rollback if upgrade completed successfully
+      ansible.builtin.fail:
+        msg: |
+          The previous upgrade completed successfully (upgrade_status: completed).
+          Rollback after a successful upgrade is not recommended because all
+          components were upgraded consistently.
+          If you need to rollback despite successful completion:
+            ansible-playbook rollback/rollback.yml -e force_rollback=true
+      when:
+        - upgrade_manifest is defined
+        - upgrade_manifest.upgrade_status | default('') == 'completed'
+        - not (force_rollback | default(false) | bool)
+
+    # ─── Guard 3: Already-completed-rollback check ───
+    - name: Check for existing rollback_manifest.yml
+      ansible.builtin.stat:
+        path: "{{ rollback_manifest_path }}"
+      register: existing_rollback
+
+    - name: Read existing rollback manifest to check status (if present)
+      ansible.builtin.slurp:
+        src: "{{ rollback_manifest_path }}"
+      register: prior_rollback_raw
+      when: existing_rollback.stat.exists
+
+    - name: Parse prior rollback manifest
+      ansible.builtin.set_fact:
+        prior_rollback: "{{ prior_rollback_raw.content | b64decode | from_yaml }}"
+      when: existing_rollback.stat.exists
+
+    - name: Abort if rollback already completed
+      ansible.builtin.fail:
+        msg: |
+          The previous rollback already completed successfully.
+          Rollback ID: {{ prior_rollback.rollback_id | default('N/A') }}
+          If you need to force a new rollback:
+            ansible-playbook rollback/rollback.yml -e force_rollback=true
+      when:
+        - existing_rollback.stat.exists
+        - prior_rollback.rollback_status | default('') == 'completed'
+        - not (force_rollback | default(false) | bool)
+    # Note: Stale rollback_manifest.yml is archived by upgrade.yml pre-flight,
+    # not by rollback.yml itself. This ensures manifest history is preserved.
+
+    # ═══════════════════════════════════════════════════════════════
+    # PHASE 2: STATE MUTATION (only if all guards passed)
+    # ═══════════════════════════════════════════════════════════════
 
     - name: Ensure .data directory exists
       ansible.builtin.file:
@@ -109,70 +177,12 @@
       ansible.builtin.set_fact:
         oim_metadata: "{{ raw_metadata.content | b64decode | from_yaml }}"
 
-    # ─── Read upgrade_manifest.yml (for triggered_from_upgrade_id linkage) ───
-    - name: Check for upgrade_manifest.yml
-      ansible.builtin.stat:
-        path: "{{ upgrade_manifest_path }}"
-      register: upgrade_manifest_pre_stat
-
-    - name: Read upgrade_manifest.yml
-      ansible.builtin.slurp:
-        src: "{{ upgrade_manifest_path }}"
-      register: raw_upgrade_manifest
-      when: upgrade_manifest_pre_stat.stat.exists
-
-    - name: Parse upgrade manifest
-      ansible.builtin.set_fact:
-        upgrade_manifest: "{{ raw_upgrade_manifest.content | b64decode | from_yaml }}"
-      when: upgrade_manifest_pre_stat.stat.exists
-
     - name: Resolve requested tags (handle Ansible 'all' default)
       ansible.builtin.set_fact:
         requested_tags: >-
           {{ all_rollback_components
              if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
              else ansible_run_tags }}
-
-    - name: Check for existing rollback_manifest.yml
-      ansible.builtin.stat:
-        path: "{{ rollback_manifest_path }}"
-      register: existing_rollback
-
-    # If a previous rollback completed successfully, archive the stale
-    # rollback manifest so this run starts fresh.
-    - name: Read existing rollback manifest to check status (if present)
-      ansible.builtin.slurp:
-        src: "{{ rollback_manifest_path }}"
-      register: prior_rollback_raw
-      when: existing_rollback.stat.exists
-
-    - name: Parse prior rollback manifest
-      ansible.builtin.set_fact:
-        prior_rollback: "{{ prior_rollback_raw.content | b64decode | from_yaml }}"
-      when: existing_rollback.stat.exists
-
-    - name: Archive stale completed rollback_manifest.yml
-      ansible.builtin.copy:
-        src: "{{ rollback_manifest_path }}"
-        dest: "{{ rollback_manifest_path }}.{{ prior_rollback.rollback_id | default('prev') }}"
-        remote_src: true
-        mode: '0644'
-      when:
-        - existing_rollback.stat.exists
-        - prior_rollback.rollback_status | default('') == 'completed'
-
-    - name: Remove stale completed rollback_manifest.yml
-      ansible.builtin.file:
-        path: "{{ rollback_manifest_path }}"
-        state: absent
-      when:
-        - existing_rollback.stat.exists
-        - prior_rollback.rollback_status | default('') == 'completed'
-
-    - name: Re-check rollback_manifest.yml after possible cleanup
-      ansible.builtin.stat:
-        path: "{{ rollback_manifest_path }}"
-      register: existing_rollback
 
     # ─── Initialize rollback_manifest.yml using oim_metadata as source-of-truth ───
     - name: Initialize rollback_manifest.yml (first invocation)
@@ -188,6 +198,7 @@
             slurm: "pending"
             cloud_init_bss: "pending"
             telemetry: "pending"
+            build_stream: "pending"
             k8s: "pending"
             oim: "pending"
         dest: "{{ rollback_manifest_path }}"
@@ -203,13 +214,66 @@
       ansible.builtin.set_fact:
         rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
 
+
+# ──────────────────────────────────────────────────────────────────────
+# Include input project directory (sets input_project_dir fact)
+# Note: import_playbook does NOT honor play-level when:; the conditional
+# must be inside the imported playbook itself. tags: always ensures it
+# runs even with --tags <component>.
+# ──────────────────────────────────────────────────────────────────────
+- name: Include input project directory
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+  tags: always
+  vars:
+    openchami_vars_suppport: false
+    omnia_metadata_support: true
+
+
+ # ─── BuildStream terminal gate detection for rollback ───
+# If BuildStream was enabled during upgrade and downstream components
+# were skipped (never upgraded), they must also be skipped during rollback.
+# Note: input_project_dir is set by include_input_dir.yml import above.
+- name: Evaluate BuildStream terminal gate
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Read build_stream_config.yml for terminal gate detection
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+        name: build_stream_config
+
+    - name: Determine BuildStream terminal gate for rollback
+      ansible.builtin.set_fact:
+        build_stream_terminal: >-
+          {{ (build_stream_config.enable_build_stream | default(false) | bool)
+             and (upgrade_manifest is defined)
+             and (upgrade_manifest.component_status is defined)
+             and (upgrade_manifest.component_status.build_stream | default('pending') in ['completed', 'skipped']) }}
+
+    - name: Identify components skipped by BuildStream terminal gate
+      ansible.builtin.set_fact:
+        bs_rollback_skipped: >-
+          {{ ['slurm', 'cloud_init_bss', 'telemetry', 'k8s']
+             if (build_stream_terminal | bool)
+             else [] }}
+
+    - name: Report BuildStream terminal gate activation (rollback)
+      ansible.builtin.debug:
+        msg: >
+          BuildStream terminal gate is active for rollback.
+          Components {{ bs_rollback_skipped | join(', ') }} were never upgraded
+          and will be SKIPPED during rollback. Only build_stream and oim will be rolled back.
+      when: build_stream_terminal | bool
+
     - name: Report already-rolled-back components (will be skipped)
       ansible.builtin.debug:
         msg: "Component '{{ item }}' already rolled back — will be skipped."
       loop: "{{ requested_tags }}"
       when:
         - rollback_manifest.component_status[item] is defined
-        - rollback_manifest.component_status[item] == 'completed'
+        - rollback_manifest.component_status[item] in ['completed', 'skipped']
 
 # ──────────────────────────────────────────────────────────────────────
 # Rollback sub-flows (reverse order; each reads rollback_manifest
@@ -226,6 +290,10 @@
 - name: Rollback Telemetry components
   ansible.builtin.import_playbook: playbooks/rollback_telemetry.yml
   tags: [telemetry]
+
+- name: Rollback BuildStream upgrade / enablement
+  ansible.builtin.import_playbook: playbooks/rollback_build_stream.yml
+  tags: [build_stream]
 
 - name: Rollback Kubernetes cluster
   ansible.builtin.import_playbook: playbooks/rollback_k8s.yml
@@ -248,7 +316,7 @@
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
-    all_rollback_components: [slurm, cloud_init_bss, telemetry, k8s, oim]
+    all_rollback_components: [slurm, cloud_init_bss, telemetry, build_stream, k8s, oim]
   tasks:
     - name: Read rollback_manifest.yml
       ansible.builtin.slurp:
@@ -259,14 +327,18 @@
       ansible.builtin.set_fact:
         rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
 
-    # FIX 1: Kept your original {% set %} approach but emit JSON so it can be
-    #        coerced back into a real dict (instead of a string).
-    - name: Clean up corrupted component_status values (reset all to 'completed')
+    # Build cleaned component_status: preserve 'skipped' for BuildStream-gated
+    # components; mark everything else as 'completed'.
+    - name: Build cleaned component_status (mark skipped or completed)
       ansible.builtin.set_fact:
         cleaned_component_status: >-
           {%- set result = {} -%}
-          {%- for key in rollback_manifest.component_status.keys() -%}
-          {%- set _ = result.update({key: 'completed'}) -%}
+          {%- for key, val in rollback_manifest.component_status.items() -%}
+          {%-   if val == 'skipped' -%}
+          {%-     set _ = result.update({key: 'skipped'}) -%}
+          {%-   else -%}
+          {%-     set _ = result.update({key: val if val in ['completed', 'skipped'] else 'completed'}) -%}
+          {%-   endif -%}
           {%- endfor -%}
           {{ result | to_json }}
 
@@ -274,14 +346,12 @@
       ansible.builtin.set_fact:
         cleaned_component_status: "{{ cleaned_component_status | from_json }}"
 
-    # FIX 2: Moved AFTER cleanup and now reads cleaned_component_status
-    #        instead of the still-corrupted manifest values.
-    - name: Determine rollback_status
+    - name: Determine rollback_status (treat 'skipped' as acceptable for 'completed')
       ansible.builtin.set_fact:
         new_status: >-
           {{ 'completed'
              if (cleaned_component_status.values()
-                 | unique | list == ['completed'])
+                 | reject('in', ['completed', 'skipped']) | list | length == 0)
              else 'partial' }}
 
     - name: Write finalized rollback_manifest.yml with cleaned component_status
@@ -301,10 +371,19 @@
       register: upgrade_manifest_stat
       when: new_status == 'completed'
 
+    - name: Ensure archive directory exists (finalization)
+      ansible.builtin.file:
+        path: /opt/omnia/.data/archive
+        state: directory
+        mode: '0755'
+      when:
+        - new_status == 'completed'
+        - upgrade_manifest_stat.stat.exists
+
     - name: Archive the stale upgrade_manifest.yml (only on full rollback)
       ansible.builtin.copy:
         src: "{{ upgrade_manifest_path }}"
-        dest: "{{ upgrade_manifest_path }}.rolledback-{{ rollback_manifest.rollback_id }}"
+        dest: "/opt/omnia/.data/archive/upgrade_manifest.{{ rollback_manifest.rollback_id }}.rolledback.yml"
         remote_src: true
         mode: '0644'
       when:
@@ -344,6 +423,7 @@
           - "  slurm:          {{ cleaned_component_status.slurm }}"
           - "  cloud_init_bss: {{ cleaned_component_status.cloud_init_bss }}"
           - "  telemetry:      {{ cleaned_component_status.telemetry }}"
+          - "  build_stream:   {{ cleaned_component_status.build_stream }}"
           - "  k8s:            {{ cleaned_component_status.k8s }}"
           - "  oim:            {{ cleaned_component_status.oim }}"
           - ""
@@ -351,3 +431,18 @@
           - ""
           - "NEXT STEP: Run 'sudo ./omnia.sh --rollback' on the OIM host"
           - "to complete the core container rollback."
+
+# ──────────────────────────────────────────────────────────────────────
+# Guaranteed terminal cleanup (C-30) — defense-in-depth against
+# sub-playbook fatal errors that skip the finalize play above.
+# ──────────────────────────────────────────────────────────────────────
+- name: Guaranteed rollback lock cleanup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Ensure rollback lock removed (terminal safety net)
+      ansible.builtin.file:
+        path: /opt/omnia/.data/rollback_in_progress.lock
+        state: absent

@@ -20,11 +20,9 @@ input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 dir_permissions_644: "0644"
 dir_permissions_755: "0755"
-openchami_dir: "/opt/omnia/openchami"
-openchami_clone_path: /opt/omnia/openchami/deployment-recipes
+pulp_cert_host_path: "{{ oim_shared_path }}/omnia/pulp/settings/certs/pulp_webserver.crt"
 job_retry: "120"
 job_delay: "30"
-network_spec: "{{ input_project_dir }}/network_spec.yml"
 pulp_webserver_cert_path: "/opt/omnia/pulp/settings/certs/pulp_webserver.crt"
 anchors_path: "/etc/pki/ca-trust/source/anchors/pulp_webserver.crt"
 openchami_work_dir: "{{ oim_shared_path }}/omnia/openchami/workdir"
@@ -44,10 +42,10 @@ ochami_base_command:
   - -c 'update-ca-trust extract && image-build --config /home/builder/config.yaml --log-level DEBUG'
 
 # build_base_image.yml
-openchami_log_dir: /opt/omnia/log/openchami
-openchami_x86_64_base_image_log_path: "{{ openchami_log_dir }}/x86_64_base_image.log"
-openchami_base_image_vars_template: "{{ role_path }}/templates/base_image_template.j2"
-openchami_x86_64_base_image_vars_path: "/opt/omnia/openchami/x86_64_base_image_template.yaml"
+openchami_log_dir: "{{ oim_shared_path }}/omnia/log/openchami"
+openchami_x86_64_base_image_log_path: "{{ oim_shared_path }}/omnia/log/openchami/x86_64_base_image.log"
+# build_base_image.yml - image-build config template
+openchami_base_image_config_template: "{{ role_path }}/templates/images/rhel-base-config.yaml.j2"
 base_image_failure_msg: |
   Base x86_64 image build job failed or timed out.
   Check logs at path {{ openchami_x86_64_base_image_log_path }} for details.
@@ -55,8 +53,10 @@ compute_image_failure_msg: |
   x86_64 compute image build job did not complete successfully.
   Check logs at {{ openchami_log_dir }} for respective functional group for more details.
 
-# build_compute_image.yml
-openchami_compute_image_vars_template: "{{ role_path }}/templates/compute_images_templates.j2"
-openchami_compute_image_vars_path: "/opt/omnia/openchami/compute_images_template.yaml"
+# build_compute_image.yml - image-build config template
+openchami_compute_image_config_template: "{{ role_path }}/templates/images/rhel-compute-config.yaml.j2"
 
+network_spec: "{{ input_project_dir }}/network_spec.yml"
 network_spec_syntax_fail_msg: "Failed to load network_spec.yml due to syntax error"
+storage_config_file_path: "{{ input_project_dir }}/storage_config.yml"
+storage_config_syntax_fail_msg: "Failed to load storage_config.yml due to syntax error"

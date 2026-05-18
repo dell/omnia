@@ -1,0 +1,87 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# update_cloud_init_bss.yml — Utility Playbook
+# ============================================================================
+# Updates cloud-init group configuration and/or BSS boot parameters for
+# a specified functional group using pre-rendered YAML files.
+#
+# This utility is designed to be:
+#   1. Called standalone for ad-hoc updates
+#   2. Imported from upgrade/rollback flows via import_playbook
+#
+# Prerequisites:
+#   - OpenCHAMI services running on OIM host
+#   - Pre-rendered BSS and/or cloud-init YAML files on the OIM host
+#   - include_input_dir.yml must have been run (or pass oim_node_name)
+#
+# Required variables:
+#   functional_group_name  — Functional group name (e.g., slurm_node_x86_64)
+#
+# Optional variables:
+#   bss_file_path          — Path to BSS YAML file on OIM host
+#   cloud_init_file_path   — Path to cloud-init group YAML on OIM host
+#   update_bss             — Update BSS boot params (default: true)
+#   update_cloud_init      — Update cloud-init group config (default: true)
+#
+# Usage examples:
+#   # Update both BSS and cloud-init for a functional group:
+#   ansible-playbook utils/update_cloud_init_bss.yml \
+#     -e functional_group_name=slurm_node_x86_64 \
+#     -e bss_file_path=/opt/omnia/openchami/workdir/boot/bss-slurm_node_x86_64.yaml \
+#     -e cloud_init_file_path=/opt/omnia/openchami/workdir/cloud-init/ci-group-slurm_node_x86_64.yaml
+#
+#   # Update only BSS:
+#   ansible-playbook utils/update_cloud_init_bss.yml \
+#     -e functional_group_name=slurm_node_x86_64 \
+#     -e bss_file_path=/opt/omnia/openchami/workdir/boot/bss-slurm_node_x86_64.yaml \
+#     -e update_cloud_init=false
+#
+#   # Update only cloud-init:
+#   ansible-playbook utils/update_cloud_init_bss.yml \
+#     -e functional_group_name=slurm_node_x86_64 \
+#     -e cloud_init_file_path=/opt/omnia/openchami/workdir/cloud-init/ci-group-slurm_node_x86_64.yaml \
+#     -e update_bss=false
+# ============================================================================
+
+- name: Include input project directory
+  when: not project_dir_status | default(false) | bool
+  ansible.builtin.import_playbook: include_input_dir.yml
+  vars:
+    openchami_vars_suppport: true
+    omnia_metadata_support: true
+
+- name: Create OIM host group
+  ansible.builtin.import_playbook: create_container_group.yml
+  vars:
+    oim_group: true
+  tags: always
+
+- name: Authenticate and update cloud-init/BSS configuration
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Refresh OpenCHAMI access token
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/common/openchami_auth.yml"
+      vars:
+        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
+    - name: Update cloud-init and BSS for functional group
+      environment: "{{ hostvars['oim']['ochami_env'] }}"
+      block:
+        - name: Include update_cloud_init_bss role
+          ansible.builtin.include_role:
+            name: update_cloud_init_bss

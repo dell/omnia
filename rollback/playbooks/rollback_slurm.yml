@@ -35,6 +35,24 @@
       when:
         - rollback_manifest.component_status[component_name] | default('pending') == 'completed'
 
+    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
+      ansible.builtin.copy:
+        content: >-
+          {{ rollback_manifest | combine({
+               'component_status': rollback_manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+
+    - name: "Skip — BuildStream terminal gate active (C-24)"
+      ansible.builtin.meta: end_play
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+
     - name: Set slurm rollback status to in-progress
       ansible.builtin.copy:
         content: >-

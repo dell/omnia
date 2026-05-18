@@ -53,7 +53,27 @@
         - manifest_load is succeeded
         - manifest.component_status.oim | default('pending') != 'completed'
 
-    - name: "Set K8s upgrade status to in-progress"
+    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
+
+    - name: "Skip — BuildStream terminal gate active (C-24)"
+      ansible.builtin.meta: end_play
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
+
+    - name: Set k8s upgrade status to in-progress
       ansible.builtin.copy:
         content: >-
           {{ manifest | combine({

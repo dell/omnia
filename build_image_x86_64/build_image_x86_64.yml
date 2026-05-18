@@ -116,18 +116,9 @@
   roles:
     - fetch_packages
 
-- name: Tagging OpenCHAMI image
+- name: OpenCHAMI build image for x86_64
   hosts: oim
   connection: ssh
-  tasks:
-    - name: Tag OpenCHAMI image
-      ansible.builtin.include_role:
-        name: image_creation
-        tasks_from: prepare_pulp_image.yml
-
-- name: OpenCHAMI build image for x86_64
-  hosts: localhost
-  connection: local
   gather_facts: false
   roles:
     - image_creation

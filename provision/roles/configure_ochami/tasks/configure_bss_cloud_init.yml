@@ -105,7 +105,15 @@
   ansible.builtin.include_tasks: configure_cloud_init_group.yml
   with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
 
-- name: Set openchami SELinux context
+
+- name: Set openchami SELinux context for Local flow
   ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"
   changed_when: true
   failed_when: false
+  when: hostvars['localhost']['omnia_share_option'] == 'Local'
+
+- name: Set openchami SELinux context for NFS internal flow
+  ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['nfs_server_share_path'] }}/omnia/openchami"
+  changed_when: true
+  failed_when: false
+  when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')

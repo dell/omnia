@@ -132,7 +132,7 @@
   roles:
     - fetch_packages
 
-- name: Openchmi build image for aarch_64
+- name: Openchami build image for aarch64
   hosts: localhost
   connection: local
   gather_facts: false

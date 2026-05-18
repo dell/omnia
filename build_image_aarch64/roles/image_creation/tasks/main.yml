@@ -22,6 +22,9 @@
   ansible.builtin.include_vars: "{{ role_path }}/../../../common/vars/openchami_image_cmd.yml"
   register: ochami_image_global_vars
 
+- name: Build image common tasks
+  ansible.builtin.include_tasks: build_image_common.yml
+
 - name: Invoking aarch64 build base image playbook
   ansible.builtin.include_tasks: build_base_image.yml
   tags: base_image
