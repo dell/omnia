@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Upgrade Slurm cluster (feature updates)
   hosts: localhost
   connection: local
@@ -44,7 +43,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
 
     # TODO: Implement per ESpec §4.10:
     # 1. IB network config (pxe_mapping_file transform, IP preservation)
@@ -66,4 +65,4 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"

@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Install kubeadm {{ k8s_target_version }} on {{ current_node_name }}
+- name: Install kubeadm package
   ansible.builtin.dnf:
     name: "kubeadm-{{ k8s_target_version }}"
     state: present

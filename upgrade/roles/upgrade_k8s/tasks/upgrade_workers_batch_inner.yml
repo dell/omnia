@@ -14,7 +14,7 @@
 ---
 # Inner loop: upgrade each worker in the current batch sequentially.
 
-- name: Upgrade worker {{ current_node_name }} (batch {{ _batch_idx + 1 }})
+- name: Upgrade worker (batched) - {{ current_node_name }}
   ansible.builtin.include_tasks: upgrade_worker.yml
   loop: "{{ _current_batch }}"
   loop_control:

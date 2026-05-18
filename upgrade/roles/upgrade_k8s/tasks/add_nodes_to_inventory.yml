@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # Add all K8s nodes to Ansible inventory for proper SSH delegation
 
 - name: Add first control plane nodes to inventory

@@ -28,7 +28,7 @@
 #   _hop_artifacts_dir  — artifacts directory name (e.g. "v1.35.1")
 #   admin_nic_ip        — Pulp server address
 
-- name: "sync_local_repo [{{ _hop_target_version }}] — Check if kubernetes repo already synced"
+- name: "Sync local repo — Check if kubernetes repo already synced"
   ansible.builtin.command:
     cmd: >-
       pulp rpm distribution show
@@ -37,7 +37,7 @@
   changed_when: false
   failed_when: false
 
-- name: "sync_local_repo [{{ _hop_target_version }}] — Check if cri-o repo already synced"
+- name: "Sync local repo — Check if cri-o repo already synced"
   ansible.builtin.command:
     cmd: >-
       pulp rpm distribution show
@@ -46,7 +46,7 @@
   changed_when: false
   failed_when: false
 
-- name: "sync_local_repo [{{ _hop_target_version }}] — Skip if repos already present"
+- name: "Sync local repo — Skip if repos already present"
   ansible.builtin.debug:
     msg: >-
       Pulp repos for v{{ _hop_target_version }} already synced — skipping sync.
@@ -56,7 +56,7 @@
     - _pulp_k8s_check.rc == 0
     - _pulp_crio_check.rc == 0
 
-- name: "sync_local_repo [{{ _hop_target_version }}] — Run local_repo sync"
+- name: "Sync local repo — Run local_repo sync"
   when: _pulp_k8s_check.rc != 0 or _pulp_crio_check.rc != 0
   vars:
     _artifacts_abs: "{{ role_path }}/../../artifacts/{{ _hop_artifacts_dir }}"
@@ -64,37 +64,37 @@
     # Build a temp staging dir that mirrors the layout local_repo expects.
     # Only the 3 version-specific configs are symlinked from artifacts;
     # everything else falls through from the real input dir.
-    - name: "sync_local_repo [{{ _hop_target_version }}] — Create temp staging directory"
+    - name: "Sync local repo — Create temp staging directory"
       ansible.builtin.tempfile:
         state: directory
         prefix: "upgrade_prep_{{ _hop_target_version }}_"
       register: _staging_dir
 
-    - name: "sync_local_repo [{{ _hop_target_version }}] — Symlink software_config.json into staging"
+    - name: "Sync local repo — Symlink software_config.json into staging"
       ansible.builtin.file:
         src: "{{ _artifacts_abs }}/software_config.json"
         dest: "{{ _staging_dir.path }}/software_config.json"
         state: link
 
-    - name: "sync_local_repo [{{ _hop_target_version }}] — Symlink local_repo_config.yml into staging"
+    - name: "Sync local repo — Symlink local_repo_config.yml into staging"
       ansible.builtin.file:
         src: "{{ _artifacts_abs }}/local_repo_config.yml"
         dest: "{{ _staging_dir.path }}/local_repo_config.yml"
         state: link
 
-    - name: "sync_local_repo [{{ _hop_target_version }}] — Create config subdirectory in staging"
+    - name: "Sync local repo — Create config subdirectory in staging"
       ansible.builtin.file:
         path: "{{ _staging_dir.path }}/config/x86_64/rhel/{{ cluster_os_version }}"
         state: directory
         mode: "{{ dir_perm_755 }}"
 
-    - name: "sync_local_repo [{{ _hop_target_version }}] — Symlink service_k8s.json into staging"
+    - name: "Sync local repo — Symlink service_k8s.json into staging"
       ansible.builtin.file:
         src: "{{ _artifacts_abs }}/service_k8s.json"
         dest: "{{ _staging_dir.path }}/config/x86_64/rhel/{{ cluster_os_version }}/service_k8s.json"
         state: link
 
-    - name: "sync_local_repo [{{ _hop_target_version }}] — Run local_repo playbook with staging dir"
+    - name: "Sync local repo — Run local_repo playbook with staging dir"
       ansible.builtin.command:
         cmd: >-
           ansible-playbook
@@ -105,7 +105,7 @@
       register: _sync_result
       changed_when: "'changed=' in _sync_result.stdout"
 
-    - name: "sync_local_repo [{{ _hop_target_version }}] — Verify repos now exist"
+    - name: "Sync local repo — Verify repos now exist"
       ansible.builtin.command:
         cmd: >-
           pulp rpm distribution show
@@ -113,7 +113,7 @@
       changed_when: false
 
   always:
-    - name: "sync_local_repo [{{ _hop_target_version }}] — Clean up staging directory"
+    - name: "Sync local repo — Clean up staging directory"
       ansible.builtin.file:
         path: "{{ _staging_dir.path }}"
         state: absent

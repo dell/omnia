@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Install cri-o {{ k8s_target_version }} on {{ current_node_name }}
+- name: Install CRI-O package
   ansible.builtin.dnf:
     name: "cri-o-{{ k8s_target_version }}"
     state: present
@@ -21,16 +20,9 @@
     enablerepo: "x86_64_rhel_{{ cluster_os_version }}_cri-o-v{{ k8s_target_version | regex_replace('\\.[0-9]+$', '') | replace('.', '-') }}"
   delegate_to: "{{ current_node_name }}"
   register: crio_install_result
+  notify:
+    - Reload systemd daemon
+    - Restart CRI-O service
 
-- name: Reload systemd daemon after CRI-O installation
-  ansible.builtin.systemd:
-    daemon_reload: true
-  delegate_to: "{{ current_node_name }}"
-  when: crio_install_result.changed
-
-- name: Restart CRI-O service immediately after installation
-  ansible.builtin.systemd:
-    name: crio
-    state: restarted
-  delegate_to: "{{ current_node_name }}"
-  when: crio_install_result.changed
+- name: Flush CRI-O handlers
+  ansible.builtin.meta: flush_handlers

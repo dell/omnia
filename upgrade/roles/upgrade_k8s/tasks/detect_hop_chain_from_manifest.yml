@@ -52,40 +52,38 @@
 # ── Build hop chain from supported versions ───────────────────────────
 - name: Build hop chain from current version to target
   ansible.builtin.set_fact:
-    _hop_chain_raw: "{{ _supported_versions[_current_version_index | int + 1:] }}"
+    _hop_chain_raw: "{{ _supported_versions[_current_version_index | int + 1 :] }}"
   when: _current_version_index is defined
 
 # ── Convert version list to hop chain format ─────────────────────────
-- name: Build hop chain with from_minor and to_version
+# For multi-hop chains, each hop's from_minor must be the minor version
+# of the PREVIOUS version in _supported_versions, not the initial
+# k8s_from_minor.  e.g. 1.34.1 → 1.35.1 → 1.36.1 produces:
+#   hop 1: from_minor=1.34, to_version=1.35.1
+#   hop 2: from_minor=1.35, to_version=1.36.1
+- name: Build from-version list for each hop
   ansible.builtin.set_fact:
-    hop_chain: >-
-      {{
-        _hop_chain_raw | map('regex_replace', '^', k8s_from_minor + ' → ') | list
-        | map('split', ' → ')
-        | map('zip', ['from_minor', 'to_version'])
-        | map('map', 'reverse')
-        | map('community.general.dict')
-        | list
-      }}
+    _hop_from_versions: >-
+      {{ _supported_versions[_current_version_index | int : _current_version_index | int + (_hop_chain_raw | length)] }}
   when: _hop_chain_raw is defined and _hop_chain_raw | length > 0
 
-- name: Initialize hop chain with artifacts_dir
+- name: Initialize hop chain
   ansible.builtin.set_fact:
-    hop_chain_with_artifacts: []
-  when: hop_chain is defined
+    hop_chain: []
+  when: _hop_chain_raw is defined and _hop_chain_raw | length > 0
 
-- name: Add artifacts_dir to each hop
+- name: Build hop chain with correct from_minor per hop
   ansible.builtin.set_fact:
-    hop_chain_with_artifacts: "{{ hop_chain_with_artifacts + [item | combine({'artifacts_dir': 'v' + item.to_version})] }}"
-  loop: "{{ hop_chain }}"
+    hop_chain: >-
+      {{ hop_chain + [{
+        'from_minor': _hop_from_versions[hop_idx] | regex_replace('\.[0-9]+$', ''),
+        'to_version': _hop_chain_raw[hop_idx],
+        'artifacts_dir': 'v' + _hop_chain_raw[hop_idx]
+      }] }}
+  loop: "{{ range(_hop_chain_raw | length) | list }}"
   loop_control:
-    loop_var: item
-  when: hop_chain is defined
-
-- name: Update hop_chain with artifacts_dir
-  ansible.builtin.set_fact:
-    hop_chain: "{{ hop_chain_with_artifacts }}"
-  when: hop_chain_with_artifacts is defined
+    loop_var: hop_idx
+  when: _hop_chain_raw is defined and _hop_chain_raw | length > 0
 
 # ── Handle case where already at target version ───────────────────────
 - name: Set empty hop chain if already at target

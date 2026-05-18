@@ -16,7 +16,7 @@
 # into combined files in a staging directory, so local_repo.yml can be called once.
 #
 # Inputs:
-#   hop_chain      — list of hops from detect_hop_chain.yml
+#   hop_chain      — list of hops (from detect_hop_chain_from_manifest.yml)
 #   _staging_dir   — pre-created temp directory to write merged files into
 #
 # Outputs (files written to _staging_dir):
@@ -24,7 +24,7 @@
 #   software_config.json                             — from final hop
 #   config/x86_64/rhel/<os_ver>/service_k8s.json    — merged image+RPM entries
 
-- name: "merge_configs — Merge local_repo_config.yml across all hops"
+- name: "Merge_configs — Merge local_repo_config.yml across all hops"
   ansible.builtin.script:
     cmd: >-
       python3 -c "
@@ -102,33 +102,33 @@
   register: _merge_result
   changed_when: false
 
-- name: "merge_configs — Display merge summary"
+- name: "Merge_configs — Display merge summary"
   ansible.builtin.debug:
     msg: >-
       Merged configs from {{ hop_chain | length }} hops:
       {{ _merge_result.stdout | trim }}
 
-- name: "merge_configs — Copy final hop's software_config.json to staging"
+- name: "Merge_configs — Copy final hop's software_config.json to staging"
   ansible.builtin.copy:
     src: "{{ role_path }}/../../artifacts/{{ hop_chain[-1].artifacts_dir }}/software_config.json"
     dest: "{{ _staging_dir }}/software_config.json"
     mode: "{{ file_perm_644 }}"
     remote_src: true
 
-- name: "merge_configs — Create config subdirectory for service_k8s.json"
+- name: "Merge_configs — Create config subdirectory for service_k8s.json"
   ansible.builtin.file:
     path: "{{ _staging_dir }}/config/x86_64/rhel/{{ cluster_os_version }}"
     state: directory
     mode: "{{ dir_perm_755 }}"
 
-- name: "merge_configs — Move merged service_k8s.json to expected path"
+- name: "Merge_configs — Move merged service_k8s.json to expected path"
   ansible.builtin.copy:
     src: "{{ _staging_dir }}/merged_service_k8s.json"
     dest: "{{ _staging_dir }}/config/x86_64/rhel/{{ cluster_os_version }}/service_k8s.json"
     mode: "{{ file_perm_644 }}"
     remote_src: true
 
-- name: "merge_configs — Remove temp merged file"
+- name: "Merge_configs — Remove temp merged file"
   ansible.builtin.file:
     path: "{{ _staging_dir }}/merged_service_k8s.json"
     state: absent

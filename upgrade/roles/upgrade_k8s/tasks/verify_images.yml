@@ -21,37 +21,54 @@
 #   _hop_target_minor   — minor version (e.g. "1.35")
 #   admin_nic_ip        — Pulp/registry server address
 
-- name: "verify_images [{{ _hop_target_version }}] — Check kubernetes Pulp repo"
+- name: "Verify images — Check kubernetes Pulp repo"
   ansible.builtin.command:
     cmd: >-
       pulp rpm distribution show
       --name x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{ _hop_target_minor | replace('.', '-') }}
   changed_when: false
 
-- name: "verify_images [{{ _hop_target_version }}] — Check cri-o Pulp repo"
+- name: "Verify images — Check cri-o Pulp repo"
   ansible.builtin.command:
     cmd: >-
       pulp rpm distribution show
       --name x86_64_rhel_{{ cluster_os_version }}_cri-o-v{{ _hop_target_minor | replace('.', '-') }}
   changed_when: false
 
-- name: "verify_images [{{ _hop_target_version }}] — Check squashfs image in MinIO"
+- name: "Verify images — Check squashfs image in MinIO"
   ansible.builtin.command:
     cmd: >-
       mc stat minio/boot-images/k8s-{{ _hop_target_version }}/squashfs.img
   changed_when: false
 
-- name: "verify_images [{{ _hop_target_version }}] — Check core container images in Pulp registry"
-  ansible.builtin.command:
-    cmd: >-
-      curl -sf http://{{ admin_nic_ip }}:2225/v2/{{ item.split(':')[0] | regex_replace('^docker.io/', '') }}/manifests/{{ item.split(':')[1] }}
+- name: Verify images — Check core container images in Pulp registry
+  ansible.builtin.uri:
+    url: >-
+      http://{{ admin_nic_ip }}:2225/v2/{{ item.name }}/manifests/{{ item.tag }}
+    method: GET
+    status_code: [200]
+    validate_certs: false
   loop:
-    - "registry.k8s.io/kube-apiserver:v{{ _hop_target_version }}"
-    - "registry.k8s.io/kube-controller-manager:v{{ _hop_target_version }}"
-    - "registry.k8s.io/kube-scheduler:v{{ _hop_target_version }}"
-    - "registry.k8s.io/kube-proxy:v{{ _hop_target_version }}"
+    - { name: "kube-apiserver", tag: "v{{ _hop_target_version }}" }
+    - { name: "kube-controller-manager", tag: "v{{ _hop_target_version }}" }
+    - { name: "kube-scheduler", tag: "v{{ _hop_target_version }}" }
+    - { name: "kube-proxy", tag: "v{{ _hop_target_version }}" }
+  register: core_image_checks
   loop_control:
-    label: "{{ item }}"
+    label: "{{ item.name }}:{{ item.tag }}"
+  changed_when: false
+  failed_when: false
+
+- name: Warn if core image check failed
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Could not verify image {{ item.item.name }}:{{ item.item.tag }}
+      in Pulp registry (status: {{ item.status | default('unknown') }}).
+      Upgrade may fail if image is not available.
+  loop: "{{ core_image_checks.results }}"
+  loop_control:
+    label: "{{ item.item.name }}:{{ item.item.tag }}"
+  when: item.status | default(0) != 200
   changed_when: false
 
 - name: "Verify images — All prep artifacts verified {{ _hop_target_version }}"

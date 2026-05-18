@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Install kubelet and kubectl {{ k8s_target_version }} on {{ current_node_name }}
+- name: Install kubelet and kubectl packages
   ansible.builtin.dnf:
     name:
       - "kubelet-{{ k8s_target_version }}"

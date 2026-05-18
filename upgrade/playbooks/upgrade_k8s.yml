@@ -62,7 +62,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ oim_data_path }}/upgrade_manifest.yml"
-        mode: '0644'
+        mode: "0644"
       when: manifest_load is succeeded
 
     - name: "Load software_config.json"
@@ -139,7 +139,7 @@
     - name: Set cached config flag
       ansible.builtin.set_fact:
         configs_cached: true
-        cacheable: yes
+        cacheable: true
 
 - name: "Kubernetes Upgrade - Detect current version"
   hosts: kube_vip_group
@@ -189,7 +189,7 @@
     - name: "Detect upgrade hop chain"
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/detect_hop_chain_from_manifest.yml"
 
-    - name: Save variables to file
+    - name: Save variables to file on localhost
       ansible.builtin.copy:
         content: |
           k8s_from_version: {{ k8s_from_version }}
@@ -198,16 +198,23 @@
           hop_chain: {{ hop_chain | to_json }}
           is_multi_hop: {{ is_multi_hop }}
         dest: /tmp/k8s_vars.yml
-        mode: '0644'
+        mode: "0644"
+
+    - name: Copy k8s_vars.yml to kube_vip for remote plays
+      ansible.builtin.copy:
+        src: /tmp/k8s_vars.yml
+        dest: /tmp/k8s_vars.yml
+        mode: "0644"
+      delegate_to: "{{ kube_vip }}"
 
 - name: "Kubernetes Upgrade - Detect hop chain from cluster"
   hosts: kube_vip_group
   gather_facts: false
+  strategy: linear
   tasks:
     - name: Load variables from file
       ansible.builtin.include_vars:
         file: /tmp/k8s_vars.yml
-      run_once: true
 
     - name: "Load upgrade_vars.yml"
       ansible.builtin.include_vars:
@@ -251,6 +258,7 @@
 - name: "Kubernetes Upgrade - Setup upgrade directory on kube_vip"
   hosts: kube_vip_group
   gather_facts: false
+  strategy: linear
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
   tasks:
@@ -277,12 +285,11 @@
       ansible.builtin.file:
         path: "{{ k8s_client_mount_path }}/upgrade"
         state: directory
-        mode: '0755'
+        mode: "0755"
 
     - name: Set fact on localhost
       ansible.builtin.set_fact:
         k8s_client_mount_path_kube_vip: "{{ k8s_client_mount_path }}"
-      run_once: true
 
 - name: "Kubernetes Upgrade - Initialize upgrade status file"
   hosts: localhost
@@ -386,7 +393,8 @@
       when: status_file_stat.stat.exists | default(false)
 
     # Steps are stored as dictionary for reliable YAML handling
-    # Execution order: setup_repos -> kubeadm_install -> kubeadm_upgrade_apply/node -> drain -> kubelet_install -> crio_install -> kubelet_restart -> uncordon -> validation -> etcd_health_check
+    # Execution order: setup_repos -> kubeadm_install -> kubeadm_upgrade_apply/node ->
+    # drain -> kubelet_install -> crio_install -> kubelet_restart -> uncordon -> validation -> etcd_health_check
     - name: Build initial node status entries
       ansible.builtin.set_fact:
         initial_nodes: >-
@@ -455,17 +463,17 @@
             target_version: "{{ k8s_target_version }}"
             status: in_progress
             started_at: "{{ ansible_date_time.iso8601 }}"
-            completed_at: null
+            completed_at:
           etcd_backup:
             status: pending
-            path: null
-            timestamp: null
-            error: null
+            path:
+            timestamp:
+            error:
           k8s_config_backup:
             status: pending
-            path: null
-            timestamp: null
-            error: null
+            path:
+            timestamp:
+            error:
           addon_upgrade:
             status: pending
             calico:
@@ -497,24 +505,31 @@
       ansible.builtin.copy:
         content: "{{ final_upgrade_status | to_json }}"
         dest: /tmp/upgrade_status_init.json
-        mode: '0644'
+        mode: "0644"
 
     - name: Convert JSON to YAML
       ansible.builtin.shell:
-        cmd: "python3 -c \"import json, yaml; f = open('/tmp/upgrade_status_init.json'); data = json.load(f); f.close(); f = open('/tmp/upgrade_status_init.yml', 'w'); yaml.dump(data, f, default_flow_style=False, sort_keys=False); f.close()\""
+        cmd: >-
+          python3 -c "import json, yaml;
+          f = open('/tmp/upgrade_status_init.json');
+          data = json.load(f); f.close();
+          f = open('/tmp/upgrade_status_init.yml', 'w');
+          yaml.dump(data, f, default_flow_style=False, sort_keys=False);
+          f.close()"
+      changed_when: true
 
     - name: Ensure status file directory exists on kube_vip
       ansible.builtin.file:
         path: "{{ status_file | dirname }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
       delegate_to: "{{ kube_vip }}"
 
     - name: Copy status file to kube_vip
       ansible.builtin.copy:
         src: /tmp/upgrade_status_init.yml
         dest: "{{ status_file }}"
-        mode: '0644'
+        mode: "0644"
       delegate_to: "{{ kube_vip }}"
 
     - name: Clean up temp files
@@ -533,6 +548,7 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  strategy: linear
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
     nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
@@ -586,10 +602,14 @@
     - name: Add first control plane to inventory
       ansible.builtin.add_host:
         name: "{{ item }}"
-        groups: 
+        groups:
           - k8s_control_plane_first
           - k8s_control_planes
-        ansible_host: "{{ (parsed_nodes.nodes | selectattr('name', 'equalto', item) | first).interfaces.0.ip_addrs | selectattr('name', 'equalto', 'management') | map(attribute='ip_addr') | first }}"
+        ansible_host: >-
+          {{ (parsed_nodes.nodes | selectattr('name', 'equalto', item)
+          | first).interfaces.0.ip_addrs
+          | selectattr('name', 'equalto', 'management')
+          | map(attribute='ip_addr') | first }}
       loop: "{{ groups_cp_first }}"
 
     - name: Add additional control planes to inventory
@@ -598,47 +618,72 @@
         groups:
           - k8s_control_plane
           - k8s_control_planes
-        ansible_host: "{{ (parsed_nodes.nodes | selectattr('name', 'equalto', item) | first).interfaces.0.ip_addrs | selectattr('name', 'equalto', 'management') | map(attribute='ip_addr') | first }}"
+        ansible_host: >-
+          {{ (parsed_nodes.nodes | selectattr('name', 'equalto', item)
+          | first).interfaces.0.ip_addrs
+          | selectattr('name', 'equalto', 'management')
+          | map(attribute='ip_addr') | first }}
       loop: "{{ groups_cp }}"
 
     - name: Add workers to inventory
       ansible.builtin.add_host:
         name: "{{ item }}"
         groups: k8s_workers
-        ansible_host: "{{ (parsed_nodes.nodes | selectattr('name', 'equalto', item) | first).interfaces.0.ip_addrs | selectattr('name', 'equalto', 'management') | map(attribute='ip_addr') | first }}"
+        ansible_host: >-
+          {{ (parsed_nodes.nodes | selectattr('name', 'equalto', item)
+          | first).interfaces.0.ip_addrs
+          | selectattr('name', 'equalto', 'management')
+          | map(attribute='ip_addr') | first }}
       loop: "{{ groups_worker }}"
 
     - name: Write dynamic inventory file for subprocess calls (created once)
       ansible.builtin.copy:
         content: |
+          {% set ssh_args = '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' -%}
           [k8s_control_plane_first]
           {% for host in groups_cp_first %}
-          {{ host }} ansible_host={{ (parsed_nodes.nodes | selectattr('name', 'equalto', host) | first).interfaces.0.ip_addrs | selectattr('name', 'equalto', 'management') | map(attribute='ip_addr') | first }} ansible_user=root ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          {% set host_ip = (parsed_nodes.nodes
+             | selectattr('name', 'equalto', host)
+             | first).interfaces.0.ip_addrs
+             | selectattr('name', 'equalto', 'management')
+             | map(attribute='ip_addr') | first -%}
+          {{ host }} ansible_host={{ host_ip }} ansible_user=root ansible_ssh_common_args="{{ ssh_args }}"
           {% endfor %}
 
           [k8s_control_plane]
           {% for host in groups_cp %}
-          {{ host }} ansible_host={{ (parsed_nodes.nodes | selectattr('name', 'equalto', host) | first).interfaces.0.ip_addrs | selectattr('name', 'equalto', 'management') | map(attribute='ip_addr') | first }} ansible_user=root ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          {% set host_ip = (parsed_nodes.nodes
+             | selectattr('name', 'equalto', host)
+             | first).interfaces.0.ip_addrs
+             | selectattr('name', 'equalto', 'management')
+             | map(attribute='ip_addr') | first -%}
+          {{ host }} ansible_host={{ host_ip }} ansible_user=root ansible_ssh_common_args="{{ ssh_args }}"
           {% endfor %}
 
           [k8s_workers]
           {% for host in groups_worker %}
-          {{ host }} ansible_host={{ (parsed_nodes.nodes | selectattr('name', 'equalto', host) | first).interfaces.0.ip_addrs | selectattr('name', 'equalto', 'management') | map(attribute='ip_addr') | first }} ansible_user=root ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          {% set host_ip = (parsed_nodes.nodes
+             | selectattr('name', 'equalto', host)
+             | first).interfaces.0.ip_addrs
+             | selectattr('name', 'equalto', 'management')
+             | map(attribute='ip_addr') | first -%}
+          {{ host }} ansible_host={{ host_ip }} ansible_user=root ansible_ssh_common_args="{{ ssh_args }}"
           {% endfor %}
 
           [kube_vip_group]
-          {{ hostvars['localhost']['kube_vip'] }} ansible_host={{ hostvars['localhost']['kube_vip'] }} ansible_user=root ansible_ssh_common_args="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+          {% set vip = hostvars['localhost']['kube_vip'] -%}
+          {{ vip }} ansible_host={{ vip }} ansible_user=root ansible_ssh_common_args="{{ ssh_args }}"
         dest: /tmp/k8s_upgrade_inventory.ini
-        mode: '0644'
+        mode: "0644"
 
     - name: Set backup paths for control planes
       ansible.builtin.set_fact:
         k8s_config_backup_dir: "{{ (storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | first).mount_point }}/upgrade/backup/configs"
-      run_once: true
 
 - name: "Kubernetes Upgrade - Backup etcd on kube_vip"
   hosts: kube_vip_group
   gather_facts: false
+  strategy: linear
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
     cluster_os_version: "{{ _software_config.cluster_os_version }}"
@@ -646,7 +691,6 @@
     - name: Load variables from file
       ansible.builtin.include_vars:
         file: /tmp/k8s_vars.yml
-      run_once: true
 
     - name: Use cached storage_config
       ansible.builtin.set_fact:
@@ -662,31 +706,41 @@
 
     - name: Set backup paths (using k8s_from_version as backup is taken before upgrade)
       ansible.builtin.set_fact:
-        k8s_client_mount_path: "{{ (storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | first).mount_point }}"
-        backup_dir_client: "{{ (storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | first).mount_point }}/upgrade/backup/{{ k8s_from_version }}"
-        etcd_members_file: "{{ (storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | first).mount_point }}/upgrade/backup/etcd-members.json"
-        status_file: "{{ (storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | first).mount_point }}/upgrade/upgrade_status.yml"
+        k8s_client_mount_path: >-
+          {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}
+        backup_dir_client: >-
+          {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}/upgrade/backup/{{ k8s_from_version }}
+        etcd_members_file: >-
+          {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}/upgrade/backup/etcd-members.json
+        status_file: >-
+          {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}/upgrade/upgrade_status.yml
         kube_vip: "{{ hostvars['localhost']['kube_vip'] }}"
 
     - name: Run etcd backup
-      ansible.builtin.include_tasks:
-        "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/backup_etcd.yml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/backup_etcd.yml"
 
 - name: "Kubernetes Upgrade - Backup K8s config on control planes"
   hosts: k8s_control_planes
   gather_facts: false
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
-    k8s_client_mount_path_kube_vip: "{{ hostvars[groups.kube_vip_group[0]]['k8s_client_mount_path_kube_vip'] }}"
-    kube_vip_host: "{{ hostvars[groups.kube_vip_group[0]]['ansible_host'] }}"
+    k8s_client_mount_path: "{{ hostvars[groups.kube_vip_group[0]]['k8s_client_mount_path_kube_vip'] }}"
+    kube_vip: "{{ hostvars[groups.kube_vip_group[0]]['ansible_host'] }}"
   tasks:
     - name: Set backup paths from hostvars
       ansible.builtin.set_fact:
         k8s_config_backup_dir: "{{ hostvars['localhost']['k8s_config_backup_dir'] }}"
 
     - name: Run K8s config backup
-      ansible.builtin.include_tasks:
-        "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/backup_k8s_config.yml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/backup_k8s_config.yml"
 
 - name: "Kubernetes Upgrade - Load setup_repos configuration on localhost"
   hosts: localhost
@@ -771,7 +825,8 @@
     - name: Set pulp base URLs
       ansible.builtin.set_fact:
         pulp_content_base: "{{ _pulp_protocol }}://{{ _pulp_server_ip }}:2225/pulp/content"
-        pulp_repo_base: "{{ _pulp_protocol }}://{{ _pulp_server_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/{{ _cluster_os_version }}/rpms"
+        pulp_repo_base: >-
+          {{ _pulp_protocol }}://{{ _pulp_server_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/{{ _cluster_os_version }}/rpms
 
     - name: Generate upgrade repo file content
       ansible.builtin.set_fact:
@@ -795,6 +850,7 @@
 - name: "Kubernetes Upgrade - Setup repos on all nodes"
   hosts: k8s_control_planes:k8s_workers
   gather_facts: false
+  strategy: linear
   tasks:
     - name: Deploy upgrade repo file to node
       ansible.builtin.copy:
@@ -818,7 +874,12 @@
 
     - name: Test repository URL reachability (Kubernetes repo)
       ansible.builtin.uri:
-        url: "{{ hostvars['localhost']['pulp_repo_base'] }}/x86_64_rhel_{{ hostvars['localhost']['_cluster_os_version'] }}_kubernetes-v{{ hostvars['localhost']['_k8s_target_minor'] | replace('.', '-') }}/"
+        url: >-
+          {{ hostvars['localhost']['pulp_repo_base'] }}/x86_64_rhel_{{
+          hostvars['localhost']['_cluster_os_version']
+          }}_kubernetes-v{{
+          hostvars['localhost']['_k8s_target_minor']
+          | replace('.', '-') }}/
         method: HEAD
         validate_certs: false
         timeout: 10
@@ -828,7 +889,12 @@
 
     - name: Test repository URL reachability (CRI-O repo)
       ansible.builtin.uri:
-        url: "{{ hostvars['localhost']['pulp_repo_base'] }}/x86_64_rhel_{{ hostvars['localhost']['_cluster_os_version'] }}_cri-o-v{{ hostvars['localhost']['_k8s_target_minor'] | replace('.', '-') }}/"
+        url: >-
+          {{ hostvars['localhost']['pulp_repo_base'] }}/x86_64_rhel_{{
+          hostvars['localhost']['_cluster_os_version']
+          }}_cri-o-v{{
+          hostvars['localhost']['_k8s_target_minor']
+          | replace('.', '-') }}/
         method: HEAD
         validate_certs: false
         timeout: 10
@@ -839,26 +905,29 @@
     - name: Fail if repository URLs are not reachable
       ansible.builtin.fail:
         msg: |
+          {% set repo_base = hostvars['localhost']['pulp_repo_base'] -%}
+          {% set os_ver = hostvars['localhost']['_cluster_os_version'] -%}
+          {% set k8s_minor = hostvars['localhost']['_k8s_target_minor'] -%}
           ═══════════════════════════════════════════════════════════════════════════
           REPOSITORY URL VALIDATION FAILED ON {{ inventory_hostname }}
           ═══════════════════════════════════════════════════════════════════════════
-          
+
           The upgrade repository URLs are not reachable from this node.
-          
+
           Kubernetes Repository:
-          URL: {{ hostvars['localhost']['pulp_repo_base'] }}/x86_64_rhel_{{ hostvars['localhost']['_cluster_os_version'] }}_kubernetes-v{{ hostvars['localhost']['_k8s_target_minor'] | replace('.', '-') }}/
+          URL: {{ repo_base }}/x86_64_rhel_{{ os_ver }}_kubernetes-v{{ k8s_minor | replace('.', '-') }}/
           Status: {{ k8s_repo_url_check.status | default('UNREACHABLE') }}
           {% if k8s_repo_url_check.msg is defined %}
           Error: {{ k8s_repo_url_check.msg }}
           {% endif %}
-          
+
           CRI-O Repository:
-          URL: {{ hostvars['localhost']['pulp_repo_base'] }}/x86_64_rhel_{{ hostvars['localhost']['_cluster_os_version'] }}_cri-o-v{{ hostvars['localhost']['_k8s_target_minor'] | replace('.', '-') }}/
+          URL: {{ repo_base }}/x86_64_rhel_{{ os_ver }}_cri-o-v{{ k8s_minor | replace('.', '-') }}/
           Status: {{ crio_repo_url_check.status | default('UNREACHABLE') }}
           {% if crio_repo_url_check.msg is defined %}
           Error: {{ crio_repo_url_check.msg }}
           {% endif %}
-          
+
           REQUIRED ACTIONS:
           ┌─────────────────────────────────────────────────────────────────────┐
           │ 1. Verify Pulp server is running and accessible                    │
@@ -866,10 +935,14 @@
           │ 3. Verify firewall rules allow access to port 2225                 │
           │ 4. Ensure the repository paths exist on the Pulp server            │
           └─────────────────────────────────────────────────────────────────────┘
-          
+
           UPGRADE STOPPED: Repository must be reachable before proceeding.
           ═══════════════════════════════════════════════════════════════════════════
-      when: k8s_repo_url_check.status is not defined or crio_repo_url_check.status is not defined or k8s_repo_url_check.status not in [200, 301, 302] or crio_repo_url_check.status not in [200, 301, 302]
+      when: >-
+        k8s_repo_url_check.status is not defined or
+        crio_repo_url_check.status is not defined or
+        k8s_repo_url_check.status not in [200, 301, 302] or
+        crio_repo_url_check.status not in [200, 301, 302]
 
     - name: Check if kubeadm package is available
       ansible.builtin.command:
@@ -890,11 +963,14 @@
         repo_validation_passed: "{{ kubeadm_check.rc == 0 and crio_check.rc == 0 }}"
         repo_validation_errors: []
       delegate_to: localhost
-      run_once: true
 
     - name: Collect repository validation errors
       ansible.builtin.set_fact:
-        repo_validation_errors: "{{ repo_validation_errors + [{'node': inventory_hostname, 'kubeadm_rc': kubeadm_check.rc, 'crio_rc': crio_check.rc, 'kubeadm_error': kubeadm_check.stderr, 'crio_error': crio_check.stderr}] }}"
+        repo_validation_errors: >-
+          {{ repo_validation_errors + [{'node': inventory_hostname,
+          'kubeadm_rc': kubeadm_check.rc, 'crio_rc': crio_check.rc,
+          'kubeadm_error': kubeadm_check.stderr,
+          'crio_error': crio_check.stderr}] }}
       delegate_to: localhost
       when: kubeadm_check.rc != 0 or crio_check.rc != 0
 
@@ -912,10 +988,10 @@
           ═══════════════════════════════════════════════════════════════════════════
           REPOSITORY VALIDATION FAILED - UPGRADE CANNOT PROCEED
           ═══════════════════════════════════════════════════════════════════════════
-          
+
           The following nodes cannot access required Kubernetes packages:
           {% for error in repo_validation_errors %}
-          
+
           Node: {{ error.node }}
           ├─ kubeadm package: {{ 'FAILED' if error.kubeadm_rc != 0 else 'OK' }}
           ├─ CRI-O package: {{ 'FAILED' if error.crio_rc != 0 else 'OK' }}
@@ -926,7 +1002,7 @@
           └─ CRI-O error: {{ error.crio_error | regex_replace('\\n', '\\n          │ ') }}
           {% endif %}
           {% endfor %}
-          
+
           REQUIRED ACTIONS:
           ┌─────────────────────────────────────────────────────────────────────┐
           │ 1. Verify Pulp server (182.10.5.150:2225) is accessible from ALL nodes │
@@ -935,11 +1011,10 @@
           │ 4. Ensure all required repositories are available on Pulp server     │
           │ 5. Fix repository connectivity issues before retrying upgrade        │
           └─────────────────────────────────────────────────────────────────────┘
-          
+
           UPGRADE STOPPED: All nodes must have reliable repository access.
           ═══════════════════════════════════════════════════════════════════════════
       delegate_to: localhost
-      run_once: true
       when: repo_validation_errors | length > 0
 
     - name: Display repository validation success
@@ -948,15 +1023,14 @@
           ═══════════════════════════════════════════════════════════════════════════
           REPOSITORY VALIDATION PASSED - ALL NODES CAN ACCESS PACKAGES
           ═══════════════════════════════════════════════════════════════════════════
-          
+
           All {{ ansible_play_hosts_all | length }} nodes successfully validated:
           ✅ kubeadm package version {{ hostvars['localhost']['_k8s_target_version'] }}
           ✅ CRI-O package version {{ hostvars['localhost']['_k8s_target_version'] }}
-          
+
           Repository connectivity is confirmed. Proceeding with upgrade...
           ═══════════════════════════════════════════════════════════════════════════
       delegate_to: localhost
-      run_once: true
       when: repo_validation_errors | length == 0
 
 - name: "Kubernetes Upgrade - Execute Prep and Orchestration"
@@ -979,419 +1053,6 @@
     - name: Call upgrade_k8s role
       ansible.builtin.include_role:
         name: ../upgrade/roles/upgrade_k8s
-
-# ══════════════════════════════════════════════════════════════════════
-# Node Upgrade Plays - Execute on actual nodes via SSH
-# ══════════════════════════════════════════════════════════════════════
-# These plays are called for each hop in the upgrade chain.
-# They must be at playbook level (not in role) to target different hosts.
-
-- name: "Kubernetes Upgrade - Upgrade First Control Plane"
-  hosts: k8s_control_plane_first
-  gather_facts: false
-  serial: 1
-  vars:
-    input_project_dir: "/opt/omnia/input/project_default"
-  tasks:
-    - name: Use cached storage_config
-      ansible.builtin.set_fact:
-        storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
-
-    - name: Use cached omnia_config
-      ansible.builtin.set_fact:
-        omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
-
-    - name: Derive k8s_client_mount_path from storage config
-      ansible.builtin.set_fact:
-        k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
-
-    - name: Set k8s_client_mount_path
-      ansible.builtin.set_fact:
-        k8s_client_mount_path: >-
-          {{ (storage_config.mounts
-              | selectattr('name', 'equalto', k8s_nfs_storage_name)
-              | first).mount_point }}
-
-    - name: Load variables from localhost
-      ansible.builtin.set_fact:
-        k8s_target_version: "{{ hostvars['localhost']['k8s_target_version'] }}"
-        status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
-        kube_vip: "{{ hostvars['localhost']['kube_vip'] }}"
-        playbook_dir: "{{ hostvars['localhost']['playbook_dir'] }}"
-
-    - name: Load upgrade status
-      ansible.builtin.slurp:
-        src: "{{ status_file }}"
-      register: status_slurp
-      run_once: true
-
-    - name: Parse upgrade status
-      ansible.builtin.set_fact:
-        upgrade_status: "{{ status_slurp.content | b64decode | from_yaml }}"
-      run_once: true
-
-    - name: Set current node name
-      ansible.builtin.set_fact:
-        current_node_name: "{{ inventory_hostname }}"
-
-    - name: Skip {{ current_node_name }} if already completed
-      ansible.builtin.debug:
-        msg: "Node {{ current_node_name }} already completed — skipping."
-      when: (upgrade_status.nodes[current_node_name].status | default('pending')) == 'completed'
-
-    - name: Upgrade first control plane {{ current_node_name }}
-      when: (upgrade_status.nodes[current_node_name].status | default('pending')) != 'completed'
-      block:
-        - name: Mark node in_progress
-          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-          vars:
-            node_name: "{{ current_node_name }}"
-            node_status_update:
-              status: in_progress
-
-        # ── setup_repos ──────────────────────────────────────────────────
-        - name: Mark setup_repos completed (done globally)
-          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-          vars:
-            node_name: "{{ current_node_name }}"
-            node_status_update:
-              steps:
-                setup_repos:
-                  status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
-                  error: null
-
-        # ── kubeadm_install ──────────────────────────────────────────
-        - name: Run kubeadm_install on {{ current_node_name }}
-          when: (upgrade_status.nodes[current_node_name].steps.kubeadm_install.status | default('pending')) != 'completed'
-          block:
-            - name: Mark kubeadm_install in_progress
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    kubeadm_install:
-                      status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-
-            - name: Execute kubeadm install
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_kubeadm_install.yml"
-
-            - name: Mark kubeadm_install completed
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    kubeadm_install:
-                      status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-                      error: null
-
-        # ── kubeadm_upgrade_apply (first CP only) ────────────────────
-        - name: Run kubeadm_upgrade_apply on {{ current_node_name }}
-          when: (upgrade_status.nodes[current_node_name].steps.kubeadm_upgrade_apply.status | default('pending')) != 'completed'
-          block:
-            - name: Mark kubeadm_upgrade_apply in_progress
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    kubeadm_upgrade_apply:
-                      status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-
-            - name: Execute kubeadm upgrade apply
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_upgrade_apply.yml"
-
-            - name: Mark kubeadm_upgrade_apply completed
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    kubeadm_upgrade_apply:
-                      status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-                      error: null
-
-        # ── drain ────────────────────────────────────────────────────
-        - name: Run drain on {{ current_node_name }}
-          when: (upgrade_status.nodes[current_node_name].steps.drain.status | default('pending')) != 'completed'
-          block:
-            - name: Mark drain in_progress
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    drain:
-                      status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-
-            - name: Execute drain
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_drain.yml"
-
-            - name: Mark drain completed
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    drain:
-                      status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-                      error: null
-
-        # ── kubelet_install ──────────────────────────────────────────
-        - name: Run kubelet_install on {{ current_node_name }}
-          when: (upgrade_status.nodes[current_node_name].steps.kubelet_install.status | default('pending')) != 'completed'
-          block:
-            - name: Mark kubelet_install in_progress
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    kubelet_install:
-                      status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-
-            - name: Execute kubelet install
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_kubelet_install.yml"
-
-            - name: Mark kubelet_install completed
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    kubelet_install:
-                      status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-                      error: null
-
-        # ── crio_install ─────────────────────────────────────────────
-        - name: Run crio_install on {{ current_node_name }}
-          when: (upgrade_status.nodes[current_node_name].steps.crio_install.status | default('pending')) != 'completed'
-          block:
-            - name: Mark crio_install in_progress
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    crio_install:
-                      status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-
-            - name: Execute crio install
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_crio_install.yml"
-
-            - name: Mark crio_install completed
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    crio_install:
-                      status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-                      error: null
-
-        # ── kubelet_restart ──────────────────────────────────────────
-        - name: Run kubelet_restart on {{ current_node_name }}
-          when: (upgrade_status.nodes[current_node_name].steps.kubelet_restart.status | default('pending')) != 'completed'
-          block:
-            - name: Mark kubelet_restart in_progress
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    kubelet_restart:
-                      status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-
-            - name: Execute kubelet restart
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_kubelet_restart.yml"
-
-            - name: Mark kubelet_restart completed
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    kubelet_restart:
-                      status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-                      error: null
-
-        # ── uncordon ─────────────────────────────────────────────────
-        - name: Run uncordon on {{ current_node_name }}
-          when: (upgrade_status.nodes[current_node_name].steps.uncordon.status | default('pending')) != 'completed'
-          block:
-            - name: Mark uncordon in_progress
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    uncordon:
-                      status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-
-            - name: Execute uncordon
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_uncordon.yml"
-
-            - name: Mark uncordon completed
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    uncordon:
-                      status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-                      error: null
-
-        # ── validation ───────────────────────────────────────────────
-        - name: Run validation on {{ current_node_name }}
-          when: (upgrade_status.nodes[current_node_name].steps.validation.status | default('pending')) != 'completed'
-          block:
-            - name: Execute node validation
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_validate_node.yml"
-
-            - name: Mark validation completed
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    validation:
-                      status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-                      error: null
-
-        # ── etcd_health_check ────────────────────────────────────────
-        - name: Run etcd health check after {{ current_node_name }}
-          when: (upgrade_status.nodes[current_node_name].steps.etcd_health_check.status | default('pending')) != 'completed'
-          block:
-            - name: Execute etcd health check
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_etcd_health_check.yml"
-
-            - name: Mark etcd_health_check completed
-              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-              vars:
-                node_name: "{{ current_node_name }}"
-                node_status_update:
-                  steps:
-                    etcd_health_check:
-                      status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
-                      error: null
-
-        # ── Mark node completed ──────────────────────────────────────
-        - name: Mark {{ current_node_name }} completed
-          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-          vars:
-            node_name: "{{ current_node_name }}"
-            node_status_update:
-              status: completed
-              version_current: "{{ k8s_target_version }}"
-
-        - name: Display upgrade completion for {{ current_node_name }}
-          ansible.builtin.debug:
-            msg: |
-              ════════════════════════════════════════════════════════════════════
-              NODE UPGRADE COMPLETE: {{ current_node_name }}
-              ════════════════════════════════════════════════════════════════════
-              Role: First Control Plane
-              From version: {{ k8s_from_version }}
-              To version: {{ k8s_target_version }}
-              Status: COMPLETED
-              ════════════════════════════════════════════════════════════════════
-
-      rescue:
-        - name: Mark {{ current_node_name }} as failed
-          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
-          vars:
-            node_name: "{{ current_node_name }}"
-            node_status_update:
-              status: failed
-
-        - name: Fail after marking status
-          ansible.builtin.fail:
-            msg: "First control plane {{ current_node_name }} upgrade failed. Aborting."
-
-
-- name: "Kubernetes Upgrade - Upgrade Additional Control Planes"
-  hosts: k8s_control_plane
-  gather_facts: false
-  serial: 1
-  vars:
-    input_project_dir: "/opt/omnia/input/project_default"
-  tasks:
-    - name: Use cached storage_config
-      ansible.builtin.set_fact:
-        storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
-
-    - name: Use cached omnia_config
-      ansible.builtin.set_fact:
-        omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
-
-    - name: Derive k8s_client_mount_path from storage config
-      ansible.builtin.set_fact:
-        k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
-
-    - name: Set k8s_client_mount_path
-      ansible.builtin.set_fact:
-        k8s_client_mount_path: >-
-          {{ (storage_config.mounts
-              | selectattr('name', 'equalto', k8s_nfs_storage_name)
-              | first).mount_point }}
-
-    - name: Include upgrade_cp tasks
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/upgrade_cp_node.yml"
-      vars:
-        k8s_target_version: "{{ hostvars['localhost']['k8s_target_version'] }}"
-        status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
-        kube_vip: "{{ hostvars['localhost']['kube_vip'] }}"
-
-- name: "Kubernetes Upgrade - Upgrade Workers"
-  hosts: k8s_workers
-  gather_facts: false
-  serial: 1
-  vars:
-    input_project_dir: "/opt/omnia/input/project_default"
-  tasks:
-    - name: Use cached storage_config
-      ansible.builtin.set_fact:
-        storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
-
-    - name: Use cached omnia_config
-      ansible.builtin.set_fact:
-        omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
-
-    - name: Derive k8s_client_mount_path from storage config
-      ansible.builtin.set_fact:
-        k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
-
-    - name: Set k8s_client_mount_path
-      ansible.builtin.set_fact:
-        k8s_client_mount_path: >-
-          {{ (storage_config.mounts
-              | selectattr('name', 'equalto', k8s_nfs_storage_name)
-              | first).mount_point }}
-
-    - name: Include upgrade_worker tasks
-      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/upgrade_worker_node.yml"
-      vars:
-        k8s_target_version: "{{ hostvars['localhost']['k8s_target_version'] }}"
-        status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
-        kube_vip: "{{ hostvars['localhost']['kube_vip'] }}"
 
 - name: "Kubernetes Upgrade - Post-Validation"
   hosts: localhost
@@ -1511,7 +1172,7 @@
                 })
               }) | to_nice_yaml }}
             dest: "{{ oim_data_path }}/upgrade_manifest.yml"
-            mode: '0644'
+            mode: "0644"
           when: manifest_load is succeeded
 
     - name: Display upgrade completion message
@@ -1523,7 +1184,7 @@
           From version: {{ k8s_from_version }}
           To version:   {{ k8s_target_version }}
           Nodes upgraded: {{ all_upgrade_nodes | length }}
-          
+
           Post-validation passed:
           - All nodes Ready
           - All nodes at target version

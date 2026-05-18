@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Upgrade Local Repository (Pulp sync)
   hosts: localhost
   connection: local
@@ -67,7 +66,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
 
     # ── Local Repository Upgrade ───────────────────────────────────────
     - name: "Local Repository Upgrade"
@@ -92,7 +91,7 @@
                    })
                  }) | to_nice_yaml }}
             dest: "{{ manifest_path }}"
-            mode: '0644'
+            mode: "0644"
         - name: Fail with local repo upgrade error
           ansible.builtin.fail:
             msg: "Local repository upgrade failed. Check logs and consider running rollback."
@@ -107,4 +106,4 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"

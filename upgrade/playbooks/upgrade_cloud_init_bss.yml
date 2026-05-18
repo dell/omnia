@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Upgrade Cloud-Init and BSS boot parameters
   hosts: localhost
   connection: local
@@ -44,7 +43,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
 
     # TODO: Implement per ESpec §4.9 and Cloud_Init_BSS_Upgrade_Component_Spec:
     # 1. Pre-flight: OpenCHAMI running, BSS API reachable, auth token valid
@@ -67,4 +66,4 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"

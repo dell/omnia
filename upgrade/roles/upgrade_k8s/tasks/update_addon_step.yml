@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Build resolved addon status entry for {{ addon_name }}
   ansible.builtin.set_fact:
     _addon_status_entry: >-

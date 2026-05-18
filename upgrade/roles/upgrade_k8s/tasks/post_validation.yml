@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Get all node statuses
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.command:
@@ -47,9 +46,12 @@
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.shell:
     cmd: >-
+      set -o pipefail &&
       kubectl get pods -n kube-system --no-headers
       --field-selector status.phase!=Running,status.phase!=Succeeded
       2>/dev/null | head -20
+  args:
+    executable: /bin/bash
   register: unhealthy_pods
   changed_when: false
   failed_when: false
@@ -99,9 +101,12 @@
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.shell:
     cmd: >-
+      set -o pipefail &&
       kubectl get pods -n calico-system --no-headers
       --field-selector status.phase!=Running,status.phase!=Succeeded
       2>/dev/null | head -20
+  args:
+    executable: /bin/bash
   register: unhealthy_calico_pods
   changed_when: false
   failed_when: false
@@ -118,9 +123,12 @@
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.shell:
     cmd: >-
+      set -o pipefail &&
       kubectl get pods -n metallb-system --no-headers
       --field-selector status.phase!=Running,status.phase!=Succeeded
       2>/dev/null | head -20
+  args:
+    executable: /bin/bash
   register: unhealthy_metallb_pods
   changed_when: false
   failed_when: false

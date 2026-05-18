@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # Part 1: Reload systemd on the node
 - name: Reload systemd on {{ current_node_name }}
   ansible.builtin.systemd:
@@ -34,7 +33,7 @@
   delegate_to: "{{ current_node_name }}"
 
 # Part 4: Wait for node to become Ready with correct version
-- name: Wait for {{ current_node_name }} to become Ready at v{{ k8s_target_version }}
+- name: Wait for node to become Ready
   ansible.builtin.command: >-
     kubectl get node {{ node_ip }}
     -o jsonpath="{.status.nodeInfo.kubeletVersion}:{range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"

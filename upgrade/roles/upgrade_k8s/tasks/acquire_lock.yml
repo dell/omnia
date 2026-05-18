@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Ensure upgrade directory exists on kube_vip client NFS mount
   ansible.builtin.file:
     path: "{{ upgrade_dir_client }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
   delegate_to: "{{ kube_vip }}"
 
 - name: Check if lock file exists
@@ -38,14 +37,14 @@
     - name: Parse existing lock
       ansible.builtin.set_fact:
         existing_lock: "{{ lock_content.content | b64decode | from_yaml }}"
-      when: 
+      when:
         - lock_content.content | length > 0
         - (lock_content.content | b64decode | from_yaml) is mapping
 
     - name: Set empty lock when file is empty or invalid
       ansible.builtin.set_fact:
         existing_lock: {}
-      when: 
+      when:
         - lock_content.content | length == 0 or (lock_content.content | b64decode | from_yaml) is not mapping
 
     - name: Check if lock holder process is alive (same host)
@@ -112,7 +111,7 @@
       started_at: {{ ansible_date_time.iso8601 }}
       playbook: upgrade_k8s.yml
     dest: "{{ lock_file }}"
-    mode: '0644'
+    mode: "0644"
   delegate_to: "{{ kube_vip }}"
   register: lock_write_result
 
@@ -129,7 +128,7 @@
 - name: Abort if lock verification failed
   ansible.builtin.fail:
     msg: "{{ msg_lock_verification_failed }}"
-  when: 
+  when:
     - verified_lock is defined
     - verified_lock.host is defined
     - verified_lock.host != ansible_hostname

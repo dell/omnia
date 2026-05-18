@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Verify calico-node pods are Running
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.command:

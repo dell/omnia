@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Upgrade Telemetry components
   hosts: localhost
   connection: local
@@ -44,7 +43,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
 
     # TODO: Implement per ESpec §4.8:
     # Phase 1: Existing component upgrade
@@ -71,4 +70,4 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"

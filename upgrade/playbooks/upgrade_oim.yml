@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # ============================================================================
 # upgrade_oim.yml — Internal playbook (imported by upgrade.yml --tags oim)
 # ============================================================================
@@ -39,7 +38,6 @@
     input_project_dir: "/opt/omnia/input/project_default"
     build_stream_config_path: "/opt/omnia/input/project_default/build_stream_config.yml"
   tasks:
-
     # ── Pre-flight: manifest read + idempotency ─────────────────────────
     - name: Read upgrade_manifest.yml
       ansible.builtin.slurp:
@@ -58,7 +56,7 @@
     # ── User approval before proceeding ─────────────────────────────────
     - name: Display OIM upgrade summary and request approval
       ansible.builtin.pause:
-        prompt: |
+        prompt: |2
 
           ══════════════════════════════════════════════════════════════
                          OIM UPGRADE — APPROVAL REQUIRED
@@ -86,7 +84,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
 
     # ── Phase 1: OpenCHAMI Container Upgrade (ESpec §4.4) ──────────────
     - name: "Phase 1 — OpenCHAMI Container Upgrade"
@@ -147,7 +145,7 @@
                    })
                  }) | to_nice_yaml }}
             dest: "{{ manifest_path }}"
-            mode: '0644'
+            mode: "0644"
         - name: Fail with OpenCHAMI upgrade error
           ansible.builtin.fail:
             msg: "OpenCHAMI upgrade failed. Check logs and consider running rollback."
@@ -227,7 +225,7 @@
                    })
                  }) | to_nice_yaml }}
             dest: "{{ manifest_path }}"
-            mode: '0644'
+            mode: "0644"
         - name: Fail with BuildStream upgrade error
           ansible.builtin.fail:
             msg: "BuildStream upgrade failed. Check logs and consider running rollback."
@@ -247,7 +245,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
 
     - name: Display OIM upgrade completion
       ansible.builtin.debug:

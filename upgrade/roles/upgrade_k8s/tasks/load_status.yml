@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # ── Read or create status file ──────────────────────────────────────
 # Status file operations now handled by separate play targeting kube_vip_group
 # - name: Check if status file exists
@@ -80,7 +79,6 @@
   ansible.builtin.set_fact:
     all_upgrade_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
 
-
 # ── Build node IP map ───────────────────────────────────────────────
 - name: Build node name-to-IP mapping
   ansible.builtin.set_fact:
@@ -142,7 +140,8 @@
 
 - name: Initialize upgrade status for new upgrade
   when:
-    - upgrade_status is not defined or (upgrade_status is defined and upgrade_status.keys() | length == 0) or (upgrade_status is defined and (upgrade_status.nodes is not defined))
+    - upgrade_status is not defined or (upgrade_status is defined and upgrade_status.keys() | length == 0) or (upgrade_status is defined and
+      (upgrade_status.nodes is not defined))
   block:
     - name: Build initial node status entries
       ansible.builtin.set_fact:
@@ -212,17 +211,17 @@
             target_version: "{{ k8s_target_version }}"
             status: in_progress
             started_at: "{{ ansible_date_time.iso8601 }}"
-            completed_at: null
+            completed_at:
           etcd_backup:
             status: pending
-            path: null
-            timestamp: null
-            error: null
+            path:
+            timestamp:
+            error:
           k8s_config_backup:
             status: pending
-            path: null
-            timestamp: null
-            error: null
+            path:
+            timestamp:
+            error:
           addon_upgrade:
             status: pending
             calico:
@@ -244,26 +243,32 @@
       ansible.builtin.copy:
         content: "{{ upgrade_status | to_json }}"
         dest: "{{ upgrade_status_temp_json }}"
-        mode: '0644'
+        mode: "0644"
       changed_when: true
 
     - name: Convert JSON to YAML
       ansible.builtin.shell:
-        cmd: "python3 -c \"import json, yaml; f = open('{{ upgrade_status_temp_json }}'); data = json.load(f); f.close(); f = open('{{ upgrade_status_temp_yml }}', 'w'); yaml.dump(data, f, default_flow_style=False, sort_keys=False); f.close()\""
+        cmd: >-
+          python3 -c "import json, yaml;
+          f = open('{{ upgrade_status_temp_json }}');
+          data = json.load(f); f.close();
+          f = open('{{ upgrade_status_temp_yml }}', 'w');
+          yaml.dump(data, f, default_flow_style=False, sort_keys=False);
+          f.close()"
       changed_when: true
 
     - name: Ensure status file directory exists on kube_vip
       ansible.builtin.file:
         path: "{{ status_file | dirname }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
       delegate_to: "{{ kube_vip }}"
 
     - name: Copy status file to kube_vip
       ansible.builtin.copy:
         src: "{{ upgrade_status_temp_yml }}"
         dest: "{{ status_file }}"
-        mode: '0644'
+        mode: "0644"
       delegate_to: "{{ kube_vip }}"
 
     - name: Verify status file was created on kube_vip

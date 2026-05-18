@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Run kubeadm upgrade plan
   ansible.builtin.command: kubeadm upgrade plan v{{ k8s_target_version }}
   register: upgrade_plan
@@ -26,3 +25,4 @@
 - name: Run kubeadm upgrade apply
   ansible.builtin.command: kubeadm upgrade apply v{{ k8s_target_version }} --yes
   register: upgrade_apply_result
+  changed_when: true

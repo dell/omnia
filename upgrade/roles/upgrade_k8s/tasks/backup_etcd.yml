@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Check if etcd backup is already completed
   ansible.builtin.debug:
     msg: "etcd backup already completed (status: {{ upgrade_status.etcd_backup.status | default('pending') }}) - skipping backup"
@@ -49,7 +48,7 @@
         status: completed
         path: "{{ backup_dir_client }}/etcd-snapshot.db"
         timestamp: "{{ now(utc=true).isoformat() }}"
-        error: null
+        error:
 
 - name: Perform etcd backup
   when:
@@ -60,7 +59,7 @@
       ansible.builtin.file:
         path: "{{ backup_dir_client }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
 
     - name: Get etcd pod name
       ansible.builtin.command: /usr/bin/kubectl get pods -n kube-system -l component=etcd -o jsonpath='{.items[0].metadata.name}'
@@ -74,17 +73,23 @@
       when: backup_dir_client is defined
 
     - name: Get etcd container ID
-      ansible.builtin.shell: /usr/bin/crictl ps | grep etcd | grep -v pause | awk '{print $1}' | head -1
+      ansible.builtin.shell: set -o pipefail && /usr/bin/crictl ps | grep etcd | grep -v pause | awk '{print $1}' | head -1
+      args:
+        executable: /bin/bash
       register: etcd_container_id
       changed_when: false
 
     - name: Find etcdctl in CRI-O overlay storage
-      ansible.builtin.shell: find /tmp/crio-storage/overlay -name etcdctl -type f 2>/dev/null | head -1
+      ansible.builtin.shell: set -o pipefail && find /tmp/crio-storage/overlay -name etcdctl -type f 2>/dev/null | head -1
+      args:
+        executable: /bin/bash
       register: etcdctl_overlay_path
       changed_when: false
 
     - name: Find etcdutl in CRI-O overlay storage
-      ansible.builtin.shell: find /tmp/crio-storage/overlay -name etcdutl -type f 2>/dev/null | head -1
+      ansible.builtin.shell: set -o pipefail && find /tmp/crio-storage/overlay -name etcdutl -type f 2>/dev/null | head -1
+      args:
+        executable: /bin/bash
       register: etcdutl_overlay_path
       changed_when: false
 
@@ -92,7 +97,7 @@
       ansible.builtin.copy:
         src: "{{ etcdctl_overlay_path.stdout }}"
         dest: /usr/local/bin/etcdctl
-        mode: '0755'
+        mode: "0755"
         remote_src: true
       when: etcdctl_overlay_path.stdout | length > 0
 
@@ -100,7 +105,7 @@
       ansible.builtin.copy:
         src: "{{ etcdutl_overlay_path.stdout }}"
         dest: /usr/local/bin/etcdutl
-        mode: '0755'
+        mode: "0755"
         remote_src: true
       when: etcdutl_overlay_path.stdout | length > 0
 
@@ -108,7 +113,7 @@
       ansible.builtin.copy:
         src: "{{ etcdctl_overlay_path.stdout }}"
         dest: "{{ backup_dir_client }}/etcdctl"
-        mode: '0755'
+        mode: "0755"
         remote_src: true
       when: etcdctl_overlay_path.stdout | length > 0
 
@@ -116,7 +121,7 @@
       ansible.builtin.copy:
         src: "{{ etcdutl_overlay_path.stdout }}"
         dest: "{{ backup_dir_client }}/etcdutl"
-        mode: '0755'
+        mode: "0755"
         remote_src: true
       when: etcdutl_overlay_path.stdout | length > 0
 
@@ -132,11 +137,13 @@
       retries: 12
       delay: 10
       until: etcd_snapshot_result.rc == 0
+      changed_when: true
 
     - name: Copy etcd snapshot from host to NFS backup
       ansible.builtin.copy:
         src: /var/lib/etcd/snapshot.db
         dest: "{{ backup_dir_client }}/etcd-snapshot.db"
+        mode: "0644"
         remote_src: true
 
     - name: Remove temporary snapshot file
@@ -168,7 +175,7 @@
       ansible.builtin.copy:
         content: "{{ etcd_members.stdout }}"
         dest: "{{ etcd_members_file }}"
-        mode: '0644'
+        mode: "0644"
 
     - name: Update etcd backup status
       ansible.builtin.include_tasks: update_node_step.yml
@@ -179,4 +186,4 @@
             status: completed
             path: "{{ backup_dir_client }}/etcd-snapshot.db"
             timestamp: "{{ now(utc=true).isoformat() }}"
-            error: null
+            error:

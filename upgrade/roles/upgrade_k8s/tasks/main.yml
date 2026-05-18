@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # ── COMP-K8S-001: Load configuration and extract version variables ───
 - name: Load config and version variables
   ansible.builtin.include_tasks: load_version_vars.yml
@@ -113,8 +112,8 @@
     - name: Update upgrade_manifest.yml (K8s in-progress)
       ansible.builtin.lineinfile:
         path: "{{ upgrade_manifest_path }}"
-        regexp: '^\s+k8s:\s*.*$'
-        line: '    k8s: in-progress'
+        regexp: "^\\s+k8s:\\s*.*$"
+        line: "    k8s: in-progress"
         state: present
       delegate_to: localhost
 
@@ -132,7 +131,7 @@
       when: hop_chain | length > 1
 
     # ── COMP-K8S-011: Execute each hop ───────────────────────────────
-    - name: "Execute hop {{ _hop_idx + 1 }}/{{ hop_chain | length }}: {{ _current_hop.from_minor }} → {{ _current_hop.to_version }}"
+    - name: Execute hop
       ansible.builtin.include_tasks: execute_single_hop.yml
       loop: "{{ hop_chain }}"
       loop_control:
@@ -144,8 +143,8 @@
     - name: Update upgrade_manifest.yml (K8s completed)
       ansible.builtin.lineinfile:
         path: "{{ upgrade_manifest_path }}"
-        regexp: '^\s+k8s:\s*.*$'
-        line: '    k8s: completed'
+        regexp: "^\\s+k8s:\\s*.*$"
+        line: "    k8s: completed"
         state: present
       delegate_to: localhost
 
@@ -162,8 +161,8 @@
     - name: Update upgrade_manifest.yml (K8s failed)
       ansible.builtin.lineinfile:
         path: "{{ upgrade_manifest_path }}"
-        regexp: '^\s+k8s:\s*.*$'
-        line: '    k8s: failed'
+        regexp: "^\\s+k8s:\\s*.*$"
+        line: "    k8s: failed"
         state: present
       delegate_to: localhost
 

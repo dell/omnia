@@ -12,21 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Detect current Calico version
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.shell:
     cmd: >-
+      set -o pipefail &&
       kubectl get pods -n kube-system -l k8s-app=calico-node
-      -o jsonpath='{.items[0].spec.containers[0].image}' 2>/dev/null | 
+      -o jsonpath='{.items[0].spec.containers[0].image}' 2>/dev/null |
       grep -oP 'v\d+\.\d+\.\d+' || echo "unknown"
+  args:
+    executable: /bin/bash
   register: calico_current_version_raw
   changed_when: false
   failed_when: false
 
 - name: Set calico_current_version fact
   ansible.builtin.set_fact:
-    calico_current_version: "{{ calico_current_version_raw.stdout | trim | regex_replace('^v', '') if calico_current_version_raw.stdout is defined and calico_current_version_raw.stdout != 'unknown' else 'unknown' }}"
+    calico_current_version: >-
+      {{ calico_current_version_raw.stdout | trim | regex_replace('^v', '')
+      if calico_current_version_raw.stdout is defined and calico_current_version_raw.stdout != 'unknown'
+      else 'unknown' }}
 
 - name: Set calico_from_version fact (preserve existing if set)
   ansible.builtin.set_fact:
@@ -39,16 +44,22 @@
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.shell:
     cmd: >-
+      set -o pipefail &&
       kubectl get deployment -n metallb-system controller
       -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null |
       grep -oP 'v\d+\.\d+\.\d+' || echo "unknown"
+  args:
+    executable: /bin/bash
   register: metallb_current_version_raw
   changed_when: false
   failed_when: false
 
 - name: Set metallb_current_version fact
   ansible.builtin.set_fact:
-    metallb_current_version: "{{ metallb_current_version_raw.stdout | trim | regex_replace('^v', '') if metallb_current_version_raw.stdout is defined and metallb_current_version_raw.stdout != 'unknown' else 'unknown' }}"
+    metallb_current_version: >-
+      {{ metallb_current_version_raw.stdout | trim | regex_replace('^v', '')
+      if metallb_current_version_raw.stdout is defined and metallb_current_version_raw.stdout != 'unknown'
+      else 'unknown' }}
 
 - name: Set metallb_from_version fact (preserve existing if set)
   ansible.builtin.set_fact:
@@ -61,15 +72,21 @@
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.shell:
     cmd: >-
+      set -o pipefail &&
       helm version --short 2>/dev/null |
       grep -oP 'v\d+\.\d+\.\d+' || echo "unknown"
+  args:
+    executable: /bin/bash
   register: helm_current_version_raw
   changed_when: false
   failed_when: false
 
 - name: Set helm_current_version fact
   ansible.builtin.set_fact:
-    helm_current_version: "{{ helm_current_version_raw.stdout | trim | regex_replace('^v', '') if helm_current_version_raw.stdout is defined and helm_current_version_raw.stdout != 'unknown' else 'unknown' }}"
+    helm_current_version: >-
+      {{ helm_current_version_raw.stdout | trim | regex_replace('^v', '')
+      if helm_current_version_raw.stdout is defined and helm_current_version_raw.stdout != 'unknown'
+      else 'unknown' }}
 
 - name: Set helm_from_version fact (preserve existing if set)
   ansible.builtin.set_fact:

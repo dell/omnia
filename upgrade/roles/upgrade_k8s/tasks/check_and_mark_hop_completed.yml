@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Get all node versions
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.command:
@@ -23,7 +22,12 @@
 
 - name: Check if all nodes are at target version
   ansible.builtin.set_fact:
-    _all_nodes_upgraded: "{{ all_node_versions.stdout_lines | map('regex_replace', '^v', '') | unique | list | length == 1 and k8s_target_version in all_node_versions.stdout }}"
+    _all_nodes_upgraded: >-
+      {{ all_node_versions.stdout_lines
+      | map('regex_replace', '^v', '')
+      | unique | list
+      | length == 1
+      and k8s_target_version in all_node_versions.stdout }}
 
 - name: Update hop_status to completed if all nodes upgraded
   ansible.builtin.include_tasks: update_node_step.yml

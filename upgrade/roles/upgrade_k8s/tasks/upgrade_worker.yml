@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Skip {{ current_node_name }} if already completed
+- name: Skip node if already completed - {{ current_node_name }}
   ansible.builtin.debug:
     msg: "Node {{ current_node_name }} already completed — skipping."
   when: (upgrade_status.nodes[current_node_name].status | default('pending')) == 'completed'
@@ -40,7 +39,7 @@
             setup_repos:
               status: completed
               timestamp: "{{ ansible_date_time.iso8601 }}"
-              error: null
+              error:
 
     - name: Run kubeadm_install on {{ current_node_name }}
       when: (upgrade_status.nodes[current_node_name].steps.kubeadm_install.status | default('pending')) != 'completed'
@@ -65,7 +64,7 @@
                 kubeadm_install:
                   status: completed
                   timestamp: "{{ ansible_date_time.iso8601 }}"
-                  error: null
+                  error:
 
     - name: Run kubeadm_upgrade_node on {{ current_node_name }}
       when: (upgrade_status.nodes[current_node_name].steps.kubeadm_upgrade_node.status | default('pending')) != 'completed'
@@ -90,7 +89,7 @@
                 kubeadm_upgrade_node:
                   status: completed
                   timestamp: "{{ ansible_date_time.iso8601 }}"
-                  error: null
+                  error:
 
     - name: Run drain on {{ current_node_name }}
       when: (upgrade_status.nodes[current_node_name].steps.drain.status | default('pending')) != 'completed'
@@ -115,7 +114,7 @@
                 drain:
                   status: completed
                   timestamp: "{{ ansible_date_time.iso8601 }}"
-                  error: null
+                  error:
 
     - name: Run kubelet_install on {{ current_node_name }}
       when: (upgrade_status.nodes[current_node_name].steps.kubelet_install.status | default('pending')) != 'completed'
@@ -140,7 +139,7 @@
                 kubelet_install:
                   status: completed
                   timestamp: "{{ ansible_date_time.iso8601 }}"
-                  error: null
+                  error:
 
     - name: Run crio_install on {{ current_node_name }}
       when: (upgrade_status.nodes[current_node_name].steps.crio_install.status | default('pending')) != 'completed'
@@ -165,7 +164,7 @@
                 crio_install:
                   status: completed
                   timestamp: "{{ ansible_date_time.iso8601 }}"
-                  error: null
+                  error:
 
     - name: Run kubelet_restart on {{ current_node_name }}
       when: (upgrade_status.nodes[current_node_name].steps.kubelet_restart.status | default('pending')) != 'completed'
@@ -190,7 +189,7 @@
                 kubelet_restart:
                   status: completed
                   timestamp: "{{ ansible_date_time.iso8601 }}"
-                  error: null
+                  error:
 
     - name: Run uncordon on {{ current_node_name }}
       when: (upgrade_status.nodes[current_node_name].steps.uncordon.status | default('pending')) != 'completed'
@@ -215,7 +214,7 @@
                 uncordon:
                   status: completed
                   timestamp: "{{ ansible_date_time.iso8601 }}"
-                  error: null
+                  error:
 
     - name: Run validation on {{ current_node_name }}
       when: (upgrade_status.nodes[current_node_name].steps.validation.status | default('pending')) != 'completed'
@@ -231,9 +230,9 @@
                 validation:
                   status: completed
                   timestamp: "{{ ansible_date_time.iso8601 }}"
-                  error: null
+                  error:
 
-    - name: Mark {{ current_node_name }} completed
+    - name: Mark node completed - {{ current_node_name }}
       ansible.builtin.include_tasks: update_node_status.yml
       vars:
         node_name: "{{ current_node_name }}"
@@ -242,7 +241,7 @@
           version_current: "{{ k8s_target_version }}"
 
   rescue:
-    - name: Mark {{ current_node_name }} as failed
+    - name: Mark node as failed - {{ current_node_name }}
       ansible.builtin.include_tasks: update_node_status.yml
       vars:
         node_name: "{{ current_node_name }}"

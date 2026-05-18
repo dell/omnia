@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # ── Pulp repo checks (on omnia_core) ───────────────────────────────
 - name: Verify Pulp kubernetes distribution exists
   ansible.builtin.command:
@@ -25,7 +24,10 @@
 
 - name: Fail if kubernetes distribution missing
   ansible.builtin.fail:
-    msg: "Required Pulp distribution 'kubernetes-v{{ k8s_target_minor | replace('.', '-') }}' not found. The prep phase (Phase 1) should have synced this. Check prep phase output or run 'ansible-playbook local_repo/local_repo.yml' manually."
+    msg: >-
+      Required Pulp distribution 'kubernetes-v{{ k8s_target_minor | replace('.', '-') }}' not found.
+      The prep phase (Phase 1) should have synced this.
+      Check prep phase output or run 'ansible-playbook local_repo/local_repo.yml' manually.
   when: pulp_k8s_dist.rc != 0
 
 - name: Verify Pulp cri-o distribution exists
@@ -39,7 +41,10 @@
 
 - name: Fail if cri-o distribution missing
   ansible.builtin.fail:
-    msg: "Required Pulp distribution 'cri-o-v{{ k8s_target_minor | replace('.', '-') }}' not found. The prep phase (Phase 1) should have synced this. Check prep phase output or run 'ansible-playbook local_repo/local_repo.yml' manually."
+    msg: >-
+      Required Pulp distribution 'cri-o-v{{ k8s_target_minor | replace('.', '-') }}' not found.
+      The prep phase (Phase 1) should have synced this.
+      Check prep phase output or run 'ansible-playbook local_repo/local_repo.yml' manually.
   when: pulp_crio_dist.rc != 0
 
 # ── Verify container images in Pulp (on omnia_core) ────────────────
@@ -71,7 +76,9 @@
 
 - name: Warn if image check failed
   ansible.builtin.debug:
-    msg: "WARNING: Could not verify image {{ item.item.name }} in Pulp registry (status: {{ item.status | default('unknown') }}). Upgrade may fail if image is not available."
+    msg: >-
+      WARNING: Could not verify image {{ item.item.name }} in Pulp registry
+      (status: {{ item.status | default('unknown') }}). Upgrade may fail if image is not available.
   loop: "{{ image_checks.results }}"
   loop_control:
     label: "{{ item.item.name }}"
@@ -79,5 +86,7 @@
 
 - name: Display verified images
   ansible.builtin.debug:
-    msg: "Verified: All required K8s images (kube-apiserver, kube-controller-manager, kube-scheduler, kube-proxy) with tag v{{ k8s_target_version }} are present in Pulp registry."
+    msg: >-
+      Verified: All required K8s images (kube-apiserver, kube-controller-manager,
+      kube-scheduler, kube-proxy) with tag v{{ k8s_target_version }} are present in Pulp registry.
   when: image_checks.results | selectattr('status', 'equalto', 200) | list | length == 4

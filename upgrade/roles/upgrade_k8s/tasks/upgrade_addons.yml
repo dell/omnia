@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Detect current addon versions
   ansible.builtin.include_tasks: detect_addon_versions.yml
 
@@ -45,7 +44,7 @@
           from_version: "{{ calico_from_version | default('unknown') }}"
           to_version: "{{ calico_target_version }}"
           timestamp: "{{ ansible_date_time.iso8601 }}"
-          error: null
+          error:
   rescue:
     - name: Mark Calico failed
       ansible.builtin.include_tasks: update_addon_step.yml
@@ -80,7 +79,7 @@
           from_version: "{{ metallb_from_version | default('unknown') }}"
           to_version: "{{ metallb_target_version }}"
           timestamp: "{{ ansible_date_time.iso8601 }}"
-          error: null
+          error:
   rescue:
     - name: Mark MetalLB failed
       ansible.builtin.include_tasks: update_addon_step.yml
@@ -115,7 +114,7 @@
           from_version: "{{ helm_from_version | default('unknown') }}"
           to_version: "{{ helm_target_version }}"
           timestamp: "{{ ansible_date_time.iso8601 }}"
-          error: null
+          error:
   rescue:
     - name: Mark Helm failed
       ansible.builtin.include_tasks: update_addon_step.yml

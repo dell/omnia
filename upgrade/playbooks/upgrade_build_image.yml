@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Upgrade Build Image (SquashFS build)
   hosts: localhost
   connection: local
@@ -44,7 +43,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
 
     # TODO: Implement per ESpec §4.6 and Build_Image_Upgrade_Component_Spec:
     # 1. Check MinIO for existing target-version SquashFS images (reuse if exists)
@@ -65,4 +64,4 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"

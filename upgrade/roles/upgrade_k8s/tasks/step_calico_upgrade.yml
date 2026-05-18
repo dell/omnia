@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Set Calico manifest paths
   ansible.builtin.set_fact:
     calico_source: "{{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml"
@@ -41,8 +40,8 @@
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.replace:
     path: "{{ calico_work }}"
-    regexp: 'quay\.io/calico/'
-    replace: 'docker.io/calico/'
+    regexp: "quay\\.io/calico/"
+    replace: "docker.io/calico/"
 
 - name: Check if IP_AUTODETECTION_METHOD already set
   delegate_to: "{{ kube_vip }}"
@@ -53,10 +52,10 @@
 
 - name: Patch IP_AUTODETECTION_METHOD
   delegate_to: "{{ kube_vip }}"
-  ansible.builtin.shell:
-    cmd: >-
-      sed -i '/value: "autodetect"/a\            - name: IP_AUTODETECTION_METHOD\n              value: "cidr={{ admin_nic_cidr }}"'
-      "{{ calico_work }}"
+  ansible.builtin.replace:
+    path: "{{ calico_work }}"
+    regexp: '(^\\s*value: "autodetect"\\s*$)'
+    replace: "\\1\n            - name: IP_AUTODETECTION_METHOD\n              value: \"cidr={{ admin_nic_cidr }}\""
   when: autodetect_check.stdout | int == 0
   changed_when: true
 
@@ -65,15 +64,18 @@
   ansible.builtin.command:
     cmd: "/usr/bin/kubectl apply --server-side --force-conflicts -f {{ calico_work }}"
   register: calico_apply
+  changed_when: true
 
 - name: Wait for calico-node DaemonSet rollout
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.command:
     cmd: "/usr/bin/kubectl rollout status daemonset/calico-node -n kube-system --timeout={{ addon_rollout_timeout }}s"
   register: calico_node_rollout
+  changed_when: false
 
 - name: Wait for calico-kube-controllers Deployment rollout
   delegate_to: "{{ kube_vip }}"
   ansible.builtin.command:
     cmd: "/usr/bin/kubectl rollout status deployment/calico-kube-controllers -n kube-system --timeout=120s"
   register: calico_kc_rollout
+  changed_when: false

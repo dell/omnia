@@ -19,10 +19,10 @@
 # This avoids N× overhead of credential loading, Pulp validation, and SELinux setup.
 #
 # Inputs:
-#   hop_chain        — list of hops from detect_hop_chain.yml
+#   hop_chain        — list of hops (from detect_hop_chain_from_manifest.yml)
 #   input_project_dir — real input directory (shared files symlinked from here)
 
-- name: "prep_sync_repos — Check which hops already have Pulp repos"
+- name: "Prep_sync_repos — Check which hops already have Pulp repos"
   ansible.builtin.command:
     cmd: >-
       pulp rpm distribution show
@@ -36,7 +36,7 @@
   changed_when: false
   failed_when: false
 
-- name: "prep_sync_repos — Build list of hops needing sync"
+- name: "Prep_sync_repos — Build list of hops needing sync"
   ansible.builtin.set_fact:
     _hops_needing_sync: >-
       {{ _pulp_checks.results
@@ -44,29 +44,29 @@
          | map(attribute='item')
          | list }}
 
-- name: "prep_sync_repos — Skip if all repos already synced"
+- name: "Prep_sync_repos — Skip if all repos already synced"
   ansible.builtin.debug:
     msg: >-
       All {{ hop_chain | length }} hop(s) already have Pulp repos synced — skipping.
   when: _hops_needing_sync | length == 0
 
-- name: "prep_sync_repos — Sync repos for {{ _hops_needing_sync | length }} hop(s)"
+- name: Prep sync repos — Sync repos
   when: _hops_needing_sync | length > 0
   block:
-    - name: "prep_sync_repos — Create staging directory"
+    - name: "Prep_sync_repos — Create staging directory"
       ansible.builtin.tempfile:
         state: directory
         prefix: "upgrade_repo_sync_"
       register: _repo_staging
 
-    - name: "prep_sync_repos — Merge configs from all hops"
+    - name: "Prep_sync_repos — Merge configs from all hops"
       ansible.builtin.include_tasks: prep_merge_configs.yml
       vars:
         _staging_dir: "{{ _repo_staging.path }}"
 
     # Symlink shared (non-version-specific) files from real input dir.
     # local_repo.yml / validate_config may need these.
-    - name: "prep_sync_repos — Symlink shared files from input_project_dir"
+    - name: "Prep_sync_repos — Symlink shared files from input_project_dir"
       ansible.builtin.file:
         src: "{{ input_project_dir }}/{{ item }}"
         dest: "{{ _repo_staging.path }}/{{ item }}"
@@ -81,13 +81,13 @@
       failed_when: false
 
     # Symlink package manifests (used by parse_and_download for RPM list).
-    - name: "prep_sync_repos — Create config subdirectories for shared package manifests"
+    - name: "Prep_sync_repos — Create config subdirectories for shared package manifests"
       ansible.builtin.file:
         path: "{{ _repo_staging.path }}/config/x86_64/rhel/{{ cluster_os_version }}"
         state: directory
         mode: "{{ dir_perm_755 }}"
 
-    - name: "prep_sync_repos — Symlink shared package manifests"
+    - name: "Prep_sync_repos — Symlink shared package manifests"
       ansible.builtin.file:
         src: "{{ input_project_dir }}/config/x86_64/rhel/{{ cluster_os_version }}/{{ item }}"
         dest: "{{ _repo_staging.path }}/config/x86_64/rhel/{{ cluster_os_version }}/{{ item }}"
@@ -99,7 +99,7 @@
         - admin_debug_packages.json
       failed_when: false
 
-    - name: "prep_sync_repos — Run local_repo playbook with merged staging dir"
+    - name: "Prep_sync_repos — Run local_repo playbook with merged staging dir"
       ansible.builtin.command:
         cmd: >-
           ansible-playbook
@@ -110,7 +110,7 @@
       register: _sync_result
       changed_when: "'changed=' in _sync_result.stdout"
 
-    - name: "prep_sync_repos — Verify repos exist for all hops"
+    - name: "Prep_sync_repos — Verify repos exist for all hops"
       ansible.builtin.command:
         cmd: >-
           pulp rpm distribution show
@@ -123,7 +123,7 @@
       changed_when: false
 
   always:
-    - name: "prep_sync_repos — Clean up staging directory"
+    - name: "Prep_sync_repos — Clean up staging directory"
       ansible.builtin.file:
         path: "{{ _repo_staging.path }}"
         state: absent

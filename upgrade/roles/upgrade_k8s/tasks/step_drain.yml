@@ -18,8 +18,9 @@
 # restart in-place after kubelet upgrade. This is safer for stateful
 # workloads like Kafka that have strict PodDisruptionBudgets.
 
-- name: Cordon node {{ current_node_name }} (prevent new pod scheduling)
+- name: Cordon node (prevent new pod scheduling) - {{ current_node_name }}
   ansible.builtin.command:
     cmd: kubectl cordon {{ node_ip }}
   delegate_to: "{{ kube_vip }}"
   register: drain_result
+  changed_when: true

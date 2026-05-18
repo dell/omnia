@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Uncordon node {{ current_node_name }}
   ansible.builtin.command: kubectl uncordon {{ node_ip }}
   delegate_to: "{{ kube_vip }}"
   register: uncordon_result
+  changed_when: true

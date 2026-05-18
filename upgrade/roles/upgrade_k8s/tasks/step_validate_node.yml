@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
-- name: Validate {{ current_node_name }} version and status
+- name: Validate node version and status - {{ current_node_name }}
   ansible.builtin.command:
     cmd: >-
       kubectl get node {{ node_ip }}

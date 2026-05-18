@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Load upgrade status from kube_vip
   ansible.builtin.slurp:
-    src: "{{ k8s_client_mount_path_kube_vip }}/upgrade/upgrade_status.yml"
-  delegate_to: "{{ kube_vip_host }}"
+    src: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
+  delegate_to: "{{ kube_vip }}"
   register: status_slurp
 
 - name: Parse upgrade status
@@ -37,14 +36,14 @@
   ansible.builtin.file:
     path: "{{ k8s_config_backup_dir }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
   when: upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
 
 - name: Create node-specific backup directories
   ansible.builtin.file:
     path: "{{ k8s_config_backup_dir }}/{{ inventory_hostname }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
   when: upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
 
 - name: Check if k8s-config backup already exists
@@ -58,21 +57,30 @@
     path: /etc/kubernetes
     dest: "{{ k8s_config_backup_dir }}/{{ inventory_hostname }}/k8s-config.tar.gz"
     format: gz
+    mode: "0644"
+  register: k8s_config_archive
   when:
     - upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
     - k8s_config_backup_stat.stat is defined
     - not k8s_config_backup_stat.stat.exists
+
+- name: Set permissions on archived k8s config
+  ansible.builtin.file:
+    path: "{{ k8s_config_backup_dir }}/{{ inventory_hostname }}/k8s-config.tar.gz"
+    mode: "0644"
+  when:
+    - k8s_config_archive is defined
+    - k8s_config_archive.dest is defined
 
 - name: Update k8s config backup status
   ansible.builtin.include_tasks: update_status.yml
   run_once: true
   when: upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
   vars:
-    status_file: "{{ k8s_client_mount_path_kube_vip }}/upgrade/upgrade_status.yml"
-    kube_vip: "{{ kube_vip_host }}"
+    status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
     status_update:
       k8s_config_backup:
         status: completed
         path: "{{ k8s_config_backup_dir }}"
         timestamp: "{{ now(utc=true).isoformat() }}"
-        error: null
+        error:

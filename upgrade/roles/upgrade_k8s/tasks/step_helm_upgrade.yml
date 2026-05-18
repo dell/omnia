@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 - name: Set Helm tarball and binary paths (consistent with fresh install)
   ansible.builtin.set_fact:
     helm_tarball: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
