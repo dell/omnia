@@ -22,11 +22,14 @@
 #   ansible-playbook upgrade/upgrade.yml                     # Full upgrade
 #   ansible-playbook upgrade/upgrade.yml --tags oim          # OIM only
 #   ansible-playbook upgrade/upgrade.yml --tags k8s          # K8s only
+#   ansible-playbook upgrade/upgrade.yml --tags provision
 #   ansible-playbook upgrade/upgrade.yml --tags "k8s,telemetry"
 #
 # IMPORTANT: Must be invoked from the parent directory containing upgrade/,
 # rollback/, and playbooks/ folders. Internal playbooks are imported via
 # relative paths (e.g., playbooks/upgrade_oim.yml).
+#
+# TAG ORDER: oim → build_stream → local_repo → build_image → provision → k8s → telemetry → slurm
 #
 # VERSION POLICY:
 #   oim_metadata.yml is read-only for upgrade/rollback flows. Manifest
@@ -56,13 +59,13 @@
     metadata_path: /opt/omnia/.data/oim_metadata.yml
     upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
     rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
-    all_components: [oim, build_stream, local_repo, build_image, k8s, telemetry, cloud_init_bss, slurm]
+    all_components: [oim, build_stream, local_repo, build_image, provision, k8s, telemetry, slurm]
     tag_dependencies:
       build_stream: [oim]
       build_image: [oim]
+      provision: [oim, build_image]
       k8s: [oim]
       telemetry: [oim, k8s]
-      cloud_init_bss: [oim]
       slurm: [oim, k8s]
   tasks:
     # ═══════════════════════════════════════════════════════════════
@@ -180,9 +183,9 @@
             build_stream: "pending"
             local_repo: "pending"
             build_image: "pending"
+            provision: "pending"
             k8s: "pending"
             telemetry: "pending"
-            cloud_init_bss: "pending"
             slurm: "pending"
         dest: "{{ manifest_path }}"
         mode: '0644'
@@ -282,8 +285,10 @@
 # BuildStream Terminal Gate (C-24): Read build_stream_config.yml and
 # set build_stream_terminal fact. When enable_build_stream=true AND
 # build_stream tag completes, downstream tags (local_repo, build_image,
-# k8s, telemetry, cloud_init_bss, slurm) are skipped — the GitLab pipeline handles
+# provision, k8s, telemetry, slurm) are skipped — the GitLab pipeline handles
 # those responsibilities.
+#
+# Tag order: oim → build_stream → local_repo → build_image → provision → k8s → telemetry → slurm
 # ──────────────────────────────────────────────────────────────────────
 - name: Evaluate BuildStream terminal gate
   hosts: localhost
@@ -305,7 +310,7 @@
       ansible.builtin.debug:
         msg: >
           BuildStream is ENABLED (enable_build_stream=true).
-          Tags local_repo, build_image, k8s, telemetry, cloud_init_bss, slurm
+          Tags local_repo, build_image, provision, k8s, telemetry, slurm
           will be SKIPPED after build_stream completes. User must trigger
           GitLab pipeline manually post-upgrade.
       when: build_stream_terminal | bool
@@ -330,6 +335,10 @@
   ansible.builtin.import_playbook: playbooks/upgrade_build_image.yml
   tags: [build_image]
 
+- name: Generate and apply provision files (Cloud-Init & BSS)
+  ansible.builtin.import_playbook: playbooks/upgrade_provision.yml
+  tags: [provision]
+
 - name: Upgrade Kubernetes cluster
   ansible.builtin.import_playbook: playbooks/upgrade_k8s.yml
   tags: [k8s]
@@ -337,10 +346,6 @@
 - name: Upgrade Telemetry components
   ansible.builtin.import_playbook: playbooks/upgrade_telemetry.yml
   tags: [telemetry]
-
-- name: Update Cloud-Init and BSS boot parameters
-  ansible.builtin.import_playbook: playbooks/upgrade_cloud_init_bss.yml
-  tags: [cloud_init_bss]
 
 - name: Upgrade Slurm cluster
   ansible.builtin.import_playbook: playbooks/upgrade_slurm.yml
@@ -360,7 +365,7 @@
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     archive_dir: /opt/omnia/.data/archive
     upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
-    all_components: [oim, build_stream, local_repo, build_image, k8s, telemetry, cloud_init_bss, slurm]
+    all_components: [oim, build_stream, local_repo, build_image, provision, k8s, telemetry, slurm]
   tasks:
     - name: Read current upgrade_manifest.yml
       ansible.builtin.slurp:
@@ -374,7 +379,7 @@
     # ── Identify tags skipped by BuildStream terminal gate ──
     - name: Identify BuildStream-skipped components
       ansible.builtin.set_fact:
-        bs_skipped_tags: "{{ ['local_repo', 'build_image', 'k8s', 'telemetry', 'cloud_init_bss', 'slurm']
+        bs_skipped_tags: "{{ ['local_repo', 'build_image', 'provision', 'k8s', 'telemetry', 'slurm']
                              if (hostvars['localhost']['build_stream_terminal'] | default(false) | bool
                                  and manifest.component_status.build_stream | default('pending') == 'completed')
                              else [] }}"
@@ -470,9 +475,9 @@
           - "  build_stream:   {{ cleaned_component_status.build_stream | default('pending') }}"
           - "  local_repo:     {{ cleaned_component_status.local_repo | default('pending') }}"
           - "  build_image:    {{ cleaned_component_status.build_image | default('pending') }}"
+          - "  provision:      {{ cleaned_component_status.provision | default('pending') }}"
           - "  k8s:            {{ cleaned_component_status.k8s | default('pending') }}"
           - "  telemetry:      {{ cleaned_component_status.telemetry | default('pending') }}"
-          - "  cloud_init_bss: {{ cleaned_component_status.cloud_init_bss | default('pending') }}"
           - "  slurm:          {{ cleaned_component_status.slurm | default('pending') }}"
 
 # ──────────────────────────────────────────────────────────────────────
