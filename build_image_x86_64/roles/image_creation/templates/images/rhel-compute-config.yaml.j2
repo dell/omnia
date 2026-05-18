@@ -6,7 +6,7 @@ options:
   parent: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}/{{ rhel_x86_64_base_image_name }}:{{ rhel_tag }}'
   registry_opts_pull:
     - '--tls-verify=false'
-  publish_registry: '{{ s3_endpoint }}'
+  publish_s3: '{{ s3_endpoint }}'
   s3_prefix: '{{ group_name }}/{{ rhel_base_compute_image_name }}/'
   s3_bucket: 'boot-images'
   publish_registry: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}'
