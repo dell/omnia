@@ -16,6 +16,7 @@
 # pylint: disable=import-error,no-name-in-module
 
 import os
+import copy
 import fcntl
 import tempfile
 from ansible.module_utils.basic import AnsibleModule
@@ -251,10 +252,14 @@ def run_module():
         # Read current status
         current_status = read_status_file(status_file)
 
+        # Deep-copy before mutation so the original is preserved for
+        # the changed-detection comparison below.
+        original_status = copy.deepcopy(current_status)
+
         # Build merged status
         if node_status_update:
             # Node-specific update
-            nodes = current_status.get('nodes', {})
+            nodes = copy.deepcopy(current_status.get('nodes', {}))
             node_data = nodes.get(node_name, {})
             updated_node_data = merge_dicts(node_data, node_status_update)
             nodes[node_name] = updated_node_data
@@ -264,7 +269,7 @@ def run_module():
             merged_status = merge_dicts(current_status, status_update)
 
         # Check if anything changed
-        if merged_status != current_status:
+        if merged_status != original_status:
             result['changed'] = True
 
             # Write updated status (unless in check mode)

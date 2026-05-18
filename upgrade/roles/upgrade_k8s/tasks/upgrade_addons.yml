@@ -29,6 +29,16 @@
     msg: "Starting Calico addon upgrade from {{ calico_from_version | default('unknown') }} to {{ calico_target_version }}..."
   when: (upgrade_status.addon_upgrade.calico.status | default('pending')) != 'completed'
 
+- name: Mark Calico in_progress
+  ansible.builtin.include_tasks: update_addon_step.yml
+  vars:
+    addon_name: calico
+    addon_status_update:
+      status: in_progress
+      from_version: "{{ calico_from_version | default('unknown') }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+  when: (upgrade_status.addon_upgrade.calico.status | default('pending')) != 'completed'
+
 - name: Upgrade Calico
   when: (upgrade_status.addon_upgrade.calico.status | default('pending')) != 'completed'
   block:
@@ -64,6 +74,16 @@
     msg: "Starting MetalLB addon upgrade from {{ metallb_from_version | default('unknown') }} to {{ metallb_target_version }}..."
   when: (upgrade_status.addon_upgrade.metallb.status | default('pending')) != 'completed'
 
+- name: Mark MetalLB in_progress
+  ansible.builtin.include_tasks: update_addon_step.yml
+  vars:
+    addon_name: metallb
+    addon_status_update:
+      status: in_progress
+      from_version: "{{ metallb_from_version | default('unknown') }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+  when: (upgrade_status.addon_upgrade.metallb.status | default('pending')) != 'completed'
+
 - name: Upgrade MetalLB
   when: (upgrade_status.addon_upgrade.metallb.status | default('pending')) != 'completed'
   block:
@@ -97,6 +117,16 @@
 - name: Starting Helm upgrade
   ansible.builtin.debug:
     msg: "Starting Helm addon upgrade from {{ helm_from_version | default('unknown') }} to {{ helm_target_version }}..."
+  when: (upgrade_status.addon_upgrade.helm.status | default('pending')) != 'completed'
+
+- name: Mark Helm in_progress
+  ansible.builtin.include_tasks: update_addon_step.yml
+  vars:
+    addon_name: helm
+    addon_status_update:
+      status: in_progress
+      from_version: "{{ helm_from_version | default('unknown') }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
   when: (upgrade_status.addon_upgrade.helm.status | default('pending')) != 'completed'
 
 - name: Upgrade Helm

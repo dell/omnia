@@ -215,6 +215,13 @@
     # at /tmp/k8s_upgrade_inventory.ini - no need to recreate per hop
 
     # ── Upgrade control planes ───────────────────────────────────────
+    - name: "Hop — Starting first control plane upgrade"
+      ansible.builtin.debug:
+        msg: >-
+          Upgrading first control plane to {{ _current_hop.to_version }}.
+          Log file: /tmp/upgrade_cp_first.log
+      when: upgrade_status.upgrade.status != 'completed'
+
     - name: "Hop — Upgrade first control plane"
       ansible.builtin.shell:
         cmd: >
@@ -233,24 +240,23 @@
           -e upgrade_dir_client={{ upgrade_dir_client }}
           -e k8s_from_version={{ k8s_from_version }}
           -e cluster_os_version={{ cluster_os_version }}
-          2>&1 | tee /tmp/upgrade_cp_first.log
+          2>&1 | tee /tmp/upgrade_cp_first.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
       args:
         executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
       register: first_cp_result
       changed_when: true
       failed_when: first_cp_result.rc != 0
       when: upgrade_status.upgrade.status != 'completed'
 
-    - name: "Hop — Display first CP upgrade output on failure"
+    - name: "Hop — Starting additional control planes upgrade"
       ansible.builtin.debug:
-        msg: |
-          First control plane upgrade failed!
-          Full logs available at: /tmp/upgrade_cp_first.log
-          Return code: {{ first_cp_result.rc | default('unknown') }}
-      when:
-        - first_cp_result is defined
-        - first_cp_result.rc is defined
-        - first_cp_result.rc != 0
+        msg: >-
+          Upgrading additional control planes to {{ _current_hop.to_version }}.
+          Log file: /tmp/upgrade_cp_additional.log
+      when: upgrade_status.upgrade.status != 'completed'
 
     - name: "Hop — Upgrade additional control planes"
       ansible.builtin.shell:
@@ -270,24 +276,16 @@
           -e upgrade_dir_client={{ upgrade_dir_client }}
           -e k8s_from_version={{ k8s_from_version }}
           -e cluster_os_version={{ cluster_os_version }}
-          2>&1 | tee /tmp/upgrade_cp_additional.log
+          2>&1 | tee /tmp/upgrade_cp_additional.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
       args:
         executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
       register: additional_cp_result
       changed_when: true
       failed_when: additional_cp_result.rc != 0
       when: upgrade_status.upgrade.status != 'completed'
-
-    - name: "Hop — Display additional CP upgrade output on failure"
-      ansible.builtin.debug:
-        msg: |
-          Additional control planes upgrade failed!
-          Full logs available at: /tmp/upgrade_cp_additional.log
-          Return code: {{ additional_cp_result.rc | default('unknown') }}
-      when:
-        - additional_cp_result is defined
-        - additional_cp_result.rc is defined
-        - additional_cp_result.rc != 0
 
     - name: "Hop — Control plane upgrades complete"
       ansible.builtin.debug:
@@ -399,6 +397,13 @@
         - _failed_cp_nodes | length == 0
 
     # ── Upgrade workers ──────────────────────────────────────────────
+    - name: "Hop — Starting worker upgrades"
+      ansible.builtin.debug:
+        msg: >-
+          Upgrading workers to {{ _current_hop.to_version }} (batch size: {{ worker_parallel_count }}).
+          Log file: /tmp/upgrade_workers.log
+      when: upgrade_status.upgrade.status != 'completed'
+
     - name: "Hop — Upgrade workers (batch size) {{ worker_parallel_count }}"
       ansible.builtin.shell:
         cmd: >
@@ -415,24 +420,16 @@
           -e k8s_from_version={{ k8s_from_version }}
           -e cluster_os_version={{ cluster_os_version }}
           -e worker_parallel_count={{ worker_parallel_count }}
-          2>&1 | tee /tmp/upgrade_workers.log
+          2>&1 | tee /tmp/upgrade_workers.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
       args:
         executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
       register: workers_result
       changed_when: true
       failed_when: workers_result.rc != 0
       when: upgrade_status.upgrade.status != 'completed'
-
-    - name: "Hop — Display worker upgrade output on failure"
-      ansible.builtin.debug:
-        msg: |
-          Worker upgrade failed!
-          Full logs available at: /tmp/upgrade_workers.log
-          Return code: {{ workers_result.rc | default('unknown') }}
-      when:
-        - workers_result is defined
-        - workers_result.rc is defined
-        - workers_result.rc != 0
 
     # ── Post-validation ──────────────────────────────────────────────
     - name: "Hop — Run post-validation"
