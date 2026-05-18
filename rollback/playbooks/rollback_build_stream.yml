@@ -58,6 +58,18 @@
         path: "{{ backup_dir }}/metadata/buildstream_upgrade_path.yml"
       register: path_metadata_stat
 
+    - name: Mark build_stream rollback as skipped when never upgraded
+      ansible.builtin.copy:
+        content: >-
+          {{ rollback_manifest | combine({
+               'component_status': rollback_manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'
+      when: not path_metadata_stat.stat.exists
+
     - name: Skip if BuildStream was never upgraded (no metadata)
       ansible.builtin.meta: end_play
       when: not path_metadata_stat.stat.exists
