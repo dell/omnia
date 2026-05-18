@@ -24,7 +24,7 @@
     local_repo_config_path: "{{ upgrade_staging_dir }}/local_repo_config.yml"
     project_input_path: "{{ upgrade_staging_dir }}"
     default_archs: "{{ upgrade_active_architectures }}"
-    software_names: "{{ _enabled_components | map(attribute='key') | list }}"
+    software_names: "{{ enabled_components | map(attribute='key') | list }}"
     playbook_start_time: "{{ ansible_date_time.epoch }}"
 
 # Initialise sub_final_repo_urls (normally set by validate_subscription role)
@@ -78,15 +78,10 @@
 
 - name: "Sync — Display sync completion"
   ansible.builtin.debug:
-    msg:
-      - "=========================================="
-      - "Local Repository Sync Completed"
-      - "=========================================="
-      - "Components synced: {{ software_names | join(', ') }}"
-      - "=========================================="
+    msg: "Local repo sync completed: {{ software_names | join(', ') }}"
 
-# - name: "sync — Cleanup staging directory"
-#   ansible.builtin.file:
-#     path: "{{ upgrade_staging_dir }}"
-#     state: absent
-#   when: upgrade_cleanup_staging | default(true)
+- name: "Sync — Cleanup staging directory"
+  ansible.builtin.file:
+    path: "{{ upgrade_staging_dir }}"
+    state: absent
+  when: upgrade_cleanup_staging | default(true)

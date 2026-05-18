@@ -28,52 +28,30 @@
   ansible.builtin.set_fact:
     upgrade_staging_dir: "{{ _staging_dir.path }}"
 
-- name: "Staging — Extract architectures from software_config.json"
+- name: "Staging — Detect architectures from software_config.json"
   ansible.builtin.set_fact:
-    _all_architectures: >-
-      {{
-        _current_software_config.softwares
-        | selectattr('arch', 'defined')
-        | map(attribute='arch')
-        | flatten
-        | unique
-        | list
-      }}
-
-- name: "Staging — Set upgrade_active_architectures from software_config.json"
-  ansible.builtin.set_fact:
-    upgrade_active_architectures: "{{ _all_architectures }}"
-
-- name: "Staging — Display detected architectures"
-  ansible.builtin.debug:
-    msg:
-      - "Architectures detected from software_config.json: {{ _all_architectures | join(', ') }}"
-      - "Will process all detected architectures for upgrade"
+    upgrade_active_architectures: >-
+      {{ current_software_config.softwares
+         | selectattr('arch', 'defined')
+         | map(attribute='arch')
+         | flatten | unique | list }}
 
 - name: "Staging — Create staging with modified configs"
   create_upgrade_staging:
     staging_dir: "{{ _staging_dir.path }}"
     input_dir: "{{ input_project_dir }}"
-    repos_file: "{{ role_path }}/../../artifacts/repos.yml"
-    enabled_components: "{{ _enabled_components }}"
-    current_software_config: "{{ _current_software_config }}"
+    repos_file: "{{ role_path }}/artifacts/repos.yml"
+    enabled_components: "{{ enabled_components }}"
+    current_software_config: "{{ current_software_config }}"
     architectures: "{{ upgrade_active_architectures }}"
     target_omnia_version: "{{ upgrade_target_version }}"
     calculated_hop_chains: "{{ calculated_hop_chains | default([]) }}"
   register: _staging_result
 
-- name: "Staging — Parse staging result"
-  ansible.builtin.set_fact:
-    _staging_summary: "{{ _staging_result }}"
-
 - name: "Staging — Display staging summary"
   ansible.builtin.debug:
     msg:
-      - "=========================================="
-      - "Staging Directory Created"
-      - "=========================================="
-      - "Path: {{ upgrade_staging_dir }}"
-      - "Repos merged: {{ _staging_summary.repos_merged }}"
-      - "JSON files: {{ _staging_summary.json_files_copied | length }}"
-      - "Components: {{ _staging_summary.enabled_components | join(', ') }}"
-      - "=========================================="
+      - "Staging created: {{ upgrade_staging_dir }}"
+      - "  Repos merged: {{ _staging_result.repos_merged }}"
+      - "  JSON files: {{ _staging_result.json_files_copied | length }}"
+      - "  Components: {{ _staging_result.enabled_components | join(', ') }}"
