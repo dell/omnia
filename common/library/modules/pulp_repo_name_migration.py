@@ -751,13 +751,15 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
             logger.warning("Publication creation for '%s' failed: %s",
                            new_name, pub_res["stderr"])
 
-        # -- Step 4: Delete old distribution FIRST (base_path must be unique)
-        #    For RPM repos, the base_path usually changes (it contains the
-        #    repo name), but we still delete the old distribution first for
-        #    safety -- if base_path computation ever returns the same value,
-        #    Pulp's uniqueness constraint would block creation.
-        if "delete_distribution" in pulp_rpm_commands:
-            run_cmd(pulp_rpm_commands["delete_distribution"] % shlex.quote(old_name), logger)
+        # -- Step 4: Keep old distribution (both old and new can coexist)
+        #    For RPM repos, the base_path contains the repo name, so old and
+        #    new distributions have DIFFERENT base_paths and can coexist in
+        #    Pulp without violating the uniqueness constraint.
+        #    e.g. old: opt/omnia/.../rpms/x86_64_epel
+        #         new: opt/omnia/.../rpms/x86_64_rhel_10.0_epel
+        #    NOTE: Old distribution is preserved so the old repo remains accessible.
+        # if "delete_distribution" in pulp_rpm_commands:
+        #     run_cmd(pulp_rpm_commands["delete_distribution"] % shlex.quote(old_name), logger)
 
         # -- Step 5: Create new distribution with updated base_path -------
         arch = None
@@ -832,11 +834,12 @@ def migrate_rpm_repos(os_type: str, os_version: str, dry_run: bool,
                         logger.warning("Remote recreation for '%s' failed: %s",
                                        new_name, remote_res["stderr"])
 
-        # -- Step 7: Delete remaining old entities (repo, publications, remote)
-        #    Distribution already deleted above; _delete_old_repo_entities
-        #    handles the rest (best-effort, skips if already gone).
-        #    Skip remote deletion if it was successfully renamed.
-        _delete_old_repo_entities("rpm", old_name, logger, skip_remote=remote_renamed)
+        # -- Step 7: Keep old RPM entities (repo, publications, remote, distribution)
+        #    RPM repos have different base_paths for old vs new distributions,
+        #    so both can coexist in Pulp.  Old entities are preserved to keep
+        #    the old-format repos accessible.
+        #    Use utils/delete_migrated_pulp_rpm_repos.yml to clean up when ready.
+        # _delete_old_repo_entities("rpm", old_name, logger, skip_remote=remote_renamed)
 
         # -- Step 8: Re-sync to recreate RemoteArtifacts (if remote was recreated)
         #    When the remote was recreated (not renamed), RemoteArtifacts for
@@ -1005,8 +1008,11 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
         # -- Step 5: Delete old distribution FIRST (base_path must be unique)
         #    File repo base_paths use the package name, not the repo name,
         #    so old and new base_paths are identical.  Pulp enforces unique
-        #    base_path, so the old distribution must be removed before
-        #    creating the new one.
+        #    base_path, so the old distribution MUST be removed before
+        #    creating the new one.  Unlike RPM repos (where the repo name is
+        #    embedded in the base_path), File repo distributions cannot coexist.
+        #    The old FILE REPOSITORY is still preserved — only the distribution
+        #    (serving endpoint) is replaced.
         if "delete_distribution" in pulp_file_commands:
             run_cmd(pulp_file_commands["delete_distribution"] % shlex.quote(old_name), logger)
 
@@ -1036,8 +1042,9 @@ def migrate_file_repos(os_type: str, os_version: str, dry_run: bool,
                                    new_name, dist_res["stderr"])
 
         # -- Step 7: Delete remaining old entities (repo, publications) ---
-        #    Distribution already deleted above; _delete_old_repo_entities
-        #    handles the rest (best-effort, skips if already gone).
+        #    Distribution already deleted above.  Since File repo distributions
+        #    cannot coexist (same base_path), the old repo is no longer
+        #    accessible — clean up the remaining old entities completely.
         _delete_old_repo_entities("file", old_name, logger)
 
         results.append({"name": old_name, "new_name": new_name,
@@ -1185,8 +1192,11 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
         # -- Step 4: Delete old distribution FIRST (base_path must be unique)
         #    Python repo base_paths use the package name, not the repo name,
         #    so old and new base_paths are identical.  Pulp enforces unique
-        #    base_path, so the old distribution must be removed before
-        #    creating the new one.
+        #    base_path, so the old distribution MUST be removed before
+        #    creating the new one.  Unlike RPM repos (where the repo name is
+        #    embedded in the base_path), Python repo distributions cannot coexist.
+        #    The old PYTHON REPOSITORY is still preserved — only the distribution
+        #    (serving endpoint) is replaced.
         if "delete_distribution" in pulp_python_commands:
             run_cmd(pulp_python_commands["delete_distribution"] % shlex.quote(old_name), logger)
 
@@ -1214,8 +1224,9 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
                                new_name, dist_res["stderr"])
 
         # -- Step 6: Delete remaining old entities (repo) -----------------
-        #    Distribution already deleted above; _delete_old_repo_entities
-        #    handles the rest (best-effort, skips if already gone).
+        #    Distribution already deleted above.  Since Python repo distributions
+        #    cannot coexist (same base_path), the old repo is no longer
+        #    accessible — clean up the remaining old entities completely.
         _delete_old_repo_entities("python", old_name, logger)
 
         results.append({"name": old_name, "new_name": new_name,
@@ -1232,16 +1243,23 @@ def migrate_python_repos(os_type: str, os_version: str, dry_run: bool,
 def migrate_status_csv_files(os_type: str, os_version: str,
                              base_path: str, dry_run: bool,
                              logger) -> List[Dict[str, Any]]:
-    """Update ``repo_name`` column in status.csv files to new naming format.
+    """Add new-format ``repo_name`` entries alongside old-format entries in status.csv.
 
     status.csv lives at:
-        <base_path>/<os_type>/<os_version>/<arch>/<software>/status.csv
+        <base_path>/<arch>/<software>/status.csv
+
+    (base_path already includes os_type/os_version, e.g.
+     /opt/omnia/log/local_repo/rhel/10.0)
 
     Each CSV row has columns: name, type, repo_name, status
-    We update any repo_name that is in old format.
+
+    For each row with an old-format repo_name, the original row is kept
+    unchanged and a new row is appended with the new-format repo_name.
+    This ensures both old and new format entries coexist for each package.
+    Already-migrated entries (where the new-format row exists) are skipped.
     """
     results = []
-    pattern = f"{base_path}/*/*/*/*/status.csv"
+    pattern = f"{base_path}/*/*/status.csv"
     status_files = glob.glob(pattern)
 
     for status_file in status_files:
@@ -1257,24 +1275,41 @@ def migrate_status_csv_files(os_type: str, os_version: str,
                     continue
 
                 for row in reader:
-                    repo_name = row.get("repo_name", "")
-                    if repo_name and is_old_format(repo_name):
-                        new_repo_name = build_new_name(repo_name, os_type, os_version)
-                        if new_repo_name:
-                            row["repo_name"] = new_repo_name
-                            updated = True
                     rows.append(row)
+
+            # Build a set of existing repo_names for dedup
+            existing_repo_names = {
+                (r.get("name", ""), r.get("repo_name", "")) for r in rows
+            }
+
+            # For each old-format entry, add a new-format duplicate if not present
+            new_rows = []
+            for row in rows:
+                new_rows.append(row)
+                repo_name = row.get("repo_name", "")
+                if repo_name and is_old_format(repo_name):
+                    new_repo_name = build_new_name(repo_name, os_type, os_version)
+                    if new_repo_name:
+                        key = (row.get("name", ""), new_repo_name)
+                        if key not in existing_repo_names:
+                            new_row = dict(row)
+                            new_row["repo_name"] = new_repo_name
+                            new_rows.append(new_row)
+                            existing_repo_names.add(key)
+                            updated = True
 
             if updated and not dry_run:
                 with open(status_file, "w", newline="", encoding="utf-8") as fh:
                     writer = csv.DictWriter(fh, fieldnames=fieldnames)
                     writer.writeheader()
-                    writer.writerows(rows)
+                    writer.writerows(new_rows)
                 results.append({"name": status_file, "type": "status_csv",
-                                "status": "Success", "message": "Updated repo_name entries"})
+                                "status": "Success",
+                                "message": "Added new-format entries alongside old"})
             elif updated and dry_run:
                 results.append({"name": status_file, "type": "status_csv",
-                                "status": "DryRun", "message": "Would update repo_name entries"})
+                                "status": "DryRun",
+                                "message": "Would add new-format entries alongside old"})
 
         except Exception as exc:
             logger.error("Error processing %s: %s", status_file, exc)
@@ -1354,10 +1389,10 @@ def _delete_old_entity(entity_type: str, sub_type: str, name: str,
 
 def cleanup_stale_old_format(os_type: str, os_version: str, dry_run: bool,
                              logger) -> List[Dict[str, Any]]:
-    """Delete any Pulp entities that still carry the old naming format.
+    """Delete stale old-format File and Python entities from Pulp.
 
-    This runs **after** the rename pass.  For each old-format entity found we
-    check whether the corresponding new-format entity already exists:
+    This runs **after** the migration pass.  For each old-format entity found
+    we check whether the corresponding new-format entity already exists:
 
     * **New-format exists** → the old entity is a stale leftover (e.g. a
       partially-failed rename created the new one but left the old).  Safe to
@@ -1365,17 +1400,16 @@ def cleanup_stale_old_format(os_type: str, os_version: str, dry_run: bool,
     * **New-format does NOT exist** → the rename never succeeded and the old
       entity is the *only* copy of the data.  We skip deletion to avoid data
       loss and log a warning instead.
+
+    **RPM entities are intentionally excluded** — RPM repos have different
+    base_paths for old and new distributions, so both can coexist in Pulp.
+    Use ``utils/delete_migrated_pulp_rpm_repos.yml`` to clean up old RPM repos.
     """
     results: List[Dict[str, Any]] = []
 
-    # Map of (entity_type, sub_type) → (list_cmd, show_cmd)
+    # Only scan File and Python entities.
+    # RPM entities are excluded — old and new RPM repos coexist in Pulp.
     scan_targets = [
-        ("rpm",    "repository",   pulp_rpm_commands.get("list_repositories", ""),
-                                   pulp_rpm_commands.get("show_repository", "")),
-        ("rpm",    "remote",       pulp_rpm_commands.get("list_remotes", ""),
-                                   pulp_rpm_commands.get("show_remote", "")),
-        ("rpm",    "distribution", pulp_rpm_commands.get("list_distributions", ""),
-                                   pulp_rpm_commands.get("check_distribution", "")),
         ("file",   "repository",   pulp_file_commands.get("list_repositories", ""),
                                    pulp_file_commands.get("show_repository", "")),
         ("file",   "distribution", pulp_file_commands.get("list_distributions", ""),
@@ -1597,10 +1631,11 @@ def run_module():
         csv_results = migrate_status_csv_files(os_type, os_version, base_path, dry_run, logger)
         all_results.extend(csv_results)
 
-        # 5. Post-migration cleanup: delete any stale old-format entities
-        #    that survived the rename pass (e.g. partial failures that left
-        #    both old and new copies).
-        logger.info("--- Cleaning up stale old-format entities ---")
+        # 5. Post-migration cleanup: delete stale old-format File/Python entities
+        #    that survived the migration pass.  RPM entities are excluded —
+        #    old and new RPM repos coexist (different base_paths).
+        #    Use utils/delete_migrated_pulp_rpm_repos.yml to clean up old RPMs.
+        logger.info("--- Cleaning up stale old-format File/Python entities ---")
         cleanup_results = cleanup_stale_old_format(os_type, os_version, dry_run, logger)
         all_results.extend(cleanup_results)
 
@@ -1614,9 +1649,11 @@ def run_module():
         table = format_migration_table(all_results)
         logger.info("\n%s", table)
 
-        success_count = sum(1 for r in all_results if r["status"] == "Success")
-        failed_count = sum(1 for r in all_results if r["status"] == "Failed")
-        skipped_count = sum(1 for r in all_results if r["status"] in ("Skipped", "DryRun"))
+        # Count only rpm_repository results (exclude yum_repo_file and other types)
+        repo_results = [r for r in all_results if r.get("type") == "rpm_repository"]
+        success_count = sum(1 for r in repo_results if r["status"] == "Success")
+        failed_count = sum(1 for r in repo_results if r["status"] == "Failed")
+        skipped_count = sum(1 for r in repo_results if r["status"] in ("Skipped", "DryRun"))
 
         changed = success_count > 0 and not dry_run
 

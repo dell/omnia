@@ -250,7 +250,7 @@ CLEANUP_LOG_FILE_PATH = "/opt/omnia/log/local_repo/cleanup.log"
 # ----------------------------
 ADDITIONAL_REPOS_KEY = "additional_repos"
 AGGREGATED_REPO_SUFFIX = "omnia-additional"
-AGGREGATED_BASE_PATH_TEMPLATE = "opt/omnia/offline_repo/cluster/{arch}/{os_type}/{os_version}/rpms/omnia-additional"
+AGGREGATED_BASE_PATH_TEMPLATE = "opt/omnia/offline_repo/cluster/{arch}/{os_type}/{os_version}/rpms/{repo_name}"
 STANDARD_LOG_FILE_PATH = "/opt/omnia/log/local_repo/standard.log"
 
 # ----------------------------

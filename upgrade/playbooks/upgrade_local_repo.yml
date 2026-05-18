@@ -35,6 +35,29 @@
       when:
         - manifest.component_status[component_name] | default('pending') == 'completed'
 
+    # ── Dependency Check: OIM must be completed first ──────────────────
+    - name: Check OIM upgrade status
+      ansible.builtin.fail:
+        msg: |
+          ══════════════════════════════════════════════════════════════
+                    LOCAL_REPO UPGRADE - DEPENDENCY NOT MET
+          ══════════════════════════════════════════════════════════════
+
+          The local_repo upgrade requires OIM to be completed first.
+
+          Current OIM status: {{ manifest.component_status.oim | default('pending') }}
+          Required status   : completed
+
+          Please run the OIM upgrade first:
+            ansible-playbook upgrade.yml --tags oim
+
+          Then retry the local_repo upgrade:
+            ansible-playbook upgrade.yml --tags local_repo
+
+          ══════════════════════════════════════════════════════════════
+      when:
+        - manifest.component_status.oim | default('pending') != 'completed'
+
     - name: Set local_repo upgrade status to in-progress
       ansible.builtin.copy:
         content: >-
@@ -46,10 +69,35 @@
         dest: "{{ manifest_path }}"
         mode: '0644'
 
-    - name: Execute local repo staging and Pulp sync
-      ansible.builtin.include_role:
-        name: prep_local_repo
+    # ── Local Repository Upgrade ───────────────────────────────────────
+    - name: "Local Repository Upgrade"
+      block:
+        # Manage upgrade inputs (load config, validate, calculate hops)
+        - name: "Manage Upgrade Inputs"
+          ansible.builtin.include_role:
+            name: manage_localrepo_inputs
 
+        # Prepare local repository for upgrade
+        - name: "Prepare Local Repository"
+          ansible.builtin.include_role:
+            name: prep_local_repo
+
+      rescue:
+        - name: Local repo upgrade failed — mark component as failed
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                   'component_status': manifest.component_status | combine({
+                     component_name: 'failed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
+        - name: Fail with local repo upgrade error
+          ansible.builtin.fail:
+            msg: "Local repository upgrade failed. Check logs and consider running rollback."
+
+    # ── Finalize: mark local_repo as completed ──────────────────────────
     - name: Mark local_repo upgrade as completed
       ansible.builtin.copy:
         content: >-
