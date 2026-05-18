@@ -1,0 +1,72 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Generate OChami access token for BSS update
+  delegate_to: "{{ oim_host }}"
+  ansible.builtin.command:
+    cmd: bash -lc 'gen_access_token'
+  register: bss_access_token
+  changed_when: false
+  failed_when: false
+  retries: 3
+  delay: 5
+  until: bss_access_token.rc == 0 and bss_access_token.stdout not in ["", "null"]
+
+- name: Set BSS image paths for {{ bss_group }}
+  ansible.builtin.set_fact:
+    bss_boot_base: "http://{{ minio_ip | default('localhost') }}:{{ minio_port | default('9000') }}/{{ minio_bucket | default('omnia') }}/boot-images/k8s-{{ k8s_version }}/{{ bss_group }}"
+
+- name: Update BSS boot parameters for {{ bss_group }}
+  delegate_to: "{{ oim_host }}"
+  ansible.builtin.command:
+    cmd: >-
+      ochami bss bootparams set
+      --group {{ bss_group }}
+      --kernel {{ bss_boot_base }}/vmlinuz
+      --initrd {{ bss_boot_base }}/initrd.img
+      --params "root=live:{{ bss_boot_base }}/image.squashfs rd.live.image rd.live.ram"
+  environment:
+    OCHAMI_ACCESS_TOKEN: "{{ bss_access_token.stdout }}"
+  register: bss_update_result
+  failed_when: false
+  when: bss_access_token.rc == 0
+
+- name: Set BSS update result to skipped if token generation failed
+  ansible.builtin.set_fact:
+    bss_update_result:
+      rc: 0
+      skipped: true
+  when: bss_access_token.rc != 0
+
+- name: Build resolved BSS status update for {{ bss_group }}
+  ansible.builtin.set_fact:
+    _bss_status_entry: >-
+      {{ {bss_group: {
+           'status': ('completed' if bss_update_result.rc == 0 else 'failed'),
+           'timestamp': ansible_date_time.iso8601,
+           'new_image_url': bss_boot_base ~ '/image.squashfs',
+           'error': (bss_update_result.stderr | default(none) if bss_update_result.rc != 0 else none)
+         }} }}
+
+- name: Update BSS status for {{ bss_group }}
+  ansible.builtin.include_tasks: update_node_step.yml
+  vars:
+    status_update:
+      bss_update: "{{ _bss_status_entry }}"
+
+- name: Warn if BSS update failed for {{ bss_group }}
+  ansible.builtin.debug:
+    msg: "{{ msg_bss_update_failed }}"
+  when: bss_update_result.rc != 0
