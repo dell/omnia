@@ -118,3 +118,8 @@ omnia_credentials:
       - username: ome_username
         password: ome_password
         condition: "{{ enable_bmc_discovery | default(false) | bool }}"
+  ufm_telemetry:
+    conditional_mandatory:
+      - username: ufm_username
+        password: ufm_password
+        condition: "{{ ufm_telemetry_support | default(false) | bool }}"

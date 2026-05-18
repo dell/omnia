@@ -102,7 +102,9 @@
                   (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
                   (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
                   (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) or
-                  (telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(false) | bool)
+                  (telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(false) | bool) or
+                  (telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool) or
+                  (telemetry_config.telemetry_sources.ufm.logs_enabled | default(false) | bool)
 
         - name: Check discovery configuration for OME
           block:

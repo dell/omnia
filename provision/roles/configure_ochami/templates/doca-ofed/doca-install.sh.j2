@@ -52,26 +52,21 @@ else
     dnf install -y doca-ofed
 fi
 
-echo "Unloading RDMA kernel modules..."
-rmmod bnxt_re || true
-rmmod mlx5_ib    || true
-rmmod ib_uverbs  || true
-rmmod xpmem      || true
-rmmod ib_core    || true
-rmmod mlx5_core  || true
+# NOTE: Removed module unload/reload sequence - DKMS handles module installation automatically
+# The modprobe commands were causing module dependency issues and are not needed
+# DOCA DKMS installation automatically handles kernel module replacement
 
-echo "Loading RDMA kernel modules..."
-modprobe mlx5_core || true
-modprobe mlx5_ib || true
-modprobe ib_core || true
-modprobe ib_uverbs || true
-modprobe ib_umad || true
-modprobe ib_cm || true
-modprobe rdma_cm || true
-modprobe rdma_ucm || true
-modprobe xpmem || true
-modprobe knem || true
-modprobe ib_ipoib || true
+# NOTE: Remove MLNX OFED kernel modules to preserve standard RDMA compatibility
+# This ensures rpcrdma and other standard RDMA functionality works correctly
+echo "Removing MLNX OFED kernel modules to ensure standard RDMA compatibility"
+if dkms status mlnx-ofa_kernel/25.10 -k $(uname -r) >/dev/null 2>&1; then
+    dkms uninstall mlnx-ofa_kernel/25.10 -k $(uname -r) || true
+    dkms remove mlnx-ofa_kernel/25.10 --all || true
+    depmod -a
+    echo "MLNX OFED kernel modules removed successfully, standard kernel modules restored"
+else
+    echo "MLNX OFED kernel modules not found, skipping removal"
+fi
 
 if command -v firewall-cmd &>/dev/null; then
     echo "Adding firewall ports..."
@@ -86,4 +81,5 @@ else
 fi
 
 echo "DOCA-OFED installation completed successfully."
+
  

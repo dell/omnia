@@ -146,6 +146,29 @@ telemetry_sources:
       - "victoria_metrics"
       - "victoria_logs"
 
+  # --------------------------------------------------------------------------
+  # UFM — NVIDIA UFM InfiniBand Fabric Telemetry
+  # --------------------------------------------------------------------------
+  # Collects: IB port state, transmit/receive data, error counters, fabric topology
+  # Requires: NVIDIA UFM appliance with Prometheus exporter enabled (port 9090)
+  # Data path: UFM Prometheus Exporter → vmagent(shared) → victoria_metrics
+  #
+  # NOTE: Omnia does NOT deploy UFM itself. Omnia configures the existing
+  # vmagent to scrape the UFM Prometheus endpoint for IB fabric metrics.
+  ufm:
+    # Enable or disable UFM InfiniBand metrics collection
+    # Default: false
+    metrics_enabled: false
+
+    # Enable or disable UFM syslog logs collection
+    # Default: false
+    logs_enabled: false
+
+    # UFM uses vmagent(shared) for metrics and VLAgent for logs
+    collection_targets:
+      - "victoria_metrics"
+      - "victoria_logs"
+
 
 # ============================================================================
 # TELEMETRY BRIDGES (Data Routers)
@@ -349,3 +372,54 @@ powerscale_configurations:
   # Required when powerscale_configurations.powerscale_telemetry_support: true
   # Reference: https://raw.githubusercontent.com/dell/helm-charts/refs/heads/release-v1.16.3/charts/karavi-observability/values.yaml
   csm_observability_values_file_path: ""
+
+# --------------------------------------------------------------------------
+# UFM Telemetry Configuration
+# --------------------------------------------------------------------------
+# UFM telemetry collects InfiniBand fabric metrics from NVIDIA UFM appliances
+# using Prometheus scraping.
+#
+# DATA PIPELINE:
+#   UFM Prometheus Exporter → vmagent(shared) → victoria_metrics
+#
+# NOTE: UFM does NOT use Vector bridges. It uses the shared vmagent instance
+#       for metrics collection.
+ufm_configuration:
+  # UFM appliance IP address or hostname
+  # Required when telemetry_sources.ufm.metrics_enabled is true
+  # Example: "172.20.44.180" or "ufm.example.com"
+  ufm_endpoint: ""
+
+  # UFM Prometheus exporter port
+  # Default: 9001 (UFM default Prometheus port)
+  ufm_metrics_port: 9001
+
+  # Prometheus scrape interval for UFM metrics
+  # Accepted values: Prometheus duration format (e.g., "15s", "30s", "1m")
+  # Default: "30s"
+  scrape_interval: "30s"
+
+  # Prometheus scrape timeout (must be <= scrape_interval)
+  # Accepted values: Prometheus duration format (e.g., "10s", "15s")
+  # Default: "15s"
+  scrape_timeout: "15s"
+
+  # TLS mode for connecting to UFM Prometheus endpoint
+  # Accepted values: "self_signed", "ca_signed"
+  # - self_signed: Skip TLS verification (insecure_skip_verify=true)
+  # - ca_signed: Use CA certificate for TLS verification
+  # Default: "self_signed"
+  tls_mode: "self_signed"
+
+  # Path to CA certificate file for UFM TLS verification
+  # Required when tls_mode is "ca_signed"
+  # Must be a valid PEM-format certificate file
+  # Default: "" (empty — not used when tls_mode is "self_signed")
+  ufm_ca_cert_path: ""
+
+  # Authentication mode for UFM Prometheus endpoint
+  # Accepted values: "basic", "none"
+  # - basic: Use ufm_username/ufm_password from omnia_config_credentials.yml
+  # - none: No authentication (UFM endpoint is open)
+  # Default: "basic"
+  auth_mode: "basic"
