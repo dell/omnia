@@ -99,4 +99,4 @@
       delegate_to: oim
       connection: ssh
       failed_when: false
-      when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('')  == 'internal')
+      when: (hostvars['localhost']['omnia_share_option'] == 'NFS' and hostvars['localhost']['nfs_type'] | default('') == 'internal')
