@@ -73,7 +73,7 @@
       when: (upgrade_status.nodes[current_node_name].status | default('pending')) != 'completed'
       block:
         - name: Mark node in_progress
-          ansible.builtin.include_tasks: update_node_status.yml
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
           vars:
             node_name: "{{ current_node_name }}"
             node_status_update:
@@ -83,7 +83,7 @@
         # NOTE: setup_repos is now done globally in upgrade_k8s.yml before Execute play
         # Mark as completed here for status tracking
         - name: Mark setup_repos completed (done globally)
-          ansible.builtin.include_tasks: update_node_status.yml
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
           vars:
             node_name: "{{ current_node_name }}"
             node_status_update:
@@ -98,7 +98,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.kubeadm_install.status | default('pending')) != 'completed'
           block:
             - name: Mark kubeadm_install in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -116,7 +116,7 @@
               register: kubeadm_install_result
 
             - name: Mark kubeadm_install completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -127,7 +127,7 @@
                       error:
           rescue:
             - name: Mark kubeadm_install failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -146,7 +146,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.kubeadm_upgrade_node.status | default('pending')) != 'completed'
           block:
             - name: Mark kubeadm_upgrade_node in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -161,7 +161,7 @@
               changed_when: false
 
             - name: Mark kubeadm_upgrade_node completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -172,7 +172,7 @@
                       error:
           rescue:
             - name: Mark kubeadm_upgrade_node failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -195,7 +195,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.drain.status | default('pending')) != 'completed'
           block:
             - name: Mark drain in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -211,7 +211,7 @@
               changed_when: false
 
             - name: Mark drain completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -222,7 +222,7 @@
                       error:
           rescue:
             - name: Mark drain failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -241,7 +241,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.kubelet_install.status | default('pending')) != 'completed'
           block:
             - name: Mark kubelet_install in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -261,7 +261,7 @@
               register: kubelet_install_result
 
             - name: Mark kubelet_install completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -272,7 +272,7 @@
                       error:
           rescue:
             - name: Mark kubelet_install failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -291,7 +291,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.crio_install.status | default('pending')) != 'completed'
           block:
             - name: Mark crio_install in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -319,7 +319,7 @@
                 enabled: true
 
             - name: Mark crio_install completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -330,7 +330,7 @@
                       error:
           rescue:
             - name: Mark crio_install failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -349,7 +349,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.kubelet_restart.status | default('pending')) != 'completed'
           block:
             - name: Mark kubelet_restart in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -379,7 +379,7 @@
               changed_when: false
 
             - name: Mark kubelet_restart completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -390,7 +390,7 @@
                       error:
           rescue:
             - name: Mark kubelet_restart failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -409,7 +409,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.uncordon.status | default('pending')) != 'completed'
           block:
             - name: Mark uncordon in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -425,7 +425,7 @@
               changed_when: false
 
             - name: Mark uncordon completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -436,7 +436,7 @@
                       error:
           rescue:
             - name: Mark uncordon failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -455,7 +455,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.validation.status | default('pending')) != 'completed'
           block:
             - name: Mark validation in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -473,7 +473,7 @@
               changed_when: false
 
             - name: Mark validation completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -484,7 +484,7 @@
                       error:
           rescue:
             - name: Mark validation failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -500,7 +500,7 @@
 
         # ── Mark node completed ──────────────────────────────────────
         - name: Mark node completed {{ current_node_name }}
-          ansible.builtin.include_tasks: update_node_status.yml
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
           vars:
             node_name: "{{ current_node_name }}"
             node_status_update:
@@ -509,7 +509,7 @@
 
       rescue:
         - name: Mark node as failed (outer rescue) {{ current_node_name }}
-          ansible.builtin.include_tasks: update_node_status.yml
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
           vars:
             node_name: "{{ current_node_name }}"
             node_status_update:
@@ -569,7 +569,7 @@
       when: (upgrade_status.nodes[current_node_name].status | default('pending')) != 'completed'
       block:
         - name: Mark node in_progress
-          ansible.builtin.include_tasks: update_node_status.yml
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
           vars:
             node_name: "{{ current_node_name }}"
             node_status_update:
@@ -579,7 +579,7 @@
         # NOTE: setup_repos is now done globally in upgrade_k8s.yml before Execute play
         # Mark as completed here for status tracking
         - name: Mark setup_repos completed (done globally)
-          ansible.builtin.include_tasks: update_node_status.yml
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
           vars:
             node_name: "{{ current_node_name }}"
             node_status_update:
@@ -594,7 +594,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.kubeadm_install.status | default('pending')) != 'completed'
           block:
             - name: Mark kubeadm_install in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -612,7 +612,7 @@
               register: kubeadm_install_result
 
             - name: Mark kubeadm_install completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -623,7 +623,7 @@
                       error:
           rescue:
             - name: Mark kubeadm_install failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -642,7 +642,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.kubeadm_upgrade_node.status | default('pending')) != 'completed'
           block:
             - name: Mark kubeadm_upgrade_node in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -657,7 +657,7 @@
               changed_when: false
 
             - name: Mark kubeadm_upgrade_node completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -668,7 +668,7 @@
                       error:
           rescue:
             - name: Mark kubeadm_upgrade_node failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -691,7 +691,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.drain.status | default('pending')) != 'completed'
           block:
             - name: Mark drain in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -707,7 +707,7 @@
               changed_when: false
 
             - name: Mark drain completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -718,7 +718,7 @@
                       error:
           rescue:
             - name: Mark drain failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -737,7 +737,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.kubelet_install.status | default('pending')) != 'completed'
           block:
             - name: Mark kubelet_install in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -757,7 +757,7 @@
               register: kubelet_install_result
 
             - name: Mark kubelet_install completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -768,7 +768,7 @@
                       error:
           rescue:
             - name: Mark kubelet_install failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -787,7 +787,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.crio_install.status | default('pending')) != 'completed'
           block:
             - name: Mark crio_install in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -815,7 +815,7 @@
                 enabled: true
 
             - name: Mark crio_install completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -826,7 +826,7 @@
                       error:
           rescue:
             - name: Mark crio_install failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -845,7 +845,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.kubelet_restart.status | default('pending')) != 'completed'
           block:
             - name: Mark kubelet_restart in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -875,7 +875,7 @@
               changed_when: false
 
             - name: Mark kubelet_restart completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -886,7 +886,7 @@
                       error:
           rescue:
             - name: Mark kubelet_restart failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -905,7 +905,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.uncordon.status | default('pending')) != 'completed'
           block:
             - name: Mark uncordon in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -921,7 +921,7 @@
               changed_when: false
 
             - name: Mark uncordon completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -932,7 +932,7 @@
                       error:
           rescue:
             - name: Mark uncordon failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -951,7 +951,7 @@
           when: (upgrade_status.nodes[current_node_name].steps.validation.status | default('pending')) != 'completed'
           block:
             - name: Mark validation in_progress
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -969,7 +969,7 @@
               changed_when: false
 
             - name: Mark validation completed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -980,7 +980,7 @@
                       error:
           rescue:
             - name: Mark validation failed
-              ansible.builtin.include_tasks: update_node_status.yml
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
               vars:
                 node_name: "{{ current_node_name }}"
                 node_status_update:
@@ -996,7 +996,7 @@
 
         # ── Mark node completed ──────────────────────────────────────
         - name: Mark node completed {{ current_node_name }}
-          ansible.builtin.include_tasks: update_node_status.yml
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
           vars:
             node_name: "{{ current_node_name }}"
             node_status_update:
@@ -1005,7 +1005,7 @@
 
       rescue:
         - name: Mark node as failed (outer rescue) {{ current_node_name }}
-          ansible.builtin.include_tasks: update_node_status.yml
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
           vars:
             node_name: "{{ current_node_name }}"
             node_status_update:
