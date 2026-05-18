@@ -22,11 +22,23 @@
     enable_build_stream: "{{ enable_build_stream | default(hostvars['localhost']['enable_build_stream'] | default(false)) }}"
     build_stream_job_id: "{{ build_stream_job_id | default(hostvars['localhost']['build_stream_job_id'] | default('')) }}"
     compute_image_suffix: "{{ compute_image_suffix | default(hostvars['localhost']['compute_image_suffix'] | default('')) }}"
-- name: Verify image, kernel and initramfs in S3
+
+- name: Compute naming suffix for image validation
+  ansible.builtin.set_fact:
+    naming_suffix: >-
+      {{ '_omnia_' + hostvars['localhost']['oim_metadata']['omnia_version']
+         if hostvars['localhost']['oim_metadata'] is defined
+         and hostvars['localhost']['oim_metadata']['omnia_version'] | default('') | length > 0
+         else '' }}{{ '_k8s_' + hostvars['localhost']['service_k8s_version']
+         if (item is match('service_kube_'))
+         and (hostvars['localhost']['service_k8s_version'] | default('') | length > 0)
+         else '' }}
+
+- name: Verify image, kernel and initramfs in S3 # noqa: yaml[line-length]
   ansible.builtin.shell: |
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
-    grep {{ functional_group_name }}{% if enable_build_stream and (compute_image_suffix | default('') != '') %}_{{ compute_image_suffix }}{% endif %} | \
+    grep "rhel-{{ functional_group_name }}{{ naming_suffix }}{% if enable_build_stream and (compute_image_suffix | default('') != '') %}_{{ compute_image_suffix }}{% endif %}" | \
     grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false
