@@ -1,0 +1,43 @@
+---
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Wrapper for general status updates (etcd_backup, k8s_config_backup, addon_upgrade, etc.)
+# Calls the consolidated update_status.yml task
+#
+# Required variables:
+#   - status_update: The status update dictionary to merge
+#   - status_file: path to status file on kube_vip (or will be resolved from defaults)
+#   - kube_vip: target host where status file is stored (or will be resolved from defaults)
+#
+# Example usage:
+#   - ansible.builtin.include_tasks: update_node_step.yml
+#     vars:
+#       status_update:
+#         etcd_backup:
+#           status: completed
+#           timestamp: "{{ now(utc=true).isoformat() }}"
+
+- name: Fail if status_file is not defined
+  ansible.builtin.fail:
+    msg: "Required variable 'status_file' is not defined. Ensure it is set before calling update_node_step.yml"
+  when: status_file is not defined
+
+- name: Fail if kube_vip is not defined
+  ansible.builtin.fail:
+    msg: "Required variable 'kube_vip' is not defined. Ensure it is set before calling update_node_step.yml"
+  when: kube_vip is not defined
+
+- name: Update general status via consolidated task
+  ansible.builtin.include_tasks: update_status.yml

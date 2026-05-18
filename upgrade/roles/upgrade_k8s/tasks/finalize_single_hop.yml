@@ -1,0 +1,56 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Finalize a single hop - post-upgrade validation and status updates
+# This is called from the playbook after node upgrades complete
+#
+# Required variables:
+#   - current_hop: The hop dict with from_minor, to_version, artifacts_dir
+#   - hop_idx: The 0-based index of this hop
+
+# ── Post-validation ──────────────────────────────────────────────
+- name: "hop {{ hop_idx + 1 }} [{{ current_hop.to_version }}] — Run post-validation"
+  ansible.builtin.include_tasks: post_validation.yml
+
+# ── Check and mark hop as completed ──────────────────────────────
+- name: "hop {{ hop_idx + 1 }} [{{ current_hop.to_version }}] — Check if all nodes upgraded and mark hop completed"
+  ansible.builtin.include_tasks: check_and_mark_hop_completed.yml
+
+# ── Mark hop completed ───────────────────────────────────────────
+- name: "hop {{ hop_idx + 1 }} [{{ current_hop.to_version }}] — Mark upgrade completed"
+  ansible.builtin.include_tasks: update_node_step.yml
+  vars:
+    status_update:
+      upgrade:
+        status: completed
+        completed_at: "{{ ansible_date_time.iso8601 }}"
+      multi_hop:
+        current_hop: "{{ hop_idx }}"
+        hops: >-
+          {{ (upgrade_status.multi_hop.hops | default([]))
+             | rejectattr('to', 'equalto', current_hop.to_version)
+             | list
+             + [{
+               'from': k8s_from_version,
+               'to': current_hop.to_version,
+               'status': 'completed',
+               'completed_at': ansible_date_time.iso8601,
+               'backup_dir': backup_dir
+             }] }}
+
+- name: "hop {{ hop_idx + 1 }} [{{ current_hop.to_version }}] — Hop complete"
+  ansible.builtin.debug:
+    msg: >-
+      Hop {{ hop_idx + 1 }} complete: {{ current_hop.from_minor }} → {{ current_hop.to_version }}.
+      Backup at: {{ backup_dir }}

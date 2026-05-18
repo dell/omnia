@@ -1,0 +1,28 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Prep a single hop's target version: build squashfs and verify artifacts.
+# Repo sync is handled by prep_sync_all_repos.yml (called once for all hops).
+#
+# Inputs (set by caller):
+#   _hop_target_version — e.g. "1.35.1"
+#   _hop_target_minor   — e.g. "1.35"
+#   _hop_artifacts_dir  — e.g. "v1.35.1"
+
+# Commented out to skip squashfs build and proceed directly with k8s upgrade
+# - name: "prep [{{ _hop_target_version }}] — Build squashfs image"
+#   ansible.builtin.include_tasks: build_squashfs.yml
+
+# - name: "prep [{{ _hop_target_version }}] — Verify all artifacts"
+#   ansible.builtin.include_tasks: verify_images.yml
