@@ -1,0 +1,55 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+---
+# Sub-playbook to upgrade first control plane
+# Called from upgrade_k8s role via ansible-playbook command
+#
+# Required extra-vars:
+#   - k8s_target_version
+#   - status_file
+#   - playbook_dir_parent
+
+- name: "Upgrade First Control Plane"
+  hosts: k8s_control_plane_first
+  gather_facts: false
+  serial: 1
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+  tasks:
+    - name: Load upgrade status
+      ansible.builtin.slurp:
+        src: "{{ status_file }}"
+      delegate_to: localhost
+      register: status_slurp
+      run_once: true
+
+    - name: Parse upgrade status
+      ansible.builtin.set_fact:
+        upgrade_status: "{{ status_slurp.content | b64decode | from_yaml }}"
+      run_once: true
+
+    - name: Set current node name
+      ansible.builtin.set_fact:
+        current_node_name: "{{ inventory_hostname }}"
+
+    - name: Skip {{ current_node_name }} if already completed
+      ansible.builtin.debug:
+        msg: "Node {{ current_node_name }} already completed — skipping."
+      when: (upgrade_status.nodes[current_node_name].status | default('pending')) == 'completed'
+
+    - name: Upgrade first control plane {{ current_node_name }}
+      when: (upgrade_status.nodes[current_node_name].status | default('pending')) != 'completed'
+      block:
+        - name: Include first CP upgrade tasks
+          ansible.builtin.include_tasks: "{{ playbook_dir_parent }}/upgrade/roles/upgrade_k8s/tasks/upgrade_cp_first_node.yml"
+
+      rescue:
+        - name: Mark {{ current_node_name }} as failed
+          ansible.builtin.include_tasks: "{{ playbook_dir_parent }}/upgrade/roles/upgrade_k8s/tasks/update_node_status.yml"
+          vars:
+            node_name: "{{ current_node_name }}"
+            node_status_update:
+              status: failed
+
+        - name: Fail after marking status
+          ansible.builtin.fail:
+            msg: "First control plane {{ current_node_name }} upgrade failed. Aborting."

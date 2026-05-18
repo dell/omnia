@@ -1,0 +1,76 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Worker upgrade: Component Spec PHASE 6 requires Worker-1 to be upgraded first,
+# then the rest of the workers (worker-2..N) in batches.
+# BSS & Cloud-Init are handled by a separate component (cloud_init_bss tag).
+
+- name: Separate worker-1 from remaining workers
+  ansible.builtin.set_fact:
+    _worker_first: "{{ groups_worker | first if groups_worker | length > 0 else [] }}"
+    _worker_rest: "{{ groups_worker[1:] if groups_worker | length > 1 else [] }}"
+
+- name: Display worker upgrade plan
+  ansible.builtin.debug:
+    msg: >-
+      Worker upgrade plan:
+      - Worker-1 ({{ _worker_first }}): upgrade first
+      - Remaining workers ({{ _worker_rest | length }}): upgrade in batches of {{ worker_parallel_count }}
+
+# ── Upgrade worker-1 first (Component Spec PHASE 6) ─────────────────────
+- name: "Upgrade worker-1 first"
+  ansible.builtin.include_tasks: upgrade_worker.yml
+  loop: "{{ [_worker_first] }}"
+  loop_control:
+    loop_var: current_node_name
+  vars:
+    current_node_ip: "{{ node_ips[current_node_name] }}"
+    current_node_role: worker_first
+  when:
+    - _worker_first | length > 0
+    - upgrade_status.upgrade.status != 'completed'
+
+# ── Validate worker-1 is ready (Component Spec PHASE 6) ─────────────────
+- name: "Validate worker-1 is ready after upgrade"
+  ansible.builtin.include_tasks: validate_worker_ready.yml
+  vars:
+    target_node: "{{ _worker_first }}"
+    target_node_ip: "{{ node_ips[_worker_first] }}"
+  when:
+    - _worker_first | length > 0
+    - upgrade_status.upgrade.status != 'completed'
+
+# ── Upgrade remaining workers in batches ───────────────────────────────
+- name: Build worker batches for remaining workers ({{ worker_parallel_count }} per batch)
+  ansible.builtin.set_fact:
+    _worker_batches: "{{ _worker_rest | batch(worker_parallel_count | int) | list }}"
+  when: _worker_rest | length > 0
+
+- name: Display remaining worker batch plan
+  ansible.builtin.debug:
+    msg: >-
+      Remaining worker upgrade plan: {{ _worker_rest | length }} workers in
+      {{ _worker_batches | length }} batch(es) of up to {{ worker_parallel_count }}.
+  when: _worker_rest | length > 0
+
+- name: Process remaining worker batch
+  ansible.builtin.include_tasks: upgrade_workers_batch_inner.yml
+  loop: "{{ _worker_batches }}"
+  loop_control:
+    loop_var: _current_batch
+    index_var: _batch_idx
+    label: "batch {{ _batch_idx + 1 }}/{{ _worker_batches | length }}"
+  when:
+    - _worker_rest | length > 0
+    - upgrade_status.upgrade.status != 'completed'
