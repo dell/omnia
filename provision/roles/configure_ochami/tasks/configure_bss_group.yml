@@ -17,12 +17,25 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ item }}"
 
+- name: Compute omnia and k8s naming suffix for image
+  ansible.builtin.set_fact:
+    naming_suffix: >-
+      {{ '_omnia_' + hostvars['localhost']['oim_metadata']['omnia_version']
+         if hostvars['localhost']['oim_metadata']['omnia_version'] | default('') | length > 0
+         else '' }}{{ '_k8s_' + hostvars['localhost']['service_k8s_version']
+         if (item is match('service_kube_')) and (hostvars['localhost']['service_k8s_version'] | default('') | length > 0)
+         else '' }}
+
+- name: Build image search pattern
+  ansible.builtin.set_fact:
+    image_search_pattern: >-
+      rhel-{{ functional_group_name }}{{ naming_suffix }}
+
 - name: Verify image, kernel and initramfs in S3 (build stream and image-key)
   ansible.builtin.shell: |
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
-    grep {{ functional_group_name }} | \
-    grep {{ compute_image_suffix }} | \
+    grep "{{ image_search_pattern }}{{ compute_image_suffix }}" | \
     grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false
@@ -35,7 +48,7 @@
   ansible.builtin.shell: |
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
-    grep {{ functional_group_name }} | \
+    grep "{{ image_search_pattern }}" | \
     grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false

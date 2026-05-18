@@ -66,6 +66,13 @@
             | items2dict
           }}
 
+    - name: Extract service_k8s_version from software_config.json
+      ansible.builtin.set_fact:
+        service_k8s_version: >-
+          {{ (lookup('file', software_config_file_path) | from_json).softwares
+             | selectattr('name', 'equalto', 'service_k8s')
+             | map(attribute='version') | first | default('') }}
+
     - name: Debug software directory compute_images_dict
       ansible.builtin.debug:
         var: compute_images_dict

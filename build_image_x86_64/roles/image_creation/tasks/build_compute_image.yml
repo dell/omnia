@@ -42,7 +42,8 @@
     dest: "{{ openchami_work_dir }}/images/rhel-{{ item.key }}{{ compute_image_suffix }}-{{ rhel_tag }}.yaml"
     mode: "{{ dir_permissions_644 }}"
   vars:
-    rhel_base_compute_image_name: "rhel-{{ item.key }}{{ compute_image_suffix }}"
+    _fg_k8s_sfx: "{{ (item.key is match('service_kube_')) | ternary(k8s_suffix, '') }}"
+    rhel_base_compute_image_name: "rhel-{{ item.key }}{{ omnia_suffix }}{{ _fg_k8s_sfx }}{{ compute_image_suffix }}"
     group_name: "{{ item.key }}"
     compute_packages: "{{ item.value.packages }}"
     functional_group: "{{ item.value.functional_group }}"
