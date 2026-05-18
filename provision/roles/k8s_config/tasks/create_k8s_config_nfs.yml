@@ -250,11 +250,16 @@
     dest: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
     mode: "{{ file_mode }}"
 
-- name: Untar helm tarball repo
+- name: Extract helm version from package name
+  ansible.builtin.set_fact:
+    helm_version: "{{ helm_package | regex_replace('^helm-v', '') | regex_replace('-amd64$', '') }}"
+
+- name: Untar helm tarball to version-specific directory
   ansible.builtin.unarchive:
     src: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
-    dest: "{{ k8s_client_mount_path }}/helm/"
+    dest: "{{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_version }}/"
     remote_src: true
+    creates: "{{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_version }}/helm"
 
 # nfs client provisioner
 - name: Download nfs-client-provisioner tarball

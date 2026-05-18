@@ -228,9 +228,9 @@
           content: |
             #!/bin/bash
             set -e
-            HELM_VERSION="v3.19.0"
-            ARCH="amd64"
-            cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}/helm /usr/local/bin/helm
+            # Helm version extracted from service_k8s config
+            HELM_VERSION="{{ helm_package | regex_replace('^helm-v', '') | regex_replace('-amd64$', '') }}"
+            cp {{ k8s_client_mount_path }}/helm/linux-amd64-helm-v${HELM_VERSION}/helm /usr/local/bin/helm
             chmod +x /usr/local/bin/helm
 
             # Optional: Set up bash completion
