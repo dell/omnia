@@ -1460,10 +1460,6 @@ def validate_dns_config(data):
 
     Checks:
         - dns_domain is a valid RFC 1035 domain name and not reserved.
-        - dns_ttl is in valid range (60-86400).
-        - dns_cache_ttl is in valid range (10-3600) and <= dns_ttl.
-        - dns_fabric_suffixes format (hyphen-prefixed, lowercase alphanumeric).
-        - dns_soa values are positive integers.
 
     Args:
         data (dict): The dns_config dict from dns_config.yml.
@@ -1504,56 +1500,5 @@ def validate_dns_config(data):
                 en_us_validation_msg.DNS_DOMAIN_INVALID_MSG,
             )
         )
-
-    # --- dns_ttl ---
-    ttl = cfg.get("dns_ttl", 300)
-    if not isinstance(ttl, int) or ttl < 60 or ttl > 86400:
-        errors.append(
-            create_error_msg(
-                "dns_config.dns_ttl", str(ttl),
-                en_us_validation_msg.DNS_TTL_RANGE_MSG,
-            )
-        )
-
-    # --- dns_cache_ttl ---
-    cache_ttl = cfg.get("dns_cache_ttl", 60)
-    if not isinstance(cache_ttl, int) or cache_ttl < 10 or cache_ttl > 3600:
-        errors.append(
-            create_error_msg(
-                "dns_config.dns_cache_ttl", str(cache_ttl),
-                en_us_validation_msg.DNS_CACHE_TTL_RANGE_MSG,
-            )
-        )
-    elif isinstance(ttl, int) and cache_ttl > ttl:
-        errors.append(
-            create_error_msg(
-                "dns_config.dns_cache_ttl", str(cache_ttl),
-                en_us_validation_msg.DNS_CACHE_TTL_EXCEEDS_TTL_MSG,
-            )
-        )
-
-    # --- dns_fabric_suffixes ---
-    suffix_re = re.compile(r'^-[a-z0-9][a-z0-9\-]*$')
-    for suffix in cfg.get("dns_fabric_suffixes", []):
-        if not isinstance(suffix, str) or not suffix_re.match(suffix):
-            errors.append(
-                create_error_msg(
-                    "dns_config.dns_fabric_suffixes", str(suffix),
-                    en_us_validation_msg.DNS_FABRIC_SUFFIX_FORMAT_MSG,
-                )
-            )
-
-    # --- dns_soa ---
-    soa = cfg.get("dns_soa", {})
-    if soa:
-        for field in ("refresh", "retry", "expire"):
-            val = soa.get(field)
-            if val is not None and (not isinstance(val, int) or val < 1):
-                errors.append(
-                    create_error_msg(
-                        f"dns_config.dns_soa.{field}", str(val),
-                        en_us_validation_msg.DNS_SOA_POSITIVE_INT_MSG,
-                    )
-                )
 
     return errors

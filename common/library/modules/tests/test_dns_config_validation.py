@@ -68,23 +68,11 @@ def _make_config(**overrides):
         "dns_config": {
             "dns_enabled": True,
             "dns_domain": "hpc.cluster",
-            "dns_ttl": 300,
-            "dns_reverse_enabled": True,
-            "dns_fabric_suffixes": [],
-            "dns_cache_ttl": 60,
-            "dns_soa": {
-                "refresh": 3600,
-                "retry": 600,
-                "expire": 86400,
-            },
         }
     }
     cfg = base["dns_config"]
     for k, v in overrides.items():
-        if k.startswith("soa_"):
-            cfg["dns_soa"][k[4:]] = v
-        else:
-            cfg[k] = v
+        cfg[k] = v
     return base
 
 
@@ -138,98 +126,6 @@ class TestDnsDomainValidation(unittest.TestCase):
     def test_subdomain_of_reserved(self):
         errs = validate_dns_config(_make_config(dns_domain="hpc.cluster.local"))
         self.assertTrue(_has_error_msg(errs, "reserved"))
-
-
-class TestDnsTtlValidation(unittest.TestCase):
-    """FS-INPUT-02: dns_ttl must be in [60, 86400]."""
-
-    def test_valid_ttl(self):
-        self.assertEqual(validate_dns_config(_make_config(dns_ttl=300)), [])
-
-    def test_ttl_minimum(self):
-        self.assertEqual(validate_dns_config(_make_config(dns_ttl=60)), [])
-
-    def test_ttl_maximum(self):
-        self.assertEqual(validate_dns_config(_make_config(dns_ttl=86400)), [])
-
-    def test_ttl_too_low(self):
-        errs = validate_dns_config(_make_config(dns_ttl=59))
-        self.assertTrue(_has_error(errs, "dns_ttl"))
-
-    def test_ttl_too_high(self):
-        errs = validate_dns_config(_make_config(dns_ttl=86401))
-        self.assertTrue(_has_error(errs, "dns_ttl"))
-
-
-class TestDnsCacheTtlValidation(unittest.TestCase):
-    """FS-INPUT-03: dns_cache_ttl must be in [10, 3600] and <= dns_ttl."""
-
-    def test_valid_cache_ttl(self):
-        self.assertEqual(validate_dns_config(_make_config(dns_cache_ttl=60)), [])
-
-    def test_cache_ttl_minimum(self):
-        self.assertEqual(validate_dns_config(_make_config(dns_cache_ttl=10)), [])
-
-    def test_cache_ttl_maximum(self):
-        self.assertEqual(validate_dns_config(_make_config(dns_cache_ttl=300, dns_ttl=300)), [])
-
-    def test_cache_ttl_too_low(self):
-        errs = validate_dns_config(_make_config(dns_cache_ttl=9))
-        self.assertTrue(_has_error(errs, "dns_cache_ttl"))
-
-    def test_cache_ttl_too_high(self):
-        errs = validate_dns_config(_make_config(dns_cache_ttl=3601))
-        self.assertTrue(_has_error(errs, "dns_cache_ttl"))
-
-    def test_cache_ttl_exceeds_ttl(self):
-        errs = validate_dns_config(_make_config(dns_ttl=60, dns_cache_ttl=120))
-        self.assertTrue(_has_error(errs, "dns_cache_ttl"))
-
-
-class TestDnsFabricSuffixValidation(unittest.TestCase):
-    """FS-INPUT-04: fabric suffixes must be hyphen-prefixed lowercase."""
-
-    def test_valid_suffix(self):
-        self.assertEqual(validate_dns_config(_make_config(dns_fabric_suffixes=["-ib"])), [])
-
-    def test_valid_suffix_multi(self):
-        self.assertEqual(
-            validate_dns_config(_make_config(dns_fabric_suffixes=["-ib", "-stor"])), []
-        )
-
-    def test_invalid_suffix_no_hyphen(self):
-        errs = validate_dns_config(_make_config(dns_fabric_suffixes=["ib"]))
-        self.assertTrue(_has_error(errs, "dns_fabric_suffix"))
-
-    def test_invalid_suffix_uppercase(self):
-        errs = validate_dns_config(_make_config(dns_fabric_suffixes=["-IB"]))
-        self.assertTrue(_has_error(errs, "dns_fabric_suffix"))
-
-    def test_invalid_suffix_empty_after_hyphen(self):
-        errs = validate_dns_config(_make_config(dns_fabric_suffixes=["-"]))
-        self.assertTrue(_has_error(errs, "dns_fabric_suffix"))
-
-    def test_empty_suffixes_ok(self):
-        self.assertEqual(validate_dns_config(_make_config(dns_fabric_suffixes=[])), [])
-
-
-class TestDnsSoaValidation(unittest.TestCase):
-    """FS-SOA-01..05: SOA values must be positive integers."""
-
-    def test_valid_soa(self):
-        self.assertEqual(validate_dns_config(_make_config()), [])
-
-    def test_soa_refresh_zero(self):
-        errs = validate_dns_config(_make_config(soa_refresh=0))
-        self.assertTrue(_has_error(errs, "dns_soa"))
-
-    def test_soa_retry_negative(self):
-        errs = validate_dns_config(_make_config(soa_retry=-1))
-        self.assertTrue(_has_error(errs, "dns_soa"))
-
-    def test_soa_expire_zero(self):
-        errs = validate_dns_config(_make_config(soa_expire=0))
-        self.assertTrue(_has_error(errs, "dns_soa"))
 
 
 if __name__ == "__main__":

@@ -7,10 +7,7 @@
       "type": "object",
       "required": [
         "dns_enabled",
-        "dns_domain",
-        "dns_ttl",
-        "dns_reverse_enabled",
-        "dns_cache_ttl"
+        "dns_domain"
       ],
       "properties": {
         "dns_enabled": { "type": "boolean" },
@@ -18,33 +15,6 @@
           "type": "string",
           "minLength": 1,
           "pattern": "^[a-z0-9]([a-z0-9\\-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9\\-]*[a-z0-9])?)*$"
-        },
-        "dns_ttl": {
-          "type": "integer",
-          "minimum": 60,
-          "maximum": 86400
-        },
-        "dns_reverse_enabled": { "type": "boolean" },
-        "dns_fabric_suffixes": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^-[a-z0-9][a-z0-9\\-]*$"
-          }
-        },
-        "dns_cache_ttl": {
-          "type": "integer",
-          "minimum": 10,
-          "maximum": 3600
-        },
-        "dns_soa": {
-          "type": "object",
-          "properties": {
-            "refresh": { "type": "integer", "minimum": 1 },
-            "retry": { "type": "integer", "minimum": 1 },
-            "expire": { "type": "integer", "minimum": 1 }
-          },
-          "additionalProperties": false
         }
       },
       "additionalProperties": false

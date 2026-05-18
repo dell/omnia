@@ -581,28 +581,6 @@ DNS_DOMAIN_RESERVED_MSG = (
     "The following are not permitted: cluster.local, localhost, "
     "com, net, org, edu, gov, io."
 )
-DNS_TTL_RANGE_MSG = (
-    "dns_ttl must be an integer between 60 and 86400 (seconds)."
-)
-DNS_CACHE_TTL_RANGE_MSG = (
-    "dns_cache_ttl must be an integer between 10 and 3600 (seconds)."
-)
-DNS_CACHE_TTL_EXCEEDS_TTL_MSG = (
-    "dns_cache_ttl must be less than or equal to dns_ttl. "
-    "Cache TTL cannot exceed the record TTL."
-)
-DNS_FABRIC_SUFFIX_FORMAT_MSG = (
-    "each dns_fabric_suffix must begin with a hyphen and contain "
-    "only lowercase alphanumeric characters and hyphens. "
-    "Example: -ib, -stor"
-)
-DNS_SOA_POSITIVE_INT_MSG = (
-    "dns_soa values (refresh, retry, expire) must be positive integers."
-)
-DNS_REVERSE_DISABLED_WARNING_MSG = (
-    "dns_reverse_enabled is false. MPI and Slurm may require "
-    "reverse DNS (PTR records) for security validation."
-)
 
 # telemetry
 MANDATORY_FIELD_FAIL_MSG = "must not be empty"

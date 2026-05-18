@@ -13,52 +13,22 @@
 #  limitations under the License.
 ---
 
-# This file configures authoritative CoreDNS for Slurm/MPI hostname resolution.
-# When enabled, CoreDNS replaces /etc/hosts as the primary name resolution
-# mechanism for all cluster compute nodes.
+# This file configures DNS-based hostname resolution for the cluster.
+# When enabled, compute nodes use the OIM's coresmd (CoreDNS with the
+# OpenCHAMI SMD plugin) instead of /etc/hosts for name resolution.
 #
-# DNS records are generated automatically from OpenCHAMI SMD/HSM inventory.
+# DNS records are generated automatically from OpenCHAMI SMD inventory.
 # No per-node DNS entries are required.
 #
-# 'dns_enabled': Master toggle for CoreDNS-based resolution.
-#   - true:  CoreDNS serves authoritative DNS; /etc/hosts peer entries are removed.
+# 'dns_enabled': Master toggle for DNS-based resolution.
+#   - true:  Nodes use coresmd DNS; /etc/hosts peer entries are skipped.
 #   - false: Traditional /etc/hosts-based resolution is used (default).
 #
 # 'dns_domain': Internal DNS domain for the cluster.
 #   All node hostnames are registered under this domain
 #   (e.g., nid0001.hpc.cluster). Must be a valid DNS domain name (RFC 1035).
 #   Must NOT overlap with public TLDs or Kubernetes 'cluster.local'.
-#
-# 'dns_ttl': Default Time-To-Live (seconds) for A and PTR records.
-#   Lower values enable faster propagation on node changes.
-#   Valid range: 60–86400. Default: 300.
-#
-# 'dns_reverse_enabled': Whether to generate reverse (PTR) DNS zones.
-#   Required for MPI and Slurm security validation. Default: true.
-#
-# 'dns_fabric_suffixes': Optional hostname suffixes for multi-fabric networks.
-#   When set, additional A records are created for each fabric IP.
-#   Example: ["-ib"] creates nid0001-ib.hpc.cluster pointing to InfiniBand IP.
-#   Each suffix must begin with a hyphen and contain only lowercase alphanumeric
-#   characters and hyphens.
-#
-# 'dns_cache_ttl': CoreDNS in-memory cache TTL (seconds).
-#   Controls how long resolved answers are cached before re-querying zone files.
-#   Must be <= dns_ttl. Valid range: 10–3600. Default: 60.
-#
-# 'dns_soa': SOA (Start of Authority) record parameters for generated zone files.
-#   - refresh: How often secondary DNS servers should check for updates (seconds).
-#   - retry:   Retry interval after a failed refresh (seconds).
-#   - expire:  When to stop serving zone data if primary is unreachable (seconds).
 
 dns_config:
   dns_enabled: false
   dns_domain: "hpc.cluster"
-  dns_ttl: 300
-  dns_reverse_enabled: true
-  dns_fabric_suffixes: []
-  dns_cache_ttl: 60
-  dns_soa:
-    refresh: 3600
-    retry: 600
-    expire: 86400
