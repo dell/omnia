@@ -198,7 +198,7 @@
           - Helm binary: {{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_target_version }}/helm
 
 # ── Step 2: Per-hop build + verify ───────────────────────────────────
-- name: "Phase 1 — Build & verify for target version: {{ _prep_hop.to_version }}"
+- name: "Phase 1 — Build & verify for target version {{ _prep_hop.to_version }}"
   ansible.builtin.include_tasks: prep_phase_single_hop.yml
   loop: "{{ hop_chain }}"
   loop_control:

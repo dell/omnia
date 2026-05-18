@@ -58,7 +58,7 @@
       ansible.builtin.set_fact:
         node_ip: "{{ upgrade_status.nodes[current_node_name].ip }}"
 
-    - name: "Skip node if already completed: {{ current_node_name }}"
+    - name: "Skip node if already completed - {{ current_node_name }}"
       ansible.builtin.debug:
         msg: "Node {{ current_node_name }} already completed — skipping."
       when: (upgrade_status.nodes[current_node_name].status | default('pending')) == 'completed'

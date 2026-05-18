@@ -58,7 +58,7 @@
       ansible.builtin.set_fact:
         node_ip: "{{ upgrade_status.nodes[current_node_name].ip }}"
 
-    - name: "Skip node if already completed: {{ current_node_name }}"
+    - name: "Skip node if already completed - {{ current_node_name }}"
       ansible.builtin.debug:
         msg: "Node {{ current_node_name }} already completed — skipping."
       when: (upgrade_status.nodes[current_node_name].status | default('pending')) == 'completed'
@@ -475,7 +475,7 @@
                 msg: "etcd_health_check failed: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
 
         # ── Mark node completed ──────────────────────────────────────
-        - name: Mark node completed {{ current_node_name }}
+        - name: "Mark node completed {{ current_node_name }}"
           ansible.builtin.include_tasks: update_node_status.yml
           vars:
             node_name: "{{ current_node_name }}"
@@ -484,7 +484,7 @@
               version_current: "{{ k8s_target_version }}"
 
       rescue:
-        - name: Mark node as failed (outer rescue) {{ current_node_name }}
+        - name: "Mark node as failed (outer rescue) {{ current_node_name }}"
           ansible.builtin.include_tasks: update_node_status.yml
           vars:
             node_name: "{{ current_node_name }}"

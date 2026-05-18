@@ -71,7 +71,7 @@
   when: item.status | default(0) != 200
   changed_when: false
 
-- name: "Verify images — All prep artifacts verified for target version: {{ _hop_target_version }}"
+- name: "Verify images — All prep artifacts verified for target version {{ _hop_target_version }}"
   ansible.builtin.debug:
     msg: >-
       All prep artifacts verified for v{{ _hop_target_version }}:
