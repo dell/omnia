@@ -1,0 +1,63 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Update cloud-init common group configuration
+# ============================================================================
+# Deletes and re-sets the ci-group-common configuration from a pre-rendered
+# YAML file using ochami CLI. This covers the ci-group-common operations
+# skipped during upgrade_mode.
+#
+# Required variables:
+#   ci_common_file_path  — Path to pre-rendered ci-group-common YAML (on target host)
+#
+# See provision/roles/configure_ochami/templates/cloud_init/ci-group-common.yaml.j2
+# ============================================================================
+
+- name: Verify ci-common file exists
+  ansible.builtin.stat:
+    path: "{{ ci_common_file_path }}"
+  register: ci_common_file_stat
+
+- name: Fail if ci-common file not found
+  ansible.builtin.fail:
+    msg: "{{ ci_common_file_missing_msg }}"
+  when: not ci_common_file_stat.stat.exists
+
+- name: Delete existing ci-group-common config
+  ansible.builtin.command: >
+    /usr/bin/ochami cloud-init group delete --no-confirm -f yaml -d @{{ ci_common_file_path }}
+  changed_when: true
+  failed_when: false
+
+- name: Set ci-group-common config
+  ansible.builtin.command: >
+    /usr/bin/ochami cloud-init group set -f yaml -d @{{ ci_common_file_path }}
+  changed_when: true
+  register: ci_common_set_result
+
+- name: Fail if ci-common update failed
+  ansible.builtin.fail:
+    msg: "{{ ci_common_update_fail_msg }}"
+  when: ci_common_set_result.rc != 0
+
+- name: Verify ci-group-common config
+  ansible.builtin.command: /usr/bin/ochami cloud-init group get config common
+  changed_when: false
+  register: ci_common_verify_output
+
+- name: Display ci-common verification
+  ansible.builtin.debug:
+    msg: "{{ ci_common_verify_output.stdout_lines }}"
+    verbosity: 1

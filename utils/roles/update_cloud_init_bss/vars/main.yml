@@ -16,6 +16,8 @@
 # Defaults
 update_bss: true
 update_cloud_init: true
+update_ci_defaults: false
+update_ci_common: false
 
 # Messages
 bss_update_fail_msg: >
@@ -33,7 +35,20 @@ cloud_init_file_missing_msg: >
 functional_group_missing_msg: >
   functional_group_name must be provided. Pass it as an extra variable:
   -e functional_group_name=<group_name>
+ci_defaults_update_fail_msg: >
+  Failed to update cloud-init defaults configuration.
+  Check ochami cloud-init service status: ochami cloud-init defaults get
+ci_defaults_file_missing_msg: >
+  Cloud-init defaults file not found at '{{ ci_defaults_file_path | default('undefined') }}'.
+  Ensure the file exists on the target host before calling this utility.
+ci_common_update_fail_msg: >
+  Failed to update cloud-init common group configuration for 'common'.
+  Check ochami cloud-init service status.
+ci_common_file_missing_msg: >
+  Cloud-init common file not found at '{{ ci_common_file_path | default('undefined') }}'.
+  Ensure the file exists on the target host before calling this utility.
 no_input_files_msg: >
-  At least one of bss_file_path or cloud_init_file_path must be provided.
+  At least one of bss_file_path, cloud_init_file_path, ci_defaults_file_path,
+  or ci_common_file_path must be provided.
   Pass them as extra variables:
   -e bss_file_path=/path/to/bss.yaml -e cloud_init_file_path=/path/to/ci-group.yaml
