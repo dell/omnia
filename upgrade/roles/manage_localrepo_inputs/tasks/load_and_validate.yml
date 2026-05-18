@@ -1,0 +1,100 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# Load upgrade configuration and validate current deployment
+# ============================================================================
+# Consolidated from load_upgrade_vars.yml + validate_current_deployment.yml
+#
+# 1. Loads upgrade_manifest.yml (version metadata)
+# 2. Loads upgrade_vars.yml (component definitions + upgrade paths)
+# 3. Validates current deployment via shared validate_software_config
+# 4. Checks Omnia upgrade paths exist
+# ============================================================================
+
+# --- Load upgrade_manifest.yml ---
+
+- name: "Load — Read upgrade_manifest.yml"
+  ansible.builtin.slurp:
+    path: "/opt/omnia/.data/upgrade_manifest.yml"
+  register: _upgrade_manifest_raw
+  failed_when: false
+
+- name: "Load — Fail if upgrade_manifest.yml not found"
+  ansible.builtin.fail:
+    msg: "upgrade_manifest.yml not found at /opt/omnia/.data/upgrade_manifest.yml"
+  when: _upgrade_manifest_raw is not succeeded
+
+- name: "Load — Parse upgrade_manifest"
+  ansible.builtin.set_fact:
+    upgrade_manifest: "{{ _upgrade_manifest_raw.content | b64decode | from_yaml }}"
+
+# --- Load upgrade_vars.yml ---
+
+- name: "Load — Check upgrade_vars.yml exists"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/../../../common/vars/upgrade_vars.yml"
+  register: _upgrade_config_stat
+
+- name: "Load — Fail if upgrade_vars.yml not found"
+  ansible.builtin.fail:
+    msg: "upgrade_vars.yml not found at {{ role_path }}/../../../common/vars/upgrade_vars.yml"
+  when: not _upgrade_config_stat.stat.exists
+
+- name: "Load — Load upgrade_vars.yml"
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/../../../common/vars/upgrade_vars.yml"
+    name: upgrade_config
+
+# --- Extract metadata ---
+
+- name: "Load — Set upgrade metadata"
+  ansible.builtin.set_fact:
+    enabled_components: >-
+      {{ upgrade_config.components | dict2items
+         | selectattr('value.enabled', 'equalto', true)
+         | list }}
+    upgrade_source_version: "{{ upgrade_manifest.source_version }}"
+    upgrade_target_version: "{{ upgrade_manifest.target_version }}"
+    upgrade_id: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}_{{ 99999 | random }}"
+
+- name: "Load — Display loaded configuration"
+  ansible.builtin.debug:
+    msg:
+      - "Upgrade Config: Omnia {{ upgrade_source_version }} -> {{ upgrade_target_version }}"
+      - "Enabled: {{ enabled_components | map(attribute='key') | list | join(', ') }}"
+
+# --- Validate current deployment (shared logic) ---
+
+- name: "Validate — Load and validate software_config.json"
+  ansible.builtin.include_tasks: validate_software_config.yml
+
+- name: "Validate — Check Omnia upgrade paths exist"
+  ansible.builtin.assert:
+    that:
+      - upgrade_config.omnia_upgrade_paths[upgrade_source_version] is defined
+    fail_msg: >-
+      No Omnia upgrade path from {{ upgrade_source_version }}.
+      Available: {{ upgrade_config.omnia_upgrade_paths.keys() | list | join(', ') }}
+    success_msg: "Omnia upgrade path exists from {{ upgrade_source_version }}"
+  when: upgrade_source_version is defined
+  run_once: true
+
+- name: "Validate — Display results"
+  ansible.builtin.debug:
+    msg:
+      - "Deployment validated"
+      - "  OS: {{ current_software_config.cluster_os_type }} {{ current_software_config.cluster_os_version }}"
+      - "  Versions: {{ enabled_components | map(attribute='key') | list | join(', ') }}"

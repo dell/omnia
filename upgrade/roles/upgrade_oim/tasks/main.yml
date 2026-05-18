@@ -31,18 +31,3 @@
 - name: "Phase 1 - Import Input Parameters"
   ansible.builtin.include_role:
     name: import_input_parameters
-
-# Phase 2: Manage upgrade inputs (load config, validate, calculate hops)
-- name: "Phase 2 - Manage Upgrade Inputs"
-  ansible.builtin.include_role:
-    name: manage_upgrade_inputs
-
-# Phase 3: Prepare local repository for upgrade
-- name: "Phase 3 - Prepare Local Repository"
-  ansible.builtin.include_role:
-    name: prep_local_repo
-
-# Phase 4: Execute OIM upgrade (this would be the actual OIM upgrade tasks)
-- name: "Phase 4 - Execute OIM Upgrade Tasks"
-  ansible.builtin.debug:
-    msg: "OIM upgrade tasks would be executed here"

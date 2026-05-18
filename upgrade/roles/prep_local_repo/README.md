@@ -7,10 +7,10 @@ Prepares local repository for software upgrades by creating a staging directory 
 ## Key Design Principles
 
 1. **No JSON Artifacts** - Reads JSON files from actual `/opt/omnia/input/project_default/config/` directory
-2. **Staging Directory** - Creates temporary copies of already-updated `software_config.json` and merged `local_repo_config.yml`
-3. **Source of Truth** - `upgrade_manifest.yml` defines upgrade paths and enabled components
-4. **Only repos.yml** - Maintains upgrade-specific repositories in `upgrade/artifacts/repos.yml`
-5. **Read-Only Input** - Does NOT modify files in `/opt/omnia/input/project_default/` (those are updated by `manage_upgrade_inputs` role)
+2. **Staging Directory** - Creates temporary copies of `software_config.json` and `local_repo_config.yml` with delta changes applied (base from input dir, only hop-chain updates added)
+3. **Source of Truth** - `upgrade_vars.yml` defines upgrade paths and enabled components
+4. **Only repos.yml** - Maintains upgrade-specific repositories in `upgrade/roles/prep_local_repo/artifacts/repos.yml`
+5. **Read-Only Input** - Does NOT modify any files in `/opt/omnia/input/project_default/`
 
 ## Workflow
 
@@ -30,15 +30,16 @@ Prepares local repository for software upgrades by creating a staging directory 
 4. Cleanup staging directory
 ```
 
-**Note**: The `manage_upgrade_inputs` role updates `software_config.json` with target versions BEFORE this role executes. This role only copies the already-updated configuration to staging.
+**Note**: The `manage_localrepo_inputs` role updates `software_config.json` with target versions BEFORE this role executes. This role only copies the already-updated configuration to staging.
 
 ## Files
 
 - `tasks/main.yml` - Entry point
-- `tasks/load_upgrade_config.yml` - Load and validate upgrade_config.yml
-- `tasks/validate_prerequisites.yml` - Validate versions and JSON files
+- `tasks/validate_prerequisites.yml` - Delegates to shared `validate_software_config.yml` + checks repos.yml
 - `tasks/create_staging.yml` - Create staging directory with merged configs
 - `tasks/sync_local_repo.yml` - Run local_repo roles
+
+Shared validation logic lives in `manage_localrepo_inputs/tasks/validate_software_config.yml`.
 
 ## Required Variables
 
