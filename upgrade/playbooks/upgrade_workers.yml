@@ -69,7 +69,7 @@
         msg: "Node {{ current_node_name }} already completed — skipping."
       when: (upgrade_status.nodes[current_node_name].status | default('pending')) == 'completed'
 
-    - name: Upgrade worker: {{ current_node_name }}
+    - name: Upgrade worker {{ current_node_name }}
       when: (upgrade_status.nodes[current_node_name].status | default('pending')) != 'completed'
       block:
         - name: Mark node in_progress
