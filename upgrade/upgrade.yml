@@ -137,7 +137,7 @@
       ansible.builtin.copy:
         content: |
           upgrade_id: "upgrade-{{ 9999 | random }}"
-          source_version: "{{ oim_metadata.omnia_previous_version }}"
+          source_version: "{{ oim_metadata.previous_omnia_version }}"
           target_version: "{{ oim_metadata.omnia_version }}"
           upgrade_status: "in-progress"
           backup_dir: "{{ oim_metadata.upgrade_backup_dir }}"
