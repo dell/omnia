@@ -15,6 +15,17 @@
 
 # pylint: disable=import-error,no-name-in-module
 
+import os
+import fcntl
+import tempfile
+from ansible.module_utils.basic import AnsibleModule
+
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
 """
 Ansible module to efficiently update Kubernetes upgrade status file.
 
@@ -101,26 +112,15 @@ merged_status:
     returned: always
 '''
 
-import os
-import fcntl
-import tempfile
-from ansible.module_utils.basic import AnsibleModule
-
-try:
-    import yaml
-    HAS_YAML = True
-except ImportError:
-    HAS_YAML = False
-
 
 def merge_dicts(base, update):
     """
     Recursively merge two dictionaries.
-    
+
     Args:
         base: Base dictionary
         update: Dictionary with updates to merge
-        
+
     Returns:
         Merged dictionary
     """
@@ -136,18 +136,18 @@ def merge_dicts(base, update):
 def read_status_file(file_path):
     """
     Read and parse the status YAML file with file locking.
-    
+
     Args:
         file_path: Path to the status file
-        
+
     Returns:
         Parsed status dictionary, or empty dict if file doesn't exist
     """
     if not os.path.exists(file_path):
         return {}
-    
+
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             # Acquire shared lock for reading
             fcntl.flock(f.fileno(), fcntl.LOCK_SH)
             try:
@@ -157,30 +157,30 @@ def read_status_file(file_path):
                 return yaml.safe_load(content) or {}
             finally:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-    except Exception as e:
-        raise Exception(f"Failed to read status file: {str(e)}")
+    except (OSError, IOError, yaml.YAMLError) as e:
+        raise IOError(f"Failed to read status file: {str(e)}") from e
 
 
 def write_status_file(file_path, status_data):
     """
     Write status data to YAML file atomically with file locking.
-    
+
     Args:
         file_path: Path to the status file
         status_data: Dictionary to write
     """
     # Ensure directory exists
     os.makedirs(os.path.dirname(file_path), mode=0o755, exist_ok=True)
-    
+
     # Write to temporary file first
     temp_fd, temp_path = tempfile.mkstemp(
         dir=os.path.dirname(file_path),
         prefix='.upgrade_status_',
         suffix='.tmp'
     )
-    
+
     try:
-        with os.fdopen(temp_fd, 'w') as f:
+        with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
             # Acquire exclusive lock for writing
             fcntl.flock(f.fileno(), fcntl.LOCK_EX)
             try:
@@ -195,34 +195,34 @@ def write_status_file(file_path, status_data):
                 )
             finally:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-        
+
         # Atomic rename
         os.chmod(temp_path, 0o644)
         os.rename(temp_path, file_path)
-        
-    except Exception as e:
+
+    except (OSError, IOError, yaml.YAMLError) as e:
         # Clean up temp file on error
         if os.path.exists(temp_path):
             os.unlink(temp_path)
-        raise Exception(f"Failed to write status file: {str(e)}")
+        raise IOError(f"Failed to write status file: {str(e)}") from e
 
 
 def run_module():
     """
     Main module execution.
     """
-    module_args = dict(
-        status_file=dict(type='str', required=True),
-        kube_vip=dict(type='str', required=True),
-        node_name=dict(type='str', required=False, default=None),
-        node_status_update=dict(type='dict', required=False, default=None),
-        status_update=dict(type='dict', required=False, default=None),
-    )
+    module_args = {
+        'status_file': {'type': 'str', 'required': True},
+        'kube_vip': {'type': 'str', 'required': True},
+        'node_name': {'type': 'str', 'required': False, 'default': None},
+        'node_status_update': {'type': 'dict', 'required': False, 'default': None},
+        'status_update': {'type': 'dict', 'required': False, 'default': None},
+    }
 
-    result = dict(
-        changed=False,
-        merged_status={},
-    )
+    result = {
+        'changed': False,
+        'merged_status': {},
+    }
 
     module = AnsibleModule(
         argument_spec=module_args,
@@ -250,7 +250,7 @@ def run_module():
     try:
         # Read current status
         current_status = read_status_file(status_file)
-        
+
         # Build merged status
         if node_status_update:
             # Node-specific update
@@ -262,19 +262,19 @@ def run_module():
         else:
             # General update
             merged_status = merge_dicts(current_status, status_update)
-        
+
         # Check if anything changed
         if merged_status != current_status:
             result['changed'] = True
-            
+
             # Write updated status (unless in check mode)
             if not module.check_mode:
                 write_status_file(status_file, merged_status)
-        
+
         result['merged_status'] = merged_status
         module.exit_json(**result)
-        
-    except Exception as e:
+
+    except (OSError, IOError, yaml.YAMLError) as e:
         module.fail_json(msg=str(e), **result)
 
 

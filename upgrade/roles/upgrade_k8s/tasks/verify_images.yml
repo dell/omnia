@@ -54,7 +54,7 @@
     label: "{{ item }}"
   changed_when: false
 
-- name: "verify_images [{{ _hop_target_version }}] — All prep artifacts verified"
+- name: "Verify images — All prep artifacts verified {{ _hop_target_version }}"
   ansible.builtin.debug:
     msg: >-
       All prep artifacts verified for v{{ _hop_target_version }}:
