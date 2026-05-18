@@ -40,6 +40,11 @@
     base_image_suffix: ""
     compute_image_suffix: ""
 
+- name: Set omnia and k8s image naming suffixes
+  ansible.builtin.set_fact:
+    omnia_suffix: "_omnia_{{ omnia_version }}"
+    k8s_suffix: "_k8s_{{ hostvars['localhost']['service_k8s_version'] | default('') }}"
+
 - name: Set s3_access and s3_secret
   ansible.builtin.set_fact:
     s3_access: "{{ hostvars['localhost']['s3_access_id'] | default('admin', true) }}"

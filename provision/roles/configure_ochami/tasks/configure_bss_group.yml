@@ -17,6 +17,15 @@
   ansible.builtin.set_fact:
     functional_group_name: "{{ item }}"
 
+- name: Compute omnia and k8s naming suffix for image
+  ansible.builtin.set_fact:
+    naming_suffix: >-
+      {{ '_omnia_' + hostvars['localhost']['oim_metadata']['omnia_version']
+         if hostvars['localhost']['oim_metadata']['omnia_version'] | default('') | length > 0
+         else '' }}{{ '_k8s_' + hostvars['localhost']['service_k8s_version']
+         if (item is match('service_kube_')) and (hostvars['localhost']['service_k8s_version'] | default('') | length > 0)
+         else '' }}
+
 - name: Verify image, kernel and initramfs in S3 (build stream and image-key)
   ansible.builtin.shell: |
     set -o pipefail && \
