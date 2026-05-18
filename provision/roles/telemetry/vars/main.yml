@@ -658,3 +658,61 @@ vector:
       limits:
         cpu: "500m"
         memory: "512Mi"
+
+# ============================================================================
+# UFM Telemetry Configuration
+# ============================================================================
+# Usage: deploy_ufm_telemetry.yml
+# UFM telemetry collects InfiniBand fabric metrics from NVIDIA UFM appliances
+# using Prometheus scraping via the shared vmagent instance.
+
+# Kubernetes resource names
+ufm_credentials_secret_name: "ufm-telemetry-credentials"
+ufm_grafana_dashboard_configmap_name: "grafana-dashboard-ufm"
+
+# UFM telemetry defaults
+ufm_deploy_grafana_dashboard: true
+ufm_endpoint_test_timeout: 10
+
+# Validation messages
+ufm_endpoint_empty_msg: >-
+  UFM telemetry is enabled but ufm_endpoint is empty.
+  Set telemetry_sources.ufm.ufm_endpoint in telemetry_config.yml.
+
+ufm_credentials_missing_msg: >-
+  UFM auth_mode is 'basic' but ufm_username or ufm_password is not set.
+  Provide UFM credentials in omnia_config_credentials.yml.
+
+ufm_ca_cert_not_found_msg: >-
+  UFM tls_mode is 'ca_signed' but the CA certificate file was not found
+  at the path specified in ufm_ca_cert_path. Provide a valid PEM certificate file.
+
+ufm_port_range_msg: >-
+  UFM metrics port must be between 1 and 65535.
+
+ufm_tls_mode_invalid_msg: >-
+  UFM tls_mode must be 'self_signed' or 'ca_signed'.
+
+ufm_auth_mode_invalid_msg: >-
+  UFM auth_mode must be 'basic' or 'none'.
+
+ufm_endpoint_unreachable_msg: >-
+  WARNING: UFM endpoint is not reachable. UFM telemetry configuration will
+  proceed, but VMAgent will not be able to scrape metrics until UFM is accessible.
+
+ufm_secret_created_msg: >-
+  UFM credentials Kubernetes Secret created in namespace '{{ telemetry_namespace }}'.
+
+ufm_victoria_logs_validation_fail_msg: >-
+  UFM log collection requires 'victoria_logs' in
+  telemetry_sources.ufm.collection_targets.
+
+
+ufm_integration_summary_msg: >-
+  UFM telemetry integration complete.
+  {% if _ufm_config.metrics_enabled | default(false) | bool %}
+  Metrics: https://{{ _ufm_detailed_config.ufm_endpoint }}:{{ _ufm_detailed_config.ufm_metrics_port | default(9001) }}
+  TLS mode: {{ _ufm_detailed_config.tls_mode | default('self_signed') }}
+  Auth mode: {{ _ufm_detailed_config.auth_mode | default('basic') }}
+  Scrape interval: {{ _ufm_detailed_config.scrape_interval | default('30s') }}
+  {% endif %}

@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# === PowerScale endpoint validation (S3 backend only) ===
+
+- name: Set storage backend fact
+  ansible.builtin.set_fact:
+    storage_backend: "{{ s3_configurations.provider | lower }}"
+
+- name: Validate PowerScale S3 endpoint configuration
+  ansible.builtin.assert:
+    that:
+      - s3_configurations is defined
+      - s3_configurations.endpoint_url is defined
+      - s3_configurations.endpoint_url | length > 0
+      - s3_access_id is defined
+      - s3_access_id | length > 0
+      - s3_secret_key is defined
+      - s3_secret_key | length > 0
+    fail_msg: "{{ powerscale_validation_fail_msg }}"
+  when: storage_backend == 'powerscale'
+
+- name: Test PowerScale endpoint reachability
+  ansible.builtin.uri:
+    url: "{{ s3_configurations.endpoint_url }}"
+    method: GET
+    validate_certs: false
+    status_code: [200, 403, 404, 405]
+    timeout: 10
+  register: ps_endpoint_check
+  failed_when: false
+  ignore_errors: true
+  when: storage_backend == 'powerscale'
+
+- name: Fail if PowerScale unreachable
+  ansible.builtin.fail:
+    msg: "{{ powerscale_unreachable_msg }}"
+  when:
+    - storage_backend == 'powerscale'
+    - ps_endpoint_check is defined
+    - ps_endpoint_check.status is not defined or
+      ps_endpoint_check.status | int not in [200, 403, 404, 405]

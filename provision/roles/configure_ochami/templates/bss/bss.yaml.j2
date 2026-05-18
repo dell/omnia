@@ -1,6 +1,11 @@
 ---
-kernel: "http://{{ cluster_boot_ip }}:9000/{{ kernel }}"
-initrd: "http://{{ cluster_boot_ip }}:9000/{{ initrd }}"
+{% if s3_configurations.provider | default('powerscale') == 'powerscale' %}
+{% set s3_base_url = s3_configurations.endpoint_url %}
+{% else %}
+{% set s3_base_url = "http://" + cluster_boot_ip + ":9000" %}
+{% endif %}
+kernel: "{{ s3_base_url }}/{{ kernel }}"
+initrd: "{{ s3_base_url }}/{{ initrd }}"
 {% set bs_suffix = "_" + compute_image_suffix
    if enable_build_stream | default(false)
    and (compute_image_suffix | default('')) != ''
@@ -16,7 +21,7 @@ initrd: "http://{{ cluster_boot_ip }}:9000/{{ initrd }}"
     hostvars['localhost']['cluster_os_version']
   )
 %}
-params: "nomodeset ro root=live:http://{{ cluster_boot_ip }}:9000/{{ root_image_path }} ip=dhcp rd.live.image rd.live.ram rd.neednet=1 rd.driver.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas modprobe.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas libata.force=1:disable,2:disable,3:disable,4:disable rd.luks=0 rd.md=0 rd.dm=0 console=tty0 console=ttyS0,115200 selinux=0 apparmor=0 ip6=off {{ bss_params_cloud_init }}"
+params: "nomodeset ro root=live:{{ s3_base_url }}/{{ root_image_path }} ip=dhcp rd.live.image rd.live.ram rd.neednet=1 {% if s3_configurations.provider | default('powerscale') == 'powerscale' %}rd.noverifyssl {% endif %}rd.driver.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas modprobe.blacklist=ccp,edac_core,power_meter,ahci,megaraid_sas libata.force=1:disable,2:disable,3:disable,4:disable rd.luks=0 rd.md=0 rd.dm=0 console=tty0 console=ttyS0,115200 selinux=0 apparmor=0 ip6=off {{ bss_params_cloud_init }}"
 macs:
 {% for item in nodes %}
 {% if item.group == functional_group_name %}

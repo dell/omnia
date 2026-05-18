@@ -166,14 +166,3 @@ coredhcp_tmp_lease_duration: "5m"
 coredhcp_cache_validity: "30s"
 coredhcp_custom_ipxe: "default"
 coredhcp_tftp_single_port_mode: true
-
-# PowerScale S3 endpoint error messages
-powerscale_unreachable_msg: |
-  Cannot reach PowerScale S3 endpoint: {{ s3_configurations.endpoint_url }}
-  Check: network connectivity, S3 service enabled, firewall rules
-
-powerscale_validation_fail_msg: |
-  PowerScale S3 backend requires:
-    - s3_configurations.endpoint_url in storage_config.yml
-    - s3_access_id (PowerScale Access Key -- prompted by prepare_oim)
-    - s3_secret_key (PowerScale Secret Key -- prompted by prepare_oim)
