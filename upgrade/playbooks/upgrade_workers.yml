@@ -158,6 +158,7 @@
             - name: Run kubeadm upgrade node
               ansible.builtin.command: kubeadm upgrade node
               register: upgrade_node_result
+              changed_when: false
 
             - name: Mark kubeadm_upgrade_node completed
               ansible.builtin.include_tasks: update_node_status.yml
@@ -207,6 +208,7 @@
               ansible.builtin.command: kubectl cordon {{ node_ip }}
               delegate_to: "{{ kube_vip }}"
               register: cordon_result
+              changed_when: false
 
             - name: Mark drain completed
               ansible.builtin.include_tasks: update_node_status.yml
@@ -374,6 +376,7 @@
               until: node_ready.stdout == "True"
               retries: "{{ kubelet_ready_retries }}"
               delay: "{{ kubelet_ready_delay }}"
+              changed_when: false
 
             - name: Mark kubelet_restart completed
               ansible.builtin.include_tasks: update_node_status.yml
@@ -419,6 +422,7 @@
               ansible.builtin.command: kubectl uncordon {{ node_ip }}
               delegate_to: "{{ kube_vip }}"
               register: uncordon_result
+              changed_when: false
 
             - name: Mark uncordon completed
               ansible.builtin.include_tasks: update_node_status.yml
@@ -466,6 +470,7 @@
               delegate_to: "{{ kube_vip }}"
               register: node_version
               failed_when: node_version.stdout != ("v" + k8s_target_version)
+              changed_when: false
 
             - name: Mark validation completed
               ansible.builtin.include_tasks: update_node_status.yml
