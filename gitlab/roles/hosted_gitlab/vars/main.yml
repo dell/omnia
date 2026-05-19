@@ -334,7 +334,7 @@ gitlab_deployment_complete_msg:
   - "Access URL: {{ gitlab_external_url_computed }}"
   - "SSH Port:   {{ gitlab_ssh_port }}"
   - "Username:   root"
-  - "Password:   [Encrypted - Stored in {{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml]"
+  - "Password:   [Encrypted - Stored in Omnia core container {{ hostvars['localhost']['input_project_dir'] }}/omnia_config_credentials.yml]"
   - ""
   - "Project:    {{ gitlab_project_name }}"
   - "Project ID: {{ gitlab_project_id }}"

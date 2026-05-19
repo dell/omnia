@@ -77,6 +77,35 @@
   when:
     - true
 
+# ── Derive admin_network.subnet if not present (new 2.2 field) ───────
+# Computes the network address from primary_oim_admin_ip (preferred) or
+# the start IP of dynamic_range (fallback), using the configured netmask.
+# Example: IP 182.10.5.201 + /24 → subnet 182.10.5.0
+- name: Derive admin_network subnet from primary_oim_admin_ip or dynamic_range
+  ansible.builtin.command:
+    cmd: >-
+      python3 -c "import ipaddress, sys;
+      ip='{{ admin_network.primary_oim_admin_ip | default('') }}'.strip();
+      dr='{{ admin_network.dynamic_range | default('') }}'.strip();
+      bits='{{ admin_network.netmask_bits | default('24') }}'.strip();
+      src_ip = ip if ip else (dr.split('-')[0].strip() if '-' in dr else dr);
+      print(str(ipaddress.ip_network(f'{src_ip}/{bits}', strict=False).network_address) if src_ip else '')"
+  register: derived_admin_subnet_result
+  changed_when: false
+  failed_when: false
+  when:
+    - (admin_network.subnet is not defined) or (admin_network.subnet | default('') | trim == '')
+    - (admin_network.primary_oim_admin_ip | default('') | trim != '') or
+      (admin_network.dynamic_range | default('') | trim != '')
+
+- name: Set derived admin subnet fact
+  ansible.builtin.set_fact:
+    derived_admin_subnet: >-
+      {{ derived_admin_subnet_result.stdout | default('') | trim
+         if (derived_admin_subnet_result.stdout is defined and
+             derived_admin_subnet_result.stdout | trim != '')
+         else network_default_subnet }}
+
 - name: Render network_spec.yml in Omnia 2.2 format
   ansible.builtin.template:
     src: network_spec.j2
@@ -84,6 +113,7 @@
     mode: "{{ default_file_mode }}"
   vars:
     admin_network_netmask_bits: "{{ admin_network.netmask_bits | default(network_default_netmask_bits) }}"
+    derived_admin_subnet: "{{ derived_admin_subnet | default(network_default_subnet) }}"
   when: true
 
 - name: Read transformed network_spec.yml
