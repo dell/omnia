@@ -78,14 +78,14 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Show iDRAC reboot status
-      ansible.builtin.debug:
-        msg: "{{ inventory_hostname }}: {{ reboot_status | default('No status') }} ({{ 'FAILED' if reboot_failed | default(true) else 'OK' }})"
+    - name: Fail if reboot function failed
+      ansible.builtin.fail:
+        msg: "{{ reboot_status }}"
+      when: reboot_failed
 
-    - name: Report failed iDRACs (non-fatal, allows BSM to write results)
+    - name: Show passed iDRACs
       ansible.builtin.debug:
-        msg: "WARNING: {{ inventory_hostname }} reboot failed: {{ reboot_status }}"
-      when: reboot_failed | default(true)
+        msg: "{{ inventory_hostname }}: {{ reboot_status }}"
 
 # ─────────────────────────────────────────────────────────────────────────
 # Play 6: Filter phone-home list — exclude nodes whose reboot failed
