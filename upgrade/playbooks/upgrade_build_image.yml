@@ -35,7 +35,6 @@
         upgrade_mode: true
         proceed_build_image: false
         cacheable: true
-        input_project_dir: /opt/omnia/input/project_default
 
     - name: Read upgrade_manifest.yml
       ansible.builtin.slurp:
