@@ -896,43 +896,6 @@ summary:
         FAILED_STATE="${VALIDATE_STATE}"
       fi
 
-      # --- Download and display per-node restart results (if available) ---
-      if [ "${RESTART_STATE}" = "COMPLETED" ] || [ "${RESTART_STATE}" = "SUCCEEDED" ] || [ "${RESTART_STATE}" = "FAILED" ]; then
-        echo "  Downloading node restart results..."
-        NR_HTTP=$(api_call_with_retry node_results.json \
-          -X GET "${BSM_API_URL}/api/v1/jobs/${JOB_ID}/artifacts/node-results" \
-          --cacert "${BSM_CERT_FILE}")
-        [ -f /tmp/bsm_access_token ] && ACCESS_TOKEN=$(cat /tmp/bsm_access_token) && rm -f /tmp/bsm_access_token
-
-        if [ "${NR_HTTP}" = "200" ] && [ -f node_results.json ]; then
-          NR_TOTAL=$(jq -r '.total // 0' node_results.json 2>/dev/null)
-          NR_OK=$(jq -r '.succeeded // 0' node_results.json 2>/dev/null)
-          NR_FAIL=$(jq -r '.failed // 0' node_results.json 2>/dev/null)
-
-          echo ""
-          echo "  Node Restart Results:"
-          echo "  ------------------------------------------------------------"
-          printf "  %-24s %s\n" "Total Nodes:" "${NR_TOTAL}"
-          printf "  %-24s %s\n" "Succeeded:"   "${NR_OK}"
-          printf "  %-24s %s\n" "Failed:"      "${NR_FAIL}"
-          echo "  ------------------------------------------------------------"
-
-          # Show per-node detail (up to 50 nodes)
-          NR_COUNT=$(jq '.nodes | length' node_results.json 2>/dev/null || echo 0)
-          if [ "${NR_COUNT}" -gt 0 ]; then
-            printf "  %-20s %-10s %s\n" "Host" "Status" "Detail"
-            printf "  %-20s %-10s %s\n" "----" "------" "------"
-            jq -r '.nodes[]? | "  \(.host // "unknown")  \(if .failed then "FAILED" else "OK" end)  \(.status // "")"' \
-              node_results.json 2>/dev/null | head -50
-          fi
-          echo "  ------------------------------------------------------------"
-          echo ""
-        else
-          echo "  [INFO] No node restart results available (HTTP ${NR_HTTP})"
-          echo ""
-        fi
-      fi
-
       if [ "${PIPELINE_FAILED}" = "true" ]; then
         echo "  RESULT:  FAILED"
         echo "  Cause:   '${FAILED_STAGE}' stage reached state: ${FAILED_STATE}"

@@ -265,7 +265,9 @@
     src: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
     dest: "{{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_version }}/"
     remote_src: true
-    creates: "{{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_version }}/helm"
+    extra_opts:
+      - "--transform"
+      - "s|^linux-amd64|linux-amd64-helm-v{{ helm_version }}|"
 
 # nfs client provisioner
 - name: Download nfs-client-provisioner tarball

@@ -38,8 +38,8 @@ _BASE_DIR = os.path.dirname(__file__)
 _DEFAULT_POLICY_PATH = os.path.join(_BASE_DIR, "resources", "adapter_policy_default.json")
 _DEFAULT_SCHEMA_PATH = os.path.join(_BASE_DIR, "resources", "AdapterPolicySchema.json")
 
-_K8S_VERSION = "1.34.1"
-_CSI_VERSION = "v2.15.0"
+_K8S_VERSION = "1.35.1"
+_CSI_VERSION = "v2.16.0"
 
 
 def _validate_input_policy_and_schema_paths(
@@ -834,7 +834,12 @@ def generate_configs_from_policy(
 
             for target_file, data in target_configs.items():
                 if data:
-                    file_path = os.path.join(target_dir, target_file)
+                    # Dynamically version the service_k8s target filename
+                    output_name = target_file
+                    if os.path.basename(target_file) == "service_k8s.json":
+                        output_name = f"service_k8s-{_K8S_VERSION}.json"
+
+                    file_path = os.path.join(target_dir, output_name)
                     write_config_file(file_path, data)
                     log_secure_info('info', f"Written: {file_path}")
 
