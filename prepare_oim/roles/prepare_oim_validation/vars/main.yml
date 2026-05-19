@@ -87,3 +87,15 @@ functional_groups_config_syntax_fail_msg: "Failed. Syntax errors present in func
 telemetry_config_file: "telemetry_config.yml"
 fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist in the input folder."
 telemetry_config_syntax_fail_msg: "Failed. Syntax errors present in telemetry_config.yml. Fix errors and re-run playbook again. Common syntax Errors:"
+
+
+# Usage: powerscale_check.yml
+powerscale_unreachable_msg: |
+  Cannot reach PowerScale S3 endpoint: {{ s3_configurations.endpoint_url }}
+  Check: network connectivity, S3 service enabled, firewall rules
+
+powerscale_validation_fail_msg: |
+  PowerScale S3 backend requires:
+    - s3_configurations.endpoint_url in storage_config.yml
+    - s3_access_id (PowerScale Access Key -- prompted by prepare_oim)
+    - s3_secret_key (PowerScale Secret Key -- prompted by prepare_oim)
