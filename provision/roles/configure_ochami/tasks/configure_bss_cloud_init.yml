@@ -40,6 +40,7 @@
   changed_when: false
   failed_when: false
   with_items: "{{ nodes | map(attribute='interfaces.0.mac_addr') | list }}"
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Include configure bss
   ansible.builtin.include_tasks: configure_bss_group.yml
@@ -49,10 +50,12 @@
   ansible.builtin.command: ochami bss boot params get -F yaml
   changed_when: false
   register: boot_params_output
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Verify boot params output
   ansible.builtin.debug:
     msg: "{{ boot_params_output.stdout_lines }}"
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Create cloud-init directory
   ansible.builtin.file:
@@ -87,16 +90,19 @@
 - name: Set ci defaults configuration
   ansible.builtin.command: /usr/bin/ochami cloud-init defaults set -f yaml -d @{{ ci_defaults_dest }}
   changed_when: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Verify ci defaults configuration
   ansible.builtin.command: /usr/bin/ochami cloud-init defaults get -F json-pretty
   changed_when: false
   register: ci_defaults_output
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Verify ci defaults output
   ansible.builtin.debug:
     msg: "{{ ci_defaults_output.stdout_lines }}"
     verbosity: 2
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Configure cloud-init group
   ansible.builtin.include_tasks: configure_cloud_init_common.yml
@@ -104,7 +110,6 @@
 - name: Include configure cloud init
   ansible.builtin.include_tasks: configure_cloud_init_group.yml
   with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
-
 
 - name: Set openchami SELinux context for Local flow
   ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami"

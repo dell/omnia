@@ -64,6 +64,10 @@
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
 
+    - name: "Display rollback status in-progress — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
+
     # TODO: Implement Slurm rollback steps per ESpec §4.11.5:
     # 1. Pre-Rollback: Backup current state (slurmdbd, configs, GRE, mounts)
     # 2. Point old image using BSS command
@@ -86,3 +90,7 @@
              }) | to_nice_yaml }}
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
+
+    - name: "Display rollback status completed — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: completed"

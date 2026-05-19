@@ -13,13 +13,20 @@
 # limitations under the License.
 ---
 
-- name: Rollback Cloud-Init and BSS parameters
+# ============================================================================
+# rollback_provision.yml — Provision Rollback (Framework)
+# ============================================================================
+# Placeholder framework for provision rollback.
+# TODO: Implement restore of BSS/cloud-init from backup and re-provision.
+# ============================================================================
+
+- name: Rollback Provision (Cloud-Init and BSS)
   hosts: localhost
   connection: local
   gather_facts: false
   vars:
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
-    component_name: cloud_init_bss
+    component_name: provision
   tasks:
     - name: Read rollback_manifest.yml
       ansible.builtin.slurp:
@@ -28,20 +35,21 @@
 
     - name: Parse rollback manifest
       ansible.builtin.set_fact:
-        rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
+        rollback_manifest: >-
+          {{ raw_rollback_manifest.content | b64decode | from_yaml }}
 
-    - name: Skip if cloud_init_bss already rolled back
+    - name: Skip if provision already rolled back
       ansible.builtin.meta: end_play
-      when:
-        - rollback_manifest.component_status[component_name] | default('pending') == 'completed'
+      when: >-
+        rollback_manifest.component_status[component_name]
+        | default('pending') == 'completed'
 
     - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
       ansible.builtin.copy:
         content: >-
           {{ rollback_manifest | combine({
-               'component_status': rollback_manifest.component_status | combine({
-                 component_name: 'skipped'
-               })
+               'component_status': rollback_manifest.component_status
+               | combine({ component_name: 'skipped' })
              }) | to_nice_yaml }}
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
@@ -53,33 +61,36 @@
       when:
         - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
 
-    - name: Set cloud_init_bss rollback status to in-progress
+    - name: Set provision rollback status to in-progress
       ansible.builtin.copy:
         content: >-
           {{ rollback_manifest | combine({
-               'component_status': rollback_manifest.component_status | combine({
-                 component_name: 'in-progress'
-               })
+               'component_status': rollback_manifest.component_status
+               | combine({ component_name: 'in-progress' })
              }) | to_nice_yaml }}
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
 
-    # TODO: Implement Cloud-Init/BSS rollback steps per ESpec §4.9/§4.11:
-    # 1. Read pre-upgrade BSS state from backup files
-    # 2. For each functional group: PUT /boot/v1/bootparameters with backup payload
-    # 3. Set operation_type to 'reboot' for all groups
-    # 4. Validate BSS entries match pre-upgrade state
-    - name: Cloud-Init/BSS rollback placeholder
+    - name: "Display rollback status in-progress — {{ component_name }}"
       ansible.builtin.debug:
-        msg: "Cloud-Init/BSS rollback tasks to be implemented (restore BSS params from backup)"
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
 
-    - name: Mark cloud_init_bss rollback as completed
+    - name: Provision rollback placeholder
+      ansible.builtin.debug:
+        msg: >-
+          Provision rollback tasks to be implemented
+          (restore BSS/cloud-init from backup and re-provision nodes)
+
+    - name: Mark provision rollback as completed
       ansible.builtin.copy:
         content: >-
           {{ rollback_manifest | combine({
-               'component_status': rollback_manifest.component_status | combine({
-                 component_name: 'completed'
-               })
+               'component_status': rollback_manifest.component_status
+               | combine({ component_name: 'completed' })
              }) | to_nice_yaml }}
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
+
+    - name: "Display rollback status completed — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: completed"

@@ -234,6 +234,20 @@
         - victoria_logs_support | default(false) | bool
       tags: telemetry_deployment
 
+- name: Populate UFM telemetry deployment configs
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  loop:
+    - src: 'telemetry/ufm/ufm-telemetry-secret.yaml.j2'
+      dest: 'ufm-telemetry-secret.yaml'
+    - src: 'telemetry/ufm/ufm-external-service.yaml.j2'
+      dest: 'ufm-external-service.yaml'
+  when: telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool
+  tags: telemetry_deployment
+
+
 - name: Deploy telemetry cleanup script
   ansible.builtin.template:
     src: 'telemetry/cleanup_telemetry.sh.j2'

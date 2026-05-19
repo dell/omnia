@@ -64,6 +64,10 @@
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
 
+    - name: "Display rollback status in-progress — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
+
     # TODO: Implement K8s rollback steps per ESpec §4.11.4:
     # 1. Restore etcd from pre-upgrade snapshot
     # 2. Deploy cluster with previous version image
@@ -85,3 +89,7 @@
              }) | to_nice_yaml }}
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
+
+    - name: "Display rollback status completed — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: completed"

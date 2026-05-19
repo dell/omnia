@@ -81,7 +81,9 @@
   ansible.builtin.command: /usr/bin/ochami bss boot params delete --no-confirm -f yaml -d @{{ openchami_work_dir }}/boot/bss-{{ functional_group_name }}.yaml
   changed_when: true
   failed_when: false
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Set boot configuration - {{ functional_group_name }}
   ansible.builtin.command: /usr/bin/ochami bss boot params set -f yaml -d @{{ openchami_work_dir }}/boot/bss-{{ functional_group_name }}.yaml
   changed_when: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

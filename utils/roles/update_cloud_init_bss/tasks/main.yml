@@ -39,8 +39,24 @@
   ansible.builtin.assert:
     that:
       - (bss_file_path is defined and bss_file_path | length > 0) or
-        (cloud_init_file_path is defined and cloud_init_file_path | length > 0)
+        (cloud_init_file_path is defined and cloud_init_file_path | length > 0) or
+        (ci_defaults_file_path is defined and ci_defaults_file_path | length > 0) or
+        (ci_common_file_path is defined and ci_common_file_path | length > 0)
     fail_msg: "{{ no_input_files_msg }}"
+
+- name: Update ci-defaults configuration
+  ansible.builtin.include_tasks: update_ci_defaults.yml
+  when:
+    - update_ci_defaults | bool
+    - ci_defaults_file_path is defined
+    - ci_defaults_file_path | length > 0
+
+- name: Update ci-group-common configuration
+  ansible.builtin.include_tasks: update_ci_common.yml
+  when:
+    - update_ci_common | bool
+    - ci_common_file_path is defined
+    - ci_common_file_path | length > 0
 
 - name: Update BSS boot parameters - {{ functional_group_name }}
   ansible.builtin.include_tasks: update_bss.yml

@@ -33,8 +33,12 @@
 # Optional variables:
 #   bss_file_path          — Path to BSS YAML file on OIM host
 #   cloud_init_file_path   — Path to cloud-init group YAML on OIM host
+#   ci_defaults_file_path  — Path to ci-defaults YAML on OIM host
+#   ci_common_file_path    — Path to ci-group-common YAML on OIM host
 #   update_bss             — Update BSS boot params (default: true)
 #   update_cloud_init      — Update cloud-init group config (default: true)
+#   update_ci_defaults     — Update ci-defaults config (default: false)
+#   update_ci_common       — Update ci-group-common config (default: false)
 #
 # Usage examples:
 #   # Update both BSS and cloud-init for a functional group:
@@ -54,6 +58,15 @@
 #     -e functional_group_name=slurm_node_x86_64 \
 #     -e cloud_init_file_path=/opt/omnia/openchami/workdir/cloud-init/ci-group-slurm_node_x86_64.yaml \
 #     -e update_bss=false
+#
+#   # Update all (BSS + cloud-init + ci-defaults + ci-group-common):
+#   ansible-playbook utils/update_cloud_init_bss.yml \
+#     -e functional_group_name=slurm_node_x86_64 \
+#     -e bss_file_path=/opt/omnia/openchami/workdir/boot/bss-slurm_node_x86_64.yaml \
+#     -e cloud_init_file_path=/opt/omnia/openchami/workdir/cloud-init/ci-group-slurm_node_x86_64.yaml \
+#     -e ci_defaults_file_path=/opt/omnia/openchami/workdir/cloud-init/ci-defaults.yaml \
+#     -e ci_common_file_path=/opt/omnia/openchami/workdir/cloud-init/ci-group-common.yaml \
+#     -e update_ci_defaults=true -e update_ci_common=true
 # ============================================================================
 
 - name: Include input project directory

@@ -19,7 +19,7 @@
 # PATH B (fresh install BuildStream on cluster where it was not enabled in 2.1).
 #
 # When enable_build_stream=true and this completes successfully, downstream
-# tags (local_repo, build_image, k8s, cloud_init_bss, slurm) are SKIPPED
+# tags (local_repo, build_image, provision, k8s, telemetry, slurm) are SKIPPED
 # because the BuildStream GitLab pipeline handles those responsibilities.
 #
 # Constraints: BS-01 through BS-08
@@ -64,6 +64,18 @@
       ansible.builtin.set_fact:
         enable_build_stream: "{{ build_stream_config.enable_build_stream | default(false) | bool }}"
 
+    - name: Mark build_stream as skipped when not enabled
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when: not enable_build_stream | bool
+
     - name: Skip if BuildStream is not enabled (no-op)
       ansible.builtin.meta: end_play
       when: not enable_build_stream | bool
@@ -73,6 +85,21 @@
       ansible.builtin.fail:
         msg: "BuildStream requires OIM upgrade to be completed first. Current OIM status: {{ manifest.component_status.oim | default('pending') }}"
       when: manifest.component_status.oim | default('pending') != 'completed'
+
+    - name: Set build_stream upgrade status to in-progress
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'in-progress'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+
+    - name: "Display upgrade status in-progress — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
 
     # ── Framework: Debug statements outlining the upgrade flow ──
     - name: "[FRAMEWORK] BuildStream upgrade flow outline"
@@ -135,6 +162,10 @@
         dest: "{{ manifest_path }}"
         mode: '0644'
 
+    - name: "Display upgrade status completed — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"
+
     - name: "[FRAMEWORK] Post-upgrade instruction banner (BS-05, C-27)"
       ansible.builtin.debug:
         msg:
@@ -151,6 +182,6 @@
           - "    - BSS/cloud-init configuration"
           - "    - K8s and Slurm cluster deployment"
           - ""
-          - "  Tags local_repo, build_image, k8s, cloud_init_bss,"
-          - "  and slurm have been SKIPPED in this upgrade run."
+          - "  Tags local_repo, build_image, provision, k8s,"
+          - "  telemetry, and slurm have been SKIPPED in this upgrade run."
           - "============================================================"

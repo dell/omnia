@@ -24,6 +24,7 @@
   ansible.builtin.command: /usr/bin/ochami cloud-init group delete --no-confirm -f yaml -d @{{ cloud_init_dir }}/ci-group-{{ functional_group_name }}.yaml
   changed_when: true
   failed_when: false
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Load ci group template
   block:
@@ -40,15 +41,18 @@
 - name: Set ci group configuration - {{ functional_group_name }}
   ansible.builtin.command: /usr/bin/ochami cloud-init group set -f yaml -d @{{ cloud_init_dir }}/ci-group-{{ functional_group_name }}.yaml
   changed_when: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Verify ci group configuration - {{ functional_group_name }}
   ansible.builtin.command: /usr/bin/ochami cloud-init group get config {{ functional_group_name }}
   changed_when: false
   register: ci_group_compute_output
   no_log: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Verify ci group output - {{ functional_group_name }}
   ansible.builtin.debug:
     msg: "{{ ci_group_compute_output.stdout_lines }}"
     verbosity: 2
   no_log: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

@@ -45,7 +45,7 @@
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
     rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
-    all_rollback_components: [slurm, cloud_init_bss, telemetry, build_stream, k8s, oim]
+    all_rollback_components: [slurm, telemetry, k8s, provision, build_stream, oim]
   tasks:
     # ═══════════════════════════════════════════════════════════════
     # PHASE 1: READ-ONLY GUARDS (no state mutation allowed here)
@@ -196,10 +196,10 @@
           backup_dir: "{{ oim_metadata.upgrade_backup_dir }}"
           component_status:
             slurm: "pending"
-            cloud_init_bss: "pending"
             telemetry: "pending"
-            build_stream: "pending"
             k8s: "pending"
+            provision: "pending"
+            build_stream: "pending"
             oim: "pending"
         dest: "{{ rollback_manifest_path }}"
         mode: '0644'
@@ -255,7 +255,7 @@
     - name: Identify components skipped by BuildStream terminal gate
       ansible.builtin.set_fact:
         bs_rollback_skipped: >-
-          {{ ['slurm', 'cloud_init_bss', 'telemetry', 'k8s']
+          {{ ['slurm', 'telemetry', 'k8s', 'provision']
              if (build_stream_terminal | bool)
              else [] }}
 
@@ -263,8 +263,9 @@
       ansible.builtin.debug:
         msg: >
           BuildStream terminal gate is active for rollback.
-          Components {{ bs_rollback_skipped | join(', ') }} were never upgraded
-          and will be SKIPPED during rollback. Only build_stream and oim will be rolled back.
+          Components {{ bs_rollback_skipped | join(', ') }} were never
+          upgraded and will be SKIPPED during rollback.
+          Only build_stream and oim will be rolled back.
       when: build_stream_terminal | bool
 
     - name: Report already-rolled-back components (will be skipped)
@@ -276,28 +277,29 @@
         - rollback_manifest.component_status[item] in ['completed', 'skipped']
 
 # ──────────────────────────────────────────────────────────────────────
-# Rollback sub-flows (reverse order; each reads rollback_manifest
-# and skips if its component_status is already 'completed')
+# Rollback sub-flows (reverse order of upgrade):
+#   slurm → telemetry → k8s → provision → build_stream → oim
+# Each reads rollback_manifest and skips if already 'completed'.
 # ──────────────────────────────────────────────────────────────────────
 - name: Rollback Slurm cluster (rolled back first — depends on K8s/OIM)
   ansible.builtin.import_playbook: playbooks/rollback_slurm.yml
   tags: [slurm]
 
-- name: Rollback Cloud-Init and BSS parameters
-  ansible.builtin.import_playbook: playbooks/rollback_cloud_init_bss.yml
-  tags: [cloud_init_bss]
-
 - name: Rollback Telemetry components
   ansible.builtin.import_playbook: playbooks/rollback_telemetry.yml
   tags: [telemetry]
 
-- name: Rollback BuildStream upgrade / enablement
-  ansible.builtin.import_playbook: playbooks/rollback_build_stream.yml
-  tags: [build_stream]
-
 - name: Rollback Kubernetes cluster
   ansible.builtin.import_playbook: playbooks/rollback_k8s.yml
   tags: [k8s]
+
+- name: Rollback Provision (Cloud-Init and BSS)
+  ansible.builtin.import_playbook: playbooks/rollback_provision.yml
+  tags: [provision]
+
+- name: Rollback BuildStream upgrade / enablement
+  ansible.builtin.import_playbook: playbooks/rollback_build_stream.yml
+  tags: [build_stream]
 
 - name: Rollback OIM (includes OpenCHAMI) — rolled back last
   ansible.builtin.import_playbook: playbooks/rollback_oim.yml
@@ -316,7 +318,7 @@
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
-    all_rollback_components: [slurm, cloud_init_bss, telemetry, build_stream, k8s, oim]
+    all_rollback_components: [slurm, telemetry, k8s, provision, build_stream, oim]
   tasks:
     - name: Read rollback_manifest.yml
       ansible.builtin.slurp:
@@ -421,10 +423,10 @@
           - ""
           - "Component Status:"
           - "  slurm:          {{ cleaned_component_status.slurm }}"
-          - "  cloud_init_bss: {{ cleaned_component_status.cloud_init_bss }}"
           - "  telemetry:      {{ cleaned_component_status.telemetry }}"
-          - "  build_stream:   {{ cleaned_component_status.build_stream }}"
           - "  k8s:            {{ cleaned_component_status.k8s }}"
+          - "  provision:      {{ cleaned_component_status.provision }}"
+          - "  build_stream:   {{ cleaned_component_status.build_stream }}"
           - "  oim:            {{ cleaned_component_status.oim }}"
           - ""
           - "Upgrade manifest archived; next upgrade run will start fresh."

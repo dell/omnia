@@ -923,8 +923,8 @@
                       echo "Snapshot Controller deployment failed (expected). Continuing..."
                     }
 
-                    echo "Updating Snapshot Controller image to v8.3.0..."
-                    kubectl set image deployment/snapshot-controller snapshot-controller=registry.k8s.io/sig-storage/snapshot-controller:v8.3.0 -n kube-system >/dev/null 2>&1 || true
+                    echo "Updating Snapshot Controller image to v8.4.0..."
+                    kubectl set image deployment/snapshot-controller snapshot-controller=registry.k8s.io/sig-storage/snapshot-controller:v8.4.0 -n kube-system >/dev/null 2>&1 || true
 
                     echo "Waiting for Snapshot Controller rollout to finish (timeout: 5 minutes)..."
                     kubectl rollout status deployment/snapshot-controller -n kube-system --timeout=300s >/dev/null 2>&1 || {
@@ -966,7 +966,7 @@
                   INSTALL_SCRIPT="/opt/omnia/csi-driver-powerscale/csi-powerscale/dell-csi-helm-installer/csi-install.sh"
                   if [ -x "$INSTALL_SCRIPT" ]; then
                     cd "$(dirname "$INSTALL_SCRIPT")" || true
-                    ./csi-install.sh --namespace isilon --values /opt/omnia/csi-driver-powerscale/values.yaml &
+                    ./csi-install.sh --namespace isilon --values /opt/omnia/csi-driver-powerscale/values.yaml --skip-verify &
                     CSI_PID=$!
                     echo "Waiting for CSI install script (PID $CSI_PID) to complete..."
                     wait $CSI_PID
