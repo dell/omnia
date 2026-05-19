@@ -22,6 +22,9 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
     oim_data_path: "/opt/omnia/.data"
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: k8s
+    
   tasks:
     - name: "Load upgrade_vars.yml"
       ansible.builtin.include_vars:
@@ -1085,6 +1088,8 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
     oim_data_path: "/opt/omnia/.data"
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: k8s
   tasks:
     - name: Load HA config
       ansible.builtin.include_vars:
