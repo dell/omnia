@@ -84,19 +84,10 @@ kafka:
     ldms:
       name: "ldms"
       consumer_group: "ldms-consumer-group"
-    # # OME topics (provisioned when Vector-OME bridge is enabled)
-    # ome_events:
-    #   name: "{{ ome_identifier }}.events"
-    #   partitions: 3
-    # ome_alerts:
-    #   name: "{{ ome_identifier }}.alerts"
-    #   partitions: 2
-    # ome_inventory:
-    #   name: "{{ ome_identifier }}.inventory"
-    #   partitions: 2
-    # ome_logs:
-    #   name: "{{ ome_identifier }}.logs"
-    #   partitions: 2
+    # OME topics are pre-existing in the OME Kafka broker — NOT created by Omnia.
+    # Vector-OME subscribes to all {{ ome_identifier }}.* topics via regex pattern.
+    # Known topics: {{ ome_identifier }}.inventory, {{ ome_identifier }}.health, {{ ome_identifier }}.telemetry (→ VictoriaMetrics)
+    #               {{ ome_identifier }}.alerts, {{ ome_identifier }}.auditlogs, {{ ome_identifier }}.logs (→ VictoriaLogs)
 
 # Dynamic image configuration from service_k8s.json
 # Images and versions are read dynamically from input/config/x86_64/rhel/10.0/service_k8s.json
@@ -602,8 +593,8 @@ vector:
     service_name: "vector-ome"
     container_name: "vector-ome"
     # Dynamic pattern based on ome_identifier from telemetry_config.yml
-    # Example: if ome_identifier="ome", pattern="^ome\\..*$" (matches ome.events, ome.alerts, etc.)
-    # Example: if ome_identifier="dell_ome", pattern="^dell_ome\\..*$" (matches dell_ome.events, etc.)
+    # Example: if ome_identifier="ome", pattern="^ome\\..*$" (matches ome.inventory, ome.health, etc.)
+    # Example: if ome_identifier="OME-637-2-100.100.5.8", pattern matches OME-637-2-100.100.5.8.* topics
     kafka_topics_pattern: "^{{ telemetry_bridges.vector_ome.ome_identifier | default('ome') | regex_escape }}\\..*$"
     consumer_group: "vector-ome-group"
     kafka_user: "vector-ome-user"  # Dedicated KafkaUser for OME
@@ -648,7 +639,7 @@ vector:
     image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
     replicas: 2
     pvc_size: "5Gi"  # Disk buffer
-    remote_write_url: "https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9428/internal/insert"
+    remote_write_url: "https://vlinsert-victoria-logs-cluster.{{ telemetry_namespace }}.svc.cluster.local:9481/internal/insert"
     tmp_data_path: "/vlagent-buffer"
     resources:
       requests:

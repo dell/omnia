@@ -25,46 +25,6 @@
 #   - Logs path requires: victoria_logs_support=true
 #   - KafkaUser: Dedicated vector-ome-user (NOT shared kafkapump)
 
-# ============================================================================
-# Generate OME KafkaTopic manifests (5 topics for OME telemetry)
-# ============================================================================
-- name: Build OME topic list for Vector-OME bridge
-  ansible.builtin.set_fact:
-    ome_identifier: "{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') }}"
-    ome_kafka_topics_to_create:
-      - name: "{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') }}.events"
-        partitions: 3
-        filename: "kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_events.yaml"
-      - name: "{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') }}.alerts"
-        partitions: 2
-        filename: "kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_alerts.yaml"
-      - name: "{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') }}.inventory"
-        partitions: 2
-        filename: "kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_inventory.yaml"
-      - name: "{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') }}.logs"
-        partitions: 2
-        filename: "kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_logs.yaml"
-      - name: "{{ telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome') }}.telemetry"
-        partitions: 3
-        filename: "kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_telemetry.yaml"
-
-- name: Generate OME KafkaTopic manifests
-  ansible.builtin.template:
-    src: 'telemetry/kafka/kafka.topic.yaml.j2'
-    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.filename }}"
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
-  loop: "{{ ome_kafka_topics_to_create }}"
-  vars:
-    topic_name: "{{ item.name }}"
-    topic_partitions: "{{ item.partitions }}"
-  tags: telemetry_deployment
-
-# ============================================================================
-# NOTE: Kubernetes verification and deployment removed from this task
-# Rationale: This task runs during provision.yml (template generation phase)
-# Actual Kafka cluster and Vector deployment happens later via telemetry.sh
-# during cloud-init execution on control plane nodes
-# ============================================================================
 
 # ============================================================================
 # Render Vector-OME KafkaUser CR
@@ -129,7 +89,6 @@
   ansible.builtin.debug:
     msg: >
       Vector-OME templates generated successfully.
-      KafkaTopic CRs: {{ ome_kafka_topics_to_create | length }} topics.
       ConfigMap: {{ vector_ome_configmap_rendered.dest }}.
       KafkaUser: {{ vector_ome_kafkauser_rendered.dest }}.
       Deployment: {{ vector_ome_deployment_rendered.dest }}.
