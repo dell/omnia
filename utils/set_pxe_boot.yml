@@ -95,11 +95,13 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: Build list of successfully rebooted BMC IPs
+    - name: Build list of successfully rebooted BMC IPs (exclude BSM-skipped and failed)
       ansible.builtin.set_fact:
         successful_bmc_ips: "{{ successful_bmc_ips | default([]) + [item] }}"
       loop: "{{ groups['bmc'] | default([]) }}"
-      when: not (hostvars[item]['reboot_failed'] | default(true))
+      when:
+        - not (hostvars[item]['bsm_skip_this_host'] | default(false))
+        - not (hostvars[item]['reboot_failed'] | default(true))
       tags: always
 
     - name: Default successful_bmc_ips to empty list if none succeeded
