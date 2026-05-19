@@ -1444,61 +1444,19 @@ def _ranges_overlap(range_a, range_b):
         return False
 
 
-# Reserved domains that must not be used as dns_domain
-_RESERVED_DOMAINS = frozenset([
-    "cluster.local", "localhost",
-    "com", "net", "org", "edu", "gov", "io",
-])
-
-# Regex for a valid DNS label (RFC 1035)
-_DNS_LABEL_RE = re.compile(r'^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?$')
-
 
 def validate_dns_config(data):
     """
     Validates dns_config input parameters.
 
-    Checks:
-        - dns_domain is a valid RFC 1035 domain name and not reserved.
+    dns_config.yml only contains dns_enabled (boolean).
+    The cluster domain is read from OIM metadata (domain_name).
 
     Args:
         data (dict): The dns_config dict from dns_config.yml.
 
     Returns:
-        list: Validation error messages.
+        list: Validation error messages (currently empty; schema
+        validation handles the dns_enabled type check).
     """
-    errors = []
-    cfg = data.get("dns_config", {})
-    if not cfg or not cfg.get("dns_enabled", False):
-        return errors
-
-    # --- dns_domain ---
-    domain = cfg.get("dns_domain", "")
-    if domain:
-        labels = domain.split(".")
-        valid_domain = all(_DNS_LABEL_RE.match(label) for label in labels) and len(domain) <= 253
-        if not valid_domain:
-            errors.append(
-                create_error_msg(
-                    "dns_config.dns_domain", domain,
-                    en_us_validation_msg.DNS_DOMAIN_INVALID_MSG,
-                )
-            )
-        if domain in _RESERVED_DOMAINS or any(
-            domain.endswith(f".{rd}") for rd in _RESERVED_DOMAINS
-        ):
-            errors.append(
-                create_error_msg(
-                    "dns_config.dns_domain", domain,
-                    en_us_validation_msg.DNS_DOMAIN_RESERVED_MSG,
-                )
-            )
-    else:
-        errors.append(
-            create_error_msg(
-                "dns_config.dns_domain", domain,
-                en_us_validation_msg.DNS_DOMAIN_INVALID_MSG,
-            )
-        )
-
-    return errors
+    return []

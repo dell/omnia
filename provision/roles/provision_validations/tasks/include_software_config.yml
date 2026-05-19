@@ -45,23 +45,10 @@
     ib_network_dns: "{{ network_data.ib_network.dns | default([]) }}"
     dns: "{{ network_data.admin_network.dns }}"
 
-- name: Load dns_config.yml
-  ansible.builtin.include_vars:
-    file: "{{ hostvars['localhost']['input_project_dir'] }}/dns_config.yml"
-  register: dns_config_load
-  failed_when: false
-
-- name: Set dns_enabled and dns_domain facts
-  ansible.builtin.set_fact:
-    dns_enabled: "{{ dns_config.dns_enabled | default(false) | bool }}"
-    dns_domain: "{{ dns_config.dns_domain | default('hpc.cluster') }}"
-  when: dns_config_load is not failed and dns_config is defined
-
-- name: Set dns_enabled to false when dns_config unavailable
+- name: Set dns_enabled default when not defined
   ansible.builtin.set_fact:
     dns_enabled: false
-    dns_domain: ""
-  when: dns_config_load is failed or dns_config is not defined
+  when: dns_enabled is not defined
 
 - name: Initialise variables
   ansible.builtin.set_fact:

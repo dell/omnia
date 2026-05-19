@@ -570,18 +570,6 @@ ADDITIONAL_SUBNET_RANGE_OVERLAP_MSG = (
     "another additional subnet's dynamic_range."
 )
 
-# dns_config
-DNS_DOMAIN_INVALID_MSG = (
-    "dns_domain must be a valid DNS domain name (RFC 1035). "
-    "Use lowercase alphanumeric characters, hyphens, and dots only. "
-    "Example: hpc.cluster"
-)
-DNS_DOMAIN_RESERVED_MSG = (
-    "dns_domain must not use a reserved domain. "
-    "The following are not permitted: cluster.local, localhost, "
-    "com, net, org, edu, gov, io."
-)
-
 # telemetry
 MANDATORY_FIELD_FAIL_MSG = "must not be empty"
 

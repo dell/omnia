@@ -348,7 +348,7 @@
           owner: root:root
           permissions: '0644'
           content: |
-            search {{ dns_domain }}
+            search {{ domain_name }}
             nameserver {{ admin_nic_ip }}
             options timeout:1 attempts:2
 {% else %}

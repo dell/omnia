@@ -614,20 +614,20 @@ cfg_path = sys.argv[1]
 with open(cfg_path) as f:
     doc = yaml.safe_load(f)
 corefile = doc['data']['Corefile']
-fwd_block = """{{ dns_domain }}:53 {
+fwd_block = """{{ domain_name }}:53 {
     errors
     cache 30
     forward . {{ admin_nic_ip }}
 }
 """
-if '{{ dns_domain }}:53' not in corefile:
+if '{{ domain_name }}:53' not in corefile:
     corefile = fwd_block + corefile
     doc['data']['Corefile'] = corefile
     with open(cfg_path, 'w') as f:
         yaml.dump(doc, f, default_flow_style=False)
-    print("Added {{ dns_domain }} forward zone to K8s CoreDNS")
+    print("Added {{ domain_name }} forward zone to K8s CoreDNS")
 else:
-    print("{{ dns_domain }} forward zone already present in K8s CoreDNS")
+    print("{{ domain_name }} forward zone already present in K8s CoreDNS")
 PYEOF
 {% endif %}
 

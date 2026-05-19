@@ -59,8 +59,7 @@ files = {
     "high_availability_config": "high_availability_config.yml",
     "build_stream_config": "build_stream_config.yml",
     "gitlab_config": "gitlab_config.yml",
-    "discovery_config": "discovery_config.yml",
-    "dns_config": "dns_config.yml"
+    "discovery_config": "discovery_config.yml"
     # "additional_software": "additional_software.json"
 }
 
@@ -79,7 +78,6 @@ input_file_inventory = {
         files["provision_config"],
         files["network_spec"],
         files["software_config"],
-        files["dns_config"],
         # files["high_availability_config"]
     ],
     "security": [
