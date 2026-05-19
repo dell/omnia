@@ -1,0 +1,70 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Upgrade Cloud-Init and BSS boot parameters
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: cloud_init_bss
+  tasks:
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Skip if cloud_init_bss already upgraded
+      ansible.builtin.meta: end_play
+      when:
+        - manifest.component_status[component_name] | default('pending') == 'completed'
+
+    - name: Set cloud_init_bss upgrade status to in-progress
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'in-progress'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+
+    # TODO: Implement per ESpec §4.9 and Cloud_Init_BSS_Upgrade_Component_Spec:
+    # 1. Pre-flight: OpenCHAMI running, BSS API reachable, auth token valid
+    # 2. Read functional groups from SMD
+    # 3. Backup current BSS boot parameters per group
+    # 4. Generate updated cloud-init per functional group
+    # 5. Update BSS via PUT /boot/v1/bootparameters
+    # 6. Apply per-node overrides if applicable
+    # 7. Validate: BSS entries correct, operation_type set
+    - name: Cloud-Init/BSS upgrade placeholder
+      ansible.builtin.debug:
+        msg: "Cloud-Init/BSS upgrade tasks to be implemented (BSS API update per functional group)"
+
+    - name: Mark cloud_init_bss upgrade as completed
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'completed'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'

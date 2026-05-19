@@ -1,0 +1,39 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# prep_local_repo Role
+# ============================================================================
+# Prepares local repository for upgrade by:
+# 1. Creating staging directory with modified configs
+# 2. Merging repos.yml into local_repo_config.yml
+# 3. Updating software_config.json with target versions
+# 4. Reading JSON files from actual input directory (versioned files)
+# 5. Running local_repo roles to sync packages
+#
+# Key difference from reference: NO JSON artifacts - reads from input directly
+# ============================================================================
+
+- name: Load upgrade configuration
+  ansible.builtin.include_tasks: load_upgrade_manifest.yml
+
+- name: Validate upgrade prerequisites
+  ansible.builtin.include_tasks: validate_prerequisites.yml
+
+- name: Create staging directory and merge configs
+  ansible.builtin.include_tasks: create_staging.yml
+
+- name: Sync local repository for upgrade
+  ansible.builtin.include_tasks: sync_local_repo.yml

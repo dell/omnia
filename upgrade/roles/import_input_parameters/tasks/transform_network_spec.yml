@@ -77,13 +77,13 @@
   when:
     - true
 
-- name: Render network_spec.yml in Omnia 2.1 format
+- name: Render network_spec.yml in Omnia 2.2 format
   ansible.builtin.template:
     src: network_spec.j2
     dest: "{{ input_project_dir }}/network_spec.yml"
     mode: "{{ default_file_mode }}"
   vars:
-    admin_network_netmask_bits: "{{ admin_network.netmask_bits | default('24') }}"
+    admin_network_netmask_bits: "{{ admin_network.netmask_bits | default(network_default_netmask_bits) }}"
   when: true
 
 - name: Read transformed network_spec.yml

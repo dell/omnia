@@ -1,0 +1,57 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+- name: Set file paths
+  ansible.builtin.set_fact:
+    _gitlab_input_repo_file_path: "{{ gitlab_input_repo_dir }}/{{ input_file_name }}"
+    _gitlab_input_hosted_path: "{{ gitlab_hosted_payload_dir }}/{{ gitlab_input_repo_dir }}/{{ input_file_name }}"
+    _gitlab_input_encoded_path: "{{ (gitlab_input_repo_dir ~ '/' ~ input_file_name) | urlencode | replace('/', '%2F') }}"
+
+- name: Check if input file exists in repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_encoded_path }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: gitlab_input_file_check
+
+- name: Copy input file to GitLab host payload directory
+  ansible.builtin.copy:
+    src: "{{ input_file_src }}"
+    dest: "{{ _gitlab_input_hosted_path }}"
+    mode: '0644'
+
+- name: Read input file from GitLab host
+  ansible.builtin.slurp:
+    src: "{{ _gitlab_input_hosted_path }}"
+  register: gitlab_input_file_content
+
+- name: Create input file in GitLab repository
+  when: gitlab_input_file_check.status == 404
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_input_encoded_path }}"  # noqa: yaml[line-length]
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch }}"
+      encoding: base64
+      content: "{{ gitlab_input_file_content.content }}"
+      commit_message: "Add {{ gitlab_input_repo_dir }}/{{ input_file_name }}"
+    status_code: [200, 201]
+    validate_certs: false

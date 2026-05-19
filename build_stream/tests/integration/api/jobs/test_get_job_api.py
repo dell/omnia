@@ -56,7 +56,7 @@ class TestGetJobSuccess:
 
         assert get_response.status_code == 200
         stages = get_response.json()["stages"]
-        assert len(stages) == 10
+        assert len(stages) == 6
 
     def test_get_job_returns_correlation_id(self, client, auth_headers, unique_correlation_id):
         """Get job should return correlation ID from headers."""

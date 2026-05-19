@@ -14,7 +14,7 @@
 
 """Domain services for Build Image module."""
 
-import logging
+from api.logging_utils import log_secure_info
 from typing import Optional
 
 from core.build_image.entities import BuildImageRequest
@@ -23,7 +23,6 @@ from core.build_image.repositories import BuildStreamConfigRepository
 from core.build_image.value_objects import Architecture, InventoryHost
 from core.jobs.value_objects import CorrelationId
 
-logger = logging.getLogger(__name__)
 
 
 class BuildImageConfigService:
@@ -78,16 +77,7 @@ class BuildImageQueueService:
         Raises:
             QueueUnavailableError: If queue is not accessible.
         """
-        logger.info(
-            "Submitting build image request to queue: job_id=%s, correlation_id=%s",
-            request.job_id,
-            correlation_id,
-        )
+        log_secure_info('info', f"Submitting build image request to queue: job_id={request.job_id}, correlation_id={correlation_id}")
         self._queue_repo.write_request(request)
-        logger.info(
-            "Build image request submitted successfully: job_id=%s, "
-            "request_id=%s, correlation_id=%s",
-            request.job_id,
-            request.request_id,
-            correlation_id,
-        )
+        log_secure_info('info', f"Build image request submitted successfully: job_id={request.job_id}, "
+            "request_id={request.request_id}, correlation_id={correlation_id}")

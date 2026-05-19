@@ -94,9 +94,37 @@
             }
           },
           "required": ["metrics_enabled", "collection_targets"]
+        },
+        "ufm": {
+          "type": "object",
+          "description": "NVIDIA UFM InfiniBand Fabric telemetry.",
+          "properties": {
+            "metrics_enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable or disable UFM InfiniBand metrics collection."
+            },
+            "logs_enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable or disable UFM syslog logs collection."
+            },
+            "collection_targets": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["victoria_metrics", "victoria_logs"]
+              },
+              "minItems": 1,
+              "uniqueItems": true,
+              "default": ["victoria_metrics"],
+              "description": "UFM supports victoria_metrics (metrics) and victoria_logs (logs)."
+            }
+          },
+          "required": ["metrics_enabled", "collection_targets"]
         }
       },
-      "required": ["idrac", "ldms", "dcgm", "powerscale"]
+      "required": ["idrac", "ldms", "dcgm", "powerscale", "ufm"]
     },
     "telemetry_bridges": {
       "type": "object",
@@ -398,7 +426,54 @@
         }
       },
       "required": ["otel_collector_storage_size", "csm_observability_values_file_path"]
+    },
+    "ufm_configuration": {
+      "type": "object",
+      "description": "UFM telemetry detailed configurations.",
+      "properties": {
+        "ufm_endpoint": {
+          "type": "string",
+          "description": "UFM appliance IP address or hostname. Required when UFM telemetry is enabled (metrics_enabled or logs_enabled is true)."
+        },
+        "ufm_metrics_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 9001,
+          "description": "UFM Prometheus exporter port."
+        },
+        "scrape_interval": {
+          "type": "string",
+          "pattern": "^[0-9]+[smh]$",
+          "default": "30s",
+          "description": "Prometheus scrape interval for UFM metrics."
+        },
+        "scrape_timeout": {
+          "type": "string",
+          "pattern": "^[0-9]+[smh]$",
+          "default": "15s",
+          "description": "Prometheus scrape timeout (must be <= scrape_interval)."
+        },
+        "tls_mode": {
+          "type": "string",
+          "enum": ["self_signed", "ca_signed"],
+          "default": "self_signed",
+          "description": "TLS mode for connecting to UFM Prometheus endpoint."
+        },
+        "ufm_ca_cert_path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to CA certificate file for UFM TLS verification."
+        },
+        "auth_mode": {
+          "type": "string",
+          "enum": ["basic", "none"],
+          "default": "basic",
+          "description": "Authentication mode for UFM Prometheus endpoint."
+        }
+      },
+      "required": []
     }
   },
-  "required": ["telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations"]
+  "required": ["telemetry_sources", "telemetry_bridges", "telemetry_sinks", "ldms_configurations", "powerscale_configurations", "ufm_configuration"]
 }

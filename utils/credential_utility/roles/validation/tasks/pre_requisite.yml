@@ -48,3 +48,17 @@
   when:
     - not result.skipped | default(false)
     - result.telemetry_status_list | length > 0
+
+- name: Derive UFM telemetry support flag from telemetry_config.yml
+  when: "'ufm_telemetry' in (omnia_run_tags | default([]))"
+  block:
+    - name: Load telemetry_config.yml for UFM support flag
+      ansible.builtin.include_vars:
+        file: "{{ telemetry_config_path }}"
+        name: _telemetry_config
+      failed_when: false
+
+    - name: Set ufm_telemetry_support flag
+      ansible.builtin.set_fact:
+        ufm_telemetry_support: "{{ _telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
+      when: _telemetry_config is defined and _telemetry_config.telemetry_sources is defined

@@ -106,11 +106,14 @@ specific_softwares:
   - 'intelgaudi'
   - 'openmpi'
   - 'bcm_roce_libraries'
-default_k8s_version: "1.34.1"
+default_k8s_version: "1.35.1"
+supported_k8s_versions:
+  - "1.34.1"
+  - "1.35.1"
 fail_msg: >-
     service_k8s is not supported for version: {{ service_k8s_version }}.
-    Please update the service_k8s version in software_config.json to {{ default_k8s_version }}
-    and rerun the playbook.
+    Please update the service_k8s version in software_config.json to a supported version
+    ({{ supported_k8s_versions | join(', ') }}) and rerun the playbook.
 
 versions_fail_msg: "Versions were not defined for the following softwares: {{ failed_softwares | join(', ') }} in software_config.json.
     Refer examples/template_{{ cluster_os_type }}_software_config.json and define version details accordingly in {{ project_input_path }}/software_config.json"
@@ -175,6 +178,10 @@ http_key: http
 # Usage: validate_metadata.yml
 meta_dest: "{{ nfs_shared_path }}/offline_repo/.data"
 metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
+metadata_identical_msg: "Metadata is identical. No changes detected."
+metadata_warn_msg: |
+  WARNING: Metadata has changed since last run.
+  This may indicate changes in software_config.json or local_repo_config.yml.
 build_stream_auto_accept_metadata_msg: "Build stream is enabled, automatically accepting metadata changes."
 
 # Usage: remove_k8s_line.yml

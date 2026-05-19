@@ -432,10 +432,24 @@ update_metadata_upgrade_backup_dir() {
             echo '[ERROR] Metadata file not found inside container: $CONTAINER_METADATA_FILE' >&2
             exit 1
         fi
+        
+        # Get current omnia_version to store as previous_omnia_version
+        current_version=\$(grep '^omnia_version:' '$CONTAINER_METADATA_FILE' | cut -d':' -f2 | tr -d ' \t\n\r')
+        
+        # Update upgrade_backup_dir
         if grep -q '^upgrade_backup_dir:' '$CONTAINER_METADATA_FILE'; then
             sed -i 's|^upgrade_backup_dir:.*|upgrade_backup_dir: ${backup_dir}|' '$CONTAINER_METADATA_FILE'
         else
             echo 'upgrade_backup_dir: ${backup_dir}' >> '$CONTAINER_METADATA_FILE'
+        fi
+        
+        # Update previous_omnia_version
+        if [ -n \"\$current_version\" ]; then
+            if grep -q '^previous_omnia_version:' '$CONTAINER_METADATA_FILE'; then
+                sed -i \"s|^previous_omnia_version:.*|previous_omnia_version: \$current_version|\" '$CONTAINER_METADATA_FILE'
+            else
+                echo \"previous_omnia_version: \$current_version\" >> '$CONTAINER_METADATA_FILE'
+            fi
         fi
     "
 }

@@ -9,6 +9,7 @@ on:
       - pub/build_stream
       - pub/q2_dev
       - pub/telemetry
+      - pub/q2_upgrade
 
 jobs:
   build:

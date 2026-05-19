@@ -51,6 +51,7 @@
 #   - Do not use Jinja variables in this configuration.
 #   - Omit SSL fields entirely if SSL is not in use.
 #   - Its a mandatory field in case of slurm_custom with name as 'slurm_custom'
+#   - Version-specific naming (e.g., 'kubernetes-v1-35', 'cri-o-v1-35') is used only for service_k8s
 #
 # 3. user_repo_url_aarch64
 #---------------------------
@@ -180,11 +181,20 @@ rhel_os_url_aarch64:
 rhel_subscription_repo_config_x86_64:
 rhel_subscription_repo_config_aarch64:
 # Making incorrect changes to this variable can cause omnia failure. Please edit cautiously.
+# ============================================================================
+# VERSIONED REPOSITORY NAMING CONVENTION (Omnia 2.2+)
+# ============================================================================
+# Starting from Omnia 2.2, repositories use versioned naming:
+#   - kubernetes-v<major>-<minor>  (e.g., kubernetes-v1-35)
+#   - cri-o-v<major>-<minor>       (e.g., cri-o-v1-35)
+# Version-specific naming is used only for service_k8s components (kubernetes, cri-o)
+# Other components (doca, cuda, slurm_custom) use non-versioned naming
+# ============================================================================
 omnia_repo_url_rhel_x86_64:
   - { url: "https://download.docker.com/linux/centos/10/x86_64/stable/", gpgkey: "https://download.docker.com/linux/centos/gpg", name: "docker-ce"}
   - { url: "https://dl.fedoraproject.org/pub/epel/10/Everything/x86_64/", gpgkey: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10", name: "epel"}
-  - { url: "https://pkgs.k8s.io/core:/stable:/v1.34/rpm/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.34/rpm/repodata/repomd.xml.key", name: "kubernetes"}
-  - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.34/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.34/rpm/repodata/repomd.xml.key", name: "cri-o"}
+  - { url: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/", gpgkey: "https://pkgs.k8s.io/core:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "kubernetes-v1-35"}
+  - { url: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/", gpgkey: "https://download.opensuse.org/repositories/isv:/cri-o:/stable:/v1.35/rpm/repodata/repomd.xml.key", name: "cri-o-v1-35"}
   - { url: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/", gpgkey: "https://linux.mellanox.com/public/repo/doca/3.2.1/rhel10/x86_64/repodata/repomd.xml.key", name: "doca"}
   - { url: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/", gpgkey: "https://developer.download.nvidia.com/compute/cuda/repos/rhel10/x86_64/repodata/repomd.xml.key", name: "cuda"}
 omnia_repo_url_rhel_aarch64:

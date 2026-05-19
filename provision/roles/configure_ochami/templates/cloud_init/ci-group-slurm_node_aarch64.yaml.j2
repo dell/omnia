@@ -394,7 +394,14 @@
       runcmd:
         - /usr/local/bin/set-ssh.sh
         - /usr/local/bin/configure_vast_installation.sh
-{# Mount-specific runcmd entries #}
+        # DOCA prerequisites - moved early to ensure RDMA is ready before vendor_data mounts
+        - /usr/local/bin/configure_dirs_and_mounts.sh
+        - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
+        - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
+        # DOCA and IB configuration - now ready before vendor_data mounts
+        - bash /usr/local/bin/doca-install.sh || true
+        - bash /usr/local/bin/configure-ib-network.sh
+{# Mount-specific runcmd entries - moved after DOCA to ensure RDMA is available #}
 {%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
 {% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
         - {{ cmd }}
@@ -427,11 +434,7 @@
 {% if dcgm_support %}
         - /usr/local/bin/setup_dcgm.sh
 {% endif %}
-        - /usr/local/bin/configure_dirs_and_mounts.sh
-        - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
-        - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
-        - bash /usr/local/bin/doca-install.sh || true
-        - bash /usr/local/bin/configure-ib-network.sh
+
 {% if slurm_node_present %}
         - |
           set -e

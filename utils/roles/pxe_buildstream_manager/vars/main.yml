@@ -1,0 +1,93 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# BuildStream Manager Configuration
+restart_state_dir: "/opt/omnia/build_stream_root/restart_state"
+input_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia/input/project_default') }}"
+bsm_enabled: "{{ enable_build_stream | default(false) | bool }}"
+
+# GitLab Configuration
+gitlab_miscellaneous_dir: "miscellaneous"
+gitlab_failed_nodes_file: "failed_nodes.json"
+gitlab_default_status_codes:
+  project_create: [200, 201]
+  project_update: [200]
+  runner_create: [200, 201]
+  project_runners_list: [200]
+  runner_delete: [202, 204]
+  project_search: [200]
+  api_version: [200, 401]
+gitlab_root_token_expiry_days: 365
+
+# Messages
+bsm_job_id_missing_msg: >-
+  [BSM] job_id is mandatory but was not provided as an extra variable.
+  The playbook watcher must pass job_id via --extra-vars.
+  Cannot write node_results.json without a valid job_id.
+
+bsm_empty_inventory_msg: "[BSM] Effective inventory is empty -- no nodes to PXE boot. Skipping."
+
+bsm_inventory_report_msg: >-
+  [BSM] Inventory: {{ current_bmc_ips | length }} in CSV,
+  {{ booted_ips | length }} booted (excluded),
+  {{ manually_booted_ips | length }} manually booted (from failed_nodes.json),
+  {{ effective_bmc_ips | length }} effective targets
+
+bsm_artifact_paths_msg: >-
+  [BSM] Artifact paths for job_id={{ bsm_job_id }}:
+  node_results.json  = {{ node_results_dir }}/node_results.json |
+  failed_nodes.json  = {{ node_results_dir }}/failed_nodes.json |
+  restart_state.json = {{ restart_state_dir }}/{{ bsm_job_id }}/restart_state.json |
+  failed_nodes.json (restart_state copy) = {{ restart_state_dir }}/{{ bsm_job_id }}/failed_nodes.json
+
+gitlab_upload_success_msg: "[BSM] Successfully uploaded failed_nodes.json to GitLab repository at {{ gitlab_miscellaneous_dir }}/{{ gitlab_failed_nodes_file }}"
+
+gitlab_upload_fail_msg: "[BSM] Failed to upload failed_nodes.json to GitLab repository. Check GitLab connectivity and credentials."
+
+# ──────────────────────────────────────────────────────────────
+# Phone-Home Retry & Timing Configuration
+# ──────────────────────────────────────────────────────────────
+phone_home_pause_minutes: 5
+phone_home_retries: 120
+phone_home_delay: 15
+
+# ──────────────────────────────────────────────────────────────
+# Phone-Home Shell Script Patterns & Status Labels
+# ──────────────────────────────────────────────────────────────
+phone_home_log_pattern: "Phone home request from"
+phone_home_status_ok: "✅ Phone-home confirmed:"
+phone_home_status_wait: "⏳ Still waiting for phone-home:"
+
+# ──────────────────────────────────────────────────────────────
+# Phone-Home Playbook Messages
+# ──────────────────────────────────────────────────────────────
+phone_home_fail_msg: |
+  FATAL: Required facts missing for phone-home verification.
+  pxe_start_epoch = {{ pxe_start_epoch | default('UNDEFINED') }}
+  target_node_admin_ips = {{ target_node_admin_ips | default('UNDEFINED') }}
+  Ensure Play 3 ran with gather_facts: true and set_fact cacheable: true.
+
+phone_home_success_msg: >
+  [Phone-Home] Facts confirmed.
+  epoch={{ pxe_start_epoch }}
+  nodes={{ target_node_admin_ips }}
+
+phone_home_pause_prompt: >
+  Waiting {{ phone_home_pause_minutes }} minutes for nodes to boot and begin
+  cloud-init before starting phone-home polling...
+
+phone_home_final_success_msg: >
+  [Phone-Home] ✅ All {{ target_node_admin_ips | length }}
+  nodes completed cloud-init and phoned home successfully.
+  Proceeding with BuildStream post-processing.

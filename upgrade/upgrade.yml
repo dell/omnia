@@ -1,0 +1,311 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# upgrade.yml — User-Facing Playbook #2
+# ============================================================================
+# Tag-based upgrade orchestrator per ESpec §4.3.2.
+# Supports --tags for selective execution of upgrade sub-flows.
+#
+# Usage:
+#   ansible-playbook upgrade/upgrade.yml                     # Full upgrade
+#   ansible-playbook upgrade/upgrade.yml --tags oim          # OIM only
+#   ansible-playbook upgrade/upgrade.yml --tags k8s          # K8s only
+#   ansible-playbook upgrade/upgrade.yml --tags "k8s,telemetry"
+#
+# IMPORTANT: Must be invoked from the parent directory containing upgrade/,
+# rollback/, and playbooks/ folders. Internal playbooks are imported via
+# relative paths (e.g., playbooks/upgrade_oim.yml).
+#
+# VERSION POLICY:
+#   oim_metadata.yml is read-only for upgrade/rollback flows. Manifest
+#   fields are derived directly from it:
+#     omnia_previous_version  →  source_version
+#     omnia_version           →  target_version
+#     upgrade_backup_dir      →  backup_dir
+#
+# LOCK POLICY:
+#   - upgrade_in_progress.lock may be pre-created by omnia.sh --upgrade.
+#     If present, the playbook proceeds (does NOT fail).
+#   - rollback_in_progress.lock signals a rollback is active. Upgrade MUST
+#     fail if this lock exists.
+#   - If no lock exists, the playbook creates upgrade_in_progress.lock.
+# ============================================================================
+
+# ──────────────────────────────────────────────────────────────────────
+# Play 0: Pre-flight — acquire lock, init manifest, validate tags
+# ──────────────────────────────────────────────────────────────────────
+- name: Pre-flight — validate tag dependencies and component state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    metadata_path: /opt/omnia/.data/oim_metadata.yml
+    upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
+    rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
+    all_components: [oim, local_repo, build_image, k8s, telemetry, cloud_init_bss, slurm]
+    tag_dependencies:
+      build_image: [oim]
+      k8s: [oim]
+      telemetry: [oim, k8s]
+      cloud_init_bss: [oim]
+      slurm: [oim, k8s]
+  tasks:
+    # ─── Lock check: fail ONLY on rollback lock; ignore upgrade lock ───
+    - name: Check for active rollback lock
+      ansible.builtin.stat:
+        path: "{{ rollback_lock_path }}"
+      register: rollback_lock_stat
+
+    - name: Read rollback lock contents (if any)
+      ansible.builtin.slurp:
+        src: "{{ rollback_lock_path }}"
+      register: rollback_lock_raw
+      when: rollback_lock_stat.stat.exists
+      failed_when: false
+
+    - name: Abort if a rollback is in progress
+      ansible.builtin.fail:
+        msg: |
+          A rollback is currently in progress. Cannot start an upgrade.
+          Lock file: {{ rollback_lock_path }}
+          Lock contents:
+          {{ (rollback_lock_raw.content | b64decode) if (rollback_lock_raw.content is defined) else '(unreadable)' }}
+
+          Wait for the rollback to finish, or if no process is actually
+          running (e.g., previous run crashed), manually remove the lock:
+            rm {{ rollback_lock_path }}
+      when: rollback_lock_stat.stat.exists
+
+    - name: Ensure .data directory exists
+      ansible.builtin.file:
+        path: /opt/omnia/.data
+        state: directory
+        mode: '0755'
+
+    # ─── Create upgrade lock only if it doesn't already exist ───
+    # (omnia.sh --upgrade may have already created it; that's expected.)
+    - name: Check for existing upgrade lock
+      ansible.builtin.stat:
+        path: "{{ upgrade_lock_path }}"
+      register: upgrade_lock_stat
+
+    - name: Create upgrade lock file (only if absent)
+      ansible.builtin.copy:
+        content: |
+          operation: upgrade
+          pid: {{ ansible_pid | default('unknown') }}
+          started_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+          host: "{{ inventory_hostname }}"
+          created_by: ansible-playbook
+        dest: "{{ upgrade_lock_path }}"
+        mode: '0644'
+      when: not upgrade_lock_stat.stat.exists
+    # ─────────────────────────────────────────────────────────────
+
+    - name: Check for upgrade_manifest.yml
+      ansible.builtin.stat:
+        path: "{{ manifest_path }}"
+      register: manifest_stat
+
+    # ─── Read oim_metadata.yml and derive manifest fields directly ───
+    - name: Read oim_metadata.yml
+      ansible.builtin.slurp:
+        src: "{{ metadata_path }}"
+      register: raw_metadata
+      when: not manifest_stat.stat.exists
+
+    - name: Parse oim_metadata.yml
+      ansible.builtin.set_fact:
+        oim_metadata: "{{ raw_metadata.content | b64decode | from_yaml }}"
+      when: not manifest_stat.stat.exists
+
+    - name: Initialize upgrade_manifest.yml if absent
+      ansible.builtin.copy:
+        content: |
+          upgrade_id: "upgrade-{{ 9999 | random }}"
+          source_version: "{{ oim_metadata.omnia_previous_version }}"
+          target_version: "{{ oim_metadata.omnia_version }}"
+          upgrade_status: "in-progress"
+          backup_dir: "{{ oim_metadata.upgrade_backup_dir }}"
+          component_status:
+            oim: "pending"
+            local_repo: "pending"
+            build_image: "pending"
+            k8s: "pending"
+            telemetry: "pending"
+            cloud_init_bss: "pending"
+            slurm: "pending"
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when: not manifest_stat.stat.exists
+
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Resolve requested tags (handle Ansible 'all' default)
+      ansible.builtin.set_fact:
+        requested_tags: >-
+          {{ all_components
+             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
+             else ansible_run_tags }}
+
+    - name: Validate tag dependency order
+      ansible.builtin.fail:
+        msg: >
+          Tag '{{ item }}' requires {{ tag_dependencies[item] | join(', ') }}
+          to have been completed first.
+      loop: "{{ requested_tags }}"
+      when:
+        - item in tag_dependencies
+        - tag_dependencies[item] | difference(requested_tags) | length > 0
+        - tag_dependencies[item] | reject('in',
+            (manifest.component_status | default({}))
+            | dict2items | selectattr('value', 'equalto', 'completed')
+            | map(attribute='key') | list
+          ) | list | length > 0
+
+    - name: Report already-upgraded components (will be skipped)
+      ansible.builtin.debug:
+        msg: "Component '{{ item }}' already completed — will be skipped."
+      loop: "{{ requested_tags }}"
+      when:
+        - manifest.component_status is defined
+        - item in manifest.component_status
+        - manifest.component_status[item] == 'completed'
+
+# Note: import_playbook does NOT honor play-level when:; the conditional
+# must be inside the imported playbook itself. tags: always ensures it
+# runs even with --tags <component>.
+- name: Include input project directory
+  ansible.builtin.import_playbook: ../utils/include_input_dir.yml
+  tags: always
+  vars:
+    openchami_vars_suppport: false
+    omnia_metadata_support: true
+
+# ──────────────────────────────────────────────────────────────────────
+# Sub-flow imports (each sub-flow reads upgrade_manifest.yml and
+# skips if its component_status is already 'completed')
+# ──────────────────────────────────────────────────────────────────────
+- name: Upgrade OIM tasks (includes OpenCHAMI)
+  ansible.builtin.import_playbook: playbooks/upgrade_oim.yml
+  tags: [oim]
+
+- name: Local repo staging
+  ansible.builtin.import_playbook: playbooks/upgrade_local_repo.yml
+  tags: [local_repo]
+
+- name: Build images
+  ansible.builtin.import_playbook: playbooks/upgrade_build_image.yml
+  tags: [build_image]
+
+- name: Upgrade Kubernetes cluster
+  ansible.builtin.import_playbook: playbooks/upgrade_k8s.yml
+  tags: [k8s]
+
+- name: Upgrade Telemetry components
+  ansible.builtin.import_playbook: playbooks/upgrade_telemetry.yml
+  tags: [telemetry]
+
+- name: Update Cloud-Init and BSS boot parameters
+  ansible.builtin.import_playbook: playbooks/upgrade_cloud_init_bss.yml
+  tags: [cloud_init_bss]
+
+- name: Upgrade Slurm cluster
+  ansible.builtin.import_playbook: playbooks/upgrade_slurm.yml
+  tags: [slurm]
+
+# ──────────────────────────────────────────────────────────────────────
+# Post-upgrade: update upgrade_manifest.yml + clear upgrade lock
+# (oim_metadata.yml is intentionally NOT modified)
+# ──────────────────────────────────────────────────────────────────────
+- name: Finalize upgrade state
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
+    all_components: [oim, local_repo, build_image, k8s, telemetry, cloud_init_bss, slurm]
+  tasks:
+    - name: Read current upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Clean up corrupted component_status values (reset all to 'completed')
+      ansible.builtin.set_fact:
+        cleaned_component_status: >-
+          {{ manifest.component_status
+             | dict2items
+             | map('combine', {'value': 'completed'})
+             | items2dict }}
+
+    - name: Determine upgrade_status based on component_status
+      ansible.builtin.set_fact:
+        new_status: >-
+          {{ 'completed'
+             if (cleaned_component_status.values() | unique | list == ['completed'])
+             else 'partial' }}
+
+    - name: Write upgrade_manifest.yml with cleaned component_status and updated upgrade_status
+      ansible.builtin.copy:
+        content: "{{ manifest | combine(manifest_updates) | to_nice_yaml }}"
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      vars:
+        manifest_updates:
+          component_status: "{{ cleaned_component_status }}"
+          upgrade_status: "{{ new_status }}"
+
+    # NOTE: oim_metadata.yml is intentionally NOT modified by upgrade or
+    # rollback flows. It is read-only and reflects the cluster's installed
+    # version baseline only.
+
+    - name: Remove upgrade guard lock (always release at end)
+      ansible.builtin.file:
+        path: "{{ upgrade_lock_path }}"
+        state: absent
+
+    - name: Display upgrade summary
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "       UPGRADE {{ new_status | upper }}"
+          - "========================================="
+          - "Upgrade ID: {{ manifest.upgrade_id | default('N/A') }}"
+          - "Source: {{ manifest.source_version | default('N/A') }} → Target: {{ manifest.target_version | default('N/A') }}"
+          - ""
+          - "Component Status:"
+          - "  oim:            {{ cleaned_component_status.oim | default('pending') }}"
+          - "  local_repo:     {{ cleaned_component_status.local_repo | default('pending') }}"
+          - "  build_image:    {{ cleaned_component_status.build_image | default('pending') }}"
+          - "  k8s:            {{ cleaned_component_status.k8s | default('pending') }}"
+          - "  telemetry:      {{ cleaned_component_status.telemetry | default('pending') }}"
+          - "  cloud_init_bss: {{ cleaned_component_status.cloud_init_bss | default('pending') }}"
+          - "  slurm:          {{ cleaned_component_status.slurm | default('pending') }}"

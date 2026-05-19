@@ -28,8 +28,10 @@ from api.parse_catalog.service import (
 )
 from core.catalog.exceptions import (
     CatalogParseError,
+    InvalidCatalogFormatError,
 )
 from api.logging_utils import log_secure_info
+from core.image_group.exceptions import DuplicateImageGroupError
 from core.jobs.exceptions import (
     InvalidStateTransitionError,
     JobNotFoundError,
@@ -219,6 +221,29 @@ async def parse_catalog(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "error_code": "INVALID_JSON",
+                "message": str(e),
+                "correlation_id": "test-correlation-id"
+            },
+        ) from e
+
+    except DuplicateImageGroupError as e:
+        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=duplicate_image_group, status=409", job_id=job_id, end_section=True)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error_code": "DUPLICATE_IMAGE_GROUP",
+                "message": str(e),
+                "correlation_id": "test-correlation-id"
+            },
+        ) from e
+
+    except InvalidCatalogFormatError as e:
+        log_secure_info("warning", f"Parse-catalog failed: job_id={job_id}, reason=invalid_catalog_format, status=400", job_id=job_id, end_section=True)
+        mark_stage_as_failed(job_id, "parse-catalog", "INVALID_CATALOG_FORMAT", str(e), db_session)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error_code": "INVALID_CATALOG_FORMAT",
                 "message": str(e),
                 "correlation_id": "test-correlation-id"
             },

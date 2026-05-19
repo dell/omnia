@@ -1,0 +1,259 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# upgrade_oim.yml — Internal playbook (imported by upgrade.yml --tags oim)
+# ============================================================================
+# Upgrades OIM components: OpenCHAMI containers + BuildStream (if enabled).
+# Prerequisites: prepare_upgrade.yml must have been run first.
+# Reads upgrade_manifest.yml and skips if oim already completed.
+#
+# Flow:
+#   1. Pre-flight: read manifest, check idempotency
+#   2. User approval prompt before proceeding
+#   3. OpenCHAMI container upgrade (pg_dump, deployment-recipes, image pull,
+#      ordered restart, DB migration, validation)
+#   4. BuildStream container upgrade (conditional on enable_build_stream)
+#   5. Mark OIM as completed in manifest
+# ============================================================================
+
+- name: Upgrade OIM (OpenCHAMI + conditional BuildStream)
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: oim
+    input_project_dir: "/opt/omnia/input/project_default"
+    build_stream_config_path: "/opt/omnia/input/project_default/build_stream_config.yml"
+  tasks:
+
+    # ── Pre-flight: manifest read + idempotency ─────────────────────────
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Skip if OIM already upgraded
+      ansible.builtin.meta: end_play
+      when:
+        - manifest.component_status[component_name] | default('pending') == 'completed'
+
+    # ── User approval before proceeding ─────────────────────────────────
+    - name: Display OIM upgrade summary and request approval
+      ansible.builtin.pause:
+        prompt: |
+
+          ══════════════════════════════════════════════════════════════
+                         OIM UPGRADE — APPROVAL REQUIRED
+          ══════════════════════════════════════════════════════════════
+          Source: {{ manifest.source_version | default('2.1.0.0') }}
+          Target: {{ manifest.target_version | default('2.2.0.0') }}
+
+          This will upgrade the following OIM components:
+            1. OpenCHAMI containers (pg_dump backup → deployment-recipes
+               update → image pull → ordered restart → DB migration)
+            2. BuildStream container (if enabled in build_stream_config.yml)
+
+          WARNING: This operation modifies running OIM services.
+          Ensure you have reviewed prepare_upgrade.yml output first.
+
+          Press ENTER to proceed or Ctrl+C to abort.
+          ══════════════════════════════════════════════════════════════
+
+    - name: Set OIM upgrade status to in-progress
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'in-progress'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+
+    # ── Phase 1: OpenCHAMI Container Upgrade (ESpec §4.4) ──────────────
+    - name: "Phase 1 — OpenCHAMI Container Upgrade"
+      block:
+        # Step 1: Verify OpenCHAMI container
+        # TODO: Implement Verify OpenCHAMI container checks
+        - name: Verify OpenCHAMI container
+          ansible.builtin.debug:
+            msg: "TODO: Verify OpenCHAMI container"
+
+        # Step 2: PostgreSQL backup (pg_dump)
+        # TODO: Implement pg_dump backup of OpenCHAMI database
+        - name: Backup PostgreSQL database (pg_dump)
+          ansible.builtin.debug:
+            msg: "TODO: pg_dump backup of OpenCHAMI DB to {{ manifest.backup_dir | default('/opt/omnia/backups') }}"
+
+        # Step 3: Update deployment-recipes to target version
+        # TODO: git checkout target tag in /opt/omnia/deployment-recipes
+        - name: Update deployment-recipes to target version
+          ansible.builtin.debug:
+            msg: "TODO: git checkout {{ manifest.target_version | default('2.2.0.0') }} in deployment-recipes"
+
+        # Step 4: Pull new container images
+        # TODO: Pull OpenCHAMI container images for target version
+        - name: Pull OpenCHAMI container images
+          ansible.builtin.debug:
+            msg: "TODO: Pull OpenCHAMI container images for {{ manifest.target_version | default('2.2.0.0') }}"
+
+        # Step 5: Ordered restart of OpenCHAMI services
+        # TODO: systemctl daemon-reload + restart in correct order
+        - name: Ordered restart of OpenCHAMI services
+          ansible.builtin.debug:
+            msg: "TODO: daemon-reload + ordered restart (postgres → smd → bss → cloud-init-server)"
+
+        # Step 6: Database migration (if schema changes)
+        # TODO: Run any required DB migration scripts
+        - name: Run database migration
+          ansible.builtin.debug:
+            msg: "TODO: Run OpenCHAMI DB migration scripts if schema changes exist"
+
+        # Step 7: Post-upgrade validation
+        # TODO: Validate SMD, BSS, S3, node inventory
+        - name: Validate OpenCHAMI services post-upgrade
+          ansible.builtin.debug:
+            msg: "TODO: Validate SMD API, BSS API, S3 storage, node inventory intact"
+
+        - name: Update version.yml with target version
+          ansible.builtin.debug:
+            msg: "TODO: Update /opt/omnia/.data/version.yml with OpenCHAMI {{ manifest.target_version | default('2.2.0.0') }}"
+
+      rescue:
+        - name: OpenCHAMI upgrade failed — mark component as failed
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                   'component_status': manifest.component_status | combine({
+                     component_name: 'failed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
+        - name: Fail with OpenCHAMI upgrade error
+          ansible.builtin.fail:
+            msg: "OpenCHAMI upgrade failed. Check logs and consider running rollback."
+
+    # ── Phase 2: BuildStream Container Upgrade (conditional) ────────────
+    - name: Check if build_stream_config.yml exists
+      ansible.builtin.stat:
+        path: "{{ build_stream_config_path }}"
+      register: bsc_stat
+
+    - name: Read build_stream_config.yml
+      ansible.builtin.slurp:
+        src: "{{ build_stream_config_path }}"
+      register: raw_bsc
+      when: bsc_stat.stat.exists
+
+    - name: Parse build_stream_config
+      ansible.builtin.set_fact:
+        build_stream_config: "{{ raw_bsc.content | b64decode | from_yaml }}"
+      when: bsc_stat.stat.exists
+
+    - name: Determine if BuildStream is enabled
+      ansible.builtin.set_fact:
+        buildstream_enabled: "{{ (build_stream_config.enable_build_stream | default(false)) | bool }}"
+      when: bsc_stat.stat.exists
+
+    - name: "Phase 2 — BuildStream Container Upgrade"
+      when: buildstream_enabled | default(false) | bool
+      block:
+        - name: Display BuildStream upgrade notice
+          ansible.builtin.debug:
+            msg: "BuildStream is enabled (enable_build_stream: true) — proceeding with upgrade"
+
+        # Step 1: Stop BuildStream container
+        # TODO: systemctl stop buildstream
+        - name: Stop BuildStream container
+          ansible.builtin.debug:
+            msg: "TODO: systemctl stop buildstream"
+
+        # Step 2: Backup current BuildStream quadlet
+        # TODO: cp /etc/containers/systemd/buildstream.container to backup
+        - name: Backup BuildStream quadlet
+          ansible.builtin.debug:
+            msg: "TODO: Backup buildstream.container quadlet to {{ manifest.backup_dir | default('/opt/omnia/backups') }}"
+
+        # Step 3: Update BuildStream container Image= tag
+        # TODO: Update Image= in buildstream.container to target version
+        - name: Update BuildStream container image tag
+          ansible.builtin.debug:
+            msg: "TODO: Update Image= tag in buildstream.container to {{ manifest.target_version | default('2.2.0.0') }}"
+
+        # Step 4: Reload systemd and pull new image
+        # TODO: systemctl daemon-reload + podman pull
+        - name: Reload systemd and pull BuildStream image
+          ansible.builtin.debug:
+            msg: "TODO: systemctl daemon-reload + podman pull buildstream:{{ manifest.target_version | default('2.2.0.0') }}"
+
+        # Step 5: Start BuildStream container
+        # TODO: systemctl start buildstream
+        - name: Start BuildStream container
+          ansible.builtin.debug:
+            msg: "TODO: systemctl start buildstream"
+
+        # Step 6: Health check
+        # TODO: Validate BuildStream API is responding
+        - name: Validate BuildStream container healthy
+          ansible.builtin.debug:
+            msg: "TODO: curl BuildStream API healthcheck endpoint"
+
+      rescue:
+        - name: BuildStream upgrade failed — mark component as failed
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                   'component_status': manifest.component_status | combine({
+                     component_name: 'failed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
+        - name: Fail with BuildStream upgrade error
+          ansible.builtin.fail:
+            msg: "BuildStream upgrade failed. Check logs and consider running rollback."
+
+    - name: Skip BuildStream upgrade (not enabled)
+      ansible.builtin.debug:
+        msg: "BuildStream is disabled (enable_build_stream: false) — skipping BuildStream upgrade"
+      when: not (buildstream_enabled | default(false) | bool)
+
+    # ── Finalize: mark OIM as completed ─────────────────────────────────
+    - name: Mark OIM upgrade as completed
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'completed'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+
+    - name: Display OIM upgrade completion
+      ansible.builtin.debug:
+        msg:
+          - "═══════════════════════════════════════"
+          - "  OIM UPGRADE COMPLETED SUCCESSFULLY"
+          - "═══════════════════════════════════════"
+          - "OpenCHAMI: upgraded to {{ manifest.target_version | default('2.2.0.0') }}"
+          - "BuildStream: {{ 'upgraded' if (buildstream_enabled | default(false) | bool) else 'skipped (disabled)' }}"

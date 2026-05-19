@@ -12,29 +12,51 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Pydantic schemas for ValidateImageOnTest API requests and responses."""
+"""Pydantic schemas for Validate API requests and responses."""
+
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
 
-class ValidateImageOnTestRequest(BaseModel):
-    """Request model for validate-image-on-test stage."""
+class ValidateRequestSchema(BaseModel):
+    """Request model for validate stage (spec §7.2).
 
-    image_key: str = Field(..., description="Image key to validate")
+    Attributes:
+        scenario_names: Molecule scenarios to run (e.g. ['discovery'], ['all']).
+        test_suite: Optional suite filter (e.g. 'smoke', 'sanity', 'regression').
+        timeout_minutes: Max execution time in minutes.
+    """
+
+    scenario_names: Optional[List[str]] = Field(
+        default=["all"],
+        description="Molecule scenarios to run (e.g. ['discovery'], ['slurm'], or ['all'])",
+    )
+    test_suite: Optional[str] = Field(
+        default="",
+        description="Suite filter (e.g. 'smoke', 'sanity', 'regression'). Maps to Molecule markers.",
+    )
+    timeout_minutes: Optional[int] = Field(
+        default=120,
+        ge=1,
+        le=480,
+        description="Max execution time in minutes (1-480, default 120)",
+    )
 
 
-class ValidateImageOnTestResponse(BaseModel):
-    """Response model for validate-image-on-test stage acceptance (202 Accepted)."""
+class ValidateResponseSchema(BaseModel):
+    """Response model for validate stage acceptance (202 Accepted) — spec §7.2."""
 
     job_id: str = Field(..., description="Job identifier")
-    stage: str = Field(..., description="Stage identifier")
-    status: str = Field(..., description="Acceptance status")
+    stage: str = Field(..., description="Stage identifier ('validate')")
+    status: str = Field(..., description="Stage status ('QUEUED')")
     submitted_at: str = Field(..., description="Submission timestamp (ISO 8601)")
     correlation_id: str = Field(..., description="Correlation identifier")
+    attempt: int = Field(default=1, description="Attempt number for this validate run")
 
 
-class ValidateImageOnTestErrorResponse(BaseModel):
-    """Standard error response body for validate-image-on-test operations."""
+class ValidateErrorResponse(BaseModel):
+    """Standard error response body for validate operations."""
 
     error: str = Field(..., description="Error code")
     message: str = Field(..., description="Error message")

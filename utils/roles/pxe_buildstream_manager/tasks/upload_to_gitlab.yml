@@ -1,0 +1,183 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Load GitLab configuration inputs
+  ansible.builtin.include_vars:
+    file: "{{ hostvars['localhost']['input_project_dir'] }}/gitlab_config.yml"
+  delegate_to: localhost
+  run_once: true
+
+- name: Set external URL
+  ansible.builtin.set_fact:
+    gitlab_external_url_computed: "https://{{ gitlab_host }}{% if gitlab_https_port != 443 %}:{{ gitlab_https_port }}{% endif %}"
+
+- name: Get root user API token
+  ansible.builtin.shell: |
+    gitlab-rails runner "
+      token = User.find_by_username('root').personal_access_tokens.create(
+        scopes: [:api, :write_repository],
+        name: 'omnia-automation',
+        expires_at: {{ gitlab_root_token_expiry_days }}.days.from_now
+      )
+      token.set_token('omnia-' + SecureRandom.hex(20))
+      token.save!
+      puts token.token
+    "
+  register: root_token_output
+  changed_when: false
+  no_log: true
+
+- name: Set root API token fact
+  ansible.builtin.set_fact:
+    gitlab_root_token: "{{ root_token_output.stdout | trim }}"
+  no_log: true
+
+- name: Check if project exists
+  block:
+    - name: Query GitLab for existing project
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects?search={{ gitlab_project_name }}"
+        method: GET
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        validate_certs: false
+        status_code: "{{ gitlab_default_status_codes.project_search }}"
+      register: project_search
+      no_log: true
+  rescue:
+    - name: Fail when project search API call fails
+      ansible.builtin.fail:
+        msg: "{{ gitlab_project_search_failure_msg }}"
+
+- name: Set project exists flag
+  ansible.builtin.set_fact:
+    project_exists: "{{ (project_search.json | length > 0) and (project_search.json[0].name == gitlab_project_name) }}"
+
+- name: Create GitLab project when missing
+  when: not project_exists
+  block:
+    - name: Create project via GitLab API
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects"
+        method: POST
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        body_format: json
+        body:
+          name: "{{ gitlab_project_name }}"
+          visibility: "{{ gitlab_project_visibility }}"
+          initialize_with_readme: true
+          default_branch: "{{ gitlab_default_branch }}"
+        status_code: "{{ gitlab_default_status_codes.project_create }}"
+        validate_certs: false
+      register: new_project
+      no_log: true
+  rescue:
+    - name: Fail when project creation API call fails
+      ansible.builtin.fail:
+        msg: "{{ gitlab_project_create_failure_msg }}"
+
+- name: Set project ID and URL
+  ansible.builtin.set_fact:
+    gitlab_project_id: "{{ (new_project.json.id if not project_exists else project_search.json[0].id) | string }}"
+    gitlab_project_url: "{{ new_project.json.web_url if not project_exists else project_search.json[0].web_url }}"
+    gitlab_project_http_url: "{{ new_project.json.http_url_to_repo if not project_exists else project_search.json[0].http_url_to_repo }}"
+
+- name: Set node results directory from job_id
+  ansible.builtin.set_fact:
+    bsm_job_id: "{{ job_id }}"
+    restart_state_dir_job_id: "/opt/omnia/build_stream_root/restart_state/{{ job_id }}"
+
+- name: Copy failed_nodes.json to gitlab root folder
+  ansible.builtin.copy:
+    src: "{{ restart_state_dir_job_id }}/failed_nodes.json"
+    dest: "/root/{{ gitlab_failed_nodes_file }}"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Read failed_nodes.json from gitlab root directory
+  ansible.builtin.slurp:
+    src: "/root/{{ gitlab_failed_nodes_file }}"
+  register: failed_nodes_content
+
+- name: Check if failed_nodes.json already exists in GitLab repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_miscellaneous_dir }}%2F{{ gitlab_failed_nodes_file }}?ref={{ gitlab_default_branch }}"  # noqa yaml[line-length]
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    status_code: [200, 404]
+    validate_certs: false
+  register: failed_nodes_check
+  no_log: true
+  ignore_errors: true
+
+- name: Debug GitLab check result (only on failure)
+  ansible.builtin.debug:
+    msg: "GitLab file check failed. Will attempt to create file. Error: {{ failed_nodes_check.msg | default('Unknown') }}"
+  when: failed_nodes_check.failed
+
+- name: Create failed_nodes.json in GitLab repository (new file)
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_miscellaneous_dir }}%2F{{ gitlab_failed_nodes_file }}"  # noqa yaml[line-length]
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch }}"
+      encoding: base64
+      content: "{{ failed_nodes_content.content }}"
+      commit_message: "Add failed_nodes.json for job {{ bsm_job_id }}"
+    status_code: [200, 201]
+    validate_certs: false
+  when: failed_nodes_check.failed or failed_nodes_check.status == 404
+  register: gitlab_create_result
+  ignore_errors: true
+  no_log: true
+
+- name: Update failed_nodes.json in GitLab repository (existing file)
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ gitlab_miscellaneous_dir }}%2F{{ gitlab_failed_nodes_file }}"  # noqa yaml[line-length]
+    method: PUT
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      branch: "{{ gitlab_default_branch }}"
+      encoding: base64
+      content: "{{ failed_nodes_content.content }}"
+      commit_message: "Update failed_nodes.json for job {{ bsm_job_id }}"
+    status_code: [200, 201]
+    validate_certs: false
+  when: not failed_nodes_check.failed and failed_nodes_check.status == 200
+  register: gitlab_update_result
+  ignore_errors: true
+  no_log: true
+
+- name: Report GitLab upload success
+  ansible.builtin.debug:
+    msg: "{{ gitlab_upload_success_msg }}"
+  when: >
+    (gitlab_create_result is defined and gitlab_create_result is success) or
+    (gitlab_update_result is defined and gitlab_update_result is success)
+
+- name: Report GitLab upload failure
+  ansible.builtin.debug:
+    msg: "{{ gitlab_upload_fail_msg }}"
+  when: >
+    (gitlab_create_result is defined and gitlab_create_result is failed) or
+    (gitlab_update_result is defined and gitlab_update_result is failed)

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared fixtures for ValidateImageOnTest API integration tests."""
+"""Shared fixtures for Validate API integration tests."""
 
 import os
 from pathlib import Path
@@ -61,7 +61,10 @@ def client(tmp_path):
     importlib.reload(infra.db.session)
     session_module = infra.db.session
     
-    engine = session_module._get_engine()
+    from sqlalchemy import create_engine
+    engine = create_engine(db_url)
+    session_module._engine = engine
+    session_module._session_factory = None
     Base.metadata.create_all(engine)
     
     with TestClient(app) as test_client:
@@ -103,29 +106,21 @@ def created_job(client, auth_headers) -> str:
 
 
 @pytest.fixture
-def job_with_completed_build_image(client, auth_headers, created_job, monkeypatch) -> str:
-    """Create a job with a completed build-image stage."""
+def job_with_completed_restart(client, auth_headers, created_job, monkeypatch) -> str:
+    """Create a job with a completed restart stage."""
     from core.jobs.entities import Stage
     from core.jobs.value_objects import JobId, StageName, StageType
     
-    # Mock the stage repository to return a completed build-image stage
+    # Mock the stage repository to return a completed restart stage
     def mock_find_by_job_and_name(self, job_id, stage_name):
         # Handle JobId objects or string job_id
         job_id_str = str(job_id)
         
-        if stage_name.value == StageType.BUILD_IMAGE_X86_64.value:
+        if stage_name.value == StageType.RESTART.value:
             stage = Stage(
                 job_id=JobId(job_id_str),
-                stage_name=StageName(StageType.BUILD_IMAGE_X86_64.value),
+                stage_name=StageName(StageType.RESTART.value),
                 stage_state=StageState.COMPLETED,
-                attempt=1
-            )
-            return stage
-        elif stage_name.value == StageType.VALIDATE_IMAGE_ON_TEST.value:
-            stage = Stage(
-                job_id=JobId(job_id_str),
-                stage_name=StageName(StageType.VALIDATE_IMAGE_ON_TEST.value),
-                stage_state=StageState.PENDING,
                 attempt=1
             )
             return stage

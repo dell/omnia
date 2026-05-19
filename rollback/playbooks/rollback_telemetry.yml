@@ -1,0 +1,70 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Rollback Telemetry components
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    component_name: telemetry
+  tasks:
+    - name: Read rollback_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ rollback_manifest_path }}"
+      register: raw_rollback_manifest
+
+    - name: Parse rollback manifest
+      ansible.builtin.set_fact:
+        rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
+
+    - name: Skip if telemetry already rolled back
+      ansible.builtin.meta: end_play
+      when:
+        - rollback_manifest.component_status[component_name] | default('pending') == 'completed'
+
+    - name: Set telemetry rollback status to in-progress
+      ansible.builtin.copy:
+        content: >-
+          {{ rollback_manifest | combine({
+               'component_status': rollback_manifest.component_status | combine({
+                 component_name: 'in-progress'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'
+
+    # TODO: Implement telemetry rollback steps per ESpec §4.8.5:
+    # 1. Helm uninstall new components (powerscale, vast, victorialogs, ufm)
+    # 2. Rollback Strimzi operator + Kafka brokers to previous version
+    # 3. Rollback VictoriaMetrics StatefulSet(s) to previous version
+    # 4. Rollback iDRAC telemetry receiver + pump images
+    # 5. Restore LDMS sampler/aggregator configs from backup
+    # 6. Rolling restart LDMS pods
+    # 7. Validate: all telemetry pods Running, metrics/logs flowing
+    - name: Telemetry rollback placeholder
+      ansible.builtin.debug:
+        msg: "Telemetry rollback tasks to be implemented (Helm uninstall, component rollback)"
+
+    - name: Mark telemetry rollback as completed
+      ansible.builtin.copy:
+        content: >-
+          {{ rollback_manifest | combine({
+               'component_status': rollback_manifest.component_status | combine({
+                 component_name: 'completed'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'

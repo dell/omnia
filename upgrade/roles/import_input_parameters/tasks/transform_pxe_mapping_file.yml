@@ -1,0 +1,77 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Extract filename from pxe_mapping_file_path
+  ansible.builtin.set_fact:
+    pxe_mapping_filename: >-
+      {{ provision_pxe_mapping_file_path | regex_replace('^.*/', '') }}
+
+- name: Display pxe_mapping_file transformation message
+  ansible.builtin.debug:
+    msg: "{{ msg_using_backup_pxe_mapping_file }}"
+
+- name: Check if pxe_mapping_file exists in backup
+  ansible.builtin.stat:
+    path: "{{ backup_location }}/{{ pxe_mapping_filename }}"
+  register: backup_pxe_mapping_file_stat
+
+- name: Fail if pxe_mapping_file not found in backup
+  ansible.builtin.fail:
+    msg: "{{ msg_backup_pxe_mapping_file_missing }}"
+  when: not backup_pxe_mapping_file_stat.stat.exists
+
+- name: Read pxe_mapping_file from backup using read_csv module
+  community.general.read_csv:
+    path: "{{ backup_location }}/{{ pxe_mapping_filename }}"
+  register: backup_pxe_mapping_file
+
+- name: Add IB columns to each row (initialize as empty)
+  ansible.builtin.set_fact:
+    pxe_mapping_rows: >-
+      {{ backup_pxe_mapping_file.list |
+         map('combine', {'IB_MAC': '', 'IB_IP': ''}) |
+         list }}
+
+- name: Fail if no valid rows found in pxe_mapping_file
+  ansible.builtin.fail:
+    msg: "{{ msg_pxe_mapping_file_empty }}"
+  when: (pxe_mapping_rows | default([]) | length) == 0
+
+- name: Write pxe_mapping_file in Omnia 2.2 format with IB fields
+  ansible.builtin.template:
+    src: pxe_mapping_file.csv.j2
+    dest: "{{ input_project_dir }}/{{ pxe_mapping_filename }}"
+    mode: "{{ default_file_mode }}"
+  vars:
+    pxe_mapping_rows: "{{ pxe_mapping_rows }}"
+
+- name: Validate CSV syntax of transformed pxe_mapping_file
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      head -n 1 "{{ input_project_dir }}/{{ pxe_mapping_filename }}" | \
+        grep -q "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_MAC,IB_IP"
+  changed_when: false
+  failed_when: false
+  register: pxe_mapping_file_validation
+
+- name: Fail if pxe_mapping_file validation failed
+  ansible.builtin.fail:
+    msg: "{{ msg_pxe_mapping_file_validation_failed }}"
+  when: pxe_mapping_file_validation.rc != 0
+
+- name: Display pxe_mapping_file transformation summary
+  ansible.builtin.debug:
+    msg: "{{ msg_pxe_mapping_file_transform_summary }}"

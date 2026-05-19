@@ -46,14 +46,14 @@ import requests
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configuration constants
-BASE_URL = "https://182.10.5.157:8010"
+BASE_URL = "https://100.10.0.28:8010"
 CLIENT_NAME = "demo-client"
 AUTH_USERNAME = "admin"
 AUTH_PASSWORD = ""
 CREDENTIALS_FILE = Path(__file__).parent / "demo_client_credentials.json"
 
 BUILD_STREAM_ARTIFACT_ROOT = "/opt/omnia/build_stream/artifacts"
-CATALOG_FILE = Path("/opt/omnia/windsurf/working_dir/demo/catalog_rhel.json")
+CATALOG_FILE = Path("/root/Documents/omnia/examples/catalog/catalog_rhel_x86_64_with_slurm_only.json")
 
 class ParseCatalogDemo:
     """Complete demo class for parse-catalog functionality."""
@@ -85,8 +85,14 @@ class ParseCatalogDemo:
 
         self.access_token = None
         self.job_id = None
+        self.image_group_id = None
         self.correlation_id = str(uuid.uuid4())
         self.cleanup = cleanup
+
+        # Catalog roles metadata (populated by get_catalog_roles)
+        self.catalog_roles = []
+        self.catalog_image_key = None
+        self.catalog_architectures = []
 
     def wait_for_enter(self, message="Press ENTER to continue..."):
         """Wait for user to press enter."""
@@ -235,7 +241,7 @@ class ParseCatalogDemo:
                     "Content-Type": "application/json",
                     "Authorization": f"Basic {auth_header}"
                 },
-                timeout=30,
+                timeout=7200,
                 verify=False
             )
 
@@ -284,7 +290,7 @@ class ParseCatalogDemo:
                     f"{self.base_url}/api/v1/auth/token",
                     data=token_data,
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
-                    timeout=30,
+                    timeout=7200,
                     verify=False
                 )
 
@@ -336,7 +342,7 @@ class ParseCatalogDemo:
                 f"{self.base_url}/api/v1/auth/token",
                 data=token_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
-                timeout=30,
+                timeout=7200,
                 verify=False
             )
 
@@ -404,7 +410,7 @@ class ParseCatalogDemo:
                     "Authorization": f"Bearer {self.access_token}",
                     "Idempotency-Key": idempotency_key
                 },
-                timeout=30,
+                timeout=7200,
                 verify=False
             )
 
@@ -441,7 +447,7 @@ class ParseCatalogDemo:
             response = requests.get(
                 f"{self.base_url}/api/v1/jobs/{self.job_id}",
                 headers={"Authorization": f"Bearer {self.access_token}"},
-                timeout=30,
+                timeout=7200,
                 verify=False
             )
 
@@ -505,7 +511,7 @@ class ParseCatalogDemo:
                     f"{self.base_url}/api/v1/jobs/{self.job_id}/stages/parse-catalog",
                     files=files,
                     headers={"Authorization": f"Bearer {self.access_token}"},
-                    timeout=60,  # Longer timeout for file upload
+                    timeout=7200,  # Longer timeout for file upload
                     verify=False
                 )
 
@@ -515,6 +521,12 @@ class ParseCatalogDemo:
                     result = response.json()
                     print("📋 Response Body:")
                     print(json.dumps(result, indent=2))
+
+                    # Capture image_group_id from parse-catalog response
+                    self.image_group_id = result.get("image_group_id")
+                    if self.image_group_id:
+                        print(f"\n📦 Image Group ID: {self.image_group_id}")
+
                     print("\n✅ Parse catalog successful!")
 
                     # Get job info after parse catalog
@@ -547,7 +559,7 @@ class ParseCatalogDemo:
             response = requests.post(
                 f"{self.base_url}/api/v1/jobs/{self.job_id}/stages/generate-input-files",
                 headers={"Authorization": f"Bearer {self.access_token}"},
-                timeout=30,
+                timeout=7200,
                 verify=False
             )
 
@@ -710,6 +722,63 @@ class ParseCatalogDemo:
                         except:
                             print("   [unable to list archive contents]")
 
+    def _poll_stage_completion(
+        self, stage_name, label="Stage", timeout_seconds=7200, poll_interval=60
+    ):
+        """Poll job status until a specific stage reaches COMPLETED or FAILED.
+
+        Args:
+            stage_name: The stage_name value to watch (e.g. 'create-local-repository').
+            label: Human-readable label for logging.
+            timeout_seconds: Max wait time before giving up.
+            poll_interval: Seconds between each poll.
+
+        Returns:
+            True if the stage reached COMPLETED, False otherwise.
+        """
+        print(f"\n   ⏳ Waiting for '{stage_name}' to complete "
+              f"(poll every {poll_interval}s, timeout {timeout_seconds}s)...")
+
+        start_time = time.time()
+        while time.time() - start_time < timeout_seconds:
+            try:
+                response = requests.get(
+                    f"{self.base_url}/api/v1/jobs/{self.job_id}",
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    timeout=7200,
+                    verify=False,
+                )
+
+                if response.status_code == 200:
+                    job_info = response.json()
+                    stages = job_info.get("stages", [])
+
+                    for stage in stages:
+                        if stage.get("stage_name") == stage_name:
+                            state = stage.get("stage_state", "UNKNOWN")
+                            elapsed = int(time.time() - start_time)
+                            print(f"   [{elapsed:3d}s] {stage_name}: {state}")
+
+                            if state == "COMPLETED":
+                                print(f"   ✅ {label} completed!")
+                                return True
+                            if state == "FAILED":
+                                error = stage.get("error_summary") or stage.get("error_code") or "unknown"
+                                print(f"   ❌ {label} FAILED: {error}")
+                                return False
+                            break
+                    else:
+                        elapsed = int(time.time() - start_time)
+                        print(f"   [{elapsed:3d}s] Stage '{stage_name}' not found in job stages")
+
+            except Exception as exc:
+                print(f"   Poll error: {exc}")
+
+            time.sleep(poll_interval)
+
+        print(f"\n   ⏰ Timeout after {timeout_seconds}s waiting for '{stage_name}'.")
+        return False
+
     def create_local_repository(self):
         """Create local repository using the generated input files."""
         print("\n" + "="*60)
@@ -727,7 +796,7 @@ class ParseCatalogDemo:
             response = requests.post(
                 f"{self.base_url}/api/v1/jobs/{self.job_id}/stages/create-local-repository",
                 headers={"Authorization": f"Bearer {self.access_token}"},
-                timeout=30,
+                timeout=7200,
                 verify=False
             )
 
@@ -737,7 +806,16 @@ class ParseCatalogDemo:
                 result = response.json()
                 print("📋 Response Body:")
                 print(json.dumps(result, indent=2))
-                print("\n✅ Create local repository successful!")
+                print("\n✅ Create local repository submitted!")
+
+                # Poll for completion if async (202)
+                if response.status_code == 202:
+                    if not self._poll_stage_completion(
+                        "create-local-repository",
+                        label="Create Local Repository",
+                    ):
+                        print("❌ Create local repository did not complete successfully")
+                        return False
 
                 # Get job info after create local repository
                 self.get_job_info()
@@ -752,6 +830,56 @@ class ParseCatalogDemo:
             print(f"\n❌ Error: {e}")
             return False
 
+    def get_catalog_roles(self):
+        """Fetch catalog roles to determine functional groups and image_key for build-image."""
+        print("\n" + "="*60)
+        print("📋 STEP 7B: Get Catalog Roles (GET /catalog/roles)")
+        print("="*60)
+
+        if not self.job_id:
+            print("❌ No job_id available. Create a job first.")
+            return False
+
+        url = f"{self.base_url}/api/v1/jobs/{self.job_id}/catalog/roles"
+        print(f"📡 Endpoint: GET {url}")
+        print("📋 Headers:")
+        print(f"   Authorization: Bearer {self.access_token[:20]}...{self.access_token[-10:]}")
+
+        self.wait_for_enter("Press ENTER to fetch catalog roles...")
+
+        try:
+            response = requests.get(
+                url,
+                headers={"Authorization": f"Bearer {self.access_token}"},
+                timeout=7200,
+                verify=False,
+            )
+
+            print(f"\n✅ Response Status: {response.status_code}")
+
+            if response.status_code == 200:
+                result = response.json()
+                print("📋 Response Body:")
+                print(json.dumps(result, indent=2))
+
+                self.catalog_roles = result.get("roles", [])
+                self.catalog_image_key = result.get("image_key", "")
+                self.catalog_architectures = result.get("architectures", [])
+
+                print(f"\n📊 Roles ({len(self.catalog_roles)}): {self.catalog_roles}")
+                print(f"📊 Image Key: {self.catalog_image_key}")
+                print(f"📊 Architectures: {self.catalog_architectures}")
+                return True
+
+            print("📋 Response Body:")
+            print(response.text)
+            print("\n❌ Failed to get catalog roles")
+            return False
+
+        except Exception as exc:
+            print(f"\n❌ Error: {exc}")
+            return False
+
     def _trigger_build_image_stage(self, step_label: str, architecture: str, functional_groups, inventory_host: str | None):
         print("\n" + "="*60)
         print(step_label)
@@ -763,7 +891,7 @@ class ParseCatalogDemo:
 
         payload = {
             "architecture": architecture,
-            "image_key": "demo-build-image",
+            "image_key": self.catalog_image_key or "demo-build-image",
             "functional_groups": functional_groups,
         }
 
@@ -783,7 +911,7 @@ class ParseCatalogDemo:
                 f"{self.base_url}/api/v1/jobs/{self.job_id}/stages/build-image",
                 json=payload,
                 headers={"Authorization": f"Bearer {self.access_token}"},
-                timeout=60,  # Longer timeout for build operations
+                timeout=7200,  # Longer timeout for build operations
                 verify=False,
             )
 
@@ -793,6 +921,19 @@ class ParseCatalogDemo:
                 print("📋 Response Body:")
                 print(json.dumps(response.json(), indent=2))
                 print("\n✅ Build image stage triggered!")
+
+                # Determine the stage name to poll
+                stage_name = f"build-image-{architecture}"
+
+                # Poll for completion if async (202)
+                if response.status_code == 202:
+                    if not self._poll_stage_completion(
+                        stage_name,
+                        label=f"Build Image ({architecture})",
+                    ):
+                        print(f"❌ Build image ({architecture}) did not complete successfully")
+                        return False
+
                 return True
 
             print("📋 Response Body:")
@@ -805,16 +946,21 @@ class ParseCatalogDemo:
             return False
 
     def trigger_build_image_x86_64_stage(self):
-        """Trigger build image stage for x86_64 architecture."""
-        groups = [
-            "service_kube_control_plane_first_x86_64",
-            "service_kube_control_plane_x86_64",
-            "service_kube_node_x86_64",
-            "slurm_control_node_x86_64",
-            "slurm_node_x86_64",
-            "login_node_x86_64",
-            "login_compiler_node_x86_64",
-        ]
+        """Trigger build image stage for x86_64 architecture.
+
+        Uses roles from the getRoles API (filtered to x86_64 suffix) instead
+        of a hardcoded list so that only images relevant to the catalog are
+        built.
+        """
+        if "x86_64" not in self.catalog_architectures:
+            print("\n⏭️  Skipping x86_64 build-image: architecture not in catalog")
+            return True
+
+        groups = [r for r in self.catalog_roles if r.endswith("_x86_64")]
+        if not groups:
+            print("\n⏭️  Skipping x86_64 build-image: no x86_64 roles in catalog")
+            return True
+
         return self._trigger_build_image_stage(
             "🛠️  STEP 8A: Trigger Build Image Stage (x86_64)",
             "x86_64",
@@ -823,18 +969,225 @@ class ParseCatalogDemo:
         )
 
     def trigger_build_image_aarch64_stage(self):
-        """Trigger build image stage for aarch64 architecture."""
-        groups = [
-            "slurm_node_aarch64",
-            "login_node_aarch64",
-            "login_compiler_node_aarch64",
-        ]
+        """Trigger build image stage for aarch64 architecture.
+
+        Uses roles from the getRoles API (filtered to aarch64 suffix) instead
+        of a hardcoded list so that only images relevant to the catalog are
+        built.
+        """
+        if "aarch64" not in self.catalog_architectures:
+            print("\n⏭️  Skipping aarch64 build-image: architecture not in catalog")
+            return True
+
+        groups = [r for r in self.catalog_roles if r.endswith("_aarch64")]
+        if not groups:
+            print("\n⏭️  Skipping aarch64 build-image: no aarch64 roles in catalog")
+            return True
+
         return self._trigger_build_image_stage(
             "🛠️  STEP 8B: Trigger Build Image Stage (aarch64)",
             "aarch64",
             groups,
             inventory_host="182.10.0.170",
         )
+
+    def list_images(self):
+        """List available Image Groups via GET /api/v1/images."""
+        print("\n" + "="*60)
+        print("📷 STEP 9: List Images (GET /api/v1/images)")
+        print("="*60)
+
+        print(f"📡 Endpoint: GET {self.base_url}/api/v1/images?status=BUILT")
+        print("📋 Headers:")
+        print(f"   Authorization: Bearer {self.access_token[:20]}...{self.access_token[-10:]}")
+        print("📋 Query Params: status=BUILT, limit=100, offset=0")
+
+        self.wait_for_enter("Press ENTER to list images...")
+
+        try:
+            response = requests.get(
+                f"{self.base_url}/api/v1/images",
+                params={"status": "BUILT", "limit": 100, "offset": 0},
+                headers={"Authorization": f"Bearer {self.access_token}"},
+                timeout=7200,
+                verify=False,
+            )
+
+            print(f"\n✅ Response Status: {response.status_code}")
+
+            if response.status_code == 200:
+                result = response.json()
+                print("📋 Response Body:")
+                print(json.dumps(result, indent=2))
+
+                image_groups = result.get("image_groups", [])
+                pagination = result.get("pagination", {})
+
+                print(f"\n📊 Total Image Groups: {pagination.get('total_count', 0)}")
+                print(f"📊 Has More: {pagination.get('has_more', False)}")
+
+                for ig in image_groups:
+                    print(f"\n   📦 ImageGroup: {ig['image_group_id']}")
+                    print(f"      Job ID: {ig['job_id']}")
+                    print(f"      Status: {ig['status']}")
+                    images = ig.get("images", [])
+                    print(f"      Images ({len(images)}):")
+                    for img in images:
+                        print(f"         - {img['role']}: {img['image_name']}")
+
+                    # Capture image_group_id if matches our job
+                    if ig.get("job_id") == self.job_id and not self.image_group_id:
+                        self.image_group_id = ig["image_group_id"]
+
+                if not image_groups:
+                    print("\n⚠️  No BUILT image groups found.")
+                    print("💡 Build image stage may not have completed yet.")
+                    print("💡 Ensure playbook watcher is running and build-image succeeded.")
+
+                return True
+            else:
+                print("📋 Response Body:")
+                print(response.text)
+                print("\n❌ List images failed")
+                return False
+
+        except Exception as exc:
+            print(f"\n❌ Error: {exc}")
+            return False
+
+    def deploy(self):
+        """Trigger deploy stage via POST /api/v1/jobs/{job_id}/stages/deploy."""
+        print("\n" + "="*60)
+        print("🚀 STEP 10: Deploy (POST /stages/deploy)")
+        print("="*60)
+
+        if not self.image_group_id:
+            print("⚠️  No image_group_id available.")
+            user_ig = input("   Enter image_group_id manually (or press ENTER to skip): ").strip()
+            if not user_ig:
+                print("⏭️  Skipping deploy stage")
+                return False
+            self.image_group_id = user_ig
+
+        deploy_data = {
+            "image_group_id": self.image_group_id,
+        }
+
+        print(f"📡 Endpoint: POST {self.base_url}/api/v1/jobs/{self.job_id}/stages/deploy")
+        print("📋 Headers:")
+        print(f"   Authorization: Bearer {self.access_token[:20]}...{self.access_token[-10:]}")
+        print(f"   X-Correlation-Id: {self.correlation_id}")
+        print("📋 Request Body:")
+        print(json.dumps(deploy_data, indent=2))
+
+        self.wait_for_enter("Press ENTER to trigger deploy...")
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/v1/jobs/{self.job_id}/stages/deploy",
+                json=deploy_data,
+                headers={
+                    "Authorization": f"Bearer {self.access_token}",
+                    "X-Correlation-Id": self.correlation_id,
+                },
+                timeout=7200,
+                verify=False,
+            )
+
+            print(f"\n✅ Response Status: {response.status_code}")
+
+            if response.status_code in [200, 201, 202]:
+                result = response.json()
+                print("📋 Response Body:")
+                print(json.dumps(result, indent=2))
+                print(f"\n✅ Deploy stage triggered!")
+                print(f"   Stage: {result.get('stage', 'deploy')}")
+                print(f"   Status: {result.get('status', 'unknown')}")
+                print(f"   Image Group: {result.get('image_group_id', 'unknown')}")
+
+                # Poll for completion if async (202)
+                if response.status_code == 202:
+                    if not self._poll_stage_completion(
+                        "deploy",
+                        label="Deploy",
+                    ):
+                        print("❌ Deploy did not complete successfully")
+                        return False
+
+                # Show job info after deploy
+                self.get_job_info()
+                return True
+            else:
+                print("📋 Response Body:")
+                print(response.text)
+                print("\n❌ Deploy failed")
+
+                if response.status_code == 404:
+                    print("💡 Job or ImageGroup not found.")
+                elif response.status_code == 409:
+                    print("💡 ImageGroup ID mismatch or state conflict.")
+                elif response.status_code == 412:
+                    print("💡 Precondition failed (ImageGroup not in BUILT state or upstream stage not completed).")
+
+                return False
+
+        except Exception as exc:
+            print(f"\n❌ Error: {exc}")
+            return False
+
+    def trigger_restart_stage(self):
+        """Trigger the restart stage (PXE-based node restart)."""
+        print("\n" + "="*60)
+        print("🔄 STEP 11: Trigger Restart Stage")
+        print("="*60)
+
+        if not self.job_id:
+            print("❌ No job_id available. Create a job before triggering this stage.")
+            return False
+
+        print(f"📍 Endpoint: POST {self.base_url}/api/v1/jobs/{self.job_id}/stages/restart")
+        print("📋 Headers:")
+        print(f"   Authorization: Bearer {self.access_token[:20]}...{self.access_token[-10:]}")
+        print("📋 Request Body: (none -- restart requires no parameters)")
+
+        self.wait_for_enter("Press ENTER to trigger restart stage...")
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/api/v1/jobs/{self.job_id}/stages/restart",
+                headers={"Authorization": f"Bearer {self.access_token}"},
+                timeout=60,
+                verify=False,
+            )
+
+            print(f"\n✅ Response Status: {response.status_code}")
+
+            if response.status_code in (200, 202):
+                result = response.json()
+                print("📋 Response Body:")
+                print(json.dumps(result, indent=2))
+                print("\n✅ Restart stage triggered!")
+                print("   The playbook watcher will execute set_pxe_boot.yml")
+
+                # Show links if present
+                links = result.get("_links", {})
+                if links:
+                    print("\n📎 HATEOAS Links:")
+                    for key, value in links.items():
+                        print(f"   {key}: {value}")
+
+                # Get job info after restart
+                self.get_job_info()
+                return True
+
+            print("📋 Response Body:")
+            print(response.text)
+            print("\n❌ Failed to trigger restart stage")
+            return False
+
+        except Exception as exc:
+            print(f"\n❌ Error: {exc}")
+            return False
 
     def run_demo(self):
         """Run the complete demo."""
@@ -908,12 +1261,26 @@ class ParseCatalogDemo:
             if not self.create_local_repository():
                 return
 
-            # Step 8A: x86_64 build-image stage
+            # Step 7B: Get catalog roles (functional groups + image_key)
+            if not self.get_catalog_roles():
+                return
+
+            # Step 8A: x86_64 build-image stage (triggers + waits for completion)
             if not self.trigger_build_image_x86_64_stage():
                 return
 
-            # Step 8B: aarch64 build-image stage
+            # Step 8B: aarch64 build-image stage (triggers + waits for completion)
             if not self.trigger_build_image_aarch64_stage():
+                return
+
+            # Step 9: List Images
+            self.list_images()
+
+            # Step 10: Deploy (triggers + waits for completion)
+            self.deploy()
+
+            # Step 11: Restart stage (PXE-based node restart)
+            if not self.trigger_restart_stage():
                 return
 
             print("\n" + "="*60)
@@ -921,11 +1288,15 @@ class ParseCatalogDemo:
             print("="*60)
             print(f"📊 Client ID: {self.client_id}")
             print(f"📊 Job ID: {self.job_id}")
+            print(f"📊 Image Group ID: {self.image_group_id or 'N/A'}")
             print(f"📊 Correlation ID: {self.correlation_id}")
             print(f"📦 Catalog Artifacts: {Path(self.build_stream_artifact_root) / 'catalog'}/")
             print(f"📦 Input Files Artifacts: {Path(self.build_stream_artifact_root) / 'input-files'}/")
             print("📦 Local Repository: Created via Ansible playbook")
             print("📦 Build Image Stage: Submitted for both x86_64 and aarch64")
+            print("📷 Images API: Listed built image groups")
+            print("🚀 Deploy API: Deploy stage triggered")
+            print("📦 Restart Stage: Submitted (set_pxe_boot.yml)")
             print("="*60)
 
         except KeyboardInterrupt:

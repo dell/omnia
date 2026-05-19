@@ -252,12 +252,13 @@ def get_config_file_paths(input_dir, data, software_config_file_path):
 
     Returns:
         dict: Dictionary containing resolved file paths:
-              - service_k8s_json_path: Path to service_k8s.json
+              - service_k8s_json_path: Path to service_k8s (versioned)
               - csi_driver_powerscale_json_path: Path to csi_driver_powerscale.json
     """
     # Try reading cluster_os_type/version from data first, then from software_config.json
     cluster_os_type = data.get("cluster_os_type", "rhel")
     cluster_os_version = data.get("cluster_os_version", "10.0")
+    service_k8s_version = None
 
     if os.path.exists(software_config_file_path):
         try:
@@ -265,11 +266,23 @@ def get_config_file_paths(input_dir, data, software_config_file_path):
                 sc_data = json.load(scf)
                 cluster_os_type = sc_data.get("cluster_os_type", cluster_os_type)
                 cluster_os_version = sc_data.get("cluster_os_version", cluster_os_version)
+                # Extract service_k8s version from software_config.json
+                for sw in sc_data.get("softwares", []):
+                    if sw.get("name") == "service_k8s" and sw.get("version"):
+                        service_k8s_version = sw["version"]
+                        break
         except (json.JSONDecodeError, IOError):
             pass
 
     config_base_path = os.path.join(input_dir, "config", "x86_64", cluster_os_type, cluster_os_version)
-    service_k8s_json_path = os.path.join(config_base_path, "service_k8s.json")
+    
+    # Use versioned service_k8s file if version is available
+    # Return None paths if service_k8s is not configured (e.g., slurm-only clusters)
+    service_k8s_json_path = None
+    if service_k8s_version:
+        service_k8s_json = f"service_k8s_v{service_k8s_version}.json"
+        service_k8s_json_path = os.path.join(config_base_path, service_k8s_json)
+    
     csi_driver_powerscale_json_path = os.path.join(config_base_path, "csi_driver_powerscale.json")
 
     return {
@@ -315,6 +328,7 @@ def validate_telemetry_config(
     idrac_source = telemetry_sources.get("idrac", {})
     ldms_source = telemetry_sources.get("ldms", {})
     powerscale_source = telemetry_sources.get("powerscale", {})
+    ufm_source = telemetry_sources.get("ufm", {})
 
     idrac_telemetry_support = idrac_source.get("metrics_enabled", False)
     idrac_collection_targets = idrac_source.get("collection_targets", [])
@@ -369,6 +383,17 @@ def validate_telemetry_config(
             "telemetry_sources.powerscale.collection_targets",
             list(invalid_powerscale_targets),
             f"Invalid collection targets for PowerScale. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_powerscale_targets}"
+        ))
+    
+    # UFM: supports victoria_metrics and victoria_logs
+    ufm_targets = set(ufm_source.get("collection_targets", []))
+    allowed_ufm_targets = {"victoria_metrics", "victoria_logs"}
+    invalid_ufm_targets = ufm_targets - allowed_ufm_targets
+    if invalid_ufm_targets:
+        errors.append(create_error_msg(
+            "telemetry_sources.ufm.collection_targets",
+            list(invalid_ufm_targets),
+            f"Invalid collection targets for UFM. Only 'victoria_metrics' and 'victoria_logs' are supported. Found: {invalid_ufm_targets}"
         ))
 
     # =========================================================================
@@ -770,5 +795,60 @@ def validate_telemetry_config(
         powerscale_validation_data, powerscale_collection_targets, software_config_file_path,
         is_service_cluster_defined, config_paths, logger, errors
     )
+
+    # =========================================================================
+    # Validate UFM telemetry configuration
+    # =========================================================================
+    ufm_metrics_enabled = ufm_source.get("metrics_enabled", False)
+    ufm_logs_enabled = ufm_source.get("logs_enabled", False)
+    ufm_detailed_config = data.get("ufm_configuration", {})
+    
+    if ufm_metrics_enabled or ufm_logs_enabled:
+        # Check required UFM endpoint
+        ufm_endpoint = ufm_detailed_config.get("ufm_endpoint", "")
+        if not ufm_endpoint or (isinstance(ufm_endpoint, str) and ufm_endpoint.strip() == ""):
+            errors.append(create_error_msg(
+                "ufm_configuration.ufm_endpoint",
+                ufm_endpoint,
+                "ufm_endpoint is required when UFM telemetry is enabled. Provide the UFM appliance IP address or hostname."
+            ))
+        
+        # Validate UFM metrics port if metrics enabled
+        if ufm_metrics_enabled:
+            ufm_metrics_port = ufm_detailed_config.get("ufm_metrics_port", 9001)
+            if not isinstance(ufm_metrics_port, int) or ufm_metrics_port < 1 or ufm_metrics_port > 65535:
+                errors.append(create_error_msg(
+                    "ufm_configuration.ufm_metrics_port",
+                    ufm_metrics_port,
+                    "ufm_metrics_port must be an integer between 1 and 65535."
+                ))
+        
+        # Validate TLS mode
+        tls_mode = ufm_detailed_config.get("tls_mode", "self_signed")
+        if tls_mode not in ["self_signed", "ca_signed"]:
+            errors.append(create_error_msg(
+                "ufm_configuration.tls_mode",
+                tls_mode,
+                "tls_mode must be 'self_signed' or 'ca_signed'."
+            ))
+        
+        # Validate CA certificate path when tls_mode is ca_signed
+        if tls_mode == "ca_signed":
+            ca_cert_path = ufm_detailed_config.get("ufm_ca_cert_path", "")
+            if not ca_cert_path or (isinstance(ca_cert_path, str) and ca_cert_path.strip() == ""):
+                errors.append(create_error_msg(
+                    "ufm_configuration.ufm_ca_cert_path",
+                    ca_cert_path,
+                    "ufm_ca_cert_path is required when tls_mode is 'ca_signed'. Provide path to CA certificate file."
+                ))
+        
+        # Validate auth mode
+        auth_mode = ufm_detailed_config.get("auth_mode", "basic")
+        if auth_mode not in ["basic", "none"]:
+            errors.append(create_error_msg(
+                "ufm_configuration.auth_mode",
+                auth_mode,
+                "auth_mode must be 'basic' or 'none'."
+            ))
 
     return errors

@@ -1,0 +1,192 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# BuildStream Cleanup Child Pipeline Template
+#
+# This template contains the static stages for cleanup execution.
+# The parent cleanup pipeline generates selection jobs dynamically and
+# prepends them to this template.
+#
+# Stages: select_image -> cleanup -> summary
+#
+# The select_* jobs export CLEANUP_JOB_ID and IMAGE_GROUP_ID via dotenv.
+# The cleanup stage authenticates, then calls DELETE /api/v1/jobs/{CLEANUP_JOB_ID}.
+# ---------------------------------------------------------------------------
+
+default:
+  before_script:
+    - apk add --no-cache curl jq coreutils openssl
+    - |
+      if [ -z "${BSM_API_CERT:-}" ]; then
+        echo "ERROR: BSM_API_CERT variable is not set"
+        exit 1
+      fi
+      if [ -f "${BSM_API_CERT}" ]; then
+        cp "${BSM_API_CERT}" "${BSM_CERT_FILE}"
+      else
+        printf '%s\n' "${BSM_API_CERT}" | sed 's/\\n/\n/g' > "${BSM_CERT_FILE}"
+      fi
+      chmod 600 "${BSM_CERT_FILE}"
+      sed -i 's/\r//g' "${BSM_CERT_FILE}"
+
+      if ! grep -q "BEGIN CERTIFICATE" "${BSM_CERT_FILE}" \
+           || ! grep -q "END CERTIFICATE" "${BSM_CERT_FILE}"; then
+        echo "ERROR: BSM_API_CERT not a valid PEM certificate"
+        exit 1
+      fi
+
+      if ! openssl x509 -in "${BSM_CERT_FILE}" -noout 2>/dev/null; then
+        echo "ERROR: BSM_API_CERT is not a valid X.509 certificate"
+        exit 1
+      fi
+
+# ============================= CLEANUP STAGE ==============================
+# Authenticate and execute DELETE /api/v1/jobs/{CLEANUP_JOB_ID}.
+# CLEANUP_JOB_ID and IMAGE_GROUP_ID are set by the select_* job via dotenv.
+# ==========================================================================
+cleanup:
+  stage: cleanup
+  when: manual
+  allow_failure: false
+  script:
+    - |
+      echo "============================================================"
+      echo "  CLEANUP STAGE"
+      echo "============================================================"
+
+      if [ -z "${CLEANUP_JOB_ID:-}" ]; then
+        echo "ERROR: CLEANUP_JOB_ID not set. A select_* job must run first."
+        exit 1
+      fi
+
+      if [ -z "${IMAGE_GROUP_ID:-}" ]; then
+        echo "ERROR: IMAGE_GROUP_ID not set. A select_* job must run first."
+        exit 1
+      fi
+
+      echo "  Target Job ID:         ${CLEANUP_JOB_ID}"
+      echo "  Target Image Group ID: ${IMAGE_GROUP_ID}"
+      echo ""
+
+      # --- Authentication ---
+      echo "  Step 1/2: Authentication"
+      echo "  ------------------------------------------------------------"
+
+      if [ -z "${BSM_CLIENT_ID:-}" ] || [ -z "${BSM_CLIENT_SECRET:-}" ]; then
+        echo "ERROR: BSM_CLIENT_ID / BSM_CLIENT_SECRET not set."
+        echo "       Run the build pipeline first to register a client,"
+        echo "       or define these CI/CD variables manually."
+        exit 1
+      fi
+
+      HTTP_CODE=$(curl -s -o token_response.json -w "%{http_code}" \
+        --connect-timeout "${CURL_CONNECT_TIMEOUT}" \
+        --max-time "${CURL_MAX_TIME}" \
+        -X POST "${BSM_API_URL}/api/v1/auth/token" \
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        -d "grant_type=client_credentials&client_id=${BSM_CLIENT_ID}&client_secret=${BSM_CLIENT_SECRET}" \
+        --retry 3 --retry-delay 2 --cacert "${BSM_CERT_FILE}")
+
+      if [ "$HTTP_CODE" != "200" ]; then
+        echo "ERROR: token request failed (HTTP ${HTTP_CODE})"
+        cat token_response.json
+        exit 1
+      fi
+
+      ACCESS_TOKEN=$(jq -r '.access_token' token_response.json)
+      echo "  [OK] Access token obtained: ${ACCESS_TOKEN:0:20}..."
+      echo ""
+
+      # --- Execute Cleanup ---
+      echo "  Step 2/2: Execute Cleanup"
+      echo "  ------------------------------------------------------------"
+      echo "  Endpoint: DELETE ${BSM_API_URL}/api/v1/jobs/${CLEANUP_JOB_ID}"
+      echo ""
+
+      CORRELATION_ID=$(cat /proc/sys/kernel/random/uuid)
+
+      HTTP_CODE=$(curl -s -o cleanup_response.json -w "%{http_code}" \
+        --connect-timeout "${CURL_CONNECT_TIMEOUT}" \
+        --max-time "${CURL_MAX_TIME}" \
+        -X DELETE "${BSM_API_URL}/api/v1/jobs/${CLEANUP_JOB_ID}" \
+        -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+        -H "X-Correlation-ID: ${CORRELATION_ID}" \
+        --retry 1 --cacert "${BSM_CERT_FILE}")
+
+      echo "  HTTP ${HTTP_CODE}"
+      echo ""
+
+      case "${HTTP_CODE}" in
+        204)
+          echo "  +-----------------------------------------------------------+"
+          echo "  |              CLEANUP COMPLETED SUCCESSFULLY               |"
+          echo "  +-----------------------------------------------------------+"
+          echo "  |  Job ID         : ${CLEANUP_JOB_ID}"
+          echo "  |  Image Group ID : ${IMAGE_GROUP_ID}"
+          echo "  |  Correlation ID : ${CORRELATION_ID}"
+          echo "  |  S3 images and NFS artifacts removed.                     |"
+          echo "  |  Image Group + Job transitioned to CLEANED.               |"
+          echo "  +-----------------------------------------------------------+"
+          echo "CLEANUP_STATUS=SUCCESS" > cleanup_result.env
+          ;;
+        404)
+          echo "  ERROR: Job ${CLEANUP_JOB_ID} not found"
+          jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          echo "CLEANUP_STATUS=NOT_FOUND" > cleanup_result.env
+          exit 1
+          ;;
+        409)
+          echo "  ERROR: Image Group is in an active state (DEPLOYING/RESTARTING/VALIDATING)"
+          jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          echo "CLEANUP_STATUS=CONFLICT" > cleanup_result.env
+          exit 1
+          ;;
+        412)
+          echo "  ERROR: Job ${CLEANUP_JOB_ID} has already been cleaned"
+          jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          echo "CLEANUP_STATUS=ALREADY_CLEANED" > cleanup_result.env
+          exit 1
+          ;;
+        500)
+          echo "  ERROR: server-side cleanup failure (S3 or NFS)"
+          jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          echo "CLEANUP_STATUS=SERVER_ERROR" > cleanup_result.env
+          exit 1
+          ;;
+        *)
+          echo "  ERROR: unexpected HTTP code ${HTTP_CODE}"
+          jq '.' cleanup_response.json 2>/dev/null || cat cleanup_response.json
+          echo "CLEANUP_STATUS=UNKNOWN_ERROR" > cleanup_result.env
+          exit 1
+          ;;
+      esac
+  artifacts:
+    reports:
+      dotenv: cleanup_result.env
+    expire_in: 1 hour
+
+# ============================= SUMMARY STAGE ==============================
+# Display cleanup summary
+# ==========================================================================
+summary:
+  stage: summary
+  script:
+    - |
+      echo "============================================================"
+      echo "  CLEANUP PIPELINE SUMMARY"
+      echo "============================================================"
+      echo "  Job ID:         ${CLEANUP_JOB_ID:-N/A}"
+      echo "  Image Group ID: ${IMAGE_GROUP_ID:-N/A}"
+      echo "  Status:         ${CLEANUP_STATUS:-UNKNOWN}"
+      echo "============================================================"

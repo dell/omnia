@@ -14,7 +14,7 @@
 ---
 
 # backup_location will be set from oim_metadata.yml upgrade_backup_dir
-# Format: /opt/omnia/backups/upgrade/version_2.0.0.0/input/project_default
+# Format: /opt/omnia/backups/upgrade/version_2.1.0.0/input/project_default
 # Set dynamically from metadata, no static variable needed
 
 # Path to oim_metadata.yml
@@ -131,8 +131,9 @@ msg_encryption_failed: "Encryption failed. Check warnings for details."
 # Network spec transformation messages
 msg_backup_network_spec_missing: "Backup network_spec.yml missing"
 msg_network_spec_missing: "network_spec.yml missing"
-msg_network_spec_already_21: "network_spec.yml already in 2.1 format - overwriting"
+msg_network_spec_already_22: "network_spec.yml already in 2.2 format - overwriting"
 msg_yaml_validation_failed: "YAML validation failed"
+msg_json_validation_failed: "JSON validation failed"
 msg_ib_netmask_mismatch: "ib_network.netmask_bits must match admin_network.netmask_bits"
 msg_ib_network_missing: "ib_network is mandatory"
 msg_ib_subnet_missing: "ib_network.subnet is mandatory"
@@ -141,7 +142,7 @@ msg_using_backup_network_spec: "Using backup network_spec.yml (backup not modifi
 # High availability config transformation messages
 msg_backup_ha_config_missing: "Backup high_availability_config.yml missing"
 msg_ha_config_missing: "high_availability_config.yml missing"
-msg_ha_config_already_21: "high_availability_config.yml already in 2.1 format - overwriting"
+msg_ha_config_already_22: "high_availability_config.yml already in 2.2 format - overwriting"
 msg_ha_virtual_ip_missing: "service_k8s_cluster_ha.virtual_ip_address is mandatory"
 msg_using_backup_ha_config: "Using backup high_availability_config.yml (backup not modified)"
 
@@ -157,6 +158,14 @@ msg_backup_provision_config_missing: "Backup provision_config.yml missing"
 msg_provision_config_missing: "provision_config.yml missing"
 msg_using_backup_provision_config: "Using backup provision_config.yml (backup not modified)"
 msg_pxe_mapping_file_path_missing: "pxe_mapping_file_path is mandatory"
+
+# PXE mapping file transformation messages
+msg_backup_pxe_mapping_file_missing: "{{ pxe_mapping_filename }} not found in backup at {{ backup_location }}/{{ pxe_mapping_filename }}"
+msg_using_backup_pxe_mapping_file: "Transforming {{ pxe_mapping_filename }} from backup at {{ backup_location }}/{{ pxe_mapping_filename }}"
+msg_pxe_mapping_file_empty: "{{ pxe_mapping_filename }} contains no valid rows (must have at least 9 columns: FUNCTIONAL_GROUP_NAME through BMC_IP)"
+msg_pxe_mapping_file_validation_failed: >
+  {{ pxe_mapping_filename }} validation failed - header must contain:
+  FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_MAC,IB_IP
 
 # Storage config transformation messages
 msg_backup_storage_config_missing: "storage_config.yml not found in backup at {{ backup_location }}/storage_config.yml"
@@ -177,24 +186,72 @@ msg_backup_telemetry_config_missing: "Backup telemetry_config.yml missing"
 msg_telemetry_config_missing: "telemetry_config.yml missing"
 msg_using_backup_telemetry_config: "Using backup telemetry_config.yml (backup not modified)"
 
+# Build stream config transformation messages
+msg_backup_build_stream_config_missing: "Backup build_stream_config.yml missing"
+msg_build_stream_config_missing: "build_stream_config.yml missing"
+msg_using_backup_build_stream_config: "Using backup build_stream_config.yml (backup not modified)"
+
+# GitLab config transformation messages
+msg_backup_gitlab_config_missing: "Backup gitlab_config.yml missing"
+msg_gitlab_config_missing: "gitlab_config.yml missing"
+msg_using_backup_gitlab_config: "Using backup gitlab_config.yml (backup not modified)"
+
+# Software config transformation messages
+msg_backup_software_config_missing: "Backup software_config.json missing"
+msg_software_config_missing: "software_config.json missing"
+
+# Build stream config transformation messages
+msg_build_stream_config_transform_summary: |
+  build_stream_config.yml migrated from backup with validation.
+  Backup preserved at: {{ backup_location }}/build_stream_config.yml
+  Target: {{ input_project_dir }}/build_stream_config.yml
+  Note: Configuration values migrated from omnia-main backup
+  Enhanced with IP address and port validation.
+
+# GitLab config transformation messages
+msg_gitlab_config_transform_summary: |
+  gitlab_config.yml migrated from backup with validation.
+  Backup preserved at: {{ backup_location }}/gitlab_config.yml
+  Target: {{ input_project_dir }}/gitlab_config.yml
+  Note: Configuration values migrated from omnia-main backup
+  Enhanced with comprehensive validation for all parameters.
+
+# Discovery config transformation messages
+msg_discovery_config_transform_summary: |
+  discovery_config.yml created with Omnia 2.2 defaults.
+  Target: {{ input_project_dir }}/discovery_config.yml
+  Note: This is a new file in Omnia 2.2 (not present in 2.1)
+
 ### Restore summary messages
 msg_restore_summary: |
   {{ restore_item.name }} restored from backup.
   Backup: {{ backup_location }}/{{ restore_item.name }}
   Target: {{ input_project_dir }}/{{ restore_item.name }}
 
+# Restore summary message for pxe_mapping_file transformation
+msg_pxe_mapping_file_transform_summary: |
+  {{ pxe_mapping_filename }} upgraded to 2.2 format.
+  Backup preserved at: {{ backup_location }}/{{ pxe_mapping_filename }}
+  Changes:
+  - Added IB_MAC column for InfiniBand MAC addresses (initialized as empty)
+  - Added IB_IP column for InfiniBand IP addresses (initialized as empty)
+  - Preserved all existing columns (FUNCTIONAL_GROUP_NAME through BMC_IP)
+  - NOTE: If using InfiniBand network, manually populate IB_MAC and IB_IP values
+
 # Restore summary message for network spec transformation
 msg_network_spec_transform_summary: |
-  network_spec.yml upgraded to 2.1 format.
+  network_spec.yml upgraded to 2.2 format.
   Backup preserved at: {{ backup_location }}/network_spec.yml
   Changes:
-  - Added mandatory ib_network
-  - Made primary_oim_bmc_ip optional
+  - Added subnet field under admin_network
+  - Added additional_subnets field under admin_network (default: empty)
+  - Added dns field under ib_network (default: empty)
+  - Preserved ib_network configuration
   - Aligned ib_network.netmask_bits with admin_network.netmask_bits
 
 # Restore summary message for high availability config transformation
 msg_ha_config_transform_summary: |
-  high_availability_config.yml upgraded to 2.1 format.
+  high_availability_config.yml upgraded to 2.2 format.
   Backup preserved at: {{ backup_location }}/high_availability_config.yml
   Changes:
   - Ensured service_k8s_cluster_ha is a list
@@ -202,44 +259,163 @@ msg_ha_config_transform_summary: |
 
 # Restore summary message for local repo config transformation
 msg_local_repo_config_transform_summary: |
-  local_repo_config.yml upgraded to 2.1 format.
+  local_repo_config.yml upgraded to 2.2 format.
   Backup preserved at: {{ backup_location }}/local_repo_config.yml
   Changes:
-  - Normalized repo URL keys to arch-specific schema
-  - Migrated omnia_registry to user_registry (when present)
-  - Ensured mandatory omnia_repo_url_rhel_* keys are present
+  - Updated omnia_repo_url_rhel_* to Omnia 2.2 versions (kubernetes v1.35, cri-o v1.35)
+  - Added versioned repository naming (kubernetes-v1-35, cri-o-v1-35)
+  - Added cuda repository entries
+  - Added rhel_subscription_repo_config sections
+  - Added additional_repos sections
+  - Preserved user_registry and user_repo_url entries
 
 # Restore summary message for provision config transformation
 msg_provision_config_transform_summary: |
-  provision_config.yml upgraded to 2.1 format.
+  provision_config.yml upgraded to 2.2 format.
   Backup preserved at: {{ backup_location }}/provision_config.yml
   Changes:
   - Ensured pxe_mapping_file_path, language, and default_lease_time are present
 
 # Restore summary message for storage config transformation
 msg_storage_config_transform_summary: |
-  storage_config.yml upgraded to 2.1 format.
+  storage_config.yml upgraded to 2.2 format.
   Backup preserved at: {{ backup_location }}/storage_config.yml
   Changes:
   - Ensured nfs_client_params is present and entries contain required keys
 
 # Restore summary message for omnia config transformation
 msg_omnia_config_transform_summary: |
-  omnia_config.yml upgraded to 2.1 format.
+  omnia_config.yml upgraded to 2.2 format.
   Backup preserved at: {{ backup_location }}/omnia_config.yml
   Changes:
   - Ensured slurm_cluster and service_k8s_cluster are lists
-  - Ensured required sections are present
+  - Added skip_merge, node_discovery_mode, node_hardware_defaults comments
+  - Added csi_powerscale_driver fields to service_k8s_cluster
+  - Added k8s_crio_storage_size field
 
 # Restore summary message for telemetry config transformation
 msg_telemetry_config_transform_summary: |
-  telemetry_config.yml upgraded to 2.1 format.
+  telemetry_config.yml upgraded to 2.2 format with restructured architecture.
   Backup preserved at: {{ backup_location }}/telemetry_config.yml
   Changes:
-  - Rendered Omnia 2.1 telemetry template with values from 2.0 backup
-  - Applied schema defaults for missing fields
+  - Restructured to telemetry_sources / telemetry_bridges / telemetry_sinks architecture
+  - Mapped idrac_telemetry_support → telemetry_sources.idrac.metrics_enabled
+  - Mapped idrac_telemetry_collection_type → telemetry_sources.idrac.collection_targets
+  - Mapped victoria_configurations → telemetry_sinks.victoria_metrics
+  - Mapped kafka_configurations → telemetry_sinks.kafka (topic_partitions list → dict)
+  - Mapped ldms_* ports and sampler configs → ldms_configurations section
+  - Added telemetry_sources.ldms (metrics_enabled, collection_targets) with defaults
+  - Added telemetry_sources.dcgm with default metrics_enabled=true
+  - Added telemetry_sources.powerscale with default metrics and logs enabled
+  - Added telemetry_bridges section (vector_ldms, vector_ome) with defaults
+  - Added telemetry_sinks.victoria_logs with default storage and retention
+  - Removed single-node VM deployment mode (always cluster in 2.2)
+  - Updated powerscale_configurations (removed source-level fields, kept otel/csm settings)
 
-# === Input files to restore from backup ===
+# Restore summary message for software config transformation
+msg_software_config_transform_summary: |
+  software_config.json upgraded to 2.2 format.
+  Backup preserved at: {{ backup_location }}/software_config.json
+  Changes:
+  - Bumped service_k8s version from 1.34.1 to 1.35.1 (if present)
+  - Added admin_debug_packages entry (if missing)
+  - Added csi_driver_powerscale entry (if missing)
+  - Added additional_packages software entry and section (if missing)
+
+# === DEFAULT VALUES ===
+# Build Stream Config Defaults
+build_stream_default_enable: false
+build_stream_default_host_ip: ""
+build_stream_default_port: 8010
+build_stream_default_aarch64_ip: ""
+
+# GitLab Config Defaults
+gitlab_default_host: ""
+gitlab_default_project_name: "omnia-catalog"
+gitlab_default_project_visibility: "private"
+gitlab_default_branch: "main"
+gitlab_default_https_port: 443
+gitlab_default_min_storage_gb: 20
+gitlab_default_min_memory_gb: 4
+gitlab_default_min_cpu_cores: 2
+gitlab_default_puma_workers: 2
+gitlab_default_sidekiq_concurrency: 10
+
+# Provision Config Defaults
+provision_default_pxe_mapping_file_path: "pxe_mapping_file.csv"
+provision_default_language: "en_US.UTF-8"
+provision_default_lease_time: "86400"
+
+# Network Config Defaults
+network_default_netmask_bits: "24"
+network_default_subnet: "172.16.0.0"
+
+# Telemetry Config Defaults
+telemetry_default_idrac_support: true
+telemetry_default_collection_type: "victoria,kafka"
+telemetry_default_victoria_persistence_size: "8Gi"
+telemetry_default_victoria_retention_period: 168
+telemetry_default_kafka_persistence_size: "8Gi"
+telemetry_default_kafka_log_retention_hours: 168
+telemetry_default_kafka_log_retention_bytes: -1
+telemetry_default_kafka_log_segment_bytes: 1073741824
+telemetry_default_ldms_agg_port: 6001
+telemetry_default_ldms_store_port: 6001
+telemetry_default_ldms_sampler_port: 10001
+telemetry_default_dcgm_support: false
+telemetry_default_ldms_metrics_enabled: false
+telemetry_default_vector_ldms_metrics_enabled: false
+telemetry_default_vector_ome_metrics_enabled: false
+telemetry_default_vector_ome_logs_enabled: false
+telemetry_default_victoria_logs_storage_size: "8Gi"
+telemetry_default_victoria_logs_retention_period: 168
+telemetry_default_powerscale_support: false
+telemetry_default_powerscale_log_enabled: false
+telemetry_default_otel_collector_storage_size: "5Gi"
+telemetry_default_csm_observability_values_file_path: ""
+
+# Default LDMS sampler configurations
+telemetry_default_ldms_sampler_configurations:
+  - plugin_name: meminfo
+    config_parameters: ""
+    activation_parameters: "interval=30000000"
+  - plugin_name: procstat2
+    config_parameters: ""
+    activation_parameters: "interval=30000000"
+  - plugin_name: vmstat
+    config_parameters: ""
+    activation_parameters: "interval=30000000"
+  - plugin_name: loadavg
+    config_parameters: ""
+    activation_parameters: "interval=30000000"
+  - plugin_name: procnetdev2
+    config_parameters: ""
+    activation_parameters: "interval=30000000 offset=0"
+
+# Default Kafka topic partitions
+telemetry_default_kafka_topic_partitions:
+  - name: "idrac"
+    partitions: 1
+  - name: "ldms"
+    partitions: 2
+
+# === VALIDATION MESSAGES ===
+msg_file_missing: "Backup file missing: {{ file_name }}"
+msg_validation_failed_generic: "Validation failed for {{ file_name }}"
+
+# === TRANSFORMATION MESSAGES ===
+msg_transform_summary_generic: |-
+  {{ file_name }} upgraded to 2.2 format.
+  Backup preserved at: {{ backup_location }}/{{ file_name }}
+  Changes: {{ changes_description }}
+
+# === FILE MODES ===
+mode_yaml_file: '0644'
+mode_json_file: '0644'
+mode_csv_file: '0644'
+mode_sensitive_file: '0600'
+
+# === INPUT FILES TO RESTORE FROM BACKUP ===
 # Add input files here that should be copied from backup_location to input_project_dir
 # Each entry should have:
 # - name: filename (required)
@@ -248,11 +424,12 @@ msg_telemetry_config_transform_summary: |
 #
 # Examples of files to add:
 # - Static configuration files that don't need transformation
-# - Files that are the same format in 2.0 and 2.1
+# - Files that are the same format in 2.1 and 2.2
 # - Files where you want to preserve the backup values exactly
 #
 # DO NOT add files that require transformation (network_spec.yml, high_availability_config.yml, local_repo_config.yml,
-# provision_config.yml, user_registry_credential.yml)
+# provision_config.yml, storage_config.yml, omnia_config.yml, telemetry_config.yml, user_registry_credential.yml)
+# DO NOT add files that are newly generated (build_stream_config.yml, gitlab_config.yml, discovery_config.yml)
 restore_input_files:
   - name: software_config.json
     mode: '0644'
@@ -260,6 +437,3 @@ restore_input_files:
   - name: security_config.yml
     mode: '0644'
     validate_cmd: "python3 -c \"import yaml; yaml.safe_load(open('{{ input_project_dir }}/security_config.yml','r'))\""
-  - name: pxe_mapping_file.csv
-    mode: '0644'
-    validate_cmd: ""

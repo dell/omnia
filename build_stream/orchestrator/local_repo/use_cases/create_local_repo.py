@@ -14,10 +14,9 @@
 
 """CreateLocalRepo use case implementation."""
 
-import logging
 from datetime import datetime, timezone
 
-from api.logging_utils import log_secure_info
+from api.logging_utils import log_secure_info, create_stage_log_file
 
 from core.jobs.entities import AuditEvent, Stage
 from core.jobs.exceptions import (
@@ -56,7 +55,6 @@ from core.localrepo.value_objects import (
 from orchestrator.local_repo.commands import CreateLocalRepoCommand
 from orchestrator.local_repo.dtos import LocalRepoResponse
 
-logger = logging.getLogger(__name__)
 
 DEFAULT_PLAYBOOK_NAME = "local_repo.yml"
 
@@ -125,9 +123,17 @@ class CreateLocalRepoUseCase:
         self._validate_job(command)
         stage = self._validate_stage(command)
 
+        # Create per-attempt log file and set on stage
+        log_path = create_stage_log_file(
+            str(command.job_id), StageType.CREATE_LOCAL_REPOSITORY.value, stage.attempt
+        )
+        if log_path:
+            stage.log_file_path = str(log_path)
+            # Note: Don't save here - will be saved in _submit_to_queue after stage.start()
+
         self._prepare_input_files(command, stage)
 
-        request = self._build_playbook_request(command)
+        request = self._build_playbook_request(command, stage)
         self._submit_to_queue(command, request, stage)
 
         self._emit_stage_started_event(command)
@@ -177,7 +183,7 @@ class CreateLocalRepoUseCase:
             )
 
     def _validate_stage(self, command: CreateLocalRepoCommand) -> Stage:
-        """Validate stage exists and is not already COMPLETED or IN_PROGRESS or in PENDING state."""
+        """Validate stage exists; reset to PENDING if in a retryable terminal state."""
         from core.jobs.value_objects import StageState
         
         # Verify upstream stage is completed
@@ -192,7 +198,29 @@ class CreateLocalRepoUseCase:
                 correlation_id=str(command.correlation_id),
             )
         
-        # Reject COMPLETED stages (already done)
+        # Reset FAILED stages for retry (build stages don't support re-run from COMPLETED)
+        if stage.stage_state == StageState.FAILED:
+            prev_state = stage.stage_state.value
+            stage.reset()
+            self._stage_repo.save(stage)
+            log_secure_info(
+                "info",
+                f"Resetting create-local-repository stage from {prev_state} to PENDING "
+                f"for retry (attempt {stage.attempt}): job_id={command.job_id}",
+                job_id=str(command.job_id),
+            )
+            # Resume job from FAILED to IN_PROGRESS so CI polling doesn't exit early
+            JobStateHelper.handle_job_resume(
+                job_repo=self._job_repo,
+                audit_repo=self._audit_repo,
+                uuid_generator=self._uuid_generator,
+                job_id=command.job_id,
+                stage_name=StageType.CREATE_LOCAL_REPOSITORY.value,
+                correlation_id=str(command.correlation_id),
+                client_id=str(command.client_id),
+            )
+        
+        # Reject COMPLETED stages (build stages are immutable once complete)
         if stage.stage_state == StageState.COMPLETED:
             raise StageAlreadyCompletedError(
                 job_id=str(command.job_id),
@@ -200,27 +228,26 @@ class CreateLocalRepoUseCase:
                 correlation_id=str(command.correlation_id),
             )
         
-        # Only allow PENDING stages to transition to IN_PROGRESS
-        if stage.stage_state != StageState.PENDING:
-            if stage.stage_state == StageState.FAILED:
-                raise InvalidStateTransitionError(
-                    entity_type="Stage",
-                    entity_id=f"{command.job_id}/create-local-repository",
-                    from_state=stage.stage_state.value,
-                    to_state="IN_PROGRESS",
-                    correlation_id=str(command.correlation_id),
-                )
-            else:
-                # For COMPLETED, IN_PROGRESS, CANCELLED states
-                raise InvalidStateTransitionError(
-                    entity_type="Stage",
-                    entity_id=f"{command.job_id}/create-local-repository",
-                    from_state=stage.stage_state.value,
-                    to_state="IN_PROGRESS",
-                    correlation_id=str(command.correlation_id),
-                )
+        # Reject IN_PROGRESS stages (already running)
+        if stage.stage_state == StageState.IN_PROGRESS:
+            raise InvalidStateTransitionError(
+                entity_type="Stage",
+                entity_id=f"{command.job_id}/create-local-repository",
+                from_state=stage.stage_state.value,
+                to_state="IN_PROGRESS",
+                correlation_id=str(command.correlation_id),
+            )
         
-        # Allow only FAILED stages (retry allowed)
+        # Stage should now be PENDING
+        if stage.stage_state != StageState.PENDING:
+            raise InvalidStateTransitionError(
+                entity_type="Stage",
+                entity_id=f"{command.job_id}/create-local-repository",
+                from_state=stage.stage_state.value,
+                to_state="IN_PROGRESS",
+                correlation_id=str(command.correlation_id),
+            )
+        
         return stage
 
     def _prepare_input_files(
@@ -277,13 +304,17 @@ class CreateLocalRepoUseCase:
     def _build_playbook_request(
         self,
         command: CreateLocalRepoCommand,
+        stage: Stage,
     ) -> PlaybookRequest:
         """Build a PlaybookRequest entity from the command."""
         return PlaybookRequest(
             job_id=str(command.job_id),
             stage_name=StageType.CREATE_LOCAL_REPOSITORY.value,
             playbook_path=PlaybookPath(DEFAULT_PLAYBOOK_NAME),
-            extra_vars=ExtraVars(values={}),
+            extra_vars=ExtraVars(values={
+                "job_id": str(command.job_id),
+                "attempt": stage.attempt,
+            }),
             correlation_id=str(command.correlation_id),
             timeout=ExecutionTimeout.default(),
             submitted_at=datetime.now(timezone.utc).isoformat() + "Z",
@@ -313,12 +344,7 @@ class CreateLocalRepoUseCase:
             correlation_id=str(command.correlation_id),
         )
 
-        logger.info(
-            "Playbook request submitted to queue for job %s, stage=%s, correlation_id=%s",
-            command.job_id,
-            StageType.CREATE_LOCAL_REPOSITORY.value,
-            command.correlation_id,
-        )
+        log_secure_info('info', f"Playbook request submitted to queue for job {command.job_id}, stage={StageType.CREATE_LOCAL_REPOSITORY.value}, correlation_id={command.correlation_id}")
 
 
     def _emit_stage_started_event(

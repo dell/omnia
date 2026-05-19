@@ -1,0 +1,69 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Rollback Kubernetes cluster
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
+    component_name: k8s
+  tasks:
+    - name: Read rollback_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ rollback_manifest_path }}"
+      register: raw_rollback_manifest
+
+    - name: Parse rollback manifest
+      ansible.builtin.set_fact:
+        rollback_manifest: "{{ raw_rollback_manifest.content | b64decode | from_yaml }}"
+
+    - name: Skip if K8s already rolled back
+      ansible.builtin.meta: end_play
+      when:
+        - rollback_manifest.component_status[component_name] | default('pending') == 'completed'
+
+    - name: Set K8s rollback status to in-progress
+      ansible.builtin.copy:
+        content: >-
+          {{ rollback_manifest | combine({
+               'component_status': rollback_manifest.component_status | combine({
+                 component_name: 'in-progress'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'
+
+    # TODO: Implement K8s rollback steps per ESpec §4.11.4:
+    # 1. Restore etcd from pre-upgrade snapshot
+    # 2. Deploy cluster with previous version image
+    # 3. Restore /etc/kubernetes configs from backup
+    # 4. Restart K8s services on all nodes
+    # 5. Validate cluster health (nodes Ready, etcd quorum, pods running)
+    # 6. Rollback BSS + cloud-init to pre-upgrade state
+    - name: K8s rollback placeholder
+      ansible.builtin.debug:
+        msg: "K8s rollback tasks to be implemented (etcd restore, cluster redeploy, BSS rollback)"
+
+    - name: Mark K8s rollback as completed
+      ansible.builtin.copy:
+        content: >-
+          {{ rollback_manifest | combine({
+               'component_status': rollback_manifest.component_status | combine({
+                 component_name: 'completed'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ rollback_manifest_path }}"
+        mode: '0644'

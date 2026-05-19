@@ -14,7 +14,6 @@
 
 """Domain services for Local Repository module."""
 
-import logging
 import shutil
 from pathlib import Path
 from typing import Callable
@@ -33,7 +32,6 @@ from core.localrepo.repositories import (
     PlaybookQueueResultRepository,
 )
 
-logger = logging.getLogger(__name__)
 
 
 class InputFileService:
@@ -76,12 +74,7 @@ class InputFileService:
         destination_path = self._input_repo.get_destination_input_repository_path()
 
         if not self._input_repo.validate_input_directory(source_path):
-            logger.error(
-                "Input files not found for job %s at %s, correlation_id=%s",
-                job_id,
-                source_path,
-                correlation_id,
-            )
+            log_secure_info('error', f"Input files not found for job {job_id} at {source_path}, correlation_id={correlation_id}")
             raise InputFilesMissingError(
                 job_id=job_id,
                 input_path=str(source_path),
@@ -96,14 +89,14 @@ class InputFileService:
             if software_config_file.is_file():
                 dest_file = destination_path / "software_config.json"
                 shutil.copy2(str(software_config_file), str(dest_file))
-                logger.info("Copied software_config.json for job %s", job_id)
+                log_secure_info('info', f"Copied software_config.json for job {job_id}")
             
             # Copy config directory completely if it exists
             config_dir = source_path / "config"
             if config_dir.is_dir():
                 dest_config_dir = destination_path / "config"
                 shutil.copytree(str(config_dir), str(dest_config_dir), dirs_exist_ok=True)
-                logger.info("Copied config directory for job %s", job_id)
+                log_secure_info('info', f"Copied config directory for job {job_id}")
 
             # Reset software.csv files for both architectures
             # (temporary fix to ensure new packages are downloaded when catalog changes)
@@ -150,32 +143,18 @@ class InputFileService:
 
             # Check if parent directory exists before attempting removal
             if not software_csv_path.parent.exists():
-                logger.debug(
-                    "Parent directory does not exist for %s, skipping removal",
-                    software_csv_path,
-                )
+                log_secure_info('debug', f"Parent directory does not exist for {software_csv_path}, skipping removal")
                 continue
 
             # Remove file if it exists
             if software_csv_path.exists():
                 try:
                     software_csv_path.unlink()
-                    logger.info(
-                        "Reset software.csv for architecture %s at %s",
-                        arch,
-                        software_csv_path,
-                    )
+                    log_secure_info('info', f"Reset software.csv for architecture {arch} at {software_csv_path}")
                 except (PermissionError, FileNotFoundError, IsADirectoryError):
-                    logger.warning(
-                        "Failed to remove software.csv for architecture %s",
-                        arch,
-                    )
+                    log_secure_info('warning', f"Failed to remove software.csv for architecture {arch}")
             else:
-                logger.debug(
-                    "software.csv does not exist for architecture %s at %s",
-                    arch,
-                    software_csv_path,
-                )
+                log_secure_info('debug', f"software.csv does not exist for architecture {arch} at {software_csv_path}")
 
 
 class PlaybookQueueRequestService:
@@ -254,7 +233,7 @@ class PlaybookQueueResultService:
             Number of results processed.
         """
         if not self._result_repo.is_available():
-            #logger.warning("Result queue directory is not accessible")
+            #log_secure_info('warning', "Result queue directory is not accessible")
             return 0
 
         result_files = self._result_repo.get_unprocessed_results()

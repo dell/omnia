@@ -35,11 +35,11 @@
   ansible.builtin.set_fact:
     cluster_os_version: "{{ software_config['cluster_os_version'] }}"
 
-- name: Load service_k8s.json
+- name: Load service_k8s_<version>.json
   ansible.builtin.set_fact:
     telemetry_packages: "{{ lookup('file', k8s_packages_file) | from_json }}"
 
-- name: Extract service_k8s.json and set facts for pip_modules and python_version
+- name: Extract service_k8s_v<version>.json and set facts for pip_modules and python_version
   ansible.builtin.set_fact:
     k8s_pip_packages: >-
       {{ telemetry_packages['service_kube_control_plane']['cluster']

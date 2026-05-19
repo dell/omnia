@@ -34,6 +34,10 @@ class InvalidJSONError(CatalogParseError):
     """JSON content is malformed or not a dictionary."""
 
 
+class InvalidCatalogFormatError(CatalogParseError):
+    """Catalog JSON has invalid structure (wrong number of top-level keys, etc.)."""
+
+
 class CatalogSchemaValidationError(CatalogParseError):
     """Catalog JSON fails schema validation."""
 

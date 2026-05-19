@@ -21,7 +21,7 @@ import re
 from ansible.module_utils.input_validation.common_utils import validation_utils
 from ansible.module_utils.input_validation.common_utils import config
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
-from ansible.module_utils.local_repo.software_utils import load_yaml, load_json
+from ansible.module_utils.local_repo.software_utils import load_yaml, load_json, get_json_file_path
 
 file_names = config.files
 create_error_msg = validation_utils.create_error_msg
@@ -239,13 +239,22 @@ def validate_local_repo_config(input_file_path, data,
     for software in software_config_json["softwares"]:
         sw = software["name"]
         arch_list = software.get("arch")
+        # Get software version for versioned JSON files (e.g., service_k8s_v1.35.1.json)
+        software_version = software.get("version")
         for arch in arch_list:
-            json_path = create_file_path(
-            input_file_path,
-            f"config/{arch}{os_ver_path}" + sw +".json")
-            if not os.path.exists(json_path):
+            # Use get_json_file_path for proper versioned JSON file resolution
+            json_path = get_json_file_path(
+                sw, cluster_os_type, cluster_os_version, 
+                software_config_file_path, arch,
+                software_version=software_version)
+            if not json_path or not os.path.exists(json_path):
+                # Construct expected filename for error message
+                if sw == "service_k8s" and software_version:
+                    expected_file = f"{sw}_v{software_version}.json"
+                else:
+                    expected_file = f"{sw}.json"
                 errors.append(
-                    create_error_msg(sw + '/' + arch, f"{sw} JSON file not found for architecture {arch}.", json_path))
+                    create_error_msg(sw + '/' + arch, f"{sw} JSON file not found for architecture {arch}.", expected_file))
             else:
                 curr_json = load_json(json_path)
                 pkg_list = curr_json[sw]['cluster']

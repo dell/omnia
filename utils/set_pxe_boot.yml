@@ -12,32 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# -------------------------------------------------------------------------
-# PXE PREREQUISITES
-# -------------------------------------------------------------------------
-# 1. Dell iDRAC BMCs must be reachable from the Ansible controller
-# 2. The PXE order must be set in the BIOS/UEFI settings
-# 3. PXE (Pre‑boot eXecution Environment) support – the NIC's
-#    firmware must implement the PXE option and must be enabled.
-# 4. The `dellemc.openmanage` Ansible collection must be installed:
-#       ansible-galaxy collection install dellemc.openmanage
-# 5. iDRAC firmware version must support the 'Boot Source Override'
-#    API (most modern iDRAC9/10 firmware do).
-# 5. The TFTP/NFS/HTTP server that provides the PXE
-#    boot image must be reachable by the target nodes once the iDRAC
-#    is set to PXE mode.
-# -------------------------------------------------------------------------
-
+# ─────────────────────────────────────────────────────────────────────────
+# Play 1: Validate and setup BMC inventory from CSV
+# ─────────────────────────────────────────────────────────────────────────
 - name: Validate and setup BMC inventory
   hosts: localhost
   connection: local
   gather_facts: false
   tasks:
+    - name: Clear stale bmc group from previous run
+      ansible.builtin.meta: refresh_inventory
+
     - name: Include pre-checks for BMC inventory validation
       ansible.builtin.include_role:
         name: idrac_pxe_boot
         tasks_from: pre_checks
 
+# ─────────────────────────────────────────────────────────────────────────
+# Play 2: Fetch credentials
+# ─────────────────────────────────────────────────────────────────────────
 - name: Set_fact for fetch omnia config credentials
   hosts: localhost
   connection: local
@@ -52,8 +45,23 @@
 - name: Invoke get_config_credentials.yml
   ansible.builtin.import_playbook: credential_utility/get_config_credentials.yml
 
-# This configures Dell iDRAC BMCs to boot a host from PXE (network) and optionally reboots the server.
-# This will set the boot mode to pxe
+# ─────────────────────────────────────────────────────────────────────────
+# Play 3: [BSM] Compute effective inventory + capture pre-boot state
+# ─────────────────────────────────────────────────────────────────────────
+- name: "[BSM] Compute effective restart inventory (diff + failed retry)"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Compute effective restart inventory
+      ansible.builtin.include_role:
+        name: pxe_buildstream_manager
+        tasks_from: compute_effective_inventory
+      when: enable_build_stream | default(false) | bool
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 4: Reboot Host via PXE
+# ─────────────────────────────────────────────────────────────────────────
 - name: Reboot Host via PXE
   hosts: bmc
   connection: local
@@ -61,10 +69,10 @@
   gather_facts: false
   roles:
     - role: idrac_pxe_boot
-      # vars:
-      #   restart_host: false # By default restart will be true, set to false not to restart
-      #   force_restart: true # By default graceful_restart will happen, set to true to force restart
 
+# ─────────────────────────────────────────────────────────────────────────
+# Play 5: Synchronized Reporting (iDRAC reboot status only)
+# ─────────────────────────────────────────────────────────────────────────
 - name: Synchronized Reporting
   hosts: bmc
   connection: local
@@ -78,3 +86,62 @@
     - name: Show passed iDRACs
       ansible.builtin.debug:
         msg: "{{ inventory_hostname }}: {{ reboot_status }}"
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 6: Create OIM group for phone-home verification
+# ─────────────────────────────────────────────────────────────────────────
+- name: Create oim group for phone-home verification
+  hosts: localhost
+  connection: local
+  roles:
+    - create_container_group
+  vars:
+    oim_group: true
+  tags: always
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 7: [Phone-Home] via pxe_buildstream_manager role task
+# Runs on oim host — journalctl is on the OIM server
+# Only runs when enable_build_stream is true (same gate as rest of BSM)
+# ─────────────────────────────────────────────────────────────────────────
+- name: "[Phone-Home] Wait for cloud-init completion on all nodes"
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Run cloud-init phone-home verification via BSM role
+      ansible.builtin.include_role:
+        name: pxe_buildstream_manager
+        tasks_from: cloudinit_phone_home
+      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
+      vars:
+        pxe_start_epoch: "{{ hostvars['localhost']['pxe_start_epoch'] }}"
+        target_node_admin_ips: "{{ hostvars['localhost']['target_node_admin_ips'] }}"
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 8: [BSM] Write per-node results AFTER phone-home verified
+# ─────────────────────────────────────────────────────────────────────────
+- name: "[BSM] Write per-node results, update persistent state, and upload to GitLab"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tasks:
+    - name: Execute BuildStream Manager post-processing
+      ansible.builtin.include_role:
+        name: pxe_buildstream_manager
+      when: enable_build_stream | default(false) | bool
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 9: Upload to GitLab
+# ─────────────────────────────────────────────────────────────────────────
+- name: Upload failed_nodes to gitlab
+  hosts: gitlab_server
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Upload failed_nodes to gitlab
+      ansible.builtin.include_role:
+        name: pxe_buildstream_manager
+        tasks_from: upload_to_gitlab
+      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool

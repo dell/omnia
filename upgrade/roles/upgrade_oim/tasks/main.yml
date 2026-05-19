@@ -13,6 +13,36 @@
 # limitations under the License.
 ---
 
-- name: Include import input parameters
+- name: Verify upgrade_manifest.yml exists
+  ansible.builtin.stat:
+    path: "{{ role_path }}/../../upgrade_manifest.yml"
+  register: _upgrade_config_check
+
+- name: Fail if upgrade_manifest.yml missing
+  ansible.builtin.fail:
+    msg: |
+      upgrade_manifest.yml not found at {{ role_path }}/../../upgrade_manifest.yml
+
+      This file is the SOURCE OF TRUTH for upgrade paths.
+      Please create it with the required upgrade configuration.
+  when: not _upgrade_config_check.stat.exists
+
+# Phase 1: Import and transform input parameters
+- name: "Phase 1 - Import Input Parameters"
   ansible.builtin.include_role:
     name: import_input_parameters
+
+# Phase 2: Manage upgrade inputs (load config, validate, calculate hops)
+- name: "Phase 2 - Manage Upgrade Inputs"
+  ansible.builtin.include_role:
+    name: manage_upgrade_inputs
+
+# Phase 3: Prepare local repository for upgrade
+- name: "Phase 3 - Prepare Local Repository"
+  ansible.builtin.include_role:
+    name: prep_local_repo
+
+# Phase 4: Execute OIM upgrade (this would be the actual OIM upgrade tasks)
+- name: "Phase 4 - Execute OIM Upgrade Tasks"
+  ansible.builtin.debug:
+    msg: "OIM upgrade tasks would be executed here"

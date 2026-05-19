@@ -19,13 +19,12 @@ materializes it into model objects.
 """
 
 import json
-import logging
+from api.logging_utils import log_secure_info
 import os
 from jsonschema import validate, ValidationError
 from .models import Catalog, FunctionalPackage, OsPackage, InfrastructurePackage, Driver
 from .utils import load_json_file
 
-logger = logging.getLogger(__name__)
 
 _BASE_DIR = os.path.dirname(__file__)
 _DEFAULT_SCHEMA_PATH = os.path.join(_BASE_DIR, "resources", "CatalogSchema.json")
@@ -41,18 +40,15 @@ def ParseCatalog(file_path: str, schema_path: str = _DEFAULT_SCHEMA_PATH) -> Cat
         A populated Catalog instance built from the validated JSON data.
     """
 
-    logger.info("Parsing catalog from %s using schema %s", file_path, schema_path)
+    log_secure_info('info', f"Parsing catalog from {file_path} using schema {schema_path}")
     schema = load_json_file(schema_path)
     catalog_json = load_json_file(file_path)
 
-    logger.debug("Validating catalog JSON against schema")
+    log_secure_info('debug', "Validating catalog JSON against schema")
     try:
         validate(instance=catalog_json, schema=schema)
     except ValidationError:
-        logger.error(
-            "Catalog validation failed for %s",
-            file_path,
-        )
+        log_secure_info('error', f"Catalog validation failed for {file_path}")
         raise
     data = catalog_json["Catalog"]
 
@@ -129,14 +125,6 @@ def ParseCatalog(file_path: str, schema_path: str = _DEFAULT_SCHEMA_PATH) -> Cat
         miscellaneous=data.get("Miscellaneous", []),
     )
 
-    logger.info(
-        "Parsed catalog %s v%s: %d functional, %d OS, %d infrastructure, %d drivers",
-        catalog.name,
-        catalog.version,
-        len(functional_packages),
-        len(os_packages),
-        len(infrastructure_packages),
-        len(drivers),
-    )
+    log_secure_info('info', f"Parsed catalog {catalog.name} v{catalog.version}: {len(functional_packages)} functional, {len(os_packages)} OS, {len(infrastructure_packages)} infrastructure, {len(drivers)} drivers")
 
     return catalog

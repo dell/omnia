@@ -31,10 +31,10 @@
         k8s_versions: "{{ software_config.softwares | selectattr('name', 'in', ['compute_k8s', 'service_k8s']) | map(attribute='version') | list | unique }}" # noqa: yaml[line-length]
         k8s_arch: "{{ (software_config.softwares | selectattr('name', 'in', ['compute_k8s', 'service_k8s']) | first).get('arch', default_archs) }}"
 
-    - name: Set k8s_support_check to false if any k8s version is not default_k8s_version
+    - name: Set k8s_support_check to false if any k8s version is not in supported_k8s_versions
       ansible.builtin.set_fact:
         k8s_support_check: false
-      when: (k8s_versions | select('ne', default_k8s_version) | list | length) > 0
+      when: (k8s_versions | reject('in', supported_k8s_versions) | list | length) > 0
 
     - name: Fail if unsupported service_k8s version is detected
       ansible.builtin.fail:

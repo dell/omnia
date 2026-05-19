@@ -1,0 +1,58 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+---
+
+- name: "Backup — Set backup directory"
+  ansible.builtin.set_fact:
+    upgrade_backup_dir: "/opt/omnia/.data/upgrade_backup/{{ upgrade_id }}"
+
+- name: "Backup — Create backup directory"
+  ansible.builtin.file:
+    path: "{{ upgrade_backup_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: "Backup — Backup software_config.json"
+  ansible.builtin.copy:
+    src: "{{ input_project_dir }}/software_config.json"
+    dest: "{{ upgrade_backup_dir }}/software_config.json"
+    remote_src: true
+    mode: '0644'
+
+- name: "Backup — Backup local_repo_config.yml"
+  ansible.builtin.copy:
+    src: "{{ input_project_dir }}/local_repo_config.yml"
+    dest: "{{ upgrade_backup_dir }}/local_repo_config.yml"
+    remote_src: true
+    mode: '0644'
+
+- name: "Backup — Backup upgrade_manifest.yml"
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../upgrade_manifest.yml"
+    dest: "{{ upgrade_backup_dir }}/upgrade_manifest.yml"
+    mode: '0644'
+
+- name: "Backup — Create backup manifest"
+  ansible.builtin.copy:
+    content: |
+      # Upgrade Backup Manifest
+      upgrade_id: {{ upgrade_id }}
+      timestamp: {{ ansible_date_time.iso8601 }}
+      source_omnia_version: {{ upgrade_source_version }}
+      target_omnia_version: {{ upgrade_target_version }}
+
+      enabled_components:
+      {% for component in enabled_components %}
+        - name: {{ component.key }}
+      {% endfor %}
+
+      files_backed_up:
+        - software_config.json
+        - local_repo_config.yml
+        - upgrade_manifest.yml
+    dest: "{{ upgrade_backup_dir }}/manifest.yml"
+    mode: '0644'
+
+- name: "Backup — Display backup info"
+  ansible.builtin.debug:
+    msg:
+      - "✓ Backup created: {{ upgrade_backup_dir }}"

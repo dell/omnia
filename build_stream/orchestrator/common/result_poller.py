@@ -15,16 +15,31 @@
 """Common result poller for processing playbook execution results from NFS queue.
 
 This module provides a shared ResultPoller that can be used by all stage APIs
-(local_repo, build_image, validate_image_on_test, etc.) to poll the NFS result
+(local_repo, build_image, validate, etc.) to poll the NFS result
 queue and update stage states accordingly.
+
+Enhanced (S1-4 Part B): On build-image success, creates ImageGroup (BUILT)
+and Image records from catalog metadata persisted during parse-catalog.
 """
 
+import json
 import asyncio
-import logging
+import os
+import uuid
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict
+
+from sqlalchemy.exc import IntegrityError
 
 from api.logging_utils import log_secure_info
 
+from core.image_group.entities import Image, ImageGroup
+from core.image_group.repositories import ImageGroupRepository, ImageRepository
+from core.image_group.value_objects import ImageGroupId, ImageGroupStatus
+from core.artifacts.entities import ArtifactRecord
+from core.artifacts.interfaces import ArtifactMetadataRepository, ArtifactStore
+from core.artifacts.value_objects import ArtifactKind, StoreHint
 from core.jobs.entities import AuditEvent
 from core.jobs.entities.stage import StageState
 from core.jobs.repositories import (
@@ -38,7 +53,123 @@ from core.jobs.value_objects import JobId, StageName
 from core.localrepo.entities import PlaybookResult
 from core.localrepo.services import PlaybookQueueResultService
 
-logger = logging.getLogger(__name__)
+
+# S3 bucket URI used to construct complete image paths stored in
+# ``images.image_name``. The CleanUp API reads this column verbatim
+# and passes it directly to ``s3cmd del --recursive --force``.
+DEFAULT_S3_BUCKET_URI = "s3://boot-images"
+DEFAULT_NFS_ARTIFACT_BASE = "/opt/omnia/build_stream_root"
+
+
+def _discover_s3_image_paths(
+    bucket_uri: str,
+    image_group_id: str,
+    role_names: list,
+) -> dict:
+    """Query S3 using s3cmd ls to discover actual image paths.
+
+    Instead of constructing paths based on conventions, this queries
+    S3 directly and greps for the ImageGroupID to find actual paths.
+
+    Args:
+        bucket_uri: S3 bucket URI (e.g., s3://boot-images)
+        image_group_id: ImageGroup ID to search for
+        role_names: List of role names to discover paths for
+
+    Returns:
+        Dict mapping role_name -> list of S3 directory paths
+        Example: {"slurm_node": ["s3://boot-images/efi-images/slurm_node/...", 
+                                  "s3://boot-images/slurm_node/..."]}
+    """
+    import subprocess  # pylint: disable=import-outside-toplevel
+
+    bucket = (bucket_uri or DEFAULT_S3_BUCKET_URI).rstrip("/")
+    role_to_paths = {role: [] for role in role_names}
+
+    try:
+        # Run s3cmd ls -Hr and grep for ImageGroupID in one command
+        # This filters at subprocess level instead of in Python
+        cmd = f"s3cmd ls -Hr {bucket} | grep {image_group_id}"
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+
+        if result.returncode not in [0, 1]:  # 0=found, 1=not found (grep exit code)
+            log_secure_info(
+                "warning",
+                f"s3cmd ls failed for bucket {bucket}: {result.stderr}",
+            )
+            return role_to_paths
+
+        # Parse grep output
+        # s3cmd ls output format: "DATE SIZE s3://bucket/role/path/file.img"
+        # Extract directory paths from file paths
+        discovered_paths = set()
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+
+            # Extract S3 file path from line (last column)
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+
+            s3_file_path = parts[-1]  # Last part is the S3 file path
+
+            # Extract directory path from file path
+            # s3://boot-images/role/path/file.img -> s3://boot-images/role/path/
+            s3_dir_path = s3_file_path.rsplit("/", 1)[0] + "/"
+
+            # Determine which role this path belongs to
+            for role in role_names:
+                if f"/{role}/" in s3_dir_path:
+                    # Store all unique directory paths per role
+                    if s3_dir_path not in discovered_paths:
+                        discovered_paths.add(s3_dir_path)
+                        role_to_paths[role].append(s3_dir_path)
+                    break
+
+        return role_to_paths
+
+    except subprocess.TimeoutExpired:
+        log_secure_info(
+            "error",
+            f"s3cmd ls timed out for bucket {bucket}",
+        )
+        return role_to_paths
+    except Exception as exc:  # pylint: disable=broad-except
+        log_secure_info(
+            "error",
+            f"Failed to discover S3 paths for {image_group_id}: {exc}",
+            exc_info=True,
+        )
+        return role_to_paths
+
+
+def _load_build_image_meta(job_id: str) -> Dict[str, str]:
+    """Read ``build_image_meta.json`` persisted by the build-image stage.
+
+    Returns an empty dict if the file does not exist or cannot be read.
+    """
+    base = os.environ.get("NFS_ARTIFACT_BASE", DEFAULT_NFS_ARTIFACT_BASE)
+    meta_path = Path(base) / "artifacts" / str(job_id) / "build_image_meta.json"
+    try:
+        if not meta_path.exists():
+            return {}
+        raw = meta_path.read_text(encoding="utf-8")
+        decoder = json.JSONDecoder()
+        data, _ = decoder.raw_decode(raw)
+        if isinstance(data, dict):
+            return data
+        return {}
+    except (OSError, ValueError):
+        return {}
 
 
 class ResultPoller:
@@ -47,7 +178,7 @@ class ResultPoller:
     This poller monitors the NFS result queue and processes results
     by updating stage states and emitting audit events. It handles
     results from all stage types (local_repo, build_image,
-    validate_image_on_test, etc.).
+    validate, deploy, etc.).
 
     Attributes:
         result_service: Service for polling NFS result queue.
@@ -67,6 +198,10 @@ class ResultPoller:
         audit_repo: AuditEventRepository,
         uuid_generator: UUIDGenerator,
         poll_interval: int = 5,
+        image_group_repo: ImageGroupRepository = None,
+        image_repo: ImageRepository = None,
+        artifact_store: ArtifactStore = None,
+        artifact_metadata_repo: ArtifactMetadataRepository = None,
     ) -> None:  # pylint: disable=too-many-arguments,too-many-positional-arguments
         """Initialize result poller.
 
@@ -77,6 +212,10 @@ class ResultPoller:
             audit_repo: Audit event repository implementation.
             uuid_generator: UUID generator for identifiers.
             poll_interval: Interval in seconds between polls (default: 5).
+            image_group_repo: ImageGroup repository for build-image completion.
+            image_repo: Image repository for build-image completion.
+            artifact_store: Artifact store for retrieving catalog metadata.
+            artifact_metadata_repo: Artifact metadata repo for finding artifacts.
         """
         self._result_service = result_service
         self._job_repo = job_repo
@@ -84,18 +223,22 @@ class ResultPoller:
         self._audit_repo = audit_repo
         self._uuid_generator = uuid_generator
         self._poll_interval = poll_interval
+        self._image_group_repo = image_group_repo
+        self._image_repo = image_repo
+        self._artifact_store = artifact_store
+        self._artifact_metadata_repo = artifact_metadata_repo
         self._running = False
         self._task = None
 
     async def start(self) -> None:
         """Start the result poller."""
         if self._running:
-            logger.warning("Result poller is already running")
+            log_secure_info("warning", "Result poller is already running")
             return
 
         self._running = True
         self._task = asyncio.create_task(self._poll_loop())
-        logger.info("Result poller started with interval=%ds", self._poll_interval)
+        log_secure_info("info", f"Result poller started with interval={self._poll_interval}s")
 
     async def stop(self) -> None:
         """Stop the result poller."""
@@ -109,7 +252,7 @@ class ResultPoller:
                 await self._task
             except asyncio.CancelledError:
                 pass
-        logger.info("Result poller stopped")
+        log_secure_info("info", "Result poller stopped")
 
     async def _poll_loop(self) -> None:
         """Main polling loop."""
@@ -119,9 +262,9 @@ class ResultPoller:
                     callback=self._on_result_received
                 )
                 if processed_count > 0:
-                    logger.info("Processed %d playbook results", processed_count)
+                    log_secure_info("info", f"Processed {processed_count} playbook results")
             except Exception as exc:  # pylint: disable=broad-except
-                logger.exception("Error polling results: %s", exc)
+                log_secure_info("error", f"Error polling results: {exc}", exc_info=True)
 
             await asyncio.sleep(self._poll_interval)
 
@@ -137,55 +280,93 @@ class ResultPoller:
             stage = self._stage_repo.find_by_job_and_name(result.job_id, stage_name)
 
             if stage is None:
-                logger.error(
-                    "Stage not found for result: job_id=%s, stage=%s",
-                    result.job_id,
-                    result.stage_name,
+                log_secure_info(
+                    "error",
+                    f"Stage not found for result: job_id={result.job_id}, "
+                    f"stage={result.stage_name}",
+                    job_id=str(result.job_id),
                 )
                 return
 
             # Update stage based on result
             # Check if stage is already in terminal state (e.g., after service restart)
             if stage.stage_state in {StageState.COMPLETED, StageState.FAILED, StageState.CANCELLED}:
-                logger.info(
-                    "Stage already in terminal state: job_id=%s, stage=%s, state=%s",
-                    result.job_id,
-                    result.stage_name,
-                    stage.stage_state,
+                log_secure_info(
+                    "info",
+                    f"Stage already in terminal state: job_id={result.job_id}, "
+                    f"stage={result.stage_name}, state={stage.stage_state}",
+                    job_id=str(result.job_id),
                 )
                 # Return early - service will archive the result file automatically
                 return
-            
+
             if result.status == "success":
+                # For validate stage, populate result_detail BEFORE complete() to avoid version conflict
+                if result.stage_name == "validate":
+                    stage.result_detail = self._build_validate_result_detail(
+                        result, outcome="PASSED"
+                    )
+
                 stage.complete()
-                logger.info(
-                    "Stage completed: job_id=%s, stage=%s",
-                    result.job_id,
-                    result.stage_name,
+                log_secure_info(
+                    "info",
+                    f"Stage completed: job_id={result.job_id}, stage={result.stage_name}",
+                    job_id=str(result.job_id),
                 )
-                
-                # Check if this is the final stage (validate-image-on-test)
-                # If so, mark the job as completed
-                if result.stage_name == "validate-image-on-test":
+
+                # S1-4 Part B: On build-image success, create ImageGroup + Images
+                if self._is_build_image_stage(result.stage_name):
+                    self._on_build_image_success(result)
+
+                # On validate success, mark ImageGroup PASSED
+                if result.stage_name == "validate":
+                    self._on_validate_success(result)
                     JobStateHelper.handle_job_completion(
                         job_repo=self._job_repo,
                         audit_repo=self._audit_repo,
                         uuid_generator=self._uuid_generator,
                         job_id=JobId(result.job_id),
-                        correlation_id=result.request_id.value if hasattr(result.request_id, 'value') else str(result.request_id),
+                        correlation_id=(
+                            str(result.correlation_id)
+                            if getattr(result, "correlation_id", None)
+                            else str(self._uuid_generator.generate())
+                        ),
                         client_id=str(result.job_id),
                     )
+
+                # S1-6: On deploy success, transition ImageGroup DEPLOYING -> DEPLOYED
+                if result.stage_name == "deploy":
+                    self._on_deploy_success(result)
+
+                # S12: On restart completion, persist node_results.json as artifact
+                if result.stage_name == "restart":
+                    self._on_restart_completed(result)
             else:
                 error_code = result.error_code or "PLAYBOOK_FAILED"
                 error_summary = result.error_summary or "Playbook execution failed"
+
+                # For validate stage, populate result_detail BEFORE fail() to avoid version conflict
+                if result.stage_name == "validate":
+                    stage.result_detail = self._build_validate_result_detail(
+                        result, outcome="FAILED"
+                    )
+
                 stage.fail(error_code=error_code, error_summary=error_summary)
-                logger.warning(
-                    "Stage failed: job_id=%s, stage=%s, error=%s",
-                    result.job_id,
-                    result.stage_name,
-                    error_code,
+                log_secure_info(
+                    "warning",
+                    f"Stage failed: job_id={result.job_id}, "
+                    f"stage={result.stage_name}, error={error_code}",
+                    job_id=str(result.job_id),
                 )
-                
+
+                # S12: On restart failure, still persist node_results.json
+                if result.stage_name == "restart":
+                    self._on_restart_completed(result)
+
+                # On validate failure, mark ImageGroup FAILED
+                if result.stage_name == "validate":
+                    self._on_validate_failure(result)
+
                 # Update job state to FAILED when stage fails
                 JobStateHelper.handle_stage_failure(
                     job_repo=self._job_repo,
@@ -195,28 +376,38 @@ class ResultPoller:
                     stage_name=result.stage_name,
                     error_code=error_code,
                     error_summary=error_summary,
-                    correlation_id=result.request_id.value if hasattr(result.request_id, 'value') else str(result.request_id),
+                    correlation_id=(
+                        str(result.correlation_id)
+                        if getattr(result, "correlation_id", None)
+                        else str(self._uuid_generator.generate())
+                    ),
                     client_id=str(result.job_id),
                 )
 
             # Update log file path if available
             if result.log_file_path:
                 stage.log_file_path = result.log_file_path
-                logger.info(
-                    "Updated stage log path: job_id=%s, stage=%s",
-                    result.job_id,
-                    result.stage_name,
+                log_secure_info(
+                    "info",
+                    f"Updated stage log path: job_id={result.job_id}, stage={result.stage_name}",
+                    job_id=str(result.job_id),
                 )
 
-            # Save updated stage
+            # Save updated stage and commit immediately to avoid stale API responses
             self._stage_repo.save(stage)
+            if hasattr(self._stage_repo, 'session'):
+                self._stage_repo.session.commit()
 
             # Emit audit event
             event = AuditEvent(
                 event_id=str(self._uuid_generator.generate()),
                 job_id=result.job_id,
                 event_type="STAGE_COMPLETED" if result.status == "success" else "STAGE_FAILED",
-                correlation_id=result.request_id,
+                correlation_id=(
+                    str(result.correlation_id)
+                    if getattr(result, "correlation_id", None)
+                    else str(self._uuid_generator.generate())
+                ),
                 client_id=result.job_id,  # Using job_id as client_id placeholder
                 timestamp=datetime.now(timezone.utc),
                 details={
@@ -227,13 +418,10 @@ class ResultPoller:
                 },
             )
             self._audit_repo.save(event)
-            
-            # Commit both repositories if using SQL
-            # Note: Each repository may have its own session, so commit both
-            if hasattr(self._stage_repo, 'session'):
-                self._stage_repo.session.commit()
+
+            # Commit audit event if using SQL
             if hasattr(self._audit_repo, 'session'):
-                    self._audit_repo.session.commit()
+                self._audit_repo.session.commit()
 
             log_secure_info(
                 "info",
@@ -242,8 +430,560 @@ class ResultPoller:
             )
 
         except Exception as exc:  # pylint: disable=broad-except
-            logger.exception(
-                "Error handling result: job_id=%s, error=%s",
-                result.job_id,
-                exc,
+            log_secure_info(
+                "error",
+                f"Error handling result: job_id={result.job_id}, error={exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    # ------------------------------------------------------------------
+    # S1-4 Part B: Build-image completion — ImageGroup/Image creation
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_build_image_stage(stage_name: str) -> bool:
+        """Check if the stage is a build-image stage."""
+        return stage_name in (
+            "build-image-x86_64",
+            "build-image-aarch64",
+            "build-image",
+        )
+
+    def _on_build_image_success(self, result: PlaybookResult) -> None:
+        """Create ImageGroup (BUILT) and Image records on build-image success.
+
+        Loads catalog metadata persisted by parse-catalog, creates the
+        ImageGroup with status BUILT, and inserts Image records for each
+        constituent role.
+
+        Args:
+            result: Playbook execution result from NFS queue.
+        """
+        if self._image_group_repo is None or self._image_repo is None:
+            log_secure_info(
+                "warning",
+                f"ImageGroup/Image repos not available; skipping "
+                f"ImageGroup creation for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
+        try:
+            catalog_metadata = self._load_catalog_metadata(result.job_id)
+            if catalog_metadata is None:
+                log_secure_info(
+                    "warning",
+                    f"No catalog metadata found for job={result.job_id}; "
+                    f"skipping ImageGroup creation",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            image_group_id = catalog_metadata["image_group_id"]
+            role_images = catalog_metadata.get("role_images", {})
+
+            # Create ImageGroup entity
+            now = datetime.now(timezone.utc)
+            image_group = ImageGroup(
+                id=ImageGroupId(image_group_id),
+                job_id=JobId(str(result.job_id)),
+                status=ImageGroupStatus.BUILT,
+                images=[],
+                created_at=now,
+                updated_at=now,
+            )
+
+            # Query S3 directly to discover actual image paths instead of
+            # constructing them based on conventions. This is more robust
+            # and doesn't rely on path naming conventions.
+            bucket_uri = os.environ.get(
+                "CLEANUP_S3_BUCKET", DEFAULT_S3_BUCKET_URI
+            )
+            role_names = list(role_images.keys())
+
+            log_secure_info(
+                "info",
+                f"Discovering S3 paths for ImageGroup {image_group_id} "
+                f"with roles: {role_names}",
+                job_id=str(result.job_id),
+            )
+
+            # Discover actual S3 paths by querying S3 and grepping for ImageGroupID
+            role_to_s3_paths = _discover_s3_image_paths(
+                bucket_uri=bucket_uri,
+                image_group_id=image_group_id,
+                role_names=role_names,
+            )
+
+            # Create Image entities for each role with discovered S3 paths.
+            # Each role may have multiple S3 paths (e.g., EFI images + full disk images).
+            # The DB has a unique constraint on (image_group_id, role), so we store
+            # all S3 directory paths for a role in a single image_name field,
+            # semicolon-delimited.  Cleanup splits on ";" and deletes each path.
+            images = []
+            for role_name in role_names:
+                s3_paths = role_to_s3_paths.get(role_name, [])
+                if not s3_paths:
+                    log_secure_info(
+                        "warning",
+                        f"No S3 paths discovered for role {role_name} in "
+                        f"ImageGroup {image_group_id}; skipping image records",
+                        job_id=str(result.job_id),
+                    )
+                    continue
+
+                # Concatenate all S3 paths for this role with semicolon delimiter
+                combined_path = ";".join(s3_paths)
+                image = Image(
+                    id=str(uuid.uuid4()),
+                    image_group_id=image_group_id,
+                    role=role_name,
+                    image_name=combined_path,
+                    created_at=now,
+                )
+                images.append(image)
+
+            if not images:
+                log_secure_info(
+                    "error",
+                    f"No S3 paths discovered for any role in ImageGroup "
+                    f"{image_group_id}; ImageGroup will be created but with no images",
+                    job_id=str(result.job_id),
+                )
+
+            image_group.images = images
+
+            # Persist: ImageGroup first, then Images.
+            # In ProdContainer each repo may hold a different DB session
+            # (Factory-created via providers.Factory(SessionLocal)).
+            # The images table has a FK to image_groups, so the ImageGroup
+            # row must be flushed (visible within transaction) before the
+            # Image INSERT can satisfy the FK constraint.
+            # We use flush() instead of commit() to keep the transaction atomic.
+            try:
+                self._image_group_repo.save(image_group)
+                # Flush to make ImageGroup visible within transaction for FK constraint
+                if hasattr(self._image_group_repo, 'session'):
+                    self._image_group_repo.session.flush()
+
+                self._image_repo.save_batch(images)
+                # Commit only after both operations succeed
+                if hasattr(self._image_repo, 'session'):
+                    self._image_repo.session.commit()
+            except IntegrityError as integrity_exc:
+                log_secure_info(
+                    "warning",
+                    f"IntegrityError creating ImageGroup '{image_group_id}' "
+                    f"for job={result.job_id}: {integrity_exc.orig}",
+                    job_id=str(result.job_id),
+                )
+                if hasattr(self._image_group_repo, 'session'):
+                    self._image_group_repo.session.rollback()
+                if hasattr(self._image_repo, 'session'):
+                    self._image_repo.session.rollback()
+                return
+
+            log_secure_info(
+                "info",
+                f"Build-image SUCCESS for job={result.job_id}. Created ImageGroup "
+                f"'{image_group_id}' with {len(images)} images (status=BUILT).",
+                job_id=str(result.job_id),
+            )
+
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Failed to create ImageGroup/Images for job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _load_catalog_metadata(self, job_id) -> dict:
+        """Load catalog metadata artifact persisted by parse-catalog.
+
+        Retrieves the catalog-metadata artifact from the artifact store
+        to get image_group_id and role-to-image mappings.
+
+        Args:
+            job_id: Job identifier.
+
+        Returns:
+            Dict with image_group_id, roles, role_images, or None if not found.
+        """
+        if self._artifact_metadata_repo is None or self._artifact_store is None:
+            return None
+
+        try:
+            record = self._artifact_metadata_repo.find_by_job_stage_and_label(
+                job_id=job_id,
+                stage_name=StageName("parse-catalog"),
+                label="catalog-metadata",
+            )
+            if record is None:
+                return None
+
+            raw = self._artifact_store.retrieve(
+                record.artifact_ref.key,
+                ArtifactKind.FILE,
+            )
+            return json.loads(raw.decode("utf-8"))
+
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "warning",
+                f"Failed to load catalog metadata for job={job_id}: {exc}",
+                job_id=str(job_id),
+            )
+            return None
+
+    # ------------------------------------------------------------------
+    # S1-6: Deploy completion — ImageGroup status transitions
+    # ------------------------------------------------------------------
+
+    def _on_deploy_success(self, result: PlaybookResult) -> None:
+        """Transition ImageGroup from DEPLOYING to DEPLOYED on deploy success."""
+        if self._image_group_repo is None:
+            log_secure_info(
+                "warning",
+                f"ImageGroup repo not available; skipping deploy status "
+                f"update for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
+        try:
+            image_group = self._image_group_repo.find_by_job_id(
+                JobId(str(result.job_id))
+            )
+            if image_group is None:
+                log_secure_info(
+                    "error",
+                    f"Deploy callback: No ImageGroup found for job={result.job_id}.",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            self._image_group_repo.update_status(
+                image_group_id=image_group.id,
+                new_status=ImageGroupStatus.DEPLOYED,
+            )
+
+            if hasattr(self._image_group_repo, 'session'):
+                self._image_group_repo.session.commit()
+
+            log_secure_info(
+                "info",
+                f"Deploy SUCCESS for job={result.job_id}. "
+                f"ImageGroup '{image_group.id}' -> DEPLOYED.",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                "Failed to update ImageGroup status on deploy "
+                f"success for job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    # ------------------------------------------------------------------
+    # S12: Restart completion — persist node_results.json as artifact
+    # ------------------------------------------------------------------
+
+    def _on_restart_completed(self, result: PlaybookResult) -> None:
+        """Store node_results.json and failed_nodes.json as artifacts on restart completion.
+
+        Both files are created by the playbook (Play 6 in set_pxe_boot.yml).
+        This method reads them from NFS and stores them in ArtifactStore
+        so they can be downloaded via the API by GitLab CI.
+
+        Args:
+            result: Playbook execution result from NFS queue.
+        """
+        if self._artifact_store is None or self._artifact_metadata_repo is None:
+            log_secure_info(
+                "warning",
+                f"Artifact store/metadata repo not available; skipping "
+                f"artifact persistence for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
+        node_results_path = result.node_results_file_path
+        if not node_results_path:
+            log_secure_info(
+                "info",
+                f"No node_results_file_path in restart result for "
+                f"job={result.job_id}; nothing to persist",
+                job_id=str(result.job_id),
+            )
+            return
+
+        try:
+            path = Path(node_results_path)
+            if not path.exists():
+                log_secure_info(
+                    "warning",
+                    f"node_results file not found at {node_results_path} "
+                    f"for job={result.job_id}",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            raw = path.read_bytes()
+
+            # Validate JSON
+            json.loads(raw)
+
+            # Store node_results.json in artifact store
+            hint = StoreHint(
+                namespace=str(result.job_id),
+                label="node-results",
+                tags={"job_id": str(result.job_id), "stage": "restart"},
+            )
+            artifact_ref = self._artifact_store.store(
+                hint=hint,
+                kind=ArtifactKind.FILE,
+                content=raw,
+                content_type="application/json",
+            )
+
+            record = ArtifactRecord(
+                id=str(self._uuid_generator.generate()),
+                job_id=JobId(str(result.job_id)),
+                stage_name=StageName("restart"),
+                label="node-results",
+                artifact_ref=artifact_ref,
+                kind=ArtifactKind.FILE,
+                content_type="application/json",
+            )
+            self._artifact_metadata_repo.save(record)
+
+            log_secure_info(
+                "info",
+                f"Restart node_results persisted as artifact for "
+                f"job={result.job_id} (size={len(raw)} bytes)",
+                job_id=str(result.job_id),
+            )
+
+            # Store failed_nodes.json (written by the playbook alongside node_results.json)
+            failed_nodes_file = path.parent / "failed_nodes.json"
+            if failed_nodes_file.exists():
+                failed_raw = failed_nodes_file.read_bytes()
+
+                # Validate JSON
+                json.loads(failed_raw)
+
+                failed_hint = StoreHint(
+                    namespace=str(result.job_id),
+                    label="failed-nodes",
+                    tags={"job_id": str(result.job_id), "stage": "restart"},
+                )
+                failed_artifact_ref = self._artifact_store.store(
+                    hint=failed_hint,
+                    kind=ArtifactKind.FILE,
+                    content=failed_raw,
+                    content_type="application/json",
+                )
+
+                failed_record = ArtifactRecord(
+                    id=str(self._uuid_generator.generate()),
+                    job_id=JobId(str(result.job_id)),
+                    stage_name=StageName("restart"),
+                    label="failed-nodes",
+                    artifact_ref=failed_artifact_ref,
+                    kind=ArtifactKind.FILE,
+                    content_type="application/json",
+                )
+                self._artifact_metadata_repo.save(failed_record)
+
+                if hasattr(self._artifact_metadata_repo, 'session'):
+                    self._artifact_metadata_repo.session.commit()
+
+                failed_data = json.loads(failed_raw)
+                log_secure_info(
+                    "info",
+                    f"Stored failed_nodes.json as artifact for job={result.job_id} "
+                    f"({failed_data.get('failure_count', 0)} failed of "
+                    f"{failed_data.get('total_nodes', 0)} total)",
+                    job_id=str(result.job_id),
+                )
+            else:
+                log_secure_info(
+                    "info",
+                    f"No failed_nodes.json found alongside node_results for "
+                    f"job={result.job_id}; playbook may not have written it",
+                    job_id=str(result.job_id),
+                )
+
+        except json.JSONDecodeError as jde:
+            log_secure_info(
+                "error",
+                f"JSON artifact is not valid for "
+                f"job={result.job_id}: {jde}",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Failed to persist restart artifacts for "
+                f"job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _build_validate_result_detail(self, result: PlaybookResult, outcome: str) -> dict:
+        """Build result_detail JSONB for validate stage per spec §9.3."""
+        artifact_dir = result.artifact_dir or ""
+        detail = {
+            "outcome": outcome,
+            "exit_code": result.exit_code,
+            "test_summary": result.test_summary or {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0},
+            "duration_seconds": result.duration_seconds,
+            "artifact_dir": artifact_dir,
+            "report_path": str(Path(artifact_dir) / "test_report.html") if artifact_dir else "",
+            "correlation_id": str(result.request_id),
+        }
+        if outcome == "FAILED":
+            detail["error_message"] = (
+                result.error_summary
+                or f"Molecule exited with code {result.exit_code}"
+            )
+        return detail
+
+    def _on_validate_success(self, result: PlaybookResult) -> None:
+        """Transition ImageGroup to PASSED on validate success."""
+        if self._image_group_repo is None:
+            log_secure_info(
+                "warning",
+                f"ImageGroup repo not available; skipping validate status "
+                f"update for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
+        try:
+            image_group = self._image_group_repo.find_by_job_id(
+                JobId(str(result.job_id))
+            )
+            if image_group is None:
+                log_secure_info(
+                    "warning",
+                    f"Validate success: No ImageGroup found for job={result.job_id}",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            self._image_group_repo.update_status(
+                image_group_id=image_group.id,
+                new_status=ImageGroupStatus.PASSED,
+            )
+            if hasattr(self._image_group_repo, 'session'):
+                self._image_group_repo.session.commit()
+
+            log_secure_info(
+                "info",
+                f"Validate SUCCESS for job={result.job_id}. "
+                f"ImageGroup '{image_group.id}' -> PASSED. "
+                f"test_summary={result.test_summary}",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Failed to update ImageGroup to PASSED for job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _on_validate_failure(self, result: PlaybookResult) -> None:
+        """Transition ImageGroup to FAILED on validate failure."""
+        if self._image_group_repo is None:
+            log_secure_info(
+                "warning",
+                f"ImageGroup repo not available; skipping validate failure "
+                f"update for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
+        try:
+            image_group = self._image_group_repo.find_by_job_id(
+                JobId(str(result.job_id))
+            )
+            if image_group is None:
+                log_secure_info(
+                    "warning",
+                    f"Validate failure: No ImageGroup found for job={result.job_id}",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            self._image_group_repo.update_status(
+                image_group_id=image_group.id,
+                new_status=ImageGroupStatus.FAILED,
+            )
+            if hasattr(self._image_group_repo, 'session'):
+                self._image_group_repo.session.commit()
+
+            log_secure_info(
+                "warning",
+                f"Validate FAILED for job={result.job_id}. "
+                f"ImageGroup '{image_group.id}' -> FAILED. "
+                f"exit_code={result.exit_code}, error={result.error_summary}",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                f"Failed to update ImageGroup to FAILED for job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
+            )
+
+    def _on_deploy_failure(self, result: PlaybookResult) -> None:
+        """Transition ImageGroup from DEPLOYING to FAILED on deploy failure."""
+        if self._image_group_repo is None:
+            log_secure_info(
+                "warning",
+                f"ImageGroup repo not available; skipping deploy failure "
+                f"update for job={result.job_id}",
+                job_id=str(result.job_id),
+            )
+            return
+
+        try:
+            image_group = self._image_group_repo.find_by_job_id(
+                JobId(str(result.job_id))
+            )
+            if image_group is None:
+                log_secure_info(
+                    "error",
+                    f"Deploy failure callback: No ImageGroup found for job={result.job_id}.",
+                    job_id=str(result.job_id),
+                )
+                return
+
+            self._image_group_repo.update_status(
+                image_group_id=image_group.id,
+                new_status=ImageGroupStatus.FAILED,
+            )
+
+            if hasattr(self._image_group_repo, 'session'):
+                self._image_group_repo.session.commit()
+
+            log_secure_info(
+                "warning",
+                f"Deploy FAILED for job={result.job_id}. "
+                f"ImageGroup '{image_group.id}' -> FAILED.",
+                job_id=str(result.job_id),
+            )
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "error",
+                "Failed to update ImageGroup status on deploy "
+                f"failure for job={result.job_id}: {exc}",
+                job_id=str(result.job_id),
+                exc_info=True,
             )

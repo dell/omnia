@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ValidateImageOnTest domain module.
+"""Validate domain module.
 
-This module contains domain logic for validate-image-on-test operations.
+This module contains domain logic for validate stage operations.
 """
 
-from core.validate.entities import ValidateImageOnTestRequest
+from core.validate.entities import ValidateRequest
 from core.validate.exceptions import (
     ValidateDomainError,
     EnvironmentUnavailableError,
@@ -25,7 +25,7 @@ from core.validate.exceptions import (
 )
 
 __all__ = [
-    "ValidateImageOnTestRequest",
+    "ValidateRequest",
     "ValidateDomainError",
     "EnvironmentUnavailableError",
     "ValidationExecutionError",

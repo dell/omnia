@@ -1,0 +1,47 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# Update Component JSON Files with Version-Specific repo_name
+# ============================================================================
+# This task updates JSON files to use version-specific repo names for components
+# that support versioned repositories (like slurm_custom).
+# ============================================================================
+
+- name: "JSON repos — Update component JSON files with version-specific repo names"
+  update_component_json_repos:
+    input_dir: "{{ input_project_dir }}"
+    calculated_hop_chains: "{{ calculated_hop_chains | default([]) }}"
+    architectures: "{{ upgrade_active_architectures }}"
+    versioned_repo_components:
+      slurm_custom: "slurm_custom"
+      # Add other components here that support versioned repositories
+  register: _json_repo_update_result
+
+- name: "JSON repos — Parse update result"
+  ansible.builtin.set_fact:
+    _json_repo_update_summary: "{{ _json_repo_update_result }}"
+
+- name: "JSON repos — Display update summary"
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "Component JSON repo_name Update Summary"
+      - "=========================================="
+      - "{% for msg in _json_repo_update_summary.messages %}{{ msg }}{% endfor %}"
+      - "=========================================="
+      - "Updated files: {{ _json_repo_update_summary.updated_files | default([]) }}"
+      - "Success: {{ _json_repo_update_summary.success }}"
+      - "=========================================="

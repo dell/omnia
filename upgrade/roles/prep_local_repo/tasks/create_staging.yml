@@ -1,0 +1,79 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+---
+
+# ============================================================================
+# Create staging directory with modified configs
+# ============================================================================
+# Creates a temp directory with:
+# - software_config.json (copied, version updated to target)
+# - local_repo_config.yml (contains only repos from repos.yml)
+# - config/ directory structure (copied from input for enabled upgrades)
+#
+# NO symlinks - actual copies for isolation
+# Other files read directly from input_project_dir
+#
+# NOTE: local_repo_config.yml in staging contains ONLY upgrade-specific repos
+# from repos.yml. Base repos (docker-ce, epel, doca, cuda) are already synced
+# from initial installation and are not included in staging to avoid
+# unnecessary re-syncing.
+# ============================================================================
+
+- name: "Staging — Create staging directory"
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: "upgrade_local_repo_"
+  register: _staging_dir
+
+- name: "Staging — Set staging path fact"
+  ansible.builtin.set_fact:
+    upgrade_staging_dir: "{{ _staging_dir.path }}"
+
+- name: "Staging — Extract architectures from software_config.json"
+  ansible.builtin.set_fact:
+    _all_architectures: >-
+      {{
+        _current_software_config.softwares
+        | selectattr('arch', 'defined')
+        | map(attribute='arch')
+        | flatten
+        | unique
+        | list
+      }}
+
+- name: "Staging — Set upgrade_active_architectures from software_config.json"
+  ansible.builtin.set_fact:
+    upgrade_active_architectures: "{{ _all_architectures }}"
+
+- name: "Staging — Display detected architectures"
+  ansible.builtin.debug:
+    msg:
+      - "Architectures detected from software_config.json: {{ _all_architectures | join(', ') }}"
+      - "Will process all detected architectures for upgrade"
+
+- name: "Staging — Create staging with modified configs"
+  create_upgrade_staging:
+    staging_dir: "{{ _staging_dir.path }}"
+    input_dir: "{{ input_project_dir }}"
+    repos_file: "{{ role_path }}/../../artifacts/repos.yml"
+    enabled_components: "{{ _enabled_components }}"
+    current_software_config: "{{ _current_software_config }}"
+    architectures: "{{ upgrade_active_architectures }}"
+    target_omnia_version: "{{ upgrade_target_version }}"
+    calculated_hop_chains: "{{ calculated_hop_chains | default([]) }}"
+  register: _staging_result
+
+- name: "Staging — Parse staging result"
+  ansible.builtin.set_fact:
+    _staging_summary: "{{ _staging_result }}"
+
+- name: "Staging — Display staging summary"
+  ansible.builtin.debug:
+    msg:
+      - "=========================================="
+      - "Staging Directory Created"
+      - "=========================================="
+      - "Path: {{ upgrade_staging_dir }}"
+      - "Repos merged: {{ _staging_summary.repos_merged }}"
+      - "JSON files: {{ _staging_summary.json_files_copied | length }}"
+      - "Components: {{ _staging_summary.enabled_components | join(', ') }}"
+      - "=========================================="

@@ -1,0 +1,64 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Cleanup automation framework installed during Phase 2 of Component 5 Validate Module Spec
+# This removes the automation directory, virtual environment, and configuration files
+
+- name: Check if automation directory exists
+  ansible.builtin.stat:
+    path: "{{ automation_base_dir }}"
+  register: automation_dir_check
+
+- name: Remove automation virtual environment
+  ansible.builtin.file:
+    path: "{{ automation_venv_dir }}"
+    state: absent
+    force: true
+  when: automation_dir_check.stat.exists
+  register: venv_removal
+  until: venv_removal is not failed
+  retries: 3
+  delay: 2
+
+- name: Remove automation configuration file
+  ansible.builtin.file:
+    path: "{{ automation_config_file }}"
+    state: absent
+  when: automation_dir_check.stat.exists
+
+- name: Remove automation base directory
+  ansible.builtin.file:
+    path: "{{ automation_base_dir }}"
+    state: absent
+    force: true
+  when: automation_dir_check.stat.exists
+  register: automation_removal
+  until: automation_removal is not failed
+  retries: 3
+  delay: 2
+
+- name: Display automation cleanup status
+  ansible.builtin.debug:
+    msg: |
+      Automation framework cleanup completed:
+      - Removed directory: {{ automation_base_dir }}
+      - Removed virtual environment: {{ automation_venv_dir }}
+      - Removed configuration: {{ automation_config_file }}
+  when: automation_dir_check.stat.exists
+
+- name: Display automation cleanup skip message
+  ansible.builtin.debug:
+    msg: "Automation framework directory {{ automation_base_dir }} not found - skipping cleanup"
+  when: not automation_dir_check.stat.exists

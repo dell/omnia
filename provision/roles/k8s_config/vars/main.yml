@@ -15,7 +15,8 @@
 
 local_repo_access_config_file: "/opt/omnia/provision/local_repo_access.yml"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
-k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_k8s.json" # noqa: yaml[line-length]
+# Versioned JSON file: service_k8s_v<version>.json (e.g., service_k8s_v1.35.1.json)
+k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json" # noqa: yaml[line-length]
 calico_manifest_yaml_url: "{{ offline_manifest_path }}/{{ calico_package }}/{{ calico_package }}.yml"
 metallb_manifest_yaml_url: "{{ offline_manifest_path }}/{{ metallb_package }}/{{ metallb_package }}.yml"
 multus_manifest_yaml_url: "{{ offline_manifest_path }}/{{ multus_package }}/{{ multus_package }}.yml"

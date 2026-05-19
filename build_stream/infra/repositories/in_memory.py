@@ -15,10 +15,13 @@
 """ This file contains in-memory implementations of the job repository.
     It is used in testing and development."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from core.jobs.entities import Job, Stage, IdempotencyRecord, AuditEvent
 from core.jobs.value_objects import JobId, IdempotencyKey, StageName
+from core.image_group.entities import ImageGroup, Image
+from core.image_group.value_objects import ImageGroupId, ImageGroupStatus
+from core.image_group.repositories import ImageGroupRepository, ImageRepository
 
 class InMemoryJobRepository:
     """In-memory implementation of Job repository for testing."""
@@ -118,3 +121,129 @@ class InMemoryAuditEventRepository:
     def find_by_job(self, job_id: JobId) -> List[AuditEvent]:
         """Find all audit events for a given job ID."""
         return self._events.get(str(job_id), [])
+
+
+class InMemoryImageGroupRepository(ImageGroupRepository):
+    """In-memory implementation of ImageGroupRepository for development/testing."""
+
+    def __init__(self) -> None:
+        """Initialize the repository with empty storage."""
+        self._store: Dict[str, ImageGroup] = {}
+
+    def save(self, image_group: ImageGroup) -> None:
+        """Save an ImageGroup to in-memory storage."""
+        self._store[str(image_group.id)] = image_group
+
+    def find_by_id(self, image_group_id: ImageGroupId) -> Optional[ImageGroup]:
+        """Find ImageGroup by its catalog ID."""
+        return self._store.get(str(image_group_id))
+
+    def find_by_job_id(self, job_id: JobId) -> Optional[ImageGroup]:
+        """Find ImageGroup by associated Job ID."""
+        for ig in self._store.values():
+            if str(ig.job_id) == str(job_id):
+                return ig
+        return None
+
+    def find_by_job_id_for_update(self, job_id: JobId) -> Optional[ImageGroup]:
+        """Find ImageGroup by Job ID (no locking in memory)."""
+        return self.find_by_job_id(job_id)
+
+    def update_status(
+        self, image_group_id: ImageGroupId, new_status: ImageGroupStatus
+    ) -> None:
+        """Update ImageGroup status."""
+        ig = self._store.get(str(image_group_id))
+        if ig:
+            ig.transition_status(new_status)
+
+    def list_by_status(
+        self, status: ImageGroupStatus, limit: int, offset: int
+    ) -> Tuple[List[ImageGroup], int]:
+        """List ImageGroups by status with pagination."""
+        filtered = [
+            ig for ig in self._store.values()
+            if ig.status == status
+        ]
+        filtered.sort(key=lambda x: x.created_at, reverse=True)
+        total = len(filtered)
+        page = filtered[offset:offset + limit]
+        return page, total
+
+    def list_post_built(
+        self, limit: int, offset: int
+    ) -> Tuple[List[ImageGroup], int]:
+        """List ImageGroups in all post-BUILT states with pagination.
+
+        Returns image groups with status >= BUILT (BUILT, DEPLOYING, DEPLOYED,
+        RESTARTING, RESTARTED, VALIDATING, PASSED, FAILED).
+
+        Args:
+            limit: Maximum number of results.
+            offset: Number of results to skip.
+
+        Returns:
+            Tuple of (image_groups_with_images, total_count).
+        """
+        post_built_states = {
+            ImageGroupStatus.BUILT,
+            ImageGroupStatus.DEPLOYING,
+            ImageGroupStatus.DEPLOYED,
+            ImageGroupStatus.RESTARTING,
+            ImageGroupStatus.RESTARTED,
+            ImageGroupStatus.VALIDATING,
+            ImageGroupStatus.PASSED,
+            ImageGroupStatus.FAILED,
+        }
+
+        filtered = [
+            ig for ig in self._store.values()
+            if ig.status in post_built_states
+        ]
+        filtered.sort(key=lambda x: x.created_at, reverse=True)
+        total = len(filtered)
+        page = filtered[offset:offset + limit]
+        return page, total
+
+    def exists(self, image_group_id: ImageGroupId) -> bool:
+        """Check if an ImageGroup exists."""
+        return str(image_group_id) in self._store
+
+    def count_non_cleaned(self) -> int:
+        """Count ImageGroups whose status is not CLEANED."""
+        return sum(
+            1
+            for ig in self._store.values()
+            if ig.status != ImageGroupStatus.CLEANED
+        )
+
+    def list_by_status_all(
+        self, status: ImageGroupStatus
+    ) -> List[ImageGroup]:
+        """List all ImageGroups with the given status (no pagination)."""
+        filtered = [
+            ig for ig in self._store.values() if ig.status == status
+        ]
+        filtered.sort(key=lambda x: x.created_at)
+        return filtered
+
+
+class InMemoryImageRepository(ImageRepository):
+    """In-memory implementation of ImageRepository for development/testing."""
+
+    def __init__(self) -> None:
+        """Initialize the repository with empty storage."""
+        self._store: List[Image] = []
+
+    def save_batch(self, images: List[Image]) -> None:
+        """Save multiple Images to in-memory storage."""
+        self._store.extend(images)
+
+    def find_by_image_group_id(
+        self, image_group_id: ImageGroupId
+    ) -> List[Image]:
+        """Find all Images for an ImageGroup."""
+        return [
+            img for img in self._store
+            if img.image_group_id == str(image_group_id)
+        ]

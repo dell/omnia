@@ -15,7 +15,7 @@
 """Response DTOs for catalog orchestrator use cases."""
 
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from core.artifacts.value_objects import ArtifactRef
 
@@ -32,6 +32,9 @@ class ParseCatalogResult:
     root_json_count: int
     arch_os_combinations: List[Tuple[str, str, str]]
     completed_at: str  # ISO 8601
+    image_group_id: str = ""
+    roles: List[str] = field(default_factory=list)
+    role_images: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

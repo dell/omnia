@@ -123,8 +123,15 @@ def main():
             logger.info("Preparing package lists...")
             for software in software_list[arch]:
                 logger.info(f"Processing software: {software}")
+                # Get software version for versioned JSON files (e.g., service_k8s_v1.35.1.json)
+                software_version = None
+                for sw in user_data.get("softwares", []):
+                    if sw.get("name") == software and sw.get("version"):
+                        software_version = sw["version"]
+                        break
                 json_path[arch] = get_json_file_path(software, cluster_os_type,
-                                                    cluster_os_version, user_json_file, arch)
+                                                    cluster_os_version, user_json_file, arch,
+                                                    software_version=software_version)
                 status_csv_path[arch] = get_csv_file_path(software, log_dir, arch)
                 logger.info(f"json_path: {json_path}")
                 logger.info(f"status_csv_path: {status_csv_path}")

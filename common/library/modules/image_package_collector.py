@@ -151,7 +151,12 @@ def process_functional_group(fg_name, arch, os_version, input_project_dir,
     packages = []
 
     for json_file in json_files:
+        # Extract software name from json file
+        # Handle versioned files like service_k8s_v1.35.1.json -> service_k8s
         sw_name = json_file.replace(".json", "")
+        # Remove version suffix for versioned files (e.g., service_k8s_v1.35.1 -> service_k8s)
+        if sw_name.startswith("service_k8s_v"):
+            sw_name = "service_k8s"
         if sw_name not in allowed_softwares:
             continue
 
@@ -170,7 +175,8 @@ def process_functional_group(fg_name, arch, os_version, input_project_dir,
                     sw_data, fg_name=fg_name, slurm_defined=True
                 )
             )
-        elif json_file == "service_k8s.json":
+        elif json_file.startswith("service_k8s_v"):
+            # Handle versioned service_k8s_v<version>.json files
             packages.extend(
                 collect_packages_from_json(
                     sw_data, fg_name=fg_name, service_k8s_defined=True
@@ -194,6 +200,7 @@ def run_module():
         software_config_file=dict(type="str", required=True),
         input_project_dir=dict(type="str", required=True),
         additional_json_path=dict(type="str", required=False, default=""),
+        service_k8s_version=dict(type="str", required=False, default=""),
     )
 
     result = dict(
@@ -212,6 +219,7 @@ def run_module():
     software_config_file = module.params["software_config_file"]
     input_project_dir = module.params["input_project_dir"]
     additional_json_path = module.params["additional_json_path"]
+    service_k8s_version = module.params["service_k8s_version"]
 
     software_config = load_json_file(software_config_file, module)
     if not software_config:
@@ -221,6 +229,13 @@ def run_module():
     if not os_version:
         module.fail_json(msg="cluster_os_version not found in software_config.json")
 
+    # Extract service_k8s version from software_config if not provided
+    if not service_k8s_version:
+        for sw in software_config.get("softwares", []):
+            if sw.get("name") == "service_k8s" and sw.get("version"):
+                service_k8s_version = sw["version"]
+                break
+
     allowed_softwares = {
         sw["name"] for sw in software_config.get("softwares", [])
     }
@@ -229,14 +244,28 @@ def run_module():
     additional_enabled = is_additional_packages_enabled(software_config)
     allowed_additional_subgroups = get_allowed_additional_subgroups(software_config) if additional_enabled else []
 
+    # K8s-related functional groups that require service_k8s
+    k8s_functional_groups = {
+        "service_kube_node_x86_64",
+        "service_kube_control_plane_first_x86_64",
+        "service_kube_control_plane_x86_64"
+    }
+
+    # Check if any k8s functional groups are being processed
+    needs_service_k8s = any(fg in k8s_functional_groups for fg in functional_groups)
+
+    # Only validate service_k8s version if k8s functional groups are present
+    service_k8s_json = None
+    if needs_service_k8s:
+        if not service_k8s_version:
+            module.fail_json(msg="service_k8s version not found in software_config.json")
+        service_k8s_json = f"service_k8s_v{service_k8s_version}.json"
+
     # pylint: disable=line-too-long
     # Functional group → json files mapping
     software_map = {
         "os_x86_64": ["default_packages.json", "ldms.json"],
         "os_aarch64": ["default_packages.json", "ldms.json"],
-        "service_kube_node_x86_64": ["service_k8s.json"],
-        "service_kube_control_plane_first_x86_64": ["service_k8s.json"],
-        "service_kube_control_plane_x86_64": ["service_k8s.json"],
         "slurm_control_node_x86_64": ["slurm_custom.json", "openldap.json", "ldms.json"],
         "slurm_node_x86_64": ["slurm_custom.json", "openldap.json", "ldms.json"],
         "login_node_x86_64": ["slurm_custom.json", "openldap.json", "ldms.json"],
@@ -250,6 +279,14 @@ def run_module():
             "slurm_custom.json", "openldap.json", "ldms.json"
         ],
     }
+
+    # Add k8s functional groups to software_map only if service_k8s_json is available
+    if service_k8s_json:
+        software_map.update({
+            "service_kube_node_x86_64": [service_k8s_json],
+            "service_kube_control_plane_first_x86_64": [service_k8s_json],
+            "service_kube_control_plane_x86_64": [service_k8s_json],
+        })
 
     compute_images_dict = {}
 

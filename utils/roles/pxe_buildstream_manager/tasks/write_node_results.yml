@@ -1,0 +1,66 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Fail if job_id is not provided
+  ansible.builtin.fail:
+    msg: "{{ bsm_job_id_missing_msg }}"
+  when: job_id is not defined or job_id | length == 0
+
+- name: Set node results directory from job_id
+  ansible.builtin.set_fact:
+    bsm_job_id: "{{ job_id }}"
+    node_results_dir: "/opt/omnia/build_stream_root/artifacts/{{ job_id }}"
+
+- name: Build per-node results (only hosts that were actually PXE booted, not BSM-skipped)
+  ansible.builtin.set_fact:
+    pxe_node_results: >-
+      {{ pxe_node_results | default([]) + [{
+        'bmc_ip': item,
+        'hostname': (pxe_csv_node_map[item]['HOSTNAME'] | default(''))
+                    if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
+        'service_tag': (pxe_csv_node_map[item]['SERVICE_TAG'] | default(''))
+                       if pxe_csv_node_map is defined and item in pxe_csv_node_map else '',
+        'status': 'failed' if (hostvars[item]['reboot_failed'] | default(true)) else 'success',
+        'message': hostvars[item]['reboot_status'] | default('No status available')
+      }] }}
+  loop: "{{ groups['bmc'] | default([]) }}"
+  when: >
+    groups['bmc'] is defined and (groups['bmc'] | length > 0)
+    and not (hostvars[item]['bsm_skip_this_host'] | default(false))
+
+- name: Ensure directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ node_results_dir }}"
+    - "{{ restart_state_dir }}"
+
+- name: Write node_results.json
+  ansible.builtin.copy:
+    content: "{{ node_results_report | to_nice_json }}"
+    dest: "{{ node_results_dir }}/node_results.json"
+    mode: "0644"
+  vars:
+    success_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'success') | list }}"
+    failed_list: "{{ pxe_node_results | default([]) | selectattr('status', 'equalto', 'failed') | list }}"
+    node_results_report:
+      job_id: "{{ bsm_job_id }}"
+      stage_name: "restart"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      total_nodes: "{{ pxe_node_results | default([]) | length }}"
+      success_count: "{{ success_list | length }}"
+      failure_count: "{{ failed_list | length }}"
+      nodes: "{{ pxe_node_results | default([]) }}"

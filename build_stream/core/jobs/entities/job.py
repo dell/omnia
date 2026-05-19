@@ -125,6 +125,22 @@ class Job:
         self.job_state = JobState.FAILED
         self._update_metadata()
 
+    def resume(self) -> None:
+        """Transition job from FAILED back to IN_PROGRESS for retry.
+
+        Raises:
+            InvalidStateTransitionError: If not in FAILED state.
+        """
+        if self.job_state != JobState.FAILED:
+            raise InvalidStateTransitionError(
+                entity_type="Job",
+                entity_id=str(self.job_id),
+                from_state=self.job_state.value,
+                to_state=JobState.IN_PROGRESS.value
+            )
+        self.job_state = JobState.IN_PROGRESS
+        self._update_metadata()
+
     def cancel(self) -> None:
         """Transition job to CANCELLED state.
 

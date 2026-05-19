@@ -14,7 +14,7 @@
 
 """Consolidated NFS-based implementation for input directory and configuration management."""
 
-import logging
+from api.logging_utils import log_secure_info
 import os
 from pathlib import Path
 from typing import Optional
@@ -28,7 +28,6 @@ from core.build_image.repositories import (
 )
 from core.build_image.value_objects import InventoryHost
 
-logger = logging.getLogger(__name__)
 
 # Load configuration to get base path
 try:
@@ -126,11 +125,7 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
         config_path = self._config_file_path
 
         if not config_path.exists():
-            logger.warning(
-                "build_stream_config.yml not found at %s (job %s)",
-                job_id,
-                config_path,
-            )
+            log_secure_info('warning', f"build_stream_config.yml not found at {job_id} (job {config_path})")
             return None
 
         try:
@@ -138,32 +133,22 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
                 config = yaml.safe_load(f)
                 
             if not config:
-                logger.warning("Empty build_stream_config.yml for job %s", job_id)
+                log_secure_info('warning', f"Empty build_stream_config.yml for job {job_id}")
                 return None
                 
             inventory_host = config.get("aarch64_inventory_host_ip")
             if inventory_host:
-                logger.info(
-                    "Retrieved inventory_host for job %s: %s",
-                    job_id,
-                    inventory_host,
-                )
+                log_secure_info('info', f"Retrieved inventory_host for job {job_id}: {inventory_host}")
                 return InventoryHost(str(inventory_host))
             
-            logger.info("No aarch64_inventory_host_ip configured for job %s", job_id)
+            log_secure_info('info', f"No aarch64_inventory_host_ip configured for job {job_id}")
             return None
             
         except yaml.YAMLError as exc:
-            logger.error(
-                "Failed to parse build_stream_config.yml for job %s",
-                job_id,
-            )
+            log_secure_info('error', f"Failed to parse build_stream_config.yml for job {job_id}")
             return None
         except Exception as exc:
-            logger.error(
-                "Unexpected error reading build_stream_config.yml for job %s",
-                job_id,
-            )
+            log_secure_info('error', f"Unexpected error reading build_stream_config.yml for job {job_id}")
             return None
 
     # === Inventory File Methods ===
@@ -196,20 +181,12 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
             with open(inventory_file, "w", encoding="utf-8") as f:
                 f.write(inventory_content)
 
-            logger.info(
-                "Created inventory file for job %s at %s with host %s",
-                job_id,
-                inventory_file,
-                inventory_host.value,
-            )
+            log_secure_info('info', f"Created inventory file for job {job_id} at {inventory_file} with host {inventory_host.value}")
 
             return inventory_file
 
         except (OSError, IOError) as exc:
-            logger.error(
-                "Failed to create inventory file for job %s",
-                job_id,
-            )
+            log_secure_info('error', f"Failed to create inventory file for job {job_id}")
             raise IOError("Cannot create inventory file") from None
 
     # === Input Directory Management Methods ===
@@ -243,12 +220,12 @@ class NfsInputRepository(BuildStreamConfigRepository, BuildImageInventoryReposit
             True if directory is valid and contains at least one file.
         """
         if not path.is_dir():
-            logger.warning("Input directory does not exist: %s", path)
+            log_secure_info('warning', f"Input directory does not exist: {path}")
             return False
 
         has_files = any(path.iterdir())
         if not has_files:
-            logger.warning("Input directory is empty: %s", path)
+            log_secure_info('warning', f"Input directory is empty: {path}")
             return False
 
         return True

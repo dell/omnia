@@ -12,18 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Domain services for ValidateImageOnTest module."""
+"""Domain services for Validate module."""
 
-import logging
+from api.logging_utils import log_secure_info
 
-from core.jobs.value_objects import CorrelationId
-from core.validate.entities import ValidateImageOnTestRequest
+from core.validate.entities import ValidateRequest
 
-logger = logging.getLogger(__name__)
 
 
 class ValidateQueueService:
-    """Service for validate-image-on-test queue operations."""
+    """Service for validate stage queue operations.
+
+    Submits test_automation-based validate requests to the NFS queue
+    for consumption by the Playbook Watcher.
+    """
 
     def __init__(self, queue_repo) -> None:
         """Initialize service with PlaybookQueueRequestRepository.
@@ -35,29 +37,33 @@ class ValidateQueueService:
 
     def submit_request(
         self,
-        request: ValidateImageOnTestRequest,
-        correlation_id: CorrelationId,
+        request: ValidateRequest,
+        correlation_id: str,
     ) -> None:
-        """Submit validate-image-on-test request to queue.
+        """Submit validate request to NFS queue.
 
         Args:
-            request: ValidateImageOnTestRequest to submit.
+            request: ValidateRequest entity to submit.
             correlation_id: Correlation ID for tracing.
 
         Raises:
             QueueUnavailableError: If queue is not accessible.
         """
-        logger.info(
-            "Submitting validate-image-on-test request to queue: "
-            "job_id=%s, correlation_id=%s",
-            request.job_id,
+        log_secure_info(
+            "info",
+            f"Submitting validate request to queue: "
+            f"job_id={request.job_id}, "
+            f"command_type={request.command_type}, "
+            f"scenarios={request.scenario_names}, "
+            f"correlation_id={correlation_id}",
             correlation_id,
         )
         self._queue_repo.write_request(request)
-        logger.info(
-            "Validate-image-on-test request submitted successfully: "
-            "job_id=%s, request_id=%s, correlation_id=%s",
-            request.job_id,
-            request.request_id,
+        log_secure_info(
+            "info",
+            f"Validate request submitted successfully: "
+            f"job_id={request.job_id}, "
+            f"request_id={request.request_id}, "
+            f"correlation_id={correlation_id}",
             correlation_id,
         )

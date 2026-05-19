@@ -1,0 +1,138 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# prepare_upgrade.yml — User-Facing Playbook #1
+# ============================================================================
+# Run AFTER omnia.sh --upgrade completes. Transforms 2.1 inputs to 2.2 format,
+# restores credentials from backup, loads upgrade manifest, validates current
+# deployment, calculates hop chain, updates software_config, and displays
+# upgrade summary for user review.
+#
+# Usage:
+#   ansible-playbook upgrade/prepare_upgrade.yml
+#
+# After this playbook completes, the user should:
+#   1. Review /opt/omnia/input/project_default/ for new/changed fields
+#   2. Review the upgrade summary (hop chain, component versions)
+#   3. Run: ansible-playbook upgrade/upgrade.yml [--tags ...]
+# ============================================================================
+
+- name: Prepare upgrade — transform inputs, manage upgrade configuration, prepare local repo
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
+  roles:
+    - role: ../utils/roles/include_input_dir
+    - role: import_input_parameters
+
+- name: Display post-upgrade preparation banner
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+  tasks:
+    - name: Read provision_config.yml to get pxe_mapping_file_path
+      ansible.builtin.slurp:
+        src: "{{ input_project_dir }}/provision_config.yml"
+      register: provision_config_slurp
+
+    - name: Extract pxe_mapping_filename from provision_config.yml
+      ansible.builtin.set_fact:
+        pxe_mapping_filename: >-
+          {{ (provision_config_slurp.content | b64decode | from_yaml).pxe_mapping_file_path
+             | default('pxe_mapping_file.csv')
+             | regex_replace('^.*/', '') }}
+
+    - name: Display upgrade preparation completion banner
+      ansible.builtin.pause:
+        prompt: |
+
+          ========================================================================
+                    OMNIA 2.1 to 2.2 INPUT PREPARATION COMPLETE
+          ========================================================================
+
+          All input files have been successfully migrated to:
+              {{ input_project_dir }}
+
+          ------------------------------------------------------------------------
+          SECTION 1: AUTOMATICALLY MIGRATED  (no action needed)
+          ------------------------------------------------------------------------
+
+              1.  provision_config.yml          - Copied as-is
+              2.  high_availability_config.yml  - Copied as-is
+              3.  omnia_config.yml              - Cluster settings preserved
+              4.  build_stream_config.yml       - Preserved and validated
+              5.  gitlab_config.yml             - Preserved and validated
+              6.  local_repo_config.yml         - Preserved and validated
+              7.  security_config.yml           - Restored from backup
+              8.  software_config.json          - Restored from backup
+              9.  storage_config.yml            - Preserved and validated
+              10. Credentials                   - Restored and re-encrypted
+
+          ------------------------------------------------------------------------
+          SECTION 2: REVIEW REQUIRED  (new parameters added in 2.2)
+          ------------------------------------------------------------------------
+
+          File 1: network_spec.yml
+              1.  admin_network.subnet              (auto-computed)
+              2.  admin_network.additional_subnets  (multi-RAC PXE)
+              3.  ib_network.dns                    (InfiniBand DNS)
+
+          File 2: storage_config.yml
+              1.  nfs_client_params  is replaced by 'mounts' format
+              2.  mount_params profiles  (nfs_default, vast_nfs, vast_rdma)
+              3.  powervault_config  (now a list with mount_point)
+              4.  swap  (new swap configuration)
+              5.  s3_configurations  (new S3 storage configuration)
+
+          File 3: telemetry_config.yml
+              1.  Restructured to: sources, bridges, sinks architecture
+              2.  telemetry_sources.dcgm           (GPU metrics)
+              3.  telemetry_sources.powerscale     (storage metrics)
+              4.  telemetry_bridges                (vector_ldms, vector_ome)
+              5.  telemetry_sinks.victoria_logs    (centralized logging)
+              6.  additional_metric_remote_write_endpoints
+              7.  additional_log_write_endpoints
+              Note: All new features are DISABLED by default.
+
+          File 4: {{ pxe_mapping_filename }}
+              1.  ib_mac column  (InfiniBand MAC addresses)
+              2.  ib_ip column   (InfiniBand IP addresses)
+              Note: IB fields are empty. Populate manually if using
+                    InfiniBand network for compute nodes.
+
+          ========================================================================
+          NEXT STEPS
+          ========================================================================
+
+              1.  Review the files listed in Section 2 above in:
+                  {{ input_project_dir }}
+
+              2.  Enable any new features you want
+                  (telemetry, storage profiles, IB network, etc.)
+
+              3.  Verify the upgrade summary and hop chain shown above
+
+              4.  Run the upgrade playbook:
+                  ansible-playbook upgrade/upgrade.yml
+
+          ========================================================================
+
+          Press Ctrl+C to continue...

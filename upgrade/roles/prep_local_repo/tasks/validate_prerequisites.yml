@@ -1,0 +1,93 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+---
+
+# ============================================================================
+# Validate prerequisites (with optimization for integrated flow)
+# ============================================================================
+# Reuses current_software_config from manage_upgrade_inputs if available.
+# ============================================================================
+
+- name: "Validate — Check if software config already loaded"
+  ansible.builtin.set_fact:
+    _sw_config_already_loaded: "{{ current_software_config is defined and current_software_config.softwares is defined }}"
+
+- name: "Validate — Reuse existing software config"
+  ansible.builtin.set_fact:
+    _current_software_config: "{{ current_software_config }}"
+  when: _sw_config_already_loaded | bool
+
+- name: "Validate — Load current software_config.json"
+  ansible.builtin.slurp:
+    path: "{{ input_project_dir }}/software_config.json"
+  register: _current_sw_config
+  when: not (_sw_config_already_loaded | bool)
+
+- name: "Validate — Parse software_config.json"
+  ansible.builtin.set_fact:
+    _current_software_config: "{{ _current_sw_config.content | b64decode | from_json }}"
+  when: not (_sw_config_already_loaded | bool)
+
+- name: "Validate — Extract current versions for enabled components"
+  ansible.builtin.set_fact:
+    _current_versions: >-
+      {{ _current_software_config.softwares
+         | selectattr('name', 'in', _enabled_components | map(attribute='key') | list)
+         | items2dict(key_name='name', value_name='version') }}
+
+- name: "Validate — Verify current versions exist for enabled components"
+  ansible.builtin.assert:
+    that:
+      - _current_versions[item.key] is defined
+    fail_msg: |
+      Current version not found for {{ item.key }}!
+      In software_config.json: {{ _current_versions[item.key] | default('not found') }}
+      Component must be deployed before upgrade.
+    success_msg: "  {{ item.key }}: {{ _current_versions[item.key] }}"
+  loop: "{{ _enabled_components }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: "Validate — Check current version JSON files exist in input directory"
+  ansible.builtin.stat:
+    path: >-
+      {{ input_project_dir }}/config/{{ item.1 }}/{{
+      _current_software_config.cluster_os_type }}/{{
+      _current_software_config.cluster_os_version }}/{{
+      item.0.key }}_v{{ _current_versions[item.0.key] }}.json
+  register: _json_file_check
+  loop: "{{ _enabled_components | product(upgrade_active_architectures) | list }}"
+  loop_control:
+    label: "{{ item.0.key }} ({{ item.1 }})"
+  when: _current_versions[item.0.key] is defined
+
+- name: "Validate — Verify JSON files exist"
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+    fail_msg: |
+      JSON file not found: {{ item.invocation.module_args.path }}
+      Expected naming: {{ item.item.0.key }}_v{{ _current_versions[item.item.0.key] }}.json
+      Ensure the versioned JSON file exists in input/config directory.
+  loop: "{{ _json_file_check.results }}"
+  loop_control:
+    label: "{{ item.invocation.module_args.path | basename }}"
+  when: item.stat is defined
+
+- name: "Validate — Check repos.yml exists"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/../../artifacts/repos.yml"
+  register: _repos_yml_stat
+
+- name: "Validate — Warn if repos.yml not found"
+  ansible.builtin.debug:
+    msg: "Warning: repos.yml not found at {{ role_path }}/../../artifacts/repos.yml - upgrade repos may not be available"
+  when: not _repos_yml_stat.stat.exists
+
+- name: "Validate — Display validation summary"
+  ansible.builtin.debug:
+    msg:
+      - "  Prerequisites validated"
+      - "  - Current versions verified for: {{ _enabled_components | map(attribute='key') | list | join(', ') }}"
+      - "  - JSON files exist in input directory"
+      - "  - repos.yml: {{ 'found' if _repos_yml_stat.stat.exists else 'not found' }}"
+      - "  - Config source: {{ 'reused from manage_upgrade_inputs' if (_sw_config_already_loaded | bool) else 'loaded fresh' }}"

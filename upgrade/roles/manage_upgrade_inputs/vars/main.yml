@@ -1,0 +1,6 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+---
+
+# Default architectures
+upgrade_active_architectures:
+  - x86_64

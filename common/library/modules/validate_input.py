@@ -184,6 +184,23 @@ def main():
     # Run L1 and L2 validation if user included a tag and extra var files.
     # Or user only had tags and no extra var files.
     error_bucket = []
+    
+    # Check if build_stream is enabled to determine if GitLab validation should run
+    skip_gitlab_validation = False
+    build_stream_config_path = os.path.join(omnia_base_dir, project_name, "build_stream_config.yml")
+    if os.path.exists(build_stream_config_path):
+        try:
+            build_stream_data, _ = fetch.input_data(
+                build_stream_config_path, omnia_base_dir, project_name, logger, module
+            )
+            if build_stream_data:
+                enable_build_stream = build_stream_data.get("enable_build_stream", False)
+                if not enable_build_stream:
+                    skip_gitlab_validation = True
+                    logger.info("build_stream is disabled, skipping gitlab_config.yml validation")
+        except Exception as e:
+            logger.warning(f"Failed to check build_stream status: {e}")
+    
     for tag_name in tag_names:
         for name in input_file_inventory.get(tag_name, []):
             fname, _ = os.path.splitext(name)
@@ -199,6 +216,12 @@ def main():
                 module.fail_json(msg=error_message)
 
             input_file_path = input_file_dict.get(name)
+
+            # Skip gitlab_config.yml validation if build_stream is disabled
+            # This check happens after file lookup to handle both missing and existing files
+            if skip_gitlab_validation and name == "gitlab_config.yml":
+                logger.info("Skipping gitlab_config.yml validation (build_stream disabled)")
+                continue
 
             if input_file_path is None:
                 error_message = (
