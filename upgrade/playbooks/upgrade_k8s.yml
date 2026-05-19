@@ -15,6 +15,90 @@
 # NOTE: input_project_dir is defined in each play's vars section.
 # To override, use: --extra-vars "input_project_dir=/custom/path"
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Pre-check: Verify service_k8s is configured before proceeding
+# ══════════════════════════════════════════════════════════════════════════════
+- name: "Kubernetes Upgrade - Pre-check service_k8s configuration"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    oim_data_path: "/opt/omnia/.data"
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: k8s
+
+  tasks:
+    - name: "Load upgrade_vars.yml for supported versions"
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
+
+    - name: "Load software_config.json"
+      ansible.builtin.slurp:
+        path: "{{ input_project_dir }}/software_config.json"
+      register: _sw_config_slurp
+
+    - name: "Parse software_config.json"
+      ansible.builtin.set_fact:
+        _software_config: "{{ _sw_config_slurp.content | b64decode | from_json }}"
+
+    - name: "Check if service_k8s is configured in software_config.json"
+      ansible.builtin.set_fact:
+        k8s_upgrade_enabled: "{{ _software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+
+    - name: "Extract K8s version from software_config.json"
+      ansible.builtin.set_fact:
+        _k8s_version_in_config: "{{ _software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | map(attribute='version') | first }}"
+        _k8s_supported_version: "{{ components.service_k8s.supported_versions | last }}"
+      when: k8s_upgrade_enabled
+
+    - name: "Validate K8s version is supported"
+      ansible.builtin.fail:
+        msg: |
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] UNSUPPORTED K8s VERSION
+          ════════════════════════════════════════════════════════════════════════
+          Version in software_config.json: {{ _k8s_version_in_config }}
+          Supported version for upgrade:   {{ _k8s_supported_version }}
+
+          Only K8s version {{ _k8s_supported_version }} is supported for upgrade.
+          Please update software_config.json to use version {{ _k8s_supported_version }}.
+          ════════════════════════════════════════════════════════════════════════
+      when:
+        - k8s_upgrade_enabled
+        - _k8s_version_in_config != _k8s_supported_version
+
+    - name: "Load upgrade manifest"
+      ansible.builtin.set_fact:
+        manifest: "{{ lookup('file', manifest_path) | from_yaml }}"
+      ignore_errors: true
+      register: manifest_load
+
+    - name: "Mark as skipped — service_k8s not configured"
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when:
+        - not k8s_upgrade_enabled
+        - manifest_load is succeeded
+
+    - name: "Display skip message — service_k8s not configured"
+      ansible.builtin.debug:
+        msg: |
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] Component '{{ component_name }}' — SKIPPED
+          ════════════════════════════════════════════════════════════════════════
+          Reason: service_k8s is not present in software_config.json softwares list.
+          K8s cluster was not provisioned, skipping K8s upgrade.
+          ════════════════════════════════════════════════════════════════════════
+      when: not k8s_upgrade_enabled
+
 - name: "Kubernetes Upgrade - Load Configuration & Version Detection"
   hosts: localhost
   connection: local
@@ -26,6 +110,10 @@
     component_name: k8s
 
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: "Load upgrade_vars.yml"
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
@@ -40,21 +128,51 @@
       ignore_errors: true
       register: manifest_load
 
+    - name: "Fail if upgrade manifest does not exist"
+      ansible.builtin.fail:
+        msg: |
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] UPGRADE MANIFEST NOT FOUND
+          ════════════════════════════════════════════════════════════════════════
+          The upgrade manifest file does not exist at:
+            {{ oim_data_path }}/upgrade_manifest.yml
+
+          This file is required to verify prerequisite components are completed.
+          Please run: ansible-playbook upgrade/upgrade.yml
+          ════════════════════════════════════════════════════════════════════════
+      when: manifest_load is failed
+
     - name: "Skip if already completed"
       ansible.builtin.meta: end_play
       when:
         - manifest_load is succeeded
         - manifest.component_status.k8s | default('pending') == 'completed'
 
-    - name: "Verify OIM dependency"
+    - name: "Verify component dependencies"
       ansible.builtin.fail:
         msg: |
-          K8s upgrade requires OIM component to be completed first.
-          Current OIM status: {{ manifest.component_status.oim | default('pending') }}
-          Please run: ansible-playbook upgrade/upgrade.yml --tags oim
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] MISSING PREREQUISITE COMPONENTS
+          ════════════════════════════════════════════════════════════════════════
+          K8s upgrade requires the following components to be completed first:
+            - OIM
+            - provision
+            - local_repo
+            - build_image
+
+          Current component status:
+            - OIM: {{ manifest.component_status.oim | default('pending') }}
+            - provision: {{ manifest.component_status.provision | default('pending') }}
+            - local_repo: {{ manifest.component_status.local_repo | default('pending') }}
+            - build_image: {{ manifest.component_status.build_image | default('pending') }}
+
+          Please run: ansible-playbook upgrade/upgrade.yml
+          ════════════════════════════════════════════════════════════════════════
       when:
-        - manifest_load is succeeded
-        - manifest.component_status.oim | default('pending') != 'completed'
+        - manifest.component_status.oim | default('pending') != 'completed' or
+          manifest.component_status.provision | default('pending') != 'completed' or
+          manifest.component_status.local_repo | default('pending') != 'completed' or
+          manifest.component_status.build_image | default('pending') != 'completed'
 
     - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
       ansible.builtin.copy:
@@ -122,6 +240,10 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: "Load HA config"
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/high_availability_config.yml"
@@ -148,6 +270,10 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Cache storage_config.yml
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/storage_config.yml"
@@ -172,6 +298,10 @@
   hosts: kube_vip_group
   gather_facts: false
   pre_tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: "Verify SSH connectivity to kube_vip"
       ansible.builtin.wait_for_connection:
         delay: 5
@@ -204,6 +334,10 @@
   connection: local
   gather_facts: false
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: "Load upgrade_vars.yml"
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
@@ -239,6 +373,10 @@
   gather_facts: false
   strategy: linear
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Load variables from file
       ansible.builtin.include_vars:
         file: /tmp/k8s_vars.yml
@@ -272,6 +410,10 @@
   hosts: kube_vip_group
   gather_facts: false
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Get current cluster version
       ansible.builtin.command: /usr/bin/kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}'
       register: cluster_version_raw
@@ -289,6 +431,10 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Use cached storage_config
       ansible.builtin.set_fact:
         storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
@@ -331,6 +477,10 @@
     status_file: "{{ hostvars[kube_vip]['k8s_client_mount_path_kube_vip'] }}/upgrade/upgrade_status.yml"
     kube_vip: "{{ hostvars[kube_vip]['ansible_host'] }}"
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Use cached storage_config
       ansible.builtin.set_fact:
         storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
@@ -583,6 +733,10 @@
     group_cp: "service_kube_control_plane_x86_64"
     group_worker: "service_kube_node_x86_64"
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Use cached storage_config
       ansible.builtin.set_fact:
         storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
@@ -715,6 +869,10 @@
     input_project_dir: "/opt/omnia/input/project_default"
     cluster_os_version: "{{ _software_config.cluster_os_version }}"
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Load variables from file
       ansible.builtin.include_vars:
         file: /tmp/k8s_vars.yml
@@ -762,6 +920,10 @@
     k8s_client_mount_path: "{{ hostvars[groups.kube_vip_group[0]]['k8s_client_mount_path_kube_vip'] }}"
     kube_vip: "{{ hostvars[groups.kube_vip_group[0]]['ansible_host'] }}"
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Set backup paths from hostvars
       ansible.builtin.set_fact:
         k8s_config_backup_dir: "{{ hostvars['localhost']['k8s_config_backup_dir'] }}"
@@ -777,6 +939,10 @@
     input_project_dir: "/opt/omnia/input/project_default"
     oim_provision_path: "/opt/omnia/provision"
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Load software_config.json
       ansible.builtin.slurp:
         path: "{{ input_project_dir }}/software_config.json"
@@ -879,6 +1045,10 @@
   gather_facts: false
   strategy: linear
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Deploy upgrade repo file to node
       ansible.builtin.copy:
         content: "{{ hostvars['localhost']['repo_content'] }}"
@@ -1068,6 +1238,10 @@
     input_project_dir: "/opt/omnia/input/project_default"
     cluster_os_version: "{{ _software_config.cluster_os_version }}"
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Load omnia_config.yml
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/omnia_config.yml"
@@ -1079,7 +1253,7 @@
 
     - name: Call upgrade_k8s role
       ansible.builtin.include_role:
-        name: ../upgrade/roles/upgrade_k8s
+        name: ../roles/upgrade_k8s
 
 - name: "Kubernetes Upgrade - Post-Validation"
   hosts: localhost
@@ -1091,6 +1265,10 @@
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: k8s
   tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
     - name: Load HA config
       ansible.builtin.include_vars:
         file: "{{ input_project_dir }}/high_availability_config.yml"

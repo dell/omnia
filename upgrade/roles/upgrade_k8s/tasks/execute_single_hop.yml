@@ -251,6 +251,85 @@
       failed_when: first_cp_result.rc != 0
       when: upgrade_status.upgrade.status != 'completed'
 
+    # ── Update cloud-init and BSS for first control plane ─────────────
+    - name: "Hop — Set BSS status to in_progress for service_kube_control_plane_first"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_control_plane_first:
+              status: in_progress
+              started_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane_first.status | default('pending') != 'completed'
+
+    - name: "Hop — Update cloud-init and BSS for service_kube_control_plane_first_x86_64"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/update_k8s_cloud_init_bss.yml
+          -e functional_group_name=service_kube_control_plane_first_x86_64
+          2>&1 | tee /tmp/update_bss_cp_first.log
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: bss_cp_first_result
+      changed_when: true
+      failed_when: bss_cp_first_result.rc != 0
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane_first.status | default('pending') != 'completed'
+
+    - name: "Hop — Set BSS status to completed for service_kube_control_plane_first"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_control_plane_first:
+              status: completed
+              completed_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - bss_cp_first_result is defined
+        - bss_cp_first_result is not skipped
+        - bss_cp_first_result.rc == 0
+
+    # ── Reboot first control plane and verify cloud-init ─────────────
+    - name: "Hop — Reboot first control plane and wait for cloud-init"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/reboot_and_verify_cloud_init.yml
+          -i {{ k8s_upgrade_inventory }}
+          -e target_host={{ groups_cp_first[0] }}
+          -e cloud_init_timeout={{ cloud_init_timeout | default(600) }}
+          2>&1 | tee /tmp/reboot_cp_first.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: reboot_cloud_init_first_cp_result
+      changed_when: true
+      failed_when: reboot_cloud_init_first_cp_result.rc != 0
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - bss_cp_first_result is defined
+        - bss_cp_first_result is not skipped
+        - bss_cp_first_result.rc == 0
+        - groups_cp_first | length > 0
+
+    - name: "Hop — Display cloud-init verification success for first control plane"
+      ansible.builtin.debug:
+        msg: "Cloud-init completed successfully on first control plane {{ groups_cp_first[0] }} after reboot"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - reboot_cloud_init_first_cp_result is defined
+        - reboot_cloud_init_first_cp_result is not skipped
+        - reboot_cloud_init_first_cp_result.rc == 0
+
     - name: "Hop — Starting additional control planes upgrade"
       ansible.builtin.debug:
         msg: >-
@@ -286,6 +365,52 @@
       changed_when: true
       failed_when: additional_cp_result.rc != 0
       when: upgrade_status.upgrade.status != 'completed'
+
+    # ── Update cloud-init and BSS for additional control planes ───────
+    - name: "Hop — Set BSS status to in_progress for service_kube_control_plane"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_control_plane:
+              status: in_progress
+              started_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
+
+    - name: "Hop — Update cloud-init and BSS for service_kube_control_plane_x86_64"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/update_k8s_cloud_init_bss.yml
+          -e functional_group_name=service_kube_control_plane_x86_64
+          2>&1 | tee /tmp/update_bss_cp_additional.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: bss_cp_additional_result
+      changed_when: true
+      failed_when: bss_cp_additional_result.rc != 0
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
+
+    - name: "Hop — Set BSS status to completed for service_kube_control_plane"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_control_plane:
+              status: completed
+              completed_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - bss_cp_additional_result is defined
+        - bss_cp_additional_result is not skipped
+        - bss_cp_additional_result.rc == 0
 
     - name: "Hop — Control plane upgrades complete"
       ansible.builtin.debug:
@@ -430,6 +555,52 @@
       changed_when: true
       failed_when: workers_result.rc != 0
       when: upgrade_status.upgrade.status != 'completed'
+
+    # ── Update cloud-init and BSS for workers ─────────────────────────
+    - name: "Hop — Set BSS status to in_progress for service_kube_node"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_node:
+              status: in_progress
+              started_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_node.status | default('pending') != 'completed'
+
+    - name: "Hop — Update cloud-init and BSS for service_kube_node_x86_64"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/update_k8s_cloud_init_bss.yml
+          -e functional_group_name=service_kube_node_x86_64
+          2>&1 | tee /tmp/update_bss_workers.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: bss_workers_result
+      changed_when: true
+      failed_when: bss_workers_result.rc != 0
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_node.status | default('pending') != 'completed'
+
+    - name: "Hop — Set BSS status to completed for service_kube_node"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_node:
+              status: completed
+              completed_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - bss_workers_result is defined
+        - bss_workers_result is not skipped
+        - bss_workers_result.rc == 0
 
     # ── Post-validation ──────────────────────────────────────────────
     - name: "Hop — Run post-validation"

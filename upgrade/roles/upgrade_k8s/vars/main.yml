@@ -71,6 +71,9 @@ addon_rollout_timeout: 300
 apiserver_wait_timeout: 300
 apiserver_wait_delay: 10
 apiserver_wait_retries: 30
+cloud_init_timeout: 600
+reboot_timeout: 600
+reboot_connect_timeout: 300
 
 # ---------------------------------------------------------------------------
 # Worker rolling-upgrade parallelism
@@ -197,5 +200,11 @@ msg_upgrade_complete: >-
 msg_bss_update_failed: >-
   BSS update for group {{ bss_group }} failed. Nodes will boot old
   image on reboot until BSS is updated manually.
+msg_cloud_init_timeout: >-
+  Cloud-init did not complete within {{ cloud_init_timeout }} seconds.
+  Check /var/log/cloud-init-output.log on the node for details.
+msg_cloud_init_failed: >-
+  Cloud-init did not complete successfully on node {{ current_node_name }}.
+  Check /var/log/cloud-init-output.log for details.
 msg_rollback_etcd_binary_failed: >-
   Saved etcdctl binary failed. Falling back to podman-based restore.
