@@ -92,7 +92,7 @@ mounts:
   - name: {{ slurm_nfs_client_params.nfs_name }}
     source: "{{ slurm_nfs_client_params.server_ip | default('') }}:{{ slurm_nfs_client_params.server_share_path | default('') }}"
     mount_point: {{ slurm_nfs_client_params.client_share_path }}
-    mount_opts: "{{ slurm_nfs_client_params.client_mount_options | default('nosuid,rw,sync,hard,intr') }}"
+    mnt_opts: "{{ slurm_nfs_client_params.client_mount_options | default('nosuid,rw,sync,hard,intr') }}"
     fs_type: "nfs"
     mount_on_oim: true
     functional_group_prefix: ["slurm", "login"]
@@ -101,7 +101,7 @@ mounts:
   - name: {{ k8s_nfs_client_params.nfs_name }}
     source: "{{ k8s_nfs_client_params.server_ip | default('') }}:{{ k8s_nfs_client_params.server_share_path | default('') }}"
     mount_point: {{ k8s_nfs_client_params.client_share_path }}
-    mount_opts: "{{ k8s_nfs_client_params.client_mount_options | default('nosuid,rw,sync,hard,intr') }}"
+    mnt_opts: "{{ k8s_nfs_client_params.client_mount_options | default('nosuid,rw,sync,hard,intr') }}"
     fs_type: "nfs"
     mount_on_oim: true
     functional_group_prefix: ["service_kube"]

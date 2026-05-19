@@ -277,12 +277,12 @@ def cleanup_repository(name: str, base_path: str, logger) -> Dict[str, Any]:
         return result
 
     try:
-        # Delete distributions
+        # Delete distributions (exact name match only to avoid deleting unrelated distributions)
         dist_list = run_cmd(pulp_rpm_commands["list_distributions"], logger)
         if dist_list["rc"] == 0:
             dists = safe_json_parse(dist_list["stdout"])
             for d in dists:
-                if d.get('name', '') == name or name in d.get('name', ''):
+                if d.get('name', '') == name:
                     run_cmd(pulp_rpm_commands["delete_distribution"] % d.get('name', ''), logger)
 
         # Delete publications
@@ -1282,6 +1282,7 @@ def remove_repos_from_pulp_repo_file(cleaned_repos: List[str], pulp_repo_file: s
 
         kept_blocks: List[str] = []
         removed = 0
+        found_normalized = set()
         for idx, m in enumerate(matches):
             section_name = m.group(1).strip()
             start = m.start()
@@ -1293,10 +1294,16 @@ def remove_repos_from_pulp_repo_file(cleaned_repos: List[str], pulp_repo_file: s
             normalized_section = section_name.replace('-', '_')
             if normalized_section in repo_names:
                 removed += 1
+                found_normalized.add(normalized_section)
                 logger.info(f"Removed repo stanza [{section_name}] from {pulp_repo_file}")
                 continue
 
             kept_blocks.append(block.rstrip() + "\n\n")
+
+        # Log repos that were cleaned but had no stanza in pulp.repo
+        missing = repo_names - found_normalized
+        for m_name in sorted(missing):
+            logger.info(f"No stanza found for [{m_name}] in {pulp_repo_file} (repo had no distribution)")
 
         new_content = "".join(kept_blocks).strip() + "\n" if kept_blocks else ""
         if not new_content.strip():
