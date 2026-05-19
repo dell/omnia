@@ -18,6 +18,12 @@
     file: "{{ telemetry_config_file_path }}"
     name: telemetry_config
 
+- name: Include telemetry storage configuration file
+  ansible.builtin.include_vars:
+    file: "{{ telemetry_storage_config_file }}"
+    name: telemetry_storage_config
+  failed_when: false
+
 - name: Read telemetry packages from software config
   ansible.builtin.include_tasks: read_software_config.yml
 
