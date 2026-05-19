@@ -760,6 +760,9 @@ class ResultPoller:
             )
             self._artifact_metadata_repo.save(record)
 
+            if hasattr(self._artifact_metadata_repo, 'session'):
+                self._artifact_metadata_repo.session.commit()
+
             log_secure_info(
                 "info",
                 f"Restart node_results persisted as artifact for "

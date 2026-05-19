@@ -903,11 +903,31 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
         # Per spec 12.4: node_results.json is at BUILD_STREAM_ROOT/artifacts/<job_id>/
         if stage_name == "restart":
             node_results_path = ARTIFACTS_DIR / job_id / "node_results.json"
+            failed_nodes_path = ARTIFACTS_DIR / job_id / "failed_nodes.json"
             if node_results_path.exists():
                 result_data["node_results_file_path"] = str(node_results_path)
                 log_secure_info(
                     "info",
                     "Node results file found for restart stage",
+                    job_id
+                )
+            else:
+                log_secure_info(
+                    "warning",
+                    f"node_results.json NOT found at {node_results_path} for restart stage. "
+                    f"Playbook may have failed before BSM post-processing (Play 8).",
+                    job_id
+                )
+            if failed_nodes_path.exists():
+                log_secure_info(
+                    "info",
+                    "failed_nodes.json found for restart stage",
+                    job_id
+                )
+            else:
+                log_secure_info(
+                    "warning",
+                    f"failed_nodes.json NOT found at {failed_nodes_path} for restart stage.",
                     job_id
                 )
 
