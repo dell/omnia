@@ -64,7 +64,7 @@
       build_stream: [oim]
       build_image: [oim]
       provision: [oim, build_image]
-      k8s: [oim]
+      k8s: [oim, provision, local_repo, build_image]
       telemetry: [oim, k8s]
       slurm: [oim, k8s]
   tasks:
