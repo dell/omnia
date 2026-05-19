@@ -376,7 +376,6 @@ deploy:
   artifacts:
     reports:
       dotenv: deploy.env
-      junit: test-results.xml
     paths:
       - status_response.json
 
@@ -793,21 +792,12 @@ validate:
       printf "  %-22s %s\n" "Validate State:" "${VALIDATE_RESULT}"
       printf "  %-22s %s\n" "Job State:"      "${JOB_STATE_VALIDATE}"
 
-      # Extract and display test summary
+      # Extract and display test summary (raw JSON from API)
       TEST_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
       if [ -n "${TEST_SUMMARY}" ]; then
         echo "  ------------------------------------------------------------"
         echo "  Test Summary:"
-        TOTAL=$(echo "${TEST_SUMMARY}" | jq -r '.total // 0')
-        PASSED=$(echo "${TEST_SUMMARY}" | jq -r '.passed // 0')
-        FAILED=$(echo "${TEST_SUMMARY}" | jq -r '.failed // 0')
-        SKIPPED=$(echo "${TEST_SUMMARY}" | jq -r '.skipped // 0')
-        ERRORS=$(echo "${TEST_SUMMARY}" | jq -r '.errors // 0')
-        printf "  %-22s %s\n" "Total Tests:"    "${TOTAL}"
-        printf "  %-22s %s\n" "Passed:"         "${PASSED}"
-        printf "  %-22s %s\n" "Failed:"         "${FAILED}"
-        printf "  %-22s %s\n" "Skipped:"        "${SKIPPED}"
-        printf "  %-22s %s\n" "Errors:"         "${ERRORS}"
+        echo "${TEST_SUMMARY}" | jq '.'
       fi
 
       # Display artifact directory if available
