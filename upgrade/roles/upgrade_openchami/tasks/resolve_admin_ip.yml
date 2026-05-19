@@ -1,0 +1,105 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# resolve_admin_ip.yml — Resolve OpenCHAMI API Endpoints via podman inspect
+# ============================================================================
+# Dynamically discovers SMD and BSS container IP addresses and ports from the
+# running containers on the OIM using `podman inspect`. This avoids reliance
+# on admin_nic_ip or hardcoded localhost:8443 and reads the actual runtime
+# network state.
+#
+# Sets facts:
+#   smd_container_ip, smd_container_port  — SMD container network address
+#   bss_container_ip, bss_container_port  — BSS container network address
+#   openchami_smd_endpoint                — Full SMD base URL (http://ip:port/hsm/v2)
+#   openchami_bss_endpoint                — Full BSS base URL (http://ip:port/boot/v1)
+#
+# These facts override the vars/main.yml defaults so all downstream tasks
+# use the correct, dynamically discovered endpoints.
+# ============================================================================
+
+- name: Discover OpenCHAMI endpoints from running containers
+  block:
+    # ── Get SMD container IP and port ───────────────────────────────────
+    - name: Get SMD container IP address
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman inspect -f '{% raw %}{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}{% endraw %}' smd
+      register: _smd_ip_result
+      changed_when: false
+      failed_when: _smd_ip_result.rc != 0 or _smd_ip_result.stdout | trim | length == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Get SMD container port
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman inspect -f '{% raw %}{{range $k, $v := .NetworkSettings.Ports}}{{$k}}{{end}}{% endraw %}' smd | sed 's|/tcp||'
+      register: _smd_port_result
+      changed_when: false
+      failed_when: _smd_port_result.rc != 0 or _smd_port_result.stdout | trim | length == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Get BSS container IP and port ───────────────────────────────────
+    - name: Get BSS container IP address
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman inspect -f '{% raw %}{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}{% endraw %}' bss
+      register: _bss_ip_result
+      changed_when: false
+      failed_when: _bss_ip_result.rc != 0 or _bss_ip_result.stdout | trim | length == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Get BSS container port
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman inspect -f '{% raw %}{{range $k, $v := .NetworkSettings.Ports}}{{$k}}{{end}}{% endraw %}' bss | sed 's|/tcp||'
+      register: _bss_port_result
+      changed_when: false
+      failed_when: _bss_port_result.rc != 0 or _bss_port_result.stdout | trim | length == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Set endpoint facts ──────────────────────────────────────────────
+    - name: Set OpenCHAMI endpoint facts from container inspection
+      ansible.builtin.set_fact:
+        smd_container_ip: "{{ _smd_ip_result.stdout | trim }}"
+        smd_container_port: "{{ _smd_port_result.stdout | trim }}"
+        bss_container_ip: "{{ _bss_ip_result.stdout | trim }}"
+        bss_container_port: "{{ _bss_port_result.stdout | trim }}"
+        openchami_smd_endpoint: "http://{{ _smd_ip_result.stdout | trim }}:{{ _smd_port_result.stdout | trim }}/hsm/v2"
+        openchami_bss_endpoint: "http://{{ _bss_ip_result.stdout | trim }}:{{ _bss_port_result.stdout | trim }}/boot/v1"
+
+    - name: Display discovered OpenCHAMI endpoints
+      ansible.builtin.debug:
+        msg:
+          - "SMD endpoint: {{ openchami_smd_endpoint }} ({{ smd_container_ip }}:{{ smd_container_port }})"
+          - "BSS endpoint: {{ openchami_bss_endpoint }} ({{ bss_container_ip }}:{{ bss_container_port }})"
+
+  rescue:
+    - name: Warn that container endpoint discovery failed
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Could not discover SMD/BSS endpoints via podman inspect.
+          Containers may not be running yet. Falling back to vars/main.yml defaults.
+          SMD endpoint: {{ openchami_smd_endpoint | default('not set') }}
+          BSS endpoint: {{ openchami_bss_endpoint | default('not set') }}

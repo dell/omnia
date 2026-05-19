@@ -49,6 +49,9 @@
 - name: Transform pxe_mapping_file.csv from Omnia 2.1 to 2.2
   ansible.builtin.include_tasks: transform_pxe_mapping_file.yml
 
+- name: Transform software_config.json from Omnia 2.1 to 2.2
+  ansible.builtin.include_tasks: transform_software_config.yml
+
 - name: Restore input files from backup
   ansible.builtin.include_tasks: restore_input_files.yml
 

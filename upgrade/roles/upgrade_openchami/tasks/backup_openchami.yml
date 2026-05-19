@@ -1,0 +1,278 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# backup_openchami.yml — Pre-Upgrade PostgreSQL Backup for OpenCHAMI
+# ============================================================================
+# Dumps the PostgreSQL hmsds database BEFORE the container upgrade begins.
+# Used for rollback recovery if upgrade fails.
+#
+# NOTE: File-level backups (openchami_data/, quadlets/, openchami.target)
+# are handled by omnia.sh --upgrade (backup_openchami_data function) during
+# Phase 3 backup creation. This playbook only handles the PostgreSQL dump
+# which requires podman exec into the running postgres container.
+#
+# Execution context:
+#   This playbook runs INSIDE the omnia_core container where /opt/omnia
+#   is bind-mounted from the OIM shared path.
+#   DELEGATED tasks (podman) run on the OIM host via SSH.
+#
+# Backup structure (this playbook only creates postgresql_backup):
+#   {{ openchami_backup_dir }}/openchami/
+#     postgresql_backup/openchami.sql   - pg_dump of hmsds database
+#   {{ openchami_backup_dir }}/openchami_backup_manifest.yml
+#
+# Already created by omnia.sh --upgrade:
+#     openchami_data/                   - full copy of /opt/omnia/openchami/
+#     quadlets/                         - all .container quadlet unit files
+#     openchami.target                  - systemd target unit
+# ============================================================================
+
+- name: Pre-upgrade OpenCHAMI backup
+  block:
+    # ── Resolve backup directory from upgrade manifest ─────────────────
+    - name: Read upgrade_manifest.yml for backup_dir
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: backup_raw_manifest
+
+    - name: Parse manifest and set backup directory
+      ansible.builtin.set_fact:
+        backup_manifest: "{{ backup_raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Set backup base directory
+      ansible.builtin.set_fact:
+        openchami_backup_dir: "{{ backup_manifest.backup_dir | default(openchami_backup_dir_default) }}"
+
+    # ── Resolve OIM shared path for host-side backup writes ──────────
+    # omnia_core bind mount: ${oim_shared_path}/omnia → /opt/omnia
+    # Delegated tasks must write to the host-side path so files land on
+    # the shared filesystem (visible from both OIM host and container).
+    - name: Read oim_metadata.yml for shared path
+      ansible.builtin.slurp:
+        src: "{{ oim_metadata_path }}"
+      register: backup_oim_metadata_raw
+
+    - name: Parse oim_shared_path from metadata
+      ansible.builtin.set_fact:
+        oim_shared_path: "{{ (backup_oim_metadata_raw.content | b64decode | from_yaml).oim_shared_path }}"
+
+    - name: Compute OIM host-side backup directory
+      ansible.builtin.set_fact:
+        oim_host_backup_dir: "{{ openchami_backup_dir | regex_replace('^/opt/omnia', oim_shared_path ~ '/omnia') }}"
+
+    - name: Display path mapping
+      ansible.builtin.debug:
+        msg:
+          - "Container backup path: {{ openchami_backup_dir }}"
+          - "OIM host backup path:  {{ oim_host_backup_dir }}"
+          - "Shared path base:      {{ oim_shared_path }}"
+
+    # ── Create backup directory for PostgreSQL dump ─────────────────
+    # File-level backups (openchami_data/, quadlets/, openchami.target)
+    # are already performed by omnia.sh --upgrade (backup_openchami_data).
+    # This playbook only handles the PostgreSQL dump which requires
+    # podman exec into the postgres container.
+    - name: Create PostgreSQL backup directory (local — inside omnia_core)
+      ansible.builtin.file:
+        path: "{{ openchami_backup_dir }}/openchami/postgresql_backup"
+        state: directory
+        mode: "{{ dir_permissions_755 }}"
+
+    - name: Create PostgreSQL backup directory (OIM host — shared path)
+      ansible.builtin.file:
+        path: "{{ oim_host_backup_dir }}/openchami/postgresql_backup"
+        state: directory
+        mode: "{{ dir_permissions_755 }}"
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Retrieve PostgreSQL credentials if not already set ─────────────
+    - name: Retrieve PostgreSQL credentials
+      ansible.builtin.include_tasks: retrieve_postgres_credentials.yml
+
+    # ── Verify disk space for pg_dump (df on backup target) ────────────
+    # /opt/omnia is bind-mounted — df works locally inside omnia_core.
+    - name: Check available disk space on backup target
+      ansible.builtin.shell: |
+        set -o pipefail
+        df -BG "/opt/omnia" | tail -1 | awk '{print $4}' | sed 's/G//'
+      register: backup_disk_space_gb
+      changed_when: false
+
+    - name: Get current PostgreSQL database size
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres psql -U {{ postgres_db_user }} -d {{ postgres_db_name }} -t -c \
+          "SELECT pg_size_pretty(pg_database_size('{{ postgres_db_name }}'));" 2>/dev/null || echo "unknown"
+      register: postgres_db_size
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Display disk space status
+      ansible.builtin.debug:
+        msg:
+          - "Backup target: {{ openchami_backup_dir }}"
+          - "Available space: {{ backup_disk_space_gb.stdout | default('unknown') | trim }}GB"
+          - "PostgreSQL database size: {{ postgres_db_size.stdout | default('unknown') | trim }}"
+
+    - name: Verify sufficient disk space for backup
+      ansible.builtin.assert:
+        that:
+          - (backup_disk_space_gb.stdout | default('0') | trim | int) >= 5
+        fail_msg: |
+          Insufficient disk space for backup!
+          Available: {{ backup_disk_space_gb.stdout | default('0') | trim }}GB
+          Minimum required: 5GB
+          Please free up space on /opt/omnia before proceeding.
+        success_msg: "Sufficient disk space available for backup ({{ backup_disk_space_gb.stdout | default('0') | trim }}GB)"
+
+    # ── PostgreSQL pg_dump ─────────────────────────────────────────────
+    # Dump the hmsds database inside the postgres container, then copy
+    # the SQL file to the OIM host-side shared backup path.
+    # For prepare_oim-only scenarios the DB may be empty — pg_dump still
+    # produces a valid (small) SQL file with schema definitions.
+    #
+    # Flow: podman exec pg_dump (in postgres container)
+    #       → podman cp (postgres → OIM host shared backup path)
+    #       → cleanup temp inside postgres container
+    - name: Dump PostgreSQL hmsds database inside container
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres pg_dump -U {{ postgres_db_user }} -d {{ postgres_db_name }} --clean --if-exists \
+          -f /tmp/openchami_pre_upgrade.sql 2>&1
+      register: pgdump_result
+      changed_when: pgdump_result.rc == 0
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Copy pg_dump from postgres container to shared backup path
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman cp postgres:/tmp/openchami_pre_upgrade.sql \
+          "{{ oim_host_backup_dir }}/openchami/postgresql_backup/openchami.sql"
+      register: pgdump_copy_result
+      changed_when: pgdump_copy_result.rc == 0
+      failed_when: false
+      when: pgdump_result.rc == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Create empty backup marker if pg_dump failed
+      ansible.builtin.copy:
+        content: |
+          -- pg_dump skipped or failed (rc={{ pgdump_result.rc | default('unknown') }})
+          -- Database may be empty (prepare_oim-only scenario)
+          -- stderr: {{ pgdump_result.stderr | default('') | trim }}
+        dest: "{{ openchami_backup_dir }}/openchami/postgresql_backup/openchami.sql"
+        mode: "{{ file_permissions_644 }}"
+      when: pgdump_result.rc | default(1) != 0
+
+    - name: Display pg_dump warning if it failed
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: pg_dump returned rc={{ pgdump_result.rc | default('unknown') }}.
+          This is acceptable for prepare_oim-only setups with empty databases.
+          stderr: {{ pgdump_result.stderr | default('none') | trim }}
+      when: pgdump_result.rc | default(1) != 0
+
+    - name: Clean up temporary pg_dump file inside postgres container
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres rm -f /tmp/openchami_pre_upgrade.sql
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Verify pg_dump output exists locally
+      ansible.builtin.stat:
+        path: "{{ openchami_backup_dir }}/openchami/postgresql_backup/openchami.sql"
+      register: pgdump_stat
+
+    - name: Display pg_dump backup status
+      ansible.builtin.debug:
+        msg: >-
+          PostgreSQL backup: {{ 'created' if pgdump_stat.stat.exists | default(false) else 'MISSING' }}
+          ({{ pgdump_stat.stat.size | default(0) }} bytes,
+          pg_dump rc={{ pgdump_result.rc | default('unknown') }})
+
+    # ── NOTE: File-level backups handled by omnia.sh ───────────────────
+    # The following items are already backed up by omnia.sh --upgrade
+    # (backup_openchami_data function) during Phase 3 backup creation:
+    #   - /opt/omnia/openchami/ → openchami/openchami_data/
+    #   - /etc/containers/systemd/*.container → openchami/quadlets/
+    #   - /etc/systemd/system/openchami.target → openchami/openchami.target
+    #
+    # This playbook only handles the PostgreSQL dump which requires
+    # podman exec into the running postgres container.
+
+    # ── Verify file-level backups exist (created by omnia.sh) ────────
+    - name: Verify openchami_data backup exists (created by omnia.sh)
+      ansible.builtin.stat:
+        path: "{{ openchami_backup_dir }}/openchami/openchami_data"
+      register: openchami_data_dir_stat
+
+    - name: Display warning if openchami_data backup is missing
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: openchami_data backup directory not found at
+          {{ openchami_backup_dir }}/openchami/openchami_data.
+          This should have been created by omnia.sh --upgrade.
+      when: not (openchami_data_dir_stat.stat.exists | default(false))
+
+    # ── Create backup manifest with inventory ──────────────────────────
+    - name: Create backup inventory manifest
+      ansible.builtin.copy:
+        content: |
+          # OpenCHAMI Pre-Upgrade Backup Manifest
+          backup_timestamp: "{{ ansible_date_time.iso8601 }}"
+          source_version: "{{ backup_manifest.source_version | default('unknown') }}"
+          target_version: "{{ backup_manifest.target_version | default('unknown') }}"
+          upgrade_id: "{{ backup_manifest.upgrade_id | default('unknown') }}"
+          backup_dir: "{{ openchami_backup_dir }}"
+
+          postgresql_backup:
+            file: "openchami/postgresql_backup/openchami.sql"
+            database: "{{ postgres_db_name }}"
+            user: "{{ postgres_db_user }}"
+            size_bytes: {{ pgdump_stat.stat.size | default(0) }}
+            pre_upgrade_node_count: {{ pre_upgrade_node_count | default('0') | trim }}
+
+          # File-level backups created by omnia.sh --upgrade:
+          openchami_data_present: {{ openchami_data_dir_stat.stat.exists | default(false) }}
+        dest: "{{ openchami_backup_dir }}/openchami_backup_manifest.yml"
+        mode: "{{ file_permissions_644 }}"
+
+    - name: Display backup completion summary
+      ansible.builtin.debug:
+        msg:
+          - "Pre-upgrade PostgreSQL backup completed successfully."
+          - "Backup location: {{ openchami_backup_dir }}/openchami/"
+          - "PostgreSQL dump: {{ pgdump_stat.stat.size | default(0) }} bytes (db={{ postgres_db_name }}, user={{ postgres_db_user }})"
+          - "File-level backups (openchami_data, quadlets, openchami.target): created by omnia.sh --upgrade"
+
+  rescue:
+    - name: Backup failed — abort upgrade to prevent data loss
+      ansible.builtin.fail:
+        msg: "{{ upgrade_messages.backup.failure }}"

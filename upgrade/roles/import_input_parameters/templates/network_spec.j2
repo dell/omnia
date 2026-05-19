@@ -65,7 +65,7 @@
 Networks:
 - admin_network:
     oim_nic_name: "{{ admin_network.oim_nic_name | default('') }}"
-    subnet: "{{ admin_network.subnet | default(network_default_subnet) }}"
+    subnet: "{{ admin_network.subnet | default(derived_admin_subnet | default(network_default_subnet)) }}"
     netmask_bits: "{{ admin_network.netmask_bits | default(network_default_netmask_bits) }}"
     primary_oim_admin_ip: "{{ admin_network.primary_oim_admin_ip | default('') }}"
     primary_oim_bmc_ip: "{{ admin_network.primary_oim_bmc_ip | default('') }}"

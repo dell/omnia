@@ -278,6 +278,12 @@
     openchami_vars_suppport: false
     omnia_metadata_support: true
 
+- name: Create OIM group for SSH connection
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  tags: always
+  vars:
+    oim_group: true
+
 # ──────────────────────────────────────────────────────────────────────
 # BuildStream Terminal Gate (C-24): Read build_stream_config.yml and
 # set build_stream_terminal fact. When enable_build_stream=true AND
