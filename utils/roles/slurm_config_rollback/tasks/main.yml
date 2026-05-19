@@ -333,6 +333,23 @@
   when: slurmctld_state != 'running'
   tags: config_rollback
 
+- name: Check scontrol command availability
+  ansible.builtin.command: which scontrol
+  delegate_to: slurm_controller
+  register: scontrol_check
+  changed_when: false
+  failed_when: false
+  tags: config_rollback
+
+- name: Fail if scontrol command not found
+  ansible.builtin.fail:
+    msg: >-
+      scontrol command not found on controller. Slurm binaries may not be installed or not in PATH.
+      Rollback applied on disk, but cannot reconfigure automatically. Please run 'scontrol reconfigure'
+      manually on the controller after ensuring Slurm is properly installed.
+  when: scontrol_check.rc != 0
+  tags: config_rollback
+
 - name: Run scontrol reconfigure
   tags: config_rollback
   block:
@@ -350,6 +367,9 @@
     - name: Fail with rollback guidance
       ansible.builtin.fail:
         msg: >-
-          Rollback applied on disk, but scontrol reconfigure failed. Recommended action:
-          rollback to the safety backup created before this rollback (if you chose to
-          create it).
+          Rollback applied on disk, but scontrol reconfigure failed. Recommended actions:
+          1. Check Slurm configuration files for syntax errors: 'slurm -C' on controller
+          2. Check slurmctld logs: 'journalctl -u slurmctld -n 50' on controller
+          3. Verify munge service is running: 'systemctl status munge' on controller
+          4. If you created a safety backup before this rollback, rollback to that safety backup
+          5. Otherwise, manually fix the configuration and run 'scontrol reconfigure' on the controller
