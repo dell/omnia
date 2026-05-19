@@ -174,28 +174,18 @@ inputs = ["metric_enricher"]
 #   {{ ome_id }}.alerts:    {"Data": [{"AlertId": ..., "Severity": ..., "Timestamp": "...", ...}]}
 #   {{ ome_id }}.auditlogs: {"Data": [{"Id": ..., "Message": ..., "CreateDate": "20251126T185211Z", ...}]}
 #   {{ ome_id }}.logs:       {"Data": [{"Id": ..., "Message": ..., "CreateDate": "...", ...}]}
-# _msg: human-readable message from Data[0].Message (displayed in VictoriaLogs UI)
-# _time: from Data[0].CreateDate (auditlogs/logs) or Data[0].Timestamp (alerts), falls back to now()
-# severity, category, device_name, alert_id, user_name, ip_address, message_id: extracted fields
-# raw_data: full Data[] payload preserved for debugging
+# _msg: full JSON-encoded message body
+# _time: from Data[0].CreateDate (auditlogs) or Data[0].Timestamp (alerts), falls back to now()
+# severity: from Data[0].Severity if available
 [transforms.ome_log_enricher]
 type = "remap"
 inputs = ["ome_topic_router.logs"]
 source = '''
+  ._msg = encode_json(.)
   data_arr = array(.Data) ?? []
-
-  # Extract fields from Data[0]
-  first = if length(data_arr) > 0 { data_arr[0] } else { {} }
-
-  # _msg: human-readable log line for VictoriaLogs UI
-  ._msg = to_string(first.Message) ?? encode_json(.)
-
-  # raw_data: preserve full Data payload for drill-down
-  .raw_data = encode_json(data_arr)
-
-  # Timestamp extraction: CreateDate (auditlogs/logs) or Timestamp (alerts)
   raw_ts = ""
   if length(data_arr) > 0 {
+    first = data_arr[0]
     raw_ts = if first.CreateDate != null {
       to_string!(first.CreateDate)
     } else if first.Timestamp != null {
@@ -213,29 +203,13 @@ source = '''
   } else {
     to_string(now())
   }
-
-  # Source identification
   ._msg_source = "{{ ome_id }}"
   ._msg_topic = to_string(.source_topic) ?? "{{ ome_id }}"
-
-  # Structured fields extracted from Data[0] for filtering in UI
-  .severity = to_string(first.Severity) ?? "info"
-  .category = to_string(first.Category) ?? ""
-  .device_name = to_string(first.DeviceName) ?? ""
-  .alert_id = to_string(first.AlertId) ?? ""
-  .user_name = to_string(first.UserName) ?? ""
-  .ip_address = to_string(first.IpAddress) ?? ""
-  .message_id = to_string(first.MessageId) ?? ""
-
-  # Remove Kafka internal metadata (not useful in logs UI)
-  del(.headers)
-  del(.message_key)
-  del(.offset)
-  del(.partition)
-  del(.source_type)
-  del(.timestamp)
-  del(.topic)
-  del(.Data)
+  .severity = if length(data_arr) > 0 {
+    to_string(data_arr[0].Severity) ?? "info"
+  } else {
+    "info"
+  }
 '''
 {% endif %}
 
