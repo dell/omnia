@@ -24,7 +24,7 @@
     oim_data_path: "/opt/omnia/.data"
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: k8s
-    
+
   tasks:
     - name: "Load upgrade_vars.yml"
       ansible.builtin.include_vars:
@@ -87,7 +87,7 @@
         dest: "{{ oim_data_path }}/upgrade_manifest.yml"
         mode: "0644"
       when: manifest_load is succeeded
-  
+
     - name: "Display upgrade status in-progress — {{ component_name }}"
       ansible.builtin.debug:
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
