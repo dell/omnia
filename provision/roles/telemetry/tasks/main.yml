@@ -31,7 +31,7 @@
       ansible.builtin.include_tasks: load_service_images.yml
 
     - name: Check kube_vip reachability for validation
-      ansible.builtin.include_tasks: check_kube_vip_reachability.yml
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../common/tasks/common/check_kube_vip_reachability.yml"
       when:
         - victoria_metrics_support | default(false) | bool
         - kube_vip is defined
