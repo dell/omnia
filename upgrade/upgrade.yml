@@ -34,7 +34,7 @@
 # VERSION POLICY:
 #   oim_metadata.yml is read-only for upgrade/rollback flows. Manifest
 #   fields are derived directly from it:
-#     omnia_previous_version  →  source_version
+#     previous_omnia_version  →  source_version
 #     omnia_version           →  target_version
 #     upgrade_backup_dir      →  backup_dir
 #
@@ -174,7 +174,7 @@
       ansible.builtin.copy:
         content: |
           upgrade_id: "upgrade-{{ 9999 | random }}"
-          source_version: "{{ oim_metadata.omnia_previous_version }}"
+          source_version: "{{ oim_metadata.previous_omnia_version }}"
           target_version: "{{ oim_metadata.omnia_version }}"
           upgrade_status: "in-progress"
           backup_dir: "{{ oim_metadata.upgrade_backup_dir }}"
