@@ -30,12 +30,12 @@
 # ============================================================================
 
 - name: Reboot node and verify cloud-init completion
-  hosts: "{{ target_host }}"
+  hosts: all
   gather_facts: false
   vars:
     cloud_init_timeout: 600
     cloud_init_check_interval: 10
-    cloud_init_success_marker: "Cloud-Init finished successfully"
+    cloud_init_success_marker: "Cloud-Init finished successfully after the reboot."
   tasks:
     - name: Validate target_host is provided
       ansible.builtin.assert:
@@ -43,6 +43,10 @@
           - target_host is defined
           - target_host | length > 0
         fail_msg: "target_host must be provided via -e target_host=<hostname>"
+
+    - name: Skip hosts other than target_host
+      ansible.builtin.meta: end_host
+      when: inventory_hostname != target_host
 
     - name: Display reboot target
       ansible.builtin.debug:
