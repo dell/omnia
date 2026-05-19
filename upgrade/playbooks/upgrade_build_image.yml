@@ -135,6 +135,11 @@
         mode: '0644'
       when: proceed_build_image | bool
 
+    - name: "Display upgrade status in-progress — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
+      when: proceed_build_image | bool
+
 # ── Build x86_64 images ──
 - name: Build x86_64 images (upgrade)
   ansible.builtin.import_playbook: ../../build_image_x86_64/build_image_x86_64.yml
@@ -178,4 +183,8 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: "0644"
+        mode: '0644'
+
+    - name: "Display upgrade status completed — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"

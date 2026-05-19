@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+
 - name: Upgrade Telemetry components
   hosts: localhost
   connection: local
@@ -63,7 +64,11 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: "0644"
+        mode: '0644'
+
+    - name: "Display upgrade status in-progress — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
 
     # TODO: Implement per ESpec §4.8:
     # Phase 1: Existing component upgrade
@@ -90,4 +95,8 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: "0644"
+        mode: '0644'
+
+    - name: "Display upgrade status completed — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"
