@@ -212,6 +212,7 @@ class ValidateUseCase:
             existing_stage.error_code = None  # Clear error fields from previous attempt
             existing_stage.error_summary = None
             existing_stage.ended_at = None  # Clear ended_at from previous attempt
+            existing_stage.log_file_path = None  # Clear log_file_path from previous attempt
             existing_stage.result_detail = None  # Clear result_detail from previous attempt
             self._stage_repo.save(existing_stage)
             if hasattr(self._stage_repo, 'session'):

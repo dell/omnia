@@ -1103,14 +1103,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                             break
                     
                     if current_run:
-                        # Populate test_summary from JSON (logical order: identifiers, counts, duration, tests)
-                        summary_block = current_run.get("summary", {})
-                        if isinstance(summary_block, dict):
-                            test_summary["total"] = summary_block.get("total", 0)
-                            test_summary["passed"] = summary_block.get("passed", 0)
-                            test_summary["failed"] = summary_block.get("failed", 0)
-                            test_summary["skipped"] = summary_block.get("skipped", 0)
-                            test_summary["errors"] = summary_block.get("errors", 0)
+                        # Populate test_summary from JSON (enforce order: identifiers, duration, counts, tests)
                         modules = current_run.get("modules", [])
                         if modules:
                             module_info = modules[0]
@@ -1121,9 +1114,16 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
                             tests = [{"name": r.get("test_name"), "status": r.get("status")} for r in results if r.get("test_name")]
                             test_summary["scenario"] = scenario
                             test_summary["molecule_command"] = molecule_command
+                            test_summary["report_id"] = report_id
+                            test_summary["duration_seconds"] = duration_seconds
                             test_summary["tests"] = tests
-                        test_summary["report_id"] = report_id
-                        test_summary["duration_seconds"] = duration_seconds
+                            summary_block = current_run.get("summary", {})
+                            if isinstance(summary_block, dict):
+                                test_summary["total"] = summary_block.get("total", 0)
+                                test_summary["passed"] = summary_block.get("passed", 0)
+                                test_summary["failed"] = summary_block.get("failed", 0)
+                                test_summary["skipped"] = summary_block.get("skipped", 0)
+                                test_summary["errors"] = summary_block.get("errors", 0)
                         log_secure_info('info', f"Test scenario: {scenario}, command: {molecule_command}, duration: {duration_seconds}s, tests: {len(tests)}, report_id: {report_id}", job_id)
                         
                         # Save filtered report to artifact_dir
