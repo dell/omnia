@@ -180,7 +180,7 @@ victoria_cluster:
         cpu: "{{ telemetry_storage_config.victoria_cluster.vmagent.resources.requests.cpu | default('50m') }}"
       limits:
         memory: "{{ telemetry_storage_config.victoria_cluster.vmagent.resources.limits.memory | default('512Mi') }}"
-        cpu: "{{ telemetry_storage_config.victoria_cluster.vmagent.resources.limits.cpu | default('250m') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster.vmagent.resources.limits.cpu | default('250m') }}"  # noqa: yaml[line-length]
 
 # ============================================================================
 # VictoriaLogs Cluster Configuration
