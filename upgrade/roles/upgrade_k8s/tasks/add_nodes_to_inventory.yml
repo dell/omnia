@@ -61,8 +61,10 @@
 
 - name: Display added nodes
   ansible.builtin.debug:
-    msg: |
-      Added {{ all_upgrade_nodes | length }} nodes to inventory:
-      - Control plane (first): {{ groups_cp_first | join(', ') }}
-      - Control plane (additional): {{ groups_cp | join(', ') }}
-      - Workers: {{ groups_worker | join(', ') }}
+    msg: "{{ added_nodes_banner }}"
+  vars:
+    added_nodes_banner:
+      - "Added {{ all_upgrade_nodes | length }} nodes to inventory:"
+      - "  - Control plane (first): {{ groups_cp_first | join(', ') }}"
+      - "  - Control plane (additional): {{ groups_cp | join(', ') }}"
+      - "  - Workers: {{ groups_worker | join(', ') }}"

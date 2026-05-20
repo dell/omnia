@@ -414,11 +414,13 @@
 
     - name: "Hop — Control plane upgrades complete"
       ansible.builtin.debug:
-        msg: |
-          ═══════════════════════════════════════════════════════════════════════════
-          Control plane upgrade execution is complete for hop {{ _hop_idx + 1 }}.
-          Proceeding with addon pre-checks...
-          ═══════════════════════════════════════════════════════════════════════════
+        msg: "{{ cp_complete_banner }}"
+      vars:
+        cp_complete_banner:
+          - "========================================================================"
+          - "Control plane upgrade execution is complete for hop {{ _hop_idx + 1 }}."
+          - "Proceeding with addon pre-checks..."
+          - "========================================================================"
       when:
         - _is_final_hop | bool
         - upgrade_status.upgrade.status != 'completed'
@@ -499,11 +501,13 @@
     # ── Starting addon upgrade ───────────────────────────────────────
     - name: "Hop — Starting addon upgrade"
       ansible.builtin.debug:
-        msg: |
-          ═══════════════════════════════════════════════════════════════════════════
-          All control planes have been upgraded to {{ _current_hop.to_version }}.
-          Proceeding with addon upgrades (Calico, MetalLB, Helm)...
-          ═══════════════════════════════════════════════════════════════════════════
+        msg: "{{ addon_start_banner }}"
+      vars:
+        addon_start_banner:
+          - "========================================================================"
+          - "All control planes have been upgraded to {{ _current_hop.to_version }}."
+          - "Proceeding with addon upgrades (Calico, MetalLB, Helm)..."
+          - "========================================================================"
       when:
         - _is_final_hop | bool
         - upgrade_status.addon_upgrade.status | default('pending') != 'completed'
