@@ -314,7 +314,7 @@ telemetry_sinks:
 # iDRAC Telemetry Storage Configuration
 # --------------------------------------------------------------------------
 # Storage configuration for iDRAC telemetry MySQL database
-idrac_telemetry:
+idrac_telemetry_configurations:
   mysqldb_storage: "1Gi"  # MySQL database storage for iDRAC telemetry
   
 # --------------------------------------------------------------------------
