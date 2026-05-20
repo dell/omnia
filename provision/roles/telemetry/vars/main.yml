@@ -257,7 +257,7 @@ victoria_logs_cluster:
   vlagent:
     replicas: "{{ telemetry_storage_config.victoria_logs_cluster.vlagent.replicas | default(2) }}"
     image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
-    pvc_size: "{{ telemetry_storage_config.victoria_logs_cluster.vlagent.pvc_size | default('5Gi') }}"   # Buffer storage for retry during vlinsert unavailability
+    pvc_size: "{{ telemetry_storage_config.victoria_logs_cluster.vlagent.pvc_size | default('5Gi') }}"   # Buffer storage for retry during vlinsert unavailability # noqa: yaml[line-length]
     termination_grace_period: 30
     liveness_probe:
       initial_delay: 30
