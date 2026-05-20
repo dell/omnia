@@ -87,10 +87,4 @@ resources:
   - vector/vector-ome-configmap.yaml
   - vector/vector-ome-deployment.yaml
   - vector/vector-ome-service.yaml
-# OME KafkaTopic CRs (5 topics for OME telemetry)
-  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_events.yaml
-  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_alerts.yaml
-  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_inventory.yaml
-  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_logs.yaml
-  - kafka.topic_{{ (telemetry_config.telemetry_bridges.vector_ome.ome_identifier | default('ome')) | replace('.', '_') }}_telemetry.yaml
 {% endif %}
