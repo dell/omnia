@@ -44,7 +44,6 @@ victoria_cluster:
         cpu: "500m"
   vmagent:
     replicas: 2
-    image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
     resources:
       requests:
         memory: "128Mi"
