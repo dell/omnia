@@ -24,15 +24,15 @@
     name: telemetry_storage_config
   failed_when: false
 
-- name: Read telemetry packages from software config
-  ansible.builtin.include_tasks: read_software_config.yml
-
 - name: Derive sink support flags from collection_targets
   ansible.builtin.include_tasks: derive_sink_support_flags.yml
 
 - name: Configure service_k8s telemetry services
   when: hostvars['localhost']['service_k8s_support'] | default(false) | bool
   block:
+    - name: Read telemetry packages from software config
+      ansible.builtin.include_tasks: read_software_config.yml
+
     - name: Load service images from service_k8s_v<version>.json
       ansible.builtin.include_tasks: load_service_images.yml
 
