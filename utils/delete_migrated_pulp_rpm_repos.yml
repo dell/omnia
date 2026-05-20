@@ -1,0 +1,195 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Delete Migrated Pulp RPM Repositories by Naming Format
+#
+# After running pulp_repo_name_migration, both old-format and new-format
+# RPM repositories coexist in Pulp (they have different distribution
+# base_paths so both remain accessible).
+#
+# Use this playbook to selectively clean up RPM repos based on their naming
+# format.  It leverages the existing ``pulp_cleanup`` module for deletion.
+#
+# The ``repo_format`` variable controls which RPM repos are targeted:
+#   - "old" — delete repos matching <arch>_<RepoName>  (the pre-migration format)
+#   - "new" — delete repos matching <arch>_<os>_<version>_<RepoName> (the post-migration format)
+#
+# NOTE: File and Python repos are NOT handled here — their old-format entities
+# are cleaned up automatically during migration (old and new distributions
+# share the same base_path, so coexistence is not possible).
+#
+# Usage:
+#   # Delete all old-format RPM repos:
+#   ansible-playbook delete_migrated_pulp_rpm_repos.yml -e "repo_format=old"
+#
+#   # Delete all new-format RPM repos (rollback scenario):
+#   ansible-playbook delete_migrated_pulp_rpm_repos.yml -e "repo_format=new"
+#
+#   # Skip user confirmation prompt:
+#   ansible-playbook delete_migrated_pulp_rpm_repos.yml -e "repo_format=old" -e "force=true"
+
+- name: Delete Migrated Pulp RPM Repositories by Format
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  pre_tasks:
+    # Step 0: Validate repo_format input
+    - name: Validate repo_format parameter
+      ansible.builtin.assert:
+        that:
+          - repo_format is defined
+          - repo_format in ['old', 'new']
+        fail_msg: |
+          The 'repo_format' variable is required and must be either 'old' or 'new'.
+          Usage:
+            ansible-playbook delete_migrated_pulp_rpm_repos.yml -e "repo_format=old"
+            ansible-playbook delete_migrated_pulp_rpm_repos.yml -e "repo_format=new"
+
+    # Step 1: Load software_config to determine OS type and version
+    - name: Load software_config.json
+      ansible.builtin.include_vars:
+        file: "/opt/omnia/input/project_default/software_config.json"
+        name: software_config
+
+    - name: Set OS type and version facts
+      ansible.builtin.set_fact:
+        cluster_os_type: "{{ software_config.cluster_os_type }}"
+        cluster_os_version: "{{ software_config.cluster_os_version }}"
+
+    # Step 2: List all RPM repositories from Pulp
+    - name: List all RPM repositories from Pulp
+      ansible.builtin.command: pulp rpm repository list --limit 1000
+      register: rpm_repo_list_raw
+      changed_when: false
+      failed_when: rpm_repo_list_raw.rc != 0
+
+    - name: Parse RPM repository list
+      ansible.builtin.set_fact:
+        all_rpm_repos: "{{ (rpm_repo_list_raw.stdout | from_json) | map(attribute='name') | list }}"
+
+    # Step 3: Filter RPM repos by naming format
+    #   Old format: <arch>_<rest> where rest does NOT start with <os>_<version>_
+    #   New format: <arch>_<os>_<version>_<rest>
+    - name: Filter RPM repos by format {{ repo_format }}
+      ansible.builtin.set_fact:
+        filtered_rpm_repos: >-
+          {%- set result = [] -%}
+          {%- for name in all_rpm_repos -%}
+            {%- set is_new = name | regex_search('^(x86_64|aarch64)_[a-z]+_\\d+(\\.\\d+)*_') -%}
+            {%- if repo_format == 'old' and not is_new and name | regex_search('^(x86_64|aarch64)_') -%}
+              {%- set _ = result.append(name) -%}
+            {%- elif repo_format == 'new' and is_new -%}
+              {%- set _ = result.append(name) -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ result }}
+
+    # Step 4: Verify targets found
+    - name: Check if any RPM repos matched the filter
+      ansible.builtin.assert:
+        that:
+          - filtered_rpm_repos | length > 0
+        fail_msg: "No '{{ repo_format }}'-format RPM repositories found in Pulp. Nothing to delete."
+
+    # Step 5: Display summary and get confirmation
+    - name: Display deletion summary
+      ansible.builtin.debug:
+        msg:
+          - "========== RPM REPO DELETION SUMMARY =========="
+          - "Target format : {{ repo_format }}"
+          - "RPM repos ({{ filtered_rpm_repos | length }}):"
+          - "{{ filtered_rpm_repos | join(', ') }}"
+          - "================================================"
+
+    - name: Get user confirmation
+      ansible.builtin.pause:
+        prompt: |
+
+          WARNING: This will permanently delete the {{ filtered_rpm_repos | length }} '{{ repo_format }}'-format RPM repos listed above.
+          This action cannot be undone.
+          Type 'yes' to continue or press Ctrl+C to abort
+      register: user_input
+      when: not (force | default(false)) | bool
+
+    - name: Abort if not confirmed
+      ansible.builtin.fail:
+        msg: "Deletion cancelled by user"
+      when:
+        - not (force | default(false)) | bool
+        - user_input.user_input | default('') | lower != 'yes'
+
+  tasks:
+    # Step 6: Call existing pulp_cleanup module with filtered RPM repo list
+    - name: Delete RPM repos using pulp_cleanup for format {{ repo_format }}
+      pulp_cleanup:
+        cleanup_repos: "{{ filtered_rpm_repos }}"
+        cleanup_containers: []
+        cleanup_files: []
+        base_path: "{{ base_path | default('/opt/omnia/log/local_repo') }}"
+        repo_store_path: "{{ repo_store_path | default('/opt/omnia') }}"
+        cluster_os_type: "{{ cluster_os_type }}"
+        cluster_os_version: "{{ cluster_os_version }}"
+      register: cleanup_result
+
+  post_tasks:
+    # Step 7: Display results
+    - name: Display cleanup results
+      ansible.builtin.debug:
+        msg: "{{ cleanup_result.pretty_table_lines }}"
+
+    # Step 8: Regenerate /etc/yum.repos.d/pulp.repo from current Pulp distributions
+    - name: Regenerate pulp.repo from current Pulp RPM distributions
+      ansible.builtin.command: pulp rpm distribution list --field base_url,name --limit 1000
+      register: dist_list_raw
+      changed_when: false
+      failed_when: dist_list_raw.rc != 0
+
+    - name: Parse distribution list
+      ansible.builtin.set_fact:
+        current_distributions: "{{ dist_list_raw.stdout | from_json }}"
+
+    - name: Build pulp.repo content
+      ansible.builtin.set_fact:
+        pulp_repo_lines: >-
+          {{ pulp_repo_lines | default([]) +
+             ['[' + item.name + ']',
+              'name=' + item.name + ' repo',
+              'baseurl=' + item.base_url,
+              'enabled=1', 'gpgcheck=0', ''] }}
+      loop: "{{ current_distributions }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: item.name is defined and item.base_url is defined
+
+    - name: Write pulp.repo with current distributions
+      ansible.builtin.copy:
+        content: "{{ pulp_repo_lines | join('\n') }}\n"
+        dest: /etc/yum.repos.d/pulp.repo
+        mode: '0644'
+
+    - name: Display pulp.repo regeneration status
+      ansible.builtin.debug:
+        msg: "Regenerated /etc/yum.repos.d/pulp.repo with {{ (dist_list_raw.stdout | from_json) | length }} distributions"
+
+    - name: Display summary
+      ansible.builtin.debug:
+        msg:
+          - "================================ RPM REPO DELETION COMPLETED ================================"
+          - "Repos deleted: {{ cleanup_result.success_count }}/{{ cleanup_result.total }} (Failed: {{ cleanup_result.failed_count }})"
+          - "Remaining RPM distributions: {{ (dist_list_raw.stdout | from_json) | length }}"
+          - "Status file: {{ cleanup_result.status_file }}"
+          - "pulp.repo regenerated with {{ (dist_list_raw.stdout | from_json) | length }} distributions"
+          - "NOTE: If a deleted RPM repo is required by any software, rerun local_repo.yml to re-sync it."
+          - "============================================================================================="

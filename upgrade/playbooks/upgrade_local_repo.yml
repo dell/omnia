@@ -99,12 +99,12 @@
         # Manage upgrade inputs (load config, validate, calculate hops)
         - name: "Manage Upgrade Inputs"
           ansible.builtin.include_role:
-            name: manage_localrepo_inputs
+            name: "{{ playbook_dir }}/../roles/manage_localrepo_inputs"
 
         # Prepare local repository for upgrade
         - name: "Prepare Local Repository"
           ansible.builtin.include_role:
-            name: prep_local_repo
+            name: "{{ playbook_dir }}/../roles/prep_local_repo"
 
       rescue:
         - name: Local repo upgrade failed — mark component as failed

@@ -75,7 +75,7 @@
 - name: "Sync — Restore original input_project_dir"
   ansible.builtin.set_fact:
     input_project_dir: "{{ _original_input_project_dir }}"
-    project_input_path: "{{ _original_project_input_dir }}"
+    project_input_path: "{{ _original_input_project_dir }}"
 
 - name: "Sync — Display sync completion"
   ansible.builtin.debug:
