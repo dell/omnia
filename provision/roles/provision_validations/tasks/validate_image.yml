@@ -21,12 +21,38 @@
   ansible.builtin.set_fact:
     enable_build_stream: "{{ enable_build_stream | default(hostvars['localhost']['enable_build_stream'] | default(false)) }}"
     build_stream_job_id: "{{ build_stream_job_id | default(hostvars['localhost']['build_stream_job_id'] | default('')) }}"
-    compute_image_suffix: "{{ compute_image_suffix | default(hostvars['localhost']['compute_image_suffix'] | default('')) }}"
+    image_key: "{{ image_key | default(hostvars['localhost']['image_key'] | default('')) }}"
+    compute_image_suffix: ""
+
+- name: Set compute image suffix when build stream inputs present
+  ansible.builtin.set_fact:
+    compute_image_suffix: "_{{ build_stream_job_id }}-{{ image_key | default('') }}"
+  when:
+    - enable_build_stream | bool
+    - (build_stream_job_id | default('') | length) > 0
+    - (image_key | default('') | length) > 0
+
+- name: Compute naming suffix for image validation
+  ansible.builtin.set_fact:
+    naming_suffix: >-
+      {{ '_omnia_' + hostvars['localhost']['oim_metadata']['omnia_version']
+         if hostvars['localhost']['oim_metadata'] is defined
+         and hostvars['localhost']['oim_metadata']['omnia_version'] | default('') | length > 0
+         else '' }}{{ '_k8s_' + hostvars['localhost']['service_k8s_version']
+         if (item is match('service_kube_'))
+         and (hostvars['localhost']['service_k8s_version'] | default('') | length > 0)
+         else '' }}
+
+- name: Build image search pattern for S3 validation
+  ansible.builtin.set_fact:
+    image_search_pattern: >-
+      rhel-{{ functional_group_name }}{{ naming_suffix }}{{ compute_image_suffix }}
+
 - name: Verify image, kernel and initramfs in S3
   ansible.builtin.shell: |
     set -o pipefail && \
     s3cmd ls -Hr s3://boot-images | \
-    grep {{ functional_group_name }}{% if enable_build_stream and (compute_image_suffix | default('') != '') %}_{{ compute_image_suffix }}{% endif %} | \
+    grep "{{ image_search_pattern }}" | \
     grep {{ hostvars['localhost']['cluster_os_version'] }} | awk '{print $4}' | sed 's|s3://||'
   changed_when: false
   failed_when: false

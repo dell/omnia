@@ -13,7 +13,16 @@
 # limitations under the License.
 ---
 
-- name: Upgrade Build Image (SquashFS build)
+# ============================================================================
+# upgrade_build_image.yml — Build Image Upgrade
+# ============================================================================
+# Calls build_image_x86_64.yml and build_image_aarch64.yml directly.
+# aarch64 is invoked only when admin_aarch64 inventory group has hosts.
+# BuildStream flow: build_image is skipped via terminal gate (C-24).
+# ============================================================================
+
+# ── Pre-flight: manifest gates + flags ──
+- name: "Pre-flight — Build Image upgrade"
   hosts: localhost
   connection: local
   gather_facts: false
@@ -21,6 +30,12 @@
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_image
   tasks:
+    - name: Set upgrade_mode to bypass upgrade_checkup in imported playbooks
+      ansible.builtin.set_fact:
+        upgrade_mode: true
+        proceed_build_image: false
+        cacheable: true
+
     - name: Read upgrade_manifest.yml
       ansible.builtin.slurp:
         src: "{{ manifest_path }}"
@@ -31,9 +46,81 @@
         manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
 
     - name: Skip if build_image already upgraded
-      ansible.builtin.meta: end_play
+      ansible.builtin.debug:
+        msg: "build_image already completed — skipping"
+      when: manifest.component_status[component_name] | default('pending') == 'completed'
+
+    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
       when:
-        - manifest.component_status[component_name] | default('pending') == 'completed'
+        - manifest.component_status[component_name] | default('pending') != 'completed'
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
+
+    - name: Validate OIM upgrade is complete
+      ansible.builtin.fail:
+        msg: >-
+          OIM upgrade must complete before build_image.
+          Run: ansible-playbook upgrade.yml --tags oim
+      when:
+        - manifest.component_status[component_name] | default('pending') != 'completed'
+        - not (hostvars['localhost']['build_stream_terminal'] | default(false) | bool and
+               manifest.component_status.build_stream | default('pending') == 'completed')
+        - manifest.component_status.oim | default('pending') != 'completed'
+
+    - name: Set proceed flag
+      ansible.builtin.set_fact:
+        proceed_build_image: true
+        cacheable: true
+      when:
+        - manifest.component_status[component_name] | default('pending') != 'completed'
+        - not (hostvars['localhost']['build_stream_terminal'] | default(false) | bool and
+               manifest.component_status.build_stream | default('pending') == 'completed')
+
+    - name: Include provision_config.yml to get pxe_mapping_file_path
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/provision_config.yml"
+      when: proceed_build_image | bool
+
+    - name: Read pxe_mapping_file
+      ansible.builtin.slurp:
+        src: "{{ pxe_mapping_file_path }}"
+      register: raw_mapping_file
+      when: proceed_build_image | bool
+
+    - name: Check if mapping file has aarch64 functional groups
+      ansible.builtin.set_fact:
+        has_aarch64_in_mapping: "{{ (raw_mapping_file.content | b64decode).split('\n')
+          | select('search', '_aarch64') | list | length > 0 }}"
+        cacheable: true
+      when: proceed_build_image | bool
+
+    - name: Fail if aarch64 entries found in mapping file but admin_aarch64 inventory not provided
+      ansible.builtin.fail:
+        msg: >-
+          aarch64 functional groups detected in pxe_mapping_file ({{ pxe_mapping_file_path }})
+          but no hosts found in 'admin_aarch64' inventory group.
+          Add the ARM admin node to the [admin_aarch64] group in your inventory
+          or remove aarch64 entries from the mapping file.
+      when:
+        - proceed_build_image | bool
+        - has_aarch64_in_mapping | default(false) | bool
+        - (groups['admin_aarch64'] | default([])) | length == 0
+
+    - name: Set build_aarch64 flag
+      ansible.builtin.set_fact:
+        build_aarch64: "{{ has_aarch64_in_mapping | default(false) | bool and
+          (groups['admin_aarch64'] | default([])) | length > 0 }}"
+        cacheable: true
+      when: proceed_build_image | bool
 
     - name: Set build_image upgrade status to in-progress
       ansible.builtin.copy:
@@ -45,16 +132,46 @@
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
         mode: '0644'
+      when: proceed_build_image | bool
 
-    # TODO: Implement per ESpec §4.6 and Build_Image_Upgrade_Component_Spec:
-    # 1. Check MinIO for existing target-version SquashFS images (reuse if exists)
-    # 2. Preserve existing 2.1 images
-    # 3. Build new SquashFS images for target version via BuildStream
-    # 4. Upload built images to MinIO
-    # 5. Validate all required images are available in MinIO
-    - name: Build image upgrade placeholder
+    - name: "Display upgrade status in-progress — {{ component_name }}"
       ansible.builtin.debug:
-        msg: "Build image upgrade tasks to be implemented (MinIO check, SquashFS build, upload)"
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
+      when: proceed_build_image | bool
+
+# ── Build x86_64 images ──
+- name: Build x86_64 images (upgrade)
+  ansible.builtin.import_playbook: ../../build_image_x86_64/build_image_x86_64.yml
+  when: hostvars['localhost']['proceed_build_image'] | default(false) | bool
+
+# ── Build aarch64 images (only when admin_aarch64 hosts exist) ──
+- name: Build aarch64 images (upgrade)
+  ansible.builtin.import_playbook: ../../build_image_aarch64/build_image_aarch64.yml
+  when:
+    - hostvars['localhost']['proceed_build_image'] | default(false) | bool
+    - hostvars['localhost']['build_aarch64'] | default(false) | bool
+
+# ── Finalize: mark completed ──
+- name: "Finalize — Build Image upgrade"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: build_image
+  tasks:
+    - name: Skip finalize if build was not executed
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['proceed_build_image'] | default(false) | bool)
+
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest_final
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest_final.content | b64decode | from_yaml }}"
 
     - name: Mark build_image upgrade as completed
       ansible.builtin.copy:
@@ -66,3 +183,7 @@
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
         mode: '0644'
+
+    - name: "Display upgrade status completed — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"

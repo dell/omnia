@@ -13,13 +13,6 @@
 #  limitations under the License.
 ---
 
-- name: Normalize build stream inputs for base image
-  ansible.builtin.set_fact:
-    enable_build_stream: "{{ enable_build_stream | default(false) | bool }}"
-    build_stream_job_id: "{{ build_stream_job_id | default('') }}"
-    image_key: "{{ image_key | default('') }}"
-    base_image_suffix: ""
-
 - name: Set base image suffix when build stream inputs present
   ansible.builtin.set_fact:
     base_image_suffix: "_{{ build_stream_job_id }}-{{ image_key | default('') }}"
@@ -29,63 +22,93 @@
     - (build_stream_job_id | default('') | length) > 0
     - (image_key | default('') | length) > 0
 
-- name: Create temporary inventory with ochami group
-  ansible.builtin.copy:
-    dest: "{{ aarch64_inventory_file }}"
-    content: |
-      [ochami]
-      {{ groups['admin_aarch64'] | join('\n') }}
-    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+- name: Create ochami images directory
+  ansible.builtin.file:
+    path: "{{ openchami_work_dir }}/images"
+    state: directory
+    mode: "{{ dir_permissions_755 }}"
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
 
-- name: Create aarch64_base_image.log as a file
+- name: Create aarch64 base image log file
   ansible.builtin.file:
     path: "{{ openchami_aarch64_base_image_log_path }}"
     state: touch
     mode: "{{ dir_permissions_644 }}"
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
 
-- name: Load the openchami image vars
+- name: Render aarch64 base image build config
   ansible.builtin.template:
-    src: "{{ openchami_base_image_vars_template }}"
-    dest: "{{ openchami_aarch64_base_image_vars_path }}"
+    src: "{{ role_path }}/templates/images/rhel-base-config.yaml.j2"
+    dest: "{{ openchami_work_dir }}/images/{{ rhel_aarch64_base_image_name }}-{{ rhel_tag }}.yaml"
     mode: "{{ dir_permissions_644 }}"
+  delegate_to: "{{ aarch64_build_host }}"
+  connection: ssh
 
-- name: Invoking Openchami playbook for rhel-base image build
-  ansible.builtin.shell: |
-    set -o pipefail
-    ansible-playbook {{ openchami_clone_path }}/dell/podman-quadlets/image.yaml \
-    -i {{ aarch64_inventory_file }} -v \
-    --extra-vars "@{{ openchami_aarch64_base_image_vars_path }}" \
-    --tags base_image -v | \
-    /usr/bin/tee {{ openchami_aarch64_base_image_log_path }}
-  async: 3600  # Set async timeout (e.g., 1 hour)
-  poll: 0  # Non-blocking (continue the playbook without waiting for completion)
-  register: base_image_build
-  changed_when: true
-
-- name: Wait for rhel-base image OpenCHAMI jobs to finish
+- name: Build and verify aarch64 base osimage
   block:
-    - name: Wait for rhel-base image OpenCHAMI jobs to finish
+    - name: Build aarch64 base osimage
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          podman run --rm --device /dev/fuse --network host \
+            {{ ochami_mounts | join(' ') }} \
+            {{ ochami_aarch64_image | join(' ') }} \
+            {{ ochami_base_command | join(' ') }} \
+            > '{{ openchami_aarch64_base_image_log_path }}' 2>&1
+      delegate_to: "{{ aarch64_build_host }}"
+      connection: ssh
+      async: 3600
+      poll: 0
+      register: base_image_build
+      changed_when: true
+
+    - name: Wait for aarch64 base image build to complete
       ansible.builtin.async_status:
         jid: "{{ base_image_build.ansible_job_id }}"
+      delegate_to: "{{ aarch64_build_host }}"
+      connection: ssh
       register: job_result
       until: job_result.finished
       retries: "{{ job_retry }}"
       delay: "{{ job_delay }}"
+
+    - name: Verify the aarch64 base osimage in registry
+      ansible.builtin.command:
+        cmd: "regctl repo ls {{ oim_node_name }}.{{ domain_name }}:5000"
+      delegate_to: "{{ aarch64_build_host }}"
+      connection: ssh
+      changed_when: false
+      register: verify_base_osimage
+
+    - name: Fail if aarch64 base osimage not created
+      ansible.builtin.fail:
+        msg: "Failed to build base osimage {{ oim_node_name }}/{{ rhel_aarch64_base_image_name }}"
+      when: (oim_node_name + '/' + rhel_aarch64_base_image_name) not in verify_base_osimage.stdout_lines
+
+    - name: Verify aarch64 base osimage output
+      ansible.builtin.debug:
+        msg: "{{ verify_base_osimage.stdout_lines }}"
+
   rescue:
     - name: Fail the build if the base image build fails
       ansible.builtin.fail:
-        msg: |
-          {{ base_image_failure_msg }}
+        msg: "{{ base_image_failure_msg }}"
 
   always:
-    - name: Remove generated base image vars file
-      ansible.builtin.file:
-        path: "{{ openchami_aarch64_base_image_vars_path }}"
-        state: absent
-
-    - name: Set openchami SELinux context
+    - name: Set openchami SELinux context for Local flow
       ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ oim_shared_path }}/omnia/openchami"
       changed_when: true
       delegate_to: oim
       connection: ssh
       failed_when: false
+      when: omnia_share_option == 'Local'
+
+    - name: Set openchami SELinux context for NFS internal flow
+      ansible.builtin.command: chcon -R system_u:object_r:container_file_t:s0 "{{ nfs_server_share_path }}/omnia/openchami"
+      changed_when: true
+      delegate_to: oim
+      connection: ssh
+      failed_when: false
+      when: omnia_share_option == 'NFS' and nfs_type | default('') == 'internal'

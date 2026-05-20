@@ -20,6 +20,11 @@
   ansible.builtin.set_fact:
     target_functional_groups: []
 
+- name: Create cloud-init groups dict
+  ansible.builtin.set_fact:
+    cloud_init_groups_dict: "{{ cloud_init_groups_dict | default({}) | combine({item: {}}) }}"
+  with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
+
 - name: Match functional groups by prefix
   when: config_item.functional_group_prefix is defined and config_item.functional_group_prefix | length > 0
   block:

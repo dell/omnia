@@ -1442,3 +1442,21 @@ def _ranges_overlap(range_a, range_b):
         return a_start <= b_end and b_start <= a_end
     except (ValueError, TypeError):
         return False
+
+
+
+def validate_dns_config(data):
+    """
+    Validates dns_config input parameters.
+
+    dns_config.yml only contains dns_enabled (boolean).
+    The cluster domain is read from OIM metadata (domain_name).
+
+    Args:
+        data (dict): The dns_config dict from dns_config.yml.
+
+    Returns:
+        list: Validation error messages (currently empty; schema
+        validation handles the dns_enabled type check).
+    """
+    return []

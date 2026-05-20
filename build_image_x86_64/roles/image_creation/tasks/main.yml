@@ -13,6 +13,9 @@
 #  limitations under the License.
 ---
 
+- name: Include prepare pulp image task
+  ansible.builtin.include_tasks: prepare_pulp_image.yml
+
 - name: Include metadata vars
   ansible.builtin.include_vars: "{{ omnia_metadata_file }}"
   register: include_metadata
@@ -21,6 +24,9 @@
 - name: Include global variables from common folder
   ansible.builtin.include_vars: "{{ role_path }}/../../../common/vars/openchami_image_cmd.yml"
   register: ochami_image_global_vars
+
+- name: Build image common tasks
+  ansible.builtin.include_tasks: build_image_common.yml
 
 - name: Invoking x86_64 build base image playbook
   ansible.builtin.include_tasks: build_base_image.yml

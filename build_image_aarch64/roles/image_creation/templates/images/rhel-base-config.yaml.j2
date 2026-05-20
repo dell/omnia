@@ -1,0 +1,33 @@
+options:
+  layer_type: 'base'
+  name: '{{ rhel_aarch64_base_image_name }}'
+  publish_tags: '{{ rhel_tag }}'
+  pkg_manager: 'dnf'
+  parent: 'scratch'
+  publish_registry: '{{ oim_node_name }}.{{ domain_name }}:5000/{{ oim_node_name }}'
+  registry_opts_push:
+    - '--tls-verify=false'
+
+repos:
+{% for repo in rhel_aarch64_repos %}
+{% if repo.base_url | length > 1 %}
+  - alias: '{{ repo.name }}'
+    url: '{{ repo.base_url }}'
+{% endif %}
+{% if repo.gpg | length > 1 %}
+    gpg: '{{ repo.gpg }}'
+{% endif %}
+{% endfor %}
+
+package_groups:
+  - 'Minimal Install'
+  - 'Development Tools'
+packages:
+{% for pkg in aarch64_base_image_packages %}
+  - {{ pkg }}
+{% endfor %}
+
+cmds:
+{% for cmd in base_image_commands %}
+  - cmd: "{{ cmd }}"
+{% endfor %}

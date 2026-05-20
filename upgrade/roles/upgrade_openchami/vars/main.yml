@@ -1,0 +1,286 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# File permissions
+dir_permissions_755: "0755"
+file_permissions_644: "0644"
+
+# Manifest path for upgrade state tracking
+manifest_path: "/opt/omnia/.data/upgrade_manifest.yml"
+
+# OpenCHAMI snapshot configuration
+openchami_snapshot_base_dir: "/opt/omnia/openchami/upgrade_snapshots"
+openchami_snapshot_dir: "{{ openchami_snapshot_base_dir }}/{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '') }}"
+
+# OpenCHAMI API endpoints
+# These are fallback defaults ONLY. At runtime, resolve_admin_ip.yml discovers
+# the actual SMD/BSS container IPs and ports via `podman inspect` and overrides
+# these variables with set_fact. Direct container access uses HTTP (no TLS).
+openchami_smd_endpoint: "http://localhost:27779/hsm/v2"
+openchami_bss_endpoint: "http://localhost:27778/boot/v1"
+
+# Default backup directory (used when manifest.backup_dir is not available)
+openchami_backup_dir_default: "/opt/omnia/backups/upgrade/version_2.1.0.0"
+
+# PostgreSQL database settings
+# These are fallback defaults only — actual credentials are dynamically
+# retrieved from the postgres container's POSTGRES_MULTIPLE_DATABASES env var
+# at runtime by pre_upgrade_health_check.yml (retrieve_postgres_credentials task).
+# Format of POSTGRES_MULTIPLE_DATABASES: "dbname:dbuser:password,..."
+# The first entry (hmsds) is used for all HMS/SMD database operations.
+postgres_db_user: "ochami"
+postgres_db_name: "hmsds"
+postgres_env_file: "/etc/openchami/configs/openchami.env"
+
+# Database migration settings
+db_migration_max_wait_attempts: 30
+db_migration_wait_interval: 2
+
+# OpenCHAMI pre-upgrade critical containers (must be running before upgrade)
+# NOTE: In omnia-2.1, coresmd was a single container. It is not included here
+# because pre-upgrade detection uses a >= 3 threshold for these core services.
+openchami_critical_containers:
+  - smd
+  - bss
+  - cloud-init-server
+  - postgres
+  - haproxy
+
+# OpenCHAMI post-upgrade critical containers (must be running after upgrade)
+# In omnia-2.2, coresmd has been split into coresmd-coredhcp and coresmd-coredns
+openchami_post_upgrade_critical_containers:
+  - smd
+  - bss
+  - cloud-init-server
+  - postgres
+  - haproxy
+  - coresmd-coredhcp
+  - coresmd-coredns
+  - registry
+
+# Legacy containers from omnia-2.1 that must be removed during upgrade
+# coresmd was a single container in 2.1, replaced by coresmd-coredhcp + coresmd-coredns in 2.2
+openchami_legacy_containers:
+  - coresmd
+
+# Legacy quadlet files from omnia-2.1 that must be removed during upgrade
+openchami_legacy_quadlet_files:
+  - "/etc/containers/systemd/coresmd.container"
+
+# OpenCHAMI component version tags (Omnia 2.2 target)
+openchami_local_ca_tag: "v0.2.6"
+openchami_opaal_tag: "v0.3.12"
+openchami_smd_tag: "v2.19.3"
+openchami_bss_tag: "v1.32.2"
+openchami_cloud_init_tag: "v1.3.0"
+openchami_coresmd_tag: "v0.4.3"
+minio_release_tag: "RELEASE.2026-04-17T00-00-00Z"
+postgres_tag: "11.5-alpine"
+hydra_tag: "v2.3"
+haproxy_tag: "latest"
+registry_tag: "3.1.0"
+curl_tag: "latest"
+acme_tag: "3.1.1"
+
+# OpenCHAMI target images for podman pull
+openchami_target_images:
+  - "ghcr.io/openchami/local-ca:{{ openchami_local_ca_tag }}"
+  - "ghcr.io/openchami/opaal:{{ openchami_opaal_tag }}"
+  - "ghcr.io/openchami/smd:{{ openchami_smd_tag }}"
+  - "ghcr.io/openchami/bss:{{ openchami_bss_tag }}"
+  - "ghcr.io/openchami/cloud-init:{{ openchami_cloud_init_tag }}"
+  - "ghcr.io/openchami/coresmd:{{ openchami_coresmd_tag }}"
+  - "docker.io/pgsty/minio:{{ minio_release_tag }}"
+  - "docker.io/library/postgres:{{ postgres_tag }}"
+  - "docker.io/oryd/hydra:{{ hydra_tag }}"
+  - "cgr.dev/chainguard/haproxy:{{ haproxy_tag }}"
+  - "docker.io/library/registry:{{ registry_tag }}"
+  - "cgr.dev/chainguard/curl:{{ curl_tag }}"
+  - "docker.io/neilpang/acme.sh:{{ acme_tag }}"
+
+# Quadlet files to update with new image versions
+# NOTE: coresmd.container replaced by coresmd-coredhcp.container + coresmd-coredns.container
+openchami_quadlet_updates:
+  - file: "step-ca.container"
+    image: "ghcr.io/openchami/local-ca:{{ openchami_local_ca_tag }}"
+  - file: "opaal.container"
+    image: "ghcr.io/openchami/opaal:{{ openchami_opaal_tag }}"
+  - file: "opaal-idp.container"
+    image: "ghcr.io/openchami/opaal:{{ openchami_opaal_tag }}"
+  - file: "smd.container"
+    image: "ghcr.io/openchami/smd:{{ openchami_smd_tag }}"
+  - file: "smd-init.container"
+    image: "ghcr.io/openchami/smd:{{ openchami_smd_tag }}"
+  - file: "bss.container"
+    image: "ghcr.io/openchami/bss:{{ openchami_bss_tag }}"
+  - file: "bss-init.container"
+    image: "ghcr.io/openchami/bss:{{ openchami_bss_tag }}"
+  - file: "cloud-init-server.container"
+    image: "ghcr.io/openchami/cloud-init:{{ openchami_cloud_init_tag }}"
+  - file: "coresmd-coredhcp.container"
+    image: "ghcr.io/openchami/coresmd:{{ openchami_coresmd_tag }}"
+  - file: "coresmd-coredns.container"
+    image: "ghcr.io/openchami/coresmd:{{ openchami_coresmd_tag }}"
+  - file: "postgres.container"
+    image: "docker.io/library/postgres:{{ postgres_tag }}"
+  - file: "hydra.container"
+    image: "docker.io/oryd/hydra:{{ hydra_tag }}"
+  - file: "haproxy.container"
+    image: "cgr.dev/chainguard/haproxy:{{ haproxy_tag }}"
+  - file: "minio.container"
+    image: "docker.io/pgsty/minio:{{ minio_release_tag }}"
+  - file: "registry.container"
+    image: "docker.io/library/registry:{{ registry_tag }}"
+  - file: "curl.container"
+    image: "cgr.dev/chainguard/curl:{{ curl_tag }}"
+  - file: "acme.container"
+    image: "docker.io/neilpang/acme.sh:{{ acme_tag }}"
+  - file: "acme-register.container"
+    image: "docker.io/neilpang/acme.sh:{{ acme_tag }}"
+  - file: "acme-deploy.container"
+    image: "docker.io/neilpang/acme.sh:{{ acme_tag }}"
+
+# OpenCHAMI containers for version verification (post-upgrade)
+# NOTE: coresmd split into coresmd-coredhcp + coresmd-coredns (both use coresmd image)
+openchami_containers:
+  - container: "step-ca"
+    expected_image: "ghcr.io/openchami/local-ca:{{ openchami_local_ca_tag }}"
+  - container: "opaal"
+    expected_image: "ghcr.io/openchami/opaal:{{ openchami_opaal_tag }}"
+  - container: "opaal-idp"
+    expected_image: "ghcr.io/openchami/opaal:{{ openchami_opaal_tag }}"
+  - container: "smd"
+    expected_image: "ghcr.io/openchami/smd:{{ openchami_smd_tag }}"
+  - container: "bss"
+    expected_image: "ghcr.io/openchami/bss:{{ openchami_bss_tag }}"
+  - container: "cloud-init-server"
+    expected_image: "ghcr.io/openchami/cloud-init:{{ openchami_cloud_init_tag }}"
+  - container: "coresmd-coredhcp"
+    expected_image: "ghcr.io/openchami/coresmd:{{ openchami_coresmd_tag }}"
+  - container: "coresmd-coredns"
+    expected_image: "ghcr.io/openchami/coresmd:{{ openchami_coresmd_tag }}"
+  - container: "postgres"
+    expected_image: "docker.io/library/postgres:{{ postgres_tag }}"
+  - container: "hydra"
+    expected_image: "docker.io/oryd/hydra:{{ hydra_tag }}"
+  - container: "haproxy"
+    expected_image: "cgr.dev/chainguard/haproxy:{{ haproxy_tag }}"
+  - container: "registry"
+    expected_image: "docker.io/library/registry:{{ registry_tag }}"
+
+# Path to prepare_oim templates (reuse for deploying new configs without duplication)
+prepare_oim_templates_path: "{{ role_path }}/../../../prepare_oim/roles/deploy_containers/openchami/templates"
+
+# OpenCHAMI configuration paths
+openchami_config_dir: "/etc/openchami/configs"
+openchami_config_vars_path: "/opt/omnia/openchami/configs_vars.yaml"
+openchami_work_dir: "/opt/omnia/openchami/workdir"
+ochami_dir: "/etc/ochami"
+
+# Source-of-truth paths for regenerating configs_vars.yaml when missing
+oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
+network_spec_path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/network_spec.yml"
+provision_config_path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/provision_config.yml"
+
+# OpenCHAMI RPM packages (Omnia 2.2 target)
+openchami_rpm_url: "https://github.com/OpenCHAMI/release/releases/download/v0.1.5/openchami-0.1.5.rpm"
+openchami_rpm_name: "openchami-0.1.5.rpm"
+ochami_client_rpm_url: "https://github.com/OpenCHAMI/ochami/releases/download/v0.7.1/ochami_0.7.1_linux_amd64.rpm"
+ochami_client_rpm_name: "ochami_0.7.1_linux_amd64.rpm"
+
+# CoreDNS default configuration (used when rendering Corefile.j2 from prepare_oim)
+dns_forwarders:
+  - 8.8.8.8
+  - 1.1.1.1
+ca_cert_path: /root_ca/root_ca.crt
+
+# CoreDHCP defaults (cluster-specific values loaded from configs_vars.yaml at runtime)
+coredhcp_server_id: "{{ cluster_boot_ip | default('') }}"
+coredhcp_dns_server: "{{ cluster_boot_ip | default('') }}"
+coredhcp_router: "{{ cluster_boot_ip | default('') }}"
+coredhcp_tmp_lease_duration: "5m"
+coredhcp_cache_validity: "30s"
+coredhcp_custom_ipxe: "default"
+coredhcp_tftp_single_port_mode: true
+
+# Retry and wait settings
+pull_image_retries: 3
+pull_image_delay: 10
+max_retries: 10
+max_delay: 10
+wait_time: 30
+
+# API readiness retry settings (SMD/BSS must be reachable)
+api_readiness_retries: 18
+api_readiness_delay: 5
+# Total wait: 18 × 5s = 90 seconds max for API endpoints to respond
+
+# Upgrade messages
+upgrade_messages:
+  deployment:
+    not_deployed: |
+      OpenCHAMI was not previously deployed. Skipping OpenCHAMI upgrade.
+      If you want to deploy OpenCHAMI, run: ansible-playbook prepare_oim/prepare_oim.yml
+  idempotency:
+    skip_message: "OpenCHAMI containers are already at target versions. Skipping upgrade."
+    upgrade_needed: "OpenCHAMI upgrade required. Containers need updating."
+    check_failure: "Failed to determine upgrade status. Proceeding with upgrade to be safe."
+  backup:
+    success: |
+      Pre-upgrade backup completed successfully.
+      PostgreSQL dump, configs, quadlets, and RPMs have been saved.
+    failure: |
+      Pre-upgrade backup FAILED. Aborting upgrade to prevent data loss.
+      Please check disk space and permissions on the backup directory.
+    pgdump_failure: |
+      PostgreSQL pg_dump failed or produced an empty backup.
+      Aborting upgrade — database backup is required before proceeding.
+      Verify postgres is running: podman exec postgres pg_isready -U {{ postgres_db_user }}
+  health_check:
+    pre_check_success: "Pre-upgrade health check passed. All OpenCHAMI services are healthy."
+    pre_check_failure: "Pre-upgrade health check failed. OpenCHAMI services are not healthy."
+    post_check_success: "Post-upgrade health check passed. All OpenCHAMI services are healthy after upgrade."
+    post_check_failure: "Post-upgrade health check failed. OpenCHAMI services may not be fully operational."
+  data_preservation:
+    success: "OpenCHAMI data preserved successfully"
+    failure: "Failed to preserve OpenCHAMI data. Upgrade aborted to prevent data loss."
+  container_upgrade:
+    success: "OpenCHAMI containers upgraded successfully to Omnia 2.2 target versions"
+    failure: "OpenCHAMI container upgrade failed."
+  troubleshooting:
+    pre_check_diagnosis: |
+      Please resolve issues before retrying upgrade:
+      - Check container status: podman ps -a
+      - Check container logs: podman logs <container_name>
+      - Get SMD IP/port: podman inspect -f '{{ "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" }}' smd
+      - Get SMD port: podman inspect -f '{{ "{{range $k, $v := .NetworkSettings.Ports}}{{$k}}{{end}}" }}' smd
+      - Check systemd status: systemctl status openchami.target
+    container_upgrade_diagnosis: |
+      Check container logs for errors:
+      - podman logs smd
+      - podman logs bss
+      - podman logs cloud-init-server
+      - systemctl status openchami.target
+    post_check_diagnosis: |
+      Review the following:
+      - Container logs: podman logs <container_name>
+      - Service status: systemctl status openchami.target
+      - Database: podman exec postgres pg_isready
+      - Systemd deps: systemctl list-dependencies openchami.target
+      - ochami CLI: ochami smd component get
+      - S3 buckets: s3cmd -c /opt/omnia/openchami/s3/.s3cfg ls
+      - SMD API: curl -s http://<smd_ip>:<smd_port>/hsm/v2/State/Components
+      - BSS boot params: curl -s http://<bss_ip>:<bss_port>/boot/v1/bootparameters
+      - Get container IPs: podman inspect -f '{{ "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" }}' <container>

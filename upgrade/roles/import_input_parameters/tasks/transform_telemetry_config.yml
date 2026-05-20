@@ -205,6 +205,44 @@
          | default(backup_telemetry_powerscale_config.powerscale_log_enabled
          | default(telemetry_default_powerscale_log_enabled)) }}
 
+- name: Normalize UFM source values from backup (new in 2.2)
+  ansible.builtin.set_fact:
+    telemetry_ufm_metrics_enabled: >-
+      {{ (backup_telemetry_sources.ufm | default({})).metrics_enabled
+         | default(telemetry_default_ufm_metrics_enabled) }}
+    telemetry_ufm_logs_enabled: >-
+      {{ (backup_telemetry_sources.ufm | default({})).logs_enabled
+         | default(telemetry_default_ufm_logs_enabled) }}
+
+- name: Normalize UFM configuration values from backup (new in 2.2)
+  ansible.builtin.set_fact:
+    backup_telemetry_ufm_config: >-
+      {{ backup_telemetry_config.ufm_configuration | default({}) }}
+
+- name: Extract UFM configuration fields
+  ansible.builtin.set_fact:
+    telemetry_ufm_endpoint: >-
+      {{ backup_telemetry_ufm_config.ufm_endpoint
+         | default(telemetry_default_ufm_endpoint) }}
+    telemetry_ufm_metrics_port: >-
+      {{ backup_telemetry_ufm_config.ufm_metrics_port
+         | default(telemetry_default_ufm_metrics_port) }}
+    telemetry_ufm_scrape_interval: >-
+      {{ backup_telemetry_ufm_config.scrape_interval
+         | default(telemetry_default_ufm_scrape_interval) }}
+    telemetry_ufm_scrape_timeout: >-
+      {{ backup_telemetry_ufm_config.scrape_timeout
+         | default(telemetry_default_ufm_scrape_timeout) }}
+    telemetry_ufm_tls_mode: >-
+      {{ backup_telemetry_ufm_config.tls_mode
+         | default(telemetry_default_ufm_tls_mode) }}
+    telemetry_ufm_ca_cert_path: >-
+      {{ backup_telemetry_ufm_config.ufm_ca_cert_path
+         | default(telemetry_default_ufm_ca_cert_path) }}
+    telemetry_ufm_auth_mode: >-
+      {{ backup_telemetry_ufm_config.auth_mode
+         | default(telemetry_default_ufm_auth_mode) }}
+
 - name: Normalize bridge values from backup (2.2 format or defaults)
   ansible.builtin.set_fact:
     telemetry_vector_ldms_metrics_enabled: >-
@@ -262,6 +300,15 @@
     telemetry_ldms_sampler_configurations: "{{ telemetry_ldms_sampler_configurations }}"
     telemetry_otel_collector_storage_size: "{{ telemetry_otel_collector_storage_size }}"
     telemetry_csm_observability_values_file_path: "{{ telemetry_csm_observability_values_file_path }}"
+    telemetry_ufm_metrics_enabled: "{{ telemetry_ufm_metrics_enabled }}"
+    telemetry_ufm_logs_enabled: "{{ telemetry_ufm_logs_enabled }}"
+    telemetry_ufm_endpoint: "{{ telemetry_ufm_endpoint }}"
+    telemetry_ufm_metrics_port: "{{ telemetry_ufm_metrics_port }}"
+    telemetry_ufm_scrape_interval: "{{ telemetry_ufm_scrape_interval }}"
+    telemetry_ufm_scrape_timeout: "{{ telemetry_ufm_scrape_timeout }}"
+    telemetry_ufm_tls_mode: "{{ telemetry_ufm_tls_mode }}"
+    telemetry_ufm_ca_cert_path: "{{ telemetry_ufm_ca_cert_path }}"
+    telemetry_ufm_auth_mode: "{{ telemetry_ufm_auth_mode }}"
 
 - name: Validate YAML syntax of transformed telemetry_config.yml
   ansible.builtin.command:
@@ -291,6 +338,8 @@
       - victoria_configurations → telemetry_sinks.victoria_metrics
       - kafka_configurations → telemetry_sinks.kafka (topic_partitions converted to dict)
       - ldms_* ports/samplers → ldms_configurations
-      - Added new sections: telemetry_sources (ldms, dcgm, powerscale), telemetry_bridges, telemetry_sinks.victoria_logs
+      - Added new sections: telemetry_sources (ldms, dcgm, powerscale, ufm), telemetry_bridges, telemetry_sinks.victoria_logs
+      - Added telemetry_sources.ufm (metrics_enabled, logs_enabled, collection_targets) with defaults
+      - Added ufm_configuration section (ufm_endpoint, ufm_metrics_port, scrape_interval, tls_mode, auth_mode)
 
       Configuration validated and migrated successfully.

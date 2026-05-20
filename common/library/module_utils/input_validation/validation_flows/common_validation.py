@@ -1840,11 +1840,14 @@ def get_config_file_paths(input_dir, data, software_config_file_path):
             pass
 
     config_base_path = os.path.join(input_dir, "config", "x86_64", cluster_os_type, cluster_os_version)
-    # Use versioned service_k8s file - version is required
-    if not service_k8s_version:
-        raise ValueError("service_k8s version not found in software_config.json")
-    service_k8s_json = f"service_k8s_v{service_k8s_version}.json"
-    service_k8s_json_path = os.path.join(config_base_path, service_k8s_json)
+    
+    # Use versioned service_k8s file if version is available
+    # Return None paths if service_k8s is not configured (e.g., slurm-only clusters)
+    service_k8s_json_path = None
+    if service_k8s_version:
+        service_k8s_json = f"service_k8s_v{service_k8s_version}.json"
+        service_k8s_json_path = os.path.join(config_base_path, service_k8s_json)
+    
     csi_driver_powerscale_json_path = os.path.join(config_base_path, "csi_driver_powerscale.json")
 
     return {

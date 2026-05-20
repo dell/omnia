@@ -105,3 +105,58 @@ spec:
     - targetLabel: component
       replacement: volume-status
 {% endif %}
+
+---
+{% if telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) %}
+# VMServiceScrape for UFM InfiniBand Metrics
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: ufm-infiniband-metrics
+  namespace: {{ telemetry_namespace }}
+spec:
+  jobLabel: ufm
+  selector:
+    matchLabels:
+      app: ufm-external
+  endpoints:
+    - port: metrics
+      interval: {{ telemetry_config.ufm_configuration.scrape_interval | default('30s') }}
+      scrapeTimeout: {{ telemetry_config.ufm_configuration.scrape_timeout | default('15s') }}
+{% if telemetry_config.ufm_configuration.tls_mode | default('self_signed') == 'ca_signed' %}
+      scheme: https
+      tlsConfig:
+        caFile: /etc/ufm-credentials/ca.crt
+        insecureSkipVerify: false
+{% elif telemetry_config.ufm_configuration.tls_mode | default('self_signed') == 'self_signed' %}
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+{% else %}
+      scheme: http
+{% endif %}
+      path: /metrics
+      honorLabels: true
+{% if telemetry_config.ufm_configuration.auth_mode | default('basic') == 'basic' %}
+      basicAuth:
+        username:
+          name: ufm-telemetry-credentials
+          key: username
+        password:
+          name: ufm-telemetry-credentials
+          key: password
+{% endif %}
+      relabelings:
+        - action: replace
+          sourceLabels: []
+          targetLabel: source
+          replacement: ufm
+        - action: replace
+          sourceLabels: []
+          targetLabel: subsystem
+          replacement: infiniband
+        - action: replace
+          sourceLabels: []
+          targetLabel: job
+          replacement: ufm-infiniband-metrics
+{% endif %}

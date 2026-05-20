@@ -1,0 +1,85 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# Shared: Load and validate software_config.json
+# ============================================================================
+# Reusable task file for loading software_config.json and verifying that
+# enabled components have current versions and matching JSON files.
+#
+# Inputs:
+#   - input_project_dir           (required)
+#   - enabled_components          (required)
+#   - upgrade_active_architectures (required)
+#
+# Outputs:
+#   - current_software_config     (parsed software_config.json)
+#   - current_versions            (dict: component_name -> version)
+# ============================================================================
+
+- name: "Validate software config — Load (reuse if already loaded)"
+  when: current_software_config is not defined or current_software_config.softwares is not defined
+  block:
+    - name: "Validate software config — Slurp software_config.json"
+      ansible.builtin.slurp:
+        path: "{{ input_project_dir }}/software_config.json"
+      register: _sw_config_raw
+
+    - name: "Validate software config — Parse"
+      ansible.builtin.set_fact:
+        current_software_config: "{{ _sw_config_raw.content | b64decode | from_json }}"
+
+- name: "Validate software config — Extract current versions"
+  ansible.builtin.set_fact:
+    current_versions: >-
+      {{ current_software_config.softwares
+         | selectattr('version', 'defined')
+         | items2dict(key_name='name', value_name='version') }}
+
+- name: "Validate software config — Verify versions for enabled components"
+  ansible.builtin.assert:
+    that:
+      - current_versions[item.key] is defined
+    fail_msg: >-
+      Current version not found for {{ item.key }}! Component must be deployed before upgrade.
+    success_msg: "  {{ item.key }}: {{ current_versions[item.key] }}"
+  loop: "{{ enabled_components }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: "Validate software config — Check JSON files exist"
+  ansible.builtin.stat:
+    path: >-
+      {{ input_project_dir }}/config/{{ item.1 }}/{{
+      current_software_config.cluster_os_type }}/{{
+      current_software_config.cluster_os_version }}/{{
+      item.0.key }}_v{{ current_versions[item.0.key] }}.json
+  register: _json_file_check
+  loop: "{{ enabled_components | product(upgrade_active_architectures) | list }}"
+  loop_control:
+    label: "{{ item.0.key }}/{{ item.1 }}"
+  when: current_versions[item.0.key] is defined
+
+- name: "Validate software config — Fail if JSON files missing"
+  ansible.builtin.fail:
+    msg: >-
+      JSON file not found: {{ item.invocation.module_args.path }}.
+      Expected: {{ item.item.0.key }}_v{{ current_versions[item.item.0.key] }}.json
+  loop: "{{ _json_file_check.results }}"
+  loop_control:
+    label: "{{ item.item.0.key }}/{{ item.item.1 }}"
+  when:
+    - item.stat is defined
+    - not item.stat.exists

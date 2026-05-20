@@ -244,19 +244,28 @@ def run_module():
     additional_enabled = is_additional_packages_enabled(software_config)
     allowed_additional_subgroups = get_allowed_additional_subgroups(software_config) if additional_enabled else []
 
-    # Versioned JSON file for service_k8s: service_k8s_v<version>.json
-    if not service_k8s_version:
-        module.fail_json(msg="service_k8s version not found in software_config.json")
-    service_k8s_json = f"service_k8s_v{service_k8s_version}.json"
+    # K8s-related functional groups that require service_k8s
+    k8s_functional_groups = {
+        "service_kube_node_x86_64",
+        "service_kube_control_plane_first_x86_64",
+        "service_kube_control_plane_x86_64"
+    }
+
+    # Check if any k8s functional groups are being processed
+    needs_service_k8s = any(fg in k8s_functional_groups for fg in functional_groups)
+
+    # Only validate service_k8s version if k8s functional groups are present
+    service_k8s_json = None
+    if needs_service_k8s:
+        if not service_k8s_version:
+            module.fail_json(msg="service_k8s version not found in software_config.json")
+        service_k8s_json = f"service_k8s_v{service_k8s_version}.json"
 
     # pylint: disable=line-too-long
     # Functional group → json files mapping
     software_map = {
         "os_x86_64": ["default_packages.json", "ldms.json"],
         "os_aarch64": ["default_packages.json", "ldms.json"],
-        "service_kube_node_x86_64": [service_k8s_json],
-        "service_kube_control_plane_first_x86_64": [service_k8s_json],
-        "service_kube_control_plane_x86_64": [service_k8s_json],
         "slurm_control_node_x86_64": ["slurm_custom.json", "openldap.json", "ldms.json"],
         "slurm_node_x86_64": ["slurm_custom.json", "openldap.json", "ldms.json"],
         "login_node_x86_64": ["slurm_custom.json", "openldap.json", "ldms.json"],
@@ -270,6 +279,14 @@ def run_module():
             "slurm_custom.json", "openldap.json", "ldms.json"
         ],
     }
+
+    # Add k8s functional groups to software_map only if service_k8s_json is available
+    if service_k8s_json:
+        software_map.update({
+            "service_kube_node_x86_64": [service_k8s_json],
+            "service_kube_control_plane_first_x86_64": [service_k8s_json],
+            "service_kube_control_plane_x86_64": [service_k8s_json],
+        })
 
     compute_images_dict = {}
 

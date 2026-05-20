@@ -1,0 +1,54 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Resolve admin NIC IP for OpenCHAMI API endpoints
+  ansible.builtin.include_tasks: resolve_admin_ip.yml
+
+- name: OpenCHAMI upgrade workflow
+  block:
+    - name: Pre-upgrade health check
+      ansible.builtin.include_tasks: pre_upgrade_health_check.yml
+
+    - name: Execute OpenCHAMI upgrade
+      when:
+        - openchami_deployed | default(false) | bool
+        - upgrade_needed | default(true) | bool
+      block:
+        - name: Pre-upgrade backup (pg_dump, configs, quadlets, metadata)
+          ansible.builtin.include_tasks: backup_openchami.yml
+
+        - name: Upgrade OpenCHAMI containers
+          ansible.builtin.include_tasks: upgrade_openchami_containers.yml
+
+        # Container IPs/ports may change after stop/remove/start cycle.
+        # Re-discover endpoints so migrate_database and post_upgrade checks
+        # use the correct addresses.
+        - name: Re-resolve SMD/BSS endpoints after container upgrade
+          ansible.builtin.include_tasks: resolve_admin_ip.yml
+
+        - name: Post-upgrade database migration and integrity check
+          ansible.builtin.include_tasks: migrate_database.yml
+
+        - name: Post-upgrade health check
+          ansible.builtin.include_tasks: post_upgrade_health_check.yml
+
+  rescue:
+    - name: Set upgrade failure flag
+      ansible.builtin.set_fact:
+        openchami_upgrade_failed: true
+
+  always:
+    - name: Upgrade status and cleanup
+      ansible.builtin.include_tasks: upgrade_status.yml

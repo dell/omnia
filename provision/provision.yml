@@ -143,6 +143,7 @@
       ansible.builtin.include_role:
         name: configure_ochami
         tasks_from: provision_mapping_nodes.yml
+      when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
     - name: Read nodes.yaml and derive Omnia node facts
       ansible.builtin.include_role:
