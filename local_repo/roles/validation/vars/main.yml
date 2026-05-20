@@ -181,7 +181,7 @@ metadata_file_path: "{{ meta_dest }}/localrepo_metadata.yml"
 metadata_identical_msg: "Metadata is identical. No changes detected."
 metadata_warn_msg: |
   WARNING: Metadata has changed since last run.
-  This may indicate changes in software_config.json or local_repo_config.yml.
+  Execution may fail if there is no internet on OIM.
 build_stream_auto_accept_metadata_msg: "Build stream is enabled, automatically accepting metadata changes."
 
 # Usage: remove_k8s_line.yml

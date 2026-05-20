@@ -76,6 +76,9 @@
   ansible.builtin.set_fact:
     input_project_dir: "{{ _original_input_project_dir }}"
     project_input_path: "{{ _original_input_project_dir }}"
+    sw_config_json_path: "{{ _original_input_project_dir }}/software_config.json"
+    local_repo_config_file: "{{ _original_input_project_dir }}/local_repo_config.yml"
+    local_repo_config_path: "{{ _original_input_project_dir }}/local_repo_config.yml"
 
 - name: "Sync — Display sync completion"
   ansible.builtin.debug:
