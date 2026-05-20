@@ -153,7 +153,13 @@
 
     - name: "Display skip message — k8s upgrade already completed"
       ansible.builtin.debug:
-        msg: "K8s upgrade status is 'completed', hence skipping k8s upgrade."
+        msg: |
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] Component 'k8s' — SKIPPED
+          ════════════════════════════════════════════════════════════════════════
+          Reason: K8s upgrade status is already 'completed'.
+          Skipping K8s upgrade.
+          ════════════════════════════════════════════════════════════════════════
       when: k8s_upgrade_skip | default(false)
 
     - name: "Skip if already completed"
