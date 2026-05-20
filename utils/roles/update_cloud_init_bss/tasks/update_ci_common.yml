@@ -25,6 +25,16 @@
 # See provision/roles/configure_ochami/templates/cloud_init/ci-group-common.yaml.j2
 # ============================================================================
 
+- name: Verify ci-common file exists
+  ansible.builtin.stat:
+    path: "{{ ci_common_file_path }}"
+  register: ci_common_file_stat
+
+- name: Fail if ci-common file not found
+  ansible.builtin.fail:
+    msg: "{{ ci_common_file_missing_msg }}"
+  when: not ci_common_file_stat.stat.exists
+
 - name: Delete existing ci-group-common config
   ansible.builtin.command: >
     /usr/bin/ochami cloud-init group delete --no-confirm -f yaml -d @{{ ci_common_file_path }}

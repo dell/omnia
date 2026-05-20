@@ -1,0 +1,44 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Update hostname configuration for nodes
+# ============================================================================
+# Uses the ochami CLI to set hostname from the provided hostname YAML file.
+#
+# Required variables:
+#   hostname_file_path      — Path to pre-rendered hostname YAML file (on target host)
+#   functional_group_name   — Name of the functional group
+# ============================================================================
+
+- name: Verify hostname file exists - {{ functional_group_name }}
+  ansible.builtin.stat:
+    path: "{{ hostname_file_path }}"
+  register: hostname_file_stat
+
+- name: Fail if hostname file not found - {{ functional_group_name }}
+  ansible.builtin.fail:
+    msg: "{{ hostname_file_missing_msg }}"
+  when: not hostname_file_stat.stat.exists
+
+- name: Set hostname configuration - {{ functional_group_name }}
+  ansible.builtin.command: >
+    /usr/bin/ochami cloud-init node set -f yaml -d @{{ hostname_file_path }}
+  changed_when: true
+  register: hostname_set_result
+
+- name: Fail if hostname update failed - {{ functional_group_name }}
+  ansible.builtin.fail:
+    msg: "{{ hostname_update_fail_msg }}"
+  when: hostname_set_result.rc != 0

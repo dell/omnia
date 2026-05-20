@@ -18,6 +18,7 @@ update_bss: true
 update_cloud_init: true
 update_ci_defaults: false
 update_ci_common: false
+update_hostname: false
 
 # Messages
 bss_update_fail_msg: >
@@ -47,8 +48,14 @@ ci_common_update_fail_msg: >
 ci_common_file_missing_msg: >
   Cloud-init common file not found at '{{ ci_common_file_path | default('undefined') }}'.
   Ensure the file exists on the target host before calling this utility.
+hostname_update_fail_msg: >
+  Failed to update hostname configuration for '{{ functional_group_name }}'.
+  Check ochami cloud-init service status.
+hostname_file_missing_msg: >
+  Hostname file not found at '{{ hostname_file_path | default('undefined') }}'.
+  Ensure the file exists on the target host before calling this utility.
 no_input_files_msg: >
   At least one of bss_file_path, cloud_init_file_path, ci_defaults_file_path,
-  or ci_common_file_path must be provided.
+  ci_common_file_path, or hostname_file_path must be provided.
   Pass them as extra variables:
   -e bss_file_path=/path/to/bss.yaml -e cloud_init_file_path=/path/to/ci-group.yaml

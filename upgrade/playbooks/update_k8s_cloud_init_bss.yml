@@ -83,8 +83,10 @@
             cloud_init_file_path: "{{ openchami_work_dir }}/cloud-init/ci-group-{{ functional_group_name }}.yaml"
             ci_defaults_file_path: "{{ openchami_work_dir }}/cloud-init/ci-defaults.yaml"
             ci_common_file_path: "{{ openchami_work_dir }}/cloud-init/ci-group-common.yaml"
+            hostname_file_path: "{{ openchami_work_dir }}/nodes/hostname.yaml"
             update_ci_defaults: true
             update_ci_common: true
+            update_hostname: true
 
     - name: Display update completion
       ansible.builtin.debug:
