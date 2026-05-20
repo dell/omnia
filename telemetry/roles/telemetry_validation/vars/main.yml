@@ -17,6 +17,7 @@
 omnia_metadata_file: "/opt/omnia/.data/oim_metadata.yml"
 telemetry_config_file: "{{ input_project_dir }}/telemetry_config.yml"
 fail_msg_telemetry_config_file: "telemetry_config.yml file doesn't exist."
+fail_msg_telemetry_storage_config_file_exists: "telemetry_storage_config.yml file should not exist during validation. This file is only used during deployment."
 pause_time_15: 15
 bmc_group_data_filename: "/opt/omnia/telemetry/bmc_group_data.csv"
 warning_telemetry_support_false: |
