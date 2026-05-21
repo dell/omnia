@@ -34,8 +34,15 @@
       - "============================================================"
       - "  ACTION REQUIRED: NFS Share Cleanup (C-26)"
       - "============================================================"
-      - "  Before proceeding with fresh install, ensure the NFS"
-      - "  share is clean or backed up."
+      - "  Before proceeding with fresh install, ensure these NFS"
+      - "  shares are clean or backed up:"
+      - ""
+      - "  K8s NFS share paths:"
+      - "    - /share_omnia_k8s/                (K8s persistent volumes)"
+      - ""
+      - "  Slurm NFS share paths:"
+      - "    - /share_omnia/                    (Slurm shared home/data)"
+      - ""
       - "  If this is a first-time install, you can safely proceed."
       - "============================================================"
 
@@ -64,3 +71,21 @@
 - name: Deploy BuildStream container (reuse prepare_oim)  # noqa:role-name[path]
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../../prepare_oim/roles/deploy_containers/build_stream"
+
+# ══════════════════════════════════════════════════════════════════
+# Step 3: Fresh Install GitLab Container (placeholder — BS-08)
+# GitLab fresh install handled separately via gitlab/gitlab.yml
+# Runner registration required after GitLab install
+# ══════════════════════════════════════════════════════════════════
+
+- name: "GitLab fresh install (placeholder — run gitlab/gitlab.yml separately)"
+  ansible.builtin.debug:
+    msg:
+      - "============================================================"
+      - "  Step 3: GitLab Fresh Install — DEFERRED"
+      - "============================================================"
+      - "  GitLab install is NOT part of this playbook."
+      - "  After BuildStream install completes, run GitLab separately:"
+      - "    ansible-playbook gitlab/gitlab.yml"
+      - "  Then register GitLab runner tokens (BS-08)."
+      - "============================================================"
