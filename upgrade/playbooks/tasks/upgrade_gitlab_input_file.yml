@@ -27,17 +27,17 @@
 # ────────────────────────────────────────────────────────────────────────
 ---
 
-- name: "Set encoded repo path for {{ _input_file.name }}"
+- name: Set encoded repo path for input file
   ansible.builtin.set_fact:
     _encoded_input_path: "{{ (gitlab_input_repo_dir ~ '/' ~ _input_file.name) | urlencode | replace('/', '%2F') }}"
 
-- name: "Read {{ _input_file.name }} from NFS input directory"
+- name: Read input file from NFS input directory
   ansible.builtin.slurp:
     src: "{{ _input_file.src }}"
   register: _input_content
   failed_when: false
 
-- name: "Check if {{ gitlab_input_repo_dir }}/{{ _input_file.name }} exists in repository"
+- name: Check if input file exists in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_input_path }}?ref={{ gitlab_default_branch }}"
     method: GET
@@ -49,7 +49,7 @@
   no_log: true
   when: _input_content is succeeded
 
-- name: "Create or update {{ gitlab_input_repo_dir }}/{{ _input_file.name }}"
+- name: Create or update input file in repository
   ansible.builtin.uri:
     url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_input_path }}"
     method: "{{ 'PUT' if _input_repo_check.status == 200 else 'POST' }}"
