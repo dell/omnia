@@ -47,6 +47,12 @@
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
   tasks:
+    # ── Set upgrade_mode to bypass upgrade_checkup in credential utility ──
+    - name: Set upgrade_mode to bypass upgrade_checkup in imported playbooks
+      ansible.builtin.set_fact:
+        upgrade_mode: true
+        cacheable: true
+
     # ── Set dynamic run tags for credential utility ──
     - name: Set dynamic run tags for build_stream
       ansible.builtin.set_fact:
@@ -62,6 +68,18 @@
     - name: Set enable_build_stream fact
       ansible.builtin.set_fact:
         enable_build_stream: "{{ enable_build_stream | default(false) | bool }}"
+        cacheable: true
+
+    # ── Load storage_config.yml for s3_configurations (needed by credential utility) ──
+    - name: Read storage_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/storage_config.yml"
+      failed_when: false
+      no_log: true
+
+    - name: Default s3_configurations if not present (2.1 config format)
+      ansible.builtin.set_fact:
+        s3_configurations: "{{ s3_configurations | default({'provider': 'minio'}) }}"
         cacheable: true
 
     # ── Manifest read & idempotency guard ──
@@ -238,7 +256,7 @@
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
   roles:
-    - role: upgrade_build_stream  # noqa:role-name[path]
+    - role: ../roles/upgrade_build_stream  # noqa:role-name[path]
 
 # ══════════════════════════════════════════════════════════════════
 # Play 6: Mark completion and set terminal gate (localhost)

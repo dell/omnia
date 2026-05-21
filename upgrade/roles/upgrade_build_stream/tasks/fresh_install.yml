@@ -53,7 +53,7 @@
 
 - name: Deploy Postgres container (reuse prepare_oim)  # noqa:role-name[path]
   ansible.builtin.include_role:
-    name: deploy_containers/postgres
+    name: "{{ playbook_dir }}/../prepare_oim/roles/deploy_containers/postgres"
 
 # ══════════════════════════════════════════════════════════════════
 # Step 2: Deploy BuildStream via prepare_oim role
@@ -63,4 +63,4 @@
 
 - name: Deploy BuildStream container (reuse prepare_oim)  # noqa:role-name[path]
   ansible.builtin.include_role:
-    name: deploy_containers/build_stream
+    name: "{{ playbook_dir }}/../prepare_oim/roles/deploy_containers/build_stream"
