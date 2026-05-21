@@ -78,7 +78,10 @@
     # <CLUSTER_NAME>_ACCESS_TOKEN env var. gen_access_token is a shell
     # function available on the OIM host via login shell.
     - name: Generate ochami access token on OIM host
-      ansible.builtin.shell: sudo bash -lc 'gen_access_token'
+      ansible.builtin.command:
+        cmd: gen_access_token
+        executable: /bin/bash -l
+      become: true
       register: reload_access_token_result
       changed_when: false
       failed_when: reload_access_token_result.rc != 0 or reload_access_token_result.stdout in ["", "null"]
@@ -308,8 +311,10 @@
 
         - name: Warn if cloud-init-server is not reachable
           ansible.builtin.debug:
-            msg: "{{ upgrade_messages.cloud_init_reload.server_not_reachable }}"
-          when: ci_http_endpoint_check.rc | default(1) != 0
+            msg: >-
+              Cloud-init-server: {{ 'running and reachable' if ci_http_endpoint_check.rc
+              | default(1) == 0 else 'NOT REACHABLE (nodes may hang) — container: '
+              ~ (ci_container_status.stdout | default('unknown')) }}
 
         # ── 8. Verify BSS boot params include cloud-init datasource ───
         # BSS boot params must contain 'ds=nocloud;s=http://...:8081/
