@@ -189,6 +189,20 @@ openchami_config_vars_path: "/opt/omnia/openchami/configs_vars.yaml"
 openchami_work_dir: "/opt/omnia/openchami/workdir"
 ochami_dir: "/etc/ochami"
 
+# Cloud-init workdir paths (for reloading data after container upgrade)
+# The cloud-init-server stores group configs in-memory, NOT in PostgreSQL.
+# When the container is restarted during upgrade, all cloud-init data is lost.
+# These paths point to the BACKUP location where pre-rendered YAML files are
+# preserved by omnia.sh --upgrade. Using backup ensures data integrity even if
+# the live workdir is disturbed during upgrade.
+openchami_cloud_init_dir: "{{ (openchami_backup_dir | default(openchami_backup_dir_default)) }}/openchami/openchami_data/workdir/cloud-init"
+openchami_ci_defaults_path: "{{ openchami_cloud_init_dir }}/ci-defaults.yaml"
+openchami_ci_common_path: "{{ openchami_cloud_init_dir }}/ci-group-common.yaml"
+# Per-node hostname data is also in-memory in cloud-init-server.
+# The hostname.yaml maps xname → local-hostname for each provisioned node.
+openchami_nodes_dir: "{{ (openchami_backup_dir | default(openchami_backup_dir_default)) }}/openchami/openchami_data/workdir/nodes"
+openchami_hostname_path: "{{ openchami_nodes_dir }}/hostname.yaml"
+
 # Source-of-truth paths for regenerating configs_vars.yaml when missing
 oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
 network_spec_path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/network_spec.yml"
@@ -223,9 +237,9 @@ max_delay: 10
 wait_time: 30
 
 # API readiness retry settings (SMD/BSS must be reachable)
-api_readiness_retries: 18
-api_readiness_delay: 5
-# Total wait: 18 × 5s = 90 seconds max for API endpoints to respond
+api_readiness_retries: 20
+api_readiness_delay: 15
+# Total wait: 20 × 15s = 300 seconds (5 minutes) max for API endpoints to respond
 
 # Upgrade messages
 upgrade_messages:
@@ -284,3 +298,61 @@ upgrade_messages:
       - SMD API: curl -s http://<smd_ip>:<smd_port>/hsm/v2/State/Components
       - BSS boot params: curl -s http://<bss_ip>:<bss_port>/boot/v1/bootparameters
       - Get container IPs: podman inspect -f '{{ "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" }}' <container>
+  cloud_init_reload:
+    workdir_not_found: >-
+      Cloud-init workdir not found at {{ oim_host_ci_dir }}.
+      This is expected for prepare_oim-only setups where no nodes
+      have been provisioned yet. Skipping cloud-init data reload.
+    hostname_not_found: >-
+      WARNING: hostname.yaml not found at {{ oim_host_hostname }}.
+      Nodes will boot with default nid-based hostnames instead of
+      PXE mapping file hostnames. To fix, re-run provision.yml or
+      manually: ochami cloud-init node set -f yaml -d @<hostname.yaml>
+    server_not_reachable: >-
+      WARNING: Cloud-init-server is not reachable.
+      Container status: {{ ci_container_status.stdout | default('unknown') }}.
+      Nodes will not receive cloud-init data on boot, causing cloud-init
+      to hang in 'running' state and Slurm/Munge services will not start.
+      Verify the cloud-init-server container is running:
+      podman ps --filter name=cloud-init
+    bss_datasource_missing: >-
+      WARNING: BSS boot parameters do not include the cloud-init
+      datasource URL (ds=nocloud;s=http://...:8081/cloud-init/).
+      Without this, nodes will boot but cloud-init will have no
+      datasource, causing it to hang. Re-provision nodes or manually
+      update BSS boot params to include the cloud-init datasource.
+    summary:
+      - "════════════════════════════════════════════"
+      - "  CLOUD-INIT DATA RELOAD COMPLETED"
+      - "════════════════════════════════════════════"
+      - "ci-defaults: {{ 'reloaded' if ci_defaults_file_stat.stat.exists | default(false) else 'skipped (not found)' }}"
+      - "ci-group-common: {{ 'reloaded' if ci_common_file_stat.stat.exists | default(false) else 'skipped (not found)' }}"
+      - "ci-group configs reloaded: {{ reloaded_ci_group_names | default([]) | join(', ') or 'none found' }}"
+      - "hostname data: {{ 'reloaded' if ci_hostname_file_stat.stat.exists | default(false) else 'MISSING (nodes will use nid-based hostnames)' }}"
+      - "SELinux context: restored"
+      - >-
+        Cloud-init-server: {{ 'running and reachable' if ci_http_endpoint_check.rc
+        | default(1) == 0 else 'NOT REACHABLE (nodes may hang) — container: '
+        ~ (ci_container_status.stdout | default('unknown')) }}
+      - "BSS cloud-init datasource: {{ 'present' if (bss_ci_datasource_check.stdout | default('0') | trim) != '0' else 'MISSING (nodes may hang)' }}"
+      - "Verification: passed"
+      - "════════════════════════════════════════════"
+      - ""
+      - "Provisioned nodes will now receive correct cloud-init"
+      - "configuration on reboot (SSH, network, Slurm, etc.)."
+    failure: |
+      CRITICAL: Failed to reload cloud-init data after container upgrade.
+      Without this data, provisioned nodes will NOT receive cloud-init
+      configuration on reboot (SSH, network, Slurm will not start).
+
+      Cloud-init files at: {{ oim_host_ci_dir | default(openchami_cloud_init_dir) }}
+
+      Manual fix — run on the OIM host:
+        ochami cloud-init defaults set -f yaml -d @<ci_dir>/ci-defaults.yaml
+        ochami cloud-init group set -f yaml -d @<ci_dir>/ci-group-common.yaml
+        ochami cloud-init group set -f yaml -d @<ci_dir>/ci-group-<group>.yaml
+      for each ci-group-*.yaml file in the cloud-init directory.
+
+      For per-node hostnames (from PXE mapping file):
+        ochami cloud-init node set -f yaml -d @<nodes_dir>/hostname.yaml
+      Hostname file at: {{ oim_host_hostname | default(openchami_hostname_path) }}
