@@ -211,8 +211,7 @@
       ansible.builtin.set_fact:
         upgrade_path: >-
           {{ 'upgrade_existing' if (buildstream_service_exists and
-                                    postgres_service_exists and
-                                    gitlab_service_exists)
+                                    postgres_service_exists)
              else 'fresh_install' }}
         cacheable: true
 
