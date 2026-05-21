@@ -917,3 +917,4 @@ summary:
         echo "  Not all stages completed. Check individual stage logs."
       fi
       echo "============================================================"
+      exit 0

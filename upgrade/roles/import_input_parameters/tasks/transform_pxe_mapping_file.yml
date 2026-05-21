@@ -41,7 +41,7 @@
   ansible.builtin.set_fact:
     pxe_mapping_rows: >-
       {{ backup_pxe_mapping_file.list |
-         map('combine', {'IB_MAC': '', 'IB_IP': ''}) |
+         map('combine', {'IB_NIC_NAME': '', 'IB_IP': ''}) |
          list }}
 
 - name: Fail if no valid rows found in pxe_mapping_file
@@ -62,7 +62,7 @@
     cmd: |
       set -o pipefail
       head -n 1 "{{ input_project_dir }}/{{ pxe_mapping_filename }}" | \
-        grep -q "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_MAC,IB_IP"
+        grep -q "FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP"
   changed_when: false
   failed_when: false
   register: pxe_mapping_file_validation

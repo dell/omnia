@@ -225,10 +225,8 @@ def main():
         "ADMIN_IP",
         "BMC_MAC",
         "BMC_IP",
-        "IB_MAC",
-        "IB_IP",
-        "GPU_VENDOR",
-        "GPU_TYPE"
+        "IB_NIC_NAME",
+        "IB_IP"
     ]
 
     if module.check_mode:
@@ -247,9 +245,9 @@ def main():
             hostname = generate_hostname(hostname_prefix, hostname_num, hostname_padding)
             bmc_ip = server.get('idrac_ip', '')
             bmc_hostname = server.get('idrac_hostname', '')
-            ib_mac = server.get('ib_nic_mac', '')
+            ib_nic_name = server.get('ib_nic_name', '')
             admin_ip = calculate_admin_ip(admin_subnet, bmc_ip)
-            ib_ip = calculate_ib_ip(ib_subnet, bmc_ip) if ib_mac else ""
+            ib_ip = calculate_ib_ip(ib_subnet, bmc_ip) if ib_nic_name else ""
 
             # Use group_name from OME if available, else fall back to module param default
             server_group = server.get('group_name', '').strip()
@@ -283,10 +281,8 @@ def main():
                 "ADMIN_IP": admin_ip,
                 "BMC_MAC": server.get('idrac_mac', ''),
                 "BMC_IP": bmc_ip,
-                "IB_MAC": ib_mac,
-                "IB_IP": ib_ip,
-                "GPU_VENDOR": server.get('gpu_vendor', ''),
-                "GPU_TYPE": server.get('gpu_type', '')
+                "IB_NIC_NAME": ib_nic_name,
+                "IB_IP": ib_ip
             }
             rows.append(row)
 

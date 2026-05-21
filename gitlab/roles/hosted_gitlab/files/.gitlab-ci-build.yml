@@ -1224,11 +1224,10 @@ summary:
       BUILD_FAILED_FILTER='.stages[]? | select(.stage_name | test("^(parse-catalog|generate-input-files|create-local-repository|build-image-.*)$")) | \
                            select(.stage_state == "FAILED")'
       ERRORS=$(jq -r "${BUILD_FAILED_FILTER} | \"  |    X \(.stage_name): \" + (.error_summary // \"no details\")" \
-        final_status.json 2>/dev/null)
+        final_status.json 2>/dev/null || true)
       if [ -n "${ERRORS}" ]; then
         echo "  |  Errors:                                                |"
         echo "${ERRORS}"
-        echo "  +-----------------------------------------------------------+"
       fi
 
       echo "  +-----------------------------------------------------------+"
@@ -1240,6 +1239,7 @@ summary:
       fi
 
       echo "  RESULT: SUCCESS -- all stages completed"
+      exit 0
   artifacts:
     paths:
       - final_status.json
