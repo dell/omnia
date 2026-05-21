@@ -52,6 +52,8 @@
           (telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.ufm.logs_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.vast.logs_enabled | default(false) | bool) or
           ldms_support | default(false) | bool
       block:
         - name: Set NFS info fact
@@ -71,6 +73,11 @@
         - telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool
       ansible.builtin.include_tasks: deploy_ufm_telemetry.yml
 
+    - name: Deploy VAST telemetry metrics
+      when:
+        - telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool
+      ansible.builtin.include_tasks: deploy_vast_telemetry.yml
+
     - name: Generate telemetry deployments (idrac/ldms/powerscale/vector)
       when:
         - >-
@@ -78,6 +85,7 @@
           (telemetry_config.telemetry_sources.ldms.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool) or
+          (telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_bridges.vector_ome.metrics_enabled | default(false) | bool) or
           (telemetry_config.telemetry_bridges.vector_ome.logs_enabled | default(false) | bool) or
           ldms_support | default(false) | bool

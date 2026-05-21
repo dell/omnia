@@ -160,3 +160,58 @@ spec:
           targetLabel: job
           replacement: ufm-infiniband-metrics
 {% endif %}
+
+---
+{% if telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) %}
+# VMServiceScrape for VAST Data Storage Metrics
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: vast-storage-metrics
+  namespace: {{ telemetry_namespace }}
+spec:
+  jobLabel: vast
+  selector:
+    matchLabels:
+      app: vast-external
+  endpoints:
+    - port: metrics
+      interval: {{ telemetry_config.vast_configuration.scrape_interval | default('30s') }}
+      scrapeTimeout: {{ telemetry_config.vast_configuration.scrape_timeout | default('15s') }}
+{% if telemetry_config.vast_configuration.tls_mode | default('self_signed') == 'ca_signed' %}
+      scheme: https
+      tlsConfig:
+        caFile: /etc/vast-credentials/ca.crt
+        insecureSkipVerify: false
+{% elif telemetry_config.vast_configuration.tls_mode | default('self_signed') == 'self_signed' %}
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+{% else %}
+      scheme: http
+{% endif %}
+      path: {{ telemetry_config.vast_configuration.metrics_path | default('/api/prometheusmetrics/all') }}
+      honorLabels: true
+{% if telemetry_config.vast_configuration.auth_mode | default('basic') == 'basic' %}
+      basicAuth:
+        username:
+          name: vast-telemetry-credentials
+          key: username
+        password:
+          name: vast-telemetry-credentials
+          key: password
+{% endif %}
+      relabelings:
+        - action: replace
+          sourceLabels: []
+          targetLabel: source
+          replacement: vast
+        - action: replace
+          sourceLabels: []
+          targetLabel: subsystem
+          replacement: vast
+        - action: replace
+          sourceLabels: []
+          targetLabel: job
+          replacement: vast-storage-metrics
+{% endif %}

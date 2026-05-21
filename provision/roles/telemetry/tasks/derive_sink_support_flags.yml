@@ -51,6 +51,9 @@
     powerscale_log_enabled: "{{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
     dcgm_support: "{{ telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(true) | bool }}"
     ufm_telemetry_support: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
+    ufm_log_enabled: "{{ telemetry_config.telemetry_sources.ufm.logs_enabled | default(false) | bool }}"
+    vast_telemetry_support: "{{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
+    vast_log_enabled: "{{ telemetry_config.telemetry_sources.vast.logs_enabled | default(false) | bool }}"
     cacheable: true
 
 - name: Map powerscale source + configurations to legacy powerscale_configurations
@@ -70,7 +73,8 @@
   when: >-
     'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) or
     'victoria_metrics' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([])) or
-    'victoria_metrics' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([]))
+    'victoria_metrics' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([])) or
+    'victoria_metrics' in (telemetry_config.telemetry_sources.vast.collection_targets | default([]))
 
 - name: Check if any source targets victoria_logs
   ansible.builtin.set_fact:
@@ -79,7 +83,8 @@
   when: >-
     'victoria_logs' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([])) or
     'victoria_logs' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) or
-    'victoria_logs' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([]))
+    'victoria_logs' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([])) or
+    'victoria_logs' in (telemetry_config.telemetry_sources.vast.collection_targets | default([]))
 
 - name: Check if any source targets Kafka
   ansible.builtin.set_fact:
@@ -143,4 +148,6 @@
     ldms_support or
     kafka_support or
     ufm_telemetry_support or
-    ufm_log_enabled
+    ufm_log_enabled or
+    vast_telemetry_support or
+    vast_log_enabled

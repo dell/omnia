@@ -123,3 +123,8 @@ omnia_credentials:
       - username: ufm_username
         password: ufm_password
         condition: "{{ ufm_telemetry_support | default(false) | bool }}"
+  vast_telemetry:
+    conditional_mandatory:
+      - username: vast_username
+        password: vast_password
+        condition: "{{ vast_telemetry_support | default(false) | bool }}"
