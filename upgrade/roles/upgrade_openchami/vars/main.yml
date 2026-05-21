@@ -189,6 +189,18 @@ openchami_config_vars_path: "/opt/omnia/openchami/configs_vars.yaml"
 openchami_work_dir: "/opt/omnia/openchami/workdir"
 ochami_dir: "/etc/ochami"
 
+# Cloud-init workdir paths (for reloading data after container upgrade)
+# The cloud-init-server stores group configs in-memory, NOT in PostgreSQL.
+# When the container is restarted during upgrade, all cloud-init data is lost.
+# These paths point to the pre-rendered YAML files that must be re-loaded.
+openchami_cloud_init_dir: "{{ openchami_work_dir }}/cloud-init"
+openchami_ci_defaults_path: "{{ openchami_cloud_init_dir }}/ci-defaults.yaml"
+openchami_ci_common_path: "{{ openchami_cloud_init_dir }}/ci-group-common.yaml"
+# Per-node hostname data is also in-memory in cloud-init-server.
+# The hostname.yaml maps xname → local-hostname for each provisioned node.
+openchami_nodes_dir: "{{ openchami_work_dir }}/nodes"
+openchami_hostname_path: "{{ openchami_nodes_dir }}/hostname.yaml"
+
 # Source-of-truth paths for regenerating configs_vars.yaml when missing
 oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
 network_spec_path: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}/network_spec.yml"
