@@ -23,8 +23,15 @@ metadata_perm: "0644"
 # Versioned JSON file: service_k8s_v<version>.json (e.g., service_k8s_v1.35.1.json)
 k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json" # noqa: yaml[line-length]
 
+# Telemetry storage configuration file
+telemetry_storage_config_file: "{{ hostvars['localhost']['input_project_dir'] }}/telemetry_storage_config.yml"
+
 # Usage: secrets_creation.yml
 mysqldb_secrets_name: mysqldb-credentials
+
+# iDRAC Telemetry MySQL storage
+mysqldb_storage: "{{ telemetry_config.idrac_telemetry_configurations.mysqldb_storage | default('1Gi') }}"
+mysqldb_pvc_name: mysqldb-storage-claim
 
 # Usage: idrac_telemetry_deployment.yml
 service_cluster_idrac_telemetry_dir_path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/idrac_telemetry"
@@ -51,8 +58,6 @@ activemq_http_port_1: 8161
 activemq_http_port_2: 61616
 messagebus_http_port: 61613
 configui_http_port: 8082
-mysqldb_storage: 1Gi
-mysqldb_pvc_name: mysqldb-storage-claim
 mysqldb_k8s_name: mysqldb
 mysqldb_name: "idrac_telemetrydb"
 idrac_telemetry_service_name: "idrac-telemetry-service"
@@ -169,15 +174,15 @@ victoria_cluster:
         cpu: "1000m"
 
   vmagent:
-    replicas: 2
+    replicas: "{{ telemetry_storage_config.victoria_cluster.vmagent.replicas | default(2) }}"
     image: "{{ telemetry_images['victoriametrics/vmagent'] | default('victoriametrics/vmagent:v1.128.0') }}"
     resources:
       requests:
-        memory: "128Mi"
-        cpu: "50m"
+        memory: "{{ telemetry_storage_config.victoria_cluster.vmagent.resources.requests.memory | default('128Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster.vmagent.resources.requests.cpu | default('50m') }}"
       limits:
-        memory: "512Mi"
-        cpu: "250m"
+        memory: "{{ telemetry_storage_config.victoria_cluster.vmagent.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster.vmagent.resources.limits.cpu | default('250m') }}"
 
 # ============================================================================
 # VictoriaLogs Cluster Configuration
@@ -190,15 +195,15 @@ victoria_logs_cluster:
 
   # vlstorage: Persistent log storage nodes (StatefulSet managed by operator via VLCluster CR)
   vlstorage:
-    replicas: 3
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster.vlstorage.replicas | default(2) }}"
     image: "{{ telemetry_images['victoriametrics/victoria-logs'] | default('docker.io/victoriametrics/victoria-logs:v1.49.0') }}"
     resources:
       requests:
-        memory: "1Gi"
-        cpu: "250m"
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster.vlstorage.resources.requests.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster.vlstorage.resources.requests.cpu | default('100m') }}"
       limits:
-        memory: "2Gi"
-        cpu: "1000m"
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster.vlstorage.resources.limits.memory | default('1Gi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster.vlstorage.resources.limits.cpu | default('500m') }}"
     termination_grace_period: 120
     startup_probe:
       initial_delay: 30
@@ -219,11 +224,11 @@ victoria_logs_cluster:
     external_access: true   # Expose vlinsert via LoadBalancer service for external log ingestion
     resources:
       requests:
-        memory: "512Mi"
-        cpu: "250m"
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster.vlinsert.resources.requests.memory | default('256Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster.vlinsert.resources.requests.cpu | default('100m') }}"
       limits:
-        memory: "1Gi"
-        cpu: "1000m"
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster.vlinsert.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster.vlinsert.resources.limits.cpu | default('500m') }}"
     liveness_probe:
       initial_delay: 30
       period: 30
@@ -238,21 +243,22 @@ victoria_logs_cluster:
 
   # vlselect: Log query gateway (Deployment managed by operator via VLCluster CR)
   vlselect:
-    replicas: 2
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster.vlselect.replicas | default(2) }}"
     image: "{{ telemetry_images['victoriametrics/victoria-logs'] | default('docker.io/victoriametrics/victoria-logs:v1.49.0') }}"
     resources:
       requests:
-        memory: "512Mi"
-        cpu: "250m"
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster.vlselect.resources.requests.memory | default('256Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster.vlselect.resources.requests.cpu | default('100m') }}"
       limits:
-        memory: "1Gi"
-        cpu: "1000m"
+        memory: "{{ telemetry_storage_config.victoria_logs_cluster.vlselect.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_logs_cluster.vlselect.resources.limits.cpu | default('500m') }}"
 
   # VLAgent: Platform-managed log forwarding agent (Deployment managed by operator via VLAgent CR)
   vlagent:
-    replicas: 2
+    replicas: "{{ telemetry_storage_config.victoria_logs_cluster.vlagent.replicas | default(2) }}"
     image: "{{ telemetry_images['victoriametrics/vlagent'] | default('docker.io/victoriametrics/vlagent:v1.49.0') }}"
-    pvc_size: "5Gi"   # Buffer storage for retry during vlinsert unavailability
+    # Buffer storage for retry during vlinsert unavailability
+    pvc_size: "{{ telemetry_storage_config.victoria_logs_cluster.vlagent.pvc_size | default('5Gi') }}"
     termination_grace_period: 30
     liveness_probe:
       initial_delay: 30

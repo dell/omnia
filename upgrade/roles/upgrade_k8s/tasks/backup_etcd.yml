@@ -1,0 +1,189 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Check if etcd backup is already completed
+  ansible.builtin.debug:
+    msg: "etcd backup already completed (status: {{ upgrade_status.etcd_backup.status | default('pending') }}) - skipping backup"
+  when:
+    - upgrade_status.etcd_backup.status | default('pending') == 'completed'
+
+- name: Skip etcd backup if already completed
+  ansible.builtin.meta: noop
+  when: upgrade_status.etcd_backup.status | default('pending') == 'completed'
+
+- name: Check if etcd backup already exists
+  ansible.builtin.stat:
+    path: "{{ backup_dir_client }}/etcd-snapshot.db"
+  register: etcd_backup_check
+  failed_when: false
+  when: upgrade_status.etcd_backup.status | default('pending') != 'completed'
+
+- name: Skip backup if already exists
+  ansible.builtin.debug:
+    msg: "etcd backup already exists at {{ backup_dir_client }}/etcd-snapshot.db - skipping backup"
+  when:
+    - etcd_backup_check.stat.exists
+    - upgrade_status.etcd_backup.status | default('pending') != 'completed'
+
+- name: Update etcd backup status (existing backup)
+  ansible.builtin.include_tasks: update_node_step.yml
+  run_once: true
+  when:
+    - etcd_backup_check.stat.exists
+    - upgrade_status.etcd_backup.status | default('pending') != 'completed'
+  vars:
+    status_update:
+      etcd_backup:
+        status: completed
+        path: "{{ backup_dir_client }}/etcd-snapshot.db"
+        timestamp: "{{ now(utc=true).isoformat() }}"
+        error:
+
+- name: Perform etcd backup
+  when:
+    - not etcd_backup_check.stat.exists
+    - upgrade_status.etcd_backup.status | default('pending') != 'completed'
+  block:
+    - name: Ensure backup directory exists on client side (for kube_vip)
+      ansible.builtin.file:
+        path: "{{ backup_dir_client }}"
+        state: directory
+        mode: "0755"
+
+    - name: Get etcd pod name
+      ansible.builtin.command: /usr/bin/kubectl get pods -n kube-system -l component=etcd -o jsonpath='{.items[0].metadata.name}'
+      register: etcd_pod
+      changed_when: false
+
+    - name: Set etcd backup paths (use client path for kube_vip)
+      ansible.builtin.set_fact:
+        etcd_snapshot_file_client: "{{ backup_dir_client }}/etcd-snapshot.db"
+        etcdctl_binary_client: "{{ backup_dir_client }}/etcdctl"
+      when: backup_dir_client is defined
+
+    - name: Get etcd container ID
+      ansible.builtin.shell: set -o pipefail && /usr/bin/crictl ps | grep etcd | grep -v pause | awk '{print $1}' | head -1
+      args:
+        executable: /bin/bash
+      register: etcd_container_id
+      changed_when: false
+
+    - name: Find etcdctl in CRI-O overlay storage
+      ansible.builtin.shell: set -o pipefail && find /tmp/crio-storage/overlay -name etcdctl -type f 2>/dev/null | head -1
+      args:
+        executable: /bin/bash
+      register: etcdctl_overlay_path
+      changed_when: false
+
+    - name: Find etcdutl in CRI-O overlay storage
+      ansible.builtin.shell: set -o pipefail && find /tmp/crio-storage/overlay -name etcdutl -type f 2>/dev/null | head -1
+      args:
+        executable: /bin/bash
+      register: etcdutl_overlay_path
+      changed_when: false
+
+    - name: Copy etcdctl to /usr/local/bin on host
+      ansible.builtin.copy:
+        src: "{{ etcdctl_overlay_path.stdout }}"
+        dest: /usr/local/bin/etcdctl
+        mode: "0755"
+        remote_src: true
+      when: etcdctl_overlay_path.stdout | length > 0
+
+    - name: Copy etcdutl to /usr/local/bin on host
+      ansible.builtin.copy:
+        src: "{{ etcdutl_overlay_path.stdout }}"
+        dest: /usr/local/bin/etcdutl
+        mode: "0755"
+        remote_src: true
+      when: etcdutl_overlay_path.stdout | length > 0
+
+    - name: Copy etcdctl to backup directory
+      ansible.builtin.copy:
+        src: "{{ etcdctl_overlay_path.stdout }}"
+        dest: "{{ backup_dir_client }}/etcdctl"
+        mode: "0755"
+        remote_src: true
+      when: etcdctl_overlay_path.stdout | length > 0
+
+    - name: Copy etcdutl to backup directory
+      ansible.builtin.copy:
+        src: "{{ etcdutl_overlay_path.stdout }}"
+        dest: "{{ backup_dir_client }}/etcdutl"
+        mode: "0755"
+        remote_src: true
+      when: etcdutl_overlay_path.stdout | length > 0
+
+    - name: Take etcd snapshot to host etcd data directory
+      ansible.builtin.command:
+        cmd: >-
+          etcdctl snapshot save /var/lib/etcd/snapshot.db
+          --endpoints=https://127.0.0.1:2379
+          --cacert=/etc/kubernetes/pki/etcd/ca.crt
+          --cert=/etc/kubernetes/pki/etcd/server.crt
+          --key=/etc/kubernetes/pki/etcd/server.key
+      register: etcd_snapshot_result
+      retries: 12
+      delay: 10
+      until: etcd_snapshot_result.rc == 0
+      changed_when: true
+
+    - name: Copy etcd snapshot from host to NFS backup
+      ansible.builtin.copy:
+        src: /var/lib/etcd/snapshot.db
+        dest: "{{ backup_dir_client }}/etcd-snapshot.db"
+        mode: "0644"
+        remote_src: true
+
+    - name: Remove temporary snapshot file
+      ansible.builtin.file:
+        path: /var/lib/etcd/snapshot.db
+        state: absent
+
+    - name: Verify etcd snapshot exists on NFS
+      ansible.builtin.stat:
+        path: "{{ backup_dir_client }}/etcd-snapshot.db"
+      register: snapshot_verify
+      failed_when: not snapshot_verify.stat.exists
+
+    - name: Save etcd member list
+      ansible.builtin.command:
+        cmd: >-
+          etcdctl member list -w json
+          --endpoints=https://127.0.0.1:2379
+          --cacert=/etc/kubernetes/pki/etcd/ca.crt
+          --cert=/etc/kubernetes/pki/etcd/server.crt
+          --key=/etc/kubernetes/pki/etcd/server.key
+      register: etcd_members
+      changed_when: false
+      retries: 12
+      delay: 10
+      until: etcd_members.rc == 0
+
+    - name: Write etcd members to NFS
+      ansible.builtin.copy:
+        content: "{{ etcd_members.stdout }}"
+        dest: "{{ etcd_members_file }}"
+        mode: "0644"
+
+    - name: Update etcd backup status
+      ansible.builtin.include_tasks: update_node_step.yml
+      run_once: true
+      vars:
+        status_update:
+          etcd_backup:
+            status: completed
+            path: "{{ backup_dir_client }}/etcd-snapshot.db"
+            timestamp: "{{ now(utc=true).isoformat() }}"
+            error:

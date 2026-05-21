@@ -910,6 +910,13 @@ def execute_playbook(request_data: Dict[str, Any]) -> Dict[str, Any]:
                     "Node results file found for restart stage",
                     job_id
                 )
+            else:
+                log_secure_info(
+                    "warning",
+                    f"node_results.json NOT found at {node_results_path} for restart stage. "
+                    f"Playbook may have failed before BSM post-processing (Play 8).",
+                    job_id
+                )
 
         return result_data
 
@@ -1052,43 +1059,95 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
         except OSError:
             log_secure_info("warning", "Failed to write molecule output log", job_id)
         
-        # Parse test summary from molecule_output.log (avoids stale reports from shared directory)
+        # Parse metadata from molecule_output.log (report_id, suites)
         test_summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0}
+        report_id = None
         
         if os.path.exists(log_file_path):
             try:
                 import re
                 with open(log_file_path, 'r') as f:
                     log_content = f.read()
-                    # Parse summary line: "Results:       10 passed, 1 failed, 11 skipped"
-                    results_match = re.search(r'Results:\s+(\d+)\s+passed,\s+(\d+)\s+failed,\s+(\d+)\s+skipped', log_content)
-                    if results_match:
-                        passed = int(results_match.group(1))
-                        failed = int(results_match.group(2))
-                        skipped = int(results_match.group(3))
-                        test_summary = {
-                            "total": passed + failed + skipped,
-                            "passed": passed,
-                            "failed": failed,
-                            "skipped": skipped,
-                            "errors": 0,
-                        }
+                    
+                    # Extract report_id: "Report ID:   2b4ade78"
+                    report_id_match = re.search(r'Report ID:\s+([a-f0-9]+)', log_content)
+                    if report_id_match:
+                        report_id = report_id_match.group(1)
+                    
+                    # Extract top-level Suite from header (e.g., 'Suite    : build_stream')
+                    # Strip ANSI color codes first
+                    try:
+                        sanitized = re.sub(r'\x1B\[[0-?]*[ -/]*[@-~]', '', log_content)
+                    except re.error:
+                        sanitized = log_content
+                    header_suite_match = re.search(r'(?m)^\s*Suite\s*:\s*([\w\-.]+)', sanitized)
+                    if header_suite_match:
+                        test_summary["suite"] = header_suite_match.group(1)
                     else:
-                        # Fallback: try parsing pytest summary line: "1 failed, 10 passed, 11 skipped"
-                        pytest_match = re.search(r'(\d+)\s+failed,\s+(\d+)\s+passed,\s+(\d+)\s+skipped', log_content)
-                        if pytest_match:
-                            failed = int(pytest_match.group(1))
-                            passed = int(pytest_match.group(2))
-                            skipped = int(pytest_match.group(3))
-                            test_summary = {
-                                "total": passed + failed + skipped,
-                                "passed": passed,
-                                "failed": failed,
-                                "skipped": skipped,
-                                "errors": 0,
-                            }
+                        # Fallback: parse from 'Suite/Marker: -m <suite>' line
+                        marker_match = re.search(r'(?m)^\s*Suite/Marker\s*:\s*.*?-m\s+([\w\-.]+)', sanitized)
+                        if marker_match:
+                            test_summary["suite"] = marker_match.group(1)
+                    
             except (OSError, IOError, ValueError) as e:
                 log_secure_info("warning", f"Failed to parse molecule_output.log: {e}", job_id)
+        
+        # Extract current run from shared test_report.json by report_id and save to artifact_dir
+        report_source_path = "/opt/omnia/automation/reports/test_report.json"
+        if report_id and os.path.exists(report_source_path):
+            try:
+                # Load full report from shared location
+                with open(report_source_path, 'r') as f:
+                    full_report = json.load(f)
+                
+                if "servers" in full_report and "" in full_report["servers"]:
+                    runs = full_report["servers"][""].get("runs", [])
+                    # Find run matching report_id
+                    current_run = None
+                    for run in runs:
+                        if run.get("report_id") == report_id:
+                            current_run = run
+                            break
+                    
+                    if current_run:
+                        # Populate test_summary from JSON (enforce order: identifiers, duration, counts, tests)
+                        modules = current_run.get("modules", [])
+                        if modules:
+                            module_info = modules[0]
+                            scenario = module_info.get("module", "unknown")
+                            molecule_command = module_info.get("molecule_command", "verify")
+                            duration_seconds = module_info.get("duration_seconds", 0)
+                            results = module_info.get("results", [])
+                            tests = [{"name": r.get("test_name"), "status": r.get("status")} for r in results if r.get("test_name")]
+                            test_summary["scenario"] = scenario
+                            test_summary["molecule_command"] = molecule_command
+                            test_summary["report_id"] = report_id
+                            test_summary["duration_seconds"] = duration_seconds
+                            test_summary["tests"] = tests
+                            summary_block = current_run.get("summary", {})
+                            if isinstance(summary_block, dict):
+                                test_summary["total"] = summary_block.get("total", 0)
+                                test_summary["passed"] = summary_block.get("passed", 0)
+                                test_summary["failed"] = summary_block.get("failed", 0)
+                                test_summary["skipped"] = summary_block.get("skipped", 0)
+                                test_summary["errors"] = summary_block.get("errors", 0)
+                        log_secure_info('info', f"Test scenario: {scenario}, command: {molecule_command}, duration: {duration_seconds}s, tests: {len(tests)}, report_id: {report_id}", job_id)
+                        
+                        # Save filtered report to artifact_dir
+                        filtered_report = {
+                            "servers": {
+                                "": {
+                                    "runs": [current_run],
+                                    "hostname": ""
+                                }
+                            }
+                        }
+                        dest_path = os.path.join(artifact_dir, "test_report.json")
+                        with open(dest_path, 'w') as f:
+                            json.dump(filtered_report, f, indent=2)
+                        log_secure_info('info', f"Extracted report {report_id} to artifact directory", job_id)
+            except (OSError, json.JSONDecodeError) as e:
+                log_secure_info('warning', f"Failed to extract report: {e}", job_id)
         
         # Determine status: if any test failed, mark as failed regardless of exit code
         if test_summary["failed"] > 0 or test_summary["errors"] > 0:
@@ -1117,6 +1176,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "duration_seconds": int(duration_seconds),
             "test_summary": test_summary,
             "artifact_dir": artifact_dir,
+            "log_file_path": log_file_path,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "timestamp": completed_at.isoformat(),
@@ -1127,7 +1187,22 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             if exit_code == 124:
                 result_data["error_summary"] = f"Molecule execution timed out after {timeout_minutes} minutes"
             elif test_summary["failed"] > 0:
-                result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed, {test_summary['errors']} errors"
+                # Parse specific test failures from molecule_output.log
+                failed_tests = []
+                if os.path.exists(log_file_path):
+                    try:
+                        with open(log_file_path, 'r') as f:
+                            log_content = f.read()
+                            # Parse FAILED test lines: "FAILED path/to/test_file.py::test_function"
+                            failed_matches = re.findall(r'^FAILED (.+)$', log_content, re.MULTILINE)
+                            failed_tests = failed_matches[:5]  # Include up to 5 specific failures
+                    except (OSError, IOError):
+                        pass
+                
+                if failed_tests:
+                    result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed. Failed tests: {', '.join(failed_tests)}"
+                else:
+                    result_data["error_summary"] = f"Test failures: {test_summary['failed']} failed, {test_summary['errors']} errors"
             else:
                 result_data["error_summary"] = f"Molecule exited with code {exit_code}"
         
@@ -1148,6 +1223,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "exit_code": 124,
             "error_summary": f"Molecule execution timed out after {timeout_minutes} minutes",
             "artifact_dir": artifact_dir,
+            "log_file_path": os.path.join(artifact_dir, "molecule_output.log"),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),
@@ -1169,6 +1245,7 @@ def execute_molecule(request_data: Dict[str, Any]) -> Dict[str, Any]:
             "exit_code": -1,
             "error_summary": f"System error during molecule execution: {str(e)}",
             "artifact_dir": artifact_dir,
+            "log_file_path": os.path.join(artifact_dir, "molecule_output.log"),
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "duration_seconds": int(duration_seconds),

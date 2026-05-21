@@ -1,0 +1,134 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Merge local_repo_config.yml and service_k8s.json from ALL hop artifacts
+# into combined files in a staging directory, so local_repo.yml can be called once.
+#
+# Inputs:
+#   hop_chain      — list of hops (from detect_hop_chain_from_manifest.yml)
+#   _staging_dir   — pre-created temp directory to write merged files into
+#
+# Outputs (files written to _staging_dir):
+#   local_repo_config.yml                            — merged repo URLs
+#   software_config.json                             — from final hop
+#   config/x86_64/rhel/<os_ver>/service_k8s.json    — merged image+RPM entries
+
+- name: "Merge_configs — Merge local_repo_config.yml across all hops"
+  ansible.builtin.script:
+    cmd: >-
+      python3 -c "
+      import json, yaml, sys, os
+
+      staging = sys.argv[1]
+      artifacts_base = sys.argv[2]
+      hop_dirs = sys.argv[3].split(',')
+
+      # --- Merge local_repo_config.yml ---
+      # Start from the final hop's config (most complete), then union repo entries from earlier hops
+      merged_repo_x86 = []
+      merged_repo_aarch64 = []
+      seen_names_x86 = set()
+      seen_names_aarch64 = set()
+      base_config = None
+
+      for hop_dir in hop_dirs:
+          path = os.path.join(artifacts_base, hop_dir, 'local_repo_config.yml')
+          with open(path) as f:
+              cfg = yaml.safe_load(f)
+          base_config = cfg  # last one wins for non-list fields
+
+          for entry in (cfg.get('omnia_repo_url_rhel_x86_64') or []):
+              key = entry.get('name', '')
+              if key not in seen_names_x86:
+                  seen_names_x86.add(key)
+                  merged_repo_x86.append(entry)
+
+          for entry in (cfg.get('omnia_repo_url_rhel_aarch64') or []):
+              key = entry.get('name', '')
+              if key not in seen_names_aarch64:
+                  seen_names_aarch64.add(key)
+                  merged_repo_aarch64.append(entry)
+
+      base_config['omnia_repo_url_rhel_x86_64'] = merged_repo_x86
+      base_config['omnia_repo_url_rhel_aarch64'] = merged_repo_aarch64
+
+      with open(os.path.join(staging, 'local_repo_config.yml'), 'w') as f:
+          yaml.dump(base_config, f, default_flow_style=False, sort_keys=False)
+
+      # --- Merge service_k8s.json ---
+      # Union cluster entries across all hops, dedup by (package, tag, type)
+      merged_svc = {}
+      for hop_dir in hop_dirs:
+          path = os.path.join(artifacts_base, hop_dir, 'service_k8s.json')
+          with open(path) as f:
+              svc = json.load(f)
+          for section_name, section_data in svc.items():
+              if section_name not in merged_svc:
+                  merged_svc[section_name] = {'cluster': []}
+              existing = merged_svc[section_name]['cluster']
+              seen = set()
+              for e in existing:
+                  seen.add((e.get('package',''), e.get('tag',''), e.get('type','')))
+              for entry in section_data.get('cluster', []):
+                  key = (entry.get('package',''), entry.get('tag',''), entry.get('type',''))
+                  if key not in seen:
+                      seen.add(key)
+                      existing.append(entry)
+
+      os.makedirs(os.path.join(staging, 'config', 'x86_64', 'rhel'), exist_ok=True)
+      # We write to a temp location; the caller sets the os_version subdir
+      svc_out = os.path.join(staging, 'merged_service_k8s.json')
+      with open(svc_out, 'w') as f:
+          json.dump(merged_svc, f, indent=2)
+
+      print(json.dumps({'repo_count_x86': len(merged_repo_x86),
+                         'repo_count_aarch64': len(merged_repo_aarch64),
+                         'service_k8s_sections': list(merged_svc.keys())}))
+      "
+      "{{ _staging_dir }}"
+      "{{ role_path }}/../../artifacts"
+      "{{ hop_chain | map(attribute='artifacts_dir') | join(',') }}"
+  register: _merge_result
+  changed_when: false
+
+- name: "Merge_configs — Display merge summary"
+  ansible.builtin.debug:
+    msg: >-
+      Merged configs from {{ hop_chain | length }} hops:
+      {{ _merge_result.stdout | trim }}
+
+- name: "Merge_configs — Copy final hop's software_config.json to staging"
+  ansible.builtin.copy:
+    src: "{{ role_path }}/../../artifacts/{{ hop_chain[-1].artifacts_dir }}/software_config.json"
+    dest: "{{ _staging_dir }}/software_config.json"
+    mode: "{{ file_perm_644 }}"
+    remote_src: true
+
+- name: "Merge_configs — Create config subdirectory for service_k8s.json"
+  ansible.builtin.file:
+    path: "{{ _staging_dir }}/config/x86_64/rhel/{{ cluster_os_version }}"
+    state: directory
+    mode: "{{ dir_perm_755 }}"
+
+- name: "Merge_configs — Move merged service_k8s.json to expected path"
+  ansible.builtin.copy:
+    src: "{{ _staging_dir }}/merged_service_k8s.json"
+    dest: "{{ _staging_dir }}/config/x86_64/rhel/{{ cluster_os_version }}/service_k8s.json"
+    mode: "{{ file_perm_644 }}"
+    remote_src: true
+
+- name: "Merge_configs — Remove temp merged file"
+  ansible.builtin.file:
+    path: "{{ _staging_dir }}/merged_service_k8s.json"
+    state: absent

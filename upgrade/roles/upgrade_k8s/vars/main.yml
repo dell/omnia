@@ -1,0 +1,210 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+# NOTE: These paths are set dynamically in main.yml after load_version_vars.yml
+# runs, so that k8s_client_mount_path is available.
+# See: roles/upgrade_k8s/tasks/main.yml - "Set upgrade paths on client NFS mount"
+#
+# upgrade_dir_client:      {{ k8s_client_mount_path }}/upgrade
+# status_file:             {{ k8s_client_mount_path }}/upgrade/upgrade_status.yml
+# lock_file:               {{ k8s_client_mount_path }}/upgrade/upgrade.lock
+# backup_dir:              {{ k8s_client_mount_path }}/upgrade/backup
+# etcd_snapshot_file:      {{ k8s_client_mount_path }}/upgrade/backup/etcd-snapshot.db
+# etcdctl_binary:          {{ k8s_client_mount_path }}/upgrade/backup/etcdctl
+# etcd_members_file:       {{ k8s_client_mount_path }}/upgrade/backup/etcd-members.json
+# k8s_config_backup_dir:   {{ k8s_client_mount_path }}/upgrade/backup/configs
+
+repo_file_path: "/etc/yum.repos.d/omnia-upgrade.repo"
+
+nfs_storage_name: "nfs_k8s"
+
+# nodes.yaml location (created by discovery)
+# Use NFS mount path for omnia_core container context
+nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
+
+# Input config paths
+software_config_file: "{{ input_project_dir }}/software_config.json"
+storage_config_file: "{{ input_project_dir }}/storage_config.yml"
+ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
+# Note: service_k8s_config_file is set dynamically in load_version_vars.yml
+
+# Omnia system paths
+local_repo_access_file: "{{ oim_provision_path }}/local_repo_access.yml"
+upgrade_manifest_path: "{{ oim_data_path }}/upgrade_manifest.yml"
+
+# Temp file paths
+upgrade_status_temp_file: "{{ tmp_path }}/upgrade_status.tmp"
+upgrade_status_temp_json: "{{ tmp_path }}/upgrade_status.tmp.json"
+upgrade_status_temp_yml: "{{ tmp_path }}/upgrade_status_temp.yml"
+detect_hop_chain_script: "{{ tmp_path }}/detect_hop_chain.py"
+k8s_upgrade_inventory: "{{ tmp_path }}/k8s_upgrade_inventory.ini"
+
+# Pulp base URL
+pulp_content_base: "{{ pulp_protocol | default('http') }}://{{ admin_nic_ip }}:2225/pulp/content"
+pulp_repo_base: "{{ pulp_content_base }}/opt/omnia/offline_repo/cluster/x86_64/rhel/{{ cluster_os_version }}/rpms"
+
+# ---------------------------------------------------------------------------
+# Timeouts and retries
+# ---------------------------------------------------------------------------
+kubelet_ready_timeout: 120
+kubelet_ready_delay: 5
+kubelet_ready_retries: 24
+etcd_health_retries: 12
+etcd_health_delay: 10
+drain_timeout: 300
+addon_rollout_timeout: 300
+apiserver_wait_timeout: 300
+apiserver_wait_delay: 10
+apiserver_wait_retries: 30
+cloud_init_timeout: 600
+reboot_timeout: 600
+reboot_connect_timeout: 300
+
+# ---------------------------------------------------------------------------
+# Worker rolling-upgrade parallelism
+# ---------------------------------------------------------------------------
+# Number of workers to upgrade concurrently per batch.
+# Default 1 = fully serial (safest). Set higher for faster upgrades on
+# large clusters. Workers within a batch are processed sequentially from
+# localhost; true async parallelism requires refactoring to a multi-host
+# play with serial: N. Override via --extra-vars worker_parallel_count=3.
+worker_parallel_count: 1
+
+# ---------------------------------------------------------------------------
+# Step definitions per role
+# ---------------------------------------------------------------------------
+cp_first_steps:
+  - kubeadm_install
+  - kubeadm_upgrade_apply
+  - drain
+  - kubelet_install
+  - crio_install
+  - kubelet_restart
+  - uncordon
+  - validation
+  - etcd_health_check
+
+cp_steps:
+  - kubeadm_install
+  - kubeadm_upgrade_node
+  - drain
+  - kubelet_install
+  - crio_install
+  - kubelet_restart
+  - uncordon
+  - validation
+  - etcd_health_check
+
+worker_steps:
+  - kubeadm_install
+  - kubeadm_upgrade_node
+  - drain
+  - kubelet_install
+  - crio_install
+  - kubelet_restart
+  - uncordon
+  - validation
+
+# ---------------------------------------------------------------------------
+# BSS groups
+# ---------------------------------------------------------------------------
+bss_cp_groups:
+  - service_kube_control_plane_first
+  - service_kube_control_plane
+
+bss_worker_groups:
+  - service_kube_node
+
+bss_all_groups:
+  - service_kube_control_plane_first
+  - service_kube_control_plane
+  - service_kube_node
+
+# ---------------------------------------------------------------------------
+# Node group suffixes (from nodes.yaml)
+# ---------------------------------------------------------------------------
+group_cp_first: "service_kube_control_plane_first_x86_64"
+group_cp: "service_kube_control_plane_x86_64"
+group_worker: "service_kube_node_x86_64"
+
+# ---------------------------------------------------------------------------
+# File permissions
+# ---------------------------------------------------------------------------
+file_perm_644: "0644"
+file_perm_600: "0600"
+file_perm_755: "0755"
+dir_perm_755: "0755"
+
+# ---------------------------------------------------------------------------
+# Messages
+# ---------------------------------------------------------------------------
+msg_lock_held_same_host: >-
+  Another K8s upgrade is running (PID {{ existing_lock.pid }} since
+  {{ existing_lock.started_at }}). Aborting.
+msg_lock_held_other_host: >-
+  Lock held by {{ existing_lock.host }} (PID {{ existing_lock.pid }} since
+  {{ existing_lock.started_at }}). If stale, delete manually:
+  rm {{ lock_file }}
+msg_stale_lock_removed: >-
+  Removing stale lock from PID {{ existing_lock.pid }}
+  (process no longer running on this host).
+msg_lock_verification_failed: >-
+  Lock file verification failed — possible race condition. Aborting.
+msg_preflight_pulp_missing: >-
+  Required Pulp distribution '{{ item }}' not found.
+  The prep phase (Phase 1) should have synced this.
+  Check prep phase output or run 'ansible-playbook local_repo/local_repo.yml' manually.
+msg_preflight_version_mismatch: >-
+  Cluster is at {{ k8s_from_version }}, not at expected version.
+  Verify the cluster state before proceeding.
+msg_etcd_quorum_lost: >-
+  etcd quorum lost! Do NOT proceed. Manual intervention required.
+msg_backup_missing: >-
+  Backup file {{ item }} not found. Cannot proceed with upgrade.
+msg_node_upgrade_failed: >-
+  Node {{ current_node_name }} failed at step {{ current_step }}.
+  Error: {{ step_result.stderr | default(step_result.msg | default('unknown')) }}
+msg_addon_calico_failed: >-
+  Calico upgrade failed. Networking may be degraded.
+  Do NOT proceed to worker upgrades.
+msg_addon_metallb_warning: >-
+  MetalLB upgrade failed. Continuing — LoadBalancer services may be
+  affected but cluster is functional.
+msg_addon_metallb_failed: >-
+  MetalLB upgrade failed. LoadBalancer services may be degraded.
+  Do NOT proceed to worker upgrades.
+msg_addon_helm_warning: >-
+  Helm upgrade failed. Continuing — Helm is not required for cluster
+  operation.
+msg_addon_helm_failed: >-
+  Helm upgrade failed. Helm-based operations may not work.
+  Do NOT proceed to worker upgrades.
+msg_upgrade_complete: >-
+  K8s upgrade from {{ k8s_from_version }} to {{ k8s_target_version }}
+  completed successfully. All nodes Ready.
+msg_bss_update_failed: >-
+  BSS update for group {{ bss_group }} failed. Nodes will boot old
+  image on reboot until BSS is updated manually.
+msg_cloud_init_timeout: >-
+  Cloud-init did not complete within {{ cloud_init_timeout }} seconds.
+  Check /var/log/cloud-init-output.log on the node for details.
+msg_cloud_init_failed: >-
+  Cloud-init did not complete successfully on node {{ current_node_name }}.
+  Check /var/log/cloud-init-output.log for details.
+msg_rollback_etcd_binary_failed: >-
+  Saved etcdctl binary failed. Falling back to podman-based restore.

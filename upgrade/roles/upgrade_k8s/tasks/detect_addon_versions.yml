@@ -1,0 +1,149 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Detect current Calico version
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl get pods -n kube-system -l k8s-app=calico-node
+      -o jsonpath='{.items[0].spec.containers[0].image}' 2>/dev/null |
+      grep -oP 'v\d+\.\d+\.\d+' || echo "unknown"
+  args:
+    executable: /bin/bash
+  register: calico_current_version_raw
+  changed_when: false
+  failed_when: false
+
+- name: Set calico_current_version fact
+  ansible.builtin.set_fact:
+    calico_current_version: >-
+      {{ calico_current_version_raw.stdout | trim | regex_replace('^v', '')
+      if calico_current_version_raw.stdout is defined and calico_current_version_raw.stdout != 'unknown'
+      else 'unknown' }}
+
+- name: Set calico_from_version fact (preserve existing if set)
+  ansible.builtin.set_fact:
+    calico_from_version: >-
+      {{ upgrade_status.addon_upgrade.calico.from_version
+         if (upgrade_status.addon_upgrade.calico.from_version | default('unknown')) not in ['unknown', '']
+         else calico_current_version }}
+
+- name: Detect current MetalLB version
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl get deployment -n metallb-system controller
+      -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null |
+      grep -oP 'v\d+\.\d+\.\d+' || echo "unknown"
+  args:
+    executable: /bin/bash
+  register: metallb_current_version_raw
+  changed_when: false
+  failed_when: false
+
+- name: Set metallb_current_version fact
+  ansible.builtin.set_fact:
+    metallb_current_version: >-
+      {{ metallb_current_version_raw.stdout | trim | regex_replace('^v', '')
+      if metallb_current_version_raw.stdout is defined and metallb_current_version_raw.stdout != 'unknown'
+      else 'unknown' }}
+
+- name: Set metallb_from_version fact (preserve existing if set)
+  ansible.builtin.set_fact:
+    metallb_from_version: >-
+      {{ upgrade_status.addon_upgrade.metallb.from_version
+         if (upgrade_status.addon_upgrade.metallb.from_version | default('unknown')) not in ['unknown', '']
+         else metallb_current_version }}
+
+- name: Detect current Helm version
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      helm version --short 2>/dev/null |
+      grep -oP 'v\d+\.\d+\.\d+' || echo "unknown"
+  args:
+    executable: /bin/bash
+  register: helm_current_version_raw
+  changed_when: false
+  failed_when: false
+
+- name: Set helm_current_version fact
+  ansible.builtin.set_fact:
+    helm_current_version: >-
+      {{ helm_current_version_raw.stdout | trim | regex_replace('^v', '')
+      if helm_current_version_raw.stdout is defined and helm_current_version_raw.stdout != 'unknown'
+      else 'unknown' }}
+
+- name: Set helm_from_version fact (preserve existing if set)
+  ansible.builtin.set_fact:
+    helm_from_version: >-
+      {{ upgrade_status.addon_upgrade.helm.from_version
+         if (upgrade_status.addon_upgrade.helm.from_version | default('unknown')) not in ['unknown', '']
+         else helm_current_version }}
+
+- name: Determine Calico status
+  ansible.builtin.set_fact:
+    calico_status: >-
+      {{
+        'completed' if calico_current_version == calico_target_version
+        else 'pending'
+      }}
+
+- name: Determine MetalLB status
+  ansible.builtin.set_fact:
+    metallb_status: >-
+      {{
+        'completed' if metallb_current_version == metallb_target_version
+        else 'pending'
+      }}
+
+- name: Determine Helm status
+  ansible.builtin.set_fact:
+    helm_status: >-
+      {{
+        'completed' if helm_current_version == helm_target_version
+        else 'pending'
+      }}
+
+- name: Update addon status with detected versions
+  ansible.builtin.include_tasks: update_node_step.yml
+  vars:
+    status_update:
+      addon_upgrade:
+        calico:
+          status: "{{ calico_status }}"
+          current_version: "{{ calico_current_version }}"
+          from_version: "{{ calico_from_version }}"
+          target_version: "{{ calico_target_version }}"
+        metallb:
+          status: "{{ metallb_status }}"
+          current_version: "{{ metallb_current_version }}"
+          from_version: "{{ metallb_from_version }}"
+          target_version: "{{ metallb_target_version }}"
+        helm:
+          status: "{{ helm_status }}"
+          current_version: "{{ helm_current_version }}"
+          from_version: "{{ helm_from_version }}"
+          target_version: "{{ helm_target_version }}"
+
+- name: Display detected addon versions
+  ansible.builtin.debug:
+    msg: |
+      Detected addon versions:
+        Calico: {{ calico_current_version }} (target: {{ calico_target_version }}) - {{ calico_status }}
+        MetalLB: {{ metallb_current_version }} (target: {{ metallb_target_version }}) - {{ metallb_status }}
+        Helm: {{ helm_current_version }} (target: {{ helm_target_version }}) - {{ helm_status }}

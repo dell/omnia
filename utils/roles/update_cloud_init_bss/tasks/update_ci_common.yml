@@ -51,13 +51,3 @@
   ansible.builtin.fail:
     msg: "{{ ci_common_update_fail_msg }}"
   when: ci_common_set_result.rc != 0
-
-- name: Verify ci-group-common config
-  ansible.builtin.command: /usr/bin/ochami cloud-init group get config common
-  changed_when: false
-  register: ci_common_verify_output
-
-- name: Display ci-common verification
-  ansible.builtin.debug:
-    msg: "{{ ci_common_verify_output.stdout_lines }}"
-    verbosity: 1

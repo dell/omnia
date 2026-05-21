@@ -1,0 +1,1022 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Worker upgrade playbook - runs directly on worker nodes via SSH
+# Called from execute_single_hop.yml via ansible-playbook command
+#
+# Batch Processing:
+# - Worker-1 is always upgraded first (Component Spec PHASE 6 requirement)
+# - Remaining workers are upgraded in batches controlled by worker_parallel_count
+# - Default worker_parallel_count=1 (serial), can be overridden with --extra-vars
+#
+# Error Handling:
+# - Each step has its own block/rescue to capture errors
+# - Failed steps are marked with status: failed and error description
+# - On subsequent runs, steps with status pending/in_progress/failed will be retried
+# - Only steps with status: completed are skipped
+
+- name: Upgrade worker-1 first (Component Spec PHASE 6)
+  hosts: k8s_workers[0]
+  serial: 1
+  tasks:
+    - name: Check if upgrade status file exists on kube_vip
+      ansible.builtin.stat:
+        path: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: status_file_check
+
+    - name: Load upgrade status from kube_vip
+      ansible.builtin.slurp:
+        src: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: status_slurp
+      when: status_file_check.stat.exists | default(false)
+
+    - name: Parse upgrade status
+      ansible.builtin.set_fact:
+        upgrade_status: "{{ status_slurp.content | b64decode | from_yaml }}"
+      when: status_file_check.stat.exists | default(false)
+
+    - name: Abort if upgrade status file is missing on kube_vip
+      ansible.builtin.fail:
+        msg: >-
+          Upgrade status file is missing on kube_vip ({{ kube_vip }}).
+          Expected: {{ status_file }}
+          This file should be created during the orchestration phase (load_status.yml).
+      when: not (status_file_check.stat.exists | default(false))
+
+    - name: Set current node name
+      ansible.builtin.set_fact:
+        current_node_name: "{{ inventory_hostname }}"
+
+    - name: Set node IP from upgrade status
+      ansible.builtin.set_fact:
+        node_ip: "{{ upgrade_status.nodes[current_node_name].ip }}"
+
+    - name: "Skip node if already completed - {{ current_node_name }}"
+      ansible.builtin.debug:
+        msg: "Node {{ current_node_name }} already completed — skipping."
+      when: (upgrade_status.nodes[current_node_name].status | default('pending')) == 'completed'
+
+    - name: Upgrade worker {{ current_node_name }}
+      when: (upgrade_status.nodes[current_node_name].status | default('pending')) != 'completed'
+      block:
+        - name: Mark node in_progress
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+          vars:
+            node_name: "{{ current_node_name }}"
+            node_status_update:
+              status: in_progress
+
+        # ── setup_repos ──────────────────────────────────────────────────
+        # NOTE: setup_repos is now done globally in upgrade_k8s.yml before Execute play
+        # Mark as completed here for status tracking
+        - name: Mark setup_repos completed (done globally)
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+          vars:
+            node_name: "{{ current_node_name }}"
+            node_status_update:
+              steps:
+                setup_repos:
+                  status: completed
+                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  error:
+
+        # ── kubeadm_install ──────────────────────────────────────────
+        - name: Run kubeadm_install on node {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.kubeadm_install.status | default('pending')) != 'completed'
+          block:
+            - name: Mark kubeadm_install in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubeadm_install:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Install kubeadm {{ k8s_target_version }}
+              ansible.builtin.dnf:
+                name: "kubeadm-{{ k8s_target_version }}"
+                state: present
+                disablerepo: "*"
+                enablerepo: "x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{ k8s_target_version | regex_replace('\\.[0-9]+$', '') | replace('.', '-') }}"
+              register: kubeadm_install_result
+
+            - name: Mark kubeadm_install completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubeadm_install:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark kubeadm_install failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    kubeadm_install:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubeadm install failed')) }}"
+            - name: Fail kubeadm_install step
+              ansible.builtin.fail:
+                msg: "kubeadm_install failed: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
+
+        # ── kubeadm_upgrade_node ──────────────────────────────────────
+        - name: Run kubeadm_upgrade_node on node {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.kubeadm_upgrade_node.status | default('pending')) != 'completed'
+          block:
+            - name: Mark kubeadm_upgrade_node in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubeadm_upgrade_node:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Run kubeadm upgrade node
+              ansible.builtin.command: kubeadm upgrade node
+              register: upgrade_node_result
+              changed_when: false
+
+            - name: Mark kubeadm_upgrade_node completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubeadm_upgrade_node:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark kubeadm_upgrade_node failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    kubeadm_upgrade_node:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('kubeadm upgrade node failed')) }}"
+            - name: Fail kubeadm_upgrade_node step
+              ansible.builtin.fail:
+                msg: "kubeadm_upgrade_node failed: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('unknown error')) }}"
+
+        # ── cordon (production-safe: cordon only, no eviction) ────────
+        # Instead of drain (which evicts pods and can be blocked by PDBs),
+        # we cordon the node to prevent new pods, then let existing pods
+        # restart in-place after kubelet upgrade. This is safer for stateful
+        # workloads like Kafka that have strict PodDisruptionBudgets.
+        - name: Run cordon on node {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.drain.status | default('pending')) != 'completed'
+          block:
+            - name: Mark drain in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    drain:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Cordon node (prevent new pod scheduling) {{ current_node_name }}
+              ansible.builtin.command: kubectl cordon {{ node_ip }}
+              delegate_to: "{{ kube_vip }}"
+              register: cordon_result
+              changed_when: false
+
+            - name: Mark drain completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    drain:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark drain failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    drain:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('cordon failed')) }}"
+            - name: Fail drain step
+              ansible.builtin.fail:
+                msg: "cordon/drain failed: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('unknown error')) }}"
+
+        # ── kubelet_install ──────────────────────────────────────────
+        - name: Run kubelet_install on node {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.kubelet_install.status | default('pending')) != 'completed'
+          block:
+            - name: Mark kubelet_install in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubelet_install:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Install kubelet and kubectl {{ k8s_target_version }}
+              ansible.builtin.dnf:
+                name:
+                  - "kubelet-{{ k8s_target_version }}"
+                  - "kubectl-{{ k8s_target_version }}"
+                state: present
+                disablerepo: "*"
+                enablerepo: "x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{ k8s_target_version | regex_replace('\\.[0-9]+$', '') | replace('.', '-') }}"
+              register: kubelet_install_result
+
+            - name: Mark kubelet_install completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubelet_install:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark kubelet_install failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    kubelet_install:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubelet install failed')) }}"
+            - name: Fail kubelet_install step
+              ansible.builtin.fail:
+                msg: "kubelet_install failed: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
+
+        # ── crio_install ─────────────────────────────────────────────
+        - name: Run crio_install on node {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.crio_install.status | default('pending')) != 'completed'
+          block:
+            - name: Mark crio_install in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    crio_install:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Install cri-o {{ k8s_target_version }}
+              ansible.builtin.dnf:
+                name: "cri-o-{{ k8s_target_version }}"
+                state: present
+                disablerepo: "*"
+                enablerepo: "x86_64_rhel_{{ cluster_os_version }}_cri-o-v{{ k8s_target_version | regex_replace('\\.[0-9]+$', '') | replace('.', '-') }}"
+              register: crio_install_result
+
+            - name: Reload systemd after cri-o install
+              ansible.builtin.systemd:
+                daemon_reload: true
+
+            - name: Restart cri-o service
+              ansible.builtin.systemd:
+                name: crio
+                state: restarted
+                enabled: true
+
+            - name: Mark crio_install completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    crio_install:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark crio_install failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    crio_install:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('cri-o install failed')) }}"
+            - name: Fail crio_install step
+              ansible.builtin.fail:
+                msg: "crio_install failed: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
+
+        # ── kubelet_restart ──────────────────────────────────────────
+        - name: Run kubelet_restart on node {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.kubelet_restart.status | default('pending')) != 'completed'
+          block:
+            - name: Mark kubelet_restart in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubelet_restart:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Reload systemd
+              ansible.builtin.systemd:
+                daemon_reload: true
+
+            - name: Restart kubelet
+              ansible.builtin.systemd:
+                name: kubelet
+                state: restarted
+                enabled: true
+
+            - name: Wait for node to become Ready with target version
+              ansible.builtin.command: >-
+                kubectl get node {{ node_ip }}
+                -o jsonpath="{.status.nodeInfo.kubeletVersion}:{range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"
+              delegate_to: "{{ kube_vip }}"
+              register: node_ready
+              until:
+                - node_ready.rc == 0
+                - "'v' + k8s_target_version + ':True' in node_ready.stdout"
+              retries: "{{ kubelet_ready_retries }}"
+              delay: "{{ kubelet_ready_delay }}"
+              changed_when: false
+
+            - name: Mark kubelet_restart completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubelet_restart:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark kubelet_restart failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    kubelet_restart:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubelet restart failed')) }}"
+            - name: Fail kubelet_restart step
+              ansible.builtin.fail:
+                msg: "kubelet_restart failed: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
+
+        # ── uncordon ─────────────────────────────────────────────────
+        - name: Run uncordon on node {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.uncordon.status | default('pending')) != 'completed'
+          block:
+            - name: Mark uncordon in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    uncordon:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Uncordon node {{ current_node_name }}
+              ansible.builtin.command: kubectl uncordon {{ node_ip }}
+              delegate_to: "{{ kube_vip }}"
+              register: uncordon_result
+              changed_when: false
+
+            - name: Mark uncordon completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    uncordon:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark uncordon failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    uncordon:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('uncordon failed')) }}"
+            - name: Fail uncordon step
+              ansible.builtin.fail:
+                msg: "uncordon failed: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('unknown error')) }}"
+
+        # ── validation ───────────────────────────────────────────────
+        - name: Run validation on node {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.validation.status | default('pending')) != 'completed'
+          block:
+            - name: Mark validation in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    validation:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Verify node version
+              ansible.builtin.command: >
+                kubectl get node {{ node_ip }} -o jsonpath='{.status.nodeInfo.kubeletVersion}'
+              delegate_to: "{{ kube_vip }}"
+              register: node_version
+              failed_when: node_version.stdout != ("v" + k8s_target_version)
+              changed_when: false
+
+            - name: Mark validation completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    validation:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark validation failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    validation:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "Node version mismatch. Expected: v{{ k8s_target_version }}, Got: {{ node_version.stdout | default('unknown') }}"
+            - name: Fail validation step
+              ansible.builtin.fail:
+                msg: "validation failed: Node version mismatch. Expected: v{{ k8s_target_version }}, Got: {{ node_version.stdout | default('unknown') }}"
+
+        # ── Mark node completed ──────────────────────────────────────
+        - name: Mark node completed {{ current_node_name }}
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+          vars:
+            node_name: "{{ current_node_name }}"
+            node_status_update:
+              status: completed
+              version_current: "{{ k8s_target_version }}"
+
+      rescue:
+        - name: Mark node as failed (outer rescue) {{ current_node_name }}
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+          vars:
+            node_name: "{{ current_node_name }}"
+            node_status_update:
+              status: failed
+
+        - name: Fail after marking status
+          ansible.builtin.fail:
+            msg: "Worker {{ current_node_name }} upgrade failed."
+
+# ============================================================================
+# Second Play: Upgrade remaining workers in batches
+# ============================================================================
+- name: Upgrade remaining workers in batches
+  hosts: k8s_workers[1:]
+  serial: "{{ worker_parallel_count | default(1) }}"
+  tasks:
+    - name: Check if upgrade status file exists on kube_vip
+      ansible.builtin.stat:
+        path: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: status_file_check
+
+    - name: Load upgrade status from kube_vip
+      ansible.builtin.slurp:
+        src: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: status_slurp
+      when: status_file_check.stat.exists | default(false)
+
+    - name: Parse upgrade status
+      ansible.builtin.set_fact:
+        upgrade_status: "{{ status_slurp.content | b64decode | from_yaml }}"
+      when: status_file_check.stat.exists | default(false)
+
+    - name: Abort if upgrade status file is missing on kube_vip
+      ansible.builtin.fail:
+        msg: >-
+          Upgrade status file is missing on kube_vip ({{ kube_vip }}).
+          Expected: {{ status_file }}
+          This file should be created during the orchestration phase (load_status.yml).
+      when: not (status_file_check.stat.exists | default(false))
+
+    - name: Set current node name
+      ansible.builtin.set_fact:
+        current_node_name: "{{ inventory_hostname }}"
+
+    - name: Set node IP from upgrade status
+      ansible.builtin.set_fact:
+        node_ip: "{{ upgrade_status.nodes[current_node_name].ip }}"
+
+    - name: "Skip node if already completed - {{ current_node_name }}"
+      ansible.builtin.debug:
+        msg: "Node {{ current_node_name }} already completed — skipping."
+      when: (upgrade_status.nodes[current_node_name].status | default('pending')) == 'completed'
+
+    - name: Upgrade worker {{ current_node_name }}
+      when: (upgrade_status.nodes[current_node_name].status | default('pending')) != 'completed'
+      block:
+        - name: Mark node in_progress
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+          vars:
+            node_name: "{{ current_node_name }}"
+            node_status_update:
+              status: in_progress
+
+        # ── setup_repos ──────────────────────────────────────────────────
+        # NOTE: setup_repos is now done globally in upgrade_k8s.yml before Execute play
+        # Mark as completed here for status tracking
+        - name: Mark setup_repos completed (done globally)
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+          vars:
+            node_name: "{{ current_node_name }}"
+            node_status_update:
+              steps:
+                setup_repos:
+                  status: completed
+                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  error:
+
+        # ── kubeadm_install ──────────────────────────────────────────
+        - name: Run kubeadm_install on {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.kubeadm_install.status | default('pending')) != 'completed'
+          block:
+            - name: Mark kubeadm_install in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubeadm_install:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Install kubeadm {{ k8s_target_version }}
+              ansible.builtin.dnf:
+                name: "kubeadm-{{ k8s_target_version }}"
+                state: present
+                disablerepo: "*"
+                enablerepo: "x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{ k8s_target_version | regex_replace('\\.[0-9]+$', '') | replace('.', '-') }}"
+              register: kubeadm_install_result
+
+            - name: Mark kubeadm_install completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubeadm_install:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark kubeadm_install failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    kubeadm_install:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubeadm install failed')) }}"
+            - name: Fail kubeadm_install step
+              ansible.builtin.fail:
+                msg: "kubeadm_install failed: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
+
+        # ── kubeadm_upgrade_node ──────────────────────────────────────
+        - name: Run kubeadm_upgrade_node on {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.kubeadm_upgrade_node.status | default('pending')) != 'completed'
+          block:
+            - name: Mark kubeadm_upgrade_node in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubeadm_upgrade_node:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Run kubeadm upgrade node
+              ansible.builtin.command: kubeadm upgrade node
+              register: upgrade_node_result
+              changed_when: false
+
+            - name: Mark kubeadm_upgrade_node completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubeadm_upgrade_node:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark kubeadm_upgrade_node failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    kubeadm_upgrade_node:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('kubeadm upgrade node failed')) }}"
+            - name: Fail kubeadm_upgrade_node step
+              ansible.builtin.fail:
+                msg: "kubeadm_upgrade_node failed: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('unknown error')) }}"
+
+        # ── cordon (production-safe: cordon only, no eviction) ────────
+        # Instead of drain (which evicts pods and can be blocked by PDBs),
+        # we cordon the node to prevent new pods, then let existing pods
+        # restart in-place after kubelet upgrade. This is safer for stateful
+        # workloads like Kafka that have strict PodDisruptionBudgets.
+        - name: Run cordon on {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.drain.status | default('pending')) != 'completed'
+          block:
+            - name: Mark drain in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    drain:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Cordon node (prevent new pod scheduling) {{ current_node_name }}
+              ansible.builtin.command: kubectl cordon {{ node_ip }}
+              delegate_to: "{{ kube_vip }}"
+              register: cordon_result
+              changed_when: false
+
+            - name: Mark drain completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    drain:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark drain failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    drain:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('cordon failed')) }}"
+            - name: Fail drain step
+              ansible.builtin.fail:
+                msg: "cordon/drain failed: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('unknown error')) }}"
+
+        # ── kubelet_install ──────────────────────────────────────────
+        - name: Run kubelet_install on {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.kubelet_install.status | default('pending')) != 'completed'
+          block:
+            - name: Mark kubelet_install in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubelet_install:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Install kubelet and kubectl {{ k8s_target_version }}
+              ansible.builtin.dnf:
+                name:
+                  - "kubelet-{{ k8s_target_version }}"
+                  - "kubectl-{{ k8s_target_version }}"
+                state: present
+                disablerepo: "*"
+                enablerepo: "x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{ k8s_target_version | regex_replace('\\.[0-9]+$', '') | replace('.', '-') }}"
+              register: kubelet_install_result
+
+            - name: Mark kubelet_install completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubelet_install:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark kubelet_install failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    kubelet_install:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubelet install failed')) }}"
+            - name: Fail kubelet_install step
+              ansible.builtin.fail:
+                msg: "kubelet_install failed: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
+
+        # ── crio_install ─────────────────────────────────────────────
+        - name: Run crio_install on {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.crio_install.status | default('pending')) != 'completed'
+          block:
+            - name: Mark crio_install in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    crio_install:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Install cri-o {{ k8s_target_version }}
+              ansible.builtin.dnf:
+                name: "cri-o-{{ k8s_target_version }}"
+                state: present
+                disablerepo: "*"
+                enablerepo: "x86_64_rhel_{{ cluster_os_version }}_cri-o-v{{ k8s_target_version | regex_replace('\\.[0-9]+$', '') | replace('.', '-') }}"
+              register: crio_install_result
+
+            - name: Reload systemd after cri-o install
+              ansible.builtin.systemd:
+                daemon_reload: true
+
+            - name: Restart cri-o service
+              ansible.builtin.systemd:
+                name: crio
+                state: restarted
+                enabled: true
+
+            - name: Mark crio_install completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    crio_install:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark crio_install failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    crio_install:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('cri-o install failed')) }}"
+            - name: Fail crio_install step
+              ansible.builtin.fail:
+                msg: "crio_install failed: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
+
+        # ── kubelet_restart ──────────────────────────────────────────
+        - name: Run kubelet_restart on {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.kubelet_restart.status | default('pending')) != 'completed'
+          block:
+            - name: Mark kubelet_restart in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubelet_restart:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Reload systemd
+              ansible.builtin.systemd:
+                daemon_reload: true
+
+            - name: Restart kubelet
+              ansible.builtin.systemd:
+                name: kubelet
+                state: restarted
+                enabled: true
+
+            - name: Wait for node to become Ready with target version
+              ansible.builtin.command: >-
+                kubectl get node {{ node_ip }}
+                -o jsonpath="{.status.nodeInfo.kubeletVersion}:{range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"
+              delegate_to: "{{ kube_vip }}"
+              register: node_ready
+              until:
+                - node_ready.rc == 0
+                - "'v' + k8s_target_version + ':True' in node_ready.stdout"
+              retries: "{{ kubelet_ready_retries }}"
+              delay: "{{ kubelet_ready_delay }}"
+              changed_when: false
+
+            - name: Mark kubelet_restart completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    kubelet_restart:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark kubelet_restart failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    kubelet_restart:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubelet restart failed')) }}"
+            - name: Fail kubelet_restart step
+              ansible.builtin.fail:
+                msg: "kubelet_restart failed: {{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('unknown error')) }}"
+
+        # ── uncordon ─────────────────────────────────────────────────
+        - name: Run uncordon on {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.uncordon.status | default('pending')) != 'completed'
+          block:
+            - name: Mark uncordon in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    uncordon:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Uncordon node {{ current_node_name }}
+              ansible.builtin.command: kubectl uncordon {{ node_ip }}
+              delegate_to: "{{ kube_vip }}"
+              register: uncordon_result
+              changed_when: false
+
+            - name: Mark uncordon completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    uncordon:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark uncordon failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    uncordon:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('uncordon failed')) }}"
+            - name: Fail uncordon step
+              ansible.builtin.fail:
+                msg: "uncordon failed: {{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('unknown error')) }}"
+
+        # ── validation ───────────────────────────────────────────────
+        - name: Run validation on {{ current_node_name }}
+          when: (upgrade_status.nodes[current_node_name].steps.validation.status | default('pending')) != 'completed'
+          block:
+            - name: Mark validation in_progress
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    validation:
+                      status: in_progress
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+
+            - name: Verify node version
+              ansible.builtin.command: >
+                kubectl get node {{ node_ip }} -o jsonpath='{.status.nodeInfo.kubeletVersion}'
+              delegate_to: "{{ kube_vip }}"
+              register: node_version
+              failed_when: node_version.stdout != ("v" + k8s_target_version)
+              changed_when: false
+
+            - name: Mark validation completed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  steps:
+                    validation:
+                      status: completed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error:
+          rescue:
+            - name: Mark validation failed
+              ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+              vars:
+                node_name: "{{ current_node_name }}"
+                node_status_update:
+                  status: failed
+                  steps:
+                    validation:
+                      status: failed
+                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      error: "Node version mismatch. Expected: v{{ k8s_target_version }}, Got: {{ node_version.stdout | default('unknown') }}"
+            - name: Fail validation step
+              ansible.builtin.fail:
+                msg: "validation failed: Node version mismatch. Expected: v{{ k8s_target_version }}, Got: {{ node_version.stdout | default('unknown') }}"
+
+        # ── Mark node completed ──────────────────────────────────────
+        - name: Mark node completed {{ current_node_name }}
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+          vars:
+            node_name: "{{ current_node_name }}"
+            node_status_update:
+              status: completed
+              version_current: "{{ k8s_target_version }}"
+
+      rescue:
+        - name: Mark node as failed (outer rescue) {{ current_node_name }}
+          ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_status.yml"
+          vars:
+            node_name: "{{ current_node_name }}"
+            node_status_update:
+              status: failed
+
+        - name: Fail after marking status
+          ansible.builtin.fail:
+            msg: "Worker {{ current_node_name }} upgrade failed."

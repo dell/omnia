@@ -1,0 +1,81 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Set Calico manifest paths
+  ansible.builtin.set_fact:
+    calico_source: "{{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml"
+    calico_work: "/tmp/calico-upgrade-{{ calico_target_version }}.yaml"
+
+- name: Back up current Calico resources
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: |
+      /usr/bin/kubectl get daemonset calico-node -n kube-system -o yaml \
+        > {{ k8s_client_mount_path }}/upgrade/backup/calico-node-ds-backup.yaml
+      /usr/bin/kubectl get deployment calico-kube-controllers -n kube-system -o yaml \
+        > {{ k8s_client_mount_path }}/upgrade/backup/calico-kube-controllers-backup.yaml
+  changed_when: true
+  failed_when: false
+
+- name: Copy manifest to working location
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.copy:
+    src: "{{ calico_source }}"
+    dest: "{{ calico_work }}"
+    remote_src: true
+    mode: "0644"
+
+- name: Patch image registry (quay.io to docker.io)
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.replace:
+    path: "{{ calico_work }}"
+    regexp: "quay\\.io/calico/"
+    replace: "docker.io/calico/"
+
+- name: Check if IP_AUTODETECTION_METHOD already set
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: "grep -c 'IP_AUTODETECTION_METHOD' {{ calico_work }} || true"
+  register: autodetect_check
+  changed_when: false
+
+- name: Patch IP_AUTODETECTION_METHOD
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.replace:
+    path: "{{ calico_work }}"
+    regexp: '(^\\s*value: "autodetect"\\s*$)'
+    replace: "\\1\n            - name: IP_AUTODETECTION_METHOD\n              value: \"cidr={{ admin_nic_cidr }}\""
+  when: autodetect_check.stdout | int == 0
+  changed_when: true
+
+- name: Apply Calico manifest
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: "/usr/bin/kubectl apply --server-side --force-conflicts -f {{ calico_work }}"
+  register: calico_apply
+  changed_when: true
+
+- name: Wait for calico-node DaemonSet rollout
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: "/usr/bin/kubectl rollout status daemonset/calico-node -n kube-system --timeout={{ addon_rollout_timeout }}s"
+  register: calico_node_rollout
+  changed_when: false
+
+- name: Wait for calico-kube-controllers Deployment rollout
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: "/usr/bin/kubectl rollout status deployment/calico-kube-controllers -n kube-system --timeout=120s"
+  register: calico_kc_rollout
+  changed_when: false

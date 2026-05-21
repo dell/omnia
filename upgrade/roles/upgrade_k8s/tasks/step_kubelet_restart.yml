@@ -1,0 +1,47 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Part 1: Reload systemd on the node
+- name: Reload systemd on {{ current_node_name }}
+  ansible.builtin.systemd:
+    daemon_reload: true
+  delegate_to: "{{ current_node_name }}"
+
+# Part 2: Restart crio service
+- name: Restart crio on {{ current_node_name }}
+  ansible.builtin.systemd:
+    name: crio
+    state: restarted
+  delegate_to: "{{ current_node_name }}"
+
+# Part 3: Restart kubelet service
+- name: Restart kubelet on {{ current_node_name }}
+  ansible.builtin.systemd:
+    name: kubelet
+    state: restarted
+  delegate_to: "{{ current_node_name }}"
+
+# Part 4: Wait for node to become Ready with correct version
+- name: Wait for node to become Ready
+  ansible.builtin.command: >-
+    kubectl get node {{ node_ip }}
+    -o jsonpath="{.status.nodeInfo.kubeletVersion}:{range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"
+  delegate_to: "{{ kube_vip }}"
+  register: node_ready_check
+  changed_when: false
+  retries: "{{ kubelet_ready_retries }}"
+  delay: "{{ kubelet_ready_delay }}"
+  until:
+    - node_ready_check.rc == 0
+    - "'v' + k8s_target_version + ':True' in node_ready_check.stdout"

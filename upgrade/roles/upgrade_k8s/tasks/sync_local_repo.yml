@@ -1,0 +1,120 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# DEPRECATED: Superseded by prep_sync_all_repos.yml + prep_merge_configs.yml
+# which merge configs across ALL hops and call local_repo.yml once.
+# Kept for reference only; not included by any task file.
+#
+# Sync local Pulp repos for a specific target version.
+#
+# Creates a temporary staging directory with symlinks to the hop's artifact
+# configs and passes it to local_repo.yml as input_project_dir via extra-vars.
+# The user's real input directory is NEVER modified.
+#
+# Inputs:
+#   _hop_target_version — full target version (e.g. "1.35.1")
+#   _hop_target_minor   — minor version (e.g. "1.35")
+#   _hop_artifacts_dir  — artifacts directory name (e.g. "v1.35.1")
+#   admin_nic_ip        — Pulp server address
+
+- name: "Sync local repo — Check if kubernetes repo already synced"
+  ansible.builtin.command:
+    cmd: >-
+      pulp rpm distribution show
+      --name x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{ _hop_target_minor | replace('.', '-') }}
+  register: _pulp_k8s_check
+  changed_when: false
+  failed_when: false
+
+- name: "Sync local repo — Check if cri-o repo already synced"
+  ansible.builtin.command:
+    cmd: >-
+      pulp rpm distribution show
+      --name x86_64_rhel_{{ cluster_os_version }}_cri-o-v{{ _hop_target_minor | replace('.', '-') }}
+  register: _pulp_crio_check
+  changed_when: false
+  failed_when: false
+
+- name: "Sync local repo — Skip if repos already present"
+  ansible.builtin.debug:
+    msg: >-
+      Pulp repos for v{{ _hop_target_version }} already synced — skipping sync.
+      kubernetes: {{ 'present' if _pulp_k8s_check.rc == 0 else 'MISSING' }},
+      cri-o: {{ 'present' if _pulp_crio_check.rc == 0 else 'MISSING' }}
+  when:
+    - _pulp_k8s_check.rc == 0
+    - _pulp_crio_check.rc == 0
+
+- name: "Sync local repo — Run local_repo sync"
+  when: _pulp_k8s_check.rc != 0 or _pulp_crio_check.rc != 0
+  vars:
+    _artifacts_abs: "{{ role_path }}/../../artifacts/{{ _hop_artifacts_dir }}"
+  block:
+    # Build a temp staging dir that mirrors the layout local_repo expects.
+    # Only the 3 version-specific configs are symlinked from artifacts;
+    # everything else falls through from the real input dir.
+    - name: "Sync local repo — Create temp staging directory"
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: "upgrade_prep_{{ _hop_target_version }}_"
+      register: _staging_dir
+
+    - name: "Sync local repo — Symlink software_config.json into staging"
+      ansible.builtin.file:
+        src: "{{ _artifacts_abs }}/software_config.json"
+        dest: "{{ _staging_dir.path }}/software_config.json"
+        state: link
+
+    - name: "Sync local repo — Symlink local_repo_config.yml into staging"
+      ansible.builtin.file:
+        src: "{{ _artifacts_abs }}/local_repo_config.yml"
+        dest: "{{ _staging_dir.path }}/local_repo_config.yml"
+        state: link
+
+    - name: "Sync local repo — Create config subdirectory in staging"
+      ansible.builtin.file:
+        path: "{{ _staging_dir.path }}/config/x86_64/rhel/{{ cluster_os_version }}"
+        state: directory
+        mode: "{{ dir_perm_755 }}"
+
+    - name: "Sync local repo — Symlink service_k8s.json into staging"
+      ansible.builtin.file:
+        src: "{{ _artifacts_abs }}/service_k8s.json"
+        dest: "{{ _staging_dir.path }}/config/x86_64/rhel/{{ cluster_os_version }}/service_k8s.json"
+        state: link
+
+    - name: "Sync local repo — Run local_repo playbook with staging dir"
+      ansible.builtin.command:
+        cmd: >-
+          ansible-playbook
+          {{ role_path }}/../../local_repo/local_repo.yml
+          --extra-vars "input_project_dir={{ _staging_dir.path }}"
+          --extra-vars "softwares=service_k8s"
+          --extra-vars "target_k8s_version={{ _hop_target_version }}"
+      register: _sync_result
+      changed_when: "'changed=' in _sync_result.stdout"
+
+    - name: "Sync local repo — Verify repos now exist"
+      ansible.builtin.command:
+        cmd: >-
+          pulp rpm distribution show
+          --name x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{ _hop_target_minor | replace('.', '-') }}
+      changed_when: false
+
+  always:
+    - name: "Sync local repo — Clean up staging directory"
+      ansible.builtin.file:
+        path: "{{ _staging_dir.path }}"
+        state: absent
+      when: _staging_dir.path is defined

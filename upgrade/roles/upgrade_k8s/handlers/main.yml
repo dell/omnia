@@ -1,0 +1,11 @@
+---
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  listen: Reload systemd daemon
+
+- name: Restart CRI-O service
+  ansible.builtin.systemd:
+    name: crio
+    state: restarted
+  listen: Restart CRI-O service

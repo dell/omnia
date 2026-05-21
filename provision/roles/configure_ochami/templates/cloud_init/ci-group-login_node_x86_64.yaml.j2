@@ -116,6 +116,11 @@
             {{ ip_name_map[key] }} {{ key }}
 {% endfor %}
 {% endif %}
+        - path: /etc/profile.d/create_scratch.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/slurm/create_scratch.sh.j2') | indent(12) }}
 
         - path: /etc/sysconfig/slurmd
           owner: root:root

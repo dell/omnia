@@ -842,7 +842,8 @@ class ResultPoller:
             "test_summary": result.test_summary or {"total": 0, "passed": 0, "failed": 0, "skipped": 0, "errors": 0},
             "duration_seconds": result.duration_seconds,
             "artifact_dir": artifact_dir,
-            "report_path": str(Path(artifact_dir) / "test_report.html") if artifact_dir else "",
+            "log_path": str(Path(artifact_dir) / "molecule_output.log") if artifact_dir else "",
+            "report_path": str(Path(artifact_dir) / "test_report.json") if artifact_dir else "",
             "correlation_id": str(result.request_id),
         }
         if outcome == "FAILED":

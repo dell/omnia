@@ -12,28 +12,167 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# NOTE: input_project_dir is defined in each play's vars section.
+# To override, use: --extra-vars "input_project_dir=/custom/path"
 
-- name: Upgrade Kubernetes cluster
+# ══════════════════════════════════════════════════════════════════════════════
+# Pre-check: Verify service_k8s is configured before proceeding
+# ══════════════════════════════════════════════════════════════════════════════
+- name: "Kubernetes Upgrade - Pre-check service_k8s configuration"
   hosts: localhost
   connection: local
   gather_facts: false
   vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    oim_data_path: "/opt/omnia/.data"
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: k8s
+
   tasks:
-    - name: Read upgrade_manifest.yml
+    - name: "Load upgrade_vars.yml for supported versions"
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
+
+    - name: "Load software_config.json"
       ansible.builtin.slurp:
-        src: "{{ manifest_path }}"
-      register: raw_manifest
+        path: "{{ input_project_dir }}/software_config.json"
+      register: _sw_config_slurp
 
-    - name: Parse manifest
+    - name: "Parse software_config.json"
       ansible.builtin.set_fact:
-        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+        _software_config: "{{ _sw_config_slurp.content | b64decode | from_json }}"
 
-    - name: Skip if k8s already upgraded
+    - name: "Check if service_k8s is configured in software_config.json"
+      ansible.builtin.set_fact:
+        k8s_upgrade_enabled: "{{ _software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
+
+    - name: "Extract K8s version from software_config.json"
+      ansible.builtin.set_fact:
+        _k8s_version_in_config: "{{ _software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | map(attribute='version') | first }}"
+        _k8s_supported_version: "{{ components.service_k8s.supported_versions | last }}"
+      when: k8s_upgrade_enabled
+
+    - name: "Validate K8s version is supported"
+      ansible.builtin.fail:
+        msg: |
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] UNSUPPORTED K8s VERSION
+          ════════════════════════════════════════════════════════════════════════
+          Version in software_config.json: {{ _k8s_version_in_config }}
+          Supported version for upgrade:   {{ _k8s_supported_version }}
+
+          Only K8s version {{ _k8s_supported_version }} is supported for upgrade.
+          Please update software_config.json to use version {{ _k8s_supported_version }}.
+          ════════════════════════════════════════════════════════════════════════
+      when:
+        - k8s_upgrade_enabled
+        - _k8s_version_in_config != _k8s_supported_version
+
+    - name: "Load upgrade manifest"
+      ansible.builtin.set_fact:
+        manifest: "{{ lookup('file', manifest_path) | from_yaml }}"
+      ignore_errors: true
+      register: manifest_load
+
+    - name: "Mark as skipped — service_k8s not configured"
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when:
+        - not k8s_upgrade_enabled
+        - manifest_load is succeeded
+
+    - name: "Display skip message — service_k8s not configured"
+      ansible.builtin.debug:
+        msg: |
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] Component '{{ component_name }}' — SKIPPED
+          ════════════════════════════════════════════════════════════════════════
+          Reason: service_k8s is not present in software_config.json softwares list.
+          K8s cluster was not provisioned, skipping K8s upgrade.
+          ════════════════════════════════════════════════════════════════════════
+      when: not k8s_upgrade_enabled
+
+- name: "Kubernetes Upgrade - Load Configuration & Version Detection"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    oim_data_path: "/opt/omnia/.data"
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: k8s
+
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: "Load upgrade_vars.yml"
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
+
+    - name: "Extract K8s target version from upgrade configuration"
+      ansible.builtin.set_fact:
+        k8s_target_version: "{{ components.service_k8s.supported_versions | last }}"
+
+    - name: "Check if k8s already upgraded"
+      ansible.builtin.set_fact:
+        manifest: "{{ lookup('file', oim_data_path ~ '/upgrade_manifest.yml') | from_yaml }}"
+      ignore_errors: true
+      register: manifest_load
+
+    - name: "Fail if upgrade manifest does not exist"
+      ansible.builtin.fail:
+        msg: |
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] UPGRADE MANIFEST NOT FOUND
+          ════════════════════════════════════════════════════════════════════════
+          The upgrade manifest file does not exist at:
+            {{ oim_data_path }}/upgrade_manifest.yml
+
+          This file is required to verify prerequisite components are completed.
+          Please run: ansible-playbook upgrade/upgrade.yml
+          ════════════════════════════════════════════════════════════════════════
+      when: manifest_load is failed
+
+    - name: "Skip if already completed"
       ansible.builtin.meta: end_play
       when:
-        - manifest.component_status[component_name] | default('pending') == 'completed'
+        - manifest_load is succeeded
+        - manifest.component_status.k8s | default('pending') == 'completed'
+
+    - name: "Verify component dependencies"
+      ansible.builtin.fail:
+        msg: |
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] MISSING PREREQUISITE COMPONENTS
+          ════════════════════════════════════════════════════════════════════════
+          K8s upgrade requires the following components to be completed first:
+            - OIM
+            - provision
+            - local_repo
+            - build_image
+
+          Current component status:
+            - OIM: {{ manifest.component_status.oim | default('pending') }}
+            - provision: {{ manifest.component_status.provision | default('pending') }}
+            - local_repo: {{ manifest.component_status.local_repo | default('pending') }}
+            - build_image: {{ manifest.component_status.build_image | default('pending') }}
+
+          Please run: ansible-playbook upgrade/upgrade.yml
+          ════════════════════════════════════════════════════════════════════════
+      when:
+        - manifest.component_status.oim | default('pending') != 'completed' or
+          manifest.component_status.provision | default('pending') != 'completed' or
+          manifest.component_status.local_repo | default('pending') != 'completed' or
+          manifest.component_status.build_image | default('pending') != 'completed'
 
     - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
       ansible.builtin.copy:
@@ -60,38 +199,1209 @@
         content: >-
           {{ manifest | combine({
                'component_status': manifest.component_status | combine({
-                 component_name: 'in-progress'
+                 'k8s': 'in-progress'
                })
              }) | to_nice_yaml }}
-        dest: "{{ manifest_path }}"
-        mode: '0644'
+        dest: "{{ oim_data_path }}/upgrade_manifest.yml"
+        mode: "0644"
+      when: manifest_load is succeeded
 
     - name: "Display upgrade status in-progress — {{ component_name }}"
       ansible.builtin.debug:
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
 
-    # TODO: Implement per ESpec §4.7:
-    # 1. Validation gates (Pulp repos, SSH, cluster health, etcd, version chain, backup)
-    # 2. etcd snapshot + backup /etc/kubernetes
-    # 3. Sequential CP upgrade (kubeadm upgrade apply/node)
-    # 4. Addon upgrade (Calico, MetalLB, Helm charts)
-    # 5. Rolling worker upgrade (drain→upgrade→uncordon, batch configurable)
-    # 6. BSS + cloud-init update per functional group post-upgrade
-    # 7. Validation: all nodes Ready, pods Running
-    - name: K8s upgrade placeholder
-      ansible.builtin.debug:
-        msg: "K8s upgrade tasks to be implemented (validation gates, CP upgrade, worker rolling upgrade)"
+    - name: "Load software_config.json"
+      ansible.builtin.slurp:
+        path: "{{ input_project_dir }}/software_config.json"
+      register: _sw_config_slurp
 
-    - name: Mark k8s upgrade as completed
+    - name: "Parse software_config.json"
+      ansible.builtin.set_fact:
+        _software_config: "{{ _sw_config_slurp.content | b64decode | from_json }}"
+
+    - name: "Set cluster OS variables"
+      ansible.builtin.set_fact:
+        cluster_os_type: "{{ _software_config.cluster_os_type }}"
+        cluster_os_version: "{{ _software_config.cluster_os_version }}"
+
+    - name: "Load HA config"
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/high_availability_config.yml"
+        name: ha_config_data
+
+    - name: "Extract kube_vip"
+      ansible.builtin.set_fact:
+        kube_vip: "{{ ha_config_data.service_k8s_cluster_ha[0].virtual_ip_address }}"
+
+- name: "Kubernetes Upgrade - Add kube_vip to inventory"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: "Load HA config"
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/high_availability_config.yml"
+        name: ha_config_data
+
+    - name: "Extract kube_vip"
+      ansible.builtin.set_fact:
+        kube_vip: "{{ ha_config_data.service_k8s_cluster_ha[0].virtual_ip_address }}"
+
+    - name: "Add kube_vip to inventory"
+      ansible.builtin.add_host:
+        name: "{{ kube_vip }}"
+        ansible_host: "{{ kube_vip }}"
+        ansible_connection: ssh
+        ansible_user: root
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        groups: kube_vip_group
+        k8s_target_version: "{{ k8s_target_version }}"
+
+- name: "Kubernetes Upgrade - Cache configuration files"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Cache storage_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/storage_config.yml"
+        name: cached_storage_config
+
+    - name: Cache omnia_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/omnia_config.yml"
+        name: cached_omnia_config
+
+    - name: Cache high_availability_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/high_availability_config.yml"
+        name: cached_ha_config
+
+    - name: Set cached config flag
+      ansible.builtin.set_fact:
+        configs_cached: true
+        cacheable: true
+
+- name: "Kubernetes Upgrade - Detect current version"
+  hosts: kube_vip_group
+  gather_facts: false
+  pre_tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: "Verify SSH connectivity to kube_vip"
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 30
+      register: ssh_check
+      ignore_errors: true
+
+    - name: "Abort if SSH connection fails"
+      ansible.builtin.fail:
+        msg: "Failed to establish SSH connection to kube_vip {{ ansible_host }}"
+      when: ssh_check is failed
+
+  tasks:
+    - name: "Get all node versions"
+      ansible.builtin.raw: /usr/bin/kubectl get nodes -o jsonpath='{range .items[*]}{.status.nodeInfo.kubeletVersion}{"\n"}{end}'
+      register: _all_versions_raw
+      changed_when: false
+
+    - name: "Parse node versions"
+      ansible.builtin.set_fact:
+        _all_versions: "{{ _all_versions_raw.stdout_lines | map('regex_replace', '^v', '') | list }}"
+
+    - name: "Set k8s_from_version"
+      ansible.builtin.set_fact:
+        k8s_from_version: "{{ _all_versions | min }}"
+        k8s_from_minor: "{{ (_all_versions | min) | regex_replace('\\.[0-9]+$', '') }}"
+
+- name: "Kubernetes Upgrade - Detect hop chain"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: "Load upgrade_vars.yml"
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
+
+    - name: Set k8s_from_version from kube_vip
+      ansible.builtin.set_fact:
+        k8s_from_version: "{{ hostvars[kube_vip]['k8s_from_version'] }}"
+        k8s_from_minor: "{{ hostvars[kube_vip]['k8s_from_minor'] }}"
+
+    - name: "Detect upgrade hop chain"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/detect_hop_chain_from_manifest.yml"
+
+    - name: Save variables to file on localhost
       ansible.builtin.copy:
-        content: >-
-          {{ manifest | combine({
-               'component_status': manifest.component_status | combine({
-                 component_name: 'completed'
-               })
-             }) | to_nice_yaml }}
-        dest: "{{ manifest_path }}"
-        mode: '0644'
+        content: |
+          k8s_from_version: {{ k8s_from_version }}
+          k8s_from_minor: {{ k8s_from_minor }}
+          k8s_target_version: {{ k8s_target_version }}
+          hop_chain: {{ hop_chain | to_json }}
+          is_multi_hop: {{ is_multi_hop }}
+        dest: /tmp/k8s_vars.yml
+        mode: "0644"
+
+    - name: Copy k8s_vars.yml to kube_vip for remote plays
+      ansible.builtin.copy:
+        src: /tmp/k8s_vars.yml
+        dest: /tmp/k8s_vars.yml
+        mode: "0644"
+      delegate_to: "{{ kube_vip }}"
+
+- name: "Kubernetes Upgrade - Detect hop chain from cluster"
+  hosts: kube_vip_group
+  gather_facts: false
+  strategy: linear
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Load variables from file
+      ansible.builtin.include_vars:
+        file: /tmp/k8s_vars.yml
+
+    - name: "Load upgrade_vars.yml"
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
+
+    - name: "Get current cluster version"
+      ansible.builtin.command: /usr/bin/kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}'
+      register: _all_versions_raw
+      changed_when: false
+
+    - name: "Set current version facts (use minimum version across all nodes)"
+      ansible.builtin.set_fact:
+        _all_versions: "{{ _all_versions_raw.stdout.split() | map('regex_replace', '^v', '') | list }}"
+        k8s_from_version: "{{ _all_versions_raw.stdout.split() | map('regex_replace', '^v', '') | sort | first }}"
+        k8s_from_minor: "{{ (_all_versions_raw.stdout.split() | map('regex_replace', '^v', '') | sort | first | regex_replace('\\.[0-9]+$', '')) }}"
+
+    - name: "Display detected cluster version"
+      ansible.builtin.debug:
+        msg: |
+          Detected node versions: {{ _all_versions }}
+          Minimum version (upgrade from): {{ k8s_from_version }}
+          Target version: {{ components.service_k8s.supported_versions | last }}
+
+    - name: "Detect upgrade hop chain from cluster"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/detect_hop_chain_from_manifest.yml"
+
+- name: "Kubernetes Upgrade - Get cluster version for status"
+  hosts: kube_vip_group
+  gather_facts: false
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Get current cluster version
+      ansible.builtin.command: /usr/bin/kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}'
+      register: cluster_version_raw
+      changed_when: false
+
+    - name: Set cluster version facts
+      ansible.builtin.set_fact:
+        k8s_from_version: "{{ cluster_version_raw.stdout | regex_replace('^v', '') }}"
+        k8s_from_minor: "{{ cluster_version_raw.stdout | regex_replace('^v', '') | regex_replace('\\.[0-9]+$', '') }}"
+
+- name: "Kubernetes Upgrade - Setup upgrade directory on kube_vip"
+  hosts: kube_vip_group
+  gather_facts: false
+  strategy: linear
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Use cached storage_config
+      ansible.builtin.set_fact:
+        storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
+
+    - name: Use cached omnia_config
+      ansible.builtin.set_fact:
+        omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
+
+    - name: Set k8s_nfs_storage_name
+      ansible.builtin.set_fact:
+        k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+
+    - name: Set k8s_client_mount_path
+      ansible.builtin.set_fact:
+        k8s_client_mount_path: >-
+          {{ (storage_config.mounts
+              | selectattr('name', 'equalto', k8s_nfs_storage_name)
+              | first).mount_point }}
+
+    - name: Ensure upgrade directory exists
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/upgrade"
+        state: directory
+        mode: "0755"
+
+    - name: Set fact on localhost
+      ansible.builtin.set_fact:
+        k8s_client_mount_path_kube_vip: "{{ k8s_client_mount_path }}"
+
+- name: "Kubernetes Upgrade - Initialize upgrade status file"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
+    group_cp_first: "service_kube_control_plane_first_x86_64"
+    group_cp: "service_kube_control_plane_x86_64"
+    group_worker: "service_kube_node_x86_64"
+    status_file: "{{ hostvars[kube_vip]['k8s_client_mount_path_kube_vip'] }}/upgrade/upgrade_status.yml"
+    kube_vip: "{{ hostvars[kube_vip]['ansible_host'] }}"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Use cached storage_config
+      ansible.builtin.set_fact:
+        storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
+
+    - name: Use cached omnia_config
+      ansible.builtin.set_fact:
+        omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
+
+    - name: Set k8s_nfs_storage_name
+      ansible.builtin.set_fact:
+        k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+
+    - name: Set k8s_client_mount_path
+      ansible.builtin.set_fact:
+        k8s_client_mount_path: >-
+          {{ (storage_config.mounts
+              | selectattr('name', 'equalto', k8s_nfs_storage_name)
+              | first).mount_point }}
+
+    - name: Read nodes.yaml
+      ansible.builtin.slurp:
+        src: "{{ nodes_yaml_path }}"
+      register: nodes_slurp
+      changed_when: false
+
+    - name: Parse nodes.yaml
+      ansible.builtin.set_fact:
+        parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+
+    - name: Build node lists by role
+      ansible.builtin.set_fact:
+        groups_cp_first: >-
+          {{ parsed_nodes.nodes
+             | selectattr('group', 'equalto', group_cp_first)
+             | map(attribute='name') | list }}
+        groups_cp: >-
+          {{ parsed_nodes.nodes
+             | selectattr('group', 'equalto', group_cp)
+             | map(attribute='name') | list }}
+        groups_worker: >-
+          {{ parsed_nodes.nodes
+             | selectattr('group', 'equalto', group_worker)
+             | map(attribute='name') | list }}
+        all_upgrade_nodes: >-
+          {{ (parsed_nodes.nodes
+             | selectattr('group', 'equalto', group_cp_first)
+             | map(attribute='name') | list) +
+             (parsed_nodes.nodes
+             | selectattr('group', 'equalto', group_cp)
+             | map(attribute='name') | list) +
+             (parsed_nodes.nodes
+             | selectattr('group', 'equalto', group_worker)
+             | map(attribute='name') | list) }}
+
+    - name: Build node IP map
+      ansible.builtin.set_fact:
+        node_ips: >-
+          {{ node_ips | default({}) | combine({
+               item.name: (item.interfaces | first).ip_addrs
+                          | selectattr('name', 'equalto', 'management')
+                          | map(attribute='ip_addr') | first
+             }) }}
+      loop: "{{ parsed_nodes.nodes }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Load variables from file
+      ansible.builtin.include_vars:
+        file: /tmp/k8s_vars.yml
+
+    - name: Check if upgrade status file already exists
+      ansible.builtin.stat:
+        path: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: status_file_stat
+
+    - name: Read existing status file if it exists
+      ansible.builtin.slurp:
+        src: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: existing_status_slurp
+      when: status_file_stat.stat.exists | default(false)
+
+    - name: Parse existing status
+      ansible.builtin.set_fact:
+        existing_status: "{{ existing_status_slurp.content | b64decode | from_yaml | default({}, true) }}"
+      when: status_file_stat.stat.exists | default(false)
+
+    # Steps are stored as dictionary for reliable YAML handling
+    # Execution order: setup_repos -> kubeadm_install -> kubeadm_upgrade_apply/node ->
+    # drain -> kubelet_install -> crio_install -> kubelet_restart -> uncordon -> validation -> etcd_health_check
+    - name: Build initial node status entries
+      ansible.builtin.set_fact:
+        initial_nodes: >-
+          {{ initial_nodes | default({}) | combine({
+               item.0: {
+                 'role': item.1,
+                 'ip': node_ips[item.0],
+                 'version_before': k8s_from_version,
+                 'version_current': k8s_from_version,
+                 'status': 'pending',
+                 'steps': (
+                   {
+                     'setup_repos': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_upgrade_apply': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'drain': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_restart': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'uncordon': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'validation': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'etcd_health_check': {'status': 'pending', 'timestamp': None, 'error': None}
+                   }
+                   if item.1 == 'control_plane_first'
+                   else {
+                     'setup_repos': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_upgrade_node': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'drain': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_restart': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'uncordon': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'validation': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'etcd_health_check': {'status': 'pending', 'timestamp': None, 'error': None}
+                   }
+                   if item.1 == 'control_plane'
+                   else {
+                     'setup_repos': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_upgrade_node': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'drain': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_restart': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'uncordon': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'validation': {'status': 'pending', 'timestamp': None, 'error': None}
+                   }
+                   if item.1 == 'worker'
+                   else {}
+                 )
+               }
+             }) }}
+      loop: >-
+        {{ (groups_cp_first | zip_longest([], fillvalue='control_plane_first'))
+         + (groups_cp | zip_longest([], fillvalue='control_plane'))
+         + (groups_worker | zip_longest([], fillvalue='worker')) }}
+      loop_control:
+        label: "{{ item.0 }}"
+
+    - name: Build complete upgrade status structure
+      ansible.builtin.set_fact:
+        complete_upgrade_status:
+          upgrade:
+            from_version: "{{ k8s_from_version }}"
+            target_version: "{{ k8s_target_version }}"
+            status: in_progress
+            started_at: "{{ ansible_date_time.iso8601 }}"
+            completed_at:
+          etcd_backup:
+            status: pending
+            path:
+            timestamp:
+            error:
+          k8s_config_backup:
+            status: pending
+            path:
+            timestamp:
+            error:
+          addon_upgrade:
+            status: pending
+            calico:
+              status: pending
+            metallb:
+              status: pending
+            helm:
+              status: pending
+          bss_update:
+            service_kube_control_plane_first:
+              status: pending
+            service_kube_control_plane:
+              status: pending
+            service_kube_node:
+              status: pending
+          nodes: "{{ initial_nodes }}"
+
+    - name: Merge with existing status if it exists
+      ansible.builtin.set_fact:
+        final_upgrade_status: "{{ complete_upgrade_status | combine(existing_status, recursive=true, list_merge='replace') }}"
+      when: status_file_stat.stat.exists | default(false)
+
+    - name: Use complete status if no existing file
+      ansible.builtin.set_fact:
+        final_upgrade_status: "{{ complete_upgrade_status }}"
+      when: not (status_file_stat.stat.exists | default(false))
+
+    - name: Write status to JSON file locally
+      ansible.builtin.copy:
+        content: "{{ final_upgrade_status | to_json }}"
+        dest: /tmp/upgrade_status_init.json
+        mode: "0644"
+
+    - name: Convert JSON to YAML
+      ansible.builtin.shell:
+        cmd: >-
+          python3 -c "import json, yaml;
+          f = open('/tmp/upgrade_status_init.json');
+          data = json.load(f); f.close();
+          f = open('/tmp/upgrade_status_init.yml', 'w');
+          yaml.dump(data, f, default_flow_style=False, sort_keys=False);
+          f.close()"
+      changed_when: true
+
+    - name: Ensure status file directory exists on kube_vip
+      ansible.builtin.file:
+        path: "{{ status_file | dirname }}"
+        state: directory
+        mode: "0755"
+      delegate_to: "{{ kube_vip }}"
+
+    - name: Copy status file to kube_vip
+      ansible.builtin.copy:
+        src: /tmp/upgrade_status_init.yml
+        dest: "{{ status_file }}"
+        mode: "0644"
+      delegate_to: "{{ kube_vip }}"
+
+    - name: Clean up temp files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/upgrade_status_init.json
+        - /tmp/upgrade_status_init.yml
+
+    - name: Display status initialization result
+      ansible.builtin.debug:
+        msg: "Upgrade status file initialized at {{ status_file }} with complete structure including all nodes and steps"
+
+- name: "Kubernetes Upgrade - Load node groups for backup and setup_repos"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  strategy: linear
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
+    group_cp_first: "service_kube_control_plane_first_x86_64"
+    group_cp: "service_kube_control_plane_x86_64"
+    group_worker: "service_kube_node_x86_64"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Use cached storage_config
+      ansible.builtin.set_fact:
+        storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
+
+    - name: Use cached omnia_config
+      ansible.builtin.set_fact:
+        omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
+
+    - name: Set k8s_nfs_storage_name
+      ansible.builtin.set_fact:
+        k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+
+    - name: Read nodes.yaml
+      ansible.builtin.slurp:
+        src: "{{ nodes_yaml_path }}"
+      register: nodes_slurp
+      changed_when: false
+
+    - name: Parse nodes.yaml
+      ansible.builtin.set_fact:
+        parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+
+    - name: Build first control plane list
+      ansible.builtin.set_fact:
+        groups_cp_first: >-
+          {{ parsed_nodes.nodes
+             | selectattr('group', 'equalto', group_cp_first)
+             | map(attribute='name') | list }}
+
+    - name: Build additional control plane list
+      ansible.builtin.set_fact:
+        groups_cp: >-
+          {{ parsed_nodes.nodes
+             | selectattr('group', 'equalto', group_cp)
+             | map(attribute='name') | list }}
+
+    - name: Build worker list
+      ansible.builtin.set_fact:
+        groups_worker: >-
+          {{ parsed_nodes.nodes
+             | selectattr('group', 'equalto', group_worker)
+             | map(attribute='name') | list }}
+
+    - name: Add first control plane to inventory
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups:
+          - k8s_control_plane_first
+          - k8s_control_planes
+        ansible_host: >-
+          {{ (parsed_nodes.nodes | selectattr('name', 'equalto', item)
+          | first).interfaces.0.ip_addrs
+          | selectattr('name', 'equalto', 'management')
+          | map(attribute='ip_addr') | first }}
+      loop: "{{ groups_cp_first }}"
+
+    - name: Add additional control planes to inventory
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups:
+          - k8s_control_plane
+          - k8s_control_planes
+        ansible_host: >-
+          {{ (parsed_nodes.nodes | selectattr('name', 'equalto', item)
+          | first).interfaces.0.ip_addrs
+          | selectattr('name', 'equalto', 'management')
+          | map(attribute='ip_addr') | first }}
+      loop: "{{ groups_cp }}"
+
+    - name: Add workers to inventory
+      ansible.builtin.add_host:
+        name: "{{ item }}"
+        groups: k8s_workers
+        ansible_host: >-
+          {{ (parsed_nodes.nodes | selectattr('name', 'equalto', item)
+          | first).interfaces.0.ip_addrs
+          | selectattr('name', 'equalto', 'management')
+          | map(attribute='ip_addr') | first }}
+      loop: "{{ groups_worker }}"
+
+    - name: Write dynamic inventory file for subprocess calls (created once)
+      ansible.builtin.copy:
+        content: |
+          {% set ssh_args = '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null' -%}
+          [k8s_control_plane_first]
+          {% for host in groups_cp_first %}
+          {% set host_ip = (parsed_nodes.nodes
+             | selectattr('name', 'equalto', host)
+             | first).interfaces.0.ip_addrs
+             | selectattr('name', 'equalto', 'management')
+             | map(attribute='ip_addr') | first -%}
+          {{ host }} ansible_host={{ host_ip }} ansible_user=root ansible_ssh_common_args="{{ ssh_args }}"
+          {% endfor %}
+
+          [k8s_control_plane]
+          {% for host in groups_cp %}
+          {% set host_ip = (parsed_nodes.nodes
+             | selectattr('name', 'equalto', host)
+             | first).interfaces.0.ip_addrs
+             | selectattr('name', 'equalto', 'management')
+             | map(attribute='ip_addr') | first -%}
+          {{ host }} ansible_host={{ host_ip }} ansible_user=root ansible_ssh_common_args="{{ ssh_args }}"
+          {% endfor %}
+
+          [k8s_workers]
+          {% for host in groups_worker %}
+          {% set host_ip = (parsed_nodes.nodes
+             | selectattr('name', 'equalto', host)
+             | first).interfaces.0.ip_addrs
+             | selectattr('name', 'equalto', 'management')
+             | map(attribute='ip_addr') | first -%}
+          {{ host }} ansible_host={{ host_ip }} ansible_user=root ansible_ssh_common_args="{{ ssh_args }}"
+          {% endfor %}
+
+          [kube_vip_group]
+          {% set vip = hostvars['localhost']['kube_vip'] -%}
+          {{ vip }} ansible_host={{ vip }} ansible_user=root ansible_ssh_common_args="{{ ssh_args }}"
+        dest: /tmp/k8s_upgrade_inventory.ini
+        mode: "0644"
+
+    - name: Set backup paths for control planes
+      ansible.builtin.set_fact:
+        k8s_config_backup_dir: "{{ (storage_config.mounts | selectattr('name', 'equalto', k8s_nfs_storage_name) | first).mount_point }}/upgrade/backup/configs"
+
+- name: "Kubernetes Upgrade - Backup etcd on kube_vip"
+  hosts: kube_vip_group
+  gather_facts: false
+  strategy: linear
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    cluster_os_version: "{{ _software_config.cluster_os_version }}"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Load variables from file
+      ansible.builtin.include_vars:
+        file: /tmp/k8s_vars.yml
+
+    - name: Use cached storage_config
+      ansible.builtin.set_fact:
+        storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
+
+    - name: Use cached omnia_config
+      ansible.builtin.set_fact:
+        omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
+
+    - name: Set k8s_nfs_storage_name
+      ansible.builtin.set_fact:
+        k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+
+    - name: Set backup paths (using k8s_from_version as backup is taken before upgrade)
+      ansible.builtin.set_fact:
+        k8s_client_mount_path: >-
+          {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}
+        backup_dir_client: >-
+          {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}/upgrade/backup/{{ k8s_from_version }}
+        etcd_members_file: >-
+          {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}/upgrade/backup/etcd-members.json
+        status_file: >-
+          {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}/upgrade/upgrade_status.yml
+        kube_vip: "{{ hostvars['localhost']['kube_vip'] }}"
+
+    - name: Run etcd backup
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/backup_etcd.yml"
+
+- name: "Kubernetes Upgrade - Backup K8s config on control planes"
+  hosts: k8s_control_planes
+  gather_facts: false
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    k8s_client_mount_path: "{{ hostvars[groups.kube_vip_group[0]]['k8s_client_mount_path_kube_vip'] }}"
+    kube_vip: "{{ hostvars[groups.kube_vip_group[0]]['ansible_host'] }}"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Set backup paths from hostvars
+      ansible.builtin.set_fact:
+        k8s_config_backup_dir: "{{ hostvars['localhost']['k8s_config_backup_dir'] }}"
+
+    - name: Run K8s config backup
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/backup_k8s_config.yml"
+
+- name: "Kubernetes Upgrade - Load setup_repos configuration on localhost"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    oim_provision_path: "/opt/omnia/provision"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Load software_config.json
+      ansible.builtin.slurp:
+        path: "{{ input_project_dir }}/software_config.json"
+      register: _sw_config_slurp
+
+    - name: Parse software_config.json
+      ansible.builtin.set_fact:
+        _software_config: "{{ _sw_config_slurp.content | b64decode | from_json }}"
+
+    - name: Load local_repo_access.yml
+      ansible.builtin.slurp:
+        path: "{{ oim_provision_path }}/local_repo_access.yml"
+      register: _local_repo_slurp
+
+    - name: Parse local_repo_access.yml
+      ansible.builtin.set_fact:
+        _local_repo_access: "{{ _local_repo_slurp.content | b64decode | from_yaml }}"
+
+    - name: Extract pulp protocol
+      ansible.builtin.set_fact:
+        pulp_protocol: "{{ _local_repo_access.offline_tarball_path | regex_replace('^(https?)://.*', '\\1') }}"
+
+    - name: Extract Pulp server IP from local_repo_access
+      ansible.builtin.set_fact:
+        pulp_server_ip: "{{ _local_repo_access.offline_tarball_path | regex_replace('^(https?)://([^:]+):.*', '\\2') }}"
+
+    - name: Set admin_nic_ip from Pulp server IP
+      ansible.builtin.set_fact:
+        admin_nic_ip: "{{ pulp_server_ip }}"
+
+    - name: Set cluster OS version
+      ansible.builtin.set_fact:
+        cluster_os_version: "{{ _software_config.cluster_os_version }}"
+
+    - name: Load HA config
+      ansible.builtin.slurp:
+        path: "{{ input_project_dir }}/high_availability_config.yml"
+      register: _ha_config_slurp
+
+    - name: Parse HA config
+      ansible.builtin.set_fact:
+        _ha_config_data: "{{ _ha_config_slurp.content | b64decode | from_yaml }}"
+
+    - name: Extract kube_vip from HA config
+      ansible.builtin.set_fact:
+        kube_vip: "{{ _ha_config_data.service_k8s_cluster_ha[0].virtual_ip_address }}"
+
+    - name: Load upgrade_vars.yml
+      ansible.builtin.slurp:
+        path: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
+      register: _upgrade_config_slurp
+
+    - name: Parse upgrade_vars.yml
+      ansible.builtin.set_fact:
+        _upgrade_config: "{{ _upgrade_config_slurp.content | b64decode | from_yaml }}"
+
+    - name: Extract K8s target version
+      ansible.builtin.set_fact:
+        k8s_target_version: "{{ _upgrade_config.components.service_k8s.supported_versions | last }}"
+
+    - name: Set k8s_target_minor
+      ansible.builtin.set_fact:
+        k8s_target_minor: "{{ k8s_target_version | regex_replace('\\.[0-9]+$', '') }}"
+
+    - name: Set intermediate variables for repo generation
+      ansible.builtin.set_fact:
+        _pulp_protocol: "{{ _local_repo_access.offline_tarball_path | regex_replace('^(https?)://.*', '\\1') }}"
+        _pulp_server_ip: "{{ pulp_server_ip }}"
+        _cluster_os_version: "{{ _software_config.cluster_os_version }}"
+        _k8s_target_version: "{{ _upgrade_config.components.service_k8s.supported_versions | last }}"
+        _k8s_target_minor: "{{ _upgrade_config.components.service_k8s.supported_versions | last | regex_replace('\\.[0-9]+$', '') }}"
+
+    - name: Set pulp base URLs
+      ansible.builtin.set_fact:
+        pulp_content_base: "{{ _pulp_protocol }}://{{ _pulp_server_ip }}:2225/pulp/content"
+        pulp_repo_base: >-
+          {{ _pulp_protocol }}://{{ _pulp_server_ip }}:2225/pulp/content/opt/omnia/offline_repo/cluster/x86_64/rhel/{{ _cluster_os_version }}/rpms
+
+    - name: Generate upgrade repo file content
+      ansible.builtin.set_fact:
+        repo_content: |
+          # Omnia K8s Upgrade Repository Configuration
+          # Generated by upgrade playbook for K8s {{ _k8s_target_version }}
+          # This file configures access to Pulp repositories for upgrade packages
+
+          [x86_64_rhel_{{ _cluster_os_version }}_kubernetes-v{{ _k8s_target_minor | replace('.', '-') }}]
+          name=Kubernetes {{ _k8s_target_version }} Repository
+          baseurl={{ pulp_repo_base }}/x86_64_rhel_{{ _cluster_os_version }}_kubernetes-v{{ _k8s_target_minor | replace('.', '-') }}/
+          enabled=1
+          gpgcheck=0
+
+          [x86_64_rhel_{{ _cluster_os_version }}_cri-o-v{{ _k8s_target_minor | replace('.', '-') }}]
+          name=CRI-O {{ _k8s_target_version }} Repository
+          baseurl={{ pulp_repo_base }}/x86_64_rhel_{{ _cluster_os_version }}_cri-o-v{{ _k8s_target_minor | replace('.', '-') }}/
+          enabled=1
+          gpgcheck=0
+
+- name: "Kubernetes Upgrade - Setup repos on all nodes"
+  hosts: k8s_control_planes:k8s_workers
+  gather_facts: false
+  strategy: linear
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Deploy upgrade repo file to node
+      ansible.builtin.copy:
+        content: "{{ hostvars['localhost']['repo_content'] }}"
+        dest: "/etc/yum.repos.d/omnia-upgrade.repo"
+        mode: "0644"
+
+    - name: Verify repo file exists
+      ansible.builtin.stat:
+        path: "/etc/yum.repos.d/omnia-upgrade.repo"
+      register: repo_file_check
+
+    - name: Fail if repo file was not created
+      ansible.builtin.fail:
+        msg: "Failed to create repository file /etc/yum.repos.d/omnia-upgrade.repo on {{ inventory_hostname }}"
+      when: not repo_file_check.stat.exists
+
+    - name: Display repo file status
+      ansible.builtin.debug:
+        msg: "Repo file created on {{ inventory_hostname }}: {{ repo_file_check.stat.exists }}"
+
+    - name: Test repository URL reachability (Kubernetes repo)
+      ansible.builtin.uri:
+        url: >-
+          {{ hostvars['localhost']['pulp_repo_base'] }}/x86_64_rhel_{{
+          hostvars['localhost']['_cluster_os_version']
+          }}_kubernetes-v{{
+          hostvars['localhost']['_k8s_target_minor']
+          | replace('.', '-') }}/
+        method: HEAD
+        validate_certs: false
+        timeout: 10
+      register: k8s_repo_url_check
+      failed_when: false
+      changed_when: false
+
+    - name: Test repository URL reachability (CRI-O repo)
+      ansible.builtin.uri:
+        url: >-
+          {{ hostvars['localhost']['pulp_repo_base'] }}/x86_64_rhel_{{
+          hostvars['localhost']['_cluster_os_version']
+          }}_cri-o-v{{
+          hostvars['localhost']['_k8s_target_minor']
+          | replace('.', '-') }}/
+        method: HEAD
+        validate_certs: false
+        timeout: 10
+      register: crio_repo_url_check
+      failed_when: false
+      changed_when: false
+
+    - name: Fail if repository URLs are not reachable
+      ansible.builtin.fail:
+        msg: |
+          {% set repo_base = hostvars['localhost']['pulp_repo_base'] -%}
+          {% set os_ver = hostvars['localhost']['_cluster_os_version'] -%}
+          {% set k8s_minor = hostvars['localhost']['_k8s_target_minor'] -%}
+          ═══════════════════════════════════════════════════════════════════════════
+          REPOSITORY URL VALIDATION FAILED ON {{ inventory_hostname }}
+          ═══════════════════════════════════════════════════════════════════════════
+
+          The upgrade repository URLs are not reachable from this node.
+
+          Kubernetes Repository:
+          URL: {{ repo_base }}/x86_64_rhel_{{ os_ver }}_kubernetes-v{{ k8s_minor | replace('.', '-') }}/
+          Status: {{ k8s_repo_url_check.status | default('UNREACHABLE') }}
+          {% if k8s_repo_url_check.msg is defined %}
+          Error: {{ k8s_repo_url_check.msg }}
+          {% endif %}
+
+          CRI-O Repository:
+          URL: {{ repo_base }}/x86_64_rhel_{{ os_ver }}_cri-o-v{{ k8s_minor | replace('.', '-') }}/
+          Status: {{ crio_repo_url_check.status | default('UNREACHABLE') }}
+          {% if crio_repo_url_check.msg is defined %}
+          Error: {{ crio_repo_url_check.msg }}
+          {% endif %}
+
+          REQUIRED ACTIONS:
+          ┌─────────────────────────────────────────────────────────────────────┐
+          │ 1. Verify Pulp server is running and accessible                    │
+          │ 2. Check network connectivity from {{ inventory_hostname }} to Pulp server │
+          │ 3. Verify firewall rules allow access to port 2225                 │
+          │ 4. Ensure the repository paths exist on the Pulp server            │
+          └─────────────────────────────────────────────────────────────────────┘
+
+          UPGRADE STOPPED: Repository must be reachable before proceeding.
+          ═══════════════════════════════════════════════════════════════════════════
+      when: >-
+        k8s_repo_url_check.status is not defined or
+        crio_repo_url_check.status is not defined or
+        k8s_repo_url_check.status not in [200, 301, 302] or
+        crio_repo_url_check.status not in [200, 301, 302]
+
+    - name: Check if kubeadm package is available
+      ansible.builtin.command:
+        cmd: dnf list available --showduplicates kubeadm-{{ hostvars['localhost']['_k8s_target_version'] }}
+      register: kubeadm_check
+      changed_when: false
+      failed_when: false
+
+    - name: Check if CRI-O package is available
+      ansible.builtin.command:
+        cmd: dnf list available --showduplicates cri-o-{{ hostvars['localhost']['_k8s_target_version'] }}
+      register: crio_check
+      changed_when: false
+      failed_when: false
+
+    - name: Set repository validation facts
+      ansible.builtin.set_fact:
+        repo_validation_passed: "{{ kubeadm_check.rc == 0 and crio_check.rc == 0 }}"
+        repo_validation_errors: []
+      delegate_to: localhost
+
+    - name: Collect repository validation errors
+      ansible.builtin.set_fact:
+        repo_validation_errors: >-
+          {{ repo_validation_errors + [{'node': inventory_hostname,
+          'kubeadm_rc': kubeadm_check.rc, 'crio_rc': crio_check.rc,
+          'kubeadm_error': kubeadm_check.stderr,
+          'crio_error': crio_check.stderr}] }}
+      delegate_to: localhost
+      when: kubeadm_check.rc != 0 or crio_check.rc != 0
+
+    - name: Display package availability for successful nodes
+      ansible.builtin.debug:
+        msg: |
+          Repository validation PASSED on {{ inventory_hostname }}:
+          - kubeadm package available: {{ kubeadm_check.stdout_lines | first if kubeadm_check.rc == 0 else 'NOT AVAILABLE' }}
+          - CRI-O package available: {{ crio_check.stdout_lines | first if crio_check.rc == 0 else 'NOT AVAILABLE' }}
+      when: kubeadm_check.rc == 0 and crio_check.rc == 0
+
+    - name: Fail playbook if any repository validation errors exist
+      ansible.builtin.fail:
+        msg: |
+          ═══════════════════════════════════════════════════════════════════════════
+          REPOSITORY VALIDATION FAILED - UPGRADE CANNOT PROCEED
+          ═══════════════════════════════════════════════════════════════════════════
+
+          The following nodes cannot access required Kubernetes packages:
+          {% for error in repo_validation_errors %}
+
+          Node: {{ error.node }}
+          ├─ kubeadm package: {{ 'FAILED' if error.kubeadm_rc != 0 else 'OK' }}
+          ├─ CRI-O package: {{ 'FAILED' if error.crio_rc != 0 else 'OK' }}
+          {% if error.kubeadm_rc != 0 %}
+          └─ kubeadm error: {{ error.kubeadm_error | regex_replace('\\n', '\\n          │ ') }}
+          {% endif %}
+          {% if error.crio_rc != 0 %}
+          └─ CRI-O error: {{ error.crio_error | regex_replace('\\n', '\\n          │ ') }}
+          {% endif %}
+          {% endfor %}
+
+          REQUIRED ACTIONS:
+          ┌─────────────────────────────────────────────────────────────────────┐
+          │ 1. Verify Pulp server (182.10.5.150:2225) is accessible from ALL nodes │
+          │ 2. Check network connectivity and firewall rules                    │
+          │ 3. Validate repository URLs in /etc/yum.repos.d/omnia-upgrade.repo   │
+          │ 4. Ensure all required repositories are available on Pulp server     │
+          │ 5. Fix repository connectivity issues before retrying upgrade        │
+          └─────────────────────────────────────────────────────────────────────┘
+
+          UPGRADE STOPPED: All nodes must have reliable repository access.
+          ═══════════════════════════════════════════════════════════════════════════
+      delegate_to: localhost
+      when: repo_validation_errors | length > 0
+
+    - name: Display repository validation success
+      ansible.builtin.debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════════════════════
+          REPOSITORY VALIDATION PASSED - ALL NODES CAN ACCESS PACKAGES
+          ═══════════════════════════════════════════════════════════════════════════
+
+          All {{ ansible_play_hosts_all | length }} nodes successfully validated:
+          ✅ kubeadm package version {{ hostvars['localhost']['_k8s_target_version'] }}
+          ✅ CRI-O package version {{ hostvars['localhost']['_k8s_target_version'] }}
+
+          Repository connectivity is confirmed. Proceeding with upgrade...
+          ═══════════════════════════════════════════════════════════════════════════
+      delegate_to: localhost
+      when: repo_validation_errors | length == 0
+
+- name: "Kubernetes Upgrade - Execute Prep and Orchestration"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    cluster_os_version: "{{ _software_config.cluster_os_version }}"
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Load omnia_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/omnia_config.yml"
+        name: omnia_config
+
+    - name: Set nfs_storage_name from omnia_config
+      ansible.builtin.set_fact:
+        nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+
+    - name: Call upgrade_k8s role
+      ansible.builtin.include_role:
+        name: ../roles/upgrade_k8s
+
+- name: "Kubernetes Upgrade - Post-Validation"
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    input_project_dir: "/opt/omnia/input/project_default"
+    oim_data_path: "/opt/omnia/.data"
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: k8s
+  tasks:
+    - name: "Skip all tasks — service_k8s not configured"
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+
+    - name: Load HA config
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/high_availability_config.yml"
+        name: ha_config_data
+
+    - name: Extract kube_vip
+      ansible.builtin.set_fact:
+        kube_vip: "{{ ha_config_data.service_k8s_cluster_ha[0].virtual_ip_address }}"
+
+    - name: Load upgrade_vars.yml
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../common/vars/upgrade_vars.yml"
+
+    - name: Set k8s_target_version
+      ansible.builtin.set_fact:
+        k8s_target_version: "{{ components.service_k8s.supported_versions | last }}"
+
+    - name: Use cached storage_config
+      ansible.builtin.set_fact:
+        storage_config: "{{ hostvars['localhost']['cached_storage_config'] }}"
+
+    - name: Use cached omnia_config
+      ansible.builtin.set_fact:
+        omnia_config: "{{ hostvars['localhost']['cached_omnia_config'] }}"
+
+    - name: Derive k8s_client_mount_path from storage config
+      ansible.builtin.set_fact:
+        k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+
+    - name: Set k8s_client_mount_path
+      ansible.builtin.set_fact:
+        k8s_client_mount_path: >-
+          {{ (storage_config.mounts
+              | selectattr('name', 'equalto', k8s_nfs_storage_name)
+              | first).mount_point }}
+
+    - name: Set status_file path
+      ansible.builtin.set_fact:
+        status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
+
+    - name: Read nodes.yaml for all_upgrade_nodes
+      ansible.builtin.slurp:
+        src: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
+      register: nodes_slurp
+
+    - name: Parse nodes.yaml
+      ansible.builtin.set_fact:
+        parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+
+    - name: Build all_upgrade_nodes list
+      ansible.builtin.set_fact:
+        all_upgrade_nodes: >-
+          {{ (parsed_nodes.nodes
+             | selectattr('group', 'equalto', 'service_kube_control_plane_first_x86_64')
+             | map(attribute='name') | list) +
+             (parsed_nodes.nodes
+             | selectattr('group', 'equalto', 'service_kube_control_plane_x86_64')
+             | map(attribute='name') | list) +
+             (parsed_nodes.nodes
+             | selectattr('group', 'equalto', 'service_kube_node_x86_64')
+             | map(attribute='name') | list) }}
+
+    - name: Get k8s_from_version from status file
+      ansible.builtin.slurp:
+        src: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: status_slurp
+
+    - name: Parse status file
+      ansible.builtin.set_fact:
+        upgrade_status: "{{ status_slurp.content | b64decode | from_yaml }}"
+
+    - name: Set k8s_from_version
+      ansible.builtin.set_fact:
+        k8s_from_version: "{{ upgrade_status.upgrade.from_version }}"
+
+    - name: Run post-validation
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/post_validation.yml"
+
+    - name: Update upgrade and multi_hop status to completed
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_node_step.yml"
+      vars:
+        status_update:
+          upgrade:
+            status: completed
+            completed_at: "{{ ansible_date_time.iso8601 }}"
+          multi_hop:
+            current_hop: "{{ upgrade_status.multi_hop.current_hop | default(0) }}"
+            hops: >-
+              {{ (upgrade_status.multi_hop.hops | default([]))
+                 | map('combine', {'status': 'completed', 'completed_at': ansible_date_time.iso8601})
+                 | list }}
+
+    - name: Update upgrade manifest
+      block:
+        - name: Load current manifest
+          ansible.builtin.set_fact:
+            manifest: "{{ lookup('file', oim_data_path ~ '/upgrade_manifest.yml') | from_yaml }}"
+          ignore_errors: true
+          register: manifest_load
+
+        - name: Update k8s component status
+          ansible.builtin.copy:
+            content: |
+              {{ manifest | combine({
+                'component_status': manifest.component_status | combine({
+                  'k8s': 'completed'
+                })
+              }) | to_nice_yaml }}
+            dest: "{{ oim_data_path }}/upgrade_manifest.yml"
+            mode: "0644"
+          when: manifest_load is succeeded
+
+    - name: Display upgrade completion message
+      ansible.builtin.debug:
+        msg: |
+          ============================================================
+          Kubernetes Upgrade Complete!
+          ============================================================
+          From version: {{ k8s_from_version }}
+          To version:   {{ k8s_target_version }}
+          Nodes upgraded: {{ all_upgrade_nodes | length }}
+
+          Post-validation passed:
+          - All nodes Ready
+          - All nodes at target version
+          - kube-system pods Running
+          - etcd cluster healthy
+          - Calico pods Running
+          - MetalLB pods Running
+          - API server reachable
+          - DNS resolution working
+          ============================================================
 
     - name: "Display upgrade status completed — {{ component_name }}"
       ansible.builtin.debug:

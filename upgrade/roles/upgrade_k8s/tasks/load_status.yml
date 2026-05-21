@@ -1,0 +1,297 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Read or create status file ──────────────────────────────────────
+# Status file operations now handled by separate play targeting kube_vip_group
+# - name: Check if status file exists
+#   ansible.builtin.stat:
+#     path: "{{ status_file }}"
+#   delegate_to: "{{ kube_vip }}"
+#   register: status_file_stat
+
+# - name: Read existing status file
+#   ansible.builtin.slurp:
+#     src: "{{ status_file }}"
+#   delegate_to: "{{ kube_vip }}"
+#   register: status_content
+#   when: status_file_stat.stat.exists
+
+# - name: Parse existing status
+#   ansible.builtin.set_fact:
+#     upgrade_status: "{{ status_content.content | b64decode | from_yaml }}"
+#   when: status_file_stat.stat.exists
+
+# ── Ensure kube_vip is in inventory for delegation ─────────────────
+- name: Ensure kube_vip host is present for delegation
+  ansible.builtin.add_host:
+    name: "{{ kube_vip }}"
+    ansible_host: "{{ kube_vip }}"
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    groups: kube_vip_group
+
+# ── Read nodes.yaml for inventory ──────────────────────────────────
+- name: Read nodes.yaml
+  ansible.builtin.slurp:
+    src: "{{ nodes_yaml_path }}"
+  register: nodes_slurp
+  changed_when: false
+
+- name: Parse nodes.yaml
+  ansible.builtin.set_fact:
+    parsed_nodes: "{{ nodes_slurp.content | b64decode | from_yaml }}"
+
+# ── Build node lists by role ────────────────────────────────────────
+- name: Build first control plane list
+  ansible.builtin.set_fact:
+    groups_cp_first: >-
+      {{ parsed_nodes.nodes
+         | selectattr('group', 'equalto', group_cp_first)
+         | map(attribute='name') | list }}
+
+- name: Build additional control plane list
+  ansible.builtin.set_fact:
+    groups_cp: >-
+      {{ parsed_nodes.nodes
+         | selectattr('group', 'equalto', group_cp)
+         | map(attribute='name') | list }}
+
+- name: Build worker list
+  ansible.builtin.set_fact:
+    groups_worker: >-
+      {{ parsed_nodes.nodes
+         | selectattr('group', 'equalto', group_worker)
+         | map(attribute='name') | list }}
+
+- name: Build all nodes list
+  ansible.builtin.set_fact:
+    all_upgrade_nodes: "{{ groups_cp_first + groups_cp + groups_worker }}"
+
+# ── Build node IP map ───────────────────────────────────────────────
+- name: Build node name-to-IP mapping
+  ansible.builtin.set_fact:
+    node_ips: >-
+      {{ node_ips | default({}) | combine({
+           item.name: (item.interfaces | first).ip_addrs
+                      | selectattr('name', 'equalto', 'management')
+                      | map(attribute='ip_addr') | first
+         }) }}
+  loop: "{{ parsed_nodes.nodes }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# ── Add all nodes to Ansible inventory ──────────────────────────────
+- name: Add K8s nodes to inventory
+  ansible.builtin.include_tasks: add_nodes_to_inventory.yml
+
+# ── Detect current cluster version ──────────────────────────────────
+# Cluster version is now obtained from playbook level (upgrade_k8s.yml)
+# which runs on kube_vip_group directly to avoid delegation issues
+
+# ── Initialize status file if new upgrade ───────────────────────────
+
+- name: Try to load existing status file from kube_vip
+  when: upgrade_status is not defined or (upgrade_status is defined and upgrade_status.keys() | length == 0)
+  block:
+    - name: Check if upgrade status file exists on kube_vip
+      ansible.builtin.stat:
+        path: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: _status_file_stat
+
+    - name: Read status file (only if it exists)
+      ansible.builtin.slurp:
+        src: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: _existing_status_slurp
+      when: _status_file_stat.stat.exists | default(false)
+
+    - name: Parse existing status (only if valid and has nodes)
+      ansible.builtin.set_fact:
+        upgrade_status: "{{ _parsed_status }}"
+      vars:
+        _parsed_status: "{{ (_existing_status_slurp.content | b64decode | from_yaml) | default({}, true) }}"
+      when:
+        - _status_file_stat.stat.exists | default(false)
+        - _existing_status_slurp is defined
+        - (_existing_status_slurp.content | default('') | length) > 0
+        - _parsed_status is mapping
+        - _parsed_status.nodes is defined
+
+    - name: Debug loaded status
+      ansible.builtin.debug:
+        msg: "Loaded existing status from {{ status_file }}"
+      when:
+        - upgrade_status is defined
+        - upgrade_status is mapping
+        - upgrade_status.nodes is defined
+
+- name: Initialize upgrade status for new upgrade
+  when:
+    - upgrade_status is not defined or (upgrade_status is defined and upgrade_status.keys() | length == 0) or (upgrade_status is defined and
+      (upgrade_status.nodes is not defined))
+  block:
+    - name: Build initial node status entries
+      ansible.builtin.set_fact:
+        initial_nodes: >-
+          {{ initial_nodes | default({}) | combine({
+               item.0: {
+                 'role': item.1,
+                 'ip': node_ips[item.0],
+                 'version_before': k8s_from_version,
+                 'version_current': k8s_from_version,
+                 'status': 'pending',
+                 'steps': (
+                   {
+                     'setup_repos': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_upgrade_apply': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'drain': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_restart': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'uncordon': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'validation': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'etcd_health_check': {'status': 'pending', 'timestamp': None, 'error': None}
+                   }
+                   if item.1 == 'control_plane_first'
+                   else {
+                     'setup_repos': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_upgrade_node': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'drain': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_restart': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'uncordon': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'validation': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'etcd_health_check': {'status': 'pending', 'timestamp': None, 'error': None}
+                   }
+                   if item.1 == 'control_plane'
+                   else {
+                     'setup_repos': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubeadm_upgrade_node': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'drain': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_install': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'kubelet_restart': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'uncordon': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'validation': {'status': 'pending', 'timestamp': None, 'error': None}
+                   }
+                   if item.1 == 'worker'
+                   else {}
+                 )
+               }
+             }) }}
+      loop: >-
+        {{ (groups_cp_first | zip_longest([], fillvalue='control_plane_first'))
+         + (groups_cp | zip_longest([], fillvalue='control_plane'))
+         + (groups_worker | zip_longest([], fillvalue='worker')) }}
+      loop_control:
+        label: "{{ item.0 }}"
+
+    - name: Set initial upgrade_status
+      ansible.builtin.set_fact:
+        upgrade_status:
+          upgrade:
+            from_version: "{{ k8s_from_version }}"
+            target_version: "{{ k8s_target_version }}"
+            status: in_progress
+            started_at: "{{ ansible_date_time.iso8601 }}"
+            completed_at:
+          etcd_backup:
+            status: pending
+            path:
+            timestamp:
+            error:
+          k8s_config_backup:
+            status: pending
+            path:
+            timestamp:
+            error:
+          addon_upgrade:
+            status: pending
+            calico:
+              status: pending
+            metallb:
+              status: pending
+            helm:
+              status: pending
+          bss_update:
+            service_kube_control_plane_first:
+              status: pending
+            service_kube_control_plane:
+              status: pending
+            service_kube_node:
+              status: pending
+          nodes: "{{ initial_nodes }}"
+
+    - name: Write initial status file locally
+      ansible.builtin.copy:
+        content: "{{ upgrade_status | to_json }}"
+        dest: "{{ upgrade_status_temp_json }}"
+        mode: "0644"
+      changed_when: true
+
+    - name: Convert JSON to YAML
+      ansible.builtin.shell:
+        cmd: >-
+          python3 -c "import json, yaml;
+          f = open('{{ upgrade_status_temp_json }}');
+          data = json.load(f); f.close();
+          f = open('{{ upgrade_status_temp_yml }}', 'w');
+          yaml.dump(data, f, default_flow_style=False, sort_keys=False);
+          f.close()"
+      changed_when: true
+
+    - name: Ensure status file directory exists on kube_vip
+      ansible.builtin.file:
+        path: "{{ status_file | dirname }}"
+        state: directory
+        mode: "0755"
+      delegate_to: "{{ kube_vip }}"
+
+    - name: Copy status file to kube_vip
+      ansible.builtin.copy:
+        src: "{{ upgrade_status_temp_yml }}"
+        dest: "{{ status_file }}"
+        mode: "0644"
+      delegate_to: "{{ kube_vip }}"
+
+    - name: Verify status file was created on kube_vip
+      ansible.builtin.stat:
+        path: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: _status_file_verify
+
+    - name: Fail if status file was not created on kube_vip
+      ansible.builtin.fail:
+        msg: "Failed to create status file on kube_vip: {{ status_file }}"
+      when: not (_status_file_verify.stat.exists | default(false))
+
+    - name: Clean up temp files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ upgrade_status_temp_json }}"
+        - "{{ upgrade_status_temp_yml }}"
+      changed_when: false
+
+# ── Detect current addon versions and update status ────────────────
+- name: Detect current addon versions
+  ansible.builtin.include_tasks: detect_addon_versions.yml
+  when: upgrade_status is defined

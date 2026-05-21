@@ -167,6 +167,23 @@ default:
         done
 
         echo "  [REFRESH] Updated ${_REFRESH_COUNT} files from latest commit (${_REFRESH_FAILED} not found/skipped)"
+
+        # Fetch failed_nodes.json from miscellaneous/ directory (user may have edited it in GitLab UI for retry)
+        _RF_MISC_ENCODED_PATH=$(printf '%s' "miscellaneous/failed_nodes.json" | sed 's|/|%2F|g')
+        _RF_MISC_HTTP=$(curl -s -o "/tmp/_rf_failed_nodes.json" -w "%{http_code}" \
+          --connect-timeout "${CURL_CONNECT_TIMEOUT}" --max-time "${CURL_MAX_TIME}" \
+          -H "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/files/${_RF_MISC_ENCODED_PATH}/raw?ref=${CI_COMMIT_REF_NAME}" \
+          --cacert "${CI_SERVER_TLS_CA_FILE}" 2>/dev/null)
+
+        if [ "$_RF_MISC_HTTP" = "200" ]; then
+          mkdir -p "${CI_PROJECT_DIR}/miscellaneous"
+          cp "/tmp/_rf_failed_nodes.json" "${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json"
+          echo "  [REFRESH] Fetched miscellaneous/failed_nodes.json from latest commit"
+        else
+          echo "  [REFRESH] No miscellaneous/failed_nodes.json in repo (expected for first run)"
+        fi
+        rm -f "/tmp/_rf_failed_nodes.json"
       }
 
 # ---------------------------------------------------------------------------
@@ -376,7 +393,6 @@ deploy:
   artifacts:
     reports:
       dotenv: deploy.env
-      junit: test-results.xml
     paths:
       - status_response.json
 
@@ -475,19 +491,9 @@ restart:
       echo ""
 
       # Step 1/3: Upload failed_nodes.json from GitLab to OIM (if exists)
+      # The file was already fetched by refresh_input_files() above
       echo "  Step 1/3: Upload failed_nodes.json to OIM for retry logic..."
       echo "  ------------------------------------------------------------"
-
-      # Fetch latest failed_nodes.json from main branch using GitLab API (user may have edited it)
-      echo "  [*] Fetching latest failed_nodes.json from main branch via API..."
-      GITLAB_API_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/files/miscellaneous%2Ffailed_nodes.json/raw?ref=main"
-
-      mkdir -p "${CI_PROJECT_DIR}/miscellaneous"
-
-      curl -f -s -H "PRIVATE-TOKEN: ${GITLAB_ROOT_TOKEN}" \
-        "${GITLAB_API_URL}" \
-        -o "${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json" 2>/dev/null || \
-        echo "  [-] No failed_nodes.json in main branch (expected for first run)"
 
       if [ -f "${CI_PROJECT_DIR}/miscellaneous/failed_nodes.json" ]; then
         echo "  [+] failed_nodes.json found in GitLab repository"
@@ -793,21 +799,12 @@ validate:
       printf "  %-22s %s\n" "Validate State:" "${VALIDATE_RESULT}"
       printf "  %-22s %s\n" "Job State:"      "${JOB_STATE_VALIDATE}"
 
-      # Extract and display test summary
+      # Extract and display test summary (raw JSON from API)
       TEST_SUMMARY=$(jq -r '.stages[]? | select(.stage_name == "validate") | .result_detail.test_summary // empty' status_response.json 2>/dev/null)
       if [ -n "${TEST_SUMMARY}" ]; then
         echo "  ------------------------------------------------------------"
         echo "  Test Summary:"
-        TOTAL=$(echo "${TEST_SUMMARY}" | jq -r '.total // 0')
-        PASSED=$(echo "${TEST_SUMMARY}" | jq -r '.passed // 0')
-        FAILED=$(echo "${TEST_SUMMARY}" | jq -r '.failed // 0')
-        SKIPPED=$(echo "${TEST_SUMMARY}" | jq -r '.skipped // 0')
-        ERRORS=$(echo "${TEST_SUMMARY}" | jq -r '.errors // 0')
-        printf "  %-22s %s\n" "Total Tests:"    "${TOTAL}"
-        printf "  %-22s %s\n" "Passed:"         "${PASSED}"
-        printf "  %-22s %s\n" "Failed:"         "${FAILED}"
-        printf "  %-22s %s\n" "Skipped:"        "${SKIPPED}"
-        printf "  %-22s %s\n" "Errors:"         "${ERRORS}"
+        echo "${TEST_SUMMARY}" | jq '.'
       fi
 
       # Display artifact directory if available
@@ -920,3 +917,4 @@ summary:
         echo "  Not all stages completed. Check individual stage logs."
       fi
       echo "============================================================"
+      exit 0

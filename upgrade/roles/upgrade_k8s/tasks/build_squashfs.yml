@@ -1,0 +1,124 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Build squashfs boot image for a specific target version.
+#
+# Creates a per-hop staging directory whose layout mirrors input_project_dir:
+#   - Version-specific files (software_config.json, service_k8s.json)
+#     are symlinked from artifacts/<ver>/
+#   - All other files are symlinked from the real input_project_dir
+# Then calls build_image_x86_64.yml with the staging dir.
+#
+# Each squashfs must contain exactly one version's RPMs, so this is
+# called once per hop (cannot be merged like local_repo).
+#
+# Inputs:
+#   _hop_target_version — full target version (e.g. "1.35.1")
+#   _hop_artifacts_dir  — artifacts directory name (e.g. "v1.35.1")
+#   input_project_dir   — real input directory (shared files)
+
+# Commented out MinIO check to always proceed with build
+# - name: "build_squashfs [{{ _hop_target_version }}] — Check if image already exists in MinIO"
+#   ansible.builtin.command:
+#     cmd: >-
+#       mc stat minio/boot-images/k8s-{{ _hop_target_version }}/squashfs.img
+#   register: _squashfs_check
+#   changed_when: false
+#   failed_when: false
+
+# - name: "build_squashfs [{{ _hop_target_version }}] — Skip if image already exists"
+#   ansible.builtin.debug:
+#     msg: "Squashfs image for v{{ _hop_target_version }} already exists in MinIO — skipping build."
+#   when: _squashfs_check.rc == 0
+
+- name: "Build squashfs — Build and upload image"
+  # when: _squashfs_check.rc != 0
+  vars:
+    _artifacts_abs: "{{ role_path }}/../../artifacts/{{ _hop_artifacts_dir }}"
+  block:
+    - name: "Build squashfs — Create staging directory"
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: "upgrade_build_{{ _hop_target_version }}_"
+      register: _build_staging
+
+    # -- Version-specific files from artifacts --
+    - name: "Build squashfs — Symlink software_config.json from artifacts"
+      ansible.builtin.file:
+        src: "{{ _artifacts_abs }}/software_config.json"
+        dest: "{{ _build_staging.path }}/software_config.json"
+        state: link
+
+    - name: "Build squashfs — Create config subdir for service_k8s.json"
+      ansible.builtin.file:
+        path: "{{ _build_staging.path }}/config/x86_64/rhel/{{ cluster_os_version }}"
+        state: directory
+        mode: "{{ dir_perm_755 }}"
+
+    - name: "Build squashfs — Symlink service_k8s.json from artifacts"
+      ansible.builtin.file:
+        src: "{{ _artifacts_abs }}/service_k8s.json"
+        dest: "{{ _build_staging.path }}/config/x86_64/rhel/{{ cluster_os_version }}/service_k8s.json"
+        state: link
+
+    # -- Shared files from real input_project_dir --
+    - name: "Build squashfs — Symlink shared config files"
+      ansible.builtin.file:
+        src: "{{ input_project_dir }}/{{ item }}"
+        dest: "{{ _build_staging.path }}/{{ item }}"
+        state: link
+        force: false
+      loop:
+        - network_spec.yml
+        - build_stream_config.yml
+        - omnia_config_credentials.yml
+        - storage_config.yml
+        - high_availability_config.yml
+      failed_when: false
+
+    - name: "Build squashfs — Symlink shared package manifests"
+      ansible.builtin.file:
+        src: "{{ input_project_dir }}/config/x86_64/rhel/{{ cluster_os_version }}/{{ item }}"
+        dest: "{{ _build_staging.path }}/config/x86_64/rhel/{{ cluster_os_version }}/{{ item }}"
+        state: link
+        force: false
+      loop:
+        - default_packages.json
+        - additional_packages.json
+        - admin_debug_packages.json
+      failed_when: false
+
+    - name: "Build squashfs — Run build_image playbook with staging dir"
+      ansible.builtin.command:
+        cmd: >-
+          ansible-playbook
+          {{ role_path }}/../../build_image_x86_64/build_image_x86_64.yml
+          --extra-vars "input_project_dir={{ _build_staging.path }}"
+          --extra-vars "project_dir_status=true"
+          --extra-vars "target_k8s_version={{ _hop_target_version }}"
+      register: _build_result
+      changed_when: "'changed=' in _build_result.stdout"
+
+    - name: "Build squashfs — Verify image uploaded to MinIO"
+      ansible.builtin.command:
+        cmd: >-
+          mc stat minio/boot-images/k8s-{{ _hop_target_version }}/squashfs.img
+      changed_when: false
+
+  always:
+    - name: "Build squashfs — Clean up staging directory"
+      ansible.builtin.file:
+        path: "{{ _build_staging.path }}"
+        state: absent
+      when: _build_staging.path is defined

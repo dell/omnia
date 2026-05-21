@@ -64,7 +64,7 @@
       build_stream: [oim]
       build_image: [oim]
       provision: [oim, build_image]
-      k8s: [oim]
+      k8s: [oim, provision, local_repo, build_image]
       telemetry: [oim, k8s]
       slurm: [oim, k8s]
   tasks:
@@ -136,7 +136,7 @@
       ansible.builtin.file:
         path: /opt/omnia/.data
         state: directory
-        mode: '0755'
+        mode: "0755"
 
     # ─── Create upgrade lock only if it doesn't already exist ───
     # (omnia.sh --upgrade may have already created it; that's expected.)
@@ -154,7 +154,7 @@
           host: "{{ inventory_hostname }}"
           created_by: ansible-playbook
         dest: "{{ upgrade_lock_path }}"
-        mode: '0644'
+        mode: "0644"
       when: not upgrade_lock_stat.stat.exists
     # ─────────────────────────────────────────────────────────────
 
@@ -188,7 +188,7 @@
             telemetry: "pending"
             slurm: "pending"
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
       when: not manifest_stat.stat.exists
 
     - name: Read upgrade_manifest.yml (final canonical version)
@@ -256,11 +256,8 @@
       when:
         - item in tag_dependencies
         - tag_dependencies[item] | difference(requested_tags) | length > 0
-        - tag_dependencies[item] | reject('in',
-            (manifest.component_status | default({}))
-            | dict2items | selectattr('value', 'equalto', 'completed')
-            | map(attribute='key') | list
-          ) | list | length > 0
+        - tag_dependencies[item] | reject('in', (manifest.component_status | default({})) | dict2items | selectattr('value', 'equalto', 'completed') |
+          map(attribute='key') | list ) | list | length > 0
 
     - name: Report already-upgraded components (will be skipped)
       ansible.builtin.debug:
@@ -414,7 +411,7 @@
       ansible.builtin.copy:
         content: "{{ manifest | combine(manifest_updates) | to_nice_yaml }}"
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
       vars:
         manifest_updates:
           component_status: "{{ cleaned_component_status }}"

@@ -1,0 +1,184 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── COMP-K8S-001: Load configuration and extract version variables ───
+- name: Load config and version variables
+  ansible.builtin.include_tasks: load_version_vars.yml
+
+- name: Load local_repo_access.yml to get pulp protocol
+  ansible.builtin.include_vars:
+    file: "{{ local_repo_access_file }}"
+  when: inventory_hostname == "localhost"
+
+- name: Extract pulp protocol from local_repo_access
+  ansible.builtin.set_fact:
+    pulp_protocol: "{{ offline_tarball_path | regex_replace('^(https?)://.*', '\\1') }}"
+  when: inventory_hostname == "localhost"
+
+# ── COMP-K8S-001: Validate component dependencies ─────────────────────
+- name: Validate upgrade_manifest.yml dependencies
+  block:
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ upgrade_manifest_path }}"
+      register: manifest_raw
+      delegate_to: localhost
+
+    - name: Parse upgrade_manifest.yml
+      ansible.builtin.set_fact:
+        upgrade_manifest: "{{ manifest_raw.content | b64decode | from_yaml }}"
+      delegate_to: localhost
+
+    - name: Check OIM component status
+      ansible.builtin.fail:
+        msg: >-
+          K8s upgrade requires OIM to be completed first.
+          Current OIM status: {{ upgrade_manifest.component_status.oim | default('not found') }}
+      when:
+        - upgrade_manifest.component_status.oim | default('pending') != 'completed'
+
+    - name: Check local_repo component status
+      ansible.builtin.fail:
+        msg: >-
+          K8s upgrade requires local_repo to be completed first.
+          Current local_repo status: {{ upgrade_manifest.component_status.local_repo | default('not found') }}
+      when:
+        - upgrade_manifest.component_status.local_repo | default('pending') != 'completed'
+
+    - name: Check build_image component status
+      ansible.builtin.fail:
+        msg: >-
+          K8s upgrade requires build_image to be completed first.
+          Current build_image status: {{ upgrade_manifest.component_status.build_image | default('not found') }}
+      when:
+        - upgrade_manifest.component_status.build_image | default('pending') != 'completed'
+
+    - name: Display dependency validation success
+      ansible.builtin.debug:
+        msg: >-
+          Component dependency validation passed:
+          - OIM: {{ upgrade_manifest.component_status.oim }}
+          - local_repo: {{ upgrade_manifest.component_status.local_repo }}
+          - build_image: {{ upgrade_manifest.component_status.build_image }}
+
+# ── COMP-K8S-001: Set upgrade paths ───────────────────────────────────
+- name: Set upgrade paths on client NFS mount
+  ansible.builtin.set_fact:
+    upgrade_dir_client: "{{ k8s_client_mount_path }}/upgrade"
+    status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
+    lock_file: "{{ k8s_client_mount_path }}/upgrade/upgrade.lock"
+    backup_dir: "{{ k8s_client_mount_path }}/upgrade/backup"
+    etcd_snapshot_file: "{{ k8s_client_mount_path }}/upgrade/backup/etcd-snapshot.db"
+    etcdctl_binary: "{{ k8s_client_mount_path }}/upgrade/backup/etcdctl"
+    etcd_members_file: "{{ k8s_client_mount_path }}/upgrade/backup/etcd-members.json"
+    k8s_config_backup_dir: "{{ k8s_client_mount_path }}/upgrade/backup/configs"
+
+# ── COMP-K8S-011: Detect hop chain ────────────────────────────────────
+# Note: This task is skipped here and will be run in a separate play targeting kube_vip_group
+# to avoid delegation issues. See upgrade_k8s.yml for the separate play.
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 1 (Prep) — zero cluster impact
+# ══════════════════════════════════════════════════════════════════════
+- name: "Phase 1 — Prep all target versions"
+  ansible.builtin.include_tasks: prep_phase.yml
+  when: hop_chain | length > 0
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 2 (Upgrade) — cluster impact
+# ══════════════════════════════════════════════════════════════════════
+- name: "Phase 2 — Execute upgrade"
+  block:
+    # ── COMP-K8S-002: Acquire distributed lock ──────────────────────
+    - name: Acquire upgrade lock
+      ansible.builtin.include_tasks: acquire_lock.yml
+
+    # ── COMP-K8S-003: Load or create upgrade status ──────────────────
+    - name: Load or create upgrade status
+      ansible.builtin.include_tasks: load_status.yml
+
+    # ── COMP-K8S-003: Update Omnia lifecycle manifest (in-progress) ────────────
+    - name: Update upgrade_manifest.yml (K8s in-progress)
+      ansible.builtin.lineinfile:
+        path: "{{ upgrade_manifest_path }}"
+        regexp: "^\\s+k8s:\\s*.*$"
+        line: "    k8s: in-progress"
+        state: present
+      delegate_to: localhost
+
+    # ── COMP-K8S-011: Record multi-hop chain ─────────────────────────
+    - name: Record hop chain in status file
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          multi_hop:
+            chain: >-
+              {{ hop_chain | map(attribute='from_minor')
+                 | zip(hop_chain | map(attribute='to_version'))
+                 | map('join', '→') | list }}
+            total_hops: "{{ hop_chain | length }}"
+      when: hop_chain | length > 1
+
+    # ── COMP-K8S-011: Execute each hop ───────────────────────────────
+    - name: Execute hop
+      ansible.builtin.include_tasks: execute_single_hop.yml
+      loop: "{{ hop_chain }}"
+      loop_control:
+        loop_var: _current_hop
+        index_var: _hop_idx
+        label: "{{ _current_hop.from_minor }} → {{ _current_hop.to_version }}"
+
+    # ── COMP-K8S-003: Update Omnia lifecycle manifest (completed) ──────────────
+    - name: Update upgrade_manifest.yml (K8s completed)
+      ansible.builtin.lineinfile:
+        path: "{{ upgrade_manifest_path }}"
+        regexp: "^\\s+k8s:\\s*.*$"
+        line: "    k8s: completed"
+        state: present
+      delegate_to: localhost
+
+    - name: Display final upgrade success
+      ansible.builtin.debug:
+        msg: >-
+          {% if hop_chain | length > 1 %}
+          Multi-hop upgrade complete ({{ hop_chain | length }} hops).
+          {% endif %}
+          {{ msg_upgrade_complete }}
+
+  rescue:
+    # ── COMP-K8S-012: Failure Scenario Handler ───────────────────────
+    - name: Update upgrade_manifest.yml (K8s failed)
+      ansible.builtin.lineinfile:
+        path: "{{ upgrade_manifest_path }}"
+        regexp: "^\\s+k8s:\\s*.*$"
+        line: "    k8s: failed"
+        state: present
+      delegate_to: localhost
+
+    - name: Display failure message
+      ansible.builtin.debug:
+        msg: |
+          Kubernetes upgrade failed!
+          Status file: {{ status_file }}
+          Backup location: {{ backup_dir }}
+          For rollback, run: ansible-playbook rollback/rollback.yml --tags k8s
+
+    - name: Fail the playbook
+      ansible.builtin.fail:
+        msg: "Kubernetes upgrade failed"
+
+  always:
+    # ── COMP-K8S-002: Release distributed lock ───────────────────────
+    - name: Release upgrade lock
+      ansible.builtin.include_tasks: release_lock.yml

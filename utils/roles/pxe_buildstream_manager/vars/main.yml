@@ -58,7 +58,7 @@ gitlab_upload_fail_msg: "[BSM] Failed to upload failed_nodes.json to GitLab repo
 # ──────────────────────────────────────────────────────────────
 # Phone-Home Retry & Timing Configuration
 # ──────────────────────────────────────────────────────────────
-phone_home_pause_minutes: 5
+phone_home_pause_minutes: 3
 phone_home_retries: 120
 phone_home_delay: 15
 

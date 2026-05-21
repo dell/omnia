@@ -1,0 +1,68 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Add all K8s nodes to Ansible inventory for proper SSH delegation
+
+- name: Add first control plane nodes to inventory
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    ansible_host: "{{ node_ips[item] }}"
+    ansible_user: root
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    groups:
+      - k8s_nodes
+      - k8s_control_plane_first
+    node_role: control_plane_first
+    node_ip: "{{ node_ips[item] }}"
+  loop: "{{ groups_cp_first }}"
+  loop_control:
+    label: "{{ item }} ({{ node_ips[item] }})"
+
+- name: Add additional control plane nodes to inventory
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    ansible_host: "{{ node_ips[item] }}"
+    ansible_user: root
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    groups:
+      - k8s_nodes
+      - k8s_control_plane
+    node_role: control_plane
+    node_ip: "{{ node_ips[item] }}"
+  loop: "{{ groups_cp }}"
+  loop_control:
+    label: "{{ item }} ({{ node_ips[item] }})"
+
+- name: Add worker nodes to inventory
+  ansible.builtin.add_host:
+    name: "{{ item }}"
+    ansible_host: "{{ node_ips[item] }}"
+    ansible_user: root
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    groups:
+      - k8s_nodes
+      - k8s_workers
+    node_role: worker
+    node_ip: "{{ node_ips[item] }}"
+  loop: "{{ groups_worker }}"
+  loop_control:
+    label: "{{ item }} ({{ node_ips[item] }})"
+
+- name: Display added nodes
+  ansible.builtin.debug:
+    msg: |
+      Added {{ all_upgrade_nodes | length }} nodes to inventory:
+      - Control plane (first): {{ groups_cp_first | join(', ') }}
+      - Control plane (additional): {{ groups_cp | join(', ') }}
+      - Workers: {{ groups_worker | join(', ') }}

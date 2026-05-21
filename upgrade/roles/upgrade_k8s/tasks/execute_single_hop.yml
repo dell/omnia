@@ -1,0 +1,639 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Execute a single upgrade hop (Phase 2).
+# Runs the full upgrade sequence: preflight → backup → CPs → addons → workers.
+#
+# Inputs (set by caller):
+#   _current_hop       — hop dict with from_minor, to_version, artifacts_dir
+#   _hop_idx           — 0-based index of this hop in the chain
+
+# ── Load config artifacts for this hop ──────────────────────────────
+- name: "Hop — Load version vars from input_project_dir"
+  ansible.builtin.include_tasks: load_version_vars.yml
+  vars:
+    software_config_file: "{{ input_project_dir }}/software_config.json"
+    # service_k8s_config_file is set dynamically in load_version_vars.yml based on k8s_target_version
+
+# ── Set upgrade paths (must be after load_version_vars) ──────────────
+- name: "Hop — Set upgrade paths on client NFS mount"
+  ansible.builtin.set_fact:
+    upgrade_dir_client: "{{ k8s_client_mount_path }}/upgrade"
+    status_file: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
+    lock_file: "{{ k8s_client_mount_path }}/upgrade/upgrade.lock"
+    backup_dir: "{{ k8s_client_mount_path }}/upgrade/backup"
+    etcd_snapshot_file: "{{ k8s_client_mount_path }}/upgrade/backup/etcd-snapshot.db"
+    etcdctl_binary: "{{ k8s_client_mount_path }}/upgrade/backup/etcdctl"
+    etcd_members_file: "{{ k8s_client_mount_path }}/upgrade/backup/etcd-members.json"
+    k8s_config_backup_dir: "{{ k8s_client_mount_path }}/upgrade/backup/configs"
+
+# ── Load status and build node inventory ─────────────────────────────
+- name: "Hop — Load or create upgrade status"
+  ansible.builtin.include_tasks: load_status.yml
+
+# ── Check if this hop is already completed (re-run case) ────────────
+- name: "Hop — Check if hop already completed"
+  ansible.builtin.set_fact:
+    _hop_completed: >-
+      {{ (upgrade_status.multi_hop.hops | default([]))
+         | selectattr('to', 'equalto', _current_hop.to_version)
+         | selectattr('status', 'equalto', 'completed')
+         | list | length > 0 }}
+
+- name: "Hop — Skip completed hop"
+  ansible.builtin.debug:
+    msg: >-
+      Hop {{ _hop_idx + 1 }} ({{ _current_hop.from_minor }} → {{ _current_hop.to_version }})
+      already completed — skipping.
+  when: _hop_completed | bool
+
+# ── Execute this hop (only if not already completed) ─────────────────
+- name: "Hop — Execute upgrade"
+  when: not (_hop_completed | bool)
+  block:
+    # ── Set per-hop backup directory ─────────────────────────────────
+    # Each hop gets its own backup subdir so rollback finds the right
+    # snapshot. Derived vars (etcd_snapshot_file, etc.) in vars/main.yml
+    # reference {{ backup_dir }} and pick up this override automatically.
+    - name: "Hop — Set per-hop backup directory"
+      ansible.builtin.set_fact:
+        backup_dir: "{{ upgrade_dir_client }}/backup/{{ _current_hop.from_minor }}"
+        backup_dir_client: "{{ upgrade_dir_client }}/backup/{{ _current_hop.from_minor }}"
+
+    - name: "Hop — Determine if this is final hop"
+      ansible.builtin.set_fact:
+        _is_final_hop: "{{ _hop_idx == ((hop_chain | length) - 1) }}"
+
+    # ── Reset status for this hop ────────────────────────────────────
+    # After a previous hop completes, the status file has
+    # upgrade.status=completed, etcd_backup.status=completed, etc.
+    # We must reset these so tasks in this hop are not skipped.
+    # The reset is done when writing the status file below to ensure persistence.
+    - name: "Hop — Write reset status file"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        _reset_nodes: >-
+          {%- set nodes_dict = {} -%}
+          {%- for node in all_upgrade_nodes -%}
+            {%- set _ = nodes_dict.update({node: {
+              'status': 'pending',
+              'version_before': k8s_from_version,
+              'version_current': k8s_from_version,
+              'steps': {}
+            }}) -%}
+          {%- endfor -%}
+          {{ nodes_dict }}
+        status_update:
+          upgrade:
+            from_version: "{{ k8s_from_version }}"
+            target_version: "{{ _current_hop.to_version }}"
+            status: in_progress
+            started_at: "{{ ansible_date_time.iso8601 }}"
+            completed_at: None
+          etcd_backup:
+            status: >-
+              {{ upgrade_status.etcd_backup.status | default('pending')
+              if (upgrade_status.etcd_backup.status | default('pending')) == 'completed'
+              else 'pending' }}
+            path: >-
+              {{ upgrade_status.etcd_backup.path | default(None)
+              if (upgrade_status.etcd_backup.status | default('pending')) == 'completed'
+              else None }}
+            timestamp: >-
+              {{ upgrade_status.etcd_backup.timestamp | default(None)
+              if (upgrade_status.etcd_backup.status | default('pending')) == 'completed'
+              else None }}
+            error: None
+          k8s_config_backup:
+            status: >-
+              {{ upgrade_status.k8s_config_backup.status | default('pending')
+              if (upgrade_status.k8s_config_backup.status | default('pending')) == 'completed'
+              else 'pending' }}
+            path: >-
+              {{ upgrade_status.k8s_config_backup.path | default(None)
+              if (upgrade_status.k8s_config_backup.status | default('pending')) == 'completed'
+              else None }}
+            timestamp: >-
+              {{ upgrade_status.k8s_config_backup.timestamp | default(None)
+              if (upgrade_status.k8s_config_backup.status | default('pending')) == 'completed'
+              else None }}
+            error: None
+          addon_upgrade:
+            status: pending
+            calico:
+              status: pending
+            metallb:
+              status: pending
+            helm:
+              status: pending
+          nodes: "{{ _reset_nodes }}"
+
+    # ── Record hop in multi-hop tracking ─────────────────────────────
+    - name: "Hop — Record hop in status"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          multi_hop:
+            current_hop: "{{ _hop_idx }}"
+            hops: >-
+              {{ (upgrade_status.multi_hop.hops | default([]))
+                 | rejectattr('to', 'equalto', _current_hop.to_version)
+                 | list
+                 + [{
+                   'from': k8s_from_version,
+                   'to': _current_hop.to_version,
+                   'status': 'in_progress',
+                   'started_at': ansible_date_time.iso8601
+                 }] }}
+
+    # ── Preflight ────────────────────────────────────────────────────
+    - name: "Hop — Run preflight checks (Pulp)"
+      ansible.builtin.include_tasks: preflight_checks_pulp.yml
+      when: upgrade_status.upgrade.status != 'completed'
+
+    # ── Backup ───────────────────────────────────────────────────────
+    # Etcd backup now runs in a separate play targeting kube_vip_group
+    # - name: "hop {{ _hop_idx + 1 }} [{{ _current_hop.to_version }}] — Backup etcd"
+    #   ansible.builtin.include_tasks: backup_etcd.yml
+    #   when:
+    #     - upgrade_status.etcd_backup.status | default('pending') != 'completed'
+    #     - upgrade_status.upgrade.status != 'completed'
+
+    # K8s config backup now runs in separate plays targeting node groups
+    # - name: "hop {{ _hop_idx + 1 }} [{{ _current_hop.to_version }}] — Backup K8s config"
+    #   ansible.builtin.include_tasks: backup_k8s_config.yml
+    #   when:
+    #     - upgrade_status.k8s_config_backup.status | default('pending') != 'completed'
+    #     - upgrade_status.upgrade.status != 'completed'
+
+    # ── Validate backup was successful (Engineering Spec §4.7.3 Gate 6) ──
+    - name: "Hop — Reload status after backup"
+      ansible.builtin.include_tasks: load_status.yml
+
+    - name: "Hop — Validate backup was successful"
+      ansible.builtin.fail:
+        msg: >-
+          Backup failed. Upgrade cannot proceed.
+          etcd_backup status: {{ upgrade_status.etcd_backup.status | default('unknown') }}
+          k8s_config_backup status: {{ upgrade_status.k8s_config_backup.status | default('unknown') }}
+          {{ upgrade_status.etcd_backup.error | default('') }}
+          {{ upgrade_status.k8s_config_backup.error | default('') }}
+      when:
+        - upgrade_status.etcd_backup.status | default('pending') == 'failed' or upgrade_status.k8s_config_backup.status | default('pending') == 'failed'
+
+    # ══════════════════════════════════════════════════════════════════
+    # IMPORTANT: Node Upgrade Architecture
+    # ══════════════════════════════════════════════════════════════════
+    # Control plane and worker node upgrades require SSH connections to
+    # individual nodes to execute commands like:
+    #   - dnf install kubeadm-<version>
+    #   - kubeadm upgrade apply/node
+    #   - systemctl restart kubelet
+    #   - kubectl drain/uncordon
+    #
+    # PROBLEM: This file (execute_single_hop.yml) is included from tasks
+    # (via include_tasks in main.yml), so it cannot use import_playbook
+    # to call plays that target different hosts.
+    #
+    # SOLUTION: Use ansible-playbook command to call sub-playbooks that
+    # target node groups via SSH. This is the only way to call plays
+    # from within tasks in Ansible.
+    # ══════════════════════════════════════════════════════════════════
+
+    # NOTE: Dynamic inventory file is created once in the main playbook
+    # at /tmp/k8s_upgrade_inventory.ini - no need to recreate per hop
+
+    # ── Upgrade control planes ───────────────────────────────────────
+    - name: "Hop — Starting first control plane upgrade"
+      ansible.builtin.debug:
+        msg: >-
+          Upgrading first control plane to {{ _current_hop.to_version }}.
+          Log file: /tmp/upgrade_cp_first.log
+      when: upgrade_status.upgrade.status != 'completed'
+
+    - name: "Hop — Upgrade first control plane"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/upgrade_cp_first.yml
+          -i {{ k8s_upgrade_inventory }}
+          -e k8s_target_version={{ _current_hop.to_version }}
+          -e status_file={{ status_file }}
+          -e kube_vip={{ kube_vip }}
+          -e drain_timeout={{ drain_timeout }}
+          -e kubelet_ready_delay={{ kubelet_ready_delay }}
+          -e kubelet_ready_retries={{ kubelet_ready_retries }}
+          -e etcd_health_delay={{ etcd_health_delay }}
+          -e etcd_health_retries={{ etcd_health_retries }}
+          -e current_node_role={{ current_node_role | default('control_plane_first') }}
+          -e upgrade_dir_client={{ upgrade_dir_client }}
+          -e k8s_from_version={{ k8s_from_version }}
+          -e cluster_os_version={{ cluster_os_version }}
+          2>&1 | tee /tmp/upgrade_cp_first.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: first_cp_result
+      changed_when: true
+      failed_when: first_cp_result.rc != 0
+      when: upgrade_status.upgrade.status != 'completed'
+
+    # ── Update cloud-init and BSS for first control plane ─────────────
+    - name: "Hop — Set BSS status to in_progress for service_kube_control_plane_first"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_control_plane_first:
+              status: in_progress
+              started_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane_first.status | default('pending') != 'completed'
+
+    - name: "Hop — Update cloud-init and BSS for service_kube_control_plane_first_x86_64"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/update_k8s_cloud_init_bss.yml
+          -e functional_group_name=service_kube_control_plane_first_x86_64
+          2>&1 | tee /tmp/update_bss_cp_first.log
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: bss_cp_first_result
+      changed_when: true
+      failed_when: bss_cp_first_result.rc != 0
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane_first.status | default('pending') != 'completed'
+
+    - name: "Hop — Set BSS status to completed for service_kube_control_plane_first"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_control_plane_first:
+              status: completed
+              completed_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - bss_cp_first_result is defined
+        - bss_cp_first_result is not skipped
+        - bss_cp_first_result.rc == 0
+
+    # ── Reboot first control plane and verify cloud-init ─────────────
+    - name: "Hop — Reboot first control plane and wait for cloud-init"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/reboot_and_verify_cloud_init.yml
+          -i {{ k8s_upgrade_inventory }}
+          -e target_host={{ groups_cp_first[0] }}
+          -e cloud_init_timeout={{ cloud_init_timeout | default(600) }}
+          2>&1 | tee /tmp/reboot_cp_first.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: reboot_cloud_init_first_cp_result
+      changed_when: true
+      failed_when: reboot_cloud_init_first_cp_result.rc != 0
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - bss_cp_first_result is defined
+        - bss_cp_first_result is not skipped
+        - bss_cp_first_result.rc == 0
+        - groups_cp_first | length > 0
+
+    - name: "Hop — Display cloud-init verification success for first control plane"
+      ansible.builtin.debug:
+        msg: "Cloud-init completed successfully on first control plane {{ groups_cp_first[0] }} after reboot"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - reboot_cloud_init_first_cp_result is defined
+        - reboot_cloud_init_first_cp_result is not skipped
+        - reboot_cloud_init_first_cp_result.rc == 0
+
+    - name: "Hop — Starting additional control planes upgrade"
+      ansible.builtin.debug:
+        msg: >-
+          Upgrading additional control planes to {{ _current_hop.to_version }}.
+          Log file: /tmp/upgrade_cp_additional.log
+      when: upgrade_status.upgrade.status != 'completed'
+
+    - name: "Hop — Upgrade additional control planes"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/upgrade_cp.yml
+          -i {{ k8s_upgrade_inventory }}
+          -e k8s_target_version={{ _current_hop.to_version }}
+          -e status_file={{ status_file }}
+          -e kube_vip={{ kube_vip }}
+          -e drain_timeout={{ drain_timeout }}
+          -e kubelet_ready_delay={{ kubelet_ready_delay }}
+          -e kubelet_ready_retries={{ kubelet_ready_retries }}
+          -e etcd_health_delay={{ etcd_health_delay }}
+          -e etcd_health_retries={{ etcd_health_retries }}
+          -e current_node_role={{ current_node_role | default('control_plane') }}
+          -e upgrade_dir_client={{ upgrade_dir_client }}
+          -e k8s_from_version={{ k8s_from_version }}
+          -e cluster_os_version={{ cluster_os_version }}
+          2>&1 | tee /tmp/upgrade_cp_additional.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: additional_cp_result
+      changed_when: true
+      failed_when: additional_cp_result.rc != 0
+      when: upgrade_status.upgrade.status != 'completed'
+
+    # ── Update cloud-init and BSS for additional control planes ───────
+    - name: "Hop — Set BSS status to in_progress for service_kube_control_plane"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_control_plane:
+              status: in_progress
+              started_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
+
+    - name: "Hop — Update cloud-init and BSS for service_kube_control_plane_x86_64"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/update_k8s_cloud_init_bss.yml
+          -e functional_group_name=service_kube_control_plane_x86_64
+          2>&1 | tee /tmp/update_bss_cp_additional.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: bss_cp_additional_result
+      changed_when: true
+      failed_when: bss_cp_additional_result.rc != 0
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
+
+    - name: "Hop — Set BSS status to completed for service_kube_control_plane"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_control_plane:
+              status: completed
+              completed_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - bss_cp_additional_result is defined
+        - bss_cp_additional_result is not skipped
+        - bss_cp_additional_result.rc == 0
+
+    - name: "Hop — Control plane upgrades complete"
+      ansible.builtin.debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════════════════════
+          Control plane upgrade execution is complete for hop {{ _hop_idx + 1 }}.
+          Proceeding with addon pre-checks...
+          ═══════════════════════════════════════════════════════════════════════════
+      when:
+        - _is_final_hop | bool
+        - upgrade_status.upgrade.status != 'completed'
+
+    # ── Verify all control planes upgraded before addons ────────────
+    - name: "Hop — Reload status before addon upgrade"
+      ansible.builtin.slurp:
+        src: "{{ status_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: _status_reload
+      when:
+        - _is_final_hop | bool
+        - upgrade_status.addon_upgrade.status | default('pending') != 'completed'
+        - upgrade_status.upgrade.status != 'completed'
+
+    - name: "Hop — Parse reloaded status"
+      ansible.builtin.set_fact:
+        upgrade_status: "{{ _status_reload.content | b64decode | from_yaml }}"
+      when:
+        - _is_final_hop | bool
+        - upgrade_status.addon_upgrade.status | default('pending') != 'completed'
+        - upgrade_status.upgrade.status != 'completed'
+        - _status_reload is defined
+        - _status_reload.content is defined
+
+    - name: "Hop — Check all control planes upgraded"
+      ansible.builtin.set_fact:
+        _cp_nodes_status: >-
+          {{ upgrade_status.nodes | dict2items
+             | selectattr('value.role', 'in', ['control_plane_first', 'control_plane'])
+             | list }}
+        _failed_cp_nodes: >-
+          {{ upgrade_status.nodes | dict2items
+             | selectattr('value.role', 'in', ['control_plane_first', 'control_plane'])
+             | selectattr('value.status', 'in', ['failed', 'in_progress', 'pending'])
+             | map(attribute='key')
+             | list }}
+      when:
+        - _is_final_hop | bool
+        - upgrade_status.addon_upgrade.status | default('pending') != 'completed'
+        - upgrade_status.upgrade.status != 'completed'
+
+    - name: "Hop — Fail if control planes not upgraded"
+      ansible.builtin.fail:
+        msg: |
+          ═══════════════════════════════════════════════════════════════════════════
+          CANNOT PROCEED TO ADDON UPGRADE - CONTROL PLANES NOT READY
+          ═══════════════════════════════════════════════════════════════════════════
+
+          The following control plane nodes have not completed upgrade:
+          {{ _failed_cp_nodes | to_nice_yaml }}
+
+          All control plane nodes must be successfully upgraded before proceeding
+          with addon upgrades (Calico, MetalLB, Helm).
+
+          Current control plane status:
+          {% for node in _cp_nodes_status %}
+          - {{ node.key }}: {{ node.value.status }} (version: {{ node.value.version_current }})
+          {% endfor %}
+
+          REQUIRED ACTIONS:
+          ┌─────────────────────────────────────────────────────────────────────┐
+          │ 1. Review the upgrade status file at {{ status_file }}              │
+          │ 2. Check logs for failed control plane upgrades                    │
+          │ 3. Fix any issues with control plane nodes                         │
+          │ 4. Re-run the upgrade playbook to continue                         │
+          └─────────────────────────────────────────────────────────────────────┘
+
+          UPGRADE STOPPED: All control planes must be upgraded before addons.
+          ═══════════════════════════════════════════════════════════════════════════
+      when:
+        - _is_final_hop | bool
+        - upgrade_status.addon_upgrade.status | default('pending') != 'completed'
+        - upgrade_status.upgrade.status != 'completed'
+        - _failed_cp_nodes is defined
+        - _failed_cp_nodes | length > 0
+
+    # ── Starting addon upgrade ───────────────────────────────────────
+    - name: "Hop — Starting addon upgrade"
+      ansible.builtin.debug:
+        msg: |
+          ═══════════════════════════════════════════════════════════════════════════
+          All control planes have been upgraded to {{ _current_hop.to_version }}.
+          Proceeding with addon upgrades (Calico, MetalLB, Helm)...
+          ═══════════════════════════════════════════════════════════════════════════
+      when:
+        - _is_final_hop | bool
+        - upgrade_status.addon_upgrade.status | default('pending') != 'completed'
+        - upgrade_status.upgrade.status != 'completed'
+        - _failed_cp_nodes is defined
+        - _failed_cp_nodes | length == 0
+
+    # ── Upgrade addons ───────────────────────────────────────────────
+    - name: "Hop — Upgrade addons"
+      ansible.builtin.include_tasks: upgrade_addons.yml
+      when:
+        - _is_final_hop | bool
+        - upgrade_status.addon_upgrade.status | default('pending') != 'completed'
+        - upgrade_status.upgrade.status != 'completed'
+        - _failed_cp_nodes is defined
+        - _failed_cp_nodes | length == 0
+
+    # ── Upgrade workers ──────────────────────────────────────────────
+    - name: "Hop — Starting worker upgrades"
+      ansible.builtin.debug:
+        msg: >-
+          Upgrading workers to {{ _current_hop.to_version }} (batch size: {{ worker_parallel_count }}).
+          Log file: /tmp/upgrade_workers.log
+      when: upgrade_status.upgrade.status != 'completed'
+
+    - name: "Hop — Upgrade workers (batch size) {{ worker_parallel_count }}"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/upgrade_workers.yml
+          -i {{ k8s_upgrade_inventory }}
+          -e k8s_target_version={{ _current_hop.to_version }}
+          -e status_file={{ status_file }}
+          -e kube_vip={{ kube_vip }}
+          -e drain_timeout={{ drain_timeout }}
+          -e kubelet_ready_delay={{ kubelet_ready_delay }}
+          -e kubelet_ready_retries={{ kubelet_ready_retries }}
+          -e upgrade_dir_client={{ upgrade_dir_client }}
+          -e k8s_from_version={{ k8s_from_version }}
+          -e cluster_os_version={{ cluster_os_version }}
+          -e worker_parallel_count={{ worker_parallel_count }}
+          2>&1 | tee /tmp/upgrade_workers.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: workers_result
+      changed_when: true
+      failed_when: workers_result.rc != 0
+      when: upgrade_status.upgrade.status != 'completed'
+
+    # ── Update cloud-init and BSS for workers ─────────────────────────
+    - name: "Hop — Set BSS status to in_progress for service_kube_node"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_node:
+              status: in_progress
+              started_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_node.status | default('pending') != 'completed'
+
+    - name: "Hop — Update cloud-init and BSS for service_kube_node_x86_64"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/update_k8s_cloud_init_bss.yml
+          -e functional_group_name=service_kube_node_x86_64
+          2>&1 | tee /tmp/update_bss_workers.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: bss_workers_result
+      changed_when: true
+      failed_when: bss_workers_result.rc != 0
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_node.status | default('pending') != 'completed'
+
+    - name: "Hop — Set BSS status to completed for service_kube_node"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          bss_update:
+            service_kube_node:
+              status: completed
+              completed_at: "{{ ansible_date_time.iso8601 }}"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - bss_workers_result is defined
+        - bss_workers_result is not skipped
+        - bss_workers_result.rc == 0
+
+    # ── Post-validation ──────────────────────────────────────────────
+    - name: "Hop — Run post-validation"
+      ansible.builtin.include_tasks: post_validation.yml
+
+    # ── Check and mark hop as completed ──────────────────────────────
+    - name: "Hop — Check if all nodes upgraded and mark hop completed"
+      ansible.builtin.include_tasks: check_and_mark_hop_completed.yml
+
+    # ── Mark hop completed ───────────────────────────────────────────
+    - name: "Hop — Mark upgrade completed"
+      ansible.builtin.include_tasks: update_node_step.yml
+      vars:
+        status_update:
+          upgrade:
+            status: completed
+            completed_at: "{{ ansible_date_time.iso8601 }}"
+          multi_hop:
+            current_hop: "{{ _hop_idx }}"
+            hops: >-
+              {{ (upgrade_status.multi_hop.hops | default([]))
+                 | rejectattr('to', 'equalto', _current_hop.to_version)
+                 | list
+                 + [{
+                   'from': k8s_from_version,
+                   'to': _current_hop.to_version,
+                   'status': 'completed',
+                   'completed_at': ansible_date_time.iso8601,
+                   'backup_dir': backup_dir
+                 }] }}
+
+    - name: "Hop — Hop complete"
+      ansible.builtin.debug:
+        msg: >-
+          Hop {{ _hop_idx + 1 }} complete: {{ _current_hop.from_minor }} → {{ _current_hop.to_version }}.
+          Backup at: {{ backup_dir }}

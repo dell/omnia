@@ -1,0 +1,93 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# update_k8s_cloud_init_bss.yml — Update cloud-init and BSS for K8s groups
+# ============================================================================
+# This playbook updates cloud-init and BSS configurations for K8s functional
+# groups after their upgrade is complete.
+#
+# Required variables (passed via -e):
+#   functional_group_name  — Name of the functional group:
+#                            - service_kube_control_plane_first_x86_64
+#                            - service_kube_control_plane_x86_64
+#                            - service_kube_node_x86_64
+#
+# Usage:
+#   ansible-playbook update_k8s_cloud_init_bss.yml \
+#     -e functional_group_name=service_kube_control_plane_first_x86_64
+# ============================================================================
+
+# ============================================================================
+# Play 1: Include input project directory and set up variables
+# ============================================================================
+- name: Include input project directory
+  ansible.builtin.import_playbook: ../../utils/include_input_dir.yml
+  vars:
+    openchami_vars_suppport: true
+    omnia_metadata_support: true
+
+# ============================================================================
+# Play 2: Create OIM host group (needed for cloud-init/BSS update on OIM)
+# ============================================================================
+- name: Create OIM host group for cloud-init/BSS update
+  ansible.builtin.import_playbook: ../../utils/create_container_group.yml
+  vars:
+    oim_group: true
+
+# ============================================================================
+# Play 3: Update cloud-init and BSS for the specified K8s functional group
+# ============================================================================
+- name: Update cloud-init and BSS for K8s functional group
+  hosts: oim
+  connection: ssh
+  gather_facts: false
+  vars:
+    openchami_work_dir: "{{ hostvars['localhost']['oim_shared_path'] }}/omnia/openchami/workdir"
+  tasks:
+    - name: Validate functional_group_name is provided
+      ansible.builtin.assert:
+        that:
+          - functional_group_name is defined
+          - functional_group_name | length > 0
+        fail_msg: "functional_group_name must be provided via -e functional_group_name=<group_name>"
+
+    - name: Display update target
+      ansible.builtin.debug:
+        msg: "Updating cloud-init and BSS for functional group: {{ functional_group_name }}"
+
+    - name: Refresh OpenCHAMI access token
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/tasks/common/openchami_auth.yml"
+      vars:
+        oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
+
+    - name: Update cloud-init and BSS for {{ functional_group_name }}
+      environment: "{{ hostvars['oim']['ochami_env'] }}"
+      block:
+        - name: Include update_cloud_init_bss role
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../../utils/roles/update_cloud_init_bss"
+          vars:
+            bss_file_path: "{{ openchami_work_dir }}/boot/bss-{{ functional_group_name }}.yaml"
+            cloud_init_file_path: "{{ openchami_work_dir }}/cloud-init/ci-group-{{ functional_group_name }}.yaml"
+            ci_defaults_file_path: "{{ openchami_work_dir }}/cloud-init/ci-defaults.yaml"
+            ci_common_file_path: "{{ openchami_work_dir }}/cloud-init/ci-group-common.yaml"
+            hostname_file_path: "{{ openchami_work_dir }}/nodes/hostname.yaml"
+            update_ci_defaults: true
+            update_ci_common: true
+            update_hostname: true
+
+    - name: Display update completion
+      ansible.builtin.debug:
+        msg: "Successfully updated cloud-init and BSS for {{ functional_group_name }}"

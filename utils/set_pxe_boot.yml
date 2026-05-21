@@ -88,7 +88,59 @@
         msg: "{{ inventory_hostname }}: {{ reboot_status }}"
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 6: Create OIM group for phone-home verification
+# Play 6: Filter phone-home list — exclude nodes whose reboot failed
+# ─────────────────────────────────────────────────────────────────────────
+- name: "[BSM] Filter phone-home target list to exclude failed reboots"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Build list of successfully rebooted BMC IPs (exclude BSM-skipped and failed)
+      ansible.builtin.set_fact:
+        successful_bmc_ips: "{{ successful_bmc_ips | default([]) + [item] }}"
+      loop: "{{ groups['bmc'] | default([]) }}"
+      when:
+        - not (hostvars[item]['bsm_skip_this_host'] | default(false))
+        - not (hostvars[item]['reboot_failed'] | default(true))
+      tags: always
+
+    - name: Default successful_bmc_ips to empty list if none succeeded
+      ansible.builtin.set_fact:
+        successful_bmc_ips: "{{ successful_bmc_ips | default([]) }}"
+      tags: always
+
+    - name: Build filtered admin IPs for phone-home (only successfully rebooted nodes)
+      ansible.builtin.set_fact:
+        target_node_admin_ips: >-
+          {{ successful_bmc_ips
+             | map('extract', pxe_csv_node_map)
+             | map(attribute='ADMIN_IP')
+             | list }}
+        cacheable: true
+      when:
+        - enable_build_stream | default(false) | bool
+        - pxe_csv_node_map is defined
+        - successful_bmc_ips | length > 0
+      tags: always
+
+    - name: Set empty phone-home list when no nodes rebooted successfully
+      ansible.builtin.set_fact:
+        target_node_admin_ips: []
+        cacheable: true
+      when: successful_bmc_ips | default([]) | length == 0
+      tags: always
+
+    - name: Report phone-home target list
+      ansible.builtin.debug:
+        msg: >-
+          Phone-home targets: {{ target_node_admin_ips | default([]) | length }} of
+          {{ groups['bmc'] | default([]) | length }} nodes
+          ({{ successful_bmc_ips | default([]) | length }} rebooted successfully,
+          {{ (groups['bmc'] | default([]) | length) - (successful_bmc_ips | default([]) | length) }} failed)
+      tags: always
+
+# ─────────────────────────────────────────────────────────────────────────
+# Play 7: Create OIM group for phone-home verification
 # ─────────────────────────────────────────────────────────────────────────
 - name: Create oim group for phone-home verification
   hosts: localhost
@@ -100,27 +152,37 @@
   tags: always
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 7: [Phone-Home] via pxe_buildstream_manager role task
+# Play 8: [Phone-Home] via pxe_buildstream_manager role task
 # Runs on oim host — journalctl is on the OIM server
 # Only runs when enable_build_stream is true (same gate as rest of BSM)
+# Skipped entirely when no nodes rebooted successfully
 # ─────────────────────────────────────────────────────────────────────────
 - name: "[Phone-Home] Wait for cloud-init completion on all nodes"
   hosts: oim
   connection: ssh
   gather_facts: false
   become: true
+  ignore_unreachable: true
+  max_fail_percentage: 100
   tasks:
+    - name: Skip phone-home when no nodes rebooted successfully
+      ansible.builtin.debug:
+        msg: "Skipping phone-home verification — no nodes rebooted successfully"
+      when: hostvars['localhost']['target_node_admin_ips'] | default([]) | length == 0
+
     - name: Run cloud-init phone-home verification via BSM role
       ansible.builtin.include_role:
         name: pxe_buildstream_manager
         tasks_from: cloudinit_phone_home
-      when: hostvars['localhost']['enable_build_stream'] | default(false) | bool
+      when:
+        - hostvars['localhost']['enable_build_stream'] | default(false) | bool
+        - hostvars['localhost']['target_node_admin_ips'] | default([]) | length > 0
       vars:
         pxe_start_epoch: "{{ hostvars['localhost']['pxe_start_epoch'] }}"
         target_node_admin_ips: "{{ hostvars['localhost']['target_node_admin_ips'] }}"
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 8: [BSM] Write per-node results AFTER phone-home verified
+# Play 9: [BSM] Write per-node results AFTER phone-home verified
 # ─────────────────────────────────────────────────────────────────────────
 - name: "[BSM] Write per-node results, update persistent state, and upload to GitLab"
   hosts: localhost
@@ -133,7 +195,7 @@
       when: enable_build_stream | default(false) | bool
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 9: Upload to GitLab
+# Play 10: Upload to GitLab
 # ─────────────────────────────────────────────────────────────────────────
 - name: Upload failed_nodes to gitlab
   hosts: gitlab_server

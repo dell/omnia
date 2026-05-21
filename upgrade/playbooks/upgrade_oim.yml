@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-
 # ============================================================================
 # upgrade_oim.yml — Internal playbook (imported by upgrade.yml --tags oim)
 # ============================================================================
@@ -39,7 +38,6 @@
     input_project_dir: "/opt/omnia/input/project_default"
     build_stream_config_path: "/opt/omnia/input/project_default/build_stream_config.yml"
   tasks:
-
     # ── Pre-flight: manifest read + idempotency ─────────────────────────
     - name: Read upgrade_manifest.yml
       ansible.builtin.slurp:
@@ -59,7 +57,7 @@
     # Bypass with: -e skip_approval=true (for CI/CD automation)
     - name: Display OIM upgrade summary and request approval
       ansible.builtin.pause:
-        prompt: |
+        prompt: |2
 
           ══════════════════════════════════════════════════════════════
                          OIM UPGRADE — APPROVAL REQUIRED
@@ -88,7 +86,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
 
     - name: "Display upgrade status in-progress — {{ component_name }}"
       ansible.builtin.debug:
@@ -191,7 +189,7 @@
                })
              }) | to_nice_yaml }}
         dest: "{{ manifest_path }}"
-        mode: '0644'
+        mode: "0644"
 
     - name: "Display upgrade status completed — {{ component_name }}"
       ansible.builtin.debug:

@@ -41,7 +41,8 @@
       - (bss_file_path is defined and bss_file_path | length > 0) or
         (cloud_init_file_path is defined and cloud_init_file_path | length > 0) or
         (ci_defaults_file_path is defined and ci_defaults_file_path | length > 0) or
-        (ci_common_file_path is defined and ci_common_file_path | length > 0)
+        (ci_common_file_path is defined and ci_common_file_path | length > 0) or
+        (hostname_file_path is defined and hostname_file_path | length > 0)
     fail_msg: "{{ no_input_files_msg }}"
 
 - name: Update ci-defaults configuration
@@ -71,3 +72,10 @@
     - update_cloud_init | bool
     - cloud_init_file_path is defined
     - cloud_init_file_path | length > 0
+
+- name: Update hostname configuration - {{ functional_group_name }}
+  ansible.builtin.include_tasks: update_hostname.yml
+  when:
+    - update_hostname | bool
+    - hostname_file_path is defined
+    - hostname_file_path | length > 0
