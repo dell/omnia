@@ -90,13 +90,15 @@
 
     - name: "Display skip message — service_k8s not configured"
       ansible.builtin.debug:
-        msg: |
-          ════════════════════════════════════════════════════════════════════════
-          [UPGRADE] Component '{{ component_name }}' — SKIPPED
-          ════════════════════════════════════════════════════════════════════════
-          Reason: service_k8s is not present in software_config.json softwares list.
-          K8s cluster was not provisioned, skipping K8s upgrade.
-          ════════════════════════════════════════════════════════════════════════
+        msg: "{{ banner_k8s_not_configured }}"
+      vars:
+        banner_k8s_not_configured:
+          - "========================================================================"
+          - "[UPGRADE] Component 'k8s' — SKIPPED"
+          - "========================================================================"
+          - "Reason: service_k8s is not present in software_config.json softwares list."
+          - "K8s cluster was not provisioned, skipping K8s upgrade."
+          - "========================================================================"
       when: not k8s_upgrade_enabled
 
 - name: "Kubernetes Upgrade - Load Configuration & Version Detection"
@@ -142,11 +144,27 @@
           ════════════════════════════════════════════════════════════════════════
       when: manifest_load is failed
 
-    - name: "Skip if already completed"
-      ansible.builtin.meta: end_play
+    - name: "Set skip flag if already completed"
+      ansible.builtin.set_fact:
+        k8s_upgrade_skip: true
       when:
         - manifest_load is succeeded
         - manifest.component_status.k8s | default('pending') == 'completed'
+
+    - name: "Display skip message — k8s upgrade already completed"
+      ansible.builtin.debug:
+        msg: |
+          ════════════════════════════════════════════════════════════════════════
+          [UPGRADE] Component 'k8s' — SKIPPED
+          ════════════════════════════════════════════════════════════════════════
+          Reason: K8s upgrade status is already 'completed'.
+          Skipping K8s upgrade.
+          ════════════════════════════════════════════════════════════════════════
+      when: k8s_upgrade_skip | default(false)
+
+    - name: "Skip if already completed"
+      ansible.builtin.meta: end_play
+      when: k8s_upgrade_skip | default(false)
 
     - name: "Verify component dependencies"
       ansible.builtin.fail:
@@ -240,9 +258,11 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: "Load HA config"
       ansible.builtin.include_vars:
@@ -270,9 +290,11 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Cache storage_config.yml
       ansible.builtin.include_vars:
@@ -298,9 +320,11 @@
   hosts: kube_vip_group
   gather_facts: false
   pre_tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: "Verify SSH connectivity to kube_vip"
       ansible.builtin.wait_for_connection:
@@ -334,9 +358,11 @@
   connection: local
   gather_facts: false
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: "Load upgrade_vars.yml"
       ansible.builtin.include_vars:
@@ -373,9 +399,11 @@
   gather_facts: false
   strategy: linear
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Load variables from file
       ansible.builtin.include_vars:
@@ -398,10 +426,12 @@
 
     - name: "Display detected cluster version"
       ansible.builtin.debug:
-        msg: |
-          Detected node versions: {{ _all_versions }}
-          Minimum version (upgrade from): {{ k8s_from_version }}
-          Target version: {{ components.service_k8s.supported_versions | last }}
+        msg: "{{ cluster_version_banner }}"
+      vars:
+        cluster_version_banner:
+          - "Detected node versions: {{ _all_versions }}"
+          - "Minimum version (upgrade from): {{ k8s_from_version }}"
+          - "Target version: {{ components.service_k8s.supported_versions | last }}"
 
     - name: "Detect upgrade hop chain from cluster"
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/detect_hop_chain_from_manifest.yml"
@@ -410,9 +440,11 @@
   hosts: kube_vip_group
   gather_facts: false
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Get current cluster version
       ansible.builtin.command: /usr/bin/kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}'
@@ -431,9 +463,11 @@
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Use cached storage_config
       ansible.builtin.set_fact:
@@ -477,9 +511,11 @@
     status_file: "{{ hostvars[kube_vip]['k8s_client_mount_path_kube_vip'] }}/upgrade/upgrade_status.yml"
     kube_vip: "{{ hostvars[kube_vip]['ansible_host'] }}"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Use cached storage_config
       ansible.builtin.set_fact:
@@ -733,9 +769,11 @@
     group_cp: "service_kube_control_plane_x86_64"
     group_worker: "service_kube_node_x86_64"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Use cached storage_config
       ansible.builtin.set_fact:
@@ -869,9 +907,11 @@
     input_project_dir: "/opt/omnia/input/project_default"
     cluster_os_version: "{{ _software_config.cluster_os_version }}"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Load variables from file
       ansible.builtin.include_vars:
@@ -920,9 +960,11 @@
     k8s_client_mount_path: "{{ hostvars[groups.kube_vip_group[0]]['k8s_client_mount_path_kube_vip'] }}"
     kube_vip: "{{ hostvars[groups.kube_vip_group[0]]['ansible_host'] }}"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Set backup paths from hostvars
       ansible.builtin.set_fact:
@@ -939,9 +981,11 @@
     input_project_dir: "/opt/omnia/input/project_default"
     oim_provision_path: "/opt/omnia/provision"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Load software_config.json
       ansible.builtin.slurp:
@@ -1045,9 +1089,11 @@
   gather_facts: false
   strategy: linear
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Deploy upgrade repo file to node
       ansible.builtin.copy:
@@ -1173,10 +1219,12 @@
 
     - name: Display package availability for successful nodes
       ansible.builtin.debug:
-        msg: |
-          Repository validation PASSED on {{ inventory_hostname }}:
-          - kubeadm package available: {{ kubeadm_check.stdout_lines | first if kubeadm_check.rc == 0 else 'NOT AVAILABLE' }}
-          - CRI-O package available: {{ crio_check.stdout_lines | first if crio_check.rc == 0 else 'NOT AVAILABLE' }}
+        msg: "{{ repo_validation_banner }}"
+      vars:
+        repo_validation_banner:
+          - "Repository validation PASSED on {{ inventory_hostname }}:"
+          - "  - kubeadm package available: {{ kubeadm_check.stdout_lines | first if kubeadm_check.rc == 0 else 'NOT AVAILABLE' }}"
+          - "  - CRI-O package available: {{ crio_check.stdout_lines | first if crio_check.rc == 0 else 'NOT AVAILABLE' }}"
       when: kubeadm_check.rc == 0 and crio_check.rc == 0
 
     - name: Fail playbook if any repository validation errors exist
@@ -1216,17 +1264,19 @@
 
     - name: Display repository validation success
       ansible.builtin.debug:
-        msg: |
-          ═══════════════════════════════════════════════════════════════════════════
-          REPOSITORY VALIDATION PASSED - ALL NODES CAN ACCESS PACKAGES
-          ═══════════════════════════════════════════════════════════════════════════
-
-          All {{ ansible_play_hosts_all | length }} nodes successfully validated:
-          ✅ kubeadm package version {{ hostvars['localhost']['_k8s_target_version'] }}
-          ✅ CRI-O package version {{ hostvars['localhost']['_k8s_target_version'] }}
-
-          Repository connectivity is confirmed. Proceeding with upgrade...
-          ═══════════════════════════════════════════════════════════════════════════
+        msg: "{{ repo_success_banner }}"
+      vars:
+        repo_success_banner:
+          - "========================================================================"
+          - "REPOSITORY VALIDATION PASSED - ALL NODES CAN ACCESS PACKAGES"
+          - "========================================================================"
+          - ""
+          - "All {{ ansible_play_hosts_all | length }} nodes successfully validated:"
+          - "  - kubeadm package version {{ hostvars['localhost']['_k8s_target_version'] }}"
+          - "  - CRI-O package version {{ hostvars['localhost']['_k8s_target_version'] }}"
+          - ""
+          - "Repository connectivity is confirmed. Proceeding with upgrade..."
+          - "========================================================================"
       delegate_to: localhost
       when: repo_validation_errors | length == 0
 
@@ -1238,9 +1288,11 @@
     input_project_dir: "/opt/omnia/input/project_default"
     cluster_os_version: "{{ _software_config.cluster_os_version }}"
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Load omnia_config.yml
       ansible.builtin.include_vars:
@@ -1265,9 +1317,11 @@
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: k8s
   tasks:
-    - name: "Skip all tasks — service_k8s not configured"
+    - name: "Skip all tasks — service_k8s not configured or already completed"
       ansible.builtin.meta: end_play
-      when: not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true))
+      when: >
+        not (hostvars['localhost']['k8s_upgrade_enabled'] | default(true)) or
+        (hostvars['localhost']['k8s_upgrade_skip'] | default(false))
 
     - name: Load HA config
       ansible.builtin.include_vars:
@@ -1384,25 +1438,23 @@
 
     - name: Display upgrade completion message
       ansible.builtin.debug:
-        msg: |
-          ============================================================
-          Kubernetes Upgrade Complete!
-          ============================================================
-          From version: {{ k8s_from_version }}
-          To version:   {{ k8s_target_version }}
-          Nodes upgraded: {{ all_upgrade_nodes | length }}
-
-          Post-validation passed:
-          - All nodes Ready
-          - All nodes at target version
-          - kube-system pods Running
-          - etcd cluster healthy
-          - Calico pods Running
-          - MetalLB pods Running
-          - API server reachable
-          - DNS resolution working
-          ============================================================
-
-    - name: "Display upgrade status completed — {{ component_name }}"
-      ansible.builtin.debug:
-        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"
+        msg: "{{ completion_banner }}"
+      vars:
+        completion_banner:
+          - "============================================================"
+          - "Kubernetes Upgrade Complete!"
+          - "============================================================"
+          - "From version: {{ k8s_from_version }}"
+          - "To version:   {{ k8s_target_version }}"
+          - "Nodes upgraded: {{ all_upgrade_nodes | length }}"
+          - ""
+          - "Post-validation passed:"
+          - "  - All nodes Ready"
+          - "  - All nodes at target version"
+          - "  - kube-system pods Running"
+          - "  - etcd cluster healthy"
+          - "  - Calico pods Running"
+          - "  - MetalLB pods Running"
+          - "  - API server reachable"
+          - "  - DNS resolution working"
+          - "============================================================"
