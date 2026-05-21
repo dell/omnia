@@ -30,7 +30,6 @@ from ansible.module_utils.input_validation.validation_flows import common_valida
 file_names = config.files
 create_error_msg = validation_utils.create_error_msg
 create_file_path = validation_utils.create_file_path
-ib_mac_re = re.compile(r"^([0-9A-Fa-f]{2}:){7}[0-9A-Fa-f]{2}$")
 
 # Expected header columns (case-insensitive)
 required_headers = [
@@ -468,20 +467,14 @@ def validate_mapping_file_entries(mapping_file_path):
         if bmc_ip and not validation_utils.validate_ipv4(bmc_ip):
             raise ValueError(f"Invalid BMC_IP: '{bmc_ip}' at CSV row {row_idx} in mapping file.")
 
-        ib_mac_col = fieldname_map.get("IB_MAC")
+        ib_nic_col = fieldname_map.get("IB_NIC_NAME")
         ib_ip_col = fieldname_map.get("IB_IP")
-        ib_mac = row.get(ib_mac_col, "").strip() if ib_mac_col and row.get(ib_mac_col) else ""
+        ib_nic_name = row.get(ib_nic_col, "").strip() if ib_nic_col and row.get(ib_nic_col) else ""
         ib_ip = row.get(ib_ip_col, "").strip() if ib_ip_col and row.get(ib_ip_col) else ""
 
-        if bool(ib_mac) != bool(ib_ip):
+        if bool(ib_nic_name) != bool(ib_ip):
             raise ValueError(
-                f"IB_MAC and IB_IP must both be provided or both be empty at CSV row {row_idx} in mapping file."
-            )
-
-        if ib_mac and not ib_mac_re.match(ib_mac):
-            raise ValueError(
-                f"Invalid IB_MAC: '{ib_mac}' at CSV row {row_idx} in mapping file. "
-                "Expected format: xx:xx:xx:xx:xx:xx:xx:xx."
+                f"IB_NIC_NAME and IB_IP must both be provided or both be empty at CSV row {row_idx} in mapping file."
             )
 
         if ib_ip and not validation_utils.validate_ipv4(ib_ip):

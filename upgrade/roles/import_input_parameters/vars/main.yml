@@ -165,7 +165,7 @@ msg_using_backup_pxe_mapping_file: "Transforming {{ pxe_mapping_filename }} from
 msg_pxe_mapping_file_empty: "{{ pxe_mapping_filename }} contains no valid rows (must have at least 9 columns: FUNCTIONAL_GROUP_NAME through BMC_IP)"
 msg_pxe_mapping_file_validation_failed: >
   {{ pxe_mapping_filename }} validation failed - header must contain:
-  FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_MAC,IB_IP
+  FUNCTIONAL_GROUP_NAME,GROUP_NAME,SERVICE_TAG,PARENT_SERVICE_TAG,HOSTNAME,ADMIN_MAC,ADMIN_IP,BMC_MAC,BMC_IP,IB_NIC_NAME,IB_IP
 
 # Storage config transformation messages
 msg_backup_storage_config_missing: "storage_config.yml not found in backup at {{ backup_location }}/storage_config.yml"
@@ -233,10 +233,10 @@ msg_pxe_mapping_file_transform_summary: |
   {{ pxe_mapping_filename }} upgraded to 2.2 format.
   Backup preserved at: {{ backup_location }}/{{ pxe_mapping_filename }}
   Changes:
-  - Added IB_MAC column for InfiniBand MAC addresses (initialized as empty)
+  - Added IB_NIC_NAME column for InfiniBand NIC name (initialized as empty)
   - Added IB_IP column for InfiniBand IP addresses (initialized as empty)
   - Preserved all existing columns (FUNCTIONAL_GROUP_NAME through BMC_IP)
-  - NOTE: If using InfiniBand network, manually populate IB_MAC and IB_IP values
+  - NOTE: If using InfiniBand network, manually populate IB_NIC_NAME and IB_IP values
 
 # Restore summary message for network spec transformation
 msg_network_spec_transform_summary: |

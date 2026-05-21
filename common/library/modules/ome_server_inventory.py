@@ -106,10 +106,7 @@ devices:
           first_nic_mac: "AA:BB:CC:DD:EE:10"
           group_name: "Rack-A"
           model: "PowerEdge R640"
-          ib_nic_name: "NIC.Mezzanine.1-1-1"
-          ib_nic_mac: "AA:BB:CC:DD:EE:20"
-          gpu_vendor: "NVIDIA"
-          gpu_type: "NVIDIA A100"
+          ib_nic_name: "InfiniBand.Slot.7-1"
 '''
 
 
@@ -395,10 +392,7 @@ def extract_server_info(client, device, device_group_map=None):
         "first_nic_name": "",
         "first_nic_mac": "",
         "group_name": "",
-        "ib_nic_name": "",
-        "ib_nic_mac": "",
-        "gpu_vendor": "",
-        "gpu_type": ""
+        "ib_nic_name": ""
     }
 
     # Get management IP from device info
@@ -437,18 +431,36 @@ def extract_server_info(client, device, device_group_map=None):
     nic_inventory = client.get_device_inventory(device_id, "serverNetworkInterfaces")
     nic_info_list = nic_inventory.get("InventoryInfo", [])
 
-    # Find first non-iDRAC NIC
+    # Find first non-iDRAC NIC with LinkStatus "Up"; fall back to first non-iDRAC NIC
+    fallback_nic_name = ""
+    fallback_nic_mac = ""
     for nic in nic_info_list:
         nic_id = nic.get("NicId", "")
         if "iDRAC" not in nic_id.upper():
             ports = nic.get("Ports", [])
-            if ports:
-                first_port = ports[0]
-                partitions = first_port.get("Partitions", [])
-                if partitions:
+            for port in ports:
+                partitions = port.get("Partitions", [])
+                if not partitions:
+                    continue
+                mac = partitions[0].get("CurrentMacAddress", "")
+                if not mac:
+                    continue
+                # Remember first non-iDRAC NIC as fallback
+                if not fallback_nic_mac:
+                    fallback_nic_name = nic_id
+                    fallback_nic_mac = mac
+                # Prefer port with LinkStatus "Up"
+                link_status = (port.get("LinkStatus") or "").strip()
+                if link_status.upper() == "UP":
                     info["first_nic_name"] = nic_id
-                    info["first_nic_mac"] = partitions[0].get("CurrentMacAddress", "")
+                    info["first_nic_mac"] = mac
                     break
+            if info["first_nic_mac"]:
+                break
+    # Use fallback if no NIC with link up was found
+    if not info["first_nic_mac"] and fallback_nic_mac:
+        info["first_nic_name"] = fallback_nic_name
+        info["first_nic_mac"] = fallback_nic_mac
 
     # Fallback to deviceNics inventory type
     if not info["first_nic_mac"]:
@@ -460,29 +472,19 @@ def extract_server_info(client, device, device_group_map=None):
                 info["first_nic_mac"] = nic.get("MacAddress", "")
                 break
 
-    # Get InfiniBand NIC: first NIC whose ID or VendorName indicates IB
-    _IB_KEYWORDS = ("infiniband", "mellanox", "connectx", "hdr", "edr", "fdr", "qdr", " ib ")
+    # Get InfiniBand NIC: FQDD contains "InfiniBand" and LinkStatus is Up
+    # Use port-level PortId (e.g. "InfiniBand.Slot.7-1") for precise identification
     for nic in nic_info_list:
         nic_id = nic.get("NicId", "")
-        vendor = nic.get("VendorName", "") or ""
-        nic_label = (nic_id + " " + vendor).lower()
-        if any(kw in nic_label for kw in _IB_KEYWORDS):
-            ports = nic.get("Ports", [])
-            if ports:
-                partitions = ports[0].get("Partitions", [])
-                if partitions:
-                    info["ib_nic_name"] = nic_id
-                    info["ib_nic_mac"] = partitions[0].get("CurrentMacAddress", "")
-                    break
-
-    # Get GPU information from devicePciDevice inventory
-    pci_inventory = client.get_device_inventory(device_id, "devicePciDevice")
-    for pci in pci_inventory.get("InventoryInfo", []):
-        desc = (pci.get("Description", "") or "").lower()
-        data_bus = (pci.get("DataBusWidth", "") or "").lower()
-        if "gpu" in desc or "vga" in desc or "3d controller" in desc or "display" in desc:
-            info["gpu_vendor"] = pci.get("Manufacturer", "") or pci.get("VendorName", "")
-            info["gpu_type"] = pci.get("Description", "")
+        if "infiniband" not in nic_id.lower():
+            continue
+        for port in nic.get("Ports", []):
+            link_status = (port.get("LinkStatus") or "").strip()
+            if link_status.upper() == "UP":
+                port_id = port.get("PortId", "")
+                info["ib_nic_name"] = port_id if port_id else nic_id
+                break
+        if info["ib_nic_name"]:
             break
 
     # Get group name from pre-built device→group map

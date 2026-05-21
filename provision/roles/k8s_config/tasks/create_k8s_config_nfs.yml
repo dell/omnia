@@ -263,7 +263,7 @@
 - name: Untar helm tarball to version-specific directory
   ansible.builtin.unarchive:
     src: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
-    dest: "{{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_version }}/"
+    dest: "{{ k8s_client_mount_path }}/helm/"
     remote_src: true
     extra_opts:
       - "--transform"
