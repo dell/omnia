@@ -64,13 +64,22 @@
 
 - name: Deploy Postgres container (reuse prepare_oim)  # noqa:role-name[path]
   ansible.builtin.include_role:
-    name: "{{ playbook_dir }}/../prepare_oim/roles/deploy_containers/postgres"
+    name: "{{ playbook_dir }}/../../prepare_oim/roles/deploy_containers/postgres"
 
 # ══════════════════════════════════════════════════════════════════
-# Step 3: Re-deploy BuildStream via prepare_oim role
+# Step 3: Refresh automation venv (2.1 venv may lack 2.2 deps)
+# ══════════════════════════════════════════════════════════════════
+
+- name: Remove stale automation venv so deploy role recreates it
+  ansible.builtin.file:
+    path: /opt/omnia/automation/.venv
+    state: absent
+
+# ══════════════════════════════════════════════════════════════════
+# Step 4: Re-deploy BuildStream via prepare_oim role
 # (handles: stop, SSL, JWT, quadlet, start, Alembic, firewall, health)
 # ══════════════════════════════════════════════════════════════════
 
 - name: Deploy BuildStream container (reuse prepare_oim)  # noqa:role-name[path]
   ansible.builtin.include_role:
-    name: "{{ playbook_dir }}/../prepare_oim/roles/deploy_containers/build_stream"
+    name: "{{ playbook_dir }}/../../prepare_oim/roles/deploy_containers/build_stream"

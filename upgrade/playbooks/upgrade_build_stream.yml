@@ -250,7 +250,7 @@
 - name: "Execute BuildStream upgrade on OIM host"
   hosts: oim
   connection: ssh
-  gather_facts: false
+  gather_facts: true
   vars:
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
