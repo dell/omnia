@@ -41,6 +41,9 @@
         - name: Post-upgrade database migration and integrity check
           ansible.builtin.include_tasks: migrate_database.yml
 
+        - name: Reload cloud-init data into cloud-init-server
+          ansible.builtin.include_tasks: reload_cloud_init_data.yml
+
         - name: Post-upgrade health check
           ansible.builtin.include_tasks: post_upgrade_health_check.yml
 
