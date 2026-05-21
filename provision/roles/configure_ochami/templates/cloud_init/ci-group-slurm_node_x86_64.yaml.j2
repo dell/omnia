@@ -148,15 +148,6 @@
 {% endif %}
 {% endif %}
 
-{% if dns_enabled | default(false) | bool %}
-        - path: /etc/resolv.conf
-          owner: root:root
-          permissions: '0644'
-          content: |
-            search {{ domain_name }}
-            nameserver {{ admin_nic_ip }}
-            options timeout:1 attempts:2
-{% else %}
         - path: /etc/hosts
           append: true
           content: |
@@ -451,6 +442,17 @@
 {% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
+        # VAST storage: create subdirectory structure for compute node
+        - mkdir -pv {{ vast_mount_point }}/apps {{ vast_mount_point }}/home {{ vast_mount_point }}/scratch {{ vast_mount_point }}/projects
+        - mkdir -pv {{ vast_mount_point }}/scratch/$(hostname -s)/tmp
+        - mkdir -pv /apps /home /scratch /projects
+        - echo "{{ vast_mount_point }}/apps  /apps  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/home  /home  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch  /scratch  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch/$(hostname -s)/tmp  /tmp  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/projects  /projects  none  bind  0  0" >> /etc/fstab
+        - mount -av
+        - chmod 1777 /tmp /scratch
         - /usr/local/bin/install_nvidia_driver.sh
 {% if dcgm_support %}
         - /usr/local/bin/setup_dcgm.sh
