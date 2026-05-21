@@ -328,7 +328,10 @@ upgrade_messages:
       - "ci-group configs reloaded: {{ reloaded_ci_group_names | default([]) | join(', ') or 'none found' }}"
       - "hostname data: {{ 'reloaded' if ci_hostname_file_stat.stat.exists | default(false) else 'MISSING (nodes will use nid-based hostnames)' }}"
       - "SELinux context: restored"
-      - "Cloud-init-server: {{ 'running and reachable' if ci_http_endpoint_check.rc | default(1) == 0 else 'NOT REACHABLE (nodes may hang) — container: ' ~ (ci_container_status.stdout | default('unknown')) }}"
+      - >-
+        Cloud-init-server: {{ 'running and reachable' if ci_http_endpoint_check.rc
+        | default(1) == 0 else 'NOT REACHABLE (nodes may hang) — container: '
+        ~ (ci_container_status.stdout | default('unknown')) }}
       - "BSS cloud-init datasource: {{ 'present' if (bss_ci_datasource_check.stdout | default('0') | trim) != '0' else 'MISSING (nodes may hang)' }}"
       - "Verification: passed"
       - "════════════════════════════════════════════"
