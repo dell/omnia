@@ -84,7 +84,7 @@
               steps:
                 setup_repos:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
         # ── kubeadm_install ──────────────────────────────────────────
@@ -99,7 +99,7 @@
                   steps:
                     kubeadm_install:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Execute kubeadm install
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_kubeadm_install.yml"
@@ -112,7 +112,7 @@
                   steps:
                     kubeadm_install:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark kubeadm_install failed
@@ -124,7 +124,7 @@
                   steps:
                     kubeadm_install:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubeadm install failed')) }}"
             - name: Fail kubeadm_install step
               ansible.builtin.fail:
@@ -142,7 +142,7 @@
                   steps:
                     kubeadm_upgrade_apply:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Execute kubeadm upgrade apply
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_upgrade_apply.yml"
@@ -155,7 +155,7 @@
                   steps:
                     kubeadm_upgrade_apply:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark kubeadm_upgrade_apply failed
@@ -167,7 +167,7 @@
                   steps:
                     kubeadm_upgrade_apply:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('kubeadm upgrade apply failed')) }}"
             - name: Fail kubeadm_upgrade_apply step
               ansible.builtin.fail:
@@ -185,7 +185,7 @@
                   steps:
                     drain:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Execute drain
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_drain.yml"
@@ -198,7 +198,7 @@
                   steps:
                     drain:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark drain failed
@@ -210,7 +210,7 @@
                   steps:
                     drain:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('drain/cordon failed')) }}"
             - name: Fail drain step
               ansible.builtin.fail:
@@ -228,7 +228,7 @@
                   steps:
                     kubelet_install:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Execute kubelet install
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_kubelet_install.yml"
@@ -241,7 +241,7 @@
                   steps:
                     kubelet_install:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark kubelet_install failed
@@ -253,7 +253,7 @@
                   steps:
                     kubelet_install:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubelet install failed')) }}"
             - name: Fail kubelet_install step
               ansible.builtin.fail:
@@ -271,7 +271,7 @@
                   steps:
                     crio_install:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Execute crio install
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_crio_install.yml"
@@ -284,7 +284,7 @@
                   steps:
                     crio_install:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark crio_install failed
@@ -296,7 +296,7 @@
                   steps:
                     crio_install:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('cri-o install failed')) }}"
             - name: Fail crio_install step
               ansible.builtin.fail:
@@ -314,7 +314,7 @@
                   steps:
                     kubelet_restart:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Execute kubelet restart
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_kubelet_restart.yml"
@@ -327,7 +327,7 @@
                   steps:
                     kubelet_restart:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark kubelet_restart failed
@@ -339,7 +339,7 @@
                   steps:
                     kubelet_restart:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('kubelet restart failed')) }}"
             - name: Fail kubelet_restart step
               ansible.builtin.fail:
@@ -357,7 +357,7 @@
                   steps:
                     uncordon:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Execute uncordon
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_uncordon.yml"
@@ -370,7 +370,7 @@
                   steps:
                     uncordon:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark uncordon failed
@@ -382,7 +382,7 @@
                   steps:
                     uncordon:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.stderr | default(ansible_failed_result.msg | default('uncordon failed')) }}"
             - name: Fail uncordon step
               ansible.builtin.fail:
@@ -400,7 +400,7 @@
                   steps:
                     validation:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Execute node validation
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_validate_node.yml"
@@ -413,7 +413,7 @@
                   steps:
                     validation:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark validation failed
@@ -425,7 +425,7 @@
                   steps:
                     validation:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('validation failed')) }}"
             - name: Fail validation step
               ansible.builtin.fail:
@@ -443,7 +443,7 @@
                   steps:
                     etcd_health_check:
                       status: in_progress
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
             - name: Execute etcd health check
               ansible.builtin.include_tasks: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/step_etcd_health_check.yml"
@@ -456,7 +456,7 @@
                   steps:
                     etcd_health_check:
                       status: completed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error:
           rescue:
             - name: Mark etcd_health_check failed
@@ -468,7 +468,7 @@
                   steps:
                     etcd_health_check:
                       status: failed
-                      timestamp: "{{ ansible_date_time.iso8601 }}"
+                      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                       error: "{{ ansible_failed_result.msg | default(ansible_failed_result.stderr | default('etcd health check failed')) }}"
             - name: Fail etcd_health_check step
               ansible.builtin.fail:

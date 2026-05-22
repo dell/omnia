@@ -1,0 +1,138 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 3: Restore etcd snapshot on all control planes ───────────
+# Uses etcdutl (etcd >= 3.6) to restore the snapshot on each CP with
+# the correct --name and --initial-cluster parameters.
+
+- name: Skip restore_etcd if already completed
+  ansible.builtin.debug:
+    msg: "restore_etcd already completed — skipping."
+  when: (rollback_status.stages.restore_etcd.status | default('pending')) == 'completed'
+
+- name: Restore etcd
+  when: (rollback_status.stages.restore_etcd.status | default('pending')) != 'completed'
+  block:
+    - name: Mark restore_etcd in_progress
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+      vars:
+        status_update:
+          stages:
+            restore_etcd:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Load etcd members from backup ──────────────────────────────
+    - name: Read etcd members file
+      ansible.builtin.slurp:
+        src: "{{ etcd_members_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: _etcd_members_slurp
+
+    - name: Parse etcd members
+      ansible.builtin.set_fact:
+        etcd_members: "{{ _etcd_members_slurp.content | b64decode | from_json }}"
+
+    # ── Build initial-cluster string from members ──────────────────
+    - name: Build initial-cluster string
+      ansible.builtin.set_fact:
+        etcd_initial_cluster: >-
+          {{ etcd_members.members
+             | map(attribute='name')
+             | zip(etcd_members.members | map(attribute='peerURLs') | map('first'))
+             | map('join', '=')
+             | join(',') }}
+
+    # ── Distribute etcdutl to all CPs from backup ─────────────────
+    - name: Check etcdutl in backup directory
+      ansible.builtin.stat:
+        path: "{{ backup_dir }}/{{ k8s_rollback_version }}/etcdutl"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _etcdutl_backup_stat
+
+    - name: Copy etcdutl from backup to all CPs
+      ansible.builtin.copy:
+        src: "{{ backup_dir }}/{{ k8s_rollback_version }}/etcdutl"
+        dest: /usr/local/bin/etcdutl
+        mode: "0755"
+        remote_src: true
+      delegate_to: "{{ item }}"
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+      when: _etcdutl_backup_stat.stat.exists | default(false)
+
+    - name: Verify etcdutl is available on all CPs
+      ansible.builtin.command:
+        cmd: etcdutl version
+      delegate_to: "{{ item }}"
+      register: _etcdutl_check
+      changed_when: false
+      failed_when: false
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Fail if etcdutl is missing on any CP
+      ansible.builtin.fail:
+        msg: >-
+          etcdutl not found on {{ item.item }}. Cannot restore etcd snapshot.
+          Ensure etcdutl was backed up during upgrade (check {{ backup_dir }}/{{ k8s_rollback_version }}/etcdutl).
+      loop: "{{ _etcdutl_check.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.rc != 0
+
+    # ── Detect etcd container image on first CP ────────────────────
+    - name: Get etcd container image from static pod manifest
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail &&
+          grep 'image:.*etcd' /etc/kubernetes/manifests/etcd.yaml 2>/dev/null
+          || grep 'image:.*etcd' /etc/kubernetes.1.35.1.bak/manifests/etcd.yaml 2>/dev/null
+          | head -1 | awk '{print $2}'
+      args:
+        executable: /bin/bash
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _etcd_image_result
+      changed_when: false
+      failed_when: false
+
+    - name: Set etcd image (with fallback)
+      ansible.builtin.set_fact:
+        etcd_image: "{{ _etcd_image_result.stdout | trim | default('registry.k8s.io/etcd:3.6.6-0') }}"
+
+    # ── Restore snapshot on each CP ────────────────────────────────
+    - name: Restore etcd snapshot on each control plane
+      ansible.builtin.include_tasks: restore_etcd_single_cp.yml
+      loop: "{{ all_cp_nodes }}"
+      loop_control:
+        loop_var: _cp_node
+        label: "{{ _cp_node }}"
+
+    # ── Mark restore_etcd completed ────────────────────────────────
+    - name: Mark restore_etcd completed
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+      vars:
+        status_update:
+          stages:
+            restore_etcd:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display restore_etcd completion
+      ansible.builtin.debug:
+        msg: "etcd snapshot restored on all {{ all_cp_nodes | length }} control planes."

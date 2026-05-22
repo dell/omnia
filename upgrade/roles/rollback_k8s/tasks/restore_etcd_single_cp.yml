@@ -1,0 +1,115 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Restore etcd snapshot on a single control plane node.
+# Called from restore_etcd.yml with loop_var: _cp_node
+
+- name: Skip if restore_etcd already done for {{ _cp_node }}
+  ansible.builtin.debug:
+    msg: "restore_etcd already completed on {{ _cp_node }} — skipping."
+  when: >-
+    (rollback_status.nodes[_cp_node].steps.restore_etcd.status | default('pending'))
+    == 'completed'
+
+- name: Restore etcd on {{ _cp_node }}
+  when: >-
+    (rollback_status.nodes[_cp_node].steps.restore_etcd.status | default('pending'))
+    != 'completed'
+  block:
+    # ── Determine this node's etcd member name and peer URL ────────
+    - name: Find etcd member info for {{ _cp_node }}
+      ansible.builtin.set_fact:
+        _etcd_member: >-
+          {{ etcd_members.members
+             | selectattr('peerURLs', 'search', node_ips[_cp_node])
+             | first }}
+
+    - name: Set etcd member name for {{ _cp_node }}
+      ansible.builtin.set_fact:
+        _etcd_name: "{{ _etcd_member.name }}"
+
+    # ── Back up current etcd data (safety net) ─────────────────────
+    - name: Back up current etcd data directory on {{ _cp_node }}
+      ansible.builtin.command:
+        cmd: >-
+          cp -a /var/lib/etcd/member
+          /var/lib/etcd/member.{{ k8s_current_version }}.bak
+      delegate_to: "{{ _cp_node }}"
+      args:
+        creates: "/var/lib/etcd/member.{{ k8s_current_version }}.bak"
+
+    # ── Clear existing etcd data ───────────────────────────────────
+    - name: Remove current etcd data on {{ _cp_node }}
+      ansible.builtin.file:
+        path: "/var/lib/etcd/member"
+        state: absent
+      delegate_to: "{{ _cp_node }}"
+
+    # ── Copy snapshot to node ──────────────────────────────────────
+    - name: Copy etcd snapshot to {{ _cp_node }}
+      ansible.builtin.copy:
+        src: "{{ etcd_snapshot_file }}"
+        dest: /tmp/etcd-snapshot.db
+        mode: "{{ file_perm_600 }}"
+        remote_src: true
+      delegate_to: "{{ _cp_node }}"
+
+    # ── Restore snapshot using etcdutl (etcd >= 3.6) ───────────────
+    - name: Restore etcd snapshot on {{ _cp_node }}
+      ansible.builtin.command:
+        cmd: >-
+          etcdutl snapshot restore /tmp/etcd-snapshot.db
+          --name {{ _etcd_name }}
+          --data-dir /var/lib/etcd
+          --initial-cluster {{ etcd_initial_cluster }}
+          --initial-cluster-token etcd-cluster-1
+          --initial-advertise-peer-urls https://{{ node_ips[_cp_node] }}:2380
+      delegate_to: "{{ _cp_node }}"
+      register: _etcd_restore_result
+
+    # ── Clean up snapshot copy ─────────────────────────────────────
+    - name: Remove temporary snapshot file on {{ _cp_node }}
+      ansible.builtin.file:
+        path: /tmp/etcd-snapshot.db
+        state: absent
+      delegate_to: "{{ _cp_node }}"
+
+    # ── Verify restore produced member directory ───────────────────
+    - name: Verify etcd data directory exists after restore on {{ _cp_node }}
+      ansible.builtin.stat:
+        path: /var/lib/etcd/member
+      delegate_to: "{{ _cp_node }}"
+      register: _etcd_member_dir
+
+    - name: Fail if etcd restore did not produce data on {{ _cp_node }}
+      ansible.builtin.fail:
+        msg: "etcd snapshot restore failed on {{ _cp_node }} — /var/lib/etcd/member does not exist."
+      when: not _etcd_member_dir.stat.exists
+
+    # ── Update per-node status ─────────────────────────────────────
+    - name: Mark restore_etcd completed for {{ _cp_node }}
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+      vars:
+        node_name: "{{ _cp_node }}"
+        node_status_update:
+          steps:
+            restore_etcd:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+
+    - name: Display restore result for {{ _cp_node }}
+      ansible.builtin.debug:
+        msg: "etcd snapshot restored on {{ _cp_node }} (member: {{ _etcd_name }})."

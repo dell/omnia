@@ -19,13 +19,13 @@
     mode: "0755"
   delegate_to: "{{ kube_vip }}"
 
-- name: Check if lock file exists
+- name: Check if rollback lock file exists
   ansible.builtin.stat:
     path: "{{ lock_file }}"
   delegate_to: "{{ kube_vip }}"
   register: lock_check
 
-- name: Handle existing lock
+- name: Handle existing rollback lock
   when: lock_check.stat.exists
   block:
     - name: Read existing lock file
@@ -61,7 +61,7 @@
 
     - name: Abort if lock held by live process on same host
       ansible.builtin.fail:
-        msg: "{{ msg_lock_held_same_host }}"
+        msg: "{{ msg_rollback_lock_held_same_host }}"
       when:
         - existing_lock is defined
         - existing_lock.host is defined
@@ -71,7 +71,7 @@
 
     - name: Abort if lock held by different host
       ansible.builtin.fail:
-        msg: "{{ msg_lock_held_other_host }}"
+        msg: "{{ msg_rollback_lock_held_other_host }}"
       when:
         - existing_lock is defined
         - existing_lock.host is defined
@@ -93,7 +93,7 @@
 
     - name: Warn about stale lock removal
       ansible.builtin.debug:
-        msg: "{{ msg_stale_lock_removed }}"
+        msg: "{{ msg_rollback_stale_lock_removed }}"
       when:
         - existing_lock is defined
         - existing_lock is mapping
@@ -103,17 +103,16 @@
         - pid_check.rc is defined
         - pid_check.rc != 0
 
-- name: Write new lock file
+- name: Write new rollback lock file
   ansible.builtin.copy:
     content: |
       pid: {{ ansible_pid | default(lookup('pipe', 'echo $PPID')) }}
       host: {{ ansible_hostname }}
       started_at: {{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}
-      playbook: upgrade_k8s.yml
+      playbook: rollback_k8s.yml
     dest: "{{ lock_file }}"
     mode: "0644"
   delegate_to: "{{ kube_vip }}"
-  register: lock_write_result
 
 - name: Verify lock file ownership
   ansible.builtin.slurp:
@@ -127,7 +126,7 @@
 
 - name: Abort if lock verification failed
   ansible.builtin.fail:
-    msg: "{{ msg_lock_verification_failed }}"
+    msg: "{{ msg_rollback_lock_verification_failed }}"
   when:
     - verified_lock is defined
     - verified_lock.host is defined

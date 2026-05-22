@@ -1,0 +1,175 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 1: Preflight checks ──────────────────────────────────────
+# Validates that all prerequisites for rollback are in place.
+
+- name: Skip preflight if already completed
+  ansible.builtin.debug:
+    msg: "Preflight checks already completed — skipping."
+  when: (rollback_status.stages.preflight.status | default('pending')) == 'completed'
+
+- name: Run preflight checks
+  when: (rollback_status.stages.preflight.status | default('pending')) != 'completed'
+  block:
+    - name: Mark preflight in_progress
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+      vars:
+        status_update:
+          stages:
+            preflight:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Verify etcd snapshot exists ────────────────────────────────
+    - name: Check etcd snapshot file exists
+      ansible.builtin.stat:
+        path: "{{ etcd_snapshot_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: _etcd_snap_stat
+
+    - name: Fail if etcd snapshot is missing
+      ansible.builtin.fail:
+        msg: "{{ msg_rollback_backup_missing }}"
+      vars:
+        _missing_backup: "{{ etcd_snapshot_file }}"
+      when: not (_etcd_snap_stat.stat.exists | default(false))
+
+    # ── Verify etcd members file exists ────────────────────────────
+    - name: Check etcd members file exists
+      ansible.builtin.stat:
+        path: "{{ etcd_members_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: _etcd_members_stat
+
+    - name: Fail if etcd members file is missing
+      ansible.builtin.fail:
+        msg: "{{ msg_rollback_backup_missing }}"
+      vars:
+        _missing_backup: "{{ etcd_members_file }}"
+      when: not (_etcd_members_stat.stat.exists | default(false))
+
+    # ── Verify etcdutl binary exists in backup ─────────────────────
+    - name: Check etcdutl binary in backup directory
+      ansible.builtin.stat:
+        path: "{{ backup_dir }}/{{ k8s_rollback_version }}/etcdutl"
+      delegate_to: "{{ kube_vip }}"
+      register: _etcdutl_stat
+
+    - name: Warn if etcdutl is missing from backup
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: etcdutl binary not found at {{ backup_dir }}/{{ k8s_rollback_version }}/etcdutl.
+          Will attempt to use etcdutl from /usr/local/bin on each CP node.
+          If etcdutl is not available, etcd restore will fail.
+      when: not (_etcdutl_stat.stat.exists | default(false))
+
+    # ── Verify K8s config backups exist for each CP ────────────────
+    - name: Check K8s config backup exists for each CP
+      ansible.builtin.stat:
+        path: "{{ k8s_config_backup_dir }}/{{ item }}/k8s-config.tar.gz"
+      delegate_to: "{{ kube_vip }}"
+      register: _k8s_config_stats
+      loop: "{{ all_cp_nodes }}"
+
+    - name: Fail if any CP config backup is missing
+      ansible.builtin.fail:
+        msg: "{{ msg_rollback_backup_missing }}"
+      vars:
+        _missing_backup: "{{ k8s_config_backup_dir }}/{{ item.item }}/k8s-config.tar.gz"
+      loop: "{{ _k8s_config_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: not (item.stat.exists | default(false))
+
+    # ── Verify rollback version packages are available ─────────────
+    - name: Check rollback version packages on first CP
+      ansible.builtin.command:
+        cmd: "dnf info {{ item }}-{{ k8s_rollback_version }}"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _pkg_check
+      changed_when: false
+      failed_when: false
+      loop:
+        - kubeadm
+        - kubelet
+        - kubectl
+        - cri-o
+
+    - name: Fail if any rollback package is unavailable
+      ansible.builtin.fail:
+        msg: >-
+          Required package {{ item.item }}-{{ k8s_rollback_version }} is not available
+          in the configured repositories. Cannot proceed with rollback.
+      loop: "{{ _pkg_check.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.rc != 0
+
+    # ── Verify SSH access to all nodes ─────────────────────────────
+    - name: Verify SSH access to all nodes
+      ansible.builtin.command:
+        cmd: "hostname"
+      delegate_to: "{{ item }}"
+      register: _ssh_check
+      changed_when: false
+      failed_when: false
+      loop: "{{ all_rollback_nodes }}"
+
+    - name: Fail if any node is unreachable
+      ansible.builtin.fail:
+        msg: >-
+          Node {{ item.item }} is unreachable via SSH.
+          Fix SSH connectivity before proceeding with rollback.
+      loop: "{{ _ssh_check.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: item.rc != 0
+
+    # ── Verify cluster is currently at the expected version ────────
+    - name: Get current cluster version
+      ansible.builtin.command:
+        cmd: >-
+          kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}'
+      delegate_to: "{{ kube_vip }}"
+      register: _cluster_version
+      changed_when: false
+
+    - name: Verify cluster is at expected version
+      ansible.builtin.assert:
+        that:
+          - "'v' + k8s_current_version in _cluster_version.stdout"
+        fail_msg: >-
+          Cluster is not at expected version v{{ k8s_current_version }}.
+          Got: {{ _cluster_version.stdout }}.
+          Verify the cluster state before proceeding with rollback.
+        success_msg: "Cluster confirmed at v{{ k8s_current_version }}."
+
+    # ── Mark preflight completed ───────────────────────────────────
+    - name: Mark preflight completed
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+      vars:
+        status_update:
+          stages:
+            preflight:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display preflight success
+      ansible.builtin.debug:
+        msg: >-
+          Preflight checks passed: etcd snapshot, etcd members, K8s configs,
+          packages ({{ k8s_rollback_version }}), SSH access, cluster version verified.

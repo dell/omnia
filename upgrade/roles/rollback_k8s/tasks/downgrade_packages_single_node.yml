@@ -1,0 +1,105 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Downgrade K8s and CRI-O packages on a single node.
+# Called with loop_var: _node  and vars: _packages, _crio_package
+
+- name: Skip if downgrade_packages already done for {{ _node }}
+  ansible.builtin.debug:
+    msg: "downgrade_packages already completed on {{ _node }} — skipping."
+  when: >-
+    (rollback_status.nodes[_node].steps.downgrade_packages.status | default('pending'))
+    == 'completed'
+
+- name: Downgrade packages on {{ _node }}
+  when: >-
+    (rollback_status.nodes[_node].steps.downgrade_packages.status | default('pending'))
+    != 'completed'
+  block:
+    # ── Compute Pulp repo name for K8s packages ────────────────────
+    - name: Set K8s repo name for rollback version
+      ansible.builtin.set_fact:
+        _k8s_repo: >-
+          x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{
+            k8s_rollback_version
+            | regex_replace('\.[0-9]+$', '')
+            | replace('.', '-')
+          }}
+
+    # ── Compute Pulp repo name for CRI-O ──────────────────────────
+    - name: Set CRI-O repo name for rollback version
+      ansible.builtin.set_fact:
+        _crio_repo: >-
+          x86_64_rhel_{{ cluster_os_version }}_cri-o-v{{
+            k8s_rollback_version
+            | regex_replace('\.[0-9]+$', '')
+            | replace('.', '-')
+          }}
+
+    # ── Downgrade K8s packages (kubeadm, kubelet, kubectl) ─────────
+    - name: Downgrade K8s packages on {{ _node }}
+      ansible.builtin.dnf:
+        name: "{{ _packages }}"
+        state: present
+        allow_downgrade: true
+        disablerepo: "*"
+        enablerepo: "{{ _k8s_repo }}"
+      delegate_to: "{{ _node }}"
+      register: _k8s_downgrade_result
+
+    # ── Downgrade CRI-O ────────────────────────────────────────────
+    - name: Downgrade CRI-O on {{ _node }}
+      ansible.builtin.dnf:
+        name: "{{ _crio_package }}"
+        state: present
+        allow_downgrade: true
+        disablerepo: "*"
+        enablerepo: "{{ _crio_repo }}"
+      delegate_to: "{{ _node }}"
+      register: _crio_downgrade_result
+
+    # ── Verify installed versions ──────────────────────────────────
+    - name: Verify kubelet version on {{ _node }}
+      ansible.builtin.command:
+        cmd: rpm -q kubelet --queryformat '%{VERSION}'
+      delegate_to: "{{ _node }}"
+      register: _kubelet_version
+      changed_when: false
+
+    - name: Fail if kubelet version mismatch on {{ _node }}
+      ansible.builtin.fail:
+        msg: >-
+          kubelet version mismatch on {{ _node }}: expected {{ k8s_rollback_version }},
+          got {{ _kubelet_version.stdout }}
+      when: _kubelet_version.stdout != k8s_rollback_version
+
+    # ── Update per-node status ─────────────────────────────────────
+    - name: Mark downgrade_packages completed for {{ _node }}
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+      vars:
+        node_name: "{{ _node }}"
+        node_status_update:
+          steps:
+            downgrade_packages:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
+
+    - name: Display downgrade result for {{ _node }}
+      ansible.builtin.debug:
+        msg: >-
+          Packages downgraded on {{ _node }}:
+          kubelet={{ _kubelet_version.stdout }},
+          cri-o={{ k8s_rollback_version }}

@@ -21,7 +21,7 @@
     status_update:
       addon_upgrade:
         status: in_progress
-        started_at: "{{ ansible_date_time.iso8601 }}"
+        started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
 # ── Calico upgrade (ABORT on failure) ──────────────────────────────
 - name: Starting Calico upgrade
@@ -36,7 +36,7 @@
     addon_status_update:
       status: in_progress
       from_version: "{{ calico_from_version | default('unknown') }}"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
+      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
   when: (upgrade_status.addon_upgrade.calico.status | default('pending')) != 'completed'
 
 - name: Upgrade Calico
@@ -53,7 +53,7 @@
           status: completed
           from_version: "{{ calico_from_version | default('unknown') }}"
           to_version: "{{ calico_target_version }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
           error:
   rescue:
     - name: Mark Calico failed
@@ -62,7 +62,7 @@
         addon_name: calico
         addon_status_update:
           status: failed
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
     - name: ABORT — Calico upgrade failed
       ansible.builtin.fail:
@@ -81,7 +81,7 @@
     addon_status_update:
       status: in_progress
       from_version: "{{ metallb_from_version | default('unknown') }}"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
+      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
   when: (upgrade_status.addon_upgrade.metallb.status | default('pending')) != 'completed'
 
 - name: Upgrade MetalLB
@@ -98,7 +98,7 @@
           status: completed
           from_version: "{{ metallb_from_version | default('unknown') }}"
           to_version: "{{ metallb_target_version }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
           error:
   rescue:
     - name: Mark MetalLB failed
@@ -107,7 +107,7 @@
         addon_name: metallb
         addon_status_update:
           status: failed
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
     - name: ABORT — MetalLB upgrade failed
       ansible.builtin.fail:
@@ -126,7 +126,7 @@
     addon_status_update:
       status: in_progress
       from_version: "{{ helm_from_version | default('unknown') }}"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
+      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
   when: (upgrade_status.addon_upgrade.helm.status | default('pending')) != 'completed'
 
 - name: Upgrade Helm
@@ -143,7 +143,7 @@
           status: completed
           from_version: "{{ helm_from_version | default('unknown') }}"
           to_version: "{{ helm_target_version }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
           error:
   rescue:
     - name: Mark Helm failed
@@ -152,7 +152,7 @@
         addon_name: helm
         addon_status_update:
           status: failed
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
     - name: ABORT — Helm upgrade failed
       ansible.builtin.fail:
@@ -168,4 +168,4 @@
     status_update:
       addon_upgrade:
         status: completed
-        completed_at: "{{ ansible_date_time.iso8601 }}"
+        completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
