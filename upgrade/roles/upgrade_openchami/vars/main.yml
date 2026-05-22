@@ -261,7 +261,7 @@ upgrade_messages:
     pgdump_failure: |
       PostgreSQL pg_dump failed or produced an empty backup.
       Aborting upgrade — database backup is required before proceeding.
-      Verify postgres is running: podman exec postgres pg_isready -U {{ postgres_db_user }}
+      Verify postgres is running: podman exec postgres pg_isready -U {{ postgres_db_user | default('unknown') }}
   health_check:
     pre_check_success: "Pre-upgrade health check passed. All OpenCHAMI services are healthy."
     pre_check_failure: "Pre-upgrade health check failed. OpenCHAMI services are not healthy."
@@ -300,11 +300,11 @@ upgrade_messages:
       - Get container IPs: podman inspect -f '{{ "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" }}' <container>
   cloud_init_reload:
     workdir_not_found: >-
-      Cloud-init workdir not found at {{ oim_host_ci_dir }}.
+      Cloud-init workdir not found at {{ oim_host_ci_dir | default('unknown') }}.
       This is expected for prepare_oim-only setups where no nodes
       have been provisioned yet. Skipping cloud-init data reload.
     hostname_not_found: >-
-      WARNING: hostname.yaml not found at {{ oim_host_hostname }}.
+      WARNING: hostname.yaml not found at {{ oim_host_hostname | default('unknown') }}.
       Nodes will boot with default nid-based hostnames instead of
       PXE mapping file hostnames. To fix, re-run provision.yml or
       manually: ochami cloud-init node set -f yaml -d @<hostname.yaml>
@@ -345,7 +345,7 @@ upgrade_messages:
       Without this data, provisioned nodes will NOT receive cloud-init
       configuration on reboot (SSH, network, Slurm will not start).
 
-      Cloud-init files at: {{ oim_host_ci_dir | default(openchami_cloud_init_dir) }}
+      Cloud-init files at: {{ oim_host_ci_dir | default(openchami_cloud_init_dir | default('unknown')) }}
 
       Manual fix — run on the OIM host:
         ochami cloud-init defaults set -f yaml -d @<ci_dir>/ci-defaults.yaml
@@ -355,4 +355,4 @@ upgrade_messages:
 
       For per-node hostnames (from PXE mapping file):
         ochami cloud-init node set -f yaml -d @<nodes_dir>/hostname.yaml
-      Hostname file at: {{ oim_host_hostname | default(openchami_hostname_path) }}
+      Hostname file at: {{ oim_host_hostname | default(openchami_hostname_path | default('unknown')) }}
