@@ -285,44 +285,6 @@
     oim_group: true
 
 # ──────────────────────────────────────────────────────────────────────
-# Load credentials via credential utility (for build_stream and gitlab)
-# Set upgrade_mode to bypass upgrade_checkup guard within credential utility
-# Set dynamic run tags based on enable_build_stream flag
-# ──────────────────────────────────────────────────────────────────────
-- name: Set upgrade mode flag and dynamic tags for credential utility
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: [build_stream, gitlab]
-  tasks:
-    - name: Read build_stream_config.yml to check enable_build_stream flag
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/build_stream_config.yml"
-        name: _bs_config_check
-      failed_when: false
-
-    - name: Enable upgrade_mode to bypass credential utility guard
-      ansible.builtin.set_fact:
-        upgrade_mode: true
-        cacheable: true
-
-    - name: Set dynamic run tags including build_stream and gitlab
-      ansible.builtin.set_fact:
-        omnia_run_tags: >-
-          {{
-            (
-              ansible_run_tags | default([]) +
-              ['build_stream', 'gitlab']
-            ) | unique
-          }}
-        cacheable: true
-      when: _bs_config_check.enable_build_stream | default(false) | bool
-
-- name: Load Omnia credential utility
-  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
-  tags: [build_stream, gitlab]
-
-# ──────────────────────────────────────────────────────────────────────
 # BuildStream Terminal Gate (C-24): Read build_stream_config.yml and
 # set build_stream_terminal fact. When enable_build_stream=true AND
 # build_stream tag completes, downstream tags (local_repo, build_image,
@@ -355,6 +317,53 @@
           will be SKIPPED after build_stream completes. User must trigger
           GitLab pipeline manually post-upgrade.
       when: build_stream_terminal | bool
+
+# ──────────────────────────────────────────────────────────────────────
+# Set upgrade_mode to bypass upgrade_checkup guard within credential utility.
+# Set default omnia_run_tags (prepare_oim, ufm_telemetry, ldms, idrac_telemetry).
+# Conditionally add gitlab tag when build_stream is enabled.
+# ──────────────────────────────────────────────────────────────────────
+- name: Set upgrade mode flag and dynamic run tags for credential utility
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Enable upgrade_mode to bypass credential utility guard
+      ansible.builtin.set_fact:
+        upgrade_mode: true
+        cacheable: true
+
+    - name: Set default dynamic run tags
+      ansible.builtin.set_fact:
+        omnia_run_tags: >-
+          {{
+            (
+              ansible_run_tags | default([]) +
+              ['prepare_oim', 'ufm_telemetry', 'ldms', 'idrac_telemetry']
+            ) | unique
+          }}
+        cacheable: true
+
+    - name: Add gitlab tag when build_stream is enabled
+      ansible.builtin.set_fact:
+        omnia_run_tags: >-
+          {{
+            (
+              omnia_run_tags | default([]) | list +
+              ['build_stream', 'gitlab']
+            ) | unique
+          }}
+        cacheable: true
+      when: build_stream_config.enable_build_stream | default(false) | bool
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+  tags: always
+
+- name: Load Omnia credential utility
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+  tags: always
 
 # ──────────────────────────────────────────────────────────────────────
 # Sub-flow imports (each sub-flow reads upgrade_manifest.yml and
