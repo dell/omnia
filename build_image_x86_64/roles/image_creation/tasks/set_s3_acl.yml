@@ -28,15 +28,16 @@
 - name: Set ACL to public for 'efi' bucket and all objects
   ansible.builtin.command: s3cmd setacl s3://efi --acl-public --recursive
   changed_when: true
-  delegate_to: "{{ groups['oim'][0] }}"
-  become: true
+  delegate_to: oim
+  connection: ssh
 
 - name: Set ACL to public for 'boot-images' bucket and all objects
   ansible.builtin.command: s3cmd setacl s3://boot-images --acl-public --recursive
   changed_when: true
-  delegate_to: "{{ groups['oim'][0] }}"
-  become: true
+  delegate_to: oim
+  connection: ssh
 
 - name: Verify S3 bucket ACLs are set
   ansible.builtin.debug:
     msg: "PowerScale S3 bucket ACLs set to public for PXE boot access"
+    verbosity: 2
