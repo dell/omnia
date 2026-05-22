@@ -169,24 +169,12 @@
       delegate_facts: true
       connection: ssh
 
-    - name: Check if GitLab service exists on host (2.1 state detection)
-      ansible.builtin.systemd_service:
-        name: "gitlab.service"
-      register: gitlab_service_2_1
-      failed_when: false
-      changed_when: false
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
     - name: Set service existence facts
       ansible.builtin.set_fact:
         buildstream_service_exists: "{{ buildstream_service_2_1.status is defined and buildstream_service_2_1.status.LoadState == 'loaded' }}"
         postgres_service_exists: "{{ postgres_service_2_1.status is defined and postgres_service_2_1.status.LoadState == 'loaded' }}"
-        gitlab_service_exists: "{{ gitlab_service_2_1.status is defined and gitlab_service_2_1.status.LoadState == 'loaded' }}"
         buildstream_service_active: "{{ buildstream_service_2_1.status is defined and buildstream_service_2_1.status.ActiveState == 'active' }}"
         postgres_service_active: "{{ postgres_service_2_1.status is defined and postgres_service_2_1.status.ActiveState == 'active' }}"
-        gitlab_service_active: "{{ gitlab_service_2_1.status is defined and gitlab_service_2_1.status.ActiveState == 'active' }}"
         cacheable: true
 
     - name: Determine upgrade path
@@ -206,8 +194,6 @@
           - "Detected: {{ 'Upgrade existing installation' if upgrade_path == 'upgrade_existing' else 'Fresh install' }}"
           - "BuildStream: installed={{ buildstream_service_exists }}, active={{ buildstream_service_active }}"
           - "Postgres: installed={{ postgres_service_exists }}, active={{ postgres_service_active }}"
-          - "GitLab: installed={{ gitlab_service_exists }}, active={{ gitlab_service_active }}"
-          - "NOTE: GitLab remote host check deferred to Phase 2"
 
     # ── Set manifest to in-progress ──
     - name: Read manifest
