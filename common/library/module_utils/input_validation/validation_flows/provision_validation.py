@@ -404,7 +404,7 @@ def validate_mapping_file_entries(mapping_file_path):
     # Pre-compile regexes
     mac_re = re.compile(r"^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")
     hostname_re = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$")
-    group_re = re.compile(r"^(?:grp(?:[0-9]|[1-9][0-9]|100)|[Ss][Uu](?:[1-9]|[1-9][0-9]|100))$")
+    group_re = re.compile(r"^(?:grp(?:[0-9]|[1-9][0-9]|100)|[Ss][Uu][A-Za-z]?(?:0*[1-9][0-9]?|100))$")
     fg_re = re.compile(r"^[A-Za-z0-9_]+$")
 
     row_seen = False
@@ -455,7 +455,7 @@ def validate_mapping_file_entries(mapping_file_path):
 
         # GROUP_NAME format
         if not group_re.match(group_name):
-            raise ValueError(f"Invalid GROUP_NAME: '{group_name}' at CSV row {row_idx} in mapping file. Must be in format grp0 to grp100 or SU1 to SU100.")
+            raise ValueError(f"Invalid GROUP_NAME: '{group_name}' at CSV row {row_idx} in mapping file. Must be grp0-grp100 or SU[A-Z]1-100 (e.g. SU1, SU01, SUA99).")
 
         # FUNCTIONAL_GROUP_NAME format
         if not fg_re.match(fg_name):

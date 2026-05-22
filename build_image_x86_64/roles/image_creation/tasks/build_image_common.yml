@@ -34,8 +34,8 @@
 
 - name: Normalize build stream inputs for base image
   ansible.builtin.set_fact:
-    enable_build_stream: "{{ enable_build_stream | default(false) | bool }}"
-    build_stream_job_id: "{{ build_stream_job_id | default('') }}"
+    enable_build_stream: "{{ hostvars['localhost']['enable_build_stream'] | default(false) | bool }}"
+    build_stream_job_id: "{{ hostvars['localhost']['build_stream_job_id'] | default('') }}"
     image_key: "{{ image_key | default('') }}"
     base_image_suffix: ""
     compute_image_suffix: ""
