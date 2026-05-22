@@ -1,0 +1,91 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Calculate dynamic timeout for node reboot
+  ansible.builtin.set_fact:
+    reboot_wait_timeout: "{{ [600, (slurm_host_group_map | length) * 60] | max }}"
+
+- name: Identify slurm control node hostname
+  ansible.builtin.set_fact:
+    slurm_ctld_host: >-
+      {{ slurm_host_group_map
+         | dict2items
+         | selectattr('value', 'equalto', 'slurm_control_node_x86_64')
+         | map(attribute='key')
+         | first }}
+
+- name: Check for running jobs on slurm cluster
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      squeue -h | wc -l
+  register: running_jobs
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ slurm_ctld_host }}"
+
+- name: Upgrade complete reboot pending
+  when: running_jobs.stdout | trim | int > 0
+  block:
+    - name: Show upgrade completion message
+      ansible.builtin.debug:
+        msg: "{{ slurm_reboot_message }}"
+      vars:
+        slurm_reboot_message:
+          - "Slurm upgrade completed successfully."
+          - "REBOOT MUST BE PERFORMED MANUALLY TO REFLECT UPGRADED VERSION."
+          - "Note: {{ running_jobs.stdout | trim }} running job(s) detected."
+          - "Please drain and stop jobs before proceeding with node reboot."
+
+    - name: Abort reboot if jobs are running
+      ansible.builtin.fail:
+        msg: "Slurm cluster has ACTIVE jobs running. Please drain and stop jobs before proceeding with node reboot."
+
+- name: Issue reboot on all slurm nodes asynchronously
+  ansible.builtin.command:
+    cmd: shutdown -r now
+  delegate_to: "{{ item }}"
+  loop: "{{ slurm_host_group_map.keys() | list }}"
+  async: 10
+  poll: 0
+  failed_when: false
+  changed_when: true
+  ignore_unreachable: true
+  ignore_errors: true
+  register: async_reboot_results
+
+- name: Wait for all slurm nodes to come back online
+  ansible.builtin.wait_for:
+    host: "{{ item }}"
+    port: 22
+    state: started
+    delay: 30
+    timeout: "{{ reboot_wait_timeout }}"
+  delegate_to: localhost
+  loop: "{{ slurm_host_group_map.keys() | list }}"
+  register: reboot_results
+
+- name: Report overall reboot status
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      Slurm Cluster Reboot Summary
+      ========================================
+      Total nodes rebooted: {{ slurm_host_group_map | length }}
+      Nodes successfully online: {{ reboot_results.results | selectattr('state', 'equalto', 'started') | list | length }}
+      Rebooted nodes:
+      {% for node in slurm_host_group_map.keys() | list %}
+        - {{ node }} ({{ slurm_host_group_map[node] }})
+      {% endfor %}
+      Status: SUCCESS - All nodes are back online

@@ -1,0 +1,157 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# TODO: project_default read from input_dir
+- name: Include omnia_config
+  ansible.builtin.include_vars:
+    file: "{{ slurm_2_1_backup_dir_effective }}/input/project_default/omnia_config.yml"
+    name: omnia_config
+
+- name: Include storage_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ slurm_2_1_backup_dir_effective }}/input/project_default/storage_config.yml"
+    name: storage_config
+
+- name: Read provision_config.yml
+  ansible.builtin.include_vars:
+    file: "{{ slurm_2_1_backup_dir_effective }}/input/project_default/provision_config.yml"
+    name: provision_config
+
+- name: Set facts for slurm
+  ansible.builtin.set_fact:
+    filter_slurm_nfs: "{{ omnia_config.slurm_cluster | map(attribute='nfs_storage_name') | list }}"
+
+- name: Select the nfs client parameters for slurm
+  ansible.builtin.set_fact:
+    slurm_nfs: "{{ storage_config.nfs_client_params | selectattr('nfs_name', 'in', filter_slurm_nfs) | list }}"
+
+# MOUNTED and READY
+- name: Install NFS client with bolt-on support
+  ansible.builtin.include_tasks: nfs_client.yml
+  with_items: "{{ slurm_nfs }}"
+
+- name: Include oim_metadata.yml
+  ansible.builtin.include_vars:
+    file: "{{ oim_metadata }}"
+    name: oim_metadata
+
+- name: Set oim_shared_path fact
+  ansible.builtin.set_fact:
+    oim_shared_path: "{{ oim_metadata.oim_shared_path | trim }}"
+    slurm_nfs_mounted_path: "{{ slurm_nfs[0].client_share_path }}/slurm"
+
+- name: Remove ctld tracking file
+  ansible.builtin.file:
+    path: "{{ slurm_nfs_mounted_path }}/ctld_track"
+    state: absent
+
+- name: Read pxe_mapping_file from backup directory
+  # TODO: pxe_mapping_file is an absolute path but assuming it's in project_default
+  community.general.read_csv:
+    path: "{{ slurm_2_1_backup_dir_effective }}/input/project_default/{{ provision_config.pxe_mapping_file_path | basename }}"
+  register: backup_pxe_mapping_file
+  delegate_to: localhost
+
+- name: Set functional_group_hosts fact
+  ansible.builtin.set_fact:
+    backup_functional_group_hosts: >-
+      {{
+        dict(
+          backup_pxe_mapping_file.list
+          | groupby('FUNCTIONAL_GROUP_NAME')
+          | map('first')
+          | zip(
+              backup_pxe_mapping_file.list
+              | groupby('FUNCTIONAL_GROUP_NAME')
+              | map('last')
+              | map('map', attribute='HOSTNAME')
+          )
+        )
+      }}
+
+- name: Debug backup_functional_group_hosts
+  ansible.builtin.debug:
+    var: backup_functional_group_hosts
+  # debugger: always
+
+- name: Check for slurm_control_node_x86_64 host dir in nfs
+  ansible.builtin.stat:
+    path: "{{ slurm_nfs_mounted_path }}/{{ backup_functional_group_hosts['slurm_control_node_x86_64'] | first }}"
+  register: slurm_control_node_x86_64_exists
+
+- name: Fail if slurm_control_node_x86_64 host dir not found in nfs
+  ansible.builtin.fail:
+    msg: "SLURM: slurm_control_node_x86_64 host dir not found in nfs"
+  when: not slurm_control_node_x86_64_exists.stat.exists
+
+- name: Set ctld_dir_nfs fact
+  ansible.builtin.set_fact:
+    ctld_dir_nfs: "{{ slurm_nfs_mounted_path }}/{{ backup_functional_group_hosts['slurm_control_node_x86_64'] | first }}"
+
+- name: Check for etc/slurm/slurm.conf
+  ansible.builtin.stat:
+    path: "{{ ctld_dir_nfs }}/etc/slurm/slurm.conf"
+  register: slurm_conf_exists
+
+- name: Fail if etc/slurm/slurm.conf not found in nfs
+  ansible.builtin.fail:
+    msg: "SLURM: etc/slurm/slurm.conf not found in nfs"
+  when: not slurm_conf_exists.stat.exists
+
+- name: Set mysql datadir fact
+  # TODO: Read from /etc/my.cnf.d/mariadb-server.cnf in nfs
+  ansible.builtin.set_fact:
+    mysql_datadir: "{{ ctld_dir_nfs }}/var/lib/mysql"
+
+- name: Check for ibdata1
+  ansible.builtin.stat:
+    path: "{{ mysql_datadir }}/ibdata1"
+  register: ibdata
+
+- name: Check for mysql system database
+  ansible.builtin.stat:
+    path: "{{ mysql_datadir }}/mysql"
+  register: mysql_db
+
+- name: Set is_mysql_datadir fact
+  ansible.builtin.set_fact:
+    is_mysql_datadir: "{{ ibdata.stat.exists or mysql_db.stat.exists }}"
+
+- name: Fail if mysql datadir not found in nfs
+  ansible.builtin.fail:
+    msg: "SLURM: MySQL datadir not found in nfs"
+  when: not is_mysql_datadir
+
+- name: Create backup directory
+  when: backup_slurm_nfs_contents
+  block:
+    - name: Create backup directory
+      ansible.builtin.file:
+        path: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Copy slurm data
+      ansible.builtin.copy:
+        src: "{{ slurm_nfs_mounted_path }}"
+        dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups" # remove the /opt prefix with {{ oim_shared_path }}
+        remote_src: true
+        mode: preserve
+
+    # - name: Synchronize slurm data
+    #   ansible.builtin.synchronize:
+    #     src: "{{ slurm_nfs[0].client_share_path }}/slurm"
+    #     dest: "{{ slurm_2_1_backup_dir | replace('/opt', oim_shared_path) }}/slurm_21_nfs_backups"
