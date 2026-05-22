@@ -28,14 +28,6 @@
 # ============================================================================
 
 # ══════════════════════════════════════════════════════════════════
-# Play 0: Include input project directory
-# ══════════════════════════════════════════════════════════════════
-- name: Include input project directory
-  when: not project_dir_status | default(false) | bool
-  ansible.builtin.import_playbook: ../../utils/include_input_dir.yml
-  tags: always
-
-# ══════════════════════════════════════════════════════════════════
 # Play 1: Pre-flight — manifest, config, credentials (localhost)
 # ══════════════════════════════════════════════════════════════════
 - name: "Pre-flight: Load credentials and configuration"
@@ -126,22 +118,7 @@
         file: "{{ playbook_dir }}/tasks/upgrade_gitlab_prereqs.yml"
 
 # ══════════════════════════════════════════════════════════════════
-# Play 2: Load credentials from vault (reuse credential utility)
-# ══════════════════════════════════════════════════════════════════
-- name: Load credentials from vault
-  ansible.builtin.import_playbook: ../../utils/credential_utility/get_config_credentials.yml
-
-# ══════════════════════════════════════════════════════════════════
-# Play 3: Create OIM group for SSH delegation
-# ══════════════════════════════════════════════════════════════════
-- name: Create OIM container group
-  ansible.builtin.import_playbook: ../../utils/create_container_group.yml
-  vars:
-    oim_group: true
-  tags: always
-
-# ══════════════════════════════════════════════════════════════════
-# Play 3b: Map credential names to deploy role expectations
+# Play 2: Map credential names to deploy role expectations
 # ══════════════════════════════════════════════════════════════════
 - name: "Map credential and network variables for deploy roles"
   hosts: localhost
@@ -161,7 +138,7 @@
         cacheable: true
 
 # ══════════════════════════════════════════════════════════════════
-# Play 4: PATH Detection — detect 2.1 state on OIM host
+# Play 3: PATH Detection — detect 2.1 state on OIM host
 # ══════════════════════════════════════════════════════════════════
 - name: "Detect 2.1 BuildStream state and determine upgrade path"
   hosts: localhost
@@ -254,7 +231,7 @@
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
 
 # ══════════════════════════════════════════════════════════════════
-# Play 5: Execute upgrade on OIM host (reuses prepare_oim roles)
+# Play 4: Execute upgrade on OIM host (reuses prepare_oim roles)
 # ══════════════════════════════════════════════════════════════════
 - name: "Execute BuildStream upgrade on OIM host"
   hosts: oim
@@ -267,7 +244,7 @@
     - role: ../roles/upgrade_build_stream  # noqa:role-name[path]
 
 # ══════════════════════════════════════════════════════════════════
-# Play 6: GitLab Configuration Upgrade (Step 4)
+# Play 5: GitLab Configuration Upgrade (Step 4)
 # ══════════════════════════════════════════════════════════════════
 - name: "Step 4: GitLab Configuration Upgrade"
   hosts: localhost
@@ -303,7 +280,7 @@
     - hostvars['localhost']['upgrade_path'] | default('') == 'path_b'
 
 # ══════════════════════════════════════════════════════════════════
-# Play 7: Mark completion and set terminal gate (localhost)
+# Play 6: Mark completion and set terminal gate (localhost)
 # ══════════════════════════════════════════════════════════════════
 - name: "Mark build_stream completed and set terminal gate"
   hosts: localhost

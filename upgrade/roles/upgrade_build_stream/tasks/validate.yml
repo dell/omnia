@@ -20,7 +20,7 @@
   ansible.builtin.debug:
     msg:
       - "============================================================"
-      - "  Post-Upgrade Validation"
+      - "  Post-Upgrade BuildStreaM Validation"
       - "============================================================"
 
 # ══════════════════════════════════════════════════════════════════
@@ -113,7 +113,7 @@
   ansible.builtin.debug:
     msg:
       - "============================================================"
-      - "  All Validation Checks Passed"
+      - "  All BuildStream Validation Checks Passed"
       - "============================================================"
       - "BuildStream: Active and healthy"
       - "Postgres: Active and ready"
