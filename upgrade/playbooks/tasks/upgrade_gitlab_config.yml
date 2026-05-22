@@ -1,0 +1,476 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ────────────────────────────────────────────────────────────────────────
+# Step 4: GitLab Configuration Upgrade (ESpec §4.6.4, BS-08)
+# Called from upgrade_build_stream.yml for PATH A only
+#
+# Responsibilities:
+#   - 4A.1: Backup GitLab configuration files
+#   - 4A.2: Update gitlab.rb and reconfigure GitLab
+#   - 4A.3: Update CI/CD pipeline files in repository
+#   - 4A.4: Sync Omnia input files to repository
+#   - 4A.5: Update CI/CD pipeline variables
+#   - 4A.6: Re-register GitLab Runner (BS-08)
+#   - 4A.7: Validate GitLab API accessible
+#
+# Required variables (set by caller / upgrade_gitlab_prereqs.yml):
+#   upgrade_path                   — 'path_a' or 'path_b'
+#   gitlab_host                    — GitLab server hostname/IP
+#   gitlab_external_url_computed   — GitLab base URL
+#   gitlab_root_token              — GitLab root API token
+#   gitlab_project_id              — GitLab project ID
+#   gitlab_role_path               — path to hosted_gitlab role
+#   backup_dir                     — upgrade backup directory
+#   input_project_dir              — path to input project directory
+#   build_stream_host_ip           — BuildStream host IP
+#   build_stream_port              — BuildStream port
+# ────────────────────────────────────────────────────────────────────────
+---
+
+# ── 4A.1: Backup GitLab configuration files ──
+- name: "[Step 4A] Create GitLab backup directory on OIM"
+  ansible.builtin.file:
+    path: "{{ backup_dir }}/configs/gitlab"
+    state: directory
+    mode: '0755'
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Backup core GitLab configuration files (using scp)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ provision_password }}' \
+      scp -o StrictHostKeyChecking=no \
+      root@{{ gitlab_host }}:{{ item }} {{ backup_dir }}/configs/gitlab/
+  changed_when: true
+  loop:
+    - /etc/gitlab/gitlab.rb
+    - /etc/gitlab/gitlab-secrets.json
+  when: upgrade_path == 'path_a'
+  no_log: true
+  failed_when: false
+  register: _backup_core_files
+
+- name: "[Step 4A] Backup optional GitLab files (runner config, tokens, quadlet)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ provision_password }}' \
+      scp -o StrictHostKeyChecking=no \
+      root@{{ gitlab_host }}:{{ item }} {{ backup_dir }}/configs/gitlab/
+  changed_when: true
+  loop:
+    - "{{ gitlab_runner_config_file }}"
+    - "{{ gitlab_root_token_file_path }}"
+    - /root/.gitlab_trigger_token
+    - "{{ quadlet_dir }}/{{ gitlab_runner_container_name }}.container"
+  failed_when: false
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+# ── 4A.2: Update gitlab.rb and reconfigure GitLab ──
+- name: "[Step 4A] Generate gitlab.rb from 2.2 template locally"
+  ansible.builtin.template:
+    src: "{{ gitlab_role_path }}/templates/gitlab.rb.j2"
+    dest: "/tmp/gitlab.rb.new"
+    mode: '0600'
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Backup existing gitlab.rb on GitLab host"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "cp {{ gitlab_rb_path }} {{ gitlab_rb_path }}.backup.$(date +%s)"
+  changed_when: true
+  when: upgrade_path == 'path_a'
+  no_log: true
+  failed_when: false
+
+- name: "[Step 4A] Copy new gitlab.rb to GitLab host"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      scp -o StrictHostKeyChecking=no \
+      /tmp/gitlab.rb.new root@{{ gitlab_host }}:{{ gitlab_rb_path }}
+  changed_when: true
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Reconfigure GitLab (gitlab-ctl reconfigure)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "{{ gitlab_ctl_command }} reconfigure"
+  changed_when: true
+  when: upgrade_path == 'path_a'
+  no_log: true
+  async: "{{ gitlab_reconfigure_async }}"
+  poll: "{{ gitlab_reconfigure_poll }}"
+
+- name: "[Step 4A] Wait for GitLab HTTPS port to be ready"
+  ansible.builtin.wait_for:
+    host: "{{ gitlab_host }}"
+    port: "{{ gitlab_https_port | int }}"
+    delay: "{{ gitlab_reconfigure_delay }}"
+    timeout: "{{ (gitlab_startup_wait_minutes | int) * 60 }}"
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] GitLab health check (gitlab-ctl status)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "{{ gitlab_ctl_command }} status"
+  changed_when: false
+  register: _gitlab_health
+  retries: "{{ gitlab_health_check_retries }}"
+  delay: "{{ gitlab_health_check_delay }}"
+  until: _gitlab_health.rc == 0
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Wait for GitLab API to be ready after reconfigure"
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/version"
+    method: GET
+    validate_certs: false
+    status_code: "{{ gitlab_default_status_codes.api_version }}"
+  register: _api_ready
+  retries: "{{ gitlab_api_check_retries }}"
+  delay: "{{ gitlab_api_check_delay }}"
+  until: _api_ready.status in gitlab_default_status_codes.api_version
+  when: upgrade_path == 'path_a'
+
+# ── 4A.3: Update CI/CD pipeline files in repository ──
+- name: "[Step 4A] Update CI/CD pipeline files to 2.2 versions"
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/tasks/upgrade_gitlab_ci_file.yml"
+  loop:
+    - .gitlab-ci.yml
+    - .gitlab-ci-build.yml
+    - .gitlab-ci-deploy.yml
+    - .gitlab-ci-deploy-child-template.yml
+    - .gitlab-ci-cleanup.yml
+    - .gitlab-ci-cleanup-child-template.yml
+  loop_control:
+    loop_var: _ci_file_name
+  when: upgrade_path == 'path_a'
+
+# ── 4A.4: Sync input files to repository ──
+- name: "[Step 4A] Sync Omnia input files to GitLab repository"
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/tasks/upgrade_gitlab_input_file.yml"
+  loop: "{{ gitlab_input_files }}"
+  loop_control:
+    loop_var: _input_file
+    label: "{{ _input_file.name }}"
+  when: upgrade_path == 'path_a'
+
+# ── 4A.5: Update CI/CD pipeline variables ──
+- name: "[Step 4A] Decrypt and read BuildStream OAuth credentials"
+  ansible.builtin.shell: |
+    ansible-vault view {{ input_project_dir }}/build_stream_oauth_credentials.yml \
+      --vault-password-file {{ input_project_dir }}/.build_stream_oauth_credentials_key
+  changed_when: false
+  register: _bs_oauth_raw
+  no_log: true
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Parse BuildStream OAuth credentials"
+  ansible.builtin.set_fact:
+    _bs_oauth_creds: "{{ _bs_oauth_raw.stdout | from_yaml }}"
+  no_log: true
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Read BSM API certificate"
+  ansible.builtin.slurp:
+    src: "{{ gitlab_bs_cert_path }}"
+  register: _bs_cert_content
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Set pipeline variable source facts"
+  ansible.builtin.set_fact:
+    _gitlab_bsm_api_url: "https://{{ build_stream_host_ip }}:{{ build_stream_port | default('8010') }}"
+    _gitlab_bs_auth_username: "{{ _bs_oauth_creds.auth_registration.username | default('') }}"
+    _gitlab_bs_auth_password: "{{ _bs_oauth_creds.auth_registration.password | default('') }}"
+    _gitlab_bs_api_cert: "{{ _bs_cert_content.content | b64decode }}"
+  no_log: true
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Check existing pipeline variables"
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/variables/{{ item.key }}"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: [200, 404]
+  register: _pipeline_var_check
+  loop: "{{ gitlab_pipeline_bs_variables }}"
+  loop_control:
+    label: "{{ item.key }}"
+  no_log: true
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Create pipeline variable when missing"
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/variables"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      key: "{{ item.item.key }}"
+      value: "{{ item.item.value }}"
+      variable_type: "{{ item.item.variable_type }}"
+      masked: "{{ item.item.masked }}"
+      protected: false
+    validate_certs: false
+    status_code: [200, 201]
+  when:
+    - upgrade_path == 'path_a'
+    - item.status == 404
+  loop: "{{ _pipeline_var_check.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  no_log: true
+
+- name: "[Step 4A] Update pipeline variable when it already exists"
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/variables/{{ item.item.key }}"
+    method: PUT
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      value: "{{ item.item.value }}"
+      variable_type: "{{ item.item.variable_type }}"
+      masked: "{{ item.item.masked }}"
+      protected: false
+    validate_certs: false
+    status_code: [200, 201]
+  when:
+    - upgrade_path == 'path_a'
+    - item.status == 200
+  loop: "{{ _pipeline_var_check.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  no_log: true
+
+# ── 4A.6: Re-register GitLab Runner (BS-08) ──
+- name: "[Step 4A] Stop existing runner service"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "systemctl stop {{ gitlab_runner_container_name }}.service"
+  changed_when: true
+  failed_when: false
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Remove existing runner container"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "podman rm -f {{ gitlab_runner_container_name }}"
+  changed_when: true
+  failed_when: false
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Remove existing runner config (force re-registration)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "rm -f {{ gitlab_runner_config_file }}"
+  changed_when: true
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Delete stale project runners via API"
+  when: upgrade_path == 'path_a'
+  block:
+    - name: List existing project runners
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/runners"
+        method: GET
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        validate_certs: false
+        status_code: [200]
+      register: _existing_runners
+      no_log: true
+
+    - name: Delete each stale runner
+      ansible.builtin.uri:
+        url: "{{ gitlab_external_url_computed }}/api/v4/runners/{{ item.id }}"
+        method: DELETE
+        headers:
+          PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+        validate_certs: false
+        status_code: [202, 204]
+      loop: "{{ _existing_runners.json }}"
+      loop_control:
+        label: "Runner #{{ item.id }}"
+      no_log: true
+      when: _existing_runners.json | length > 0
+
+- name: "[Step 4A] Create new runner authentication token via API"
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/user/runners"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    body_format: json
+    body:
+      runner_type: project_type
+      project_id: "{{ gitlab_project_id }}"
+      description: "{{ gitlab_runner_description }}"
+      tag_list:
+        - "{{ gitlab_runner_tags }}"
+      run_untagged: true
+    validate_certs: false
+    status_code: [200, 201]
+  register: _new_runner_token
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Set runner auth token fact"
+  ansible.builtin.set_fact:
+    gitlab_runner_auth_token: "{{ _new_runner_token.json.token }}"
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Resolve runner helper image tag"
+  ansible.builtin.set_fact:
+    gitlab_runner_volume_suffix: ""
+    gitlab_runner_helper_arch: "{{ 'arm64' if ansible_architecture | default('x86_64') == 'aarch64' else 'x86_64' }}"
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Set helper image full reference"
+  ansible.builtin.set_fact:
+    gitlab_runner_helper_image_resolved: >-
+      {{ gitlab_runner_helper_image_registry }}:{{ gitlab_runner_helper_arch
+        }}-{{ gitlab_runner_image | regex_search('v[0-9]+\.[0-9]+\.[0-9]+') | default(gitlab_runner_helper_image_version) }}
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Pull runner images (may include updated 2.2 versions)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "podman pull {{ item }}"
+  changed_when: true
+  loop:
+    - "{{ gitlab_runner_image }}"
+    - "{{ gitlab_runner_helper_image_resolved }}"
+    - "{{ gitlab_runner_default_image }}"
+  when: upgrade_path == 'path_a'
+  register: _runner_pull
+  until: _runner_pull is succeeded
+  retries: "{{ gitlab_image_pull_retries }}"
+  delay: "{{ gitlab_image_pull_delay }}"
+  no_log: true
+
+- name: "[Step 4A] Ensure runner config directory exists"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "mkdir -p {{ gitlab_runner_config_path }}"
+  changed_when: true
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Register GitLab runner with new token (BS-08)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "podman run --rm -v {{ gitlab_runner_config_path }}:/etc/gitlab-runner \
+      {{ gitlab_runner_image }} register --non-interactive \
+      --url {{ gitlab_external_url_computed }}/ --token {{ gitlab_runner_auth_token }} \
+      --executor {{ gitlab_runner_executor }} --docker-image {{ gitlab_runner_default_image }} \
+      --docker-pull-policy {{ gitlab_runner_pull_policy }} \
+      --docker-helper-image {{ gitlab_runner_helper_image_resolved }} \
+      --docker-disable-cache --description '{{ gitlab_runner_description }}'"
+  changed_when: true
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Generate GitLab runner quadlet file locally"
+  ansible.builtin.template:
+    src: "{{ gitlab_role_path }}/templates/gitlab_runner.container.j2"
+    dest: "/tmp/gitlab_runner.container"
+    mode: "{{ quadlet_file_mode }}"
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Deploy GitLab runner quadlet file to GitLab host"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      scp -o StrictHostKeyChecking=no /tmp/gitlab_runner.container \
+      root@{{ gitlab_host }}:{{ quadlet_dir }}/{{ gitlab_runner_container_name }}.container
+  changed_when: true
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Reload systemd daemon"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "systemctl daemon-reload"
+  changed_when: true
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Start GitLab runner service (quadlet services auto-enable)"
+  ansible.builtin.shell: |
+    sshpass -p '{{ hostvars["localhost"]["provision_password"] }}' \
+      ssh -o StrictHostKeyChecking=no root@{{ gitlab_host }} \
+      "systemctl start {{ gitlab_runner_container_name }}.service"
+  changed_when: true
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+- name: "[Step 4A] Wait for runner to appear online"
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/runners"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: [200]
+  register: _runner_online
+  retries: "{{ gitlab_runner_online_check_retries }}"
+  delay: "{{ gitlab_runner_online_check_delay }}"
+  until: >-
+    (_runner_online.json
+     | selectattr('status', 'equalto', 'online')
+     | list | length) > 0
+  when: upgrade_path == 'path_a'
+  no_log: true
+
+# ── 4A.7: Validate GitLab API accessible ──
+- name: "[Step 4A] Validate GitLab API version endpoint"
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url_computed }}/api/v4/version"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ gitlab_root_token }}"
+    validate_certs: false
+    status_code: [200]
+  register: _gitlab_version
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Display PATH A upgrade results"
+  ansible.builtin.debug:
+    msg:
+      - "[UPGRADE] Step 4 GitLab config upgrade (PATH A) — COMPLETE"
+      - "  GitLab version: {{ _gitlab_version.json.version | default('unknown') }}"
+      - "  Runner: online"
+      - "  CI/CD pipeline files: updated to 2.2"
+      - "  Pipeline variables: refreshed"
+  when: upgrade_path == 'path_a'

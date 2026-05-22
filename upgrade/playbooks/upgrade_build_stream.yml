@@ -46,6 +46,7 @@
   vars:
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
+    gitlab_role_path: "{{ playbook_dir }}/../../gitlab/roles/hosted_gitlab"
   tasks:
     # ── Set upgrade_mode to bypass upgrade_checkup in credential utility ──
     - name: Set upgrade_mode to bypass upgrade_checkup in imported playbooks
@@ -119,6 +120,10 @@
       ansible.builtin.fail:
         msg: "BuildStream requires OIM upgrade to be completed first. Current OIM status: {{ manifest.component_status.oim | default('pending') }}"
       when: manifest.component_status.oim | default('pending') != 'completed'
+
+    - name: Run GitLab upgrade prerequisites
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/tasks/upgrade_gitlab_prereqs.yml"
 
 # ══════════════════════════════════════════════════════════════════
 # Play 2: Load credentials from vault (reuse credential utility)
@@ -244,6 +249,10 @@
         dest: "{{ manifest_path }}"
         mode: '0644'
 
+    - name: "Display upgrade status in-progress — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
+
 # ══════════════════════════════════════════════════════════════════
 # Play 5: Execute upgrade on OIM host (reuses prepare_oim roles)
 # ══════════════════════════════════════════════════════════════════
@@ -258,7 +267,43 @@
     - role: ../roles/upgrade_build_stream  # noqa:role-name[path]
 
 # ══════════════════════════════════════════════════════════════════
-# Play 6: Mark completion and set terminal gate (localhost)
+# Play 6: GitLab Configuration Upgrade (Step 4)
+# ══════════════════════════════════════════════════════════════════
+- name: "Step 4: GitLab Configuration Upgrade"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: build_stream
+  tasks:
+    # Step 4: GitLab Configuration Upgrade (ESpec §4.6.4, BS-08)
+    - name: Run GitLab configuration upgrade (Step 4 — PATH A)
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/tasks/upgrade_gitlab_config.yml"
+
+    # ── Set proceed flags for PATH B play and post-completion play ──
+    - name: Set proceed flag for subsequent plays
+      ansible.builtin.set_fact:
+        proceed_gitlab_upgrade: true
+        upgrade_mode: true
+        cacheable: true
+
+# ════════════════════════════════════════════════════════════════════════════
+# PATH B: GitLab Fresh Install
+# ════════════════════════════════════════════════════════════════════════════
+# Runs ONLY when BuildStream was NOT enabled in 2.1 (fresh install).
+# Imports the full gitlab.yml playbook which handles credential loading,
+# prerequisite validation, and the hosted_gitlab role deployment.
+
+- name: GitLab fresh install (PATH B — upgrade_build_stream Step 4)
+  ansible.builtin.import_playbook: ../../gitlab/gitlab.yml
+  when:
+    - hostvars['localhost']['proceed_gitlab_upgrade'] | default(false) | bool
+    - hostvars['localhost']['upgrade_path'] | default('') == 'path_b'
+
+# ══════════════════════════════════════════════════════════════════
+# Play 7: Mark completion and set terminal gate (localhost)
 # ══════════════════════════════════════════════════════════════════
 - name: "Mark build_stream completed and set terminal gate"
   hosts: localhost
@@ -268,12 +313,16 @@
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
   tasks:
+    - name: Skip post-completion if upgrade did not proceed
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['proceed_gitlab_upgrade'] | default(false) | bool)
+
     - name: Set terminal gate flag
       ansible.builtin.set_fact:
         build_stream_terminal: true
         cacheable: true
 
-    - name: Re-read manifest
+    - name: Re-read manifest for final update
       ansible.builtin.slurp:
         src: "{{ manifest_path }}"
       register: raw_manifest_final
@@ -293,11 +342,12 @@
       ansible.builtin.debug:
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"
 
-    - name: Post-upgrade instruction banner (BS-05, C-27)
+    - name: "Post-upgrade instruction banner (BS-05, C-27)"
       ansible.builtin.debug:
         msg:
           - "============================================================"
           - "  BuildStream upgrade/enablement complete."
+          - "  Upgrade path: {{ hostvars['localhost']['upgrade_path'] | default('unknown') | upper }}"
           - ""
           - "  NEXT STEP: Trigger the GitLab pipeline manually (BS-05):"
           - "    1. Navigate to GitLab UI → CI/CD → Pipelines"
