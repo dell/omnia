@@ -17,7 +17,6 @@
 # Called from upgrade_build_stream.yml
 #
 # Responsibilities:
-#   - BS-01: Verify OIM upgrade is complete
 #   - Load GitLab configuration (gitlab_config.yml, hosted_gitlab role vars)
 #   - BS-03: Detect upgrade path (PATH A vs PATH B) using backup config
 #   - Register GitLab host for SSH access (PATH A)
@@ -36,12 +35,6 @@
 #   gitlab_project_id              — GitLab project ID (PATH A only)
 # ────────────────────────────────────────────────────────────────────────
 ---
-
-# ── BS-01: Verify OIM upgrade complete ──
-- name: Validate OIM upgrade is complete (BS-01)
-  ansible.builtin.fail:
-    msg: "BuildStream requires OIM upgrade to be completed first. Current OIM status: {{ manifest.component_status.oim | default('pending') }}"
-  when: manifest.component_status.oim | default('pending') != 'completed'
 
 # ── Load GitLab configuration for Step 4 ──
 - name: Load gitlab_config.yml

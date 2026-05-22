@@ -88,6 +88,12 @@
       when: not enable_build_stream | bool
 
     # ── GitLab prerequisites: OIM check, config loading, path detection, pipeline gate ──
+    # ── BS-01: Verify OIM upgrade complete ──
+    - name: Validate OIM upgrade is complete (BS-01)
+      ansible.builtin.fail:
+        msg: "BuildStream requires OIM upgrade to be completed first. Current OIM status: {{ manifest.component_status.oim | default('pending') }}"
+      when: manifest.component_status.oim | default('pending') != 'completed'
+
     - name: Run GitLab upgrade prerequisites
       ansible.builtin.include_tasks:
         file: "{{ playbook_dir }}/tasks/upgrade_gitlab_prereqs.yml"
