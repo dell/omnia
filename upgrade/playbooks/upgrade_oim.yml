@@ -21,10 +21,9 @@
 #
 # Flow:
 #   1. Pre-flight: read manifest, check idempotency
-#   2. User approval prompt before proceeding (shows full upgrade plan)
-#   3. OpenCHAMI container upgrade (pg_dump, deployment-recipes, image pull,
+#   2. OpenCHAMI container upgrade (pg_dump, deployment-recipes, image pull,
 #      ordered restart, DB migration, validation)
-#   4. Mark OIM as completed in manifest
+#   3. Mark OIM as completed in manifest
 # ============================================================================
 
 - name: Upgrade OIM (OpenCHAMI)
@@ -49,56 +48,6 @@
       ansible.builtin.meta: end_play
       when:
         - manifest.component_status[component_name] | default('pending') == 'completed'
-
-    # ── User approval before proceeding ─────────────────────────────────
-    # Bypass with: -e skip_approval=true (for CI/CD automation)
-    - name: Show Omnia upgrade plan and wait for operator confirmation
-      ansible.builtin.pause:
-        prompt: |2
-          ══════════════════════════════════════════════════════════════
-                     OMNIA UPGRADE — OPERATOR APPROVAL REQUIRED
-          ══════════════════════════════════════════════════════════════
-
-          ── Version Transition ───────────────────────────────────────
-            Current Omnia version : {{ manifest.source_version | default('2.1.0.0') }}
-            Target  Omnia version : {{ manifest.target_version | default('2.2.0.0') }}
-
-          ── Omnia Upgrade Execution Plan (in order) ──────────────────
-            1. oim           → Upgrade OpenCHAMI control-plane containers
-                               on the Omnia Infrastructure Manager
-            2. build_stream  → Enable or upgrade BuildStream services
-                               (skipped if not enabled in the build_stream_config.yml)
-            3. local_repo    → Synchronize Omnia 2.2 packages into the
-                               local Pulp repository for cluster nodes
-            4. build_image   → Rebuild compute OS images against
-                               the new Omnia 2.2 package set
-            5. provision     → Refresh Cloud-Init data and BSS boot
-                               configurations to point at 2.2 images
-            6. k8s           → Roll the Kubernetes cluster to the new
-                               Omnia-supported version (control plane + nodes)
-            7. telemetry     → Upgrade the Omnia telemetry stack
-                               for kafka, victoria metrics, and other components
-            8. slurm         → Upgrade the Slurm controller, slurm nodes
-
-          ── Impact & Risk ────────────────────────────────────────────
-            • Running Omnia services will be modified and briefly restarted.
-            • Do NOT reboot the OIM during the upgrade
-            • Compute workloads should be drained or completed beforehand.
-
-          ── Pre-flight Checklist ─────────────────────────────────────
-            [ ] prepare_upgrade.yml completed without errors
-            [ ] Kubernetes cluster healthy (no failing pods, all PVCs
-                bound, LoadBalancer services have external IPs)
-            [ ] Slurm cluster healthy (no failing jobs, all nodes ready)
-            [ ] Stable internet connectivity verified on the OIM
-            [ ] Maintenance window is active and stakeholders notified
-            [ ] Sufficient disk space available for new images & packages
-
-          ──────────────────────────────────────────────────────────────
-            Press  ENTER       to PROCEED with the Omnia upgrade
-            Press  Ctrl+C, A   to ABORT and exit safely
-          ══════════════════════════════════════════════════════════════
-      when: not (skip_approval | default(false) | bool)
 
     - name: Set OIM upgrade status to in-progress
       ansible.builtin.copy:
