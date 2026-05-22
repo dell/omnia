@@ -434,15 +434,24 @@
                                  and manifest.component_status.build_stream | default('pending') == 'completed')
                              else [] }}"
 
-    - name: Build cleaned component_status (mark skipped or completed)
+    - name: Resolve requested tags for finalize
+      ansible.builtin.set_fact:
+        finalize_requested_tags: >-
+          {{ all_components
+             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
+             else ansible_run_tags | intersect(all_components) }}
+
+    - name: Build cleaned component_status (only update requested tags)
       ansible.builtin.set_fact:
         cleaned_component_status: >-
           {%- set result = {} -%}
           {%- for key, val in manifest.component_status.items() -%}
           {%-   if key in bs_skipped_tags and val == 'pending' -%}
           {%-     set _ = result.update({key: 'skipped'}) -%}
-          {%-   else -%}
+          {%-   elif key in finalize_requested_tags -%}
           {%-     set _ = result.update({key: val if val in ['completed', 'skipped'] else 'completed'}) -%}
+          {%-   else -%}
+          {%-     set _ = result.update({key: val}) -%}
           {%-   endif -%}
           {%- endfor -%}
           {{ result }}
@@ -452,7 +461,7 @@
         new_status: >-
           {{ 'completed'
              if (cleaned_component_status.values() | reject('in', ['completed', 'skipped']) | list | length == 0)
-             else 'partial' }}
+             else 'in-progress' }}
 
     - name: Write upgrade_manifest.yml with cleaned component_status and updated upgrade_status
       ansible.builtin.copy:
