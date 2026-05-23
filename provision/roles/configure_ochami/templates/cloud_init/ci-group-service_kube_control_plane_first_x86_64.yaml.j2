@@ -1081,10 +1081,6 @@ PYEOF
             systemctl restart nfs-client.target
             systemctl restart rpcbind
 
-{% if powerscale_metrics_enabled | default(false) | bool %}
-{% include 'powerscale/deploy_powerscale_telemetry.sh.j2' %}
-{% endif %}
-
 {% if telemetry_enabled %}
             echo "Applying Telemetry Kubernetes deployments"
             {{ k8s_client_mount_path }}/telemetry/telemetry.sh
