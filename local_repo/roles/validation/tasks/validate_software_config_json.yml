@@ -32,16 +32,19 @@
   ansible.builtin.set_fact:
     service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
     software_names: "{{ software_config.softwares | map(attribute='name') | select('defined') | list }}"
+
+- name: Build software JSON file list
+  ansible.builtin.set_fact:
     software_json_list: "{{ software_names | map('regex_replace', '$', '.json') | list }}"
 
 - name: Get k8s archs
   ansible.builtin.set_fact:
-    service_k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | first).get('arch', default_archs) }}"
+    service_k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | first).arch | default(['x86_64']) }}"
   when: service_k8s_support
 
 - name: Get k8s archs
   ansible.builtin.set_fact:
-    k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'k8s') | first).get('arch', default_archs) }}"
+    k8s_arch: "{{ (software_config.softwares | selectattr('name', 'equalto', 'k8s') | first).arch | default(['x86_64']) }}"
   when: k8s_support
 
 - name: Validation for version property for softwares mentioned in software_config.json
