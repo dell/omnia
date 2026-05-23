@@ -37,4 +37,4 @@
   ansible.builtin.include_tasks: create_slurm_dir.yml
   when:
     - slurm_support
-    - ctld_list or (cmpt_list or login_list or compiler_login_list)
+    - (ctld_list | length > 0) or (cmpt_list | length > 0) or (login_list | length > 0) or (compiler_login_list | length > 0)
