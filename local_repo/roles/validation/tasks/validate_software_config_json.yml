@@ -64,7 +64,7 @@
       ansible.builtin.fail:
         msg: "{{ item.msg }}"
       loop: "{{ version_result.results }}"
-      when: item.evaluated_to is false
+      when: item.msg is defined and item.msg == 'Assertion failed'
 
   rescue:
     - name: Versions were not defined for softwares
