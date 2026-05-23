@@ -58,7 +58,7 @@ kubectl wait --for=condition=available --timeout=300s deployment/victoria-metric
 echo "  Waiting for VictoriaMetrics CRDs..."
 for i in $(seq 1 60); do
   CRDS_READY=true
-{% if victoria_metrics_support | default(false)) %}
+{% if victoria_metrics_support | default(false) %}
   kubectl get crd vmclusters.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
   kubectl get crd vmagents.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
   kubectl get crd vmpodscrapes.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
