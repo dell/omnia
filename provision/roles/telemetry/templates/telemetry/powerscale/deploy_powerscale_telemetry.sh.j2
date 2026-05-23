@@ -106,7 +106,7 @@
                   helm upgrade karavi-observability "$HELM_CHART_PATH" \
                     -n "${CSM_NS}" \
                     -f "$HELM_VALUES_FILE" \
-                    --timeout 5m || {
+                    --timeout 10m || {
                     echo "ERROR: Helm upgrade failed."
                     PS_TEL_FAILED=1
                   }
@@ -115,7 +115,7 @@
                   helm install karavi-observability "$HELM_CHART_PATH" \
                     -n "${CSM_NS}" \
                     -f "$HELM_VALUES_FILE" \
-                    --timeout 5m || {
+                    --timeout 10m || {
                     echo "ERROR: Helm install failed."
                     PS_TEL_FAILED=1
                   }
