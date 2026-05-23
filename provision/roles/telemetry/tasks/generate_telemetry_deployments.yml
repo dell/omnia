@@ -259,6 +259,7 @@
   when:
     - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool or
       telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool
+  tags: telemetry_deployment
   block:
     - name: Create verification directory
       ansible.builtin.file:
@@ -277,4 +278,3 @@
         src: 'telemetry/powerscale/verify_powerscale_telemetry.sh.j2'
         dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/verify/verify_powerscale_telemetry.sh"
         mode: "{{ hostvars['localhost']['file_permissions_755'] }}"
-  tags: telemetry_deployment
