@@ -26,7 +26,7 @@ resources:
 {% endif %}
 {% if victoria_logs_support | default(false) %}
 # victoria_logs Resources (Logs Only)
-{% if victoria_cluster.tls_enabled | default(false) and not victoria_metrics_support | default(false) %}
+{% if victoria_cluster.tls_enabled | default(false) and not (victoria_metrics_support | default(false)) %}
   # TLS secret for Victoria components (only if not already included by victoria_metrics)
   - victoria-tls-secret.yaml
 {% endif %}

@@ -184,11 +184,44 @@
         | default(telemetry_default_ldms_sampler_configurations))
       }}
 
+- name: Check if backup software_config.json exists for LDMS detection
+  ansible.builtin.stat:
+    path: "{{ backup_location }}/software_config.json"
+  register: backup_software_config_stat
+
+- name: Read backup software_config.json to detect LDMS presence
+  ansible.builtin.slurp:
+    src: "{{ backup_location }}/software_config.json"
+  register: backup_software_config_slurp
+  when: backup_software_config_stat.stat.exists
+
+- name: Parse backup software_config.json
+  ansible.builtin.set_fact:
+    backup_software_config: "{{ backup_software_config_slurp.content | b64decode | from_json }}"
+  when: backup_software_config_stat.stat.exists
+
+- name: Detect if LDMS is present in backup software_config.json
+  ansible.builtin.set_fact:
+    ldms_present_in_software_config: >-
+      {{
+        (backup_software_config.softwares | default([]))
+        | selectattr('name', 'defined')
+        | selectattr('name', 'equalto', 'ldms')
+        | list
+        | length > 0
+      }}
+  when: backup_software_config_stat.stat.exists
+
+- name: Set LDMS not present if software_config.json missing
+  ansible.builtin.set_fact:
+    ldms_present_in_software_config: false
+  when: not backup_software_config_stat.stat.exists
+
 - name: Normalize LDMS source metrics_enabled from backup
   ansible.builtin.set_fact:
     telemetry_ldms_metrics_enabled: >-
       {{ (backup_telemetry_sources.ldms | default({})).metrics_enabled
-         | default(telemetry_default_ldms_metrics_enabled) }}
+         | default(true if ldms_present_in_software_config | bool else telemetry_default_ldms_metrics_enabled) }}
 
 - name: Normalize DCGM and PowerScale source values from backup
   ansible.builtin.set_fact:
