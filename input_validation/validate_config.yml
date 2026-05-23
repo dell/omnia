@@ -94,9 +94,9 @@
       ansible.builtin.include_role:
         name: validate_subscription
         tasks_from: check_rhel_subscription.yml
-      when:
-        - "'local_repo' in (hostvars['localhost']['omnia_run_tags'] | default(ansible_run_tags | default([]) | list))"
-          or "'all' in (ansible_run_tags | default([]) | list)"
+      when: >-
+        'local_repo' in (hostvars['localhost']['omnia_run_tags'] | default(ansible_run_tags | default([]) | list))
+        or 'all' in (ansible_run_tags | default([]) | list)
 
 - name: Configure RHEL repository URLs
   hosts: localhost
