@@ -19,7 +19,7 @@
   tasks:
     - name: Set dynamic run tags including 'telemetry'
       ansible.builtin.set_fact:
-        omnia_run_tags: "{{ (ansible_run_tags | default([]) + ['telemetry']) | unique }}"
+        omnia_run_tags: "{{ (ansible_run_tags | default([]) | list + ['telemetry']) | unique }}"
         cacheable: true
 
 - name: Invoke validate_config.yml to perform L1 and L2 validations

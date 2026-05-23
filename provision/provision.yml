@@ -62,7 +62,7 @@
         omnia_run_tags: >-
           {{
             (
-              ansible_run_tags | default([]) +
+              ansible_run_tags | default([]) | list +
               ['provision', 'slurm', 'slurm_custom', 'security', 'csi_driver_powerscale', 'ldms', 'telemetry'] +
               (
                 ['service_k8s']
