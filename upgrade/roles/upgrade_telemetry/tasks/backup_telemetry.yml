@@ -49,6 +49,7 @@
         src: "{{ k8s_client_mount_path }}/telemetry"
         dest: "{{ tel_backup_dir }}/telemetry"
         remote_src: true
+        mode: preserve
       failed_when: false
 
     - name: Backup idrac_telemetry folder (pre-provision)
@@ -56,6 +57,7 @@
         src: "{{ k8s_client_mount_path }}/idrac_telemetry"
         dest: "{{ tel_backup_dir }}/idrac_telemetry"
         remote_src: true
+        mode: preserve
       failed_when: false
 
     - name: Check if kube_vip is reachable

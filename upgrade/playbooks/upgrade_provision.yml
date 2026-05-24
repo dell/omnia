@@ -118,7 +118,7 @@
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
       when: proceed_provision | bool
 
-# ── Telemetry upgrade prerequisites (Victoria detection + backups) ──
+# ── Telemetry upgrade prerequisites (Telemetry backups) ──
 - name: "Telemetry upgrade prerequisites"
   hosts: localhost
   connection: local
