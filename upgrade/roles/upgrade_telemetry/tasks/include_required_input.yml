@@ -22,6 +22,8 @@
 #   - omnia_config.yml
 #   - storage_config.yml
 #   - high_availability_config.yml
+#   - telemetry_config.yml
+#   - service_k8s_v1.35.1.json (for victoria operator package name)
 # ============================================================================
 # ── Load omnia_config.yml ──
 - name: Load omnia_config.yml
@@ -89,3 +91,68 @@
   when:
     - ha_config.service_k8s_cluster_ha is defined
     - ha_config.service_k8s_cluster_ha | length > 0
+
+# ── Load telemetry_config.yml ──
+- name: Load telemetry_config.yml
+  ansible.builtin.slurp:
+    src: "{{ input_project_dir }}/telemetry_config.yml"
+  register: telemetry_config_slurp
+  failed_when: false
+  tags: always
+
+- name: Parse telemetry_config.yml
+  ansible.builtin.set_fact:
+    telemetry_config: "{{ telemetry_config_slurp.content | b64decode | from_yaml }}"
+  when: telemetry_config_slurp is not failed
+  tags: always
+
+# ── Check if VictoriaMetrics is in collection targets ──
+- name: Check if victoria_metrics is in collection targets
+  ansible.builtin.set_fact:
+    victoria_in_targets: >-
+      {{
+        telemetry_config.telemetry_sources.idrac.collection_targets | default([]) | select('search', 'victoria_metrics') | list | length > 0
+        or telemetry_config.telemetry_sources.powerscale.collection_targets | default([]) | select('search', 'victoria_metrics') | list | length > 0
+        or telemetry_config.telemetry_sources.vast.collection_targets | default([]) | select('search', 'victoria_metrics') | list | length > 0
+        or telemetry_config.telemetry_sources.ufm.collection_targets | default([]) | select('search', 'victoria_metrics') | list | length > 0
+      }}
+  when:
+    - telemetry_config is defined
+    - telemetry_config.telemetry_sources is defined
+  tags: always
+
+- name: Set victoria_in_targets to false if telemetry_config not loaded
+  ansible.builtin.set_fact:
+    victoria_in_targets: false
+  when: telemetry_config is not defined
+  tags: always
+
+# ── Load service_k8s JSON for victoria operator package name ──
+- name: Load service_k8s JSON
+  ansible.builtin.slurp:
+    src: "{{ input_project_dir }}/config/{{ architecture }}/rhel/{{ os_version }}/service_k8s_v{{ k8s_version }}.json"
+  register: service_k8s_slurp
+  failed_when: false
+  delegate_to: "{{ oim_host | default('localhost') }}"
+  connection: ssh
+  tags: always
+
+- name: Parse service_k8s JSON
+  ansible.builtin.set_fact:
+    service_k8s_config: "{{ service_k8s_slurp.content | b64decode | from_yaml }}"
+  when: service_k8s_slurp is not failed
+  tags: always
+
+- name: Extract victoria operator package name from service_k8s JSON
+  ansible.builtin.set_fact:
+    victoria_operator_pkg: >-
+      {{ service_k8s_config.service_k8s.cluster | selectattr('type', 'equalto', 'tarball') | 
+         selectattr('package', 'search', 'victoria-metrics-operator') | 
+         map(attribute='package') | 
+         first | 
+         default('victoria-metrics-operator') }}
+  when:
+    - service_k8s_config is defined
+    - service_k8s_config.service_k8s is defined
+    - service_k8s_config.service_k8s.cluster is defined
+  tags: always

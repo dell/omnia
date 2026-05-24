@@ -1,0 +1,98 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Apply VictoriaMetrics operator CRs
+# ============================================================================
+# All manifests were pre-staged by upgrade_provision at:
+#   {{ telemetry_deploy_dir }}/deployments/
+#
+# IMPORTANT: 2.2 supports ONLY cluster mode (HA)
+# Regardless of current deployment mode, upgrade always uses VMCluster CR
+# ============================================================================
+
+- name: "Cluster mode upgrade — Omnia 2.2 supports only cluster mode"
+  ansible.builtin.debug:
+    msg: "{{ victoria_cluster_mode_forced }}"
+
+# ── Apply TLS secret (if present) ──
+- name: Check for TLS secret manifest
+  ansible.builtin.stat:
+    path: "{{ telemetry_deploy_dir }}/deployments/victoria-tls-secret.yaml"
+  register: tls_secret_stat
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+
+- name: Apply TLS secret
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-tls-secret.yaml"
+  when: tls_secret_stat.stat.exists
+  changed_when: true
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Apply RBAC ──
+- name: Apply vmagent RBAC
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-vmagent-rbac.yaml"
+  changed_when: true
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Apply main CR (VMCluster only — 2.2 cluster mode only) ──
+- name: Apply VMCluster CR (cluster mode only) with retry
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmcluster.yaml" --request-timeout=60s
+  register: vmcluster_apply
+  changed_when: true
+  until: vmcluster_apply.rc == 0
+  retries: 5
+  delay: 10
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Apply scrape and agent CRs ──
+- name: Check for VMScrape manifest
+  ansible.builtin.stat:
+    path: "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmscrape.yaml"
+  register: vmscrape_stat
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+
+- name: Apply VMScrape CR with retry
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmscrape.yaml" --request-timeout=60s
+  register: vmscrape_apply
+  changed_when: true
+  until: vmscrape_apply.rc == 0
+  retries: 5
+  delay: 10
+  when: vmscrape_stat.stat.exists
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Apply VMAgent CR with retry
+  ansible.builtin.command:
+    cmd: kubectl apply -f "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmagent.yaml" --request-timeout=60s
+  register: vmagent_apply
+  changed_when: true
+  until: vmagent_apply.rc == 0
+  retries: 5
+  delay: 10
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Display apply summary
+  ansible.builtin.debug:
+    msg: "{{ victoria_crs_applied }}"
