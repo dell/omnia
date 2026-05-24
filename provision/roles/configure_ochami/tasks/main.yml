@@ -32,10 +32,6 @@
       ansible.builtin.include_tasks: create_groups_common.yml
       loop: "{{ common_cloud_init_groups }}"
 
-    - name: Generate SMD service-account token for smd_writeback group
-      ansible.builtin.include_tasks: generate_smd_token.yml
-      when: "'smd_writeback' in common_cloud_init_groups"
-
     - name: Configure bss and cloud-init
       ansible.builtin.include_tasks: configure_bss_cloud_init.yml
 

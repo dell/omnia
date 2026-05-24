@@ -182,35 +182,7 @@
         target_node_admin_ips: "{{ hostvars['localhost']['target_node_admin_ips'] }}"
 
 # ─────────────────────────────────────────────────────────────────────────
-# Play 8b: [SMD-Verify] Verify all nodes reached State=Ready in SMD
-# Runs on OIM host alongside phone-home — uses ochami CLI to query SMD
-# Primary verification method; phone-home remains as fallback diagnostic
-# ─────────────────────────────────────────────────────────────────────────
-- name: "[SMD-Verify] Verify node boot completion via SMD state"
-  hosts: oim
-  connection: ssh
-  gather_facts: false
-  become: true
-  ignore_unreachable: true
-  max_fail_percentage: 100
-  tasks:
-    - name: Skip SMD verification when no nodes rebooted successfully
-      ansible.builtin.debug:
-        msg: "Skipping SMD state verification — no nodes rebooted successfully"
-      when: hostvars['localhost']['target_node_admin_ips'] | default([]) | length == 0
-
-    - name: Run SMD state verification via BSM role
-      ansible.builtin.include_role:
-        name: pxe_buildstream_manager
-        tasks_from: smd_state_verify
-      when:
-        - hostvars['localhost']['enable_build_stream'] | default(false) | bool
-        - hostvars['localhost']['target_node_admin_ips'] | default([]) | length > 0
-      vars:
-        target_node_admin_ips: "{{ hostvars['localhost']['target_node_admin_ips'] }}"
-
-# ─────────────────────────────────────────────────────────────────────────
-# Play 9: [BSM] Write per-node results AFTER phone-home + SMD verified
+# Play 9: [BSM] Write per-node results AFTER phone-home verified
 # ─────────────────────────────────────────────────────────────────────────
 - name: "[BSM] Write per-node results, update persistent state, and upload to GitLab"
   hosts: localhost

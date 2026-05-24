@@ -34,15 +34,6 @@ common_cloud_init_groups:
   - ssh
   - chrony
   - phone_home
-  - smd_writeback
-
-# Usage: smd_writeback group in ci-group-common.yaml.j2
-smd_writeback_retries: 10
-smd_writeback_delay: 5
-
-# Usage: generate_smd_token.yml
-smd_token_gen_retries: 5
-smd_token_gen_delay: 5
 
 # Usage: configure_bss_group.yml, configure_bss_cloud_init.yml
 bss_template: bss/bss.yaml.j2
