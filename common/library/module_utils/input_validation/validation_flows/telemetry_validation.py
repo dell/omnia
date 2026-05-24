@@ -22,6 +22,7 @@ import json
 import os
 
 import yaml
+import jsonschema
 from ansible.module_utils.input_validation.validation_flows import powerscale_telemetry_validation
 from ansible.module_utils.input_validation.common_utils import en_us_validation_msg
 from ansible.module_utils.input_validation.common_utils.validation_utils import create_error_msg
@@ -894,94 +895,124 @@ def validate_telemetry_config(
         logger.info("PowerScale metrics required")
     
     # If any storage is required, validate telemetry_storage_config.yml exists
-    if any([kafka_required, victoria_metrics_required, victoria_logs_required, 
-            vector_required, powerscale_metrics_required]):
-        input_dir = os.path.dirname(input_file_path)
-        telemetry_storage_config_path = os.path.join(input_dir, "telemetry_storage_config.yml")
+    input_dir = os.path.dirname(input_file_path)
+    telemetry_storage_config_path = os.path.join(input_dir, "telemetry_storage_config.yml")
 
-        if not os.path.exists(telemetry_storage_config_path):
-            errors.append(create_error_msg(
-                "telemetry_storage_config.yml",
-                "file not found",
-                en_us_validation_msg.TELEMETRY_STORAGE_CONFIG_FILE_NOT_FOUND_MSG
-            ))
-        else:
-            try:
-                with open(telemetry_storage_config_path, 'r', encoding='utf-8') as f:
-                    storage_config = yaml.safe_load(f)
+    if os.path.exists(telemetry_storage_config_path):
+        try:
+            with open(telemetry_storage_config_path, 'r', encoding='utf-8') as f:
+                storage_config = yaml.safe_load(f)
 
-                if not storage_config:
-                    errors.append(create_error_msg(
-                        "telemetry_storage_config.yml",
-                        "empty or invalid",
-                        "telemetry_storage_config.yml is empty or invalid"
-                    ))
-                else:
-                    # Validate kafka_storage
-                    if kafka_required and not storage_config.get("kafka_storage"):
-                        errors.append(create_error_msg(
-                            "telemetry_storage_config.yml.kafka_storage",
-                            "not defined",
-                            en_us_validation_msg.KAFKA_STORAGE_REQUIRED_MSG
-                        ))
-                    elif kafka_required:
-                        logger.info("kafka_storage validation passed")
-                    
-                    # Validate victoria_cluster_storage
-                    if victoria_metrics_required and not storage_config.get("victoria_cluster_storage"):
-                        errors.append(create_error_msg(
-                            "telemetry_storage_config.yml.victoria_cluster_storage",
-                            "not defined",
-                            en_us_validation_msg.VICTORIA_METRICS_STORAGE_REQUIRED_MSG
-                        ))
-                    elif victoria_metrics_required:
-                        logger.info("victoria_cluster_storage validation passed")
-                    
-                    # Validate victoria_logs_cluster_storage
-                    if victoria_logs_required and not storage_config.get("victoria_logs_cluster_storage"):
-                        errors.append(create_error_msg(
-                            "telemetry_storage_config.yml.victoria_logs_cluster_storage",
-                            "not defined",
-                            en_us_validation_msg.VICTORIA_LOGS_STORAGE_REQUIRED_MSG
-                        ))
-                    elif victoria_logs_required:
-                        logger.info("victoria_logs_cluster_storage validation passed")
-                    
-                    # Validate vector_storage
-                    if vector_required and not storage_config.get("vector_storage"):
-                        errors.append(create_error_msg(
-                            "telemetry_storage_config.yml.vector_storage",
-                            "not defined",
-                            en_us_validation_msg.VECTOR_STORAGE_REQUIRED_MSG
-                        ))
-                    elif vector_required:
-                        logger.info("vector_storage validation passed")
-                    
-                    # Validate csm_metrics_powerscale_storage
-                    if powerscale_metrics_required and not storage_config.get("csm_metrics_powerscale_storage"):
-                        errors.append(create_error_msg(
-                            "telemetry_storage_config.yml.csm_metrics_powerscale_storage",
-                            "not defined",
-                            en_us_validation_msg.CSM_METRICS_POWERSCALE_STORAGE_REQUIRED_MSG
-                        ))
-                    elif powerscale_metrics_required:
-                        logger.info("csm_metrics_powerscale_storage validation passed")
-                    
-                    # csi_volume_exporter_storage is always required (always deployed)
-                    if not storage_config.get("csi_volume_exporter_storage"):
-                        errors.append(create_error_msg(
-                            "telemetry_storage_config.yml.csi_volume_exporter_storage",
-                            "not defined",
-                            en_us_validation_msg.CSI_VOLUME_EXPORTER_STORAGE_REQUIRED_MSG
-                        ))
-                    else:
-                        logger.info("csi_volume_exporter_storage validation passed")
-                        
-            except (yaml.YAMLError, IOError) as e:
+            if not storage_config:
                 errors.append(create_error_msg(
                     "telemetry_storage_config.yml",
-                    "error reading file",
-                    f"Error reading telemetry_storage_config.yml: {str(e)}"
+                    "empty or invalid",
+                    "telemetry_storage_config.yml is empty or invalid"
                 ))
+            else:
+                # Validate against JSON schema
+                schema_path = os.path.join(
+                    os.path.dirname(__file__),
+                    "..", "schema", "telemetry_storage_config.json"
+                )
+                if os.path.exists(schema_path):
+                    with open(schema_path, 'r', encoding='utf-8') as schema_file:
+                        schema = json.load(schema_file)
+                    validator = jsonschema.Draft7Validator(schema)
+                    schema_errors = list(validator.iter_errors(storage_config))
+                    if schema_errors:
+                        for error in schema_errors:
+                            error_path = ".".join(map(str, error.path))
+                            error_msg = f"Validation Error at {error_path}: {error.message}"
+                            logger.error(error_msg)
+                            errors.append(error_msg)
+                else:
+                    logger.warning(f"Schema file not found: {schema_path}")
+        except (yaml.YAMLError, IOError) as e:
+            errors.append(create_error_msg(
+                "telemetry_storage_config.yml",
+                "error reading file",
+                f"Error reading telemetry_storage_config.yml: {str(e)}"
+            ))
+    elif any([kafka_required, victoria_metrics_required, victoria_logs_required, 
+              vector_required, powerscale_metrics_required]):
+        # File is required but not found
+        errors.append(create_error_msg(
+            "telemetry_storage_config.yml",
+            "file not found",
+            en_us_validation_msg.TELEMETRY_STORAGE_CONFIG_FILE_NOT_FOUND_MSG
+        ))
+    else:
+        # File not required and not found - skip validation
+        logger.info("telemetry_storage_config.yml not required, skipping validation")
+
+    # If any storage is required, validate required sections exist
+    if os.path.exists(telemetry_storage_config_path):
+        try:
+            with open(telemetry_storage_config_path, 'r', encoding='utf-8') as f:
+                storage_config = yaml.safe_load(f)
+        except (yaml.YAMLError, IOError):
+            storage_config = None
+
+        if storage_config:
+            # Validate kafka_storage
+            if kafka_required and not storage_config.get("kafka_storage"):
+                errors.append(create_error_msg(
+                    "telemetry_storage_config.yml.kafka_storage",
+                    "not defined",
+                    en_us_validation_msg.KAFKA_STORAGE_REQUIRED_MSG
+                ))
+            elif kafka_required:
+                logger.info("kafka_storage validation passed")
+            
+            # Validate victoria_cluster_storage
+            if victoria_metrics_required and not storage_config.get("victoria_cluster_storage"):
+                errors.append(create_error_msg(
+                    "telemetry_storage_config.yml.victoria_cluster_storage",
+                    "not defined",
+                    en_us_validation_msg.VICTORIA_METRICS_STORAGE_REQUIRED_MSG
+                ))
+            elif victoria_metrics_required:
+                logger.info("victoria_cluster_storage validation passed")
+            
+            # Validate victoria_logs_cluster_storage
+            if victoria_logs_required and not storage_config.get("victoria_logs_cluster_storage"):
+                errors.append(create_error_msg(
+                    "telemetry_storage_config.yml.victoria_logs_cluster_storage",
+                    "not defined",
+                    en_us_validation_msg.VICTORIA_LOGS_STORAGE_REQUIRED_MSG
+                ))
+            elif victoria_logs_required:
+                logger.info("victoria_logs_cluster_storage validation passed")
+            
+            # Validate vector_storage
+            if vector_required and not storage_config.get("vector_storage"):
+                errors.append(create_error_msg(
+                    "telemetry_storage_config.yml.vector_storage",
+                    "not defined",
+                    en_us_validation_msg.VECTOR_STORAGE_REQUIRED_MSG
+                ))
+            elif vector_required:
+                logger.info("vector_storage validation passed")
+            
+            # Validate csm_metrics_powerscale_storage
+            if powerscale_metrics_required and not storage_config.get("csm_metrics_powerscale_storage"):
+                errors.append(create_error_msg(
+                    "telemetry_storage_config.yml.csm_metrics_powerscale_storage",
+                    "not defined",
+                    en_us_validation_msg.CSM_METRICS_POWERSCALE_STORAGE_REQUIRED_MSG
+                ))
+            elif powerscale_metrics_required:
+                logger.info("csm_metrics_powerscale_storage validation passed")
+            
+            # csi_volume_exporter_storage is always required (always deployed)
+            if not storage_config.get("csi_volume_exporter_storage"):
+                errors.append(create_error_msg(
+                    "telemetry_storage_config.yml.csi_volume_exporter_storage",
+                    "not defined",
+                    en_us_validation_msg.CSI_VOLUME_EXPORTER_STORAGE_REQUIRED_MSG
+                ))
+            else:
+                logger.info("csi_volume_exporter_storage validation passed")
 
     return errors

@@ -26,7 +26,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
                       "description": "Memory request."
                     },
                     "cpu": {
@@ -42,7 +42,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
                       "description": "Memory limit."
                     },
                     "cpu": {
@@ -71,7 +71,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -85,7 +85,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -112,7 +112,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -126,7 +126,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -148,7 +148,6 @@
             "replicas": {
               "type": "integer",
               "minimum": 1,
-              "default": 2,
               "description": "Number of VMAgent replicas."
             },
             "resources": {
@@ -159,7 +158,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -173,7 +172,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -200,8 +199,7 @@
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1,
-              "default": 2
+              "minimum": 1
             },
             "resources": {
               "type": "object",
@@ -211,7 +209,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -225,7 +223,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -255,7 +253,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -269,7 +267,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -282,15 +280,14 @@
               "required": ["requests", "limits"]
             }
           },
-          "required": ["resources"]
+          "required": ["replicas", "resources"]
         },
         "vlselect": {
           "type": "object",
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1,
-              "default": 2
+              "minimum": 1
             },
             "resources": {
               "type": "object",
@@ -300,7 +297,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -314,7 +311,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -334,8 +331,7 @@
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1,
-              "default": 2
+              "minimum": 1
             },
             "pvc_size": {
               "type": "string",
@@ -350,7 +346,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -364,7 +360,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -391,8 +387,7 @@
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1,
-              "default": 2
+              "minimum": 1
             },
             "resources": {
               "type": "object",
@@ -402,7 +397,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -416,7 +411,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -436,8 +431,7 @@
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1,
-              "default": 2
+              "minimum": 1
             },
             "resources": {
               "type": "object",
@@ -447,7 +441,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -461,7 +455,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -481,8 +475,7 @@
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1,
-              "default": 2
+              "minimum": 1
             },
             "pvc_size": {
               "type": "string",
@@ -497,7 +490,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -511,7 +504,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -531,8 +524,7 @@
           "properties": {
             "replicas": {
               "type": "integer",
-              "minimum": 1,
-              "default": 2
+              "minimum": 1
             },
             "pvc_size": {
               "type": "string",
@@ -547,7 +539,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -561,7 +553,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -595,7 +587,7 @@
                 },
                 "memory": {
                   "type": "string",
-                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                 }
               },
               "required": ["cpu", "memory"]
@@ -609,7 +601,7 @@
                 },
                 "memory": {
                   "type": "string",
-                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                 }
               },
               "required": ["cpu", "memory"]
@@ -633,7 +625,7 @@
             },
             "memory": {
               "type": "string",
-              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
             }
           },
           "required": ["cpu", "memory"]
@@ -647,7 +639,7 @@
             },
             "memory": {
               "type": "string",
-              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
             }
           },
           "required": ["cpu", "memory"]
@@ -671,7 +663,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -685,7 +677,7 @@
                   "properties": {
                     "memory": {
                       "type": "string",
-                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                     },
                     "cpu": {
                       "type": "string",
@@ -715,7 +707,7 @@
                       "properties": {
                         "memory": {
                           "type": "string",
-                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                         },
                         "cpu": {
                           "type": "string",
@@ -729,7 +721,7 @@
                       "properties": {
                         "memory": {
                           "type": "string",
-                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)?$"
+                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
                         },
                         "cpu": {
                           "type": "string",
