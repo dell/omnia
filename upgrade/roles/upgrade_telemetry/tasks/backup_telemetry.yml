@@ -78,7 +78,7 @@
         src: /root/telemetry.sh
         dest: "{{ tel_backup_dir }}/telemetry.sh"
         flat: true
-      delegate_to: oim
+      delegate_to: "{{ kube_vip }}"
       when:
         - kube_vip is defined
         - kube_vip_reachable is defined
