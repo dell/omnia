@@ -140,11 +140,11 @@ victoria_cluster:
     dedup_min_scrape_interval: "1m"  # Deduplication interval
     resources:
       requests:
-        memory: "2Gi"
-        cpu: "500m"
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources.requests.memory | default('1Gi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources.requests.cpu | default('250m') }}"
       limits:
-        memory: "4Gi"
-        cpu: "2000m"
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources.limits.memory | default('2Gi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.resources.limits.cpu | default('1000m') }}"
   # VMInsert: Accepts data ingestion and routes to vmstorage
   vminsert:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.replicas | default(2) }}"
@@ -153,11 +153,11 @@ victoria_cluster:
     external_access: true  # Enable LoadBalancer service for external data ingestion
     resources:
       requests:
-        memory: "512Mi"
-        cpu: "250m"
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources.requests.memory | default('256Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources.requests.cpu | default('100m') }}"
       limits:
-        memory: "1Gi"
-        cpu: "1000m"
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.resources.limits.cpu | default('500m') }}"
   # VMSelect: Performs queries against vmstorage nodes
   vmselect:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.replicas | default(2) }}"
@@ -167,11 +167,11 @@ victoria_cluster:
     cache_data_path: true  # Enable query result caching
     resources:
       requests:
-        memory: "512Mi"
-        cpu: "250m"
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources.requests.memory | default('256Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources.requests.cpu | default('100m') }}"
       limits:
-        memory: "1Gi"
-        cpu: "1000m"
+        memory: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources.limits.memory | default('512Mi') }}"
+        cpu: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.resources.limits.cpu | default('500m') }}"
 
   vmagent:
     replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmagent.replicas | default(2) }}"
