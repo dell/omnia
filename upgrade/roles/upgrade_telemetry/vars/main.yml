@@ -72,7 +72,9 @@ victoria_pvc_bind_failed: "New PVC {{ new_pvc_name }} failed to bind to PV {{ ol
 victoria_cleaning_vmsingle: "Cleaning up old VMSingle: {{ vmsingle_name.stdout | trim }}"
 victoria_vmsingle_cleanup_completed: "VMSingle cleanup completed"
 victoria_migrating_pvcs: "Migrating PVCs: {{ old_pvc_list.stdout }}"
-victoria_sts_force_delete_failed: "Old StatefulSet {{ actual_old_statefulset }} still exists after force delete. Manual intervention required to delete it. Delete error: {{ old_sts_force_delete.stderr | default('N/A') }}"
+victoria_sts_force_delete_failed: >-
+  Old StatefulSet {{ actual_old_statefulset }} still exists after force delete.
+  Manual intervention required to delete it. Delete error: {{ old_sts_force_delete.stderr | default('N/A') }}
 victoria_upgrade_needed: "Victoria upgrade needed: {{ victoria_upgrade_needed }}"
 victoria_upgrade_decision: "victoria_upgrade_needed: {{ victoria_upgrade_needed }}"
 victoria_upgrade_failed: "VictoriaMetrics upgrade FAILED"
@@ -86,7 +88,10 @@ victoria_detected_state: >-
   HA (cluster): {{ victoria_deploy_mode == 'cluster' }}, Old STS found: {{ old_sts_found }},
   Actual old StatefulSet: {{ actual_old_statefulset | default('N/A') }},
   VMCluster found: {{ 'found' in vmcluster_check.stdout }}, VMSingle found: {{ 'found' in vmsingle_check.stdout }}
-victoria_unhealthy_pods_warning: "WARNING: Unhealthy VictoriaMetrics pods detected! The following pods are NOT in Running state: {{ unhealthy_victoria_pods.stdout_lines | default([]) }}. These pods will be DELETED before the upgrade proceeds. The upgrade will re-create them with the new version."
+victoria_unhealthy_pods_warning: >-
+  WARNING: Unhealthy VictoriaMetrics pods detected! The following pods are NOT in Running state:
+  {{ unhealthy_victoria_pods.stdout_lines | default([]) }}. These pods will be DELETED before the upgrade
+  proceeds. The upgrade will re-create them with the new version.
 victoria_pods_deleted: "Deleted {{ victoria_unhealthy_pods | length }} unhealthy pod(s). Upgrade will re-create them."
 victoria_backup_completed: "Victoria backup completed: {{ telemetry_backup_dir }}"
 victoria_crs_applied: "VictoriaMetrics CRs applied (mode: {{ victoria_deploy_mode }}"
