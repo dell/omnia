@@ -27,7 +27,7 @@ metadata:
     component: vector
     role: log-write-buffer
 spec:
-  replicas: {{ vector.vlagent_vector.replicas | default(2) }}
+  replicas: {{ vector.vlagent_vector.replicas }}
   selector:
     matchLabels:
       app: vlagent-vector

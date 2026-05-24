@@ -747,6 +747,47 @@ def get_footer():
     """Returns a formatted footer string for execution logs."""
     return f"{'#' * 30} END EXECUTION {'#' * 30}"
 
+# Telemetry storage configuration validation
+KAFKA_STORAGE_REQUIRED_MSG = (
+    "kafka_storage section is required in telemetry_storage_config.yml "
+    "when kafka is in collection_targets for any telemetry source "
+    "(idrac, ldms). Please configure kafka_storage with kafka and "
+    "entity_operator.user_operator resource configurations."
+)
+
+VICTORIA_METRICS_STORAGE_REQUIRED_MSG = (
+    "victoria_cluster_storage section is required in telemetry_storage_config.yml "
+    "when victoria_metrics is in collection_targets for any telemetry source. "
+    "Please configure victoria_cluster_storage with vmstorage, vminsert, vmselect, and vmagent."
+)
+
+VICTORIA_LOGS_STORAGE_REQUIRED_MSG = (
+    "victoria_logs_cluster_storage section is required in telemetry_storage_config.yml "
+    "when victoria_logs is in collection_targets for any telemetry source. "
+    "Please configure victoria_logs_cluster_storage with vlstorage, vlinsert, vlselect, and vlagent."
+)
+
+VECTOR_STORAGE_REQUIRED_MSG = (
+    "vector_storage section is required in telemetry_storage_config.yml "
+    "when Vector bridges are enabled (vector_ldms or vector_ome). "
+    "Please configure vector_storage with ldms, ome, vlagent_vector, and vmagent_vector."
+)
+
+CSI_VOLUME_EXPORTER_STORAGE_REQUIRED_MSG = (
+    "csi_volume_exporter_storage section is required in telemetry_storage_config.yml "
+    "when CSI volume metrics are enabled. Please configure resource requests and limits."
+)
+
+CSM_METRICS_POWERSCALE_STORAGE_REQUIRED_MSG = (
+    "csm_metrics_powerscale_storage section is required in telemetry_storage_config.yml "
+    "when PowerScale metrics are enabled. Please configure resource requests and limits."
+)
+
+TELEMETRY_STORAGE_CONFIG_FILE_NOT_FOUND_MSG = (
+    "telemetry_storage_config.yml file not found. This file is required when "
+    "telemetry collection is enabled. Please create the file with appropriate storage configurations."
+)
+
 def get_validation_initiated(input_file_path):
     """Returns a formatted message indicating validation has started for a file."""
     return f"{'#' * 10} Validation Initiated for {input_file_path} {'#' * 10}"

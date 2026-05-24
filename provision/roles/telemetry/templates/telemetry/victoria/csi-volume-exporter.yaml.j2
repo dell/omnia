@@ -19,13 +19,13 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ csi_volume_exporter.service_account_name }}
+  name: {{ csi_volume_exporter_storage.service_account_name }}
   namespace: {{ telemetry_namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ csi_volume_exporter.cluster_role_name }}
+  name: {{ csi_volume_exporter_storage.cluster_role_name }}
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -46,41 +46,41 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ csi_volume_exporter.cluster_role_binding_name }}
+  name: {{ csi_volume_exporter_storage.cluster_role_binding_name }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ csi_volume_exporter.cluster_role_name }}
+  name: {{ csi_volume_exporter_storage.cluster_role_name }}
 subjects:
   - kind: ServiceAccount
-    name: {{ csi_volume_exporter.service_account_name }}
+    name: {{ csi_volume_exporter_storage.service_account_name }}
     namespace: {{ telemetry_namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ csi_volume_exporter.app_name }}
+  name: {{ csi_volume_exporter_storage.app_name }}
   namespace: {{ telemetry_namespace }}
   labels:
-    app: {{ csi_volume_exporter.app_name }}
+    app: {{ csi_volume_exporter_storage.app_name }}
     source: powerscale
     component: volume-status
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ csi_volume_exporter.app_name }}
+      app: {{ csi_volume_exporter_storage.app_name }}
   template:
     metadata:
       labels:
-        app: {{ csi_volume_exporter.app_name }}
+        app: {{ csi_volume_exporter_storage.app_name }}
         source: powerscale
         component: volume-status
     spec:
-      serviceAccountName: {{ csi_volume_exporter.service_account_name }}
+      serviceAccountName: {{ csi_volume_exporter_storage.service_account_name }}
       containers:
         - name: exporter
-          image: {{ csi_volume_exporter.image }}
+          image: {{ csi_volume_exporter_storage.image }}
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -326,35 +326,35 @@ spec:
                       print(f"Error in collection cycle: {e}")
 
               if __name__ == '__main__':
-                  start_http_server({{ csi_volume_exporter.metrics_port }})
-                  print("CSI Volume Exporter started on port {{ csi_volume_exporter.metrics_port }}")
+                  start_http_server({{ csi_volume_exporter_storage.metrics_port }})
+                  print("CSI Volume Exporter started on port {{ csi_volume_exporter_storage.metrics_port }}")
                   collect_all()
                   while True:
-                      time.sleep({{ csi_volume_exporter.scrape_interval_seconds }})
+                      time.sleep({{ csi_volume_exporter_storage.scrape_interval_seconds }})
                       collect_all()
               PYEOF
               python /app/exporter.py
           ports:
-            - containerPort: {{ csi_volume_exporter.metrics_port }}
+            - containerPort: {{ csi_volume_exporter_storage.metrics_port }}
           resources:
             requests:
-              cpu: {{ csi_volume_exporter.resources.requests.cpu }}
-              memory: {{ csi_volume_exporter.resources.requests.memory }}
+              cpu: {{ csi_volume_exporter_storage.resources.requests.cpu }}
+              memory: {{ csi_volume_exporter_storage.resources.requests.memory }}
             limits:
-              cpu: {{ csi_volume_exporter.resources.limits.cpu }}
-              memory: {{ csi_volume_exporter.resources.limits.memory }}
+              cpu: {{ csi_volume_exporter_storage.resources.limits.cpu }}
+              memory: {{ csi_volume_exporter_storage.resources.limits.memory }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ csi_volume_exporter.service_name }}
+  name: {{ csi_volume_exporter_storage.service_name }}
   namespace: {{ telemetry_namespace }}
   labels:
-    app: {{ csi_volume_exporter.app_name }}
+    app: {{ csi_volume_exporter_storage.app_name }}
 spec:
   selector:
-    app: {{ csi_volume_exporter.app_name }}
+    app: {{ csi_volume_exporter_storage.app_name }}
   ports:
-    - name: "{{ csi_volume_exporter.metrics_port }}"
-      port: {{ csi_volume_exporter.metrics_port }}
-      targetPort: {{ csi_volume_exporter.metrics_port }}
+    - name: "{{ csi_volume_exporter_storage.metrics_port }}"
+      port: {{ csi_volume_exporter_storage.metrics_port }}
+      targetPort: {{ csi_volume_exporter_storage.metrics_port }}
