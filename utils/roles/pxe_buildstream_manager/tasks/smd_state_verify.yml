@@ -1,0 +1,178 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ─────────────────────────────────────────────────────────────────────────
+# Task: smd_state_verify.yml
+# Purpose: Verify all PXE-booted nodes have reached State=Ready in SMD
+#          after cloud-init completion and smd-writeback.service execution.
+# Called from: set_pxe_boot.yml (Play 8b — alongside phone-home)
+# Condition: Only runs when enable_build_stream is true
+# Non-fatal: SMD verification failures are recorded but do NOT abort the
+#            playbook — BSM post-processing must always run.
+#
+# Flow:
+#   1. Generate access token on OIM host
+#   2. Build expected xname list from pxe_csv_node_map
+#   3. Poll SMD for State=Ready on all expected xnames
+#   4. Report results + store failed xnames on localhost
+# ─────────────────────────────────────────────────────────────────────────
+
+# Step 1: Assert required facts
+- name: "[SMD-Verify] Assert required facts are available"
+  ansible.builtin.assert:
+    that:
+      - target_node_admin_ips is defined
+      - target_node_admin_ips | length > 0
+    fail_msg: "{{ smd_verify_fail_msg | default('Required facts missing for SMD state verification.') }}"
+    success_msg: "[SMD-Verify] Facts confirmed. Nodes: {{ target_node_admin_ips | length }}"
+
+# Step 2: Generate access token for ochami CLI
+- name: "[SMD-Verify] Generate ochami access token on OIM host"
+  ansible.builtin.command: sudo bash -lc 'gen_access_token'
+  register: smd_verify_token_result
+  changed_when: false
+  failed_when: smd_verify_token_result.rc != 0 or smd_verify_token_result.stdout in ["", "null"]
+  retries: "{{ smd_token_gen_retries }}"
+  delay: "{{ smd_token_gen_delay }}"
+  until: smd_verify_token_result.rc == 0 and smd_verify_token_result.stdout not in ["", "null"]
+  no_log: true
+
+- name: "[SMD-Verify] Set ochami environment for SMD queries"
+  ansible.builtin.set_fact:
+    smd_verify_ochami_env: "{{ {(hostvars['localhost']['oim_node_name'] | upper) ~ '_ACCESS_TOKEN': smd_verify_token_result.stdout} }}"
+  no_log: true
+
+# Step 3: Build expected xnames from pxe_csv_node_map (IP → XNAME mapping)
+- name: "[SMD-Verify] Build expected xname list from target admin IPs"
+  ansible.builtin.set_fact:
+    expected_xnames: >-
+      {{ hostvars['localhost']['pxe_csv_node_map'] | default({})
+         | dict2items
+         | selectattr('value.ADMIN_IP', 'in', target_node_admin_ips)
+         | map(attribute='value.XNAME')
+         | list }}
+
+- name: "[SMD-Verify] Report expected xname count"
+  ansible.builtin.debug:
+    msg: "{{ smd_verify_expected_count_msg }}"
+
+# Step 4: Poll SMD for all expected nodes to reach State=Ready
+# Uses ochami CLI which is available on OIM host
+- name: "[SMD-Verify] Wait for all nodes to reach State=Ready in SMD"
+  ansible.builtin.shell: |
+    set -o pipefail
+    MISSING=0
+    OUTPUT=""
+    FAILED_XNAMES=""
+
+    # Query all components from SMD once per retry cycle
+    SMD_JSON=$(/usr/bin/ochami smd component get -F json 2>/dev/null) || {
+        echo "ERROR: ochami smd component get failed"
+        exit 1
+    }
+
+    # Check each expected xname
+    for xname in {{ expected_xnames | join(' ') }}; do
+        NODE_STATE=$(echo "$SMD_JSON" | jq -r --arg x "$xname" \
+            '.Components[] | select(.ID == $x) | .State' 2>/dev/null)
+        NODE_FLAG=$(echo "$SMD_JSON" | jq -r --arg x "$xname" \
+            '.Components[] | select(.ID == $x) | .Flag' 2>/dev/null)
+
+        if [[ "$NODE_STATE" == "Ready" ]]; then
+            OUTPUT="${OUTPUT}{{ smd_verify_status_ok | default('OK') }} ${xname} (State=${NODE_STATE}, Flag=${NODE_FLAG})\n"
+        else
+            OUTPUT="${OUTPUT}{{ smd_verify_status_wait | default('WAIT') }} ${xname} (State=${NODE_STATE:-unknown}, Flag=${NODE_FLAG:-unknown})\n"
+            MISSING=1
+            FAILED_XNAMES="${FAILED_XNAMES}${xname} "
+        fi
+    done
+
+    echo -e "$OUTPUT"
+    echo "SMD_VERIFY_FAILED_XNAMES=${FAILED_XNAMES}"
+    exit $MISSING
+  args:
+    executable: /bin/bash
+  environment: "{{ smd_verify_ochami_env }}"
+  register: smd_verify_poll_result
+  until: smd_verify_poll_result.rc == 0
+  retries: "{{ smd_verify_retries | default(120) }}"
+  delay: "{{ smd_verify_delay | default(15) }}"
+  changed_when: false
+  ignore_errors: true
+
+# Step 5: Display per-node SMD state from final poll
+- name: "[SMD-Verify] Display SMD state per node"
+  ansible.builtin.debug:
+    msg: "{{ smd_verify_poll_display_msg }}"
+
+# Step 6: Extract failed xnames from poll output
+- name: "[SMD-Verify] Parse failed xnames from poll output"
+  ansible.builtin.set_fact:
+    smd_verify_failed_xnames: >-
+      {{ (smd_verify_poll_result.stdout_lines | default([])
+          | select('match', '^SMD_VERIFY_FAILED_XNAMES=')
+          | first | default('SMD_VERIFY_FAILED_XNAMES='))
+          .split('=', 1)[1] | trim | split() | reject('equalto', '') | list }}
+  when: smd_verify_poll_result.rc | default(0) != 0
+
+- name: "[SMD-Verify] Default smd_verify_failed_xnames to empty when all succeeded"
+  ansible.builtin.set_fact:
+    smd_verify_failed_xnames: []
+  when: smd_verify_poll_result.rc | default(0) == 0
+
+# Step 7: Reverse-map failed xnames back to admin IPs for BSM integration
+- name: "[SMD-Verify] Build xname-to-admin-IP reverse map"
+  ansible.builtin.set_fact:
+    xname_to_admin_ip: >-
+      {{ dict(hostvars['localhost']['pxe_csv_node_map'] | default({})
+         | dict2items
+         | map(attribute='value')
+         | map('json_query', '[XNAME, ADMIN_IP]')
+         | list) }}
+  when: smd_verify_failed_xnames | default([]) | length > 0
+
+- name: "[SMD-Verify] Resolve failed xnames to admin IPs"
+  ansible.builtin.set_fact:
+    smd_verify_failed_ips: >-
+      {{ smd_verify_failed_xnames | default([])
+         | map('extract', xname_to_admin_ip)
+         | select('defined')
+         | list }}
+  when: smd_verify_failed_xnames | default([]) | length > 0
+
+- name: "[SMD-Verify] Default smd_verify_failed_ips when all succeeded"
+  ansible.builtin.set_fact:
+    smd_verify_failed_ips: []
+  when: smd_verify_failed_xnames | default([]) | length == 0
+
+# Step 8: Cache SMD verification results on localhost for BSM
+- name: "[SMD-Verify] Store SMD verification results on localhost"
+  ansible.builtin.set_fact:
+    smd_verify_failed_xnames: "{{ smd_verify_failed_xnames | default([]) }}"
+    smd_verify_failed_ips: "{{ smd_verify_failed_ips | default([]) }}"
+    smd_verify_completed: true
+    cacheable: true
+  delegate_to: localhost
+  delegate_facts: true
+
+# Step 9: Report outcome
+- name: "[SMD-Verify] All nodes reached State=Ready in SMD"
+  ansible.builtin.debug:
+    msg: "{{ smd_verify_success_msg }}"
+  when: smd_verify_failed_xnames | default([]) | length == 0
+
+- name: "[SMD-Verify] WARNING — some nodes did NOT reach State=Ready"
+  ansible.builtin.debug:
+    msg: "{{ smd_verify_warning_msg }}"
+  when: smd_verify_failed_xnames | default([]) | length > 0

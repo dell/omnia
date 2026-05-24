@@ -88,6 +88,43 @@ phone_home_pause_prompt: >
   cloud-init before starting phone-home polling...
 
 phone_home_final_success_msg: >
-  [Phone-Home] ✅ All {{ target_node_admin_ips | length }}
+  [Phone-Home] All {{ target_node_admin_ips | length }}
   nodes completed cloud-init and phoned home successfully.
   Proceeding with BuildStream post-processing.
+
+# ──────────────────────────────────────────────────────────────
+# SMD State Verification Configuration
+# ──────────────────────────────────────────────────────────────
+smd_verify_retries: 120
+smd_verify_delay: 15
+smd_verify_status_ok: "OK"
+smd_verify_status_wait: "WAIT"
+
+smd_verify_fail_msg: |
+  FATAL: Required facts missing for SMD state verification.
+  target_node_admin_ips = {{ target_node_admin_ips | default('UNDEFINED') }}
+  Ensure previous plays set target_node_admin_ips with cacheable: true.
+
+# ──────────────────────────────────────────────────────────────
+# SMD Token Generation Configuration
+# ──────────────────────────────────────────────────────────────
+smd_token_gen_retries: 5
+smd_token_gen_delay: 5
+
+# ──────────────────────────────────────────────────────────────
+# SMD Verification Messages
+# ──────────────────────────────────────────────────────────────
+smd_verify_expected_count_msg: >
+  [SMD-Verify] Expecting {{ expected_xnames | length }} nodes to reach State=Ready in SMD
+
+smd_verify_success_msg: >
+  [SMD-Verify] All {{ expected_xnames | length }} nodes reached State=Ready in SMD.
+  Proceeding with BuildStream post-processing.
+
+smd_verify_warning_msg: >
+  [SMD-Verify] WARNING: {{ smd_verify_failed_xnames | length }} node(s) did NOT reach State=Ready:
+  {{ smd_verify_failed_xnames | join(', ') }}.
+  These may be marked as FAILED in node_results.json.
+  Check smd-writeback.service on affected nodes: journalctl -u smd-writeback
+
+smd_verify_poll_display_msg: "{{ smd_verify_poll_result.stdout_lines | default([]) }}"

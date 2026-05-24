@@ -79,3 +79,141 @@
           - hostname
           - fqdn
         tries: 5
+
+- name: smd_writeback
+  description: "Write State=Ready to SMD after cloud-init completion"
+  file:
+    encoding: plain
+    content: |
+      ## template: jinja
+      #cloud-config
+      merge_how:
+        - name: list
+          settings: [append]
+        - name: dict
+          settings: [no_replace, recurse_list]
+
+      write_files:
+        - path: /etc/ochami/smd-token
+          permissions: '0600'
+          owner: root:root
+          content: |
+            {{ smd_service_token }}
+
+        - path: /usr/local/bin/smd-writeback.sh
+          permissions: '0755'
+          owner: root:root
+          content: |
+            #!/bin/bash
+            # Write State=Ready to SMD after cloud-init completion
+            # Runs AFTER cloud-init.target via systemd ordering
+            set -euo pipefail
+
+            OIM_IP="{{ hostvars['localhost']['admin_nic_ip'] }}"
+            SMD_URL="https://${OIM_IP}:8443/hsm/v2"
+            JWT_FILE="/etc/ochami/smd-token"
+            LOG_TAG="smd-writeback"
+            MAX_RETRIES={{ smd_writeback_retries | default(10) }}
+            RETRY_DELAY={{ smd_writeback_delay | default(5) }}
+
+            log() { logger -t "${LOG_TAG}" "$1"; echo "[${LOG_TAG}] $1"; }
+
+            log "Starting SMD write-back"
+
+            # Wait for cloud-init to be truly done
+            if ! cloud-init status --wait --long; then
+                log "WARNING: cloud-init status --wait returned non-zero, continuing"
+            fi
+
+            # In OpenCHAMI cloud-init-server, instance_id == xname
+            XNAME=$(cloud-init query instance_id 2>/dev/null || echo "")
+            if [[ -z "$XNAME" || "$XNAME" == "null" ]]; then
+                # Fallback: try v1.instance_id
+                XNAME=$(cloud-init query v1.instance_id 2>/dev/null || echo "")
+            fi
+            if [[ -z "$XNAME" ]]; then
+                log "ERROR: Could not determine xname from cloud-init metadata"
+                exit 1
+            fi
+            log "Resolved xname: ${XNAME}"
+
+            # Load JWT
+            if [[ ! -r "$JWT_FILE" ]]; then
+                log "ERROR: JWT file not readable at ${JWT_FILE}"
+                exit 1
+            fi
+            JWT=$(cat "${JWT_FILE}" | tr -d '[:space:]')
+            if [[ -z "$JWT" ]]; then
+                log "ERROR: JWT is empty"
+                exit 1
+            fi
+
+            # Determine state from cloud-init status
+            CI_STATUS=$(cloud-init status --format json 2>/dev/null | jq -r '.status' || echo "unknown")
+            case "$CI_STATUS" in
+                done)           STATE="Ready";  FLAG="OK"      ;;
+                degraded-done)  STATE="Ready";  FLAG="Warning" ;;
+                error|degraded) STATE="Ready";  FLAG="Alert"   ;;
+                *)              STATE="Standby"; FLAG="Unknown" ;;
+            esac
+            log "Cloud-init status: ${CI_STATUS} -> SMD State=${STATE}, Flag=${FLAG}"
+
+            # Build PATCH payload
+            PAYLOAD=$(jq -nc --arg state "$STATE" --arg flag "$FLAG" '{State: $state, Flag: $flag}')
+
+            # PATCH SMD with retry + backoff
+            attempt=1
+            while [[ $attempt -le $MAX_RETRIES ]]; do
+                log "PATCH attempt ${attempt}/${MAX_RETRIES} -> ${SMD_URL}/State/Components/${XNAME}/StateData"
+
+                HTTP_CODE=$(curl -s -o /tmp/smd-response.txt -w "%{http_code}" \
+                    --max-time 30 --connect-timeout 10 \
+                    -X PATCH \
+                    -H "Authorization: Bearer ${JWT}" \
+                    -H "Content-Type: application/json" \
+                    -d "${PAYLOAD}" \
+                    --cacert /etc/pki/tls/certs/ca-bundle.crt \
+                    "${SMD_URL}/State/Components/${XNAME}/StateData" \
+                    2>/dev/null) || HTTP_CODE="000"
+
+                if [[ "$HTTP_CODE" == "200" || "$HTTP_CODE" == "204" ]]; then
+                    log "SUCCESS: ${XNAME} marked State=${STATE} Flag=${FLAG} in SMD (HTTP ${HTTP_CODE})"
+                    exit 0
+                fi
+
+                log "FAILED: HTTP ${HTTP_CODE}: $(head -c 200 /tmp/smd-response.txt 2>/dev/null)"
+                attempt=$((attempt + 1))
+                sleep $((RETRY_DELAY * attempt))
+            done
+
+            log "ERROR: SMD PATCH failed after ${MAX_RETRIES} attempts for ${XNAME}"
+            exit 1
+
+        - path: /etc/systemd/system/smd-writeback.service
+          permissions: '0644'
+          owner: root:root
+          content: |
+            [Unit]
+            Description=Write cloud-init completion state to OpenCHAMI SMD
+            After=cloud-init.target multi-user.target network-online.target
+            Wants=cloud-init.target network-online.target
+            ConditionPathExists=/etc/ochami/smd-token
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/smd-writeback.sh
+            RemainAfterExit=yes
+            Restart=on-failure
+            RestartSec=15s
+            StartLimitBurst=3
+            StandardOutput=journal
+            StandardError=journal
+            SyslogIdentifier=smd-writeback
+
+            [Install]
+            WantedBy=multi-user.target
+
+      runcmd:
+        - systemctl daemon-reload
+        - systemctl enable smd-writeback.service
+        - systemctl start --no-block smd-writeback.service

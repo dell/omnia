@@ -1,0 +1,51 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ═══════════════════════════════════════════════════════════════════════════
+# generate_smd_token.yml — Generate JWT for SMD write-back on compute nodes
+# ═══════════════════════════════════════════════════════════════════════════
+# Uses the same gen_access_token mechanism as openchami_auth.yml.
+# The token is stored as smd_service_token fact and injected into cloud-init
+# write_files via the smd_writeback group in ci-group-common.yaml.j2.
+# ═══════════════════════════════════════════════════════════════════════════
+
+- name: Generate SMD service-account token on OIM host
+  ansible.builtin.command: sudo bash -lc 'gen_access_token'
+  register: smd_token_result
+  changed_when: false
+  failed_when: smd_token_result.rc != 0 or smd_token_result.stdout in ["", "null"]
+  retries: "{{ smd_token_gen_retries }}"
+  delay: "{{ smd_token_gen_delay }}"
+  until: smd_token_result.rc == 0 and smd_token_result.stdout not in ["", "null"]
+  no_log: true
+
+- name: Set SMD service token fact
+  ansible.builtin.set_fact:
+    smd_service_token: "{{ smd_token_result.stdout | trim }}"
+  no_log: true
+
+- name: Verify SMD API reachability with token
+  ansible.builtin.shell: |
+    set -o pipefail
+    /usr/bin/ochami smd service status 2>&1
+  environment: "{{ hostvars['oim']['ochami_env'] }}"
+  register: smd_verify_result
+  changed_when: false
+  failed_when: false
+
+- name: Display SMD token generation status
+  ansible.builtin.debug:
+    msg: "SMD service token generated successfully (SMD API status: {{ 'reachable' if smd_verify_result.rc == 0 else 'unreachable' }})"
+    verbosity: 2
