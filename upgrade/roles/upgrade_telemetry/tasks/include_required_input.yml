@@ -1,0 +1,91 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Include Required Input Variables
+# ============================================================================
+# Loads all required configuration files and sets up input variables
+# for Victoria upgrade detection.
+#
+# Loads:
+#   - omnia_config.yml
+#   - storage_config.yml
+#   - high_availability_config.yml
+# ============================================================================
+# ── Load omnia_config.yml ──
+- name: Load omnia_config.yml
+  ansible.builtin.slurp:
+    src: "{{ input_project_dir }}/omnia_config.yml"
+  register: omnia_config_slurp
+  failed_when: false
+  tags: always
+
+- name: Parse omnia_config.yml
+  ansible.builtin.set_fact:
+    omnia_config: "{{ omnia_config_slurp.content | b64decode | from_yaml }}"
+  when: omnia_config_slurp is not failed
+  tags: always
+
+# ── Load storage_config.yml ──
+- name: Load storage_config.yml
+  ansible.builtin.slurp:
+    src: "{{ input_project_dir }}/storage_config.yml"
+  register: storage_config_slurp
+  failed_when: false
+  tags: always
+
+- name: Parse storage_config.yml
+  ansible.builtin.set_fact:
+    storage_config: "{{ storage_config_slurp.content | b64decode | from_yaml }}"
+  when: storage_config_slurp is not failed
+  tags: always
+
+- name: Set k8s_nfs_storage_name
+  ansible.builtin.set_fact:
+    k8s_nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
+  when:
+    - omnia_config is defined
+    - omnia_config.service_k8s_cluster is defined
+  tags: always
+
+- name: Set k8s_client_mount_path
+  ansible.builtin.set_fact:
+    k8s_client_mount_path: >-
+      {{ (storage_config.mounts
+          | selectattr('name', 'equalto', k8s_nfs_storage_name)
+          | first).mount_point }}
+  when:
+    - storage_config is defined
+    - k8s_nfs_storage_name is defined
+  tags: always
+# ── Load high_availability_config.yml ──
+- name: Read high_availability_config.yml for kube_vip
+  ansible.builtin.include_vars:
+    file: "{{ input_project_dir }}/high_availability_config.yml"
+    name: ha_config
+
+- name: Debug high_availability_config.yml content
+  ansible.builtin.debug:
+    msg: "service_k8s_cluster_ha: {{ ha_config.service_k8s_cluster_ha | default('NOT SET') }}"
+  when:
+    - ha_config is defined
+
+# ── Resolve kube_vip ──
+- name: Set kube_vip
+  ansible.builtin.set_fact:
+    kube_vip: "{{ ha_config.service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+    cacheable: true
+  when:
+    - ha_config.service_k8s_cluster_ha is defined
+    - ha_config.service_k8s_cluster_ha | length > 0
