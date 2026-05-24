@@ -27,7 +27,7 @@ metadata:
     component: vector
     role: write-buffer
 spec:
-  replicas: {{ vector.vmagent_vector.replicas }}
+  replicas: {{ vector.vmagent_vector.replicas | default(2) }}
   selector:
     matchLabels:
       app: vmagent-vector
