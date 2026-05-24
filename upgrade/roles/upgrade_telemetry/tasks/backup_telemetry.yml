@@ -22,12 +22,6 @@
 #   3. All PVs metadata cluster-wide
 # ============================================================================
 
-# ── Load role vars (called via include_tasks, not as a role) ──
-- name: Load upgrade_telemetry role vars
-  ansible.builtin.include_vars:
-    file: "{{ upgrade_telemetry_role_path }}/vars/main.yml"
-  when: upgrade_telemetry_role_path is defined
-
 # ── Backup complete telemetry folder for rollback ──
 - name: Backup telemetry folder (pre-provision)
   when:
