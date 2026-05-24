@@ -37,12 +37,14 @@
     - name: Set telemetry backup directory
       ansible.builtin.set_fact:
         tel_backup_dir: "{{ k8s_client_mount_path }}/upgrade/telemetry/omnia_{{ manifest.source_version | default('unknown') }}"
-    
+      delegate_to: oim
+
     - name: Create telemetry backup directory
       ansible.builtin.file:
         path: "{{ tel_backup_dir }}"
         state: directory
         mode: '0755'
+      delegate_to: oim
 
     - name: Backup telemetry folder (pre-provision)
       ansible.builtin.copy:
@@ -50,6 +52,7 @@
         dest: "{{ tel_backup_dir }}/telemetry"
         remote_src: true
         mode: preserve
+      delegate_to: oim
       failed_when: false
 
     - name: Backup idrac_telemetry folder (pre-provision)
@@ -58,15 +61,16 @@
         dest: "{{ tel_backup_dir }}/idrac_telemetry"
         remote_src: true
         mode: preserve
+      delegate_to: oim
       failed_when: false
 
     - name: Check if kube_vip is reachable
-      ansible.builtin.wait_for_connection:
+      ansible.builtin.wait_for:
         host: "{{ kube_vip }}"
+        port: 22
         timeout: 5
-      register: kube_vip_reachable
-      delegate_to: "{{ kube_vip }}"
       when: kube_vip is defined
+      register: kube_vip_reachable
       failed_when: false
 
     - name: Backup telemetry.sh from control plane
@@ -74,7 +78,7 @@
         src: /root/telemetry.sh
         dest: "{{ tel_backup_dir }}/telemetry.sh"
         flat: true
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: oim
       when:
         - kube_vip is defined
         - kube_vip_reachable is defined
@@ -85,21 +89,22 @@
       ansible.builtin.debug:
         msg: "{{ telemetry_backup_msgs.telemetry_folder }}"
 
-# ── Backup ALL PVs cluster-wide (pre-provision) ──
-- name: Backup all PVs cluster-wide (pre-provision)
+# ── Backup PV metadata cluster-wide (for disaster recovery) ──
+- name: Backup PV metadata cluster-wide
   when:
     - kube_vip is defined
     - k8s_client_mount_path is defined
   block:
     - name: Create PV backup directory
       ansible.builtin.file:
-        path: "{{ tel_backup_dir }}"
+        path: "{{ telemetry_backup_dir }}"
         state: directory
         mode: '0755'
+      delegate_to: "{{ kube_vip }}"
 
-    - name: Backup all PVs metadata cluster-wide
+    - name: Backup all PVs metadata
       ansible.builtin.shell: |
-        kubectl get pv -o yaml > {{ telemetry_pv_backup_file }}
+        /usr/bin/kubectl get pv -o yaml > {{ telemetry_pv_backup_file }}
       delegate_to: "{{ kube_vip }}"
       register: pv_backup_result
       changed_when: true

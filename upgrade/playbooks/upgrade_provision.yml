@@ -118,10 +118,10 @@
         msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
       when: proceed_provision | bool
 
-# ── Telemetry upgrade prerequisites (Telemetry backups) ──
-- name: "Telemetry upgrade prerequisites"
+# ── Telemetry backups ──
+- name: "Telemetry Backups"
   hosts: localhost
-  connection: local
+  connection: ssh
   gather_facts: false
   vars:
     input_project_dir: "{{ input_project_dir | default('/opt/omnia/input/project_default') }}"
