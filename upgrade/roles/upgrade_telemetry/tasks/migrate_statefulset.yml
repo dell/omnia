@@ -120,7 +120,7 @@
       register: old_sts_force_delete
       changed_when: true
       failed_when: false
-      when: "'exists' in old_sts_check_after_delete.stdout"
+      when: old_sts_check_after_delete.stdout | trim == 'exists'
       delegate_to: "{{ kube_vip }}"
       connection: ssh
 
@@ -129,7 +129,7 @@
         kubectl -n {{ telemetry_namespace }} get statefulset {{ actual_old_statefulset }} --no-headers 2>/dev/null && echo "exists" || echo "not_exists"
       register: old_sts_check_after_force_delete
       changed_when: false
-      when: "'exists' in old_sts_check_after_delete.stdout"
+      when: old_sts_check_after_delete.stdout | trim == 'exists'
       delegate_to: "{{ kube_vip }}"
       connection: ssh
       until: "'not_exists' in old_sts_check_after_force_delete.stdout"
@@ -139,7 +139,7 @@
     - name: Fail if old StatefulSet still exists after force delete
       ansible.builtin.fail:
         msg: "{{ victoria_sts_force_delete_failed }}"
-      when: "'exists' in old_sts_check_after_force_delete.stdout | default('not_exists')"
+      when: (old_sts_check_after_force_delete.stdout | default('not_exists') | trim) == 'exists'
 
     - name: Relabel each PVC
       ansible.builtin.include_tasks: relabel_pvc.yml
@@ -150,6 +150,7 @@
 
     - name: Find orphaned old pods (left by --cascade=orphan delete)
       ansible.builtin.shell: |
+        set -o pipefail
         kubectl -n {{ telemetry_namespace }} get pods \
           -l "app in (vminsert,vmselect,vmstorage)" --no-headers 2>/dev/null | awk '{print $1}'
       register: orphaned_pods

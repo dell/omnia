@@ -79,6 +79,7 @@
 
     - name: Create new PVC bound to old PV
       ansible.builtin.shell: |
+        set -o pipefail
         cat <<EOF | kubectl apply -f -
         apiVersion: v1
         kind: PersistentVolumeClaim

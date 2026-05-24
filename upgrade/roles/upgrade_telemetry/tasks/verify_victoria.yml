@@ -121,6 +121,7 @@
 
 - name: Check for orphan pods in telemetry namespace
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl -n {{ telemetry_namespace }} get pods -o json | \
       jq -r '.items[] | select(.metadata.ownerReferences == null) | .metadata.name' 2>/dev/null || echo ""
   register: orphan_pods

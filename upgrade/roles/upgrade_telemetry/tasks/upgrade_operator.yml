@@ -18,6 +18,7 @@
 
 - name: Delete existing VictoriaMetrics CRDs (to fix Helm ownership issues)
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl get crd | grep victoriametrics | awk '{print $1}' | xargs kubectl delete crd 2>/dev/null || true
   register: crd_delete_result
   changed_when: true

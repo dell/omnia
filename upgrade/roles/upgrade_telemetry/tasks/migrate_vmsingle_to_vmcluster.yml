@@ -19,6 +19,7 @@
 
 - name: Get VMSingle name
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl -n {{ telemetry_namespace }} get vmsingle --no-headers 2>/dev/null | awk '{print $1}'
   register: vmsingle_name
   changed_when: false
@@ -56,6 +57,7 @@
 
 - name: Get VMSingle PVC
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl -n {{ telemetry_namespace }} get pvc -l app.kubernetes.io/name=vmsingle --no-headers 2>/dev/null | awk '{print $1}'
   register: vmsingle_pvc
   changed_when: false

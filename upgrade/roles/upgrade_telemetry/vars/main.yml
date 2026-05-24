@@ -81,7 +81,11 @@ victoria_upgrade_skipped: "VictoriaMetrics upgrade skipped — not in telemetry_
 victoria_deployment_dir_missing: "Deployment directory not found: {{ telemetry_deploy_dir }}/deployments. Run upgrade_provision first."
 victoria_operator_tarball_missing: "Operator tarball not found: {{ telemetry_deploy_dir }}/{{ victoria_operator_pkg }}.tar.gz. Run upgrade_provision first."
 victoria_manifest_missing: "Required manifest missing: {{ telemetry_deploy_dir }}/deployments/{{ item.item }}"
-victoria_detected_state: "Migration type: {{ victoria_migration_type }}, Deploy mode: {{ victoria_deploy_mode }}, HA (cluster): {{ victoria_deploy_mode == 'cluster' }}, Old STS found: {{ old_sts_found }}, Actual old StatefulSet: {{ actual_old_statefulset | default('N/A') }}, VMCluster found: {{ 'found' in vmcluster_check.stdout }}, VMSingle found: {{ 'found' in vmsingle_check.stdout }}"
+victoria_detected_state: >-
+  Migration type: {{ victoria_migration_type }}, Deploy mode: {{ victoria_deploy_mode }},
+  HA (cluster): {{ victoria_deploy_mode == 'cluster' }}, Old STS found: {{ old_sts_found }},
+  Actual old StatefulSet: {{ actual_old_statefulset | default('N/A') }},
+  VMCluster found: {{ 'found' in vmcluster_check.stdout }}, VMSingle found: {{ 'found' in vmsingle_check.stdout }}
 victoria_unhealthy_pods_warning: "WARNING: Unhealthy VictoriaMetrics pods detected! The following pods are NOT in Running state: {{ unhealthy_victoria_pods.stdout_lines | default([]) }}. These pods will be DELETED before the upgrade proceeds. The upgrade will re-create them with the new version."
 victoria_pods_deleted: "Deleted {{ victoria_unhealthy_pods | length }} unhealthy pod(s). Upgrade will re-create them."
 victoria_backup_completed: "Victoria backup completed: {{ telemetry_backup_dir }}"
