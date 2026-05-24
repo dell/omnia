@@ -134,7 +134,7 @@ victoria_cluster:
   toleration_seconds: 5
   # VMStorage: Stores raw data and returns query results
   vmstorage:
-    replicas: 3
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmstorage.replicas | default(3) }}"
     replication_factor: 2  # Data redundancy: each metric written to 2 of 3 nodes
     image: "{{ telemetry_images['victoriametrics/vmstorage'] | default('victoriametrics/vmstorage:v1.128.0-cluster') }}"
     dedup_min_scrape_interval: "1m"  # Deduplication interval
@@ -147,7 +147,7 @@ victoria_cluster:
         cpu: "2000m"
   # VMInsert: Accepts data ingestion and routes to vmstorage
   vminsert:
-    replicas: 2
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vminsert.replicas | default(2) }}"
     image: "{{ telemetry_images['victoriametrics/vminsert'] | default('victoriametrics/vminsert:v1.128.0-cluster') }}"
     # External access configuration
     external_access: true  # Enable LoadBalancer service for external data ingestion
@@ -160,7 +160,7 @@ victoria_cluster:
         cpu: "1000m"
   # VMSelect: Performs queries against vmstorage nodes
   vmselect:
-    replicas: 2
+    replicas: "{{ telemetry_storage_config.victoria_cluster_storage.vmselect.replicas | default(2) }}"
     image: "{{ telemetry_images['victoriametrics/vmselect'] | default('victoriametrics/vmselect:v1.128.0-cluster') }}"
     max_query_duration: "5m"
     max_concurrent_requests: "8"
