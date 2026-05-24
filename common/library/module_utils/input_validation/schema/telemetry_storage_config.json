@@ -63,6 +63,11 @@
           "type": "object",
           "description": "VMInsert resource configuration.",
           "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of VMInsert replicas."
+            },
             "resources": {
               "type": "object",
               "properties": {
@@ -98,12 +103,17 @@
               "required": ["requests", "limits"]
             }
           },
-          "required": ["resources"]
+          "required": ["replicas", "resources"]
         },
         "vmselect": {
           "type": "object",
           "description": "VMSelect resource configuration.",
           "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of VMSelect replicas."
+            },
             "resources": {
               "type": "object",
               "properties": {
@@ -139,7 +149,7 @@
               "required": ["requests", "limits"]
             }
           },
-          "required": ["resources"]
+          "required": ["replicas", "resources"]
         },
         "vmagent": {
           "type": "object",

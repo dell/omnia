@@ -27,6 +27,7 @@ victoria_cluster_storage:
         memory: "2Gi"
         cpu: "1000m"
   vminsert:
+    replicas: 2
     resources:
       requests:
         memory: "256Mi"
@@ -35,6 +36,7 @@ victoria_cluster_storage:
         memory: "512Mi"
         cpu: "500m"
   vmselect:
+    replicas: 2
     resources:
       requests:
         memory: "256Mi"
@@ -55,7 +57,7 @@ victoria_cluster_storage:
 # VictoriaLogs Cluster
 victoria_logs_cluster_storage:
   vlstorage:
-    replicas: 2
+    replicas: 3
     resources:
       requests:
         memory: "512Mi"
