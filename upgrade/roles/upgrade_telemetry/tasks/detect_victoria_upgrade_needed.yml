@@ -26,6 +26,7 @@
 # ── Check Victoria pods deployment status ──
 - name: Check if Victoria pods exist in telemetry namespace
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl -n {{ telemetry_namespace }} get pods --no-headers 2>/dev/null | grep -iE "victoria|vmstorage|vmselect|vminsert|vmagent|vmsingle" | wc -l
   register: victoria_pod_count
   changed_when: false

@@ -21,7 +21,7 @@
 
 # ── Phase 1: Detect Victoria upgrade requirement ──
 - name: Phase 1 - Detect Victoria upgrade requirement
-  ansible.builtin.include_tasks: ../roles/upgrade_telemetry/tasks/detect_victoria_upgrade_needed.yml
+  ansible.builtin.include_tasks: detect_victoria_upgrade_needed.yml
 
 # ── Phase 2: Execute VictoriaMetrics upgrade ──
 - name: Phase 2 - Execute VictoriaMetrics upgrade
@@ -52,8 +52,8 @@
   when: not (victoria_upgrade_needed | default(false) | bool)
 
 # ── Phase 3: Execute telemetry.sh to redeploy telemetry stack ──
-# - name: Phase 3 - Execute telemetry.sh to redeploy telemetry stack
-#   ansible.builtin.include_tasks: ../roles/upgrade_telemetry/tasks/execute_telemetry_sh.yml
+- name: Phase 3 - Execute telemetry.sh to redeploy telemetry stack
+  ansible.builtin.include_tasks: execute_telemetry_sh.yml
 
 # ── Phase 4: Verify all telemetry pods and set upgrade status ──
 - name: Phase 4 - Verify all telemetry pods and set upgrade status
@@ -75,6 +75,7 @@
     - name: Check if any pods are not ready
       ansible.builtin.shell:
         cmd: >
+          set -o pipefail
           kubectl get pods -n {{ telemetry_namespace }} --no-headers
           | grep -v 'Completed'
           | awk '{print $3}'

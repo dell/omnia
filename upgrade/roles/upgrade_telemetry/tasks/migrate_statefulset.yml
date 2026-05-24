@@ -42,6 +42,7 @@
 
     - name: Wait for old vmagent pods to terminate
       ansible.builtin.shell: |
+        set -o pipefail
         kubectl -n {{ telemetry_namespace }} get pods -l {{ old_vmagent_pod_label }} --no-headers 2>/dev/null | wc -l
       register: agent_pod_count
       until: (agent_pod_count.stdout | trim | int) == 0
@@ -73,6 +74,7 @@
 
     - name: Wait for old Victoria pods to terminate
       ansible.builtin.shell: |
+        set -o pipefail
         kubectl -n {{ telemetry_namespace }} get pods -l {{ old_vm_pod_label }} --no-headers 2>/dev/null | wc -l
       register: sts_pod_count
       until: (sts_pod_count.stdout | trim | int) == 0

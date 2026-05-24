@@ -87,6 +87,7 @@
 # ── Detect current cluster state ──
 - name: Find any VictoriaMetrics StatefulSet
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl -n {{ telemetry_namespace }} get statefulset --no-headers 2>/dev/null \
       | grep -iE "victoria|vmstorage|vmselect|vminsert" | grep -v "victoria-cluster" | awk '{print $1}' | head -1
   register: old_sts_name
@@ -109,6 +110,7 @@
 
 - name: Check for existing VMSingle CR
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl -n {{ telemetry_namespace }} get vmsingle --no-headers 2>/dev/null | head -1
   register: vmsingle_check
   changed_when: false
