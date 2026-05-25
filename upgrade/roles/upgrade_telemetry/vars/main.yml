@@ -39,9 +39,17 @@ telemetry_pv_backup_file: "{{ telemetry_backup_dir }}/all_pvs.yaml"
 # Victoria deployment directory (pre-staged by upgrade_provision)
 telemetry_deploy_dir: "{{ k8s_client_mount_path }}/telemetry"
 
+# Telemetry script and kustomization paths (for execute_telemetry_sh.yml)
+telemetry_script_path: "{{ telemetry_deploy_dir }}/telemetry.sh"
+telemetry_kustomization_dir: "{{ telemetry_deploy_dir }}/deployments"
+
+# Pod wait configuration
+pod_wait_retries: 60
+pod_wait_delay: 15
+
 # Victoria operator configuration
 # victoria_operator_pkg is loaded dynamically from service_k8s JSON in include_required_input.yml
-victoria_operator_release_name: victoria-operator
+victoria_operator_release_name: victoria-metrics-operator
 
 # Victoria cluster configuration
 new_vmcluster_name: victoria-cluster
@@ -99,3 +107,10 @@ victoria_pods_not_ready: "Telemetry upgrade FAILED: Some pods are not ready. {{ 
 victoria_pods_ready_after_wait: "All telemetry pods are ready after waiting"
 telemetry_upgrade_success: "Telemetry upgrade COMPLETED: All telemetry pods are running and ready."
 telemetry_upgrade_failed: "Telemetry upgrade FAILED: Pod verification failed."
+
+# ============================================================================
+# TELEMETRY.SH EXECUTION MESSAGES
+# ============================================================================
+telemetry_sh_success_msg: "telemetry.sh executed successfully. All telemetry components deployed."
+telemetry_sh_fail_msg: "telemetry.sh execution failed. Check the error output above for details."
+pods_not_ready_msg: "Some telemetry pods are not ready after deployment."

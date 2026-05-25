@@ -60,10 +60,11 @@
   block:
     - name: Get all telemetry pods status
       ansible.builtin.shell:
-        cmd: >
-          set -o pipefail
-          kubectl get pods -n {{ telemetry_namespace }} --no-headers
-          -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,READY:.status.conditions[?(@.type=="Ready")].status
+        cmd: |
+          set -o pipefail &&
+          kubectl get pods -n {{ telemetry_namespace }} \
+          --no-headers \
+          -o 'custom-columns=NAME:.metadata.name,STATUS:.status.phase,READY:.status.conditions[?(@.type=="Ready")].status'
       delegate_to: "{{ kube_vip }}"
       connection: ssh
       register: all_pods_status
@@ -75,13 +76,10 @@
 
     - name: Check if any pods are not ready
       ansible.builtin.shell:
-        cmd: >
-          set -o pipefail
-          kubectl get pods -n {{ telemetry_namespace }} --no-headers
-          | grep -v 'Completed'
-          | awk '{print $3}'
-          | grep -v 'Running'
-          | wc -l
+        cmd: |
+          set -o pipefail &&
+          kubectl get pods -n {{ telemetry_namespace }} --no-headers |
+          awk '$3 != "Running" && $3 != "Completed" {count++} END {print count+0}'
       delegate_to: "{{ kube_vip }}"
       connection: ssh
       register: pods_not_ready
