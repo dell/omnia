@@ -1,0 +1,149 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# Deploy VAST Data Storage telemetry (Metrics Only)
+# Gated by: telemetry_sources.vast.metrics_enabled
+#
+# DATA PIPELINE:
+#   VAST Prometheus API (HTTPS) → vmagent(shared) → victoria_metrics
+#
+# What Omnia does:
+#   - Validates VAST endpoint, port, TLS mode, auth mode, credentials
+#   - Creates K8s Secret with VAST credentials (and optional CA cert)
+#   - VMAgent scrape config + deployment mount are handled by Jinja2 templates
+#
+# What Omnia does NOT do:
+#   - Omnia does NOT deploy or configure VAST itself
+
+- name: Set VAST configuration facts
+  ansible.builtin.set_fact:
+    _vast_config: "{{ telemetry_config.telemetry_sources.vast }}"
+    _vast_detailed_config: "{{ telemetry_config.vast_configuration }}"
+
+# --- Validate VAST telemetry inputs ---
+# Only run validation when VAST telemetry is enabled
+
+- name: Validate VAST endpoint is not empty
+  ansible.builtin.fail:
+    msg: "{{ vast_endpoint_empty_msg }}"
+  when:
+    - _vast_config.metrics_enabled | default(false) | bool
+    - _vast_detailed_config.vast_endpoint | default('') | trim == ''
+
+- name: Validate VAST metrics port range
+  ansible.builtin.fail:
+    msg: "{{ vast_port_range_msg }}"
+  when: >-
+    (_vast_config.metrics_enabled | default(false) | bool) and
+    ((_vast_detailed_config.vast_metrics_port | default(443) | int < 1) or
+    (_vast_detailed_config.vast_metrics_port | default(443) | int > 65535))
+
+- name: Validate VAST TLS mode
+  ansible.builtin.fail:
+    msg: "{{ vast_tls_mode_invalid_msg }}"
+  when:
+    - _vast_config.metrics_enabled | default(false) | bool
+    - _vast_detailed_config.tls_mode | default('self_signed') not in ['self_signed', 'ca_signed']
+
+- name: Validate VAST auth mode
+  ansible.builtin.fail:
+    msg: "{{ vast_auth_mode_invalid_msg }}"
+  when:
+    - _vast_config.metrics_enabled | default(false) | bool
+    - _vast_detailed_config.auth_mode | default('basic') not in ['basic', 'none']
+
+- name: Validate VAST credentials when auth_mode is basic
+  ansible.builtin.fail:
+    msg: "{{ vast_credentials_missing_msg }}"
+  when:
+    - _vast_config.metrics_enabled | default(false) | bool
+    - _vast_detailed_config.auth_mode | default('basic') == 'basic'
+    - >-
+      (hostvars['localhost']['vast_username'] | default('') | trim == '') or
+      (hostvars['localhost']['vast_password'] | default('') | trim == '')
+
+- name: Validate CA certificate file when tls_mode is ca_signed
+  when:
+    - _vast_config.metrics_enabled | default(false) | bool
+    - _vast_detailed_config.tls_mode | default('self_signed') == 'ca_signed'
+  block:
+    - name: Check CA certificate file exists
+      ansible.builtin.stat:
+        path: "{{ _vast_detailed_config.vast_ca_cert_path }}"
+      register: _vast_ca_cert_stat
+      delegate_to: localhost
+
+    - name: Fail if CA certificate file not found
+      ansible.builtin.fail:
+        msg: "{{ vast_ca_cert_not_found_msg }}"
+      when: >-
+        (_vast_detailed_config.vast_ca_cert_path | default('') | trim == '') or
+        (not _vast_ca_cert_stat.stat.exists | default(false))
+
+- name: Display validated VAST configuration
+  ansible.builtin.debug:
+    msg:
+      - "VAST endpoint: {{ _vast_detailed_config.vast_endpoint }}:{{ _vast_detailed_config.vast_metrics_port | default(443) }}"
+      - "Metrics path: {{ _vast_detailed_config.metrics_path | default('/api/prometheusmetrics/all') }}"
+      - "TLS mode: {{ _vast_detailed_config.tls_mode | default('self_signed') }}"
+      - "Auth mode: {{ _vast_detailed_config.auth_mode | default('basic') }}"
+    verbosity: 2
+  when: _vast_config.metrics_enabled | default(false) | bool
+
+
+# --- Create VAST credentials Kubernetes Secret ---
+
+- name: Read CA certificate content
+  ansible.builtin.slurp:
+    src: "{{ _vast_detailed_config.vast_ca_cert_path }}"
+  register: _vast_ca_cert_content
+  delegate_to: localhost
+  when:
+    - _vast_config.metrics_enabled | default(false) | bool
+    - _vast_detailed_config.tls_mode | default('self_signed') == 'ca_signed'
+    - _vast_detailed_config.vast_ca_cert_path | default('') | trim != ''
+
+- name: Set CA certificate content for template processing
+  ansible.builtin.set_fact:
+    vast_ca_cert_content: "{{ _vast_ca_cert_content.content | b64decode }}"
+  when:
+    - _vast_ca_cert_content is defined
+    - _vast_ca_cert_content is not skipped
+    - _vast_ca_cert_content.content is defined
+
+- name: Display VAST Secret creation status
+  ansible.builtin.debug:
+    msg: "{{ vast_secret_created_msg }}"
+    verbosity: 2
+  when: _vast_config.metrics_enabled | default(false) | bool
+
+
+# VAST telemetry resources are now deployed via Kustomize templates
+# Secret and external-service ConfigMap are created through:
+# - templates/telemetry/vast/vast-telemetry-secret.yaml.j2
+# - templates/telemetry/vast/vast-external-service.yaml.j2
+# These are processed in generate_telemetry_deployments.yml and applied via kubectl apply -k
+
+- name: Display VAST integration summary
+  ansible.builtin.debug:
+    msg:
+      - "VAST telemetry integration complete"
+      - "VAST endpoint: {{ _vast_detailed_config.vast_endpoint }}:{{ _vast_detailed_config.vast_metrics_port | default(443) }}"
+      - "Metrics path: {{ _vast_detailed_config.metrics_path | default('/api/prometheusmetrics/all') }}"
+      - "TLS mode: {{ _vast_detailed_config.tls_mode | default('self_signed') }}"
+      - "Auth mode: {{ _vast_detailed_config.auth_mode | default('basic') }}"
+      - "Scrape interval: {{ _vast_detailed_config.scrape_interval | default('30s') }}"
+    verbosity: 2
+  when: _vast_config.metrics_enabled | default(false) | bool

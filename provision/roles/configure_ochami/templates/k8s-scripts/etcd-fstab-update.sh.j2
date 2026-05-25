@@ -1,0 +1,133 @@
+#!/bin/bash
+# diskless-etcd-mount.sh
+# Diskless: detect BOSS (else fallback), mount /var/lib/etcd, update fstab
+# NO wipe, NO format — safe for running clusters, runs every reboot
+set -uo pipefail
+
+MOUNT="/var/lib/etcd"
+LOG="/var/log/diskless-etcd-mount.log"
+exec > >(tee -a "$LOG") 2>&1
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+ts() { date +%F_%T; }
+
+run() {
+    echo "$(ts) [CMD] $*"
+    "$@"
+    local rc=$?
+    echo "$(ts) [RC=$rc] $*"
+    return $rc
+}
+
+runq() {
+    echo "$(ts) [CMD] $* (ok to fail)"
+    "$@" 2>&1 || true
+}
+
+ping_uuid() {
+    local uuid
+    uuid=$(blkid -s UUID -o value "$1" 2>/dev/null || true)
+    echo "$(ts) [UUID] $1 = ${uuid:-NOT_FOUND}"
+}
+
+dump_fstab_entry() {
+    echo "$(ts) [FSTAB] grep for $1:"
+    grep "$1" /etc/fstab || echo "$(ts) [FSTAB] no entry"
+}
+
+# ── START ─────────────────────────────────────────────────────────────────────
+echo ""
+echo "$(ts) [INFO] ===== START diskless-update-etcd-mount-fstab ====="
+echo "$(ts) [INFO] NO wipe | NO format | detect → mount → fstab"
+
+# ── Detect root disk ─────────────────────────────────────────────────────────
+echo "$(ts) [STEP] Detecting root disk"
+ROOT_DISK=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1 || true)
+echo "$(ts) [INFO] Root disk: ${ROOT_DISK:-none (diskless)}"
+
+# ── BOSS detection with fallback ─────────────────────────────────────────────
+echo "$(ts) [STEP] Scanning disks — BOSS first, then fallback"
+DISK=""
+for d in $(lsblk -dn -o NAME | grep -Ev "^(loop|sr|fd|${ROOT_DISK:-NONE})"); do
+    model=$(lsblk -dn -o MODEL "/dev/$d" 2>/dev/null | xargs || true)
+    pci=""
+    case "$d" in nvme*) pci=$(cat "/sys/class/nvme/${d%n*}/address" 2>/dev/null || true) ;; esac
+    sub=""
+    [ -n "$pci" ] && sub=$(lspci -D -s "$pci" -v 2>/dev/null | grep -i Subsystem || true)
+    echo "$(ts) [INFO] Disk /dev/$d model='$model' pci='$pci'"
+    if echo "$model $sub" | grep -qi boss; then
+        DISK="/dev/$d"
+        echo "$(ts) [OK] BOSS disk found: $DISK"
+        break
+    fi
+    [ -z "$DISK" ] && DISK="/dev/$d" && echo "$(ts) [INFO] Fallback candidate: $DISK"
+done
+
+[ -z "$DISK" ] && { echo "$(ts) [ERROR] No disk found"; exit 1; }
+[ "$DISK" = "/dev/$ROOT_DISK" ] && { echo "$(ts) [ERROR] Selected disk is root — refusing"; exit 1; }
+echo "$(ts) [OK] Selected disk: $DISK"
+
+# ── Identify partition ───────────────────────────────────────────────────────
+echo "$(ts) [STEP] Identifying partition on $DISK"
+case "$DISK" in
+    *nvme*|*mmcblk*) PART="${DISK}p1" ;;
+    *)               PART="${DISK}1"  ;;
+esac
+
+[ -b "$PART" ] || { echo "$(ts) [ERROR] $PART does not exist — disk must be pre-formatted"; exit 1; }
+echo "$(ts) [OK] Partition found: $PART"
+
+# ── Get UUID and filesystem type ─────────────────────────────────────────────
+echo "$(ts) [STEP] Reading UUID and filesystem type"
+ping_uuid "$PART"
+UUID=$(blkid -s UUID -o value "$PART" 2>/dev/null || true)
+FSTYPE=$(blkid -s TYPE -o value "$PART" 2>/dev/null || true)
+[ -z "$UUID" ]   && { echo "$(ts) [ERROR] No UUID on $PART — is it formatted?"; exit 1; }
+[ -z "$FSTYPE" ] && { echo "$(ts) [ERROR] No filesystem on $PART"; exit 1; }
+echo "$(ts) [OK] UUID=$UUID  FSTYPE=$FSTYPE"
+
+# ── Mount ────────────────────────────────────────────────────────────────────
+echo "$(ts) [STEP] Mounting $MOUNT"
+run mkdir -p "$MOUNT"
+if mountpoint -q "$MOUNT"; then
+    echo "$(ts) [OK] $MOUNT already mounted — skipping"
+else
+    run mount -o defaults,noatime "$PART" "$MOUNT"
+    mountpoint -q "$MOUNT" || { echo "$(ts) [ERROR] Mount failed"; exit 1; }
+    echo "$(ts) [OK] Mounted: $PART -> $MOUNT"
+fi
+
+# ── Dynamic fstab update (diskless: rebuilt every boot) ──────────────────────
+echo "$(ts) [STEP] Updating /etc/fstab (diskless — fresh every boot)"
+sed -i "\|[[:space:]]${MOUNT}[[:space:]]|d" /etc/fstab
+FSTAB_LINE="UUID=$UUID $MOUNT $FSTYPE defaults,noatime,nofail 0 2"
+echo "$FSTAB_LINE" >> /etc/fstab
+echo "$(ts) [OK] fstab entry written: $FSTAB_LINE"
+dump_fstab_entry "$MOUNT"
+runq systemctl daemon-reload
+
+# ── etcd permissions ─────────────────────────────────────────────────────────
+echo "$(ts) [STEP] Setting etcd permissions"
+if id etcd >/dev/null 2>&1; then
+    run chown etcd:etcd "$MOUNT"
+    run chmod 700 "$MOUNT"
+    echo "$(ts) [OK] Permissions set: etcd:etcd 700"
+else
+    echo "$(ts) [INFO] etcd user not found — skipping"
+fi
+
+# ── Final Summary ────────────────────────────────────────────────────────────
+echo ""
+echo "$(ts) [INFO] ── Summary ──"
+echo "$(ts) [INFO] Disk:      $DISK"
+echo "$(ts) [INFO] Partition: $PART"
+echo "$(ts) [INFO] UUID:      $UUID"
+echo "$(ts) [INFO] FS Type:   $FSTYPE"
+echo "$(ts) [INFO] Mount:     $MOUNT"
+echo ""
+df -h "$MOUNT"
+echo ""
+ping_uuid "$PART"
+dump_fstab_entry "$MOUNT"
+echo ""
+echo "$(ts) [OK] ===== DONE ====="

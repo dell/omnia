@@ -20,6 +20,18 @@
       disable_root: false
 
       write_files:
+        - path: /usr/local/bin/etcd-disk-setup.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/k8s-scripts/etcd-disk-setup.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/etcd-fstab-update.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/k8s-scripts/etcd-fstab-update.sh.j2') | indent(12) }}
+
         - path: /usr/local/bin/doca-install.sh
           owner: root:root
           permissions: '{{ file_mode_755 }}'
@@ -277,7 +289,11 @@
 {% endfor %}
         # K8s NFS mount entries
         - mkdir -p /tmp/crio-storage {{ k8s_client_mount_path }} /var/lib/etcd  /var/lib/kubelet /etc/kubernetes /var/log/pods /var/lib/packages
+{% if etcd_on_local_disk | default(false) %}
+        - /usr/local/bin/etcd-fstab-update.sh
+{% else %}
         - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/etcd      /var/lib/etcd        nfs noatime,nolock 0 0" >> /etc/fstab
+{% endif %}
         - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubelet   /var/lib/kubelet     nfs noatime,nolock 0 0" >> /etc/fstab
         - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/kubernetes   /etc/kubernetes      nfs noatime,nolock 0 0" >> /etc/fstab
         - echo "{{ k8s_nfs_server_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0" >> /etc/fstab
@@ -393,6 +409,9 @@
           if [ ! -f "$MARKER" ]; then
             # Join Kubernetes cluster
             echo "Initial boot - initializing and setting up service_kube_control_plane_x86_64"
+{% if etcd_on_local_disk | default(false) %}
+            /usr/local/bin/etcd-disk-setup.sh
+{% endif %}
             rm -rf /var/lib/etcd/*  /var/lib/kubelet/* /etc/kubernetes/*
             rm -rf /var/lib/etcd/.*  /var/lib/kubelet/.* /etc/kubernetes/.*
             K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
@@ -524,6 +543,9 @@
             echo "Cluster already initialized. Performing node reboot procedures."
             # CRI and kubelet already enabled above
             # You can log health status etc if you wish:
+{% if etcd_on_local_disk | default(false) %}
+            /usr/local/bin/etcd-fstab-update.sh
+{% endif %}
             mkdir -p $HOME/.kube /root/.kube
             cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
             chown $(id -u):$(id -g) $HOME/.kube/config

@@ -193,6 +193,13 @@
 {% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
+        # VAST storage: create subdirectory structure for login node
+        - mkdir -pv {{ vast_mount_point }}/apps {{ vast_mount_point }}/home {{ vast_mount_point }}/projects
+        - mkdir -pv /apps /home /projects
+        - echo "{{ vast_mount_point }}/apps  /apps  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/home  /home  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/projects  /projects  none  bind  0  0" >> /etc/fstab
+        - mount -av
         # Additional Slurm login node mounts (excluding cert which was mounted earlier)
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/log/slurm  {{ slurm_slurmd_log_dir_effective }}   nfs defaults,_netdev 0 0" >> /etc/fstab
         - echo "{{ cloud_init_nfs_path }}/$(hostname -s)/var/spool/slurmd      {{ slurm_slurmd_spool_dir_effective }}       nfs defaults,_netdev 0 0" >> /etc/fstab

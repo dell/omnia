@@ -79,6 +79,13 @@ def main():
     if ufm_config.get("logs_enabled", False):
         telemetry_status_list.append("ufm_logs")
 
+    # Check VAST telemetry
+    vast_config = telemetry_sources.get("vast", {})
+    if vast_config.get("metrics_enabled", False):
+        telemetry_status_list.append("vast_telemetry")
+    if vast_config.get("logs_enabled", False):
+        telemetry_status_list.append("vast_logs")
+
     module.exit_json(
             changed=False,
             telemetry_status_list=telemetry_status_list

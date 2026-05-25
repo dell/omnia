@@ -317,6 +317,74 @@ def validate_duplicate_ib_ips_in_mapping_file(pxe_mapping_file_path):
         raise ValueError(f"Duplicate IB_IP found in PXE mapping file: {'; '.join(duplicates)}")
 
 
+def validate_ib_nic_name_format_in_mapping_file(pxe_mapping_file_path):
+    """Validates IB_NIC_NAME format structure in the mapping file.
+    
+    Validates that IB_NIC_NAME follows one of the supported formats:
+    - 'InfiniBand.PCIe.Slot.X-Y' (slot X, port Y)
+    - 'InfiniBand.Slot.X-Y' (slot X, port Y)  
+    - 'NIC.InfiniBand.X-Y' (slot X, port Y)
+    - 'InfiniBand.Single-Y' (single device, port Y)
+    
+    Only validates format structure, not specific slot/port ranges.
+    """
+    if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
+        raise ValueError(f"PXE mapping file not found: {pxe_mapping_file_path}")
+
+    with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.readlines()
+
+    non_comment_lines = [ln for ln in raw_lines if ln.strip()]
+    reader = csv.DictReader(non_comment_lines)
+
+    fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+    ib_nic_col = fieldname_map.get("IB_NIC_NAME")
+    hostname_col = fieldname_map.get("HOSTNAME")
+
+    if not ib_nic_col:
+        return  # No IB_NIC_NAME column to validate
+
+    # Supported IB_NIC_NAME format patterns (updated to support hexadecimal slots)
+    slot_pattern = re.compile(r'^(InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|NIC\.InfiniBand\.)([0-9a-fA-F]+)-([0-9]+)$')
+    single_pattern = re.compile(r'^InfiniBand\.Single-([0-9]+)$')
+
+    invalid_formats = []
+
+    for row_idx, row in enumerate(reader, start=2):
+        ib_nic_name = row.get(ib_nic_col, "").strip() if ib_nic_col and row.get(ib_nic_col) else ""
+        hostname = ""
+        if hostname_col:
+            hostname = row.get(hostname_col, "").strip() if hostname_col and row.get(hostname_col) else ""
+
+        # Skip empty IB_NIC_NAME (already handled by consistency validation)
+        if not ib_nic_name:
+            continue
+
+        # Check if format matches supported patterns
+        if slot_pattern.match(ib_nic_name):
+            # Valid slot-based format
+            continue
+        elif single_pattern.match(ib_nic_name):
+            # Valid single-device format
+            continue
+        else:
+            # Invalid format
+            hostname_disp = f" ({hostname})" if hostname else ""
+            invalid_formats.append(f"'{ib_nic_name}' at CSV row {row_idx}{hostname_disp}")
+
+    if invalid_formats:
+        raise ValueError(
+            f"Invalid IB_NIC_NAME format(s) found in PXE mapping file: {'; '.join(invalid_formats)}. "
+            f"Supported formats are: "
+            f"'InfiniBand.PCIe.Slot.X-Y', 'InfiniBand.Slot.X-Y', 'NIC.InfiniBand.X-Y', 'InfiniBand.Single-Y'. "
+            f"Slot numbers support decimal (22) and hexadecimal (b5, a0, ff) formats. "
+            f"Examples: 'InfiniBand.PCIe.Slot.22-1', 'InfiniBand.PCIe.Slot.b5-1', 'InfiniBand.Single-1'"
+        )
+
+
+
+
+
 def validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path):
     """Validates that GROUP_NAME has a consistent PARENT_SERVICE_TAG across the mapping file."""
     if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
@@ -919,6 +987,7 @@ def validate_provision_config(
             validate_duplicate_hostnames_in_mapping_file(pxe_mapping_file_path)
             validate_duplicate_admin_ips_in_mapping_file(pxe_mapping_file_path)
             validate_duplicate_ib_ips_in_mapping_file(pxe_mapping_file_path)
+            validate_ib_nic_name_format_in_mapping_file(pxe_mapping_file_path)
             validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path)
             validate_functional_groups_separation(pxe_mapping_file_path)
             validate_parent_service_tag_hierarchy(pxe_mapping_file_path)

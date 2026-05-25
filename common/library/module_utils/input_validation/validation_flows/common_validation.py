@@ -1645,6 +1645,19 @@ def validate_omnia_config(
                     f"NFS name {', '.join(diff_set)} required for slurm is not defined in {storage_config}"
                     ))
 
+        # Validate vast_storage_name if provided
+        slurm_vast = [clst.get('vast_storage_name') for clst in data.get('slurm_cluster') if clst.get('vast_storage_name')]
+        if slurm_vast:
+            vast_names = [st.get('name') for st in st_config.get('mounts')]
+            diff_vast_set = set(slurm_vast).difference(set(vast_names))
+            if diff_vast_set:
+                errors.append(
+                    create_error_msg(
+                        input_file_path,
+                        "slurm VAST storage not found",
+                        f"VAST storage name {', '.join(diff_vast_set)} required for slurm is not defined in {storage_config}"
+                        ))
+
         # Validate node_hardware_defaults requires node_discovery_mode=homogeneous
         for clst in data.get('slurm_cluster', []):
             node_hardware_defaults = clst.get('node_hardware_defaults')

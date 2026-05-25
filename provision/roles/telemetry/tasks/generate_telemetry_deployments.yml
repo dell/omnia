@@ -247,6 +247,18 @@
   when: telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool
   tags: telemetry_deployment
 
+- name: Populate VAST telemetry deployment configs
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/deployments/{{ item.dest }}"
+    mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
+  loop:
+    - src: 'telemetry/vast/vast-telemetry-secret.yaml.j2'
+      dest: 'vast-telemetry-secret.yaml'
+    - src: 'telemetry/vast/vast-external-service.yaml.j2'
+      dest: 'vast-external-service.yaml'
+  when: telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool
+  tags: telemetry_deployment
 
 - name: Deploy telemetry cleanup script
   ansible.builtin.template:
