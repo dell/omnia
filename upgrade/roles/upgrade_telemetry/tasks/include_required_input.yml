@@ -142,12 +142,12 @@
   when: software_config_slurp is not failed
   tags: always
 
-- name: Set architecture from software_config.json
+- name: Set architecture from software_config.json (from service_k8s arch)
   ansible.builtin.set_fact:
-    architecture: "{{ software_config.cluster_os_type }}"
+    architecture: "{{ (software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | map(attribute='arch') | first | first) }}"
   when:
     - software_config is defined
-    - software_config.cluster_os_type is defined
+    - software_config.softwares is defined
   tags: always
 
 - name: Set os_version from software_config.json
