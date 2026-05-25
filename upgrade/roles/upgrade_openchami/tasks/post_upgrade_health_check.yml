@@ -219,6 +219,7 @@
         set -o pipefail
         ochami smd --cacert {{ ca_cert_path | default('/root_ca/root_ca.crt') }} \
           component get 2>&1 | head -20 || echo "ochami_unavailable"
+      environment: "{{ ci_reload_ochami_env | default({}) }}"
       register: ochami_smd_check
       changed_when: false
       failed_when: false
@@ -256,6 +257,121 @@
       delegate_facts: true
       connection: ssh
 
+    # ── BSS cloud-init datasource validation (non-fatal) ─────────────
+    # Verify BSS boot params contain cloud-init datasource URL.
+    # Without 'ds=nocloud;s=http://...:8081/cloud-init/' in boot params,
+    # nodes will boot but cloud-init will have no datasource and hang
+    # in 'running' state — Slurm/Munge services will never start.
+    - name: Check BSS boot params include cloud-init datasource
+      ansible.builtin.shell: |
+        set -o pipefail
+        /usr/bin/ochami bss boot params get -F yaml 2>&1 | grep -c 'cloud-init' || echo "0"
+      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      register: bss_ci_ds_check
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Warn if BSS boot params missing cloud-init datasource
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: BSS boot parameters do not include the cloud-init
+          datasource URL (ds=nocloud;s=http://...:8081/cloud-init/).
+          Nodes will boot but cloud-init will hang in 'running' state
+          and services (Slurm, Munge) will not start. Re-provision
+          nodes or manually update BSS boot params.
+      when: bss_ci_ds_check.stdout | default('0') | trim == '0'
+
+    # ── Cloud-init HTTP endpoint validation (non-fatal) ──────────────
+    # Verify the cloud-init-server HTTP endpoint (port 8081) that
+    # nodes query is actually responding. If down, cloud-init hangs.
+    - name: Check cloud-init-server container is running
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman ps --filter name=cloud-init-server --format '{{ '{{' }}.Status{{ '}}' }}' 2>&1
+      register: ci_container_health
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Check cloud-init-server API is reachable
+      ansible.builtin.shell: |
+        set -o pipefail
+        /usr/bin/ochami cloud-init service status 2>&1
+      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      register: ci_http_health
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Warn if cloud-init-server not reachable
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Cloud-init-server is not reachable.
+          Container status: {{ ci_container_health.stdout | default('unknown') }}.
+          Nodes will not receive cloud-init data, causing cloud-init to
+          hang in 'running' state and services (Slurm, Munge) will not
+          start. Check: podman ps --filter name=cloud-init
+      when: ci_http_health.rc | default(1) != 0
+
+    # ── Cloud-init data serving validation (non-fatal) ───────────────
+    # Verify the cloud-init-server is serving group configs after reload.
+    # Without this data, nodes will boot but SSH/services won't start.
+    - name: Check cloud-init-server is serving group data
+      ansible.builtin.shell: |
+        set -o pipefail
+        /usr/bin/ochami cloud-init group get 2>&1 || echo "ci_unavailable"
+      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      register: ci_group_list
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Warn if cloud-init-server has no group data
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Cloud-init-server has no group configurations loaded.
+          Provisioned nodes will NOT receive cloud-init data on reboot
+          (SSH, network, Slurm will not start). Re-run the upgrade or
+          manually reload: ochami cloud-init group set -f yaml -d @<file>
+      when:
+        - ci_group_list.stdout is defined
+        - "'ci_unavailable' in ci_group_list.stdout or ci_group_list.stdout | trim | length < 3"
+
+    # ── Per-node hostname data validation (non-fatal) ─────────────────
+    # Verify per-node hostname mappings are loaded. Without this data,
+    # nodes will boot with nid-based hostnames instead of PXE mapping names.
+    - name: Check cloud-init-server has per-node hostname data
+      ansible.builtin.shell: |
+        set -o pipefail
+        /usr/bin/ochami cloud-init node get 2>&1 || echo "ci_node_unavailable"
+      environment: "{{ ci_reload_ochami_env | default({}) }}"
+      register: ci_node_list
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Warn if cloud-init-server has no per-node hostname data
+      ansible.builtin.debug:
+        msg: >-
+          WARNING: Cloud-init-server has no per-node hostname mappings.
+          Nodes will boot with default nid-based hostnames (e.g. nid001)
+          instead of PXE mapping file hostnames. To fix, run:
+          ochami cloud-init node set -f yaml -d @<nodes_dir>/hostname.yaml
+      when:
+        - ci_node_list.stdout is defined
+        - "'ci_node_unavailable' in ci_node_list.stdout or ci_node_list.stdout | trim | length < 3"
+
     # ── Comprehensive health summary ───────────────────────────────────
     - name: Display post-upgrade health check summary
       ansible.builtin.debug:
@@ -281,6 +397,20 @@
             BSS boot params: {{ 'configured' if ('bss_unavailable' not in
             bss_bootparams.stdout | default('bss_unavailable') and bss_bootparams.stdout
             | default('') | trim | length > 2) else 'empty (non-fatal — may need initialization)' }}
+          - >-
+            BSS cloud-init datasource: {{ 'present' if (bss_ci_ds_check.stdout | default('0')
+            | trim) != '0' else 'MISSING (WARNING — cloud-init will hang on nodes)' }}
+          - >-
+            Cloud-init-server: {{ 'running and reachable' if ci_http_health.rc | default(1) == 0
+            else 'NOT REACHABLE (WARNING — cloud-init will hang on nodes) — container: ' ~ (ci_container_health.stdout | default('unknown')) }}
+          - >-
+            Cloud-init groups: {{ 'loaded' if (ci_group_list.stdout | default('')
+            | trim | length > 2 and 'ci_unavailable' not in ci_group_list.stdout
+            | default('ci_unavailable')) else 'empty (WARNING — nodes may not boot correctly)' }}
+          - >-
+            Cloud-init hostnames: {{ 'loaded' if (ci_node_list.stdout | default('')
+            | trim | length > 2 and 'ci_node_unavailable' not in ci_node_list.stdout
+            | default('ci_node_unavailable')) else 'empty (WARNING — nodes will use nid-based hostnames)' }}
           - "════════════════════════════════════════════"
 
     - name: Display post-upgrade health check success

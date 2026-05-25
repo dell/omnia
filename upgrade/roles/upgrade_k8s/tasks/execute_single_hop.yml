@@ -414,11 +414,13 @@
 
     - name: "Hop — Control plane upgrades complete"
       ansible.builtin.debug:
-        msg: |
-          ═══════════════════════════════════════════════════════════════════════════
-          Control plane upgrade execution is complete for hop {{ _hop_idx + 1 }}.
-          Proceeding with addon pre-checks...
-          ═══════════════════════════════════════════════════════════════════════════
+        msg: "{{ cp_complete_banner }}"
+      vars:
+        cp_complete_banner:
+          - "========================================================================"
+          - "Control plane upgrade execution is complete for hop {{ _hop_idx + 1 }}."
+          - "Proceeding with addon pre-checks..."
+          - "========================================================================"
       when:
         - _is_final_hop | bool
         - upgrade_status.upgrade.status != 'completed'
@@ -499,11 +501,13 @@
     # ── Starting addon upgrade ───────────────────────────────────────
     - name: "Hop — Starting addon upgrade"
       ansible.builtin.debug:
-        msg: |
-          ═══════════════════════════════════════════════════════════════════════════
-          All control planes have been upgraded to {{ _current_hop.to_version }}.
-          Proceeding with addon upgrades (Calico, MetalLB, Helm)...
-          ═══════════════════════════════════════════════════════════════════════════
+        msg: "{{ addon_start_banner }}"
+      vars:
+        addon_start_banner:
+          - "========================================================================"
+          - "All control planes have been upgraded to {{ _current_hop.to_version }}."
+          - "Proceeding with addon upgrades (Calico, MetalLB, Helm)..."
+          - "========================================================================"
       when:
         - _is_final_hop | bool
         - upgrade_status.addon_upgrade.status | default('pending') != 'completed'
@@ -521,19 +525,19 @@
         - _failed_cp_nodes is defined
         - _failed_cp_nodes | length == 0
 
-    # ── Upgrade workers ──────────────────────────────────────────────
-    - name: "Hop — Starting worker upgrades"
+    # ── Upgrade first worker ─────────────────────────────────────────
+    - name: "Hop — Starting first worker upgrade"
       ansible.builtin.debug:
         msg: >-
-          Upgrading workers to {{ _current_hop.to_version }} (batch size: {{ worker_parallel_count }}).
-          Log file: /tmp/upgrade_workers.log
+          Upgrading first worker to {{ _current_hop.to_version }}.
+          Log file: /tmp/upgrade_worker_first.log
       when: upgrade_status.upgrade.status != 'completed'
 
-    - name: "Hop — Upgrade workers (batch size) {{ worker_parallel_count }}"
+    - name: "Hop — Upgrade first worker"
       ansible.builtin.shell:
         cmd: >
           set -o pipefail && ansible-playbook
-          {{ playbook_dir }}/../playbooks/upgrade_workers.yml
+          {{ playbook_dir }}/../playbooks/upgrade_worker_first.yml
           -i {{ k8s_upgrade_inventory }}
           -e k8s_target_version={{ _current_hop.to_version }}
           -e status_file={{ status_file }}
@@ -544,19 +548,18 @@
           -e upgrade_dir_client={{ upgrade_dir_client }}
           -e k8s_from_version={{ k8s_from_version }}
           -e cluster_os_version={{ cluster_os_version }}
-          -e worker_parallel_count={{ worker_parallel_count }}
-          2>&1 | tee /tmp/upgrade_workers.log /dev/tty 2>/dev/null;
+          2>&1 | tee /tmp/upgrade_worker_first.log /dev/tty 2>/dev/null;
           exit ${PIPESTATUS[0]}
       args:
         executable: /bin/bash
       environment:
         ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
-      register: workers_result
+      register: first_worker_result
       changed_when: true
-      failed_when: workers_result.rc != 0
+      failed_when: first_worker_result.rc != 0
       when: upgrade_status.upgrade.status != 'completed'
 
-    # ── Update cloud-init and BSS for workers ─────────────────────────
+    # ── Update cloud-init and BSS for workers (after first worker) ────
     - name: "Hop — Set BSS status to in_progress for service_kube_node"
       ansible.builtin.include_tasks: update_node_step.yml
       vars:
@@ -601,6 +604,75 @@
         - bss_workers_result is defined
         - bss_workers_result is not skipped
         - bss_workers_result.rc == 0
+
+    # ── Reboot first worker and verify cloud-init ─────────────────────
+    - name: "Hop — Reboot first worker and wait for cloud-init"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/reboot_and_verify_cloud_init.yml
+          -i {{ k8s_upgrade_inventory }}
+          -e target_host={{ groups_worker[0] }}
+          -e cloud_init_timeout={{ cloud_init_timeout | default(600) }}
+          2>&1 | tee /tmp/reboot_worker_first.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: reboot_cloud_init_first_worker_result
+      changed_when: true
+      failed_when: reboot_cloud_init_first_worker_result.rc != 0
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - bss_workers_result is defined
+        - bss_workers_result is not skipped
+        - bss_workers_result.rc == 0
+        - groups_worker | length > 0
+
+    - name: "Hop — Display cloud-init verification success for first worker"
+      ansible.builtin.debug:
+        msg: "Cloud-init completed successfully on first worker {{ groups_worker[0] }} after reboot"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - reboot_cloud_init_first_worker_result is defined
+        - reboot_cloud_init_first_worker_result is not skipped
+        - reboot_cloud_init_first_worker_result.rc == 0
+
+    # ── Upgrade remaining workers ─────────────────────────────────────
+    - name: "Hop — Starting remaining worker upgrades"
+      ansible.builtin.debug:
+        msg: >-
+          Upgrading remaining workers to {{ _current_hop.to_version }} (batch size: {{ worker_parallel_count }}).
+          Log file: /tmp/upgrade_workers.log
+      when: upgrade_status.upgrade.status != 'completed'
+
+    - name: "Hop — Upgrade remaining workers (batch size: {{ worker_parallel_count }})"
+      ansible.builtin.shell:
+        cmd: >
+          set -o pipefail && ansible-playbook
+          {{ playbook_dir }}/../playbooks/upgrade_workers.yml
+          -i {{ k8s_upgrade_inventory }}
+          -e k8s_target_version={{ _current_hop.to_version }}
+          -e status_file={{ status_file }}
+          -e kube_vip={{ kube_vip }}
+          -e drain_timeout={{ drain_timeout }}
+          -e kubelet_ready_delay={{ kubelet_ready_delay }}
+          -e kubelet_ready_retries={{ kubelet_ready_retries }}
+          -e upgrade_dir_client={{ upgrade_dir_client }}
+          -e k8s_from_version={{ k8s_from_version }}
+          -e cluster_os_version={{ cluster_os_version }}
+          -e worker_parallel_count={{ worker_parallel_count }}
+          2>&1 | tee /tmp/upgrade_workers.log /dev/tty 2>/dev/null;
+          exit ${PIPESTATUS[0]}
+      args:
+        executable: /bin/bash
+      environment:
+        ANSIBLE_CONFIG: "{{ playbook_dir }}/../ansible.cfg"
+      register: workers_result
+      changed_when: true
+      failed_when: workers_result.rc != 0
+      when: upgrade_status.upgrade.status != 'completed'
 
     # ── Post-validation ──────────────────────────────────────────────
     - name: "Hop — Run post-validation"

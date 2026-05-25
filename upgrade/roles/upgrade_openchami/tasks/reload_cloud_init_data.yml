@@ -1,0 +1,349 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# reload_cloud_init_data.yml — Reload Cloud-Init Data After Container Upgrade
+# ============================================================================
+# The cloud-init-server stores its configuration data (ci-defaults, ci-group-
+# common, ci-group-<group>) in-memory, NOT in PostgreSQL. When the container
+# is stopped, removed, and restarted during the upgrade, all cloud-init
+# configuration data is LOST.
+#
+# Without this reload step, provisioned nodes that reboot after the upgrade
+# will receive EMPTY cloud-init responses, causing:
+#   - SSH not configured (Connection refused)
+#   - Network routes not set
+#   - Slurm/Munge services not started
+#   - Firewall rules not applied
+#
+# This task file re-loads all cloud-init YAML files from the workdir into
+# the cloud-init-server using the ochami CLI after the container upgrade.
+#
+# Data re-loaded:
+#   1. ci-defaults.yaml       → ochami cloud-init defaults set
+#   2. ci-group-common.yaml   → ochami cloud-init group set
+#   3. ci-group-<group>.yaml  → ochami cloud-init group set (per group)
+#   4. hostname.yaml           → ochami cloud-init node set (per-node hostnames)
+#
+# Execution context:
+#   Runs INSIDE omnia_core container. ochami CLI commands are DELEGATED
+#   to the OIM host via SSH (where ochami CLI and containers run).
+#   File paths are resolved to OIM host-side paths via oim_shared_path.
+# ============================================================================
+
+- name: Reload cloud-init data into cloud-init-server after upgrade
+  block:
+    # ── Resolve OIM host-side paths for workdir files ──────────────────
+    # omnia_core bind mount: ${oim_shared_path}/omnia → /opt/omnia
+    # ochami CLI runs on OIM host, so file paths must be OIM host paths.
+    - name: Read oim_metadata.yml for shared path
+      ansible.builtin.slurp:
+        src: "{{ oim_metadata_path }}"
+      register: reload_oim_metadata_raw
+
+    - name: Parse oim_shared_path and cluster_name from metadata
+      ansible.builtin.set_fact:
+        reload_oim_shared_path: "{{ (reload_oim_metadata_raw.content | b64decode | from_yaml).oim_shared_path | regex_replace('/$', '') }}"
+        reload_cluster_name: "{{ (reload_oim_metadata_raw.content | b64decode | from_yaml).oim_node_name | default(cluster_name | default(ansible_hostname)) }}"
+
+    - name: Compute OIM host-side cloud-init paths
+      ansible.builtin.set_fact:
+        oim_host_ci_dir: "{{ openchami_cloud_init_dir | regex_replace('^/opt/omnia', reload_oim_shared_path ~ '/omnia') }}"
+        oim_host_ci_defaults: "{{ openchami_ci_defaults_path | regex_replace('^/opt/omnia', reload_oim_shared_path ~ '/omnia') }}"
+        oim_host_ci_common: "{{ openchami_ci_common_path | regex_replace('^/opt/omnia', reload_oim_shared_path ~ '/omnia') }}"
+        oim_host_hostname: "{{ openchami_hostname_path | regex_replace('^/opt/omnia', reload_oim_shared_path ~ '/omnia') }}"
+
+    - name: Display resolved cloud-init paths
+      ansible.builtin.debug:
+        msg:
+          - "OIM host cloud-init dir: {{ oim_host_ci_dir }}"
+          - "OIM host hostname file: {{ oim_host_hostname }}"
+          - "OIM shared path: {{ reload_oim_shared_path }}"
+          - "Cluster name: {{ reload_cluster_name }}"
+
+    # ── Generate ochami access token on OIM host ─────────────────────
+    # ochami CLI requires an OAuth access token set as
+    # <CLUSTER_NAME>_ACCESS_TOKEN env var. gen_access_token is a shell
+    # function available on the OIM host via login shell.
+    - name: Generate ochami access token on OIM host
+      ansible.builtin.command:
+        cmd: gen_access_token
+        executable: /bin/bash -l
+      become: true
+      register: reload_access_token_result
+      changed_when: false
+      failed_when: reload_access_token_result.rc != 0 or reload_access_token_result.stdout in ["", "null"]
+      retries: 5
+      delay: 5
+      until: reload_access_token_result.rc == 0 and reload_access_token_result.stdout not in ["", "null"]
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Set ochami environment for cloud-init reload
+      ansible.builtin.set_fact:
+        ci_reload_ochami_env: "{{ {(reload_cluster_name | upper) ~ '_ACCESS_TOKEN': reload_access_token_result.stdout} }}"
+
+    # ── Verify cloud-init directory exists on OIM host ─────────────────
+    - name: Check cloud-init workdir exists on OIM host
+      ansible.builtin.stat:
+        path: "{{ oim_host_ci_dir }}"
+      register: ci_dir_stat
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Skip reload if no cloud-init workdir (prepare_oim-only scenario)
+      ansible.builtin.debug:
+        msg: "{{ upgrade_messages.cloud_init_reload.workdir_not_found }}"
+      when: not (ci_dir_stat.stat.exists | default(false))
+
+    # ── Main reload block (only if workdir exists) ─────────────────────
+    - name: Reload cloud-init data from workdir
+      when: ci_dir_stat.stat.exists | default(false)
+      block:
+        # ── Wait for cloud-init-server API readiness ───────────────────
+        - name: Wait for cloud-init-server to accept requests
+          ansible.builtin.shell: |
+            set -o pipefail
+            /usr/bin/ochami cloud-init service status 2>&1
+          environment: "{{ ci_reload_ochami_env }}"
+          register: ci_service_ready
+          changed_when: false
+          retries: "{{ api_readiness_retries }}"
+          delay: "{{ api_readiness_delay }}"
+          until: ci_service_ready.rc == 0
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── Discover cloud-init YAML files ─────────────────────────────
+        - name: Check ci-defaults.yaml exists
+          ansible.builtin.stat:
+            path: "{{ oim_host_ci_defaults }}"
+          register: ci_defaults_file_stat
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Check ci-group-common.yaml exists
+          ansible.builtin.stat:
+            path: "{{ oim_host_ci_common }}"
+          register: ci_common_file_stat
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Find all ci-group-*.yaml files (excluding common)
+          ansible.builtin.find:
+            paths: "{{ oim_host_ci_dir }}"
+            patterns: "ci-group-*.yaml"
+            excludes: "ci-group-common.yaml"
+          register: ci_group_files_found
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Display discovered cloud-init files
+          ansible.builtin.debug:
+            msg:
+              - "ci-defaults.yaml: {{ 'found' if ci_defaults_file_stat.stat.exists | default(false) else 'MISSING' }}"
+              - "ci-group-common.yaml: {{ 'found' if ci_common_file_stat.stat.exists | default(false) else 'MISSING' }}"
+              - "ci-group files: {{ ci_group_files_found.files | default([]) | map(attribute='path') | map('basename') | list }}"
+
+        # ── 1. Reload ci-defaults ──────────────────────────────────────
+        - name: Reload ci-defaults configuration into cloud-init-server
+          ansible.builtin.command: >
+            /usr/bin/ochami cloud-init defaults set -f yaml -d @{{ oim_host_ci_defaults }}
+          environment: "{{ ci_reload_ochami_env }}"
+          changed_when: true
+          when: ci_defaults_file_stat.stat.exists | default(false)
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── 2. Reload ci-group-common ──────────────────────────────────
+        - name: Reload ci-group-common configuration into cloud-init-server
+          ansible.builtin.command: >
+            /usr/bin/ochami cloud-init group set -f yaml -d @{{ oim_host_ci_common }}
+          environment: "{{ ci_reload_ochami_env }}"
+          changed_when: true
+          when: ci_common_file_stat.stat.exists | default(false)
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── 3. Reload each ci-group-<functional_group>.yaml ───────────
+        - name: Reload cloud-init group configurations into cloud-init-server
+          ansible.builtin.command: >
+            /usr/bin/ochami cloud-init group set -f yaml -d @{{ item.path }}
+          environment: "{{ ci_reload_ochami_env }}"
+          loop: "{{ ci_group_files_found.files | default([]) }}"
+          loop_control:
+            label: "{{ item.path | basename }}"
+          changed_when: true
+          register: ci_group_reload_results
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── 4. Reload per-node hostname data ─────────────────────────
+        # hostname.yaml maps xname → local-hostname for each node.
+        # Without this, nodes get the default nid-based hostname instead
+        # of the PXE mapping file hostname (e.g. nid001 vs slurm-h-2).
+        - name: Check hostname.yaml exists on OIM host
+          ansible.builtin.stat:
+            path: "{{ oim_host_hostname }}"
+          register: ci_hostname_file_stat
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Reload per-node hostname data into cloud-init-server
+          ansible.builtin.command: >
+            /usr/bin/ochami cloud-init node set -f yaml -d @{{ oim_host_hostname }}
+          environment: "{{ ci_reload_ochami_env }}"
+          changed_when: true
+          when: ci_hostname_file_stat.stat.exists | default(false)
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Warn if hostname.yaml not found
+          ansible.builtin.debug:
+            msg: "{{ upgrade_messages.cloud_init_reload.hostname_not_found }}"
+          when: not (ci_hostname_file_stat.stat.exists | default(false))
+
+        # ── 5. Restore SELinux context on openchami workdir ───────────
+        # During provisioning, SELinux context is set on the openchami
+        # workdir so containers can read cloud-init YAML files via
+        # bind mounts. After upgrade, container UIDs may change and
+        # SELinux labels need refreshing to prevent permission denied.
+        - name: Restore SELinux context on openchami workdir
+          ansible.builtin.command: >
+            chcon -R system_u:object_r:container_file_t:s0
+            {{ reload_oim_shared_path }}/omnia/openchami
+          changed_when: true
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        # ── 6. Verify data was loaded ──────────────────────────────────
+        - name: Verify cloud-init defaults loaded
+          ansible.builtin.command: /usr/bin/ochami cloud-init defaults get -F json-pretty
+          environment: "{{ ci_reload_ochami_env }}"
+          changed_when: false
+          register: ci_defaults_verify
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+          when: ci_defaults_file_stat.stat.exists | default(false)
+
+        - name: Extract reloaded group names from filenames
+          ansible.builtin.set_fact:
+            reloaded_ci_group_names: >-
+              {{ ci_group_files_found.files | default([]) |
+                 map(attribute='path') |
+                 map('basename') |
+                 map('regex_replace', '^ci-group-(.+)\.yaml$', '\1') |
+                 list }}
+
+        - name: Verify each cloud-init group config was loaded
+          ansible.builtin.shell: |
+            set -o pipefail
+            /usr/bin/ochami cloud-init group get config {{ item }} 2>&1 | head -3
+          environment: "{{ ci_reload_ochami_env }}"
+          loop: "{{ reloaded_ci_group_names }}"
+          changed_when: false
+          register: ci_group_verify_results
+          failed_when: ci_group_verify_results.rc != 0
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+          when: reloaded_ci_group_names | length > 0
+
+        # ── 7. Verify cloud-init-server is running and reachable ────────
+        # Nodes contact the cloud-init-server via HTTP on port 8081.
+        # If the container is down after reload, cloud-init on nodes will
+        # hang in 'running' state and services (Slurm, Munge) never start.
+        # Note: The /cloud-init/ base path does not serve a directory
+        # listing, so we verify via ochami CLI service status and
+        # container running state instead of curl.
+        - name: Verify cloud-init-server container is running
+          ansible.builtin.shell: |
+            set -o pipefail
+            podman ps --filter name=cloud-init-server --format '{{ '{{' }}.Status{{ '}}' }}' 2>&1
+          register: ci_container_status
+          changed_when: false
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Verify cloud-init-server API is reachable
+          ansible.builtin.shell: |
+            set -o pipefail
+            /usr/bin/ochami cloud-init service status 2>&1
+          environment: "{{ ci_reload_ochami_env }}"
+          register: ci_http_endpoint_check
+          changed_when: false
+          failed_when: false
+          retries: 3
+          delay: 5
+          until: ci_http_endpoint_check.rc == 0
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Warn if cloud-init-server is not reachable
+          ansible.builtin.debug:
+            msg: >-
+              Cloud-init-server: {{ 'running and reachable' if ci_http_endpoint_check.rc
+              | default(1) == 0 else 'NOT REACHABLE (nodes may hang) — container: '
+              ~ (ci_container_status.stdout | default('unknown')) }}
+
+        # ── 8. Verify BSS boot params include cloud-init datasource ───
+        # BSS boot params must contain 'ds=nocloud;s=http://...:8081/
+        # cloud-init/' for nodes to know where to fetch cloud-init config.
+        # Without this, cloud-init uses fallback datasource and gets no data,
+        # causing it to hang in 'running' state indefinitely.
+        - name: Check BSS boot params include cloud-init datasource
+          ansible.builtin.shell: |
+            set -o pipefail
+            /usr/bin/ochami bss boot params get -F yaml 2>&1 | grep -c 'cloud-init' || echo "0"
+          environment: "{{ ci_reload_ochami_env }}"
+          register: bss_ci_datasource_check
+          changed_when: false
+          failed_when: false
+          delegate_to: oim
+          delegate_facts: true
+          connection: ssh
+
+        - name: Warn if BSS boot params missing cloud-init datasource
+          ansible.builtin.debug:
+            msg: "{{ upgrade_messages.cloud_init_reload.bss_datasource_missing }}"
+          when: bss_ci_datasource_check.stdout | default('0') | trim == '0'
+
+        # ── Summary ───────────────────────────────────────────────────
+        - name: Display cloud-init data reload summary
+          ansible.builtin.debug:
+            msg: "{{ upgrade_messages.cloud_init_reload.summary }}"
+
+  rescue:
+    - name: Cloud-init data reload failed
+      ansible.builtin.fail:
+        msg: "{{ upgrade_messages.cloud_init_reload.failure }}"

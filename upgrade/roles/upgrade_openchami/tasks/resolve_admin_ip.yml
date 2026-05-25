@@ -31,75 +31,79 @@
 # use the correct, dynamically discovered endpoints.
 # ============================================================================
 
-- name: Discover OpenCHAMI endpoints from running containers
-  block:
-    # ── Get SMD container IP and port ───────────────────────────────────
-    - name: Get SMD container IP address
-      ansible.builtin.shell: |
-        set -o pipefail
-        podman inspect -f '{% raw %}{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}{% endraw %}' smd
-      register: _smd_ip_result
-      changed_when: false
-      failed_when: _smd_ip_result.rc != 0 or _smd_ip_result.stdout | trim | length == 0
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
+# ── Get SMD container IP and port (with retries) ─────────────────────
+# After container restart, podman may take a few seconds to register
+# the new container. Retry up to max_retries times with max_delay
+# between attempts to allow the container to start.
+- name: Get SMD container IP address
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman inspect -f '{% raw %}{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}{% endraw %}' smd
+  register: _smd_ip_result
+  changed_when: false
+  failed_when: _smd_ip_result.rc != 0 or _smd_ip_result.stdout | trim | length == 0
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  until: _smd_ip_result.rc == 0 and (_smd_ip_result.stdout | default('') | trim | length > 0)
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
 
-    - name: Get SMD container port
-      ansible.builtin.shell: |
-        set -o pipefail
-        podman inspect -f '{% raw %}{{range $k, $v := .NetworkSettings.Ports}}{{$k}}{{end}}{% endraw %}' smd | sed 's|/tcp||'
-      register: _smd_port_result
-      changed_when: false
-      failed_when: _smd_port_result.rc != 0 or _smd_port_result.stdout | trim | length == 0
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
+- name: Get SMD container port
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman inspect -f '{% raw %}{{range $k, $v := .NetworkSettings.Ports}}{{$k}}{{end}}{% endraw %}' smd | sed 's|/tcp||'
+  register: _smd_port_result
+  changed_when: false
+  failed_when: _smd_port_result.rc != 0 or _smd_port_result.stdout | trim | length == 0
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  until: _smd_port_result.rc == 0 and (_smd_port_result.stdout | default('') | trim | length > 0)
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
 
-    # ── Get BSS container IP and port ───────────────────────────────────
-    - name: Get BSS container IP address
-      ansible.builtin.shell: |
-        set -o pipefail
-        podman inspect -f '{% raw %}{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}{% endraw %}' bss
-      register: _bss_ip_result
-      changed_when: false
-      failed_when: _bss_ip_result.rc != 0 or _bss_ip_result.stdout | trim | length == 0
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
+# ── Get BSS container IP and port (with retries) ─────────────────────
+- name: Get BSS container IP address
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman inspect -f '{% raw %}{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}{% endraw %}' bss
+  register: _bss_ip_result
+  changed_when: false
+  failed_when: _bss_ip_result.rc != 0 or _bss_ip_result.stdout | trim | length == 0
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  until: _bss_ip_result.rc == 0 and (_bss_ip_result.stdout | default('') | trim | length > 0)
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
 
-    - name: Get BSS container port
-      ansible.builtin.shell: |
-        set -o pipefail
-        podman inspect -f '{% raw %}{{range $k, $v := .NetworkSettings.Ports}}{{$k}}{{end}}{% endraw %}' bss | sed 's|/tcp||'
-      register: _bss_port_result
-      changed_when: false
-      failed_when: _bss_port_result.rc != 0 or _bss_port_result.stdout | trim | length == 0
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
+- name: Get BSS container port
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman inspect -f '{% raw %}{{range $k, $v := .NetworkSettings.Ports}}{{$k}}{{end}}{% endraw %}' bss | sed 's|/tcp||'
+  register: _bss_port_result
+  changed_when: false
+  failed_when: _bss_port_result.rc != 0 or _bss_port_result.stdout | trim | length == 0
+  retries: "{{ max_retries }}"
+  delay: "{{ max_delay }}"
+  until: _bss_port_result.rc == 0 and (_bss_port_result.stdout | default('') | trim | length > 0)
+  delegate_to: oim
+  delegate_facts: true
+  connection: ssh
 
-    # ── Set endpoint facts ──────────────────────────────────────────────
-    - name: Set OpenCHAMI endpoint facts from container inspection
-      ansible.builtin.set_fact:
-        smd_container_ip: "{{ _smd_ip_result.stdout | trim }}"
-        smd_container_port: "{{ _smd_port_result.stdout | trim }}"
-        bss_container_ip: "{{ _bss_ip_result.stdout | trim }}"
-        bss_container_port: "{{ _bss_port_result.stdout | trim }}"
-        openchami_smd_endpoint: "http://{{ _smd_ip_result.stdout | trim }}:{{ _smd_port_result.stdout | trim }}/hsm/v2"
-        openchami_bss_endpoint: "http://{{ _bss_ip_result.stdout | trim }}:{{ _bss_port_result.stdout | trim }}/boot/v1"
+# ── Set endpoint facts ──────────────────────────────────────────────
+- name: Set OpenCHAMI endpoint facts from container inspection
+  ansible.builtin.set_fact:
+    smd_container_ip: "{{ _smd_ip_result.stdout | trim }}"
+    smd_container_port: "{{ _smd_port_result.stdout | trim }}"
+    bss_container_ip: "{{ _bss_ip_result.stdout | trim }}"
+    bss_container_port: "{{ _bss_port_result.stdout | trim }}"
+    openchami_smd_endpoint: "http://{{ _smd_ip_result.stdout | trim }}:{{ _smd_port_result.stdout | trim }}/hsm/v2"
+    openchami_bss_endpoint: "http://{{ _bss_ip_result.stdout | trim }}:{{ _bss_port_result.stdout | trim }}/boot/v1"
 
-    - name: Display discovered OpenCHAMI endpoints
-      ansible.builtin.debug:
-        msg:
-          - "SMD endpoint: {{ openchami_smd_endpoint }} ({{ smd_container_ip }}:{{ smd_container_port }})"
-          - "BSS endpoint: {{ openchami_bss_endpoint }} ({{ bss_container_ip }}:{{ bss_container_port }})"
-
-  rescue:
-    - name: Warn that container endpoint discovery failed
-      ansible.builtin.debug:
-        msg: >-
-          WARNING: Could not discover SMD/BSS endpoints via podman inspect.
-          Containers may not be running yet. Falling back to vars/main.yml defaults.
-          SMD endpoint: {{ openchami_smd_endpoint | default('not set') }}
-          BSS endpoint: {{ openchami_bss_endpoint | default('not set') }}
+- name: Display the discovered OpenCHAMI endpoints
+  ansible.builtin.debug:
+    msg:
+      - "SMD endpoint: {{ openchami_smd_endpoint }} ({{ smd_container_ip }}:{{ smd_container_port }})"
+      - "BSS endpoint: {{ openchami_bss_endpoint }} ({{ bss_container_ip }}:{{ bss_container_port }})"

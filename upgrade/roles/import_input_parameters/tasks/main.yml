@@ -40,6 +40,9 @@
 - name: Transform telemetry_config.yml from Omnia 2.1 to 2.2
   ansible.builtin.include_tasks: transform_telemetry_config.yml
 
+- name: Generate telemetry_storage_config.yml for Omnia 2.2 (new file)
+  ansible.builtin.include_tasks: transform_telemetry_storage_config.yml
+
 - name: Generate build_stream_config.yml for Omnia 2.2
   ansible.builtin.include_tasks: transform_build_stream_config.yml
 

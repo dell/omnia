@@ -25,13 +25,9 @@
     component_name: slurm
   tasks:
     - name: Read upgrade_manifest.yml
-      ansible.builtin.slurp:
-        src: "{{ manifest_path }}"
-      register: raw_manifest
-
-    - name: Parse manifest
-      ansible.builtin.set_fact:
-        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+      ansible.builtin.include_vars:
+        file: "{{ manifest_path }}"
+        name: manifest
 
     - name: Initialize slurm_skip
       ansible.builtin.set_fact:
@@ -42,6 +38,10 @@
         slurm_skip: true
       when:
         - manifest.component_status[component_name] | default('pending') == 'completed'
+
+    - name: Set slurm upgrade directory
+      ansible.builtin.set_fact:
+        slurm_2_1_backup_dir: "{{ manifest.backup_dir }}"
 
     - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
       ansible.builtin.copy:
@@ -99,7 +99,7 @@
 # for the slurm_control_node_x86_64 functional group using the
 # update_cloud_init_bss utility role.
 # ============================================================================
-- name: Update cloud-init and BSS for slurm_control_node_x86_64
+- name: Update cloud-init and BSS for slurm functional groups
   hosts: oim
   connection: ssh
   gather_facts: false
@@ -108,26 +108,115 @@
   tasks:
     - name: Skip if slurm upgrade not needed
       ansible.builtin.meta: end_play
-      when: hostvars['localhost']['slurm_skip'] | default(false) | bool
+      when:
+        - hostvars['localhost']['slurm_skip'] | default(false) | bool
+
+    - name: Read software_config.json
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/software_config.json"
+        name: software_config
+
+    - name: Notify slurm not configured and end play
+      when: >-
+        (software_config.softwares | selectattr('name', 'equalto', 'slurm_custom') | list | length) == 0
+      block:
+        - name: Display message
+          ansible.builtin.debug:
+            msg: "Slurm is not configured in software_config.json. Skipping Slurm upgrade."
+
+        - name: End play
+          ansible.builtin.meta: end_play
+
+    - name: Include omnia_config
+      ansible.builtin.include_vars:
+        file: "{{ hostvars['localhost']['input_project_dir'] }}/provision_config.yml"
+        name: provision_config
+
+    - name: Read pxe_mapping_file
+      community.general.read_csv:
+        path: "{{ provision_config.pxe_mapping_file_path }}"
+      register: pxe_mapping
+      delegate_to: localhost
+
+    - name: Filter rows first
+      ansible.builtin.set_fact:
+        slurm_filtered_rows: >-
+          {{ pxe_mapping.list
+            | selectattr('FUNCTIONAL_GROUP_NAME', 'match', '^(slurm|login)')
+                | list }}
+
+    - name: Build dict
+      ansible.builtin.set_fact:
+        slurm_host_group_map: >-
+          {{ dict(
+              slurm_filtered_rows | map(attribute='HOSTNAME')
+              | zip(slurm_filtered_rows | map(attribute='FUNCTIONAL_GROUP_NAME'))
+          ) }}
+
+    - name: End play if not slurm nodes in pxe_mapping
+      ansible.builtin.meta: end_play
+      when: slurm_host_group_map | default({}) | length == 0
+
+    - name: SLURM UPGRADE WARNING
+      ansible.builtin.debug:
+        msg: "{{ slurm_upgrade_banner }}"
+      vars:
+        slurm_upgrade_banner:
+          - "1. PXE MAPPING FILE RESTRICTIONS"
+          - "   Do NOT add, remove, or modify any fields related to Slurm nodes in the"
+          - "   PXE mapping file during the upgrade process. Nodes can be added and removed"
+          - "   once the Slurm cluster upgrade completes successfully."
+          - ""
+          - "2. NFS MOUNT PRESERVATION"
+          - "   Existing NFS mount points associated with the Slurm cluster from Omnia 2.1"
+          - "   will be preserved and remain unchanged during the upgrade process. Do not"
+          - "   manually modify these mount configurations."
+          - ""
+          - "3. NEW MOUNT POINTS AND ROLLBACK CONSIDERATIONS"
+          - "   If new NFS mount points are added during the upgrade, these new mount points"
+          - "   will NOT be retained during a rollback operation. Only mount points that"
+          - "   existed in Omnia 2.1 will be restored if rollback is required."
+          - ""
+          - "4. POST-UPGRADE ROLLBACK RESTRICTIONS"
+          - "   Once the Slurm cluster has been successfully upgraded and all nodes have"
+          - "   booted correctly with cloud-init execution completed, rollback operations"
+          - "   are NOT recommended."
+
+    - name: Pause to display warning
+      ansible.builtin.pause:
+        seconds: 10
+        prompt: "SLURM UPGRADE - Proceeding in 10 seconds..."
 
     - name: Refresh OpenCHAMI access token
       ansible.builtin.include_tasks: "{{ playbook_dir }}/../../common/tasks/common/openchami_auth.yml"
       vars:
         oim_node_name: "{{ hostvars['localhost']['oim_node_name'] }}"
 
-    - name: Update cloud-init and BSS for slurm_control_node_x86_64
+    - name: Update cloud-init and BSS for slurm
       environment: "{{ hostvars['oim']['ochami_env'] }}"
       block:
         - name: Include update_cloud_init_bss role
           ansible.builtin.include_role:
             name: "{{ playbook_dir }}/../../utils/roles/update_cloud_init_bss"
           vars:
-            functional_group_name: slurm_control_node_x86_64
-            bss_file_path: "{{ openchami_work_dir }}/boot/bss-slurm_control_node_x86_64.yaml"
-            cloud_init_file_path: "{{ openchami_work_dir }}/cloud-init/ci-group-slurm_control_node_x86_64.yaml"
+            functional_group_name: "{{ item }}"
+            bss_file_path: "{{ openchami_work_dir }}/boot/bss-{{ item }}.yaml"
+            cloud_init_file_path: "{{ openchami_work_dir }}/cloud-init/ci-group-{{ item }}.yaml"
+            ci_defaults_file_path: "{{ openchami_work_dir }}/cloud-init/ci-defaults.yaml"
+            ci_common_file_path: "{{ openchami_work_dir }}/cloud-init/ci-group-common.yaml"
+            hostname_file_path: "{{ openchami_work_dir }}/nodes/hostname.yaml"
+            update_ci_defaults: true
+            update_ci_common: true
+            update_hostname: true
+          loop: "{{ slurm_host_group_map.values() | list }}"
+
+    - name: Include slurm upgrade role
+      ansible.builtin.include_role:
+        name: ../roles/upgrade_slurm
+      tags: slurm
 
 # ============================================================================
-# Play 3: Slurm feature upgrade tasks + mark complete
+# Play 3: Slurm feature mark complete
 # ============================================================================
 - name: Upgrade Slurm cluster (feature updates)
   hosts: localhost
@@ -141,25 +230,10 @@
       ansible.builtin.meta: end_play
       when: slurm_skip | default(false) | bool
 
-    # TODO: Implement per ESpec §4.10:
-    # 1. IB network config (pxe_mapping_file transform, IP preservation)
-    # 2. Centralized DNS configuration
-    # 3. VAST mount support
-    # 4. DCGM for GPU compute nodes
-    # 5. HPC tools for login/compiler nodes
-    # 6. Node add/remove post-upgrade validation
-    - name: Slurm upgrade placeholder
-      ansible.builtin.debug:
-        msg: "Slurm feature upgrade tasks to be implemented (IB config, DNS, VAST, DCGM, HPC tools)"
-
-    - name: Read manifest for finalization
-      ansible.builtin.slurp:
-        src: "{{ manifest_path }}"
-      register: raw_manifest
-
-    - name: Parse manifest
-      ansible.builtin.set_fact:
-        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+    - name: Include omnia_config
+      ansible.builtin.include_vars:
+        file: "{{ manifest_path }}"
+        name: manifest
 
     - name: Mark slurm upgrade as completed
       ansible.builtin.copy:

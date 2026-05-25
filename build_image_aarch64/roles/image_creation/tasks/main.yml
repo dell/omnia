@@ -32,3 +32,11 @@
 - name: Invoking aarch64 build rhel compute image playbooks
   ansible.builtin.include_tasks: build_compute_image.yml
   tags: compute_image
+
+- name: Set S3 bucket ACLs for PowerScale backend
+  ansible.builtin.include_tasks: set_s3_acl.yml
+  when:
+    - s3_configurations is defined
+    - s3_configurations.provider is defined
+    - s3_configurations.provider | lower == 'powerscale'
+  tags: s3_acl

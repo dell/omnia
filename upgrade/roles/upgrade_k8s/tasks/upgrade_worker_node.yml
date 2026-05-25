@@ -285,15 +285,17 @@
 
     - name: Display upgrade completion for {{ current_node_name }}
       ansible.builtin.debug:
-        msg: |
-          ════════════════════════════════════════════════════════════════════
-          NODE UPGRADE COMPLETE: {{ current_node_name }}
-          ════════════════════════════════════════════════════════════════════
-          Role: Worker
-          From version: {{ upgrade_status.nodes[current_node_name].version_before | default('unknown') }}
-          To version: {{ k8s_target_version }}
-          Status: COMPLETED
-          ════════════════════════════════════════════════════════════════════
+        msg: "{{ node_complete_banner }}"
+      vars:
+        node_complete_banner:
+          - "========================================================================"
+          - "NODE UPGRADE COMPLETE: {{ current_node_name }}"
+          - "========================================================================"
+          - "Role: Worker"
+          - "From version: {{ upgrade_status.nodes[current_node_name].version_before | default('unknown') }}"
+          - "To version: {{ k8s_target_version }}"
+          - "Status: COMPLETED"
+          - "========================================================================"
 
   rescue:
     - name: Mark node as failed - {{ current_node_name }}

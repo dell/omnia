@@ -6,7 +6,7 @@
 {% endif %}
 kernel: "{{ s3_base_url }}/{{ kernel }}"
 initrd: "{{ s3_base_url }}/{{ initrd }}"
-{% set bs_suffix = "_" + compute_image_suffix
+{% set bs_suffix = compute_image_suffix
    if enable_build_stream | default(false)
    and (compute_image_suffix | default('')) != ''
    else "" %}

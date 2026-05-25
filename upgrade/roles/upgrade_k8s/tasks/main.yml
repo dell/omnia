@@ -168,11 +168,13 @@
 
     - name: Display failure message
       ansible.builtin.debug:
-        msg: |
-          Kubernetes upgrade failed!
-          Status file: {{ status_file }}
-          Backup location: {{ backup_dir }}
-          For rollback, run: ansible-playbook rollback/rollback.yml --tags k8s
+        msg: "{{ failure_banner }}"
+      vars:
+        failure_banner:
+          - "Kubernetes upgrade failed!"
+          - "Status file: {{ status_file }}"
+          - "Backup location: {{ backup_dir }}"
+          - "For rollback, run: ansible-playbook rollback/rollback.yml --tags k8s"
 
     - name: Fail the playbook
       ansible.builtin.fail:

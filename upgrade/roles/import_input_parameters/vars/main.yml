@@ -186,6 +186,15 @@ msg_backup_telemetry_config_missing: "Backup telemetry_config.yml missing"
 msg_telemetry_config_missing: "telemetry_config.yml missing"
 msg_using_backup_telemetry_config: "Using backup telemetry_config.yml (backup not modified)"
 
+# Telemetry storage config transformation messages
+msg_telemetry_storage_config_missing: "telemetry_storage_config.yml missing"
+msg_telemetry_storage_config_transform_summary: |
+  telemetry_storage_config.yml created with Omnia 2.2 defaults.
+  Target: {{ input_project_dir }}/telemetry_storage_config.yml
+  Note: This is a new file in Omnia 2.2 (not present in 2.1).
+  Contains resource and replica configurations for VictoriaMetrics,
+  VictoriaLogs, Vector, CSI Volume Exporter, and CSM Metrics PowerScale.
+
 # Build stream config transformation messages
 msg_backup_build_stream_config_missing: "Backup build_stream_config.yml missing"
 msg_build_stream_config_missing: "build_stream_config.yml missing"

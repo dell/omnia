@@ -142,8 +142,10 @@
 
 - name: Display detected addon versions
   ansible.builtin.debug:
-    msg: |
-      Detected addon versions:
-        Calico: {{ calico_current_version }} (target: {{ calico_target_version }}) - {{ calico_status }}
-        MetalLB: {{ metallb_current_version }} (target: {{ metallb_target_version }}) - {{ metallb_status }}
-        Helm: {{ helm_current_version }} (target: {{ helm_target_version }}) - {{ helm_status }}
+    msg: "{{ addon_versions_banner }}"
+  vars:
+    addon_versions_banner:
+      - "Detected addon versions:"
+      - "  Calico: {{ calico_current_version }} (target: {{ calico_target_version }}) - {{ calico_status }}"
+      - "  MetalLB: {{ metallb_current_version }} (target: {{ metallb_target_version }}) - {{ metallb_status }}"
+      - "  Helm: {{ helm_current_version }} (target: {{ helm_target_version }}) - {{ helm_status }}"
