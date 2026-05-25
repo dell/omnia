@@ -21,7 +21,6 @@
 
 # Telemetry namespace
 telemetry_namespace: telemetry
-# input_project_dir: "/opt/omnia/input/project_default"
 # OIM host for NFS share access
 oim_host: oim
 
