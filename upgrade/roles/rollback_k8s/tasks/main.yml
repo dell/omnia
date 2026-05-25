@@ -219,7 +219,7 @@
           rollback:
             status: failed
             failed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
-      ignore_errors: true
+      failed_when: false
 
     - name: Display rollback failure
       ansible.builtin.debug:

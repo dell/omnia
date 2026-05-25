@@ -54,8 +54,9 @@
 
     # ── Stop kubelet on workers first ──────────────────────────────
     - name: Stop kubelet on workers
-      ansible.builtin.command:
-        cmd: systemctl stop kubelet
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: stopped
       delegate_to: "{{ item }}"
       changed_when: true
       loop: "{{ all_worker_nodes }}"
@@ -80,8 +81,9 @@
 
     # ── Stop kubelet on CPs (VIP leader last) ──────────────────────
     - name: Stop kubelet on control planes (VIP leader last)
-      ansible.builtin.command:
-        cmd: systemctl stop kubelet
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: stopped
       delegate_to: "{{ item }}"
       changed_when: true
       loop: "{{ cp_shutdown_order }}"
@@ -106,12 +108,12 @@
 
     # ── Verify all kubelet services stopped ────────────────────────
     - name: Verify kubelet is stopped on all nodes
-      ansible.builtin.command:
-        cmd: systemctl is-active kubelet
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: stopped
       delegate_to: "{{ item }}"
       register: _kubelet_status
       changed_when: false
-      failed_when: false
       loop: "{{ all_rollback_nodes }}"
       loop_control:
         label: "{{ item }}"
@@ -122,7 +124,7 @@
       loop: "{{ _kubelet_status.results }}"
       loop_control:
         label: "{{ item.item }}"
-      when: item.stdout | trim == 'active'
+      when: item is failed
 
     # ── Mark stop_cluster completed ────────────────────────────────
     - name: Mark stop_cluster completed

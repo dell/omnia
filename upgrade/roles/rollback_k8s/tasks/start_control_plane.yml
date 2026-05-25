@@ -40,8 +40,8 @@
     # after each one deadlocks because a single etcd member can never
     # form quorum.  Start all kubelets first, then wait.
     - name: Reload systemd on all CPs
-      ansible.builtin.command:
-        cmd: systemctl daemon-reload
+      ansible.builtin.systemd_service:
+        daemon_reload: true
       delegate_to: "{{ item }}"
       changed_when: true
       loop: "{{ all_cp_nodes }}"
@@ -49,8 +49,9 @@
         label: "{{ item }}"
 
     - name: Restart crio on all CPs
-      ansible.builtin.command:
-        cmd: systemctl restart crio
+      ansible.builtin.systemd_service:
+        name: crio
+        state: restarted
       delegate_to: "{{ item }}"
       changed_when: true
       loop: "{{ all_cp_nodes }}"
@@ -58,8 +59,9 @@
         label: "{{ item }}"
 
     - name: Restart kubelet on all CPs
-      ansible.builtin.command:
-        cmd: systemctl restart kubelet
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: restarted
       delegate_to: "{{ item }}"
       changed_when: true
       loop: "{{ all_cp_nodes }}"
@@ -81,7 +83,7 @@
         - "'ok' in _api_health.stdout"
 
     # ── Wait for each CP node to become Ready ──────────────────────
-    - name: Wait for {{ item }} to become Ready at v{{ k8s_rollback_version }}
+    - name: Wait for node Ready at v{{ k8s_rollback_version }} on {{ item }}
       ansible.builtin.command: >-
         kubectl --server=https://{{ first_cp_ip }}:6443
         get node {{ node_ips[item] }}

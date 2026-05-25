@@ -71,6 +71,7 @@
     - name: Get non-Running kube-system pods
       ansible.builtin.shell:
         cmd: >-
+          set -o pipefail &&
           kubectl --server=https://{{ first_cp_ip }}:6443
           get pods -n kube-system
           -o jsonpath='{range .items[?(@.status.phase!="Running")]}{.metadata.name}{"\n"}{end}'

@@ -74,7 +74,7 @@
         - name: Extract etcdutl binary from etcd container via crictl
           ansible.builtin.shell:
             cmd: |
-              set -e
+              set -eo pipefail
               # Try the running etcd static pod container first
               ETCD_CID=$(crictl ps -q --name etcd 2>/dev/null | head -1)
               if [ -n "$ETCD_CID" ]; then

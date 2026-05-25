@@ -48,9 +48,9 @@
       register: _crio_downgrade_result
 
     # ── Verify installed versions ──────────────────────────────────
-    - name: Verify kubelet version on {{ _node }}
-      ansible.builtin.command:
-        cmd: rpm -q kubelet --queryformat '%{VERSION}'
+    - name: Collect package facts on {{ _node }}
+      ansible.builtin.package_facts:
+        manager: auto
       delegate_to: "{{ _node }}"
       register: _kubelet_version
       changed_when: false
@@ -59,8 +59,8 @@
       ansible.builtin.fail:
         msg: >-
           kubelet version mismatch on {{ _node }}: expected {{ k8s_rollback_version }},
-          got {{ _kubelet_version.stdout }}
-      when: _kubelet_version.stdout != k8s_rollback_version
+          got {{ _kubelet_version.ansible_facts.packages.kubelet[0].version | default('unknown') }}
+      when: (_kubelet_version.ansible_facts.packages.kubelet[0].version | default('')) != k8s_rollback_version
 
     # ── Update per-node status ─────────────────────────────────────
     - name: Mark downgrade_packages completed for {{ _node }}
@@ -79,5 +79,5 @@
       ansible.builtin.debug:
         msg: >-
           Packages downgraded on {{ _node }}:
-          kubelet={{ _kubelet_version.stdout }},
+          kubelet={{ _kubelet_version.ansible_facts.packages.kubelet[0].version | default('unknown') }},
           cri-o={{ k8s_rollback_version }}

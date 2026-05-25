@@ -23,7 +23,13 @@
 - name: Parse PDB list and backup minAvailable values
   ansible.builtin.set_fact:
     _pdbs_with_minavailable: >-
-      {{ _pdb_list.stdout | from_json | json_query('items[?spec.minAvailable].{name: metadata.name, namespace: metadata.namespace, minAvailable: spec.minAvailable, selector: spec.selector}') }}
+      {{
+        _pdb_list.stdout
+        | from_json
+        | json_query(
+            'items[?spec.minAvailable].{name: metadata.name, namespace: metadata.namespace, minAvailable: spec.minAvailable, selector: spec.selector}'
+          )
+      }}
   when: _pdb_list.rc == 0
 
 - name: Get all pods on the node being drained
@@ -56,10 +62,16 @@
         {% endfor %}
         {% set pods_on_node_count = matching_pods | length %}
         {% set new_min = [pdb.minAvailable - pods_on_node_count, 0] | max %}
-        {% set _ = result.append({'name': pdb.name, 'namespace': pdb.namespace, 'original_minAvailable': pdb.minAvailable, 'new_minAvailable': new_min, 'pods_on_node': pods_on_node_count}) %}
+        {% set _ = result.append({
+          'name': pdb.name,
+          'namespace': pdb.namespace,
+          'original_minAvailable': pdb.minAvailable,
+          'new_minAvailable': new_min,
+          'pods_on_node': pods_on_node_count
+        }) %}
       {% endfor %}
       {{ result }}
-  when: 
+  when:
     - _pdb_list.rc == 0
     - _pods_on_node.rc == 0
 

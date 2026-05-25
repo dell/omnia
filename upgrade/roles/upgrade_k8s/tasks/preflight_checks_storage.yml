@@ -88,10 +88,10 @@
     msg: |
       Control plane node {{ item.item }} is missing /etc/kubernetes/.cluster_initialized marker file.
       This indicates that the node's cloud-init provisioning did not complete successfully.
-      
+
       Please check the cloud-init logs on {{ item.item }}:
         ssh {{ item.item }} cat /var/log/cloud-init-output.log
-      
+
       The node must be successfully provisioned before upgrade can proceed.
   loop: "{{ preflight_cluster_init_check.results }}"
   loop_control:

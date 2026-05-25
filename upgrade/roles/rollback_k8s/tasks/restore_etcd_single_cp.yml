@@ -87,7 +87,7 @@
         remote_src: true
       delegate_to: "{{ _cp_node }}"
 
-    - name: Restore etcd snapshot on {{ _cp_node }} using etcdutl
+    - name: Restore etcd snapshot using etcdutl on {{ _cp_node }}
       ansible.builtin.shell:
         cmd: |
           set -e
@@ -102,6 +102,7 @@
           rm -rf "$TMPDIR"
       delegate_to: "{{ _cp_node }}"
       register: _etcd_restore_result
+      changed_when: true
 
     - name: Remove temporary etcdutl from {{ _cp_node }}
       ansible.builtin.file:
