@@ -1,0 +1,111 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# SHARED TELEMETRY UPGRADE VARIABLES
+# ============================================================================
+# Common variables used by upgrade_telemetry role and all
+# component task files (victoria, kafka, idrac, powerscale).
+# ============================================================================
+
+# Telemetry namespace
+telemetry_namespace: telemetry
+
+# OIM host for NFS share access
+oim_host: oim
+
+# Upgrade directory paths (on k8s NFS share, resolved at runtime)
+telemetry_upgrade_dir: "{{ k8s_client_mount_path }}/upgrade/telemetry"
+telemetry_backup_dir: "{{ telemetry_upgrade_dir }}/omnia_{{ manifest.source_version | default('unknown') }}"
+# PV backup location (cluster-wide backup pre-provision)
+telemetry_pv_backup_file: "{{ telemetry_backup_dir }}/all_pvs.yaml"
+
+# Victoria deployment directory (pre-staged by upgrade_provision)
+telemetry_deploy_dir: "{{ k8s_client_mount_path }}/telemetry"
+
+# Telemetry script and kustomization paths (for execute_telemetry_sh.yml)
+telemetry_script_path: "{{ telemetry_deploy_dir }}/telemetry.sh"
+telemetry_kustomization_dir: "{{ telemetry_deploy_dir }}/deployments"
+
+# Pod wait configuration
+pod_wait_retries: 60
+pod_wait_delay: 15
+
+# Victoria operator configuration
+# victoria_operator_pkg is loaded dynamically from service_k8s JSON in include_required_input.yml
+victoria_operator_release_name: victoria-metrics-operator
+
+# Victoria cluster configuration
+new_vmcluster_name: victoria-cluster
+new_vmstorage_sts: victoria-cluster-vmstorage
+new_vmstorage_pvc_prefix: victoria-cluster-vmstorage
+old_vm_pod_label: "app.kubernetes.io/name=victoria-metrics"
+old_vmagent_deployment: vmagent
+old_vmagent_pod_label: "app=vmagent"
+# ============================================================================
+# BACKUP MESSAGES
+# ============================================================================
+telemetry_backup_msgs:
+  telemetry_folder: "Telemetry folder backed up to: {{ telemetry_backup_dir }}"
+  pv_backup: "All PVs backed up to {{ telemetry_pv_backup_file }}"
+
+# ============================================================================
+# VICTORIA UPGRADE MESSAGES
+# ============================================================================
+victoria_cluster_mode_forced: "Victoria upgrade forcing cluster mode (HA) — Omnia 2.2 supports only cluster mode"
+victoria_upgrade_completed: "VictoriaMetrics upgrade COMPLETED"
+victoria_components_not_ready: "WARNING: Some VMCluster components may not be fully ready. Check manually."
+victoria_orphan_pods_found: "WARNING: Found orphan pods in telemetry namespace: {{ orphan_pods.stdout_lines | default([]) }}"
+victoria_no_orphan_pods: "SUCCESS: No orphan pods found in telemetry namespace."
+victoria_operator_installed: "VictoriaMetrics operator installed/upgraded — CRDs ready (Helm result: {{ helm_install_result.rc | default('unknown') }})"
+victoria_skip_pvc_no_pv: "Skipping PVC {{ old_pvc_item }} — no PV bound, data preservation not needed"
+victoria_relabeling_pvc: "Relabeling: {{ old_pvc_item }} → {{ new_pvc_name }} (PV: {{ old_pv_name }})"
+victoria_pvc_bind_failed: "New PVC {{ new_pvc_name }} failed to bind to PV {{ old_pv_name }} (status: {{ new_pvc_phase.stdout }})"
+victoria_cleaning_vmsingle: "Cleaning up old VMSingle: {{ vmsingle_name.stdout | trim }}"
+victoria_vmsingle_cleanup_completed: "VMSingle cleanup completed"
+victoria_migrating_pvcs: "Migrating PVCs: {{ old_pvc_list.stdout }}"
+victoria_sts_force_delete_failed: >-
+  Old StatefulSet {{ actual_old_statefulset }} still exists after force delete.
+  Manual intervention required to delete it. Delete error: {{ old_sts_force_delete.stderr | default('N/A') }}
+victoria_upgrade_needed: "Victoria upgrade needed: {{ victoria_upgrade_needed }}"
+victoria_upgrade_decision: "victoria_upgrade_needed: {{ victoria_upgrade_needed }}"
+victoria_upgrade_failed: "VictoriaMetrics upgrade FAILED"
+victoria_upgrade_failed_detail: "VictoriaMetrics upgrade failed. Check ansible output above for the specific failing task."
+victoria_upgrade_skipped: "VictoriaMetrics upgrade skipped — not in telemetry_config and no victoria pods found"
+victoria_deployment_dir_missing: "Deployment directory not found: {{ telemetry_deploy_dir }}/deployments. Run upgrade_provision first."
+victoria_operator_tarball_missing: "Operator tarball not found: {{ telemetry_deploy_dir }}/{{ victoria_operator_pkg }}.tar.gz. Run upgrade_provision first."
+victoria_manifest_missing: "Required manifest missing: {{ telemetry_deploy_dir }}/deployments/{{ item.item }}"
+victoria_detected_state: >-
+  Migration type: {{ victoria_migration_type }}, Deploy mode: {{ victoria_deploy_mode }},
+  HA (cluster): {{ victoria_deploy_mode == 'cluster' }}, Old STS found: {{ old_sts_found }},
+  Actual old StatefulSet: {{ actual_old_statefulset | default('N/A') }},
+  VMCluster found: {{ 'found' in vmcluster_check.stdout }}, VMSingle found: {{ 'found' in vmsingle_check.stdout }}
+victoria_unhealthy_pods_warning: >-
+  WARNING: Unhealthy VictoriaMetrics pods detected! The following pods are NOT in Running state:
+  {{ unhealthy_victoria_pods.stdout_lines | default([]) }}. These pods will be DELETED before the upgrade
+  proceeds. The upgrade will re-create them with the new version.
+victoria_pods_deleted: "Deleted {{ victoria_unhealthy_pods | length }} unhealthy pod(s). Upgrade will re-create them."
+victoria_backup_completed: "Victoria backup completed: {{ telemetry_backup_dir }}"
+victoria_crs_applied: "VictoriaMetrics CRs applied (mode: {{ victoria_deploy_mode }}"
+victoria_pods_not_ready: "Telemetry upgrade FAILED: Some pods are not ready. {{ pods_not_ready.stdout | int }} pod(s) not in Running state."
+victoria_pods_ready_after_wait: "All telemetry pods are ready after waiting"
+telemetry_upgrade_success: "Telemetry upgrade COMPLETED: All telemetry pods are running and ready."
+telemetry_upgrade_failed: "Telemetry upgrade FAILED: Pod verification failed."
+
+# ============================================================================
+# TELEMETRY.SH EXECUTION MESSAGES
+# ============================================================================
+telemetry_sh_success_msg: "telemetry.sh executed successfully. All telemetry components deployed."
+telemetry_sh_fail_msg: "telemetry.sh execution failed. Check the error output above for details."
+pods_not_ready_msg: "Some telemetry pods are not ready after deployment."

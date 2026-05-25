@@ -102,17 +102,6 @@
         - helm
         # - whereabouts
 
-    - name: Create subdirectories on NFS share
-      ansible.builtin.file:
-        path: "{{ k8s_client_mount_path }}/{{ item }}"
-        state: directory
-        mode: "{{ folder_mode }}"
-        owner: root
-        group: root
-      loop:
-        - csi-driver-powerscale
-      when: hostvars['localhost']['csi_driver_powerscale_support']
-
   rescue:
     - name: Fail with NFS export advice
       ansible.builtin.fail:

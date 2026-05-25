@@ -1,0 +1,111 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Upgrade Telemetry Main Entry Point
+# ============================================================================
+# This is the main entry point for the upgrade_telemetry role.
+# It orchestrates the telemetry upgrade process in phases.
+# ============================================================================
+
+# ── Phase 1: Detect Victoria upgrade requirement ──
+- name: Phase 1 - Detect Victoria upgrade requirement
+  ansible.builtin.include_tasks: detect_victoria_upgrade_needed.yml
+
+# ── Phase 2: Execute VictoriaMetrics upgrade ──
+- name: Phase 2 - Execute VictoriaMetrics upgrade
+  when: victoria_upgrade_needed | default(false) | bool
+  block:
+    - name: Display VictoriaMetrics upgrade decision
+      ansible.builtin.debug:
+        msg: "{{ victoria_upgrade_decision }}"
+
+    - name: Include VictoriaMetrics upgrade tasks
+      ansible.builtin.include_tasks: victoria_metrics_upgrade.yml
+
+  rescue:
+    - name: Display VictoriaMetrics upgrade failure
+      ansible.builtin.debug:
+        msg:
+          - "{{ victoria_upgrade_failed }}"
+          - "Migration type: {{ victoria_migration_type | default('unknown') }}"
+          - "Deploy mode: {{ victoria_deploy_mode | default('unknown') }}"
+
+    - name: Fail on VictoriaMetrics upgrade failure
+      ansible.builtin.fail:
+        msg: "{{ victoria_upgrade_failed_detail }}"
+
+- name: Skip VictoriaMetrics upgrade (not needed)
+  ansible.builtin.debug:
+    msg: "{{ victoria_upgrade_skipped }}"
+  when: not (victoria_upgrade_needed | default(false) | bool)
+
+# ── Phase 3: Execute telemetry.sh to redeploy telemetry stack ──
+# - name: Phase 3 - Execute telemetry.sh to redeploy telemetry stack
+#  ansible.builtin.include_tasks: execute_telemetry_sh.yml
+
+# ── Phase 4: Verify all telemetry pods and set upgrade status ──
+- name: Phase 4 - Verify all telemetry pods and set upgrade status
+  block:
+    - name: Get all telemetry pods status
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail &&
+          kubectl get pods -n {{ telemetry_namespace }} \
+          --no-headers \
+          -o 'custom-columns=NAME:.metadata.name,STATUS:.status.phase,READY:.status.conditions[?(@.type=="Ready")].status'
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: all_pods_status
+      changed_when: false
+
+    - name: Display all telemetry pods status
+      ansible.builtin.debug:
+        msg: "{{ all_pods_status.stdout_lines }}"
+
+    - name: Check if any pods are not ready
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail &&
+          kubectl get pods -n {{ telemetry_namespace }} --no-headers |
+          awk '$3 != "Running" && $3 != "Completed" {count++} END {print count+0}'
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: pods_not_ready
+      until: pods_not_ready.stdout | int == 0
+      retries: 60
+      delay: 15
+      changed_when: false
+
+    - name: Display pod readiness status
+      ansible.builtin.debug:
+        msg: "{{ victoria_pods_ready_after_wait }}"
+
+    - name: Fail if pods are not ready
+      ansible.builtin.fail:
+        msg: "{{ victoria_pods_not_ready }}"
+      when: pods_not_ready.stdout | int > 0
+
+    - name: Display telemetry upgrade success
+      ansible.builtin.debug:
+        msg: "{{ telemetry_upgrade_success }}"
+
+  rescue:
+    - name: Display telemetry upgrade failure
+      ansible.builtin.debug:
+        msg: "{{ telemetry_upgrade_failed }}"
+
+    - name: Fail the telemetry upgrade
+      ansible.builtin.fail:
+        msg: "{{ telemetry_upgrade_failed }}"
