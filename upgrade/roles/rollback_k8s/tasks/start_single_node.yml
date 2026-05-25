@@ -52,7 +52,7 @@
 
     # ── Wait for node to become Ready with rollback version ────────
     # Use --server to bypass kube_vip (VIP may not be up yet during CP startup)
-    - name: Wait for node Ready at v{{ k8s_rollback_version }} on {{ _node }}
+    - name: Wait for node {{ _node }} to be Ready at rollback version {{ k8s_rollback_version }}  # noqa:name[template]
       ansible.builtin.command: >-
         kubectl --server=https://{{ first_cp_ip }}:6443
         get node {{ node_ips[_node] }}

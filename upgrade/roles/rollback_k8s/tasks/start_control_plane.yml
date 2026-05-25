@@ -83,7 +83,7 @@
         - "'ok' in _api_health.stdout"
 
     # ── Wait for each CP node to become Ready ──────────────────────
-    - name: Wait for node Ready at v{{ k8s_rollback_version }} on {{ item }}
+    - name: Wait for node {{ item }} to be Ready at {{ k8s_rollback_version }} version  # noqa:name[template]
       ansible.builtin.command: >-
         kubectl --server=https://{{ first_cp_ip }}:6443
         get node {{ node_ips[item] }}
