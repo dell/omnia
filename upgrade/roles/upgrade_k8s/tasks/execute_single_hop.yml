@@ -380,6 +380,10 @@
         - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
 
     - name: "Hop — Update cloud-init and BSS for service_kube_control_plane_x86_64"
+      when:
+        - ha_config_data.service_k8s_cluster_ha | length > 1
+        - upgrade_status.upgrade.status != 'completed'
+        - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
       ansible.builtin.shell:
         cmd: >
           set -o pipefail && ansible-playbook
@@ -394,9 +398,6 @@
       register: bss_cp_additional_result
       changed_when: true
       failed_when: bss_cp_additional_result.rc != 0
-      when:
-        - upgrade_status.upgrade.status != 'completed'
-        - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
 
     - name: "Hop — Set BSS status to completed for service_kube_control_plane"
       ansible.builtin.include_tasks: update_node_step.yml

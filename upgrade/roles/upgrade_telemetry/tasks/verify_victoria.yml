@@ -1,0 +1,148 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Verify VictoriaMetrics pods are healthy after upgrade
+# ============================================================================
+
+# ── Cluster mode verification ──
+- name: Verify cluster mode resources
+  when: victoria_deploy_mode == 'cluster'
+  block:
+    - name: Wait for vmstorage-0 to be Ready
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get pods \
+          -l "app.kubernetes.io/name=vmstorage,app.kubernetes.io/instance={{ new_vmcluster_name }}" \
+          -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False"
+      register: vmstorage_ready
+      until: vmstorage_ready.stdout == 'True'
+      retries: 150
+      delay: 2
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for vminsert deployment
+      ansible.builtin.command:
+        cmd: >
+          kubectl -n {{ telemetry_namespace }} wait --for=condition=available --timeout=300s
+          deployment/vminsert-{{ new_vmcluster_name }}
+      changed_when: false
+      failed_when: false
+      register: vminsert_ready
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for vmselect deployment
+      ansible.builtin.command:
+        cmd: >
+          kubectl -n {{ telemetry_namespace }} wait --for=condition=available --timeout=300s
+          deployment/vmselect-{{ new_vmcluster_name }}
+      changed_when: false
+      failed_when: false
+      register: vmselect_ready
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Warn if cluster components not ready
+      ansible.builtin.debug:
+        msg: "{{ victoria_components_not_ready }}"
+      when: >-
+        vmstorage_ready.stdout != 'True' or
+        vminsert_ready.rc != 0 or
+        vmselect_ready.rc != 0
+
+# ── Common verification ──
+- name: Wait for vmagent pod to be Ready
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get pods \
+      -l "app.kubernetes.io/name=vmagent" \
+      -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False"
+  register: vmagent_ready
+  until: vmagent_ready.stdout == 'True'
+  retries: 60
+  delay: 2
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Health checks ──
+- name: Run vmselect health check (cluster mode)
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} exec deploy/vmselect-{{ new_vmcluster_name }} -- \
+      wget -qO- --timeout=5 "http://localhost:8481/health" 2>/dev/null || echo "unavailable"
+  register: vmselect_health
+  changed_when: false
+  failed_when: false
+  when: victoria_deploy_mode == 'cluster'
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Run vminsert health check (cluster mode)
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} exec deploy/vminsert-{{ new_vmcluster_name }} -- \
+      wget -qO- --timeout=5 "http://localhost:8480/health" 2>/dev/null || echo "unavailable"
+  register: vminsert_health
+  changed_when: false
+  failed_when: false
+  when: victoria_deploy_mode == 'cluster'
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Resource summary ──
+- name: Display resource summary
+  ansible.builtin.shell: |
+    echo "=== VictoriaMetrics CRs ==="
+    kubectl -n {{ telemetry_namespace }} get vmcluster,vmsingle,vmagent 2>/dev/null || true
+    echo ""
+    echo "=== VMScrape Resources (VMPodScrape and VMServiceScrape with STATUS and SYNC ERROR) ==="
+    kubectl -n {{ telemetry_namespace }} get vmpodscrape,vmservicescrape -o wide 2>/dev/null || true
+    echo ""
+    echo "=== Pods ==="
+    kubectl -n {{ telemetry_namespace }} get pods -l "app.kubernetes.io/managed-by=vm-operator" 2>/dev/null || true
+    kubectl -n {{ telemetry_namespace }} get pods -l "app.kubernetes.io/name=vmagent" 2>/dev/null || true
+  register: resource_summary
+  changed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Check for orphan pods in telemetry namespace
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl -n {{ telemetry_namespace }} get pods -o json | \
+      jq -r '.items[] | select(.metadata.ownerReferences == null) | .metadata.name' 2>/dev/null || echo ""
+  register: orphan_pods
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Warn if orphan pods exist
+  ansible.builtin.debug:
+    msg: "{{ victoria_orphan_pods_found }}"
+  when: orphan_pods.stdout_lines | default([]) | length > 0
+
+- name: Confirm no orphan pods
+  ansible.builtin.debug:
+    msg: "{{ victoria_no_orphan_pods }}"
+  when: orphan_pods.stdout_lines | default([]) | length == 0
+
+- name: Display verification results
+  ansible.builtin.debug:
+    msg:
+      - "Deploy mode: {{ victoria_deploy_mode }}"
+      - "vmagent ready: {{ vmagent_ready.stdout | default('unknown') }}"
+      - "{{ resource_summary.stdout_lines | default([]) }}"

@@ -254,3 +254,27 @@
     dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/cleanup/cleanup_telemetry.sh"
     mode: "{{ hostvars['localhost']['file_permissions_755'] }}"
   tags: telemetry_deployment
+
+- name: Deploy PowerScale verification scripts
+  when:
+    - telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool or
+      telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool
+  tags: telemetry_deployment
+  block:
+    - name: Create verification directory
+      ansible.builtin.file:
+        path: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/verify"
+        state: directory
+        mode: '0755'
+
+    - name: Deploy PowerScale syslog verification script
+      ansible.builtin.template:
+        src: 'telemetry/powerscale/verify_powerscale_syslog.sh.j2'
+        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/verify/verify_powerscale_syslog.sh"
+        mode: "{{ hostvars['localhost']['file_permissions_755'] }}"
+
+    - name: Deploy PowerScale metrics verification script
+      ansible.builtin.template:
+        src: 'telemetry/powerscale/verify_powerscale_telemetry.sh.j2'
+        dest: "{{ hostvars['localhost']['k8s_client_share_path'] }}/telemetry/verify/verify_powerscale_telemetry.sh"
+        mode: "{{ hostvars['localhost']['file_permissions_755'] }}"

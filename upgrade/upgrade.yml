@@ -177,6 +177,7 @@
           source_version: "{{ oim_metadata.previous_omnia_version }}"
           target_version: "{{ oim_metadata.omnia_version }}"
           upgrade_status: "in-progress"
+          approval_status: "pending"
           backup_dir: "{{ oim_metadata.upgrade_backup_dir }}"
           component_status:
             oim: "pending"
@@ -285,44 +286,6 @@
     oim_group: true
 
 # ──────────────────────────────────────────────────────────────────────
-# Load credentials via credential utility (for build_stream and gitlab)
-# Set upgrade_mode to bypass upgrade_checkup guard within credential utility
-# Set dynamic run tags based on enable_build_stream flag
-# ──────────────────────────────────────────────────────────────────────
-- name: Set upgrade mode flag and dynamic tags for credential utility
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: [build_stream, gitlab]
-  tasks:
-    - name: Read build_stream_config.yml to check enable_build_stream flag
-      ansible.builtin.include_vars:
-        file: "{{ input_project_dir }}/build_stream_config.yml"
-        name: _bs_config_check
-      failed_when: false
-
-    - name: Enable upgrade_mode to bypass credential utility guard
-      ansible.builtin.set_fact:
-        upgrade_mode: true
-        cacheable: true
-
-    - name: Set dynamic run tags including build_stream and gitlab
-      ansible.builtin.set_fact:
-        omnia_run_tags: >-
-          {{
-            (
-              ansible_run_tags | default([]) +
-              ['build_stream', 'gitlab']
-            ) | unique
-          }}
-        cacheable: true
-      when: _bs_config_check.enable_build_stream | default(false) | bool
-
-- name: Load Omnia credential utility
-  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
-  tags: [build_stream, gitlab]
-
-# ──────────────────────────────────────────────────────────────────────
 # BuildStream Terminal Gate (C-24): Read build_stream_config.yml and
 # set build_stream_terminal fact. When enable_build_stream=true AND
 # build_stream tag completes, downstream tags (local_repo, build_image,
@@ -355,6 +318,141 @@
           will be SKIPPED after build_stream completes. User must trigger
           GitLab pipeline manually post-upgrade.
       when: build_stream_terminal | bool
+
+# ──────────────────────────────────────────────────────────────────────
+# Operator Approval — shows upgrade plan and waits for confirmation.
+# Tracks approval_status in upgrade_manifest.yml so re-runs skip it.
+# Bypass with: -e skip_approval=true (for CI/CD automation)
+# ──────────────────────────────────────────────────────────────────────
+- name: Operator approval for upgrade
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+  tasks:
+    - name: Read upgrade_manifest.yml for approval check
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: approval_raw_manifest
+
+    - name: Parse manifest for approval check
+      ansible.builtin.set_fact:
+        approval_manifest: "{{ approval_raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Show Omnia upgrade plan and wait for operator confirmation
+      ansible.builtin.pause:
+        prompt: |2
+          ══════════════════════════════════════════════════════════════
+                     OMNIA UPGRADE — OPERATOR APPROVAL REQUIRED
+          ══════════════════════════════════════════════════════════════
+
+          ── Version Transition ───────────────────────────────────────
+            Current Omnia version : {{ approval_manifest.source_version | default('2.1.0.0') }}
+            Target  Omnia version : {{ approval_manifest.target_version | default('2.2.0.0') }}
+
+          ── Omnia Upgrade Execution Plan (in order) ──────────────────
+            1. oim           → Upgrade OpenCHAMI control-plane containers
+                               on the Omnia Infrastructure Manager
+            2. build_stream  → Enable or upgrade BuildStream services
+                               (skipped if not enabled in the build_stream_config.yml)
+            3. local_repo    → Synchronize Omnia 2.2 packages into the
+                               local Pulp repository for cluster nodes
+            4. build_image   → Rebuild compute OS images against
+                               the new Omnia 2.2 package set
+            5. provision     → Refresh Cloud-Init data and BSS boot
+                               configurations to point at 2.2 images
+            6. k8s           → Roll the Kubernetes cluster to the new
+                               Omnia-supported version (control plane + nodes)
+            7. telemetry     → Upgrade the Omnia telemetry stack
+                               for kafka, victoria metrics, and other components
+            8. slurm         → Upgrade the Slurm controller, slurm nodes
+
+          ── Impact & Risk ────────────────────────────────────────────
+            • Running Omnia services will be modified and briefly restarted.
+            • Do NOT reboot the OIM during the upgrade
+            • Compute workloads should be drained or completed beforehand.
+
+          ── Pre-flight Checklist ─────────────────────────────────────
+            [ ] prepare_upgrade.yml completed without errors
+            [ ] Kubernetes cluster healthy (no failing pods, all PVCs
+                bound, LoadBalancer services have external IPs)
+            [ ] Slurm cluster healthy (no failing jobs, all nodes ready)
+            [ ] Stable internet connectivity verified on the OIM
+            [ ] Maintenance window is active and stakeholders notified
+            [ ] Sufficient disk space available for new images & packages
+
+          ──────────────────────────────────────────────────────────────
+            Press  ENTER       to PROCEED with the Omnia upgrade
+            Press  Ctrl+C, A   to ABORT and exit safely
+          ══════════════════════════════════════════════════════════════
+      when:
+        - not (skip_approval | default(false) | bool)
+        - approval_manifest.approval_status | default('pending') != 'approved'
+
+    - name: Update approval_status to approved in manifest
+      ansible.builtin.copy:
+        content: >-
+          {{ approval_manifest | combine({'approval_status': 'approved'}) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: "0644"
+      when:
+        - approval_manifest.approval_status | default('pending') != 'approved'
+
+    - name: Report approval skipped (already approved or skip_approval)
+      ansible.builtin.debug:
+        msg: "Operator approval already recorded or skipped — continuing upgrade."
+      when:
+        - (skip_approval | default(false) | bool) or
+          (approval_manifest.approval_status | default('pending') == 'approved')
+
+# ──────────────────────────────────────────────────────────────────────
+# Set upgrade_mode to bypass upgrade_checkup guard within credential utility.
+# Set default omnia_run_tags (prepare_oim, ufm_telemetry, ldms, idrac_telemetry).
+# Conditionally add gitlab tag when build_stream is enabled.
+# ──────────────────────────────────────────────────────────────────────
+- name: Set upgrade mode flag and dynamic run tags for credential utility
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Enable upgrade_mode to bypass credential utility guard
+      ansible.builtin.set_fact:
+        upgrade_mode: true
+        cacheable: true
+
+    - name: Set default dynamic run tags
+      ansible.builtin.set_fact:
+        omnia_run_tags: >-
+          {{
+            (
+              ansible_run_tags | default([]) +
+              ['prepare_oim', 'ufm_telemetry', 'ldms', 'idrac_telemetry']
+            ) | unique
+          }}
+        cacheable: true
+
+    - name: Add gitlab tag when build_stream is enabled
+      ansible.builtin.set_fact:
+        omnia_run_tags: >-
+          {{
+            (
+              omnia_run_tags | default([]) | list +
+              ['build_stream', 'gitlab']
+            ) | unique
+          }}
+        cacheable: true
+      when: build_stream_config.enable_build_stream | default(false) | bool
+
+- name: Invoke validate_config.yml to perform L1 and L2 validations
+  ansible.builtin.import_playbook: ../input_validation/validate_config.yml
+  tags: always
+
+- name: Load Omnia credential utility
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+  tags: always
 
 # ──────────────────────────────────────────────────────────────────────
 # Sub-flow imports (each sub-flow reads upgrade_manifest.yml and
@@ -425,15 +523,24 @@
                                  and manifest.component_status.build_stream | default('pending') == 'completed')
                              else [] }}"
 
-    - name: Build cleaned component_status (mark skipped or completed)
+    - name: Resolve requested tags for finalize
+      ansible.builtin.set_fact:
+        finalize_requested_tags: >-
+          {{ all_components
+             if (ansible_run_tags is not defined or 'all' in ansible_run_tags)
+             else ansible_run_tags | intersect(all_components) }}
+
+    - name: Build cleaned component_status (only update requested tags)
       ansible.builtin.set_fact:
         cleaned_component_status: >-
           {%- set result = {} -%}
           {%- for key, val in manifest.component_status.items() -%}
           {%-   if key in bs_skipped_tags and val == 'pending' -%}
           {%-     set _ = result.update({key: 'skipped'}) -%}
-          {%-   else -%}
+          {%-   elif key in finalize_requested_tags -%}
           {%-     set _ = result.update({key: val if val in ['completed', 'skipped'] else 'completed'}) -%}
+          {%-   else -%}
+          {%-     set _ = result.update({key: val}) -%}
           {%-   endif -%}
           {%- endfor -%}
           {{ result }}
@@ -443,7 +550,7 @@
         new_status: >-
           {{ 'completed'
              if (cleaned_component_status.values() | reject('in', ['completed', 'skipped']) | list | length == 0)
-             else 'partial' }}
+             else 'in-progress' }}
 
     - name: Write upgrade_manifest.yml with cleaned component_status and updated upgrade_status
       ansible.builtin.copy:

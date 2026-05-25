@@ -18,6 +18,21 @@
 - name: Get CSI dependencies from local repo
   when: hostvars['localhost']['csi_driver_powerscale_support']
   block:
+    - name: Load csi_driver_powerscale.json and extract versioned package names
+      ansible.builtin.set_fact:
+        csi_powerscale_packages_json: "{{ lookup('file', csi_powerscale_packages_file) | from_json }}"
+      delegate_to: localhost
+
+    - name: Extract versioned directory names from JSON (these are used as-is for directories)
+      ansible.builtin.set_fact:
+        csi_powerscale_dir: "{{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'csi-powerscale') | map(attribute='package') | first }}" # noqa: yaml[line-length]
+      delegate_to: localhost
+
+    - name: Display extracted PowerScale versioned directory names
+      ansible.builtin.debug:
+        msg:
+          - "csi_powerscale_dir: {{ csi_powerscale_dir }}"
+
     - name: Base64 encode username and password
       ansible.builtin.set_fact:
         csi_username_b64: "{{ hostvars['localhost']['csi_username'] | b64encode }}"
@@ -107,69 +122,69 @@
 
     - name: Get csi-powerscale git tar
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/csi-powerscale/{{ csi_powerscale_git }}"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/{{ csi_powerscale_git }}"
+        url: "{{ offline_git_path }}/{{ csi_powerscale_dir }}/{{ csi_powerscale_dir }}.tar.gz"
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}.tar.gz"
         mode: "{{ permission_644 }}"
 
     - name: Extract csi-powerscale tar file
       ansible.builtin.unarchive:
-        src: "{{ k8s_client_mount_path }}/csi-driver-powerscale/{{ csi_powerscale_git }}"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/"
+        src: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}.tar.gz"
+        dest: "{{ k8s_client_mount_path }}/"
         remote_src: true
 
     - name: Get dell/helm-charts git tar
       ansible.builtin.get_url:
         url: "{{ offline_git_path }}/helm-charts/{{ helm_charts_git }}"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale/{{ helm_charts_git }}"
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ helm_charts_git }}"
         mode: "{{ permission_644 }}"
 
     - name: Get external-snapshotter git tar
       ansible.builtin.get_url:
         url: "{{ offline_git_path }}/external-snapshotter/{{ external_snapshotter_git }}"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale/{{ external_snapshotter_git }}"
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_git }}"
         mode: "{{ permission_644 }}"
 
-    - name: Transfer storage class template to nfs share
+    - name: Transfer storage class template to nfs share (inside versioned directory)
       ansible.builtin.template:
         src: ps_storage_class.j2
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/ps_storage_class.yml"
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/ps_storage_class.yml"
         owner: "{{ owner_value }}"
         group: "{{ group_value }}"
         mode: "{{ permission_644 }}"
 
-    - name: Copy PowerScale CSI secret file to target path
+    - name: Copy PowerScale CSI secret file to target path (inside versioned directory)
       ansible.builtin.copy:
         src: "{{ csi_powerscale_driver_secret_file_path }}"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/secret.yaml"
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/secret.yaml"
         mode: "0600"
       when:
         - csi_powerscale_driver_secret_file_path is defined
       no_log: true
 
-    - name: Copy PowerScale CSI values file to target path
+    - name: Copy PowerScale CSI values file to target path (inside versioned directory)
       ansible.builtin.copy:
         src: "{{ csi_powerscale_driver_values_file_path }}"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/values.yaml"
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/values.yaml"
         mode: "0644"
       when:
         - csi_powerscale_driver_values_file_path is defined
 
-    - name: Copy empty certificate yaml file
+    - name: Copy empty certificate yaml file (inside versioned directory)
       ansible.builtin.copy:
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/empty_isilon-certs.yaml"
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/empty_isilon-certs.yaml"
         src: "{{ empty_certificate_template_path }}"
         mode: "{{ permission_644 }}"
 
-    - name: Extract dell/helm-charts tar file under csi-powerscale directory
+    - name: Extract dell/helm-charts tar file under versioned csi-powerscale directory
       ansible.builtin.unarchive:
-        src: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale/{{ helm_charts_git }}"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale"
+        src: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ helm_charts_git }}"
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}"
         remote_src: true
 
-    - name: Extract external snapshotter tar file under csi-powerscale directory
+    - name: Extract external snapshotter tar file under versioned csi-powerscale directory
       ansible.builtin.unarchive:
-        src: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale/{{ external_snapshotter_git }}"
-        dest: "{{ k8s_client_mount_path }}/csi-driver-powerscale/csi-powerscale"
+        src: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_git }}"
+        dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}"
         remote_src: true
 
   rescue:

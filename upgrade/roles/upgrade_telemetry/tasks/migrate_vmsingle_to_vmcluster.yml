@@ -1,0 +1,137 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Post-migration cleanup: Delete VMSingle after VMCluster is running
+# This runs AFTER VMCluster CR is applied and new cluster is up
+# ============================================================================
+
+- name: Get VMSingle name
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl -n {{ telemetry_namespace }} get vmsingle --no-headers 2>/dev/null | awk '{print $1}'
+  register: vmsingle_name
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Display VMSingle cleanup info
+  ansible.builtin.debug:
+    msg:
+      - "{{ victoria_cleaning_vmsingle }}"
+      - "New VMCluster is already running: victoria-cluster"
+      - "Old VMSingle will be deleted to free resources"
+
+# ── Backup VMSingle resources before deletion ──
+- name: Backup VMSingle CR
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get vmsingle {{ vmsingle_name.stdout | trim }} -o yaml \
+      > "{{ telemetry_backup_dir }}/old_vmsingle.yaml" 2>/dev/null || true
+  changed_when: false
+  when: vmsingle_name.stdout | length > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Get VMSingle PVC name
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get vmsingle {{ vmsingle_name.stdout | trim }} \
+      -o jsonpath='{.spec.storage.volumeClaimTemplate.spec.resources.requests.storage}' 2>/dev/null || echo ""
+  register: vmsingle_storage
+  changed_when: false
+  failed_when: false
+  when: vmsingle_name.stdout | length > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Get VMSingle PVC
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl -n {{ telemetry_namespace }} get pvc -l app.kubernetes.io/name=vmsingle --no-headers 2>/dev/null | awk '{print $1}'
+  register: vmsingle_pvc
+  changed_when: false
+  failed_when: false
+  when: vmsingle_name.stdout | length > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Backup VMSingle PVC
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get pvc {{ vmsingle_pvc.stdout | trim }} -o yaml \
+      > "{{ telemetry_backup_dir }}/old_vmsingle_pvc.yaml" 2>/dev/null || true
+  changed_when: false
+  when:
+    - vmsingle_name.stdout | length > 0
+    - vmsingle_pvc.stdout | length > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Get PV name from VMSingle PVC
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get pvc {{ vmsingle_pvc.stdout | trim }} \
+      -o jsonpath='{.spec.volumeName}' 2>/dev/null || echo ""
+  register: vmsingle_pv
+  changed_when: false
+  when:
+    - vmsingle_name.stdout | length > 0
+    - vmsingle_pvc.stdout | length > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Backup VMSingle PV
+  ansible.builtin.shell: |
+    kubectl get pv {{ vmsingle_pv.stdout | trim }} -o yaml \
+      > "{{ telemetry_backup_dir }}/old_vmsingle_pv.yaml" 2>/dev/null || true
+  changed_when: false
+  when:
+    - vmsingle_name.stdout | length > 0
+    - vmsingle_pvc.stdout | length > 0
+    - vmsingle_pv.stdout | length > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Delete VMSingle CR (PVC will be retained) ──
+- name: Delete VMSingle CR
+  ansible.builtin.command:
+    cmd: kubectl -n {{ telemetry_namespace }} delete vmsingle {{ vmsingle_name.stdout | trim }}
+  register: vmsingle_delete
+  changed_when: true
+  ignore_errors: true
+  when: vmsingle_name.stdout | length > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Wait for VMSingle pods to terminate
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get pods -l app.kubernetes.io/name=vmsingle --no-headers 2>/dev/null | wc -l
+  register: vmsingle_pod_count
+  until: (vmsingle_pod_count.stdout | trim | int) == 0
+  retries: 60
+  delay: 5
+  changed_when: false
+  ignore_errors: true
+  when: vmsingle_name.stdout | length > 0
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Note: Old VMSingle PVC is retained for manual data migration if needed ──
+- name: Display cleanup summary
+  ansible.builtin.debug:
+    msg:
+      - "{{ victoria_vmsingle_cleanup_completed }}"
+      - "Old VMSingle: {{ vmsingle_name.stdout | default(vmsingle_name) | default('N/A') }}"
+      - "Old PVC: {{ vmsingle_pvc.stdout | default(vmsingle_pvc) | default('N/A') }} (retained for reference)"
+      - "Backup location: {{ telemetry_backup_dir }}"
+      - "New VMCluster is running: victoria-cluster"
+      - "NOTE: Old VMSingle PVC is retained. Delete manually if not needed."

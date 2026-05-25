@@ -63,6 +63,7 @@ def validate_input_logic(
         "omnia_config.yml": common_validation.validate_omnia_config,
         "local_repo_config.yml": local_repo_validation.validate_local_repo_config,
         "telemetry_config.yml": telemetry_validation.validate_telemetry_config,
+        "telemetry_storage_config.yml": telemetry_validation.validate_telemetry_storage_config,
         "security_config.yml": common_validation.validate_security_config,
         "storage_config.yml": common_validation.validate_storage_config,
         "high_availability_config.yml":

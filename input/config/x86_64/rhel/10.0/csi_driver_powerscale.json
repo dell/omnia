@@ -2,7 +2,7 @@
   "csi_driver_powerscale": {
     "cluster": [
       {
-        "package": "csi-powerscale",
+        "package": "csi-powerscale-v2.16.0",
         "url": "https://github.com/dell/csi-powerscale.git",
         "type": "git",
         "version": "v2.16.0"

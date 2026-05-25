@@ -45,7 +45,6 @@ cp_ips: "{{ (cp_first_ip_list + cp_ip_list) | unique }}"
 folder_mode: "0755"
 
 # csi variables
-csi_powerscale_git: "csi-powerscale.tar.gz"
 fail_msg_download: "Failed to get required dependencies. Make sure to verify entries in csi_driver_powerscale.json and run local_repo.yml first."
 helm_charts_git: "helm-charts.tar.gz"
 external_snapshotter_git: "external-snapshotter.tar.gz"

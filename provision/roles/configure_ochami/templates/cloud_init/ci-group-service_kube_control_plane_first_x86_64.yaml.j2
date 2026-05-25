@@ -830,7 +830,7 @@ PYEOF
               mkdir -p /opt/omnia
               POWERSCALE_DEPLOYMENT_FAILED=0
 
-              if cp -rp {{ k8s_client_mount_path }}/csi-driver-powerscale /opt/omnia/; then
+              if cp -rp {{ k8s_client_mount_path }}/{{ csi_powerscale_dir }} /opt/omnia/; then
                 echo "Copied CSI PowerScale driver to /opt/omnia successfully."
               else
                 echo "ERROR: Failed to copy PowerScale driver. Skipping PowerScale deployment."
@@ -838,7 +838,7 @@ PYEOF
               fi
 
               if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
-                SECRET_FILE="/opt/omnia/csi-driver-powerscale/secret.yaml"
+                SECRET_FILE="/opt/omnia/{{ csi_powerscale_dir }}/secret.yaml"
                 echo "Checking if creds are provided by user"
 
                 if [[ -f "$SECRET_FILE" ]]; then
@@ -925,8 +925,8 @@ PYEOF
 
                 if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
                   echo "===== Applying empty certificate secret ====="
-                  if [ -f "/opt/omnia/csi-driver-powerscale/empty_isilon-certs.yaml" ]; then
-                    kubectl apply -f /opt/omnia/csi-driver-powerscale/empty_isilon-certs.yaml || {
+                  if [ -f "/opt/omnia/{{ csi_powerscale_dir }}/empty_isilon-certs.yaml" ]; then
+                    kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/empty_isilon-certs.yaml || {
                       echo "Failed to apply empty certs secret. Continuing..."
                       POWERSCALE_DEPLOYMENT_FAILED=1
                     }
@@ -935,8 +935,8 @@ PYEOF
 
                 if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
                   echo "===== Deploying External Snapshotter CRDs ====="
-                  if [ -d "/opt/omnia/csi-driver-powerscale/csi-powerscale/external-snapshotter/client/config/crd" ]; then
-                    kubectl apply -f /opt/omnia/csi-driver-powerscale/csi-powerscale/external-snapshotter/client/config/crd/ >/dev/null 2>&1 || {
+                  if [ -d "/opt/omnia/{{ csi_powerscale_dir }}/external-snapshotter/client/config/crd" ]; then
+                    kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/external-snapshotter/client/config/crd/ >/dev/null 2>&1 || {
                       echo "CRD deployment failed (expected). Continuing..."
                     }
                   fi
@@ -944,8 +944,8 @@ PYEOF
 
                 if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
                   echo "===== Deploying Snapshot Controller ====="
-                  if [ -d "/opt/omnia/csi-driver-powerscale/csi-powerscale/external-snapshotter/deploy/kubernetes/snapshot-controller" ]; then
-                    kubectl apply -f /opt/omnia/csi-driver-powerscale/csi-powerscale/external-snapshotter/deploy/kubernetes/snapshot-controller/ >/dev/null 2>&1 || {
+                  if [ -d "/opt/omnia/{{ csi_powerscale_dir }}/external_snapshotter/deploy/kubernetes/snapshot-controller" ]; then
+                    kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/external_snapshotter/deploy/kubernetes/snapshot-controller/ >/dev/null 2>&1 || {
                       echo "Snapshot Controller deployment failed (expected). Continuing..."
                     }
 
@@ -974,7 +974,7 @@ PYEOF
                   fi
                 fi
 
-                FILE="/opt/omnia/csi-driver-powerscale/values.yaml"   # <-- update with actual path
+                FILE="/opt/omnia/{{ csi_powerscale_dir }}/values.yaml"   # <-- update with actual path
 
                 echo "Updating arrayConnectivityPollRate in: $FILE"
 
@@ -989,10 +989,10 @@ PYEOF
 
                 if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
                   echo "===== Running CSI PowerScale installation script ====="
-                  INSTALL_SCRIPT="/opt/omnia/csi-driver-powerscale/csi-powerscale/dell-csi-helm-installer/csi-install.sh"
+                  INSTALL_SCRIPT="/opt/omnia/{{ csi_powerscale_dir }}/dell-csi-helm-installer/csi-install.sh"
                   if [ -x "$INSTALL_SCRIPT" ]; then
                     cd "$(dirname "$INSTALL_SCRIPT")" || true
-                    ./csi-install.sh --namespace isilon --values /opt/omnia/csi-driver-powerscale/values.yaml --skip-verify &
+                    ./csi-install.sh --namespace isilon --values /opt/omnia/{{ csi_powerscale_dir }}/values.yaml --skip-verify &
                     CSI_PID=$!
                     echo "Waiting for CSI install script (PID $CSI_PID) to complete..."
                     wait $CSI_PID
@@ -1024,8 +1024,8 @@ PYEOF
 
                   if [ "$CSI_READY" -eq 1 ]; then
                     echo "CSI PowerScale driver installed successfully."
-                    if [ -f "/opt/omnia/csi-driver-powerscale/ps_storage_class.yml" ]; then
-                      kubectl apply -f /opt/omnia/csi-driver-powerscale/ps_storage_class.yml
+                    if [ -f "/opt/omnia/{{ csi_powerscale_dir }}/ps_storage_class.yml" ]; then
+                      kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/ps_storage_class.yml
                       echo "PowerScale StorageClass applied successfully."
                     fi
                   else
@@ -1080,10 +1080,6 @@ PYEOF
             fi
             systemctl restart nfs-client.target
             systemctl restart rpcbind
-
-{% if powerscale_metrics_enabled | default(false) | bool %}
-{% include 'powerscale/deploy_powerscale_telemetry.sh.j2' %}
-{% endif %}
 
 {% if telemetry_enabled %}
             echo "Applying Telemetry Kubernetes deployments"
