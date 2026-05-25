@@ -398,7 +398,6 @@
       register: bss_cp_additional_result
       changed_when: true
       failed_when: bss_cp_additional_result.rc != 0
-      
 
     - name: "Hop — Set BSS status to completed for service_kube_control_plane"
       ansible.builtin.include_tasks: update_node_step.yml
