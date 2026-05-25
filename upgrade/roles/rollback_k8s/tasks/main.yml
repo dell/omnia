@@ -203,6 +203,7 @@
         status_update:
           rollback:
             status: completed
+            failed_at:
             completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
     - name: Display rollback success

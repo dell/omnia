@@ -76,6 +76,7 @@ rollback_cp_steps:
   - restore_etcd
   - restore_k8s_configs
   - downgrade_packages
+  - crio_restart
   - start_kubelet
   - validation
   - etcd_health_check
@@ -83,6 +84,7 @@ rollback_cp_steps:
 rollback_worker_steps:
   - stop_kubelet
   - downgrade_packages
+  - crio_restart
   - start_kubelet
   - validation
 

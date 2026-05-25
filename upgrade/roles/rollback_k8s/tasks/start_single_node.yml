@@ -73,6 +73,10 @@
         node_status_update:
           version_current: "{{ k8s_rollback_version }}"
           steps:
+            crio_restart:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+              error:
             start_kubelet:
               status: completed
               timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"

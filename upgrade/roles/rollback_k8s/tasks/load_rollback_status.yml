@@ -116,6 +116,50 @@
         - rollback_status is mapping
         - rollback_status.rollback is defined
 
+# ── Normalize existing rollback status ───────────────────────────────
+- name: Initialize normalized rollback nodes map
+  ansible.builtin.set_fact:
+    normalized_rb_nodes: {}
+  when:
+    - rollback_status is defined
+    - rollback_status.nodes is defined
+
+- name: Normalize rollback node order and ensure crio_restart step exists
+  ansible.builtin.set_fact:
+    normalized_rb_nodes: >-
+      {{ normalized_rb_nodes | combine({
+           item: (
+             rollback_status.nodes[item]
+             | combine({
+                 'steps': (
+                   rollback_status.nodes[item].steps
+                   | default({})
+                   | combine({
+                       'crio_restart': (
+                         rollback_status.nodes[item].steps.crio_restart
+                         | default({'status': 'pending', 'timestamp': None, 'error': None})
+                       )
+                     }, recursive=True)
+                 )
+               }, recursive=True)
+           )
+         }, recursive=True) }}
+  loop: "{{ all_rollback_nodes }}"
+  loop_control:
+    label: "{{ item }}"
+  when:
+    - rollback_status is defined
+    - rollback_status.nodes is defined
+    - rollback_status.nodes[item] is defined
+
+- name: Apply normalized rollback nodes map
+  ansible.builtin.set_fact:
+    rollback_status: "{{ rollback_status | combine({'nodes': normalized_rb_nodes}, recursive=True) }}"
+  when:
+    - rollback_status is defined
+    - rollback_status.nodes is defined
+    - normalized_rb_nodes is defined
+
 # ── Initialize rollback status for new rollback ─────────────────────
 - name: Initialize rollback status
   when:
@@ -139,6 +183,7 @@
                      'restore_etcd': {'status': 'pending', 'timestamp': None, 'error': None},
                      'restore_k8s_configs': {'status': 'pending', 'timestamp': None, 'error': None},
                      'downgrade_packages': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_restart': {'status': 'pending', 'timestamp': None, 'error': None},
                      'start_kubelet': {'status': 'pending', 'timestamp': None, 'error': None},
                      'validation': {'status': 'pending', 'timestamp': None, 'error': None},
                      'etcd_health_check': {'status': 'pending', 'timestamp': None, 'error': None}
@@ -147,6 +192,7 @@
                    else {
                      'stop_kubelet': {'status': 'pending', 'timestamp': None, 'error': None},
                      'downgrade_packages': {'status': 'pending', 'timestamp': None, 'error': None},
+                     'crio_restart': {'status': 'pending', 'timestamp': None, 'error': None},
                      'start_kubelet': {'status': 'pending', 'timestamp': None, 'error': None},
                      'validation': {'status': 'pending', 'timestamp': None, 'error': None}
                    }
