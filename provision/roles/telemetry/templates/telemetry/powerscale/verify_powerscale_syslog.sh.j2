@@ -36,62 +36,9 @@ fi
 echo ""
 
 # ============================================================================
-# Test 3: rsyslog Service Status on All K8s Nodes
+# Test 3: kube-proxy iptables Rules for VLAgent ClusterIP
 # ============================================================================
-echo "Test 3: rsyslog Service Status on K8s Nodes"
-NODE_IPS=$(kubectl get nodes -o wide --no-headers | awk '{print $6}')
-RSYSLOG_ACTIVE_COUNT=0
-for NODE_IP in $NODE_IPS; do
-    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 "$NODE_IP" \
-        "systemctl is-active rsyslog" >/dev/null 2>&1; then
-        echo "  ✓ rsyslog active on $NODE_IP"
-        ((RSYSLOG_ACTIVE_COUNT++))
-    else
-        echo "  ✗ rsyslog not active on $NODE_IP"
-    fi
-done
-echo "Total: $RSYSLOG_ACTIVE_COUNT/$NODE_IPS nodes with active rsyslog"
-echo ""
-
-# ============================================================================
-# Test 4: rsyslog Configuration
-# ============================================================================
-echo "Test 4: rsyslog Configuration on Local Node"
-if [ -f /etc/rsyslog.d/60-omnia-powerscale-syslog.conf ]; then
-    echo "✓ rsyslog config file exists"
-    if grep -q "target=\"$VLAGENT_CLUSTERIP\"" /etc/rsyslog.d/60-omnia-powerscale-syslog.conf; then
-        echo "✓ rsyslog forwarding to VLAgent ClusterIP: $VLAGENT_CLUSTERIP"
-    else
-        echo "✗ rsyslog forwarding target mismatch"
-        echo "  Expected: target=\"$VLAGENT_CLUSTERIP\""
-        echo "  Actual: $(grep 'target=' /etc/rsyslog.d/60-omnia-powerscale-syslog.conf | head -1)"
-    fi
-else
-    echo "✗ rsyslog config file missing"
-fi
-echo ""
-
-# ============================================================================
-echo ""
-
-# ============================================================================
-# Test 5: VLAgent Binary Format Errors (should be 0 after rsyslog restart)
-# ============================================================================
-echo "Test 6: VLAgent Binary Format Errors (last 2 minutes)"
-ERROR_COUNT=$(kubectl logs -n telemetry vlagent-vlagent-0 --since=2m 2>&1 | grep -c "cannot parse JSON" 2>/dev/null || echo "0")
-ERROR_COUNT=$(echo "$ERROR_COUNT" | tr -d '[:space:]')
-if [ "$ERROR_COUNT" -eq "0" ]; then
-    echo "✓ No binary format errors (count: $ERROR_COUNT)"
-else
-    echo "✗ Binary format errors detected (count: $ERROR_COUNT)"
-    echo "  Run: systemctl restart rsyslog on all K8s nodes"
-fi
-echo ""
-
-# ============================================================================
-# Test 6: kube-proxy iptables Rules for VLAgent ClusterIP
-# ============================================================================
-echo "Test 7: kube-proxy iptables Rules for VLAgent ClusterIP"
+echo "Test 3: kube-proxy iptables Rules for VLAgent ClusterIP"
 if iptables -t nat -L KUBE-SERVICES -n 2>/dev/null | grep -q "$VLAGENT_CLUSTERIP"; then
     echo "✓ iptables rules exist for ClusterIP routing"
     iptables -t nat -L KUBE-SERVICES -n | grep "$VLAGENT_CLUSTERIP" | head -3
@@ -101,9 +48,9 @@ fi
 echo ""
 
 # ============================================================================
-# Test 7: Port 514 Firewall Rules
+# Test 4: Port 514 Firewall Rules
 # ============================================================================
-echo "Test 8: Port 514 Firewall Rules"
+echo "Test 4: Port 514 Firewall Rules"
 if command -v firewall-cmd &>/dev/null; then
     if firewall-cmd --list-ports 2>/dev/null | grep -q 514; then
         echo "✓ Port 514 open in firewalld"
@@ -117,14 +64,29 @@ fi
 echo ""
 
 # ============================================================================
+# Test 5: VLAgent Logs (check for syslog ingestion)
+# ============================================================================
+echo "Test 5: VLAgent Logs (syslog ingestion check)"
+VLAGENT_POD=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=vlagent -o name 2>/dev/null | head -1)
+if [ -n "$VLAGENT_POD" ]; then
+    echo "Checking VLAgent logs for syslog ingestion (last 5 minutes)..."
+    SYSLOG_COUNT=$(kubectl logs -n "$NAMESPACE" "$VLAGENT_POD" --since=5m 2>/dev/null | grep -c "syslog" || echo "0")
+    if [ "$SYSLOG_COUNT" -gt 0 ]; then
+        echo "✓ Syslog messages detected in VLAgent logs (count: $SYSLOG_COUNT)"
+        kubectl logs -n "$NAMESPACE" "$VLAGENT_POD" --since=5m 2>/dev/null | grep "syslog" | tail -3
+    else
+        echo "⚠ No syslog messages detected in VLAgent logs (last 5 minutes)"
+        echo "  This may indicate PowerScale is not sending syslog or network/firewall issue"
+    fi
+else
+    echo "✗ VLAgent pod not found"
+fi
+echo ""
+
+# ============================================================================
 # Summary
 # ============================================================================
 echo "=========================================="
-echo "UT Verification Complete"
+echo "VLAgent Verification Complete"
 echo "=========================================="
-echo ""
-echo "If any tests failed:"
-echo "1. Restart rsyslog on all K8s nodes: systemctl restart rsyslog"
-echo "2. Wait 30 seconds for rsyslog to reconnect to VLAgent"
-echo "3. Re-run this script"
 echo ""

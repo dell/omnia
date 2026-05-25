@@ -58,7 +58,7 @@ spec:
           limits:
             memory: {{ vector.ldms.resources.limits.memory }}
             cpu: {{ vector.ldms.resources.limits.cpu }}
-        
+
         # Ports: health check and metrics
         ports:
         - name: health
@@ -67,7 +67,7 @@ spec:
         - name: metrics
           containerPort: {{ vector.ldms.metrics_port }}
           protocol: TCP
-        
+
         # Liveness probe: Vector health endpoint
         # Vector serves /health and /metrics on the same API port (metrics_port)
         livenessProbe:
@@ -78,7 +78,7 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
-        
+
         # Readiness probe: Vector health endpoint
         readinessProbe:
           httpGet:
@@ -137,7 +137,7 @@ spec:
           items:
           - key: vector.toml
             path: vector.toml
-      
+
       # Kafka mTLS certificates from kafkapump secret
       # Spec Reference: §4.1.1 Vector-LDMS reuses existing kafkapump KafkaUser
       - name: kafka-certs

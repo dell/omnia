@@ -61,11 +61,11 @@ spec:
                   key: clusterName
           resources:
             requests:
-              cpu: {{ csm_metrics_powerscale_resources.requests.cpu }}
-              memory: {{ csm_metrics_powerscale_resources.requests.memory }}
+              cpu: {{ csm_metrics_powerscale_storage.requests.cpu }}
+              memory: {{ csm_metrics_powerscale_storage.requests.memory }}
             limits:
-              cpu: {{ csm_metrics_powerscale_resources.limits.cpu }}
-              memory: {{ csm_metrics_powerscale_resources.limits.memory }}
+              cpu: {{ csm_metrics_powerscale_storage.limits.cpu }}
+              memory: {{ csm_metrics_powerscale_storage.limits.memory }}
           volumeMounts:
             - name: isilon-creds
               mountPath: /etc/isilon-creds
