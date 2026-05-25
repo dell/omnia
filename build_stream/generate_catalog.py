@@ -92,6 +92,10 @@ def _is_infra_package_name(pkg_name: str) -> bool:
         or 'helm-charts' in name
     )
 
+# Bundle that should be included in os_* functional layers when those roles exist
+# ldms packages will populate os_x86_64 and os_aarch64 functional layers
+_OS_LAYER_BUNDLE = "ldms"
+
 def load_software_config(config_path):
     """Load software_config.json.
 
@@ -325,7 +329,7 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
     # Map packages to roles
     allowed_bundles = set().union(*allowed_bundles_by_arch.values())
     role_package_map, package_id_map = map_packages_to_roles(
-        packages, input_dir, allowed_bundles, bundle_roles
+        packages, input_dir, allowed_bundles, bundle_roles, pxe_groups
     )
     print("Role to package mapping: {}".format(dict(role_package_map)))
 
@@ -368,6 +372,20 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
         is_infra = bool(bundles & _INFRA_BUNDLES) or _is_infra_package_name(pkg_name)
         is_misc = _MISC_BUNDLE in bundles
 
+        # Check if os_x86_64 or os_aarch64 exist in PXE groups
+        has_os_x86_64 = 'os_x86_64' in (pxe_groups or [])
+        has_os_aarch64 = 'os_aarch64' in (pxe_groups or [])
+        
+        # Check if package is from ldms bundle
+        is_os_layer_bundle = _OS_LAYER_BUNDLE in bundles
+        
+        # If ldms package and os_* roles exist, add to functional packages for os_* layers
+        if is_os_layer_bundle and (has_os_x86_64 or has_os_aarch64):
+            if key in package_id_map:
+                func_pkg_id = package_id_map[key]
+                functional_packages[func_pkg_id] = create_package_entry(pkg_data)
+            continue
+        
         if is_infra:
             pkg_id = f"infrastructure_package_id_{infra_pkg_id_counter}"
             infra_pkg_id_counter += 1
@@ -423,6 +441,7 @@ def build_functional_layers(functional_packages, pxe_groups, role_package_map):
         # (e.g., 'slurm_control_node_x86_64' -> 'slurm_control_node')
         # Remove architecture suffix
         role_name = pxe_group.replace('_x86_64', '').replace('_aarch64', '')
+        pxe_arch = _extract_arch_from_pxe_group(pxe_group)
 
         # Find packages for this role.
         # Also merge in packages from the "<role>_first" section (e.g.,
@@ -433,8 +452,10 @@ def build_functional_layers(functional_packages, pxe_groups, role_package_map):
         if first_role in role_package_map:
             package_ids = sorted(set(package_ids) | set(role_package_map[first_role]))
 
+        # For os_* roles, packages are already mapped via role_package_map
+        # No additional processing needed here as ldms packages are handled in map_packages_to_roles
+        
         # Filter package IDs by architecture encoded in PXE group name.
-        pxe_arch = _extract_arch_from_pxe_group(pxe_group)
         if pxe_arch:
             package_ids = [
                 pkg_id
@@ -450,7 +471,7 @@ def build_functional_layers(functional_packages, pxe_groups, role_package_map):
 
     return functional_layers
 
-def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
+def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles, pxe_groups=None):
     """Map packages to their roles based on which config section they appear in."""
     # pylint: disable=too-many-locals,too-many-branches,too-many-nested-blocks
     role_package_map = defaultdict(list)
@@ -458,14 +479,25 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
 
     pkg_id_counter = 1
 
-    # First pass: assign package IDs (only for functional bundles)
+    # Check if os_x86_64 or os_aarch64 exist in PXE groups
+    has_os_roles = any(g in (pxe_groups or []) for g in ['os_x86_64', 'os_aarch64'])
+    
+    # First pass: assign package IDs (functional bundles + infra if os_* roles exist)
     for key, pkg_data in packages.items():
         pkg_name = pkg_data['name']
         bundles = set(pkg_data.get('bundles') or [])
         is_functional = bool(bundles & _FUNCTIONAL_BUNDLES)
         is_infra = bool(bundles & _INFRA_BUNDLES) or _is_infra_package_name(pkg_name)
 
+        # Include ldms packages in package_id_map when os_* roles exist
+        is_os_layer_bundle = _OS_LAYER_BUNDLE in bundles
+        
         if is_functional and not is_infra:
+            pkg_id = f"package_id_{pkg_id_counter}"
+            pkg_id_counter += 1
+            package_id_map[key] = pkg_id
+        elif is_os_layer_bundle and has_os_roles:
+            # ldms packages should be added to functional packages for os_* layers
             pkg_id = f"package_id_{pkg_id_counter}"
             pkg_id_counter += 1
             package_id_map[key] = pkg_id
@@ -480,8 +512,10 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
             if bundle_name not in allowed_bundles:
                 continue
 
-            # Only functional bundles should contribute to role-package mappings.
-            if bundle_name not in _FUNCTIONAL_BUNDLES:
+            # Functional bundles + ldms bundle (if os_* roles exist) contribute to role mappings
+            is_infra_bundle = bundle_name in _INFRA_BUNDLES
+            is_os_layer_bundle = bundle_name == _OS_LAYER_BUNDLE
+            if bundle_name not in _FUNCTIONAL_BUNDLES and not (is_os_layer_bundle and has_os_roles):
                 continue
 
             filepath = os.path.join(root, file)
@@ -504,8 +538,12 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
                         # 2) If the section name is the bundle itself (bundle_name) or "cluster",
                         #    treat these as common packages and map to all roles declared for
                         #    that bundle in software_config.json.
+                        # 3) For ldms bundle when os_* roles exist, map to 'os' role
                         if section_name not in ['cluster', bundle_name]:
                             role_package_map[section_name].append(pkg_id)
+                        elif is_os_layer_bundle and has_os_roles:
+                            # Map ldms packages to 'os' role
+                            role_package_map['os'].append(pkg_id)
                         else:
                             for role in bundle_roles.get(bundle_name, []):
                                 role_package_map[role].append(pkg_id)
