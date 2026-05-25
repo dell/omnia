@@ -1,0 +1,229 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# execute_telemetry_sh_upgrade.yml
+# Execute the telemetry.sh script on the kube_vip node.
+# This script redeploys and applies all telemetry deployment files
+# (Helm charts for operators + kubectl apply -k for kustomize resources).
+# After execution, wait for all telemetry pods to come up and generate a report.
+#
+# Required variables (set by calling playbook):
+#   - kube_vip
+#   - k8s_client_mount_path
+#   - telemetry_script_path, telemetry_kustomization_dir (from role vars)
+
+- name: Verify telemetry deployment artifacts on kube_vip
+  block:
+    - name: Verify telemetry.sh exists on kube_vip
+      ansible.builtin.stat:
+        path: "{{ telemetry_script_path }}"
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: telemetry_sh_stat
+
+    - name: Fail if telemetry.sh is missing
+      ansible.builtin.fail:
+        msg: >-
+          telemetry.sh not found at {{ telemetry_script_path }} on kube_vip.
+          Ensure the provision playbook has generated the telemetry deployment script.
+      when: not (telemetry_sh_stat.stat.exists | default(false))
+
+    - name: Verify kustomization.yaml exists in deployments directory
+      ansible.builtin.stat:
+        path: "{{ telemetry_kustomization_dir }}/kustomization.yaml"
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: kustomization_stat
+
+    - name: Fail if kustomization.yaml is missing
+      ansible.builtin.fail:
+        msg: >-
+          kustomization.yaml not found at {{ telemetry_kustomization_dir }}/kustomization.yaml on kube_vip.
+          Ensure the provision playbook has generated the kustomize deployment files.
+      when: not (kustomization_stat.stat.exists | default(false))
+
+- name: Execute telemetry.sh and validate deployment
+  block:
+    # ── Pre-patch: Increase terminationGracePeriodSeconds for MySQL graceful shutdown ──
+    - name: Patch idrac-telemetry StatefulSet for MySQL safety on NFS
+      ansible.builtin.include_tasks: patch_idrac_termination_grace_period.yml
+
+    - name: Display telemetry pods before upgrade
+      ansible.builtin.command:
+        cmd: kubectl get pods -n {{ telemetry_namespace }}
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: pods_before_upgrade
+      changed_when: false
+
+    - name: Display pods output
+      ansible.builtin.debug:
+        msg: "{{ pods_before_upgrade.stdout_lines }}"
+
+    # ── Execute telemetry.sh ──
+    - name: Execute telemetry.sh on kube_vip
+      ansible.builtin.command:
+        cmd: bash {{ telemetry_script_path }}
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: telemetry_sh_result
+      changed_when: true
+      timeout: 900
+      failed_when: false
+
+    - name: Check if telemetry.sh failed due to Helm errors
+      ansible.builtin.set_fact:
+        telemetry_sh_helm_error: >-
+          {{ telemetry_sh_result.stderr is search('cannot re-use a name') or
+             telemetry_sh_result.stderr is search('INSTALLATION FAILED') }}
+      when: telemetry_sh_result.rc != 0
+
+    - name: Display Helm error but continue (StatefulSet already updated via patch)
+      ansible.builtin.debug:
+        msg: "{{ telemetry_sh_helm_skip_msg }}"
+      when:
+        - telemetry_sh_result.rc != 0
+        - telemetry_sh_helm_error | default(false)
+
+    - name: Fail telemetry.sh for non-Helm errors
+      ansible.builtin.fail:
+        msg: "telemetry.sh failed with non-Helm error: {{ telemetry_sh_result.stderr }}"
+      when:
+        - telemetry_sh_result.rc != 0
+        - not (telemetry_sh_helm_error | default(false))
+
+    - name: Display telemetry.sh output
+      ansible.builtin.debug:
+        msg: "{{ telemetry_sh_result.stdout_lines }}"
+
+    # ── Restore original replica count after upgrade ──
+    - name: Scale idrac-telemetry back to original replica count
+      ansible.builtin.command:
+        cmd: kubectl scale statefulset idrac-telemetry -n {{ telemetry_namespace }} --replicas={{ idrac_replica_count.stdout }}
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: restore_replicas_result
+      changed_when: true
+      when:
+        - idrac_sts_check.rc == 0
+        - idrac_replica_count.stdout | int > 0
+
+    - name: Wait for replica scale to complete
+      ansible.builtin.command:
+        cmd: kubectl rollout status statefulset idrac-telemetry -n {{ telemetry_namespace }} --timeout=300s
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      changed_when: false
+      when:
+        - idrac_sts_check.rc == 0
+        - idrac_replica_count.stdout | int > 0
+        - restore_replicas_result.changed | default(false)
+
+    - name: Display replica restore status
+      ansible.builtin.debug:
+        msg: "{{ idrac_replica_restore_msg }}"
+      when:
+        - idrac_sts_check.rc == 0
+        - idrac_replica_count.stdout | int > 0
+
+    - name: Wait for all telemetry pods to be ready
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          kubectl get pods -n {{ telemetry_namespace }} --no-headers \
+            | grep -v 'Completed' \
+            | awk '{print $3}' \
+            | grep -v 'Running' \
+            | wc -l
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: pods_not_ready
+      until: pods_not_ready.stdout | int == 0
+      retries: "{{ pod_wait_retries }}"
+      delay: "{{ pod_wait_delay }}"
+      changed_when: false
+      failed_when: false
+
+    # ── Post-deployment validation: Check for MySQL issues ──
+    - name: Check idrac-telemetry pod status after deployment
+      ansible.builtin.shell:
+        cmd: >
+          kubectl get pods -n {{ telemetry_namespace }} -l app=idrac-telemetry
+          --no-headers -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,READY:.status.containerStatuses[*].ready
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: idrac_pod_status_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display idrac-telemetry pod status
+      ansible.builtin.debug:
+        msg: "idrac-telemetry pod status: {{ idrac_pod_status_check.stdout }}"
+      when: idrac_pod_status_check.stdout != ""
+
+    - name: Fail if idrac-telemetry MySQL container is in CrashLoopBackOff
+      ansible.builtin.fail:
+        msg: "{{ mysql_crash_error_msg }}"
+      when:
+        - idrac_pod_status_check.stdout != ""
+        - "'CrashLoopBackOff' in idrac_pod_status_check.stdout or 'Error' in idrac_pod_status_check.stdout"
+
+    - name: Generate telemetry pod status report
+      ansible.builtin.command:
+        cmd: kubectl get pods -n {{ telemetry_namespace }} -o wide
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: pod_status_report
+      changed_when: false
+
+    - name: Display telemetry pod status report
+      ansible.builtin.debug:
+        msg: "{{ pod_status_report.stdout_lines }}"
+
+    - name: Generate telemetry services report
+      ansible.builtin.command:
+        cmd: kubectl get svc -n {{ telemetry_namespace }}
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      register: svc_status_report
+      changed_when: false
+
+    - name: Display telemetry services report
+      ansible.builtin.debug:
+        msg: "{{ svc_status_report.stdout_lines }}"
+
+    - name: Fail if some pods are not ready
+      ansible.builtin.fail:
+        msg: >-
+          {{ pods_not_ready_msg }}
+          Review the pod status report above and check pod logs for errors:
+            kubectl logs -n {{ telemetry_namespace }} <pod-name>
+      when: pods_not_ready.stdout | int > 0
+
+    - name: Display telemetry.sh success
+      ansible.builtin.debug:
+        msg: "{{ telemetry_sh_success_msg }}"
+
+  rescue:
+    - name: Display telemetry.sh failure details
+      ansible.builtin.debug:
+        msg:
+          - "{{ telemetry_sh_fail_msg }}"
+          - "stdout: {{ telemetry_sh_result.stdout | default('N/A') }}"
+          - "stderr: {{ telemetry_sh_result.stderr | default('N/A') }}"
+          - "rc: {{ telemetry_sh_result.rc | default('N/A') }}"
+
+    - name: Fail the telemetry upgrade
+      ansible.builtin.fail:
+        msg: "Telemetry deployment failed. See error details above."
