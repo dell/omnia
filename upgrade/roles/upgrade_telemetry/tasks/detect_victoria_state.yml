@@ -1,0 +1,206 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Detect VictoriaMetrics deployment state + verify pre-staged files
+# ============================================================================
+# Sets facts:
+#   victoria_migration_type: statefulset_to_operator | already_operator | fresh_deploy
+#   victoria_deploy_mode:    cluster | single   (from pre-staged manifests)
+# ============================================================================
+
+# ── Verify pre-staged files from upgrade_provision ──
+- name: Verify deployment directory exists
+  ansible.builtin.stat:
+    path: "{{ telemetry_deploy_dir }}/deployments"
+  register: deploy_dir_stat
+  delegate_to: "{{ oim_host | default('localhost') }}"
+  connection: ssh
+
+- name: Fail if deployment directory missing (upgrade_provision not run)
+  ansible.builtin.fail:
+    msg: "{{ victoria_deployment_dir_missing }}"
+  when: not deploy_dir_stat.stat.exists
+
+- name: Verify operator tarball exists
+  ansible.builtin.stat:
+    path: "{{ telemetry_deploy_dir }}/{{ victoria_operator_pkg }}.tar.gz"
+  register: operator_tarball_stat
+  delegate_to: "{{ oim_host | default('localhost') }}"
+  connection: ssh
+
+- name: Fail if operator tarball missing
+  ansible.builtin.fail:
+    msg: "{{ victoria_operator_tarball_missing }}"
+  when: not operator_tarball_stat.stat.exists
+
+# ── Detect deploy mode from pre-staged manifests ──
+- name: Check for VMCluster manifest (cluster mode)
+  ansible.builtin.stat:
+    path: "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmcluster.yaml"
+  register: vmcluster_manifest_stat
+  delegate_to: "{{ oim_host | default('localhost') }}"
+  connection: ssh
+
+- name: Check for VMSingle manifest (single-node mode)
+  ansible.builtin.stat:
+    path: "{{ telemetry_deploy_dir }}/deployments/victoria-operator-vmsingle.yaml"
+  register: vmsingle_manifest_stat
+  delegate_to: "{{ oim_host | default('localhost') }}"
+  connection: ssh
+
+- name: Set victoria_deploy_mode
+  ansible.builtin.set_fact:
+    victoria_deploy_mode: "{{ 'cluster' if vmcluster_manifest_stat.stat.exists else 'single' }}"
+
+# ── Verify required victoria manifests ──
+- name: Check required victoria manifests exist
+  ansible.builtin.stat:
+    path: "{{ telemetry_deploy_dir }}/deployments/{{ item }}"
+  loop:
+    - victoria-vmagent-rbac.yaml
+    - victoria-operator-vmagent.yaml
+    - victoria-operator-vmscrape.yaml
+  register: required_manifests
+  delegate_to: "{{ oim_host | default('localhost') }}"
+  connection: ssh
+
+- name: Fail if any required manifest missing
+  ansible.builtin.fail:
+    msg: "{{ victoria_manifest_missing }}"
+  loop: "{{ required_manifests.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not item.stat.exists
+
+# ── Detect current cluster state ──
+- name: Find any VictoriaMetrics StatefulSet
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl -n {{ telemetry_namespace }} get statefulset --no-headers 2>/dev/null \
+      | grep -iE "victoria|vmstorage|vmselect|vminsert" | grep -v "victoria-cluster" | awk '{print $1}' | head -1
+  register: old_sts_name
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Check for StatefulSet
+  ansible.builtin.set_fact:
+    old_sts_found: "{{ old_sts_name.stdout | length > 0 }}"
+    actual_old_statefulset: "{{ old_sts_name.stdout | trim }}"
+  when: old_sts_name.stdout | length > 0
+
+- name: Set old_sts_found to false if no StatefulSet found
+  ansible.builtin.set_fact:
+    old_sts_found: false
+    actual_old_statefulset: ""
+  when: old_sts_name.stdout | length == 0
+
+- name: Check for existing VMSingle CR
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl -n {{ telemetry_namespace }} get vmsingle --no-headers 2>/dev/null | head -1
+  register: vmsingle_check
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Check for existing VMCluster CR
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get vmcluster {{ new_vmcluster_name }} --no-headers 2>/dev/null && echo "found" || echo "not_found"
+  register: vmcluster_check
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Determine migration type ──
+- name: Set victoria_migration_type
+  ansible.builtin.set_fact:
+    victoria_migration_type: >-
+      {% if old_sts_found and 'not_found' in vmcluster_check.stdout %}statefulset_to_operator
+      {% elif 'found' in vmsingle_check.stdout and 'not_found' in vmcluster_check.stdout %}vmsingle_to_vmcluster
+      {% elif 'found' in vmcluster_check.stdout %}already_operator
+      {% elif not old_sts_found and 'not_found' in vmcluster_check.stdout and 'not_found' in vmsingle_check.stdout %}fresh_deploy
+      {% else %}unknown{% endif %}
+
+- name: Trim victoria_migration_type
+  ansible.builtin.set_fact:
+    victoria_migration_type: "{{ victoria_migration_type | trim }}"
+
+- name: Display detected state
+  ansible.builtin.debug:
+    msg: "{{ victoria_detected_state }}"
+
+# ── Check pod health before proceeding ──
+- name: Check for unhealthy Victoria pods in telemetry namespace
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl -n {{ telemetry_namespace }} get pods --no-headers 2>/dev/null \
+      | grep -iE "victoria|vmstorage|vmselect|vminsert|vmagent|vmsingle" \
+      | grep -ivE "Running|Completed" \
+      | awk '{print $1, $3}' || echo ""
+  register: unhealthy_victoria_pods
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Check for pods stuck in CrashLoopBackOff or Error
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl -n {{ telemetry_namespace }} get pods --no-headers 2>/dev/null \
+      | grep -iE "victoria|vmstorage|vmselect|vminsert|vmagent|vmsingle" \
+      | grep -iE "CrashLoopBackOff|Error|ImagePullBackOff|ErrImagePull|Pending|Unknown" \
+      | awk '{print $1}' || echo ""
+  register: bad_pods
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Set unhealthy pods fact
+  ansible.builtin.set_fact:
+    victoria_unhealthy_pods: "{{ bad_pods.stdout_lines | default([]) | select() | list }}"
+
+- name: Display WARNING — unhealthy Victoria pods detected
+  ansible.builtin.debug:
+    msg: "{{ victoria_unhealthy_pods_warning }}"
+  when: victoria_unhealthy_pods | length > 0
+
+- name: Pause for user confirmation — unhealthy pods will be deleted
+  ansible.builtin.pause:
+    prompt: >-
+      {{ victoria_unhealthy_pods | length }} unhealthy Victoria pod(s) found.
+      They will be deleted and re-created during upgrade.
+      Press ENTER to continue or Ctrl+C to abort.
+  when: victoria_unhealthy_pods | length > 0
+
+- name: Delete unhealthy Victoria pods
+  ansible.builtin.command:
+    cmd: "kubectl -n {{ telemetry_namespace }} delete pod {{ item }} --force --grace-period=0"
+  loop: "{{ victoria_unhealthy_pods }}"
+  when: victoria_unhealthy_pods | length > 0
+  changed_when: true
+  register: pod_delete_result
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Display pod deletion results
+  ansible.builtin.debug:
+    msg: "{{ victoria_pods_deleted }}"
+  when: victoria_unhealthy_pods | length > 0

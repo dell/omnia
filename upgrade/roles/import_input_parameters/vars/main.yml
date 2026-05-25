@@ -368,6 +368,14 @@ telemetry_default_kafka_persistence_size: "8Gi"
 telemetry_default_kafka_log_retention_hours: 168
 telemetry_default_kafka_log_retention_bytes: -1
 telemetry_default_kafka_log_segment_bytes: 1073741824
+telemetry_default_kafka_storage_memory_request: "512Mi"
+telemetry_default_kafka_storage_cpu_request: "200m"
+telemetry_default_kafka_storage_memory_limit: "1Gi"
+telemetry_default_kafka_storage_cpu_limit: "1000m"
+telemetry_default_kafka_user_operator_memory_request: "512Mi"
+telemetry_default_kafka_user_operator_cpu_request: "200m"
+telemetry_default_kafka_user_operator_memory_limit: "512Mi"
+telemetry_default_kafka_user_operator_cpu_limit: "1000m"
 telemetry_default_ldms_agg_port: 6001
 telemetry_default_ldms_store_port: 6001
 telemetry_default_ldms_sampler_port: 10001

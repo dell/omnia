@@ -6,12 +6,12 @@ DEPLOY_DIR="{{ k8s_client_mount_path }}/telemetry"
 echo "===== Telemetry Stack Deployment ====="
 
 # Step 1: Create telemetry namespace
-echo "[1/5] Creating telemetry namespace..."
+echo "Creating telemetry namespace..."
 kubectl apply -f "${DEPLOY_DIR}/deployments/telemetry_namespace_creation.yaml"
 
 {% if kafka_support %}
 # Step 2: Install Strimzi Kafka operator
-echo "[2/5] Installing Strimzi Kafka operator..."
+echo "Installing Strimzi Kafka operator..."
 if helm status strimzi-cluster-operator -n telemetry >/dev/null 2>&1; then
   echo "  Strimzi operator already installed, upgrading..."
   helm -n telemetry upgrade strimzi-cluster-operator "${DEPLOY_DIR}/{{ strimzi_kafka_pkg }}.tar.gz"
@@ -43,7 +43,7 @@ done
 
 {% if victoria_metrics_support or victoria_logs_support %}
 # Step 3: Install VictoriaMetrics operator
-echo "[3/5] Installing VictoriaMetrics operator..."
+echo "Installing VictoriaMetrics operator..."
 if helm status victoria-metrics-operator -n telemetry >/dev/null 2>&1; then
   echo "  VictoriaMetrics operator already installed, upgrading..."
   helm -n telemetry upgrade victoria-metrics-operator "${DEPLOY_DIR}/{{ victoria_operator_pkg }}.tar.gz"
@@ -58,7 +58,7 @@ kubectl wait --for=condition=available --timeout=300s deployment/victoria-metric
 echo "  Waiting for VictoriaMetrics CRDs..."
 for i in $(seq 1 60); do
   CRDS_READY=true
-{% if victoria_metrics_support %}
+{% if victoria_metrics_support | default(false) %}
   kubectl get crd vmclusters.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
   kubectl get crd vmagents.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
   kubectl get crd vmpodscrapes.operator.victoriametrics.com >/dev/null 2>&1 || CRDS_READY=false
@@ -80,12 +80,12 @@ done
 {% endif %}
 
 # Step 4: Apply all Kustomize resources
-echo "[4/5] Applying Kustomize deployments..."
+echo "Applying Kustomize deployments..."
 kubectl apply -k "${DEPLOY_DIR}/deployments/."
 
 {% if ldms_support %}
 # Step 5: Create LDMS secrets and install LDMS aggregator
-echo "[5/5] Deploying LDMS resources..."
+echo "Deploying LDMS resources..."
 kubectl create secret generic nersc-ldms-ovis-auth \
   --from-file=ldmsauth.conf="${DEPLOY_DIR}/ldms/ldmsauth.conf" \
   --dry-run=client -o yaml | kubectl apply -f - -n telemetry
@@ -98,6 +98,12 @@ if helm status nersc-ldms-aggr -n telemetry >/dev/null 2>&1; then
 else
   cd "${DEPLOY_DIR}/ldms/nersc-ldms-aggr" && helm install -n telemetry nersc-ldms-aggr nersc-ldms-aggr --values values.yaml
 fi
+{% endif %}
+
+{% if powerscale_metrics_enabled | default(false) | bool %}
+# Step 6: Deploy PowerScale Telemetry (CSM Observability)
+echo "Deploying PowerScale Telemetry (CSM Observability)..."
+{% include 'powerscale/deploy_powerscale_telemetry.sh.j2' %}
 {% endif %}
 
 echo "===== Telemetry Stack Deployment Complete ====="

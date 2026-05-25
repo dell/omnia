@@ -16,7 +16,7 @@
 # This file contains resource and replica configurations for VictoriaMetrics, VictoriaLogs, and Vector components
 
 # VictoriaMetrics Cluster
-victoria_cluster:
+victoria_cluster_storage:
   vmstorage:
     replicas: 3
     resources:
@@ -27,6 +27,7 @@ victoria_cluster:
         memory: "2Gi"
         cpu: "1000m"
   vminsert:
+    replicas: 2
     resources:
       requests:
         memory: "256Mi"
@@ -35,6 +36,7 @@ victoria_cluster:
         memory: "512Mi"
         cpu: "500m"
   vmselect:
+    replicas: 2
     resources:
       requests:
         memory: "256Mi"
@@ -53,9 +55,9 @@ victoria_cluster:
         cpu: "250m"
 
 # VictoriaLogs Cluster
-victoria_logs_cluster:
+victoria_logs_cluster_storage:
   vlstorage:
-    replicas: 2
+    replicas: 3
     resources:
       requests:
         memory: "512Mi"
@@ -64,6 +66,7 @@ victoria_logs_cluster:
         memory: "1Gi"
         cpu: "500m"
   vlinsert:
+    replicas: 2
     resources:
       requests:
         memory: "256Mi"
@@ -92,7 +95,7 @@ victoria_logs_cluster:
         cpu: "100m"
 
 # Vector components
-vector:
+vector_storage:
   ldms:
     replicas: 2
     resources:
@@ -133,7 +136,7 @@ vector:
         cpu: "250m"
 
 # CSI Volume Exporter
-csi_volume_exporter:
+csi_volume_exporter_storage:
   resources:
     requests:
       cpu: "50m"
@@ -143,10 +146,30 @@ csi_volume_exporter:
       memory: "256Mi"
 
 # CSM Metrics PowerScale resource limits
-csm_metrics_powerscale_resources:
+csm_metrics_powerscale_storage:
   requests:
     cpu: "100m"
     memory: "128Mi"
   limits:
     cpu: "500m"
     memory: "512Mi"
+
+# Kafka Storage resources
+kafka_storage:
+  kafka:
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "200m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+  entity_operator:
+    user_operator:
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "200m"
+      limits:
+        memory: "512Mi"
+        cpu: "1000m"

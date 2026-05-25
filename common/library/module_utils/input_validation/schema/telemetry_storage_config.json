@@ -1,0 +1,757 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Telemetry Storage Configuration",
+  "description": "Resource and replica configurations for VictoriaMetrics, VictoriaLogs, Vector, Kafka, and PowerScale components.",
+  "type": "object",
+  "properties": {
+    "victoria_cluster_storage": {
+      "type": "object",
+      "description": "VictoriaMetrics cluster resource configurations.",
+      "properties": {
+        "vmstorage": {
+          "type": "object",
+          "description": "VMStorage resource configuration.",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of VMStorage replicas."
+            },
+            "resources": {
+              "type": "object",
+              "description": "Resource requests and limits.",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory request."
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU request."
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+                      "description": "Memory limit."
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$",
+                      "description": "CPU limit."
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "resources"]
+        },
+        "vminsert": {
+          "type": "object",
+          "description": "VMInsert resource configuration.",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of VMInsert replicas."
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "resources"]
+        },
+        "vmselect": {
+          "type": "object",
+          "description": "VMSelect resource configuration.",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of VMSelect replicas."
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "resources"]
+        },
+        "vmagent": {
+          "type": "object",
+          "description": "VMAgent resource configuration.",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of VMAgent replicas."
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "resources"]
+        }
+      },
+      "required": ["vmstorage", "vminsert", "vmselect", "vmagent"]
+    },
+    "victoria_logs_cluster_storage": {
+      "type": "object",
+      "description": "VictoriaLogs cluster resource configurations.",
+      "properties": {
+        "vlstorage": {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "resources"]
+        },
+        "vlinsert": {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "resources"]
+        },
+        "vlselect": {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "resources"]
+        },
+        "vlagent": {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "pvc_size": {
+              "type": "string",
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+              "default": "5Gi"
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "pvc_size", "resources"]
+        }
+      },
+      "required": ["vlstorage", "vlinsert", "vlselect", "vlagent"]
+    },
+    "vector_storage": {
+      "type": "object",
+      "description": "Vector component resource configurations.",
+      "properties": {
+        "ldms": {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "resources"]
+        },
+        "ome": {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "resources"]
+        },
+        "vlagent_vector": {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "pvc_size": {
+              "type": "string",
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+              "default": "5Gi"
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "pvc_size", "resources"]
+        },
+        "vmagent_vector": {
+          "type": "object",
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "pvc_size": {
+              "type": "string",
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$",
+              "default": "5Gi"
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["replicas", "pvc_size", "resources"]
+        }
+      },
+      "required": ["ldms", "ome", "vlagent_vector", "vmagent_vector"]
+    },
+    "csi_volume_exporter_storage": {
+      "type": "object",
+      "description": "CSI Volume Exporter resource configuration.",
+      "properties": {
+        "resources": {
+          "type": "object",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "pattern": "^[0-9]+m?$"
+                },
+                "memory": {
+                  "type": "string",
+                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                }
+              },
+              "required": ["cpu", "memory"]
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "pattern": "^[0-9]+m?$"
+                },
+                "memory": {
+                  "type": "string",
+                  "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                }
+              },
+              "required": ["cpu", "memory"]
+            }
+          },
+          "required": ["requests", "limits"]
+        }
+      },
+      "required": ["resources"]
+    },
+    "csm_metrics_powerscale_storage": {
+      "type": "object",
+      "description": "CSM Metrics PowerScale resource configuration.",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string",
+              "pattern": "^[0-9]+m?$"
+            },
+            "memory": {
+              "type": "string",
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+            }
+          },
+          "required": ["cpu", "memory"]
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string",
+              "pattern": "^[0-9]+m?$"
+            },
+            "memory": {
+              "type": "string",
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+            }
+          },
+          "required": ["cpu", "memory"]
+        }
+      },
+      "required": ["requests", "limits"]
+    },
+    "kafka_storage": {
+      "type": "object",
+      "description": "Kafka storage resource configuration. Required when kafka is in collection_targets for any source.",
+      "properties": {
+        "kafka": {
+          "type": "object",
+          "description": "Kafka broker resource configuration.",
+          "properties": {
+            "resources": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                },
+                "limits": {
+                  "type": "object",
+                  "properties": {
+                    "memory": {
+                      "type": "string",
+                      "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                    },
+                    "cpu": {
+                      "type": "string",
+                      "pattern": "^[0-9]+m?$"
+                    }
+                  },
+                  "required": ["memory", "cpu"]
+                }
+              },
+              "required": ["requests", "limits"]
+            }
+          },
+          "required": ["resources"]
+        },
+        "entity_operator": {
+          "type": "object",
+          "description": "Kafka Entity Operator resource configuration.",
+          "properties": {
+            "user_operator": {
+              "type": "object",
+              "properties": {
+                "resources": {
+                  "type": "object",
+                  "properties": {
+                    "requests": {
+                      "type": "object",
+                      "properties": {
+                        "memory": {
+                          "type": "string",
+                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                        },
+                        "cpu": {
+                          "type": "string",
+                          "pattern": "^[0-9]+m?$"
+                        }
+                      },
+                      "required": ["memory", "cpu"]
+                    },
+                    "limits": {
+                      "type": "object",
+                      "properties": {
+                        "memory": {
+                          "type": "string",
+                          "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei)$"
+                        },
+                        "cpu": {
+                          "type": "string",
+                          "pattern": "^[0-9]+m?$"
+                        }
+                      },
+                      "required": ["memory", "cpu"]
+                    }
+                  },
+                  "required": ["requests", "limits"]
+                }
+              },
+              "required": ["resources"]
+            }
+          },
+          "required": ["user_operator"]
+        }
+      },
+      "required": ["kafka", "entity_operator"]
+    }
+  },
+  "required": ["victoria_cluster_storage", "victoria_logs_cluster_storage", "vector_storage", "csi_volume_exporter_storage", "csm_metrics_powerscale_storage", "kafka_storage"]
+}
