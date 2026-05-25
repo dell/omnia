@@ -75,7 +75,7 @@
         - name: Map node_key to cloud-init metadata variable
           ansible.builtin.set_fact:
             # ci_data_var: "{{ '{% raw %}{{ ' + mount_item.node_key + ' }}{% endraw %}' }}"
-            ci_data_var: "$(cloud-init query {{ mount_item.node_key }})"
+            ci_data_var: "$(cloud-init query {{ ci_ds_dict.get(mount_item.node_key | default('local_hostname')) }})"
 
         - name: Normalize node_mount_point to list
           ansible.builtin.set_fact:
@@ -181,7 +181,7 @@
             - name: Map node_key to cloud-init metadata variable
               ansible.builtin.set_fact:
                 # host_cloud_init_node_var: "{{ '{% raw %}{{ ' + mount_item.node_key + ' }}{% endraw %}' }}"
-                host_cloud_init_node_var: "$(cloud-init query {{ mount_item.node_key }})"
+                host_cloud_init_node_var: "$(cloud-init query {{ ci_ds_dict.get(mount_item.node_key | default('local_hostname')) }})"
 
             - name: Concat the mount point with the node variable
               ansible.builtin.set_fact:

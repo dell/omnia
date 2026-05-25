@@ -62,3 +62,17 @@
       ansible.builtin.set_fact:
         ufm_telemetry_support: "{{ _telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
       when: _telemetry_config is defined and _telemetry_config.telemetry_sources is defined
+
+- name: Derive VAST telemetry support flag from telemetry_config.yml
+  when: "'vast_telemetry' in (omnia_run_tags | default([]))"
+  block:
+    - name: Load telemetry_config.yml for VAST support flag
+      ansible.builtin.include_vars:
+        file: "{{ telemetry_config_path }}"
+        name: _telemetry_config
+      failed_when: false
+
+    - name: Set vast_telemetry_support flag
+      ansible.builtin.set_fact:
+        vast_telemetry_support: "{{ _telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
+      when: _telemetry_config is defined and _telemetry_config.telemetry_sources is defined

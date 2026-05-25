@@ -737,3 +737,59 @@ ufm_integration_summary_msg: >-
   Auth mode: {{ _ufm_detailed_config.auth_mode | default('basic') }}
   Scrape interval: {{ _ufm_detailed_config.scrape_interval | default('30s') }}
   {% endif %}
+
+# ============================================================================
+# VAST Telemetry Configuration
+# ============================================================================
+# Usage: deploy_vast_telemetry.yml
+# VAST telemetry collects storage metrics from VAST Data clusters
+# using Prometheus scraping via the shared vmagent instance.
+
+# Kubernetes resource names
+vast_credentials_secret_name: "vast-telemetry-credentials"
+
+# VAST telemetry defaults
+vast_endpoint_test_timeout: 10
+
+# Validation messages
+vast_endpoint_empty_msg: >-
+  VAST telemetry is enabled but vast_endpoint is empty.
+  Set vast_configuration.vast_endpoint in telemetry_config.yml.
+
+vast_credentials_missing_msg: >-
+  VAST auth_mode is 'basic' but vast_username or vast_password is not set.
+  Provide VAST credentials in omnia_config_credentials.yml.
+
+vast_ca_cert_not_found_msg: >-
+  VAST tls_mode is 'ca_signed' but the CA certificate file was not found
+  at the path specified in vast_ca_cert_path. Provide a valid PEM certificate file.
+
+vast_port_range_msg: >-
+  VAST metrics port must be between 1 and 65535.
+
+vast_tls_mode_invalid_msg: >-
+  VAST tls_mode must be 'self_signed' or 'ca_signed'.
+
+vast_auth_mode_invalid_msg: >-
+  VAST auth_mode must be 'basic' or 'none'.
+
+vast_endpoint_unreachable_msg: >-
+  WARNING: VAST endpoint is not reachable. VAST telemetry configuration will
+  proceed, but VMAgent will not be able to scrape metrics until VAST is accessible.
+
+vast_secret_created_msg: >-
+  VAST credentials Kubernetes Secret created in namespace '{{ telemetry_namespace }}'.
+
+vast_victoria_logs_validation_fail_msg: >-
+  VAST log collection requires 'victoria_logs' in
+  telemetry_sources.vast.collection_targets.
+
+vast_integration_summary_msg: >-
+  VAST telemetry integration complete.
+  {% if _vast_config.metrics_enabled | default(false) | bool %}
+  Metrics: https://{{ _vast_detailed_config.vast_endpoint }}:{{ _vast_detailed_config.vast_metrics_port | default(443) }}
+  Metrics path: {{ _vast_detailed_config.metrics_path | default('/api/prometheusmetrics/all') }}
+  TLS mode: {{ _vast_detailed_config.tls_mode | default('self_signed') }}
+  Auth mode: {{ _vast_detailed_config.auth_mode | default('basic') }}
+  Scrape interval: {{ _vast_detailed_config.scrape_interval | default('30s') }}
+  {% endif %}

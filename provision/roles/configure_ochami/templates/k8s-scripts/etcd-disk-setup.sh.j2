@@ -1,0 +1,172 @@
+#!/bin/bash
+# etcd-fstab-update.sh
+# Wipes BOSS/fallback disk, creates ext4, mounts /var/lib/etcd
+# Every command logged with timestamp + exit code using echo only
+set -uo pipefail
+
+MOUNT="/var/lib/etcd"
+LOG="/var/log/etcd-disk-setup.log"
+exec > >(tee -a "$LOG") 2>&1
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+ts() { date +%F_%T; }
+
+run() {
+    echo "$(ts) [CMD] $*"
+    "$@"
+    local rc=$?
+    echo "$(ts) [RC=$rc] $*"
+    return $rc
+}
+
+runq() {
+    echo "$(ts) [CMD] $* (ok to fail)"
+    "$@" 2>&1 || true
+}
+
+ping_uuid() {
+    local uuid
+    uuid=$(blkid -s UUID -o value "$1" 2>/dev/null || true)
+    echo "$(ts) [UUID] $1 = ${uuid:-NOT_FOUND}"
+}
+
+dump_fstab_entry() {
+    echo "$(ts) [FSTAB] grep for $1:"
+    grep "$1" /etc/fstab || echo "$(ts) [FSTAB] no entry"
+}
+
+# ── START ─────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "$(ts) [INFO] ===== START etcd-disk-setup ====="
+
+# ── Detect root disk ─────────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Detecting root disk"
+ROOT_DISK=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)" 2>/dev/null | head -1 || true)
+echo "$(ts) [INFO] Root disk: ${ROOT_DISK:-none}"
+
+# ── Scan for BOSS or fallback disk ───────────────────────────────────────────
+
+echo "$(ts) [STEP] Scanning disks"
+DISK=""
+for d in $(lsblk -dn -o NAME | grep -Ev "^(loop|sr|fd|${ROOT_DISK:-NONE})"); do
+    model=$(lsblk -dn -o MODEL "/dev/$d" 2>/dev/null | xargs || true)
+    pci=""
+    case "$d" in nvme*) pci=$(cat "/sys/class/nvme/${d%n*}/address" 2>/dev/null || true) ;; esac
+    sub=""
+    [ -n "$pci" ] && sub=$(lspci -D -s "$pci" -v 2>/dev/null | grep -i Subsystem || true)
+    echo "$(ts) [INFO] Disk /dev/$d model='$model' pci='$pci'"
+    if echo "$model $sub" | grep -qi boss; then
+        DISK="/dev/$d"
+        echo "$(ts) [OK] BOSS disk found: $DISK"
+        break
+    fi
+    [ -z "$DISK" ] && DISK="/dev/$d" && echo "$(ts) [INFO] Fallback candidate: $DISK"
+done
+
+[ -z "$DISK" ] && { echo "$(ts) [ERROR] No disk found"; exit 1; }
+echo "$(ts) [OK] Selected disk: $DISK"
+
+# ── Safety: never touch root disk ────────────────────────────────────────────
+
+[ "$DISK" = "/dev/$ROOT_DISK" ] && { echo "$(ts) [ERROR] Refusing to wipe root disk!"; exit 1; }
+
+# ── Partition naming ─────────────────────────────────────────────────────────
+
+case "$DISK" in
+    *nvme*|*mmcblk*) PART="${DISK}p1" ;;
+    *)               PART="${DISK}1"  ;;
+esac
+echo "$(ts) [INFO] Target partition: $PART"
+
+# ── Unmount existing ─────────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Unmounting any existing mounts"
+runq umount "$MOUNT"
+runq umount "$PART"
+
+# ── Wipe disk ────────────────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Wiping disk signatures"
+run wipefs -af "$DISK"
+
+# ── Partition disk ───────────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Creating GPT partition"
+run parted -s "$DISK" mklabel gpt mkpart primary ext4 1MiB 100%
+run partprobe "$DISK"
+run udevadm settle --timeout=30
+
+# ── Wait for partition ───────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Waiting for $PART"
+for i in 1 2 3 4 5; do
+    if [ -b "$PART" ]; then
+        echo "$(ts) [OK] $PART ready (attempt $i)"
+        break
+    fi
+    echo "$(ts) [INFO] Attempt $i — sleeping 2s"
+    sleep 2
+done
+[ -b "$PART" ] || { echo "$(ts) [ERROR] $PART not found"; exit 1; }
+
+# ── Format ───────────────────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Formatting $PART as ext4"
+run mkfs.ext4 -F -L etcd_data "$PART"
+
+# ── Ping UUID ────────────────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Pinging UUID"
+ping_uuid "$PART"
+UUID=$(blkid -s UUID -o value "$PART" 2>/dev/null || true)
+[ -z "$UUID" ] && { echo "$(ts) [ERROR] UUID is empty"; exit 1; }
+echo "$(ts) [OK] UUID=$UUID"
+
+# ── Update fstab ─────────────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Updating /etc/fstab"
+run mkdir -p "$MOUNT"
+run cp /etc/fstab "/etc/fstab.bak.$(date +%s)"
+run sed -i "\|[[:space:]]${MOUNT}[[:space:]]|d" /etc/fstab
+FSTAB_LINE="UUID=$UUID $MOUNT ext4 defaults,noatime,nofail 0 2"
+echo "$FSTAB_LINE" >> /etc/fstab
+echo "$(ts) [OK] fstab entry added: $FSTAB_LINE"
+
+# ── Dump fstab entry ─────────────────────────────────────────────────────────
+
+dump_fstab_entry "$MOUNT"
+
+# ── Mount ────────────────────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Mounting $MOUNT"
+runq systemctl daemon-reload
+run mount "$MOUNT"
+mountpoint -q "$MOUNT" || { echo "$(ts) [ERROR] Mount verification failed"; exit 1; }
+echo "$(ts) [OK] Mounted: $PART -> $MOUNT"
+
+# ── etcd user + perms ────────────────────────────────────────────────────────
+
+echo "$(ts) [STEP] Configuring etcd user/perms"
+getent group etcd >/dev/null || run groupadd --system etcd
+id etcd >/dev/null 2>&1     || run useradd --system -M -s /sbin/nologin -g etcd etcd
+run chown etcd:etcd "$MOUNT"
+run chmod 700 "$MOUNT"
+
+# ── Final Summary ────────────────────────────────────────────────────────────
+
+echo ""
+echo "$(ts) [INFO] ── Final Summary ──"
+echo "$(ts) [INFO] Disk:      $DISK"
+echo "$(ts) [INFO] Partition: $PART"
+echo "$(ts) [INFO] UUID:      $UUID"
+echo "$(ts) [INFO] Mount:     $MOUNT"
+echo ""
+df -h "$MOUNT"
+echo ""
+ping_uuid "$PART"
+dump_fstab_entry "$MOUNT"
+echo ""
+echo "$(ts) [OK] ===== DONE ====="

@@ -298,7 +298,7 @@ def validate_telemetry_config(
     Validates the telemetry configuration from telemetry_config.yml.
 
     This function validates the new three-layer telemetry configuration structure:
-    - telemetry_sources (idrac, ldms, dcgm, powerscale)
+    - telemetry_sources (idrac, ldms, dcgm, powerscale, ufm, vast)
     - telemetry_bridges (vector_ldms, vector_ome)
     - telemetry_sinks (victoria_metrics, victoria_logs, kafka)
 
@@ -329,6 +329,7 @@ def validate_telemetry_config(
     ldms_source = telemetry_sources.get("ldms", {})
     powerscale_source = telemetry_sources.get("powerscale", {})
     ufm_source = telemetry_sources.get("ufm", {})
+    vast_source = telemetry_sources.get("vast", {})
 
     idrac_telemetry_support = idrac_source.get("metrics_enabled", False)
     idrac_collection_targets = idrac_source.get("collection_targets", [])
@@ -847,6 +848,61 @@ def validate_telemetry_config(
         if auth_mode not in ["basic", "none"]:
             errors.append(create_error_msg(
                 "ufm_configuration.auth_mode",
+                auth_mode,
+                "auth_mode must be 'basic' or 'none'."
+            ))
+
+    # =========================================================================
+    # Validate VAST telemetry configuration
+    # =========================================================================
+    vast_metrics_enabled = vast_source.get("metrics_enabled", False)
+    vast_logs_enabled = vast_source.get("logs_enabled", False)
+    vast_detailed_config = data.get("vast_configuration", {})
+    
+    if vast_metrics_enabled or vast_logs_enabled:
+        # Check required VAST endpoint
+        vast_endpoint = vast_detailed_config.get("vast_endpoint", "")
+        if not vast_endpoint or (isinstance(vast_endpoint, str) and vast_endpoint.strip() == ""):
+            errors.append(create_error_msg(
+                "vast_configuration.vast_endpoint",
+                vast_endpoint,
+                "vast_endpoint is required when VAST telemetry is enabled. Provide the VAST cluster IP address or hostname."
+            ))
+        
+        # Validate VAST metrics port if metrics enabled
+        if vast_metrics_enabled:
+            vast_metrics_port = vast_detailed_config.get("vast_metrics_port", 443)
+            if not isinstance(vast_metrics_port, int) or vast_metrics_port < 1 or vast_metrics_port > 65535:
+                errors.append(create_error_msg(
+                    "vast_configuration.vast_metrics_port",
+                    vast_metrics_port,
+                    "vast_metrics_port must be an integer between 1 and 65535."
+                ))
+        
+        # Validate TLS mode
+        tls_mode = vast_detailed_config.get("tls_mode", "self_signed")
+        if tls_mode not in ["self_signed", "ca_signed"]:
+            errors.append(create_error_msg(
+                "vast_configuration.tls_mode",
+                tls_mode,
+                "tls_mode must be 'self_signed' or 'ca_signed'."
+            ))
+        
+        # Validate CA certificate path when tls_mode is ca_signed
+        if tls_mode == "ca_signed":
+            ca_cert_path = vast_detailed_config.get("vast_ca_cert_path", "")
+            if not ca_cert_path or (isinstance(ca_cert_path, str) and ca_cert_path.strip() == ""):
+                errors.append(create_error_msg(
+                    "vast_configuration.vast_ca_cert_path",
+                    ca_cert_path,
+                    "vast_ca_cert_path is required when tls_mode is 'ca_signed'. Provide path to CA certificate file."
+                ))
+        
+        # Validate auth mode
+        auth_mode = vast_detailed_config.get("auth_mode", "basic")
+        if auth_mode not in ["basic", "none"]:
+            errors.append(create_error_msg(
+                "vast_configuration.auth_mode",
                 auth_mode,
                 "auth_mode must be 'basic' or 'none'."
             ))

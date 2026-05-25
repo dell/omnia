@@ -170,6 +170,30 @@ telemetry_sources:
       - "victoria_metrics"
       - "victoria_logs"
 
+  # --------------------------------------------------------------------------
+  # VAST — VAST Storage Telemetry
+  # --------------------------------------------------------------------------
+  # Collects: Storage performance, capacity metrics, volume metrics, device health, cluster status
+  # Requires: VAST Storage appliance with Prometheus exporter enabled (port 443)
+  # Data path: VAST Prometheus Exporter → vmagent(shared) → victoria_metrics
+  #            VAST Syslog → rsyslog relay → VLAgent → victoria_logs
+  #
+  # NOTE: Omnia does NOT deploy VAST itself. Omnia configures the existing
+  # vmagent to scrape the VAST Prometheus endpoints for storage metrics.
+  vast:
+    # Enable or disable VAST storage metrics collection
+    # Default: false
+    metrics_enabled: {{ telemetry_vast_metrics_enabled | default(telemetry_default_vast_metrics_enabled) | bool | ternary('true', 'false') }}
+
+    # Enable or disable VAST syslog logs collection
+    # Default: false
+    logs_enabled: {{ telemetry_vast_logs_enabled | default(telemetry_default_vast_logs_enabled) | bool | ternary('true', 'false') }}
+
+    # VAST uses vmagent(shared) for metrics and VLAgent for logs
+    collection_targets:
+      - "victoria_metrics"
+      - "victoria_logs"
+
 
 # ============================================================================
 # TELEMETRY BRIDGES (Data Routers)
@@ -422,3 +446,71 @@ ufm_configuration:
   # - none: No authentication (UFM endpoint is open)
   # Default: "basic"
   auth_mode: "{{ telemetry_ufm_auth_mode | default(telemetry_default_ufm_auth_mode) }}"
+
+# --------------------------------------------------------------------------
+# VAST Telemetry Configuration
+# --------------------------------------------------------------------------
+# VAST telemetry collects storage metrics from VAST Storage appliances
+# using Prometheus scraping.
+#
+# DATA PIPELINE:
+#   VAST Prometheus Exporter → vmagent(shared) → victoria_metrics
+#   VAST Syslog → rsyslog relay → VLAgent → victoria_logs
+#
+# NOTE: VAST does NOT use Vector bridges. It uses the shared vmagent instance
+#       for metrics collection and VLAgent for log collection.
+vast_configurations:
+  # VAST appliance IP address or hostname
+  # Required when telemetry_sources.vast.metrics_enabled is true
+  # Example: "10.0.5.10" or "vast.example.com"
+  vast_ip: "{{ telemetry_vast_ip | default(telemetry_default_vast_ip) }}"
+
+  # VAST HTTPS port for Prometheus metrics
+  # Default: 443 (VAST default HTTPS port)
+  vast_port: {{ telemetry_vast_port | default(telemetry_default_vast_port) }}
+
+  # Prometheus endpoints to scrape from VAST
+  # Supported endpoints:
+  #   - api/prometheusmetrics/all: All metrics
+  #   - api/prometheusmetrics/views: View-specific metrics
+  #   - api/prometheusmetrics/devices: Device-specific metrics
+  #   - api/prometheusmetrics/alarms: Alarm metrics
+  # Default: ["api/prometheusmetrics/all"]
+  endpoints:
+{% if telemetry_vast_endpoints is defined and telemetry_vast_endpoints | length > 0 %}
+{% for _endpoint in telemetry_vast_endpoints %}
+    - "{{ _endpoint }}"
+{% endfor %}
+{% else %}
+    - "api/prometheusmetrics/all"
+{% endif %}
+
+  # Prometheus scrape interval for VAST metrics
+  # Accepted values: Prometheus duration format (e.g., "15s", "30s", "1m")
+  # Default: "30s"
+  scrape_interval: "{{ telemetry_vast_scrape_interval | default(telemetry_default_vast_scrape_interval) }}"
+
+  # Prometheus scrape timeout (must be <= scrape_interval)
+  # Accepted values: Prometheus duration format (e.g., "10s", "15s")
+  # Default: "10s"
+  scrape_timeout: "{{ telemetry_vast_scrape_timeout | default(telemetry_default_vast_scrape_timeout) }}"
+
+  # TLS mode for connecting to VAST Prometheus endpoint
+  # Accepted values: "self_signed", "ca_signed"
+  # - self_signed: Skip TLS verification (insecure_skip_verify=true)
+  # - ca_signed: Use CA certificate for TLS verification
+  # Default: "self_signed"
+  tls_mode: "{{ telemetry_vast_tls_mode | default(telemetry_default_vast_tls_mode) }}"
+
+  # Path to CA certificate file for VAST TLS verification
+  # Required when tls_mode is "ca_signed"
+  # Must be a valid PEM-format certificate file
+  # Default: "" (empty — not used when tls_mode is "self_signed")
+  vast_ca_cert_path: "{{ telemetry_vast_ca_cert_path | default(telemetry_default_vast_ca_cert_path) }}"
+
+  # Authentication mode for VAST Prometheus endpoint
+  # Accepted values: "basic", "none"
+  # - basic: Use vast_username/vast_password from omnia_config_credentials.yml
+  # - none: No authentication (VAST endpoint is open)
+  # Default: "basic"
+  auth_mode: "{{ telemetry_vast_auth_mode | default(telemetry_default_vast_auth_mode) }}"

@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Calculate dynamic timeout for node reboot
-  ansible.builtin.set_fact:
-    reboot_wait_timeout: "{{ [600, (slurm_host_group_map | length) * 60] | max }}"
-
 - name: Identify slurm control node hostname
   ansible.builtin.set_fact:
     slurm_ctld_host: >-
@@ -33,6 +29,9 @@
   register: running_jobs
   changed_when: false
   failed_when: false
+  retries: 5
+  delay: 5
+  until: running_jobs.rc == 0
   delegate_to: "{{ slurm_ctld_host }}"
 
 - name: Upgrade complete reboot pending
@@ -62,7 +61,7 @@
       - "Failed to check for running jobs on slurm cluster."
       - "Error: {{ running_jobs.stderr }}"
 
-- name: Create groups for slurm nodes
+- name: Create groups for slurm nodes reboot play
   ansible.builtin.add_host:
     name: "{{ item.key }}"
     groups: "{{ item.value }}"

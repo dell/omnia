@@ -32,6 +32,7 @@
     csi_powerscale_driver_values_file_path: "{{ service_k8s_cluster[0].csi_powerscale_driver_values_file_path }}"
     nfs_storage_name: "{{ service_k8s_cluster[0].nfs_storage_name }}"
     k8s_crio_storage_size: "{{ service_k8s_cluster[0].k8s_crio_storage_size }}"
+    etcd_on_local_disk: "{{ service_k8s_cluster[0].etcd_on_local_disk }}"
 
 - name: Read the service_k8s mount point
   ansible.builtin.set_fact:

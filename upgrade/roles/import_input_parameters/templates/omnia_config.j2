@@ -27,6 +27,16 @@
 # Storage name corresponding to the NFS share to be used by slurm cluster 
 # This should match with exactly with a entry in storage_config.yml
 
+# vast_storage_name
+# Storage name corresponding to the VAST storage to be used by slurm cluster
+# This should match with exactly with a entry in storage_config.yml
+# The following directories will be mounted on the VAST storage:
+# - /scratch
+# - /tmp
+# - /home
+# - /apps
+# - /projects
+
 # skip_merge
 # Variable indicates whether a specific configuration file path
 # under config_sources should be used as-is without merging
@@ -113,6 +123,7 @@ slurm_cluster:
 {% for _cluster in _slurm_cluster %}
   - cluster_name: {{ _cluster.cluster_name | default('') }}
     nfs_storage_name: {{ _cluster.nfs_storage_name | default('') }}
+    # vast_storage_name: vast_storage
     # skip_merge: False
 
     # Uncomment to enable homogeneous discovery mode
