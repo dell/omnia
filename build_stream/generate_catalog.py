@@ -38,6 +38,41 @@ _INFRA_BUNDLES = {
     "csi_driver_powerscale",
 }
 
+# All known bundle names that may carry a version suffix in the filename.
+_KNOWN_BUNDLES = _FUNCTIONAL_BUNDLES | _INFRA_BUNDLES | {
+    "default_packages", "admin_debug_packages", "openldap",
+    "openmpi", "ucx", "ldms", "nfs",
+}
+
+
+def _extract_bundle_name(filename_stem: str) -> str:
+    """Strip version suffix from a config filename stem.
+
+    Examples:
+        service_k8s_v1.35.1  -> service_k8s
+        service_k8s_1.35.1   -> service_k8s
+        service_k8s-1.35.1   -> service_k8s
+        slurm_custom         -> slurm_custom
+    """
+    # Try matching a known bundle prefix
+    for name in sorted(_KNOWN_BUNDLES, key=len, reverse=True):
+        if filename_stem == name:
+            return name
+        # version suffixed with _v, _, or -
+        if filename_stem.startswith(name) and len(filename_stem) > len(name):
+            sep = filename_stem[len(name)]
+            if sep in ('_', '-'):
+                remainder = filename_stem[len(name) + 1:]
+                # strip optional leading 'v'
+                if remainder.startswith('v'):
+                    remainder = remainder[1:]
+                # check looks like a version (digits and dots)
+                if remainder and re.match(r'^[\d]+(\.[\d]+)*$', remainder):
+                    return name
+    # Fallback: try generic regex stripping
+    stripped = re.sub(r'[-_]v?\d+(\.\d+)*$', '', filename_stem)
+    return stripped
+
 def load_json(filepath):
     """Load and return JSON from the given file path."""
     with open(filepath, 'r', encoding='utf-8') as json_file:
@@ -176,8 +211,8 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch, versions_b
             if not file.endswith('.json'):
                 continue
 
-            # Extract bundle name from filename (e.g., 'service_k8s.json' -> 'service_k8s')
-            bundle_name = file.replace('.json', '')
+            # Extract bundle name from filename (e.g., 'service_k8s_1.35.1.json' -> 'service_k8s')
+            bundle_name = _extract_bundle_name(file.replace('.json', ''))
 
             filepath = os.path.join(root, file)
             # Extract arch from path (e.g., x86_64 or aarch64)
@@ -441,7 +476,7 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles):
             if not file.endswith('.json'):
                 continue
 
-            bundle_name = file.replace('.json', '')
+            bundle_name = _extract_bundle_name(file.replace('.json', ''))
             if bundle_name not in allowed_bundles:
                 continue
 

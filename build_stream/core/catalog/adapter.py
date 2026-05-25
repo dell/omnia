@@ -142,7 +142,7 @@ def build_service_k8s_config(functional: FeatureList) -> Dict:
     worker: Feature | None = functional.features.get("K8S Worker")
 
     if controller is None or worker is None:
-        raise ValueError("K8S Controller or K8S Worker feature not found in functional layer")
+        return {}
 
     ctrl_pkgs = controller.packages
     node_pkgs = worker.packages
@@ -372,8 +372,12 @@ def generate_all_configs(
             if cfg:
                 configs[filename] = cfg
 
-        configs["service_k8s.json"] = build_service_k8s_config(functional_arch)
-        configs["slurm_custom.json"] = build_slurm_custom_config(functional_arch)
+        k8s_cfg = build_service_k8s_config(functional_arch)
+        if k8s_cfg:
+            configs["service_k8s.json"] = k8s_cfg
+        slurm_cfg = build_slurm_custom_config(functional_arch)
+        if slurm_cfg:
+            configs["slurm_custom.json"] = slurm_cfg
 
         misc_feature: Feature | None = misc_arch.features.get("Miscellaneous")
         if misc_feature is not None and misc_feature.packages:
