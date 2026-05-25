@@ -1,0 +1,85 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Upgrade existing BuildStream installation (services were enabled in 2.1)
+# Reuses prepare_oim/roles/deploy_containers/{postgres,build_stream} for deployment
+
+- name: Display upgrade start banner
+  ansible.builtin.debug:
+    msg:
+      - "============================================================"
+      - "  Upgrading Existing BuildStream Installation"
+      - "============================================================"
+      - "BuildStream was enabled in 2.1 — performing in-place upgrade"
+
+# ══════════════════════════════════════════════════════════════════
+# Step 1: Backup existing configuration and database
+# ══════════════════════════════════════════════════════════════════
+
+- name: Create BuildStream backup directory
+  ansible.builtin.file:
+    path: "{{ hostvars['localhost']['backup_dir'] }}/buildstream"
+    state: directory
+    mode: '0755'
+
+- name: Backup BuildStream quadlet
+  ansible.builtin.copy:
+    src: "{{ quadlet_dir }}/omnia_build_stream.container"
+    dest: "{{ hostvars['localhost']['backup_dir'] }}/buildstream/omnia_build_stream.container.bak"
+    remote_src: true
+    mode: '0644'
+  failed_when: false
+
+- name: Backup Postgres quadlet
+  ansible.builtin.copy:
+    src: "{{ quadlet_dir }}/omnia_postgres.container"
+    dest: "{{ hostvars['localhost']['backup_dir'] }}/buildstream/omnia_postgres.container.bak"
+    remote_src: true
+    mode: '0644'
+  failed_when: false
+
+- name: Backup Postgres database
+  ansible.builtin.shell: |
+    set -o pipefail
+    podman exec omnia_postgres pg_dump -U {{ hostvars['localhost']['postgres_user'] }} \
+      {{ postgres_db_name }} > {{ hostvars['localhost']['backup_dir'] }}/buildstream/buildstream_db_backup.sql
+  register: pg_backup
+  failed_when: false
+  changed_when: pg_backup.rc == 0
+
+# ══════════════════════════════════════════════════════════════════
+# Step 2: Re-deploy Postgres via prepare_oim role (idempotent)
+# ══════════════════════════════════════════════════════════════════
+
+- name: Deploy Postgres container (reuse prepare_oim)  # noqa:role-name[path]
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../../prepare_oim/roles/deploy_containers/postgres"
+
+# ══════════════════════════════════════════════════════════════════
+# Step 3: Refresh automation venv (2.1 venv may lack 2.2 deps)
+# ══════════════════════════════════════════════════════════════════
+
+- name: Remove stale automation venv so deploy role recreates it
+  ansible.builtin.file:
+    path: /opt/omnia/automation/.venv
+    state: absent
+
+# ══════════════════════════════════════════════════════════════════
+# Step 4: Re-deploy BuildStream via prepare_oim role
+# (handles: stop, SSL, JWT, quadlet, start, Alembic, firewall, health)
+# ══════════════════════════════════════════════════════════════════
+
+- name: Deploy BuildStream container (reuse prepare_oim)  # noqa:role-name[path]
+  ansible.builtin.include_role:
+    name: "{{ playbook_dir }}/../../prepare_oim/roles/deploy_containers/build_stream"

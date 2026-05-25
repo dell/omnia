@@ -1,0 +1,123 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Post-upgrade validation tasks
+# Runs on OIM host (hosts: oim, connection: ssh)
+# Variables from prepare_oim roles are in scope after include_role
+
+- name: Display validation start banner
+  ansible.builtin.debug:
+    msg:
+      - "============================================================"
+      - "  Post-Upgrade BuildStreaM Validation"
+      - "============================================================"
+
+# ══════════════════════════════════════════════════════════════════
+# Validate BuildStream
+# ══════════════════════════════════════════════════════════════════
+
+- name: Check BuildStream service status
+  ansible.builtin.systemd_service:
+    name: "omnia_build_stream.service"
+  register: bs_service_status
+
+- name: Validate BuildStream is active
+  ansible.builtin.assert:
+    that:
+      - bs_service_status.status.ActiveState == 'active'
+    fail_msg: "BuildStream service is not active"
+    success_msg: "BuildStream service is active"
+
+- name: Check BuildStream health endpoint
+  ansible.builtin.uri:
+    url: "https://{{ hostvars['localhost']['build_stream_host_ip'] }}:{{ hostvars['localhost']['build_stream_port'] }}/health"
+    validate_certs: false
+    status_code: 200
+  register: bs_health_check
+  retries: 10
+  delay: 3
+  until: bs_health_check.status | default(0) == 200
+
+- name: BuildStream health check passed
+  ansible.builtin.debug:
+    msg: "BuildStream health endpoint responding (200 OK)"
+
+# ══════════════════════════════════════════════════════════════════
+# Validate Postgres
+# ══════════════════════════════════════════════════════════════════
+
+- name: Check Postgres service status
+  ansible.builtin.systemd_service:
+    name: "omnia_postgres.service"
+  register: pg_service_status
+
+- name: Validate Postgres is active
+  ansible.builtin.assert:
+    that:
+      - pg_service_status.status.ActiveState == 'active'
+    fail_msg: "Postgres service is not active"
+    success_msg: "Postgres service is active"
+
+- name: Check Postgres readiness
+  containers.podman.podman_container_exec:
+    name: "omnia_postgres"
+    command: pg_isready -U {{ hostvars['localhost']['postgres_user'] }}
+  register: pg_ready_check
+  changed_when: false
+
+- name: Postgres readiness check passed
+  ansible.builtin.debug:
+    msg: "Postgres is ready to accept connections"
+
+# ══════════════════════════════════════════════════════════════════
+# Store upgrade path metadata for rollback
+# ══════════════════════════════════════════════════════════════════
+
+- name: Get current timestamp
+  ansible.builtin.command: date -Iseconds
+  register: current_timestamp
+  changed_when: false
+
+- name: Ensure backup directory exists
+  ansible.builtin.file:
+    path: "{{ hostvars['localhost']['backup_dir'] }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  connection: local
+
+- name: Store upgrade path metadata
+  ansible.builtin.copy:
+    content: |
+      upgrade_path: {{ hostvars['localhost']['upgrade_path'] }}
+      upgrade_timestamp: {{ current_timestamp.stdout }}
+      buildstream_service_exists_before: {{ hostvars['localhost']['buildstream_service_exists'] }}
+      postgres_service_exists_before: {{ hostvars['localhost']['postgres_service_exists'] }}
+    dest: "{{ hostvars['localhost']['backup_dir'] }}/upgrade_path_metadata.yml"
+    mode: '0644'
+  delegate_to: localhost
+  connection: local
+
+- name: Display validation complete
+  ansible.builtin.debug:
+    msg:
+      - "============================================================"
+      - "  All BuildStream Validation Checks Passed"
+      - "============================================================"
+      - "BuildStream: Active and healthy"
+      - "Postgres: Active and ready"
+      - ""
+      - "Upgrade path metadata stored for rollback:"
+      - "  {{ hostvars['localhost']['backup_dir'] }}/upgrade_path_metadata.yml"
+      - "============================================================"

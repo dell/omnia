@@ -1,0 +1,50 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Main task file for BuildStream upgrade
+# Runs on OIM host (hosts: oim, connection: ssh)
+# Credentials available via hostvars['localhost'] from credential utility
+
+# ══════════════════════════════════════════════════════════════════
+# Load OIM metadata and set variables needed by deploy roles
+# (replaces deploy_containers/common for upgrade context)
+# ══════════════════════════════════════════════════════════════════
+
+- name: Load OIM metadata
+  ansible.builtin.include_vars: "{{ oim_metadata_file }}"
+  no_log: true
+
+- name: Initialize SELinux volume option
+  ansible.builtin.set_fact:
+    selinux_option: ":z"
+
+- name: Clear SELinux option for external NFS
+  ansible.builtin.set_fact:
+    selinux_option: ""
+  when:
+    - omnia_share_option | default('') == 'NFS'
+    - nfs_type | default('') == 'external'
+
+# ── Route to upgrade or fresh install ──
+- name: Include upgrade tasks (existing BuildStream installation)
+  ansible.builtin.include_tasks: upgrade_existing.yml
+  when: hostvars['localhost']['upgrade_path'] == 'upgrade_existing'
+
+- name: Include fresh install tasks (BuildStream not previously enabled)
+  ansible.builtin.include_tasks: fresh_install.yml
+  when: hostvars['localhost']['upgrade_path'] == 'fresh_install'
+
+# ── Post-upgrade validation ──
+- name: Include post-upgrade validation
+  ansible.builtin.include_tasks: validate.yml
