@@ -83,21 +83,3 @@
 - name: Deploy BuildStream container (reuse prepare_oim)  # noqa:role-name[path]
   ansible.builtin.include_role:
     name: "{{ playbook_dir }}/../../prepare_oim/roles/deploy_containers/build_stream"
-
-# ══════════════════════════════════════════════════════════════════
-# Step 5: Update GitLab Configuration (placeholder — BS-08)
-# GitLab upgrade handled separately via gitlab/gitlab.yml
-# Runner re-registration required after GitLab config update
-# ══════════════════════════════════════════════════════════════════
-
-- name: "GitLab configuration update (placeholder — run gitlab/gitlab.yml separately)"
-  ansible.builtin.debug:
-    msg:
-      - "============================================================"
-      - "  Step 5: GitLab Configuration — DEFERRED"
-      - "============================================================"
-      - "  GitLab update is NOT part of this playbook."
-      - "  After upgrade completes, run GitLab separately:"
-      - "    ansible-playbook gitlab/gitlab.yml"
-      - "  Then re-register GitLab runner tokens (BS-08)."
-      - "============================================================"
