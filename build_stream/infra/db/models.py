@@ -21,6 +21,7 @@ Domain ↔ ORM conversion is handled by mappers in mappers.py.
 # Third-party imports
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -53,6 +54,9 @@ class JobModel(Base):
     client_name = Column(String(128), nullable=True)
     job_state = Column(String(20), nullable=False, index=True)
 
+    # Pipeline phase (nullable — NULL for direct invocation)
+    pipeline_phase = Column(String(10), nullable=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), nullable=False, index=True)
     updated_at = Column(DateTime(timezone=True), nullable=False)
@@ -67,6 +71,15 @@ class JobModel(Base):
     stages = relationship(
         "StageModel",
         back_populates="job",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    # 1:1 relationship with ImageGroup (singular, not a list)
+    image_group = relationship(
+        "ImageGroupModel",
+        back_populates="job",
+        uselist=False,
         cascade="all, delete-orphan",
         lazy="selectin",
     )
@@ -103,6 +116,7 @@ class StageModel(Base):
     # Timestamps
     started_at = Column(DateTime(timezone=True), nullable=True)
     ended_at = Column(DateTime(timezone=True), nullable=True)
+    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
 
     # Error tracking
     error_code = Column(String(50), nullable=True)
@@ -110,6 +124,9 @@ class StageModel(Base):
 
     # Log file path
     log_file_path = Column(String(512), nullable=True)
+
+    # Result detail JSONB for validation results
+    result_detail = Column(JSONB, nullable=True)
 
     # Optimistic locking
     version = Column(Integer, nullable=False, default=1)
@@ -211,4 +228,107 @@ class ArtifactMetadata(Base):
     __table_args__ = (
         Index("idx_artifact_metadata_job_id", "job_id"),
         Index("idx_artifact_metadata_job_label", "job_id", "label"),
+    )
+
+
+class ImageGroupModel(Base):
+    """ORM model for image_groups table.
+
+    Tracks the lifecycle of built images independently of transient Job states.
+    Enforces a 1:1 mapping between Job and ImageGroup via UNIQUE constraint on job_id.
+
+    The primary key 'id' is the ImageGroupID extracted from the catalog JSON
+    during parse-catalog (not a UUID — it is a human-readable identifier like
+    'omnia-cluster-v1.2').
+    """
+
+    __tablename__ = "image_groups"
+
+    # Primary key — ImageGroupID from catalog (NOT a UUID)
+    id = Column(String(128), primary_key=True, nullable=False)
+
+    # Foreign key to jobs table — UNIQUE enforces 1:1 mapping
+    job_id = Column(
+        String(36),
+        ForeignKey("jobs.job_id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    # Business attributes
+    status = Column(String(20), nullable=False, default="BUILT", index=True)
+
+    # Timestamps
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Relationships
+    job = relationship("JobModel", back_populates="image_group", uselist=False)
+    images = relationship(
+        "ImageModel",
+        back_populates="image_group",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    # Indexes and constraints
+    __table_args__ = (
+        Index("idx_image_groups_job_id", "job_id", unique=True),
+        Index("idx_image_groups_status", "status"),
+        CheckConstraint(
+            "status IN ('BUILT', 'DEPLOYING', 'DEPLOYED', 'RESTARTING', "
+            "'RESTARTED', 'VALIDATING', 'PASSED', 'FAILED', 'CLEANED')",
+            name="ck_image_groups_status",
+        ),
+    )
+
+
+class ImageModel(Base):
+    """ORM model for images table.
+
+    Stores constituent images within an Image Group, identified by
+    functional role (e.g., slurm_node, kube_control_plane).
+
+    Each Image Group contains one image per role, enforced by the
+    UNIQUE constraint on (image_group_id, role).
+    """
+
+    __tablename__ = "images"
+
+    # Primary key — UUID
+    id = Column(String(36), primary_key=True, nullable=False)
+
+    # Foreign key to image_groups table
+    image_group_id = Column(
+        String(128),
+        ForeignKey("image_groups.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Business attributes
+    role = Column(String(128), nullable=False)
+    image_name = Column(String(512), nullable=False)
+
+    # Timestamps
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    # Relationships
+    image_group = relationship("ImageGroupModel", back_populates="images")
+
+    # Constraints
+    __table_args__ = (
+        Index("idx_images_image_group_id", "image_group_id"),
+        Index(
+            "idx_images_image_group_id_role",
+            "image_group_id",
+            "role",
+        ),
     )

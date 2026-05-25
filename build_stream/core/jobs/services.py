@@ -16,15 +16,14 @@
 
 import hashlib
 import json
-import logging
+from api.logging_utils import log_secure_info
 from datetime import datetime, timezone
 from typing import Any, Dict
 
 from .entities import AuditEvent
 from .repositories import JobRepository, AuditEventRepository, UUIDGenerator
-from .value_objects import JobId, RequestFingerprint
+from .value_objects import JobId, JobState, RequestFingerprint
 
-logger = logging.getLogger(__name__)
 
 
 class FingerprintService:
@@ -102,17 +101,11 @@ class JobStateHelper:
         try:
             job = job_repo.find_by_id(job_id)
             if job is None:
-                logger.warning(
-                    "Job not found when handling stage failure: job_id=%s, stage=%s",
-                    job_id, stage_name
-                )
+                log_secure_info('warning', f"Job not found when handling stage failure: job_id={job_id}, stage={stage_name}")
                 return
 
             if job.job_state.is_terminal():
-                logger.info(
-                    "Job already in terminal state: job_id=%s, state=%s, stage=%s",
-                    job_id, job.job_state.value, stage_name
-                )
+                log_secure_info('info', f"Job already in terminal state: job_id={job_id}, state={job.job_state.value}, stage={stage_name}")
                 return
 
             job.fail()
@@ -139,16 +132,72 @@ class JobStateHelper:
             if hasattr(audit_repo, 'session') and audit_repo.session:
                 audit_repo.session.commit()
 
-            logger.info(
-                "Job marked as FAILED: job_id=%s, failed_stage=%s, error_code=%s",
-                job_id, stage_name, error_code
-            )
+            log_secure_info('info', f"Job marked as FAILED: job_id={job_id}, failed_stage={stage_name}, error_code={error_code}")
 
         except Exception as exc:
-            logger.exception(
-                "Failed to update job state on stage failure: job_id=%s, stage=%s",
-                job_id, stage_name
+            log_secure_info('error', f"Failed to update job state on stage failure: job_id={job_id}, stage={stage_name}", exc_info=True)
+
+    @staticmethod
+    def handle_job_resume(
+        job_repo: JobRepository,
+        audit_repo: AuditEventRepository,
+        uuid_generator: UUIDGenerator,
+        job_id: JobId,
+        stage_name: str,
+        correlation_id: str,
+        client_id: str,
+    ) -> None:
+        """Resume job from FAILED back to IN_PROGRESS for retry.
+        
+        Called when a failed stage is being retried. Transitions the job
+        from FAILED to IN_PROGRESS so that polling clients see the job
+        as active again.
+        
+        Args:
+            job_repo: Job repository for loading/saving jobs.
+            audit_repo: Audit repository for emitting events.
+            uuid_generator: UUID generator for event IDs.
+            job_id: Job identifier.
+            stage_name: Name of the stage being retried.
+            correlation_id: Request correlation ID.
+            client_id: Client identifier.
+        """
+        try:
+            job = job_repo.find_by_id(job_id)
+            if job is None:
+                log_secure_info('warning', f"Job not found when handling resume: job_id={job_id}, stage={stage_name}")
+                return
+
+            if job.job_state != JobState.FAILED:
+                log_secure_info('info', f"Job not in FAILED state, skip resume: job_id={job_id}, state={job.job_state.value}, stage={stage_name}")
+                return
+
+            job.resume()
+            job_repo.save(job)
+
+            event = AuditEvent(
+                event_id=str(uuid_generator.generate()),
+                job_id=job_id,
+                event_type="JOB_RESUMED",
+                correlation_id=correlation_id,
+                client_id=client_id,
+                timestamp=datetime.now(timezone.utc),
+                details={
+                    "resumed_stage": stage_name,
+                },
             )
+            audit_repo.save(event)
+
+            # Commit sessions if repositories have active sessions
+            if hasattr(job_repo, 'session') and job_repo.session:
+                job_repo.session.commit()
+            if hasattr(audit_repo, 'session') and audit_repo.session:
+                audit_repo.session.commit()
+
+            log_secure_info('info', f"Job resumed from FAILED to IN_PROGRESS: job_id={job_id}, retried_stage={stage_name}")
+
+        except Exception as exc:
+            log_secure_info('error', f"Failed to resume job state: job_id={job_id}, stage={stage_name}", exc_info=True)
 
     @staticmethod
     def handle_job_completion(
@@ -179,17 +228,11 @@ class JobStateHelper:
         try:
             job = job_repo.find_by_id(job_id)
             if job is None:
-                logger.warning(
-                    "Job not found when handling completion: job_id=%s",
-                    job_id
-                )
+                log_secure_info('warning', f"Job not found when handling completion: job_id={job_id}")
                 return
 
             if job.job_state.is_terminal():
-                logger.info(
-                    "Job already in terminal state: job_id=%s, state=%s",
-                    job_id, job.job_state.value
-                )
+                log_secure_info('info', f"Job already in terminal state: job_id={job_id}, state={job.job_state.value}")
                 return
 
             job.complete()
@@ -214,13 +257,7 @@ class JobStateHelper:
             if hasattr(audit_repo, 'session') and audit_repo.session:
                 audit_repo.session.commit()
 
-            logger.info(
-                "Job marked as COMPLETED: job_id=%s",
-                job_id
-            )
+            log_secure_info('info', f"Job marked as COMPLETED: job_id={job_id}")
 
         except Exception as exc:
-            logger.exception(
-                "Failed to update job state on completion: job_id=%s",
-                job_id
-            )
+            log_secure_info('error', f"Failed to update job state on completion: job_id={job_id}", exc_info=True)

@@ -14,12 +14,11 @@
 
 """NFS-based implementation of BuildImageInventoryRepository."""
 
-import logging
+from api.logging_utils import log_secure_info
 from pathlib import Path
 
 from core.build_image.value_objects import InventoryHost
 
-logger = logging.getLogger(__name__)
 
 DEFAULT_INVENTORY_DIR = "/opt/omnia/build_stream_inv"
 DEFAULT_INVENTORY_FILENAME = "inv"
@@ -62,7 +61,7 @@ class NfsBuildImageInventoryRepository:
         try:
             self._inventory_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            logger.error("Failed to create inventory directory: %s", self._inventory_dir)
+            log_secure_info('error', f"Failed to create inventory directory: {self._inventory_dir}")
             raise IOError("Failed to create inventory directory") from None
 
         inventory_file_path = self._inventory_dir / self._inventory_filename
@@ -74,18 +73,9 @@ class NfsBuildImageInventoryRepository:
             with open(inventory_file_path, "w", encoding="utf-8") as inv_file:
                 inv_file.write(inventory_content)
 
-            logger.info(
-                "Created inventory file for job %s at %s with host %s",
-                job_id,
-                inventory_file_path,
-                str(inventory_host),
-            )
+            log_secure_info('info', f"Created inventory file for job {job_id} at {inventory_file_path} with host {str(inventory_host)}")
             return inventory_file_path
 
         except OSError as exc:
-            logger.error(
-                "Failed to write inventory file %s for job %s",
-                inventory_file_path,
-                job_id,
-            )
+            log_secure_info('error', f"Failed to write inventory file {inventory_file_path} for job {job_id}")
             raise IOError("Failed to write inventory file") from None

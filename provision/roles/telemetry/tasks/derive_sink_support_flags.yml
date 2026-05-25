@@ -50,6 +50,7 @@
     powerscale_metrics_enabled: "{{ telemetry_config.telemetry_sources.powerscale.metrics_enabled | default(false) | bool }}"
     powerscale_log_enabled: "{{ telemetry_config.telemetry_sources.powerscale.logs_enabled | default(false) | bool }}"
     dcgm_support: "{{ telemetry_config.telemetry_sources.dcgm.metrics_enabled | default(true) | bool }}"
+    ufm_telemetry_support: "{{ telemetry_config.telemetry_sources.ufm.metrics_enabled | default(false) | bool }}"
     cacheable: true
 
 - name: Map powerscale source + configurations to legacy powerscale_configurations
@@ -68,7 +69,8 @@
     cacheable: true
   when: >-
     'victoria_metrics' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) or
-    'victoria_metrics' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([]))
+    'victoria_metrics' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([])) or
+    'victoria_metrics' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([]))
 
 - name: Check if any source targets victoria_logs
   ansible.builtin.set_fact:
@@ -76,7 +78,8 @@
     cacheable: true
   when: >-
     'victoria_logs' in (telemetry_config.telemetry_sources.powerscale.collection_targets | default([])) or
-    'victoria_logs' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([]))
+    'victoria_logs' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) or
+    'victoria_logs' in (telemetry_config.telemetry_sources.ufm.collection_targets | default([]))
 
 - name: Check if any source targets Kafka
   ansible.builtin.set_fact:
@@ -138,4 +141,6 @@
     victoria_metrics_support or
     victoria_logs_support or
     ldms_support or
-    kafka_support
+    kafka_support or
+    ufm_telemetry_support or
+    ufm_log_enabled

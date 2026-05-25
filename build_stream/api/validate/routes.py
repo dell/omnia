@@ -12,22 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""FastAPI routes for validate-image-on-test stage operations."""
+"""FastAPI routes for validate stage operations."""
 
-import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from api.validate.dependencies import (
-    get_validate_image_on_test_use_case,
+    get_validate_use_case,
     get_validate_correlation_id,
 )
 from api.dependencies import verify_token, require_job_write
 from api.validate.schemas import (
-    ValidateImageOnTestRequest,
-    ValidateImageOnTestResponse,
-    ValidateImageOnTestErrorResponse,
+    ValidateRequestSchema,
+    ValidateResponseSchema,
+    ValidateErrorResponse,
 )
 from api.logging_utils import log_secure_info
 from core.jobs.exceptions import (
@@ -41,20 +40,19 @@ from core.validate.exceptions import (
     ValidateDomainError,
     ValidationExecutionError,
 )
-from orchestrator.validate.commands import ValidateImageOnTestCommand
-from orchestrator.validate.use_cases import ValidateImageOnTestUseCase
+from orchestrator.validate.commands import ValidateCommand
+from orchestrator.validate.use_cases import ValidateUseCase
 
-logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/jobs", tags=["Validate Image On Test"])
+router = APIRouter(prefix="/jobs", tags=["Validate"])
 
 
 def _build_error_response(
     error_code: str,
     message: str,
     correlation_id: str,
-) -> ValidateImageOnTestErrorResponse:
-    return ValidateImageOnTestErrorResponse(
+) -> ValidateErrorResponse:
+    return ValidateErrorResponse(
         error=error_code,
         message=message,
         correlation_id=correlation_id,
@@ -63,43 +61,48 @@ def _build_error_response(
 
 
 @router.post(
-    "/{job_id}/stages/validate-image-on-test",
-    response_model=ValidateImageOnTestResponse,
+    "/{job_id}/stages/validate",
+    response_model=ValidateResponseSchema,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Validate image on test environment",
-    description="Trigger the validate-image-on-test stage for a job",
+    summary="Trigger validate stage (Molecule-based cluster verification)",
+    description=(
+        "Trigger the validate stage for a job. Submits Molecule-based "
+        "infrastructure tests to the NFS queue for the Playbook Watcher. "
+        "Requires restart stage to be completed."
+    ),
     responses={
-        202: {"description": "Stage accepted", "model": ValidateImageOnTestResponse},
-        400: {"description": "Invalid request", "model": ValidateImageOnTestErrorResponse},
-        401: {"description": "Unauthorized", "model": ValidateImageOnTestErrorResponse},
-        404: {"description": "Job not found", "model": ValidateImageOnTestErrorResponse},
-        409: {"description": "Stage conflict", "model": ValidateImageOnTestErrorResponse},
-        412: {"description": "Stage guard violation", "model": ValidateImageOnTestErrorResponse},
-        500: {"description": "Internal error", "model": ValidateImageOnTestErrorResponse},
+        202: {"description": "Stage accepted and queued", "model": ValidateResponseSchema},
+        400: {"description": "Invalid request", "model": ValidateErrorResponse},
+        401: {"description": "Unauthorized", "model": ValidateErrorResponse},
+        404: {"description": "Job not found", "model": ValidateErrorResponse},
+        409: {"description": "Stage already active", "model": ValidateErrorResponse},
+        412: {"description": "Upstream stage not completed", "model": ValidateErrorResponse},
+        500: {"description": "Internal error", "model": ValidateErrorResponse},
     },
 )
-def create_validate_image_on_test(
+def create_validate(
     job_id: str,
-    request_body: ValidateImageOnTestRequest,
+    request_body: ValidateRequestSchema,
     token_data: dict = Depends(verify_token),
-    use_case: ValidateImageOnTestUseCase = Depends(get_validate_image_on_test_use_case),
+    use_case: ValidateUseCase = Depends(get_validate_use_case),
     correlation_id: CorrelationId = Depends(get_validate_correlation_id),
     _: None = Depends(require_job_write),
-) -> ValidateImageOnTestResponse:
-    """Trigger the validate-image-on-test stage for a job.
+) -> ValidateResponseSchema:
+    """Trigger the validate stage for a job.
 
     Accepts the request synchronously and returns 202 Accepted.
-    The playbook execution is handled by the NFS queue watcher service.
     """
-    # Extract client_id from token_data
     client_id = ClientId(token_data["client_id"])
-    
-    logger.info(
-        "Validate image on test request: job_id=%s, client_id=%s, correlation_id=%s, image_key=%s",
-        job_id,
-        client_id.value,
-        correlation_id.value,
-        request_body.image_key,
+
+    log_secure_info(
+        "info",
+        f"Validate request: job_id={job_id}, "
+        f"client_id={client_id.value}, "
+        f"correlation_id={correlation_id.value}, "
+        f"scenarios={request_body.scenario_names}, "
+        f"suite={request_body.test_suite}, "
+        f"timeout={request_body.timeout_minutes}",
+        str(correlation_id.value),
     )
 
     try:
@@ -115,24 +118,27 @@ def create_validate_image_on_test(
         ) from exc
 
     try:
-        command = ValidateImageOnTestCommand(
+        command = ValidateCommand(
             job_id=validated_job_id,
             client_id=client_id,
             correlation_id=correlation_id,
-            image_key=request_body.image_key,
+            scenario_names=request_body.scenario_names or ["all"],
+            test_suite=request_body.test_suite or "",
+            timeout_minutes=request_body.timeout_minutes or 120,
         )
         result = use_case.execute(command)
 
-        return ValidateImageOnTestResponse(
+        return ValidateResponseSchema(
             job_id=result.job_id,
             stage=result.stage_name,
             status=result.status,
             submitted_at=result.submitted_at,
             correlation_id=result.correlation_id,
+            attempt=result.attempt,
         )
 
     except JobNotFoundError as exc:
-        logger.warning("Job not found: %s", job_id)
+        log_secure_info('warning', f"Job not found: {job_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=_build_error_response(
@@ -160,7 +166,7 @@ def create_validate_image_on_test(
     except UpstreamStageNotCompletedError as exc:
         log_secure_info(
             "warning",
-            f"Validate failed: job_id={job_id}, reason=upstream_stage_not_completed, status=412",
+            f"Invalid state transition for job {job_id}",
             str(correlation_id.value),
         )
         raise HTTPException(
@@ -175,7 +181,7 @@ def create_validate_image_on_test(
     except StageGuardViolationError as exc:
         log_secure_info(
             "warning",
-            f"Stage guard violation for job {job_id}",
+            f"Invalid state transition for job {job_id}",
             str(correlation_id.value),
         )
         raise HTTPException(
@@ -218,7 +224,11 @@ def create_validate_image_on_test(
         ) from exc
 
     except Exception as exc:
-        logger.exception("Unexpected error creating validate-image-on-test stage")
+        log_secure_info(
+            "error",
+            "Unexpected error creating validate stage",
+            str(correlation_id.value),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=_build_error_response(

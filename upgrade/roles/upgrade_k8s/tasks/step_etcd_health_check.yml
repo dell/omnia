@@ -1,0 +1,89 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Get etcd pod name on {{ current_node_name }}
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get pods -n kube-system
+      -l component=etcd
+      --field-selector spec.nodeName={{ node_ip }}
+      -o jsonpath="{.items[0].metadata.name}"
+  delegate_to: "{{ kube_vip }}"
+  register: etcd_pod
+  changed_when: false
+
+- name: Check etcd cluster health after upgrade (kubectl exec) - {{ current_node_name }}
+  ansible.builtin.command:
+    cmd: >-
+      kubectl exec -n kube-system {{ etcd_pod.stdout }} --
+      etcdctl
+      --endpoints=https://127.0.0.1:2379
+      --cacert=/etc/kubernetes/pki/etcd/ca.crt
+      --cert=/etc/kubernetes/pki/etcd/server.crt
+      --key=/etc/kubernetes/pki/etcd/server.key
+      endpoint health --cluster
+  delegate_to: "{{ kube_vip }}"
+  register: etcd_health_result
+  changed_when: false
+  retries: "{{ etcd_health_retries }}"
+  delay: "{{ etcd_health_delay }}"
+  until: etcd_health_result.rc == 0
+  ignore_errors: true
+
+- name: Find etcdctl in CRI-O overlay storage (fallback)
+  ansible.builtin.shell: set -o pipefail && find /tmp/crio-storage/overlay -name etcdctl -type f 2>/dev/null | head -1
+  args:
+    executable: /bin/bash
+  register: etcdctl_overlay_path
+  changed_when: false
+  when: etcd_health_result.rc != 0
+
+- name: Copy etcdctl from overlay to /usr/local/bin (fallback)
+  ansible.builtin.copy:
+    src: "{{ etcdctl_overlay_path.stdout }}"
+    dest: /usr/local/bin/etcdctl
+    mode: "0755"
+    remote_src: true
+  when:
+    - etcd_health_result.rc != 0
+    - etcdctl_overlay_path.stdout | length > 0
+
+- name: Check etcd cluster health after upgrade (fallback to local etcdctl) - {{ current_node_name }}
+  ansible.builtin.command:
+    cmd: >-
+      etcdctl
+      --endpoints=https://127.0.0.1:2379
+      --cacert=/etc/kubernetes/pki/etcd/ca.crt
+      --cert=/etc/kubernetes/pki/etcd/server.crt
+      --key=/etc/kubernetes/pki/etcd/server.key
+      endpoint health --cluster
+  register: etcd_health_result_fallback
+  changed_when: false
+  retries: "{{ etcd_health_retries }}"
+  delay: "{{ etcd_health_delay }}"
+  until: etcd_health_result_fallback.rc == 0
+  when: etcd_health_result.rc != 0
+
+- name: Set final etcd health result
+  ansible.builtin.set_fact:
+    etcd_health_result: "{{ etcd_health_result_fallback }}"
+  when:
+    - etcd_health_result_fallback is defined
+    - etcd_health_result_fallback is not skipped
+    - etcd_health_result_fallback.stdout is defined
+
+- name: ABORT if etcd quorum lost
+  ansible.builtin.fail:
+    msg: "{{ msg_etcd_quorum_lost }}\n{{ etcd_health_result.stdout | default('') }}\n{{ etcd_health_result.stderr | default('') }}"
+  when: "'is unhealthy' in (etcd_health_result.stdout | default('')) or (etcd_health_result.rc | default(0)) != 0"

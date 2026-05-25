@@ -84,7 +84,7 @@
       or ((ha_entries_missing_vip | default([]) | length) > 0)
       or ((ha_entries_empty_vip | default([]) | length) > 0)
 
-- name: Write high_availability_config.yml in Omnia 2.1 format
+- name: Write high_availability_config.yml in Omnia 2.2 format
   ansible.builtin.template:
     src: high_availability_config.j2
     dest: "{{ input_project_dir }}/high_availability_config.yml"

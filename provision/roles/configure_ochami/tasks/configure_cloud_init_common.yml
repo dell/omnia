@@ -17,6 +17,7 @@
   ansible.builtin.command: /usr/bin/ochami cloud-init group delete --no-confirm -f yaml -d @{{ ci_group_common_dest }}
   changed_when: true
   failed_when: false
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
 - name: Render ci group common template
   ansible.builtin.template:
@@ -27,3 +28,4 @@
 - name: Set ci group configuration - common
   ansible.builtin.command: /usr/bin/ochami cloud-init group set -f yaml -d @{{ ci_group_common_dest }}
   changed_when: true
+  when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)

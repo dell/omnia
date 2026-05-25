@@ -12,65 +12,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Shared fixtures for Parse Catalog API integration tests."""
+"""Shared fixtures for ParseCatalog API integration tests."""
 
 import os
-from pathlib import Path
 from typing import Dict
 
 import pytest
 
-# Use file-based SQLite database for integration tests
+from infra.id_generator import UUIDv4Generator
+
+
 @pytest.fixture(scope="function")
 def client(tmp_path):
     """Create test client with fresh container for each test."""
     os.environ["ENV"] = "dev"
-    # Use file-based SQLite database for integration tests
     db_file = tmp_path / "test.db"
     db_url = f"sqlite:///{db_file}"
     os.environ["DATABASE_URL"] = db_url
-    
-    # Import app after setting DATABASE_URL
-    from main import app
+
+    from main import app  # pylint: disable=import-outside-toplevel
 
     def mock_verify_token():
         return {
             "sub": "test-client-123",
             "client_id": "test-client-123",
-            "scopes": ["job:write", "job:read", "catalog:read", "catalog:write"]
+            "scopes": ["job:write", "job:read", "catalog:read"]
         }
 
-    from api.dependencies import verify_token
+    from api.dependencies import verify_token  # pylint: disable=import-outside-toplevel
     app.dependency_overrides[verify_token] = mock_verify_token
-    
-    # Create database tables before starting test client
-    from infra.db.models import Base
-    import infra.db.config as config_module
-    import importlib
-    
-    # Refresh db_config to pick up new DATABASE_URL
+
+    from infra.db.models import Base  # pylint: disable=import-outside-toplevel
+    import infra.db.config as config_module  # pylint: disable=import-outside-toplevel
+    import importlib  # pylint: disable=import-outside-toplevel
+
     config_module.db_config = config_module.DatabaseConfig()
-    
-    # Re-import session module to pick up new db_config
-    import infra.db.session
+
+    import infra.db.session  # pylint: disable=import-outside-toplevel
     importlib.reload(infra.db.session)
     session_module = infra.db.session
-    
-    engine = session_module._get_engine()
+
+    from sqlalchemy import create_engine  # pylint: disable=import-outside-toplevel
+    engine = create_engine(db_url)
+    session_module._engine = engine  # pylint: disable=protected-access
+    session_module._session_factory = None  # pylint: disable=protected-access
     Base.metadata.create_all(engine)
-    
-    from fastapi.testclient import TestClient
+
+    from fastapi.testclient import TestClient  # pylint: disable=import-outside-toplevel
     with TestClient(app) as test_client:
         yield test_client
 
-    # Cleanup
     app.dependency_overrides.clear()
 
 
 @pytest.fixture(name="uuid_generator")
 def uuid_generator_fixture():
     """UUID generator for test fixtures."""
-    from infra.id_generator import UUIDv4Generator
     return UUIDv4Generator()
 
 

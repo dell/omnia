@@ -1,0 +1,190 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Get all node statuses
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl get nodes --no-headers
+  register: post_nodes
+  changed_when: false
+
+- name: Verify all nodes are Ready
+  ansible.builtin.fail:
+    msg: "Post-validation failed: Some nodes are not Ready.\n{{ post_nodes.stdout }}"
+  when: "'NotReady' in post_nodes.stdout"
+
+- name: Verify all nodes at target version
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}={.status.nodeInfo.kubeletVersion}{"\n"}{end}'
+  register: post_versions
+  changed_when: false
+
+- name: Check version output for mismatches
+  ansible.builtin.fail:
+    msg: >-
+      Post-validation failed: Not all nodes at v{{ k8s_target_version }}.
+      {{ post_versions.stdout }}
+  when: "'v' + k8s_target_version not in item"
+  loop: "{{ post_versions.stdout_lines }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Verify all kube-system pods are Running
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl get pods -n kube-system --no-headers
+      --field-selector status.phase!=Running,status.phase!=Succeeded
+      2>/dev/null | head -20
+  args:
+    executable: /bin/bash
+  register: unhealthy_pods
+  changed_when: false
+  failed_when: false
+
+- name: Fail if kube-system pods are not Running
+  ansible.builtin.fail:
+    msg: >-
+      Post-validation failed: Some kube-system pods are not Running.
+      {{ unhealthy_pods.stdout }}
+  when: unhealthy_pods.stdout | length > 0
+
+# ── etcd health check (Engineering Spec §4.7.5 Check 4) ───────────
+- name: Get first control plane pod name for etcd
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl get pods -n kube-system -l component=etcd -o jsonpath='{.items[0].metadata.name}'
+  register: etcd_pod_name
+  changed_when: false
+  failed_when: false
+
+- name: Verify etcd cluster health
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: >-
+      kubectl exec -n kube-system {{ etcd_pod_name.stdout }} --
+      etcdctl --endpoints=https://127.0.0.1:2379
+      --cacert=/etc/kubernetes/pki/etcd/ca.crt
+      --cert=/etc/kubernetes/pki/etcd/server.crt
+      --key=/etc/kubernetes/pki/etcd/server.key
+      endpoint health --cluster
+  register: etcd_health
+  changed_when: false
+  when: etcd_pod_name.rc == 0
+
+- name: Fail if etcd is unhealthy
+  ansible.builtin.fail:
+    msg: >-
+      Post-validation failed: etcd cluster is unhealthy.
+      {{ etcd_health.stdout }}
+      {{ etcd_health.stderr }}
+  when:
+    - etcd_pod_name.rc == 0
+    - "'is unhealthy' in etcd_health.stdout or etcd_health.rc != 0"
+
+# ── Calico pods check (Engineering Spec §4.7.5 Check 5) ───────────
+- name: Check Calico pods
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl get pods -n calico-system --no-headers
+      --field-selector status.phase!=Running,status.phase!=Succeeded
+      2>/dev/null | head -20
+  args:
+    executable: /bin/bash
+  register: unhealthy_calico_pods
+  changed_when: false
+  failed_when: false
+
+- name: Fail if Calico pods are not Running
+  ansible.builtin.fail:
+    msg: >-
+      Post-validation failed: Some Calico pods are not Running.
+      {{ unhealthy_calico_pods.stdout }}
+  when: unhealthy_calico_pods.stdout | length > 0
+
+# ── MetalLB pods check (Engineering Spec §4.7.5 Check 6) ─────────
+- name: Check MetalLB pods
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl get pods -n metallb-system --no-headers
+      --field-selector status.phase!=Running,status.phase!=Succeeded
+      2>/dev/null | head -20
+  args:
+    executable: /bin/bash
+  register: unhealthy_metallb_pods
+  changed_when: false
+  failed_when: false
+
+- name: Fail if MetalLB pods are not Running
+  ansible.builtin.fail:
+    msg: >-
+      Post-validation failed: Some MetalLB pods are not Running.
+      {{ unhealthy_metallb_pods.stdout }}
+  when: unhealthy_metallb_pods.stdout | length > 0
+
+# ── API server reachability check (Engineering Spec §4.7.5 Check 7) ─
+- name: Verify API server reachability
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl cluster-info
+  register: cluster_info
+  changed_when: false
+  failed_when: false
+
+- name: Fail if API server is not reachable
+  ansible.builtin.fail:
+    msg: >-
+      Post-validation failed: API server is not reachable.
+      {{ cluster_info.stdout }}
+      {{ cluster_info.stderr }}
+  when: "'is running at' not in cluster_info.stdout"
+
+# ── DNS resolution check (Engineering Spec §4.7.5 Check 8) ────────
+- name: Test DNS resolution
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: >-
+      kubectl run k8s-dns-test-{{ ansible_date_time.epoch }} --image=busybox:1.36
+      --rm -i --restart=Never -- nslookup kubernetes.default.svc.cluster.local
+  register: dns_test
+  changed_when: false
+  failed_when: false
+
+- name: Fail if DNS resolution fails
+  ansible.builtin.fail:
+    msg: >-
+      Post-validation failed: DNS resolution is not working.
+      {{ dns_test.stdout }}
+      {{ dns_test.stderr }}
+  when: "'Server:' not in dns_test.stdout or dns_test.rc != 0"
+
+- name: Display post-validation summary
+  ansible.builtin.debug:
+    msg: >-
+      Post-validation complete.
+      All {{ all_upgrade_nodes | length }} nodes at v{{ k8s_target_version }} and Ready.
+      kube-system pods: Running
+      etcd: healthy
+      Calico pods: Running
+      MetalLB pods: Running
+      API server: reachable
+      DNS: working
+      Cluster upgrade from {{ k8s_from_version }} to {{ k8s_target_version }} successful.

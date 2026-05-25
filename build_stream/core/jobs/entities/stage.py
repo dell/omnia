@@ -14,9 +14,9 @@
 
 """Stage entity within Job aggregate."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from ..exceptions import InvalidStateTransitionError, TerminalStateViolationError
 from ..value_objects import JobId, StageName, StageState
@@ -36,6 +36,7 @@ class Stage:
         attempt: Execution attempt number (1-indexed).
         started_at: Stage start timestamp.
         ended_at: Stage end timestamp.
+        last_attempt_at: Timestamp of last retry/re-run attempt.
         error_code: Error code if failed.
         error_summary: Error description if failed.
         log_file_path: Ansible log file path on OIM host (NFS share).
@@ -48,9 +49,11 @@ class Stage:
     attempt: int = 1
     started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
+    last_attempt_at: Optional[datetime] = None
     error_code: Optional[str] = None
     error_summary: Optional[str] = None
     log_file_path: Optional[str] = None
+    result_detail: Optional[Dict[str, Any]] = None
     version: int = 1
 
     def _initialize_timestamps(self) -> None:
@@ -148,6 +151,33 @@ class Stage:
         self._validate_transition({StageState.PENDING}, StageState.SKIPPED)
         self.stage_state = StageState.SKIPPED
         self._mark_ended()
+
+    def reset(self) -> None:
+        """Reset stage from FAILED or COMPLETED back to PENDING for retry.
+
+        Increments the attempt counter and records the retry timestamp.
+        Clears error fields and log_file_path so the new attempt starts
+        fresh while preserving the attempt history.
+
+        Raises:
+            InvalidStateTransitionError: If not in FAILED or COMPLETED state.
+        """
+        if self.stage_state not in {StageState.FAILED, StageState.COMPLETED}:
+            raise InvalidStateTransitionError(
+                entity_type="Stage",
+                entity_id=f"{self.job_id}/{self.stage_name}",
+                from_state=self.stage_state.value,
+                to_state=StageState.PENDING.value
+            )
+        self.attempt += 1
+        self.last_attempt_at = datetime.now(timezone.utc)
+        self.stage_state = StageState.PENDING
+        self.started_at = None
+        self.ended_at = None
+        self.error_code = None
+        self.error_summary = None
+        self.log_file_path = None
+        self.version += 1
 
     def cancel(self) -> None:
         """Transition stage to CANCELLED state.

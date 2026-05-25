@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ValidateImageOnTest command DTOs."""
+"""Validate command DTOs."""
 
-from orchestrator.validate.commands.validate_image_on_test import ValidateImageOnTestCommand
+from orchestrator.validate.commands.validate import ValidateCommand
 
-__all__ = ["ValidateImageOnTestCommand"]
+__all__ = ["ValidateCommand"]

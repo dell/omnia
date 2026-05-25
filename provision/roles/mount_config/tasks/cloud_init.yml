@@ -29,7 +29,6 @@
 - name: Debug cloud_init_groups_dict
   ansible.builtin.debug:
     var: cloud_init_groups_dict
-  # debugger: always
 
 - name: Process PowerVault iSCSI entries and add to cloud_init_groups_dict
   ansible.builtin.include_tasks: process_single_powervault.yml

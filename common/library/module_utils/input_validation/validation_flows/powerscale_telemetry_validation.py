@@ -191,7 +191,7 @@ def validate_powerscale_telemetry_config(
                             ))
 
                     # Cross-validate image versions
-                    # between values.yaml and service_k8s.json
+                    # between values.yaml and service_k8s (versioned)
                     service_k8s_json_path = config_paths.get(
                         "service_k8s_json_path", ""
                     )
@@ -204,7 +204,7 @@ def validate_powerscale_telemetry_config(
                             with open(service_k8s_json_path, 'r', encoding='utf-8') as sk8s_f:
                                 service_k8s_data = json.load(sk8s_f)
 
-                            # Build lookup: package -> tag from service_k8s.json
+                            # Build lookup: package -> tag from service_k8s (versioned)
                             sk8s_images = {}
                             for entry in service_k8s_data.get(
                                 "service_k8s", {}
@@ -237,7 +237,7 @@ def validate_powerscale_telemetry_config(
                             sidecar_proxy = karavi_auth.get("sidecarProxy", {})
                             if sidecar_proxy and sidecar_proxy.get("image"):
                                 # csm-authorization-sidecar is in
-                                # csi_driver_powerscale.json, not service_k8s.json
+                                # csi_driver_powerscale.json, not service_k8s (versioned)
                                 if (csi_driver_powerscale_json_path and
                                         os.path.exists(csi_driver_powerscale_json_path)):
                                     try:
@@ -305,18 +305,18 @@ def validate_powerscale_telemetry_config(
                                         )
                                 else:
                                     logger.warning(
-                                        f"Image {sk8s_key} not found in service_k8s.json, "
+                                        f"Image {sk8s_key} not found in service_k8s file, "
                                         f"skipping version check"
                                     )
 
                         except (json.JSONDecodeError, IOError) as sk8s_err:
                             logger.warning(
-                                f"Could not read service_k8s.json for "
+                                f"Could not read service_k8s file for "
                                 f"image version validation: {sk8s_err}"
                             )
                     else:
                         logger.warning(
-                            f"service_k8s.json not found at {service_k8s_json_path}, "
+                            f"service_k8s file not found at {service_k8s_json_path}, "
                             f"skipping image version validation"
                         )
 

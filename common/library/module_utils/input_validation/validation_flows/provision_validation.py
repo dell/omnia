@@ -30,7 +30,6 @@ from ansible.module_utils.input_validation.validation_flows import common_valida
 file_names = config.files
 create_error_msg = validation_utils.create_error_msg
 create_file_path = validation_utils.create_file_path
-ib_mac_re = re.compile(r"^([0-9A-Fa-f]{2}:){7}[0-9A-Fa-f]{2}$")
 
 # Expected header columns (case-insensitive)
 required_headers = [
@@ -318,6 +317,69 @@ def validate_duplicate_ib_ips_in_mapping_file(pxe_mapping_file_path):
         raise ValueError(f"Duplicate IB_IP found in PXE mapping file: {'; '.join(duplicates)}")
 
 
+def validate_ib_nic_name_format_in_mapping_file(pxe_mapping_file_path):
+    """Validates IB_NIC_NAME format structure in the mapping file.
+    
+    Validates that IB_NIC_NAME follows one of the supported formats:
+    - 'InfiniBand.PCIe.Slot.X-Y' (slot X, port Y)
+    - 'InfiniBand.Slot.X-Y' (slot X, port Y)  
+    - 'NIC.InfiniBand.X-Y' (slot X, port Y)
+    - 'InfiniBand.Single-Y' (single device, port Y)
+    
+    Only validates format structure, not specific slot/port ranges.
+    """
+    if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
+        raise ValueError(f"PXE mapping file not found: {pxe_mapping_file_path}")
+
+    with open(pxe_mapping_file_path, "r", encoding="utf-8") as fh:
+        raw_lines = fh.readlines()
+
+    non_comment_lines = [ln for ln in raw_lines if ln.strip()]
+    reader = csv.DictReader(non_comment_lines)
+
+    fieldname_map = {fn.strip().upper(): fn for fn in reader.fieldnames}
+    ib_nic_col = fieldname_map.get("IB_NIC_NAME")
+    hostname_col = fieldname_map.get("HOSTNAME")
+
+    if not ib_nic_col:
+        return  # No IB_NIC_NAME column to validate
+
+    # Supported IB_NIC_NAME format patterns
+    slot_pattern = re.compile(r'^(InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|NIC\.InfiniBand\.)([0-9]+)-([0-9]+)$')
+    single_pattern = re.compile(r'^InfiniBand\.Single-([0-9]+)$')
+
+    invalid_formats = []
+
+    for row_idx, row in enumerate(reader, start=2):
+        ib_nic_name = row.get(ib_nic_col, "").strip() if ib_nic_col and row.get(ib_nic_col) else ""
+        hostname = ""
+        if hostname_col:
+            hostname = row.get(hostname_col, "").strip() if hostname_col and row.get(hostname_col) else ""
+
+        # Skip empty IB_NIC_NAME (already handled by consistency validation)
+        if not ib_nic_name:
+            continue
+
+        # Check if format matches supported patterns
+        if slot_pattern.match(ib_nic_name):
+            # Valid slot-based format
+            continue
+        elif single_pattern.match(ib_nic_name):
+            # Valid single-device format
+            continue
+        else:
+            # Invalid format
+            hostname_disp = f" ({hostname})" if hostname else ""
+            invalid_formats.append(f"'{ib_nic_name}' at CSV row {row_idx}{hostname_disp}")
+
+    if invalid_formats:
+        raise ValueError(
+            f"Invalid IB_NIC_NAME format(s) found in PXE mapping file: {'; '.join(invalid_formats)}. "
+            f"Supported formats are: "
+            f"'InfiniBand.PCIe.Slot.X-Y', 'InfiniBand.Slot.X-Y', 'NIC.InfiniBand.X-Y', 'InfiniBand.Single-Y'"
+        )
+
+
 def validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path):
     """Validates that GROUP_NAME has a consistent PARENT_SERVICE_TAG across the mapping file."""
     if not pxe_mapping_file_path or not os.path.isfile(pxe_mapping_file_path):
@@ -405,7 +467,7 @@ def validate_mapping_file_entries(mapping_file_path):
     # Pre-compile regexes
     mac_re = re.compile(r"^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$")
     hostname_re = re.compile(r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$")
-    group_re = re.compile(r"^(?:grp(?:[0-9]|[1-9][0-9]|100)|[Ss][Uu](?:[1-9]|[1-9][0-9]|100))$")
+    group_re = re.compile(r"^(?:grp(?:[0-9]|[1-9][0-9]|100)|[Ss][Uu][A-Za-z]?(?:0*[1-9][0-9]?|100))$")
     fg_re = re.compile(r"^[A-Za-z0-9_]+$")
 
     row_seen = False
@@ -456,7 +518,7 @@ def validate_mapping_file_entries(mapping_file_path):
 
         # GROUP_NAME format
         if not group_re.match(group_name):
-            raise ValueError(f"Invalid GROUP_NAME: '{group_name}' at CSV row {row_idx} in mapping file. Must be in format grp0 to grp100 or SU1 to SU100.")
+            raise ValueError(f"Invalid GROUP_NAME: '{group_name}' at CSV row {row_idx} in mapping file. Must be grp0-grp100 or SU[A-Z]1-100 (e.g. SU1, SU01, SUA99).")
 
         # FUNCTIONAL_GROUP_NAME format
         if not fg_re.match(fg_name):
@@ -468,20 +530,14 @@ def validate_mapping_file_entries(mapping_file_path):
         if bmc_ip and not validation_utils.validate_ipv4(bmc_ip):
             raise ValueError(f"Invalid BMC_IP: '{bmc_ip}' at CSV row {row_idx} in mapping file.")
 
-        ib_mac_col = fieldname_map.get("IB_MAC")
+        ib_nic_col = fieldname_map.get("IB_NIC_NAME")
         ib_ip_col = fieldname_map.get("IB_IP")
-        ib_mac = row.get(ib_mac_col, "").strip() if ib_mac_col and row.get(ib_mac_col) else ""
+        ib_nic_name = row.get(ib_nic_col, "").strip() if ib_nic_col and row.get(ib_nic_col) else ""
         ib_ip = row.get(ib_ip_col, "").strip() if ib_ip_col and row.get(ib_ip_col) else ""
 
-        if bool(ib_mac) != bool(ib_ip):
+        if bool(ib_nic_name) != bool(ib_ip):
             raise ValueError(
-                f"IB_MAC and IB_IP must both be provided or both be empty at CSV row {row_idx} in mapping file."
-            )
-
-        if ib_mac and not ib_mac_re.match(ib_mac):
-            raise ValueError(
-                f"Invalid IB_MAC: '{ib_mac}' at CSV row {row_idx} in mapping file. "
-                "Expected format: xx:xx:xx:xx:xx:xx:xx:xx."
+                f"IB_NIC_NAME and IB_IP must both be provided or both be empty at CSV row {row_idx} in mapping file."
             )
 
         if ib_ip and not validation_utils.validate_ipv4(ib_ip):
@@ -926,6 +982,7 @@ def validate_provision_config(
             validate_duplicate_hostnames_in_mapping_file(pxe_mapping_file_path)
             validate_duplicate_admin_ips_in_mapping_file(pxe_mapping_file_path)
             validate_duplicate_ib_ips_in_mapping_file(pxe_mapping_file_path)
+            validate_ib_nic_name_format_in_mapping_file(pxe_mapping_file_path)
             validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path)
             validate_functional_groups_separation(pxe_mapping_file_path)
             validate_parent_service_tag_hierarchy(pxe_mapping_file_path)
@@ -1442,3 +1499,21 @@ def _ranges_overlap(range_a, range_b):
         return a_start <= b_end and b_start <= a_end
     except (ValueError, TypeError):
         return False
+
+
+
+def validate_dns_config(data):
+    """
+    Validates dns_config input parameters.
+
+    dns_config.yml only contains dns_enabled (boolean).
+    The cluster domain is read from OIM metadata (domain_name).
+
+    Args:
+        data (dict): The dns_config dict from dns_config.yml.
+
+    Returns:
+        list: Validation error messages (currently empty; schema
+        validation handles the dns_enabled type check).
+    """
+    return []

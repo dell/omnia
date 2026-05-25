@@ -13,7 +13,7 @@
 #  limitations under the License.
 ---
 
-- name: Extract image packages from service_k8s.json
+- name: Extract image packages from service_k8s_v<version>.json
   ansible.builtin.set_fact:
     service_k8s_image_list: "{{ telemetry_packages['service_k8s']['cluster'] | selectattr('type', 'equalto', 'image') | list }}"
 

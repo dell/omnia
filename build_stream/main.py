@@ -22,6 +22,8 @@ Usage:
 """
 
 import logging
+
+from api.logging_utils import log_secure_info
 import os
 from contextlib import asynccontextmanager
 
@@ -37,17 +39,18 @@ logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logger = logging.getLogger(__name__)
 
 container.wire(modules=[
     "api.jobs.routes",
     "api.jobs.dependencies",
     "api.local_repo.routes",
     "api.local_repo.dependencies",
+    "api.restart.routes",
+    "api.restart.dependencies",
     "api.validate.routes",
     "api.validate.dependencies",
 ])
-logger.info("Using container: %s", container.__class__.__name__)
+log_secure_info('info', f"Using container: {container.__class__.__name__}")
 
 
 @asynccontextmanager
@@ -59,13 +62,13 @@ async def lifespan(app: FastAPI):
     # Startup: Start the result poller
     result_poller = container.result_poller()
     await result_poller.start()
-    logger.info("Application startup complete")
+    log_secure_info('info', "Application startup complete")
 
     yield
 
     # Shutdown: Stop the result poller
     await result_poller.stop()
-    logger.info("Application shutdown complete")
+    log_secure_info('info', "Application shutdown complete")
 
 
 app = FastAPI(
@@ -120,7 +123,7 @@ async def health_check() -> dict:
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):  # pylint: disable=unused-argument
     """Global exception handler for unhandled exceptions."""
-    logger.exception("Unhandled exception occurred")
+    log_secure_info('error', "Unhandled exception occurred", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"status": "error", "message": "An internal server error occurred"},
@@ -158,7 +161,7 @@ if __name__ == "__main__":
     try:
         host, port = get_server_config()
 
-        logger.info("Starting Build Stream API server on %s:%d", host, port)
+        log_secure_info('info', f"Starting Build Stream API server on {host}:{port}")
         
         uvicorn.run("main:app", host=host, port=port)
     except ValueError as e:

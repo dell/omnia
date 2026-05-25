@@ -1,0 +1,59 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# ENABLE TELEMETRY PLAYBOOK
+# ============================================================================
+# Selectively re-enable telemetry collection by source.
+#
+# USAGE:
+#   Re-enable PowerScale metric collection:
+#     ansible-playbook telemetry/enable_telemetry.yml --tags powerscale
+#
+# WHAT IT DOES:
+#   1. Scales up the corresponding Kubernetes workloads
+#
+# TO DISABLE:
+#   ansible-playbook telemetry/disable_telemetry.yml --tags powerscale
+#
+# NOTE: PowerScale syslog must be enabled on the PowerScale cluster itself:
+#   isi audit settings modify --config-syslog-enabled=1
+#   isi audit settings modify --config-syslog-servers=<VLAgent_LoadBalancer_IP>:514
+# ============================================================================
+
+- name: Enable telemetry collection
+  hosts: localhost
+  connection: ssh
+  gather_facts: false
+  tasks:
+    - name: Include input directory
+      ansible.builtin.include_role:
+        name: ../utils/roles/include_input_dir
+      tags: always
+
+    - name: Set config file paths
+      ansible.builtin.set_fact:
+        telemetry_config_file: "{{ input_project_dir }}/telemetry_config.yml"
+        ha_config_file: "{{ input_project_dir }}/high_availability_config.yml"
+        telemetry_namespace: telemetry
+        telemetry_operation: enable
+        cacheable: true
+      tags: always
+
+    - name: Enable telemetry collection
+      ansible.builtin.include_role:
+        name: telemetry_enable
+      tags:
+        - powerscale

@@ -117,6 +117,53 @@ class TestStage:
         stage.cancel()
         assert stage.stage_state == StageState.CANCELLED
 
+    def test_reset_from_failed_state(self):
+        """Stage should reset from FAILED back to PENDING for retry."""
+        stage = Stage(
+            job_id=JobId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a11"),
+            stage_name=StageName("upload"),
+            stage_state=StageState.FAILED,
+            error_code="ERR_UPLOAD",
+            error_summary="Upload failed",
+        )
+        stage.reset()
+        assert stage.stage_state == StageState.PENDING
+        assert stage.started_at is None
+        assert stage.ended_at is None
+        assert stage.error_code is None
+        assert stage.error_summary is None
+        assert stage.version == 2
+
+    def test_reset_from_completed_state(self):
+        """Stage should reset from COMPLETED back to PENDING for retry."""
+        stage = Stage(
+            job_id=JobId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a11"),
+            stage_name=StageName("upload"),
+            stage_state=StageState.COMPLETED,
+        )
+        stage.reset()
+        assert stage.stage_state == StageState.PENDING
+        assert stage.version == 2
+
+    def test_reset_from_pending_raises_error(self):
+        """Resetting from PENDING state should raise InvalidStateTransitionError."""
+        stage = Stage(
+            job_id=JobId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a11"),
+            stage_name=StageName("upload"),
+        )
+        with pytest.raises(InvalidStateTransitionError):
+            stage.reset()
+
+    def test_reset_from_in_progress_raises_error(self):
+        """Resetting from IN_PROGRESS state should raise InvalidStateTransitionError."""
+        stage = Stage(
+            job_id=JobId("018f3c4c-6a2e-7b2a-9c2a-3d8d2c4b9a11"),
+            stage_name=StageName("upload"),
+            stage_state=StageState.IN_PROGRESS,
+        )
+        with pytest.raises(InvalidStateTransitionError):
+            stage.reset()
+
     def test_terminal_state_prevents_transitions(self):
         """Terminal states should prevent any transitions."""
         stage = Stage(

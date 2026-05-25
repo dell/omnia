@@ -1,0 +1,77 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Report upgrade result
+  block:
+    - name: Report upgrade failure
+      ansible.builtin.debug:
+        msg: |
+          OpenCHAMI upgrade FAILED.
+          Review snapshot at: {{ openchami_snapshot_dir | default('N/A') }}
+          {{ upgrade_messages.troubleshooting.container_upgrade_diagnosis }}
+      when: openchami_upgrade_failed | default(false) | bool
+
+    # ── Update version.yml with new metadata on success ──────────────
+    - name: Update version.yml with new OpenCHAMI version metadata
+      ansible.builtin.copy:
+        content: |
+          # OpenCHAMI version metadata — updated by upgrade_openchami role
+          openchami_version: "{{ backup_manifest.target_version | default('2.2.0.0') }}"
+          omnia_version: "{{ backup_manifest.target_version | default('2.2.0.0') }}"
+          upgrade_timestamp: "{{ ansible_date_time.iso8601 }}"
+          upgraded_from: "{{ backup_manifest.source_version | default('2.1.0.0') }}"
+          component_versions:
+            smd: "{{ openchami_smd_tag }}"
+            bss: "{{ openchami_bss_tag }}"
+            cloud_init: "{{ openchami_cloud_init_tag }}"
+            local_ca: "{{ openchami_local_ca_tag }}"
+            opaal: "{{ openchami_opaal_tag }}"
+            coresmd: "{{ openchami_coresmd_tag }}"
+            postgres: "{{ postgres_tag }}"
+            hydra: "{{ hydra_tag }}"
+            haproxy: "{{ haproxy_tag }}"
+            registry: "{{ registry_tag }}"
+            minio: "{{ minio_release_tag }}"
+        dest: "/opt/omnia/.data/version.yml"
+        mode: "{{ file_permissions_644 }}"
+      when:
+        - not (openchami_upgrade_failed | default(false) | bool)
+        - openchami_deployed | default(false) | bool
+        - upgrade_needed | default(true) | bool
+
+    - name: Report upgrade success
+      ansible.builtin.debug:
+        msg: "OpenCHAMI upgrade completed successfully. version.yml updated."
+      when:
+        - not (openchami_upgrade_failed | default(false) | bool)
+        - openchami_deployed | default(false) | bool
+        - upgrade_needed | default(true) | bool
+
+    - name: Report upgrade skipped (not deployed)
+      ansible.builtin.debug:
+        msg: "{{ upgrade_messages.deployment.not_deployed }}"
+      when: not (openchami_deployed | default(false) | bool)
+
+    - name: Report upgrade skipped (already at target)
+      ansible.builtin.debug:
+        msg: "{{ upgrade_messages.idempotency.skip_message }}"
+      when:
+        - openchami_deployed | default(false) | bool
+        - not (upgrade_needed | default(true) | bool)
+
+- name: Fail the play if upgrade failed
+  ansible.builtin.fail:
+    msg: "OpenCHAMI upgrade failed. See above for details."
+  when: openchami_upgrade_failed | default(false) | bool

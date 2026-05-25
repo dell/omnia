@@ -1,0 +1,138 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+- name: Upgrade Local Repository (Pulp sync)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: local_repo
+  tasks:
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Skip if local_repo already upgraded
+      ansible.builtin.meta: end_play
+      when:
+        - manifest.component_status[component_name] | default('pending') == 'completed'
+
+    # ── Dependency Check: OIM must be completed first ──────────────────
+    - name: Check OIM upgrade status
+      ansible.builtin.fail:
+        msg: |
+          ══════════════════════════════════════════════════════════════
+                    LOCAL_REPO UPGRADE - DEPENDENCY NOT MET
+          ══════════════════════════════════════════════════════════════
+
+          The local_repo upgrade requires OIM to be completed first.
+
+          Current OIM status: {{ manifest.component_status.oim | default('pending') }}
+          Required status   : completed
+
+          Please run the OIM upgrade first:
+            ansible-playbook upgrade.yml --tags oim
+
+          Then retry the local_repo upgrade:
+            ansible-playbook upgrade.yml --tags local_repo
+
+          ══════════════════════════════════════════════════════════════
+      when:
+        - manifest.component_status.oim | default('pending') != 'completed'
+
+    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
+
+    - name: "Skip — BuildStream terminal gate active (C-24)"
+      ansible.builtin.meta: end_play
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
+
+    - name: Set local_repo upgrade status to in-progress
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'in-progress'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+
+    - name: "Display upgrade status in-progress — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
+
+    # ── Local Repository Upgrade ───────────────────────────────────────
+    - name: "Local Repository Upgrade"
+      block:
+        # Manage upgrade inputs (load config, validate, calculate hops)
+        - name: "Manage Upgrade Inputs"
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../roles/manage_localrepo_inputs"
+
+        # Prepare local repository for upgrade
+        - name: "Prepare Local Repository"
+          ansible.builtin.include_role:
+            name: "{{ playbook_dir }}/../roles/prep_local_repo"
+
+      rescue:
+        - name: Local repo upgrade failed — mark component as failed
+          ansible.builtin.copy:
+            content: >-
+              {{ manifest | combine({
+                   'component_status': manifest.component_status | combine({
+                     component_name: 'failed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ manifest_path }}"
+            mode: '0644'
+        - name: Fail with local repo upgrade error
+          ansible.builtin.fail:
+            msg: "Local repository upgrade failed. Check logs and consider running rollback."
+
+    # ── Finalize: mark local_repo as completed ──────────────────────────
+    - name: Mark local_repo upgrade as completed
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'completed'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+
+    - name: "Display upgrade status completed — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"

@@ -60,6 +60,7 @@
         src: "{{ item }}"
         dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       loop: "{{ slurm_ctl_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
       when: slurm_ctl_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
 
@@ -97,6 +98,7 @@
         src: "{{ item.item }}"
         dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item.item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       when: item.stat.isreg | default(false)
       with_items: "{{ slurm_ctl_files.results }}"
 
@@ -146,6 +148,7 @@
         src: "{{ item }}"
         dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       loop: "{{ slurm_node_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
       when: slurm_node_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
 
@@ -183,6 +186,7 @@
         src: "{{ item.item }}"
         dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item.item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       when: item.stat.isreg | default(false)
       with_items: "{{ slurm_node_files.results }}"
 
@@ -232,6 +236,7 @@
         src: "{{ item }}"
         dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       loop: "{{ login_node_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
       when: login_node_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
 
@@ -269,6 +274,7 @@
         src: "{{ item.item }}"
         dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item.item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       when: item.stat.isreg | default(false)
       with_items: "{{ login_node_files.results }}"
 
@@ -318,6 +324,7 @@
         src: "{{ item }}"
         dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       loop: "{{ login_compiler_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | map(attribute='path') | list }}"
       when: login_compiler_found_files.results | selectattr('files', 'defined') | map(attribute='files') | flatten | length > 0
 
@@ -355,5 +362,6 @@
         src: "{{ item.item }}"
         dest: "{{ hostvars['localhost'].log_root }}/slurm/{{ inventory_hostname }}_{{ hostvars['localhost'].log_ts }}/"
         flat: false
+        validate_checksum: "{{ item.item | regex_search('(messages|secure|cron|maillog|spooler|btmp|lastlog)') | ternary(false, true) }}"
       when: item.stat.isreg | default(false)
       with_items: "{{ login_compiler_files.results }}"

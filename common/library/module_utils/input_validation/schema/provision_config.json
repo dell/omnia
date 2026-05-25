@@ -16,6 +16,11 @@
       "description": "Default lease time for DHCP.",
       "pattern": "^[0-9]+$",
       "default": "86400"
+    },
+    "dns_enabled": {
+      "type": "boolean",
+      "description": "Enable DNS-based hostname resolution via coresmd.",
+      "default": false
     }
   },
   "required": [

@@ -1,0 +1,134 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Ensure upgrade directory exists on kube_vip client NFS mount
+  ansible.builtin.file:
+    path: "{{ upgrade_dir_client }}"
+    state: directory
+    mode: "0755"
+  delegate_to: "{{ kube_vip }}"
+
+- name: Check if lock file exists
+  ansible.builtin.stat:
+    path: "{{ lock_file }}"
+  delegate_to: "{{ kube_vip }}"
+  register: lock_check
+
+- name: Handle existing lock
+  when: lock_check.stat.exists
+  block:
+    - name: Read existing lock file
+      ansible.builtin.slurp:
+        src: "{{ lock_file }}"
+      delegate_to: "{{ kube_vip }}"
+      register: lock_content
+
+    - name: Parse existing lock
+      ansible.builtin.set_fact:
+        existing_lock: "{{ lock_content.content | b64decode | from_yaml }}"
+      when:
+        - lock_content.content | length > 0
+        - (lock_content.content | b64decode | from_yaml) is mapping
+
+    - name: Set empty lock when file is empty or invalid
+      ansible.builtin.set_fact:
+        existing_lock: {}
+      when:
+        - lock_content.content | length == 0 or (lock_content.content | b64decode | from_yaml) is not mapping
+
+    - name: Check if lock holder process is alive (same host)
+      ansible.builtin.command:
+        cmd: "kill -0 {{ existing_lock.pid }}"
+      register: pid_check
+      changed_when: false
+      failed_when: false
+      when:
+        - existing_lock is defined
+        - existing_lock.host is defined
+        - existing_lock.host == ansible_hostname
+        - existing_lock.pid is defined
+
+    - name: Abort if lock held by live process on same host
+      ansible.builtin.fail:
+        msg: "{{ msg_lock_held_same_host }}"
+      when:
+        - existing_lock is defined
+        - existing_lock.host is defined
+        - existing_lock.host == ansible_hostname
+        - pid_check is defined
+        - pid_check.rc == 0
+
+    - name: Abort if lock held by different host
+      ansible.builtin.fail:
+        msg: "{{ msg_lock_held_other_host }}"
+      when:
+        - existing_lock is defined
+        - existing_lock.host is defined
+        - existing_lock.host != ansible_hostname
+
+    - name: Remove stale lock (same host, dead PID)
+      ansible.builtin.file:
+        path: "{{ lock_file }}"
+        state: absent
+      delegate_to: "{{ kube_vip }}"
+      when:
+        - existing_lock is defined
+        - existing_lock is mapping
+        - existing_lock.host is defined
+        - existing_lock.host == ansible_hostname
+        - pid_check is defined
+        - pid_check.rc is defined
+        - pid_check.rc != 0
+
+    - name: Warn about stale lock removal
+      ansible.builtin.debug:
+        msg: "{{ msg_stale_lock_removed }}"
+      when:
+        - existing_lock is defined
+        - existing_lock is mapping
+        - existing_lock.host is defined
+        - existing_lock.host == ansible_hostname
+        - pid_check is defined
+        - pid_check.rc is defined
+        - pid_check.rc != 0
+
+- name: Write new lock file
+  ansible.builtin.copy:
+    content: |
+      pid: {{ ansible_pid | default(lookup('pipe', 'echo $PPID')) }}
+      host: {{ ansible_hostname }}
+      started_at: {{ ansible_date_time.iso8601 }}
+      playbook: upgrade_k8s.yml
+    dest: "{{ lock_file }}"
+    mode: "0644"
+  delegate_to: "{{ kube_vip }}"
+  register: lock_write_result
+
+- name: Verify lock file ownership
+  ansible.builtin.slurp:
+    src: "{{ lock_file }}"
+  delegate_to: "{{ kube_vip }}"
+  register: verify_lock
+
+- name: Parse verified lock
+  ansible.builtin.set_fact:
+    verified_lock: "{{ verify_lock.content | b64decode | from_yaml }}"
+
+- name: Abort if lock verification failed
+  ansible.builtin.fail:
+    msg: "{{ msg_lock_verification_failed }}"
+  when:
+    - verified_lock is defined
+    - verified_lock.host is defined
+    - verified_lock.host != ansible_hostname

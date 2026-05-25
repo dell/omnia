@@ -1,0 +1,92 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Pulp repo checks (on omnia_core) ───────────────────────────────
+- name: Verify Pulp kubernetes distribution exists
+  ansible.builtin.command:
+    cmd: >-
+      /usr/local/bin/pulp rpm distribution show
+      --name x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{ k8s_target_minor | replace('.', '-') }}
+  register: pulp_k8s_dist
+  changed_when: false
+  failed_when: false
+
+- name: Fail if kubernetes distribution missing
+  ansible.builtin.fail:
+    msg: >-
+      Required Pulp distribution 'kubernetes-v{{ k8s_target_minor | replace('.', '-') }}' not found.
+      The prep phase (Phase 1) should have synced this.
+      Check prep phase output or run 'ansible-playbook local_repo/local_repo.yml' manually.
+  when: pulp_k8s_dist.rc != 0
+
+- name: Verify Pulp cri-o distribution exists
+  ansible.builtin.command:
+    cmd: >-
+      /usr/local/bin/pulp rpm distribution show
+      --name x86_64_rhel_{{ cluster_os_version }}_cri-o-v{{ k8s_target_minor | replace('.', '-') }}
+  register: pulp_crio_dist
+  changed_when: false
+  failed_when: false
+
+- name: Fail if cri-o distribution missing
+  ansible.builtin.fail:
+    msg: >-
+      Required Pulp distribution 'cri-o-v{{ k8s_target_minor | replace('.', '-') }}' not found.
+      The prep phase (Phase 1) should have synced this.
+      Check prep phase output or run 'ansible-playbook local_repo/local_repo.yml' manually.
+  when: pulp_crio_dist.rc != 0
+
+# ── Verify container images in Pulp (on omnia_core) ────────────────
+# Images are stored in Pulp without registry prefix (e.g., kube-apiserver not registry.k8s.io/kube-apiserver)
+- name: Check required container images in Pulp
+  ansible.builtin.uri:
+    url: "https://{{ admin_nic_ip }}:2225/v2/{{ item.name }}/tags/list"
+    method: GET
+    validate_certs: false
+    status_code: [200]
+  loop:
+    - { name: "kube-apiserver", tag: "v{{ k8s_target_version }}" }
+    - { name: "kube-controller-manager", tag: "v{{ k8s_target_version }}" }
+    - { name: "kube-scheduler", tag: "v{{ k8s_target_version }}" }
+    - { name: "kube-proxy", tag: "v{{ k8s_target_version }}" }
+  register: image_checks
+  changed_when: false
+  failed_when: false
+
+- name: Verify required tags exist for each image
+  ansible.builtin.fail:
+    msg: "Required image {{ item.item.name }}:{{ item.item.tag }} not found in Pulp registry. Available tags: {{ item.json.tags | default([]) | join(', ') }}"
+  loop: "{{ image_checks.results }}"
+  loop_control:
+    label: "{{ item.item.name }}:{{ item.item.tag }}"
+  when:
+    - item.status == 200
+    - item.item.tag not in (item.json.tags | default([]))
+
+- name: Warn if image check failed
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: Could not verify image {{ item.item.name }} in Pulp registry
+      (status: {{ item.status | default('unknown') }}). Upgrade may fail if image is not available.
+  loop: "{{ image_checks.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.status != 200
+
+- name: Display verified images
+  ansible.builtin.debug:
+    msg: >-
+      Verified: All required K8s images (kube-apiserver, kube-controller-manager,
+      kube-scheduler, kube-proxy) with tag v{{ k8s_target_version }} are present in Pulp registry.
+  when: image_checks.results | selectattr('status', 'equalto', 200) | list | length == 4

@@ -93,6 +93,66 @@
     }}"
     local_repo_additional_repos_aarch64: "{{ backup_local_repo_config.additional_repos_aarch64 | default([]) }}"
 
+- name: Strip x86_64_ prefix from user_repo_url_x86_64 names
+  ansible.builtin.set_fact:
+    local_repo_user_repo_url_x86_64: >-
+      {%- set result = [] -%}
+      {%- for repo in (local_repo_user_repo_url_x86_64 | default([])) -%}
+        {%- set clean_name = repo.name | default('') | regex_replace('^x86_64_', '') -%}
+        {%- set _ = result.append(repo | combine({'name': clean_name})) -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Strip aarch64_ prefix from user_repo_url_aarch64 names
+  ansible.builtin.set_fact:
+    local_repo_user_repo_url_aarch64: >-
+      {%- set result = [] -%}
+      {%- for repo in (local_repo_user_repo_url_aarch64 | default([])) -%}
+        {%- set clean_name = repo.name | default('') | regex_replace('^aarch64_', '') -%}
+        {%- set _ = result.append(repo | combine({'name': clean_name})) -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Strip x86_64_ prefix from rhel_os_url_x86_64 names
+  ansible.builtin.set_fact:
+    local_repo_rhel_os_url_x86_64: >-
+      {%- set result = [] -%}
+      {%- for repo in (local_repo_rhel_os_url_x86_64 | default([])) -%}
+        {%- set clean_name = repo.name | default('') | regex_replace('^x86_64_', '') -%}
+        {%- set _ = result.append(repo | combine({'name': clean_name})) -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Strip aarch64_ prefix from rhel_os_url_aarch64 names
+  ansible.builtin.set_fact:
+    local_repo_rhel_os_url_aarch64: >-
+      {%- set result = [] -%}
+      {%- for repo in (local_repo_rhel_os_url_aarch64 | default([])) -%}
+        {%- set clean_name = repo.name | default('') | regex_replace('^aarch64_', '') -%}
+        {%- set _ = result.append(repo | combine({'name': clean_name})) -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Strip x86_64_ prefix from additional_repos_x86_64 names
+  ansible.builtin.set_fact:
+    local_repo_additional_repos_x86_64: >-
+      {%- set result = [] -%}
+      {%- for repo in (local_repo_additional_repos_x86_64 | default([])) -%}
+        {%- set clean_name = repo.name | default('') | regex_replace('^x86_64_', '') -%}
+        {%- set _ = result.append(repo | combine({'name': clean_name})) -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Strip aarch64_ prefix from additional_repos_aarch64 names
+  ansible.builtin.set_fact:
+    local_repo_additional_repos_aarch64: >-
+      {%- set result = [] -%}
+      {%- for repo in (local_repo_additional_repos_aarch64 | default([])) -%}
+        {%- set clean_name = repo.name | default('') | regex_replace('^aarch64_', '') -%}
+        {%- set _ = result.append(repo | combine({'name': clean_name})) -%}
+      {%- endfor -%}
+      {{ result }}
+
 - name: Fail if omnia_repo_url_rhel_x86_64 is missing
   ansible.builtin.fail:
     msg: "{{ msg_omnia_repo_url_rhel_x86_64_missing }}"
@@ -103,7 +163,7 @@
     msg: "{{ msg_omnia_repo_url_rhel_aarch64_missing }}"
   when: (local_repo_omnia_repo_url_rhel_aarch64 | default([]) | length) == 0
 
-- name: Write local_repo_config.yml in Omnia 2.1 format
+- name: Write local_repo_config.yml in Omnia 2.2 format
   ansible.builtin.template:
     src: local_repo_config.j2
     dest: "{{ input_project_dir }}/local_repo_config.yml"

@@ -1,0 +1,217 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Phase 1 (Prep) — zero cluster impact.
+#
+# 1. Sync local repos for ALL hops in a single merged local_repo call.
+#    (local_repo_config.yml and service_k8s.json merged across hops.)
+# 2. Per hop: build squashfs image, verify all prep artifacts.
+#
+# If any step fails here, the cluster is untouched and the playbook aborts.
+#
+# Inputs:
+#   hop_chain — list of hops (from detect_hop_chain_from_manifest.yml)
+
+- name: Phase 1 — Prep all hop target versions
+  ansible.builtin.debug:
+    msg: >-
+      Starting Phase 1 (Prep). Will sync repos (merged), build squashfs, and verify
+      images for {{ hop_chain | length }} target version(s).
+      Cluster will NOT be touched during this phase.
+
+# ── Step 1: Sync ALL repos in one local_repo call ────────────────────
+- name: "Phase 1 — Sync Pulp repos for all target versions"
+  ansible.builtin.include_tasks: prep_sync_all_repos.yml
+
+# ── Step 1.5: Download addon manifests to NFS (once for all hops) ─────
+# NOTE: These tasks delegate to kube_vip because the NFS is mounted there,
+# not on localhost (Ansible controller). This ensures manifests are available
+# to all nodes via the shared NFS mount.
+- name: "Phase 1 — Download addon manifests for target versions"
+  block:
+    - name: Include local repo access variable file
+      ansible.builtin.include_vars: "{{ local_repo_access_file }}"
+
+    - name: Validate offline_manifest_path and offline_tarball_path
+      ansible.builtin.assert:
+        that:
+          - offline_manifest_path is defined
+          - offline_manifest_path | length > 0
+          - offline_tarball_path is defined
+          - offline_tarball_path | length > 0
+        fail_msg: >-
+          offline_manifest_path and/or offline_tarball_path not defined in
+          {{ local_repo_access_file }}. These are required for downloading
+          addon manifests and tarballs from Pulp.
+        quiet: true
+
+    - name: Create addon directories on NFS
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      delegate_to: "{{ kube_vip }}"
+      loop:
+        - calico
+        - metallb
+        - helm
+
+    - name: Load service_k8s config for target version
+      ansible.builtin.set_fact:
+        service_k8s_config: "{{ lookup('file', service_k8s_config_file) | from_json }}"
+
+    - name: Extract addon package names from service_k8s config
+      ansible.builtin.set_fact:
+        calico_package: >-
+          {{ service_k8s_config['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'manifest')
+          | selectattr('package', 'search', 'calico')
+          | map(attribute='package') | join }}
+        metallb_package: >-
+          {{ service_k8s_config['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'manifest')
+          | selectattr('package', 'search', 'metallb-native')
+          | map(attribute='package') | join }}
+        helm_package: >-
+          {{ service_k8s_config['service_kube_control_plane_first']['cluster']
+          | selectattr('type', 'equalto', 'tarball')
+          | selectattr('package', 'search', 'helm')
+          | map(attribute='package') | join }}
+
+    - name: Extract helm_target_version from service_k8s config
+      ansible.builtin.set_fact:
+        helm_target_version: >-
+          {{ helm_package | regex_replace('^helm-v([0-9.]+).*', '\1') }}
+
+    - name: Set addon manifest URLs (following k8s_config pattern)
+      ansible.builtin.set_fact:
+        calico_manifest_yaml_url: >-
+          {{ offline_manifest_path }}/{{ calico_package }}/{{ calico_package }}.yml
+        metallb_manifest_yaml_url: >-
+          {{ offline_manifest_path }}/{{ metallb_package }}/{{ metallb_package }}.yml
+        helm_tarball_url: >-
+          {{ offline_tarball_path }}/{{ helm_package }}/{{ helm_package }}.tar.gz
+
+    - name: Download Calico manifest from Pulp to NFS
+      ansible.builtin.get_url:
+        url: "{{ calico_manifest_yaml_url }}"
+        dest: "{{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml"
+        mode: "0644"
+        timeout: 300
+      delegate_to: "{{ kube_vip }}"
+      register: calico_download
+      failed_when: false
+
+    - name: Fail if Calico manifest download failed
+      ansible.builtin.fail:
+        msg: >-
+          Failed to download Calico manifest from Pulp.
+          URL: {{ calico_manifest_yaml_url }}.
+          Please verify Pulp has this artifact or manually stage at
+          {{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml
+      when: calico_download.failed
+
+    - name: Download MetalLB manifest from Pulp to NFS
+      ansible.builtin.get_url:
+        url: "{{ metallb_manifest_yaml_url }}"
+        dest: "{{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml"
+        mode: "0644"
+        timeout: 300
+      delegate_to: "{{ kube_vip }}"
+      register: metallb_download
+      failed_when: false
+
+    - name: Fail if MetalLB manifest download failed
+      ansible.builtin.fail:
+        msg: >-
+          Failed to download MetalLB manifest from Pulp.
+          URL: {{ metallb_manifest_yaml_url }}.
+          Please verify Pulp has this artifact or manually stage at
+          {{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml
+      when: metallb_download.failed
+
+    - name: Download Helm tarball from Pulp to NFS (consistent with fresh install)
+      ansible.builtin.get_url:
+        url: "{{ helm_tarball_url }}"
+        dest: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
+        mode: "0644"
+        timeout: 300
+      delegate_to: "{{ kube_vip }}"
+      register: helm_download
+      failed_when: false
+
+    - name: Fail if Helm tarball download failed
+      ansible.builtin.fail:
+        msg: >-
+          Failed to download Helm tarball from Pulp.
+          URL: {{ helm_tarball_url }}.
+          Please verify Pulp has this artifact or manually stage at
+          {{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz
+      when: helm_download.failed
+
+    - name: Extract Helm tarball to version-specific directory (consistent with fresh install)
+      ansible.builtin.unarchive:
+        src: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
+        dest: "{{ k8s_client_mount_path }}/helm/"
+        remote_src: true
+        extra_opts:
+          - "--transform"
+          - "s|^linux-amd64|linux-amd64-helm-v{{ helm_target_version }}|"
+      delegate_to: "{{ kube_vip }}"
+      when: not helm_download.failed
+
+    - name: Verify staged addon artifacts on NFS
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      delegate_to: "{{ kube_vip }}"
+      register: addon_artifacts
+      loop:
+        - path: "{{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml"
+        - path: "{{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml"
+        - path: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
+        - path: "{{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_target_version }}/helm"
+
+    - name: Fail if any addon artifact is missing
+      ansible.builtin.fail:
+        msg: "Required addon artifact not found: {{ item.item.path }}"
+      loop: "{{ addon_artifacts.results }}"
+      when: not item.stat.exists
+
+    - name: Display addon staging summary
+      ansible.builtin.debug:
+        msg: >-
+          Addon manifests staged successfully from Pulp to NFS ({{ kube_vip }}):
+          - Calico: {{ k8s_client_mount_path }}/calico/{{ calico_package }}.yml
+          - MetalLB: {{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml
+          - Helm tarball: {{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz
+          - Helm binary: {{ k8s_client_mount_path }}/helm/linux-amd64-helm-v{{ helm_target_version }}/helm
+
+# ── Step 2: Per-hop build + verify ───────────────────────────────────
+- name: "Phase 1 — Build & verify for target version {{ _prep_hop.to_version }}"
+  ansible.builtin.include_tasks: prep_phase_single_hop.yml
+  loop: "{{ hop_chain }}"
+  loop_control:
+    loop_var: _prep_hop
+    label: "{{ _prep_hop.from_minor }} → {{ _prep_hop.to_version }}"
+  vars:
+    _hop_target_version: "{{ _prep_hop.to_version }}"
+    _hop_target_minor: "{{ _prep_hop.to_version | regex_replace('\\.[0-9]+$', '') }}"
+    _hop_artifacts_dir: "{{ _prep_hop.artifacts_dir }}"
+
+- name: "Phase 1 — Prep complete"
+  ansible.builtin.debug:
+    msg: >-
+      Phase 1 (Prep) complete. All repos synced, squashfs images built, and
+      artifacts verified for {{ hop_chain | length }} target version(s).
+      Proceeding to Phase 2 (Upgrade).

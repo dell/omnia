@@ -14,11 +14,11 @@
 ---
 
 - name: Check entitlement certs
-  ansible.builtin.find:
-    paths: "{{ entitlement_path }}"
-    patterns: "*.pem"
-    file_type: file
-  register: entitlement_certs
+  ansible.builtin.shell: |
+    set -o pipefail
+    find "{{ entitlement_path }}" -maxdepth 1 -name "*.pem" -type f 2>/dev/null | wc -l
+  register: entitlement_certs_count
+  changed_when: false
   failed_when: false
 
 - name: Extract repo baseurls if redhat.repo exists
@@ -31,12 +31,20 @@
   changed_when: false
   failed_when: false
 
+- name: Check subscription-manager registration status
+  ansible.builtin.command: subscription-manager status
+  register: subscription_manager_status
+  changed_when: false
+  failed_when: false
+
 - name: Determine subscription status
   ansible.builtin.set_fact:
     subscription_status: >-
       {{
-        (entitlement_certs.matched | default(0) | int > 0)
+        (entitlement_certs_count.stdout | default('0') | trim | int > 0)
         or ((repo_urls.stdout_lines | default([])) | length > 0)
+        or ('Overall Status: Registered' in (subscription_manager_status.stdout | default('')))
+        or ('Overall Status: Current' in (subscription_manager_status.stdout | default('')))
       }}
 
 - name: Debug subscription status
@@ -68,20 +76,21 @@
         mode: "{{ hostvars['localhost']['dir_permissions_755'] }}"
 
     - name: Find entitlement certs on oim
-      ansible.builtin.find:
-        paths: "{{ entitlement_path }}"
-        patterns: "*.pem"
-        file_type: file
-      register: entitlement_certs
+      ansible.builtin.shell: |
+        set -o pipefail
+        find "{{ entitlement_path }}" -maxdepth 1 -name "*.pem" -type f 2>/dev/null
+      register: entitlement_certs_paths
+      changed_when: false
+      failed_when: false
       when: subscription_status | bool
 
     - name: Copy entitlement certs to shared path
       ansible.builtin.copy:
-        src: "{{ item.path }}"
+        src: "{{ item }}"
         dest: "{{ rhel_repo_cert_dir }}"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
         remote_src: true
-      loop: "{{ entitlement_certs.files | default([]) }}"
+      loop: "{{ entitlement_certs_paths.stdout_lines | default([]) }}"
       when: subscription_status | bool
 
     - name: Copy Red Hat UEP cert

@@ -118,7 +118,7 @@ def load_yaml(file_path):
         return yaml.safe_load(file)
 
 def get_json_file_path(software_name, cluster_os_type,
-                       cluster_os_version, user_json_path, arch):
+                       cluster_os_version, user_json_path, arch, software_version=None):
     """
     Generate the file path for a JSON file based on the provided software name,
      cluster OS type, cluster OS version, and user JSON path.
@@ -129,13 +129,23 @@ def get_json_file_path(software_name, cluster_os_type,
         cluster_os_version (str): The version of the cluster operating system.
         user_json_path (str): The path to the user JSON file.
         arch: Architecture for a particular software
+        software_version (str, optional): Version of the software for versioned JSON files.
+            Used for software like service_k8s that have versioned JSON files
+            (e.g., service_k8s_v1.35.1.json).
 
     Returns:
         str or None: The file path for the JSON file if it exists, otherwise None.
     """
     base_path = os.path.dirname(os.path.abspath(user_json_path))
+
+    # Handle versioned JSON files (e.g., service_k8s_v1.35.1.json)
+    if software_name == "service_k8s" and software_version:
+        json_filename = f"{software_name}_v{software_version}.json"
+    else:
+        json_filename = f"{software_name}.json"
+
     json_path = os.path.join(base_path,
-            f'{SOFTWARE_CONFIG_SUBDIR}/{arch}/{cluster_os_type}/{cluster_os_version}/{software_name}.json'
+            f'{SOFTWARE_CONFIG_SUBDIR}/{arch}/{cluster_os_type}/{cluster_os_version}/{json_filename}'
         )
     return json_path
 

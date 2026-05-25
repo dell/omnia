@@ -2,3 +2,15 @@
 /docs/build/
 **/__pycache__/
 .venv
+
+# IDE
+.vscode/
+
+# Documentation
+AGENTS.md
+
+# BuildStream
+build_stream/MagicMock/
+build_stream/pyproject.toml
+build_stream/tests/demo/demo_client_credentials.json
+build_stream/update_playbook_watcher.sh

@@ -1,0 +1,171 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Detect current addon versions
+  ansible.builtin.include_tasks: detect_addon_versions.yml
+
+- name: Mark addon upgrade in_progress
+  ansible.builtin.include_tasks: update_node_step.yml
+  vars:
+    status_update:
+      addon_upgrade:
+        status: in_progress
+        started_at: "{{ ansible_date_time.iso8601 }}"
+
+# ── Calico upgrade (ABORT on failure) ──────────────────────────────
+- name: Starting Calico upgrade
+  ansible.builtin.debug:
+    msg: "Starting Calico addon upgrade from {{ calico_from_version | default('unknown') }} to {{ calico_target_version }}..."
+  when: (upgrade_status.addon_upgrade.calico.status | default('pending')) != 'completed'
+
+- name: Mark Calico in_progress
+  ansible.builtin.include_tasks: update_addon_step.yml
+  vars:
+    addon_name: calico
+    addon_status_update:
+      status: in_progress
+      from_version: "{{ calico_from_version | default('unknown') }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+  when: (upgrade_status.addon_upgrade.calico.status | default('pending')) != 'completed'
+
+- name: Upgrade Calico
+  when: (upgrade_status.addon_upgrade.calico.status | default('pending')) != 'completed'
+  block:
+    - name: Execute Calico upgrade
+      ansible.builtin.include_tasks: step_calico_upgrade.yml
+
+    - name: Mark Calico completed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: calico
+        addon_status_update:
+          status: completed
+          from_version: "{{ calico_from_version | default('unknown') }}"
+          to_version: "{{ calico_target_version }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          error:
+  rescue:
+    - name: Mark Calico failed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: calico
+        addon_status_update:
+          status: failed
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+
+    - name: ABORT — Calico upgrade failed
+      ansible.builtin.fail:
+        msg: "{{ msg_addon_calico_failed }}"
+
+# ── MetalLB upgrade (ABORT on failure) ───────────────────────────
+- name: Starting MetalLB upgrade
+  ansible.builtin.debug:
+    msg: "Starting MetalLB addon upgrade from {{ metallb_from_version | default('unknown') }} to {{ metallb_target_version }}..."
+  when: (upgrade_status.addon_upgrade.metallb.status | default('pending')) != 'completed'
+
+- name: Mark MetalLB in_progress
+  ansible.builtin.include_tasks: update_addon_step.yml
+  vars:
+    addon_name: metallb
+    addon_status_update:
+      status: in_progress
+      from_version: "{{ metallb_from_version | default('unknown') }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+  when: (upgrade_status.addon_upgrade.metallb.status | default('pending')) != 'completed'
+
+- name: Upgrade MetalLB
+  when: (upgrade_status.addon_upgrade.metallb.status | default('pending')) != 'completed'
+  block:
+    - name: Execute MetalLB upgrade
+      ansible.builtin.include_tasks: step_metallb_upgrade.yml
+
+    - name: Mark MetalLB completed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: metallb
+        addon_status_update:
+          status: completed
+          from_version: "{{ metallb_from_version | default('unknown') }}"
+          to_version: "{{ metallb_target_version }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          error:
+  rescue:
+    - name: Mark MetalLB failed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: metallb
+        addon_status_update:
+          status: failed
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+
+    - name: ABORT — MetalLB upgrade failed
+      ansible.builtin.fail:
+        msg: "{{ msg_addon_metallb_failed }}"
+
+# ── Helm upgrade (ABORT on failure) ─────────────────────────────
+- name: Starting Helm upgrade
+  ansible.builtin.debug:
+    msg: "Starting Helm addon upgrade from {{ helm_from_version | default('unknown') }} to {{ helm_target_version }}..."
+  when: (upgrade_status.addon_upgrade.helm.status | default('pending')) != 'completed'
+
+- name: Mark Helm in_progress
+  ansible.builtin.include_tasks: update_addon_step.yml
+  vars:
+    addon_name: helm
+    addon_status_update:
+      status: in_progress
+      from_version: "{{ helm_from_version | default('unknown') }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+  when: (upgrade_status.addon_upgrade.helm.status | default('pending')) != 'completed'
+
+- name: Upgrade Helm
+  when: (upgrade_status.addon_upgrade.helm.status | default('pending')) != 'completed'
+  block:
+    - name: Execute Helm upgrade
+      ansible.builtin.include_tasks: step_helm_upgrade.yml
+
+    - name: Mark Helm completed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: helm
+        addon_status_update:
+          status: completed
+          from_version: "{{ helm_from_version | default('unknown') }}"
+          to_version: "{{ helm_target_version }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          error:
+  rescue:
+    - name: Mark Helm failed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: helm
+        addon_status_update:
+          status: failed
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+
+    - name: ABORT — Helm upgrade failed
+      ansible.builtin.fail:
+        msg: "{{ msg_addon_helm_failed }}"
+
+# ── Run addon validation ──────────────────────────────────────────
+- name: Validate addons
+  ansible.builtin.include_tasks: step_addon_validation.yml
+
+- name: Mark addon upgrade completed
+  ansible.builtin.include_tasks: update_node_step.yml
+  vars:
+    status_update:
+      addon_upgrade:
+        status: completed
+        completed_at: "{{ ansible_date_time.iso8601 }}"

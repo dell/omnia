@@ -44,3 +44,9 @@
   ansible.builtin.include_tasks: deploy_build_stream.yml
   tags:
     - build_stream
+
+- name: Configure automation framework for validate stage
+  ansible.builtin.include_tasks: configure_automation.yml
+  tags:
+    - build_stream
+    - automation

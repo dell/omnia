@@ -28,6 +28,28 @@
   ansible.builtin.set_fact:
     bmc_ip_list: "{{ pxe_mapping_data.list | map(attribute='BMC_IP') | list }}"
 
+- name: Validate BMC IPs are not empty
+  ansible.builtin.fail:
+    msg: >-
+      Invalid BMC_IP found in PXE mapping file '{{ pxe_mapping_file_path }}'.
+      Row {{ idx + 1 }} has empty or whitespace-only BMC_IP.
+      Please fix the CSV and retry.
+  when: item | trim | length == 0
+  loop: "{{ bmc_ip_list }}"
+  loop_control:
+    index_var: idx
+
+- name: Validate BMC IP format (IPv4)
+  ansible.builtin.fail:
+    msg: >-
+      Invalid BMC_IP '{{ item }}' in PXE mapping file '{{ pxe_mapping_file_path }}'
+      (row {{ idx + 1 }}). Expected a valid IPv4 address.
+      Please fix the CSV and retry.
+  when: not (item | ansible.utils.ipv4)
+  loop: "{{ bmc_ip_list }}"
+  loop_control:
+    index_var: idx
+
 - name: Generate BMC inventory file
   ansible.builtin.template:
     src: bmc_inventory.j2

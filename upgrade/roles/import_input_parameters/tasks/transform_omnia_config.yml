@@ -72,7 +72,7 @@
     msg: "{{ msg_service_k8s_cluster_missing }}"
   when: (omnia_service_k8s_cluster | default([]) | length) == 0
 
-- name: Write omnia_config.yml in Omnia 2.1 format
+- name: Write omnia_config.yml in Omnia 2.2 format
   ansible.builtin.template:
     src: omnia_config.j2
     dest: "{{ input_project_dir }}/omnia_config.yml"

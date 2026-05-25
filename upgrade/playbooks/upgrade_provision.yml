@@ -1,0 +1,161 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# upgrade_provision.yml — Provision Upgrade
+# ============================================================================
+# Calls provision/provision.yml to re-provision nodes with upgraded images.
+# Follows the same pattern as upgrade_build_image.yml:
+#   Pre-flight → import provision.yml → Finalize
+#
+# Runs AFTER build_image and BEFORE k8s in the upgrade tag order.
+# BuildStream flow: provision is skipped via terminal gate (C-24).
+# ============================================================================
+
+# ── Pre-flight: manifest gates + flags ──
+- name: "Pre-flight — Provision upgrade"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: provision
+  tasks:
+    - name: Set upgrade_mode to bypass upgrade_checkup in imported playbooks
+      ansible.builtin.set_fact:
+        upgrade_mode: true
+        proceed_provision: false
+        cacheable: true
+
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest.content | b64decode | from_yaml }}"
+
+    - name: Skip if provision already upgraded
+      ansible.builtin.debug:
+        msg: "provision already completed — skipping"
+      when: >-
+        manifest.component_status[component_name]
+        | default('pending') == 'completed'
+
+    - name: "Mark as skipped — BuildStream terminal gate active (C-24)"
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'skipped'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when:
+        - manifest.component_status[component_name] | default('pending') != 'completed'
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
+        - manifest.component_status.build_stream | default('pending') == 'completed'
+
+    - name: Validate OIM upgrade is complete
+      ansible.builtin.fail:
+        msg: >-
+          OIM upgrade must complete before provision.
+          Run: ansible-playbook upgrade.yml --tags oim
+      when:
+        - manifest.component_status[component_name] | default('pending') != 'completed'
+        - not (hostvars['localhost']['build_stream_terminal'] | default(false) | bool and
+               manifest.component_status.build_stream | default('pending') == 'completed')
+        - manifest.component_status.oim | default('pending') != 'completed'
+
+    - name: Validate build_image upgrade is complete
+      ansible.builtin.fail:
+        msg: >-
+          build_image upgrade must complete before provision.
+          Run: ansible-playbook upgrade.yml --tags build_image
+      when:
+        - manifest.component_status[component_name] | default('pending') != 'completed'
+        - not (hostvars['localhost']['build_stream_terminal'] | default(false) | bool and
+               manifest.component_status.build_stream | default('pending') == 'completed')
+        - manifest.component_status.build_image | default('pending') != 'completed'
+
+    - name: Set proceed flag
+      ansible.builtin.set_fact:
+        proceed_provision: true
+        cacheable: true
+      when:
+        - manifest.component_status[component_name] | default('pending') != 'completed'
+        - not (hostvars['localhost']['build_stream_terminal'] | default(false) | bool and
+               manifest.component_status.build_stream | default('pending') == 'completed')
+
+    - name: Set provision upgrade status to in-progress
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'in-progress'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+      when: proceed_provision | bool
+
+    - name: "Display upgrade status in-progress — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: in-progress"
+      when: proceed_provision | bool
+
+# ── Run provision playbook ──
+- name: Run provision (upgrade)
+  ansible.builtin.import_playbook: ../../provision/provision.yml
+  when: hostvars['localhost']['proceed_provision'] | default(false) | bool
+
+# ── Finalize: mark completed ──
+- name: "Finalize — Provision upgrade"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    manifest_path: /opt/omnia/.data/upgrade_manifest.yml
+    component_name: provision
+  tasks:
+    - name: Skip finalize if provision was not executed
+      ansible.builtin.meta: end_play
+      when: not (hostvars['localhost']['proceed_provision'] | default(false) | bool)
+
+    - name: Read upgrade_manifest.yml
+      ansible.builtin.slurp:
+        src: "{{ manifest_path }}"
+      register: raw_manifest_final
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        manifest: "{{ raw_manifest_final.content | b64decode | from_yaml }}"
+
+    - name: Mark provision upgrade as completed
+      ansible.builtin.copy:
+        content: >-
+          {{ manifest | combine({
+               'component_status': manifest.component_status | combine({
+                 component_name: 'completed'
+               })
+             }) | to_nice_yaml }}
+        dest: "{{ manifest_path }}"
+        mode: '0644'
+
+    - name: "Display upgrade status completed — {{ component_name }}"
+      ansible.builtin.debug:
+        msg: "[UPGRADE] Component '{{ component_name }}' — status changed to: completed"

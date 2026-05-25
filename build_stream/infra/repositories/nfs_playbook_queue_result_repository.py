@@ -15,7 +15,6 @@
 """NFS-based implementation of PlaybookQueueResultRepository."""
 
 import json
-import logging
 import os
 import shutil
 from pathlib import Path
@@ -25,7 +24,6 @@ from api.logging_utils import log_secure_info
 
 from core.localrepo.entities import PlaybookResult
 
-logger = logging.getLogger(__name__)
 
 DEFAULT_QUEUE_BASE = "/opt/omnia/playbook_queue"
 RESULTS_DIR_NAME = "results"
@@ -51,7 +49,7 @@ class NfsPlaybookQueueResultRepository:
         self._processed_files: Set[str] = set()
         # Clear cache on startup to ensure we don't miss any files
         self.clear_processed_cache()
-        logger.info("Initialized NfsPlaybookQueueResultRepository with cleared cache")
+        log_secure_info('info', "Initialized NfsPlaybookQueueResultRepository with cleared cache")
 
     def get_unprocessed_results(self) -> List[Path]:
         """Return list of result files not yet processed.
@@ -144,7 +142,7 @@ class NfsPlaybookQueueResultRepository:
         """Create queue directories if they do not exist."""
         self._results_dir.mkdir(parents=True, exist_ok=True)
         self._archive_dir.mkdir(parents=True, exist_ok=True)
-        logger.info("Result queue directories ensured: %s", self._results_dir)
+        log_secure_info('info', f"Result queue directories ensured: {self._results_dir}")
 
     def clear_processed_cache(self) -> None:
         """Clear the in-memory set of processed file names."""

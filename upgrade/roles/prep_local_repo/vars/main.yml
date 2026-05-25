@@ -1,0 +1,9 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+---
+
+# Architectures - default value, can be overridden by playbook or dynamically from software_config.json
+upgrade_active_architectures:
+  - x86_64  # Default architecture, will be updated in create_staging.yml if needed
+
+# Cleanup staging directory after sync
+upgrade_cleanup_staging: true

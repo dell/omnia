@@ -21,6 +21,8 @@ import zipfile
 from pathlib import Path
 from typing import Dict, Optional, Set, Union
 
+from api.logging_utils import log_secure_info
+
 from core.artifacts.exceptions import (
     ArtifactAlreadyExistsError,
     ArtifactNotFoundError,
@@ -120,7 +122,16 @@ class FileArtifactStore:
         try:
             artifact_path.parent.mkdir(parents=True, exist_ok=True)
             artifact_path.write_bytes(raw_bytes)
+            log_secure_info(
+                'info',
+                f"Artifact stored successfully: key={key.value}, path={artifact_path}, size={len(raw_bytes)} bytes"
+            )
         except OSError as e:
+            log_secure_info(
+                'error',
+                f"Failed to write artifact to {artifact_path}: {e}",
+                exc_info=True
+            )
             raise ArtifactStoreError(
                 f"Failed to write artifact to {artifact_path}: {e}"
             ) from e

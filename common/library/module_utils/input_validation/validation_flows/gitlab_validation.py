@@ -37,6 +37,8 @@ def validate_gitlab_config(input_file_path, data,
     fields including gitlab_host, project settings, port numbers, resource thresholds,
     and OIM API configuration.
 
+    Validation is skipped if build_stream is disabled in build_stream_config.yml.
+
     Args:
         input_file_path (str): Path to the input file directory.
         data (dict): Loaded YAML data from gitlab_config.yml.
@@ -51,6 +53,24 @@ def validate_gitlab_config(input_file_path, data,
     """
     errors = []
     gitlab_yml = create_file_path(input_file_path, file_names["gitlab_config"])
+
+    # Check if build_stream is enabled before validating GitLab config
+    build_stream_config_path = create_file_path(input_file_path, file_names["build_stream_config"])
+    build_stream_data = validation_utils.load_yaml_as_json(
+        build_stream_config_path, omnia_base_dir, project_name, logger, module
+    )
+
+    if not build_stream_data:
+        logger.info("build_stream_config.yml not found or empty, skipping GitLab validation")
+        return errors
+
+    enable_build_stream = build_stream_data.get("enable_build_stream", False)
+
+    if not enable_build_stream:
+        logger.info("build_stream is disabled, skipping GitLab validation")
+        return errors
+
+    logger.info("build_stream is enabled, proceeding with GitLab validation")
 
     _validate_gitlab_host(data, gitlab_yml, errors, logger)
     _validate_project_settings(data, gitlab_yml, errors)

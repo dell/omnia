@@ -88,6 +88,38 @@ def create_job_log_file(job_id: str) -> Optional[Path]:
         return None
 
 
+def create_stage_log_file(
+    job_id: str, stage_name: str, attempt: int
+) -> Optional[Path]:
+    """Ensure the job log directory exists for a stage execution.
+
+    The actual log file is created by the playbook watcher (via
+    ``ANSIBLE_LOG_PATH``) and moved into this directory after completion.
+    The result poller then updates the stage's ``log_file_path`` with
+    the real file path.  This function only guarantees the parent
+    directory is ready.
+
+    Returns ``None`` so callers do **not** set a stale placeholder path
+    on the stage entity before the watcher produces the real log.
+
+    Args:
+        job_id: Parent job identifier.
+        stage_name: Stage identifier (e.g. ``deploy``, ``restart``).
+        attempt: Current attempt number (1-indexed).
+
+    Returns:
+        None — the log path is set later by the result poller.
+    """
+    job_log_dir = _LOG_BASE / job_id
+    try:
+        job_log_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        logging.getLogger(__name__).warning(
+            "Failed to create stage log directory for job: %s, stage: %s, attempt: %d",
+            job_id, stage_name, attempt,
+        )
+
+
 def remove_job_logger(job_id: str) -> None:
     """Flush, close, and remove the cached logger for *job_id*."""
     job_logger = _job_loggers.pop(job_id, None)

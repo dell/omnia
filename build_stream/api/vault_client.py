@@ -14,7 +14,7 @@
 
 """Ansible Vault client for secure credential storage and retrieval."""
 
-import logging
+from api.logging_utils import log_secure_info
 import os
 import subprocess
 import tempfile
@@ -22,7 +22,6 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-logger = logging.getLogger(__name__)
 
 
 class VaultError(Exception):
@@ -118,12 +117,12 @@ class VaultClient:  # pylint: disable=too-few-public-methods
             )
             return result.stdout
         except subprocess.CalledProcessError:
-            logger.error("Vault command failed: %s", command)
+            log_secure_info('error', f"Vault command failed: {command}")
             if command == "view":
                 raise VaultDecryptError("Failed to decrypt vault") from None
             raise VaultEncryptError("Failed to encrypt vault") from None
         except subprocess.TimeoutExpired:
-            logger.error("Vault command timed out: %s", command)
+            log_secure_info('error', f"Vault command timed out: {command}")
             raise VaultError("Vault operation timed out") from None
 
     def read_vault(self, vault_path: str) -> Dict[str, Any]:
@@ -139,12 +138,12 @@ class VaultClient:  # pylint: disable=too-few-public-methods
             VaultNotFoundError: If vault file doesn't exist.
             VaultDecryptError: If decryption fails.
         """
-        logger.debug("Reading vault: %s", vault_path)
+        log_secure_info('debug', f"Reading vault: {vault_path}")
         output = self._run_vault_command("view", vault_path)
         try:
             return yaml.safe_load(output) or {}
         except yaml.YAMLError:
-            logger.error("Failed to parse vault YAML")
+            log_secure_info('error', "Failed to parse vault YAML")
             raise VaultDecryptError("Invalid vault content format") from None
 
     def write_vault(self, vault_path: str, data: Dict[str, Any]) -> None:
@@ -157,7 +156,7 @@ class VaultClient:  # pylint: disable=too-few-public-methods
         Raises:
             VaultEncryptError: If encryption fails.
         """
-        logger.debug("Writing vault: %s", vault_path)
+        log_secure_info('debug', f"Writing vault: {vault_path}")
 
         yaml_content = yaml.safe_dump(data, default_flow_style=False)
 
@@ -177,7 +176,7 @@ class VaultClient:  # pylint: disable=too-few-public-methods
             temp_path = temp_file.name
 
         try:
-            logger.debug("Encrypting temp file: %s", temp_path)
+            log_secure_info('debug', f"Encrypting temp file: {temp_path}")
             encrypt_cmd = [
                 "ansible-vault",
                 "encrypt",
@@ -194,7 +193,7 @@ class VaultClient:  # pylint: disable=too-few-public-methods
                 text=True,
                 timeout=30,
             )
-            logger.debug("Encryption completed, reading encrypted content")
+            log_secure_info('debug', "Encryption completed, reading encrypted content")
 
             with open(temp_path, "r", encoding="utf-8") as f:
                 encrypted_content = f.read()
@@ -203,12 +202,12 @@ class VaultClient:  # pylint: disable=too-few-public-methods
                 f.write(encrypted_content)
 
             os.chmod(vault_path, 0o600)
-            logger.debug("Vault written successfully")
+            log_secure_info('debug', "Vault written successfully")
 
         except subprocess.CalledProcessError:
             raise VaultEncryptError("Failed to encrypt vault") from None
         except subprocess.TimeoutExpired:
-            logger.error("Vault encryption timed out")
+            log_secure_info('error', "Vault encryption timed out")
             raise VaultError("Vault operation timed out") from None
         finally:
             if os.path.exists(temp_path):
@@ -267,7 +266,7 @@ class VaultClient:  # pylint: disable=too-few-public-methods
         existing_data["oauth_clients"][client_id] = client_data
 
         self.write_vault(self.oauth_clients_vault_path, existing_data)
-        logger.info("OAuth client saved: %s", client_id[:8] + "...")
+        log_secure_info('info', f"OAuth client saved: {client_id[:8] + "..."}")
 
     def get_active_client_count(self) -> int:
         """Get the count of active registered clients.

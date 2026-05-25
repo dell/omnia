@@ -54,7 +54,6 @@
 - name: Extract configuration from metadata
   ansible.builtin.set_fact:
     omnia_path: "{{ oim_shared_path }}"
-    pulp_password: "{{ hostvars['localhost']['pulp_password'] }}"
     postgres_user: "{{ hostvars['localhost']['postgres_user'] }}"
     postgres_password: "{{ hostvars['localhost']['postgres_password'] }}"
     postgres_db_name: "{{ postgres_db_name }}"
@@ -90,24 +89,7 @@
     mode: "{{ build_stream_ssl_file_mode }}"
 
 # -------------------------------------------------------------------
-# 4) FAIL if Pulp container missing / not running
-# -------------------------------------------------------------------
-- name: Precheck - fail if Pulp container is missing or not running
-  block:
-    - name: Ensure pulp container exists
-      containers.podman.podman_container_info:
-        name: "{{ pulp_container_name }}"
-      register: pulp_container_info
-
-    - name: Fail if Pulp container is missing OR not running
-      ansible.builtin.fail:
-        msg: "{{ build_stream_pulp_not_ready_msg }}"
-      when: >
-        (pulp_container_info.containers | length == 0) or
-        (pulp_container_info.containers[0].State.Status != "running")
-
-# -------------------------------------------------------------------
-# 5) Pull container image
+# 4) Pull container image
 # -------------------------------------------------------------------
 - name: Pull omnia_build_stream image from Docker Hub
   containers.podman.podman_image:
@@ -123,7 +105,7 @@
   when: image_pull_result is succeeded
 
 # -------------------------------------------------------------------
-# 6) Generate SSL certificates (idempotent)
+# 5) Generate SSL certificates (idempotent)
 # -------------------------------------------------------------------
 - name: Check if Build Stream SSL certificates exist
   ansible.builtin.stat:
@@ -399,81 +381,9 @@
             permanent: true
             state: enabled
             immediate: true
-# --------------------------------------------------------------------
-# 7) Create Pulp config in build_stream container
-# -------------------------------------------------------------------
-    - name: Create pulp config directory in build_stream container
-      containers.podman.podman_container_exec:
-        name: "{{ build_stream_container_name }}"
-        command: mkdir -p /root/.config/pulp
-      changed_when: false
-
-    - name: Check if Pulp configuration file exists in build_stream container
-      containers.podman.podman_container_exec:
-        name: "{{ build_stream_container_name }}"
-        command: test -f /root/.config/pulp/cli.toml
-      register: pulp_config_exists
-      changed_when: false
-      failed_when: false
-
-    - name: Create Pulp config in build_stream container
-      containers.podman.podman_container_exec:
-        name: "{{ build_stream_container_name }}"
-        command: >
-          pulp config create
-          --username admin
-          --base-url {{ pulp_base_url }}
-          --password {{ pulp_password }}
-          --verify-ssl
-      when: pulp_config_exists.rc != 0
-      changed_when: false
-      no_log: true
-
-    - name: Test pulp status command in build_stream container
-      containers.podman.podman_container_exec:
-        name: "{{ build_stream_container_name }}"
-        command: pulp status
-      register: pulp_status_test
-      changed_when: false
-      failed_when: false
-
-    - name: Fail if pulp status test is not 200
-      ansible.builtin.fail:
-        msg: "{{ build_stream_pulp_status_failure_msg }}"
-      when: (pulp_status_test.rc != 0)
-      no_log: true
-# -------------------------------------------------------------------
-# 8) Validate pulp HTTPS connectivity from inside build_stream
-# -------------------------------------------------------------------
-    - name: Build curl command
-      ansible.builtin.set_fact:
-        curl_cmd:
-          - curl
-          - --cacert
-          - "{{ build_stream_pulp_cert_container_path }}/pulp_webserver.crt"   # resolves to /etc/pulp/certs/pulp_webserver.crt inside the container
-          - -sS
-          - -o
-          - /dev/null
-          - -w
-          - "%{http_code}\n"
-          - "{{ pulp_base_url }}/pulp/api/v3/status/"
-      changed_when: false
-
-    - name: Test HTTPS from build_stream to Pulp
-      containers.podman.podman_container_exec:
-        name: "{{ build_stream_container_name }}"
-        argv: "{{ curl_cmd }}"
-      register: curl_status
-      changed_when: false
-      failed_when: false
-
-    - name: Fail if HTTPS test is not 200
-      ansible.builtin.fail:
-        msg: "{{ build_stream_https_failure_msg }}"
-      when: (curl_status.stdout | trim) != "200"
 
 # --------------------------------------------------------------------
-# 8) Validate health API endpoint https://{{ admin_ip }}:{{ build_stream_port }}/health"
+# 7) Validate health API endpoint https://{{ admin_ip }}:{{ build_stream_port }}/health"
 # -------------------------------------------------------------------
     - name: Verify API endpoint health
       ansible.builtin.uri:

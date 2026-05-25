@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""ValidateImageOnTest response DTOs."""
+"""Validate response DTOs."""
 
-from orchestrator.validate.dtos.validate_image_on_test_response import ValidateImageOnTestResponse
+from orchestrator.validate.dtos.validate_response import ValidateResponse
 
-__all__ = ["ValidateImageOnTestResponse"]
+__all__ = ["ValidateResponse"]

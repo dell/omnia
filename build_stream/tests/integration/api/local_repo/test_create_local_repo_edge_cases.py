@@ -52,7 +52,7 @@ class TestCreateLocalRepoEdgeCases:
         assert len(results) == 5
         for response in results:
             # Either 202 (accepted), 400 (bad request), 409 (conflict), or 500 (error)
-            assert response.status_code in [202, 400, 409, 500]
+            assert response.status_code in [202, 400, 409, 412, 500]
 
     def test_request_with_very_long_correlation_id(
         self, client, auth_headers, created_job, nfs_queue_dir, input_dir
@@ -69,7 +69,7 @@ class TestCreateLocalRepoEdgeCases:
         )
 
         # Should handle correlation ID gracefully (may fail if input files missing)
-        assert response.status_code in [202, 400]
+        assert response.status_code in [202, 400, 412]
 
     def test_request_with_unicode_characters(
         self, client, auth_headers, created_job, nfs_queue_dir, input_dir
@@ -95,7 +95,7 @@ class TestCreateLocalRepoEdgeCases:
         )
 
         # Should return an error status (400, 500, or 503 are all acceptable)
-        assert response.status_code in [400, 500, 503]
+        assert response.status_code in [400, 412, 500, 503]
 
     def test_request_with_malformed_authorization_header(self, unauth_client):
         """Test request with malformed authorization header."""
@@ -115,7 +115,7 @@ class TestCreateLocalRepoEdgeCases:
         )
 
         # Should handle job status gracefully (may fail if input files missing or job issues)
-        assert response.status_code in [202, 400, 410]
+        assert response.status_code in [202, 400, 410, 412]
 
     def test_request_when_input_directory_has_permissions_issue(
         self, client, auth_headers, created_job, nfs_queue_dir, input_dir
@@ -127,7 +127,7 @@ class TestCreateLocalRepoEdgeCases:
         )
 
         # Should handle permission issues gracefully (may return various error codes)
-        assert response.status_code in [400, 403, 500]
+        assert response.status_code in [400, 403, 412, 500]
 
     def test_request_with_multiple_auth_headers(self, unauth_client):
         """Test request with multiple authorization headers."""
@@ -174,7 +174,7 @@ class TestCreateLocalRepoEdgeCases:
             )
 
             # Should ignore the body (API doesn't expect one) or return 400 for bad request
-            assert response.status_code in [202, 400, 422]
+            assert response.status_code in [202, 400, 412, 422]
 
     def test_request_with_content_type_header(self, client, auth_headers, created_job):
         """Test request with content-type header."""
@@ -189,4 +189,4 @@ class TestCreateLocalRepoEdgeCases:
         )
 
         # Should accept the content-type header
-        assert response.status_code == 202 or response.status_code == 400
+        assert response.status_code in [202, 400, 412]

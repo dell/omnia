@@ -155,8 +155,8 @@ class TestStageName:
             stage.value = "build-image"
 
     def test_canonical_stages_count(self):
-        """Verify we have exactly 6 canonical stages."""
-        assert len(StageType) == 6
+        """Verify we have exactly 9 canonical stages (7 R1 + 2 R2)."""
+        assert len(StageType) == 9
 
 
 class TestIdempotencyKey:

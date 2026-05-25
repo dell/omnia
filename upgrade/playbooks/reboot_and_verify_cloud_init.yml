@@ -1,0 +1,96 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# reboot_and_verify_cloud_init.yml — Reboot node and verify cloud-init
+# ============================================================================
+# This playbook reboots a target node and waits for cloud-init to complete
+# successfully after the reboot.
+#
+# Required variables (passed via -e):
+#   target_host         — Name of the host to reboot (must be in inventory)
+#   cloud_init_timeout  — Timeout in seconds to wait for cloud-init (default: 600)
+#
+# Usage:
+#   ansible-playbook reboot_and_verify_cloud_init.yml \
+#     -i inventory.ini \
+#     -e target_host=kcp1 \
+#     -e cloud_init_timeout=600
+# ============================================================================
+
+- name: Reboot node and verify cloud-init completion
+  hosts: all
+  gather_facts: false
+  vars:
+    cloud_init_timeout: 600
+    cloud_init_check_interval: 10
+    cloud_init_success_marker: "Cloud-Init finished successfully after the reboot."
+  tasks:
+    - name: Validate target_host is provided
+      ansible.builtin.assert:
+        that:
+          - target_host is defined
+          - target_host | length > 0
+        fail_msg: "target_host must be provided via -e target_host=<hostname>"
+
+    - name: Skip hosts other than target_host
+      ansible.builtin.meta: end_host
+      when: inventory_hostname != target_host
+
+    - name: Display reboot target
+      ansible.builtin.debug:
+        msg: "Rebooting node {{ inventory_hostname }} and waiting for cloud-init to complete"
+
+    - name: Reboot the node
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+        pre_reboot_delay: 5
+        post_reboot_delay: 30
+        msg: "Rebooting node after BSS/cloud-init update"
+        connect_timeout: 10
+        test_command: whoami
+
+    - name: Wait for cloud-init to complete
+      ansible.builtin.shell:
+        cmd: |
+          timeout={{ cloud_init_timeout }}
+          elapsed=0
+          interval={{ cloud_init_check_interval }}
+          while [ $elapsed -lt $timeout ]; do
+            if grep -q "{{ cloud_init_success_marker }}" /var/log/cloud-init-output.log 2>/dev/null; then
+              echo "{{ cloud_init_success_marker }}"
+              exit 0
+            fi
+            sleep $interval
+            elapsed=$((elapsed + interval))
+            echo "Waiting for cloud-init to complete... ($elapsed/$timeout seconds)"
+          done
+          echo "Timeout waiting for cloud-init to complete after $timeout seconds"
+          tail -50 /var/log/cloud-init-output.log
+          exit 1
+        executable: /bin/bash
+      register: cloud_init_result
+      changed_when: false
+
+    - name: Fail if cloud-init did not complete successfully
+      ansible.builtin.fail:
+        msg: >-
+          Cloud-init did not complete successfully on {{ inventory_hostname }}.
+          Check /var/log/cloud-init-output.log for details.
+          Last output: {{ cloud_init_result.stdout_lines | default([]) | last | default('N/A') }}
+      when: cloud_init_result.rc != 0
+
+    - name: Display cloud-init success
+      ansible.builtin.debug:
+        msg: "Cloud-init completed successfully on {{ inventory_hostname }}"

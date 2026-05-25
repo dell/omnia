@@ -33,18 +33,21 @@ from core.catalog.generator import (
 class TestGetFunctionalLayerRolesFromFile(unittest.TestCase):
     def test_returns_all_role_names_from_fixture(self):
         fixture_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "..", "fixtures", "catalogs", "functional_layer.json")
+            os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "core", "catalog", "test_fixtures", "functional_layer.json")
         )
 
         roles = get_functional_layer_roles_from_file(fixture_path)
 
         expected_roles = [
-            "Compiler",
-            "K8S Controller",
-            "K8S Worker",
-            "Login Node",
-            "Slurm Controller",
-            "Slurm Worker",
+            "service_kube_control_plane_x86_64",
+            "service_kube_node_x86_64",
+            "login_node_x86_64",
+            "login_node_aarch64",
+            "login_compiler_node_x86_64",
+            "login_compiler_node_aarch64",
+            "slurm_control_node_x86_64",
+            "slurm_node_x86_64",
+            "slurm_node_aarch64",
         ]
 
         self.assertCountEqual(roles, expected_roles)

@@ -45,6 +45,32 @@ class TestGenerateInputFilesArtifactStorage:  # pylint: disable=attribute-define
         self.original_env = os.environ.get("BUILD_STREAM_CONFIG_PATH")
         self.config_file = None
 
+        # Set up in-memory SQLite DB for container using StaticPool
+        db_url = "sqlite://"
+        os.environ["DATABASE_URL"] = db_url
+
+        import infra.db.config as config_module  # pylint: disable=import-outside-toplevel
+        import importlib  # pylint: disable=import-outside-toplevel
+        config_module.db_config = config_module.DatabaseConfig()
+
+        import infra.db.session  # pylint: disable=import-outside-toplevel
+        importlib.reload(infra.db.session)
+        session_module = infra.db.session
+
+        from sqlalchemy import create_engine  # pylint: disable=import-outside-toplevel
+        from sqlalchemy.pool import StaticPool  # pylint: disable=import-outside-toplevel
+        engine = create_engine(
+            db_url,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        self._test_engine = engine
+        session_module._engine = engine  # pylint: disable=protected-access
+        session_module._session_factory = None  # pylint: disable=protected-access
+
+        from infra.db.models import Base  # pylint: disable=import-outside-toplevel
+        Base.metadata.create_all(engine)
+
         # Create a test config file
         self.config_file = Path(self.temp_file_dir) / "test_config.ini"
         self.config_file.write_text(f"""[artifact_store]
@@ -61,14 +87,20 @@ base_path = {self.temp_file_dir}/artifacts
 
     def teardown_method(self) -> None:
         """Clean up test environment."""
+        # Dispose engine to release SQLite locks
+        if hasattr(self, '_test_engine') and self._test_engine:
+            import infra.db.session as session_module  # pylint: disable=import-outside-toplevel
+            session_module._session_factory = None  # pylint: disable=protected-access
+            self._test_engine.dispose()
+
         if self.original_env:
             os.environ["BUILD_STREAM_CONFIG_PATH"] = self.original_env
         else:
             os.environ.pop("BUILD_STREAM_CONFIG_PATH", None)
 
         # Clean up temp directory
-        if Path(self.temp_file_dir).exists():
-            shutil.rmtree(self.temp_file_dir)
+        if self.temp_file_dir and Path(self.temp_file_dir).exists():
+            shutil.rmtree(self.temp_file_dir, ignore_errors=True)
 
         # Reset container
         container.unwire()

@@ -23,10 +23,10 @@
 # (installer/cert-manager.crds.yaml) -- no separate download needed.
 #
 # cert-manager Helm chart (from Jetstack) is pre-downloaded to Pulp via
-# service_k8s.json tarball entry. The package name and version are read
-# dynamically from service_k8s.json -- not hardcoded.
+# service_k8s (versioned) tarball entry. The package name and version are read
+# dynamically from service_k8s (versioned) -- not hardcoded.
 
-- name: Extract cert-manager package name from service_k8s.json
+- name: Extract cert-manager package name from service_k8s (versioned)
   ansible.builtin.set_fact:
     cert_manager_package: >-
       {{ telemetry_packages['service_k8s']['cluster']
@@ -39,7 +39,7 @@
   ansible.builtin.set_fact:
     cert_manager_chart_tgz: "{{ cert_manager_package }}.tar.gz"
 
-- name: Display cert-manager package read from service_k8s.json
+- name: Display cert-manager package read from service_k8s (versioned)
   ansible.builtin.debug:
     msg: "{{ ps_cert_manager_pkg_msg }}"
     verbosity: 2

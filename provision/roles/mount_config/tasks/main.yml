@@ -81,17 +81,17 @@
       ansible.builtin.set_fact:
         storage_to_be_mounted: "{{ storage_to_be_mounted + service_k8s_nfs }}"
 
-- name: Print nfs_storage_name
-  ansible.builtin.debug:
-    msg: "{{ storage_to_be_mounted }}"
-
 - name: Install NFS client with bolt-on support (Slurm/K8s selections)
   ansible.builtin.include_tasks: mount_on_oim.yml
   with_items: "{{ storage_to_be_mounted }}"
 
-- name: Mount entries from mounts[] flagged for OIM (mount_on_oim=true)
-  ansible.builtin.include_tasks: mount_on_oim.yml
-  loop: "{{ mounts | default([]) | selectattr('mount_on_oim', 'defined') | selectattr('mount_on_oim', 'equalto', true) | list }}"
-  loop_control:
-    loop_var: item
-    label: "{{ item.name | default(item.mount_point | default('unnamed')) }}"
+# - name: Mount entries from mounts[] flagged for OIM (mount_on_oim=true)
+#   ansible.builtin.include_tasks: mount_on_oim.yml
+#   loop: "{{ mounts | default([])
+#     | selectattr('mount_on_oim', 'defined')
+#     | selectattr('mount_on_oim', 'equalto', true)
+#     | rejectattr('name', 'in', storage_to_be_mounted | map(attribute='name') | list)
+#     | list }}"
+#   loop_control:
+#     loop_var: item
+#     label: "{{ item.name | default(item.mount_point | default('unnamed')) }}"

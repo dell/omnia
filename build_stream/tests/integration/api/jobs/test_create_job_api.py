@@ -72,11 +72,11 @@ class TestCreateJobSuccess:
             "create-local-repository",
             "build-image-x86_64",
             "build-image-aarch64",
-            "validate-image-on-test",
+            "validate",
         ]
 
-        stage_names = [s["stage_name"] for s in stages]
-        assert stage_names == expected_stages
+        stage_names = sorted([s["stage_name"] for s in stages])
+        assert stage_names == sorted(expected_stages)
 
     def test_create_job_all_stages_pending(self, client, auth_headers):
         payload = {"client_id": "client-123", "client_name": "test-client"}

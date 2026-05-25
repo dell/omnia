@@ -19,6 +19,11 @@
             "minLength": 1,
             "description": "Name of the nfs storage in storage_config.yml" 
           },
+          "vast_storage_name": { 
+            "type": "string", 
+            "minLength": 1,
+            "description": "Name of the vast storage in storage_config.yml" 
+          },
           "skip_merge": { 
             "type": "boolean", 
             "description": "Variable indicates whether a specific configuration file path under config_sources should be used as-is without merging" 

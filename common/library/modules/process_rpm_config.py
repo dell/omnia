@@ -929,6 +929,9 @@ def delete_aggregated_repo(repo_name, log):
     """
     Delete the aggregated repository, its remotes, and distribution for a given architecture.
     This is called before recreating the aggregated repo to ensure a clean state.
+    
+    Note: This only deletes the distribution with the exact repo_name. Old distributions
+    with different naming conventions are preserved to allow coexistence during upgrades.
 
     Args:
         repo_name (str): Pre-built aggregated repository name.
@@ -941,7 +944,7 @@ def delete_aggregated_repo(repo_name, log):
 
     log.info(f"Deleting aggregated resources for repo '{repo_name}'")
 
-    # Delete distribution first (depends on repo)
+    # Delete distribution by name (only the one matching this repo_name)
     dist_cmd = pulp_rpm_commands["delete_distribution"] % dist_name
     execute_command(dist_cmd, log)  # Ignore errors - may not exist
 
@@ -1194,7 +1197,7 @@ def manage_aggregated_repos(additional_repos_config, log, cluster_os_type="rhel"
     for arch in ["x86_64", "aarch64"]:
         repos = additional_repos_config.get(arch, [])
         repo_name = build_repo_name(arch, cluster_os_type, cluster_os_version, AGGREGATED_REPO_SUFFIX)
-        base_path = AGGREGATED_BASE_PATH_TEMPLATE.format(arch=arch, os_type=cluster_os_type, os_version=cluster_os_version)
+        base_path = AGGREGATED_BASE_PATH_TEMPLATE.format(arch=arch, os_type=cluster_os_type, os_version=cluster_os_version, repo_name=repo_name)
 
         log.info(f"Processing aggregated repos for arch '{arch}': {len(repos)} repos")
 

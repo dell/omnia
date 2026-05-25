@@ -1,0 +1,30 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+---
+
+# ============================================================================
+# Validate prerequisites for prep_local_repo
+# ============================================================================
+# Delegates software_config validation to the shared task in
+# manage_localrepo_inputs, then checks repos.yml existence.
+# ============================================================================
+
+- name: "Validate — Load and validate software_config.json (shared)"
+  ansible.builtin.include_tasks: "{{ role_path }}/../manage_localrepo_inputs/tasks/validate_software_config.yml"
+
+- name: "Validate — Check repos.yml exists"
+  ansible.builtin.stat:
+    path: "{{ role_path }}/artifacts/repos.yml"
+  register: _repos_yml_stat
+
+- name: "Validate — Warn if repos.yml not found"
+  ansible.builtin.debug:
+    msg: "Warning: repos.yml not found at {{ role_path }}/artifacts/repos.yml - upgrade repos may not be available"
+  when: not _repos_yml_stat.stat.exists
+
+- name: "Validate — Display validation summary"
+  ansible.builtin.debug:
+    msg:
+      - "Prerequisites validated"
+      - "  Versions: {{ enabled_components | map(attribute='key') | list | join(', ') }}"
+      - "  repos.yml: {{ 'found' if _repos_yml_stat.stat.exists else 'not found' }}"
+      - "  Config: {{ 'reused from manage_localrepo_inputs' if (current_software_config is defined) else 'loaded fresh' }}"

@@ -13,6 +13,21 @@
 # limitations under the License.
 ---
 
-- name: Include import input parameters
+- name: Verify upgrade_manifest.yml exists
+  ansible.builtin.stat:
+    path: "{{ role_path }}/../../upgrade_manifest.yml"
+  register: _upgrade_config_check
+
+- name: Fail if upgrade_manifest.yml missing
+  ansible.builtin.fail:
+    msg: |
+      upgrade_manifest.yml not found at {{ role_path }}/../../upgrade_manifest.yml
+
+      This file is the SOURCE OF TRUTH for upgrade paths.
+      Please create it with the required upgrade configuration.
+  when: not _upgrade_config_check.stat.exists
+
+# Phase 1: Import and transform input parameters
+- name: "Phase 1 - Import Input Parameters"
   ansible.builtin.include_role:
     name: import_input_parameters

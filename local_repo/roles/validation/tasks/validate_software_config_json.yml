@@ -91,4 +91,4 @@
     msg: "{{ fail_msg }}"
   when:
     - service_k8s_support
-    - service_k8s_version != default_k8s_version
+    - service_k8s_version not in supported_k8s_versions

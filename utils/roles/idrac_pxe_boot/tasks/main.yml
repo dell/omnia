@@ -12,6 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+- name: Initialize reboot status flags
+  ansible.builtin.set_fact:
+    reboot_failed: false
+    reboot_status: ""
+
+- name: Skip this host if BSM excluded it from effective inventory
+  when: bsm_skip_this_host | default(false)
+  block:
+    - name: Mark host as skipped by BSM
+      ansible.builtin.set_fact:
+        reboot_failed: false
+        reboot_status: "Skipped by Build Stream (already booted or not in diff)"
+
+    - name: End play for this host
+      ansible.builtin.meta: end_host
+
 - name: Show status of the Lifecycle Controller
   dellemc.openmanage.idrac_lifecycle_controller_status_info:
     idrac_ip: "{{ inventory_hostname }}"
@@ -20,13 +36,13 @@
     validate_certs: false
   register: lc_check_status
   until:
+    - lc_check_status.lc_status_info is defined
     - lc_check_status.lc_status_info.LCReady is defined
     - lc_check_status.lc_status_info.LCReady
   retries: 3
   delay: 5
-  # ignore_errors: true
-  # free startegy should be used to avoid blocking on failed hosts
-  # but issue will be summarizing/syncing summary report of all at the end
+  ignore_errors: true
+  ignore_unreachable: true
 
 - name: IDRAC ops when ready
   when:

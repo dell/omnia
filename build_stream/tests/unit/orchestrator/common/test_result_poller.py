@@ -15,10 +15,20 @@
 """Unit tests for common ResultPoller."""
 
 import asyncio
+import json
 import uuid
+from unittest.mock import patch
 
 import pytest
 
+from core.artifacts.entities import ArtifactRecord
+from core.artifacts.value_objects import (
+    ArtifactKey,
+    ArtifactKind,
+    ArtifactDigest,
+    ArtifactRef,
+)
+from core.image_group.value_objects import ImageGroupStatus
 from core.jobs.entities import Stage
 from core.jobs.value_objects import (
     JobId,
@@ -166,7 +176,7 @@ class TestResultPoller:
         job_id = JobId(str(uuid.uuid4()))
         stage = Stage(
             job_id=job_id,
-            stage_name=StageName("validate-image-on-test"),
+            stage_name=StageName("validate"),
             stage_state=StageState.IN_PROGRESS,
             attempt=1,
         )
@@ -174,7 +184,7 @@ class TestResultPoller:
 
         result = PlaybookResult(
             job_id=str(job_id),
-            stage_name="validate-image-on-test",
+            stage_name="validate",
             request_id=str(uuid.uuid4()),
             status="success",
             exit_code=0,
@@ -184,7 +194,7 @@ class TestResultPoller:
         result_poller._on_result_received(result)
 
         saved = mock_stage_repo.find_by_job_and_name(
-            str(job_id), StageName("validate-image-on-test")
+            str(job_id), StageName("validate")
         )
         assert saved.stage_state == StageState.COMPLETED
         assert len(mock_audit_repo._events) == 1
@@ -197,7 +207,7 @@ class TestResultPoller:
         job_id = JobId(str(uuid.uuid4()))
         stage = Stage(
             job_id=job_id,
-            stage_name=StageName("validate-image-on-test"),
+            stage_name=StageName("validate"),
             stage_state=StageState.IN_PROGRESS,
             attempt=1,
         )
@@ -205,7 +215,7 @@ class TestResultPoller:
 
         result = PlaybookResult(
             job_id=str(job_id),
-            stage_name="validate-image-on-test",
+            stage_name="validate",
             request_id=str(uuid.uuid4()),
             status="failed",
             exit_code=1,
@@ -216,7 +226,7 @@ class TestResultPoller:
         result_poller._on_result_received(result)
 
         saved = mock_stage_repo.find_by_job_and_name(
-            str(job_id), StageName("validate-image-on-test")
+            str(job_id), StageName("validate")
         )
         assert saved.stage_state == StageState.FAILED
         assert len(mock_audit_repo._events) == 1
@@ -228,7 +238,7 @@ class TestResultPoller:
         """Missing stage should be handled gracefully (no crash)."""
         result = PlaybookResult(
             job_id=str(uuid.uuid4()),
-            stage_name="validate-image-on-test",
+            stage_name="validate",
             request_id=str(uuid.uuid4()),
             status="success",
             exit_code=0,
@@ -242,3 +252,275 @@ class TestResultPoller:
         """LocalRepoResultPoller should be an alias for ResultPoller."""
         from orchestrator.local_repo.result_poller import LocalRepoResultPoller
         assert LocalRepoResultPoller is ResultPoller
+
+
+# --- Mock artifact dependencies ---
+
+class MockArtifactStore:
+    """In-memory artifact store for testing."""
+
+    def __init__(self):
+        self._store = {}
+
+    def store(self, hint, kind, content=None, **kwargs):
+        key = ArtifactKey(f"{hint.namespace}/{hint.tags.get('job_id', 'x')}/{hint.label}")
+        digest = ArtifactDigest("a" * 64)
+        ref = ArtifactRef(key=key, digest=digest, size_bytes=len(content or b""), uri=f"mem://{key}")
+        self._store[key.value] = content
+        return ref
+
+    def retrieve(self, key, kind, destination=None):
+        return self._store.get(key.value, self._store.get(str(key), None))
+
+
+class MockArtifactMetadataRepo:
+    """In-memory artifact metadata repository for testing."""
+
+    def __init__(self):
+        self._records = {}
+
+    def save(self, record):
+        key = (str(record.job_id), record.stage_name.value, record.label)
+        self._records[key] = record
+
+    def find_by_job_stage_and_label(self, job_id, stage_name, label):
+        return self._records.get((str(job_id), stage_name.value, label))
+
+
+class MockImageGroupRepo:
+    """In-memory ImageGroup repository for testing."""
+
+    def __init__(self):
+        self._groups = {}
+
+    def save(self, image_group):
+        self._groups[str(image_group.id)] = image_group
+
+    def find_by_job_id(self, job_id):
+        for ig in self._groups.values():
+            if str(ig.job_id) == str(job_id):
+                return ig
+        return None
+
+
+class MockImageRepo:
+    """In-memory Image repository for testing."""
+
+    def __init__(self):
+        self._images = []
+
+    def save_batch(self, images):
+        self._images.extend(images)
+
+    def find_by_image_group_id(self, image_group_id):
+        return [i for i in self._images if i.image_group_id == str(image_group_id)]
+
+
+# --- Fixtures for build-image tests ---
+
+def _store_catalog_metadata(artifact_store, artifact_metadata_repo, job_id, metadata):
+    """Helper: persist a catalog-metadata artifact the way parse-catalog does."""
+    content = json.dumps(metadata).encode("utf-8")
+    ref = artifact_store.store(
+        hint=type("H", (), {
+            "namespace": "catalog",
+            "label": "catalog-metadata",
+            "tags": {"job_id": str(job_id)},
+        })(),
+        kind=ArtifactKind.FILE,
+        content=content,
+    )
+    record = ArtifactRecord(
+        id=str(uuid.uuid4()),
+        job_id=JobId(str(job_id)),
+        stage_name=StageName("parse-catalog"),
+        label="catalog-metadata",
+        artifact_ref=ref,
+        kind=ArtifactKind.FILE,
+        content_type="application/json",
+    )
+    artifact_metadata_repo.save(record)
+
+
+class TestBuildImageSuccess:
+    """Tests for ImageGroup/Image creation on build-image success."""
+
+    @patch("orchestrator.common.result_poller._discover_s3_image_paths")
+    def test_creates_image_group_and_images_on_build_image_success(
+        self, mock_discover
+    ):
+        """On build-image success with artifact repos wired, ImageGroup + Images are created."""
+        # Mock S3 discovery to return fake paths (no real s3cmd needed)
+        mock_discover.return_value = {
+            "slurm_node_x86_64": [
+                "s3://boot-images/efi-images/slurm_node_x86_64/img-dir/",
+                "s3://boot-images/slurm_node_x86_64/img-dir/",
+            ],
+            "kube_cp_x86_64": [
+                "s3://boot-images/efi-images/kube_cp_x86_64/img-dir/",
+                "s3://boot-images/kube_cp_x86_64/img-dir/",
+            ],
+        }
+
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("build-image-x86_64"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+        img_repo = MockImageRepo()
+        artifact_store = MockArtifactStore()
+        artifact_metadata_repo = MockArtifactMetadataRepo()
+
+        # Simulate parse-catalog having stored catalog metadata
+        _store_catalog_metadata(
+            artifact_store, artifact_metadata_repo, job_id,
+            {
+                "image_group_id": "test-cluster-v1",
+                "roles": ["slurm_node_x86_64", "kube_cp_x86_64"],
+                "role_images": {
+                    "slurm_node_x86_64": "slurm_node.qcow2",
+                    "kube_cp_x86_64": "kube_cp.qcow2",
+                },
+            },
+        )
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+            image_repo=img_repo,
+            artifact_store=artifact_store,
+            artifact_metadata_repo=artifact_metadata_repo,
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="build-image-x86_64",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+            duration_seconds=300,
+        )
+
+        poller._on_result_received(result)
+
+        # ImageGroup should have been created with BUILT status
+        ig = ig_repo.find_by_job_id(job_id)
+        assert ig is not None, "ImageGroup was not created"
+        assert str(ig.id) == "test-cluster-v1"
+        assert ig.status == ImageGroupStatus.BUILT
+
+        # One Image per role (paths semicolon-delimited in image_name)
+        images = img_repo.find_by_image_group_id("test-cluster-v1")
+        assert len(images) == 2
+        roles = {i.role for i in images}
+        assert roles == {"slurm_node_x86_64", "kube_cp_x86_64"}
+        # Each image_name should contain semicolon-delimited paths
+        for img in images:
+            paths = img.image_name.split(";")
+            assert len(paths) == 2
+            assert all(p.startswith("s3://") for p in paths)
+
+    def test_skips_image_group_when_artifact_repos_missing(self):
+        """Without artifact repos, ImageGroup creation is skipped (the original bug)."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("build-image-x86_64"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+        img_repo = MockImageRepo()
+
+        # Deliberately omit artifact_store and artifact_metadata_repo
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+            image_repo=img_repo,
+            # artifact_store=None,            -- the bug
+            # artifact_metadata_repo=None,    -- the bug
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="build-image-x86_64",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+            duration_seconds=300,
+        )
+
+        poller._on_result_received(result)
+
+        # Stage should still be COMPLETED
+        saved = stage_repo.find_by_job_and_name(
+            str(job_id), StageName("build-image-x86_64")
+        )
+        assert saved.stage_state == StageState.COMPLETED
+
+        # But ImageGroup should NOT have been created
+        ig = ig_repo.find_by_job_id(job_id)
+        assert ig is None, "ImageGroup should not be created without artifact repos"
+
+    def test_no_image_group_for_non_build_image_stage(self):
+        """Non-build-image stages should not trigger ImageGroup creation."""
+        job_id = JobId(str(uuid.uuid4()))
+
+        stage_repo = MockStageRepo()
+        stage = Stage(
+            job_id=job_id,
+            stage_name=StageName("create-local-repository"),
+            stage_state=StageState.IN_PROGRESS,
+            attempt=1,
+        )
+        stage_repo.save(stage)
+
+        ig_repo = MockImageGroupRepo()
+        img_repo = MockImageRepo()
+
+        poller = ResultPoller(
+            result_service=MockResultService(),
+            job_repo=MockJobRepo(),
+            stage_repo=stage_repo,
+            audit_repo=MockAuditRepo(),
+            uuid_generator=MockUUIDGenerator(),
+            poll_interval=1,
+            image_group_repo=ig_repo,
+            image_repo=img_repo,
+            artifact_store=MockArtifactStore(),
+            artifact_metadata_repo=MockArtifactMetadataRepo(),
+        )
+
+        result = PlaybookResult(
+            job_id=str(job_id),
+            stage_name="create-local-repository",
+            request_id=str(uuid.uuid4()),
+            status="success",
+            exit_code=0,
+        )
+
+        poller._on_result_received(result)
+
+        ig = ig_repo.find_by_job_id(job_id)
+        assert ig is None, "ImageGroup should not be created for non-build-image stages"

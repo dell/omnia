@@ -28,11 +28,10 @@ from typing import Dict, List, Optional, Tuple
 
 from jsonschema import ValidationError, validate
 
+from api.logging_utils import log_secure_info
 from .models import Catalog
 from .parser import ParseCatalog
 from .utils import _configure_logging, load_json_file
-
-logger = logging.getLogger(__name__)
 
 _BASE_DIR = os.path.dirname(__file__)
 _DEFAULT_SCHEMA_PATH = os.path.join(_BASE_DIR, "resources", "CatalogSchema.json")
@@ -52,10 +51,10 @@ def _validate_catalog_and_schema_paths(catalog_path: str, schema_path: str) -> N
     """
 
     if not os.path.isfile(catalog_path):
-        logger.error("Catalog file not found: %s", catalog_path)
+        log_secure_info('error', f"Catalog file not found: {catalog_path}")
         raise FileNotFoundError(catalog_path)
     if not os.path.isfile(schema_path):
-        logger.error("Schema file not found: %s", schema_path)
+        log_secure_info('error', f"Schema file not found: {schema_path}")
         raise FileNotFoundError(schema_path)
 
 
@@ -166,10 +165,9 @@ def _discover_arch_os_version_from_catalog(catalog: Catalog) -> List[Tuple[str, 
     _add_from_packages(catalog.os_packages)
 
     combos_sorted = sorted(combos)
-    logger.debug(
-        "Discovered %d (arch, os, version) combinations in catalog %s",
-        len(combos_sorted),
-        getattr(catalog, "name", "<unknown>"),
+    log_secure_info(
+        'debug',
+        f"Discovered {len(combos_sorted)} (arch, os, version) combinations in catalog {getattr(catalog, 'name', '<unknown>')}"
     )
     return combos_sorted
 
@@ -449,10 +447,9 @@ def serialize_json(feature_list: FeatureList, output_path: str):
     # Custom pretty-printer so that:
     #   - Overall JSON is nicely indented
     #   - Each package entry inside "packages" is a single-line JSON object
-    logger.info(
-        "Writing FeatureList with %d feature(s) to %s",
-        len(feature_list.features),
-        output_path,
+    log_secure_info(
+        'info',
+        f"Writing FeatureList with {len(feature_list.features)} feature(s) to {output_path}"
     )
     with open(output_path, "w", encoding="utf-8") as out_file:
         out_file.write("{\n")
@@ -493,7 +490,7 @@ def deserialize_json(input_path: str) -> FeatureList:
     """
     json_data = load_json_file(input_path)
 
-    logger.debug("Deserializing FeatureList from %s", input_path)
+    log_secure_info('debug', f"Deserializing FeatureList from {input_path}")
 
     feature_list = FeatureList(
         features={
@@ -508,10 +505,9 @@ def deserialize_json(input_path: str) -> FeatureList:
         }
     )
 
-    logger.info(
-        "Deserialized FeatureList with %d feature(s) from %s",
-        len(feature_list.features),
-        input_path,
+    log_secure_info(
+        'info',
+        f"Deserialized FeatureList with {len(feature_list.features)} feature(s) from {input_path}"
     )
 
     return feature_list
@@ -532,30 +528,29 @@ def get_functional_layer_roles_from_file(
     if configure_logging:
         _configure_logging(log_file=log_file, log_level=log_level)
 
-    logger.info("get_functional_layer_roles_from_file started for %s", functional_layer_json_path)
-    logger.debug("Loading root-level schema from %s", _ROOT_LEVEL_SCHEMA_PATH)
+    log_secure_info('info', f"get_functional_layer_roles_from_file started for {functional_layer_json_path}")
+    log_secure_info('debug', f"Loading root-level schema from {_ROOT_LEVEL_SCHEMA_PATH}")
     schema = load_json_file(_ROOT_LEVEL_SCHEMA_PATH)
 
-    logger.debug("Validating JSON")
+    log_secure_info('debug', "Validating JSON")
     json_data = load_json_file(functional_layer_json_path)
 
     try:
         validate(instance=json_data, schema=schema)
     except ValidationError as exc:
-        logger.error(
-            "JSON validation failed for %s",
-            functional_layer_json_path,
+        log_secure_info(
+            'error',
+            f"JSON validation failed for {functional_layer_json_path}"
         )
         raise
-    logger.info("JSON validation succeeded")
+    log_secure_info('info', "JSON validation succeeded")
 
     feature_list = deserialize_json(functional_layer_json_path)
-    logger.debug("Populating roles info")
+    log_secure_info('debug', "Populating roles info")
     roles = list(feature_list.features.keys())
-    logger.info(
-        "get_functional_layer_roles_from_file completed for %s (roles=%d)",
-        functional_layer_json_path,
-        len(roles),
+    log_secure_info(
+        'info',
+        f"get_functional_layer_roles_from_file completed for {functional_layer_json_path} (roles={len(roles)})"
     )
     return roles
 
@@ -593,48 +588,46 @@ def get_package_list(
     if configure_logging:
         _configure_logging(log_file=log_file, log_level=log_level)
 
-    logger.info(
-        "get_package_list started for %s (role=%s)",
-        functional_layer_json_path,
-        role if role else "all",
+    log_secure_info(
+        'info',
+        f"get_package_list started for {functional_layer_json_path} (role={role if role else 'all'})"
     )
 
-    logger.debug("Checking if file exists: %s", functional_layer_json_path)
+    log_secure_info('debug', f"Checking if file exists: {functional_layer_json_path}")
     if not os.path.isfile(functional_layer_json_path):
-        logger.error("File not found: %s", functional_layer_json_path)
+        log_secure_info('error', f"File not found: {functional_layer_json_path}")
         raise FileNotFoundError(functional_layer_json_path)
 
-    logger.debug("Loading root-level schema from %s", _ROOT_LEVEL_SCHEMA_PATH)
+    log_secure_info('debug', f"Loading root-level schema from {_ROOT_LEVEL_SCHEMA_PATH}")
     with open(_ROOT_LEVEL_SCHEMA_PATH, "r", encoding="utf-8") as f:
         schema = json.load(f)
 
-    logger.debug("Loading and validating JSON from %s", functional_layer_json_path)
+    log_secure_info('debug', f"Loading and validating JSON from {functional_layer_json_path}")
     with open(functional_layer_json_path, "r", encoding="utf-8") as f:
         json_data = json.load(f)
 
     try:
         validate(instance=json_data, schema=schema)
     except ValidationError as exc:
-        logger.error(
-            "JSON validation failed for %s",
-            functional_layer_json_path,
+        log_secure_info(
+            'error',
+            f"JSON validation failed for {functional_layer_json_path}"
         )
         raise
-    logger.info("JSON validation succeeded for %s", functional_layer_json_path)
+    log_secure_info('info', f"JSON validation succeeded for {functional_layer_json_path}")
 
-    logger.debug("Deserializing feature list from %s", functional_layer_json_path)
+    log_secure_info('debug', f"Deserializing feature list from {functional_layer_json_path}")
     feature_list = deserialize_json(functional_layer_json_path)
 
     available_roles = list(feature_list.features.keys())
-    logger.debug("Available roles: %s", available_roles)
+    log_secure_info('debug', f"Available roles: {available_roles}")
 
     if role is not None:
-        logger.debug("Filtering for specific role: %s", role)
+        log_secure_info('debug', f"Filtering for specific role: {role}")
         if role == "":
-            logger.error(
-                "Invalid role input: empty string for %s (available roles: %s)",
-                functional_layer_json_path,
-                available_roles,
+            log_secure_info(
+                'error',
+                f"Invalid role input: empty string for {functional_layer_json_path} (available roles: {available_roles})"
             )
             raise ValueError("Role must be a non-empty string")
         # Case-insensitive role matching
@@ -646,18 +639,16 @@ def get_package_list(
                 break
 
         if matched_role is None:
-            logger.error(
-                "Role '%s' not found in %s. Available roles: %s",
-                role,
-                functional_layer_json_path,
-                available_roles,
+            log_secure_info(
+                'error',
+                f"Role '{role}' not found in {functional_layer_json_path}. Available roles: {available_roles}"
             )
             raise ValueError(
                 f"Role '{role}' not found. Available roles: {available_roles}"
             )
         roles_to_process = [matched_role]
     else:
-        logger.debug("Processing all roles")
+        log_secure_info('debug', "Processing all roles")
         roles_to_process = available_roles
 
     result: List[Dict] = []
@@ -684,17 +675,14 @@ def get_package_list(
         }
         result.append(role_obj)
         total_packages += len(packages_list)
-        logger.debug(
-            "Processed role '%s': %d packages",
-            role_name,
-            len(packages_list),
+        log_secure_info(
+            'debug',
+            f"Processed role '{role_name}': {len(packages_list)} packages"
         )
 
-    logger.info(
-        "get_package_list completed for %s: %d role(s), %d total package(s)",
-        functional_layer_json_path,
-        len(result),
-        total_packages,
+    log_secure_info(
+        'info',
+        f"get_package_list completed for {functional_layer_json_path}: {len(result)} role(s), {total_packages} total package(s)"
     )
 
     return result
@@ -732,20 +720,18 @@ def generate_root_json_from_catalog(
     miscellaneous_json = generate_miscellaneous_json(catalog)
 
     combos = _discover_arch_os_version_from_catalog(catalog)
-    logger.info(
-        "Discovered %d combination(s) for feature-list generation", len(combos)
+    log_secure_info(
+        'info',
+        f"Discovered {len(combos)} combination(s) for feature-list generation"
     )
 
     for arch, os_name, version in combos:
         base_dir = os.path.join(output_root, arch, os_name, version)
         os.makedirs(base_dir, exist_ok=True)
 
-        logger.info(
-            "Generating feature-list JSONs for arch=%s os=%s version=%s into %s",
-            arch,
-            os_name,
-            version,
-            base_dir,
+        log_secure_info(
+            'info',
+            f"Generating feature-list JSONs for arch={arch} os={os_name} version={version} into {base_dir}"
         )
 
         func_arch = _filter_featurelist_for_arch(functional_layer_json, arch)
@@ -789,7 +775,7 @@ if __name__ == "__main__":
     # Configure logging once for the CLI
     _configure_logging(log_file=args.log_file, log_level=logging.INFO)
 
-    logger.info("Catalog Parser CLI started for %s", args.catalog)
+    log_secure_info('info', f"Catalog Parser CLI started for {args.catalog}")
 
     try:
         # Reuse the programmatic API to generate all FeatureList JSONs.
@@ -799,13 +785,13 @@ if __name__ == "__main__":
             output_root=os.path.join("out", "main"),
         )
 
-        logger.info("Catalog Parser CLI completed for %s", args.catalog)
+        log_secure_info('info', f"Catalog Parser CLI completed for {args.catalog}")
 
     except FileNotFoundError:
-        logger.error("File not found during processing")
+        log_secure_info('error', "File not found during processing")
         sys.exit(ERROR_CODE_INPUT_NOT_FOUND)
     except ValidationError:
         sys.exit(ERROR_CODE_PROCESSING_ERROR)
     except Exception:
-        logger.exception("Unexpected error while generating feature-list JSONs")
+        log_secure_info('error', "Unexpected error while generating feature-list JSONs", exc_info=True)
         sys.exit(ERROR_CODE_PROCESSING_ERROR)
