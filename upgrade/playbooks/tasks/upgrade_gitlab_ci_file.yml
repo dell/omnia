@@ -33,7 +33,9 @@
 
 - name: Check if CI file exists in repository
   ansible.builtin.uri:
-    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _ci_file_name | urlencode }}?ref={{ gitlab_default_branch }}"
+    url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/
+      repository/files/{{ _ci_file_name | urlencode }}?ref={{ gitlab_default_branch }}
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
