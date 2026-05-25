@@ -12,15 +12,93 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Production-safe approach: Cordon only (no eviction)
-# Instead of drain (which evicts pods and can be blocked by PDBs),
-# we cordon the node to prevent new pods, then let existing pods
-# restart in-place after kubelet upgrade. This is safer for stateful
-# workloads like Kafka that have strict PodDisruptionBudgets.
-
-- name: Cordon node (prevent new pod scheduling) - {{ current_node_name }}
+- name: Get all PDBs in cluster
   ansible.builtin.command:
-    cmd: kubectl cordon {{ node_ip }}
+    cmd: kubectl get pdb -A -o json
+  delegate_to: "{{ kube_vip }}"
+  register: _pdb_list
+  changed_when: false
+  failed_when: false
+
+- name: Parse PDB list and backup minAvailable values
+  ansible.builtin.set_fact:
+    _pdbs_with_minavailable: >-
+      {{
+        _pdb_list.stdout
+        | from_json
+        | json_query(
+            'items[?spec.minAvailable].{name: metadata.name, namespace: metadata.namespace, minAvailable: spec.minAvailable, selector: spec.selector}'
+          )
+      }}
+  when: _pdb_list.rc == 0
+
+- name: Get all pods on the node being drained
+  ansible.builtin.command:
+    cmd: kubectl get pods -A --field-selector spec.nodeName={{ node_ip }} -o json
+  delegate_to: "{{ kube_vip }}"
+  register: _pods_on_node
+  changed_when: false
+  failed_when: false
+
+- name: Calculate new minAvailable for each PDB
+  ansible.builtin.set_fact:
+    _pdbs_to_patch: >-
+      {% set result = [] %}
+      {% set pods_list = (_pods_on_node.stdout | from_json).items %}
+      {% for pdb in _pdbs_with_minavailable %}
+        {% set matching_pods = [] %}
+        {% for pod in pods_list %}
+          {% set match = true %}
+          {% if pdb.selector.matchLabels is defined %}
+            {% for label_key, label_value in pdb.selector.matchLabels.items() %}
+              {% if pod.metadata.labels[label_key] | default('') != label_value %}
+                {% set match = false %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if match and pod.metadata.namespace == pdb.namespace %}
+            {% set _ = matching_pods.append(pod) %}
+          {% endif %}
+        {% endfor %}
+        {% set pods_on_node_count = matching_pods | length %}
+        {% set new_min = [pdb.minAvailable - pods_on_node_count, 0] | max %}
+        {% set _ = result.append({
+          'name': pdb.name,
+          'namespace': pdb.namespace,
+          'original_minAvailable': pdb.minAvailable,
+          'new_minAvailable': new_min,
+          'pods_on_node': pods_on_node_count
+        }) %}
+      {% endfor %}
+      {{ result }}
+  when:
+    - _pdb_list.rc == 0
+    - _pods_on_node.rc == 0
+
+- name: Temporarily reduce PDB minAvailable to allow drain
+  ansible.builtin.command:
+    cmd: kubectl patch pdb {{ item.name }} -n {{ item.namespace }} --type merge -p '{"spec":{"minAvailable":{{ item.new_minAvailable }}}}'
+  delegate_to: "{{ kube_vip }}"
+  loop: "{{ _pdbs_to_patch | default([]) }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }} ({{ item.original_minAvailable }} -> {{ item.new_minAvailable }}, {{ item.pods_on_node }} pods on node)"
+  register: _pdb_patch
+  changed_when: true
+  failed_when: false
+
+- name: Drain node - {{ current_node_name }}
+  ansible.builtin.command:
+    cmd: kubectl drain {{ node_ip }} --ignore-daemonsets --delete-emptydir-data --timeout=300s
   delegate_to: "{{ kube_vip }}"
   register: drain_result
   changed_when: true
+
+- name: Restore PDB minAvailable to original values
+  ansible.builtin.command:
+    cmd: kubectl patch pdb {{ item.name }} -n {{ item.namespace }} --type merge -p '{"spec":{"minAvailable":{{ item.original_minAvailable }}}}'
+  delegate_to: "{{ kube_vip }}"
+  loop: "{{ _pdbs_to_patch | default([]) }}"
+  loop_control:
+    label: "{{ item.namespace }}/{{ item.name }}"
+  changed_when: true
+  failed_when: false

@@ -18,6 +18,7 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     ansible_host: "{{ node_ips[item] }}"
+    ansible_connection: ssh
     ansible_user: root
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     groups:
@@ -33,6 +34,7 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     ansible_host: "{{ node_ips[item] }}"
+    ansible_connection: ssh
     ansible_user: root
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     groups:
@@ -48,6 +50,7 @@
   ansible.builtin.add_host:
     name: "{{ item }}"
     ansible_host: "{{ node_ips[item] }}"
+    ansible_connection: ssh
     ansible_user: root
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     groups:
@@ -64,7 +67,7 @@
     msg: "{{ added_nodes_banner }}"
   vars:
     added_nodes_banner:
-      - "Added {{ all_upgrade_nodes | length }} nodes to inventory:"
+      - "Added {{ (all_upgrade_nodes | default(all_rollback_nodes)) | length }} nodes to inventory:"
       - "  - Control plane (first): {{ groups_cp_first | join(', ') }}"
       - "  - Control plane (additional): {{ groups_cp | join(', ') }}"
       - "  - Workers: {{ groups_worker | join(', ') }}"

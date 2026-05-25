@@ -119,6 +119,39 @@
   delegate_to: "{{ kube_vip }}"
   connection: ssh
 
+# ── Cleanup legacy 2.1 non-operator-managed deployments ──
+# Old Omnia 2.1 deployed vminsert/vmselect/vmagent as plain Deployments (label: app=vminsert etc.)
+# The operator creates new ones with managed-by=vm-operator label.
+# migrate_statefulset.yml only handles StatefulSets and is skipped for already_operator path.
+- name: Find old non-operator-managed victoria deployments
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl -n {{ telemetry_namespace }} get deployments -o json | \
+      jq -r '.items[] |
+        select(.metadata.name | test("^(vminsert|vmselect|vmagent)$")) |
+        select((.metadata.labels["managed-by"] // "none") != "vm-operator") |
+        .metadata.name' 2>/dev/null || echo ""
+  register: old_victoria_deployments
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Display old non-operator deployments found
+  ansible.builtin.debug:
+    msg: "Found legacy 2.1 deployments to clean up: {{ old_victoria_deployments.stdout_lines | select() | list }}"
+  when: old_victoria_deployments.stdout_lines | default([]) | select() | list | length > 0
+
+- name: Delete old non-operator-managed victoria deployments
+  ansible.builtin.command:
+    cmd: "kubectl -n {{ telemetry_namespace }} delete deployment {{ item }} --timeout=60s"
+  loop: "{{ old_victoria_deployments.stdout_lines | default([]) | select() | list }}"
+  when: old_victoria_deployments.stdout_lines | default([]) | select() | list | length > 0
+  changed_when: true
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
 - name: Check for orphan pods in telemetry namespace
   ansible.builtin.shell: |
     set -o pipefail

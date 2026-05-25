@@ -172,8 +172,6 @@
     src: "{{ input_project_dir }}/config/{{ architecture }}/rhel/{{ os_version }}/service_k8s_v{{ k8s_version }}.json"
   register: service_k8s_slurp
   failed_when: false
-  delegate_to: "{{ oim_host | default('localhost') }}"
-  connection: ssh
   tags: always
 
 - name: Parse service_k8s JSON

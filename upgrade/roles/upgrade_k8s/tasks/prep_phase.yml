@@ -16,7 +16,8 @@
 #
 # 1. Sync local repos for ALL hops in a single merged local_repo call.
 #    (local_repo_config.yml and service_k8s.json merged across hops.)
-# 2. Per hop: build squashfs image, verify all prep artifacts.
+# 2. Download addon manifests to NFS (once for all hops).
+# 3. Per hop: verify prep artifacts.
 #
 # If any step fails here, the cluster is untouched and the playbook aborts.
 #
@@ -26,8 +27,8 @@
 - name: Phase 1 — Prep all hop target versions
   ansible.builtin.debug:
     msg: >-
-      Starting Phase 1 (Prep). Will sync repos (merged), build squashfs, and verify
-      images for {{ hop_chain | length }} target version(s).
+      Starting Phase 1 (Prep). Will sync repos (merged) and stage addon manifests
+      for {{ hop_chain | length }} target version(s).
       Cluster will NOT be touched during this phase.
 
 # ── Step 1: Sync ALL repos in one local_repo call ────────────────────
@@ -212,6 +213,6 @@
 - name: "Phase 1 — Prep complete"
   ansible.builtin.debug:
     msg: >-
-      Phase 1 (Prep) complete. All repos synced, squashfs images built, and
-      artifacts verified for {{ hop_chain | length }} target version(s).
+      Phase 1 (Prep) complete. All repos synced and addon manifests staged
+      for {{ hop_chain | length }} target version(s).
       Proceeding to Phase 2 (Upgrade).
