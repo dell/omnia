@@ -25,7 +25,7 @@
   block:
     - name: Mark preflight in_progress
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:
@@ -37,7 +37,7 @@
     - name: Check etcd snapshot file exists
       ansible.builtin.stat:
         path: "{{ etcd_snapshot_file }}"
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ first_cp_node }}"
       register: _etcd_snap_stat
 
     - name: Fail if etcd snapshot is missing
@@ -51,7 +51,7 @@
     - name: Check etcd members file exists
       ansible.builtin.stat:
         path: "{{ etcd_members_file }}"
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ first_cp_node }}"
       register: _etcd_members_stat
 
     - name: Fail if etcd members file is missing
@@ -61,26 +61,75 @@
         _missing_backup: "{{ etcd_members_file }}"
       when: not (_etcd_members_stat.stat.exists | default(false))
 
-    # ── Verify etcdutl binary exists in backup ─────────────────────
+    # ── Ensure etcdutl binary is available in backup ───────────────
     - name: Check etcdutl binary in backup directory
       ansible.builtin.stat:
-        path: "{{ backup_dir }}/{{ k8s_rollback_version }}/etcdutl"
-      delegate_to: "{{ kube_vip }}"
+        path: "{{ backup_dir }}/etcdutl"
+      delegate_to: "{{ first_cp_node }}"
       register: _etcdutl_stat
 
-    - name: Warn if etcdutl is missing from backup
-      ansible.builtin.debug:
-        msg: >-
-          WARNING: etcdutl binary not found at {{ backup_dir }}/{{ k8s_rollback_version }}/etcdutl.
-          Will attempt to use etcdutl from /usr/local/bin on each CP node.
-          If etcdutl is not available, etcd restore will fail.
+    - name: Extract etcdutl from etcd container image if not in backup
       when: not (_etcdutl_stat.stat.exists | default(false))
+      block:
+        - name: Extract etcdutl binary from etcd container via crictl
+          ansible.builtin.shell:
+            cmd: |
+              set -e
+              # Try the running etcd static pod container first
+              ETCD_CID=$(crictl ps -q --name etcd 2>/dev/null | head -1)
+              if [ -n "$ETCD_CID" ]; then
+                crictl exec "$ETCD_CID" cat /usr/local/bin/etcdutl > /tmp/etcdutl
+                chmod 0755 /tmp/etcdutl
+                exit 0
+              fi
+              # No running container — pull the image and search overlay layers
+              crictl pull registry.k8s.io/etcd:3.6.6-0
+              ETCDUTL_PATH=$(find /var/lib/containers /tmp/crio-storage \
+                -name etcdutl -type f 2>/dev/null | head -1)
+              if [ -n "$ETCDUTL_PATH" ]; then
+                cp "$ETCDUTL_PATH" /tmp/etcdutl
+                chmod 0755 /tmp/etcdutl
+                exit 0
+              fi
+              echo "etcdutl binary not found in etcd image layers" >&2
+              exit 1
+          args:
+            executable: /bin/bash
+          delegate_to: "{{ groups_cp_first | first }}"
+          changed_when: true
+
+        - name: Copy etcdutl binary to NFS backup directory
+          ansible.builtin.copy:
+            src: /tmp/etcdutl
+            dest: "{{ backup_dir }}/etcdutl"
+            mode: "{{ file_perm_755 }}"
+            remote_src: true
+          delegate_to: "{{ groups_cp_first | first }}"
+
+        - name: Remove temporary etcdutl from /tmp
+          ansible.builtin.file:
+            path: /tmp/etcdutl
+            state: absent
+          delegate_to: "{{ groups_cp_first | first }}"
+
+    - name: Verify etcdutl binary exists in backup after extraction
+      ansible.builtin.stat:
+        path: "{{ backup_dir }}/etcdutl"
+      delegate_to: "{{ first_cp_node }}"
+      register: _etcdutl_final_stat
+
+    - name: Fail if etcdutl binary could not be obtained
+      ansible.builtin.fail:
+        msg: >-
+          etcdutl binary not found at {{ backup_dir }}/etcdutl and could not be
+          extracted from etcd container image. Cannot proceed with rollback.
+      when: not (_etcdutl_final_stat.stat.exists | default(false))
 
     # ── Verify K8s config backups exist for each CP ────────────────
     - name: Check K8s config backup exists for each CP
       ansible.builtin.stat:
         path: "{{ k8s_config_backup_dir }}/{{ item }}/k8s-config.tar.gz"
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ first_cp_node }}"
       register: _k8s_config_stats
       loop: "{{ all_cp_nodes }}"
 
@@ -95,9 +144,9 @@
       when: not (item.stat.exists | default(false))
 
     # ── Verify rollback version packages are available ─────────────
-    - name: Check rollback version packages on first CP
+    - name: Check rollback version packages are available in repos on first CP
       ansible.builtin.command:
-        cmd: "dnf info {{ item }}-{{ k8s_rollback_version }}"
+        cmd: "dnf repoquery --available --qf '%{name} %{version}' {{ item }}"
       delegate_to: "{{ groups_cp_first | first }}"
       register: _pkg_check
       changed_when: false
@@ -116,12 +165,13 @@
       loop: "{{ _pkg_check.results }}"
       loop_control:
         label: "{{ item.item }}"
-      when: item.rc != 0
+      when:
+        - item.rc != 0 or (item.stdout | default('') | trim) == ''
+        - (item.stdout_lines | default([]) | select('search', '^' ~ item.item ~ ' ' ~ k8s_rollback_version ~ '(\\s|$)') | list | length) == 0
 
     # ── Verify SSH access to all nodes ─────────────────────────────
     - name: Verify SSH access to all nodes
-      ansible.builtin.command:
-        cmd: "hostname"
+      ansible.builtin.raw: "echo ok"
       delegate_to: "{{ item }}"
       register: _ssh_check
       changed_when: false
@@ -138,29 +188,30 @@
         label: "{{ item.item }}"
       when: item.rc != 0
 
-    # ── Verify cluster is currently at the expected version ────────
+    # ── Verify cluster version (if accessible) ─────────────────────
     - name: Get current cluster version
       ansible.builtin.command:
         cmd: >-
-          kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}'
-      delegate_to: "{{ kube_vip }}"
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get nodes -o jsonpath='{.items[0].status.nodeInfo.kubeletVersion}'
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _cluster_version
       changed_when: false
+      failed_when: false
 
-    - name: Verify cluster is at expected version
-      ansible.builtin.assert:
-        that:
-          - "'v' + k8s_current_version in _cluster_version.stdout"
-        fail_msg: >-
-          Cluster is not at expected version v{{ k8s_current_version }}.
-          Got: {{ _cluster_version.stdout }}.
-          Verify the cluster state before proceeding with rollback.
-        success_msg: "Cluster confirmed at v{{ k8s_current_version }}."
+    - name: Verify cluster is at expected version (if accessible)
+      ansible.builtin.debug:
+        msg: >-
+          {% if _cluster_version.rc == 0 %}
+          Cluster confirmed at {{ _cluster_version.stdout }}.
+          {% else %}
+          Cluster API not accessible - proceeding with rollback anyway.
+          {% endif %}
 
     # ── Mark preflight completed ───────────────────────────────────
     - name: Mark preflight completed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:

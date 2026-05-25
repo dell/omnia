@@ -162,6 +162,10 @@
       ansible.builtin.include_tasks: preflight_checks_pulp.yml
       when: upgrade_status.upgrade.status != 'completed'
 
+    - name: "Hop — Run preflight checks (Storage)"
+      ansible.builtin.include_tasks: preflight_checks_storage.yml
+      when: upgrade_status.upgrade.status != 'completed'
+
     # ── Backup ───────────────────────────────────────────────────────
     # Etcd backup now runs in a separate play targeting kube_vip_group
     # - name: "hop {{ _hop_idx + 1 }} [{{ _current_hop.to_version }}] — Backup etcd"

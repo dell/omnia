@@ -35,7 +35,9 @@
     addon_name: calico
     addon_status_update:
       status: in_progress
+      current_version: "{{ calico_current_version }}"
       from_version: "{{ calico_from_version | default('unknown') }}"
+      target_version: "{{ calico_target_version }}"
       timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
   when: (upgrade_status.addon_upgrade.calico.status | default('pending')) != 'completed'
 
@@ -51,6 +53,7 @@
         addon_name: calico
         addon_status_update:
           status: completed
+          current_version: "{{ calico_target_version }}"
           from_version: "{{ calico_from_version | default('unknown') }}"
           to_version: "{{ calico_target_version }}"
           timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
@@ -80,7 +83,9 @@
     addon_name: metallb
     addon_status_update:
       status: in_progress
+      current_version: "{{ metallb_current_version }}"
       from_version: "{{ metallb_from_version | default('unknown') }}"
+      target_version: "{{ metallb_target_version }}"
       timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
   when: (upgrade_status.addon_upgrade.metallb.status | default('pending')) != 'completed'
 
@@ -96,6 +101,7 @@
         addon_name: metallb
         addon_status_update:
           status: completed
+          current_version: "{{ metallb_target_version }}"
           from_version: "{{ metallb_from_version | default('unknown') }}"
           to_version: "{{ metallb_target_version }}"
           timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
@@ -125,7 +131,9 @@
     addon_name: helm
     addon_status_update:
       status: in_progress
+      current_version: "{{ helm_current_version }}"
       from_version: "{{ helm_from_version | default('unknown') }}"
+      target_version: "{{ helm_target_version }}"
       timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
   when: (upgrade_status.addon_upgrade.helm.status | default('pending')) != 'completed'
 
@@ -141,6 +149,7 @@
         addon_name: helm
         addon_status_update:
           status: completed
+          current_version: "{{ helm_target_version }}"
           from_version: "{{ helm_from_version | default('unknown') }}"
           to_version: "{{ helm_target_version }}"
           timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"

@@ -28,7 +28,7 @@
   block:
     - name: Mark fix_vip in_progress
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:
@@ -45,9 +45,10 @@
     - name: Get kube-vip lease holder
       ansible.builtin.command:
         cmd: >-
-          kubectl get lease plndr-cp-lock -n kube-system
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get lease plndr-cp-lock -n kube-system
           -o jsonpath='{.spec.holderIdentity}'
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _vip_lease
       changed_when: false
       retries: 6
@@ -93,11 +94,11 @@
         msg: "{{ msg_vip_split_brain }} Stale nodes: {{ _stale_vip_nodes | join(', ') }}"
       when: _stale_vip_nodes | length > 0
 
-    - name: Detect VIP interface on stale nodes
+    - name: Detect VIP interface and netmask on stale nodes
       ansible.builtin.shell:
         cmd: >-
           set -o pipefail &&
-          ip -br addr show | grep '{{ kube_vip }}' | awk '{print $1}'
+          ip -br addr show | grep '{{ kube_vip }}' | awk '{for(i=3;i<=NF;i++){if($i ~ /{{ kube_vip }}/){print $1":"$i; exit}}}'
         executable: /bin/bash
       delegate_to: "{{ item }}"
       register: _stale_iface
@@ -111,7 +112,7 @@
     - name: Remove stale VIP address from non-leader nodes
       ansible.builtin.command:
         cmd: >-
-          ip addr del {{ kube_vip }}/32 dev {{ item.stdout | trim }}
+          ip addr del {{ item.stdout.split(':')[1] }} dev {{ item.stdout.split(':')[0] }}
       delegate_to: "{{ item.item }}"
       changed_when: true
       loop: "{{ _stale_iface.results | default([]) }}"
@@ -120,12 +121,13 @@
       when:
         - _stale_vip_nodes | length > 0
         - item.stdout | default('') | trim | length > 0
+        - "':' in item.stdout"
 
-    # ── Verify VIP is reachable ────────────────────────────────────
-    - name: Verify API server reachable via VIP
+    # ── Verify API server is reachable on first CP ─────────────────
+    - name: Verify API server reachable via first CP
       ansible.builtin.command:
-        cmd: kubectl get --raw /healthz
-      delegate_to: "{{ kube_vip }}"
+        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 get --raw /healthz
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _api_check
       changed_when: false
       retries: 6
@@ -136,7 +138,7 @@
 
     - name: Mark fix_vip completed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:

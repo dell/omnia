@@ -32,12 +32,13 @@
 #   6.  Fix kube-vip split-brain
 #   7.  Downgrade packages on workers + start kubelet
 #   8.  Post-validation
+#   9.  Restore BSS boot params and cloud-init from backup
 # ══════════════════════════════════════════════════════════════════════
 
 # ── Load configuration and version variables ─────────────────────────
 - name: Load config and version variables
   ansible.builtin.include_tasks:
-    file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/load_version_vars.yml"
+    file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/load_version_vars.yml"
 
 - name: Load local_repo_access.yml to get pulp protocol
   ansible.builtin.include_vars:
@@ -60,10 +61,42 @@
     etcd_members_file: "{{ k8s_client_mount_path }}/upgrade/backup/etcd-members.json"
     k8s_config_backup_dir: "{{ k8s_client_mount_path }}/upgrade/backup/configs"
 
+# ── Resolve first CP node for delegation (avoids kube_vip dependency) ─
+- name: Read nodes.yaml for early CP resolution
+  ansible.builtin.slurp:
+    src: "{{ nodes_yaml_path }}"
+  register: _early_nodes_slurp
+
+- name: Parse nodes.yaml and resolve first CP
+  ansible.builtin.set_fact:
+    _early_parsed_nodes: "{{ _early_nodes_slurp.content | b64decode | from_yaml }}"
+
+- name: Set first CP node for delegation
+  ansible.builtin.set_fact:
+    first_cp_node: >-
+      {{ (_early_parsed_nodes.nodes
+          | selectattr('group', 'equalto', group_cp_first)
+          | first).name }}
+    first_cp_ip: >-
+      {{ ((_early_parsed_nodes.nodes
+           | selectattr('group', 'equalto', group_cp_first)
+           | first).interfaces | first).ip_addrs
+         | selectattr('name', 'equalto', 'management')
+         | map(attribute='ip_addr') | first }}
+
+- name: Add first CP to inventory for delegation
+  ansible.builtin.add_host:
+    name: "{{ first_cp_node }}"
+    ansible_host: "{{ first_cp_ip }}"
+    ansible_connection: ssh
+    ansible_user: root
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
 # ── Use status_file alias for the custom module ──────────────────────
 - name: Set status_file alias for update_status tasks
   ansible.builtin.set_fact:
     status_file: "{{ k8s_client_mount_path }}/upgrade/rollback_status.yml"
+    status_delegate_host: "{{ first_cp_node }}"
 
 # ══════════════════════════════════════════════════════════════════════
 # Rollback execution
@@ -78,7 +111,7 @@
     - name: Read upgrade status to determine rollback version
       ansible.builtin.slurp:
         src: "{{ upgrade_status_file }}"
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ first_cp_node }}"
       register: _upgrade_status_slurp
 
     - name: Parse upgrade status
@@ -154,10 +187,18 @@
     - name: "Stage 8 — Post-validation"
       ansible.builtin.include_tasks: post_validation.yml
 
+    # ── Stage 8b: Restart network pods to clear stale processes ────
+    - name: "Stage 8b — Restart network pods"
+      ansible.builtin.include_tasks: restart_network_pods.yml
+
+    # ── Stage 9: Restore BSS boot params and cloud-init ──────────
+    - name: "Stage 9 — Restore BSS boot params and cloud-init"
+      ansible.builtin.include_tasks: restore_bss_cloud_init.yml
+
     # ── Mark rollback completed ────────────────────────────────────
     - name: Mark rollback completed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           rollback:
@@ -171,7 +212,7 @@
   rescue:
     - name: Mark rollback as failed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           rollback:

@@ -86,14 +86,7 @@
       register: etcdctl_overlay_path
       changed_when: false
 
-    - name: Find etcdutl in CRI-O overlay storage
-      ansible.builtin.shell: set -o pipefail && find /tmp/crio-storage/overlay -name etcdutl -type f 2>/dev/null | head -1
-      args:
-        executable: /bin/bash
-      register: etcdutl_overlay_path
-      changed_when: false
-
-    # ── Install etcdctl and etcdutl to /usr/local/bin ───────────────
+    # ── Install etcdctl to /usr/local/bin ───────────────────────────
     - name: Copy etcdctl to /usr/local/bin on host
       ansible.builtin.copy:
         src: "{{ etcdctl_overlay_path.stdout }}"
@@ -102,39 +95,7 @@
         remote_src: true
       when: etcdctl_overlay_path.stdout | length > 0
 
-    - name: Copy etcdutl to /usr/local/bin on host (from overlay)
-      ansible.builtin.copy:
-        src: "{{ etcdutl_overlay_path.stdout }}"
-        dest: /usr/local/bin/etcdutl
-        mode: "0755"
-        remote_src: true
-      when: etcdutl_overlay_path.stdout | length > 0
-
-    # ── Fallback: extract etcdutl from running etcd pod if not in overlay
-    - name: Extract etcdutl from running etcd pod (fallback)
-      ansible.builtin.shell:
-        cmd: >-
-          set -o pipefail &&
-          /usr/bin/kubectl exec -n kube-system {{ etcd_pod.stdout }} --
-          cat /usr/local/bin/etcdutl > /usr/local/bin/etcdutl &&
-          chmod 0755 /usr/local/bin/etcdutl
-        executable: /bin/bash
-      when: etcdutl_overlay_path.stdout | length == 0
-      register: etcdutl_fallback
-      changed_when: etcdutl_fallback.rc == 0
-      failed_when: false
-
-    - name: Warn if etcdutl could not be found
-      ansible.builtin.debug:
-        msg: >-
-          WARNING: etcdutl binary could not be extracted from CRI-O overlay
-          or the running etcd pod. Rollback restore will require etcdutl
-          to be available on all control plane nodes.
-      when:
-        - etcdutl_overlay_path.stdout | length == 0
-        - etcdutl_fallback.rc | default(1) != 0
-
-    # ── Save etcdctl and etcdutl to NFS backup directory ────────────
+    # ── Save etcdctl to NFS backup directory ────────────────────────
     - name: Copy etcdctl to backup directory
       ansible.builtin.copy:
         src: "{{ etcdctl_overlay_path.stdout }}"
@@ -142,27 +103,6 @@
         mode: "0755"
         remote_src: true
       when: etcdctl_overlay_path.stdout | length > 0
-
-    - name: Copy etcdutl to backup directory
-      ansible.builtin.copy:
-        src: /usr/local/bin/etcdutl
-        dest: "{{ backup_dir_client }}/etcdutl"
-        mode: "0755"
-        remote_src: true
-
-    # ── Verify etcdutl was backed up ────────────────────────────────
-    - name: Verify etcdutl exists in backup directory
-      ansible.builtin.stat:
-        path: "{{ backup_dir_client }}/etcdutl"
-      register: etcdutl_backup_verify
-
-    - name: Fail if etcdutl backup is missing
-      ansible.builtin.fail:
-        msg: >-
-          etcdutl binary was not saved to {{ backup_dir_client }}/etcdutl.
-          This binary is required for etcd snapshot restore during rollback (etcd >= 3.6).
-          Ensure the etcd container image is running and contains etcdutl.
-      when: not (etcdutl_backup_verify.stat.exists | default(false))
 
     - name: Take etcd snapshot to host etcd data directory
       ansible.builtin.command:

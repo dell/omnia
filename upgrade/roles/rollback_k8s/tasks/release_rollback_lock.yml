@@ -16,5 +16,5 @@
   ansible.builtin.file:
     path: "{{ lock_file }}"
     state: absent
-  delegate_to: "{{ kube_vip }}"
+  delegate_to: "{{ first_cp_node }}"
   failed_when: false

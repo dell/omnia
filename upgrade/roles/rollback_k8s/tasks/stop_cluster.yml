@@ -28,7 +28,7 @@
   block:
     - name: Mark stop_cluster in_progress
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:
@@ -40,30 +40,31 @@
     - name: Identify VIP leader
       ansible.builtin.include_tasks: identify_vip_leader.yml
 
-    # ── Cordon all nodes ───────────────────────────────────────────
+    # ── Cordon all nodes (if cluster is accessible) ────────────────
     - name: Cordon all nodes
       ansible.builtin.command:
-        cmd: "kubectl cordon {{ node_ips[item] }}"
-      delegate_to: "{{ kube_vip }}"
+        cmd: "kubectl --server=https://{{ first_cp_ip }}:6443 cordon {{ node_ips[item] }}"
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _cordon_result
       changed_when: true
+      failed_when: false
       loop: "{{ all_rollback_nodes }}"
       loop_control:
         label: "{{ item }}"
 
     # ── Stop kubelet on workers first ──────────────────────────────
     - name: Stop kubelet on workers
-      ansible.builtin.systemd:
-        name: kubelet
-        state: stopped
+      ansible.builtin.command:
+        cmd: systemctl stop kubelet
       delegate_to: "{{ item }}"
+      changed_when: true
       loop: "{{ all_worker_nodes }}"
       loop_control:
         label: "{{ item }}"
 
     - name: Mark worker nodes stop_kubelet completed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         node_name: "{{ item }}"
         node_status_update:
@@ -79,17 +80,17 @@
 
     # ── Stop kubelet on CPs (VIP leader last) ──────────────────────
     - name: Stop kubelet on control planes (VIP leader last)
-      ansible.builtin.systemd:
-        name: kubelet
-        state: stopped
+      ansible.builtin.command:
+        cmd: systemctl stop kubelet
       delegate_to: "{{ item }}"
+      changed_when: true
       loop: "{{ cp_shutdown_order }}"
       loop_control:
         label: "{{ item }}"
 
     - name: Mark CP nodes stop_kubelet completed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         node_name: "{{ item }}"
         node_status_update:
@@ -126,7 +127,7 @@
     # ── Mark stop_cluster completed ────────────────────────────────
     - name: Mark stop_cluster completed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:

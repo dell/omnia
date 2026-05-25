@@ -77,22 +77,22 @@
 # ── Add all nodes to Ansible inventory ──────────────────────────────
 - name: Add K8s nodes to inventory
   ansible.builtin.include_tasks:
-    file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/add_nodes_to_inventory.yml"
+    file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/add_nodes_to_inventory.yml"
 
 # ── Try to load existing rollback status ────────────────────────────
 - name: Try to load existing rollback status file
   when: rollback_status is not defined
   block:
-    - name: Check if rollback status file exists on kube_vip
+    - name: Check if rollback status file exists
       ansible.builtin.stat:
         path: "{{ rollback_status_file }}"
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ first_cp_node }}"
       register: _rb_status_file_stat
 
     - name: Read rollback status file (only if it exists)
       ansible.builtin.slurp:
         src: "{{ rollback_status_file }}"
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ first_cp_node }}"
       register: _existing_rb_status_slurp
       when: _rb_status_file_stat.stat.exists | default(false)
 
@@ -203,6 +203,9 @@
             post_validation:
               status: pending
               timestamp:
+            restore_bss_cloud_init:
+              status: pending
+              timestamp:
           nodes: "{{ initial_rb_nodes }}"
 
     - name: Write initial rollback status file locally
@@ -223,17 +226,17 @@
           f.close()"
       changed_when: true
 
-    - name: Copy rollback status file to kube_vip
+    - name: Copy rollback status file to NFS
       ansible.builtin.copy:
         src: "{{ rollback_status_temp_yml }}"
         dest: "{{ rollback_status_file }}"
         mode: "0644"
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ first_cp_node }}"
 
     - name: Verify rollback status file was created
       ansible.builtin.stat:
         path: "{{ rollback_status_file }}"
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ first_cp_node }}"
       register: _rb_status_verify
 
     - name: Fail if rollback status file was not created

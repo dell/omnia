@@ -206,5 +206,15 @@ msg_cloud_init_timeout: >-
 msg_cloud_init_failed: >-
   Cloud-init did not complete successfully on node {{ current_node_name }}.
   Check /var/log/cloud-init-output.log for details.
+msg_preflight_pv_failed: >-
+  Pre-upgrade storage check failed: One or more PersistentVolumes are in
+  Failed state. Resolve PV issues before proceeding with the upgrade.
+msg_preflight_pvc_lost: >-
+  Pre-upgrade storage check failed: One or more PersistentVolumeClaims are
+  in Lost state. Resolve PVC issues before proceeding with the upgrade.
+msg_preflight_nfs_not_accessible: >-
+  Pre-upgrade storage check failed: NFS storage mount at
+  {{ k8s_client_mount_path }} is not accessible on {{ kube_vip }}.
+  Verify NFS server and mount configuration before proceeding.
 msg_rollback_etcd_binary_failed: >-
   Saved etcdctl binary failed. Falling back to podman-based restore.

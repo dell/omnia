@@ -39,22 +39,31 @@
       ansible.builtin.set_fact:
         _etcd_name: "{{ _etcd_member.name }}"
 
-    # ── Back up current etcd data (safety net) ─────────────────────
-    - name: Back up current etcd data directory on {{ _cp_node }}
-      ansible.builtin.command:
-        cmd: >-
-          cp -a /var/lib/etcd/member
-          /var/lib/etcd/member.{{ k8s_current_version }}.bak
+    # ── Ensure etcd is fully stopped (kubelet stop does not guarantee container exit) ──
+    - name: Stop any lingering etcd containers on {{ _cp_node }}
+      ansible.builtin.shell:
+        cmd: |
+          # Kill etcd containers via crictl (CRI-O / containerd)
+          for cid in $(crictl ps -q --name etcd 2>/dev/null); do
+            crictl stop "$cid" 2>/dev/null || true
+            crictl rm "$cid" 2>/dev/null || true
+          done
+          # Also kill any bare etcd processes
+          pkill -9 -x etcd 2>/dev/null || true
+          # Brief wait for NFS file handles to release
+          sleep 2
       delegate_to: "{{ _cp_node }}"
-      args:
-        creates: "/var/lib/etcd/member.{{ k8s_current_version }}.bak"
+      changed_when: true
 
-    # ── Clear existing etcd data ───────────────────────────────────
-    - name: Remove current etcd data on {{ _cp_node }}
-      ansible.builtin.file:
-        path: "/var/lib/etcd/member"
-        state: absent
+    # ── Remove existing etcd member data ────────────────────────────
+    - name: Remove etcd member directory on {{ _cp_node }}
+      ansible.builtin.shell:
+        cmd: |
+          rm -rf /var/lib/etcd/member 2>/dev/null || true
+          # If NFS .nfs* stale handles block rm, move the dir aside
+          [ -d /var/lib/etcd/member ] && mv /var/lib/etcd/member /var/lib/etcd/member.stale.$$ || true
       delegate_to: "{{ _cp_node }}"
+      changed_when: true
 
     # ── Copy snapshot to node ──────────────────────────────────────
     - name: Copy etcd snapshot to {{ _cp_node }}
@@ -65,18 +74,40 @@
         remote_src: true
       delegate_to: "{{ _cp_node }}"
 
-    # ── Restore snapshot using etcdutl (etcd >= 3.6) ───────────────
-    - name: Restore etcd snapshot on {{ _cp_node }}
-      ansible.builtin.command:
-        cmd: >-
-          etcdutl snapshot restore /tmp/etcd-snapshot.db
-          --name {{ _etcd_name }}
-          --data-dir /var/lib/etcd
-          --initial-cluster {{ etcd_initial_cluster }}
-          --initial-cluster-token etcd-cluster-1
-          --initial-advertise-peer-urls https://{{ node_ips[_cp_node] }}:2380
+    # ── Restore snapshot using etcdutl binary from NFS backup ───────
+    # etcdutl requires --data-dir to be empty or absent. Since
+    # /var/lib/etcd may contain NFS stale handles (.nfs* files) that
+    # cannot be removed or moved, restore to a clean temp dir and
+    # then move the member directory into place.
+    - name: Copy etcdutl binary to {{ _cp_node }}
+      ansible.builtin.copy:
+        src: "{{ backup_dir }}/etcdutl"
+        dest: /tmp/etcdutl
+        mode: "{{ file_perm_755 }}"
+        remote_src: true
+      delegate_to: "{{ _cp_node }}"
+
+    - name: Restore etcd snapshot on {{ _cp_node }} using etcdutl
+      ansible.builtin.shell:
+        cmd: |
+          set -e
+          TMPDIR=$(mktemp -d /tmp/etcd-restore.XXXXXX)
+          /tmp/etcdutl snapshot restore /tmp/etcd-snapshot.db \
+            --name {{ _etcd_name }} \
+            --data-dir "$TMPDIR" \
+            --initial-cluster {{ etcd_initial_cluster }} \
+            --initial-cluster-token etcd-cluster-1 \
+            --initial-advertise-peer-urls https://{{ node_ips[_cp_node] }}:2380
+          cp -a "$TMPDIR/member" /var/lib/etcd/member
+          rm -rf "$TMPDIR"
       delegate_to: "{{ _cp_node }}"
       register: _etcd_restore_result
+
+    - name: Remove temporary etcdutl from {{ _cp_node }}
+      ansible.builtin.file:
+        path: /tmp/etcdutl
+        state: absent
+      delegate_to: "{{ _cp_node }}"
 
     # ── Clean up snapshot copy ─────────────────────────────────────
     - name: Remove temporary snapshot file on {{ _cp_node }}
@@ -100,7 +131,7 @@
     # ── Update per-node status ─────────────────────────────────────
     - name: Mark restore_etcd completed for {{ _cp_node }}
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         node_name: "{{ _cp_node }}"
         node_status_update:

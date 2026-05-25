@@ -26,7 +26,7 @@
   block:
     - name: Mark downgrade_workers in_progress
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:
@@ -49,7 +49,7 @@
 
     - name: Mark downgrade_workers completed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:

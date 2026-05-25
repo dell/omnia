@@ -18,6 +18,7 @@
 #   2. All nodes at rollback version
 #   3. kube-system pods Running
 #   4. etcd cluster healthy
+#   5. kube-vip VIP reachable (API server responds via VIP)
 
 - name: Skip post_validation if already completed
   ansible.builtin.debug:
@@ -29,7 +30,7 @@
   block:
     - name: Mark post_validation in_progress
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:
@@ -40,8 +41,8 @@
     # ── Check 1: All nodes Ready ───────────────────────────────────
     - name: Get all nodes status
       ansible.builtin.command:
-        cmd: kubectl get nodes -o wide
-      delegate_to: "{{ kube_vip }}"
+        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 get nodes -o wide
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _post_nodes
       changed_when: false
 
@@ -58,9 +59,9 @@
     - name: Get node versions
       ansible.builtin.command:
         cmd: >-
-          kubectl get nodes
+          kubectl --server=https://{{ first_cp_ip }}:6443 get nodes
           -o jsonpath='{range .items[*]}{.metadata.name}={.status.nodeInfo.kubeletVersion}{"\n"}{end}'
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _post_versions
       changed_when: false
 
@@ -81,8 +82,8 @@
     # ── Check 3: kube-system pods healthy ──────────────────────────
     - name: Get kube-system pods
       ansible.builtin.command:
-        cmd: kubectl get pods -n kube-system -o wide
-      delegate_to: "{{ kube_vip }}"
+        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 get pods -n kube-system -o wide
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _post_pods
       changed_when: false
 
@@ -91,26 +92,17 @@
         msg: "{{ _post_pods.stdout_lines }}"
 
     # ── Check 4: etcd cluster healthy ──────────────────────────────
-    - name: Get etcd pod name
-      ansible.builtin.command:
-        cmd: >-
-          kubectl get pods -n kube-system -l component=etcd
-          -o jsonpath='{.items[0].metadata.name}'
-      delegate_to: "{{ kube_vip }}"
-      register: _etcd_pod
-      changed_when: false
-
+    # Use etcdctl on the host (already installed in start_control_plane.yml)
     - name: Check etcd cluster health
       ansible.builtin.command:
         cmd: >-
-          kubectl exec -n kube-system {{ _etcd_pod.stdout }} --
           etcdctl
           --endpoints=https://127.0.0.1:2379
           --cacert=/etc/kubernetes/pki/etcd/ca.crt
           --cert=/etc/kubernetes/pki/etcd/server.crt
           --key=/etc/kubernetes/pki/etcd/server.key
           endpoint health --cluster
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _post_etcd_health
       changed_when: false
 
@@ -118,10 +110,29 @@
       ansible.builtin.debug:
         msg: "{{ _post_etcd_health.stdout_lines }}"
 
+    # ── Check 5: kube-vip VIP reachable ──────────────────────────────
+    # Intentionally NOT using --server here — we want to verify the VIP
+    # ({{ kube_vip }}) is actually routing to the API server.
+    - name: Verify API server is reachable via VIP ({{ kube_vip }})
+      ansible.builtin.command:
+        cmd: "kubectl --server=https://{{ kube_vip }}:6443 get --raw /healthz"
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _vip_health
+      changed_when: false
+      retries: 6
+      delay: 10
+      until:
+        - _vip_health.rc == 0
+        - "'ok' in _vip_health.stdout"
+
+    - name: Display VIP health result
+      ansible.builtin.debug:
+        msg: "API server via VIP ({{ kube_vip }}): {{ _vip_health.stdout | default('unreachable') }}"
+
     # ── Mark validation completed per node ─────────────────────────
     - name: Mark validation completed for all nodes
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         node_name: "{{ item }}"
         node_status_update:
@@ -139,7 +150,7 @@
     # ── Mark post_validation completed ─────────────────────────────
     - name: Mark post_validation completed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:
@@ -156,4 +167,5 @@
           - "All {{ all_rollback_nodes | length }} nodes Ready at v{{ k8s_rollback_version }}"
           - "etcd cluster healthy"
           - "kube-system pods running"
+          - "VIP {{ kube_vip }} reachable — API server responding via VIP"
           - "========================================================================"

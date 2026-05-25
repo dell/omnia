@@ -29,30 +29,33 @@
   block:
     # ── Reload systemd (picks up new unit files from downgrade) ────
     - name: Reload systemd on {{ _node }}
-      ansible.builtin.systemd:
-        daemon_reload: true
+      ansible.builtin.command:
+        cmd: systemctl daemon-reload
       delegate_to: "{{ _node }}"
+      changed_when: true
 
     # ── Restart CRI-O ──────────────────────────────────────────────
     - name: Restart crio on {{ _node }}
-      ansible.builtin.systemd:
-        name: crio
-        state: restarted
+      ansible.builtin.command:
+        cmd: systemctl restart crio
       delegate_to: "{{ _node }}"
+      changed_when: true
 
-    # ── Start kubelet ──────────────────────────────────────────────
-    - name: Start kubelet on {{ _node }}
-      ansible.builtin.systemd:
-        name: kubelet
-        state: started
+    # ── Restart kubelet ────────────────────────────────────────────
+    - name: Restart kubelet on {{ _node }}
+      ansible.builtin.command:
+        cmd: systemctl restart kubelet
       delegate_to: "{{ _node }}"
+      changed_when: true
 
     # ── Wait for node to become Ready with rollback version ────────
+    # Use --server to bypass kube_vip (VIP may not be up yet during CP startup)
     - name: Wait for {{ _node }} to become Ready at v{{ k8s_rollback_version }}
       ansible.builtin.command: >-
-        kubectl get node {{ node_ips[_node] }}
+        kubectl --server=https://{{ first_cp_ip }}:6443
+        get node {{ node_ips[_node] }}
         -o jsonpath="{.status.nodeInfo.kubeletVersion}:{range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"
-      delegate_to: "{{ kube_vip }}"
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _node_ready
       changed_when: false
       retries: "{{ kubelet_ready_retries }}"
@@ -64,7 +67,7 @@
     # ── Update per-node status ─────────────────────────────────────
     - name: Mark start_kubelet completed for {{ _node }}
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         node_name: "{{ _node }}"
         node_status_update:

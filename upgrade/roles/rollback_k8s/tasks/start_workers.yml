@@ -25,7 +25,7 @@
   block:
     - name: Mark start_workers in_progress
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:
@@ -43,8 +43,8 @@
     # ── Uncordon all workers ───────────────────────────────────────
     - name: Uncordon worker nodes
       ansible.builtin.command:
-        cmd: "kubectl uncordon {{ node_ips[item] }}"
-      delegate_to: "{{ kube_vip }}"
+        cmd: "kubectl --server=https://{{ first_cp_ip }}:6443 uncordon {{ node_ips[item] }}"
+      delegate_to: "{{ groups_cp_first | first }}"
       register: _uncordon_result
       changed_when: true
       loop: "{{ all_worker_nodes }}"
@@ -53,7 +53,7 @@
 
     - name: Mark start_workers completed
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         status_update:
           stages:

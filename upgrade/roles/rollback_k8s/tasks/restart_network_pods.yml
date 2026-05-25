@@ -1,0 +1,141 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Stage 8b: Restart network pods to clear stale processes ──────────
+# After rollback, some container processes (BIRD from calico, speaker
+# from metallb) may survive kubelet stop and prevent new pods from
+# starting. This stage restarts those pods to ensure clean state.
+
+- name: Skip restart_network_pods if already completed
+  ansible.builtin.debug:
+    msg: "restart_network_pods already completed — skipping."
+  when: (rollback_status.stages.restart_network_pods.status | default('pending')) == 'completed'
+
+- name: Restart network pods
+  when: (rollback_status.stages.restart_network_pods.status | default('pending')) != 'completed'
+  block:
+    - name: Mark restart_network_pods in_progress
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
+      vars:
+        status_update:
+          stages:
+            restart_network_pods:
+              status: in_progress
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    # ── Restart calico-node pods ────────────────────────────────────
+    - name: Delete calico-node pods to clear stale BIRD processes
+      ansible.builtin.command:
+        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 delete pod -n kube-system -l k8s-app=calico-node --force --grace-period=0
+      delegate_to: "{{ groups_cp_first | first }}"
+      changed_when: true
+      failed_when: false
+
+    # ── Restart metallb speaker pods ────────────────────────────────
+    - name: Delete metallb speaker pods to clear stale speaker processes
+      ansible.builtin.command:
+        cmd: kubectl --server=https://{{ first_cp_ip }}:6443 delete pod -n metallb-system -l component=speaker --force --grace-period=0
+      delegate_to: "{{ groups_cp_first | first }}"
+      changed_when: true
+      failed_when: false
+
+    # ── Poll and verify all kube-system pods are Running ────────────
+    - name: Poll for all kube-system pods to be Running
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get pods -n kube-system
+          -o jsonpath='{range .items[*]}{.metadata.name}:{.status.phase}{"\n"}{end}'
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _kube_system_pods
+      changed_when: false
+      retries: 24
+      delay: 5
+      until:
+        - _kube_system_pods.rc == 0
+        - _kube_system_pods.stdout_lines | reject('search', ':Running$|:Succeeded$') | list | length == 0
+
+    # ── Delete any non-Running kube-system pods (except calico/metallb) ──
+    - name: Get non-Running kube-system pods
+      ansible.builtin.shell:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get pods -n kube-system
+          -o jsonpath='{range .items[?(@.status.phase!="Running")]}{.metadata.name}{"\n"}{end}'
+          | grep -v -E '^(calico-node|$)'
+      args:
+        executable: /bin/bash
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _non_running_pods
+      changed_when: false
+      failed_when: false
+
+    - name: Delete non-Running kube-system pods to force recreation
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          delete pod -n kube-system {{ item }} --force --grace-period=0
+      delegate_to: "{{ groups_cp_first | first }}"
+      loop: "{{ _non_running_pods.stdout_lines }}"
+      when:
+        - _non_running_pods.stdout_lines | length > 0
+      changed_when: true
+      failed_when: false
+
+    # ── Verify calico-node pods are ready ───────────────────────────
+    - name: Verify calico-node pods are ready
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get pods -n kube-system -l k8s-app=calico-node
+          -o jsonpath='{range .items[*]}{.metadata.name}:{.status.phase}:{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}'
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _calico_status
+      changed_when: false
+      retries: 12
+      delay: 10
+      until:
+        - _calico_status.rc == 0
+        - _calico_status.stdout_lines | select('search', ':Running:True$') | list | length == (all_rollback_nodes | length)
+
+    # ── Verify metallb speaker pods are ready ───────────────────────
+    - name: Verify metallb speaker pods are ready
+      ansible.builtin.command:
+        cmd: >-
+          kubectl --server=https://{{ first_cp_ip }}:6443
+          get pods -n metallb-system -l component=speaker
+          -o jsonpath='{range .items[*]}{.metadata.name}:{.status.phase}:{range .status.conditions[?(@.type=="Ready")]}{.status}{end}{"\n"}{end}'
+      delegate_to: "{{ groups_cp_first | first }}"
+      register: _speaker_status
+      changed_when: false
+      retries: 12
+      delay: 10
+      until:
+        - _speaker_status.rc == 0
+        - _speaker_status.stdout_lines | select('search', ':Running:True$') | list | length == (all_rollback_nodes | length)
+
+    - name: Mark restart_network_pods completed
+      ansible.builtin.include_tasks:
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
+      vars:
+        status_update:
+          stages:
+            restart_network_pods:
+              status: completed
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
+
+    - name: Display restart_network_pods completion
+      ansible.builtin.debug:
+        msg: "Network pods (calico-node, metallb speaker) restarted successfully. All pods ready."

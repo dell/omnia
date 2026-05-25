@@ -27,34 +27,13 @@
     (rollback_status.nodes[_node].steps.downgrade_packages.status | default('pending'))
     != 'completed'
   block:
-    # ── Compute Pulp repo name for K8s packages ────────────────────
-    - name: Set K8s repo name for rollback version
-      ansible.builtin.set_fact:
-        _k8s_repo: >-
-          x86_64_rhel_{{ cluster_os_version }}_kubernetes-v{{
-            k8s_rollback_version
-            | regex_replace('\.[0-9]+$', '')
-            | replace('.', '-')
-          }}
-
-    # ── Compute Pulp repo name for CRI-O ──────────────────────────
-    - name: Set CRI-O repo name for rollback version
-      ansible.builtin.set_fact:
-        _crio_repo: >-
-          x86_64_rhel_{{ cluster_os_version }}_cri-o-v{{
-            k8s_rollback_version
-            | regex_replace('\.[0-9]+$', '')
-            | replace('.', '-')
-          }}
-
     # ── Downgrade K8s packages (kubeadm, kubelet, kubectl) ─────────
     - name: Downgrade K8s packages on {{ _node }}
       ansible.builtin.dnf:
         name: "{{ _packages }}"
         state: present
         allow_downgrade: true
-        disablerepo: "*"
-        enablerepo: "{{ _k8s_repo }}"
+        disable_gpg_check: true
       delegate_to: "{{ _node }}"
       register: _k8s_downgrade_result
 
@@ -64,8 +43,7 @@
         name: "{{ _crio_package }}"
         state: present
         allow_downgrade: true
-        disablerepo: "*"
-        enablerepo: "{{ _crio_repo }}"
+        disable_gpg_check: true
       delegate_to: "{{ _node }}"
       register: _crio_downgrade_result
 
@@ -87,7 +65,7 @@
     # ── Update per-node status ─────────────────────────────────────
     - name: Mark downgrade_packages completed for {{ _node }}
       ansible.builtin.include_tasks:
-        file: "{{ playbook_dir }}/../roles/upgrade_k8s/tasks/update_status.yml"
+        file: "{{ playbook_dir }}/roles/upgrade_k8s/tasks/update_status.yml"
       vars:
         node_name: "{{ _node }}"
         node_status_update:

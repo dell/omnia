@@ -129,3 +129,16 @@ msg_metallb_cleanup_complete: >-
 msg_vip_split_brain: >-
   kube-vip split-brain detected after etcd restore.
   VIP found on multiple nodes. Cleaning up stale VIP assignments.
+msg_bss_backup_workdir_missing: >-
+  BSS restore failed: openchami backup workdir not found at
+  {{ _bss_backup_workdir_container }}.
+  Verify that the upgrade backup ({{ _openchami_backup_dir }}) was created
+  successfully and contains openchami/openchami_data/workdir/.
+msg_bss_backup_boot_missing: >-
+  BSS restore failed: boot/ directory not found in openchami backup workdir
+  {{ _bss_backup_workdir_container }}/boot.
+  The backup may be incomplete or corrupted.
+msg_bss_backup_ci_missing: >-
+  BSS restore failed: cloud-init/ directory not found in openchami backup
+  workdir {{ _bss_backup_workdir_container }}/cloud-init.
+  The backup may be incomplete or corrupted.

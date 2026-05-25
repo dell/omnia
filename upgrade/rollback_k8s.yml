@@ -21,8 +21,8 @@
 #   - Package downgrade (kubeadm, kubelet, kubectl, cri-o)
 #
 # Usage:
-#   ansible-playbook playbooks/rollback_k8s.yml
-#   ansible-playbook playbooks/rollback_k8s.yml -e "input_project_dir=/custom/path"
+#   ansible-playbook upgrade/rollback_k8s.yml
+#   ansible-playbook upgrade/rollback_k8s.yml -e "input_project_dir=/custom/path"
 #
 # Prerequisites:
 #   - A prior K8s upgrade must have completed (upgrade_status.yml exists)
@@ -109,24 +109,14 @@
 
 # ── Play 3: Verify upgrade status exists ─────────────────────────────────────
 - name: "Kubernetes Rollback - Verify upgrade status"
-  hosts: kube_vip_group
+  hosts: localhost
+  connection: local
   gather_facts: false
-
-  pre_tasks:
-    - name: "Verify SSH connectivity to kube_vip"
-      ansible.builtin.wait_for_connection:
-        delay: 5
-        timeout: 30
-      register: ssh_check
-      ignore_errors: true
-
-    - name: "Abort if SSH connection fails"
-      ansible.builtin.fail:
-        msg: "Failed to establish SSH connection to kube_vip {{ ansible_host }}"
-      when: ssh_check is failed
 
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
+    nodes_yaml_path: "/opt/omnia/openchami/workdir/nodes/nodes.yaml"
+    group_cp_first: "service_kube_control_plane_first_x86_64"
 
   tasks:
     - name: "Load omnia_config.yml"
@@ -150,9 +140,32 @@
               | selectattr('name', 'equalto', k8s_nfs_storage_name)
               | first).mount_point }}
 
+    - name: Read nodes.yaml to resolve first CP
+      ansible.builtin.slurp:
+        src: "{{ nodes_yaml_path }}"
+      register: _play3_nodes_slurp
+
+    - name: Resolve first CP IP for delegation
+      ansible.builtin.set_fact:
+        _play3_first_cp_ip: >-
+          {{ (((_play3_nodes_slurp.content | b64decode | from_yaml).nodes
+               | selectattr('group', 'equalto', group_cp_first)
+               | first).interfaces | first).ip_addrs
+             | selectattr('name', 'equalto', 'management')
+             | map(attribute='ip_addr') | first }}
+
+    - name: Add first CP to inventory
+      ansible.builtin.add_host:
+        name: "play3_first_cp"
+        ansible_host: "{{ _play3_first_cp_ip }}"
+        ansible_connection: ssh
+        ansible_user: root
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
     - name: Check upgrade_status.yml exists
       ansible.builtin.stat:
         path: "{{ k8s_client_mount_path }}/upgrade/upgrade_status.yml"
+      delegate_to: "play3_first_cp"
       register: _upgrade_status_stat
 
     - name: "Abort if no upgrade status found"
@@ -176,7 +189,7 @@
 - name: "Kubernetes Rollback - Execute Rollback"
   hosts: localhost
   connection: local
-  gather_facts: false
+  gather_facts: true
   vars:
     input_project_dir: "/opt/omnia/input/project_default"
     cluster_os_version: "{{ hostvars['localhost']['_software_config']['cluster_os_version'] }}"
@@ -191,6 +204,16 @@
       ansible.builtin.set_fact:
         nfs_storage_name: "{{ omnia_config.service_k8s_cluster[0].nfs_storage_name }}"
 
+    - name: Cache storage_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/storage_config.yml"
+        name: cached_storage_config
+
+    - name: Cache high_availability_config.yml
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/high_availability_config.yml"
+        name: cached_ha_config
+
     - name: Call rollback_k8s role
       ansible.builtin.include_role:
-        name: ../roles/rollback_k8s
+        name: roles/rollback_k8s

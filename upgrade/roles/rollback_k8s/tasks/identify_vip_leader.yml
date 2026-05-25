@@ -19,9 +19,10 @@
 - name: Get kube-vip leader lease
   ansible.builtin.command:
     cmd: >-
-      kubectl get lease plndr-cp-lock -n kube-system
+      kubectl --server=https://{{ first_cp_ip }}:6443
+      get lease plndr-cp-lock -n kube-system
       -o jsonpath='{.spec.holderIdentity}'
-  delegate_to: "{{ kube_vip }}"
+  delegate_to: "{{ groups_cp_first | first }}"
   register: _vip_leader_result
   changed_when: false
   failed_when: false
