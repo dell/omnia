@@ -26,9 +26,10 @@ telemetry_namespace: telemetry
 oim_host: oim
 
 # Service K8s configuration (for dynamic package name resolution)
-architecture: x86_64
-os_version: 10.0
-k8s_version: 1.35.1
+# These values are read from software_config.json in include_required_input.yml
+# architecture: set from software_config.cluster_os_type
+# os_version: set from software_config.cluster_os_version
+# k8s_version: set from service_k8s version in software_config.softwares
 
 # Upgrade directory paths (on k8s NFS share, resolved at runtime)
 telemetry_upgrade_dir: "{{ k8s_client_mount_path }}/upgrade/telemetry"
