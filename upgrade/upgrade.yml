@@ -557,63 +557,6 @@
   tags: [slurm]
 
 # ──────────────────────────────────────────────────────────────────────
-# Post-upgrade BuildStream instructions (when BuildStream enabled)
-# Displayed after all sub-flows complete, before the finalize summary.
-# ──────────────────────────────────────────────────────────────────────
-- name: Post-upgrade BuildStream instructions
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tags: always
-  tasks:
-    - name: Display BuildStream post-upgrade next steps
-      ansible.builtin.debug:
-        msg:
-          - "══════════════════════════════════════════════════════════════"
-          - "       BUILDSTREAM ENABLED — POST-UPGRADE NEXT STEPS"
-          - "══════════════════════════════════════════════════════════════"
-          - ""
-          - "  OIM and BuildStream upgrade/enablement is complete."
-          - "  Components local_repo, build_image, provision, k8s,"
-          - "  telemetry, and slurm were SKIPPED — these will be"
-          - "  handled by the GitLab pipeline."
-          - ""
-          - "  ── ACTION REQUIRED ────────────────────────────────────────"
-          - ""
-          - "  1. PREPARE NEW MAPPING FILE"
-          - "     Provide a new pxe_mapping_file.csv to preserve old"
-          - "     cluster node-to-group assignments."
-          - "     Sample catalogs available in: examples/catalog/"
-          - "     Copy a catalog and update it with your node mappings."
-          - ""
-          - "  2. NFS SHARE BACKUP"
-          - "     Ensure NFS shares configured in storage_config.yml"
-          - "     are backed up and cleaned, OR provide new NFS share"
-          - "     paths for K8s and Slurm workloads."
-          - "     BuildStream pipeline will deploy K8s and Slurm as"
-          - "     FRESH clusters — old data will NOT be preserved."
-          - ""
-          - "  3. TRIGGER GITLAB PIPELINE"
-          - "     Navigate to GitLab UI → CI/CD → Pipelines"
-          - "     Click 'Run Pipeline' with the catalog available"
-          - "     in examples/catalog/."
-          - "     The pipeline will handle:"
-          - "       - Local repo sync"
-          - "       - OS image building"
-          - "       - Cloud-init/BSS provisioning"
-          - "       - K8s cluster deployment (fresh)"
-          - "       - Slurm cluster deployment (fresh)"
-          - "       - Telemetry stack deployment"
-          - ""
-          - "  ── IMPORTANT WARNING ──────────────────────────────────────"
-          - "  BuildStream is intended for TEST BED clusters."
-          - "  K8s and Slurm will be FRESH DEPLOYMENTS — all existing"
-          - "  cluster state, jobs, and configurations will be replaced."
-          - "══════════════════════════════════════════════════════════════"
-      when:
-        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
-
-# ──────────────────────────────────────────────────────────────────────
 # Post-upgrade: update upgrade_manifest.yml + clear upgrade lock
 # (oim_metadata.yml is intentionally NOT modified)
 # ──────────────────────────────────────────────────────────────────────
@@ -731,6 +674,53 @@
         path: "{{ upgrade_lock_path }}"
         state: absent
       when: new_status == 'completed'
+
+    - name: Display BuildStream post-upgrade next steps
+      ansible.builtin.debug:
+        msg:
+          - "══════════════════════════════════════════════════════════════"
+          - "       BUILDSTREAM ENABLED — POST-UPGRADE NEXT STEPS"
+          - "══════════════════════════════════════════════════════════════"
+          - ""
+          - "  OIM and BuildStream upgrade/enablement is complete."
+          - "  Components local_repo, build_image, provision, k8s,"
+          - "  telemetry, and slurm were SKIPPED — these will be"
+          - "  handled by the GitLab pipeline."
+          - ""
+          - "  ── ACTION REQUIRED ────────────────────────────────────────"
+          - ""
+          - "  1. PREPARE NEW MAPPING FILE"
+          - "     Provide a new pxe_mapping_file.csv to preserve old"
+          - "     cluster node-to-group assignments."
+          - "     Sample catalogs available in: examples/catalog/"
+          - "     Copy a catalog and update it with your node mappings."
+          - ""
+          - "  2. NFS SHARE BACKUP"
+          - "     Ensure NFS shares configured in storage_config.yml"
+          - "     are backed up and cleaned, OR provide new NFS share"
+          - "     paths for K8s and Slurm workloads."
+          - "     BuildStream pipeline will deploy K8s and Slurm as"
+          - "     FRESH clusters — old data will NOT be preserved."
+          - ""
+          - "  3. TRIGGER GITLAB PIPELINE"
+          - "     Navigate to GitLab UI → CI/CD → Pipelines"
+          - "     Click 'Run Pipeline' with the catalog available"
+          - "     in examples/catalog/."
+          - "     The pipeline will handle:"
+          - "       - Local repo sync"
+          - "       - OS image building"
+          - "       - Cloud-init/BSS provisioning"
+          - "       - K8s cluster deployment (fresh)"
+          - "       - Slurm cluster deployment (fresh)"
+          - "       - Telemetry stack deployment"
+          - ""
+          - "  ── IMPORTANT WARNING ──────────────────────────────────────"
+          - "  BuildStream is intended for TEST BED clusters."
+          - "  K8s and Slurm will be FRESH DEPLOYMENTS — all existing"
+          - "  cluster state, jobs, and configurations will be replaced."
+          - "══════════════════════════════════════════════════════════════"
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
 
     - name: Display upgrade summary
       ansible.builtin.debug:
