@@ -239,8 +239,26 @@
   vars:
     manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     component_name: build_stream
+    gitlab_role_path: "{{ playbook_dir }}/../../gitlab/roles/hosted_gitlab"
+    input_project_dir: "{{ hostvars['localhost']['input_project_dir'] | default('/opt/omnia-sharedpath/omnia/input/project_default') }}"
+    backup_dir: "{{ hostvars['localhost']['backup_dir'] }}"
+    gitlab_host: "{{ hostvars['localhost']['gitlab_host'] }}"
+    gitlab_external_url_computed: "{{ hostvars['localhost']['gitlab_external_url_computed'] }}"
+    gitlab_root_token: "{{ hostvars['localhost']['gitlab_root_token'] }}"
+    gitlab_project_id: "{{ hostvars['localhost']['gitlab_project_id'] }}"
+    build_stream_host_ip: "{{ hostvars['localhost']['build_stream_host_ip'] }}"
+    build_stream_port: "{{ hostvars['localhost']['build_stream_port'] }}"
+    provision_password: "{{ hostvars['localhost']['provision_password'] }}"
+    gitlab_default_branch: "{{ hostvars['localhost']['gitlab_default_branch'] | default('main') }}"
   tasks:
     # Step 4: GitLab Configuration Upgrade (ESpec §4.6.4, BS-08)
+    # Map upgrade_path to expected format for upgrade_gitlab_config.yml
+    - name: Map upgrade_path variable for GitLab config tasks
+      ansible.builtin.set_fact:
+        upgrade_path: >-
+          {{ 'path_a' if upgrade_path == 'upgrade_existing' else 'path_b' }}
+        cacheable: true
+
     - name: Run GitLab configuration upgrade (Step 4 — PATH A)
       ansible.builtin.include_tasks:
         file: "{{ playbook_dir }}/tasks/upgrade_gitlab_config.yml"
