@@ -354,15 +354,7 @@
         ]
       }
     ],
-    "Infrastructure": [
-      {
-        "Name": "csi",
-        "InfrastructurePackages": [
-          "infrastructure_package_id_1",
-          "infrastructure_package_id_2"
-        ]
-      }
-    ],
+    "Infrastructure": [],
     "Drivers": [],
     "DriverPackages": {},
     "FunctionalPackages": {
@@ -4466,40 +4458,6 @@
       }
     },
     "Miscellaneous": [],
-    "InfrastructurePackages": {
-      "infrastructure_package_id_1": {
-        "Name": "quay.io/dell/container-storage-modules/csm-metrics-powerscale",
-        "Type": "image",
-        "Version": "v1.11.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v1.11.0"
-      },
-      "infrastructure_package_id_2": {
-        "Name": "helm-charts",
-        "Type": "git",
-        "Version": "container-storage-modules-1.9.2",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Sources": [
-          {
-            "Architecture": "x86_64",
-            "Uri": "https://github.com/dell/helm-charts.git"
-          }
-        ]
-      }
-    }
+    "InfrastructurePackages": {}
   }
 }

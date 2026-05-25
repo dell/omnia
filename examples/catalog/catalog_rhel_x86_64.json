@@ -372,7 +372,6 @@
           "infrastructure_package_id_14",
           "infrastructure_package_id_15",
           "infrastructure_package_id_16",
-          "infrastructure_package_id_17",
           "infrastructure_package_id_2",
           "infrastructure_package_id_3",
           "infrastructure_package_id_4",
@@ -4076,20 +4075,6 @@
           "x86_64"
         ],
         "Tag": "v0.6.0"
-      },
-      "infrastructure_package_id_17": {
-        "Name": "quay.io/dell/container-storage-modules/csm-metrics-powerscale",
-        "Type": "image",
-        "Version": "v1.11.0",
-        "SupportedFunctions": [
-          {
-            "Name": "csi"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Tag": "v1.11.0"
       }
     }
   }

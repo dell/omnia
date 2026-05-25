@@ -366,10 +366,10 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
 
         # Determine classification using bundle membership.
         # - Functional: service_k8s, slurm_custom, additional_packages
-        # - Infrastructure: csi_driver_powerscale (plus name-based fallback)
+        # - Infrastructure: csi_driver_powerscale (bundle membership only)
         # - BaseOS: everything else
         is_functional = bool(bundles & _FUNCTIONAL_BUNDLES)
-        is_infra = bool(bundles & _INFRA_BUNDLES) or _is_infra_package_name(pkg_name)
+        is_infra = bool(bundles & _INFRA_BUNDLES)
         is_misc = _MISC_BUNDLE in bundles
 
         # Check if os_x86_64 or os_aarch64 exist in PXE groups
