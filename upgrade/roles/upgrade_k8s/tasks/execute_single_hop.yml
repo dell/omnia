@@ -99,7 +99,7 @@
             from_version: "{{ k8s_from_version }}"
             target_version: "{{ _current_hop.to_version }}"
             status: in_progress
-            started_at: "{{ ansible_date_time.iso8601 }}"
+            started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
             completed_at: None
           etcd_backup:
             status: >-
@@ -154,12 +154,16 @@
                    'from': k8s_from_version,
                    'to': _current_hop.to_version,
                    'status': 'in_progress',
-                   'started_at': ansible_date_time.iso8601
+                   'started_at': now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ')
                  }] }}
 
     # ── Preflight ────────────────────────────────────────────────────
     - name: "Hop — Run preflight checks (Pulp)"
       ansible.builtin.include_tasks: preflight_checks_pulp.yml
+      when: upgrade_status.upgrade.status != 'completed'
+
+    - name: "Hop — Run preflight checks (Storage)"
+      ansible.builtin.include_tasks: preflight_checks_storage.yml
       when: upgrade_status.upgrade.status != 'completed'
 
     # ── Backup ───────────────────────────────────────────────────────
@@ -259,7 +263,7 @@
           bss_update:
             service_kube_control_plane_first:
               status: in_progress
-              started_at: "{{ ansible_date_time.iso8601 }}"
+              started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
       when:
         - upgrade_status.upgrade.status != 'completed'
         - upgrade_status.bss_update.service_kube_control_plane_first.status | default('pending') != 'completed'
@@ -289,7 +293,7 @@
           bss_update:
             service_kube_control_plane_first:
               status: completed
-              completed_at: "{{ ansible_date_time.iso8601 }}"
+              completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
       when:
         - upgrade_status.upgrade.status != 'completed'
         - bss_cp_first_result is defined
@@ -329,6 +333,41 @@
         - reboot_cloud_init_first_cp_result is defined
         - reboot_cloud_init_first_cp_result is not skipped
         - reboot_cloud_init_first_cp_result.rc == 0
+
+    - name: "Hop — Verify first control plane booted with target version after reboot"
+      ansible.builtin.command:
+        cmd: >-
+          kubectl get node {{ upgrade_status.nodes[groups_cp_first[0]].ip }}
+          -o jsonpath="{.status.nodeInfo.kubeletVersion} {range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"
+      delegate_to: "{{ kube_vip }}"
+      register: _cp_first_reboot_version
+      changed_when: false
+      retries: "{{ kubelet_ready_retries }}"
+      delay: "{{ kubelet_ready_delay }}"
+      until:
+        - _cp_first_reboot_version.rc == 0
+        - "'v' + _current_hop.to_version in _cp_first_reboot_version.stdout"
+        - "'True' in _cp_first_reboot_version.stdout"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - reboot_cloud_init_first_cp_result is defined
+        - reboot_cloud_init_first_cp_result is not skipped
+        - reboot_cloud_init_first_cp_result.rc == 0
+
+    - name: "Hop — Assert first control plane version after reboot"
+      ansible.builtin.assert:
+        that:
+          - "'v' + _current_hop.to_version in _cp_first_reboot_version.stdout"
+          - "'True' in _cp_first_reboot_version.stdout"
+        fail_msg: >-
+          First control plane {{ groups_cp_first[0] }} did not boot with target version
+          v{{ _current_hop.to_version }}. Got: {{ _cp_first_reboot_version.stdout | default('N/A') }}
+        success_msg: >-
+          First control plane {{ groups_cp_first[0] }} verified at
+          v{{ _current_hop.to_version }} and Ready after reboot.
+      when:
+        - _cp_first_reboot_version is defined
+        - _cp_first_reboot_version is not skipped
 
     - name: "Hop — Starting additional control planes upgrade"
       ansible.builtin.debug:
@@ -374,7 +413,7 @@
           bss_update:
             service_kube_control_plane:
               status: in_progress
-              started_at: "{{ ansible_date_time.iso8601 }}"
+              started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
       when:
         - upgrade_status.upgrade.status != 'completed'
         - upgrade_status.bss_update.service_kube_control_plane.status | default('pending') != 'completed'
@@ -406,7 +445,7 @@
           bss_update:
             service_kube_control_plane:
               status: completed
-              completed_at: "{{ ansible_date_time.iso8601 }}"
+              completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
       when:
         - upgrade_status.upgrade.status != 'completed'
         - bss_cp_additional_result is defined
@@ -568,7 +607,7 @@
           bss_update:
             service_kube_node:
               status: in_progress
-              started_at: "{{ ansible_date_time.iso8601 }}"
+              started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
       when:
         - upgrade_status.upgrade.status != 'completed'
         - upgrade_status.bss_update.service_kube_node.status | default('pending') != 'completed'
@@ -599,7 +638,7 @@
           bss_update:
             service_kube_node:
               status: completed
-              completed_at: "{{ ansible_date_time.iso8601 }}"
+              completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
       when:
         - upgrade_status.upgrade.status != 'completed'
         - bss_workers_result is defined
@@ -639,6 +678,41 @@
         - reboot_cloud_init_first_worker_result is defined
         - reboot_cloud_init_first_worker_result is not skipped
         - reboot_cloud_init_first_worker_result.rc == 0
+
+    - name: "Hop — Verify first worker booted with target version after reboot"
+      ansible.builtin.command:
+        cmd: >-
+          kubectl get node {{ upgrade_status.nodes[groups_worker[0]].ip }}
+          -o jsonpath="{.status.nodeInfo.kubeletVersion} {range .status.conditions[?(@.type==\"Ready\")]}{.status}{end}"
+      delegate_to: "{{ kube_vip }}"
+      register: _worker_first_reboot_version
+      changed_when: false
+      retries: "{{ kubelet_ready_retries }}"
+      delay: "{{ kubelet_ready_delay }}"
+      until:
+        - _worker_first_reboot_version.rc == 0
+        - "'v' + _current_hop.to_version in _worker_first_reboot_version.stdout"
+        - "'True' in _worker_first_reboot_version.stdout"
+      when:
+        - upgrade_status.upgrade.status != 'completed'
+        - reboot_cloud_init_first_worker_result is defined
+        - reboot_cloud_init_first_worker_result is not skipped
+        - reboot_cloud_init_first_worker_result.rc == 0
+
+    - name: "Hop — Assert first worker version after reboot"
+      ansible.builtin.assert:
+        that:
+          - "'v' + _current_hop.to_version in _worker_first_reboot_version.stdout"
+          - "'True' in _worker_first_reboot_version.stdout"
+        fail_msg: >-
+          First worker {{ groups_worker[0] }} did not boot with target version
+          v{{ _current_hop.to_version }}. Got: {{ _worker_first_reboot_version.stdout | default('N/A') }}
+        success_msg: >-
+          First worker {{ groups_worker[0] }} verified at
+          v{{ _current_hop.to_version }} and Ready after reboot.
+      when:
+        - _worker_first_reboot_version is defined
+        - _worker_first_reboot_version is not skipped
 
     # ── Upgrade remaining workers ─────────────────────────────────────
     - name: "Hop — Starting remaining worker upgrades"
@@ -690,7 +764,7 @@
         status_update:
           upgrade:
             status: completed
-            completed_at: "{{ ansible_date_time.iso8601 }}"
+            completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
           multi_hop:
             current_hop: "{{ _hop_idx }}"
             hops: >-
@@ -701,7 +775,7 @@
                    'from': k8s_from_version,
                    'to': _current_hop.to_version,
                    'status': 'completed',
-                   'completed_at': ansible_date_time.iso8601,
+                   'completed_at': now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ'),
                    'backup_dir': backup_dir
                  }] }}
 

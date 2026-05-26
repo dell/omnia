@@ -1,0 +1,156 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# rollback_openchami — Variables
+# ============================================================================
+# Rollback target: Omnia 2.1.0.0 (from Omnia 2.2.0.0)
+# Reverses the upgrade performed by upgrade_openchami role.
+# ============================================================================
+
+# File permissions
+dir_permissions_755: "0755"
+file_permissions_644: "0644"
+
+# Manifest path for locating backup directory
+manifest_path: "/opt/omnia/.data/upgrade_manifest.yml"
+
+# Default backup directory (must match upgrade_openchami)
+rollback_backup_dir_default: "/opt/omnia/backups/upgrade/version_2.1.0.0"
+
+# OpenCHAMI configuration paths
+openchami_config_dir: "/etc/openchami/configs"
+openchami_config_vars_path: "/opt/omnia/openchami/configs_vars.yaml"
+openchami_work_dir: "/opt/omnia/openchami/workdir"
+ochami_dir: "/etc/ochami"
+systemd_quadlet_dir: "/etc/containers/systemd"
+openchami_target_path: "/etc/systemd/system/openchami.target"
+
+# PostgreSQL database settings (defaults — resolved dynamically at runtime)
+postgres_db_user: "ochami"
+postgres_db_name: "hmsds"
+
+# oim_metadata path (for resolving oim_shared_path)
+oim_metadata_path: "/opt/omnia/.data/oim_metadata.yml"
+
+# OpenCHAMI API endpoints (HAProxy-based, same as upgrade_openchami)
+# At runtime, resolve_admin_ip.yml reads the HAProxy base URL from the ochami
+# CLI config and overrides these with set_fact. HAProxy port 8443 is published
+# on the host and stays stable across container restarts.
+openchami_smd_endpoint: "https://localhost:8443/hsm/v2"
+openchami_bss_endpoint: "https://localhost:8443/boot/v1"
+ca_cert_path: /root_ca/root_ca.crt
+
+# ochami CLI config path — contains the HAProxy base URL for the cluster
+ochami_config_path: "/etc/ochami/config.yaml"
+
+# HAProxy fallback URL used when ochami CLI config is missing or unreadable
+openchami_haproxy_fallback: "https://localhost:8443"
+
+# v2.2 containers that must be stopped and removed during rollback
+# These are the post-upgrade containers from upgrade_openchami
+rollback_v22_containers:
+  - smd
+  - bss
+  - cloud-init-server
+  - postgres
+  - haproxy
+  - coresmd-coredhcp
+  - coresmd-coredns
+  - step-ca
+  - opaal
+  - opaal-idp
+  - hydra
+  - registry
+  - minio-server
+
+# v2.2-only quadlet files that must be removed (did not exist in v2.1)
+rollback_v22_only_quadlets:
+  - "coresmd-coredhcp.container"
+  - "coresmd-coredns.container"
+
+# v2.1 critical containers (must be running after rollback)
+# In v2.1, coresmd was a SINGLE container (not split)
+rollback_v21_critical_containers:
+  - smd
+  - bss
+  - cloud-init-server
+  - postgres
+  - haproxy
+  - coresmd
+  - registry
+  - minio-server
+
+# Backup sub-paths (relative to rollback_backup_dir)
+# Created by omnia.sh --upgrade (backup_openchami_data function)
+backup_quadlets_subpath: "openchami/quadlets"
+backup_target_subpath: "openchami/openchami.target"
+backup_openchami_data_subpath: "openchami/openchami_data"
+backup_pgdump_subpath: "openchami/postgresql_backup/openchami.sql"
+
+# Cloud-init paths (resolved from backup)
+rollback_cloud_init_dir: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ backup_openchami_data_subpath }}/workdir/cloud-init"
+rollback_ci_defaults_path: "{{ rollback_cloud_init_dir }}/ci-defaults.yaml"
+rollback_ci_common_path: "{{ rollback_cloud_init_dir }}/ci-group-common.yaml"
+rollback_nodes_dir: "{{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ backup_openchami_data_subpath }}/workdir/nodes"
+rollback_hostname_path: "{{ rollback_nodes_dir }}/hostname.yaml"
+
+# Retry and wait settings
+max_retries: 10
+max_delay: 10
+wait_time: 30
+api_readiness_retries: 20
+api_readiness_delay: 15
+# Total wait: 20 × 15s = 300 seconds (5 minutes) max for API endpoints
+
+# Rollback messages
+rollback_messages:
+  pre_check:
+    no_backup: |
+      FATAL: Backup directory not found at {{ rollback_backup_dir | default(rollback_backup_dir_default) }}.
+      Cannot rollback without a valid backup. Ensure omnia.sh --upgrade
+      created the backup before the upgrade was attempted.
+    already_v21: >-
+      OpenCHAMI containers are already running v2.1 images.
+      Rollback is not needed. Skipping.
+    backup_found: "Backup directory found. Proceeding with rollback."
+  restore:
+    quadlets_success: "Restored v2.1 quadlet files from backup."
+    quadlets_failure: "Failed to restore v2.1 quadlet files."
+    database_success: "PostgreSQL database restored from backup."
+    database_failure: |
+      PostgreSQL database restore failed.
+      Backup SQL file: {{ rollback_backup_dir | default(rollback_backup_dir_default) }}/{{ backup_pgdump_subpath }}
+      Manual restore: podman exec -i postgres psql -U <user> -d <db> < openchami.sql
+  health_check:
+    success: "Post-rollback health check passed. All v2.1 services are healthy."
+    failure: |
+      Post-rollback health check failed.
+      Check container logs: podman logs <container_name>
+      Check systemd: systemctl status openchami.target
+  status:
+    success: |
+      ════════════════════════════════════════════
+        OPENCHAMI ROLLBACK COMPLETED SUCCESSFULLY
+      ════════════════════════════════════════════
+      Rolled back from Omnia 2.2.0.0 to Omnia 2.1.0.0.
+      All v2.1 containers are running. Database restored.
+      Cloud-init data reloaded from backup.
+    failure: |
+      ════════════════════════════════════════════
+        OPENCHAMI ROLLBACK FAILED
+      ════════════════════════════════════════════
+      Review container logs and systemd status.
+      Manual recovery may be required.

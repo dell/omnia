@@ -33,12 +33,24 @@
 - name: Set facts for slurm
   ansible.builtin.set_fact:
     nfs_storage_name: "{{ slurm_cluster[0].nfs_storage_name }}"
+    vast_storage_name: "{{ slurm_cluster[0].vast_storage_name | default(false) }}"
+
+- name: Set vast storage name if not set
+  ansible.builtin.set_fact:
+    vast_storage_name: "{{ nfs_storage_name }}"
+  when: not vast_storage_name
 
 - name: Read the slurm mount point
   ansible.builtin.set_fact:
     share_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).mount_point }}"
     # nfs_server_ip: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).server_ip }}"
     nfs_server_path: "{{ (mounts | selectattr('name', 'equalto', nfs_storage_name) | first).source }}"
+    vast_server_path: "{{ (mounts | selectattr('name', 'equalto', vast_storage_name) | first).source }}"
+    vast_mount_point: "{{ (mounts | selectattr('name', 'equalto', vast_storage_name) | first).mount_point }}"
+
+- name: Populate vast mount
+  ansible.builtin.set_fact:
+    vast_mount: "{{ share_path }}/vast"
 
 - name: Set facts for slurm
   ansible.builtin.set_fact:

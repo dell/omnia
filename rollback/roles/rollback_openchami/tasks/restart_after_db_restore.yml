@@ -1,0 +1,67 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# restart_after_db_restore.yml — Restart Services After Database Restore
+# ============================================================================
+# After the pg_dump restore (which DROPs and recreates schema objects),
+# SMD and BSS need to be restarted so they reconnect to the database with
+# the restored v2.1 schema. Without this restart, SMD may hold stale
+# connections or cached schema state from the v2.2 database.
+#
+# Idempotency: systemd restart is idempotent.
+# ============================================================================
+
+- name: Restart services after database restore
+  block:
+    - name: Restart openchami.target to reconnect services to restored database
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: restarted
+        daemon_reload: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for services to stabilize after restart
+      ansible.builtin.pause:
+        seconds: "{{ wait_time }}"
+
+    # ── Recover any failed services ─────────────────────────────────────
+    - name: Reset any failed services after database restore restart
+      ansible.builtin.command: systemctl reset-failed
+      changed_when: true
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Restart openchami.target to recover any failed services
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: restarted
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Wait for recovered services to stabilize
+      ansible.builtin.pause:
+        seconds: "{{ wait_time }}"
+
+    - name: Display restart status
+      ansible.builtin.debug:
+        verbosity: 1
+        msg: "Services restarted after database restore. SMD/BSS will re-initialize with v2.1 schema."

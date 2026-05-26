@@ -1,0 +1,188 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ───────────────────────────────────────────────────────────────────────────
+# Pre-Upgrade Validation Checks
+# ───────────────────────────────────────────────────────────────────────────
+- name: Check if PowerScale namespace exists
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl get namespace {{ powerscale_namespace }}
+  register: powerscale_namespace_check
+  changed_when: false
+  failed_when: false
+
+- name: Fail if PowerScale namespace does not exist
+  ansible.builtin.fail:
+    msg: "{{ msg_powerscale_namespace_missing }}"
+  when: powerscale_namespace_check.rc != 0
+
+- name: Check PowerScale controller pods
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl get pods -n {{ powerscale_namespace }} -l app=isilon-controller -o json
+  register: powerscale_controller_pods
+  changed_when: false
+  failed_when: false
+
+- name: Parse controller pods
+  ansible.builtin.set_fact:
+    powerscale_controllers: "{{ powerscale_controller_pods.stdout | from_json }}"
+  when: powerscale_controller_pods.rc == 0
+
+- name: Fail if no controller pods found
+  ansible.builtin.fail:
+    msg: "{{ msg_powerscale_controller_pods_missing }}"
+  when: >
+    powerscale_controller_pods.rc != 0 or
+    (powerscale_controllers['items'] | default([])) | length == 0
+
+- name: Check PowerScale node daemonset
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: kubectl get daemonset isilon-node -n {{ powerscale_namespace }} -o json
+  register: powerscale_node_ds
+  changed_when: false
+  failed_when: false
+
+- name: Parse node daemonset
+  ansible.builtin.set_fact:
+    powerscale_daemonset: "{{ powerscale_node_ds.stdout | from_json }}"
+  when: powerscale_node_ds.rc == 0
+
+- name: Fail if no node daemonset found
+  ansible.builtin.fail:
+    msg: "{{ msg_powerscale_node_daemonset_missing }}"
+  when: powerscale_node_ds.rc != 0
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 1: Extract PowerScale target version and directory name from JSON
+# ───────────────────────────────────────────────────────────────────────────
+- name: Load PowerScale target version from JSON
+  ansible.builtin.set_fact:
+    csi_powerscale_packages_json: "{{ lookup('file', input_project_dir + '/config/x86_64/rhel/' + cluster_os_version + '/csi_driver_powerscale.json') | from_json }}"  # noqa yaml[line-length]
+  failed_when: false
+  register: powerscale_json_load
+
+- name: Extract PowerScale target version and directory name
+  ansible.builtin.set_fact:
+    csi_powerscale_dir: >-
+      {{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster']
+         | selectattr('type', 'equalto', 'git')
+         | selectattr('package', 'search', 'csi-powerscale')
+         | map(attribute='package')
+         | first
+         if powerscale_json_load is succeeded
+         else 'unknown' }}
+    powerscale_target_version: >-
+      {{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster']
+         | selectattr('type', 'equalto', 'git')
+         | selectattr('package', 'search', 'csi-powerscale')
+         | map(attribute='package')
+         | first
+         | regex_replace('^csi-powerscale-', '')
+         if powerscale_json_load is succeeded
+         else 'unknown' }}
+
+- name: Fail if csi_powerscale_dir could not be extracted
+  ansible.builtin.fail:
+    msg: "Failed to extract csi_powerscale_dir from JSON. PowerScale upgrade cannot proceed."
+  when: csi_powerscale_dir == 'unknown' or csi_powerscale_dir is not defined
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 2: Set PowerScale upgrade paths
+# ───────────────────────────────────────────────────────────────────────────
+- name: Set PowerScale upgrade paths
+  ansible.builtin.set_fact:
+    powerscale_nfs_version_dir: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}"
+    powerscale_nfs_csi_install_script: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/dell-csi-helm-installer/csi-install.sh"
+    powerscale_nfs_values_file: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/values.yaml"
+    powerscale_nfs_secret_file: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/secret.yaml"
+    powerscale_cluster_version_dir: "{{ powerscale_cluster_base }}/{{ csi_powerscale_dir }}"
+    powerscale_csi_install_script: "{{ powerscale_cluster_base }}/{{ csi_powerscale_dir }}/dell-csi-helm-installer/csi-install.sh"
+    powerscale_cluster_values_file: "{{ powerscale_cluster_base }}/{{ csi_powerscale_dir }}/values.yaml"
+    powerscale_cluster_secret_file: "{{ powerscale_cluster_base }}/{{ csi_powerscale_dir }}/secret.yaml"
+
+- name: Display PowerScale upgrade paths
+  ansible.builtin.debug:
+    msg: "{{ msg_powerscale_paths_display }}"
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 2: Verify NFS directory and required files exist
+# ───────────────────────────────────────────────────────────────────────────
+- name: Check if PowerScale versioned directory exists on NFS (from provision)
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.stat:
+    path: "{{ powerscale_nfs_version_dir }}"
+  register: powerscale_nfs_version_exists
+
+- name: Display PowerScale version source
+  ansible.builtin.debug:
+    msg: "{{ msg_powerscale_version_source }}"
+
+- name: Fail if PowerScale versioned directory not present on NFS
+  ansible.builtin.fail:
+    msg: "{{ msg_powerscale_nfs_dir_missing }}"
+  when: not powerscale_nfs_version_exists.stat.exists
+
+- name: Verify required files exist on NFS
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.stat:
+    path: "{{ item.path }}"
+  register: powerscale_nfs_file_check
+  loop:
+    - { name: "csi-install.sh", path: "{{ powerscale_nfs_csi_install_script }}" }
+    - { name: "values.yaml", path: "{{ powerscale_nfs_values_file }}" }
+    - { name: "secret.yaml", path: "{{ powerscale_nfs_secret_file }}" }
+
+- name: Fail if required file not found on NFS
+  ansible.builtin.fail:
+    msg: "{{ msg_powerscale_file_missing }}"
+  when: not item.stat.exists
+  loop: "{{ powerscale_nfs_file_check.results }}"
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 3: Create cluster local versioned directory
+# ───────────────────────────────────────────────────────────────────────────
+- name: Create PowerScale versioned directory on cluster local
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.file:
+    path: "{{ powerscale_cluster_version_dir }}"
+    state: directory
+    mode: "{{ dir_perm_755 }}"
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 4: Copy entire versioned directory from NFS to cluster local (kube_vip)
+# ───────────────────────────────────────────────────────────────────────────
+- name: Copy entire PowerScale versioned directory from NFS to cluster local
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.copy:
+    src: "{{ powerscale_nfs_version_dir }}/"
+    dest: "{{ powerscale_cluster_version_dir }}/"
+    mode: preserve
+    remote_src: true
+  register: powerscale_version_dir_copy
+  failed_when: false
+
+- name: Fail if versioned directory copy failed
+  ansible.builtin.fail:
+    msg: "{{ msg_powerscale_copy_failed }}"
+  when: powerscale_version_dir_copy.failed | default(false)
+
+# ───────────────────────────────────────────────────────────────────────────
+# Step 5: Display preparation summary
+# ───────────────────────────────────────────────────────────────────────────
+- name: Display PowerScale upgrade preparation summary
+  ansible.builtin.debug:
+    msg: "{{ msg_powerscale_prepare_summary }}"

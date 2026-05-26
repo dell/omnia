@@ -1,0 +1,88 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# stop_current_containers.yml — Stop and Remove v2.2 Containers
+# ============================================================================
+# Stops all OpenCHAMI services and removes containers (preserving volumes).
+# This is the reverse of step 9 (start) in upgrade_openchami_containers.yml.
+#
+# Idempotency:
+#   - systemd stop is idempotent (no error if already stopped)
+#   - podman rm -f is idempotent (no error if container doesn't exist)
+# ============================================================================
+
+- name: Stop and remove v2.2 containers
+  block:
+    # ── Stop all OpenCHAMI services via systemd ─────────────────────────
+    - name: Stop openchami.target
+      ansible.builtin.systemd:
+        name: openchami.target
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Stop MinIO service
+      ansible.builtin.systemd:
+        name: minio.service
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Stop registry service
+      ansible.builtin.systemd:
+        name: registry.service
+        state: stopped
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+      failed_when: false
+
+    - name: Wait for containers to stop
+      ansible.builtin.pause:
+        seconds: 10
+
+    # ── Force-remove all v2.2 containers (preserve volumes) ─────────────
+    - name: Remove v2.2 OpenCHAMI containers
+      ansible.builtin.command: podman rm -f {{ item }}
+      loop: "{{ rollback_v22_containers }}"
+      register: rollback_rm_result
+      changed_when: rollback_rm_result.rc == 0
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Also remove any init containers that may exist ──────────────────
+    - name: Remove init containers (smd-init, bss-init)
+      ansible.builtin.command: podman rm -f {{ item }}
+      loop:
+        - smd-init
+        - bss-init
+      register: rollback_rm_init
+      changed_when: rollback_rm_init.rc == 0
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Display container stop/remove status
+      ansible.builtin.debug:
+        verbosity: 1
+        msg: "All v2.2 containers stopped and removed (volumes preserved)."

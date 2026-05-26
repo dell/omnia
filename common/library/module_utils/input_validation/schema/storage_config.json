@@ -77,7 +77,9 @@
             },
             "node_key": {
               "type": "string",
-              "description": "cloud_init variable for per-node bind mounts (e.g., local_hostname, ds.meta_data.instance_data.local_ipv4). When present, generates bind mounts under mount_point/<node_key_value>/"
+              "description": "cloud_init variable for per-node bind mounts (e.g., local_hostname, ds.meta_data.instance_data.local_ipv4). When present, generates bind mounts under mount_point/<node_key_value>/",
+              "enum": ["local_hostname", "local_ipv4", "instance_id"],
+              "default": "local_hostname"
             },
             "node_mount_point": {
               "type": "array",
@@ -190,7 +192,9 @@
             },
             "node_key": {
               "type": "string",
-              "description": "Directory name to be created under mount_point. cloud-init datasource variable accessible via 'cloud-init query <var_name>' (e.g., local_hostname, ds.meta_data.instance_data.local_ipv4). Optional"
+              "description": "Directory name to be created under mount_point. cloud-init datasource variable accessible via 'cloud-init query <var_name>' (e.g., local_hostname, ds.meta_data.instance_data.local_ipv4). Optional",
+              "enum": ["local_hostname", "local_ipv4", "instance_id"],
+              "default": "local_hostname"
             },
             "node_mount_point": {
               "type": "array",

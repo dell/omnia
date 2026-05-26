@@ -22,7 +22,7 @@
 
 - name: Create cloud-init groups dict
   ansible.builtin.set_fact:
-    cloud_init_groups_dict: "{{ cloud_init_groups_dict | default({}) | combine({item: {}}) }}"
+    cloud_init_groups_dict: "{{ cloud_init_groups_dict | default({}) | combine({item: cloud_init_groups_dict[item] | default({})}, recursive=True) }}"
   with_items: "{{ hostvars['localhost']['functional_groups'] | map(attribute='name') | list }}"
 
 - name: Match functional groups by prefix

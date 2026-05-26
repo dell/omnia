@@ -63,6 +63,11 @@ resources:
   - ufm-telemetry-secret.yaml
   - ufm-external-service.yaml
 {% endif %}
+{% if telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) %}
+# VAST Data Storage Telemetry Resources
+  - vast-telemetry-secret.yaml
+  - vast-external-service.yaml
+{% endif %}
 {% if telemetry_config.telemetry_bridges.vector_ldms.metrics_enabled | default(false) and ldms_support | default(false) and kafka_support | default(false) and victoria_metrics_support | default(false) %}
 # Vector-LDMS Bridge Resources (Kafka-to-VictoriaMetrics pipeline)
   - vector/vmagent-vector-deployment.yaml

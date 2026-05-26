@@ -52,8 +52,8 @@
   when: not (victoria_upgrade_needed | default(false) | bool)
 
 # ── Phase 3: Execute telemetry.sh to redeploy telemetry stack ──
-# - name: Phase 3 - Execute telemetry.sh to redeploy telemetry stack
-#  ansible.builtin.include_tasks: execute_telemetry_sh.yml
+- name: Phase 3 - Execute telemetry.sh to redeploy telemetry stack
+  ansible.builtin.include_tasks: execute_telemetry_sh.yml
 
 # ── Phase 4: Verify all telemetry pods and set upgrade status ──
 - name: Phase 4 - Verify all telemetry pods and set upgrade status

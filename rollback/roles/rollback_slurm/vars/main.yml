@@ -1,0 +1,24 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+mounted_dir_perm: "0755"
+default_client_mount_options: "nosuid,rw,sync,hard,intr"
+slurm_nfs_fail_msg: "Failed to mount NFS share. Please check if the NFS server is reachable or NFS is configured properly."
+oim_metadata: "/opt/omnia/.data/oim_metadata.yml"
+backup_slurm_nfs_contents: false # To create a copy of all slurm contents on the nfs share
+slurm_2_1_backup_dir_effective: "{{ slurm_2_1_backup_dir | default('/opt/omnia/backups/upgrade/version_2.1.0.0') }}"
+slurm_2_1_backup_subdir: "slurm_21_nfs_backups"
+slurm_2_1_runfile_relative_path: "slurm/hpc_tools/runfile"
+slurm_2_1_slurm_nfs_backup_root: "{{ slurm_2_1_backup_dir_effective }}/{{ slurm_2_1_backup_subdir }}"

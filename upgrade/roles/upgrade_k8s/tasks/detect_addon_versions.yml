@@ -119,6 +119,71 @@
         else 'pending'
       }}
 
+- name: Load PowerScale target version from JSON
+  ansible.builtin.set_fact:
+    csi_powerscale_packages_json: "{{ lookup('file', input_project_dir + '/config/x86_64/rhel/' + cluster_os_version + '/csi_driver_powerscale.json') | from_json }}"  # noqa yaml[line-length]
+  failed_when: false
+  register: powerscale_json_load
+
+- name: Extract PowerScale target version and directory name
+  ansible.builtin.set_fact:
+    csi_powerscale_dir: >-
+      {{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster']
+         | selectattr('type', 'equalto', 'git')
+         | selectattr('package', 'search', 'csi-powerscale')
+         | map(attribute='package')
+         | first
+         if powerscale_json_load is succeeded
+         else 'unknown' }}
+    powerscale_target_version: >-
+      {{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster']
+         | selectattr('type', 'equalto', 'git')
+         | selectattr('package', 'search', 'csi-powerscale')
+         | map(attribute='package')
+         | first
+         | regex_replace('^csi-powerscale-', '')
+         if powerscale_json_load is succeeded
+         else 'unknown' }}
+
+- name: Detect current PowerScale CSI Driver version
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      kubectl get pods -n isilon -l app=isilon-controller
+      -o jsonpath='{.items[0].spec.containers[?(@.name=="driver")].image}' 2>/dev/null |
+      grep -oP 'v\d+\.\d+\.\d+' || echo "unknown"
+  args:
+    executable: /bin/bash
+  register: powerscale_current_version_raw
+  changed_when: false
+  failed_when: false
+
+- name: Debug PowerScale version detection
+  ansible.builtin.debug:
+    msg: "PowerScale raw output: '{{ powerscale_current_version_raw.stdout | default('NO_STDOUT') }}'"
+
+- name: Set PowerScale version facts
+  ansible.builtin.set_fact:
+    powerscale_current_version: >-
+      {{ powerscale_current_version_raw.stdout | trim | regex_replace('^v', '')
+         if powerscale_current_version_raw.stdout is defined and powerscale_current_version_raw.stdout != 'unknown'
+         else 'unknown' }}
+    powerscale_from_version: >-
+      {{ upgrade_status.addon_upgrade.powerscale.from_version
+         if (upgrade_status.addon_upgrade.powerscale.from_version | default('unknown')) not in ['unknown', '']
+         else (powerscale_current_version_raw.stdout | trim | regex_replace('^v', '')
+             if powerscale_current_version_raw.stdout is defined and powerscale_current_version_raw.stdout != 'unknown'
+             else 'unknown') }}
+
+- name: Set PowerScale upgrade status
+  ansible.builtin.set_fact:
+    powerscale_status: >-
+      {{ 'not_installed' if powerscale_current_version == 'unknown'
+         else 'skipped' if powerscale_target_version == 'unknown'
+         else 'completed' if powerscale_current_version == powerscale_target_version
+         else 'pending' }}
+
 - name: Update addon status with detected versions
   ansible.builtin.include_tasks: update_node_step.yml
   vars:
@@ -139,6 +204,11 @@
           current_version: "{{ helm_current_version }}"
           from_version: "{{ helm_from_version }}"
           target_version: "{{ helm_target_version }}"
+        powerscale:
+          status: "{{ powerscale_status | default('pending') }}"
+          current_version: "{{ powerscale_current_version | default('unknown') }}"
+          from_version: "{{ powerscale_from_version | default('unknown') }}"
+          target_version: "{{ powerscale_target_version | default('unknown') }}"
 
 - name: Display detected addon versions
   ansible.builtin.debug:
@@ -149,3 +219,4 @@
       - "  Calico: {{ calico_current_version }} (target: {{ calico_target_version }}) - {{ calico_status }}"
       - "  MetalLB: {{ metallb_current_version }} (target: {{ metallb_target_version }}) - {{ metallb_status }}"
       - "  Helm: {{ helm_current_version }} (target: {{ helm_target_version }}) - {{ helm_status }}"
+      - "  PowerScale: {{ powerscale_current_version }} (target: {{ powerscale_target_version }}) - {{ powerscale_status }}"

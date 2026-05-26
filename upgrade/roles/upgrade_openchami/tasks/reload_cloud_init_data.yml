@@ -67,6 +67,7 @@
 
     - name: Display resolved cloud-init paths
       ansible.builtin.debug:
+        verbosity: 1
         msg:
           - "OIM host cloud-init dir: {{ oim_host_ci_dir }}"
           - "OIM host hostname file: {{ oim_host_hostname }}"
@@ -156,6 +157,7 @@
 
         - name: Display discovered cloud-init files
           ansible.builtin.debug:
+            verbosity: 1
             msg:
               - "ci-defaults.yaml: {{ 'found' if ci_defaults_file_stat.stat.exists | default(false) else 'MISSING' }}"
               - "ci-group-common.yaml: {{ 'found' if ci_common_file_stat.stat.exists | default(false) else 'MISSING' }}"

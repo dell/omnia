@@ -108,7 +108,7 @@
     content: |
       pid: {{ ansible_pid | default(lookup('pipe', 'echo $PPID')) }}
       host: {{ ansible_hostname }}
-      started_at: {{ ansible_date_time.iso8601 }}
+      started_at: {{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}
       playbook: upgrade_k8s.yml
     dest: "{{ lock_file }}"
     mode: "0644"

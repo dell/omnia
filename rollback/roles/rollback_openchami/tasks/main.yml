@@ -1,0 +1,100 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# rollback_openchami — Main Orchestration
+# ============================================================================
+# Reverse the OpenCHAMI upgrade (2.2.0.0 → 2.1.0.0) by restoring:
+#   1. Quadlet files and openchami.target from backup
+#   2. v2.1 RPMs (openchami + ochami CLI) from backup
+#   3. Configuration files (coredhcp.yaml, Corefile, configs_vars.yaml)
+#   4. PostgreSQL database from pg_dump backup
+#   5. Cloud-init in-memory data from backup YAML files
+#
+# Key reversals:
+#   - coresmd-coredhcp + coresmd-coredns (v2.2) → single coresmd (v2.1)
+#   - v2.2 quadlet files replaced with v2.1 quadlet files from backup
+#   - openchami.target restored to reference coresmd.service (not split)
+#   - Database rolled back to pre-upgrade state
+#   - Cloud-init data reloaded from backup workdir
+#
+# Idempotency:
+#   - If v2.1 containers are already running, rollback is skipped
+#   - Re-running after successful rollback is a no-op
+# ============================================================================
+
+- name: Resolve backup directory for rollback
+  ansible.builtin.include_tasks: resolve_backup_dir.yml
+
+- name: OpenCHAMI rollback workflow
+  block:
+    - name: Pre-rollback validation checks
+      ansible.builtin.include_tasks: pre_rollback_checks.yml
+
+    - name: Execute OpenCHAMI rollback
+      when: rollback_needed | default(true) | bool
+      block:
+        - name: Stop v2.2 containers and services
+          ansible.builtin.include_tasks: stop_current_containers.yml
+
+        - name: Restore v2.1 quadlets, configs, RPMs, and openchami.target
+          ansible.builtin.include_tasks: restore_quadlets_and_configs.yml
+
+        # Start ONLY postgres before the database restore. The v2.1
+        # smd-init and bss-init containers run schema initialization on
+        # startup and CANNOT handle the v2.2 schema — they will fail if
+        # started before the database is rolled back.
+        #
+        # Starting postgres.service directly does NOT trigger smd-init
+        # or bss-init (systemd only starts dependencies, not dependents).
+        - name: Start PostgreSQL only (before database restore)
+          ansible.builtin.include_tasks: start_postgres_only.yml
+
+        - name: Restore PostgreSQL database from backup
+          ansible.builtin.include_tasks: restore_database.yml
+
+        # Now start the full service stack. smd-init and bss-init will
+        # run against the restored v2.1 schema and succeed. Services
+        # connect to the correct database state from the start — no
+        # restart needed after DB restore.
+        - name: Start v2.1 containers via openchami.target
+          ansible.builtin.include_tasks: start_v21_containers.yml
+
+        # Renew certificates after container restart. The restored v2.1
+        # containers may have expired certificates. This restarts the
+        # entire openchami.target so ALL services pick up new certs.
+        - name: Renew OpenCHAMI certificates
+          ansible.builtin.include_tasks: renew_certificates.yml
+
+        # Re-resolve HAProxy-based endpoints after cert renewal restart.
+        # HAProxy port 8443 is stable, but re-reading the ochami config
+        # ensures we pick up any config changes from cert renewal.
+        - name: Resolve SMD/BSS endpoints after certificate renewal
+          ansible.builtin.include_tasks: resolve_admin_ip.yml
+
+        - name: Reload cloud-init data from backup
+          ansible.builtin.include_tasks: reload_cloud_init_data.yml
+
+        - name: Post-rollback health check
+          ansible.builtin.include_tasks: post_rollback_health_check.yml
+
+  rescue:
+    - name: Set rollback failure flag
+      ansible.builtin.set_fact:
+        openchami_rollback_failed: true
+
+  always:
+    - name: Rollback status and cleanup
+      ansible.builtin.include_tasks: rollback_status.yml

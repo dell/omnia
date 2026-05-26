@@ -33,3 +33,7 @@ omnia_shared_path: "{{ hostvars['localhost']['oim_shared_path'] }}"
 pxe_mapping_file_path: "{{ omnia_shared_path }}/{{ hostvars['localhost']['pxe_mapping_file_path'] | regex_replace('^/opt', '') }}"
 group_host_map: {}
 host_mount_map: {}
+ci_ds_dict:
+  local_hostname: local_hostname
+  local_ipv4: ds.meta_data.instance_data.local_ipv4
+  instance_id: v1.instance_id

@@ -173,7 +173,6 @@
             echo "{{ cloud_init_nfs_path }}/ssh {{ client_mount_path }}/slurm/ssh nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path}}/hpc_tools/  /hpc_tools nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/cert  /cert   nfs defaults,_netdev 0 0" >> /etc/fstab
-            echo "{{ cloud_init_slurm_nfs_path }} {{ client_mount_path }} nfs defaults,_netdev 0 0" >> /etc/fstab
             echo "{{ cloud_init_nfs_path }}/packages  /var/lib/packages   nfs defaults,_netdev 0 0" >> /etc/fstab
 
             chmod {{ file_mode }} /etc/fstab
@@ -445,6 +444,17 @@
 {% for pv_entry in cloud_init_groups_dict[functional_group_name].powervault_scripts | default([]) %}
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
+        # VAST storage: create subdirectory structure for compute node
+        - mkdir -pv {{ vast_mount_point }}/apps {{ vast_mount_point }}/home {{ vast_mount_point }}/scratch {{ vast_mount_point }}/projects
+        - mkdir -pv {{ vast_mount_point }}/scratch/$(hostname -s)/tmp
+        - mkdir -pv /apps /home /scratch /projects
+        - echo "{{ vast_mount_point }}/apps  /apps  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/home  /home  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch  /scratch  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch/$(hostname -s)/tmp  /tmp  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/projects  /projects  none  bind  0  0" >> /etc/fstab
+        - mount -av
+        - chmod 1777 /tmp /scratch
         - /usr/local/bin/install_nvidia_driver.sh
 {% if dcgm_support %}
         - /usr/local/bin/setup_dcgm.sh

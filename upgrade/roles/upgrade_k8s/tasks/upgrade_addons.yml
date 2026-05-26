@@ -21,7 +21,7 @@
     status_update:
       addon_upgrade:
         status: in_progress
-        started_at: "{{ ansible_date_time.iso8601 }}"
+        started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
 # ── Calico upgrade (ABORT on failure) ──────────────────────────────
 - name: Starting Calico upgrade
@@ -35,8 +35,10 @@
     addon_name: calico
     addon_status_update:
       status: in_progress
+      current_version: "{{ calico_current_version }}"
       from_version: "{{ calico_from_version | default('unknown') }}"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
+      target_version: "{{ calico_target_version }}"
+      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
   when: (upgrade_status.addon_upgrade.calico.status | default('pending')) != 'completed'
 
 - name: Upgrade Calico
@@ -51,9 +53,10 @@
         addon_name: calico
         addon_status_update:
           status: completed
+          current_version: "{{ calico_target_version }}"
           from_version: "{{ calico_from_version | default('unknown') }}"
           to_version: "{{ calico_target_version }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
           error:
   rescue:
     - name: Mark Calico failed
@@ -62,7 +65,7 @@
         addon_name: calico
         addon_status_update:
           status: failed
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
     - name: ABORT — Calico upgrade failed
       ansible.builtin.fail:
@@ -80,8 +83,10 @@
     addon_name: metallb
     addon_status_update:
       status: in_progress
+      current_version: "{{ metallb_current_version }}"
       from_version: "{{ metallb_from_version | default('unknown') }}"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
+      target_version: "{{ metallb_target_version }}"
+      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
   when: (upgrade_status.addon_upgrade.metallb.status | default('pending')) != 'completed'
 
 - name: Upgrade MetalLB
@@ -96,9 +101,10 @@
         addon_name: metallb
         addon_status_update:
           status: completed
+          current_version: "{{ metallb_target_version }}"
           from_version: "{{ metallb_from_version | default('unknown') }}"
           to_version: "{{ metallb_target_version }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
           error:
   rescue:
     - name: Mark MetalLB failed
@@ -107,7 +113,7 @@
         addon_name: metallb
         addon_status_update:
           status: failed
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
     - name: ABORT — MetalLB upgrade failed
       ansible.builtin.fail:
@@ -125,8 +131,10 @@
     addon_name: helm
     addon_status_update:
       status: in_progress
+      current_version: "{{ helm_current_version }}"
       from_version: "{{ helm_from_version | default('unknown') }}"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
+      target_version: "{{ helm_target_version }}"
+      timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
   when: (upgrade_status.addon_upgrade.helm.status | default('pending')) != 'completed'
 
 - name: Upgrade Helm
@@ -141,9 +149,10 @@
         addon_name: helm
         addon_status_update:
           status: completed
+          current_version: "{{ helm_target_version }}"
           from_version: "{{ helm_from_version | default('unknown') }}"
           to_version: "{{ helm_target_version }}"
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
           error:
   rescue:
     - name: Mark Helm failed
@@ -152,11 +161,115 @@
         addon_name: helm
         addon_status_update:
           status: failed
-          timestamp: "{{ ansible_date_time.iso8601 }}"
+          timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
 
     - name: ABORT — Helm upgrade failed
       ansible.builtin.fail:
         msg: "{{ msg_addon_helm_failed }}"
+
+# ── PowerScale CSI Driver upgrade (ABORT on failure) ──────────────
+
+- name: Skip PowerScale upgrade if not installed
+  ansible.builtin.debug:
+    msg: |
+      ═══════════════════════════════════════════════════════════════════════════
+      WARNING: PowerScale CSI Driver NOT INSTALLED
+      ═══════════════════════════════════════════════════════════════════════════
+
+      PowerScale CSI Driver was not installed in the previous Omnia version.
+      The upgrade playbook will NOT install PowerScale CSI Driver.
+      Proceeding with Kubernetes upgrade only.
+
+      ═══════════════════════════════════════════════════════════════════════════
+  when: (upgrade_status.addon_upgrade.powerscale.status | default('pending')) == 'not_installed'
+
+- name: Pause after PowerScale pre-upgrade validation
+  ansible.builtin.pause:
+    seconds: 15
+
+- name: Skip PowerScale upgrade if not installed
+  ansible.builtin.include_tasks: update_addon_step.yml
+  vars:
+    addon_name: powerscale
+    addon_status_update:
+      status: skipped
+      reason: not_installed
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+  when: (upgrade_status.addon_upgrade.powerscale.status | default('pending')) == 'not_installed'
+
+- name: Pause after PowerScale pre-upgrade validation
+  ansible.builtin.pause:
+    seconds: 15
+
+- name: Starting PowerScale upgrade
+  ansible.builtin.debug:
+    msg: "Starting PowerScale addon upgrade from {{ powerscale_from_version | default('unknown') }} to {{ powerscale_target_version }}..."
+  when: (upgrade_status.addon_upgrade.powerscale.status | default('pending')) not in ['completed', 'not_installed', 'skipped']
+
+- name: Pause after PowerScale pre-upgrade validation
+  ansible.builtin.pause:
+    seconds: 15
+
+- name: Mark PowerScale in_progress
+  ansible.builtin.include_tasks: update_addon_step.yml
+  vars:
+    addon_name: powerscale
+    addon_status_update:
+      status: in_progress
+      from_version: "{{ powerscale_from_version | default('unknown') }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+  when: (upgrade_status.addon_upgrade.powerscale.status | default('pending')) not in ['completed', 'not_installed', 'skipped']
+
+- name: Pause after PowerScale pre-upgrade validation
+  ansible.builtin.pause:
+    seconds: 15
+
+- name: Upgrade PowerScale CSI Driver
+  when: (upgrade_status.addon_upgrade.powerscale.status | default('pending')) not in ['completed', 'not_installed', 'skipped']
+  block:
+    - name: Execute PowerScale pre-upgrade validation
+      ansible.builtin.include_tasks: powerscale_prepare_upgrade.yml
+
+    - name: Pause after PowerScale pre-upgrade validation
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Execute PowerScale backup
+      ansible.builtin.include_tasks: powerscale_backup_folder.yml
+
+    - name: Pause after PowerScale backup
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Execute PowerScale upgrade
+      ansible.builtin.include_tasks: upgrade_powerscale.yml
+
+    - name: Pause after PowerScale upgrade
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Mark PowerScale completed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: powerscale
+        addon_status_update:
+          status: completed
+          from_version: "{{ powerscale_from_version | default('unknown') }}"
+          to_version: "{{ powerscale_target_version }}"
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+          error:
+  rescue:
+    - name: Mark PowerScale failed
+      ansible.builtin.include_tasks: update_addon_step.yml
+      vars:
+        addon_name: powerscale
+        addon_status_update:
+          status: failed
+          timestamp: "{{ ansible_date_time.iso8601 }}"
+
+    - name: ABORT — PowerScale upgrade failed
+      ansible.builtin.fail:
+        msg: "{{ msg_addon_powerscale_failed }}"
 
 # ── Run addon validation ──────────────────────────────────────────
 - name: Validate addons
@@ -168,4 +281,4 @@
     status_update:
       addon_upgrade:
         status: completed
-        completed_at: "{{ ansible_date_time.iso8601 }}"
+        completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"

@@ -1,0 +1,43 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Set S3 Bucket ACLs for PowerScale Backend
+# ═══════════════════════════════════════════════════════════════════════════
+# Purpose: After building images and uploading to S3, set public ACLs on both
+#          buckets and all objects to enable anonymous PXE boot access.
+#
+# Context: PowerScale S3 requires object-level ACLs (--recursive) for anonymous
+#          GetObject access. Bucket-level ACL only grants listing permission.
+#
+# Runs on: OIM host (where s3cmd is configured with /root/.s3cfg)
+# ═══════════════════════════════════════════════════════════════════════════
+
+- name: Set ACL to public for 'efi' bucket and all objects
+  ansible.builtin.command: s3cmd setacl s3://efi --acl-public --recursive
+  changed_when: true
+  delegate_to: oim
+  connection: ssh
+
+- name: Set ACL to public for 'boot-images' bucket and all objects
+  ansible.builtin.command: s3cmd setacl s3://boot-images --acl-public --recursive
+  changed_when: true
+  delegate_to: oim
+  connection: ssh
+
+- name: Verify S3 bucket ACLs are set
+  ansible.builtin.debug:
+    msg: "PowerScale S3 bucket ACLs set to public for PXE boot access"
+    verbosity: 2

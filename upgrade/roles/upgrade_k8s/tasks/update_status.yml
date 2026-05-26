@@ -51,8 +51,11 @@
     kube_vip: "{{ kube_vip }}"
     node_name: "{{ node_name }}"
     node_status_update: "{{ node_status_update }}"
-  delegate_to: "{{ kube_vip }}"
+  delegate_to: "{{ status_delegate_host | default(kube_vip) }}"
   register: _status_update_result
+  retries: 3
+  delay: 5
+  until: _status_update_result is not failed
   when: node_name is defined and node_status_update is defined
 
 - name: Update status using custom module (general)
@@ -60,10 +63,14 @@
     status_file: "{{ status_file }}"
     kube_vip: "{{ kube_vip }}"
     status_update: "{{ status_update }}"
-  delegate_to: "{{ kube_vip }}"
+  delegate_to: "{{ status_delegate_host | default(kube_vip) }}"
   register: _status_update_result
+  retries: 3
+  delay: 5
+  until: _status_update_result is not failed
   when: status_update is defined and node_name is not defined
 
 - name: Update in-memory upgrade_status
   ansible.builtin.set_fact:
     upgrade_status: "{{ _status_update_result.merged_status }}"
+  when: _status_update_result.merged_status is defined

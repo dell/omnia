@@ -21,7 +21,6 @@
 
 # Telemetry namespace
 telemetry_namespace: telemetry
-
 # OIM host for NFS share access
 oim_host: oim
 
@@ -108,4 +107,19 @@ telemetry_upgrade_failed: "Telemetry upgrade FAILED: Pod verification failed."
 # ============================================================================
 telemetry_sh_success_msg: "telemetry.sh executed successfully. All telemetry components deployed."
 telemetry_sh_fail_msg: "telemetry.sh execution failed. Check the error output above for details."
+telemetry_sh_helm_skip_msg: >-
+  telemetry.sh had Helm errors (existing releases), but StatefulSet was already patched
+  with terminationGracePeriodSeconds=120s for MySQL safety. Skipping full re-deployment.
+  Image tags should be updated via kustomize if needed.
 pods_not_ready_msg: "Some telemetry pods are not ready after deployment."
+mysql_crash_error_msg: |
+  ERROR: idrac-telemetry MySQL container failed to start after graceful shutdown.
+  Manual intervention required:
+    1. Check pod logs: kubectl logs -n telemetry <pod-name> -c mysqldb
+    2. Check PVC status: kubectl get pvc -n telemetry | grep idrac
+    3. Contact support if issue persists.
+idrac_patch_msg: >-
+  idrac-telemetry patched: terminationGracePeriodSeconds=120s.
+  MySQL will have enough time to flush on NFS during pod restart.
+idrac_skip_patch_msg: "idrac-telemetry StatefulSet not found (first deploy). Skipping patch."
+idrac_replica_restore_msg: "idrac-telemetry scaled back to {{ idrac_replica_count.stdout }} replicas"

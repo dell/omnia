@@ -26,12 +26,16 @@
     - name: Extract versioned directory names from JSON (these are used as-is for directories)
       ansible.builtin.set_fact:
         csi_powerscale_dir: "{{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'csi-powerscale') | map(attribute='package') | first }}" # noqa: yaml[line-length]
+        helm_charts_dir: "{{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'helm-charts') | map(attribute='package') | first }}" # noqa: yaml[line-length]
+        external_snapshotter_dir: "{{ csi_powerscale_packages_json['csi_driver_powerscale']['cluster'] | selectattr('type', 'equalto', 'git') | selectattr('package', 'search', 'external-snapshotter') | map(attribute='package') | first }}" # noqa: yaml[line-length]
       delegate_to: localhost
 
     - name: Display extracted PowerScale versioned directory names
       ansible.builtin.debug:
         msg:
           - "csi_powerscale_dir: {{ csi_powerscale_dir }}"
+          - "helm_charts_dir: {{ helm_charts_dir }}"
+          - "external_snapshotter_dir: {{ external_snapshotter_dir }}"
 
     - name: Base64 encode username and password
       ansible.builtin.set_fact:
@@ -134,13 +138,13 @@
 
     - name: Get dell/helm-charts git tar
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/helm-charts/{{ helm_charts_git }}"
+        url: "{{ offline_git_path }}/{{ helm_charts_dir }}/{{ helm_charts_dir }}.tar.gz"
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ helm_charts_git }}"
         mode: "{{ permission_644 }}"
 
     - name: Get external-snapshotter git tar
       ansible.builtin.get_url:
-        url: "{{ offline_git_path }}/external-snapshotter/{{ external_snapshotter_git }}"
+        url: "{{ offline_git_path }}/{{ external_snapshotter_dir }}/{{ external_snapshotter_dir }}.tar.gz"
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_git }}"
         mode: "{{ permission_644 }}"
 
@@ -181,11 +185,53 @@
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}"
         remote_src: true
 
+    - name: Ensure helm-charts directory exists
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/helm-charts"
+        state: directory
+        mode: '0755'
+
+    - name: Move extracted helm charts content to helm-charts directory
+      ansible.builtin.shell: >
+        mv -n
+        "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ helm_charts_dir }}"/*
+        "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/helm-charts/"
+      args:
+        executable: /bin/bash
+      failed_when: false
+      changed_when: false
+
+    - name: Remove extracted helm charts directory
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ helm_charts_dir }}"
+        state: absent
+
     - name: Extract external snapshotter tar file under versioned csi-powerscale directory
       ansible.builtin.unarchive:
         src: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_git }}"
         dest: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}"
         remote_src: true
+
+    - name: Ensure external-snapshotter directory exists
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/external-snapshotter"
+        state: directory
+        mode: '0755'
+
+    - name: Move extracted external-snapshotter content to external-snapshotter directory
+      ansible.builtin.shell: >
+        mv -n
+        "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_dir }}"/*
+        "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/external-snapshotter/"
+      args:
+        executable: /bin/bash
+      failed_when: false
+      changed_when: false
+
+    - name: Remove extracted external-snapshotter directory
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ csi_powerscale_dir }}/{{ external_snapshotter_dir }}"
+        state: absent
 
   rescue:
     - name: Handle dependency failure
