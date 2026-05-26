@@ -214,8 +214,18 @@ def validate_software_config(
             )
         )
 
-    # Ensure ldms is not configured without service_k8s in softwares
-    if "ldms" in software_names and "service_k8s" not in software_names:
+    # Ensure service_k8s and service_rke2 are not both present
+    if "service_k8s" in software_names and "service_rke2" in software_names:
+        errors.append(
+            create_error_msg(
+                "Validation Error: ",
+                "service_k8s and service_rke2",
+                "cannot both be present in softwares. Use service_k8s for kubeadm or service_rke2 for RKE2, not both."
+            )
+        )
+
+    # Ensure ldms is not configured without service_k8s or service_rke2 in softwares
+    if "ldms" in software_names and "service_k8s" not in software_names and "service_rke2" not in software_names:
         errors.append(
             create_error_msg(
                 "Validation Error: ",
@@ -234,7 +244,7 @@ def validate_software_config(
         )
 
     # Check for required subgroups when specific software names are present
-    software_requiring_subgroups = ["additional_packages", "slurm_custom", "service_k8s"]
+    software_requiring_subgroups = ["additional_packages", "slurm_custom", "service_k8s", "service_rke2"]
     for software_name in software_requiring_subgroups:
         if software_name in software_names:
             if software_name not in data or not data[software_name]:
@@ -1462,6 +1472,10 @@ def validate_k8s(data, admin_networks, softwares, ha_config, tag_names, errors,
     if "service_k8s" in softwares and "service_k8s" in tag_names:
         cluster_set["service_k8s_cluster"] = data.get(
             "service_k8s_cluster", [])
+
+    if "service_rke2" in softwares and "service_k8s" in tag_names:
+        cluster_set["service_rke2_k8s_cluster"] = data.get(
+            "service_rke2_k8s_cluster", [])
 
     for k8s_cluster_type, k8s_clusters in cluster_set.items():
         deployments_list = [k.get('deployment', False) for k in k8s_clusters]

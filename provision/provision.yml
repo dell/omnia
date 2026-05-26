@@ -68,6 +68,9 @@
                 ['service_k8s']
                 if ( 'service_k8s' in (
                     lookup('file', hostvars['localhost']['input_project_dir'] ~ '/software_config.json')
+                    | from_json).softwares | map(attribute='name') | list
+                  or 'service_rke2' in (
+                    lookup('file', hostvars['localhost']['input_project_dir'] ~ '/software_config.json')
                     | from_json).softwares | map(attribute='name') | list )
                 else []
               )

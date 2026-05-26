@@ -1,0 +1,73 @@
+{
+  "service_rke2": {
+    "cluster": [
+      { "package": "docker.io/library/busybox", "type": "image", "tag": "1.36" },
+      { "package": "firewalld", "type": "rpm", "repo_name": "x86_64_baseos" },
+      { "package": "python3-firewall", "type": "rpm", "repo_name": "x86_64_baseos" },
+      { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "vim", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "rke2-server", "type": "rpm", "repo_name": "rke2" },
+      { "package": "rke2-agent", "type": "rpm", "repo_name": "rke2" },
+      { "package": "rke2-common", "type": "rpm", "repo_name": "rke2" },
+      { "package": "rke2-selinux", "type": "rpm", "repo_name": "rke2" },
+      { "package": "docker.io/victoriametrics/victoria-metrics", "type": "image", "tag": "v1.128.0" },
+      { "package": "docker.io/victoriametrics/vmagent", "type": "image", "tag": "v1.128.0" },
+      { "package": "docker.io/victoriametrics/vmstorage", "type": "image", "tag": "v1.128.0-cluster" },
+      { "package": "docker.io/victoriametrics/vminsert", "type": "image", "tag": "v1.128.0-cluster" },
+      { "package": "docker.io/victoriametrics/vmselect", "type": "image", "tag": "v1.128.0-cluster" },
+      { "package": "docker.io/curlimages/curl", "type": "image", "tag": "8.17.0" },
+      { "package": "docker.io/rmohr/activemq", "type": "image", "tag": "5.15.9" },
+      { "package": "docker.io/library/mysql", "type": "image", "tag": "9.3.0" },
+      { "package": "docker.io/dellhpcomniaaisolution/idrac_telemetry_receiver", "type": "image", "tag": "1.0" },
+      { "package": "docker.io/dellhpcomniaaisolution/kafkapump", "type": "image", "tag": "1.0" },
+      { "package": "docker.io/dellhpcomniaaisolution/victoriapump", "type": "image", "tag": "1.0" },
+      { "package": "cryptography==45.0.7", "type": "pip_module" },
+      { "package": "omsdk==1.2.518", "type": "pip_module" },
+      { "package": "cffi==1.17.1", "type": "pip_module" },
+      { "package": "quay.io/strimzi/operator", "tag": "0.48.0", "type": "image" },
+      { "package": "quay.io/strimzi/kafka", "tag": "0.48.0-kafka-4.1.0", "type": "image" },
+      { "package": "docker.io/dellhpcomniaaisolution/ubuntu-ldms", "tag": "1.0", "type": "image" },
+      { "package": "strimzi-kafka-operator-helm-3-chart-0.48.0", "type": "tarball", "url": "https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.48.0/strimzi-kafka-operator-helm-3-chart-0.48.0.tgz" },
+      { "package": "quay.io/strimzi/kafka-bridge", "tag": "0.33.1", "type": "image" },
+      { "package": "apptainer", "type": "rpm", "repo_name": "epel" },
+      { "package": "doca-ofed", "type": "iso", "url": "https://www.mellanox.com/downloads/DOCA/DOCA_v3.2.1/host/doca-host-3.2.1-044000_25.10_rhel10.x86_64.rpm"}
+    ]
+  },
+  "service_kube_control_plane": {
+    "cluster": [
+      { "package": "ghcr.io/kube-vip/kube-vip", "tag": "v0.8.9", "type": "image" },
+      { "package": "quay.io/metallb/speaker", "tag": "v0.15.2", "type": "image" },
+      { "package": "prettytable==3.14.0", "type": "pip_module" },
+      { "package": "python3.12", "type": "rpm", "repo_name": "x86_64_appstream" },
+      { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "kubernetes==33.1.0", "type": "pip_module" },
+      { "package": "PyMySQL==1.1.2", "type": "pip_module" }
+    ]
+  },
+  "service_kube_control_plane_first": {
+    "cluster": [
+      { "package": "ghcr.io/kube-vip/kube-vip", "tag": "v0.8.9", "type": "image" },
+      { "package": "quay.io/metallb/speaker", "tag": "v0.15.2", "type": "image" },
+      {
+        "package": "metallb-native-v0.15.2",
+        "type": "manifest",
+        "url": "https://raw.githubusercontent.com/metallb/metallb/v0.15.2/config/manifests/metallb-native.yaml"
+      },
+      { "package": "helm-v3.19.0-amd64", "type": "tarball", "url": "https://get.helm.sh/helm-v3.19.0-linux-amd64.tar.gz" },
+      { "package": "nfs-subdir-external-provisioner-4.0.18", "type": "tarball", "url": "https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner/releases/download/nfs-subdir-external-provisioner-4.0.18/nfs-subdir-external-provisioner-4.0.18.tgz" },
+      { "package": "prettytable==3.14.0", "type": "pip_module" },
+      { "package": "python3.12", "type": "rpm", "repo_name": "x86_64_appstream" },
+      { "package": "git", "type": "rpm", "repo_name": "x86_64_appstream"},
+      { "package": "kubernetes==33.1.0", "type": "pip_module" },
+      { "package": "PyMySQL==1.1.2", "type": "pip_module" }
+    ]
+  },
+
+  "service_kube_node": {
+    "cluster": [
+      { "package": "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner", "tag": "v4.0.2", "type": "image" },
+      { "package": "quay.io/metallb/speaker", "tag": "v0.15.2", "type": "image" },
+      { "package": "quay.io/metallb/controller", "tag": "v0.15.2", "type": "image" }
+    ]
+  }
+}

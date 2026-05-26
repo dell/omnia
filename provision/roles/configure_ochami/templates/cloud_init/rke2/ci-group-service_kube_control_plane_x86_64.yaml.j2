@@ -1,0 +1,421 @@
+- name: {{ functional_group_name }}
+  description: "{{ functional_group_name }}"
+  file:
+    encoding: plain
+    content: |
+      ## template: jinja
+      #cloud-config
+
+      merge_how:
+      - name: list
+        settings: [append]
+      - name: dict
+        settings: [no_replace, recurse_list]
+
+      users:
+        - name: root
+          ssh_authorized_keys: "{{ read_ssh_key.stdout }}"
+          lock_passwd: false
+          hashed_passwd: "{{ hashed_password_output.stdout }}"
+      disable_root: false
+
+      write_files:
+        - path: /usr/local/bin/doca-install.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/doca-ofed/doca-install.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/configure-ib-network.sh
+          owner: root:root
+          permissions: '{{ file_mode_755 }}'
+          content: |
+            {{ lookup('template', 'templates/doca-ofed/configure-ib-network.sh.j2') | indent(12) }}
+
+        - path: /usr/local/bin/set-ssh.sh
+          permissions: '0755'
+          content: |
+            #!/bin/bash
+            timedatectl set-timezone {{ hostvars['oim']['oim_timezone'] }}
+            sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+            sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+            sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config.d/50-cloud-init.conf
+            systemctl restart sshd
+            default_count=$(ip route | grep -c "^default")
+            if [ "$default_count" -le 1 ]; then
+                echo "Only one or no default route found. No action needed."
+            else
+                private_nic=$(ip route | grep "^default via {{ hostvars['localhost']['admin_nic_ip'] }}" | awk '{print $5}')
+                # Get all default routes
+                ip route | grep '^default' | while read -r line; do
+                    nmcli con del "Wired Connection"
+                    # Extract NIC name
+                    nic=$(echo "$line" | awk '{print $5}')
+
+                    # Add the default route to the connection
+                    if [ -n "$nic" ]; then
+                        echo "Adding nmcli device $nic"
+                        nmcli con add type ethernet ifname "$nic" con-name "$nic" ipv4.method auto
+                        if [ "$nic" = "$private_nic" ]; then
+                          nmcli con modify "$nic" ipv4.never-default yes
+                          nmcli con delete "cloud-init $nic"
+                        fi
+                        nmcli con up "$nic"
+                    else
+                        echo "No connection found for device $nic"
+                    fi
+                done
+            fi
+
+        - path: /root/.ssh/config
+          permissions: '0600'
+          content: |
+            Host {{ k8s_control_ssh_patterns }}
+                IdentityFile {{ k8s_client_mount_path }}/ssh/oim_rsa
+                IdentitiesOnly yes
+
+        - path: /etc/modules-load.d/k8s.conf
+          content: |
+            br_netfilter
+            overlay
+            nf_conntrack
+            vxlan
+          permissions: '0644'
+        - path: /etc/sysctl.d/k8s.conf
+          content: |
+            net.bridge.bridge-nf-call-iptables=1
+            net.bridge.bridge-nf-call-ip6tables=1
+            net.ipv4.ip_forward=1
+            vm.overcommit_memory=1
+            kernel.panic=10
+          permissions: '0644'
+        - path: /etc/fstab
+          content: |
+            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}   {{ k8s_client_mount_path }}        nfs    noatime,nolock     0 0
+            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}/pod-logs   /var/log/pods      nfs noatime,nolock 0 0
+            {{ k8s_nfs_server_ip }}:{{ k8s_server_share_path }}/packages   /var/lib/packages        nfs    noatime,nolock     0 0
+          permissions: '0644'
+
+        - path: /etc/rancher/rke2/registries.yaml
+          owner: root:root
+          permissions: '0644'
+          content: |
+            mirrors:
+              docker.io:
+                endpoint:
+                  - "https://{{ pulp_mirror }}"
+              ghcr.io:
+                endpoint:
+                  - "https://{{ pulp_mirror }}"
+              quay.io:
+                endpoint:
+                  - "https://{{ pulp_mirror }}"
+              registry.k8s.io:
+                endpoint:
+                  - "https://{{ pulp_mirror }}"
+              nvcr.io:
+                endpoint:
+                  - "https://{{ pulp_mirror }}"
+              public.ecr.aws:
+                endpoint:
+                  - "https://{{ pulp_mirror }}"
+              gcr.io:
+                endpoint:
+                  - "https://{{ pulp_mirror }}"
+            configs:
+              "{{ pulp_mirror }}":
+                tls:
+                  insecure_skip_verify: true
+
+        - path: /tmp/kube-vip.yaml
+          owner: root:root
+          permissions: '0644'
+          content: |
+            apiVersion: v1
+            kind: Pod
+            metadata:
+              creationTimestamp: null
+              name: kube-vip
+              namespace: kube-system
+              uid: kube-vip-pod
+            spec:
+              containers:
+                - args:
+                    - manager
+                  env:
+                    - name: vip_arp
+                      value: "true"
+                    - name: port
+                      value: "6443"
+                    - name: vip_nodename
+                      valueFrom:
+                        fieldRef:
+                          fieldPath: spec.nodeName
+                    - name: vip_interface
+                      value: vip_interface
+                    - name: vip_cidr
+                      value: "{{ admin_netmask_bits }}"
+                    - name: dns_mode
+                      value: first
+                    - name: cp_enable
+                      value: "true"
+                    - name: cp_namespace
+                      value: kube-system
+                    - name: svc_enable
+                      value: "true"
+                    - name: svc_leasename
+                      value: plndr-svcs-lock
+                    - name: vip_leaderelection
+                      value: "true"
+                    - name: vip_leasename
+                      value: plndr-cp-lock
+                    - name: vip_leaseduration
+                      value: "5"
+                    - name: vip_renewdeadline
+                      value: "3"
+                    - name: vip_retryperiod
+                      value: "1"
+                    - name: vip_address
+                      value: {{ kube_vip }}
+                    - name: prometheus_server
+                      value: :2112
+                  image: ghcr.io/kube-vip/kube-vip:v0.8.9
+                  imagePullPolicy: IfNotPresent
+                  name: kube-vip
+                  resources: {}
+                  securityContext:
+                    capabilities:
+                      add:
+                        - NET_ADMIN
+                        - NET_RAW
+                  volumeMounts:
+                    - mountPath: /etc/rancher/rke2/rke2.yaml
+                      name: kubeconfig
+              hostAliases:
+                - hostnames:
+                    - kubernetes
+                  ip: 127.0.0.1
+              hostNetwork: true
+              dnsPolicy: ClusterFirstWithHostNet
+              volumes:
+                - hostPath:
+                    path: /etc/rancher/rke2/rke2.yaml
+                  name: kubeconfig
+            status: {}
+
+        - path: /usr/local/bin/install-helm.sh
+          permissions: '0755'
+          content: |
+            #!/bin/bash
+            set -e
+            HELM_VERSION="v3.19.0"
+            ARCH="amd64"
+            cp {{ k8s_client_mount_path }}/helm/linux-${ARCH}/helm /usr/local/bin/helm
+            chmod +x /usr/local/bin/helm
+
+            # Optional: Set up bash completion
+            /usr/local/bin/helm completion bash > /etc/bash_completion.d/helm.sh
+            chmod 0755 /etc/bash_completion.d/helm.sh
+
+      runcmd:
+        - /usr/local/bin/set-ssh.sh
+        - "systemctl enable chronyd"
+        - "systemctl restart chronyd"
+        - "chronyc sources"
+        - "chronyc -a makestep"
+        - sudo swapoff -a
+        - sudo sed -i '/ swap / s/^/#/' /etc/fstab
+        - sudo setenforce 0 || true
+        - sudo sed -i 's/^SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+
+        # Enable and start firewalld
+        - systemctl enable firewalld
+        - systemctl start firewalld
+
+        # Open essential ports for RKE2 server
+        - firewall-cmd --permanent --add-port=22/tcp
+        - firewall-cmd --permanent --add-port=6443/tcp
+        - firewall-cmd --permanent --add-port=9345/tcp
+        - firewall-cmd --permanent --add-port=2379-2380/tcp
+        - firewall-cmd --permanent --add-port=10250/tcp
+        - firewall-cmd --permanent --add-port=10257/tcp
+        - firewall-cmd --permanent --add-port=10259/tcp
+
+        # CNI-related ports
+        - firewall-cmd --permanent --add-port=30000-32767/tcp
+        - firewall-cmd --permanent --add-port=179/tcp
+        - firewall-cmd --permanent --add-port=4789/udp
+        - firewall-cmd --permanent --add-port=5473/tcp
+        - firewall-cmd --permanent --add-port=8472/udp
+        - firewall-cmd --permanent --add-port=51820/udp
+        - firewall-cmd --permanent --add-port=51821/udp
+        - firewall-cmd --permanent --add-port=9100/tcp
+        - firewall-cmd --permanent --add-port=7472/tcp
+        - firewall-cmd --permanent --add-port=7472/udp
+        - firewall-cmd --permanent --add-port=7946/tcp
+        - firewall-cmd --permanent --add-port=7946/udp
+        - firewall-cmd --permanent --add-port=9090/tcp
+        - firewall-cmd --permanent --add-port=8080/tcp
+        
+        # Enable services
+        - firewall-cmd --permanent --add-service=http
+        - firewall-cmd --permanent --add-service=https
+
+        # Add pod/service networks
+        - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_service_addresses }}
+        - firewall-cmd --permanent --zone=trusted --add-source={{ k8s_pod_network_cidr }}
+        
+        # Set default zone to trusted
+        - firewall-cmd --set-default-zone=trusted
+        
+        # Reload the firewall rules
+        - firewall-cmd --reload
+
+        - sudo modprobe br_netfilter || true
+        - sudo modprobe overlay || true
+        - sudo modprobe nf_conntrack || true
+        - sudo modprobe vxlan || true
+        - sysctl --system
+        - mkdir -p {{ k8s_client_mount_path }} /var/log/pods /var/lib/packages /etc/rancher/rke2 /var/lib/rancher/rke2/server/manifests
+        - |
+          tmpfile=$(mktemp)
+
+          # Extract the first 'search' line only (ignore duplicates)
+          search_line=$(grep '^search' /etc/resolv.conf | head -n1)
+          [ -n "$search_line" ] && echo "$search_line" > "$tmpfile"
+
+          # Add your new nameserver entries
+          {% for ns in dns %}
+          echo "nameserver {{ ns }}" >> "$tmpfile"
+          {% endfor %}
+
+          # Add remaining lines except search and empty lines
+          grep -v '^search' /etc/resolv.conf | grep -v '^$' >> "$tmpfile"
+
+          # Remove duplicate lines
+          awk '!seen[$0]++' "$tmpfile" > /etc/resolv.conf
+        - |
+          if command -v chattr >/dev/null 2>&1; then
+            chattr +i /etc/resolv.conf || true
+          fi
+        - mount -a
+        - cp {{ k8s_client_mount_path }}/pulp_webserver.crt /etc/pki/ca-trust/source/anchors
+        - update-ca-trust extract
+        - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
+        - bash /usr/local/bin/doca-install.sh && bash /usr/local/bin/configure-ib-network.sh
+        - echo "Installing helm"
+        - /usr/local/bin/install-helm.sh
+
+        - |
+          echo "Installing Necessary Python pip packages"
+          python3 -m ensurepip
+
+          PACKAGES=({% for pkg in k8s_pip_packages %}"{{ pkg }}"{% if not loop.last %} {% endif %}{% endfor %})
+
+          for pkg in "${PACKAGES[@]}"; do
+              echo "Installing $pkg from offline repo..."
+              pip3 install "$pkg" \
+                    --find-links="{{ offline_pip_module_path }}/${pkg}/" \
+                    --trusted-host "{{ pulp_server_ip }}" \
+                    --no-index
+          done
+          MARKER="/etc/rancher/rke2/.cluster_initialized"
+          export PATH="$PATH:/var/lib/rancher/rke2/bin"
+          set -e
+          if [ ! -f "$MARKER" ]; then
+            # Join RKE2 cluster as additional server
+            echo "Initial boot - joining RKE2 cluster as additional server for service_kube_control_plane_x86_64"
+            K8S_CLIENT_MOUNT_PATH="{{ k8s_client_mount_path }}"
+            NODE_NAME="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            KUBE_VIP="{{ kube_vip }}"
+            TOKEN_FILE="${K8S_CLIENT_MOUNT_PATH}/rke2/rke2-server-token"
+
+            echo "----------------------------------------------------------------------"
+            echo "Waiting for the RKE2 first server to be initialized."
+            echo "This node will automatically join the cluster once the token is available."
+            echo "Looking for server token at: $TOKEN_FILE"
+            echo "----------------------------------------------------------------------"
+            while [ ! -f "$TOKEN_FILE" ]; do
+              echo "RKE2 first server is not ready yet. Waiting for $TOKEN_FILE. Retrying in 10 seconds..."
+              sleep 10
+            done
+            echo "Token file detected: $TOKEN_FILE"
+            RKE2_TOKEN=$(cat "$TOKEN_FILE")
+
+            echo "Checking if kube-vip (${KUBE_VIP}) is reachable..."
+            while ! ping -c 1 -W 2 "$KUBE_VIP" >/dev/null 2>&1; do
+              echo "kube-vip (${KUBE_VIP}) not reachable. Retrying in 10 seconds..."
+              sleep 10
+            done
+            echo "kube-vip (${KUBE_VIP}) is reachable."
+
+            # Write RKE2 config for joining as server
+            cat > /etc/rancher/rke2/config.yaml <<EOF
+            server: https://${KUBE_VIP}:9345
+            token: ${RKE2_TOKEN}
+            tls-san:
+              - ${KUBE_VIP}
+              - ${NODE_NAME}
+            node-name: ${NODE_NAME}
+            write-kubeconfig-mode: "0644"
+            cni: {{ k8s_cni }}
+            disable:
+              - rke2-ingress-nginx
+          EOF
+
+            # Place kube-vip as a static pod for this server
+            NODE_IP="{% raw %}{{ ds.meta_data.instance_data.local_ipv4 }}{% endraw %}"
+            VIP_IFACE=$(ip -o addr show | awk -v ip="$NODE_IP" '$4 ~ ip {print $2}')
+            sed -i "s/value: vip_interface/value: ${VIP_IFACE}/" /tmp/kube-vip.yaml
+            cp /tmp/kube-vip.yaml /var/lib/rancher/rke2/server/manifests/kube-vip.yaml
+
+            # Start RKE2 server
+            echo "Starting RKE2 server (joining cluster)..."
+            systemctl enable rke2-server.service
+            systemctl start rke2-server.service
+
+            # Wait for kubeconfig
+            echo "Waiting for RKE2 kubeconfig..."
+            while [ ! -f /etc/rancher/rke2/rke2.yaml ]; do
+              sleep 5
+            done
+
+            # Set up kubectl access
+            export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+            ln -sf /var/lib/rancher/rke2/bin/kubectl /usr/local/bin/kubectl
+            mkdir -p /root/.kube
+            cp -f /etc/rancher/rke2/rke2.yaml /root/.kube/config
+            chmod 600 /root/.kube/config
+
+            # Update kubeconfig to use VIP
+            KUBE_PORT="6443"
+            sed -i "s|server: https://127.0.0.1:${KUBE_PORT}|server: https://${KUBE_VIP}:${KUBE_PORT}|" /etc/rancher/rke2/rke2.yaml
+            cp -f /etc/rancher/rke2/rke2.yaml /root/.kube/config
+
+            echo "Waiting for Kubernetes API..."
+            until kubectl get nodes >/dev/null 2>&1; do
+              sleep 10
+            done
+            kubectl get nodes -o wide
+
+            systemctl restart nfs-client.target
+            systemctl restart rpcbind
+            # Mark initialization complete
+            touch "$MARKER"
+            echo "Cloud-Init has completed successfully."
+          else
+            # SUBSEQUENT BOOT - SKIP JOIN
+            echo "service_kube_control_plane_x86_64 (RKE2) is already part of cluster."
+            echo "Cluster already initialized. Performing node reboot procedures."
+            export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+            export PATH="$PATH:/var/lib/rancher/rke2/bin"
+            ln -sf /var/lib/rancher/rke2/bin/kubectl /usr/local/bin/kubectl
+            mkdir -p $HOME/.kube /root/.kube
+            cp -f /etc/rancher/rke2/rke2.yaml $HOME/.kube/config
+            yes | cp -i /etc/rancher/rke2/rke2.yaml /root/.kube/config
+            systemctl enable rke2-server.service
+            systemctl start rke2-server.service
+            kubectl get nodes -o wide || echo "Cluster not yet fully up"
+            kubectl get pods --all-namespaces -o wide || echo "Pods may not be ready yet"
+            echo "Cloud-Init finished successfully after the reboot."
+          fi

@@ -26,11 +26,21 @@
   failed_when: false
   when: not (hostvars['localhost']['upgrade_mode'] | default(false) | bool)
 
+- name: Determine cloud-init template path based on k8s_distro # noqa: yaml[line-length]
+  ansible.builtin.set_fact:
+    ci_group_template_src: >-
+      {%- if k8s_distro | default('kubeadm') == 'rke2' and
+          'service_kube' in functional_group_name -%}
+        cloud_init/rke2/ci-group-{{ functional_group_name }}.yaml.j2
+      {%- else -%}
+        cloud_init/ci-group-{{ functional_group_name }}.yaml.j2
+      {%- endif -%}
+
 - name: Load ci group template
   block:
     - name: Load ci group template - {{ functional_group_name }}
       ansible.builtin.template:
-        src: "cloud_init/ci-group-{{ functional_group_name }}.yaml.j2"
+        src: "{{ ci_group_template_src | trim }}"
         dest: "{{ cloud_init_dir }}/ci-group-{{ functional_group_name }}.yaml"
         mode: "{{ hostvars['localhost']['file_permissions_644'] }}"
   rescue:

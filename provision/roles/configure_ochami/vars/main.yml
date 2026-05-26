@@ -109,6 +109,7 @@ slurm_cluster_ip_patterns: "{{ hostvars['localhost']['slurm_cluster_ip_patterns'
 # SSH Host patterns precomputed on OIM by passwordless_ssh/read_nodes_yaml.yml
 slurm_control_ssh_patterns: "{{ hostvars['oim']['slurm_ssh_patterns'] | default('*') }}"
 k8s_control_ssh_patterns: "{{ hostvars['oim']['k8s_ssh_patterns'] | default('*') }}"
+k8s_distro: "{{ hostvars['oim']['k8s_distro'] | default('kubeadm') }}"
 
 # Passwordless SSH mode flag derived from nodes.yaml (set on OIM by passwordless_ssh role)
 all_group_names_present: "{{ hostvars['oim']['all_group_names_present'] | default(false) }}"

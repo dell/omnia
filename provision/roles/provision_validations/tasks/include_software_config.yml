@@ -53,15 +53,30 @@
 - name: Initialise variables
   ansible.builtin.set_fact:
     service_k8s_support: false
+    service_rke2_support: false
 
 - name: Check if service k8s support is true
   ansible.builtin.set_fact:
     service_k8s_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | list | length > 0 }}"
 
+- name: Check if service rke2 support is true
+  ansible.builtin.set_fact:
+    service_rke2_support: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_rke2') | list | length > 0 }}"
+
+- name: Set service_k8s_support true when rke2 is selected
+  ansible.builtin.set_fact:
+    service_k8s_support: true
+  when: service_rke2_support | bool
+
 - name: Extract k8s version
   ansible.builtin.set_fact:
     service_k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_k8s') | map(attribute='version') | first }}"
-  when: service_k8s_support
+  when: service_k8s_support and not (service_rke2_support | bool)
+
+- name: Extract rke2 version
+  ansible.builtin.set_fact:
+    service_k8s_version: "{{ software_config.softwares | selectattr('name', 'equalto', 'service_rke2') | map(attribute='version') | first }}"
+  when: service_rke2_support | bool
 
 - name: Check if csi support is true
   ansible.builtin.set_fact:

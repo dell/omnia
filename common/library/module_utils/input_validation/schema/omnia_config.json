@@ -177,6 +177,77 @@
         }
       ]
       }
+    },
+    "service_rke2_k8s_cluster": {
+      "type": "array",
+      "description": "List of RKE2 Kubernetes cluster configurations.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cluster_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unique name for the RKE2 service cluster."
+          },
+          "deployment": {
+            "type": "boolean"
+          },
+          "k8s_cni": {
+            "enum": ["calico", "canal", "cilium", "flannel"],
+            "description": "K8s CNI plugin for the RKE2 cluster."
+          },
+          "pod_external_ip_range": {
+            "description": "IP range for LoadBalancer external IPs.",
+            "type": "string",
+            "pattern": "^(?:(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)-(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$|^$"
+          },
+          "k8s_service_addresses": {
+            "type": "string",
+            "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$",
+            "description": "CIDR for K8s service IPs."
+          },
+          "k8s_pod_network_cidr": {
+            "type": "string",
+            "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/[0-9]{1,2}$",
+            "description": "CIDR for K8s pod network."
+          },
+          "nfs_storage_name": {
+            "type": "string",
+            "description": "The NFS client server name mentioned in storage_config.yml"
+          },
+          "csi_powerscale_driver_secret_file_path": {
+            "description": "Absolute file path for the secret.yaml file.",
+            "type": "string",
+            "pattern": "^(|/?([a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+\\.yaml)$"
+          },
+          "csi_powerscale_driver_values_file_path": {
+            "description": "File path for the values.yaml file.",
+            "type": "string",
+            "pattern": "^(|/?([a-zA-Z0-9._-]+/)*[a-zA-Z0-9._-]+\\.yaml)$"
+          }
+        },
+        "required": [
+          "cluster_name",
+          "k8s_cni",
+          "k8s_service_addresses"
+        ],
+        "allOf": [
+        {
+          "if": {
+            "properties": {
+              "csi_powerscale_driver_secret_file_path": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["csi_powerscale_driver_secret_file_path"]
+          },
+          "then": {
+            "required": ["csi_powerscale_driver_values_file_path"]
+          }
+        }
+      ]
+      }
     }
 },
   "required": [

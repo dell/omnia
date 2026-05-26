@@ -17,6 +17,7 @@ local_repo_access_config_file: "/opt/omnia/provision/local_repo_access.yml"
 input_project_dir: "{{ hostvars['localhost']['input_project_dir'] }}"
 # Versioned JSON file: service_k8s_v<version>.json (e.g., service_k8s_v1.35.1.json)
 k8s_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_k8s_v{{ hostvars['localhost']['service_k8s_version'] }}.json" # noqa: yaml[line-length]
+rke2_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/service_rke2.json" # noqa: yaml[line-length]
 calico_manifest_yaml_url: "{{ offline_manifest_path }}/{{ calico_package }}/{{ calico_package }}.yml"
 csi_powerscale_packages_file: "{{ input_project_dir }}/config/x86_64/{{ software_config.cluster_os_type }}/{{ software_config.cluster_os_version }}/csi_driver_powerscale.json" # noqa: yaml[line-length]
 metallb_manifest_yaml_url: "{{ offline_manifest_path }}/{{ metallb_package }}/{{ metallb_package }}.yml"
@@ -87,3 +88,4 @@ print_copy_msg: "Copying {{ item.name }} from {{ item.source_path }} to {{ item.
 offline_path_x86_64: []
 offline_path_aarch64: []
 ssh_private_key_path: /root/.ssh/oim_rsa
+common_mode: "0755"

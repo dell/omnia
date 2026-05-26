@@ -1,0 +1,266 @@
+# Copyright 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+- name: Include variable file omnia_config.yml
+  ansible.builtin.include_vars: "{{ input_project_dir }}/omnia_config.yml"
+
+- name: Include storage vars
+  ansible.builtin.include_vars: "{{ input_project_dir }}/storage_config.yml"
+
+- name: Include include_high_availability_config vars
+  ansible.builtin.include_vars: "{{ ha_config_file }}"
+
+- name: Set facts for service_rke2_k8s_cluster
+  ansible.builtin.set_fact:
+    cluster_name: "{{ service_rke2_k8s_cluster[0].cluster_name }}"
+    k8s_distro: "rke2"
+    k8s_cni: "{{ service_rke2_k8s_cluster[0].k8s_cni }}"
+    pod_external_ip_range: "{{ service_rke2_k8s_cluster[0].pod_external_ip_range }}"
+    k8s_service_addresses: "{{ service_rke2_k8s_cluster[0].k8s_service_addresses }}"
+    k8s_pod_network_cidr: "{{ service_rke2_k8s_cluster[0].k8s_pod_network_cidr }}"
+    csi_powerscale_driver_secret_file_path: "{{ service_rke2_k8s_cluster[0].csi_powerscale_driver_secret_file_path }}"
+    csi_powerscale_driver_values_file_path: "{{ service_rke2_k8s_cluster[0].csi_powerscale_driver_values_file_path }}"
+    nfs_storage_name: "{{ service_rke2_k8s_cluster[0].nfs_storage_name }}"
+
+- name: Read the service_k8s mount point
+  ansible.builtin.set_fact:
+    k8s_client_mount_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).client_share_path }}"
+    k8s_nfs_server_ip: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_ip }}"
+    k8s_server_share_path: "{{ (nfs_client_params | selectattr('nfs_name', 'equalto', nfs_storage_name) | first).server_share_path }}"
+
+- name: Ensure SSH key directory exists on K8s share
+  ansible.builtin.file:
+    path: "{{ k8s_client_mount_path }}/ssh"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Copy OIM private key to K8s share for node-to-node SSH
+  ansible.builtin.copy:
+    src: "{{ ssh_private_key_path }}"
+    dest: "{{ k8s_client_mount_path }}/ssh/oim_rsa"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Set admin network nic and ip
+  ansible.builtin.set_fact:
+    admin_nic_ip: "{{ hostvars['localhost']['admin_nic_ip'] }}"
+    admin_netmask_bits: "{{ hostvars['localhost']['admin_netmask_bits'] }}"
+
+- name: Set admin network CIDR
+  ansible.builtin.set_fact:
+    admin_nic_cidr: "{{ (admin_nic_ip + '/' + admin_netmask_bits) | ansible.utils.ipaddr('network/prefix') }}"
+
+- name: Fetch server_ip and server_share_path from list when nfs sever is localhost
+  ansible.builtin.set_fact:
+    nfs_server_ip: "{{ hostvars['127.0.0.1']['admin_nic_ip'] }}"
+  when: k8s_nfs_server_ip == "localhost"
+
+- name: Set HA-related facts
+  ansible.builtin.set_fact:
+    enable_k8s_ha: "{{ service_k8s_cluster_ha[0].enable_k8s_ha | default(false) }}"
+    kube_vip: "{{ service_k8s_cluster_ha[0].virtual_ip_address | default('') }}"
+
+- name: Set fact for pulp mirror
+  ansible.builtin.set_fact:
+    pulp_mirror: "{{ hostvars['localhost']['admin_nic_ip'] }}:2225"
+
+- name: Set fact for dns, csi driver support and service_k8s_version
+  ansible.builtin.set_fact:
+    dns: "{{ hostvars['localhost']['dns'] }}"
+    csi_driver_powerscale_support: "{{ hostvars['localhost']['csi_driver_powerscale_support'] | string | lower }}"
+    service_k8s_version: "{{ hostvars['localhost']['service_k8s_version'] }}"
+
+- name: Create required share directories on NFS for RKE2
+  block:
+    - name: Create subdirectories on NFS share
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ item }}"
+        state: directory
+        mode: "{{ folder_mode }}"
+        owner: root
+        group: root
+      loop:
+        - metallb
+        - nfs-client-provisioner
+        - helm
+        - rke2
+
+    - name: Create subdirectories on NFS share for CSI
+      ansible.builtin.file:
+        path: "{{ k8s_client_mount_path }}/{{ item }}"
+        state: directory
+        mode: "{{ folder_mode }}"
+        owner: root
+        group: root
+      loop:
+        - csi-driver-powerscale
+      when: hostvars['localhost']['csi_driver_powerscale_support']
+
+  rescue:
+    - name: Fail with NFS export advice
+      ansible.builtin.fail:
+        msg: "{{ nfs_export_help_msg }}"
+
+- name: Creating the persist folders in nfs share
+  ansible.builtin.include_tasks: create_node_dir.yml
+
+# additional packages
+- name: Create x86_64 package base directory
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_x86_64 }}"
+    state: directory
+    mode: '{{ common_mode }}'
+
+- name: Create aarch64 package base directory
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_aarch64 }}"
+    state: directory
+    mode: '{{ common_mode }}'
+
+- name: Create x86_64 package layout directories
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_x86_64 }}/{{ item }}"
+    state: directory
+    mode: '{{ common_mode }}'
+  loop: "{{ packages_layout_x86_64 }}"
+
+- name: Create aarch64 package layout directories
+  ansible.builtin.file:
+    path: "{{ packages_base_dir_aarch64 }}/{{ item }}"
+    state: directory
+    mode: '{{ common_mode }}'
+  loop: "{{ packages_layout_aarch64 }}"
+
+- name: Print copy paths for x86_64
+  ansible.builtin.debug:
+    msg: "{{ print_copy_msg }}"
+  loop: "{{ offline_path_x86_64 | default([]) }}"
+
+- name: Print copy paths for aarch64
+  ansible.builtin.debug:
+    msg: "{{ print_copy_msg }}"
+  loop: "{{ offline_path_aarch64 | default([]) }}"
+
+- name: Check x86_64 offline package sources
+  ansible.builtin.stat:
+    path: "{{ item.source_path }}"
+  loop: "{{ offline_path_x86_64 | default([]) }}"
+  register: x86_64_offline_pkg_sources
+
+- name: Check aarch64 offline package sources
+  ansible.builtin.stat:
+    path: "{{ item.source_path }}"
+  loop: "{{ offline_path_aarch64 | default([]) }}"
+  register: aarch64_offline_pkg_sources
+
+- name: Copy x86_64 offline packages
+  ansible.builtin.copy:
+    src: "{{ item.item.source_path }}/"
+    dest: "{{ item.item.dest_path }}/"
+    remote_src: true
+    mode: preserve
+  loop: "{{ x86_64_offline_pkg_sources.results | default([]) }}"
+  when:
+    - item.stat.exists
+    - item.item.source_path | length > 0
+    - item.item.dest_path | length > 0
+
+- name: Copy aarch64 offline packages
+  ansible.builtin.copy:
+    src: "{{ item.item.source_path }}/"
+    dest: "{{ item.item.dest_path }}/"
+    remote_src: true
+    mode: preserve
+  loop: "{{ aarch64_offline_pkg_sources.results | default([]) }}"
+  when:
+    - item.stat.exists
+    - item.item.source_path | length > 0
+    - item.item.dest_path | length > 0
+
+- name: Include local repo access variable file
+  ansible.builtin.include_vars: "{{ local_repo_access_config_file }}"
+
+- name: Load service_rke2.json
+  ansible.builtin.set_fact:
+    k8s_packages_json: "{{ lookup('file', rke2_packages_file) | from_json }}"
+
+- name: Extract and set facts for tarball URLs (RKE2) # noqa: yaml[line-length]
+  vars:
+    cp_first_cluster: "{{ k8s_packages_json['service_kube_control_plane_first']['cluster'] }}"
+  ansible.builtin.set_fact:
+    metallb_package: >-
+      {{ cp_first_cluster | selectattr('type', 'equalto', 'manifest')
+       | selectattr('package', 'search', 'metallb-native')
+       | map(attribute='package') | join }}
+    helm_package: >-
+      {{ cp_first_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'helm')
+       | map(attribute='package') | join }}
+    nfs_subdir_external_provisioner_pkg: >-
+      {{ cp_first_cluster | selectattr('type', 'equalto', 'tarball')
+       | selectattr('package', 'search', 'nfs-subdir-external-provisioner')
+       | map(attribute='package') | join }}
+
+- name: Copy pulp webserver certificate to target host
+  ansible.builtin.copy:
+    src: "{{ pulp_webserver_cert_path }}"
+    dest: "{{ anchors_path }}"
+    mode: "{{ file_mode }}"
+  become: true
+
+- name: Update CA trust on target host
+  ansible.builtin.command: update-ca-trust
+  register: update_ca
+  changed_when: false
+
+# metallb
+- name: Download metallb-native manifest
+  ansible.builtin.get_url:
+    url: "{{ metallb_manifest_yaml_url }}"
+    dest: "{{ k8s_client_mount_path }}/metallb/{{ metallb_package }}.yml"
+    mode: "{{ file_mode }}"
+
+# helm
+- name: Download helm tarball
+  ansible.builtin.get_url:
+    url: "{{ helm_tarball_url }}"
+    dest: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
+    mode: "{{ file_mode }}"
+
+- name: Untar helm tarball repo
+  ansible.builtin.unarchive:
+    src: "{{ k8s_client_mount_path }}/helm/{{ helm_package }}.tar.gz"
+    dest: "{{ k8s_client_mount_path }}/helm/"
+    remote_src: true
+
+# nfs client provisioner
+- name: Download nfs-client-provisioner tarball
+  ansible.builtin.get_url:
+    url: "{{ nfs_client_provisioner_tarball_url }}"
+    dest: "{{ k8s_client_mount_path }}/nfs-client-provisioner/{{ nfs_subdir_external_provisioner_pkg }}.tar.gz"
+    mode: "{{ file_mode }}"
+
+- name: Copy pulp webserver certificate to client_share_path
+  ansible.builtin.copy:
+    src: "{{ pulp_webserver_cert_path }}"
+    dest: "{{ k8s_client_mount_path }}"
+    mode: "{{ file_mode }}"
+  become: true
+
+- name: Include PowerScale CSI dependency tasks
+  ansible.builtin.include_tasks: get_powerscale_dependencies.yml
+  when: hostvars['localhost']['csi_driver_powerscale_support'] | bool
