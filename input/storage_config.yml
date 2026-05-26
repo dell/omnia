@@ -208,7 +208,7 @@ mount_params:
 #
 # Credentials:
 #   - s3_access_id and s3_secret_key are prompted during prepare_oim credential setup
-#   - For "minio" provider: s3_access_id defaults to "admin" if not provided
+#   - For "minio" provider: s3_access_id defaults to "admin" it will not be prompted
 #   - For "powerscale" provider: s3_access_id is prompted as conditional mandatory
 s3_configurations:
   provider: "powerscale"

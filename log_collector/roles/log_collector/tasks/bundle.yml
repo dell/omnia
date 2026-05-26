@@ -229,7 +229,9 @@
 
 - name: Find temporary and stale files to exclude (curated_support mode)
   ansible.builtin.find:
-    paths: "{{ log_root }}"
+    paths:
+      - "{{ log_root }}/k8s"
+      - "{{ log_root }}/slurm"
     patterns: "{{ exclude_patterns }}"
     recurse: true
     file_type: file
