@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
+import yaml
+
 from api.logging_utils import log_secure_info
 from common.config import BuildStreamConfig
 from core.artifacts.entities import ArtifactRecord
@@ -56,7 +58,7 @@ ALLOWED_CONFIG_FILES = {
     "pxe_mapping_file.csv",
     "storage_config.yml",
     "telemetry_config.yml",
-    "storage_config.yml",
+    "telemetry_storage_config.yml",
     "security_config.yml",
     "high_availability_config.yml",
     "omnia_config.yml",
@@ -303,6 +305,12 @@ class UploadFilesUseCase:
         # DO NOT write to shared input directory (not needed for this file)
         if filename == "failed_nodes.json":
             self._write_to_restart_state_directory(str(job_id), filename, content)
+        elif filename == "pxe_mapping_file.csv":
+            # pxe_mapping_file.csv destination is configurable via
+            # provision_config.yml -> pxe_mapping_file_path.  Resolve the
+            # target directory from that config; fall back to the default.
+            pxe_dir = self._resolve_pxe_mapping_dir()
+            self._write_to_directory(pxe_dir, filename, content)
         else:
             self._write_to_shared_input_directory(filename, content)
 
@@ -383,15 +391,56 @@ class UploadFilesUseCase:
             filename: Filename.
             content: File content.
         """
-        # Use the standard Omnia playbook input directory
-        # This path matches NfsInputRepository.get_destination_input_repository_path()
-        playbook_input_dir = Path(DEFAULT_PLAYBOOK_INPUT_DIR)
-        playbook_input_dir.mkdir(parents=True, exist_ok=True)
+        self._write_to_directory(Path(DEFAULT_PLAYBOOK_INPUT_DIR), filename, content)
 
-        target_file = playbook_input_dir / filename
+    @staticmethod
+    def _write_to_directory(directory: Path, filename: str, content: bytes):
+        """Write file to an arbitrary directory.
+
+        Args:
+            directory: Target directory.
+            filename: Filename.
+            content: File content.
+        """
+        directory.mkdir(parents=True, exist_ok=True)
+        target_file = directory / filename
         target_file.write_bytes(content)
+        log_secure_info('debug', f"Wrote to directory: {target_file}")
 
-        log_secure_info('debug', f"Wrote to shared input directory: {target_file}")
+    @staticmethod
+    def _resolve_pxe_mapping_dir() -> Path:
+        """Resolve the target directory for pxe_mapping_file.csv.
+
+        Reads ``pxe_mapping_file_path`` from the already-uploaded
+        ``provision_config.yml`` in the default shared input directory.
+        If the key is present, its parent directory is used; otherwise
+        the default shared input directory is returned.
+
+        Returns:
+            Directory ``Path`` where ``pxe_mapping_file.csv`` should be written.
+        """
+        provision_config_path = Path(DEFAULT_PLAYBOOK_INPUT_DIR) / "provision_config.yml"
+        if provision_config_path.exists():
+            try:
+                with open(provision_config_path, "r", encoding="utf-8") as fh:
+                    config = yaml.safe_load(fh)
+                if isinstance(config, dict):
+                    pxe_path = config.get("pxe_mapping_file_path")
+                    if pxe_path:
+                        resolved = Path(str(pxe_path)).parent
+                        log_secure_info(
+                            'info',
+                            f"Resolved pxe_mapping_file.csv directory from "
+                            f"provision_config.yml: {resolved}",
+                        )
+                        return resolved
+            except (yaml.YAMLError, OSError) as exc:
+                log_secure_info(
+                    'warning',
+                    f"Failed to read provision_config.yml for "
+                    f"pxe_mapping_file_path: {exc}",
+                )
+        return Path(DEFAULT_PLAYBOOK_INPUT_DIR)
 
     def _write_to_restart_state_directory(self, job_id: str, filename: str, content: bytes):
         """Write file to job-specific restart_state directory for playbook consumption.

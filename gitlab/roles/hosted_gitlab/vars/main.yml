@@ -161,6 +161,8 @@ gitlab_input_files:
     src: "{{ gitlab_input_nfs_root }}/security_config.yml"
   - name: "telemetry_config.yml"
     src: "{{ gitlab_input_nfs_root }}/telemetry_config.yml"
+  - name: "telemetry_storage_config.yml"
+    src: "{{ gitlab_input_nfs_root }}/telemetry_storage_config.yml"
   - name: "storage_config.yml"
     src: "{{ gitlab_input_nfs_root }}/storage_config.yml"
 

@@ -172,6 +172,26 @@
     label: "{{ _input_file.name }}"
   when: upgrade_path == 'path_a'
 
+# ── 4A.4b: Push example catalog templates to repository ──
+- name: "[Step 4A] Find example catalog files"
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/../../examples/catalog"
+    patterns: "*.json"
+    recurse: false
+  register: _example_catalog_files
+  when: upgrade_path == 'path_a'
+
+- name: "[Step 4A] Push example catalogs to GitLab examples/ folder"
+  ansible.builtin.include_tasks:
+    file: "{{ playbook_dir }}/tasks/upgrade_gitlab_example_catalog.yml"
+  loop: "{{ _example_catalog_files.files | default([]) | map(attribute='path') | list }}"
+  loop_control:
+    loop_var: _example_catalog
+    label: "{{ _example_catalog | basename }}"
+  when:
+    - upgrade_path == 'path_a'
+    - _example_catalog_files.files | default([]) | length > 0
+
 # ── 4A.5: Update CI/CD pipeline variables ──
 - name: "[Step 4A] Decrypt and read BuildStream OAuth credentials"
   ansible.builtin.shell: |
