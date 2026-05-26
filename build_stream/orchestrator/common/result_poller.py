@@ -89,17 +89,17 @@ def _build_s3_image_paths(
 
 def _discover_s3_image_paths(
     bucket_uri: str,
-    image_group_id: str,
+    job_id: str,
     role_names: list,
 ) -> dict:
     """Query S3 using s3cmd ls to discover actual image paths.
 
     Instead of constructing paths based on conventions, this queries
-    S3 directly and greps for the ImageGroupID to find actual paths.
+    S3 directly and greps for the job_id to find actual paths.
 
     Args:
         bucket_uri: S3 bucket URI (e.g., s3://boot-images)
-        image_group_id: ImageGroup ID to search for
+        job_id: Job ID to search for
         role_names: List of role names to discover paths for
 
     Returns:
@@ -113,9 +113,9 @@ def _discover_s3_image_paths(
     role_to_paths = {role: [] for role in role_names}
 
     try:
-        # Run s3cmd ls -Hr and grep for ImageGroupID in one command
+        # Run s3cmd ls -Hr and grep for job_id in one command
         # This filters at subprocess level instead of in Python
-        cmd = f"s3cmd ls -Hr {bucket} | grep {image_group_id}"
+        cmd = f"s3cmd ls -Hr {bucket} | grep {job_id}"
         result = subprocess.run(
             cmd,
             shell=True,
@@ -172,7 +172,7 @@ def _discover_s3_image_paths(
     except Exception as exc:  # pylint: disable=broad-except
         log_secure_info(
             "error",
-            f"Failed to discover S3 paths for {image_group_id}: {exc}",
+            f"Failed to discover S3 paths for {job_id}: {exc}",
             exc_info=True,
         )
         return role_to_paths
@@ -520,36 +520,35 @@ class ResultPoller:
                 updated_at=now,
             )
 
-            # Resolve build-image metadata persisted at submission time
-            # so we can construct the complete S3 path stored in
-            # ``images.image_name``. The CleanUp API uses this column
-            # verbatim with ``s3cmd del --recursive --force``.
-            build_meta = _load_build_image_meta(str(result.job_id))
-            image_key = build_meta.get("image_key", "")
+            # Discover S3 paths by grepping for job_id.
+            # The CleanUp API uses ``images.image_name`` verbatim
+            # with ``s3cmd del --recursive --force``.
             bucket_uri = os.environ.get(
                 "CLEANUP_S3_BUCKET", DEFAULT_S3_BUCKET_URI
             )
 
             log_secure_info(
                 "info",
-                f"Building S3 paths for ImageGroup {image_group_id} "
-                f"with roles: {list(role_images.keys())}",
+                f"Discovering S3 paths for ImageGroup {image_group_id} "
+                f"with job_id={result.job_id}, roles: {list(role_images.keys())}",
                 job_id=str(result.job_id),
             )
 
-            # Create Image entities for each role with deterministic S3
-            # paths (regular + EFI, semicolon-delimited).
+            role_to_paths = _discover_s3_image_paths(
+                bucket_uri=bucket_uri,
+                job_id=str(result.job_id),
+                role_names=list(role_images.keys()),
+            )
+
+            # Create Image entities for each role with discovered S3
+            # paths (semicolon-delimited).
             # The DB has a unique constraint on (image_group_id, role), so
             # we store all S3 directory paths for a role in a single
             # image_name field.  Cleanup splits on ";" and deletes each.
             images = []
             for role_name in role_images:
-                combined_path = _build_s3_image_paths(
-                    bucket_uri=bucket_uri,
-                    role=role_name,
-                    job_id=str(result.job_id),
-                    image_key=image_key,
-                )
+                paths = role_to_paths.get(role_name, [])
+                combined_path = ";".join(paths) if paths else ""
                 image = Image(
                     id=str(uuid.uuid4()),
                     image_group_id=image_group_id,

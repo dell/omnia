@@ -345,12 +345,20 @@ def _store_catalog_metadata(artifact_store, artifact_metadata_repo, job_id, meta
 class TestBuildImageSuccess:
     """Tests for ImageGroup/Image creation on build-image success."""
 
-    @patch("orchestrator.common.result_poller._load_build_image_meta")
+    @patch("orchestrator.common.result_poller._discover_s3_image_paths")
     def test_creates_image_group_and_images_on_build_image_success(
-        self, mock_load_meta
+        self, mock_discover
     ):
         """On build-image success with artifact repos wired, ImageGroup + Images are created."""
-        mock_load_meta.return_value = {"image_key": "test-cluster-v1"}
+        def _mock_discover(bucket_uri, job_id, role_names):
+            return {
+                r: [
+                    f"s3://boot-images/{r}/rhel-{r}_{job_id}/",
+                    f"s3://boot-images/efi-images/{r}/rhel-{r}_{job_id}/",
+                ]
+                for r in role_names
+            }
+        mock_discover.side_effect = _mock_discover
 
         job_id = JobId(str(uuid.uuid4()))
 
@@ -473,13 +481,20 @@ class TestBuildImageSuccess:
         ig = ig_repo.find_by_job_id(job_id)
         assert ig is None, "ImageGroup should not be created without artifact repos"
 
-    @patch("orchestrator.common.result_poller._load_build_image_meta")
-    def test_deterministic_paths_contain_job_id_and_image_key(
-        self, mock_load_meta
+    @patch("orchestrator.common.result_poller._discover_s3_image_paths")
+    def test_discovered_paths_contain_job_id(
+        self, mock_discover
     ):
-        """Regression: Image paths must be constructed deterministically
-        from job_id + image_key, not discovered via live s3cmd queries."""
-        mock_load_meta.return_value = {"image_key": "image-build-v39"}
+        """Image paths discovered via s3cmd grep must contain the job_id."""
+        def _mock_discover(bucket_uri, job_id, role_names):
+            return {
+                r: [
+                    f"s3://boot-images/{r}/rhel-{r}_{job_id}-image-build-v39/",
+                    f"s3://boot-images/efi-images/{r}/rhel-{r}_{job_id}-image-build-v39/",
+                ]
+                for r in role_names
+            }
+        mock_discover.side_effect = _mock_discover
 
         job_id = JobId(str(uuid.uuid4()))
 
