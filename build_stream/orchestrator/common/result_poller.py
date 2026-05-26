@@ -58,33 +58,7 @@ from core.localrepo.services import PlaybookQueueResultService
 # ``images.image_name``. The CleanUp API reads this column verbatim
 # and passes it directly to ``s3cmd del --recursive --force``.
 DEFAULT_S3_BUCKET_URI = "s3://boot-images"
-DEFAULT_CLUSTER_OS = "rhel"
 DEFAULT_NFS_ARTIFACT_BASE = "/opt/omnia/build_stream_root"
-
-
-def _build_s3_image_paths(
-    bucket_uri: str,
-    role: str,
-    job_id: str,
-    image_key: str,
-) -> str:
-    """Construct semicolon-delimited S3 directory prefixes for an image.
-
-    Mirrors the path pattern produced by the build-image playbook.
-    Each role produces two directories (regular + EFI):
-
-        s3://boot-images/<role>/rhel-<role>_<job_id>-<image_key>/
-        s3://boot-images/efi-images/<role>/rhel-<role>_<job_id>-<image_key>/
-
-    The CleanUp API stores this in ``images.image_name``, splits on
-    ``;`` and deletes each path with ``s3cmd del --recursive --force``.
-    """
-    bucket = (bucket_uri or DEFAULT_S3_BUCKET_URI).rstrip("/")
-    suffix = f"_{job_id}-{image_key}" if image_key else f"_{job_id}"
-    dir_name = f"{DEFAULT_CLUSTER_OS}-{role}{suffix}"
-    regular = f"{bucket}/{role}/{dir_name}/"
-    efi = f"{bucket}/efi-images/{role}/{dir_name}/"
-    return f"{regular};{efi}"
 
 
 def _discover_s3_image_paths(
