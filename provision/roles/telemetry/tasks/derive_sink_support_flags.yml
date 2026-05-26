@@ -54,6 +54,8 @@
     ufm_log_enabled: "{{ telemetry_config.telemetry_sources.ufm.logs_enabled | default(false) | bool }}"
     vast_telemetry_support: "{{ telemetry_config.telemetry_sources.vast.metrics_enabled | default(false) | bool }}"
     vast_log_enabled: "{{ telemetry_config.telemetry_sources.vast.logs_enabled | default(false) | bool }}"
+    ome_metrics_enabled: "{{ telemetry_config.telemetry_sources.ome.metrics_enabled | default(false) | bool }}"
+    ome_logs_enabled: "{{ telemetry_config.telemetry_sources.ome.logs_enabled | default(false) | bool }}"
     cacheable: true
 
 - name: Map powerscale source + configurations to legacy powerscale_configurations
@@ -92,7 +94,8 @@
     cacheable: true
   when: >-
     'kafka' in (telemetry_config.telemetry_sources.idrac.collection_targets | default([])) or
-    'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([]))
+    'kafka' in (telemetry_config.telemetry_sources.ldms.collection_targets | default([])) or
+    'kafka' in (telemetry_config.telemetry_sources.ome.collection_targets | default([]))
 
 # =============================================================================
 # VECTOR BRIDGE LOGIC - Determine sink requirements based on Vector bridges
@@ -150,4 +153,6 @@
     ufm_telemetry_support or
     ufm_log_enabled or
     vast_telemetry_support or
-    vast_log_enabled
+    vast_log_enabled or
+    ome_metrics_enabled or
+    ome_logs_enabled
