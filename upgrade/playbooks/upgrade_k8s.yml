@@ -695,6 +695,8 @@
               status: pending
             helm:
               status: pending
+            powerscale:
+              status: pending
           bss_update:
             service_kube_control_plane_first:
               status: pending

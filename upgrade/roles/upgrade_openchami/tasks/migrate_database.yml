@@ -94,6 +94,7 @@
 
     - name: Display schema check result
       ansible.builtin.debug:
+        verbosity: 1
         msg: >-
           HMS schema check:
           {{ 'components table found — schema initialized' if smd_schema_initialized | bool
@@ -142,6 +143,7 @@
 
     - name: Verify node count preserved across migration
       ansible.builtin.debug:
+        verbosity: 1
         msg: >-
           Node count check —
           Pre-upgrade: {{ pre_upgrade_node_count | default('0') | trim }},
@@ -161,39 +163,6 @@
         - pre_upgrade_node_count is defined
         - (pre_upgrade_node_count | default('0') | trim | int) > 0
         - (post_migration_node_count.stdout | default('0') | trim | int) < (pre_upgrade_node_count | default('0') | trim | int)
-
-    # ── Verify SMD API is reachable (MANDATORY with retries) ────────────
-    # After container restart and DB migration, SMD must be responding.
-    - name: Wait for SMD API to become reachable post-migration
-      ansible.builtin.uri:
-        url: "{{ openchami_smd_endpoint }}/service/ready"
-        method: GET
-        validate_certs: false
-        status_code: 200
-      register: smd_api_health
-      changed_when: false
-      retries: "{{ api_readiness_retries }}"
-      delay: "{{ api_readiness_delay }}"
-      until: smd_api_health.status == 200
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
-
-    # ── Verify BSS API is reachable (MANDATORY with retries) ──────────
-    - name: Wait for BSS API to become reachable post-migration
-      ansible.builtin.uri:
-        url: "{{ openchami_bss_endpoint }}/service/status"
-        method: GET
-        validate_certs: false
-        status_code: 200
-      register: bss_api_health
-      changed_when: false
-      retries: "{{ api_readiness_retries }}"
-      delay: "{{ api_readiness_delay }}"
-      until: bss_api_health.status == 200
-      delegate_to: oim
-      delegate_facts: true
-      connection: ssh
 
     # ── Report migration summary ───────────────────────────────────────
     - name: Display database migration summary
@@ -215,8 +184,7 @@
             Post: {{ post_migration_node_count.stdout | default('0') | trim }}{{
             ' (prepare_oim-only)' if (pre_upgrade_node_count | default('0') | trim | int) == 0
             and (post_migration_node_count.stdout | default('0') | trim | int) == 0 else '' }}
-          - "SMD API: reachable at {{ openchami_smd_endpoint }}"
-          - "BSS API: reachable at {{ openchami_bss_endpoint }}"
+          - "SMD/BSS API: checked in post-upgrade health check"
 
   rescue:
     - name: Database migration failed

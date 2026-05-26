@@ -31,7 +31,7 @@ jobs:
 
       - name: Install Ansible Collections from requirements.yml
         run: |
-          ansible-galaxy collection install -r .config/requirements.yml --force
+          ansible-galaxy collection install -r .config/requirements.yml --force --clear-response-cache
 
       - name: Run ansible-lint
         uses: ansible/ansible-lint@main

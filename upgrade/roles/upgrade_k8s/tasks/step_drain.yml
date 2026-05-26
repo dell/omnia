@@ -42,10 +42,12 @@
 
 - name: Calculate new minAvailable for each PDB
   ansible.builtin.set_fact:
-    _pdbs_to_patch: >-
+    _pdbs_to_patch: "{{ _pdbs_to_patch_computed | from_json }}"
+  vars:
+    _pdbs_to_patch_computed: >-
       {% set result = [] %}
       {% set pods_list = (_pods_on_node.stdout | from_json).items %}
-      {% for pdb in _pdbs_with_minavailable %}
+      {% for pdb in (_pdbs_with_minavailable | default([])) %}
         {% set matching_pods = [] %}
         {% for pod in pods_list %}
           {% set match = true %}
@@ -70,7 +72,7 @@
           'pods_on_node': pods_on_node_count
         }) %}
       {% endfor %}
-      {{ result }}
+      {{ result | to_json }}
   when:
     - _pdb_list.rc == 0
     - _pods_on_node.rc == 0
@@ -79,12 +81,15 @@
   ansible.builtin.command:
     cmd: kubectl patch pdb {{ item.name }} -n {{ item.namespace }} --type merge -p '{"spec":{"minAvailable":{{ item.new_minAvailable }}}}'
   delegate_to: "{{ kube_vip }}"
-  loop: "{{ _pdbs_to_patch | default([]) }}"
+  loop: "{{ _pdbs_to_patch | default([], true) }}"
   loop_control:
     label: "{{ item.namespace }}/{{ item.name }} ({{ item.original_minAvailable }} -> {{ item.new_minAvailable }}, {{ item.pods_on_node }} pods on node)"
   register: _pdb_patch
   changed_when: true
   failed_when: false
+  when:
+    - _pdbs_to_patch is defined
+    - _pdbs_to_patch | length > 0
 
 - name: Drain node - {{ current_node_name }}
   ansible.builtin.command:
@@ -97,8 +102,11 @@
   ansible.builtin.command:
     cmd: kubectl patch pdb {{ item.name }} -n {{ item.namespace }} --type merge -p '{"spec":{"minAvailable":{{ item.original_minAvailable }}}}'
   delegate_to: "{{ kube_vip }}"
-  loop: "{{ _pdbs_to_patch | default([]) }}"
+  loop: "{{ _pdbs_to_patch | default([], true) }}"
   loop_control:
     label: "{{ item.namespace }}/{{ item.name }}"
   changed_when: true
   failed_when: false
+  when:
+    - _pdbs_to_patch is defined
+    - _pdbs_to_patch | length > 0

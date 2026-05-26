@@ -20,7 +20,7 @@
 #   oim_metadata.yml is read-only. Rollback manifest fields are derived
 #   directly from it:
 #     omnia_version           →  source_version (currently installed)
-#     omnia_previous_version  →  target_version (rolling back to)
+#     previous_omnia_version  →  target_version (rolling back to)
 #     upgrade_backup_dir      →  backup_dir
 #
 # LOCK POLICY:
@@ -45,7 +45,7 @@
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     upgrade_lock_path: /opt/omnia/.data/upgrade_in_progress.lock
     rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
-    all_rollback_components: [slurm, telemetry, k8s, provision, build_stream, oim]
+    all_rollback_components: [slurm, telemetry, k8s, build_stream, oim]
   tasks:
     # ═══════════════════════════════════════════════════════════════
     # PHASE 1: READ-ONLY GUARDS (no state mutation allowed here)
@@ -191,14 +191,13 @@
           rollback_id: "rollback-{{ 9999 | random }}"
           triggered_from_upgrade_id: "{{ upgrade_manifest.upgrade_id | default('unknown') }}"
           source_version: "{{ oim_metadata.omnia_version }}"
-          target_version: "{{ oim_metadata.omnia_previous_version }}"
+          target_version: "{{ oim_metadata.previous_omnia_version }}"
           rollback_status: "in-progress"
           backup_dir: "{{ oim_metadata.upgrade_backup_dir }}"
           component_status:
             slurm: "pending"
             telemetry: "pending"
             k8s: "pending"
-            provision: "pending"
             build_stream: "pending"
             oim: "pending"
         dest: "{{ rollback_manifest_path }}"
@@ -228,6 +227,11 @@
     openchami_vars_suppport: false
     omnia_metadata_support: true
 
+- name: Create OIM group for SSH connection
+  ansible.builtin.import_playbook: ../utils/create_container_group.yml
+  tags: always
+  vars:
+    oim_group: true
 
  # ─── BuildStream terminal gate detection for rollback ───
 # If BuildStream was enabled during upgrade and downstream components
@@ -255,7 +259,7 @@
     - name: Identify components skipped by BuildStream terminal gate
       ansible.builtin.set_fact:
         bs_rollback_skipped: >-
-          {{ ['slurm', 'telemetry', 'k8s', 'provision']
+          {{ ['slurm', 'telemetry', 'k8s']
              if (build_stream_terminal | bool)
              else [] }}
 
@@ -278,7 +282,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # Rollback sub-flows (reverse order of upgrade):
-#   slurm → telemetry → k8s → provision → build_stream → oim
+#   slurm → telemetry → k8s → build_stream → oim
 # Each reads rollback_manifest and skips if already 'completed'.
 # ──────────────────────────────────────────────────────────────────────
 - name: Rollback Slurm cluster (rolled back first — depends on K8s/OIM)
@@ -292,10 +296,6 @@
 - name: Rollback Kubernetes cluster
   ansible.builtin.import_playbook: playbooks/rollback_k8s.yml
   tags: [k8s]
-
-- name: Rollback Provision (Cloud-Init and BSS)
-  ansible.builtin.import_playbook: playbooks/rollback_provision.yml
-  tags: [provision]
 
 - name: Rollback BuildStream upgrade / enablement
   ansible.builtin.import_playbook: playbooks/rollback_build_stream.yml
@@ -318,7 +318,7 @@
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     upgrade_manifest_path: /opt/omnia/.data/upgrade_manifest.yml
     rollback_lock_path: /opt/omnia/.data/rollback_in_progress.lock
-    all_rollback_components: [slurm, telemetry, k8s, provision, build_stream, oim]
+    all_rollback_components: [slurm, telemetry, k8s, build_stream, oim]
   tasks:
     - name: Read rollback_manifest.yml
       ansible.builtin.slurp:
@@ -425,14 +425,19 @@
           - "  slurm:          {{ cleaned_component_status.slurm }}"
           - "  telemetry:      {{ cleaned_component_status.telemetry }}"
           - "  k8s:            {{ cleaned_component_status.k8s }}"
-          - "  provision:      {{ cleaned_component_status.provision }}"
           - "  build_stream:   {{ cleaned_component_status.build_stream }}"
           - "  oim:            {{ cleaned_component_status.oim }}"
           - ""
           - "Upgrade manifest archived; next upgrade run will start fresh."
           - ""
-          - "NEXT STEP: Run 'sudo ./omnia.sh --rollback' on the OIM host"
-          - "to complete the core container rollback."
+          - "========================================="
+          - "       NEXT REQUIRED STEP"
+          - "========================================="
+          - "Exit the omnia_core container and run the following command on the OIM host:"
+          - ""
+          - "  sudo ./omnia.sh --rollback"
+          - ""
+          - "This will rollback the omnia_core container image to the previous version."
 
 # ──────────────────────────────────────────────────────────────────────
 # Guaranteed terminal cleanup (C-30) — defense-in-depth against

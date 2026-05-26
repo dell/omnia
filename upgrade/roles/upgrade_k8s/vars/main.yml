@@ -218,3 +218,64 @@ msg_preflight_nfs_not_accessible: >-
   Verify NFS server and mount configuration before proceeding.
 msg_rollback_etcd_binary_failed: >-
   Saved etcdctl binary failed. Falling back to podman-based restore.
+
+# ---------------------------------------------------------------------------
+# PowerScale CSI Driver Upgrade Messages
+# ---------------------------------------------------------------------------
+msg_powerscale_namespace_missing: "PowerScale namespace 'isilon' does not exist. Cannot proceed with upgrade."
+msg_powerscale_controller_pods_missing: "PowerScale controller pods not found. Cannot proceed with upgrade."
+msg_powerscale_node_daemonset_missing: "PowerScale node daemonset not found. Cannot proceed with upgrade."
+msg_powerscale_copy_failed: >-
+  Failed to copy PowerScale CSI driver repository from NFS to cluster local
+  directory. Check disk space and permissions.
+msg_powerscale_nfs_dir_missing: >-
+  PowerScale CSI driver versioned directory not found on NFS: {{ powerscale_nfs_version_dir }}
+  This directory should have been created during the provision phase.
+  Upgrade cannot proceed. Please run the provision playbook to create the directory.
+msg_powerscale_file_missing: "{{ item.item.name }} not found at {{ item.item.path }}. Ensure provision phase completed successfully."
+msg_powerscale_paths_display: |
+  PowerScale upgrade environment preparation:
+  - NFS version directory: {{ powerscale_nfs_version_dir }}
+  - Cluster version directory: {{ powerscale_cluster_version_dir }}
+  - CSI install script: {{ powerscale_csi_install_script }}
+msg_powerscale_version_source: >-
+  PowerScale CSI driver {{ csi_powerscale_dir }}
+  {% if powerscale_nfs_version_exists.stat.exists %}
+  will be reused from provision phase (NFS: {{ powerscale_nfs_version_dir }})
+  {% else %}
+  will be cloned from GitHub ({{ powerscale_repo_url }})
+  {% endif %}
+msg_powerscale_prepare_summary: |
+  PowerScale CSI driver upgrade environment prepared:
+  - Target version: {{ powerscale_target_version }}
+  - NFS version directory: {{ powerscale_nfs_version_dir }}
+  - Cluster version directory: {{ powerscale_cluster_version_dir }}
+  - Upgrade script: {{ powerscale_csi_install_script }}
+  - Ready for upgrade execution
+msg_powerscale_backup_summary: |
+  PowerScale CSI driver backup completed:
+  - Backup location: {{ backup_dir }}/csi
+  - Driver folder: csi-driver-powerscale-backup.tar.gz
+  - StorageClass: storageclass-backup.yml
+  - PVCs: Backed up if using PowerScale StorageClass
+msg_powerscale_upgrade_start: "Starting PowerScale CSI driver upgrade to version {{ powerscale_target_version }}"
+msg_powerscale_upgrade_failed: >-
+  PowerScale CSI driver upgrade failed. Check upgrade logs at
+  /tmp/powerscale_upgrade_{{ powerscale_target_version }}.log on {{ kube_vip }}.
+  Review errors and consider rollback if necessary.
+msg_powerscale_upgrade_success: "PowerScale CSI driver upgrade command completed successfully"
+msg_powerscale_no_storageclasses: >-
+  No PowerScale StorageClasses found after upgrade. StorageClasses may have been
+  deleted during upgrade. Check with: kubectl get storageclass
+msg_addon_powerscale_failed: >-
+  PowerScale CSI driver upgrade failed. Check logs for details. The upgrade
+  process has been aborted to prevent cluster instability.
+
+# ---------------------------------------------------------------------------
+# PowerScale CSI Driver Upgrade Paths
+# ---------------------------------------------------------------------------
+# Cluster local paths (for upgrade execution)
+powerscale_cluster_base: "/opt/omnia"
+
+# PowerScale namespace
+powerscale_namespace: "isilon"

@@ -286,6 +286,44 @@
     oim_group: true
 
 # ──────────────────────────────────────────────────────────────────────
+# Load credentials via credential utility (for build_stream and gitlab)
+# Set upgrade_mode to bypass upgrade_checkup guard within credential utility
+# Set dynamic run tags based on enable_build_stream flag
+# ──────────────────────────────────────────────────────────────────────
+- name: Set upgrade mode flag and dynamic tags for credential utility
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: always
+  tasks:
+    - name: Read build_stream_config.yml to check enable_build_stream flag
+      ansible.builtin.include_vars:
+        file: "{{ input_project_dir }}/build_stream_config.yml"
+        name: _bs_config_check
+      failed_when: false
+
+    - name: Enable upgrade_mode to bypass credential utility guard
+      ansible.builtin.set_fact:
+        upgrade_mode: true
+        cacheable: true
+
+    - name: Set dynamic run tags including build_stream and gitlab
+      ansible.builtin.set_fact:
+        omnia_run_tags: >-
+          {{
+            (
+              ansible_run_tags | default([]) +
+              ['build_stream', 'gitlab']
+            ) | unique
+          }}
+        cacheable: true
+      when: _bs_config_check.enable_build_stream | default(false) | bool
+
+- name: Load Omnia credential utility
+  ansible.builtin.import_playbook: ../utils/credential_utility/get_config_credentials.yml
+  tags: [build_stream, gitlab]
+
+# ──────────────────────────────────────────────────────────────────────
 # BuildStream Terminal Gate (C-24): Read build_stream_config.yml and
 # set build_stream_terminal fact. When enable_build_stream=true AND
 # build_stream tag completes, downstream tags (local_repo, build_image,
@@ -341,7 +379,73 @@
       ansible.builtin.set_fact:
         approval_manifest: "{{ approval_raw_manifest.content | b64decode | from_yaml }}"
 
-    - name: Show Omnia upgrade plan and wait for operator confirmation
+    # ── Approval prompt when BuildStream is ENABLED ──
+    - name: Show BuildStream-enabled upgrade plan and wait for operator confirmation
+      ansible.builtin.pause:
+        prompt: |2
+          ══════════════════════════════════════════════════════════════
+                     OMNIA UPGRADE — OPERATOR APPROVAL REQUIRED
+                           (BuildStream Mode — Enabled)
+          ══════════════════════════════════════════════════════════════
+
+          ── Version Transition ───────────────────────────────────────
+            Current Omnia version : {{ approval_manifest.source_version | default('2.1.0.0') }}
+            Target  Omnia version : {{ approval_manifest.target_version | default('2.2.0.0') }}
+
+          ── Upgrade Execution Plan (BuildStream Enabled) ─────────────
+            1. oim           → Upgrade OpenCHAMI control-plane containers
+                               on the Omnia Infrastructure Manager
+            2. build_stream  → Enable or upgrade BuildStream + GitLab
+                               services on OIM
+
+            ── SKIPPED (handled by GitLab pipeline after upgrade) ──
+            3. local_repo    → SKIPPED
+            4. build_image   → SKIPPED
+            5. provision     → SKIPPED
+            6. k8s           → SKIPPED (fresh deployment via pipeline)
+            7. telemetry     → SKIPPED (fresh deployment via pipeline)
+            8. slurm         → SKIPPED (fresh deployment via pipeline)
+
+          ── BuildStream Important Notes ────────────────────────────
+            • BuildStream is intended for TEST BED clusters.
+            • After upgrade, K8s and Slurm will be FRESH DEPLOYMENTS
+              via the GitLab pipeline — existing cluster state will
+              NOT be preserved.
+            • NFS shares configured in storage_config.yml must be
+              backed up and cleaned, OR provide new NFS share paths
+              for K8s and Slurm workloads.
+            • A new mapping file (pxe_mapping_file.csv) is required
+              to preserve old cluster node-to-group assignments.
+              Sample catalogs are available in: examples/catalog/
+
+          ── Impact & Risk ────────────────────────────────────────────
+            • OIM services will be restarted during OIM + BuildStream
+              upgrade steps.
+            • Do NOT reboot the OIM during the upgrade.
+            • Existing K8s and Slurm clusters will be REPLACED by
+              fresh deployments triggered from the GitLab pipeline.
+            • All data on NFS shares must be backed up before
+              triggering the GitLab pipeline.
+
+          ── Pre-flight Checklist ─────────────────────────────────────
+            [ ] prepare_upgrade.yml completed without errors
+            [ ] NFS share data backed up or new NFS shares configured
+                in storage_config.yml
+            [ ] Stable internet connectivity verified on the OIM
+            [ ] Maintenance window is active and stakeholders notified
+            [ ] Sufficient disk space available for new images & packages
+
+          ──────────────────────────────────────────────────────────────
+            Press  ENTER       to PROCEED with the Omnia upgrade
+            Press  Ctrl+C, A   to ABORT and exit safely
+          ══════════════════════════════════════════════════════════════
+      when:
+        - not (skip_approval | default(false) | bool)
+        - approval_manifest.approval_status | default('pending') != 'approved'
+        - build_stream_terminal | default(false) | bool
+
+    # ── Approval prompt when BuildStream is DISABLED (standard upgrade) ──
+    - name: Show standard upgrade plan and wait for operator confirmation
       ansible.builtin.pause:
         prompt: |2
           ══════════════════════════════════════════════════════════════
@@ -355,8 +459,7 @@
           ── Omnia Upgrade Execution Plan (in order) ──────────────────
             1. oim           → Upgrade OpenCHAMI control-plane containers
                                on the Omnia Infrastructure Manager
-            2. build_stream  → Enable or upgrade BuildStream services
-                               (skipped if not enabled in the build_stream_config.yml)
+            2. build_stream  → SKIPPED (not enabled in build_stream_config.yml)
             3. local_repo    → Synchronize Omnia 2.2 packages into the
                                local Pulp repository for cluster nodes
             4. build_image   → Rebuild compute OS images against
@@ -390,6 +493,7 @@
       when:
         - not (skip_approval | default(false) | bool)
         - approval_manifest.approval_status | default('pending') != 'approved'
+        - not (build_stream_terminal | default(false) | bool)
 
     - name: Update approval_status to approved in manifest
       ansible.builtin.copy:
@@ -608,6 +712,53 @@
         path: "{{ upgrade_lock_path }}"
         state: absent
       when: new_status == 'completed'
+
+    - name: Display BuildStream post-upgrade next steps
+      ansible.builtin.debug:
+        msg:
+          - "══════════════════════════════════════════════════════════════"
+          - "       BUILDSTREAM ENABLED — POST-UPGRADE NEXT STEPS"
+          - "══════════════════════════════════════════════════════════════"
+          - ""
+          - "  OIM and BuildStream upgrade/enablement is complete."
+          - "  Components local_repo, build_image, provision, k8s,"
+          - "  telemetry, and slurm were SKIPPED — these will be"
+          - "  handled by the GitLab pipeline."
+          - ""
+          - "  ── ACTION REQUIRED ────────────────────────────────────────"
+          - ""
+          - "  1. PREPARE NEW MAPPING FILE"
+          - "     Provide a new pxe_mapping_file.csv to preserve old"
+          - "     cluster node-to-group assignments."
+          - "     Sample catalogs available in: examples/catalog/"
+          - "     Copy a catalog and update it with your node mappings."
+          - ""
+          - "  2. NFS SHARE BACKUP"
+          - "     Ensure NFS shares configured in storage_config.yml"
+          - "     are backed up and cleaned, OR provide new NFS share"
+          - "     paths for K8s and Slurm workloads."
+          - "     BuildStream pipeline will deploy K8s and Slurm as"
+          - "     FRESH clusters — old data will NOT be preserved."
+          - ""
+          - "  3. TRIGGER GITLAB PIPELINE"
+          - "     Navigate to GitLab UI → CI/CD → Pipelines"
+          - "     Click 'Run Pipeline' with the catalog available"
+          - "     in examples/catalog/."
+          - "     The pipeline will handle:"
+          - "       - Local repo sync"
+          - "       - OS image building"
+          - "       - Cloud-init/BSS provisioning"
+          - "       - K8s cluster deployment (fresh)"
+          - "       - Slurm cluster deployment (fresh)"
+          - "       - Telemetry stack deployment"
+          - ""
+          - "  ── IMPORTANT WARNING ──────────────────────────────────────"
+          - "  BuildStream is intended for TEST BED clusters."
+          - "  K8s and Slurm will be FRESH DEPLOYMENTS — all existing"
+          - "  cluster state, jobs, and configurations will be replaced."
+          - "══════════════════════════════════════════════════════════════"
+      when:
+        - hostvars['localhost']['build_stream_terminal'] | default(false) | bool
 
     - name: Display upgrade summary
       ansible.builtin.debug:

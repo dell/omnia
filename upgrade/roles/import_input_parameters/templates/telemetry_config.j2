@@ -27,10 +27,10 @@
 #   SOURCES (Collectors) → BRIDGES (Vector) → SINKS (Storage)
 #
 # SECTIONS:
-#   1. Telemetry Sources    : Data collectors (iDRAC, LDMS, DCGM, PowerScale)
+#   1. Telemetry Sources    : Data collectors (iDRAC, LDMS, DCGM, PowerScale, UFM, VAST)
 #   2. Telemetry Bridges    : Data routers (Vector pipelines)
 #   3. Telemetry Sinks      : Storage backends (victoria_metrics, victoria_logs, Kafka)
-#   4. Source Configurations: Detailed settings per source (PowerScale, LDMS)
+#   4. Source Configurations: Detailed settings per source (PowerScale, LDMS, UFM, VAST)
 #
 # ============================================================================
 # STORAGE REQUIREMENTS SUMMARY
@@ -450,40 +450,27 @@ ufm_configuration:
 # --------------------------------------------------------------------------
 # VAST Telemetry Configuration
 # --------------------------------------------------------------------------
-# VAST telemetry collects storage metrics from VAST Storage appliances
-# using Prometheus scraping.
+# VAST telemetry collects storage performance metrics from VAST Data clusters
+# using Prometheus scraping via the VAST Prometheus metrics API.
 #
 # DATA PIPELINE:
-#   VAST Prometheus Exporter → vmagent(shared) → victoria_metrics
-#   VAST Syslog → rsyslog relay → VLAgent → victoria_logs
+#   VAST Prometheus API (HTTPS) → vmagent(shared) → victoria_metrics
 #
 # NOTE: VAST does NOT use Vector bridges. It uses the shared vmagent instance
-#       for metrics collection and VLAgent for log collection.
-vast_configurations:
-  # VAST appliance IP address or hostname
+#       for metrics collection.
+vast_configuration:
+  # VAST cluster IP address or hostname
   # Required when telemetry_sources.vast.metrics_enabled is true
-  # Example: "10.0.5.10" or "vast.example.com"
-  vast_ip: "{{ telemetry_vast_ip | default(telemetry_default_vast_ip) }}"
+  # Example: "172.18.44.171" or "vast.example.com"
+  vast_endpoint: "{{ telemetry_vast_endpoint | default(telemetry_default_vast_endpoint) }}"
 
-  # VAST HTTPS port for Prometheus metrics
+  # VAST Prometheus metrics port
   # Default: 443 (VAST default HTTPS port)
-  vast_port: {{ telemetry_vast_port | default(telemetry_default_vast_port) }}
+  vast_metrics_port: {{ telemetry_vast_metrics_port | default(telemetry_default_vast_metrics_port) }}
 
-  # Prometheus endpoints to scrape from VAST
-  # Supported endpoints:
-  #   - api/prometheusmetrics/all: All metrics
-  #   - api/prometheusmetrics/views: View-specific metrics
-  #   - api/prometheusmetrics/devices: Device-specific metrics
-  #   - api/prometheusmetrics/alarms: Alarm metrics
-  # Default: ["api/prometheusmetrics/all"]
-  endpoints:
-{% if telemetry_vast_endpoints is defined and telemetry_vast_endpoints | length > 0 %}
-{% for _endpoint in telemetry_vast_endpoints %}
-    - "{{ _endpoint }}"
-{% endfor %}
-{% else %}
-    - "api/prometheusmetrics/all"
-{% endif %}
+  # Prometheus metrics path for VAST API
+  # Default: "/api/prometheusmetrics/all"
+  metrics_path: "{{ telemetry_vast_metrics_path | default(telemetry_default_vast_metrics_path) }}"
 
   # Prometheus scrape interval for VAST metrics
   # Accepted values: Prometheus duration format (e.g., "15s", "30s", "1m")
@@ -492,7 +479,7 @@ vast_configurations:
 
   # Prometheus scrape timeout (must be <= scrape_interval)
   # Accepted values: Prometheus duration format (e.g., "10s", "15s")
-  # Default: "10s"
+  # Default: "15s"
   scrape_timeout: "{{ telemetry_vast_scrape_timeout | default(telemetry_default_vast_scrape_timeout) }}"
 
   # TLS mode for connecting to VAST Prometheus endpoint

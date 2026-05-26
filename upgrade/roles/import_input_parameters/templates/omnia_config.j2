@@ -123,8 +123,8 @@ slurm_cluster:
 {% for _cluster in _slurm_cluster %}
   - cluster_name: {{ _cluster.cluster_name | default('') }}
     nfs_storage_name: {{ _cluster.nfs_storage_name | default('') }}
-    # vast_storage_name: vast_storage
-    # skip_merge: False
+    vast_storage_name: {{ _cluster.vast_storage_name | default('vast_storage') }}
+    # skip_merge: {{ _cluster.skip_merge | default(false) }}
 
     # Uncomment to enable homogeneous discovery mode
     # node_discovery_mode: "homogeneous"
@@ -237,6 +237,7 @@ service_k8s_cluster:
 {% for _cluster in _service_k8s_cluster %}
   - cluster_name: {{ _cluster.cluster_name | default('') }}
     deployment: {{ _cluster.deployment | default(false) }}
+    etcd_on_local_disk: {{ _cluster.etcd_on_local_disk | default(false) }}
     k8s_cni: {{ _cluster.k8s_cni | default('calico') }}
     pod_external_ip_range: "{{ _cluster.pod_external_ip_range | default('') }}"
     k8s_service_addresses: "{{ _cluster.k8s_service_addresses | default('') }}"

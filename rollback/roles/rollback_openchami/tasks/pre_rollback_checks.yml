@@ -1,0 +1,128 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# pre_rollback_checks.yml — Validate Rollback Preconditions
+# ============================================================================
+# Checks:
+#   1. Backup directory exists with required sub-paths
+#   2. Backed-up quadlet files exist
+#   3. Backed-up openchami.target exists
+#   4. PostgreSQL backup SQL file exists
+#   5. Idempotency: if v2.1 coresmd container is already running, skip rollback
+# ============================================================================
+
+- name: Pre-rollback validation
+  block:
+    # ── Verify backup directory exists ──────────────────────────────────
+    - name: Check backup directory exists
+      ansible.builtin.stat:
+        path: "{{ rollback_backup_dir }}"
+      register: rollback_backup_stat
+
+    - name: Fail if backup directory is missing
+      ansible.builtin.fail:
+        msg: "{{ rollback_messages.pre_check.no_backup }}"
+      when: not (rollback_backup_stat.stat.exists | default(false))
+
+    # ── Verify backup sub-paths exist ───────────────────────────────────
+    - name: Check backed-up quadlets directory exists
+      ansible.builtin.stat:
+        path: "{{ rollback_backup_dir }}/{{ backup_quadlets_subpath }}"
+      register: rollback_quadlets_stat
+
+    - name: Check backed-up openchami.target exists
+      ansible.builtin.stat:
+        path: "{{ rollback_backup_dir }}/{{ backup_target_subpath }}"
+      register: rollback_target_stat
+
+    - name: Check backed-up PostgreSQL dump exists
+      ansible.builtin.stat:
+        path: "{{ rollback_backup_dir }}/{{ backup_pgdump_subpath }}"
+      register: rollback_pgdump_stat
+
+    - name: Check backed-up openchami_data directory exists
+      ansible.builtin.stat:
+        path: "{{ rollback_backup_dir }}/{{ backup_openchami_data_subpath }}"
+      register: rollback_data_stat
+
+    - name: Display backup inventory
+      ansible.builtin.debug:
+        verbosity: 1
+        msg:
+          - "Backup directory: {{ rollback_backup_dir }}"
+          - "Quadlets backup: {{ 'found' if rollback_quadlets_stat.stat.exists | default(false) else 'MISSING' }}"
+          - "openchami.target backup: {{ 'found' if rollback_target_stat.stat.exists | default(false) else 'MISSING' }}"
+          - "PostgreSQL dump: {{ 'found' if rollback_pgdump_stat.stat.exists | default(false) else 'MISSING' }}"
+          - "openchami_data backup: {{ 'found' if rollback_data_stat.stat.exists | default(false) else 'MISSING' }}"
+
+    - name: Fail if critical backup components are missing
+      ansible.builtin.fail:
+        msg: |
+          Critical backup components are missing. Cannot proceed with rollback.
+          Quadlets: {{ 'found' if rollback_quadlets_stat.stat.exists | default(false) else 'MISSING' }}
+          openchami.target: {{ 'found' if rollback_target_stat.stat.exists | default(false) else 'MISSING' }}
+          PostgreSQL dump: {{ 'found' if rollback_pgdump_stat.stat.exists | default(false) else 'MISSING (non-fatal for prepare_oim-only)' }}
+      when: >-
+        not (rollback_quadlets_stat.stat.exists | default(false)) or
+        not (rollback_target_stat.stat.exists | default(false))
+
+    # ── Idempotency: check if already rolled back ───────────────────────
+    # If the v2.1 single coresmd container is already running AND the v2.2
+    # split containers (coresmd-coredhcp, coresmd-coredns) are NOT running,
+    # we are already at v2.1 state. Skip rollback.
+    - name: Check if v2.1 coresmd container is running (idempotency)
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman ps --filter "name=^coresmd$" --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null | grep -w "^coresmd$" || echo ""
+      register: rollback_coresmd_v21_check
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Check if v2.2 coresmd-coredhcp container is running
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman ps --filter "name=^coresmd-coredhcp$" --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null | grep -w "coresmd-coredhcp" || echo ""
+      register: rollback_coresmd_v22_check
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Determine if rollback is needed
+      ansible.builtin.set_fact:
+        rollback_needed: >-
+          {{
+            not (rollback_coresmd_v21_check.stdout | trim | length > 0 and
+                 rollback_coresmd_v22_check.stdout | trim | length == 0)
+          }}
+
+    - name: Skip rollback if already at v2.1
+      ansible.builtin.debug:
+        msg: "{{ rollback_messages.pre_check.already_v21 }}"
+      when: not (rollback_needed | bool)
+
+    - name: Display rollback decision
+      ansible.builtin.debug:
+        verbosity: 1
+        msg: >-
+          Rollback needed: {{ rollback_needed }}.
+          v2.1 coresmd: {{ 'running' if rollback_coresmd_v21_check.stdout | trim | length > 0 else 'not running' }}.
+          v2.2 coresmd-coredhcp: {{ 'running' if rollback_coresmd_v22_check.stdout | trim | length > 0 else 'not running' }}.
+      when: rollback_needed | bool

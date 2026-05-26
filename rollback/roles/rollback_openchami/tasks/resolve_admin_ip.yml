@@ -27,7 +27,7 @@
 #   HAProxy port 8443 is published on the host and remains stable.
 #
 # Sets facts:
-#   openchami_base_url    — HAProxy base URL (e.g., https://oim:8443)
+#   openchami_base_url     — HAProxy base URL (e.g., https://oim:8443)
 #   openchami_smd_endpoint — Full SMD URL (https://oim:8443/hsm/v2)
 #   openchami_bss_endpoint — Full BSS URL (https://oim:8443/boot/v1)
 # ============================================================================

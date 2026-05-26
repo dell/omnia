@@ -1,0 +1,214 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# post_rollback_health_check.yml — Post-Rollback Validation
+# ============================================================================
+# Validates:
+#   1. All v2.1 critical containers are running
+#   2. PostgreSQL is accepting connections
+#   3. SMD and BSS APIs are reachable
+#   4. v2.1 coresmd (single) is running
+#   5. v2.2-only containers (coresmd-coredhcp, coresmd-coredns) are NOT running
+#   6. openchami.target references coresmd.service (not split services)
+#   7. Cloud-init-server is running and serving data
+# ============================================================================
+
+- name: Post-rollback health check
+  block:
+    - name: Wait for service initialization after rollback
+      ansible.builtin.pause:
+        seconds: 30
+
+    # ── Verify all v2.1 critical containers are running ─────────────────
+    - name: Verify all v2.1 critical containers are running
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman ps --filter "name=^{{ item }}$" --format '{% raw %}{{.Names}}{% endraw %}' | grep -w "{{ item }}" || echo ""
+      loop: "{{ rollback_v21_critical_containers }}"
+      register: rb_container_check
+      changed_when: false
+      retries: 6
+      delay: 10
+      until: rb_container_check.stdout | trim | length > 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Verify PostgreSQL connectivity ──────────────────────────────────
+    - name: Check postgres database connectivity
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres pg_isready -U {{ postgres_db_user }} -d {{ postgres_db_name }}
+      register: rb_postgres_check
+      changed_when: false
+      failed_when: rb_postgres_check.rc != 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Verify v2.1 coresmd (single) is running ────────────────────────
+    - name: Verify v2.1 coresmd container is running
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman ps --filter "name=^coresmd$" --format '{% raw %}{{.Names}}{% endraw %}' | grep -w "^coresmd$" || echo ""
+      register: rb_coresmd_v21
+      changed_when: false
+      failed_when: rb_coresmd_v21.stdout | trim | length == 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Verify v2.2-only containers are NOT running ─────────────────────
+    - name: Verify coresmd-coredhcp is NOT running
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman ps --filter "name=^coresmd-coredhcp$" --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null | grep -w "coresmd-coredhcp" || true
+      register: rb_coresmd_dhcp_check
+      changed_when: false
+      failed_when: rb_coresmd_dhcp_check.stdout | trim | length > 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Verify coresmd-coredns is NOT running
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman ps --filter "name=^coresmd-coredns$" --format '{% raw %}{{.Names}}{% endraw %}' 2>/dev/null | grep -w "coresmd-coredns" || true
+      register: rb_coresmd_dns_check
+      changed_when: false
+      failed_when: rb_coresmd_dns_check.stdout | trim | length > 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Verify SMD API is reachable ─────────────────────────────────────
+    - name: Wait for SMD API to become reachable after rollback
+      ansible.builtin.uri:
+        url: "{{ openchami_smd_endpoint }}/service/ready"
+        method: GET
+        validate_certs: false
+        status_code: 200
+      register: rb_smd_api_check
+      changed_when: false
+      retries: "{{ api_readiness_retries }}"
+      delay: "{{ api_readiness_delay }}"
+      until: rb_smd_api_check.status == 200
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Verify BSS API is reachable ─────────────────────────────────────
+    - name: Wait for BSS API to become reachable after rollback
+      ansible.builtin.uri:
+        url: "{{ openchami_bss_endpoint }}/service/status"
+        method: GET
+        validate_certs: false
+        status_code: 200
+      register: rb_bss_api_check
+      changed_when: false
+      retries: "{{ api_readiness_retries }}"
+      delay: "{{ api_readiness_delay }}"
+      until: rb_bss_api_check.status == 200
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Verify openchami.target dependency tree ─────────────────────────
+    - name: Verify openchami.target dependency tree
+      ansible.builtin.shell: |
+        set -o pipefail
+        systemctl list-dependencies openchami.target --plain --no-pager 2>&1
+      register: rb_openchami_deps
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Validate coresmd.service is in openchami.target (v2.1 pattern)
+      ansible.builtin.assert:
+        that:
+          - "'coresmd.service' in rb_openchami_deps.stdout"
+        fail_msg: >-
+          openchami.target does not reference coresmd.service.
+          Rollback may not have fully restored the v2.1 target.
+        success_msg: "openchami.target correctly references coresmd.service (v2.1 pattern)."
+      when: rb_openchami_deps.rc == 0
+
+    - name: Validate v2.2 split services are NOT in openchami.target
+      ansible.builtin.assert:
+        that:
+          - "'coresmd-coredhcp.service' not in rb_openchami_deps.stdout"
+          - "'coresmd-coredns.service' not in rb_openchami_deps.stdout"
+        fail_msg: >-
+          v2.2 split services still found in openchami.target.
+          Dependencies: {{ rb_openchami_deps.stdout | default('') }}
+        success_msg: "v2.2 split services confirmed absent from openchami.target."
+      when: rb_openchami_deps.rc == 0
+
+    # ── Verify cloud-init-server is running ─────────────────────────────
+    - name: Check cloud-init-server container is running
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman ps --filter name=cloud-init-server --format '{% raw %}{{.Status}}{% endraw %}' 2>&1
+      register: rb_ci_container_status
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Node count (non-fatal) ──────────────────────────────────────────
+    - name: Query node count after rollback
+      ansible.builtin.shell: |
+        set -o pipefail
+        podman exec postgres psql -U {{ postgres_db_user }} -d {{ postgres_db_name }} -t -c \
+          "SELECT COUNT(*) FROM components;" 2>/dev/null || echo "0"
+      register: rb_node_count
+      changed_when: false
+      failed_when: false
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Health check summary ────────────────────────────────────────────
+    - name: Display post-rollback health check summary
+      ansible.builtin.debug:
+        msg:
+          - "════════════════════════════════════════════"
+          - "  POST-ROLLBACK HEALTH CHECK PASSED"
+          - "════════════════════════════════════════════"
+          - "Containers: all {{ rollback_v21_critical_containers | length }} v2.1 containers running"
+          - "PostgreSQL: connected (db={{ postgres_db_name }}, user={{ postgres_db_user }})"
+          - "v2.1 coresmd: running (single container)"
+          - "v2.2 coresmd-coredhcp: not running (confirmed removed)"
+          - "v2.2 coresmd-coredns: not running (confirmed removed)"
+          - "SMD API: reachable at {{ openchami_smd_endpoint }}"
+          - "BSS API: reachable at {{ openchami_bss_endpoint }}"
+          - "Node count: {{ rb_node_count.stdout | default('0') | trim }}"
+          - "openchami.target: references coresmd.service (v2.1 pattern)"
+          - >-
+            Cloud-init-server: {{ rb_ci_container_status.stdout | default('unknown') }}
+          - "════════════════════════════════════════════"
+
+    - name: Display post-rollback health check success
+      ansible.builtin.debug:
+        msg: "{{ rollback_messages.health_check.success }}"
+
+  rescue:
+    - name: Post-rollback health check failed
+      ansible.builtin.fail:
+        msg: "{{ rollback_messages.health_check.failure }}"

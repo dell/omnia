@@ -74,6 +74,7 @@
 
     - name: Skip upgrade if all containers already at target versions
       ansible.builtin.debug:
+        verbosity: 1
         msg: >-
           All containers are already running target images. Skipping
           destructive stop/remove/start cycle. This is a safe rerun.
@@ -377,6 +378,7 @@
 
         - name: Display configs_vars.yaml regeneration status
           ansible.builtin.debug:
+            verbosity: 1
             msg: >-
               Regenerated configs_vars.yaml from source files:
               oim_metadata={{ oim_metadata_stat.stat.exists }},
@@ -419,6 +421,7 @@
 
     - name: Display cluster config status
       ansible.builtin.debug:
+        verbosity: 1
         msg: >-
           Cluster config: available={{ cluster_config_available | default(false) }},
           source={{ config_vars_source | default('regenerated') }},

@@ -55,6 +55,9 @@
   register: unhealthy_pods
   changed_when: false
   failed_when: false
+  until: unhealthy_pods.stdout | trim | length == 0
+  retries: "{{ [1, ((addon_rollout_timeout | default(300) | int) // 10)] | max }}"
+  delay: 10
 
 - name: Fail if kube-system pods are not Running
   ansible.builtin.fail:
