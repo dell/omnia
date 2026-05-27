@@ -38,7 +38,9 @@
 
 - name: Build API URL for example catalog check
   ansible.builtin.set_fact:
-    _example_catalog_api_url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_example_path }}?ref={{ gitlab_default_branch }}"
+    _example_catalog_api_url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/repository/files/{{ _encoded_example_path }}?ref={{ gitlab_default_branch }}
 
 - name: Check if example catalog exists in repository
   ansible.builtin.uri:

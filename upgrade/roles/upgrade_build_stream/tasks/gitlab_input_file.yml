@@ -39,7 +39,9 @@
 
 - name: Build API URL for input file check
   ansible.builtin.set_fact:
-    _input_file_api_url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _encoded_input_path }}?ref={{ gitlab_default_branch }}"
+    _input_file_api_url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/repository/files/{{ _encoded_input_path }}?ref={{ gitlab_default_branch }}
 
 - name: Check if input file exists in repository
   ansible.builtin.uri:

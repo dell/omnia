@@ -33,7 +33,9 @@
 
 - name: Build API URL for CI file check
   ansible.builtin.set_fact:
-    _ci_file_api_url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _ci_file_name | urlencode }}?ref={{ gitlab_default_branch }}"
+    _ci_file_api_url: >-
+      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id
+      }}/repository/files/{{ _ci_file_name | urlencode }}?ref={{ gitlab_default_branch }}
 
 - name: Check if CI file exists in repository
   ansible.builtin.uri:

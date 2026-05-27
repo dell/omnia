@@ -99,6 +99,45 @@
       ansible.builtin.meta: end_play
       when: manifest.component_status[component_name] | default('pending') == 'completed'
 
+    # ── Validate: disabling build_stream during upgrade is not supported ──
+    - name: Read backup build_stream_config.yml (pre-upgrade state)
+      ansible.builtin.slurp:
+        src: "{{ backup_dir }}/input/project_default/build_stream_config.yml"
+      register: _backup_bs_config_slurp
+      failed_when: false
+
+    - name: Parse backup build_stream_config.yml
+      ansible.builtin.set_fact:
+        _backup_enable_build_stream: "{{ (_backup_bs_config_slurp.content | b64decode | from_yaml).enable_build_stream | default(false) | bool }}"
+      when: _backup_bs_config_slurp is not failed
+
+    - name: "Abort — disabling BuildStream during upgrade is not supported"
+      ansible.builtin.fail:
+        msg: |
+          ══════════════════════════════════════════════════════════════
+                UNSUPPORTED TOPOLOGY CHANGE DETECTED
+          ══════════════════════════════════════════════════════════════
+
+          BuildStream was ENABLED in the pre-upgrade (2.1) configuration
+          but is now DISABLED in the current build_stream_config.yml.
+
+          Disabling BuildStream during an upgrade is not a supported
+          topology. Once BuildStream is enabled, it cannot be disabled
+          through the upgrade process.
+
+          To proceed, restore enable_build_stream: true in:
+            {{ input_project_dir }}/build_stream_config.yml
+
+          Pre-upgrade config (backup):
+            enable_build_stream: {{ _backup_enable_build_stream }}
+          Current config:
+            enable_build_stream: {{ enable_build_stream }}
+
+          ══════════════════════════════════════════════════════════════
+      when:
+        - _backup_enable_build_stream | default(false) | bool
+        - not enable_build_stream | bool
+
     - name: Mark build_stream as skipped when not enabled
       ansible.builtin.copy:
         content: >-
@@ -344,3 +383,4 @@
           - "  Tags local_repo, build_image, provision, k8s,"
           - "  telemetry, and slurm have been SKIPPED in this upgrade run."
           - "============================================================"
+        verbosity: 1
