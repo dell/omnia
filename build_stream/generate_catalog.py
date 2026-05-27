@@ -313,6 +313,18 @@ def collect_packages_from_config(config_dir, allowed_bundles_by_arch, versions_b
                             )
                     elif pkg_type == 'image':
                         tag = pkg.get('tag', '')
+                        # Use tag-aware key for images so two entries with the same
+                        # name but different tags are treated as distinct packages.
+                        if tag:
+                            img_key = f"{pkg_name}_{pkg_type}_{tag}"
+                            if img_key != key:
+                                if key in packages and img_key not in packages:
+                                    packages[img_key] = packages.pop(key)
+                                key = img_key
+                                packages[key]['name'] = pkg_name
+                                packages[key]['type'] = pkg_type
+                                packages[key]['architectures'].add(arch)
+                                packages[key]['bundles'].add(bundle_name)
                         packages[key]['tag'] = tag
                         packages[key]['version'] = tag
 
@@ -592,6 +604,12 @@ def map_packages_to_roles(packages, config_dir, allowed_bundles, bundle_roles, p
                         git_key = f"{pkg_name}_{pkg_type}_{pkg['version']}"
                         if git_key in package_id_map:
                             key = git_key
+                    # For image packages, include tag in key when present (must
+                    # match the key used in collect_packages_from_config)
+                    if pkg_type == 'image' and pkg.get('tag'):
+                        img_key = f"{pkg_name}_{pkg_type}_{pkg['tag']}"
+                        if img_key in package_id_map:
+                            key = img_key
 
                     if key in package_id_map:
                         pkg_id = package_id_map[key]
