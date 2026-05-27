@@ -651,53 +651,52 @@ def validate_telemetry_config(
     #     )
 
     # =========================================================================
-    # OME source ↔ Vector-OME bridge bidirectional validation
+    # OME source ↔ Vector-OME bridge independent validation
     # =========================================================================
+    # Metrics and logs channels are validated independently:
+    #   - vector_ome.metrics_enabled requires ome.metrics_enabled
+    #   - vector_ome.logs_enabled requires ome.logs_enabled
     ome_metrics_enabled = ome_source.get("metrics_enabled", False)
     ome_logs_enabled = ome_source.get("logs_enabled", False)
 
-    # Validation: If OME source is disabled, Vector-OME must also be disabled
-    if not ome_metrics_enabled and (vector_ome_metrics_enabled or vector_ome_logs_enabled):
+    # Validation: Vector-OME metrics bridge requires OME metrics source
+    if vector_ome_metrics_enabled and not ome_metrics_enabled:
         errors.append(create_error_msg(
-            "telemetry_bridges.vector_ome",
-            f"metrics_enabled={vector_ome_metrics_enabled}, logs_enabled={vector_ome_logs_enabled}",
-            "Vector-OME bridge is enabled but telemetry_sources.ome.metrics_enabled is false. "
-            "OME source must be enabled for Vector-OME bridge to function. "
+            "telemetry_bridges.vector_ome.metrics_enabled",
+            "true",
+            "Vector-OME metrics bridge is enabled but telemetry_sources.ome.metrics_enabled is false. "
             "Either enable telemetry_sources.ome.metrics_enabled or disable "
-            "telemetry_bridges.vector_ome.metrics_enabled and "
-            "telemetry_bridges.vector_ome.logs_enabled."
+            "telemetry_bridges.vector_ome.metrics_enabled."
         ))
         logger.error(
-            "OME-VectorOME dependency validation FAILED: "
+            "OME-VectorOME metrics dependency validation FAILED: "
             f"ome.metrics_enabled={ome_metrics_enabled}, "
-            f"vector_ome.metrics_enabled={vector_ome_metrics_enabled}, "
-            f"vector_ome.logs_enabled={vector_ome_logs_enabled}"
+            f"vector_ome.metrics_enabled={vector_ome_metrics_enabled}"
         )
 
-    # Validation: If Vector-OME metrics is true, OME source metrics must be true
-    if vector_ome_metrics_enabled and not ome_metrics_enabled:
-        logger.error(
-            "Vector-OME metrics bridge requires OME source: "
-            f"vector_ome.metrics_enabled={vector_ome_metrics_enabled}, "
-            f"ome.metrics_enabled={ome_metrics_enabled}"
-        )
-
-    # Validation: If Vector-OME logs is true, OME source must be enabled (metrics or logs)
-    if vector_ome_logs_enabled and not (ome_metrics_enabled or ome_logs_enabled):
+    # Validation: Vector-OME logs bridge requires OME logs source
+    if vector_ome_logs_enabled and not ome_logs_enabled:
         errors.append(create_error_msg(
             "telemetry_bridges.vector_ome.logs_enabled",
             "true",
-            "Vector-OME logs bridge is enabled but OME source is completely disabled. "
-            "Enable telemetry_sources.ome.metrics_enabled or telemetry_sources.ome.logs_enabled."
+            "Vector-OME logs bridge is enabled but telemetry_sources.ome.logs_enabled is false. "
+            "Either enable telemetry_sources.ome.logs_enabled or disable "
+            "telemetry_bridges.vector_ome.logs_enabled."
         ))
+        logger.error(
+            "OME-VectorOME logs dependency validation FAILED: "
+            f"ome.logs_enabled={ome_logs_enabled}, "
+            f"vector_ome.logs_enabled={vector_ome_logs_enabled}"
+        )
 
-    # Log Vector-OME bridge status   
+    # Log Vector-OME bridge status
     if vector_ome_metrics_enabled or vector_ome_logs_enabled:
         logger.info(
             "Vector-OME bridge validation PASSED: "
             f"metrics_enabled={vector_ome_metrics_enabled}, "
             f"logs_enabled={vector_ome_logs_enabled}, "
-            f"ome_source.metrics_enabled={ome_metrics_enabled}"
+            f"ome_source.metrics_enabled={ome_metrics_enabled}, "
+            f"ome_source.logs_enabled={ome_logs_enabled}"
         )
 
     # =========================================================================
