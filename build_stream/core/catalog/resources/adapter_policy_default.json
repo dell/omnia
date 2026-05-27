@@ -241,7 +241,7 @@
               "source_key": "csi",
               "target_key": "csi_driver_powerscale",
               "filter": {
-                "type": "allowlist",
+                "type": "substring",
                 "field": "package",
                 "values": ["csi-powerscale", "external-snapshotter", "helm-charts", "quay.io/dell/container-storage-modules/csi-isilon", "registry.k8s.io/sig-storage/csi-attacher", "registry.k8s.io/sig-storage/csi-provisioner", "registry.k8s.io/sig-storage/csi-snapshotter", "registry.k8s.io/sig-storage/csi-resizer", "registry.k8s.io/sig-storage/csi-node-driver-registrar", "registry.k8s.io/sig-storage/csi-external-health-monitor-controller", "quay.io/dell/container-storage-modules/dell-csi-replicator", "quay.io/dell/container-storage-modules/podmon", "quay.io/dell/container-storage-modules/csm-authorization-sidecar", "quay.io/dell/container-storage-modules/csi-metadata-retriever", "registry.k8s.io/sig-storage/snapshot-controller", "docker.io/dellemc/csm-encryption"],
                 "case_sensitive": false

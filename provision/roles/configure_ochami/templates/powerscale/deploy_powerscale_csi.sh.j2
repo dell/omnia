@@ -117,8 +117,8 @@ else
 
   if [ "$POWERSCALE_DEPLOYMENT_FAILED" -eq 0 ]; then
     echo "===== Deploying Snapshot Controller ====="
-    if [ -d "/opt/omnia/{{ csi_powerscale_dir }}/external_snapshotter/deploy/kubernetes/snapshot-controller" ]; then
-      kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/external_snapshotter/deploy/kubernetes/snapshot-controller/ >/dev/null 2>&1 || {
+    if [ -d "/opt/omnia/{{ csi_powerscale_dir }}/external-snapshotter/deploy/kubernetes/snapshot-controller" ]; then
+      kubectl apply -f /opt/omnia/{{ csi_powerscale_dir }}/external-snapshotter/deploy/kubernetes/snapshot-controller/ >/dev/null 2>&1 || {
         echo "Snapshot Controller deployment failed (expected). Continuing..."
       }
 
