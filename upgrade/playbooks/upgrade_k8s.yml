@@ -675,7 +675,7 @@
             from_version: "{{ k8s_from_version }}"
             target_version: "{{ k8s_target_version }}"
             status: in_progress
-            started_at: "{{ ansible_date_time.iso8601 }}"
+            started_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
             completed_at:
           etcd_backup:
             status: pending
@@ -694,6 +694,8 @@
             metallb:
               status: pending
             helm:
+              status: pending
+            powerscale:
               status: pending
           bss_update:
             service_kube_control_plane_first:
@@ -1408,12 +1410,12 @@
         status_update:
           upgrade:
             status: completed
-            completed_at: "{{ ansible_date_time.iso8601 }}"
+            completed_at: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
           multi_hop:
             current_hop: "{{ upgrade_status.multi_hop.current_hop | default(0) }}"
             hops: >-
               {{ (upgrade_status.multi_hop.hops | default([]))
-                 | map('combine', {'status': 'completed', 'completed_at': ansible_date_time.iso8601})
+                 | map('combine', {'status': 'completed', 'completed_at': now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ')})
                  | list }}
 
     - name: Update upgrade manifest

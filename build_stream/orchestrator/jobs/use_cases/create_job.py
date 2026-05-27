@@ -16,9 +16,14 @@
 
 """CreateJob use case implementation."""
 
+import os
 from datetime import datetime, timezone
 from typing import List, Optional
 
+from api.logging_utils import log_secure_info
+
+from core.cleanup.exceptions import RetentionLimitExceededError
+from core.image_group.repositories import ImageGroupRepository
 from core.jobs.entities import Job, Stage, IdempotencyRecord, AuditEvent
 from core.jobs.exceptions import (
     JobAlreadyExistsError,
@@ -43,6 +48,7 @@ class CreateJobUseCase:
     """Use case for creating a new job with idempotency support.
 
     This use case orchestrates job creation with the following guarantees:
+    - Retention limit: Enforces image retention limit before job creation
     - Idempotency: Same idempotency key returns same result
     - Atomicity: All-or-nothing persistence (job + stages + idempotency record)
     - Audit trail: Emits JOB_CREATED event
@@ -53,6 +59,8 @@ class CreateJobUseCase:
         stage_repo: Stage repository port.
         idempotency_repo: Idempotency repository port.
         audit_repo: Audit event repository port.
+        image_group_repo: Optional ImageGroup repository for retention limit.
+        retention_limit: Maximum allowed non-CLEANED ImageGroups.
     """
 
     def __init__(
@@ -63,6 +71,8 @@ class CreateJobUseCase:
         audit_repo: AuditEventRepository,
         job_id_generator: JobIdGenerator,
         uuid_generator: UUIDGenerator,
+        image_group_repo: Optional[ImageGroupRepository] = None,
+        retention_limit: Optional[int] = None,
     ) -> None:
         """Initialize use case with repository dependencies.
 
@@ -73,6 +83,8 @@ class CreateJobUseCase:
             audit_repo: Audit event repository implementation.
             job_id_generator: Job identifier generator to use.
             uuid_generator: UUID generator for events and other identifiers.
+            image_group_repo: Optional ImageGroup repository for retention limit.
+            retention_limit: Max non-CLEANED ImageGroups (default: IMAGE_RETENTION_LIMIT env or 50).
         """
         self._job_repo = job_repo
         self._stage_repo = stage_repo
@@ -80,6 +92,16 @@ class CreateJobUseCase:
         self._audit_repo = audit_repo
         self._job_id_generator = job_id_generator
         self._uuid_generator = uuid_generator
+        self._image_group_repo = image_group_repo
+        if retention_limit is not None:
+            self._retention_limit = retention_limit
+        else:
+            try:
+                self._retention_limit = int(
+                    os.environ.get("IMAGE_RETENTION_LIMIT", "50")
+                )
+            except (TypeError, ValueError):
+                self._retention_limit = 50
 
     def execute(self, command: CreateJobCommand) -> JobResponse:
         """Execute job creation with idempotency.
@@ -93,11 +115,16 @@ class CreateJobUseCase:
         Raises:
             JobAlreadyExistsError: If job_id already exists.
             IdempotencyConflictError: If idempotency key exists with different fingerprint.
+            RetentionLimitExceededError: If image retention limit is exceeded.
         """
         fingerprint = self._compute_fingerprint(command)
         existing_job = self._check_idempotency(command, fingerprint)
         if existing_job is not None:
             return self._to_response(existing_job, is_new=False)
+
+        # Enforce retention limit before creating job and running any stages.
+        # This prevents wasting cycles on parse-catalog, local-repo, etc.
+        self._enforce_retention_limit(command)
 
         job_id = self._generate_job_id(command)
 
@@ -243,3 +270,40 @@ class CreateJobUseCase:
             UUID v4 string for event identifier.
         """
         return str(self._uuid_generator.generate())
+
+    def _enforce_retention_limit(self, command: CreateJobCommand) -> None:
+        """Block new job creation when image retention limit is reached.
+        
+        This check runs before any stages execute, preventing wasted cycles
+        on parse-catalog, local-repo, etc. when the limit is already exceeded.
+        
+        Args:
+            command: CreateJob command.
+            
+        Raises:
+            RetentionLimitExceededError: If current count exceeds limit.
+        """
+        if self._image_group_repo is None:
+            return
+        try:
+            current_count = self._image_group_repo.count_non_cleaned()
+        except Exception as exc:  # pylint: disable=broad-except
+            log_secure_info(
+                "warning",
+                f"Retention limit check skipped due to error: {exc}",
+                identifier=str(command.correlation_id),
+            )
+            return
+
+        if current_count > self._retention_limit:
+            log_secure_info(
+                "warning",
+                f"Job creation aborted: retention limit reached "
+                f"({current_count}/{self._retention_limit}) for "
+                f"client_id={command.client_id}",
+                identifier=str(command.correlation_id),
+            )
+            raise RetentionLimitExceededError(
+                current_count=current_count,
+                limit=self._retention_limit,
+            )

@@ -184,11 +184,44 @@
         | default(telemetry_default_ldms_sampler_configurations))
       }}
 
+- name: Check if backup software_config.json exists for LDMS detection
+  ansible.builtin.stat:
+    path: "{{ backup_location }}/software_config.json"
+  register: backup_software_config_stat
+
+- name: Read backup software_config.json to detect LDMS presence
+  ansible.builtin.slurp:
+    src: "{{ backup_location }}/software_config.json"
+  register: backup_software_config_slurp
+  when: backup_software_config_stat.stat.exists
+
+- name: Parse backup software_config.json
+  ansible.builtin.set_fact:
+    backup_software_config: "{{ backup_software_config_slurp.content | b64decode | from_json }}"
+  when: backup_software_config_stat.stat.exists
+
+- name: Detect if LDMS is present in backup software_config.json
+  ansible.builtin.set_fact:
+    ldms_present_in_software_config: >-
+      {{
+        (backup_software_config.softwares | default([]))
+        | selectattr('name', 'defined')
+        | selectattr('name', 'equalto', 'ldms')
+        | list
+        | length > 0
+      }}
+  when: backup_software_config_stat.stat.exists
+
+- name: Set LDMS not present if software_config.json missing
+  ansible.builtin.set_fact:
+    ldms_present_in_software_config: false
+  when: not backup_software_config_stat.stat.exists
+
 - name: Normalize LDMS source metrics_enabled from backup
   ansible.builtin.set_fact:
     telemetry_ldms_metrics_enabled: >-
       {{ (backup_telemetry_sources.ldms | default({})).metrics_enabled
-         | default(telemetry_default_ldms_metrics_enabled) }}
+         | default(true if ldms_present_in_software_config | bool else telemetry_default_ldms_metrics_enabled) }}
 
 - name: Normalize DCGM and PowerScale source values from backup
   ansible.builtin.set_fact:
@@ -242,6 +275,47 @@
     telemetry_ufm_auth_mode: >-
       {{ backup_telemetry_ufm_config.auth_mode
          | default(telemetry_default_ufm_auth_mode) }}
+
+- name: Normalize VAST source values from backup (new in 2.2)
+  ansible.builtin.set_fact:
+    telemetry_vast_metrics_enabled: >-
+      {{ (backup_telemetry_sources.vast | default({})).metrics_enabled
+         | default(telemetry_default_vast_metrics_enabled) }}
+    telemetry_vast_logs_enabled: >-
+      {{ (backup_telemetry_sources.vast | default({})).logs_enabled
+         | default(telemetry_default_vast_logs_enabled) }}
+
+- name: Normalize VAST configuration values from backup (new in 2.2)
+  ansible.builtin.set_fact:
+    backup_telemetry_vast_config: >-
+      {{ backup_telemetry_config.vast_configuration | default({}) }}
+
+- name: Extract VAST configuration fields
+  ansible.builtin.set_fact:
+    telemetry_vast_endpoint: >-
+      {{ backup_telemetry_vast_config.vast_endpoint
+         | default(telemetry_default_vast_endpoint) }}
+    telemetry_vast_metrics_port: >-
+      {{ backup_telemetry_vast_config.vast_metrics_port
+         | default(telemetry_default_vast_metrics_port) }}
+    telemetry_vast_metrics_path: >-
+      {{ backup_telemetry_vast_config.metrics_path
+         | default(telemetry_default_vast_metrics_path) }}
+    telemetry_vast_scrape_interval: >-
+      {{ backup_telemetry_vast_config.scrape_interval
+         | default(telemetry_default_vast_scrape_interval) }}
+    telemetry_vast_scrape_timeout: >-
+      {{ backup_telemetry_vast_config.scrape_timeout
+         | default(telemetry_default_vast_scrape_timeout) }}
+    telemetry_vast_tls_mode: >-
+      {{ backup_telemetry_vast_config.tls_mode
+         | default(telemetry_default_vast_tls_mode) }}
+    telemetry_vast_ca_cert_path: >-
+      {{ backup_telemetry_vast_config.vast_ca_cert_path
+         | default(telemetry_default_vast_ca_cert_path) }}
+    telemetry_vast_auth_mode: >-
+      {{ backup_telemetry_vast_config.auth_mode
+         | default(telemetry_default_vast_auth_mode) }}
 
 - name: Normalize bridge values from backup (2.2 format or defaults)
   ansible.builtin.set_fact:
@@ -309,6 +383,16 @@
     telemetry_ufm_tls_mode: "{{ telemetry_ufm_tls_mode }}"
     telemetry_ufm_ca_cert_path: "{{ telemetry_ufm_ca_cert_path }}"
     telemetry_ufm_auth_mode: "{{ telemetry_ufm_auth_mode }}"
+    telemetry_vast_metrics_enabled: "{{ telemetry_vast_metrics_enabled }}"
+    telemetry_vast_logs_enabled: "{{ telemetry_vast_logs_enabled }}"
+    telemetry_vast_endpoint: "{{ telemetry_vast_endpoint }}"
+    telemetry_vast_metrics_port: "{{ telemetry_vast_metrics_port }}"
+    telemetry_vast_metrics_path: "{{ telemetry_vast_metrics_path }}"
+    telemetry_vast_scrape_interval: "{{ telemetry_vast_scrape_interval }}"
+    telemetry_vast_scrape_timeout: "{{ telemetry_vast_scrape_timeout }}"
+    telemetry_vast_tls_mode: "{{ telemetry_vast_tls_mode }}"
+    telemetry_vast_ca_cert_path: "{{ telemetry_vast_ca_cert_path }}"
+    telemetry_vast_auth_mode: "{{ telemetry_vast_auth_mode }}"
 
 - name: Validate YAML syntax of transformed telemetry_config.yml
   ansible.builtin.command:
@@ -338,8 +422,10 @@
       - victoria_configurations → telemetry_sinks.victoria_metrics
       - kafka_configurations → telemetry_sinks.kafka (topic_partitions converted to dict)
       - ldms_* ports/samplers → ldms_configurations
-      - Added new sections: telemetry_sources (ldms, dcgm, powerscale, ufm), telemetry_bridges, telemetry_sinks.victoria_logs
+      - Added new sections: telemetry_sources (ldms, dcgm, powerscale, ufm, vast), telemetry_bridges, telemetry_sinks.victoria_logs
       - Added telemetry_sources.ufm (metrics_enabled, logs_enabled, collection_targets) with defaults
       - Added ufm_configuration section (ufm_endpoint, ufm_metrics_port, scrape_interval, tls_mode, auth_mode)
+      - Added telemetry_sources.vast (metrics_enabled, logs_enabled, collection_targets) with defaults
+      - Added vast_configuration section (vast_endpoint, vast_metrics_port, metrics_path, scrape_interval, tls_mode, auth_mode)
 
       Configuration validated and migrated successfully.

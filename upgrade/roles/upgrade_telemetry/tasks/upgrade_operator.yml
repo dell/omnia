@@ -1,0 +1,74 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Install / upgrade VictoriaMetrics operator via Helm
+# ============================================================================
+
+- name: Delete existing VictoriaMetrics CRDs (to fix Helm ownership issues)
+  ansible.builtin.shell: |
+    set -o pipefail
+    kubectl get crd | grep victoriametrics | awk '{print $1}' | xargs kubectl delete crd 2>/dev/null || true
+  register: crd_delete_result
+  changed_when: true
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Install VictoriaMetrics operator from tarball
+  ansible.builtin.command:
+    cmd: >
+      helm upgrade --install {{ victoria_operator_release_name }}
+      {{ telemetry_deploy_dir }}/{{ victoria_operator_pkg }}.tar.gz
+      --namespace {{ telemetry_namespace }}
+      --create-namespace
+      --wait
+  register: helm_install_result
+  changed_when: true
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Wait for operator pods to be ready
+  ansible.builtin.command:
+    cmd: >
+      kubectl wait --for=condition=ready --timeout=300s
+      pod -l app.kubernetes.io/name=victoria-metrics-operator -n {{ telemetry_namespace }}
+  changed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  register: operator_wait_result
+  until: operator_wait_result.rc == 0
+  retries: 10
+  delay: 30
+
+- name: Wait for VictoriaMetrics CRDs to be ready
+  ansible.builtin.command:
+    cmd: kubectl get crd {{ item }}
+  loop:
+    - vmclusters.operator.victoriametrics.com
+    - vmagents.operator.victoriametrics.com
+    - vmpodscrapes.operator.victoriametrics.com
+    - vmsingles.operator.victoriametrics.com
+  register: crd_check
+  until: crd_check.rc == 0
+  retries: 60
+  delay: 2
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+- name: Display operator status
+  ansible.builtin.debug:
+    msg: "{{ victoria_operator_installed }}"

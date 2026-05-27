@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Backup live VictoriaMetrics K8s resources before upgrade
+# ============================================================================
+
+- name: Ensure backup directory exists
+  ansible.builtin.file:
+    path: "{{ telemetry_backup_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: "{{ oim_host }}"
+  connection: ssh
+
+# ── Backup namespace-level resources ──
+- name: Backup telemetry namespace resources
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get {{ item }} -o yaml \
+      > "{{ telemetry_backup_dir }}/{{ item }}s.yaml" 2>/dev/null || true
+  loop:
+    - statefulset
+    - deployment
+    - service
+    - configmap
+    - secret
+    - pvc
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Backup operator CRDs if present ──
+- name: Backup operator CRs
+  ansible.builtin.shell: |
+    kubectl -n {{ telemetry_namespace }} get {{ item }} -o yaml \
+      > "{{ telemetry_backup_dir }}/crd_{{ item }}s.yaml" 2>/dev/null || true
+  loop:
+    - vmcluster
+    - vmagent
+    - vmpodscrape
+    - vmsingle
+    - vlcluster
+    - vlagent
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Backup Helm releases ──
+- name: Backup Helm releases
+  ansible.builtin.shell: |
+    helm list -n {{ telemetry_namespace }} -o yaml \
+      > "{{ telemetry_backup_dir }}/helm_releases.yaml" 2>/dev/null || true
+  changed_when: false
+  failed_when: false
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+
+# ── Migration-specific backups (only if old STS was detected by detect_victoria_state) ──
+- name: Backup old StatefulSet resources (migration path)
+  when:
+    - old_sts_found | default(false) | bool
+    - actual_old_statefulset | default('') | length > 0
+    - victoria_migration_type == 'statefulset_to_operator'
+  block:
+    - name: Backup old StatefulSet
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get statefulset {{ actual_old_statefulset }} -o yaml \
+          > "{{ telemetry_backup_dir }}/old_victoria_statefulset.yaml" 2>/dev/null || true
+      changed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Backup all old PVCs from StatefulSet
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get pvc -l {{ old_vm_pod_label }} -o yaml \
+          > "{{ telemetry_backup_dir }}/old_victoria_pvcs.yaml" 2>/dev/null || true
+      changed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Backup all PVs bound to old PVCs
+      ansible.builtin.shell: |
+        for PV in $(kubectl -n {{ telemetry_namespace }} get pvc -l {{ old_vm_pod_label }} -o jsonpath='{.items[*].spec.volumeName}' 2>/dev/null); do
+          kubectl get pv "$PV" -o yaml >> "{{ telemetry_backup_dir }}/old_victoria_pvs.yaml" 2>/dev/null || true
+          echo "---" >> "{{ telemetry_backup_dir }}/old_victoria_pvs.yaml"
+        done
+      changed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+- name: Display backup summary
+  ansible.builtin.debug:
+    msg: "{{ victoria_backup_completed }}"

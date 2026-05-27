@@ -833,11 +833,11 @@ def generate_configs_from_policy(
                 )
 
             for target_file, data in target_configs.items():
-                if data:
+                if data and _has_non_empty_cluster(data):
                     # Dynamically version the service_k8s target filename
                     output_name = target_file
                     if os.path.basename(target_file) == "service_k8s.json":
-                        output_name = f"service_k8s-{_K8S_VERSION}.json"
+                        output_name = f"service_k8s_v{_K8S_VERSION}.json"
 
                     file_path = os.path.join(target_dir, output_name)
                     write_config_file(file_path, data)

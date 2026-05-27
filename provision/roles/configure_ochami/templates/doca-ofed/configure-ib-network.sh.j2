@@ -49,14 +49,19 @@ fi
 echo "Target IB NIC name: $IB_NIC_NAME"
 echo "Target IB IP: $IB_IP"
 
+
+
 # Extract slot and port numbers from IB_NIC_NAME
 # Support formats: "InfiniBand.Slot.X-Y", "NIC.InfiniBand.X-Y", "InfiniBand.Single-Y"
+# Updated to support hexadecimal slot numbers (e.g., "b5")
 SLOT_NUMBER=""
 PORT_NUMBER=""
 
 echo "DEBUG: Parsing IB_NIC_NAME format: '$IB_NIC_NAME'"
 
-if [[ "$IB_NIC_NAME" =~ ^(InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|NIC\.InfiniBand\.)([0-9]+)-([0-9]+)$ ]]; then
+
+
+if [[ "$IB_NIC_NAME" =~ ^(InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|NIC\.InfiniBand\.)([0-9a-fA-F]+)-([0-9]+)$ ]]; then
     SLOT_NUMBER="${BASH_REMATCH[2]}"
     PORT_NUMBER="${BASH_REMATCH[3]}"
     echo "INFO: Successfully parsed slot-based format"
@@ -69,12 +74,21 @@ elif [[ "$IB_NIC_NAME" =~ ^InfiniBand\.Single-([0-9]+)$ ]]; then
 else
     echo "ERROR: Failed to parse IB_NIC_NAME format: '$IB_NIC_NAME'"
     echo "ERROR: Expected formats:"
-    echo "  - 'InfiniBand.PCIe.Slot.X-Y' (slot X, port Y)"
-    echo "  - 'InfiniBand.Slot.X-Y' (slot X, port Y)"
-    echo "  - 'NIC.InfiniBand.X-Y' (slot X, port Y)"
+    echo "  - 'InfiniBand.PCIe.Slot.X-Y' (slot X, port Y) - supports decimal and hexadecimal slots"
+    echo "  - 'InfiniBand.Slot.X-Y' (slot X, port Y) - supports decimal and hexadecimal slots"
+    echo "  - 'NIC.InfiniBand.X-Y' (slot X, port Y) - supports decimal and hexadecimal slots"
     echo "  - 'InfiniBand.Single-Y' (single device, port Y)"
+    echo "ERROR: Examples:"
+    echo "  - 'InfiniBand.PCIe.Slot.22-1' (decimal slot)"
+    echo "  - 'InfiniBand.PCIe.Slot.b5-1' (hexadecimal slot)"
+    echo "  - 'InfiniBand.Slot.a0-1' (hexadecimal slot)"
+    echo "  - 'InfiniBand.Single-1' (single device)"
     exit 1
 fi
+
+echo "INFO: Successfully parsed slot-based format"
+    echo "INFO: Extracted slot number: $SLOT_NUMBER"
+    echo "INFO: Extracted port number: $PORT_NUMBER"
 
 # Check if IB hardware is present
 if ! ls /sys/class/infiniband/ >/dev/null 2>&1; then
@@ -107,7 +121,7 @@ done
 find_device_by_slot() {
     local target_slot="$1"
     
-    echo "DEBUG: Starting slot-based device search for slot '$target_slot'"
+    echo "DEBUG: Starting slot-based device search for slot '$target_slot'" >&2
     
     for mlx_device in /sys/class/infiniband/mlx5_*; do
         [ -e "$mlx_device" ] || continue
@@ -120,21 +134,21 @@ find_device_by_slot() {
             pci_slot=$(echo "$pci_address" | cut -d: -f2 | sed 's/^0*//')
             target_clean=$(echo "$target_slot" | sed 's/^0*//')
             
-            echo "DEBUG: Checking device $device_name: PCI $pci_address → slot $pci_slot (target: $target_clean)"
+            echo "DEBUG: Checking device $device_name: PCI $pci_address → slot $pci_slot (target: $target_clean)" >&2
             
             if [[ "$pci_slot" == "$target_clean" ]]; then
-                echo "SUCCESS: Found matching device! Slot $target_clean matches PCI slot $pci_slot for device $device_name"
+                echo "SUCCESS: Found matching device! Slot $target_clean matches PCI slot $pci_slot for device $device_name" >&2
                 echo "$device_name"
                 return 0
             else
-                echo "DEBUG: Slot mismatch - device $device_name has PCI slot $pci_slot, looking for slot $target_clean"
+                echo "DEBUG: Slot mismatch - device $device_name has PCI slot $pci_slot, looking for slot $target_clean" >&2
             fi
         else
-            echo "DEBUG: Could not get PCI address for device $device_name"
+            echo "DEBUG: Could not get PCI address for device $device_name" >&2
         fi
     done
     
-    echo "ERROR: No device found matching slot '$target_slot'"
+    echo "ERROR: No device found matching slot '$target_slot'" >&2
     return 1
 }
 

@@ -419,8 +419,8 @@
         - cp /cert/pulp_webserver.crt /etc/pki/ca-trust/source/anchors && update-ca-trust
         - sed -i 's/^gpgcheck=1/gpgcheck=0/' /etc/dnf/dnf.conf
         # DOCA and IB configuration - now ready before vendor_data mounts
-        - bash /usr/local/bin/doca-install.sh || true
-        - bash /usr/local/bin/configure-ib-network.sh
+        - bash /usr/local/bin/doca-install.sh || echo "DOCA install failed (non-critical)"
+        - bash /usr/local/bin/configure-ib-network.sh || echo "IB network configuration failed (non-critical)"
 {# Mount-specific runcmd entries - moved after DOCA to ensure RDMA is available #}
 {%- if cloud_init_groups_dict[functional_group_name].runcmd is defined %}
 {% for cmd in cloud_init_groups_dict[functional_group_name].runcmd %}
@@ -451,29 +451,27 @@
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
         # VAST storage: create subdirectory structure for compute node
-        - mkdir -pv {{ vast_mount_point }}/apps {{ vast_mount_point }}/home {{ vast_mount_point }}/scratch {{ vast_mount_point }}/projects
+        - mkdir -pv {{ vast_mount_point }}/apps {{ vast_mount_point }}/scratch {{ vast_mount_point }}/projects
         - mkdir -pv {{ vast_mount_point }}/scratch/$(hostname -s)/tmp
-        - mkdir -pv /apps /home /scratch /projects
+        - mkdir -pv /apps /scratch /projects
         - echo "{{ vast_mount_point }}/apps  /apps  none  bind  0  0" >> /etc/fstab
-        - echo "{{ vast_mount_point }}/home  /home  none  bind  0  0" >> /etc/fstab
         - echo "{{ vast_mount_point }}/scratch  /scratch  none  bind  0  0" >> /etc/fstab
         - echo "{{ vast_mount_point }}/scratch/$(hostname -s)/tmp  /tmp  none  bind  0  0" >> /etc/fstab
         - echo "{{ vast_mount_point }}/projects  /projects  none  bind  0  0" >> /etc/fstab
         - mount -av
         - chmod 1777 /tmp /scratch
-        - /usr/local/bin/install_nvidia_driver.sh
+        # GPU setup with timeout protection - non-critical operations
+        - timeout 300 /usr/local/bin/install_nvidia_driver.sh || echo "NVIDIA driver install failed or timed out (non-critical)"
 {% if dcgm_support %}
-        - /usr/local/bin/setup_dcgm.sh
+        - timeout 300 /usr/local/bin/setup_dcgm.sh || echo "DCGM setup failed or timed out (non-critical)"
 {% endif %}
 {% if slurm_node_present %}
-        - |
-          set -e
-          /usr/local/bin/slurm_cuda_coordinator.sh
-          /usr/local/bin/install_cuda_driver.sh
+        - /usr/local/bin/slurm_cuda_coordinator.sh || echo "CUDA coordinator setup failed (non-critical)"
+        - timeout 300 /usr/local/bin/install_cuda_driver.sh || echo "CUDA driver install failed or timed out (non-critical)"
 {% if dcgm_support %}
-          /usr/local/bin/install_dcgm.sh
+        - timeout 300 /usr/local/bin/install_dcgm.sh || echo "DCGM install failed or timed out (non-critical)"
 {% endif %}
-          /usr/local/bin/install_nvidia_peermem.sh
+        - timeout 600 /usr/local/bin/install_nvidia_peermem.sh || echo "NVIDIA peermem install failed or timed out (non-critical)"
 {% endif %}
 
         - /usr/local/bin/configure_slurmd_setup.sh
@@ -482,17 +480,18 @@
         - /usr/local/bin/configure_firewall_and_services.sh
 {% if hostvars['localhost']['openldap_support'] %}
         - /usr/local/bin/update_ldap_conf.sh
-        - mkdir /ldapcerts
+        - mkdir -p /ldapcerts || echo "LDAP cert directory already exists or creation failed (non-critical)"
         - echo "{{ cloud_init_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - if ! mountpoint -q /home; then echo "{{ cloud_init_nfs_path_openldap }}/ldapuser /home nfs defaults,_netdev 0 0" >> /etc/fstab; fi
+        - mkdir -pv {{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home
+        - echo "{{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home  none  bind  0  0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
         - mount -av
-        - yes | cp /ldapcerts/* /etc/openldap/certs
-        - umount /ldapcerts
-        - firewall-cmd --permanent --add-port={{ ldap_starttls_port }}/tcp
-        - firewall-cmd --permanent --add-port={{ ldap_ssl_port }}/tcp
-        - firewall-cmd --reload
-        - setenforce 0
+        - cp -f /ldapcerts/* /etc/openldap/certs/ || echo "LDAP cert copy failed (non-critical)"
+        - umount /ldapcerts || echo "LDAP cert unmount failed (non-critical)"
+        - firewall-cmd --permanent --add-port={{ ldap_starttls_port }}/tcp || echo "Firewall LDAP port configuration failed (non-critical)"
+        - firewall-cmd --permanent --add-port={{ ldap_ssl_port }}/tcp || echo "Firewall LDAP SSL port configuration failed (non-critical)"
+        - firewall-cmd --reload || echo "Firewall reload failed (non-critical)"
+        - setenforce 0 || echo "SELinux disable failed (may already be disabled)"
         - authselect select sssd with-mkhomedir --force
         - sudo systemctl enable --now oddjobd.service
         - sudo systemctl enable --now sssd
@@ -510,15 +509,15 @@
 {% endif %}
 {% if hostvars['localhost']['ucx_support'] or hostvars['localhost']['openmpi_support'] %}
         - echo "One or more shared components (UCX / OpenMPI / LDMS) are enabled."
-        - /usr/local/bin/configure_ucx_openmpi_env.sh
+        - /usr/local/bin/configure_ucx_openmpi_env.sh || echo "UCX/OpenMPI environment setup failed (non-critical)"
 {% endif %}
 
 {% if ldms_support %}
         - echo " Starting LDMS setup " | tee -a /var/log/ldms-cloudinit.log
-        - /root/ldms_sampler.sh
+        - /root/ldms_sampler.sh || echo "LDMS setup failed (non-critical)"
 {% endif %}
-        - /usr/local/bin/setup_nvhpc_sdk.sh
-        - /usr/local/bin/export_nvhpc_env.sh
+        - /usr/local/bin/setup_nvhpc_sdk.sh || echo "NVHPC SDK setup failed (non-critical)"
+        - /usr/local/bin/export_nvhpc_env.sh || echo "NVHPC environment export failed (non-critical)"
 
         - systemctl restart slurmd
         - echo "Cloud-Init has completed successfully."

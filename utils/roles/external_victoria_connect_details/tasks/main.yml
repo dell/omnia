@@ -72,7 +72,7 @@
 - name: Get Victoria pods status (json)
   ansible.builtin.command: >-
     kubectl get pods -n {{ victoria_namespace }}
-    -l "app in (vminsert,vmselect,vmstorage,victoriametrics)"
+    -l "app.kubernetes.io/instance=victoria-cluster"
     -o json
   register: victoria_pods_json
   changed_when: false
@@ -227,10 +227,164 @@
   when:
     - vminsert_port | trim | length == 0 or vmselect_port | trim | length == 0
 
+# ── VictoriaLogs cluster ──────────────────────────────────────────────
+
+- name: Check for VictoriaLogs cluster services
+  ansible.builtin.command: >-
+    kubectl get svc {{ item }} -n {{ victoria_namespace }} -o name
+  loop:
+    - "{{ victoria_vlinsert_svc }}"
+    - "{{ victoria_vlselect_svc }}"
+  register: victoria_logs_cluster_svcs
+  changed_when: false
+  failed_when: false
+
+- name: Set VictoriaLogs availability flag
+  ansible.builtin.set_fact:
+    victoria_logs_available: >-
+      {{ (victoria_logs_cluster_svcs.results | selectattr('rc', 'equalto', 0) | list | length) == 2 }}
+
+- name: Get VictoriaLogs pods status (json)
+  ansible.builtin.command: >-
+    kubectl get pods -n {{ victoria_namespace }}
+    -l "app.kubernetes.io/instance=victoria-logs-cluster"
+    -o json
+  register: victoria_logs_pods_json
+  changed_when: false
+  failed_when: victoria_logs_pods_json.rc != 0
+  when: victoria_logs_available | bool
+
+- name: Parse VictoriaLogs pods
+  ansible.builtin.set_fact:
+    victoria_logs_pods_parsed: "{{ victoria_logs_pods_json.stdout | from_json }}"
+  when: victoria_logs_available | bool
+
+- name: Warn if VictoriaLogs pods are not Running
+  ansible.builtin.debug:
+    msg: "{{ victoria_logs_err_pods_not_running }}"
+  when:
+    - victoria_logs_available | bool
+    - (victoria_logs_pods_parsed.get('items', [])
+      | selectattr('status.phase', 'ne', 'Running')
+      | list
+      | length) > 0
+
+- name: Get vlinsert service LoadBalancer IP
+  ansible.builtin.command: >-
+    kubectl get svc {{ victoria_vlinsert_svc }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: vlinsert_lb_ip
+  changed_when: false
+  failed_when: vlinsert_lb_ip.rc != 0
+  when: victoria_logs_available | bool
+
+- name: Get vlinsert service LoadBalancer port
+  ansible.builtin.command: >-
+    kubectl get svc {{ victoria_vlinsert_svc }} -n {{ victoria_namespace }}
+    -o jsonpath='{.spec.ports[0].port}'
+  register: vlinsert_lb_port
+  changed_when: false
+  failed_when: vlinsert_lb_port.rc != 0
+  when: victoria_logs_available | bool
+
+- name: Get vlselect service LoadBalancer IP
+  ansible.builtin.command: >-
+    kubectl get svc {{ victoria_vlselect_svc }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: vlselect_lb_ip
+  changed_when: false
+  failed_when: vlselect_lb_ip.rc != 0
+  when: victoria_logs_available | bool
+
+- name: Get vlselect service LoadBalancer port
+  ansible.builtin.command: >-
+    kubectl get svc {{ victoria_vlselect_svc }} -n {{ victoria_namespace }}
+    -o jsonpath='{.spec.ports[0].port}'
+  register: vlselect_lb_port
+  changed_when: false
+  failed_when: vlselect_lb_port.rc != 0
+  when: victoria_logs_available | bool
+
+- name: Set VictoriaLogs endpoint facts
+  ansible.builtin.set_fact:
+    vlinsert_host: "{{ vlinsert_lb_ip.stdout | trim }}"
+    vlinsert_port: "{{ (vlinsert_lb_port.stdout | trim) | default('9481') }}"
+    vlselect_host: "{{ vlselect_lb_ip.stdout | trim }}"
+    vlselect_port: "{{ (vlselect_lb_port.stdout | trim) | default('9471') }}"
+  when: victoria_logs_available | bool
+
+- name: Set VictoriaLogs endpoint defaults when not available
+  ansible.builtin.set_fact:
+    vlinsert_host: ""
+    vlinsert_port: "9481"
+    vlselect_host: ""
+    vlselect_port: "9471"
+  when: not (victoria_logs_available | bool)
+
+- name: Warn if VictoriaLogs LoadBalancer IPs are not available
+  ansible.builtin.debug:
+    msg: "{{ victoria_logs_err_lb_missing }}"
+  when:
+    - victoria_logs_available | bool
+    - vlinsert_host | length == 0 or vlselect_host | length == 0
+
+# ── Vlagent (syslog receiver for PowerScale) ─────────────────────────
+
+- name: Check for vlagent service
+  ansible.builtin.command: >-
+    kubectl get svc {{ victoria_vlagent_svc }} -n {{ victoria_namespace }} -o name
+  register: vlagent_svc_check
+  changed_when: false
+  failed_when: false
+
+- name: Set vlagent availability flag
+  ansible.builtin.set_fact:
+    vlagent_available: "{{ vlagent_svc_check.rc == 0 }}"
+
+- name: Get vlagent service LoadBalancer IP
+  ansible.builtin.command: >-
+    kubectl get svc {{ victoria_vlagent_svc }} -n {{ victoria_namespace }}
+    -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: vlagent_lb_ip
+  changed_when: false
+  failed_when: vlagent_lb_ip.rc != 0
+  when: vlagent_available | bool
+
+- name: Get vlagent syslog port
+  ansible.builtin.command: >-
+    kubectl get svc {{ victoria_vlagent_svc }} -n {{ victoria_namespace }}
+    -o jsonpath='{.spec.ports[?(@.name=="syslog-tcp")].port}'
+  register: vlagent_syslog_port_result
+  changed_when: false
+  failed_when: false
+  when: vlagent_available | bool
+
+- name: Set vlagent endpoint facts
+  ansible.builtin.set_fact:
+    vlagent_host: "{{ vlagent_lb_ip.stdout | trim }}"
+    vlagent_port: >-
+      {{ (vlagent_syslog_port_result.stdout | trim) if (vlagent_syslog_port_result.stdout | trim | length) > 0 else victoria_vlagent_syslog_port }}
+  when: vlagent_available | bool
+
+- name: Set vlagent endpoint defaults when not available
+  ansible.builtin.set_fact:
+    vlagent_host: ""
+    vlagent_port: "{{ victoria_vlagent_syslog_port }}"
+  when: not (vlagent_available | bool)
+
+- name: Warn if vlagent LoadBalancer IP is not available
+  ansible.builtin.debug:
+    msg: "{{ victoria_vlagent_err_lb_missing }}"
+  when:
+    - vlagent_available | bool
+    - vlagent_host | length == 0
+
+# ── Build connection details ─────────────────────────────────────────
+
 - name: Build connection details
   ansible.builtin.set_fact:
     victoria_connect_details:
-      victoria:
+      victoria_metrics:
         namespace: "{{ victoria_namespace }}"
         deployment_mode: "{{ victoria_deployment_mode }}"
         pod_status: "{{ victoria_pods_wide.stdout }}"
@@ -262,6 +416,30 @@
             hosts_scope_note: "{{ victoria_sfm_hosts_scope_note }}"
             pod_shell_command_example: "{{ victoria_sfm_pod_shell_command_example }}"
             hosts_restart_note: "{{ victoria_sfm_hosts_restart_note }}"
+      victoria_logs:
+        available: "{{ victoria_logs_available | bool }}"
+        namespace: "{{ victoria_namespace }}"
+        endpoints:
+          vlinsert:
+            host: "{{ vlinsert_host }}"
+            port: "{{ vlinsert_port | int }}"
+            write_endpoint: "http://{{ vlinsert_host }}:{{ vlinsert_port }}/insert/jsonline"
+          vlselect:
+            host: "{{ vlselect_host }}"
+            port: "{{ vlselect_port | int }}"
+            query_endpoint: "http://{{ vlselect_host }}:{{ vlselect_port }}/select/logsql/query"
+            ui_url: "http://{{ vlselect_host }}:{{ vlselect_port }}/select/vmui"
+      vlagent:
+        available: "{{ vlagent_available | bool }}"
+        namespace: "{{ victoria_namespace }}"
+        host: "{{ vlagent_host }}"
+        syslog_port: "{{ vlagent_port | int }}"
+        syslog_endpoint: "{{ vlagent_host }}:{{ vlagent_port }}"
+      powerscale:
+        syslog_target: "{{ vlagent_host }}:{{ vlagent_port }}"
+        isi_audit_commands: >-
+          {{ powerscale_isi_audit_commands if (vlagent_host | length > 0)
+          else ['vlagent LoadBalancer IP not available; cannot generate ISI commands.'] }}
 
 - name: Ensure output directory exists
   ansible.builtin.file:
@@ -281,19 +459,21 @@
   connection: local
   run_once: true
 
-- name: Display Victoria connection details
+- name: Display Victoria Metrics connection details
   ansible.builtin.debug:
     msg: >-
       {{
         [
           'Victoria connection details written to: ' ~ victoria_output_file,
           '',
+          '═══ VICTORIA METRICS ═══',
           'Mode: ' ~ victoria_deployment_mode,
           '',
           'Endpoints:',
           '  [IMPORTANT] vminsert write: ' ~ victoria_vminsert_write_url,
           '  vmselect query: ' ~ victoria_vmselect_query_url,
           '  vmselect UI:    ' ~ victoria_vmselect_ui_url,
+          '  vmselect UI (external LoadBalancer): ' ~ victoria_url_scheme ~ '://' ~ vmselect_host ~ ':' ~ vmselect_port ~ '/select/0/vmui',
           '',
           'TLS:',
           '  ca.crt:     ' ~ victoria_tls_ca,
@@ -323,3 +503,47 @@
   delegate_to: localhost
   connection: local
   run_once: true
+
+- name: Display VictoriaLogs connection details
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        [
+          '═══ VICTORIA LOGS ═══',
+          'Available: ' ~ (victoria_logs_available | bool),
+          '',
+          'Endpoints:',
+          '  vlinsert write:  https://' ~ vlinsert_host ~ ':' ~ vlinsert_port ~ '/insert/jsonline',
+          '  vlselect query:  https://' ~ vlselect_host ~ ':' ~ vlselect_port ~ '/select/logsql/query',
+          '  vlselect UI:     https://' ~ vlselect_host ~ ':' ~ vlselect_port ~ '/select/vmui',
+          ''
+        ]
+      }}
+  delegate_to: localhost
+  connection: local
+  run_once: true
+  when: victoria_logs_available | bool
+
+- name: Display vlagent and PowerScale syslog details
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        [
+          '═══ VLAGENT (SYSLOG RECEIVER) ═══',
+          'Available: ' ~ (vlagent_available | bool),
+          'Syslog endpoint: ' ~ vlagent_host ~ ':' ~ vlagent_port ~ ' (TCP/UDP)',
+          '',
+          '═══ POWERSCALE AUDIT SYSLOG CONFIGURATION ═══',
+          'Run the following commands on the PowerScale CLI to forward audit logs to vlagent:',
+          ''
+        ] + powerscale_isi_audit_commands + [
+          '',
+          'Verify with: isi audit settings global view'
+        ]
+      }}
+  delegate_to: localhost
+  connection: local
+  run_once: true
+  when:
+    - vlagent_available | bool
+    - vlagent_host | length > 0

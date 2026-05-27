@@ -111,6 +111,9 @@
           "deployment": {
             "type": "boolean"
           },
+          "etcd_on_local_disk": {
+            "type": "boolean"
+          },
           "k8s_cni": {
             "enum": ["calico"],
             "description": "K8s CNI plugin to use for this cluster."

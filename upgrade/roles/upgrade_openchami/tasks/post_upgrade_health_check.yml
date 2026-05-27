@@ -151,6 +151,7 @@
 
     - name: Compare node counts
       ansible.builtin.debug:
+        verbosity: 1
         msg: >-
           Node count — Pre-upgrade: {{ pre_upgrade_node_count | default('0') | trim }},
           Post-upgrade: {{ post_upgrade_node_count.stdout | default('0') | trim }}.
@@ -249,7 +250,7 @@
     - name: Check BSS boot parameters via API
       ansible.builtin.shell: |
         set -o pipefail
-        curl -s {{ openchami_bss_endpoint }}/bootparameters 2>/dev/null | head -5 || echo "bss_unavailable"
+        curl -sk {{ openchami_bss_endpoint }}/bootparameters 2>/dev/null | head -5 || echo "bss_unavailable"
       register: bss_bootparams
       changed_when: false
       failed_when: false

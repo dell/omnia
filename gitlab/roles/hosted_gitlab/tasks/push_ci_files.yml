@@ -328,3 +328,6 @@
         status_code: [200, 201]
         validate_certs: false
       no_log: true
+
+- name: Push example catalog files to GitLab repository
+  ansible.builtin.include_tasks: push_example_catalogs.yml

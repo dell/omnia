@@ -236,12 +236,15 @@
         - bash /usr/local/bin/setup_iscsi_storage_{{ pv_entry.name }}.sh
 {% endfor %}
         # VAST storage: create subdirectory structure for login+compiler node
-        - mkdir -pv {{ vast_mount_point }}/apps {{ vast_mount_point }}/home {{ vast_mount_point }}/projects
-        - mkdir -pv /apps /home /projects
+        - mkdir -pv {{ vast_mount_point }}/apps {{ vast_mount_point }}/scratch {{ vast_mount_point }}/projects
+        - mkdir -pv {{ vast_mount_point }}/scratch/$(hostname -s)/tmp
+        - mkdir -pv /apps /scratch /projects
         - echo "{{ vast_mount_point }}/apps  /apps  none  bind  0  0" >> /etc/fstab
-        - echo "{{ vast_mount_point }}/home  /home  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch  /scratch  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch/$(hostname -s)/tmp  /tmp  none  bind  0  0" >> /etc/fstab
         - echo "{{ vast_mount_point }}/projects  /projects  none  bind  0  0" >> /etc/fstab
         - mount -av
+        - chmod 1777 /tmp /scratch
         - /usr/local/bin/install_cuda_toolkit.sh
         # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
         - mkdir -p {{ client_mount_path }}/slurm/ssh 
@@ -360,9 +363,10 @@
         - /usr/local/bin/update_ldap_conf.sh
         - mkdir /ldapcerts
         - echo "{{ cloud_init_nfs_path_openldap }}/certs                /ldapcerts       nfs defaults,_netdev 0 0" >> /etc/fstab
-        - if ! mountpoint -q /home; then echo "{{ cloud_init_nfs_path_openldap }}/ldapuser /home nfs defaults,_netdev 0 0" >> /etc/fstab; fi
+        - mkdir -pv {{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home
+        - echo "{{ vast_mount_point }}/{{ openldap_dir_name }}/ldapuser /home  none  bind  0  0" >> /etc/fstab
         - chmod {{ file_mode }} /etc/fstab
-        - mount -a
+        - mount -av
         - yes | cp /ldapcerts/* /etc/openldap/certs
         - umount /ldapcerts
 

@@ -17,7 +17,7 @@
 
 import os
 import copy
-import fcntl
+import signal
 import tempfile
 from ansible.module_utils.basic import AnsibleModule
 
@@ -149,17 +149,36 @@ def read_status_file(file_path):
 
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            # Acquire shared lock for reading
-            fcntl.flock(f.fileno(), fcntl.LOCK_SH)
-            try:
-                content = f.read()
-                if not content.strip():
-                    return {}
-                return yaml.safe_load(content) or {}
-            finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            content = f.read()
+            if not content.strip():
+                return {}
+            return yaml.safe_load(content) or {}
     except (OSError, IOError, yaml.YAMLError) as e:
         raise IOError(f"Failed to read status file: {str(e)}") from e
+
+
+NFS_WRITE_TIMEOUT = 60  # seconds
+
+
+class _NfsWriteTimeout(Exception):
+    """Raised when an NFS write operation exceeds the timeout."""
+
+
+def _timeout_handler(signum, frame):
+    raise _NfsWriteTimeout("NFS write operation timed out")
+
+
+def _cleanup_stale_tmp_files(dir_path):
+    """Remove leftover .upgrade_status_*.tmp files that may block NFS."""
+    try:
+        for entry in os.listdir(dir_path):
+            if entry.startswith('.upgrade_status_') and entry.endswith('.tmp'):
+                try:
+                    os.unlink(os.path.join(dir_path, entry))
+                except OSError:
+                    pass
+    except OSError:
+        pass
 
 
 def write_status_file(file_path, status_data):
@@ -171,41 +190,63 @@ def write_status_file(file_path, status_data):
         status_data: Dictionary to write
     """
     # Ensure directory exists
-    os.makedirs(os.path.dirname(file_path), mode=0o755, exist_ok=True)
+    target_dir = os.path.dirname(file_path)
+    os.makedirs(target_dir, mode=0o755, exist_ok=True)
+
+    # Clean up any stale temp files from previous failed attempts
+    _cleanup_stale_tmp_files(target_dir)
 
     # Write to temporary file first
     temp_fd, temp_path = tempfile.mkstemp(
-        dir=os.path.dirname(file_path),
+        dir=target_dir,
         prefix='.upgrade_status_',
         suffix='.tmp'
     )
 
+    # Set an alarm so NFS hangs don't block indefinitely
+    old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(NFS_WRITE_TIMEOUT)
+
     try:
         with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
-            # Acquire exclusive lock for writing
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            try:
-                # Use safe_dump with custom settings to preserve order and readability
-                yaml.safe_dump(
-                    status_data,
-                    f,
-                    default_flow_style=False,
-                    sort_keys=False,
-                    indent=2,
-                    width=120
-                )
-            finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            # Use safe_dump with custom settings to preserve order and readability
+            yaml.safe_dump(
+                status_data,
+                f,
+                default_flow_style=False,
+                sort_keys=False,
+                indent=2,
+                width=120
+            )
+            f.flush()
+            os.fsync(f.fileno())
 
         # Atomic rename
         os.chmod(temp_path, 0o644)
         os.rename(temp_path, file_path)
 
+    except _NfsWriteTimeout:
+        # Clean up temp file on timeout
+        if os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+        raise IOError(
+            f"NFS write timed out after {NFS_WRITE_TIMEOUT}s writing to {file_path}. "
+            "Check NFS mount health and clear stale .nfs* handles."
+        )
     except (OSError, IOError, yaml.YAMLError) as e:
         # Clean up temp file on error
         if os.path.exists(temp_path):
-            os.unlink(temp_path)
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
         raise IOError(f"Failed to write status file: {str(e)}") from e
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 
 def run_module():

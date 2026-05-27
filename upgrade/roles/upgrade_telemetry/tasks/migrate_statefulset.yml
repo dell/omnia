@@ -1,0 +1,170 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Migrate from old 2.1 StatefulSet to operator-managed CRs
+# PVC relabeling preserves data on the existing PV.
+# NOTE: This path involves DOWNTIME (single-node → operator migration).
+# ============================================================================
+
+# Only runs when victoria_migration_type == 'statefulset_to_operator'
+# old_sts_found and actual_old_statefulset are set by detect_victoria_state.yml
+
+- name: Execute StatefulSet migration
+  block:
+    # ── Stop write path ──
+    - name: Check if old vmagent deployment exists
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get deployment {{ old_vmagent_deployment }} --no-headers 2>/dev/null && echo "found" || echo "not_found"
+      register: old_agent_check
+      changed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Scale down old vmagent (stop writes)
+      ansible.builtin.command:
+        cmd: kubectl -n {{ telemetry_namespace }} scale deployment {{ old_vmagent_deployment }} --replicas=0
+      when: "'found' in old_agent_check.stdout"
+      changed_when: true
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for old vmagent pods to terminate
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl -n {{ telemetry_namespace }} get pods -l {{ old_vmagent_pod_label }} --no-headers 2>/dev/null | wc -l
+      register: agent_pod_count
+      until: (agent_pod_count.stdout | trim | int) == 0
+      retries: 60
+      delay: 2
+      changed_when: false
+      when: "'found' in old_agent_check.stdout"
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    # ── Graceful shutdown of old StatefulSet ──
+    - name: Scale down old StatefulSet
+      ansible.builtin.command:
+        cmd: kubectl -n {{ telemetry_namespace }} scale statefulset {{ actual_old_statefulset }} --replicas=0
+      changed_when: true
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for scale down to complete
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get statefulset {{ actual_old_statefulset }} -o jsonpath='{.spec.replicas}'
+      register: sts_replicas
+      until: sts_replicas.stdout | trim == '0'
+      retries: 60
+      delay: 2
+      changed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Wait for old Victoria pods to terminate
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl -n {{ telemetry_namespace }} get pods -l {{ old_vm_pod_label }} --no-headers 2>/dev/null | wc -l
+      register: sts_pod_count
+      until: (sts_pod_count.stdout | trim | int) == 0
+      retries: 90
+      delay: 2
+      changed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    # ── PVC relabeling (data preservation via PV rebind) ──
+    - name: Get all old PVCs from StatefulSet (using specific StatefulSet label)
+      ansible.builtin.command:
+        cmd: kubectl -n {{ telemetry_namespace }} get pvc -l {{ old_vm_pod_label }} -o jsonpath='{.items[*].metadata.name}'
+      register: old_pvc_list
+      changed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Display PVCs to migrate
+      ansible.builtin.debug:
+        msg: "{{ victoria_migrating_pvcs }}"
+
+    - name: Delete old StatefulSet (orphan cascade — preserves PVCs)
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} delete statefulset {{ actual_old_statefulset }} --cascade=orphan --timeout=60s
+      register: old_sts_delete
+      changed_when: true
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Verify old StatefulSet was deleted
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get statefulset {{ actual_old_statefulset }} --no-headers 2>/dev/null && echo "exists" || echo "not_exists"
+      register: old_sts_check_after_delete
+      changed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Force delete old StatefulSet if still exists
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} delete statefulset {{ actual_old_statefulset }} --force --grace-period=0 --cascade=orphan
+      register: old_sts_force_delete
+      changed_when: true
+      failed_when: false
+      when: old_sts_check_after_delete.stdout | trim == 'exists'
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Re-verify old StatefulSet after force delete
+      ansible.builtin.shell: |
+        kubectl -n {{ telemetry_namespace }} get statefulset {{ actual_old_statefulset }} --no-headers 2>/dev/null && echo "exists" || echo "not_exists"
+      register: old_sts_check_after_force_delete
+      changed_when: false
+      when: old_sts_check_after_delete.stdout | trim == 'exists'
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+      until: "'not_exists' in old_sts_check_after_force_delete.stdout"
+      retries: 10
+      delay: 30
+
+    - name: Fail if old StatefulSet still exists after force delete
+      ansible.builtin.fail:
+        msg: "{{ victoria_sts_force_delete_failed }}"
+      when: (old_sts_check_after_force_delete.stdout | default('not_exists') | trim) == 'exists'
+
+    - name: Relabel each PVC
+      ansible.builtin.include_tasks: relabel_pvc.yml
+      loop: "{{ old_pvc_list.stdout.split() | select() | list }}"
+      loop_control:
+        loop_var: old_pvc_item
+      when: old_pvc_list.stdout | trim | length > 0
+
+    - name: Find orphaned old pods (left by --cascade=orphan delete)
+      ansible.builtin.shell: |
+        set -o pipefail
+        kubectl -n {{ telemetry_namespace }} get pods \
+          -l "app in (vminsert,vmselect,vmstorage)" --no-headers 2>/dev/null | awk '{print $1}'
+      register: orphaned_pods
+      changed_when: false
+      failed_when: false
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh
+
+    - name: Delete orphaned old pods
+      ansible.builtin.command:
+        cmd: kubectl -n {{ telemetry_namespace }} delete pod {{ item }}
+      loop: "{{ orphaned_pods.stdout_lines | default([]) }}"
+      changed_when: true
+      failed_when: false
+      when: orphaned_pods.stdout_lines | default([]) | length > 0
+      delegate_to: "{{ kube_vip }}"
+      connection: ssh

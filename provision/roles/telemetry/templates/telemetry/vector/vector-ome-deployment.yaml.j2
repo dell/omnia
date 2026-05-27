@@ -56,10 +56,10 @@ spec:
         # Resource limits from vars/main.yml
         resources:
           requests:
-            memory: "{{ vector.ome.resources.requests.memory }}"
+            memory: {{ vector.ome.resources.requests.memory }}
             cpu: "{{ vector.ome.resources.requests.cpu }}"
           limits:
-            memory: "{{ vector.ome.resources.limits.memory }}"
+            memory: {{ vector.ome.resources.limits.memory }}
             cpu: "{{ vector.ome.resources.limits.cpu }}"
         
         # Ports: health check and metrics

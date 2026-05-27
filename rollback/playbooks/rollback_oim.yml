@@ -13,10 +13,10 @@
 # limitations under the License.
 ---
 
-- name: Rollback OIM (includes OpenCHAMI + BuildStream)
+- name: Rollback OIM (includes OpenCHAMI)
   hosts: localhost
   connection: local
-  gather_facts: false
+  gather_facts: true
   vars:
     rollback_manifest_path: /opt/omnia/.data/rollback_manifest.yml
     component_name: oim
@@ -50,23 +50,62 @@
       ansible.builtin.debug:
         msg: "[ROLLBACK] Component '{{ component_name }}' — status changed to: in-progress"
 
-    # TODO: Implement OIM rollback steps per ESpec §4.11.3:
-    # 1. Stop BuildStream container (systemctl stop buildstream)
-    # 2. Restore buildstream.container quadlet from backup
-    # 3. systemctl daemon-reload
-    # 4. Start BuildStream container (systemctl start buildstream)
-    # 5. Validate container healthy
-    # 6. Restore OpenCHAMI quadlet files from backup
-    # 7. Restore configs_vars.yaml from backup
-    # 8. Restore version.yml from backup
-    # 9. Checkout previous deployment-recipes version
-    # 10. Restore PostgreSQL from pg_dump backup
-    # 11. systemctl daemon-reload
-    # 12. Restart all OpenCHAMI services
-    # 13. Validate (SMD, BSS, S3, node inventory)
-    - name: OIM rollback placeholder
-      ansible.builtin.debug:
-        msg: "OIM rollback tasks to be implemented (BuildStream + OpenCHAMI restore)"
+    # ── Pass backup_dir from rollback_manifest to the role ──────────────
+    # The rollback_openchami role's resolve_backup_dir.yml reads
+    # upgrade_manifest.yml, which may have been archived after a prior
+    # rollback. Pre-setting rollback_backup_dir here ensures the role
+    # uses the correct backup path on reruns.
+    - name: Set rollback_backup_dir from rollback manifest
+      ansible.builtin.set_fact:
+        rollback_backup_dir: "{{ rollback_manifest.backup_dir | default('/opt/omnia/backups/upgrade/version_2.1.0.0') }}"
+
+    # ── Phase 1: OpenCHAMI Rollback ─────────────────────────────────────
+    # The rollback_openchami role handles the full lifecycle:
+    #   resolve_backup_dir → pre_rollback_checks → stop_current_containers
+    #   → restore_quadlets_and_configs → start_postgres_only
+    #   → restore_database → start_v21_containers
+    #   → reload_cloud_init_data → post_rollback_health_check
+    # On failure, the role sets openchami_rollback_failed and raises fail.
+    # On skip (already at v2.1), the role completes normally.
+    - name: "Phase 1 — OpenCHAMI Rollback"
+      block:
+        - name: Rollback OpenCHAMI containers and services
+          ansible.builtin.include_role:
+            name: ../roles/rollback_openchami
+
+        - name: Display OpenCHAMI rollback outcome
+          ansible.builtin.debug:
+            msg: >-
+              OpenCHAMI Phase 1 result —
+              rollback_needed={{ rollback_needed | default(true) }},
+              failed={{ openchami_rollback_failed | default(false) }}
+
+      rescue:
+        - name: Re-read rollback_manifest.yml after failure
+          ansible.builtin.slurp:
+            src: "{{ rollback_manifest_path }}"
+          register: rescue_raw_rollback_manifest
+
+        - name: Parse current manifest state
+          ansible.builtin.set_fact:
+            rescue_rollback_manifest: "{{ rescue_raw_rollback_manifest.content | b64decode | from_yaml }}"
+
+        - name: OpenCHAMI rollback failed — mark component as failed
+          ansible.builtin.copy:
+            content: >-
+              {{ rescue_rollback_manifest | combine({
+                   'component_status': rescue_rollback_manifest.component_status | combine({
+                     component_name: 'failed'
+                   })
+                 }) | to_nice_yaml }}
+            dest: "{{ rollback_manifest_path }}"
+            mode: '0644'
+
+        - name: Fail with OpenCHAMI rollback error
+          ansible.builtin.fail:
+            msg: >-
+              OpenCHAMI rollback failed. Check container logs and systemd status.
+              Backup directory: {{ rollback_backup_dir | default('N/A') }}
 
     - name: Mark OIM rollback as completed
       ansible.builtin.copy:

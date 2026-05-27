@@ -2,19 +2,19 @@
   "csi_driver_powerscale": {
     "cluster": [
       {
-        "package": "csi-powerscale",
+        "package": "csi-powerscale-v2.16.0",
         "url": "https://github.com/dell/csi-powerscale.git",
         "type": "git",
         "version": "v2.16.0"
       },
       {
-        "package": "external-snapshotter",
+        "package": "external-snapshotter-v8.4.0",
         "url": "https://github.com/kubernetes-csi/external-snapshotter.git",
         "type": "git",
         "version": "v8.4.0"
       },
       {
-        "package": "helm-charts",
+        "package": "helm-charts-2.16.0",
         "url": "https://github.com/dell/helm-charts.git",
         "type": "git",
         "version": "csi-isilon-2.16.0"

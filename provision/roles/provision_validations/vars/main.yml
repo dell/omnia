@@ -24,6 +24,7 @@ provision_inputs:
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/storage_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/omnia_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/build_stream_config.yml"
+  - path: "{{ hostvars['localhost']['input_project_dir'] }}/telemetry_storage_config.yml"
   - path: "{{ hostvars['localhost']['input_project_dir'] }}/discovery_config.yml"
 build_stream_job_id_absent: |
     "Build Stream mode is enabled. Manual execution is not supported.

@@ -38,7 +38,7 @@
           steps:
             setup_repos:
               status: completed
-              timestamp: "{{ ansible_date_time.iso8601 }}"
+              timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
               error:
 
     - name: Run kubeadm_install on {{ current_node_name }}
@@ -52,7 +52,7 @@
               steps:
                 kubeadm_install:
                   status: in_progress
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
         - name: Execute kubeadm install
           ansible.builtin.include_tasks: step_kubeadm_install.yml
         - name: Mark kubeadm_install completed
@@ -63,7 +63,7 @@
               steps:
                 kubeadm_install:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
     - name: Run kubeadm_upgrade_node on {{ current_node_name }}
@@ -77,7 +77,7 @@
               steps:
                 kubeadm_upgrade_node:
                   status: in_progress
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
         - name: Execute kubeadm upgrade node
           ansible.builtin.include_tasks: step_upgrade_node.yml
         - name: Mark kubeadm_upgrade_node completed
@@ -88,7 +88,7 @@
               steps:
                 kubeadm_upgrade_node:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
     - name: Run drain on {{ current_node_name }}
@@ -102,7 +102,7 @@
               steps:
                 drain:
                   status: in_progress
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
         - name: Execute drain
           ansible.builtin.include_tasks: step_drain.yml
         - name: Mark drain completed
@@ -113,7 +113,7 @@
               steps:
                 drain:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
     - name: Run kubelet_install on {{ current_node_name }}
@@ -127,7 +127,7 @@
               steps:
                 kubelet_install:
                   status: in_progress
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
         - name: Execute kubelet install
           ansible.builtin.include_tasks: step_kubelet_install.yml
         - name: Mark kubelet_install completed
@@ -138,7 +138,7 @@
               steps:
                 kubelet_install:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
     - name: Run crio_install on {{ current_node_name }}
@@ -152,7 +152,7 @@
               steps:
                 crio_install:
                   status: in_progress
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
         - name: Execute crio install
           ansible.builtin.include_tasks: step_crio_install.yml
         - name: Mark crio_install completed
@@ -163,7 +163,7 @@
               steps:
                 crio_install:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
     - name: Run kubelet_restart on {{ current_node_name }}
@@ -177,7 +177,7 @@
               steps:
                 kubelet_restart:
                   status: in_progress
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
         - name: Execute kubelet restart
           ansible.builtin.include_tasks: step_kubelet_restart.yml
         - name: Mark kubelet_restart completed
@@ -188,7 +188,7 @@
               steps:
                 kubelet_restart:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
     - name: Run uncordon on {{ current_node_name }}
@@ -202,7 +202,7 @@
               steps:
                 uncordon:
                   status: in_progress
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
         - name: Execute uncordon
           ansible.builtin.include_tasks: step_uncordon.yml
         - name: Mark uncordon completed
@@ -213,7 +213,7 @@
               steps:
                 uncordon:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
     - name: Run validation on {{ current_node_name }}
@@ -229,7 +229,7 @@
               steps:
                 validation:
                   status: completed
-                  timestamp: "{{ ansible_date_time.iso8601 }}"
+                  timestamp: "{{ now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ') }}"
                   error:
 
     - name: Mark node completed - {{ current_node_name }}

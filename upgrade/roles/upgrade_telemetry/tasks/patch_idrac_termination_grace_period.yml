@@ -1,0 +1,77 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ============================================================================
+# Patch idrac-telemetry StatefulSet terminationGracePeriodSeconds
+# ============================================================================
+# Increases terminationGracePeriodSeconds from 10s to 120s to allow MySQL
+# sufficient time to flush data to NFS during graceful shutdown.
+#
+# Background:
+# - The source template has terminationGracePeriodSeconds: 10s (too low for NFS)
+# - The container has a preStop hook (mysqladmin shutdown) but needs more time
+# - Kubernetes kills the pod after terminationGracePeriodSeconds if not exited
+# - Patching to 120s prevents MySQL corruption on NFS-backed storage
+# ============================================================================
+
+- name: Check if idrac-telemetry StatefulSet exists
+  ansible.builtin.command:
+    cmd: kubectl get statefulset idrac-telemetry -n {{ telemetry_namespace }}
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  register: idrac_sts_check
+  changed_when: false
+  failed_when: false
+
+- name: Get current idrac-telemetry replica count
+  ansible.builtin.shell:
+    cmd: kubectl get statefulset idrac-telemetry -n {{ telemetry_namespace }} -o jsonpath='{.spec.replicas}'
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  register: idrac_replica_count
+  changed_when: false
+  when: idrac_sts_check.rc == 0
+
+- name: Display pre-patch replica count
+  ansible.builtin.debug:
+    msg: "idrac-telemetry current replica count: {{ idrac_replica_count.stdout }}"
+  when: idrac_sts_check.rc == 0
+
+- name: Patch terminationGracePeriodSeconds to 120s for graceful MySQL shutdown
+  ansible.builtin.command:
+    cmd: >
+      kubectl patch statefulset idrac-telemetry -n {{ telemetry_namespace }}
+      --type=strategic
+      -p '{"spec":{"template":{"spec":{"terminationGracePeriodSeconds":120}}}}'
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  register: idrac_patch_result
+  changed_when: "'patched' in idrac_patch_result.stdout"
+  failed_when: false
+  when: idrac_sts_check.rc == 0
+
+- name: Wait for patched rolling update to complete
+  ansible.builtin.command:
+    cmd: kubectl rollout status statefulset idrac-telemetry -n {{ telemetry_namespace }} --timeout=300s
+  delegate_to: "{{ kube_vip }}"
+  connection: ssh
+  changed_when: false
+  failed_when: false
+  when:
+    - idrac_sts_check.rc == 0
+    - idrac_patch_result.changed | default(false)
+
+- name: Display patch status
+  ansible.builtin.debug:
+    msg: "{{ idrac_patch_msg if (idrac_sts_check.rc == 0) else idrac_skip_patch_msg }}"

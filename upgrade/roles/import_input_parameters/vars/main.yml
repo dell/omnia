@@ -308,11 +308,11 @@ msg_telemetry_config_transform_summary: |
   Backup preserved at: {{ backup_location }}/telemetry_config.yml
   Changes:
   - Restructured to telemetry_sources / telemetry_bridges / telemetry_sinks architecture
-  - Mapped idrac_telemetry_support → telemetry_sources.idrac.metrics_enabled
-  - Mapped idrac_telemetry_collection_type → telemetry_sources.idrac.collection_targets
-  - Mapped victoria_configurations → telemetry_sinks.victoria_metrics
-  - Mapped kafka_configurations → telemetry_sinks.kafka (topic_partitions list → dict)
-  - Mapped ldms_* ports and sampler configs → ldms_configurations section
+  - Mapped idrac_telemetry_support to telemetry_sources.idrac.metrics_enabled
+  - Mapped idrac_telemetry_collection_type to telemetry_sources.idrac.collection_targets
+  - Mapped victoria_configurations to telemetry_sinks.victoria_metrics
+  - Mapped kafka_configurations to telemetry_sinks.kafka (topic_partitions list to dict)
+  - Mapped ldms_* ports and sampler configs to ldms_configurations section
   - Added telemetry_sources.ldms (metrics_enabled, collection_targets) with defaults
   - Added telemetry_sources.dcgm with default metrics_enabled=true
   - Added telemetry_sources.powerscale with default metrics and logs enabled
@@ -320,6 +320,10 @@ msg_telemetry_config_transform_summary: |
   - Added telemetry_sinks.victoria_logs with default storage and retention
   - Removed single-node VM deployment mode (always cluster in 2.2)
   - Updated powerscale_configurations (removed source-level fields, kept otel/csm settings)
+  - Added telemetry_sources.ufm (metrics_enabled, logs_enabled) with defaults
+  - Added ufm_configuration section (ufm_endpoint, ufm_metrics_port, scrape_interval, tls_mode, auth_mode)
+  - Added telemetry_sources.vast (metrics_enabled, logs_enabled) with defaults
+  - Added vast_configuration section (vast_endpoint, vast_metrics_port, metrics_path, scrape_interval, tls_mode, auth_mode)
 
 # Restore summary message for software config transformation
 msg_software_config_transform_summary: |
@@ -330,6 +334,34 @@ msg_software_config_transform_summary: |
   - Added admin_debug_packages entry (if missing)
   - Added csi_driver_powerscale entry (if missing)
   - Added additional_packages software entry and section (if missing)
+
+# PowerScale values.yaml transformation messages
+msg_backup_powerscale_values_missing: "Backup values.yaml for PowerScale not found"
+msg_powerscale_values_transform_failed: "Failed to transform PowerScale values.yaml"
+msg_powerscale_v21_version_missing: |
+  PowerScale CSI driver entry found in v2.1 software_config.json but version field is missing.
+  File: {{ backup_location }}/software_config.json
+  Entry: csi_driver_powerscale
+  Error: 'version' field is required when csi_driver_powerscale is configured.
+  Please check the backup software_config.json file.
+msg_powerscale_v22_version_missing: |
+  PowerScale CSI driver entry found in v2.2 software_config.json but version field is missing.
+  File: {{ input_project_dir }}/software_config.json
+  Entry: csi_driver_powerscale
+  Error: 'version' field is required when csi_driver_powerscale is configured.
+  Please check the software_config.json file.
+msg_powerscale_values_transform_summary: |
+  PowerScale CSI driver values.yaml transformed: {{ powerscale_v21_version }} to {{ powerscale_v22_version }}.
+  Backup preserved at: {{ backup_location }}/values.yaml
+  Target: {{ input_project_dir }}/values.yaml
+  Changes:
+  - Downloaded {{ powerscale_v22_version }} values.yaml template from GitHub
+  - Preserved v2.1 settings: isiPath, isiAccessZone, controllerCount, custom configurations
+  - Updated to {{ powerscale_v22_version }} structure with new parameters
+  Secret file copied: {{ input_project_dir }}/secret.yaml
+
+# PowerScale GitHub URL template for values.yaml
+powerscale_values_github_url_template: "https://raw.githubusercontent.com/dell/helm-charts/csi-isilon-{version}/charts/csi-isilon/values.yaml"
 
 # === DEFAULT VALUES ===
 # Build Stream Config Defaults
@@ -368,6 +400,14 @@ telemetry_default_kafka_persistence_size: "8Gi"
 telemetry_default_kafka_log_retention_hours: 168
 telemetry_default_kafka_log_retention_bytes: -1
 telemetry_default_kafka_log_segment_bytes: 1073741824
+telemetry_default_kafka_storage_memory_request: "512Mi"
+telemetry_default_kafka_storage_cpu_request: "200m"
+telemetry_default_kafka_storage_memory_limit: "1Gi"
+telemetry_default_kafka_storage_cpu_limit: "1000m"
+telemetry_default_kafka_user_operator_memory_request: "512Mi"
+telemetry_default_kafka_user_operator_cpu_request: "200m"
+telemetry_default_kafka_user_operator_memory_limit: "512Mi"
+telemetry_default_kafka_user_operator_cpu_limit: "1000m"
 telemetry_default_ldms_agg_port: 6001
 telemetry_default_ldms_store_port: 6001
 telemetry_default_ldms_sampler_port: 10001
@@ -393,6 +433,18 @@ telemetry_default_ufm_scrape_timeout: "15s"
 telemetry_default_ufm_tls_mode: "self_signed"
 telemetry_default_ufm_ca_cert_path: ""
 telemetry_default_ufm_auth_mode: "basic"
+
+# VAST Telemetry Defaults
+telemetry_default_vast_metrics_enabled: false
+telemetry_default_vast_logs_enabled: false
+telemetry_default_vast_endpoint: ""
+telemetry_default_vast_metrics_port: 443
+telemetry_default_vast_metrics_path: "/api/prometheusmetrics/all"
+telemetry_default_vast_scrape_interval: "30s"
+telemetry_default_vast_scrape_timeout: "15s"
+telemetry_default_vast_tls_mode: "self_signed"
+telemetry_default_vast_ca_cert_path: ""
+telemetry_default_vast_auth_mode: "basic"
 
 # Default LDMS sampler configurations
 telemetry_default_ldms_sampler_configurations:

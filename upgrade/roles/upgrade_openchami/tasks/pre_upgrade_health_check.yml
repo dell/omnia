@@ -141,6 +141,7 @@
 
         - name: Display per-container version comparison
           ansible.builtin.debug:
+            verbosity: 1
             msg: >-
               {{ item.container }}: current={{ current_image_list[idx] | default('unknown') }},
               expected={{ item.expected_image }}
@@ -189,6 +190,7 @@
 
         - name: Display current OpenCHAMI version
           ansible.builtin.debug:
+            verbosity: 1
             msg: "Current OpenCHAMI version: {{ current_openchami_version | default('not recorded') }}"
 
         # ── Verify no active provisioning jobs ────────────────────────
@@ -272,6 +274,7 @@
 
         - name: Display API reachability status
           ansible.builtin.debug:
+            verbosity: 1
             msg:
               - "SMD API: reachable at {{ openchami_smd_endpoint }}"
               - "BSS API: reachable at {{ openchami_bss_endpoint }}"
@@ -298,6 +301,7 @@
 
         - name: Display S3 status
           ansible.builtin.debug:
+            verbosity: 1
             msg: >-
               S3/MinIO: {{ 'accessible' if (pre_s3cfg_stat.stat.exists | default(false) and
               's3_unreachable' not in pre_s3_check.stdout | default('s3_unreachable'))
@@ -324,6 +328,7 @@
 
         - name: Display baseline node count
           ansible.builtin.debug:
+            verbosity: 1
             msg: >-
               Pre-upgrade baseline node count: {{ pre_upgrade_node_count }}.
               {{ '(empty database — prepare_oim-only scenario, no nodes discovered yet)'

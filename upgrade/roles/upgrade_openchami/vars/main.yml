@@ -25,11 +25,18 @@ openchami_snapshot_base_dir: "/opt/omnia/openchami/upgrade_snapshots"
 openchami_snapshot_dir: "{{ openchami_snapshot_base_dir }}/{{ ansible_date_time.date }}_{{ ansible_date_time.time | replace(':', '') }}"
 
 # OpenCHAMI API endpoints
-# These are fallback defaults ONLY. At runtime, resolve_admin_ip.yml discovers
-# the actual SMD/BSS container IPs and ports via `podman inspect` and overrides
-# these variables with set_fact. Direct container access uses HTTP (no TLS).
-openchami_smd_endpoint: "http://localhost:27779/hsm/v2"
-openchami_bss_endpoint: "http://localhost:27778/boot/v1"
+# These are fallback defaults ONLY. At runtime, resolve_admin_ip.yml reads the
+# HAProxy base URL from the ochami CLI config and overrides these with set_fact.
+# HAProxy on port 8443 is published on the host and stays stable across container
+# restarts (unlike ephemeral container-internal IPs from podman inspect).
+openchami_smd_endpoint: "https://localhost:8443/hsm/v2"
+openchami_bss_endpoint: "https://localhost:8443/boot/v1"
+
+# ochami CLI config path — contains the HAProxy base URL for the cluster
+ochami_config_path: "/etc/ochami/config.yaml"
+
+# HAProxy fallback URL used when ochami CLI config is missing or unreadable
+openchami_haproxy_fallback: "https://localhost:8443"
 
 # Default backup directory (used when manifest.backup_dir is not available)
 openchami_backup_dir_default: "/opt/omnia/backups/upgrade/version_2.1.0.0"
@@ -278,8 +285,8 @@ upgrade_messages:
       Please resolve issues before retrying upgrade:
       - Check container status: podman ps -a
       - Check container logs: podman logs <container_name>
-      - Get SMD IP/port: podman inspect -f '{{ "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" }}' smd
-      - Get SMD port: podman inspect -f '{{ "{{range $k, $v := .NetworkSettings.Ports}}{{$k}}{{end}}" }}' smd
+      - Check HAProxy endpoint: curl -sk https://localhost:8443/hsm/v2/service/ready
+      - Check ochami config: cat /etc/ochami/config.yaml
       - Check systemd status: systemctl status openchami.target
     container_upgrade_diagnosis: |
       Check container logs for errors:
@@ -295,9 +302,9 @@ upgrade_messages:
       - Systemd deps: systemctl list-dependencies openchami.target
       - ochami CLI: ochami smd component get
       - S3 buckets: s3cmd -c /opt/omnia/openchami/s3/.s3cfg ls
-      - SMD API: curl -s http://<smd_ip>:<smd_port>/hsm/v2/State/Components
-      - BSS boot params: curl -s http://<bss_ip>:<bss_port>/boot/v1/bootparameters
-      - Get container IPs: podman inspect -f '{{ "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" }}' <container>
+      - SMD API: curl -sk https://localhost:8443/hsm/v2/State/Components
+      - BSS boot params: curl -sk https://localhost:8443/boot/v1/bootparameters
+      - HAProxy config: cat /etc/ochami/config.yaml
   cloud_init_reload:
     workdir_not_found: >-
       Cloud-init workdir not found at {{ oim_host_ci_dir | default('unknown') }}.

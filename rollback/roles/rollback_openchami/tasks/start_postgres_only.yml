@@ -1,0 +1,88 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+
+# ============================================================================
+# start_postgres_only.yml — Start Only PostgreSQL Before Database Restore
+# ============================================================================
+# During rollback, the database must be restored BEFORE starting the full
+# service stack. The v2.1 smd-init and bss-init containers run schema
+# initialization on startup — they cannot handle the v2.2 schema and will
+# fail if started before the database is rolled back.
+#
+# This task starts ONLY postgres.service (not openchami.target) so that:
+#   1. pg_dump restore can execute against a running PostgreSQL instance
+#   2. smd-init / bss-init are NOT triggered (they depend on postgres,
+#      but starting postgres alone does NOT trigger its dependents)
+#   3. After DB restore, start_v21_containers.yml starts openchami.target
+#      and smd-init/bss-init run against the correct v2.1 schema
+#
+# Why the upgrade flow doesn't need this:
+#   v2.2 smd-init is forward-compatible (handles v2.1 → v2.2 migration).
+#   v2.1 smd-init is NOT backward-compatible (fails on v2.2 schema).
+#
+# Idempotency: systemd start is idempotent (no error if already running).
+# ============================================================================
+
+- name: Start PostgreSQL only (before database restore)
+  block:
+    # ── Ensure systemd sees the restored quadlet files ────────────────
+    - name: Reload systemd daemon for restored quadlets
+      ansible.builtin.systemd:
+        daemon_reload: true
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    # ── Start only postgres.service — NOT openchami.target ────────────
+    # Starting postgres.service directly will NOT trigger smd-init or
+    # bss-init because they depend ON postgres, not the other way around.
+    # systemd only starts dependencies (things postgres needs), not
+    # dependents (things that need postgres).
+    - name: Start postgres.service only
+      ansible.builtin.systemd:
+        name: postgres.service
+        state: started
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Wait for PostgreSQL container to initialize
+      ansible.builtin.pause:
+        seconds: 10
+
+    # ── Verify PostgreSQL is accepting connections ─────────────────────
+    - name: Wait for PostgreSQL to accept connections
+      ansible.builtin.shell: |
+        set -o pipefail
+        for i in $(seq 1 30); do
+          if podman exec postgres pg_isready -U {{ postgres_db_user }} -d {{ postgres_db_name }} 2>/dev/null; then
+            echo "ready"
+            exit 0
+          fi
+          sleep 2
+        done
+        echo "timeout"
+        exit 1
+      register: rb_pg_start_ready
+      changed_when: false
+      failed_when: rb_pg_start_ready.rc != 0
+      delegate_to: oim
+      delegate_facts: true
+      connection: ssh
+
+    - name: Display PostgreSQL start status
+      ansible.builtin.debug:
+        verbosity: 1
+        msg: "PostgreSQL started independently (not via openchami.target). Ready for database restore."

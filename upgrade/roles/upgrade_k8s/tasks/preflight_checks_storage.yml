@@ -1,0 +1,106 @@
+# Copyright 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# ── Pre-upgrade storage volume checks ──────────────────────────────
+# Validates that all storage volumes are accessible and properly
+# mounted before starting the upgrade.
+#
+# Checks performed:
+#   1. No PersistentVolumes in Failed state
+#   2. No PersistentVolumeClaims in Lost state
+#   3. NFS storage mount is accessible on kube_vip
+
+# ── Check 1: PersistentVolumes must not be in Failed state ─────────
+- name: "Preflight storage — Check for PersistentVolumes in Failed state"
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get pv -o
+      jsonpath='{range .items[?(@.status.phase=="Failed")]}{.metadata.name}{" (phase: Failed)"}{"\n"}{end}'
+  register: preflight_failed_pvs
+  changed_when: false
+  failed_when: false
+
+- name: "Preflight storage — Fail if PersistentVolumes are in Failed state"
+  ansible.builtin.fail:
+    msg: |
+      {{ msg_preflight_pv_failed }}
+      {{ preflight_failed_pvs.stdout }}
+  when:
+    - preflight_failed_pvs.rc == 0
+    - preflight_failed_pvs.stdout | length > 0
+
+# ── Check 2: PersistentVolumeClaims must not be in Lost state ──────
+- name: "Preflight storage — Check for PersistentVolumeClaims in Lost state"
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.command:
+    cmd: >-
+      kubectl get pvc --all-namespaces -o
+      jsonpath='{range .items[?(@.status.phase=="Lost")]}{.metadata.namespace}{"/"}{.metadata.name}{" (phase: Lost)"}{"\n"}{end}'
+  register: preflight_lost_pvcs
+  changed_when: false
+  failed_when: false
+
+- name: "Preflight storage — Fail if PersistentVolumeClaims are in Lost state"
+  ansible.builtin.fail:
+    msg: |
+      {{ msg_preflight_pvc_lost }}
+      {{ preflight_lost_pvcs.stdout }}
+  when:
+    - preflight_lost_pvcs.rc == 0
+    - preflight_lost_pvcs.stdout | length > 0
+
+# ── Check 3: NFS storage mount must be accessible ─────────────────
+- name: "Preflight storage — Verify NFS storage mount is accessible"
+  delegate_to: "{{ kube_vip }}"
+  ansible.builtin.stat:
+    path: "{{ k8s_client_mount_path }}"
+  register: preflight_nfs_stat
+
+- name: "Preflight storage — Fail if NFS storage mount is not accessible"
+  ansible.builtin.fail:
+    msg: "{{ msg_preflight_nfs_not_accessible }}"
+  when: not (preflight_nfs_stat.stat.exists | default(false))
+
+# ── Check 4: All control planes must have .cluster_initialized marker ──
+- name: "Preflight storage — Check .cluster_initialized marker on all control planes"
+  ansible.builtin.stat:
+    path: "/etc/kubernetes/.cluster_initialized"
+  delegate_to: "{{ item }}"
+  register: preflight_cluster_init_check
+  loop: "{{ groups[group_cp] | default([]) }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: "Preflight storage — Fail if any control plane is missing .cluster_initialized"
+  ansible.builtin.fail:
+    msg: |
+      Control plane node {{ item.item }} is missing /etc/kubernetes/.cluster_initialized marker file.
+      This indicates that the node's cloud-init provisioning did not complete successfully.
+
+      Please check the cloud-init logs on {{ item.item }}:
+        ssh {{ item.item }} cat /var/log/cloud-init-output.log
+
+      The node must be successfully provisioned before upgrade can proceed.
+  loop: "{{ preflight_cluster_init_check.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not (item.stat.exists | default(false))
+
+- name: "Preflight storage — All storage checks passed"
+  ansible.builtin.debug:
+    msg: >-
+      Pre-upgrade storage checks passed: No PVs in Failed state,
+      no PVCs in Lost state, NFS mount at {{ k8s_client_mount_path }} is accessible,
+      all control planes have .cluster_initialized marker.

@@ -34,7 +34,7 @@
   vars:
     status_update:
       hop_status: >-
-        {{ {k8s_target_version: {'status': 'completed', 'completed_at': ansible_date_time.iso8601}} }}
+        {{ {k8s_target_version: {'status': 'completed', 'completed_at': now(utc=true).strftime('%Y-%m-%dT%H:%M:%SZ')}} }}
   when: _all_nodes_upgraded | bool
 
 - name: Display hop completion status

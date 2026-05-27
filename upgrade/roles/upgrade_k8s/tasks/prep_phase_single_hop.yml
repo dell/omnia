@@ -12,17 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Prep a single hop's target version: build squashfs and verify artifacts.
+# Prep a single hop's target version.
 # Repo sync is handled by prep_sync_all_repos.yml (called once for all hops).
+# Addon manifests are downloaded once for all hops in prep_phase.yml.
 #
 # Inputs (set by caller):
 #   _hop_target_version — e.g. "1.35.1"
 #   _hop_target_minor   — e.g. "1.35"
 #   _hop_artifacts_dir  — e.g. "v1.35.1"
-
-# Commented out to skip squashfs build and proceed directly with k8s upgrade
-# - name: "prep [{{ _hop_target_version }}] — Build squashfs image"
-#   ansible.builtin.include_tasks: build_squashfs.yml
-
-# - name: "prep [{{ _hop_target_version }}] — Verify all artifacts"
-#   ansible.builtin.include_tasks: verify_images.yml
+#
+# Note: Squashfs build and image verification have been removed from the flow.
+# The upgrade proceeds directly with repository sync and addon manifest staging.

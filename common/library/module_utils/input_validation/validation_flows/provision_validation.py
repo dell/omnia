@@ -344,8 +344,8 @@ def validate_ib_nic_name_format_in_mapping_file(pxe_mapping_file_path):
     if not ib_nic_col:
         return  # No IB_NIC_NAME column to validate
 
-    # Supported IB_NIC_NAME format patterns
-    slot_pattern = re.compile(r'^(InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|NIC\.InfiniBand\.)([0-9]+)-([0-9]+)$')
+    # Supported IB_NIC_NAME format patterns (updated to support hexadecimal slots)
+    slot_pattern = re.compile(r'^(InfiniBand\.PCIe\.Slot\.|InfiniBand\.Slot\.|NIC\.InfiniBand\.)([0-9a-fA-F]+)-([0-9]+)$')
     single_pattern = re.compile(r'^InfiniBand\.Single-([0-9]+)$')
 
     invalid_formats = []
@@ -376,8 +376,13 @@ def validate_ib_nic_name_format_in_mapping_file(pxe_mapping_file_path):
         raise ValueError(
             f"Invalid IB_NIC_NAME format(s) found in PXE mapping file: {'; '.join(invalid_formats)}. "
             f"Supported formats are: "
-            f"'InfiniBand.PCIe.Slot.X-Y', 'InfiniBand.Slot.X-Y', 'NIC.InfiniBand.X-Y', 'InfiniBand.Single-Y'"
+            f"'InfiniBand.PCIe.Slot.X-Y', 'InfiniBand.Slot.X-Y', 'NIC.InfiniBand.X-Y', 'InfiniBand.Single-Y'. "
+            f"Slot numbers support decimal (22) and hexadecimal (b5, a0, ff) formats. "
+            f"Examples: 'InfiniBand.PCIe.Slot.22-1', 'InfiniBand.PCIe.Slot.b5-1', 'InfiniBand.Single-1'"
         )
+
+
+
 
 
 def validate_group_parent_service_tag_consistency_in_mapping_file(pxe_mapping_file_path):
