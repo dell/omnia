@@ -242,6 +242,14 @@
         - echo "{{ vast_mount_point }}/home  /home  none  bind  0  0" >> /etc/fstab
         - echo "{{ vast_mount_point }}/projects  /projects  none  bind  0  0" >> /etc/fstab
         - mount -av
+        # VAST storage: scratch directory for login+compiler node
+        - mkdir -pv {{ vast_mount_point }}/scratch
+        - mkdir -pv {{ vast_mount_point }}/scratch/$(hostname -s)/tmp
+        - mkdir -pv /scratch
+        - echo "{{ vast_mount_point }}/scratch  /scratch  none  bind  0  0" >> /etc/fstab
+        - echo "{{ vast_mount_point }}/scratch/$(hostname -s)/tmp  /tmp  none  bind  0  0" >> /etc/fstab
+        - mount -av
+        - chmod 1777 /tmp /scratch
         - /usr/local/bin/install_cuda_toolkit.sh
         # Ensure Slurm NFS root is mounted at client_mount_path (e.g. /share_omnia)
         - mkdir -p {{ client_mount_path }}/slurm/ssh 

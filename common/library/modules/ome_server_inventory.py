@@ -140,6 +140,8 @@ class OMEClient:
         headers = {"Content-Type": "application/json"}
 
         response = self.session.post(auth_url, json=auth_payload, headers=headers)
+        # Clear password from memory after authentication attempt
+        self.password = None
         if response.status_code in [200, 201]:
             self.auth_token = response.headers.get("X-Auth-Token")
             self.session.headers.update({"X-Auth-Token": self.auth_token})
@@ -167,7 +169,7 @@ class OMEClient:
                                response.status_code, url, attempt, self.MAX_RETRIES)
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
                 logger.warning("Transient error fetching %s (attempt %d/%d): %s",
-                               url, attempt, self.MAX_RETRIES, exc)
+                               url, attempt, self.MAX_RETRIES, type(exc).__name__)
                 last_exc = exc
             if attempt < self.MAX_RETRIES:
                 time.sleep(self.BACKOFF_BASE ** attempt)
@@ -279,7 +281,7 @@ class OMEClient:
                 return data
         except Exception as exc:
             logger.warning("Failed to fetch inventory type '%s' for device %s: %s",
-                           inventory_type, device_id, exc)
+                           inventory_type, device_id, type(exc).__name__)
         return {}
 
     def get_device_management_info(self, device_id):
@@ -514,13 +516,17 @@ def main():
         module.fail_json(msg="The 'requests' Python library is required for this module")
 
     ome_ip = module.params['ome_ip']
-    ome_username = module.params['ome_username']
-    ome_password = module.params['ome_password']
     device_type = module.params['device_type']
     verify_ssl = module.params['verify_ssl']
     page_size = module.params['page_size']
 
-    client = OMEClient(ome_ip, ome_username, ome_password, verify_ssl, page_size)
+    client = OMEClient(
+        ome_ip,
+        module.params['ome_username'],
+        module.params['ome_password'],
+        verify_ssl,
+        page_size
+    )
 
     try:
         if not client.authenticate():
