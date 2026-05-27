@@ -533,7 +533,7 @@
           {{
             (
               ansible_run_tags | default([]) +
-              ['prepare_oim', 'ufm_telemetry', 'ldms', 'idrac_telemetry']
+              ['prepare_oim', 'local_repo', 'ufm_telemetry', 'ldms', 'idrac_telemetry']
             ) | unique
           }}
         cacheable: true
