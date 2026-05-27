@@ -458,17 +458,23 @@ def generate_catalog(input_dir, software_config_path, pxe_mapping_file):
     return catalog
 
 def build_functional_layers(functional_packages, pxe_groups, role_package_map):
-    """Build FunctionalLayer from PXE groups **and** inferred role+arch combos.
+    """Build FunctionalLayer strictly from PXE groups.
 
-    PXE groups control os_* layers directly.  For every other role that
-    has mapped packages we generate ``<role>_<arch>`` layers for each
-    architecture that has at least one matching package.  This ensures
-    the adapter policy can always find the functional layers it expects
-    (e.g. ``slurm_node_x86_64``) even when the PXE mapping only lists
-    one architecture for that role.
+    Only role+arch combinations explicitly listed in the PXE mapping file
+    get a functional layer.  For roles that have a ``_first`` variant in
+    the role_package_map, a separate ``<role>_first_<arch>`` layer is
+    also emitted – but only for architectures present in the PXE file.
     """
     functional_layers = []
     generated: set = set()   # track names already emitted
+
+    # Build a map of base_role -> set of architectures from PXE groups
+    pxe_role_arches: dict[str, set] = {}
+    for pxe_group in pxe_groups:
+        role_name = pxe_group.replace('_x86_64', '').replace('_aarch64', '')
+        pxe_arch = _extract_arch_from_pxe_group(pxe_group)
+        if pxe_arch:
+            pxe_role_arches.setdefault(role_name, set()).add(pxe_arch)
 
     # ── 1. PXE-driven layers (os_* and any explicit PXE entries) ──
     for pxe_group in pxe_groups:
@@ -494,14 +500,13 @@ def build_functional_layers(functional_packages, pxe_groups, role_package_map):
             })
         generated.add(pxe_group)
 
-    # ── 2. Infer missing role+arch layers from role_package_map ──
-    # For each role that has packages, ensure a layer exists for every
-    # architecture that has at least one package in that role.
-    _ARCHES = ('x86_64', 'aarch64')
+    # ── 2. Generate _first variant layers for PXE-listed role+arch combos ──
     for role_name, pkg_ids in role_package_map.items():
-        if role_name == 'os':
-            continue  # os layers are PXE-only
-        for arch in _ARCHES:
+        if not role_name.endswith('_first'):
+            continue
+        base_role = role_name[:-6]  # strip "_first"
+        allowed_arches = pxe_role_arches.get(base_role, set())
+        for arch in allowed_arches:
             layer_name = f"{role_name}_{arch}"
             if layer_name in generated:
                 continue
@@ -511,22 +516,11 @@ def build_functional_layers(functional_packages, pxe_groups, role_package_map):
                 if pid in functional_packages
                 and arch in functional_packages[pid].get('Architecture', [])
             ]
-            # Also merge _first packages
-            first_role = role_name + "_first"
-            if first_role in role_package_map:
-                for pid in role_package_map[first_role]:
-                    if (
-                        pid in functional_packages
-                        and arch in functional_packages[pid].get('Architecture', [])
-                        and pid not in filtered
-                    ):
-                        filtered.append(pid)
-                filtered.sort()
 
             if filtered:
                 functional_layers.append({
                     "Name": layer_name,
-                    "FunctionalPackages": filtered,
+                    "FunctionalPackages": sorted(filtered),
                 })
             generated.add(layer_name)
 
