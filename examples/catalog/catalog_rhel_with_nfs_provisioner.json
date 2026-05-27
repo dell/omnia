@@ -57,10 +57,6 @@
         "Name": "service_kube_control_plane_x86_64",
         "FunctionalPackages": [
           "package_id_10",
-          "package_id_106",
-          "package_id_107",
-          "package_id_108",
-          "package_id_109",
           "package_id_11",
           "package_id_2",
           "package_id_29",
@@ -115,6 +111,7 @@
           "package_id_75",
           "package_id_76",
           "package_id_77",
+          "package_id_78",
           "package_id_79",
           "package_id_8",
           "package_id_80",
@@ -131,7 +128,10 @@
           "package_id_90",
           "package_id_91",
           "package_id_92",
-          "package_id_93"
+          "package_id_93",
+          "package_id_94",
+          "package_id_95",
+          "package_id_96"
         ]
       },
       {
@@ -139,8 +139,6 @@
         "FunctionalPackages": [
           "package_id_10",
           "package_id_11",
-          "package_id_110",
-          "package_id_111",
           "package_id_2",
           "package_id_29",
           "package_id_3",
@@ -194,8 +192,10 @@
           "package_id_75",
           "package_id_76",
           "package_id_8",
-          "package_id_89",
-          "package_id_9"
+          "package_id_88",
+          "package_id_9",
+          "package_id_97",
+          "package_id_98"
         ]
       },
       {
@@ -231,7 +231,6 @@
           "package_id_1",
           "package_id_10",
           "package_id_11",
-          "package_id_113",
           "package_id_12",
           "package_id_13",
           "package_id_14",
@@ -249,17 +248,14 @@
           "package_id_6",
           "package_id_7",
           "package_id_8",
-          "package_id_9"
+          "package_id_9",
+          "package_id_99"
         ]
       },
       {
         "Name": "service_kube_control_plane_first_x86_64",
         "FunctionalPackages": [
           "package_id_10",
-          "package_id_106",
-          "package_id_107",
-          "package_id_108",
-          "package_id_109",
           "package_id_11",
           "package_id_2",
           "package_id_29",
@@ -314,6 +310,7 @@
           "package_id_75",
           "package_id_76",
           "package_id_77",
+          "package_id_78",
           "package_id_79",
           "package_id_8",
           "package_id_80",
@@ -330,7 +327,10 @@
           "package_id_90",
           "package_id_91",
           "package_id_92",
-          "package_id_93"
+          "package_id_93",
+          "package_id_94",
+          "package_id_95",
+          "package_id_96"
         ]
       }
     ],
@@ -1885,19 +1885,6 @@
         "Version": "v0.8.9"
       },
       "package_id_78": {
-        "Name": "docker.io/alpine/kubectl",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_79": {
         "Name": "registry.k8s.io/kube-apiserver",
         "SupportedOS": [
           {
@@ -1912,7 +1899,7 @@
         "Tag": "v1.35.1",
         "Version": "v1.35.1"
       },
-      "package_id_80": {
+      "package_id_79": {
         "Name": "registry.k8s.io/kube-controller-manager",
         "SupportedOS": [
           {
@@ -1927,7 +1914,7 @@
         "Tag": "v1.35.1",
         "Version": "v1.35.1"
       },
-      "package_id_81": {
+      "package_id_80": {
         "Name": "registry.k8s.io/kube-scheduler",
         "SupportedOS": [
           {
@@ -1942,7 +1929,7 @@
         "Tag": "v1.35.1",
         "Version": "v1.35.1"
       },
-      "package_id_82": {
+      "package_id_81": {
         "Name": "registry.k8s.io/kube-proxy",
         "SupportedOS": [
           {
@@ -1957,7 +1944,7 @@
         "Tag": "v1.35.1",
         "Version": "v1.35.1"
       },
-      "package_id_83": {
+      "package_id_82": {
         "Name": "registry.k8s.io/coredns/coredns",
         "SupportedOS": [
           {
@@ -1972,7 +1959,7 @@
         "Tag": "v1.13.1",
         "Version": "v1.13.1"
       },
-      "package_id_84": {
+      "package_id_83": {
         "Name": "registry.k8s.io/pause",
         "SupportedOS": [
           {
@@ -1987,7 +1974,7 @@
         "Tag": "3.10.1",
         "Version": "3.10.1"
       },
-      "package_id_85": {
+      "package_id_84": {
         "Name": "registry.k8s.io/etcd",
         "SupportedOS": [
           {
@@ -2002,7 +1989,7 @@
         "Tag": "3.6.6-0",
         "Version": "3.6.6-0"
       },
-      "package_id_86": {
+      "package_id_85": {
         "Name": "docker.io/calico/cni",
         "SupportedOS": [
           {
@@ -2017,7 +2004,7 @@
         "Tag": "v3.31.4",
         "Version": "v3.31.4"
       },
-      "package_id_87": {
+      "package_id_86": {
         "Name": "docker.io/calico/kube-controllers",
         "SupportedOS": [
           {
@@ -2032,7 +2019,7 @@
         "Tag": "v3.31.4",
         "Version": "v3.31.4"
       },
-      "package_id_88": {
+      "package_id_87": {
         "Name": "docker.io/calico/node",
         "SupportedOS": [
           {
@@ -2047,7 +2034,7 @@
         "Tag": "v3.31.4",
         "Version": "v3.31.4"
       },
-      "package_id_89": {
+      "package_id_88": {
         "Name": "quay.io/metallb/speaker",
         "SupportedOS": [
           {
@@ -2062,7 +2049,7 @@
         "Tag": "v0.15.3",
         "Version": "v0.15.3"
       },
-      "package_id_90": {
+      "package_id_89": {
         "Name": "kubectl-1.35.1",
         "SupportedOS": [
           {
@@ -2081,7 +2068,7 @@
           }
         ]
       },
-      "package_id_91": {
+      "package_id_90": {
         "Name": "prettytable==3.14.0",
         "SupportedOS": [
           {
@@ -2094,7 +2081,7 @@
         ],
         "Type": "pip_module"
       },
-      "package_id_92": {
+      "package_id_91": {
         "Name": "python3-3.12.9",
         "SupportedOS": [
           {
@@ -2113,7 +2100,7 @@
           }
         ]
       },
-      "package_id_93": {
+      "package_id_92": {
         "Name": "PyMySQL==1.1.2",
         "SupportedOS": [
           {
@@ -2126,163 +2113,7 @@
         ],
         "Type": "pip_module"
       },
-      "package_id_94": {
-        "Name": "ghcr.io/kube-vip/kube-vip",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_95": {
-        "Name": "registry.k8s.io/kube-apiserver",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_96": {
-        "Name": "registry.k8s.io/kube-controller-manager",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_97": {
-        "Name": "registry.k8s.io/kube-scheduler",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_98": {
-        "Name": "registry.k8s.io/kube-proxy",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_99": {
-        "Name": "registry.k8s.io/coredns/coredns",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_100": {
-        "Name": "registry.k8s.io/pause",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_101": {
-        "Name": "registry.k8s.io/etcd",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_102": {
-        "Name": "docker.io/calico/cni",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_103": {
-        "Name": "docker.io/calico/kube-controllers",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_104": {
-        "Name": "docker.io/calico/node",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_105": {
-        "Name": "quay.io/metallb/speaker",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "x86_64"
-        ],
-        "Type": "image"
-      },
-      "package_id_106": {
+      "package_id_93": {
         "Name": "calico-v3.31.4",
         "SupportedOS": [
           {
@@ -2301,7 +2132,7 @@
           }
         ]
       },
-      "package_id_107": {
+      "package_id_94": {
         "Name": "metallb-native-v0.15.3",
         "SupportedOS": [
           {
@@ -2320,7 +2151,7 @@
           }
         ]
       },
-      "package_id_108": {
+      "package_id_95": {
         "Name": "helm-v3.20.1-amd64",
         "SupportedOS": [
           {
@@ -2339,7 +2170,7 @@
           }
         ]
       },
-      "package_id_109": {
+      "package_id_96": {
         "Name": "nfs-subdir-external-provisioner-4.0.18",
         "SupportedOS": [
           {
@@ -2358,7 +2189,7 @@
           }
         ]
       },
-      "package_id_110": {
+      "package_id_97": {
         "Name": "registry.k8s.io/sig-storage/nfs-subdir-external-provisioner",
         "SupportedOS": [
           {
@@ -2373,7 +2204,7 @@
         "Tag": "v4.0.2",
         "Version": "v4.0.2"
       },
-      "package_id_111": {
+      "package_id_98": {
         "Name": "quay.io/metallb/controller",
         "SupportedOS": [
           {
@@ -2388,20 +2219,7 @@
         "Tag": "v0.15.3",
         "Version": "v0.15.3"
       },
-      "package_id_112": {
-        "Name": "nvcr.io/nvidia/hpc-benchmarks",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "aarch64"
-        ],
-        "Type": "image"
-      },
-      "package_id_113": {
+      "package_id_99": {
         "Name": "nvhpc_2025_2511_Linux_aarch64_cuda_13.0",
         "SupportedOS": [
           {

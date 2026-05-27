@@ -97,8 +97,8 @@
           "package_id_24",
           "package_id_25",
           "package_id_26",
+          "package_id_29",
           "package_id_3",
-          "package_id_30",
           "package_id_4",
           "package_id_5",
           "package_id_6",
@@ -867,19 +867,6 @@
         ]
       },
       "package_id_29": {
-        "Name": "nvcr.io/nvidia/hpc-benchmarks",
-        "SupportedOS": [
-          {
-            "Name": "RHEL",
-            "Version": "10.0"
-          }
-        ],
-        "Architecture": [
-          "aarch64"
-        ],
-        "Type": "image"
-      },
-      "package_id_30": {
         "Name": "nvhpc_2025_2511_Linux_aarch64_cuda_13.0",
         "SupportedOS": [
           {
