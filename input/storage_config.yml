@@ -44,7 +44,10 @@
 #
 # Node-specific bind mounts (node_key and node_mount_point are paired):
 #   - node_key:         Per-node subdirectory isolation variable. Optional
-#                       Allowed values: "local_hostname", "local_ipv4", "instance_id"
+#                       Allowed values: 
+#                           - "local_hostname" - hostname of the node
+#                           - "local_ipv4" - IPv4 address of the node
+#                           - "instance_id" - instance ID of the node from cloud-init
 #                       Default: "local_hostname"
 #                       When set, node_mount_point is MANDATORY
 #                       Generates bind mounts: <mount_point>/<node_key_value>/<target> -> <target>
@@ -53,7 +56,7 @@
 #                       Each entry: <mount_point>/<node_key_value>/<target_stripped_slash> -> <target>
 #
 # Targeting — exactly ONE of the following is required (mutually exclusive):
-#   - functional_group_prefix: List of oChaMI functional group name prefixes. Mandatory (one of)
+#   - functional_group_prefix: List of functional group name prefixes. Mandatory (one of)
 #                              MUTUALLY EXCLUSIVE with groups
 #                              All nodes whose group name starts with any listed prefix receive this mount
 #                              e.g., ["slurm"] matches slurm_control_node, slurm_node, etc.
@@ -70,10 +73,12 @@
 #
 
 # Example: static mount with all explicit params (no profile)
+#         which will be mounted on functional groups 
+#         slurm_control_node_x86_64, slurm_node_x86_64, slurm_login_x86_64
 # mounts:
 # Example: static mount using profile
 #   - name: "vast_home"
-#     source: "192.168.1.100:/home"
+#     source: "192.168.1.100:/share/slurm_home"
 #     mount_point: "/home"
 #     mount_params: "vast_nfs"
 #     functional_group_prefix: ["slurm"]
@@ -86,6 +91,8 @@
 #   - name: "scratch_isolation"
 #     source: "192.168.1.102:/share/vast"
 #     mount_point: "/mnt/vast"
+#     fs_type: "nfs"
+#     mnt_opts: "nosuid,rw,sync,hard"
 #     node_key: "local_hostname"
 #     node_mount_point:
 #       - /scratch
@@ -98,8 +105,7 @@
 #   # slurm.conf: SlurmdSpoolDir=/scratch,/tmp
 
 # /mnt/scratch /mnted/sctratch nfs4 defaults,nofail,_netdev,x-systemd.after=cloud-init-network.service 0 0
-
-# /mnted/scratch/node001/var/loig/state  /var/loig/state  none  bind  0  0
+# /mnted/scratch/node001/var/log/state  /var/log/state  none  bind  0  0
 mounts:
   - name: "nfs_slurm"
     source: "172.16.107.168:/mnt/share/omnia"
@@ -118,7 +124,7 @@ mounts:
     functional_group_prefix: ["service_kube"]
 
   - name: "vast_storage"
-    source: "172.16.0.254:/mnt/share/vast"
+    source: "172.16.107.77:/share/vast"
     mount_point: "/mnt/vast"
     mount_params: "vast_rdma"
     functional_group_prefix: ["slurm_node", "login"]
@@ -139,21 +145,21 @@ mounts:
 #
 
 mount_params:
-  # Default NFS mount - standard NFS4.1 with high-performance options
+  # Default NFS mount
   nfs_default:
     fs_type: "nfs"
-    mnt_opts: "nosuid,rw,sync,hard,intr"
+    mnt_opts: "nosuid,rw,sync,hard"
     dump_freq: "0"
     fsck_pass: "0"
 
-  # VAST NFS storage - standard configuration
+  # VAST NFS RDMA storage over IB - standard configuration
   vast_rdma:
     fs_type: "nfs"
-    mnt_opts: "proto=rdma,port=20049,nconnect=8,timeo=600,retrans=2,rsize=1048576,wsize=1048576,hard,intr,localaddr=192.168.0.23"
+    mnt_opts: "proto=rdma,nconnect=8,timeo=600,retrans=2,rsize=1048576,wsize=1048576,hard"
 
-  vast_nfs:
+  vast_tcp:
     fs_type: "nfs"
-    mnt_opts: "nosuid,rw,sync,hard,intr"
+    mnt_opts: "nosuid,rw,sync,hard"
 
 # -----------------------------Powervault-------------------------------------------
 # powervault_config

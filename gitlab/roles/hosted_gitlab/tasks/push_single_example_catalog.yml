@@ -21,9 +21,7 @@
 
 - name: Check if example catalog exists in repository
   ansible.builtin.uri:
-    url: >-
-      {{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/
-      repository/files/{{ _gitlab_example_encoded_path }}?ref={{ gitlab_default_branch }}
+    url: "{{ gitlab_external_url_computed }}/api/v4/projects/{{ gitlab_project_id }}/repository/files/{{ _gitlab_example_encoded_path }}?ref={{ gitlab_default_branch }}"  # noqa: yaml[line-length]
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ gitlab_root_token }}"
